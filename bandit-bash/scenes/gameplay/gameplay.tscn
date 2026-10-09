@@ -1,0 +1,46 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/nav_button.gd" id="1_nav"]
+
+[node name="Gameplay" type="Node2D"]
+
+[node name="SpawnPoints" type="Node2D" parent="."]
+
+[node name="P1" type="Marker2D" parent="SpawnPoints"]
+
+[node name="P2" type="Marker2D" parent="SpawnPoints"]
+
+[node name="P3" type="Marker2D" parent="SpawnPoints"]
+
+[node name="P4" type="Marker2D" parent="SpawnPoints"]
+
+[node name="Players" type="Node2D" parent="."]
+
+[node name="Hud" type="CanvasLayer" parent="."]
+
+[node name="Center" type="CenterContainer" parent="Hud"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Column" type="VBoxContainer" parent="Hud/Center"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Hud/Center/Column"]
+layout_mode = 2
+text = "Gameplay (placeholder)"
+horizontal_alignment = 1
+
+[node name="Note" type="Label" parent="Hud/Center/Column"]
+layout_mode = 2
+text = "SpawnPoints and Players are where the player spawner will attach."
+horizontal_alignment = 1
+
+[node name="EndRoundButton" type="Button" parent="Hud/Center/Column"]
+layout_mode = 2
+text = "End Round"
+script = ExtResource("1_nav")
+action = 3
+target_screen = 4

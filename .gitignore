@@ -1,0 +1,5 @@
+Godot_FE/
+steam_multiplayer_kit/
+.godot/
+*.translation
+export_presets.cfg   # only if it holds secrets

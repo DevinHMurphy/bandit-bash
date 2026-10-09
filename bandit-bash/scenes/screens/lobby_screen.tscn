@@ -1,0 +1,95 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/screens/lobby_screen.gd" id="1_lobby"]
+[ext_resource type="Script" path="res://scripts/ui/nav_button.gd" id="2_nav"]
+
+[node name="LobbyScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_lobby")
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Column" type="VBoxContainer" parent="Center"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Center/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Lobby"
+horizontal_alignment = 1
+
+[node name="Status" type="Label" parent="Center/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+horizontal_alignment = 1
+
+[node name="CodeRow" type="HBoxContainer" parent="Center/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="CodeLabel" type="Label" parent="Center/Column/CodeRow"]
+layout_mode = 2
+text = "Lobby code:"
+
+[node name="CodeField" type="LineEdit" parent="Center/Column/CodeRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+editable = false
+
+[node name="CopyButton" type="Button" parent="Center/Column/CodeRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Copy"
+
+[node name="HostButton" type="Button" parent="Center/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Host Lobby"
+
+[node name="JoinRow" type="HBoxContainer" parent="Center/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="JoinInput" type="LineEdit" parent="Center/Column/JoinRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+placeholder_text = "Lobby code"
+
+[node name="JoinButton" type="Button" parent="Center/Column/JoinRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Join"
+
+[node name="MembersList" type="VBoxContainer" parent="Center/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="StartButton" type="Button" parent="Center/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Start Match"
+
+[node name="LeaveButton" type="Button" parent="Center/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Leave Lobby"
+
+[node name="BackButton" type="Button" parent="Center/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Back"
+script = ExtResource("2_nav")
+target_screen = 5

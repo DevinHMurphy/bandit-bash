@@ -1,0 +1,50 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/nav_button.gd" id="1_nav"]
+
+[node name="StartScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Column" type="VBoxContainer" parent="Center"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Center/Column"]
+layout_mode = 2
+text = "Bandit Bash"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="Center/Column"]
+layout_mode = 2
+text = "Start Screen (placeholder)"
+horizontal_alignment = 1
+
+[node name="PlayButton" type="Button" parent="Center/Column"]
+layout_mode = 2
+text = "Play"
+script = ExtResource("1_nav")
+target_screen = 5
+
+[node name="OptionsButton" type="Button" parent="Center/Column"]
+layout_mode = 2
+text = "Options"
+script = ExtResource("1_nav")
+target_screen = 6
+
+[node name="QuitButton" type="Button" parent="Center/Column"]
+layout_mode = 2
+text = "Quit"
+script = ExtResource("1_nav")
+action = 2
