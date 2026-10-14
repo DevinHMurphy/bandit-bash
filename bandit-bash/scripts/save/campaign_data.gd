@@ -23,9 +23,6 @@ extends RefCounted
 ## ported and defines them.
 ##
 ## @tutorial(Save system plan): docs/plans/2026-10-13-save-system.md
-##
-## @todo: TOD-001 - Replace raw [member sections] and player sections with registered sections
-## (plan milestone M5).
 
 ## Which campaign slot of a save file this is.
 enum Mode {
@@ -106,8 +103,9 @@ var combat_maps_completed: int = 0
 ## One entry per seat, ordered by seat. Never empty in a loaded or created campaign.
 var players: Array[PlayerRun] = []
 
-# TODO(TOD-001): Replace with registered sections (plan milestone M5).
-## Section key to [code]{"version": int, "data": Dictionary}[/code], carried through unchanged.
+## Section key to [code]{"version": int, "data": Dictionary}[/code], as stored on disk.
+## [code]SaveService[/code] moves it to and from the registered [SaveSection]s
+## ([SaveSectionRegistry]); this class only stores it.
 var sections: Dictionary = {}
 
 
@@ -234,7 +232,8 @@ class PlayerRun:
 	## Steam id as a decimal string (too large for a JSON number). Empty in solo.
 	var steam_id: String = ""
 	## Per-player section key (roster, inventory, convoy, economy) to
-	## [code]{"version": int, "data": Dictionary}[/code], carried through unchanged.
+	## [code]{"version": int, "data": Dictionary}[/code], as stored on disk. Moved to and from the
+	## registered [PlayerSaveSection]s by [SaveSectionRegistry].
 	var sections: Dictionary = {}
 
 	## Returns this player as plain data for the envelope.

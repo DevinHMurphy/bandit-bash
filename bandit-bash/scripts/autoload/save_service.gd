@@ -21,6 +21,8 @@ extends Node
 ## [b]Play time[/b] counts only while a campaign is active ([member campaign]). Each
 ## [method save_checkpoint] adds the time since that file's last successful write to the campaign
 ## and to the profile; time since the last checkpoint is lost if the game quits without one.[br]
+## [b]Sections:[/b] systems keep their own data in a file by registering a [SaveSection] or
+## [PlayerSaveSection] here (see [method register_section]); [SaveSectionRegistry] routes it.[br]
 ## [b]Why an autoload:[/b] the open save file outlives every screen change.
 ##
 ## @tutorial(Save system plan): docs/plans/2026-10-13-save-system.md
@@ -55,6 +57,16 @@ const LAST_SELECTED_PATH: String = SAVES_DIR + "last_selected.json"
 const _LAST_SELECTED_SCHEMA_VERSION: int = 1
 const _KEY_SAVE_NUMBER: String = "save_number"
 
+# Section keys reserved for systems that don't exist yet (plan, Blocks). Each is held by a
+# RawSaveSection until its system registers the real section under the same key.
+const _RESERVED_PROFILE_SECTIONS: Array[String] = [
+	"unlocks",
+	"achievements",
+	"statistics",
+	"hall_of_heroes",
+]
+const _RESERVED_CAMPAIGN_SECTIONS: Array[String] = ["rng"]
+
 ## The open save file, 1 to [constant SAVE_FILE_COUNT], or [constant NO_SAVE_FILE].
 var current_save_number: int = NO_SAVE_FILE
 
@@ -75,6 +87,34 @@ var campaign: CampaignData = null
 # write that fails for one file can't make the other count the same time twice.
 var _campaign_flush_msec: int = 0
 var _profile_flush_msec: int = 0
+
+var _sections: SaveSectionRegistry = SaveSectionRegistry.new()
+
+
+func _ready() -> void:
+	for key: String in _RESERVED_PROFILE_SECTIONS:
+		_sections.register(SaveSection.Block.PROFILE, RawSaveSection.new(key))
+	for key: String in _RESERVED_CAMPAIGN_SECTIONS:
+		_sections.register(SaveSection.Block.CAMPAIGN, RawSaveSection.new(key))
+
+
+## Registers [param section] to keep its data in [param block] of every save file.
+##
+## Call it before a save file opens (an autoload's [code]_ready()[/code] is early enough): a
+## section registered later misses that file's load and starts from [method SaveSection.reset].
+## Replaces any section with the same key, which is how a system takes over a reserved key.
+func register_section(block: SaveSection.Block, section: SaveSection) -> void:
+	if has_open_save_file():
+		push_warning("SaveService: '%s' registered with a save file open." % [section.get_key()])
+	_sections.register(block, section)
+
+
+## Registers [param section] to keep data for every player of a campaign. Same timing rule as
+## [method register_section].
+func register_player_section(section: PlayerSaveSection) -> void:
+	if has_open_save_file():
+		push_warning("SaveService: '%s' registered with a save file open." % [section.get_key()])
+	_sections.register_player(section)
 
 
 ## True while a save file is open.
@@ -153,13 +193,17 @@ func open_save_file(save_number: int) -> Error:
 
 	if result.error == ERR_FILE_NOT_FOUND:
 		loaded = ProfileData.create_new()
+		_sections.reset(SaveSection.Block.PROFILE)
 		needs_write = true
 	elif result.error != OK:
 		return result.error
 	else:
 		loaded = ProfileData.new()
 		var load_err: Error = loaded.load_envelope(result.envelope)
+		if load_err == OK:
+			load_err = _sections.restore(SaveSection.Block.PROFILE, loaded.sections)
 		if load_err != OK:
+			_sections.reset(SaveSection.Block.PROFILE)
 			return load_err
 
 	var steam_name: String = _get_steam_name()
@@ -168,8 +212,10 @@ func open_save_file(save_number: int) -> Error:
 		needs_write = true
 
 	if needs_write:
+		loaded.sections = _sections.capture(SaveSection.Block.PROFILE, loaded.sections)
 		var write_err: Error = SaveFile.write(path, loaded.to_envelope())
 		if write_err != OK:
+			_sections.reset(SaveSection.Block.PROFILE)
 			return write_err
 
 	current_save_number = save_number
@@ -188,7 +234,8 @@ func close_save_file() -> void:
 		return
 	current_save_number = NO_SAVE_FILE
 	profile = null
-	campaign = null
+	_end_campaign()
+	_sections.reset(SaveSection.Block.PROFILE)
 	save_file_closed.emit()
 
 
@@ -216,10 +263,12 @@ func start_new_solo_run() -> Error:
 	# ASSUMPTION: a random seed until run setup chooses one; run setup belongs to the campaign
 	# system (plan, Scope).
 	campaign = CampaignData.create_solo(randi())
+	_sections.reset(SaveSection.Block.CAMPAIGN)
+	_sections.reset_players(campaign.players)
 	_start_play_clock()
 	var err: Error = save_checkpoint()
 	if err != OK:
-		campaign = null
+		_end_campaign()
 	return err
 
 
@@ -229,7 +278,7 @@ func start_new_solo_run() -> Error:
 ## Returns [constant OK], [constant ERR_UNCONFIGURED] with no save file open, or the read or load
 ## error; on error no campaign is active.
 func continue_solo_run() -> Error:
-	campaign = null
+	_end_campaign()
 	if not has_open_save_file():
 		push_error("SaveService: can't continue a run with no save file open.")
 		return ERR_UNCONFIGURED
@@ -242,6 +291,13 @@ func continue_solo_run() -> Error:
 	if loaded.mode != CampaignData.Mode.SOLO:
 		push_error("SaveService: %s is not a solo campaign." % [path])
 		return ERR_INVALID_DATA
+
+	var sections_err: Error = _sections.restore(SaveSection.Block.CAMPAIGN, loaded.sections)
+	if sections_err == OK:
+		sections_err = _sections.restore_players(loaded.players)
+	if sections_err != OK:
+		_end_campaign()
+		return sections_err
 
 	campaign = loaded
 	_start_play_clock()
@@ -282,7 +338,7 @@ func end_solo_run(won: bool) -> Error:
 	# TODO(TOD-001): Write the archive record with the outcome before deleting (plan M7).
 	var path: String = _get_campaign_path(current_save_number, CampaignData.Mode.SOLO)
 	var delete_err: Error = SaveFile.delete(path)
-	campaign = null
+	_end_campaign()
 	run_ended.emit(CampaignData.Mode.SOLO, won)
 	return delete_err if delete_err != OK else profile_err
 
@@ -296,7 +352,7 @@ func abandon_solo_run() -> Error:
 		push_error("SaveService: can't abandon a run with no save file open.")
 		return ERR_UNCONFIGURED
 	if campaign != null and campaign.mode == CampaignData.Mode.SOLO:
-		campaign = null
+		_end_campaign()
 
 	# TODO(TOD-001): Archive the run as lost before deleting (plan M7).
 	var path: String = _get_campaign_path(current_save_number, CampaignData.Mode.SOLO)
@@ -387,6 +443,14 @@ func _load_campaign_into(path: String, target: CampaignData) -> Error:
 	return target.load_envelope(result.envelope)
 
 
+# Drops the active campaign and empties every campaign section, so nothing from it leaks into the
+# next run.
+func _end_campaign() -> void:
+	campaign = null
+	_sections.reset(SaveSection.Block.CAMPAIGN)
+	_sections.clear_players()
+
+
 func _start_play_clock() -> void:
 	var now_msec: int = Time.get_ticks_msec()
 	_campaign_flush_msec = now_msec
@@ -402,6 +466,8 @@ func _write_campaign(now_msec: int) -> Error:
 	campaign.play_time_seconds += seconds
 	campaign.checkpoint_seq += 1
 	campaign.last_opened = int(Time.get_unix_time_from_system())
+	campaign.sections = _sections.capture(SaveSection.Block.CAMPAIGN, campaign.sections)
+	_sections.capture_players(campaign.players)
 	var path: String = _get_campaign_path(current_save_number, campaign.mode)
 	var err: Error = SaveFile.write(path, campaign.to_envelope())
 	if err != OK:
@@ -417,6 +483,7 @@ func _write_campaign(now_msec: int) -> Error:
 func _write_profile(now_msec: int) -> Error:
 	var seconds: int = _get_whole_seconds_since(_profile_flush_msec, now_msec)
 	profile.play_time_seconds += seconds
+	profile.sections = _sections.capture(SaveSection.Block.PROFILE, profile.sections)
 	var err: Error = SaveFile.write(_get_profile_path(current_save_number), profile.to_envelope())
 	if err != OK:
 		profile.play_time_seconds -= seconds

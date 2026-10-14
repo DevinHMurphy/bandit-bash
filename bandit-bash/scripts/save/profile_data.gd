@@ -20,8 +20,6 @@ extends RefCounted
 ## [member last_steam_name] so a save file still shows a name while Steam is unavailable.
 ##
 ## @tutorial(Save system plan): docs/plans/2026-10-13-save-system.md
-##
-## @todo: TOD-001 - Replace raw [member sections] with registered SaveSections (plan milestone M5).
 
 ## File name inside the save file's folder.
 const FILE_NAME: String = "profile.json"
@@ -44,9 +42,9 @@ var play_time_seconds: int = 0
 ## [b]Units:[/b] Unix seconds, UTC.
 var created_at: int = 0
 
-# TODO(TOD-001): Replace with registered SaveSections (plan milestone M5).
-## Section key to [code]{"version": int, "data": Dictionary}[/code]: unlocks, achievements,
-## statistics, Hall of Heroes. Carried through unchanged so nothing written there is lost.
+## Section key to [code]{"version": int, "data": Dictionary}[/code], as stored on disk: unlocks,
+## achievements, statistics, Hall of Heroes. [code]SaveService[/code] moves it to and from the
+## registered [SaveSection]s ([SaveSectionRegistry]); this class only stores it.
 var sections: Dictionary = {}
 
 
