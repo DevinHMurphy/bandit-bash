@@ -52,6 +52,11 @@ var current_save_number: int = NO_SAVE_FILE
 ## [constant NO_SAVE_FILE].
 var profile: ProfileData = null
 
+## Settings in effect: the open save file's, or, before one is opened, the last selected one's
+## (see [method load_startup_settings]). Never null; defaults when there is nothing to load.
+## Closing a save file keeps its settings in effect. Change it through [method save_settings].
+var settings: SettingsData = SettingsData.new()
+
 
 ## True while a save file is open.
 func has_open_save_file() -> bool:
@@ -138,6 +143,8 @@ func open_save_file(save_number: int) -> Error:
 
 	current_save_number = save_number
 	profile = loaded
+	settings = _read_settings(save_number)
+	settings.apply()
 	_write_last_selected(save_number)
 	save_file_opened.emit(save_number)
 	return OK
@@ -171,6 +178,38 @@ func delete_save_file(save_number: int) -> Error:
 	return OK
 
 
+## Loads and applies the last selected save file's settings, or defaults when there is none.
+##
+## [code]boot.gd[/code] calls this once before the first screen, so Start and Save Select already
+## use the player's settings. Nothing is written.
+func load_startup_settings() -> void:
+	var save_number: int = get_last_selected()
+	if save_number == NO_SAVE_FILE:
+		settings = SettingsData.new()
+	else:
+		settings = _read_settings(save_number)
+	settings.apply()
+
+
+## Writes [param new_settings] to the open save file's settings file, and nothing else, then
+## makes a copy of them the settings in effect and applies them.
+##
+## Returns [constant OK], [constant ERR_UNCONFIGURED] when no save file is open, or the write
+## error; on any error [member settings] is unchanged.
+func save_settings(new_settings: SettingsData) -> Error:
+	if not has_open_save_file():
+		push_error("SaveService: can't save settings with no save file open.")
+		return ERR_UNCONFIGURED
+
+	var path: String = _get_settings_path(current_save_number)
+	var err: Error = SaveFile.write(path, new_settings.to_envelope())
+	if err != OK:
+		return err
+	settings = new_settings.copy()
+	settings.apply()
+	return OK
+
+
 ## The last opened save file if it still exists, else [constant NO_SAVE_FILE].
 func get_last_selected() -> int:
 	var save_number: int = _read_last_selected()
@@ -183,6 +222,23 @@ func get_last_selected() -> int:
 
 func _get_profile_path(save_number: int) -> String:
 	return get_save_file_dir(save_number) + ProfileData.FILE_NAME
+
+
+func _get_settings_path(save_number: int) -> String:
+	return get_save_file_dir(save_number) + SettingsData.FILE_NAME
+
+
+# Missing settings are normal (nothing applied yet) and give defaults. An unreadable or too-new
+# file also gives defaults, with a warning, rather than blocking the save file from opening.
+func _read_settings(save_number: int) -> SettingsData:
+	var loaded: SettingsData = SettingsData.new()
+	var result: SaveFile.ReadResult = SaveFile.read(_get_settings_path(save_number))
+	if result.error == ERR_FILE_NOT_FOUND:
+		return loaded
+	if result.error != OK or loaded.load_envelope(result.envelope) != OK:
+		push_warning("SaveService: settings of save %d unreadable; using defaults." % [save_number])
+		return SettingsData.new()
+	return loaded
 
 
 func _get_failure_state(err: Error) -> SaveFileSummary.State:

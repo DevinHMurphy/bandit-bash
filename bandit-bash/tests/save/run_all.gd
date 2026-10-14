@@ -10,7 +10,8 @@
 # ==============================================================================
 
 extends SceneTree
-## Headless tests for the save layer ([SaveFile], [SaveMigrations], [ProfileData]).
+## Headless tests for the save layer ([SaveFile], [SaveMigrations], [ProfileData],
+## [SettingsData]).
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/save/run_all.gd[/code][br]
@@ -57,6 +58,9 @@ func _init() -> void:
 	_test_delete_folder()
 	_test_profile_round_trip()
 	_test_profile_defaults_and_newer_schema()
+	_test_settings_round_trip_and_copy()
+	_test_settings_repairs_hand_edits()
+	_test_settings_volume_db()
 
 	SaveFile.delete_folder(TEST_DIR)
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
@@ -361,6 +365,68 @@ func _test_profile_defaults_and_newer_schema() -> void:
 	var newer_err: Error = newer.load_envelope(newer_envelope)
 	_check("profile newer schema: refused", newer_err == ERR_FILE_UNRECOGNIZED)
 	_check("profile newer schema: left unchanged", newer.last_steam_name == "unchanged")
+
+
+func _test_settings_round_trip_and_copy() -> void:
+	_clear_test_dir()
+	var defaults: SettingsData = SettingsData.new()
+	_check(
+			"settings: defaults are 5",
+			defaults.master_volume == 5 and defaults.music_volume == 5 and defaults.sfx_volume == 5
+	)
+
+	var settings: SettingsData = SettingsData.new()
+	settings.set_volume(SettingsData.Channel.MASTER, 8)
+	settings.set_volume(SettingsData.Channel.MUSIC, 0)
+	settings.set_volume(SettingsData.Channel.SFX, 3)
+	SaveFile.write(TEST_PATH, settings.to_envelope())
+
+	var loaded: SettingsData = SettingsData.new()
+	var err: Error = loaded.load_envelope(SaveFile.read(TEST_PATH).envelope)
+	_check("settings: load OK", err == OK, error_string(err))
+	_check(
+			"settings: volumes kept",
+			loaded.master_volume == 8 and loaded.music_volume == 0 and loaded.sfx_volume == 3
+	)
+
+	var copied: SettingsData = loaded.copy()
+	copied.set_volume(SettingsData.Channel.MASTER, 1)
+	_check("settings: copy is independent", loaded.master_volume == 8 and copied.master_volume == 1)
+
+
+# settings.json is player-editable, so bad values are repaired rather than rejected.
+func _test_settings_repairs_hand_edits() -> void:
+	var core: Dictionary = {"master_volume": 99, "music_volume": "loud", "sfx_volume": 7.6}
+	var settings: SettingsData = SettingsData.new()
+	var err: Error = settings.load_envelope(SaveFile.make_envelope(1, core))
+
+	_check("settings hand edits: still loads", err == OK, error_string(err))
+	_check("settings hand edits: too high clamped", settings.master_volume == 10)
+	_check("settings hand edits: wrong type is default", settings.music_volume == 5)
+	_check("settings hand edits: fraction rounded", settings.sfx_volume == 8)
+
+	var negative: SettingsData = SettingsData.new()
+	negative.load_envelope(SaveFile.make_envelope(1, {"master_volume": -3}))
+	_check("settings hand edits: negative clamped", negative.master_volume == 0)
+	_check("settings hand edits: missing is default", negative.sfx_volume == 5)
+
+
+func _test_settings_volume_db() -> void:
+	var settings: SettingsData = SettingsData.new()
+	settings.set_volume(SettingsData.Channel.MASTER, 10)
+	settings.set_volume(SettingsData.Channel.MUSIC, 2)
+	settings.set_volume(SettingsData.Channel.SFX, 9)
+
+	var master_db: float = settings.get_volume_db(SettingsData.Channel.MASTER)
+	var sfx_db: float = settings.get_volume_db(SettingsData.Channel.SFX)
+	_check("volume dB: master is level - 5", master_db == 5.0, str(master_db))
+	_check("volume dB: SFX reads sfx_volume, not music", sfx_db == -11.0, str(sfx_db))
+
+	settings.set_volume(SettingsData.Channel.MUSIC, 0)
+	_check(
+			"volume dB: 0 mutes",
+			settings.get_volume_db(SettingsData.Channel.MUSIC) == SettingsData.MUTED_DB
+	)
 
 
 func _step_add_gold(envelope: Dictionary) -> Error:
