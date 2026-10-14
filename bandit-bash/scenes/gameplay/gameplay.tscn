@@ -2,6 +2,8 @@
 
 [ext_resource type="Script" path="res://scripts/ui/nav_button.gd" id="1_nav"]
 [ext_resource type="PackedScene" path="res://scenes/debug/save_debug_panel.tscn" id="2_save_debug"]
+[ext_resource type="PackedScene" path="res://scenes/ui/pause_menu.tscn" id="3_pause_menu"]
+[ext_resource type="PackedScene" path="res://scenes/ui/save_indicator.tscn" id="4_save_indicator"]
 
 [node name="Gameplay" type="Node2D"]
 
@@ -47,3 +49,7 @@ action = 3
 target_screen = 4
 
 [node name="SaveDebugPanel" parent="Hud" instance=ExtResource("2_save_debug")]
+
+[node name="SaveIndicator" parent="Hud" instance=ExtResource("4_save_indicator")]
+
+[node name="PauseMenu" parent="." instance=ExtResource("3_pause_menu")]

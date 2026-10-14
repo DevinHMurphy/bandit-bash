@@ -46,6 +46,10 @@ signal save_file_closed()
 ## [param mode]: which slot. [param won]: true for a win, false for a loss or abandon.
 signal run_ended(mode: CampaignData.Mode, won: bool)
 
+## A checkpoint finished: [method save_checkpoint], [method begin_battle] or [method end_battle].
+## [param error]: [constant OK], or why it failed; on failure the previous save is still on disk.
+signal checkpoint_saved(error: Error)
+
 ## Number of save files. Carried over from [code]Godot_FE/Game Start Screen/start_screen.gd[/code]
 ## (three slots).
 const SAVE_FILE_COUNT: int = 3
@@ -348,16 +352,9 @@ func save_checkpoint() -> Error:
 		push_error("SaveService: no active campaign to save.")
 		return ERR_UNCONFIGURED
 
-	if combat != null:
-		var combat_err: Error = _write_combat()
-		if combat_err != OK:
-			return combat_err
-
-	var now_msec: int = Time.get_ticks_msec()
-	var campaign_err: Error = _write_campaign(now_msec)
-	if campaign_err != OK:
-		return campaign_err
-	return _write_profile(now_msec)
+	var err: Error = _write_checkpoint()
+	checkpoint_saved.emit(err)
+	return err
 
 
 ## Starts and saves a battle when the player presses Begin after battle prep (plan, "Combat crash
@@ -417,12 +414,15 @@ func end_battle() -> Error:
 		campaign.sections = begin_sections
 		for index: int in campaign.players.size():
 			campaign.players[index].sections = begin_player_sections[index]
+		checkpoint_saved.emit(campaign_err)
 		return campaign_err
 
 	var profile_err: Error = _write_profile(now_msec)
 	var delete_err: Error = SaveFile.delete(_get_combat_path(current_save_number, campaign.mode))
 	_end_battle_state()
-	return delete_err if delete_err != OK else profile_err
+	var err: Error = delete_err if delete_err != OK else profile_err
+	checkpoint_saved.emit(err)
+	return err
 
 
 ## Ends the active solo run as a win or loss: flushes play time to the profile, archives the run,
@@ -663,6 +663,21 @@ func _end_battle_state() -> void:
 func _capture_campaign_sections() -> void:
 	campaign.sections = _sections.capture(SaveSection.Block.CAMPAIGN, campaign.sections)
 	_sections.capture_players(campaign.players)
+
+
+# The body of save_checkpoint(): combat file (during a battle), campaign, then profile, stopping
+# at the first failure.
+func _write_checkpoint() -> Error:
+	if combat != null:
+		var combat_err: Error = _write_combat()
+		if combat_err != OK:
+			return combat_err
+
+	var now_msec: int = Time.get_ticks_msec()
+	var campaign_err: Error = _write_campaign(now_msec)
+	if campaign_err != OK:
+		return campaign_err
+	return _write_profile(now_msec)
 
 
 # Writes the combat file with the checkpoint number the campaign write that follows will take.
