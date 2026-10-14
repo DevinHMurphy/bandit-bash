@@ -13,8 +13,10 @@ class_name SaveFileSummary
 extends RefCounted
 ## What Save Select shows for one save file, read without opening it.
 ##
-## Built by [code]SaveService.get_summary()[/code]. Campaign slot summaries join it when the
-## campaign slots exist (plan milestones M4 and M10).
+## Built by [code]SaveService.get_summary()[/code]. The multiplayer slot summary joins it in plan
+## milestone M10.
+##
+## @todo: TOD-001 - Add the multiplayer slot summary (plan milestone M10).
 
 ## Whether and how the save file can be opened.
 enum State {
@@ -44,3 +46,15 @@ var player_name: String = ""
 ## Total play time.[br]
 ## [b]Units:[/b] seconds. 0 unless [member state] is [constant READY].
 var play_time_seconds: int = 0
+
+# TODO(TOD-001): Add the multiplayer slot summary (plan milestone M10).
+## The solo campaign slot, using the same states: [constant EMPTY] means no run in progress.
+## Only read when [member state] is [constant READY].
+var solo_state: State = State.EMPTY
+
+## Floors climbed in the solo run. 0 unless [member solo_state] is [constant READY].
+var solo_floors_climbed: int = 0
+
+## When the solo run was last saved.[br]
+## [b]Units:[/b] Unix seconds, UTC. 0 unless [member solo_state] is [constant READY].
+var solo_last_opened: int = 0

@@ -88,12 +88,32 @@ func _describe(summary: SaveFileSummary) -> String:
 			var player_name: String = summary.player_name
 			if player_name.is_empty():
 				player_name = "Unknown player"
-			return "%s  ·  %s played" % [player_name, _format_play_time(summary.play_time_seconds)]
+			var played: String = _format_play_time(summary.play_time_seconds)
+			return "%s  ·  %s played\n%s" % [player_name, played, _describe_solo(summary)]
 		SaveFileSummary.State.UNREADABLE:
 			return "Can't be read. Delete it to reuse this slot."
 		SaveFileSummary.State.TOO_NEW:
 			return "Made by a newer version of the game."
 	return "Empty"
+
+
+func _describe_solo(summary: SaveFileSummary) -> String:
+	match summary.solo_state:
+		SaveFileSummary.State.READY:
+			return "Solo run: floor %d, last played %s" % [
+				summary.solo_floors_climbed, _format_local_time(summary.solo_last_opened)
+			]
+		SaveFileSummary.State.UNREADABLE:
+			return "Solo run can't be read."
+		SaveFileSummary.State.TOO_NEW:
+			return "Solo run made by a newer version of the game."
+	return "No solo run"
+
+
+# Saved times are UTC; shown in the player's time zone.
+func _format_local_time(unix_seconds: int) -> String:
+	var bias_minutes: int = int(Time.get_time_zone_from_system().get("bias", 0))
+	return Time.get_datetime_string_from_unix_time(unix_seconds + bias_minutes * 60, true)
 
 
 # Whole hours and minutes; leftover seconds are dropped on purpose.

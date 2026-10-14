@@ -11,7 +11,7 @@
 
 extends SceneTree
 ## Headless tests for the save layer ([SaveFile], [SaveMigrations], [ProfileData],
-## [SettingsData]).
+## [SettingsData], [CampaignData]).
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/save/run_all.gd[/code][br]
@@ -61,6 +61,9 @@ func _init() -> void:
 	_test_settings_round_trip_and_copy()
 	_test_settings_repairs_hand_edits()
 	_test_settings_volume_db()
+	_test_campaign_solo_round_trip()
+	_test_campaign_multiplayer_shape()
+	_test_campaign_rejects_bad_data()
 
 	SaveFile.delete_folder(TEST_DIR)
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
@@ -427,6 +430,84 @@ func _test_settings_volume_db() -> void:
 			"volume dB: 0 mutes",
 			settings.get_volume_db(SettingsData.Channel.MUSIC) == SettingsData.MUTED_DB
 	)
+
+
+func _test_campaign_solo_round_trip() -> void:
+	_clear_test_dir()
+	var campaign: CampaignData = CampaignData.create_solo(123456)
+	campaign.difficulty = "hard"
+	campaign.modifiers = PackedStringArray(["fog", "famine"])
+	campaign.play_time_seconds = 90
+	campaign.checkpoint_seq = 4
+	campaign.level_id = "forest_2"
+	campaign.floors_climbed = 3
+	campaign.combat_maps_completed = 1
+	campaign.players[0].sections = {"roster": {"version": 1, "data": {"units": ["u1"]}}}
+	SaveFile.write(TEST_PATH, campaign.to_envelope())
+
+	var loaded: CampaignData = CampaignData.new()
+	var err: Error = loaded.load_envelope(SaveFile.read(TEST_PATH).envelope)
+	_check("campaign solo: load OK", err == OK, error_string(err))
+	_check("campaign solo: mode", loaded.mode == CampaignData.Mode.SOLO)
+	_check("campaign solo: seed", loaded.run_seed == 123456)
+	_check(
+			"campaign solo: difficulty and modifiers",
+			loaded.difficulty == "hard" and loaded.modifiers == PackedStringArray(["fog", "famine"])
+	)
+	_check(
+			"campaign solo: timestamps",
+			loaded.started_at == campaign.started_at and loaded.started_at > 0
+	)
+	_check("campaign solo: checkpoint_seq from envelope", loaded.checkpoint_seq == 4)
+	_check(
+			"campaign solo: progress",
+			loaded.level_id == "forest_2" and loaded.floors_climbed == 3
+			and loaded.combat_maps_completed == 1 and loaded.play_time_seconds == 90
+	)
+	_check("campaign solo: one seat 0", loaded.players.size() == 1 and loaded.players[0].seat == 0)
+	_check("campaign solo: no Steam id", loaded.players[0].steam_id.is_empty())
+	_check("campaign solo: player sections kept", loaded.players[0].sections.has("roster"))
+	var solo_file: String = CampaignData.get_file_name(CampaignData.Mode.SOLO)
+	_check("campaign solo: file name", solo_file == "campaign_solo.json")
+
+
+func _test_campaign_multiplayer_shape() -> void:
+	_clear_test_dir()
+	var campaign: CampaignData = CampaignData.create_solo(1)
+	campaign.mode = CampaignData.Mode.MULTIPLAYER
+	campaign.players[0].steam_id = STEAM_ID
+	for seat: int in range(1, 4):
+		var player: CampaignData.PlayerRun = CampaignData.PlayerRun.new()
+		player.seat = seat
+		player.steam_id = "7656119800000000%d" % [seat + 1]
+		campaign.players.append(player)
+	SaveFile.write(TEST_PATH, campaign.to_envelope())
+
+	var loaded: CampaignData = CampaignData.new()
+	var err: Error = loaded.load_envelope(SaveFile.read(TEST_PATH).envelope)
+	_check("campaign multi: load OK", err == OK, error_string(err))
+	_check("campaign multi: mode", loaded.mode == CampaignData.Mode.MULTIPLAYER)
+	_check("campaign multi: four seats", loaded.players.size() == 4 and loaded.players[3].seat == 3)
+	_check("campaign multi: host Steam id exact", loaded.players[0].steam_id == STEAM_ID)
+
+
+func _test_campaign_rejects_bad_data() -> void:
+	var good_player: Dictionary = {"seat": 0, "steam_id": "", "sections": {}}
+	var cases: Dictionary[String, Dictionary] = {
+		"unknown mode": {"mode": "coop", "players": [good_player]},
+		"missing players": {"mode": "solo"},
+		"empty players": {"mode": "solo", "players": []},
+		"player without seat": {"mode": "solo", "players": [{"steam_id": ""}]},
+		"player not a dictionary": {"mode": "solo", "players": ["seat 0"]},
+	}
+	for case_name: String in cases:
+		var campaign: CampaignData = CampaignData.new()
+		campaign.level_id = "unchanged"
+		var err: Error = campaign.load_envelope(SaveFile.make_envelope(1, cases[case_name], {}, 1))
+		_check(
+				"campaign bad data: %s refused" % [case_name],
+				err == ERR_INVALID_DATA and campaign.level_id == "unchanged"
+		)
 
 
 func _step_add_gold(envelope: Dictionary) -> Error:

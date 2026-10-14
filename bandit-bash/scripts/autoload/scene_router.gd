@@ -27,7 +27,8 @@ signal screen_changed(screen: Screen)
 #   Precondition: boot.tscn opens START once; no other screen is entered before that.
 #   START       -> SAVE_SELECT, quit
 #   SAVE_SELECT -> MAIN_MENU (only after a save file opens; save_select_screen.gd), START
-#   MAIN_MENU   -> LOADING (solo), LOBBY (multiplayer), OPTIONS, SAVE_SELECT
+#   MAIN_MENU   -> LOADING (Continue Run), NEW_RUN, LOBBY (multiplayer), OPTIONS, SAVE_SELECT
+#   NEW_RUN     -> LOADING (after the run's first save; new_run_screen.gd), MAIN_MENU
 #   OPTIONS     -> back to whichever screen opened it (only MAIN_MENU links to it)
 #   LOBBY       -> LOADING (everyone), MAIN_MENU
 #   LOADING     -> GAMEPLAY (everyone)
@@ -51,6 +52,7 @@ enum Screen {
 	MAIN_MENU = 5,
 	OPTIONS = 6,
 	SAVE_SELECT = 7,
+	NEW_RUN = 8,
 }
 
 ## [enum Screen] -> scene path. Every [enum Screen] value needs an entry.
@@ -63,6 +65,7 @@ const SCREEN_PATHS: Dictionary[Screen, String] = {
 	Screen.MAIN_MENU: "res://scenes/screens/main_menu.tscn",
 	Screen.OPTIONS: "res://scenes/screens/options_screen.tscn",
 	Screen.SAVE_SELECT: "res://scenes/screens/save_select_screen.tscn",
+	Screen.NEW_RUN: "res://scenes/screens/new_run_screen.tscn",
 }
 
 ## Screen this machine is showing. [constant Screen.START] until the first [method goto_screen].
