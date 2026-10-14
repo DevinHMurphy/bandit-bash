@@ -21,7 +21,7 @@ extends RefCounted
 ## by the systems that hold them; player units there carry their persisted uid and owning seat,
 ## so this block needs no players array.
 ##
-## @tutorial(Save system plan): docs/plans/2026-10-13-save-system.md
+## @tutorial(Save system design): docs/design/save-system.md
 
 ## Which side acts. Saved at the end of a player phase, so a resumed battle starts at
 ## [constant ENEMY].

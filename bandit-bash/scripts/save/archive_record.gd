@@ -17,7 +17,7 @@ extends RefCounted
 ## once; nothing changes it afterwards. All plain data, so a multiplayer host can send it to every
 ## player to keep in their own archive (plan milestone M11). An archive viewer reads it later.
 ##
-## @tutorial(Save system plan): docs/plans/2026-10-13-save-system.md
+## @tutorial(Save system design): docs/design/save-system.md
 
 ## Current schema version of this block. Raising it needs a step in [method _migration_steps].
 const SCHEMA_VERSION: int = 1

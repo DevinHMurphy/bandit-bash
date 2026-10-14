@@ -17,7 +17,9 @@ extends CanvasLayer
 ## so and stays. With nothing to save (no active run) it offers Quit to Menu instead. A
 ## multiplayer client gets Leave Match: clients never save a campaign.[br]
 ## Pauses the scene tree only in solo play. In a multiplayer session the host keeps simulating for
-## everyone, so the menu opens without pausing.
+## everyone, so the menu opens without pausing.[br]
+## Also asks "Save & Quit and join?" when a Steam invite arrives during a solo run
+## ([signal SceneRouter.invite_confirmation_requested]); declining drops the invite.
 
 # ============================================================
 # INPUT MAP SETUP (no [input] section in project.godot; built-in action):
@@ -30,6 +32,7 @@ extends CanvasLayer
 @onready var _resume_button: Button = %ResumeButton
 @onready var _save_quit_button: Button = %SaveQuitButton
 @onready var _leave_button: Button = %LeaveButton
+@onready var _invite_dialog: ConfirmationDialog = %InviteDialog
 
 
 func _ready() -> void:
@@ -37,6 +40,11 @@ func _ready() -> void:
 	_resume_button.pressed.connect(close)
 	_save_quit_button.pressed.connect(_on_save_quit_button_pressed)
 	_leave_button.pressed.connect(_on_leave_button_pressed)
+	_invite_dialog.confirmed.connect(_on_invite_dialog_confirmed)
+	_invite_dialog.canceled.connect(_on_invite_dialog_canceled)
+	SceneRouter.invite_confirmation_requested.connect(
+			_on_scene_router_invite_confirmation_requested
+	)
 
 
 func _exit_tree() -> void:
@@ -89,3 +97,22 @@ func _on_save_quit_button_pressed() -> void:
 func _on_leave_button_pressed() -> void:
 	close()
 	SceneRouter.goto_screen(SceneRouter.Screen.MAIN_MENU)
+
+
+func _on_scene_router_invite_confirmation_requested() -> void:
+	open()
+	_invite_dialog.popup_centered()
+
+
+func _on_invite_dialog_confirmed() -> void:
+	var err: Error = SaveService.save_checkpoint()
+	if err != OK:
+		SteamNetwork.take_pending_invite()
+		_status_label.text = "Couldn't save (%s), so the invite was declined." % [error_string(err)]
+		return
+	close()
+	SceneRouter.accept_pending_invite()
+
+
+func _on_invite_dialog_canceled() -> void:
+	SteamNetwork.take_pending_invite()

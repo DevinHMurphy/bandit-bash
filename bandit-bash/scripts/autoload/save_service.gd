@@ -12,28 +12,23 @@
 extends Node
 ## Owns which save file is open, and every read and write of save data.
 ##
-## Registered as autoload [code]SaveService[/code], after [code]NetLog[/code]. Screens ask it for
-## data and never touch disk; every file goes through [SaveFile].[br]
-## A save file is the folder [code]user://saves/save_N/[/code], N from 1 to
-## [constant SAVE_FILE_COUNT]. The game always opens one on Save Select before the Main Menu, and
-## [constant LAST_SELECTED_PATH] remembers the last one across launches (Save Select focus,
-## accepted invites).[br]
-## [b]Play time[/b] counts only while a campaign is active ([member campaign]). Each
-## [method save_checkpoint] adds the time since that file's last successful write to the campaign
-## and to the profile; time since the last checkpoint is lost if the game quits without one.[br]
-## [b]Sections:[/b] systems keep their own data in a file by registering a [SaveSection] or
-## [PlayerSaveSection] here (see [method register_section]); [SaveSectionRegistry] routes it.[br]
-## [b]Battles[/b] ([method begin_battle], [method end_battle]) write the combat file before the
-## campaign, both with the same checkpoint number, so a crash between the two is detectable;
-## [method continue_solo_run] decides from that pairing whether to resume or restart the battle
-## ([member resume_point]).[br]
-## [b]Why an autoload:[/b] the open save file outlives every screen change.
+## Registered as autoload [code]SaveService[/code], after [code]SteamNetwork[/code] (its
+## [code]_ready()[/code] connects to it) and before [code]SceneRouter[/code]. Screens ask it for
+## data and never touch disk; every file goes through [SaveFile]. [b]Why an autoload:[/b] the open
+## save file outlives every screen change, and its multiplayer RPCs need the same path on every
+## peer from boot.[br]
+## A save file is [code]user://saves/save_N/[/code]; Save Select always opens one before the Main
+## Menu, and [constant LAST_SELECTED_PATH] remembers it across launches.[br]
+## [b]Play time[/b] counts while a campaign is active and is added to the campaign and profile at
+## each [method save_checkpoint].[br]
+## [b]Sections:[/b] systems keep their own data by registering with [method register_section].[br]
+## [b]Battles:[/b] the combat file is written before the campaign with the same checkpoint
+## number; [member resume_point] says whether a continued run resumes or restarts its battle.[br]
+## [b]Ended runs[/b] are archived before their slot empties; see [member last_archive_error].[br]
+## [b]Multiplayer:[/b] only the host saves the campaign. Clients keep [member multiplayer_replica]
+## and write only their own profile and archive (kit P16).
 ##
-## [b]Ended runs[/b] are written to the save file's archive ([ArchiveRecord]) before their slot is
-## emptied. A failed archive write never keeps a run alive; it is reported in
-## [member last_archive_error].[br]
-##
-## @tutorial(Save system plan): docs/plans/2026-10-13-save-system.md
+## @tutorial(Save system design): docs/design/save-system.md
 
 ## A save file was opened and [member profile] is loaded.
 ## [param save_number]: 1 to [constant SAVE_FILE_COUNT].
@@ -105,6 +100,14 @@ var resume_point: CombatData.ResumePoint = CombatData.ResumePoint.CAMPAIGN
 ## couldn't be written (the run ended anyway). [constant ERR_UNCONFIGURED] before any run ends.
 var last_archive_error: Error = ERR_UNCONFIGURED
 
+## Multiplayer clients only: the host's campaign as of its last checkpoint. Never saved; null on
+## the host, in solo, and outside a multiplayer run.
+var multiplayer_replica: CampaignData = null
+
+# Multiplayer clients only: true while taking part in a host's run, so play time is counted and
+# flushed to this machine's profile.
+var _is_client_in_run: bool = false
+
 # The run that ended last, until the Results screen takes it with take_ended_run().
 var _ended_run: ArchiveRecord = null
 
@@ -123,6 +126,7 @@ func _ready() -> void:
 		_sections.register(SaveSection.Block.CAMPAIGN, RawSaveSection.new(key))
 	for key: String in _RESERVED_COMBAT_SECTIONS:
 		_sections.register(SaveSection.Block.COMBAT, RawSaveSection.new(key))
+	SteamNetwork.lobby_left.connect(_on_steam_network_lobby_left)
 
 
 ## Registers [param section] to keep its data in [param block] of every save file.
@@ -197,7 +201,38 @@ func get_summary(save_number: int) -> SaveFileSummary:
 		summary.solo_state = SaveFileSummary.State.READY
 		summary.solo_floors_climbed = solo.floors_climbed
 		summary.solo_last_opened = solo.last_opened
+
+	var multi: CampaignData = CampaignData.new()
+	var multi_path: String = _get_campaign_path(save_number, CampaignData.Mode.MULTIPLAYER)
+	var multi_err: Error = _load_campaign_into(multi_path, multi)
+	if multi_err == ERR_FILE_NOT_FOUND:
+		summary.multi_state = SaveFileSummary.State.EMPTY
+	elif multi_err != OK:
+		summary.multi_state = _get_failure_state(multi_err)
+	else:
+		summary.multi_state = SaveFileSummary.State.READY
+		summary.multi_player_count = multi.players.size()
+		summary.multi_last_opened = multi.last_opened
 	return summary
+
+
+## The save file an accepted invite should use (plan, row 27): the last selected one; else the
+## first readable one; else the first empty one, which opening creates.
+## Returns [constant NO_SAVE_FILE] only when every save file is unreadable or too new.
+func get_invite_save_number() -> int:
+	var last_selected: int = get_last_selected()
+	var first_empty: int = NO_SAVE_FILE
+	var first_ready: int = NO_SAVE_FILE
+	for save_number: int in range(1, SAVE_FILE_COUNT + 1):
+		var state: SaveFileSummary.State = get_summary(save_number).state
+		if state == SaveFileSummary.State.READY:
+			if save_number == last_selected:
+				return save_number
+			if first_ready == NO_SAVE_FILE:
+				first_ready = save_number
+		elif state == SaveFileSummary.State.EMPTY and first_empty == NO_SAVE_FILE:
+			first_empty = save_number
+	return first_ready if first_ready != NO_SAVE_FILE else first_empty
 
 
 ## Opens save file [param save_number], creating it if it's empty, and remembers it as last
@@ -255,10 +290,12 @@ func open_save_file(save_number: int) -> Error:
 
 
 ## Closes the open save file, if any, and drops the active campaign. Writes nothing; every save
-## happens at its own trigger.
+## happens at its own trigger, except that a multiplayer client's play time is flushed to its
+## profile first.
 func close_save_file() -> void:
 	if not has_open_save_file():
 		return
+	_end_client_run()
 	current_save_number = NO_SAVE_FILE
 	profile = null
 	_end_campaign()
@@ -268,9 +305,25 @@ func close_save_file() -> void:
 
 ## True when the open save file has a solo run in progress, readable or not.
 func has_solo_campaign() -> bool:
+	return has_campaign(CampaignData.Mode.SOLO)
+
+
+## True when the open save file has a multiplayer campaign it hosts, readable or not.
+func has_multiplayer_campaign() -> bool:
+	return has_campaign(CampaignData.Mode.MULTIPLAYER)
+
+
+## True when the open save file's [param slot_mode] slot holds a run, readable or not.
+func has_campaign(slot_mode: CampaignData.Mode) -> bool:
 	if not has_open_save_file():
 		return false
-	return SaveFile.exists(_get_campaign_path(current_save_number, CampaignData.Mode.SOLO))
+	return SaveFile.exists(_get_campaign_path(current_save_number, slot_mode))
+
+
+## Drops the active campaign without saving, e.g. before the Main Menu opens a lobby for a new
+## multiplayer campaign. The files are untouched.
+func clear_campaign() -> void:
+	_end_campaign()
 
 
 ## Starts a new solo run in the open save file and writes its first save.
@@ -309,31 +362,71 @@ func start_new_solo_run() -> Error:
 ## Returns [constant OK], [constant ERR_UNCONFIGURED] with no save file open, or the campaign's
 ## read or load error; on error no campaign is active. A bad combat file is never an error.
 func continue_solo_run() -> Error:
-	_end_campaign()
-	_ended_run = null
+	var err: Error = _activate_campaign(CampaignData.Mode.SOLO)
+	if err == OK:
+		_start_play_clock()
+	return err
+
+
+## Starts a new multiplayer campaign as the host, one seat per admitted lobby member, and writes
+## its first save. Then tells every client the run started.
+##
+## [param steam_ids]: the members' Steam ids in seat order, the host first. The player count is
+## fixed from here on (plan, row 21).
+## Returns [constant OK], [constant ERR_UNCONFIGURED] with no save file open,
+## [constant ERR_ALREADY_EXISTS] when the multiplayer slot already holds a campaign,
+## [constant ERR_INVALID_PARAMETER] for an empty or repeated id, or the write error.
+func start_new_multiplayer_run(steam_ids: PackedInt64Array) -> Error:
 	if not has_open_save_file():
-		push_error("SaveService: can't continue a run with no save file open.")
+		push_error("SaveService: can't start a run with no save file open.")
 		return ERR_UNCONFIGURED
+	if has_multiplayer_campaign():
+		push_error("SaveService: save %d already hosts a campaign." % [current_save_number])
+		return ERR_ALREADY_EXISTS
 
-	var loaded: CampaignData = CampaignData.new()
-	var path: String = _get_campaign_path(current_save_number, CampaignData.Mode.SOLO)
-	var err: Error = _load_campaign_into(path, loaded)
-	if err != OK:
-		return err
-	if loaded.mode != CampaignData.Mode.SOLO:
-		push_error("SaveService: %s is not a solo campaign." % [path])
-		return ERR_INVALID_DATA
+	var id_strings: PackedStringArray = []
+	for steam_id: int in steam_ids:
+		if steam_id <= 0 or id_strings.has(str(steam_id)):
+			push_error("SaveService: invalid player list for a multiplayer run.")
+			return ERR_INVALID_PARAMETER
+		id_strings.append(str(steam_id))
+	if id_strings.is_empty():
+		return ERR_INVALID_PARAMETER
 
-	var sections_err: Error = _sections.restore(SaveSection.Block.CAMPAIGN, loaded.sections)
-	if sections_err == OK:
-		sections_err = _sections.restore_players(loaded.players)
-	if sections_err != OK:
-		_end_campaign()
-		return sections_err
-
-	campaign = loaded
-	resume_point = _load_battle()
+	_ended_run = null
+	# ASSUMPTION: a random seed until run setup chooses one (as for solo runs).
+	campaign = CampaignData.create_multiplayer(randi(), id_strings)
+	_sections.reset(SaveSection.Block.CAMPAIGN)
+	_sections.reset_players(campaign.players)
 	_start_play_clock()
+	var err: Error = save_checkpoint()
+	if err != OK:
+		_end_campaign()
+		return err
+	_announce_run_started()
+	return OK
+
+
+## Loads the open save file's multiplayer campaign as [member campaign], ready for the lobby to
+## gather its players. Play time doesn't count until [method resume_multiplayer_run].
+##
+## Applies the same battle load table as [method continue_solo_run].
+## Returns [constant OK], [constant ERR_UNCONFIGURED] with no save file open, or the read or load
+## error; on error no campaign is active.
+func load_multiplayer_campaign() -> Error:
+	return _activate_campaign(CampaignData.Mode.MULTIPLAYER)
+
+
+## Resumes the loaded multiplayer campaign once every player is in the lobby and Ready: starts
+## play time and tells every client the run started.
+##
+## Returns [constant OK], or [constant ERR_UNCONFIGURED] when no multiplayer campaign is loaded.
+func resume_multiplayer_run() -> Error:
+	if campaign == null or campaign.mode != CampaignData.Mode.MULTIPLAYER:
+		push_error("SaveService: no multiplayer campaign loaded to resume.")
+		return ERR_UNCONFIGURED
+	_start_play_clock()
+	_announce_run_started()
 	return OK
 
 
@@ -353,6 +446,8 @@ func save_checkpoint() -> Error:
 		return ERR_UNCONFIGURED
 
 	var err: Error = _write_checkpoint()
+	if err == OK:
+		_announce_checkpoint()
 	checkpoint_saved.emit(err)
 	return err
 
@@ -420,54 +515,66 @@ func end_battle() -> Error:
 	var profile_err: Error = _write_profile(now_msec)
 	var delete_err: Error = SaveFile.delete(_get_combat_path(current_save_number, campaign.mode))
 	_end_battle_state()
+	_announce_checkpoint()
 	var err: Error = delete_err if delete_err != OK else profile_err
 	checkpoint_saved.emit(err)
 	return err
 
 
-## Ends the active solo run as a win or loss: flushes play time to the profile, archives the run,
-## empties the solo slot and emits [signal run_ended].
+## Ends the active run, solo or multiplayer, as a win or loss: flushes play time to the profile,
+## archives the run, empties its slot and emits [signal run_ended].
 ##
 ## The record includes play time up to now and the roster as it is now, even mid-battle. It is
 ## kept for [method take_ended_run]; the archive write's result is in [member last_archive_error].
-## Returns [constant OK], [constant ERR_UNCONFIGURED] with no active solo campaign, or the profile
+## A multiplayer host also sends the record to every client, which archives it too (rows 11, 23).
+## Returns [constant OK], [constant ERR_UNCONFIGURED] with no active campaign, or the profile
 ## write or delete error. The run ends even when a write fails.
-func end_solo_run(won: bool) -> Error:
-	if campaign == null or campaign.mode != CampaignData.Mode.SOLO or not has_open_save_file():
-		push_error("SaveService: no active solo run to end.")
+func end_run(won: bool) -> Error:
+	if campaign == null or not has_open_save_file():
+		push_error("SaveService: no active run to end.")
 		return ERR_UNCONFIGURED
 
+	var slot_mode: CampaignData.Mode = campaign.mode
 	var now_msec: int = Time.get_ticks_msec()
 	_capture_campaign_sections()
 	campaign.play_time_seconds += _get_whole_seconds_since(_campaign_flush_msec, now_msec)
-	var record: ArchiveRecord = ArchiveRecord.from_campaign(campaign, won, _get_player_names())
+	var record: ArchiveRecord = ArchiveRecord.from_campaign(
+			campaign, won, _get_player_names(campaign)
+	)
 	var profile_err: Error = _write_profile(now_msec)
 	last_archive_error = _write_archive(record)
 	_ended_run = record
+	if _is_multiplayer_host():
+		var record_envelope: Dictionary = record.to_envelope()
+		for peer_id: int in _get_client_peer_ids():
+			_client_run_ended.rpc_id(peer_id, record_envelope)
 
-	var delete_err: Error = _delete_campaign_slot(CampaignData.Mode.SOLO)
+	var delete_err: Error = _delete_campaign_slot(slot_mode)
 	_end_campaign()
-	run_ended.emit(CampaignData.Mode.SOLO, won)
+	run_ended.emit(slot_mode, won)
 	return delete_err if delete_err != OK else profile_err
 
 
-## Abandons the open save file's solo run from the Main Menu: archives it as lost, empties the
-## slot and emits [signal run_ended]. Play time was already counted at the run's last checkpoint.
+## Abandons the open save file's [param slot_mode] run from the Main Menu: archives it as lost,
+## empties the slot and emits [signal run_ended]. Play time was already counted at the run's last
+## checkpoint.
 ##
+## Abandoning a multiplayer campaign is a host-only, local act: the other players aren't there,
+## and only the host's archive gets the record.
 ## A run whose file can't be read is still abandoned, unarchived; [member last_archive_error]
 ## says so.
 ## Returns [constant OK], [constant ERR_UNCONFIGURED] with no save file open, or the delete error.
-func abandon_solo_run() -> Error:
+func abandon_run(slot_mode: CampaignData.Mode) -> Error:
 	if not has_open_save_file():
 		push_error("SaveService: can't abandon a run with no save file open.")
 		return ERR_UNCONFIGURED
 
 	var source: CampaignData = campaign
-	if source != null and source.mode == CampaignData.Mode.SOLO:
+	if source != null and source.mode == slot_mode:
 		_capture_campaign_sections()
 	else:
 		source = CampaignData.new()
-		var path: String = _get_campaign_path(current_save_number, CampaignData.Mode.SOLO)
+		var path: String = _get_campaign_path(current_save_number, slot_mode)
 		last_archive_error = _load_campaign_into(path, source)
 		if last_archive_error != OK:
 			push_warning("SaveService: abandoned run in %s couldn't be archived." % [path])
@@ -475,14 +582,14 @@ func abandon_solo_run() -> Error:
 
 	if source != null:
 		last_archive_error = _write_archive(
-				ArchiveRecord.from_campaign(source, false, _get_player_names())
+				ArchiveRecord.from_campaign(source, false, _get_player_names(source))
 		)
-	if campaign != null and campaign.mode == CampaignData.Mode.SOLO:
+	if campaign != null and campaign.mode == slot_mode:
 		_end_campaign()
 
-	var err: Error = _delete_campaign_slot(CampaignData.Mode.SOLO)
+	var err: Error = _delete_campaign_slot(slot_mode)
 	if err == OK:
-		run_ended.emit(CampaignData.Mode.SOLO, false)
+		run_ended.emit(slot_mode, false)
 	return err
 
 
@@ -571,6 +678,36 @@ func _get_combat_path(save_number: int, slot_mode: CampaignData.Mode) -> String:
 	return get_save_file_dir(save_number) + CombatData.get_file_name(slot_mode)
 
 
+# Loads the open save file's slot_mode campaign as the active campaign, with its sections and the
+# battle load table. Doesn't start play time.
+func _activate_campaign(slot_mode: CampaignData.Mode) -> Error:
+	_end_campaign()
+	_ended_run = null
+	if not has_open_save_file():
+		push_error("SaveService: can't load a run with no save file open.")
+		return ERR_UNCONFIGURED
+
+	var loaded: CampaignData = CampaignData.new()
+	var path: String = _get_campaign_path(current_save_number, slot_mode)
+	var err: Error = _load_campaign_into(path, loaded)
+	if err != OK:
+		return err
+	if loaded.mode != slot_mode:
+		push_error("SaveService: %s holds the wrong kind of campaign." % [path])
+		return ERR_INVALID_DATA
+
+	var sections_err: Error = _sections.restore(SaveSection.Block.CAMPAIGN, loaded.sections)
+	if sections_err == OK:
+		sections_err = _sections.restore_players(loaded.players)
+	if sections_err != OK:
+		_end_campaign()
+		return sections_err
+
+	campaign = loaded
+	resume_point = _load_battle()
+	return OK
+
+
 # Reads and loads one campaign file into target. Returns ERR_FILE_NOT_FOUND for an empty slot.
 func _load_campaign_into(path: String, target: CampaignData) -> Error:
 	var result: SaveFile.ReadResult = SaveFile.read(path)
@@ -631,11 +768,106 @@ func _write_archive(record: ArchiveRecord) -> Error:
 
 
 # Display name per seat for archive records. Solo is the save file's cached Steam name.
-func _get_player_names() -> Dictionary[int, String]:
+# Display name per seat for archive records: this machine's cached Steam name for its own seat (and
+# for solo), Steam's name for the others when Steam is available.
+func _get_player_names(source: CampaignData) -> Dictionary[int, String]:
 	var names: Dictionary[int, String] = {}
-	if profile != null:
-		names[CampaignData.HOST_SEAT] = profile.last_steam_name
+	var own_steam_id: String = str(Steam.getSteamID()) if SteamManager.is_available else ""
+	for player: CampaignData.PlayerRun in source.players:
+		var is_own: bool = player.steam_id.is_empty() or player.steam_id == own_steam_id
+		if is_own and profile != null:
+			names[player.seat] = profile.last_steam_name
+		elif SteamManager.is_available:
+			names[player.seat] = SteamNetwork.get_member_name(player.steam_id.to_int())
 	return names
+
+
+func _is_multiplayer_host() -> bool:
+	return (
+			campaign != null
+			and campaign.mode == CampaignData.Mode.MULTIPLAYER
+			and SteamNetwork.has_active_session()
+			and multiplayer.is_server()
+	)
+
+
+# Host: after a campaign save, clients write their own profiles and refresh their replica.
+func _announce_checkpoint() -> void:
+	if not _is_multiplayer_host():
+		return
+	var envelope: Dictionary = campaign.to_envelope()
+	for peer_id: int in _get_client_peer_ids():
+		_client_checkpoint.rpc_id(peer_id, envelope)
+
+
+func _announce_run_started() -> void:
+	if not _is_multiplayer_host():
+		return
+	var envelope: Dictionary = campaign.to_envelope()
+	for peer_id: int in _get_client_peer_ids():
+		_client_run_started.rpc_id(peer_id, envelope)
+
+
+# Admitted members other than the host. Campaign data goes only to them, never to a connection
+# the host refused but hasn't cut off yet.
+func _get_client_peer_ids() -> Array[int]:
+	var peer_ids: Array[int] = []
+	for member: SteamNetwork.LobbyMember in SteamNetwork.get_members():
+		if member.peer_id != multiplayer.get_unique_id():
+			peer_ids.append(member.peer_id)
+	return peer_ids
+
+
+# Client: flushes play time to this machine's profile and stops counting.
+func _end_client_run() -> void:
+	if not _is_client_in_run:
+		return
+	if has_open_save_file():
+		_write_profile(Time.get_ticks_msec())
+	_is_client_in_run = false
+	multiplayer_replica = null
+
+
+# Client: replaces the replica with the host's campaign, ignoring anything that doesn't load.
+func _update_replica(envelope: Dictionary) -> void:
+	var replica: CampaignData = CampaignData.new()
+	if replica.load_envelope(envelope.duplicate(true)) != OK:
+		push_warning("SaveService: ignoring an unreadable campaign from the host.")
+		return
+	multiplayer_replica = replica
+
+
+@rpc("authority", "reliable", "call_remote")
+func _client_run_started(envelope: Dictionary) -> void:
+	_update_replica(envelope)
+	_ended_run = null
+	_is_client_in_run = has_open_save_file()
+	_profile_flush_msec = Time.get_ticks_msec()
+
+
+@rpc("authority", "reliable", "call_remote")
+func _client_checkpoint(envelope: Dictionary) -> void:
+	_update_replica(envelope)
+	if _is_client_in_run:
+		_write_profile(Time.get_ticks_msec())
+
+
+# Client: archives the host's record of the ended run in this machine's own archive (rows 11, 23).
+@rpc("authority", "reliable", "call_remote")
+func _client_run_ended(record_envelope: Dictionary) -> void:
+	_end_client_run()
+	var record: ArchiveRecord = ArchiveRecord.new()
+	if record.load_envelope(record_envelope.duplicate(true)) != OK:
+		push_warning("SaveService: ignoring an unreadable archive record from the host.")
+		return
+	if not has_open_save_file():
+		return
+	last_archive_error = _write_archive(record)
+	_ended_run = record
+
+
+func _on_steam_network_lobby_left() -> void:
+	_end_client_run()
 
 
 # Deletes a campaign slot's campaign and combat files. Returns the first delete error.

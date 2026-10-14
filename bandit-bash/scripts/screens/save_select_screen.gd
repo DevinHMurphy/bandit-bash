@@ -89,7 +89,9 @@ func _describe(summary: SaveFileSummary) -> String:
 			if player_name.is_empty():
 				player_name = "Unknown player"
 			var played: String = _format_play_time(summary.play_time_seconds)
-			return "%s  ·  %s played\n%s" % [player_name, played, _describe_solo(summary)]
+			return "%s  ·  %s played\n%s\n%s" % [
+				player_name, played, _describe_solo(summary), _describe_multi(summary)
+			]
 		SaveFileSummary.State.UNREADABLE:
 			return "Can't be read. Delete it to reuse this slot."
 		SaveFileSummary.State.TOO_NEW:
@@ -108,6 +110,19 @@ func _describe_solo(summary: SaveFileSummary) -> String:
 		SaveFileSummary.State.TOO_NEW:
 			return "Solo run made by a newer version of the game."
 	return "No solo run"
+
+
+func _describe_multi(summary: SaveFileSummary) -> String:
+	match summary.multi_state:
+		SaveFileSummary.State.READY:
+			return "Hosted campaign: %d players, last played %s" % [
+				summary.multi_player_count, _format_local_time(summary.multi_last_opened)
+			]
+		SaveFileSummary.State.UNREADABLE:
+			return "Hosted campaign can't be read."
+		SaveFileSummary.State.TOO_NEW:
+			return "Hosted campaign made by a newer version of the game."
+	return "No hosted campaign"
 
 
 # Saved times are UTC; shown in the player's time zone.

@@ -22,7 +22,7 @@ extends RefCounted
 ## is restored, so a bad section stops the load before any system holds half-loaded state. A
 ## section version newer than the registered one is refused, like a newer file.
 ##
-## @tutorial(Save system plan): docs/plans/2026-10-13-save-system.md
+## @tutorial(Save system design): docs/design/save-system.md
 
 ## Key of the version number in a section entry.
 const KEY_VERSION: String = "version"

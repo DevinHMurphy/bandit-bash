@@ -45,3 +45,10 @@ text = "Save & Quit"
 unique_name_in_owner = true
 layout_mode = 2
 text = "Quit to Menu"
+
+[node name="InviteDialog" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Invite"
+dialog_text = "A friend invited you. Save & Quit this run and join them?"
+ok_button_text = "Save & Join"
+cancel_button_text = "Stay"

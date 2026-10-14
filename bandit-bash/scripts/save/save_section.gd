@@ -23,7 +23,7 @@ extends RefCounted
 ## strings, since JSON returns every number as a float. Data that exists once per player uses
 ## [PlayerSaveSection] instead.
 ##
-## @tutorial(Save system plan): docs/plans/2026-10-13-save-system.md
+## @tutorial(Save system design): docs/design/save-system.md
 
 ## Which save file block a section lives in.
 enum Block {
@@ -31,7 +31,7 @@ enum Block {
 	PROFILE = 0,
 	## A campaign file: the run in progress. Reset for a new run and on close.
 	CAMPAIGN = 1,
-	## A combat file: the battle in progress (plan milestone M6).
+	## A combat file: the battle in progress. Reset when a battle begins or ends.
 	COMBAT = 2,
 }
 

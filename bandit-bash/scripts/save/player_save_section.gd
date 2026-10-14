@@ -22,7 +22,7 @@ extends RefCounted
 ## On the host this one instance holds every player's data, which is why the host can save them
 ## all. Clients never save campaign data. Data rules are the same as [SaveSection].
 ##
-## @tutorial(Save system plan): docs/plans/2026-10-13-save-system.md
+## @tutorial(Save system design): docs/design/save-system.md
 
 
 ## Returns this section's key in each player's entry, e.g. [code]"inventory"[/code]. Must never

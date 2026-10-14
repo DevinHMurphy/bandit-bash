@@ -20,7 +20,7 @@ extends RefCounted
 ## ([code]Godot_FE/options/options_config.gd[/code]), except that SFX now reads
 ## [member sfx_volume]; the old build read the music volume for SFX.
 ##
-## @tutorial(Save system plan): docs/plans/2026-10-13-save-system.md
+## @tutorial(Save system design): docs/design/save-system.md
 ##
 ## @todo: TOD-001 - Apply volumes to audio buses in [method apply] once an audio system exists.
 

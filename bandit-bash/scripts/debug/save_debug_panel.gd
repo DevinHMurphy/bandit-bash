@@ -19,7 +19,9 @@ extends PanelContainer
 ## Stand-ins for systems that don't exist yet: "Room Entered" bumps the floor and saves a
 ## checkpoint; "End Player Phase" moves to the enemy phase and saves (the only battle save point
 ## besides Begin); "End Enemy Phase" starts the next turn without saving, as the real combat flow
-## will.
+## will.[br]
+## Works the same for a multiplayer host, whose saves also reach the clients. On a client every
+## button is disabled, since clients never save a campaign; it shows the host's replica instead.
 
 @onready var _info_label: Label = %Info
 @onready var _room_button: Button = %RoomButton
@@ -61,7 +63,12 @@ func _refresh(message: String) -> void:
 	_lose_button.disabled = not has_campaign
 
 	var lines: PackedStringArray = []
-	if not has_campaign:
+	var is_client: bool = SteamNetwork.has_active_session() and not SteamNetwork.is_authoritative()
+	if is_client:
+		var replica: CampaignData = SaveService.multiplayer_replica
+		var floor_text: String = "?" if replica == null else str(replica.floors_climbed)
+		lines.append("Multiplayer client: the host saves this run (floor %s)." % [floor_text])
+	elif not has_campaign:
 		lines.append("No active campaign.")
 	else:
 		lines.append(
@@ -127,9 +134,11 @@ func _on_lose_button_pressed() -> void:
 	_end_run(false)
 
 
+# In multiplayer the host's end_run() sends the archive record before this moves everyone, and
+# both go out reliably in order, so clients have the record when their Results screen opens.
 func _end_run(won: bool) -> void:
-	var err: Error = SaveService.end_solo_run(won)
+	var err: Error = SaveService.end_run(won)
 	if err != OK:
 		_refresh("Ending the run failed: %s" % [error_string(err)])
 		return
-	SceneRouter.goto_screen(SceneRouter.Screen.RESULTS)
+	SceneRouter.goto_screen_for_everyone(SceneRouter.Screen.RESULTS)

@@ -18,10 +18,18 @@ extends Node
 ## current and previous screen have to live outside it.[br]
 ## [b]Why an autoload hosts the RPC:[/b] autoloads sit at the same NodePath on every peer from
 ## boot, so an RPC routed through one can't race scene-load timing the way a node inside a
-## freshly loaded scene can.
+## freshly loaded scene can.[br]
+## [b]Invites and lost hosts:[/b] an accepted Steam invite opens a save file if none is open
+## ([code]SaveService.get_invite_save_number()[/code]) and goes to the lobby, which joins it.
+## During a solo run it first asks, through [signal invite_confirmation_requested], whether to
+## Save & Quit. A client whose host leaves mid-match returns to the Main Menu.
 
 ## This machine just entered [param screen].
 signal screen_changed(screen: Screen)
+
+## An invite arrived during a solo run. The pause menu asks the player to Save & Quit and join
+## ([method accept_pending_invite]) or to ignore it.
+signal invite_confirmation_requested()
 
 # Screen flow. Most edges are authored as NavButton exports inside each screen scene, not here.
 #   Precondition: boot.tscn opens START once; no other screen is entered before that.
@@ -30,10 +38,13 @@ signal screen_changed(screen: Screen)
 #   MAIN_MENU   -> LOADING (Continue Run), NEW_RUN, LOBBY (multiplayer), OPTIONS, SAVE_SELECT
 #   NEW_RUN     -> LOADING (after the run's first save; new_run_screen.gd), MAIN_MENU
 #   OPTIONS     -> back to whichever screen opened it (only MAIN_MENU links to it)
-#   LOBBY       -> LOADING (everyone), MAIN_MENU
+#   LOBBY       -> LOADING (everyone, host's Start or Resume), MAIN_MENU
 #   LOADING     -> GAMEPLAY (everyone)
-#   GAMEPLAY    -> RESULTS (everyone)
+#   GAMEPLAY    -> RESULTS (everyone), MAIN_MENU (pause menu)
 #   RESULTS     -> LOADING (everyone, next round), MAIN_MENU
+#   any screen  -> LOBBY on an accepted invite (accept_pending_invite); during a solo run only
+#                  after the player chose Save & Quit
+#   LOADING, GAMEPLAY, RESULTS -> MAIN_MENU on a client whose host left (session_ended)
 # "Everyone" edges go through goto_screen_for_everyone(): host only, solo falls back to local.
 # Entering START, SAVE_SELECT or MAIN_MENU ends any lobby session, so Leave Match also leaves the
 # lobby. Entering SAVE_SELECT also closes the open save file (save_select_screen.gd).
@@ -72,6 +83,11 @@ const SCREEN_PATHS: Dictionary[Screen, String] = {
 var current_screen: Screen = Screen.START
 ## Screen shown before [member current_screen], used by [method go_back].
 var previous_screen: Screen = Screen.START
+
+
+func _ready() -> void:
+	SteamNetwork.invite_received.connect(_on_steam_network_invite_received)
+	SteamNetwork.session_ended.connect(_on_steam_network_session_ended)
 
 
 ## Switches to [param screen] on this machine only.
@@ -125,6 +141,48 @@ func goto_screen_for_everyone(screen: Screen) -> void:
 ## Returns to [member previous_screen]. Used by screens reachable from more than one place.
 func go_back() -> void:
 	goto_screen(previous_screen)
+
+
+## Acts on the pending invite: opens a save file if none is open (plan, row 27), then goes to the
+## lobby, which joins the invited lobby. Does nothing without a pending invite.
+##
+## If no save file can be opened, the invite is dropped and logged.
+func accept_pending_invite() -> void:
+	if SteamNetwork.pending_invite_lobby_id == 0:
+		return
+	if not SaveService.has_open_save_file():
+		var save_number: int = SaveService.get_invite_save_number()
+		var err: Error = ERR_UNAVAILABLE
+		if save_number != SaveService.NO_SAVE_FILE:
+			err = SaveService.open_save_file(save_number)
+		if err != OK:
+			SteamNetwork.take_pending_invite()
+			NetLog.error(
+					NetLog.Category.SCENE,
+					"Dropping the invite: no save file could be opened (%s)." % [error_string(err)]
+			)
+			return
+	goto_screen(Screen.LOBBY)
+
+
+func _on_steam_network_invite_received(_lobby_id: int) -> void:
+	# ASSUMPTION: an invite arriving while already in a lobby is ignored rather than leaving the
+	# current session; the player can leave and accept again.
+	if SteamNetwork.has_active_session():
+		SteamNetwork.take_pending_invite()
+		NetLog.warn(NetLog.Category.SCENE, "Ignoring an invite while already in a lobby.")
+		return
+	if current_screen == Screen.GAMEPLAY and SaveService.campaign != null:
+		invite_confirmation_requested.emit()
+		return
+	accept_pending_invite()
+
+
+# A client whose host left mid-match has nowhere to be but the menu. The lobby screen handles its
+# own case, so LOBBY isn't listed.
+func _on_steam_network_session_ended() -> void:
+	if current_screen in [Screen.LOADING, Screen.GAMEPLAY, Screen.RESULTS]:
+		goto_screen(Screen.MAIN_MENU)
 
 
 # call_local so the host takes the same dispatch path as the clients instead of jumping a full

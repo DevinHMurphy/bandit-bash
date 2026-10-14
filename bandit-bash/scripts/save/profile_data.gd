@@ -19,7 +19,7 @@ extends RefCounted
 ## Not player-editable: the name shown is always the Steam persona name, cached in
 ## [member last_steam_name] so a save file still shows a name while Steam is unavailable.
 ##
-## @tutorial(Save system plan): docs/plans/2026-10-13-save-system.md
+## @tutorial(Save system design): docs/design/save-system.md
 
 ## File name inside the save file's folder.
 const FILE_NAME: String = "profile.json"

@@ -21,7 +21,7 @@ extends RefCounted
 ## [enum Error]. [code]steps[0][/code] upgrades version 1 to 2, [code]steps[1][/code] 2 to 3,
 ## and so on.
 ##
-## @tutorial(Save system plan): docs/plans/2026-10-13-save-system.md
+## @tutorial(Save system design): docs/design/save-system.md
 
 
 ## Runs the steps that take [param envelope] from its schema version to [param current_version].

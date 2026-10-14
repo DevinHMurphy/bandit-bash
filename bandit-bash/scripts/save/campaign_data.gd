@@ -22,7 +22,7 @@ extends RefCounted
 ## ([code]Godot_FE/overworld_new/player_overworld_data.gd:16-18[/code]) until the campaign system is
 ## ported and defines them.
 ##
-## @tutorial(Save system plan): docs/plans/2026-10-13-save-system.md
+## @tutorial(Save system design): docs/design/save-system.md
 
 ## Which campaign slot of a save file this is.
 enum Mode {
@@ -156,6 +156,8 @@ func load_envelope(envelope: Dictionary) -> Error:
 	var loaded_players: Array[PlayerRun] = _read_players(core.get(_KEY_PLAYERS))
 	if loaded_players.is_empty():
 		return ERR_INVALID_DATA
+	if mode_key == Mode.MULTIPLAYER and not _has_valid_steam_ids(loaded_players):
+		return ERR_INVALID_DATA
 
 	mode = mode_key
 	run_seed = int(core.get(_KEY_SEED, 0))
@@ -174,6 +176,28 @@ func load_envelope(envelope: Dictionary) -> Error:
 	return OK
 
 
+## The Steam ids needed to resume: every seat's, in seat order. Empty for a solo campaign.
+##
+## Derived from [member players] rather than stored separately, so the two can't disagree.
+func get_required_steam_ids() -> PackedInt64Array:
+	var steam_ids: PackedInt64Array = []
+	if mode != Mode.MULTIPLAYER:
+		return steam_ids
+	for player: PlayerRun in players:
+		steam_ids.append(player.steam_id.to_int())
+	return steam_ids
+
+
+## The host's Steam id (seat [constant HOST_SEAT]), or 0 for a solo campaign.
+func get_host_steam_id() -> int:
+	if mode != Mode.MULTIPLAYER:
+		return 0
+	for player: PlayerRun in players:
+		if player.seat == HOST_SEAT:
+			return player.steam_id.to_int()
+	return 0
+
+
 ## Returns a new solo campaign: seat 0 only, started now.
 ## [param new_seed]: the run seed.
 static func create_solo(new_seed: int) -> CampaignData:
@@ -187,6 +211,22 @@ static func create_solo(new_seed: int) -> CampaignData:
 	var host: PlayerRun = PlayerRun.new()
 	host.seat = HOST_SEAT
 	campaign.players.append(host)
+	return campaign
+
+
+## Returns a new multiplayer campaign: one seat per Steam id, in order, started now.
+##
+## [param steam_ids]: decimal Steam id strings; the first is the host (seat 0). The player count is
+## fixed from here on (plan, row 21).
+static func create_multiplayer(new_seed: int, steam_ids: PackedStringArray) -> CampaignData:
+	var campaign: CampaignData = create_solo(new_seed)
+	campaign.mode = Mode.MULTIPLAYER
+	campaign.players.clear()
+	for seat: int in steam_ids.size():
+		var player: PlayerRun = PlayerRun.new()
+		player.seat = seat
+		player.steam_id = steam_ids[seat]
+		campaign.players.append(player)
 	return campaign
 
 
@@ -221,6 +261,17 @@ static func _read_players(value: Variant) -> Array[PlayerRun]:
 			return loaded
 		loaded.append(player)
 	return loaded
+
+
+# A multiplayer campaign needs a distinct, numeric Steam id per seat to know who may resume it.
+static func _has_valid_steam_ids(loaded_players: Array[PlayerRun]) -> bool:
+	var seen: PackedStringArray = []
+	for player: PlayerRun in loaded_players:
+		var steam_id: String = player.steam_id
+		if not steam_id.is_valid_int() or steam_id.to_int() <= 0 or seen.has(steam_id):
+			return false
+		seen.append(steam_id)
+	return true
 
 
 static func _read_strings(value: Variant) -> PackedStringArray:

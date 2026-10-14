@@ -22,7 +22,7 @@ extends RefCounted
 ## in [code]--script[/code] mode, and the headless tests in [code]res://tests/save/[/code] drive
 ## this class directly.
 ##
-## @tutorial(Save system plan): docs/plans/2026-10-13-save-system.md
+## @tutorial(Save system design): docs/design/save-system.md
 
 ## Which on-disk copy [method read] returned.
 enum Source {
