@@ -104,6 +104,8 @@ func _on_resume_multi_button_pressed() -> void:
 	SceneRouter.goto_screen(SceneRouter.Screen.LOBBY)
 
 
+# ASSUMPTION: the host may abandon a hosted campaign alone (not in the plan); without it a
+# campaign whose players are gone could never be cleared short of deleting the save file.
 func _on_abandon_multi_button_pressed() -> void:
 	_pending_abandon = CampaignData.Mode.MULTIPLAYER
 	_abandon_dialog.dialog_text = (
