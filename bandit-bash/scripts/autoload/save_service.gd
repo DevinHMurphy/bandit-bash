@@ -29,10 +29,11 @@ extends Node
 ## ([member resume_point]).[br]
 ## [b]Why an autoload:[/b] the open save file outlives every screen change.
 ##
-## @tutorial(Save system plan): docs/plans/2026-10-13-save-system.md
+## [b]Ended runs[/b] are written to the save file's archive ([ArchiveRecord]) before their slot is
+## emptied. A failed archive write never keeps a run alive; it is reported in
+## [member last_archive_error].[br]
 ##
-## @todo: TOD-001 - Archive the run in [method end_solo_run] and [method abandon_solo_run]
-## (plan milestone M7).
+## @tutorial(Save system plan): docs/plans/2026-10-13-save-system.md
 
 ## A save file was opened and [member profile] is loaded.
 ## [param save_number]: 1 to [constant SAVE_FILE_COUNT].
@@ -95,6 +96,13 @@ var combat: CombatData = null
 ## How the last [method continue_solo_run] picked up: on the campaign, inside the saved battle, or
 ## restarting a battle whose combat file was unusable. Gameplay reads it to know where to start.
 var resume_point: CombatData.ResumePoint = CombatData.ResumePoint.CAMPAIGN
+
+## Result of writing the archive record of the run that ended last: [constant OK], or why it
+## couldn't be written (the run ended anyway). [constant ERR_UNCONFIGURED] before any run ends.
+var last_archive_error: Error = ERR_UNCONFIGURED
+
+# The run that ended last, until the Results screen takes it with take_ended_run().
+var _ended_run: ArchiveRecord = null
 
 # Time.get_ticks_msec() at each file's last successful play-time flush. Separate per file so a
 # write that fails for one file can't make the other count the same time twice.
@@ -277,6 +285,7 @@ func start_new_solo_run() -> Error:
 
 	# ASSUMPTION: a random seed until run setup chooses one; run setup belongs to the campaign
 	# system (plan, Scope).
+	_ended_run = null
 	campaign = CampaignData.create_solo(randi())
 	_sections.reset(SaveSection.Block.CAMPAIGN)
 	_sections.reset_players(campaign.players)
@@ -297,6 +306,7 @@ func start_new_solo_run() -> Error:
 ## read or load error; on error no campaign is active. A bad combat file is never an error.
 func continue_solo_run() -> Error:
 	_end_campaign()
+	_ended_run = null
 	if not has_open_save_file():
 		push_error("SaveService: can't continue a run with no save file open.")
 		return ERR_UNCONFIGURED
@@ -415,40 +425,73 @@ func end_battle() -> Error:
 	return delete_err if delete_err != OK else profile_err
 
 
-## Ends the active solo run as a win or loss: flushes play time to the profile, empties the solo
-## slot and emits [signal run_ended].
+## Ends the active solo run as a win or loss: flushes play time to the profile, archives the run,
+## empties the solo slot and emits [signal run_ended].
 ##
-## Returns [constant OK], [constant ERR_UNCONFIGURED] with no active solo campaign, or the first
-## write or delete error. The run ends even when the profile write fails.
+## The record includes play time up to now and the roster as it is now, even mid-battle. It is
+## kept for [method take_ended_run]; the archive write's result is in [member last_archive_error].
+## Returns [constant OK], [constant ERR_UNCONFIGURED] with no active solo campaign, or the profile
+## write or delete error. The run ends even when a write fails.
 func end_solo_run(won: bool) -> Error:
 	if campaign == null or campaign.mode != CampaignData.Mode.SOLO or not has_open_save_file():
 		push_error("SaveService: no active solo run to end.")
 		return ERR_UNCONFIGURED
 
-	var profile_err: Error = _write_profile(Time.get_ticks_msec())
-	# TODO(TOD-001): Write the archive record with the outcome before deleting (plan M7).
+	var now_msec: int = Time.get_ticks_msec()
+	_capture_campaign_sections()
+	campaign.play_time_seconds += _get_whole_seconds_since(_campaign_flush_msec, now_msec)
+	var record: ArchiveRecord = ArchiveRecord.from_campaign(campaign, won, _get_player_names())
+	var profile_err: Error = _write_profile(now_msec)
+	last_archive_error = _write_archive(record)
+	_ended_run = record
+
 	var delete_err: Error = _delete_campaign_slot(CampaignData.Mode.SOLO)
 	_end_campaign()
 	run_ended.emit(CampaignData.Mode.SOLO, won)
 	return delete_err if delete_err != OK else profile_err
 
 
-## Abandons the open save file's solo run from the Main Menu: empties the slot as a loss and emits
-## [signal run_ended]. Play time was already counted at the run's last checkpoint.
+## Abandons the open save file's solo run from the Main Menu: archives it as lost, empties the
+## slot and emits [signal run_ended]. Play time was already counted at the run's last checkpoint.
 ##
+## A run whose file can't be read is still abandoned, unarchived; [member last_archive_error]
+## says so.
 ## Returns [constant OK], [constant ERR_UNCONFIGURED] with no save file open, or the delete error.
 func abandon_solo_run() -> Error:
 	if not has_open_save_file():
 		push_error("SaveService: can't abandon a run with no save file open.")
 		return ERR_UNCONFIGURED
+
+	var source: CampaignData = campaign
+	if source != null and source.mode == CampaignData.Mode.SOLO:
+		_capture_campaign_sections()
+	else:
+		source = CampaignData.new()
+		var path: String = _get_campaign_path(current_save_number, CampaignData.Mode.SOLO)
+		last_archive_error = _load_campaign_into(path, source)
+		if last_archive_error != OK:
+			push_warning("SaveService: abandoned run in %s couldn't be archived." % [path])
+			source = null
+
+	if source != null:
+		last_archive_error = _write_archive(
+				ArchiveRecord.from_campaign(source, false, _get_player_names())
+		)
 	if campaign != null and campaign.mode == CampaignData.Mode.SOLO:
 		_end_campaign()
 
-	# TODO(TOD-001): Archive the run as lost before deleting (plan M7).
 	var err: Error = _delete_campaign_slot(CampaignData.Mode.SOLO)
 	if err == OK:
 		run_ended.emit(CampaignData.Mode.SOLO, false)
 	return err
+
+
+## Returns the record of the run that ended last and forgets it, so the Results screen shows a run
+## only once. Null when no run ended since the last call.
+func take_ended_run() -> ArchiveRecord:
+	var record: ArchiveRecord = _ended_run
+	_ended_run = null
+	return record
 
 
 ## Deletes save file [param save_number] and everything in it, archive included. Cannot be undone.
@@ -568,6 +611,31 @@ func _load_battle() -> CombatData.ResumePoint:
 	SaveFile.delete(path)
 	_sections.reset(SaveSection.Block.COMBAT)
 	return CombatData.ResumePoint.BATTLE_RETRY
+
+
+# Writes record to the open save file's archive folder, adding a suffix if a record with the same
+# name exists (two runs ending in the same second).
+func _write_archive(record: ArchiveRecord) -> Error:
+	var folder: String = get_save_file_dir(current_save_number) + ArchiveRecord.FOLDER_NAME + "/"
+	var base_name: String = record.get_file_name().get_basename()
+	var path: String = folder + record.get_file_name()
+	var suffix: int = 2
+	while SaveFile.exists(path):
+		path = folder + "%s_%d.json" % [base_name, suffix]
+		suffix += 1
+
+	var err: Error = SaveFile.write(path, record.to_envelope())
+	if err != OK:
+		push_error("SaveService: archiving the run failed - %s" % [error_string(err)])
+	return err
+
+
+# Display name per seat for archive records. Solo is the save file's cached Steam name.
+func _get_player_names() -> Dictionary[int, String]:
+	var names: Dictionary[int, String] = {}
+	if profile != null:
+		names[CampaignData.HOST_SEAT] = profile.last_steam_name
+	return names
 
 
 # Deletes a campaign slot's campaign and combat files. Returns the first delete error.

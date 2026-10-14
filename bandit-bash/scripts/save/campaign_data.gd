@@ -195,6 +195,17 @@ static func get_file_name(slot_mode: Mode) -> String:
 	return _FILE_NAMES[slot_mode]
 
 
+## The id [param slot_mode] is saved as: [code]"solo"[/code] or [code]"multiplayer"[/code].
+static func get_mode_id(slot_mode: Mode) -> String:
+	return _MODE_IDS[slot_mode]
+
+
+## The [enum Mode] saved as [param mode_id], or -1 when it isn't a known id.
+static func find_mode(mode_id: String) -> int:
+	var mode_key: Variant = _MODE_IDS.find_key(mode_id)
+	return -1 if mode_key == null else int(mode_key)
+
+
 # Returns an empty array when the list is missing or any entry is malformed; the caller treats
 # that as invalid data rather than loading a campaign with players silently dropped.
 static func _read_players(value: Variant) -> Array[PlayerRun]:

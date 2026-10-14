@@ -14,7 +14,8 @@ extends Control
 ##
 ## Only reachable from Save Select, so a save file is always open; if one somehow isn't, the screen
 ## sends the player back to Save Select. Continue Run and Abandon Run show only while the save file
-## has a solo run; New Run shows only while it doesn't. Abandon asks for confirmation.[br]
+## has a solo run; New Run shows only while it doesn't. Abandon asks for confirmation, then
+## archives the run as lost.[br]
 ## Multiplayer, Options and Back stay NavButtons in the scene.
 
 @onready var _header_label: Label = %Header
@@ -69,5 +70,10 @@ func _on_abandon_button_pressed() -> void:
 
 func _on_abandon_dialog_confirmed() -> void:
 	var err: Error = SaveService.abandon_solo_run()
-	_status_label.text = "" if err == OK else "Couldn't abandon the run (%s)." % [error_string(err)]
+	if err != OK:
+		_status_label.text = "Couldn't abandon the run (%s)." % [error_string(err)]
+	elif SaveService.last_archive_error != OK:
+		_status_label.text = "Run abandoned. It couldn't be saved to the archive."
+	else:
+		_status_label.text = "Run abandoned and saved to the archive."
 	_refresh()

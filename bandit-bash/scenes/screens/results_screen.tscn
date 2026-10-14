@@ -1,6 +1,7 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/nav_button.gd" id="1_nav"]
+[ext_resource type="Script" path="res://scripts/screens/results_screen.gd" id="2_results"]
 
 [node name="ResultsScreen" type="Control"]
 layout_mode = 3
@@ -9,6 +10,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+script = ExtResource("2_results")
 
 [node name="Center" type="CenterContainer" parent="."]
 layout_mode = 1
@@ -22,16 +24,19 @@ grow_vertical = 2
 layout_mode = 2
 
 [node name="Title" type="Label" parent="Center/Column"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Results (placeholder)"
 horizontal_alignment = 1
 
 [node name="Note" type="Label" parent="Center/Column"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Round scores and rankings go here."
 horizontal_alignment = 1
 
 [node name="NextRoundButton" type="Button" parent="Center/Column"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Next Round"
 script = ExtResource("1_nav")
@@ -39,6 +44,7 @@ action = 3
 target_screen = 2
 
 [node name="LeaveButton" type="Button" parent="Center/Column"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Leave Match"
 script = ExtResource("1_nav")

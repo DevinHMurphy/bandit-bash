@@ -11,7 +11,7 @@
 
 extends SceneTree
 ## Headless tests for the save layer ([SaveFile], [SaveMigrations], [ProfileData],
-## [SettingsData], [CampaignData], [CombatData], [SaveSectionRegistry]).
+## [SettingsData], [CampaignData], [CombatData], [ArchiveRecord], [SaveSectionRegistry]).
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/save/run_all.gd[/code][br]
@@ -71,6 +71,8 @@ func _init() -> void:
 	_test_player_sections_per_seat()
 	_test_combat_round_trip()
 	_test_combat_rejects_bad_data()
+	_test_archive_from_campaign()
+	_test_archive_round_trip_and_bad_data()
 
 	SaveFile.delete_folder(TEST_DIR)
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
@@ -723,6 +725,74 @@ func _test_combat_rejects_bad_data() -> void:
 				"combat bad data: %s refused" % [case_name],
 				err == ERR_INVALID_DATA and combat.turn == 9
 		)
+
+
+func _test_archive_from_campaign() -> void:
+	var campaign: CampaignData = CampaignData.create_solo(77)
+	campaign.mode = CampaignData.Mode.MULTIPLAYER
+	campaign.difficulty = "hard"
+	campaign.floors_climbed = 5
+	campaign.combat_maps_completed = 2
+	campaign.play_time_seconds = 600
+	campaign.players[0].steam_id = STEAM_ID
+	campaign.players[0].sections = {
+		"roster": {"version": 1, "data": {"units": ["knight"]}},
+		"inventory": {"version": 1, "data": {}},
+	}
+	var guest: CampaignData.PlayerRun = CampaignData.PlayerRun.new()
+	guest.seat = 1
+	campaign.players.append(guest)
+
+	var names: Dictionary[int, String] = {0: "Host"}
+	var record: ArchiveRecord = ArchiveRecord.from_campaign(campaign, true, names)
+	_check("archive: outcome and mode", record.won and record.mode == CampaignData.Mode.MULTIPLAYER)
+	_check(
+			"archive: run fields copied",
+			record.run_seed == 77 and record.difficulty == "hard" and record.floors_climbed == 5
+			and record.combat_maps_completed == 2 and record.play_time_seconds == 600
+	)
+	_check("archive: ended now", record.ended_at >= record.started_at and record.ended_at > 0)
+	_check("archive: one entry per seat", record.players.size() == 2)
+	_check(
+			"archive: names by seat",
+			record.players[0].name == "Host" and record.players[1].name.is_empty()
+	)
+	_check("archive: Steam id kept", record.players[0].steam_id == STEAM_ID)
+	_check(
+			"archive: only the roster copied",
+			record.players[0].roster == {"version": 1, "data": {"units": ["knight"]}}
+	)
+	_check("archive: no roster is empty", record.players[1].roster.is_empty())
+	var expected_name: String = "multiplayer_%d.json" % [record.ended_at]
+	_check("archive: file name", record.get_file_name() == expected_name)
+
+
+func _test_archive_round_trip_and_bad_data() -> void:
+	_clear_test_dir()
+	var record: ArchiveRecord = ArchiveRecord.from_campaign(CampaignData.create_solo(5), false, {})
+	record.modifiers = PackedStringArray(["fog"])
+	SaveFile.write(TEST_PATH, record.to_envelope())
+
+	var loaded: ArchiveRecord = ArchiveRecord.new()
+	loaded.won = true
+	var err: Error = loaded.load_envelope(SaveFile.read(TEST_PATH).envelope)
+	_check("archive round trip: load OK", err == OK, error_string(err))
+	_check("archive round trip: lost", not loaded.won and loaded.mode == CampaignData.Mode.SOLO)
+	_check(
+			"archive round trip: fields",
+			loaded.run_seed == 5 and loaded.ended_at == record.ended_at
+			and loaded.modifiers == PackedStringArray(["fog"]) and loaded.players.size() == 1
+	)
+
+	var bad: Dictionary[String, Dictionary] = {
+		"unknown outcome": {"mode": "solo", "outcome": "draw", "players": []},
+		"unknown mode": {"mode": "coop", "outcome": "won", "players": []},
+		"missing players": {"mode": "solo", "outcome": "won"},
+	}
+	for case_name: String in bad:
+		var target: ArchiveRecord = ArchiveRecord.new()
+		var bad_err: Error = target.load_envelope(SaveFile.make_envelope(1, bad[case_name]))
+		_check("archive bad data: %s refused" % [case_name], bad_err == ERR_INVALID_DATA)
 
 
 func _step_add_gold(envelope: Dictionary) -> Error:
