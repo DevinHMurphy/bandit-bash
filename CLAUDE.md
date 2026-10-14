@@ -11,7 +11,10 @@ the code standards. If it is missing, stop and say so.
 - Project: Bandit Bash · Copyright holder: Derc Development · License: MIT · the `Author:` line in
   file headers stays blank.
 - Engine: Godot 4.7.1. If `config/features` in `project.godot` disagrees, stop and ask.
-- Godot binary: `godot` on PATH. If that fails, ask the user for the path once and record it here.
+- Godot binary: `godot` is not on PATH. Use
+  `"C:\Users\demur\OneDrive\Desktop\Godot_v4.7.1-stable_win64.exe"` (Bash:
+  `"/c/Users/demur/OneDrive/Desktop/Godot_v4.7.1-stable_win64.exe"`) wherever these rules say
+  `godot`.
 - Dates: never from memory. Run `date "+%B %-d, %Y"`.
 
 ### Repository layout
