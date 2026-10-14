@@ -35,13 +35,7 @@ horizontal_alignment = 1
 layout_mode = 2
 text = "Play"
 script = ExtResource("1_nav")
-target_screen = 5
-
-[node name="OptionsButton" type="Button" parent="Center/Column"]
-layout_mode = 2
-text = "Options"
-script = ExtResource("1_nav")
-target_screen = 6
+target_screen = 7
 
 [node name="QuitButton" type="Button" parent="Center/Column"]
 layout_mode = 2

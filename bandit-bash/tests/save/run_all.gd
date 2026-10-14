@@ -10,7 +10,7 @@
 # ==============================================================================
 
 extends SceneTree
-## Headless tests for the save file layer ([SaveFile], [SaveMigrations]).
+## Headless tests for the save layer ([SaveFile], [SaveMigrations], [ProfileData]).
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/save/run_all.gd[/code][br]
@@ -53,9 +53,12 @@ func _init() -> void:
 	_test_version_comparison()
 	_test_migrations_run_in_order()
 	_test_migrations_reject_bad_versions()
+	_test_exists_and_delete()
+	_test_delete_folder()
+	_test_profile_round_trip()
+	_test_profile_defaults_and_newer_schema()
 
-	_clear_test_dir()
-	DirAccess.remove_absolute(TEST_DIR)
+	SaveFile.delete_folder(TEST_DIR)
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)
 
@@ -288,6 +291,76 @@ func _test_migrations_reject_bad_versions() -> void:
 	_check("migrate: schema 0 refused", too_old == ERR_INVALID_DATA, error_string(too_old))
 	_check("migrate: step count mismatch", wrong_steps == ERR_BUG, error_string(wrong_steps))
 	_check("migrate: failing step reported", failing == ERR_INVALID_DATA, error_string(failing))
+
+
+func _test_exists_and_delete() -> void:
+	_clear_test_dir()
+	_check("exists: false with no copies", not SaveFile.exists(TEST_PATH))
+	_write_raw(_backup(), TRUNCATED_JSON)
+	_check("exists: true with only a .bak", SaveFile.exists(TEST_PATH))
+
+	SaveFile.write(TEST_PATH, _envelope_with_seq(1))
+	_write_raw(_temp(), TRUNCATED_JSON)
+	var err: Error = SaveFile.delete(TEST_PATH)
+	_check("delete: OK", err == OK, error_string(err))
+	_check("delete: every copy gone", not SaveFile.exists(TEST_PATH))
+	_check("delete: missing file is OK", SaveFile.delete(TEST_PATH) == OK)
+
+
+func _test_delete_folder() -> void:
+	var folder: String = TEST_DIR + "save_9/"
+	SaveFile.write(folder + "profile.json", _envelope_with_seq(1))
+	SaveFile.write(folder + "archive/run_1.json", _envelope_with_seq(1))
+	var err: Error = SaveFile.delete_folder(folder)
+
+	_check("delete folder: OK", err == OK, error_string(err))
+	_check("delete folder: gone with subfolders", not DirAccess.dir_exists_absolute(folder))
+	_check("delete folder: missing folder is OK", SaveFile.delete_folder(folder) == OK)
+	_check(
+			"delete folder: refuses user:// root",
+			SaveFile.delete_folder("user://") == ERR_INVALID_PARAMETER
+	)
+	_check(
+			"delete folder: refuses res://",
+			SaveFile.delete_folder("res://tests/") == ERR_INVALID_PARAMETER
+	)
+
+
+func _test_profile_round_trip() -> void:
+	_clear_test_dir()
+	var profile: ProfileData = ProfileData.create_new()
+	profile.last_steam_name = "Ada"
+	profile.play_time_seconds = 4321
+	profile.sections = {"unlocks": {"version": 1, "data": {"knight": true}}}
+	SaveFile.write(TEST_PATH, profile.to_envelope())
+
+	var loaded: ProfileData = ProfileData.new()
+	var err: Error = loaded.load_envelope(SaveFile.read(TEST_PATH).envelope)
+	_check("profile: load OK", err == OK, error_string(err))
+	_check("profile: created_at set", profile.created_at > 0)
+	_check("profile: created_at kept", loaded.created_at == profile.created_at)
+	_check("profile: name kept", loaded.last_steam_name == "Ada")
+	_check("profile: play time kept", loaded.play_time_seconds == 4321)
+	_check("profile: sections carried through", loaded.sections.has("unlocks"))
+
+
+func _test_profile_defaults_and_newer_schema() -> void:
+	var sparse: ProfileData = ProfileData.new()
+	var err: Error = sparse.load_envelope(SaveFile.make_envelope(1, {}))
+	_check("profile defaults: load OK", err == OK, error_string(err))
+	_check(
+			"profile defaults: missing fields keep defaults",
+			sparse.last_steam_name.is_empty() and sparse.play_time_seconds == 0
+	)
+
+	var newer: ProfileData = ProfileData.new()
+	newer.last_steam_name = "unchanged"
+	var newer_envelope: Dictionary = SaveFile.make_envelope(
+			ProfileData.SCHEMA_VERSION + 1, {"last_steam_name": "from the future"}
+	)
+	var newer_err: Error = newer.load_envelope(newer_envelope)
+	_check("profile newer schema: refused", newer_err == ERR_FILE_UNRECOGNIZED)
+	_check("profile newer schema: left unchanged", newer.last_steam_name == "unchanged")
 
 
 func _step_add_gold(envelope: Dictionary) -> Error:

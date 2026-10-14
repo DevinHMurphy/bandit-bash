@@ -188,6 +188,64 @@ static func read(path: String) -> ReadResult:
 	return result
 
 
+## True when [param path] or its [code].tmp[/code] or [code].bak[/code] copy exists.
+##
+## Says nothing about readability; use [method read] for that.
+static func exists(path: String) -> bool:
+	for source: Source in _SOURCE_ORDER:
+		if FileAccess.file_exists(_path_for(path, source)):
+			return true
+	return false
+
+
+## Deletes [param path] and its [code].tmp[/code] and [code].bak[/code] copies.
+##
+## Missing copies are not an error.
+## Returns [constant OK] or the first removal error.
+static func delete(path: String) -> Error:
+	var first_err: Error = OK
+	for source: Source in _SOURCE_ORDER:
+		var candidate_path: String = _path_for(path, source)
+		if not FileAccess.file_exists(candidate_path):
+			continue
+		var err: Error = DirAccess.remove_absolute(candidate_path)
+		if err != OK and first_err == OK:
+			first_err = err
+			push_error("SaveFile: deleting %s failed - %s" % [candidate_path, error_string(err)])
+	return first_err
+
+
+## Deletes the folder [param dir] and everything in it, subfolders included. Cannot be undone.
+##
+## Used to delete a whole save file. A missing folder is not an error. Refuses anything that
+## isn't a subfolder of [code]user://[/code], so a bad path can't empty the user folder.
+## Returns [constant OK], [constant ERR_INVALID_PARAMETER] for a refused path, or the first
+## removal error.
+static func delete_folder(dir: String) -> Error:
+	var base: String = dir if dir.ends_with("/") else dir + "/"
+	if not base.begins_with("user://") or base.trim_prefix("user://").trim_suffix("/").is_empty():
+		push_error("SaveFile: refusing to delete folder %s" % [dir])
+		return ERR_INVALID_PARAMETER
+	if not DirAccess.dir_exists_absolute(base):
+		return OK
+
+	for sub_dir: String in DirAccess.get_directories_at(base):
+		var sub_err: Error = delete_folder(base + sub_dir)
+		if sub_err != OK:
+			return sub_err
+	for file_name: String in DirAccess.get_files_at(base):
+		var file_path: String = base + file_name
+		var file_err: Error = DirAccess.remove_absolute(file_path)
+		if file_err != OK:
+			push_error("SaveFile: deleting %s failed - %s" % [file_path, error_string(file_err)])
+			return file_err
+
+	var dir_err: Error = DirAccess.remove_absolute(base)
+	if dir_err != OK:
+		push_error("SaveFile: deleting folder %s failed - %s" % [base, error_string(dir_err)])
+	return dir_err
+
+
 ## The running game version, from [constant VERSION_SETTING]. Empty if the setting is missing.
 static func get_running_version() -> String:
 	return str(ProjectSettings.get_setting(VERSION_SETTING, ""))

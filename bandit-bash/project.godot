@@ -19,6 +19,7 @@ config/icon="res://icon.svg"
 [autoload]
 
 NetLog="*res://scripts/autoload/net_log.gd"
+SaveService="*res://scripts/autoload/save_service.gd"
 SteamManager="*res://scripts/autoload/steam_manager.gd"
 SteamNetwork="*res://scripts/autoload/steam_network.gd"
 SceneRouter="*res://scripts/autoload/scene_router.gd"

@@ -6,7 +6,7 @@
 # File:     scene_router.gd
 # Author:
 # Created:  October 9, 2026
-# Modified: October 9, 2026
+# Modified: October 14, 2026
 # ==============================================================================
 
 extends Node
@@ -23,17 +23,20 @@ extends Node
 ## This machine just entered [param screen].
 signal screen_changed(screen: Screen)
 
-# Screen flow. The edges are authored as NavButton exports inside each screen scene, not here.
+# Screen flow. Most edges are authored as NavButton exports inside each screen scene, not here.
 #   Precondition: boot.tscn opens START once; no other screen is entered before that.
-#   START      -> MAIN_MENU, OPTIONS, quit
-#   MAIN_MENU  -> LOADING (solo), LOBBY (multiplayer), OPTIONS, START
-#   OPTIONS    -> back to whichever screen opened it
-#   LOBBY      -> LOADING (everyone), MAIN_MENU
-#   LOADING    -> GAMEPLAY (everyone)
-#   GAMEPLAY   -> RESULTS (everyone)
-#   RESULTS    -> LOADING (everyone, next round), MAIN_MENU
+#   START       -> SAVE_SELECT, quit
+#   SAVE_SELECT -> MAIN_MENU (only after a save file opens; save_select_screen.gd), START
+#   MAIN_MENU   -> LOADING (solo), LOBBY (multiplayer), OPTIONS, SAVE_SELECT
+#   OPTIONS     -> back to whichever screen opened it (only MAIN_MENU links to it)
+#   LOBBY       -> LOADING (everyone), MAIN_MENU
+#   LOADING     -> GAMEPLAY (everyone)
+#   GAMEPLAY    -> RESULTS (everyone)
+#   RESULTS     -> LOADING (everyone, next round), MAIN_MENU
 # "Everyone" edges go through goto_screen_for_everyone(): host only, solo falls back to local.
-# Entering START or MAIN_MENU ends any lobby session, so Leave Match also leaves the lobby.
+# Entering START, SAVE_SELECT or MAIN_MENU ends any lobby session, so Leave Match also leaves the
+# lobby. Entering SAVE_SELECT also closes the open save file (save_select_screen.gd).
+# There is no way to MAIN_MENU without an open save file: every path in passes SAVE_SELECT.
 # There is no separate match-over screen: RESULTS offers both exits.
 ## Every screen in the game.
 ##
@@ -47,6 +50,7 @@ enum Screen {
 	RESULTS = 4,
 	MAIN_MENU = 5,
 	OPTIONS = 6,
+	SAVE_SELECT = 7,
 }
 
 ## [enum Screen] -> scene path. Every [enum Screen] value needs an entry.
@@ -58,6 +62,7 @@ const SCREEN_PATHS: Dictionary[Screen, String] = {
 	Screen.RESULTS: "res://scenes/screens/results_screen.tscn",
 	Screen.MAIN_MENU: "res://scenes/screens/main_menu.tscn",
 	Screen.OPTIONS: "res://scenes/screens/options_screen.tscn",
+	Screen.SAVE_SELECT: "res://scenes/screens/save_select_screen.tscn",
 }
 
 ## Screen this machine is showing. [constant Screen.START] until the first [method goto_screen].
@@ -68,7 +73,8 @@ var previous_screen: Screen = Screen.START
 
 ## Switches to [param screen] on this machine only.
 ##
-## Entering [constant Screen.START] or [constant Screen.MAIN_MENU] also leaves any lobby.
+## Entering [constant Screen.START], [constant Screen.SAVE_SELECT] or [constant Screen.MAIN_MENU]
+## also leaves any lobby.
 func goto_screen(screen: Screen) -> void:
 	if not SCREEN_PATHS.has(screen):
 		push_error(
@@ -89,7 +95,8 @@ func goto_screen(screen: Screen) -> void:
 	NetLog.info(NetLog.Category.SCENE, "Entered screen %s." % [Screen.find_key(screen)])
 
 	# ASSUMPTION: START and MAIN_MENU are outside any match, so entering them ends the lobby.
-	if screen == Screen.START or screen == Screen.MAIN_MENU:
+	# SAVE_SELECT ending it is confirmed by the save system plan.
+	if screen == Screen.START or screen == Screen.SAVE_SELECT or screen == Screen.MAIN_MENU:
 		SteamNetwork.leave_lobby()
 
 	screen_changed.emit(screen)
