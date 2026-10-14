@@ -34,6 +34,11 @@ Tuning values carried over, each with its source file.
 ## Approach
 Chosen design and the alternatives rejected, with reasons.
 
+## Save Impact
+What this change persists, per `docs/design/save-system.md`: each block (profile, campaign,
+combat, settings), section key and version, whether it is per player, and the migration for any
+changed shape. Or the line "Not saved." with why nothing needs to survive a restart.
+
 ## Work Breakdown
 Ordered, independently committable steps. Each: files touched, description, risk (🟢/🟡/🔴),
 verification. Cheapest, highest-confidence steps first, so each can be measured alone.

@@ -1,6 +1,20 @@
 # Plan: Save System
 **Date:** October 13, 2026
-**Status:** Approved — revision 4 (October 14, 2026); implementing milestone by milestone
+**Status:** Implemented (October 14, 2026). M1–M8 verified headlessly; M9–M12 verified headlessly
+on the host and client save paths, **untested live** until the two-machine runs. The living
+reference is now `docs/design/save-system.md`.
+
+**Where the build differs from this plan** (all deliberate):
+- Section contracts: `migrate(data, from_version)` edits in place and returns an `Error`;
+  `restore(data)` receives already-migrated data. Per-player sections also have `clear()`.
+- The multiplayer `required_steam_ids` and `host_steam_id` are derived from `players` (seat order,
+  seat 0 is the host) instead of being stored separately, so they can't disagree.
+- `end_solo_run()` / `abandon_solo_run()` became `end_run()` / `abandon_run(mode)` for both slots.
+- Added, not in the plan, each marked `# ASSUMPTION` in code: the host can abandon a hosted
+  campaign from the Main Menu (archived as lost for the host only); only the Steam account that
+  hosted a campaign can resume it; an invite received while already in a lobby is ignored; a
+  refused client is cut off 1 s after being told why; the "Saved" notice shows for 2 s.
+- Lobby admission rules live in `LobbyAdmission` so they are testable without Steam.
 
 ## Problem
 

@@ -77,6 +77,9 @@ Ask when:
 - the request depends on a system you haven't read (spawners, terrain, autoloads, `Hook`) — read it
   first, then ask if it is still unclear
 - you are about to add a dependency, autoload or new file
+- the change adds state that must survive a restart, quit, crash or multiplayer resume (roster,
+  inventory, progress, unlocks, stats, settings): read `docs/design/save-system.md` first and state
+  the save impact (block, section key, version) in the estimate
 
 How to ask:
 
@@ -160,6 +163,8 @@ stop for review. No code until the plan is approved.
       preserved, changed or dropped
 - [ ] Verification (§3) run and clean, or its absence stated
 - [ ] Performance claims measured, or labelled unmeasured
+- [ ] Save impact stated: persisted state registered as a `SaveSection` / `PlayerSaveSection` per
+      `docs/design/save-system.md`, or explicitly "not saved"
 
 ### 5. Summary format
 
