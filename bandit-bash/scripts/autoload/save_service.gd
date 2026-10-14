@@ -23,6 +23,10 @@ extends Node
 ## and to the profile; time since the last checkpoint is lost if the game quits without one.[br]
 ## [b]Sections:[/b] systems keep their own data in a file by registering a [SaveSection] or
 ## [PlayerSaveSection] here (see [method register_section]); [SaveSectionRegistry] routes it.[br]
+## [b]Battles[/b] ([method begin_battle], [method end_battle]) write the combat file before the
+## campaign, both with the same checkpoint number, so a crash between the two is detectable;
+## [method continue_solo_run] decides from that pairing whether to resume or restart the battle
+## ([member resume_point]).[br]
 ## [b]Why an autoload:[/b] the open save file outlives every screen change.
 ##
 ## @tutorial(Save system plan): docs/plans/2026-10-13-save-system.md
@@ -66,6 +70,7 @@ const _RESERVED_PROFILE_SECTIONS: Array[String] = [
 	"hall_of_heroes",
 ]
 const _RESERVED_CAMPAIGN_SECTIONS: Array[String] = ["rng"]
+const _RESERVED_COMBAT_SECTIONS: Array[String] = ["enemy_units", "entities", "rng"]
 
 ## The open save file, 1 to [constant SAVE_FILE_COUNT], or [constant NO_SAVE_FILE].
 var current_save_number: int = NO_SAVE_FILE
@@ -83,6 +88,14 @@ var settings: SettingsData = SettingsData.new()
 ## [method continue_solo_run]; saved only by [method save_checkpoint].
 var campaign: CampaignData = null
 
+## The battle in progress, or null. Set by [method begin_battle] and by [method continue_solo_run]
+## when it resumes a battle.
+var combat: CombatData = null
+
+## How the last [method continue_solo_run] picked up: on the campaign, inside the saved battle, or
+## restarting a battle whose combat file was unusable. Gameplay reads it to know where to start.
+var resume_point: CombatData.ResumePoint = CombatData.ResumePoint.CAMPAIGN
+
 # Time.get_ticks_msec() at each file's last successful play-time flush. Separate per file so a
 # write that fails for one file can't make the other count the same time twice.
 var _campaign_flush_msec: int = 0
@@ -96,6 +109,8 @@ func _ready() -> void:
 		_sections.register(SaveSection.Block.PROFILE, RawSaveSection.new(key))
 	for key: String in _RESERVED_CAMPAIGN_SECTIONS:
 		_sections.register(SaveSection.Block.CAMPAIGN, RawSaveSection.new(key))
+	for key: String in _RESERVED_COMBAT_SECTIONS:
+		_sections.register(SaveSection.Block.COMBAT, RawSaveSection.new(key))
 
 
 ## Registers [param section] to keep its data in [param block] of every save file.
@@ -274,9 +289,12 @@ func start_new_solo_run() -> Error:
 
 ## Loads the open save file's solo run as [member campaign] and starts counting play time.
 ##
-## Writes nothing; the next checkpoint saves.
-## Returns [constant OK], [constant ERR_UNCONFIGURED] with no save file open, or the read or load
-## error; on error no campaign is active.
+## Sets [member resume_point], loading [member combat] when the battle can resume. A combat file
+## left by a crash outside a battle is deleted; an unusable one during a battle is deleted and the
+## battle restarts from Begin (plan, "Combat crash protection", load table).
+## Writes nothing else; the next checkpoint saves.
+## Returns [constant OK], [constant ERR_UNCONFIGURED] with no save file open, or the campaign's
+## read or load error; on error no campaign is active. A bad combat file is never an error.
 func continue_solo_run() -> Error:
 	_end_campaign()
 	if not has_open_save_file():
@@ -300,28 +318,101 @@ func continue_solo_run() -> Error:
 		return sections_err
 
 	campaign = loaded
+	resume_point = _load_battle()
 	_start_play_clock()
 	return OK
 
 
-## Saves [member campaign] at a checkpoint (plan, row 13), then the profile.
+## Saves [member campaign] at a checkpoint (plan, row 13), then the profile. During a battle it
+## writes [member combat] first, with the checkpoint number the campaign is about to take; this is
+## the end-of-player-phase and Save & Quit save.
 ##
 ## Adds play time since each file's last successful write, raises
 ## [member CampaignData.checkpoint_seq] by one and sets [member CampaignData.last_opened] to now.
 ## A failed write leaves that file's in-memory values and play-time flush point unchanged, so the
 ## time is added once by the next successful save.
 ## Returns [constant OK], [constant ERR_UNCONFIGURED] with no active campaign, or the first write
-## error; the profile isn't written when the campaign write fails.
+## error; nothing after a failed write is written.
 func save_checkpoint() -> Error:
 	if campaign == null or not has_open_save_file():
 		push_error("SaveService: no active campaign to save.")
 		return ERR_UNCONFIGURED
+
+	if combat != null:
+		var combat_err: Error = _write_combat()
+		if combat_err != OK:
+			return combat_err
 
 	var now_msec: int = Time.get_ticks_msec()
 	var campaign_err: Error = _write_campaign(now_msec)
 	if campaign_err != OK:
 		return campaign_err
 	return _write_profile(now_msec)
+
+
+## Starts and saves a battle when the player presses Begin after battle prep (plan, "Combat crash
+## protection", step 1).
+##
+## Captures the campaign's sections first, then sets [member CampaignData.combat_in_progress]:
+## until [method end_battle], campaign writes keep the sections as they are now, so a battle can
+## always restart from this point. Also used to restart a battle after
+## [constant CombatData.ResumePoint.BATTLE_RETRY].
+## Returns [constant OK], [constant ERR_UNCONFIGURED] with no active campaign,
+## [constant ERR_ALREADY_IN_USE] during a battle, or the write error; on error no battle is
+## active.
+func begin_battle() -> Error:
+	if campaign == null or not has_open_save_file():
+		push_error("SaveService: can't begin a battle with no active campaign.")
+		return ERR_UNCONFIGURED
+	if combat != null:
+		push_error("SaveService: a battle is already in progress.")
+		return ERR_ALREADY_IN_USE
+
+	_capture_campaign_sections()
+	var was_in_progress: bool = campaign.combat_in_progress
+	campaign.combat_in_progress = true
+	combat = CombatData.new()
+	_sections.reset(SaveSection.Block.COMBAT)
+
+	var err: Error = save_checkpoint()
+	if err != OK:
+		combat = null
+		campaign.combat_in_progress = was_in_progress
+		_sections.reset(SaveSection.Block.COMBAT)
+	return err
+
+
+## Ends the battle in progress (plan, "Combat crash protection", step 3): writes the campaign with
+## the battle's results, then deletes the combat file.
+##
+## Systems apply the battle's results to their campaign sections before calling this; they are
+## captured here. If the campaign write fails, the battle stays in progress and nothing changes.
+## Returns [constant OK], [constant ERR_UNCONFIGURED] with no battle in progress, or the first
+## write or delete error.
+func end_battle() -> Error:
+	if campaign == null or combat == null or not has_open_save_file():
+		push_error("SaveService: no battle in progress to end.")
+		return ERR_UNCONFIGURED
+
+	var begin_sections: Dictionary = campaign.sections
+	var begin_player_sections: Array[Dictionary] = []
+	for player: CampaignData.PlayerRun in campaign.players:
+		begin_player_sections.append(player.sections)
+
+	campaign.combat_in_progress = false
+	var now_msec: int = Time.get_ticks_msec()
+	var campaign_err: Error = _write_campaign(now_msec)
+	if campaign_err != OK:
+		campaign.combat_in_progress = true
+		campaign.sections = begin_sections
+		for index: int in campaign.players.size():
+			campaign.players[index].sections = begin_player_sections[index]
+		return campaign_err
+
+	var profile_err: Error = _write_profile(now_msec)
+	var delete_err: Error = SaveFile.delete(_get_combat_path(current_save_number, campaign.mode))
+	_end_battle_state()
+	return delete_err if delete_err != OK else profile_err
 
 
 ## Ends the active solo run as a win or loss: flushes play time to the profile, empties the solo
@@ -336,8 +427,7 @@ func end_solo_run(won: bool) -> Error:
 
 	var profile_err: Error = _write_profile(Time.get_ticks_msec())
 	# TODO(TOD-001): Write the archive record with the outcome before deleting (plan M7).
-	var path: String = _get_campaign_path(current_save_number, CampaignData.Mode.SOLO)
-	var delete_err: Error = SaveFile.delete(path)
+	var delete_err: Error = _delete_campaign_slot(CampaignData.Mode.SOLO)
 	_end_campaign()
 	run_ended.emit(CampaignData.Mode.SOLO, won)
 	return delete_err if delete_err != OK else profile_err
@@ -355,8 +445,7 @@ func abandon_solo_run() -> Error:
 		_end_campaign()
 
 	# TODO(TOD-001): Archive the run as lost before deleting (plan M7).
-	var path: String = _get_campaign_path(current_save_number, CampaignData.Mode.SOLO)
-	var err: Error = SaveFile.delete(path)
+	var err: Error = _delete_campaign_slot(CampaignData.Mode.SOLO)
 	if err == OK:
 		run_ended.emit(CampaignData.Mode.SOLO, false)
 	return err
@@ -435,6 +524,10 @@ func _get_campaign_path(save_number: int, slot_mode: CampaignData.Mode) -> Strin
 	return get_save_file_dir(save_number) + CampaignData.get_file_name(slot_mode)
 
 
+func _get_combat_path(save_number: int, slot_mode: CampaignData.Mode) -> String:
+	return get_save_file_dir(save_number) + CombatData.get_file_name(slot_mode)
+
+
 # Reads and loads one campaign file into target. Returns ERR_FILE_NOT_FOUND for an empty slot.
 func _load_campaign_into(path: String, target: CampaignData) -> Error:
 	var result: SaveFile.ReadResult = SaveFile.read(path)
@@ -443,12 +536,77 @@ func _load_campaign_into(path: String, target: CampaignData) -> Error:
 	return target.load_envelope(result.envelope)
 
 
-# Drops the active campaign and empties every campaign section, so nothing from it leaks into the
-# next run.
+# Applies the load table for the just-loaded campaign; see continue_solo_run(). The combat file
+# is trusted only when its checkpoint_seq equals the campaign's, or is one ahead (a crash between
+# the combat write and the campaign write).
+func _load_battle() -> CombatData.ResumePoint:
+	var path: String = _get_combat_path(current_save_number, campaign.mode)
+	if not campaign.combat_in_progress:
+		if SaveFile.exists(path):
+			push_warning("SaveService: deleting a combat file left outside a battle: %s" % [path])
+			SaveFile.delete(path)
+		return CombatData.ResumePoint.CAMPAIGN
+
+	var loaded: CombatData = CombatData.new()
+	var result: SaveFile.ReadResult = SaveFile.read(path)
+	var err: Error = result.error
+	if err == OK:
+		err = loaded.load_envelope(result.envelope)
+	var seq_gap: int = loaded.checkpoint_seq - campaign.checkpoint_seq
+	if err == OK and seq_gap != 0 and seq_gap != 1:
+		err = ERR_INVALID_DATA
+	if err == OK:
+		err = _sections.restore(SaveSection.Block.COMBAT, loaded.sections)
+	if err == OK:
+		combat = loaded
+		return CombatData.ResumePoint.BATTLE
+
+	push_warning(
+			"SaveService: the battle in %s can't be resumed (%s); it restarts from Begin."
+			% [path, error_string(err)]
+	)
+	SaveFile.delete(path)
+	_sections.reset(SaveSection.Block.COMBAT)
+	return CombatData.ResumePoint.BATTLE_RETRY
+
+
+# Deletes a campaign slot's campaign and combat files. Returns the first delete error.
+func _delete_campaign_slot(slot_mode: CampaignData.Mode) -> Error:
+	var combat_err: Error = SaveFile.delete(_get_combat_path(current_save_number, slot_mode))
+	var campaign_err: Error = SaveFile.delete(_get_campaign_path(current_save_number, slot_mode))
+	return combat_err if combat_err != OK else campaign_err
+
+
+# Drops the active campaign and its battle and empties their sections, so nothing from them
+# leaks into the next run.
 func _end_campaign() -> void:
 	campaign = null
+	_end_battle_state()
+	resume_point = CombatData.ResumePoint.CAMPAIGN
 	_sections.reset(SaveSection.Block.CAMPAIGN)
 	_sections.clear_players()
+
+
+func _end_battle_state() -> void:
+	combat = null
+	_sections.reset(SaveSection.Block.COMBAT)
+
+
+func _capture_campaign_sections() -> void:
+	campaign.sections = _sections.capture(SaveSection.Block.CAMPAIGN, campaign.sections)
+	_sections.capture_players(campaign.players)
+
+
+# Writes the combat file with the checkpoint number the campaign write that follows will take.
+func _write_combat() -> Error:
+	var previous_seq: int = combat.checkpoint_seq
+	combat.checkpoint_seq = campaign.checkpoint_seq + 1
+	combat.sections = _sections.capture(SaveSection.Block.COMBAT, combat.sections)
+	var path: String = _get_combat_path(current_save_number, campaign.mode)
+	var err: Error = SaveFile.write(path, combat.to_envelope())
+	if err != OK:
+		combat.checkpoint_seq = previous_seq
+	return err
 
 
 func _start_play_clock() -> void:
@@ -466,8 +624,9 @@ func _write_campaign(now_msec: int) -> Error:
 	campaign.play_time_seconds += seconds
 	campaign.checkpoint_seq += 1
 	campaign.last_opened = int(Time.get_unix_time_from_system())
-	campaign.sections = _sections.capture(SaveSection.Block.CAMPAIGN, campaign.sections)
-	_sections.capture_players(campaign.players)
+	# During a battle the campaign keeps its sections as they were at Begin; see begin_battle().
+	if not campaign.combat_in_progress:
+		_capture_campaign_sections()
 	var path: String = _get_campaign_path(current_save_number, campaign.mode)
 	var err: Error = SaveFile.write(path, campaign.to_envelope())
 	if err != OK:

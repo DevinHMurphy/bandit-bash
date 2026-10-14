@@ -23,6 +23,26 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Room Entered (checkpoint)"
 
+[node name="BeginButton" type="Button" parent="Column"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Begin Battle (save)"
+
+[node name="PlayerPhaseButton" type="Button" parent="Column"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "End Player Phase (save)"
+
+[node name="EnemyPhaseButton" type="Button" parent="Column"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "End Enemy Phase"
+
+[node name="EndBattleButton" type="Button" parent="Column"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "End Battle (save)"
+
 [node name="WinButton" type="Button" parent="Column"]
 unique_name_in_owner = true
 layout_mode = 2

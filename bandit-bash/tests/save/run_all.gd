@@ -11,7 +11,7 @@
 
 extends SceneTree
 ## Headless tests for the save layer ([SaveFile], [SaveMigrations], [ProfileData],
-## [SettingsData], [CampaignData], [SaveSectionRegistry]).
+## [SettingsData], [CampaignData], [CombatData], [SaveSectionRegistry]).
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/save/run_all.gd[/code][br]
@@ -69,6 +69,8 @@ func _init() -> void:
 	_test_sections_migrate_and_refuse()
 	_test_sections_raw_and_replace()
 	_test_player_sections_per_seat()
+	_test_combat_round_trip()
+	_test_combat_rejects_bad_data()
 
 	SaveFile.delete_folder(TEST_DIR)
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
@@ -448,6 +450,7 @@ func _test_campaign_solo_round_trip() -> void:
 	campaign.floors_climbed = 3
 	campaign.combat_maps_completed = 1
 	campaign.players[0].sections = {"roster": {"version": 1, "data": {"units": ["u1"]}}}
+	campaign.combat_in_progress = true
 	SaveFile.write(TEST_PATH, campaign.to_envelope())
 
 	var loaded: CampaignData = CampaignData.new()
@@ -472,6 +475,9 @@ func _test_campaign_solo_round_trip() -> void:
 	_check("campaign solo: one seat 0", loaded.players.size() == 1 and loaded.players[0].seat == 0)
 	_check("campaign solo: no Steam id", loaded.players[0].steam_id.is_empty())
 	_check("campaign solo: player sections kept", loaded.players[0].sections.has("roster"))
+	_check("campaign solo: battle flag kept", loaded.combat_in_progress)
+	var fresh: CampaignData = CampaignData.create_solo(1)
+	_check("campaign solo: battle flag defaults off", not fresh.combat_in_progress)
 	var solo_file: String = CampaignData.get_file_name(CampaignData.Mode.SOLO)
 	_check("campaign solo: file name", solo_file == "campaign_solo.json")
 
@@ -675,6 +681,48 @@ func _test_player_sections_per_seat() -> void:
 			"player sections reset: clear then each seat",
 			section.clear_count == 1 and section.reset_seats == [0, 1]
 	)
+
+
+func _test_combat_round_trip() -> void:
+	_clear_test_dir()
+	var combat: CombatData = CombatData.new()
+	_check(
+			"combat: starts turn 1, player phase",
+			combat.turn == 1 and combat.phase == CombatData.Phase.PLAYER
+	)
+	combat.turn = 3
+	combat.phase = CombatData.Phase.ENEMY
+	combat.checkpoint_seq = 12
+	combat.sections = {"enemy_units": {"version": 1, "data": {"count": 4}}}
+	SaveFile.write(TEST_PATH, combat.to_envelope())
+
+	var loaded: CombatData = CombatData.new()
+	var err: Error = loaded.load_envelope(SaveFile.read(TEST_PATH).envelope)
+	_check("combat: load OK", err == OK, error_string(err))
+	_check("combat: turn and phase", loaded.turn == 3 and loaded.phase == CombatData.Phase.ENEMY)
+	_check("combat: checkpoint_seq from envelope", loaded.checkpoint_seq == 12)
+	_check("combat: sections kept", loaded.sections.has("enemy_units"))
+	_check(
+			"combat: file names",
+			CombatData.get_file_name(CampaignData.Mode.SOLO) == "combat_solo.json"
+			and CombatData.get_file_name(CampaignData.Mode.MULTIPLAYER) == "combat_multi.json"
+	)
+
+
+func _test_combat_rejects_bad_data() -> void:
+	var cases: Dictionary[String, Dictionary] = {
+		"unknown phase": {"turn": 1, "phase": "neutral"},
+		"turn 0": {"turn": 0, "phase": "player"},
+		"missing phase": {"turn": 2},
+	}
+	for case_name: String in cases:
+		var combat: CombatData = CombatData.new()
+		combat.turn = 9
+		var err: Error = combat.load_envelope(SaveFile.make_envelope(1, cases[case_name], {}, 1))
+		_check(
+				"combat bad data: %s refused" % [case_name],
+				err == ERR_INVALID_DATA and combat.turn == 9
+		)
 
 
 func _step_add_gold(envelope: Dictionary) -> Error:

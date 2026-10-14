@@ -60,6 +60,7 @@ const _KEY_LEVEL_ID: String = "level_id"
 const _KEY_FLOORS_CLIMBED: String = "floors_climbed"
 const _KEY_COMBAT_MAPS_COMPLETED: String = "combat_maps_completed"
 const _KEY_PLAYERS: String = "players"
+const _KEY_COMBAT_IN_PROGRESS: String = "combat_in_progress"
 
 ## Which slot this campaign lives in.
 var mode: Mode = Mode.SOLO
@@ -86,6 +87,11 @@ var started_at: int = 0
 ## When the run was last saved; shown as "last played".[br]
 ## [b]Units:[/b] Unix seconds, UTC.
 var last_opened: int = 0
+
+## True from the moment a battle's Begin is saved until the battle ends. While true, everything
+## the battle changes lives only in the combat file and this campaign keeps its sections as they
+## were at Begin, which is what lets a lost combat file restart the battle ([CombatData]).
+var combat_in_progress: bool = false
 
 ## Counts every write of this campaign. A combat file is only valid beside the campaign write it
 ## was paired with (plan, "Combat crash protection").
@@ -127,6 +133,7 @@ func to_envelope() -> Dictionary:
 		_KEY_FLOORS_CLIMBED: floors_climbed,
 		_KEY_COMBAT_MAPS_COMPLETED: combat_maps_completed,
 		_KEY_PLAYERS: player_entries,
+		_KEY_COMBAT_IN_PROGRESS: combat_in_progress,
 	}
 	return SaveFile.make_envelope(SCHEMA_VERSION, core, sections.duplicate(true), checkpoint_seq)
 
@@ -161,6 +168,7 @@ func load_envelope(envelope: Dictionary) -> Error:
 	level_id = str(core.get(_KEY_LEVEL_ID, ""))
 	floors_climbed = maxi(int(core.get(_KEY_FLOORS_CLIMBED, 0)), 0)
 	combat_maps_completed = maxi(int(core.get(_KEY_COMBAT_MAPS_COMPLETED, 0)), 0)
+	combat_in_progress = core.get(_KEY_COMBAT_IN_PROGRESS, false) == true
 	players = loaded_players
 	sections = envelope[SaveFile.KEY_SECTIONS]
 	return OK
