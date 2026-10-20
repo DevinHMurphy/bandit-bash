@@ -26,7 +26,7 @@ Claude Code runs from the repo root (`Bandit_Bash/`). Every path in these rules 
 | `bandit-bash/` | The new Godot 4.7.1 project. All game code, scenes and resources go here. | Yes |
 | `Godot_FE/` | The old, outdated build being rebuilt. Reference for behavior, values and intent. | **Never** |
 | `steam_multiplayer_kit/` | Reference for Steam and multiplayer integration. | **Never** |
-| `docs/` | Plans (`docs/plans/`), design notes (`docs/design/`), standards (`docs/standards/`). | Yes |
+| `docs/` | Plans (`docs/plans/`), design notes (`docs/design/`), standards (`docs/standards/`). The game vision is `docs/design/game-vision.md`. | Yes |
 | `.claude/` | Claude Code rules. | Only when asked |
 
 - "`project.godot`" in these rules always means `bandit-bash/project.godot`.
@@ -34,21 +34,41 @@ Claude Code runs from the repo root (`Bandit_Bash/`). Every path in these rules 
   Godot can't load them.
 - If a task seems to need a change in a read-only folder, stop and ask.
 
+### Design vision
+
+Bandit Bash is not a straight port. `docs/design/game-vision.md` is the master design document.
+It grew out of the Living Labyrinth design document, the redesign that came out of rethinking
+`Godot_FE/`. That source is frozen in `docs/design/living-labyrinth/master-ideation.md`; where the
+two differ, `game-vision.md` wins.
+
+- Before building or changing any gameplay feature (run flow, army, units, items, combat, economy,
+  meta), read its section in `game-vision.md`, then the matching section of `master-ideation.md`,
+  then the `Godot_FE/` implementation (next section). Every feature checks both references.
+- Where the vision and `Godot_FE/` disagree on rules, formulas or values, the vision wins. List both
+  values with their sources in the plan or summary.
+- Where the vision is silent, `Godot_FE/` is the basis, as before.
+- A blank section, a `WIP` or `PLACEHOLDER` tag, a `?` in a value, or anything under "Open and
+  unfinished" in `game-vision.md` is not a basis for a value. Ask (§1).
+- If a change alters behavior the vision describes, say so in the estimate. Do not edit the vision
+  to match code unless asked.
+
 ### Porting from `Godot_FE/`
 
-Bandit Bash rebuilds `Godot_FE/` as a modern project. Port **behavior**, never code.
+Bandit Bash rebuilds `Godot_FE/` as a modern project, reshaped by the design vision above. Port
+**behavior**, never code.
 
 - Before rebuilding a system, read its full implementation in `Godot_FE/`, including the scenes that
   use it.
 - Check the engine version in `Godot_FE/project.godot`. Treat its syntax, APIs and patterns as
   outdated: nothing is copied; everything is rewritten to `gdscript.md`.
 - Tuning values found in `Godot_FE/` (speeds, radii, timings) count as an existing basis under §1.
-  Carry them over unchanged unless asked, and list each with its source file in the summary.
+  Carry them over unchanged unless asked or the design vision sets a different value, and list each
+  with its source file in the summary.
 - Ask (§1) when old behavior looks like a bug, depends on something `bandit-bash/` doesn't have, or
   the request implies changing it. Never silently port a bug, and never silently fix one.
 - Old comments are a source of facts, not text to copy: salvage what's durable per `gdscript.md` §3.7.
-- The summary of any port lists: `Godot_FE/` files read · behaviors preserved · behaviors changed
-  or dropped, and why.
+- The summary of any port lists: vision sections read · `Godot_FE/` files read · behaviors
+  preserved · behaviors changed or dropped, and why (including "changed to match the vision").
 
 ### Multiplayer and `steam_multiplayer_kit/`
 
@@ -69,8 +89,9 @@ Ask when:
 
 - the desired behavior is ambiguous and more than one reading is defensible
 - a change could alter gameplay feel, timing or balance
-- you would invent a value (threshold, radius, rate, tolerance) with no basis in `bandit-bash/` or
-  `Godot_FE/`
+- you would invent a value (threshold, radius, rate, tolerance) with no basis in `bandit-bash/`,
+  `docs/design/game-vision.md` or `Godot_FE/`
+- the request contradicts the design vision, or the vision is blank or marked unfinished for it
 - a change touches a public interface, signal, RPC contract or save format, or makes a structural
   scene/resource change (defined in `gdscript.md` §7)
 - existing code contradicts the request, or two files disagree about the same concept
@@ -159,8 +180,8 @@ stop for review. No code until the plan is approved.
       map checked against `project.godot`
 - [ ] Renames grepped across `.gd`, `.tscn`, `.tres` and `project.godot`; `.uid` files moved with
       their scripts
-- [ ] Nothing written outside `bandit-bash/` and `docs/`; ports list files read and behaviors
-      preserved, changed or dropped
+- [ ] Nothing written outside `bandit-bash/` and `docs/`; ports list vision sections and files read
+      and behaviors preserved, changed or dropped
 - [ ] Verification (§3) run and clean, or its absence stated
 - [ ] Performance claims measured, or labelled unmeasured
 - [ ] Save impact stated: persisted state registered as a `SaveSection` / `PlayerSaveSection` per

@@ -25,6 +25,11 @@ What's wrong now, with file:line evidence. No proposed solution here.
 ## Scope
 In scope / explicitly out of scope.
 
+## Design Basis
+Sections of `docs/design/game-vision.md` and `docs/design/living-labyrinth/master-ideation.md`
+this follows, and any gap or open item from the vision it depends on. Or the line "Not covered by
+the vision." for non-gameplay work.
+
 ## Legacy Behavior (ports from Godot_FE only)
 | Godot_FE file | Behavior | Keep / Change / Drop | Reason |
 |---------------|----------|----------------------|--------|
