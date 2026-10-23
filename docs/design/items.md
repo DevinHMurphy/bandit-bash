@@ -35,7 +35,7 @@ a cost.
 ## Equipment
 
 `Godot_FE`'s wearable items, sorted into the vision's categories, plus its shield weapons
-converted to shield Equipment. Quivers and coatings have no `Godot_FE` basis yet.
+converted to shield Equipment. Quivers and coatings are new (no `Godot_FE` basis).
 
 **Weights.** Equipment weight adds to the weapon's in the Attack Speed formula, so heavy gear costs
 Speed once it passes the unit's Constitution. Most pieces weigh 0–2; heavy armor and shields more.
@@ -51,8 +51,12 @@ Speed once it passes the unit's Constitution. Most pieces weigh 0–2; heavy arm
 | Band | Power Band | +2 damage | +2 damage | 1 |
 | Band | Old Soldier's Band | +1 Str, +1 Skl, −2 Lck | +1 MGT, +1 DEF, +10 Hit | 1 |
 | Band | Sunshard Band | +10 HP; heals 20% at turn end | +4 HP; Phase End: heal 10% HP | 1 |
-| Band | Training Weights | −2 SPD; growths +35% Str and Mag, +10% HP, −10% SPD | −2 SPD; growths +30% MGT, +10% HP | 0 (its −2 SPD is the cost) |
+| Band | Training Weights | −2 SPD; growths +35% Str and Mag, +10% HP, −10% SPD | −2 SPD, and Speed can't grow while worn; every level-up: +1 MGT guaranteed | 0 (its Speed cost is the weight) |
 | Band | Quick Soles | +1 MOV | +1 MOV | 0 |
+| Quiver | Simple Quiver | — (no `Godot_FE` basis) | Hit dealt at range 2 or more: +1 damage | 1 |
+| Quiver | Short Quiver | — | This unit's bows reach 1–2 instead of 2–3, so it can strike and counter at close range | 1 |
+| Coating | Simple Coating | — | +2 damage against Exposed foes | 0 |
+| Coating | Spirit Coating | — | This unit's attacks deal Magic damage, mitigated by Resistance instead of Defense | 0 |
 
 **Shields.** `Godot_FE`'s 9 shield *weapons* become shield Equipment: they lose their damage and
 durability, keep their defensive identity, and gain the Stance and Block the vision gives shields.
@@ -92,9 +96,9 @@ The Eye Shield's "foes can attack only once" becomes Parry, its direct equivalen
 | Knight's Token | +2 HP, +2 Str, −3 SPD, +2 DEF | +1 MGT, +1 DEF, −1 SPD |
 | Heavy Brick | +2 CON; heals 1 at turn end | +2 CON |
 | Cleansed Goblet | +20% healing received, +4 Lck | +20% healing received |
-| Family Ring | +4% all growths (+8% HP) | +4% all growths (+8% HP) |
-| Royal Crest | +15% all growths | +6% all growths |
-| Resonant Ore | −2 SPD; +10% all growths | −2 SPD; +10% all growths |
+| Family Ring | +4% all growths (+8% HP) | This unit earns +25% XP (about one extra level a run) |
+| Royal Crest (rare) | +15% all growths | Every level-up gains at least 3 stats |
+| Resonant Ore | −2 SPD; +10% all growths | −2 SPD; every level-up: +1 to a random stat other than Speed |
 | Ring of Favor | +12 HP, +2 Str, Mag, DEF, RES, +1 Skl, SPD, +2 CON | +2 HP, +1 DEF, +1 RES |
 
 Notes on the conversion:
@@ -103,13 +107,17 @@ Notes on the conversion:
   and crit, since those stats are cut.
 - **Null Sigil** no longer grants crit immunity: crits already need an Exposed target, and immunity
   would erase the Stance system for that unit. It adds Stance instead.
-- **Royal Crest** drops from +15% to +6% all growths: with 4–6 levels a run, +15% on five stats is
-  worth more than most Equipment.
+- **Growth trinkets** no longer raise growth percentages, which are worth almost nothing over a
+  4–6 level run. Family Ring speeds leveling (+25% XP); Royal Crest sets a floor of 3 stats per
+  level-up (a level-up averages about 2, so roughly +1 per level, about +5 over a run, slowly);
+  Resonant Ore gives a guaranteed random stat each level-up.
 - **Scholar's Optics** swapped Strength for Magic, which means nothing once both are Might.
 
 ## Consumables
 
-Every `Godot_FE` consumable stays. Potions and keys are carried in the Pouch:
+Every `Godot_FE` consumable stays. Potions and keys are carried in the Pouch. Using one is the
+unit's action for the turn, on itself or on an adjacent ally (there is no trading in combat, so this
+is how a potion reaches a teammate):
 
 | Consumable | Effect | Uses |
 |------------|--------|------|
@@ -128,7 +136,8 @@ Keys are the vision's lockpicks: any unit can carry one, at the cost of its Pouc
 `Godot_FE` had 35 stat boosters, five per stat: two that raised a stat permanently and three that
 raised a growth. They split into two kinds of item.
 
-**Stat boosters** are single-use Pouch items that permanently raise one unit's stat.
+**Stat boosters** are single-use Pouch items that permanently raise one unit's stat: the holder's,
+or an adjacent ally's.
 
 | Stat | Stat boosters |
 |------|---------------|
@@ -154,7 +163,10 @@ army-wide, guaranteed gains:
 - A cooked ingredient gives every living unit in the army a guaranteed gain on its **next
   level-up**, shown on the unit card until it lands. Hit ingredients apply at once, since Hit has
   no growth. Units recruited after the Feast don't get it.
-- In co-op, a Feast feeds only that player's army.
+- In co-op, each player makes their own Camp choice. A Feast's heal reaches every player's units,
+  and heals from several Feasts at one Camp stack. Its ingredient buffs only the cook's own army;
+  a future heirloom could make an ingredient feed the whole team (it would be tagged unique, since it
+  affects other players' units).
 
 | Stat | Small ingredients (old 3–5%): every unit's next level-up | Large ingredients (old 7–20%): every unit's next level-up |
 |------|--------------------------------------|---------------------------------------|
@@ -189,7 +201,7 @@ where the player already is, so shopping stays short and the convoy never fills 
 
 ## Open questions
 
-- **Quiver and coating equipment:** none written yet; no `Godot_FE` basis.
+- **Support weapons beyond staves** (whips, instruments, banners): stubs until a unit uses them.
 - **Shield and armor weights against Constitution:** most MVP units have Constitution 5–14, so a
   shield plus a weapon often passes it. Check in playtesting that shields stay worth carrying.
 - **Uniques:** the vision's "uniques" equipment category has no items yet.

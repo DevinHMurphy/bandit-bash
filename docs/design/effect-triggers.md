@@ -73,6 +73,9 @@ together.
 | Exposed | A unit's Stance reaches 0 | Fires once each time it happens |
 | Defeated an enemy / Defeated | A unit defeats an enemy / a unit is defeated | |
 | Healed an ally / Healed | A unit restores an ally's HP / a unit regains HP | Includes overhealing; see effects-system.md |
+| Darkness damage taken | A unit takes damage from [the darkness](the-darkness.md) at its side's Phase End | Whether it also counts as Hit taken and Damage taken is open |
+| Object used | A unit uses a [map object](map-objects.md) (fires, lights, cuts, drums) | |
+| Shoved a unit / Shoved | A unit shoves another / a unit is shoved | Shove is described in game-vision.md |
 
 Always-on effects have no trigger. They apply whenever their owner is involved, e.g. "Take 5 less
 damage".
@@ -85,7 +88,7 @@ Kept to three kinds for now:
 |-----------|------|---------|
 | Counter | "Every Nth" or "First" plus a lane | "Every 10th Hit taken this combat"; "First Hit dealt this combat" fires once per lane |
 | Chance | "N% chance" | "25% chance: apply Bleed" |
-| While | "While <state>" or "While <comparison>" | "While Exposed", "While below half HP", "While this unit's AS is higher than its opponent's" |
+| While | "While <state>" or "While <comparison>" | "While Exposed", "While below half HP", "While on Gloom or deeper" (darkness layer), "While this unit's AS is higher than its opponent's" |
 
 **Comparisons.** A While condition can compare one of this unit's values with its **opponent's**.
 The opponent is the other unit in the current combat exchange, so comparisons only apply from
@@ -107,6 +110,25 @@ Before Combat to After Combat.
 | Adjacent | Units on the four orthogonally neighboring tiles | "Gain 1 Block per adjacent ally", "adjacent allies gain 1 Block" |
 | At maximum range | The opponent is at the far end of this unit's weapon range | "Hit dealt while at maximum range: +2 damage" |
 | Moved N+ tiles this turn | This unit moved at least N tiles during its current Unit Turn | "While this unit moved 4+ tiles this turn: +2 damage" |
+| Hasn't moved this turn | This unit has moved 0 tiles this turn | "While it hasn't moved this turn: +10 Hit" |
+| Within N tiles | Units at a walking distance of N tiles or fewer (adjacent is within 1) | "Allies within 2 tiles gain +2 damage" |
 
-**Operations beyond stage modifiers** used by MVP traits: gain Block, gain Hit or crit chance,
-remove extra Stance, and "may use its remaining movement" (move again after acting).
+**Shove distance.** How many tiles this unit's shoves push (1 by default). Effects change it like any
+other value: "Always: Shove distance +1". A longer shove still moves tile by tile and stops early
+at anything in the way, bumping a unit it runs into (see Shove in
+[game-vision.md](game-vision.md#combat)).
+
+**Exchange role.** "While it is the defender" / "while it is the initiator" test this unit's role in
+the current combat exchange, e.g. "Before Combat, while it is the defender: gain 3 Block".
+
+**Friend or foe.** Effect text that says "every unit … friend or foe" uses the Any Unit scope: it
+applies to every unit in the area, whichever side it is on. Enemy traits use this on purpose so
+players can turn them around.
+
+**Splash damage** is flat damage dealt to every unit in an area. It is not an attack: no hit roll,
+no Mitigation, no crit, and it never costs Stance or fires Hit taken. Block absorbs it, and it
+fires Damage taken.
+
+**Operations beyond stage modifiers** used by MVP traits: gain Block, gain Stance, gain Hit or crit
+chance, remove extra Stance, a temporary damage bonus "until Phase End", and "may use its remaining
+movement" (move again after acting).

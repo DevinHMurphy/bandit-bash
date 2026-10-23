@@ -1,10 +1,11 @@
 # Multiplayer Combat Options
 
-**Status:** October 16, 2026. **Decided:** Option B (parallel maps) for the MVP, Option D (hybrid)
-as the target; recorded in [game-vision.md](game-vision.md#combat-maps). **Decided October 17:**
-reinforce, retreat, the team wins if anyone wins, downed commanders in co-op, and choosing whom
-to reinforce (R1 + R2) ([below](#when-one-player-loses)). **Open:**
-[recovering from a lost map](#recovering-from-a-lost-map-open).
+**Status:** October 20, 2026. **Decided:** Option B (parallel maps) for the MVP, Option D (hybrid)
+as the target; reinforcing a teammate, with the sender choosing (R1 + R2); the team wins if anyone
+wins. **Decided October 20:** no retreat and no recovery mechanics in co-op: permadeath applies to
+every unit as in solo (the only way back is a rare revive event), and the negative feedback loop is
+accepted; a commander that falls in co-op returns at critical health
+([below](#when-a-commander-falls)). All recorded in [game-vision.md](game-vision.md#combat-maps).
 
 **The question:** in co-op, do players fight one battle together, or each on their own map? Small
 Fire Emblem Heroes–scale maps keep solo combats short, but they don't stretch to four armies, and
@@ -148,36 +149,30 @@ without units: use their own runes there, or pick one small team buff per partne
 
 ### Losing a map
 
-**L1. The team wins if anyone wins.** The combat counts as won for the team when at least one
-player wins. A player who lost their map gets no gold, XP or MVP for it, and their fallen units are
-fallen (revive at a Camp). Simple, and keeps the run moving.
+**L1. The team wins if anyone wins.** *(Decided.)* The combat counts as won for the team when at
+least one player wins. A player who fails their map's objective gets no gold, XP or MVP for it, and
+their fallen units stay dead. Simple, and keeps the run moving.
 
-**L2. Retreat.** Before losing, a player can retreat from their map: surviving units escape, the
-player forfeits that combat's rewards, and nothing else is lost. Gives a controlled exit instead of
-a wipe. Can combine with L1.
+**Rejected October 20, 2026** (no retreat or extra lives anywhere in the game):
 
-**L3. Overflow battle.** Units that fall on any map aren't dead yet: they are captured. After the
-combat, the whole team fights a short shared **overflow** skirmish (a small rescue map, with every
-player's surviving units) to free them; units not freed are lost for good. The idea from games with
-an overflow area where units fight again.
-
-- Turns a loss into a team event and a second chance, which is very co-op.
-- Adds a combat (pacing) and needs a shared battle mode, which the MVP doesn't have; it fits once
-  Option D's shared mode exists.
-- Decide: whether it happens every time units fall, or only when a whole map is lost.
+- **L2. Retreat:** a player could leave their map before losing to save surviving units.
+- **L3. Overflow battle:** fallen units were captured, not dead, and a team rescue skirmish could
+  free them.
 
 ### When a commander falls
 
-**C1. Downed, not dead (co-op only).** A commander that falls in co-op is **downed**: the player's
-map is lost (L1), but the commander returns after the combat at low HP, with a cost (e.g. lose
-gold, or a random heirloom). The run ends only if every player's commander falls in the same
-combat.
+**Rejected October 20:** **C1. Downed, not dead** (a fallen co-op commander came back after the
+combat). A commander's fall is final, as in solo.
 
-**C2. Eliminated.** As in solo: that player is out of the run. They can still watch, and use H2
-support if chosen. Harsh in a game meant to be played together.
+**Decided October 20: C4. Back at critical health.** A commander that falls in co-op returns after
+the combat at critical health (first pass: 10% of max HP, at least 1), with no other cost. That
+player's map is lost and their fallen units stay dead; the run is lost only if every player's
+commander falls in the same combat. In solo, a fallen commander still ends the run.
 
-**C3. Team loss.** Any commander falling ends the run for everyone. The most punishing; makes every
-commander everyone's problem.
+Not chosen:
+
+- **C2. Eliminated:** that player's run would end while the team played on.
+- **C3. Team loss:** any commander falling would end the run for everyone.
 
 ### Choosing whom to reinforce (3–4 players)
 
@@ -200,68 +195,66 @@ map ends before sent units arrive, they return unharmed.
 
 ### Recommendation
 
-For the MVP: **H1 (reinforce) + L1 (team wins if anyone wins) + C1 (downed commander)**, with
-**L2 (retreat)** as a cheap extra. **Decided October 17, 2026**; recorded in game-vision.md.
+For the MVP: **H1 (reinforce) + L1 (team wins if anyone wins)**, with R1 + R2 for choosing whom to
+reinforce. Decided October 17, revised October 20 to drop retreat (L2) and downed commanders (C1).
 
-- H1 prevents most losses before they happen and is the most co-op answer that parallel maps can
-  give without new map work.
-- L1 and C1 keep everyone in the run; the cost of losing is rewards and units, which permadeath
-  already makes painful.
-- **L3 (overflow)** is the natural follow-up once shared battles exist for Option D.
+- H1 prevents losses before they happen and is the most co-op answer that parallel maps can give
+  without new map work. With permadeath final, it is now the main way the team protects a
+  struggling player.
+- A fallen commander returns at critical health (C4), so a player is never knocked out of the run.
 
-## Recovering from a lost map (open)
+## Co-op deployment and reinforcement arrival (to-do)
 
-**The problem.** In co-op a player can lose a map and stay in the run (downed commander). But a
-lost map usually means most of their army fell, and permadeath keeps them dead. The next combat is
-often not a Guildhall, so they arrive with a commander and one or two units, and lose again. The
-strong player carries; the weak player has no army and no impact. Solo never hits this, because a
-fallen commander ends a solo run.
+**A stub, to be designed.** Where reinforcements appear on a teammate's map, and how two players
+deploy onto one map. Ideas and constraints so far:
 
-The spiral has four links. Each strategy below cuts a different one:
+- **Arrive on friendly units:** reinforcements appear next to the receiving player's units rather
+  than on fixed tiles, so help lands where the fight is. Arriving might take an extra turn (sent
+  this phase, placed next phase), so help can't be instant.
+- **The darkness floods fixed zones:** darkness sources are authored behind or beside the
+  deployment zone, so a fixed arrival zone is among the first places to flood. Arrival points
+  need to move with the fight, not stay where the army started.
+- **A rally banner:** the receiving player places a banner (or a rally item) on their map to mark
+  where reinforcements arrive. It gives them a real decision (where is it safe, where is help
+  needed) and solves the darkness problem. Open: whether it costs an action, whether it can be
+  moved, and what happens if the banner's tile floods or an enemy stands on it.
+- **Sending commanders:** an earlier draft forbade it, to keep downed-commander rules simple and
+  to stop a player stranding their commander on a losing map. Downed commanders are gone, and a
+  co-op commander that falls returns at critical health anyway, so that reason no longer holds.
+  Allowing it adds a choice (the commander is often the strongest unit). Open edge: whether a
+  commander falling on a teammate's map counts toward "every commander fell", the whole-team
+  loss.
+- **Two players on one map** (later shared battles): how the deployment zone is shared, e.g. one
+  block per player, arranged at the same time in prep.
 
-| Link | Strategy |
-|------|----------|
-| A lost map kills most of the army | **S1. Fall back:** stop the wipe early |
-| Fallen units are gone for good | **S2. Captured, not dead:** let the team undo it |
-| Nothing refills the army before the next fight | **S3. Levies:** refill to a floor |
-| The weakened player fights alone at full difficulty | **S4. Join a teammate:** fight together until rebuilt |
+Until this is designed, the reinforcement rule in game-vision.md ("arrive on the map's deployment
+edge or a reinforcement point") and the dry-tile fallback in [the-darkness.md](the-darkness.md)
+are placeholders.
 
-**S1. Fall back.** When a player's commander is downed, their map ends at once: every surviving
-unit retreats with it instead of fighting on. Losses stop at the moment the map is lost. Retreat
-(already decided) lets a player do this earlier by choice.
+## Recovering from a lost map (closed)
 
-**S2. Captured, not dead.** Units that fall on a *lost* map are captured. If the team wins the
-combat, they can be freed, at a cost that keeps losing painful:
+**Decided October 20, 2026: no recovery mechanics.** Permadeath applies in co-op as in solo, with no
+retreat; the only way back for a fallen unit is a rare revive event, and a fallen commander returns
+at critical health. A player who loses most of their army is weaker for the next
+combat and likelier to lose again. That negative feedback loop is known and accepted as part of the
+design principles; the team's answer is to protect each other during combat, by reinforcing.
 
-- **Ransom:** pay gold at the next Guildhall to free each one (any teammate can pay).
-- **Rescue:** the overflow skirmish, once shared battles exist.
-- Either way they return wounded (e.g. half HP).
-- Catch: a unit that falls on a map its player *wins* is still dead, so losing a map can look
-  kinder than winning with casualties. Ransom's cost and the lost rewards are what keep that fair.
+[The darkness](the-darkness.md) sharpens this: a map that runs past turn par floods, so a slow
+player loses units to the darkness as well as to enemies. It also gives reinforcement a deadline:
+winning before a teammate's par lets help arrive before the darkness.
 
-**S3. Levies.** Before each combat, any player whose deployable army is below a floor (e.g. 3
-units) gets temporary **levies** to fill up to it: plain units of a basic type, no prefix, at the
-army's average level, with simple weapons. Levies leave after the combat, unless the player keeps
-one by paying its recruit price at the next Guildhall. A downed commander also returns at full HP.
-This directly answers "no army".
+Strategies considered and not adopted:
 
-**S4. Join a teammate.** A player below the floor can choose to deploy onto a teammate's map for
-the next combat instead of their own. Both armies fight together on one map, with enemies scaled to
-the combined army. It reuses the reinforcement machinery (two players' units on one map), and it is
-the most co-op answer, but the weakened player depends on a partner.
+| Strategy | What it was | Why not |
+|----------|-------------|---------|
+| S1. Fall back | A downed commander's map ended at once and survivors retreated | Retreat and downed commanders are out |
+| S2. Captured, not dead | Units fallen on a lost map could be ransomed or rescued | An extra life |
+| S3. Levies | Temporary units refilled a weakened army to a floor | The loop is accepted; not adopted |
+| S4. Join a teammate | A weakened player fought on a teammate's map until rebuilt | The loop is accepted; not adopted |
 
-**Also on the table** from the earlier round:
-
-- Shared XP still goes to a losing player's surviving units, so levels don't drift apart.
-- Each player's copy of a map scales its enemy count to that player's army (the vision already
-  aims standard combats at "a similar number to the player").
-- No extra cost for a downed commander.
-
-**Recommendation:** **S1 + S3**, with **S4** as an option for the weakened player, plus the three
-points above. Permadeath stays intact: units that fall stay dead, and losing still costs rewards
-and units. But a lost map never leaves a player with nothing: they are refilled to a playable
-army, at full commander HP, and can choose to fight beside a teammate while they rebuild. **S2**
-(ransom) is the alternative if permadeath in co-op should be softer.
+Still usable without softening permadeath, if wanted later: each player's copy of a map scaling its
+enemy count to that player's army (the vision already aims standard combats at "a similar number to
+the player").
 
 ## Questions any option raises
 

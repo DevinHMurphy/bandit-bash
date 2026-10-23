@@ -8,12 +8,13 @@ starting point and have not been rebalanced for the new combat rules.
 
 ## The short version
 
-- The MVP has **13 unit types**, one per weapon role plus one of each movement type. Units have no
-  tiers: each is **unupgraded or upgraded**, like a Slay the Spire card (see game-vision.md).
-  "Tier" in this file only ever means a prefix's quality tier. All 13 upgrades are written.
+- The MVP has **14 unit types**: one per weapon role, one of each movement type, and a shove
+  specialist (the Ward). Units have no tiers: each is **unupgraded or upgraded**, like a Slay the
+  Spire card (see game-vision.md).
+  "Tier" in this file only ever means a prefix's quality tier. All 14 upgrades are written.
 - Every unit type has a **trait**: effect text that gives the type its identity (see
   [effects-system.md](effects-system.md)). Bulky, shield-style roles get their bulk from traits,
-  not from a shield weapon type. All 13 MVP traits and Stance values are written.
+  not from a shield weapon type. All 14 MVP traits and Stance values are written.
 - Each recruited unit rolls a **prefix**, Terraria-style ("Sturdy Lancer", "Frail Archer"), that
   shifts its stat spread. The prefix's tier tells the player at a glance whether a unit is good.
 - Commanders keep fixed stats and names across runs (game-vision.md) and are not generated.
@@ -37,6 +38,7 @@ units' Magic are dropped.
 | Mounted | Hakkapel (`hakkapel`) | Lance, sword | Mounted | Mounted | 22/4/5/4/0/7/10 | 70/30/40/20/12 |
 | Flier | Freewing (`freewing`) | Sword | Flier | Flier, Mounted | 17/3/7/2/2/7/5 | 60/40/48/9/27 |
 | Armored | Lance Armor (`lance_armor`) | Lance | Heavy | Armored | 23/7/2/7/1/4/14 | 75/47/15/48/20 |
+| Shover | Ward (`ward`) | Lance | Heavy | — | 25/2/2/7/1/5/14 | 70/25/28/45/10 |
 | Anima | Mage (`mage`) | Anima | Default | — | 16/3/7/1/3/5/5 | 55/45/45/8/30 |
 | Dark | Shaman (`shaman`) | Dark | Default | — | 17/8/3/3/4/5/12 | 75/65/22/18/30 |
 | Holy | Suncaster (`suncaster`) | Holy | Default | — | 18/1/7/1/4/5/6 | 55/37/55/10/35 |
@@ -93,6 +95,8 @@ comes only from terrain and effects, so these matter more than before.
 | Wall, Cracked Wall, Cliff, Debris, Barrel | — | — | — | — | 1 | 0 | 0/0 | |
 | Pit | — | — | — | — | 1 | −5 | 0/0 | |
 | Door | — | — | — | — | — | 0 | 0/0 | Until opened |
+| Spiked wall (new) | — | — | — | — | — | 0 | 0/0 | Blocks every unit, fliers included; a unit shoved toward it takes 4 damage and stays put |
+| Spilled oil (new) | 1 | 1 | 1 | 1 | 1 | 0 | 0/0 | Slick: a unit shoved onto it slides on in the same direction until stopped |
 
 In short: **Mobile** units (thieves, medics) climb mountains and peaks and ford rivers; **Mounted**
 units are fast on open ground but slowed by rough terrain and stopped by mountains and rivers;
@@ -129,6 +133,7 @@ Stance runs 1 (fragile or evasive), 2 (standard), 3 (bulky).
 | Hakkapel | 2 | Charge | While this unit moved 4+ tiles this turn: +2 damage | Mounted aggression |
 | Freewing | 1 | Skirmisher | After Combat: may use its remaining movement | Flier hit-and-run |
 | Lance Armor | 3 | Bulwark | Always: +1 Parry | Built-in bulk (the shield-role pattern) |
+| Ward | 3 | Shield Bash | Always: Shove distance +1 | Moves the battlefield: longer shoves into bumps, spikes, oil and kegs |
 | Mage | 2 | Flow | Every 3rd Attack made this combat: +3 damage | Steady Balance caster |
 | Shaman | 2 | Overwhelm | While this unit's AS is higher than its opponent's: +2 damage | Glass cannon |
 | Suncaster | 1 | Radiance | Unit Turn End: adjacent allies gain 1 Block | Nimble support caster |
@@ -164,6 +169,7 @@ An upgraded unit is shown with a "+" ("Archer+"), like a Slay the Spire card. Ru
 | Hakkapel+ | Charge+: While this unit moved 4+ tiles this turn: +4 damage | +2 MGT, +1 DEF | — |
 | Freewing+ | Skirmisher+: After Combat: may use its remaining movement, and gains 2 Block if it moves | +2 SPD, +1 RES | — |
 | Lance Armor+ | Bulwark+: Always: +1 Parry, +1 Stance | +4 HP, +1 DEF | — |
+| Ward+ | Shield Bash+: Always: Shove distance +1; Shoved a unit: this unit gains 2 Block | +4 HP, +1 DEF | — |
 | Mage+ | Flow+: Every 3rd Attack made this combat: +5 damage | +1 MGT | Gains Dark (`Godot_FE`'s Sea Witch promotion used all magic), so it can switch between Balance and Power |
 | Shaman+ | Overwhelm+: While this unit's AS is higher than its opponent's: +3 damage | +2 MGT, +1 SPD | — |
 | Suncaster+ | Radiance+: Unit Turn End: adjacent allies gain 2 Block | +1 MGT, +1 SPD, +1 RES | — |
@@ -185,7 +191,9 @@ from traits instead. Three patterns, all expressed as effect text:
 | Reward carrying a shield | "While Equipment is a shield: +2 Defense, +1 Stance" |
 | Built-in bulk | "Always: +3 Defense" |
 
-No MVP unit is a shield unit; these patterns are for when one is added.
+The **Ward**, `Godot_FE`'s Mercenary shield unit, returns as the MVP's shove specialist: a lance and
+Shield Bash instead of a shield weapon, with its bulk in its stats (HP 25, DEF 7, CON 14) and its
+identity in moving enemies, not in damage (Might 2).
 
 ## Prefixes
 
@@ -291,38 +299,40 @@ That gives 45% positive against 25% negative, leaning positive as decided. Prefi
 against traits: a Swift or Hasty Shaman turns Overwhelm on, and a Keen Fighter covers the axe's
 low Hit.
 
-## Recruiting and item transfer (stub)
+## Recruiting and item transfer
 
-How a bought unit joins the army and how gear moves onto it. To be designed; this records what is
-already decided elsewhere and what is still open.
+How a bought unit joins the army and how gear moves onto it. First pass, October 20, 2026.
 
-**Already decided**
+**Background** (decided elsewhere): recruits are bought at the Guildhall and are cheap, so
+permadeath losses can be replaced; events can also give units. A recruit joins at the army's
+average level, rounded down, with its prefix already rolled. Recruiting past max army size
+replaces an existing unit (never the commander). Dead units keep their items. Unwanted items are
+scrapped, never sold ([items.md](items.md#scrapping)).
 
-- Recruits are bought at the Guildhall and are cheap, so permadeath losses can be replaced
-  (game-vision.md). Events can also give units.
-- A recruit joins at the army's average level, rounded down, with its prefix already rolled
-  ([Prefixes](#prefixes)).
-- Recruiting past max army size replaces an existing unit; the replaced unit's items go to the
-  convoy, which gains temporary space for them (game-vision.md, Army). The commander can never be
-  replaced; losing it ends the run.
-- Dead units keep their items, which can be taken in army management and battle prep.
-- Unwanted items are scrapped, never sold ([items.md](items.md#scrapping)).
+| Topic | Rule |
+|-------|------|
+| Offers | A Guildhall offers 3 recruits per visit, rolled from the run's seed on arrival. They don't refresh; the prefix re-roll is the Guildhall's only re-roll. |
+| Preview | Before buying, each recruit shows its full card: type, prefix (name coloured by tier), trait, stats, starting gear and price. |
+| Starting gear | One simple weapon for the unit's role (below), and nothing in Equipment or Pouch: weak, and meant to be replaced. |
+| Hand-over | When a recruit replaces a unit, one swap screen shows the leaving unit's gear beside the recruit's slots. Each item is equipped on the recruit (if usable), sent to the convoy, or scrapped. A "best fit" button suggests choices. |
+| Weapon compatibility | Gear the recruit can't use is greyed out for equipping; it can only go to the convoy or be scrapped. |
+| Convoy overflow | The convoy's temporary space for a removed unit's items lasts until the next combat starts. Before deploying, anything over capacity must be scrapped. |
+| Co-op gifting | Players can give items convoy-to-convoy at any Camp or shop, where the whole team is together. |
 
-**To design**
+**Starting weapons**
 
-- **Preview:** what the player sees before buying: type, prefix, trait, stats, starting gear.
-- **Starting gear:** what a recruit arrives with. `Godot_FE` gave a starting weapon for each of the
-  unit's weapon types; the vision wants starting gear to be weak and meant to be replaced.
-- **Hand-over on replacement:** whether the leaving unit's gear can go straight onto the recruit
-  in one step (where the recruit can use it), instead of always passing through the convoy.
-- **Weapon compatibility:** a replaced unit's weapon may be a type the recruit can't use; where it
-  goes, and how the screen makes that clear.
-- **Convoy overflow:** what happens when the leaving unit's items exceed even the temporary space
-  (scrap prompt at once, or temporary space for that many items).
-- **Offers:** how many recruits a Guildhall shows, how they're chosen, and whether they can be
-  refreshed.
-- **Co-op:** each player recruits for their own army; whether partners can hand items to each
-  other.
+| Unit | Starting weapon |
+|------|-----------------|
+| Sellsword, Freewing | Simple Sword |
+| Fighter | Simple Axe |
+| Lancer, Hakkapel, Lance Armor, Ward | Simple Lance |
+| Archer | Simple Bow |
+| Brawler | Simple Gauntlets |
+| Thief | Simple Dagger |
+| Battle Medic | Minor Heal (staff) |
+| Mage | Anima (Fire) |
+| Shaman | Dark (Shade) |
+| Suncaster | Holy (Smite) |
 
 ## Open questions
 
@@ -332,4 +342,4 @@ already decided elsewhere and what is still open.
 - **Mage Tower (stub, not in the MVP):** whether it gets its own units (the vision names Mage
   Knight and Tower Guard) or draws from the magic units above. The MVP is built around Mercenary.
 - **Convoy access:** which future unit types can reach the convoy, and how.
-- **Recruiting and item transfer:** see the stub above.
+- **Recruiting and item transfer:** the first-pass rules above need playtesting.

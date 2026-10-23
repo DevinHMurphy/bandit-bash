@@ -1,5 +1,10 @@
 # Brief: recovering from a lost map in co-op
 
+> **Superseded October 20, 2026. Don't use this brief.** The decision it asks for has been made:
+> there is no retreat, revival or extra life in the game, in solo or co-op. Permadeath applies to
+> every unit, a fallen commander ends the run, and the negative feedback loop is accepted. See
+> `docs/design/game-vision.md` and `docs/design/multiplayer-combat-options.md`.
+
 I'm designing a co-op roguelite tactics game and need help working through one system. Everything
 you need is below; you don't need any other files. Please read it all, then work through the
 problem with me. At the end, give me the decision summary in the format under
@@ -31,6 +36,33 @@ Emblem–style turn-based grid combat inside a Slay the Spire–style run.
   the combat's MVP. A typical unit gains 4–6 levels a run.
 - **Gold** comes mainly from combat, with grade bonuses (+25% for beating the map's turn par, +25%
   for losing no units).
+
+## The darkness (turn-par pressure)
+
+Every map has a **turn par**: beating it earns the +25% grade bonus. On maps with a par, the
+**darkness** arrives at par. It matters here because it is what makes slow maps dangerous, and
+slow maps are where players lose.
+
+- **Arrival:** at turn par, darkness flows into the map from authored openings (hallways off the
+  map, stairs, wells) toward a drain set by the objective (e.g. the boss, the seize tile, the far
+  end of the map). Players who beat par never see it. Survive and Defend maps have none.
+- **Waves:** a new wave pours out every few turns and creeps along paths. Each wave that crosses a
+  tile deepens it: **Dusk → Gloom → Abyss**. The tiles near a source get deepest first, so the
+  darkness comes from behind and pushes the army forward.
+- **Damage:** only a unit that **ends its side's phase** on a dark tile takes damage; moving
+  through is free. First pass: 10% / 25% / 50% of max HP for Dusk / Gloom / Abyss. The damage model
+  is still to be playtested (it could become a stacking status, or flat damage that grows the
+  longer a unit stays), and whether it counts as an attack (Block, Stance) is open.
+- **No unit is immune**, bosses included. Enemies follow the same rules.
+- **When it arrives,** enemies turn aggressive and enemy reinforcements stop.
+- **It floods the whole map eventually,** so every map is guaranteed to end. But it never ends a
+  map early: like fatigue in Hearthstone, both sides play against the clock, and outlasting it with
+  sturdy, healing units can be a deliberate plan.
+- **In co-op,** each parallel map gets the darkness at its own par, on its own turn counter. A
+  player who wins before a teammate's par can reinforce them before it arrives: speed is rewarded.
+  Each map's status (used to choose whom to reinforce) shows turns to par, or how much of the map
+  is dark. Reinforcements land on dry tiles where possible. A map shared by two players has one
+  darkness.
 
 **Design pillars** (these should guide your answer):
 
@@ -76,9 +108,15 @@ commander and one or two units, at the same difficulty as everyone else, and los
 player carries; the weak player has no army and no impact. Solo never hits this, because a fallen
 commander ends a solo run.
 
+**The darkness sharpens this.** A struggling player is usually a slow one, so their map runs past
+turn par and floods. They now lose units to the darkness as well as to enemies, and every turn they
+hold on costs more. It also gives teammates a deadline: reinforcements are most useful before the
+darkness arrives, and less so once the map is in Gloom or Abyss. On the other hand, retreating
+before the Abyss becomes a natural way out.
+
 The spiral has four links:
 
-1. A lost map kills most of the army.
+1. A lost map kills most of the army (to enemies and, past par, to the darkness).
 2. Fallen units are gone for good.
 3. Nothing refills the army before the next fight.
 4. The weakened player fights alone at full difficulty.
@@ -88,7 +126,8 @@ The spiral has four links:
 Each strategy cuts a different link. These are starting points, not a closed list.
 
 - **S1. Fall back.** When a player's commander is downed, their map ends at once and every
-  surviving unit retreats with it. Losses stop the moment the map is lost.
+  surviving unit retreats with it. Losses stop the moment the map is lost. (This is the commander
+  falling ending the map, not the darkness: the darkness itself never ends a map early.)
 - **S2. Captured, not dead.** Units that fall on a *lost* map are captured. If the team wins the
   combat, they can be freed by paying a ransom at the next Guildhall (any teammate can pay), or
   later by a team "overflow" rescue skirmish once shared battles exist. They return wounded.
@@ -125,7 +164,14 @@ above. S2 is the alternative if co-op permadeath should be softer. I haven't com
    - 4 players: one player loses three combats in a row.
    - A player loses a map, the next node is a Camp: what do they choose?
    - Every player is struggling at once (no one can reinforce).
-6. **Fit with the pillars**, especially "reduce cognitive burden" and "no hurry up and wait":
+   - A slow player passes turn par; their map floods into Gloom while their teammate has already
+     won. Is reinforcing into the darkness worth it, or should they retreat?
+   - A player deliberately plays slow to let the darkness wear down a boss, while a teammate
+     waits for the combat to end.
+6. **The darkness:** does it change which options are best? For example, does it make retreat
+   (and S1) more important, change what a fair floor is, or create a new exploit (a slow player
+   stalling the team, or "losing" to the darkness to trigger recovery help)?
+7. **Fit with the pillars**, especially "reduce cognitive burden" and "no hurry up and wait":
    what does the losing player do while others play, and how many new rules does the answer add?
 
 Please challenge my lean if you think it's wrong, and suggest options I haven't listed.
