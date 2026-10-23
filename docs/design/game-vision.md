@@ -298,7 +298,9 @@ upgraded, like Slay the Spire cards: a run starts with average units, replaces t
 ones, and upgrades the good ones along the way. A Camp's Train choice upgrades a unit, normally once
 per unit. An upgrade improves the unit's trait to a "+" version (e.g. Volley+) and adds a few stat
 points. Some unit types may also gain something bigger, Fire Emblem promotion style: access to
-another weapon type, or a new movement type (e.g. becoming mounted).
+another weapon type, or a new movement type (e.g. becoming mounted). A unit that gains a weapon type
+also gains **Sidearm**: any unit can stow a weapon in its Pouch and swap it in as its action, but
+Sidearm makes the swap free once per turn, so it can change its triangle matchup mid-combat.
 
 **Inventory.** Three slots. There is no off-hand and no main-hand/two-handed distinction.
 
@@ -306,7 +308,7 @@ another weapon type, or a new movement type (e.g. becoming mounted).
 |------|-------|
 | Weapon | The unit's weapon or tool. Its weight counts toward Attack Speed. |
 | Equipment | One piece of passive gear. Changing it in combat costs the unit's action; set it in army management and prep. Its weight counts toward Attack Speed. |
-| Pouch | One trinket or one consumable. Bringing a stat-boosting trinket instead of a potion is a deliberate trade, and the single slot limits potion spam. |
+| Pouch | One trinket or one consumable. Bringing a stat-boosting trinket instead of a potion is a deliberate trade, and the single slot limits potion spam. Any unit can stow a second weapon here instead; swapping it in costs the unit's action, or is free with [Sidearm](unit-roster.md#upgrades). Stowing should be an intentional choice, not the default. |
 
 There is no stash. Reserve items live in the convoy and are swapped in army management and prep.
 Some special units can access the convoy; which ones, and how, is defined with unit types.
@@ -383,7 +385,7 @@ done. This is classic Fire Emblem: one decision per unit, and every utility acti
 | Use a map object | Fire, light, cut, drum, pull a lever, use a passage ([map-objects.md](map-objects.md)) |
 | Open or search | A chest or door (with a lockpick), or a searchable |
 | Use a Pouch item | On itself **or an adjacent ally**: a potion, stat booster or other consumable |
-| Swap equipment | From the convoy only with a trait that grants convoy access |
+| Swap equipment | Swap the Weapon with a weapon stowed in the Pouch (any unit; free with [Sidearm](unit-roster.md#upgrades)), or take gear from the convoy (only with a trait that grants convoy access) |
 | Wait | Ends the unit's turn without acting |
 
 - **Free, outside the economy:** runes, and closing a reinforcement point by ending a turn on it.
@@ -925,3 +927,5 @@ Newest last. Each decision is already reflected in the sections above.
 | October 22, 2026 | Slick tiles and ally shoves | Spilled oil is slick terrain: a shoved unit slides on until stopped (spike damage if a spiked wall stops it); walking is normal. A willing ally can always be shoved; the Exposed rule applies to foes only. | Unstated |
 | October 22, 2026 | Bump and Shove distance | Shoving a unit into another unit bumps both for 2 (splash rules). New Shove distance value (default 1); longer shoves move tile by tile and stop at obstacles. New MVP unit: the Ward (shove specialist, "Shield Bash: Always: Shove distance +1"), from `Godot_FE`'s Ward. | No general bump; 13-unit roster |
 | October 22, 2026 | Action economy | Move, then one action (attack, heal, Shove, use an object, open/search, use a Pouch item, swap equipment, or wait); runes are free. No moving after acting without a trait. No trading in combat; Pouch items can be used on an adjacent ally instead. | `Godot_FE`'s major and minor actions |
+| October 22, 2026 | Sidearm | Big upgrades that add a weapon type (Sellsword+, Thief+, Mage+) grant Sidearm: a second weapon may be carried in the Pouch and swapped in for free once per Unit Turn, before acting; the stowed weapon is weightless; the Pouch then holds no potion or trinket. | Second weapon type usable only in battle prep |
+| October 22, 2026 | Stowed weapons | Any unit may stow a weapon in its Pouch and swap it in as its action; Sidearm makes the swap free, with `Godot_FE`'s forecast weapon cycling. Pouch items must stay strong enough that stowing a weapon is an intentional choice, reinforced by traits. | Sidearm-only weapon swap |

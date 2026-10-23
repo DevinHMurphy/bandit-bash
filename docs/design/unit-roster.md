@@ -154,23 +154,24 @@ An upgraded unit is shown with a "+" ("Archer+"), like a Slay the Spire card. Ru
 
 - **Standard upgrade:** the "+" trait and 3 stat points (the +1 prefix budget; 2 HP = 1 point).
 - **Big upgrade:** the "+" trait, 1 stat point and a new weapon type or movement type. The new
-  option is the main reward.
+  option is the main reward. A big upgrade that gains a weapon type also grants **Sidearm**
+  (below), so the second weapon can be swapped in for free mid-combat.
 - Upgrades never change growths.
 
 | Unit+ | Trait+ | Stat gains | Big change |
 |-------|--------|-----------|------------|
-| Sellsword+ | Professional+: Before Combat, while this unit has triangle Advantage: gain 5 Block | +1 MGT | Gains Axe (`Godot_FE`'s Man-at-Arms promotion was sword + axe), so it can choose its triangle matchup |
+| Sellsword+ | Professional+: Before Combat, while this unit has triangle Advantage: gain 5 Block | +1 MGT | Gains Axe and Sidearm (`Godot_FE`'s Man-at-Arms promotion was sword + axe), so it can pick its triangle matchup each turn |
 | Fighter+ | Momentum+: Missed: this unit's next attack this combat gains +25 Hit, and this unit gains +1 damage for the rest of the combat (stacks) | +2 MGT, +2 HP | — |
 | Lancer+ | Phalanx+: Unit Turn Start: gain 2 Block per adjacent ally | +1 DEF | Becomes Mounted: gains the Mounted tag and movement type, Movement 5 → 7 (Hakkapel's), to reach allies and hold the line |
 | Archer+ | Volley+: Hit dealt while at maximum range: +4 damage | +2 MGT, +1 SPD | — |
 | Brawler+ | Breaker+: First Hit dealt this combat: the target loses 2 extra Stance | +4 HP, +1 MGT | — |
-| Thief+ | Opportunist+: Always: +25 crit chance | +1 SPD | Gains Sword (`Godot_FE`'s Cutthroat promoted to Bladehand, sword + dagger), for foes that aren't Exposed |
+| Thief+ | Opportunist+: Always: +25 crit chance | +1 SPD | Gains Sword and Sidearm (`Godot_FE`'s Cutthroat promoted to Bladehand, sword + dagger), for foes that aren't Exposed |
 | Battle Medic+ | Triage+: Healed an ally: that ally gains 4 Block | +1 MGT, +1 DEF, +1 RES | — |
 | Hakkapel+ | Charge+: While this unit moved 4+ tiles this turn: +4 damage | +2 MGT, +1 DEF | — |
 | Freewing+ | Skirmisher+: After Combat: may use its remaining movement, and gains 2 Block if it moves | +2 SPD, +1 RES | — |
 | Lance Armor+ | Bulwark+: Always: +1 Parry, +1 Stance | +4 HP, +1 DEF | — |
 | Ward+ | Shield Bash+: Always: Shove distance +1; Shoved a unit: this unit gains 2 Block | +4 HP, +1 DEF | — |
-| Mage+ | Flow+: Every 3rd Attack made this combat: +5 damage | +1 MGT | Gains Dark (`Godot_FE`'s Sea Witch promotion used all magic), so it can switch between Balance and Power |
+| Mage+ | Flow+: Every 3rd Attack made this combat: +5 damage | +1 MGT | Gains Dark and Sidearm (`Godot_FE`'s Sea Witch promotion used all magic), so it can switch between Balance and Power each turn |
 | Shaman+ | Overwhelm+: While this unit's AS is higher than its opponent's: +3 damage | +2 MGT, +1 SPD | — |
 | Suncaster+ | Radiance+: Unit Turn End: adjacent allies gain 2 Block | +1 MGT, +1 SPD, +1 RES | — |
 
@@ -180,6 +181,25 @@ An upgraded unit is shown with a "+" ("Archer+"), like a Slay the Spire card. Ru
 - **Lance Armor+** keeps Parry at 1 and adds Stance, rather than Parry 2, which would cut every
   AtkX-2 weapon to one attack and hard-counter the Brawler.
 - **Shaman+** gets Speed on purpose, nudging it toward turning Overwhelm on.
+
+**Stowed weapons and Sidearm.**
+
+- **Any unit** may carry a weapon in its Pouch instead of a trinket or consumable. Swapping it with
+  the weapon in its Weapon slot is **its action for the turn** (the "swap equipment" action), so a
+  unit can, for example, end its turn by switching to a weapon that counters what is coming in the
+  enemy phase.
+- **Sidearm** makes that swap **free**: once per Unit Turn, before acting, without using the
+  action. It is granted by the big upgrades that add a weapon type (Sellsword+, Thief+, Mage+).
+- **Forecast:** a Sidearm unit's attack forecast lets it cycle between both weapons, as
+  `Godot_FE`'s targeting cycled every weapon that could reach the target (`08_grid_pathing_ai.md`,
+  FR-GRID-6). Confirming the attack with the stowed weapon uses the free swap. The forecast still
+  equals what executes (FR-MATH-12).
+- Only the weapon in the Weapon slot counts toward Attack Speed; the stowed weapon is weightless,
+  like every Pouch item.
+- **Design intent:** stowing a weapon should be an **intentional** move, not the default. Pouch
+  items (potions, stat boosters, trinkets) must be strong enough that most units would rather carry
+  one, and stowing a weapon becomes the better choice mainly when a trait, such as Sidearm,
+  reinforces it. Watch this in playtesting: if most units stow weapons, Pouch items are too weak.
 
 **Shield roles.** `Godot_FE`'s shield-weapon units (Ward, Bulwark, Squire, Penitent, Shield
 Runner) caused major balance problems, and shields are now equipment. Bulky roles get their bulk

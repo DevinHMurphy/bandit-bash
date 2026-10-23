@@ -9,6 +9,9 @@ Every number is a starting point to tune in playtesting.
 
 ## The short version
 
+- **Pouch items must beat a stowed weapon.** Any unit can carry a second weapon in its Pouch
+  ([unit-roster.md](unit-roster.md#upgrades)), so potions, stat boosters and trinkets must be strong
+  enough that stowing a weapon is an intentional choice, reinforced by a trait such as Sidearm.
 - **Equipment is much better than trinkets.** Equipment is build-defining; a trinket is a small
   edge that competes with a consumable for the Pouch slot.
 - `Godot_FE`'s 27 "equipment" items are split by what they are: wearable gear (cloaks, robes,
