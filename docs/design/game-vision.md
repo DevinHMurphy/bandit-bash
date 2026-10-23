@@ -115,13 +115,13 @@ nor the selectable difficulty levels. On Normal, only elites and bosses roll pre
   the node is picked at random weighted by votes: 2 votes left and 1 right gives left a 2-in-3
   chance. The host draws the result.
 
-**Events (stub).** The events an Unknown node can hold are not designed yet; they need their own
-full ideation and documentation pass. One is settled so far:
-
-- **Revive shrine:** a trade-off choice between two powerful options. Either one fallen unit
-  returns at critical health (10% of max HP, at least 1), or the player takes a rare heirloom. The
-  cost of reviving is the heirloom given up, decided in one visible choice; the revived unit plays
-  normally afterwards. How rare the event is remains open.
+**Events.** An Unknown node that turns out to be an event shows a short scene with 2–3 trade-off
+options, Slay the Spire–style. First pass in [events.md](events.md): 13 events, eight reworked from
+`Godot_FE/` and five new, including the **revive shrine** (revive one fallen unit at critical
+health, or take a rare heirloom; it appears only once a unit has fallen). Events can charge
+**curses**: permanent negative heirlooms in three tiers (minor, major, severe) matched to the
+reward, always named before the player chooses, and never touching gold. In co-op, most events are
+each player's own choice; team events, including any with a combat option, are voted like the route.
 
 **Gold.** Combat is the main source of gold. Events can pay or charge gold, as in Slay the Spire.
 
@@ -767,8 +767,8 @@ Ask before building on any of these:
 
 - **Enemies:** the open questions in [enemy-roster.md](enemy-roster.md) (faction, levels, loot,
   balance); bosses are held for later.
-- **Events:** a stub. The full set of Unknown events needs its own ideation and documentation pass;
-  only the revive shrine is settled, and its rarity is open.
+- **Events:** the open questions in [events.md](events.md) (co-op surprise combats, shrine rarity,
+  values).
 - **Multiplayer combat:** where reinforcements arrive and how co-op deployment works (a to-do: the
   darkness floods fixed arrival zones, a rally banner is one idea, sending commanders may be
   allowed); light links between maps; the save change for one battle state per player; see
@@ -929,3 +929,5 @@ Newest last. Each decision is already reflected in the sections above.
 | October 22, 2026 | Action economy | Move, then one action (attack, heal, Shove, use an object, open/search, use a Pouch item, swap equipment, or wait); runes are free. No moving after acting without a trait. No trading in combat; Pouch items can be used on an adjacent ally instead. | `Godot_FE`'s major and minor actions |
 | October 22, 2026 | Sidearm | Big upgrades that add a weapon type (Sellsword+, Thief+, Mage+) grant Sidearm: a second weapon may be carried in the Pouch and swapped in for free once per Unit Turn, before acting; the stowed weapon is weightless; the Pouch then holds no potion or trinket. | Second weapon type usable only in battle prep |
 | October 22, 2026 | Stowed weapons | Any unit may stow a weapon in its Pouch and swap it in as its action; Sidearm makes the swap free, with `Godot_FE`'s forecast weapon cycling. Pouch items must stay strong enough that stowing a weapon is an intentional choice, reinforced by traits. | Sidearm-only weapon swap |
+| October 22, 2026 | Events | First-pass pool of 12 (8 reworked from `Godot_FE`, 4 new, revive shrine included; shrine appears only once a unit has fallen); no repeats per run; guaranteed stat changes only. Curses are negative heirlooms, removed at the Guildhall (50, +25 per removal). Co-op: same event, own choice. See events.md. | Events stub |
+| October 22, 2026 | Curses and team events | Curses are permanent (no Guildhall removal), grouped minor/major/severe and matched to reward size, always named before choosing, and never affect the economy (Light Purse cut); 10 first-pass curses. Some events are team choices voted like the route; combat options are always team choices. Black Altar added. | Guildhall curse removal; random curses; individual-only co-op events |
