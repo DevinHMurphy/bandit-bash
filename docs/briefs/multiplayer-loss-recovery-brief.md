@@ -1,8 +1,9 @@
 # Brief: recovering from a lost map in co-op
 
 > **Superseded October 20, 2026. Don't use this brief.** The decision it asks for has been made:
-> there is no retreat, revival or extra life in the game, in solo or co-op. Permadeath applies to
-> every unit, a fallen commander ends the run, and the negative feedback loop is accepted. See
+> there is no retreat or recovery mechanic, in solo or co-op. Permadeath applies to every unit (a
+> rare revive event is the only way back), and the negative feedback loop is accepted. A fallen
+> commander ends a solo run; in co-op it returns after the combat at critical health. See
 > `docs/design/game-vision.md` and `docs/design/multiplayer-combat-options.md`.
 
 I'm designing a co-op roguelite tactics game and need help working through one system. Everything

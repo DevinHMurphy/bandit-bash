@@ -37,8 +37,8 @@ informed trade, never a surprise:
   size of its reward, so a small reward never costs a crippling curse.
 - **Never the economy:** no curse reduces gold, prices or rewards; they all act on combat.
 - **Generation:** when an event is generated, each cursed option draws its curse from the right
-  tier, among curses the player doesn't already hold (from the run's seeded stream). Curses don't
-  count toward the heirloom cap. In co-op, a curse belongs to the player who took it.
+  tier, among curses the player doesn't already hold (from the run's seeded stream). In co-op, a
+  curse belongs to the player who took it.
 
 | Tier | Paired with | Curse (first pass) | Effect |
 |------|-------------|--------------------|--------|
@@ -104,7 +104,7 @@ informed trade, never a surprise:
 
 **Broken Shrine of Valor:** the **revive shrine** (settled in game-vision.md), using `Godot_FE`'s
 shrine theme (`broken_shrine_of_valor`). Appears only if at least one unit in the army has fallen,
-so it is never a free heirloom.
+so it is never a free heirloom. Once eligible, it is drawn like any other event (no special odds).
 - *Offer a Prayer:* one fallen unit returns at critical health (10% of max HP, at least 1).
 - *Claim the Relic:* gain a rare heirloom.
 
@@ -125,7 +125,8 @@ outcomes (bribe, fight, intimidate). In solo, "each player" is just you.
   average level. *(Requires 50 gold.)*
 - *Take a Volunteer:* recruit a unit with no prefix, for free, and take a **minor** curse (named
   before choosing).
-- *Move On:* nothing.
+- *Sign a Company Charter:* +1 max army size and a **major** curse (named before choosing).
+  *(Requires max army size below the ceiling of 8.)*
 
 **The Black Altar:** a pact offered in the dark. The one event with a severe curse.
 - *Accept the Pact:* gain two rare heirlooms and a **severe** curse (named before choosing).
@@ -168,6 +169,5 @@ or no longer matter; their themes are free to reuse.
 ## Open questions
 
 - **More team events:** only Bandit Toll is a team choice so far.
-- **Rarity:** how often the revive shrine appears once it is eligible.
 - **Values:** every gold amount, stat change and curse is first pass.
 - **More curses and events** once the MVP pool has been played.

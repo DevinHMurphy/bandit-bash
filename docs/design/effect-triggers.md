@@ -73,8 +73,9 @@ together.
 | Exposed | A unit's Stance reaches 0 | Fires once each time it happens |
 | Defeated an enemy / Defeated | A unit defeats an enemy / a unit is defeated | |
 | Healed an ally / Healed | A unit restores an ally's HP / a unit regains HP | Includes overhealing; see effects-system.md |
-| Darkness damage taken | A unit takes damage from [the darkness](the-darkness.md) at its side's Phase End | Whether it also counts as Hit taken and Damage taken is open |
-| Object used | A unit uses a [map object](map-objects.md) (fires, lights, cuts, drums) | |
+| Used a staff on an ally | A unit uses any staff (heal or Block) on an ally | |
+| Darkness damage taken | A unit takes damage from [the darkness](the-darkness.md) at its side's Phase End | Not an attack: it never fires Hit taken or Damage taken |
+| Object used | A unit uses a [map object](map-objects.md) (lights or douses, pulls, searches, passes through) | |
 | Shoved a unit / Shoved | A unit shoves another / a unit is shoved | Shove is described in game-vision.md |
 
 Always-on effects have no trigger. They apply whenever their owner is involved, e.g. "Take 5 less
@@ -112,6 +113,7 @@ Before Combat to After Combat.
 | Moved N+ tiles this turn | This unit moved at least N tiles during its current Unit Turn | "While this unit moved 4+ tiles this turn: +2 damage" |
 | Hasn't moved this turn | This unit has moved 0 tiles this turn | "While it hasn't moved this turn: +10 Hit" |
 | Within N tiles | Units at a walking distance of N tiles or fewer (adjacent is within 1) | "Allies within 2 tiles gain +2 damage" |
+| No ally closer to an enemy | No ally of this unit has a smaller tile distance (tiles up plus tiles across, ignoring terrain) to its nearest enemy than this unit has to its own; a tie still counts | "Phase Start, while no ally is closer to an enemy than this unit: gain 3 Block" |
 
 **Shove distance.** How many tiles this unit's shoves push (1 by default). Effects change it like any
 other value: "Always: Shove distance +1". A longer shove still moves tile by tile and stops early
@@ -131,4 +133,5 @@ fires Damage taken.
 
 **Operations beyond stage modifiers** used by MVP traits: gain Block, gain Stance, gain Hit or crit
 chance, remove extra Stance, a temporary damage bonus "until Phase End", and "may use its remaining
-movement" (move again after acting).
+movement" (move again after acting). Heirlooms add **lifesteal**: "that attack heals the attacker
+for the damage it deals to HP" (Block absorbed doesn't count).

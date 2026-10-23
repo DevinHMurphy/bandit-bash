@@ -48,7 +48,7 @@ whose staff never attacks).
 
 | Class | Trait | AI behavior | Target rule (shown with its intent) |
 |-------|-------|-------------|-------------------------------------|
-| Cutthroat | **Backstab:** +2 damage against Exposed foes | Aggressive | Exposed foes first, then lowest HP |
+| Cutthroat | **Backstab:** +2 damage against Exposed foes | Aggressive | Exposed foes first, then lowest HP. The only enemy that loots: with no attack worth taking, it opens a chest or searches a searchable to deny it, and drops what it took when defeated ([map-objects.md](map-objects.md#enemy-ai)) |
 | Brute | **Cleave:** Hit dealt: every other unit adjacent to the Brute, friend or foe, takes 2 splash damage | Aggressive | Nearest foe it can hit; swings even with its own allies beside it |
 | Duelist | **Riposte:** Before Combat, while it is the defender: gain 3 Block | Guard | Holds its ground; attacks only foes that come within reach |
 | Crossbowman | **Steady Aim:** while it hasn't moved this turn: +10 Hit | Hold | Lowest Defense in range; moves only if nothing is in range |
@@ -105,12 +105,12 @@ Enemies play to kill:
 
 | Weapon | Dmg | AtkX | Profile | Range | Hit | Crit | CritX | Weight | Note |
 |--------|-----|------|---------|-------|-----|------|-------|--------|------|
-| Heavy Crossbow | 7 | 1 | Power | 2 | 85 | 0 | 3 | 10 | Unlike player bows (profile None), heavy bolts are Power |
+| Heavy Crossbow | 7 | 1 | Power | 2 | 85 | 0 | 3 | 10 | A bow: effective against Fliers, like every bow. Unlike player bows (profile None), heavy bolts are Power |
 | Javelin | 5 | 1 | Balance | 1–2 | 75 | 0 | 3 | 10 | Thrown lance |
 | Fangs | 3 | 2 | Nimble | 1 | 90 | 0 | 2 | 0 | Natural weapon, like gauntlets |
 
 No `Godot_FE` basis; first-pass values sized against the simple weapons. The other classes carry the
-player's simple weapons, so they drop familiar loot.
+player's simple weapons, so player knowledge transfers. Enemies don't drop loot in the MVP.
 
 ## Packs
 
@@ -140,10 +140,39 @@ an elite. Examples, first pass:
   gains 1 Stance".
 - **Bloodhound:** an elite Hound with "Defeated an enemy: may move again".
 
+## Mini-bosses and the boss
+
+Decided October 23, 2026. All are elites built on the classes above (Model 1): no new rules
+engine, just a prefix, a signature move and a role.
+
+**Mini-bosses.** Every key combat fields one, drawn from these four by the run's seed, never
+repeating in a run. Four mini-bosses for 2–4 key combats is deliberate variety: each is a different
+puzzle, to learn which are fun.
+
+| Mini-boss | Built on | Signature move (telegraphed as its intent) | The puzzle |
+|-----------|----------|---------------------------------------------|------------|
+| Brigand Captain | Brute | Every 3rd Phase Start this combat: Command, every ally gains 1 Stance | Break its pack's Stance before Command restores it |
+| Bloodhound | Hound | Defeated an enemy: may move again | Never leave a wounded unit in its reach |
+| Hex Matron | Hexer | Every 3rd Phase Start this combat: Hex Storm, every unit within 2 tiles of its target, friend or foe, loses 1 Stance | Bait it into catching its own pack, then crit them |
+| Iron Wall | Shieldbearer | Every 2nd Phase Start this combat: Fortify, adjacent units, friend or foe, gain 4 Block and +1 Parry until Phase End | Break the formation, or stand in the wall and share it |
+
+**The boss: the Powder Baron.** The MVP's one boss, on the boss map.
+
+- **Unit:** an elite Brute at level 8 with a +2 prefix and the **Unshovable** trait. It holds the
+  throne (Guard behavior) and fights by every normal rule, Cleave included.
+- **Signature, Keg Barrage:** every 2nd enemy phase, the Baron throws a powder keg onto a tile within
+  5 tiles, shown as its intent one phase ahead. It picks the tile that would catch the most player
+  units, whatever its own side loses (ruthless AI).
+- **The kegs** are normal [Powder Kegs](map-objects.md#new-objects) (10 HP; 5 splash within 1 tile;
+  they chain) with a lit fuse: each explodes at the end of the 2nd enemy phase after it lands, or
+  sooner if anything hits it, splash or the darkness included. Either side can detonate one early.
+- **How it changes the map:** the arena fills with hazards both sides can use. Throwing the
+  Baron's own kegs back at its guards is the intended outplay.
+- **The darkness:** the boss's tile is the drain. Once the throne floods, it stops healing the Baron
+  and the darkness wears it down, so outlasting it is a valid, slow plan.
+- **First pass:** the 2-phase cadence, 5-tile reach and 2-phase fuse are starting values to tune.
+
 ## Open questions
 
 - **Faction:** the Brigands' real name and theme, and later factions.
-- **Levels:** what level each class appears at, by combat type and difficulty step.
-- **Loot:** loot tables per class, alongside the weapon it can drop.
-- **Mini-bosses and the boss:** held, with the rest of boss design.
 - **Balance:** none of these stats have been tested against the new combat rules.

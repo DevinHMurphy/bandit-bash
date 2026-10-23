@@ -35,20 +35,25 @@ Every gameplay feature has two references: this vision and the old build in `God
   returns after the combat at critical health. Every other unit has permadeath; the only way back is
   a rare event. The whole army deploys in every combat.
 - Army size works like card draw and mana in Slay the Spire: more units mean more actions and
-  more storage. The maximum is 10; most runs sit at 3–6.
+  more storage. The Mercenary starts at 4 (full); the ceiling is 8, reached only in edge cases.
 - Builds are shaped by **heirlooms** (army-wide passives), weapon **profiles** (Nimble, Balance,
   Power) and a three-slot unit inventory (Weapon, Equipment, Pouch).
+- **MVP goal:** one complete, playable run, solo and co-op. Meta progression and other between-run
+  systems wait until that works.
 - Combat adds **Block** (damage absorbed before HP) and **Stance** (hits of margin before a unit is
   **Exposed** and can be crit) to Fire Emblem–style exchanges.
 
 ## Design pillars
 
+**Gameplay goal:** an experience that lets the player make high-stakes tactical decisions in short
+sessions, with an army they care about and can lose.
+
 | Pillar | Intent |
 |--------|--------|
 | Reduce player cognitive burden | Playtesters found the old game's options and information tiring. Fewer, clearer decisions. |
-| Decrease run length | Shorter runs make losses less punishing and encourage risk-taking. |
+| Decrease run length | Shorter runs make losses less punishing and encourage risk-taking. **Target: a typical solo run takes 60–75 minutes.** `Godot_FE` runs took 4–8 hours, and players who lost didn't want to start again. If runs come in long, cut node count or combat length before adding content. |
 | Incentivize proactive players | Reward calculated, aggressive trades and map control over slow, safe turtling. |
-| Remove "hurry up and wait" decisions | Named in the source; its rationale is still blank. |
+| Remove "hurry up and wait" decisions | No tactic should be "get into position, then pass turns"; no map should be won by passing turns; and in co-op no player should sit idle for long. |
 
 ## Run structure
 
@@ -56,36 +61,55 @@ Every gameplay feature has two references: this vision and the old build in `God
 
 | Faction | Commander unit type | Max army size | Funds | Starting army |
 |---------|---------------------|---------------|-------|---------------|
-| Mercenary | Drengr | 6 | 100 G | Hakkapel, Archer, Battle Medic |
+| Mercenary | Drengr | 4 | 100 G | Hakkapel, Archer, Battle Medic |
 | Mage Tower (stub, not in the MVP) | Mage Knight | 4 | 250 G | Tower Guard, rest unspecified |
 
 - The faction gates faction-locked heirlooms, weapons and unit types.
-- Each commander carries a unique **Commander Heirloom** (e.g. Iron Heart: every 7th attack gains
-  lifesteal). Commanders and factions set the base army size.
+- Each commander carries a unique **Commander Heirloom** (e.g. the Drengr's Iron Heart: every 7th
+  attack by the army each combat heals the attacker for its damage). Commanders and factions set the
+  base army size. The Drengr is defined in [unit-roster.md](unit-roster.md#commander).
 - Design intent: the commander's unit type is good and worth building around but doesn't win a run
   alone. Starting units and starting equipment are deliberately weak "strikes and defends", there
   to be replaced.
-- **Starting heirlooms** are only offered at run start and add variety without forcing a build.
-  Examples: Abundance (+1 army size, two common unit picks), Ancestral Weapon (a rare weapon pick),
-  Tactician's (doubles the weapon profile triangle).
+- **Starting heirlooms** are only offered at run start and add variety without forcing a build. The
+  player picks 1 of 3, drawn from a pool of 7 by the run seed, e.g. Abundance (+1 max army size and
+  a recruit), Ancestral Weapon (1 of 3 Rare weapons the army can use) and Tactician's Manual
+  (doubles the weapon profile triangle). The pool is in [heirlooms.md](heirlooms.md#starting-heirlooms).
 
-**Difficulty and scaling (stub).** Challenge should rise in steps through a run, like Balatro's
-Antes, with each step making combats harder. Nothing is defined yet: not the steps, what each step
-raises (candidates: enemy levels, enemy count, which enemies roll [prefixes](unit-roster.md#prefixes)),
-nor the selectable difficulty levels. On Normal, only elites and bosses roll prefixes.
+**Difficulty and scaling.** Challenge rises in three steps through a run, like Balatro's Antes.
+Steps change at the fixed key-combat rows, so the jump is visible on the map.
+
+| Step | Floors | Standard combat enemies | Enemy level (Normal) |
+|------|--------|-------------------------|----------------------|
+| 1 | 1–5 | 3 | 1 |
+| 2 | 6–11 | 4 | 3 |
+| 3 | 12–17 | 5 | 5 |
+| Boss | 18 | — | 8 (the boss) |
+
+- Enemy levels track the army's expected average level (the starting army is level 1). Key combat
+  enemies are +1 level; leaders and mini-bosses +2.
+- Enemy count never scales with the player's army size: army size is the player's power, like
+  energy in Slay the Spire.
+- **Enemy growth is deterministic:** at level L, each stat is its base plus growth % × (L − 1),
+  rounded down. The same enemy is identical in every run and on every co-op copy.
+- **Two difficulties**, chosen at run start (by the host in co-op) and saved with the run:
+  - **Normal:** only elites (leaders, mini-bosses) and the boss roll [prefixes](unit-roster.md#prefixes).
+  - **Hard:** every enemy rolls a prefix (with the recruit odds), every enemy is +1 level, and every
+    map's turn par is 1 lower, so the darkness arrives a turn earlier and the speed bonus needs one
+    turn less.
 
 **Campaign nodes.**
 
 | Node | Purpose | Targets |
 |------|---------|---------|
-| Standard combat | Small skirmish; main source of XP; simple rewards, including gold. | 2–5 min, 3–5 enemies (always < 10, about the player's count), no bosses |
-| Key combat | Small Fire Emblem–style map with mini-bosses. Rewards a heirloom. | 5–10 min, 2–4 per run |
+| Standard combat | Small skirmish; main source of XP. Rewards gold and a pick of 1 of 3 items, or skip (items rolled Common 60 / Uncommon 30 / Rare 10; weapons weighted to the army's weapon types). | 2–5 min, 3–5 enemies (always < 10, about the player's count), no bosses |
+| Key combat | Small Fire Emblem–style map with mini-bosses. Rewards gold, the standard combat's item pick, and one random heirloom (rolled Common 50 / Uncommon 33 / Rare 17). | 5–10 min, 2–4 per run |
 | Boss combat | Large map; the boss directly affects the map. | — |
-| Armory (Shop) | Spend gold on weapons, equipment, trinkets, consumables and heirlooms. Items are bought straight onto a unit, with a before/after comparison; the item it replaces is either **traded in** (its [scrap value](items.md#scrapping) comes off the price) or sent to the convoy. No sell screen. Has its own map icon. | — |
-| Guildhall (Shop) | Spend gold on recruits (cheap, so a player can replace units lost to permadeath), runes and prefix **re-rolls**. A re-roll is priced from the unit's value, like Terraria's Goblin Tinkerer, and rises with each re-roll in the same Guildhall. Has its own map icon. | — |
-| Unknown (`?`) | The random slot. Usually an event: a narrative choice with trade-offs (heirlooms, unit upgrades, prefix re-rolls, gold, weapons, unique units, or a rare **revive** of one fallen unit, in exchange for damage, curses or a surprise combat). It can instead turn out to be a standard combat, Shop, Camp or Treasure; see the campaign map below. | — |
+| Armory (Shop) | Spend gold on weapons, equipment, trinkets, consumables and heirlooms. Items are bought straight onto a unit, with a before/after comparison; the item it replaces is either **traded in** (its [scrap value](items.md#scrapping) comes off the price) or sent to the convoy. No sell screen. Has its own map icon. Stock per visit: 3 weapons (the army's weapon types), 2 equipment, 1 trinket, 2 consumables (items rolled Common 50 / Uncommon 35 / Rare 15) and 2 heirlooms (one from the pool, rolled 50 / 33 / 17, and one Shop tier). | — |
+| Guildhall (Shop) | Spend gold on recruits (3 per visit; cheap, so a player can replace units lost to permadeath), runes (2 per visit) and prefix **re-rolls**. A re-roll is priced from the unit's value, like Terraria's Goblin Tinkerer, and rises with each re-roll in the same Guildhall. Has its own map icon. | — |
+| Unknown (`?`) | The random slot. Usually an event: a narrative choice with trade-offs (heirlooms, unit upgrades, prefix re-rolls, gold, weapons, unique units, or a rare **revive** of one fallen unit, in exchange for damage, curses or a surprise combat). It can instead turn out to be a standard combat, Shop or Treasure; see the campaign map below. | — |
 | Camp | Choose one: **Feast** (heal 35% of each unit's HP, and optionally cook one [ingredient](items.md#consumables) from the convoy to give every unit in the army a guaranteed gain on its next level-up; in co-op the heal reaches every player's units and stacks, while the ingredient stays with the cook's army), or **Train** (upgrade one unit, like a Slay the Spire card; normally once per unit). In co-op, each player chooses for themselves. There is no Revive at a Camp. Not meant to be the main path. | 2–4 per 18-node run, 5 at most |
-| Treasure | Guaranteed non-combat chest with a heirloom; size sets rarity; sometimes gold or loot. | At least 2 (source says "2(3?)") |
+| Treasure | Guaranteed non-combat chest with a heirloom; size sets rarity (small Common 50%, medium Uncommon 33%, large Rare 17%; see [heirlooms.md](heirlooms.md)); sometimes gold or loot. | At least 2 on every path |
 
 **Campaign map.** Ported from `Godot_FE/`'s Slay the Spire–style generator
 (`campaign_map/map_generator.gd`), resized for the vision:
@@ -154,9 +178,9 @@ with all). Higher combat pay (40 and 75) left about 300 unspent, because two sho
 
 | Price | Gold |
 |-------|------|
-| Iron / simple weapon | 40 |
-| Steel-tier weapon | 60 |
-| Silver-tier weapon | 150–250 |
+| Common weapon | 40 |
+| Uncommon weapon | 60 |
+| Rare weapon | 150 (250 for `Godot_FE`'s Mythical weapons) |
 | Potion | 25 |
 | Equipment | 60–200 |
 | Trinket | 30–80 |
@@ -184,6 +208,8 @@ Placement rules; a roll that breaks one is rerolled:
 - A node with two or more paths up leads to nodes of different types.
 - No Camp on floor 16, the floor before the fixed Camp row.
 - No path holds more than 4 key combats.
+- Every path passes through at least 2 Treasures and 2–5 Camps (the fixed rows on floors 9 and 17
+  count).
 
 Shops (Armory and Guildhall together) are far more common than in Slay the Spire (about 17% of
 rolled floors against its 5%) because the Guildhall is where units are recruited. Their separate map
@@ -199,12 +225,11 @@ run.
 | Standard combat | 10% | +10% |
 | Shop (Armory or Guildhall, even odds) | 3% | +3% |
 | Treasure | 2% | +2% |
-| Camp | 3% | +3% |
 | Event | The rest | — |
 
 Combat, Shop and Treasure use Slay the Spire's values as remembered from its decompiled code (the
-wikis don't list them). Slay the Spire never turns an Unknown into a rest site, so Camp has no
-basis: it mirrors Shop.
+wikis don't list them). As in Slay the Spire, an Unknown never becomes a Camp: Camps are a visible
+routing choice.
 
 ## Army
 
@@ -212,9 +237,10 @@ basis: it mirrors Shop.
   Leveled through combat; classic permadeath.
 - Commander stat spreads and names are fixed and persist across runs. Every other non-event unit is
   randomized.
-- Max army size comes from progression, heirlooms and the starting commander. It is never sold in
-  shops: like max energy in Slay the Spire, it adds actions every turn, so it is very strong and
-  allowed, but never simply bought.
+- Max army size starts from the faction (Mercenary: 4) and grows only through the Abundance starting
+  heirloom, the Rare heirloom Muster Roll and event options, up to a hard ceiling of 8. It is never
+  sold in shops: like max energy in Slay the Spire, it adds actions every turn, so it is very strong
+  and allowed, but never simply bought. Meta progression may add sources after the MVP.
 - **Recruiting past the max** means replacing an existing unit; the replaced unit's inventory goes
   to the convoy.
 - **Permadeath.** A unit that falls is gone for good, in solo or co-op: there is no retreat, Camps
@@ -224,6 +250,9 @@ basis: it mirrors Shop.
   management and battle prep. The commander is the exception: its fall ends a solo run, and in
   co-op it returns at critical health (see [Combat maps](#combat-maps)). Losses compound (a weaker
   army is likelier to lose again); that negative feedback loop is accepted as part of the design.
+- **HP carries over** between combats. There is no heal after a win (`Godot_FE`'s `heal_on_win` is
+  dropped); HP comes back through Feasts, heal staves, potions, healing terrain and events. Block,
+  per-map uses and durability reset every combat.
 
 ## Units
 
@@ -283,20 +312,21 @@ the typical path on the [campaign map](#run-structure).
 | Healed an ally, or gave Block | +3 |
 | Non-combat action (looting, closing reinforcement routes) | +5 |
 
-**Combat MVP.** The unit with the most XP-earning actions in a combat is named the combat's MVP on
-the results screen and gets +5 XP on top of the cap. A tie goes to the lower-level unit, nudging the
-army toward even levels; if they are also level, to the one that earned more personal XP. It drives the player's relationship with
-their units home without letting one unit run away: armies are small and fights are quick, so
-every unit acts and the MVP should rotate. In co-op, each player has their own MVP.
+**Standout.** The unit with the most XP-earning actions in a combat is named the combat's
+**Standout** on the results screen and gets +5 XP on top of the cap. A tie goes to the lower-level
+unit, nudging the army toward even levels; if they are also level, to the one that earned more
+personal XP. It drives the player's relationship with their units home without letting one unit
+run away: armies are small and fights are quick, so every unit acts and the Standout should
+rotate. In co-op, each player has their own Standout.
 
 How it plays out: a unit that only survives ends a run at about 5 levels; one that hits the cap
-and is MVP every combat reaches about 6.8, the extreme. Recruits join at the army's average level,
+and is the Standout every combat reaches about 6.8, the extreme. Recruits join at the army's average level,
 rounded down so a recruit is never ahead of the army.
 
 **Upgrades replace tiers.** Units have no tiers and never promote. A unit is either unupgraded or
 upgraded, like Slay the Spire cards: a run starts with average units, replaces them with better
 ones, and upgrades the good ones along the way. A Camp's Train choice upgrades a unit, normally once
-per unit. An upgrade improves the unit's trait to a "+" version (e.g. Volley+) and adds a few stat
+per unit. Commanders are never upgraded. An upgrade improves the unit's trait to a "+" version (e.g. Volley+) and adds a few stat
 points. Some unit types may also gain something bigger, Fire Emblem promotion style: access to
 another weapon type, or a new movement type (e.g. becoming mounted). A unit that gains a weapon type
 also gains **Sidearm**: any unit can stow a weapon in its Pouch and swap it in as its action, but
@@ -333,18 +363,25 @@ faction), **block** (superseded by the Block redesign under [Combat](#combat)) a
 |---------------|-----|------|---------|-------|-----|------|-------|--------|----------|
 | Sword | 5 | 1 | Nimble | 1 | 80 | 0 | 3 | 8 | Control: consistent, low variance |
 | Axe | 10 | 1 | Power | 1 | 65 | 0 | 3 | 15 | Commitment: high damage, misses expose you |
-| Lance | 7 | 1 | Balanced | 1 | 80 | 0 | 3 | 12 | Solid in every situation |
+| Lance | 7 | 1 | Balance | 1 | 80 | 0 | 3 | 12 | Solid in every situation |
 | Bow | 6 | 1 | None | 2–3 | 100 | 0 | 3 | 5 | Damage from range, little defense |
 | Gauntlets | 2 | 2 | None | 1 | 100 | 0 | 2 | 1 | Many fast hits to break Stance |
 | Dagger | 2 | 1 | Nimble | 1–2 | 100 | 0 | 5 | 3 | Hybrid; punishes Exposed foes |
 | Anima (Fire) | 5 | 1 | Balance | 1–2 | 80 | 0 | 3 | 1 | Steady magic (`Godot_FE` Fire) |
 | Holy (Smite) | 4 | 1 | Nimble | 1–2 | 100 | 0 | 3 | 6 | Reliable magic (`Godot_FE` Smite) |
 | Dark (Shade) | 7 | 1 | Power | 1–2 | 80 | 0 | 3 | 8 | Heavy magic (`Godot_FE` Shade) |
-| Minor Heal (staff) | Heals 5 + Might scaling | — | None | 1 | — | — | — | 0 | Unbreakable (`Godot_FE` Minor Heal) |
+| Shelter (staff) | Target ally gains 3 + Might Block | — | None | 1 | — | — | — | 0 | Unlimited uses: the everyday support tool (new) |
 
 The source's equip-type column (Versatile, Main Hand, TwoHanded, Two) is dropped with the off-hand.
 Simple weapons carry no Block effects; named weapons may. Magic deals Magic damage, so it hits
-Resistance.
+Resistance. Every MVP weapon has a scaling modifier of 1 (Might adds one-for-one), and every bow,
+the Simple Bow included, is effective against Fliers, as in `Godot_FE`.
+
+**Item rarity** has five tiers, shared by weapons, equipment and Pouch items: **Basic** (starting
+gear and recruits' gear only, never loot or stock), **Common**, **Uncommon**, **Rare** and
+**Legendary** (near-unbalanced, found only in about 3% of runs). Higher-tier weapons gain damage
+and weight but never lose Hit below their type's Simple weapon, since accuracy comes only from the
+weapon. The MVP weapon list (62 weapons and staves) is in [weapons.md](weapons.md).
 
 - A weapon's profile follows its flavor, not its type: a Zweihander is Power, a long sword Nimble,
   a claymore Balance. Every weapon card and the combat forecast show the exact profile. Most types
@@ -352,19 +389,21 @@ Resistance.
 - **Magic** comes in three weapon types, each with a typical profile: Anima (Balance), Holy, the
   old Light (Nimble), and Dark (Power). A specific tome can differ, as with daggers. Magic scales
   with Might and deals Magic damage, mitigated by Resistance.
-- **Staves** heal by an amount that scales with Might. Other support weapons (whips, instruments,
-  banners) and misc. weapons have headings only.
-- **Durability** exists only on some weapons and is per map (e.g. healing staves). It forces
-  prioritization rather than one optimal setup.
+- **Staves** come in two kinds, both scaling with Might. **Block staves** have unlimited uses: the
+  Basic staff, Shelter, gives 3 + Might Block. **Heal staves** have limited uses per map: Minor Heal
+  (Common) heals 5 + Might, 3 uses per map. Block is the everyday tool; healing is precious. Other
+  support weapons (whips, instruments, banners) and misc. weapons have headings only.
+- **Durability** exists only on some weapons and is per map (e.g. heal staves). It refreshes at the
+  start of every combat and forces prioritization rather than one optimal setup.
 - **Equipment** is build-defining, one piece per unit, and can't be swapped mid-combat. Categories:
-  quivers (ranged offense), coatings (bonuses against Exposed foes, debuffs on hit), shields
+  quivers (ranged offense), coatings (bonuses against Exposed foes), shields
   (Stance and Block), armor, cloaks, bands, uniques. Equipment is much stronger than a Pouch
   trinket. Items, budgets and `Godot_FE` conversions are in [items.md](items.md).
   Equipment has no hard unit restrictions in the MVP: weight against Constitution limits heavy
   gear, and traits can reward specific gear. Add restriction tags only if playtesting shows a role
   needs protecting.
-- **Pouch items** are consumables (limited uses: heal, cure, boost, light fog, open doors and
-  chests) or trinkets (small passive bonuses to the holder). A unit carries one or the other.
+- **Pouch items** are consumables (limited uses: heal, boost a stat, open doors and chests) or
+  trinkets (small passive bonuses to the holder). A unit carries one or the other.
   Every `Godot_FE` consumable carries over: stat boosters go in the Pouch, and the old growth
   boosters become ingredients, kept in the convoy and cooked at a Camp Feast (see [items.md](items.md)).
   Lockpicks are Pouch consumables any unit can carry; no unit type picks locks innately, so going
@@ -380,9 +419,9 @@ done. This is classic Fire Emblem: one decision per unit, and every utility acti
 | Action | Notes |
 |--------|-------|
 | Attack | Starts a combat exchange |
-| Heal | With a staff |
+| Use a staff | Heal an ally (heal staff) or give it Block (Block staff) |
 | Shove | See [Shove](#combat) below |
-| Use a map object | Fire, light, cut, drum, pull a lever, use a passage ([map-objects.md](map-objects.md)) |
+| Use a map object | Light or douse a Brazier, pull a lever, use a passage ([map-objects.md](map-objects.md)) |
 | Open or search | A chest or door (with a lockpick), or a searchable |
 | Use a Pouch item | On itself **or an adjacent ally**: a potion, stat booster or other consumable |
 | Swap equipment | Swap the Weapon with a weapon stowed in the Pouch (any unit; free with [Sidearm](unit-roster.md#upgrades)), or take gear from the convoy (only with a trait that grants convoy access) |
@@ -518,7 +557,9 @@ advantage and suffer no disadvantage, and their opponent's triangle result again
 Standoff. This is part of their identity: bows win through range, gauntlets through breaking
 Stance.
 
-**Status effects (WIP)** stack by duration, by effect weight, or both. Examples: Bleed (weight;
+**Status effects (after the MVP).** None ship in the MVP: debuffs work through Stance and Block,
+and no MVP trait, enemy or item applies a status. When they arrive, they stack by duration, by
+effect weight, or both. Examples: Bleed (weight;
 cleansed after it deals damage at Phase End), Garrison (duration; while it lasts, a refresh keeps
 leftover Block instead of clearing it), Poison (both; deals its stack count each
 Phase End, then loses a stack).
@@ -570,7 +611,8 @@ the run's seeded stream. `Godot_FE/` already supported random unit groups and po
 
 **Size.** Fire Emblem Heroes scale, the vision's reference: standard maps about 8×6 to 10×8, key
 maps about 12×10. Boss maps are larger and longer than both. Small maps keep standard combats in
-the 2–5 minute target with the whole army (3–6 units) deployed against 3–5 enemies.
+the 2–5 minute target with the whole army (4–6 units) deployed against 3–5 enemies. Every map
+authors at least 8 player deployment tiles, the army-size ceiling.
 
 **Objectives by combat type.**
 
@@ -583,20 +625,27 @@ the 2–5 minute target with the whole army (3–6 units) deployed against 3–5
 `Godot_FE/` declared Seize and Defend but never made them work; they are built properly here. Each
 map has an authored turn par for the [grade bonus](#run-structure).
 
+- **Setting par:** par = the turns a clean, aggressive clear takes in testing, plus 1. First targets
+  to measure: standard 4–6, key 7–10, boss 10–14. Hard lowers every par by 1.
+- **Survive and Defend** maps end on a turn count, but defeating every enemy on the map with every
+  reinforcement point closed ends them early and earns the speed bonus. Waiting it out still wins;
+  attacking wins faster and pays more.
+
 **Interactables (MVP).**
 
 | Interactable | What it does |
 |--------------|--------------|
-| Chest | Opened with a lockpick (a Pouch consumable); holds loot rolled for the run |
+| Chest | Opened with a lockpick (a Pouch consumable); holds one item (weapon, equipment or trinket) rolled Common 50 / Uncommon 35 / Rare 15 from the run's seed |
 | Door | Opened with a lockpick, or by a lever that opens a linked group of doors (`Godot_FE/`) |
-| House | A unit visits it for a reward (gold, an item, or a heirloom chance) and the personal-XP bonus; the vision's "looting houses" |
+| House | A unit visits it for 15–25 gold or one consumable (potion, lockpick or stat booster), plus the personal-XP bonus; the vision's "looting houses". Never an heirloom, so the heirloom count per run stays predictable |
 | Reinforcement point | Enemy reinforcements arrive from marked points on a timer; a unit closes a point by ending its turn on it, earning the personal-XP bonus; the vision's "closing reinforcement routes" |
 | Breakable | Walls and debris a unit can destroy to open a new path (`Godot_FE/`'s Demolish) |
 
 **Map objects** are neutral: any unit, player or enemy, can use them to change the battlefield, and
 they are essential to combat. They include the interactables above, carried over from
 `Godot_FE/`'s entities (chests, doors and levers, searchables such as houses and shelves, debris,
-passages), plus new ones: powder kegs, a ballista, war drums and braziers. Details are in
+passages), plus new ones: powder kegs and braziers (the ballista and war drum wait until after the
+MVP). Details are in
 [map-objects.md](map-objects.md). Objects are separate from terrain.
 
 **Terrain** is carried over from `Godot_FE/` ([unit-roster.md](unit-roster.md#movement-and-tags)).
@@ -607,10 +656,11 @@ sides.
 **The darkness** is the turn-par pressure system ([the-darkness.md](the-darkness.md)). At turn par,
 darkness flows into the map from authored sources toward a drain set by the objective, in waves that
 deepen tiles from Dusk to Gloom to Abyss. A unit that ends its side's phase on a dark tile takes
-damage; passing through is free. No unit is immune, bosses included. It eventually floods the whole
+damage (MVP: 10% / 25% / 50% of max HP by layer, not an attack, so Block, Mitigation and Stance
+don't apply); passing through is free. No unit is immune, bosses included. It eventually floods the whole
 map, so every map ends, but it never ends a map early: like fatigue in Hearthstone, outlasting it
 can be a plan. Players who beat par (and earn the grade bonus) never see it. Survive and Defend maps
-have none. Locked doors block it; breakable walls erode and break. How it deals damage is a first
+have none. Locked doors block it; breakable walls erode and break. The damage model is a first
 pass that must be playtested.
 
 **Multiplayer maps.** The MVP uses **parallel maps**: each player fights their own copy of the same
@@ -621,21 +671,44 @@ battles. Details are in [multiplayer-combat-options.md](multiplayer-combat-optio
 
 When players finish their maps differently:
 
-- **Reinforce.** A player who wins their map can send some of their surviving units onto a
-  teammate's map that is still being fought. They arrive at the start of that map's next player
-  phase, controlled by their owner; where they appear is a to-do (see the multiplayer doc). Sent
-  units can die, so helping is a real risk. With 3–4 players, the sender picks which map to help, guided by
+- **Reinforce.** A player who wins their map can send any of their surviving units, at their
+  current HP and including the commander, onto a teammate's map that is still being fought. They
+  arrive at the start of that map's next player phase, controlled by their owner, on dry tiles next
+  to the receiving player's commander (the nearest dry tiles if those are taken, then the
+  darkness's fallback). Sent units can die, so helping is a real risk; a sent commander that falls
+  counts toward "every commander fell" as normal. Sent units earn personal bonus XP there, toward
+  the same per-combat cap, but not shared XP a second time; the Standout stays on each player's own map. With 3–4 players, the sender picks which map to help, guided by
   each map's status (turn, units and enemies left) and any **call for aid** a struggling player has
   raised. All of a sender's units go to one map; several senders can help the same map; units sent
   to a map that ends before they arrive return unharmed.
 - **The team wins if anyone wins.** A player who fails their map's objective (e.g. a Defend tile is
-  taken) gets no gold, XP or MVP for it, and their fallen units stay dead.
+  taken) gets no gold, XP or Standout for it, and their fallen units stay dead.
 - **Permadeath as in solo.** No retreat, and permadeath applies to every unit.
 - **A fallen commander returns at critical health (co-op only).** That player's map is lost (no
-  gold, XP or MVP), their fallen units stay dead, and after the combat their commander comes back at
+  gold, XP or Standout), their fallen units stay dead, and after the combat their commander comes back at
   critical health (first pass: 10% of max HP, at least 1). There is no other cost. The run is lost
   only if every player's commander falls in the same combat. In solo, a fallen commander still ends
   the run.
+- **Each parallel map runs on its own turns.** Players never wait on each other's phases; each map
+  has its own turn counter, par and darkness.
+- **Everyone stays involved** (the "hurry up and wait" pillar):
+  - Any player can use their **runes on a teammate's map** during that map's player phase, whether
+    or not their own map is finished.
+  - Any player can **spectate** any teammate's map; a player whose map is lost spectates until the
+    combat ends.
+  - **Game speed** (animation speed) is a lobby setting chosen by the host, the same for everyone,
+    so clients never desync.
+  - **Fast-forward:** the players with units on a map can vote to fast-forward its enemy phase (on a
+    map with one player, that player decides). As in Fire Emblem, the phase still plays out, only
+    faster, and fast-forward pauses for key moments: boss combats and any player unit's death.
+
+**Co-op ownership.** Everything is per player unless stated: gold, convoy, runes, heirlooms, the
+combat item pick, Treasure and key-combat heirlooms. The exception is **shops**: the team shares one
+Armory and one Guildhall stock, the solo stock plus 1 of each category per extra player (e.g. a
+two-player Armory has 4 weapons, 3 equipment, 2 trinkets, 3 consumables and 3 heirlooms). The host
+processes purchases in the order they arrive: the first confirmed purchase gets the item. If a
+**unique** heirloom is offered to two players at once, the first to claim it gets it and the
+other's offer is replaced by a different heirloom of the same rarity.
 
 ## Enemies
 
@@ -644,7 +717,8 @@ Partly designed. Already decided elsewhere in this file:
 - Standard combats field 3–5 enemies, aiming for about the player's number; key combats add a
   mini-boss; boss combats a boss whose mechanic changes the map ([Combat maps](#combat-maps)).
 - Enemy groups, spawn positions and loot are randomized per run on authored maps.
-- Enemies roll [prefixes](unit-roster.md#prefixes) by difficulty: on Normal, only elites and bosses.
+- Enemies roll [prefixes](unit-roster.md#prefixes) by difficulty: on Normal, only elites and bosses;
+  on Hard, every enemy. Levels by step are under [Run structure](#run-structure).
 - Enemy reinforcements arrive from reinforcement points that players can close.
 - When [the darkness](the-darkness.md) arrives, enemies turn aggressive, reinforcements stop, and
   enemies follow every darkness rule; no enemy is immune.
@@ -658,16 +732,20 @@ Partly designed. Already decided elsewhere in this file:
   Otherwise those systems would be useless against half the units on the map. The only exceptions
   are deliberate: a specific enemy whose gimmick is to break this rule (e.g. a profile-less horror),
   written into that enemy's design.
-- **Scaling: levels and growths.** Enemies have levels and growth rates and grow the same way
-  player units do, which also suits endless runs later.
+- **Scaling: levels and growths.** Enemies have levels and growth rates, which also suits endless
+  runs later. Unlike player units, they grow by average growths, not rolls (see
+  [Run structure](#run-structure)).
 - **Factions:** enemies belong to their own factions, separate from the player's. Faction themes
   are flavor, decided later. A later event could let the player recruit an enemy unit type.
 
 ### Bosses
 
-Held for later. MVP count: **1 boss** for the single act, and **2–3 mini-bosses** for the three key
-combats. Bosses get large gimmicks and effects, in the spirit of Slay the Spire's bosses and
-Balatro's boss blinds, on top of the map mechanic every boss combat has.
+Bosses get large gimmicks and effects, in the spirit of Slay the Spire's bosses and Balatro's boss
+blinds, on top of the map mechanic every boss combat has. The MVP has **1 boss**, the **Powder
+Baron** (an elite Brute that holds the throne and throws fused powder kegs every 2nd enemy phase),
+and **4 mini-bosses** (Brigand Captain, Bloodhound, Hex Matron, Iron Wall), one per key combat,
+drawn by the seed without repeats. All are elites on the normal classes; details in
+[enemy-roster.md](enemy-roster.md#mini-bosses-and-the-boss).
 
 ### Enemy intentions
 
@@ -708,7 +786,9 @@ the player's unit types, but built the same way and fighting by exactly the same
   - **Gimmicks:** a few unique enemies may break a core rule on purpose (see the profile rule
     above).
 - **Why:** one rules engine; levels and growths work unchanged; recruiting an enemy type later needs
-  almost no conversion; enemies can drop their weapon as loot.
+  almost no conversion. Enemies don't drop loot of their own in the MVP; loot comes from rewards,
+  chests, searchables and shops. The one exception is stolen loot: Cutthroats, the only enemies
+  that loot, drop what they took when defeated.
 
 Not chosen: **Model 2, fully separate** (a stat block plus a scripted move rotation, Slay the
 Spire–style): more varied everyday enemies, but a second rule set to build and balance, and an
@@ -721,14 +801,19 @@ other). Faction themes and later factions are still to design.
 ## Run-wide resources
 
 - **Runes:** single-use abilities used on the player turn, outside the action economy. They have
-  their own inventory, not tied to a unit. They come from shops, rewards, heirlooms and units.
-  Useful but never required: combats are balanced as if no rune is used.
+  their own inventory of **3 slots**, not tied to a unit; gaining a rune with all slots full means
+  discarding one. A rune targets any valid unit or object anywhere on the map. They come from the
+  Guildhall (30 gold), events and book shelves (heirlooms and units may grant them later).
+  Useful but never required: combats are balanced as if no rune is used. The MVP pool of 7 is in
+  [items.md](items.md#runes).
 - **Convoy:** shared storage, 1 slot per max army size, hard-capped. Loot decisions happen at pickup,
   and its small size prevents hoarding. Removing a unit from the army adds temporary space. There
   is no selling: unwanted items are [scrapped](items.md#scrapping) for gold, at pickup, as a trade-in
   at the Armory, or from the convoy at any time in army management.
 - **Heirlooms** (the source also calls them relics): army-wide passives in one shared collection,
-  with no per-unit assignment. Gained about 1 per 2–3 nodes (6–9 per run), capped at 8–12. Kinds:
+  with no per-unit assignment. Gained about 1 per 2–3 nodes (6–9 per run), with no cap. Tiers are
+  Common, Uncommon and Rare, plus a Shop tier sold only at the Armory; the pool is in
+  [heirlooms.md](heirlooms.md). Kinds:
   profile ("Power weapons deal +2 damage"), behavior ("units that defeat an enemy gain +3 damage
   next attack") and economy ("shops offer one additional item"). The game doesn't offer a heirloom
   the player already owns; if a second copy is gained anyway, both apply. In co-op, heirlooms tagged
@@ -751,7 +836,7 @@ relying on an old value.
 | Crits | `crit − crit_avoid`, any time | Only when Exposed (Stance 0); base 25; no crit avoid |
 | Block, Stance | None | Core defensive systems; both are unit stats that refresh each turn |
 | Damage types | Physical, Magic, True | Physical, Magic, Split, Pure |
-| Extra strikes | At AS gaps of 4, 6, 8, … | Same spacing (4, 10, 18), capped at 3 bonus turns |
+| Extra strikes | At AS gaps of 4, 6, 8, … (its system doc also lists the cumulative gaps as 5, 11, 19, i.e. "more than"; check the code when porting) | Bonus turns at gaps of 4 or more, 10 or more and 18 or more, capped at 3 |
 | XP | Per hit and per defeat, linear formula with tier multiplier; clamps 1–25 / 2–100 | Mostly shared per combat, plus a small capped personal bonus for actions |
 | Tiers and levels | Tiers 1, 2 and 4 with promotions; level caps per tier | No tiers: units are upgraded or unupgraded; no level cap |
 | Durability | Per use; weapons break | Only some weapons, per map |
@@ -763,43 +848,51 @@ relying on an old value.
 
 ## Open and unfinished
 
-Ask before building on any of these:
+Updated October 23, 2026, after the pre-implementation design review. Nothing here blocks building
+the MVP. Ask before building on anything under **Still open**; everything under **Tune in
+playtesting** is a first pass that is safe to build as written.
 
-- **Enemies:** the open questions in [enemy-roster.md](enemy-roster.md) (faction, levels, loot,
-  balance); bosses are held for later.
-- **Events:** the open questions in [events.md](events.md) (co-op surprise combats, shrine rarity,
-  values).
-- **Multiplayer combat:** where reinforcements arrive and how co-op deployment works (a to-do: the
-  darkness floods fixed arrival zones, a rally banner is one idea, sending commanders may be
-  allowed); light links between maps; the save change for one battle state per player; see
-  [multiplayer-combat-options.md](multiplayer-combat-options.md).
-- **The darkness:** its damage model (to playtest), whether its damage counts as an attack (Block,
-  Stance, on-hit triggers), and its values on small maps; see [the-darkness.md](the-darkness.md).
-- **Map objects:** the second pass in [map-objects.md](map-objects.md) is unreviewed (keg chains,
-  enemy looting, whether the Brazier is the darkness's torch).
-- **Map content:** turn par per map; reward tables for houses and chests; reinforcement timers; boss
-  mechanics.
-- **Economy:** every first-pass income, price and the 20% scrap value must be retuned in
-  playtesting.
-- **Campaign map:** the first-pass weights, placement rules and Unknown odds need playtesting;
-  the Camp chance in Unknown rolls has no basis.
-- **Blank sections:** difficulty and Ante-style scaling (stub only), act scaling beyond v0,
-  support weapons beyond staves, meta progression.
-- **Items:** the open questions in [items.md](items.md) (quiver and coating equipment, shield
-  weights against Constitution, uniques, item rarity).
-- **Units:** the open questions in [unit-roster.md](unit-roster.md) (prefix tuning, Mage Tower
-  stub, convoy access).
-- **Experience:** the first-pass XP amounts need playtesting once the number of combats per run
-  is known.
-- **Pending unit types:** which special units can access the convoy, and how.
-- **Effects system:** the open questions listed in [effects-system.md](effects-system.md).
-- **Inconsistencies:** commander heirlooms use RED and GREEN factions; the faction table uses
-  Mercenary and Mage Tower. "Heirloom" and "relic" are used interchangeably. Mage Tower's starting
-  army is incomplete.
-- **Truncated sentences:** the gameplay goal, the end of the combat-map rewards list, the end of the
-  army-deployment paragraph, and the "Remove hurry up and wait" pillar rationale.
-- **Placeholder values:** example heirlooms are marked "balance and effects are not final"; the
-  treasure minimum is "2(3?)".
+**Still open**
+
+- **Enemies:** the Brigands' real name and theme (flavor), and later factions
+  ([enemy-roster.md](enemy-roster.md)).
+- **Events:** more team events, curses and events once the MVP pool has been played
+  ([events.md](events.md)).
+- **Multiplayer:** the save change to one battle state per player (parallel maps run on their own
+  turns); light links beyond using runes on a teammate's map; how two players deploy onto one map
+  in later shared battles ([multiplayer-combat-options.md](multiplayer-combat-options.md)).
+- **Map objects:** the rest of the second pass in [map-objects.md](map-objects.md) is unreviewed.
+- **Items:** each equipment piece and trinket still needs a rarity assigned
+  ([items.md](items.md)); stronger staves for higher rarities ([weapons.md](weapons.md)).
+- **Map content:** each map's turn par value and reinforcement timers, set when maps are authored.
+
+**Tune in playtesting**
+
+- **The darkness:** the damage model (the MVP ships percent of max HP, not an attack) and its values
+  on small maps ([the-darkness.md](the-darkness.md)).
+- **Economy:** every income, price and the 20% scrap value.
+- **Campaign map:** weights, placement rules and Unknown odds.
+- **Experience:** the first-pass XP amounts.
+- **Units and enemies:** prefix list and odds, the Lancer's growths, and every unit and enemy stat
+  (carried over from `Godot_FE`, not yet rebalanced).
+- **Content values:** heirlooms, weapons, items, runes, events, curses, mini-bosses and the Powder
+  Baron.
+- **Watch list:** turtling in Block formations (Block lasts through the enemy phase); Constitution
+  against weapon weight; run length against the 60–75 minute target.
+
+**Out of MVP scope**
+
+The MVP goal is **one full run working**, from the start screen to the boss, solo and co-op, on
+Normal and Hard. Held until after it:
+
+- Meta progression (unlocks between runs), endless runs, act scaling beyond one act, and bosses
+  beyond the Powder Baron.
+- The Mage Tower faction (including its starting army), and units with convoy access.
+- Status effects, the Ballista and the War Drum.
+- Darkness extras: torches beyond the Brazier, and effects that reward standing in the darkness.
+- Content extras: support weapons beyond staves (whips, instruments, banners), one- and two-handed
+  weapons, unique equipment, and more enemy factions.
+- Shared and hybrid co-op battles (Option D, the post-MVP target).
 
 ## Images
 
@@ -816,7 +909,8 @@ In `living-labyrinth/images/`.
 
 ## Decisions
 
-Newest last. Each decision is already reflected in the sections above.
+Newest last. Each decision is already reflected in the sections above. Decisions later overturned
+are moved to [Superseded decisions](#superseded-decisions), so every row here is live.
 
 | Date | Topic | Decision | Replaces |
 |------|-------|----------|----------|
@@ -839,18 +933,15 @@ Newest last. Each decision is already reflected in the sections above.
 | October 15, 2026 | Dagger profile | Profile is per dagger; daggers have no typical profile. Simple Dagger is Nimble. | "Any" |
 | October 15, 2026 | Damage stages | Attack → Mitigation → Critical → Multipliers → Floor → Block → HP → After hit. Pure skips Mitigation only. | Six-step attack list |
 | October 15, 2026 | Percent stacking | Percent modifiers multiply together; no cap. | Unstated |
-| October 15, 2026 | Effect counters | Last the whole run, like Slay the Spire's Pen Nib. | Unstated |
 | October 15, 2026 | Effect counters | Two lanes, "this combat" and "this campaign", stated in effect text; one effect can have a counter in each. | Counters lasting the whole run |
 | October 15, 2026 | Trigger scopes | This unit, Your Unit, Any Ally Unit (includes co-op partners), Any Unit. See effect-triggers.md. | Unscoped triggers |
 | October 15, 2026 | Hit | A hit is any successful hit roll, even if fully countered or absorbed by Block. | Unstated |
 | October 15, 2026 | Duplicates | Copies stack, but offers avoid things a player already owns, as in Balatro. | Unstated |
 | October 15, 2026 | Duplicate scope | No-duplicate offers apply to each player's heirlooms only. Named-effect items may duplicate; revisit if it causes balance problems. | Unstated |
 | October 15, 2026 | Unique heirlooms | Heirlooms tagged unique (affecting more than one player's units) can be owned by only one player per co-op campaign. | Unstated |
-| October 15, 2026 | MVP roster | 13 tier-2 unit types, one per weapon role plus each movement type; see unit-roster.md. | `Godot_FE`'s 57 unit types |
 | October 15, 2026 | Shield units | No shield weapon type; bulky roles get their bulk from unit-type traits. | Shield-weapon units |
 | October 15, 2026 | Unit generation | Each recruited unit rolls a Terraria-style prefix that shifts its stats and is shown before its name. Details open. | Hidden random noise on every stat and growth |
 | October 15, 2026 | Prefix rules | Prefixes shift base stats and growths together; no prefix is the pure baseline; rolls lean positive; re-roll at a Camp or through events; enemies roll prefixes by difficulty (Normal: elites and bosses only). | Unstated |
-| October 15, 2026 | Camp re-roll | Camp gains a fourth choice: re-roll one unit's prefix. | Rest, Train, Revive |
 | October 15, 2026 | Stat list | HP, Might (MGT), Speed, Defense, Resistance, Movement, Constitution. Skill, Luck and Magic cut; Strength renamed Might. | Ten `Godot_FE` stats |
 | October 15, 2026 | Magic | Anima, Holy and Dark keep their weapon types, with typical profiles Balance, Nimble and Power. Magic scales with Might. | A separate Magic stat |
 | October 15, 2026 | Staff healing | Scales with Might. | Magic (in `Godot_FE`) |
@@ -888,7 +979,6 @@ Newest last. Each decision is already reflected in the sections above.
 | October 15, 2026 | Shields, weights, Skill boosters | `Godot_FE`'s 9 shield weapons become shield Equipment (half weight, Stance and Block); Equipment weighs 0–2, heavy armor and shields more; Skill boosters give permanent Hit (5 per old point). First pass. | Shield weapons; no equipment weight; Skill |
 | October 16, 2026 | Feast | Camp's Rest becomes Feast: heal 35% and optionally cook one ingredient from the convoy, giving every unit a guaranteed gain on its next level-up. | Rest; growth boosters as Pouch items |
 | October 16, 2026 | Ingredients | `Godot_FE`'s growth boosters become ingredients, stored in the convoy; small ones give +1 to a stat (+2 HP), large ones +2 (+4 HP); Hit ones apply at once. | +3% to +20% growth boosters |
-| October 16, 2026 | Prefix re-roll | Moved from Camp to a Shop service: once per visit, price rising with each use in a run, like Slay the Spire's card removal (first pass 250 gold, +100 per use). Camp is Feast, Train, Revive. | Camp re-roll choice |
 | October 16, 2026 | Re-roll price | ⅓ of the unit's value (type recruit price × prefix value multiplier, ×0.5 to ×1.8), +50% for each further re-roll in the same Shop; resets each Shop. Like Terraria's Goblin Tinkerer. | Flat price rising per run |
 | October 16, 2026 | Shop split | Two shop nodes with their own map icons: Armory (weapons, equipment, trinkets, consumables, heirlooms) and Market (recruits, army size, runes, re-rolls). Every path passes through at least one of each. | One Shop node |
 | October 16, 2026 | Gold sources | Combat and events reward gold. | Unstated |
@@ -904,10 +994,8 @@ Newest last. Each decision is already reflected in the sections above.
 | October 16, 2026 | Map size | Fire Emblem Heroes scale (standard 8×6 to 10×8, key about 12×10); boss maps larger and longer. | `Godot_FE` level sizes |
 | October 16, 2026 | Interactables | Chests and doors (lockpicks, levers), houses, reinforcement points, breakables. | `Godot_FE` chests, doors, levers, search points, breakables |
 | October 16, 2026 | Multiplayer combat | MVP: parallel maps (each player fights their own copy of the combat). Target: hybrid, with key and boss combats shared. Needs one combat state per player in the save. | One shared battle |
-| October 17, 2026 | One player loses | Winners can reinforce a teammate's map; players can retreat; the team wins if anyone wins; in co-op a fallen commander is downed, not killed, and the run ends only if every commander falls. | Undecided |
 | October 17, 2026 | Whom to reinforce | The sender chooses one map, guided by map status and call-for-aid flags; no splitting; several senders can help one map. | Undecided |
 | October 20, 2026 | The darkness | Adopted as the turn-par pressure system: waves from authored sources flood toward the objective's drain; lingering hurts; no unit is immune; the map never ends early; locked doors block it, breakable walls erode. Damage model to be playtested. See the-darkness.md. | No turn-par pressure |
-| October 20, 2026 | Permadeath | No retreat, revival or extra lives anywhere, in solo or co-op: every unit has permadeath, and a fallen commander ends the run. Camp loses Revive; co-op loses downed commanders and retreat. The negative feedback loop is accepted. | Camp Revive; co-op retreat and downed commanders |
 | October 20, 2026 | Co-op Feast | Each player chooses at a Camp; a Feast's heal reaches every player's units and heals stack; its ingredient feeds only the cook's army (a future unique heirloom could share it). | Feast feeds only its player's army |
 | October 20, 2026 | Revive event | Revival returns only as a rare Unknown event that brings back one fallen unit; Camps still can't revive. | No revival anywhere |
 | October 20, 2026 | Co-op commander | A commander that falls in co-op returns after the combat at critical health (first pass 10% of max HP, at least 1), with no other cost; the run is lost only if every commander falls in the same combat. Solo unchanged. | Undecided (eliminated or team loss) |
@@ -923,11 +1011,41 @@ Newest last. Each decision is already reflected in the sections above.
 | October 22, 2026 | MVP enemy roster | 10 first-pass enemy classes in one working faction (Brigands), built on `Godot_FE`'s Lawbreakers and support units, with traits, AI behaviors and packs. Elites are classes plus a prefix and signature move. See enemy-roster.md. | No enemy roster |
 | October 22, 2026 | Ruthless AI and side-agnostic effects | Enemies take any available kill first and ignore friendly fire. Brute (Cleave), Shieldbearer (Shield Wall), Hexer (Curse), Warcaller (War Horn) and the reworked Raider (Trample) affect every unit in their area, friend or foe. New splash damage rule (no hit roll, Block absorbs). | Ally-only enemy effects; Raider's Hit and Run |
 | October 22, 2026 | Shove | Returns from `Godot_FE/` with fairness rules: costs the unit's action; only onto legal tiles (no pit or water kills); only Exposed (Stance-broken) units can be shoved, no weight check; a unit can be shoved once per phase; not an attack. First pass. | `Godot_FE`'s free Shove |
-| October 22, 2026 | Spiked walls | Spikes are a wall tile no unit can enter; a unit shoved into one takes 4 damage (splash rules) and stays put. They are the only bump damage; shoving into other walls or units isn't allowed. | General bump damage |
 | October 22, 2026 | Slick tiles and ally shoves | Spilled oil is slick terrain: a shoved unit slides on until stopped (spike damage if a spiked wall stops it); walking is normal. A willing ally can always be shoved; the Exposed rule applies to foes only. | Unstated |
 | October 22, 2026 | Bump and Shove distance | Shoving a unit into another unit bumps both for 2 (splash rules). New Shove distance value (default 1); longer shoves move tile by tile and stop at obstacles. New MVP unit: the Ward (shove specialist, "Shield Bash: Always: Shove distance +1"), from `Godot_FE`'s Ward. | No general bump; 13-unit roster |
 | October 22, 2026 | Action economy | Move, then one action (attack, heal, Shove, use an object, open/search, use a Pouch item, swap equipment, or wait); runes are free. No moving after acting without a trait. No trading in combat; Pouch items can be used on an adjacent ally instead. | `Godot_FE`'s major and minor actions |
 | October 22, 2026 | Sidearm | Big upgrades that add a weapon type (Sellsword+, Thief+, Mage+) grant Sidearm: a second weapon may be carried in the Pouch and swapped in for free once per Unit Turn, before acting; the stowed weapon is weightless; the Pouch then holds no potion or trinket. | Second weapon type usable only in battle prep |
 | October 22, 2026 | Stowed weapons | Any unit may stow a weapon in its Pouch and swap it in as its action; Sidearm makes the swap free, with `Godot_FE`'s forecast weapon cycling. Pouch items must stay strong enough that stowing a weapon is an intentional choice, reinforced by traits. | Sidearm-only weapon swap |
-| October 22, 2026 | Events | First-pass pool of 12 (8 reworked from `Godot_FE`, 4 new, revive shrine included; shrine appears only once a unit has fallen); no repeats per run; guaranteed stat changes only. Curses are negative heirlooms, removed at the Guildhall (50, +25 per removal). Co-op: same event, own choice. See events.md. | Events stub |
 | October 22, 2026 | Curses and team events | Curses are permanent (no Guildhall removal), grouped minor/major/severe and matched to reward size, always named before choosing, and never affect the economy (Light Purse cut); 10 first-pass curses. Some events are team choices voted like the route; combat options are always team choices. Black Altar added. | Guildhall curse removal; random curses; individual-only co-op events |
+| October 23, 2026 | MVP scope | The MVP is one full run working; meta progression is held until then. | Meta progression as an open MVP area |
+| October 23, 2026 | Drengr commander | Ported from `Godot_FE` with SPD 6, DEF 3 (was overpowered) and RES 2 (unset); Stance 3; axe and sword, starts with a Simple Axe; trait Vanguard (Phase Start, while no ally is closer to an enemy: +3 Block); Iron Heart heals for the full damage of every 7th army attack each combat. Commanders are never upgraded. Dawnbreak not ported. See unit-roster.md. | Undefined commander |
+| October 23, 2026 | Heirloom pool | Tiers Common, Uncommon, Rare (Armory 150 / 200 / 250) plus a Shop tier sold only at the Armory (150); no cap; Treasure chest size is its rarity (50 / 33 / 17%). First-pass pool of 35 (14 / 10 / 7 / 4). See heirlooms.md. | "Capped at 8–12"; no heirloom list |
+| October 23, 2026 | Starting heirlooms and army size | Pick 1 of 3 starting heirlooms from a pool of 7 (Abundance, Ancestral Weapon, Tactician's Manual, War Chest, Veteran Company, Family Relic, Mercenary Contract). Mercenary max army size 4 (starts full); hard ceiling 8; army size grows only through Abundance, the Rare heirloom Muster Roll and event options. Maps author at least 8 deployment tiles. | Max army size 6, maximum 10; three example starting heirlooms |
+| October 23, 2026 | Weapons and item rarity | Scaling modifier 1 for every weapon; every bow is effective against Fliers. Five item rarities: Basic (starting gear only), Common, Uncommon, Rare, Legendary (a Large chest's 10% chance, about 3% of runs). 61 weapons converted from `Godot_FE` with fresh names: damage, crit and weight keep their distance from `Godot_FE`'s Iron weapon; Hit never drops below the type's Simple weapon, so weight is the price of power. `Godot_FE` Mythical → Rare. Prices: Common 40, Uncommon 60, Rare 150 (Mythical 250). See weapons.md. | Iron / Steel / Silver tiers; no weapon list; item rarity open |
+| October 23, 2026 | Combat rewards and Armory stock | Standard combat: gold plus pick 1 of 3 items or skip (Common 60 / Uncommon 30 / Rare 10). Key combat: gold, the same item pick, and one random heirloom (50 / 33 / 17). Armory: 3 weapons, 2 equipment, 1 trinket, 2 consumables (50 / 35 / 15) and 2 heirlooms (one pool, one Shop tier). No enemy drops in the MVP. | "Simple rewards"; enemy weapon drops |
+| October 23, 2026 | HP and staves | HP carries over between combats with no heal on win. Staves split: Block staves are unlimited (Basic Shelter: 3 + Might Block; the Battle Medic's starting weapon); heal staves are limited (Minor Heal, Common: 5 + Might, 3 uses per map). Triage becomes "Used a staff on an ally: that ally gains 1 Stance". | Unstated HP carry-over; unbreakable Minor Heal as starting staff |
+| October 23, 2026 | Difficulty and scaling | Three steps at the key rows (floors 1–5, 6–11, 12–17): standard combats field 3 / 4 / 5 enemies at level 1 / 3 / 5; key +1, leaders and mini-bosses +2, boss level 8. Enemy count never scales with army size. Enemies grow by average growths (deterministic). Normal and Hard, chosen at run start; Hard: every enemy rolls a prefix, +1 enemy level, turn par −1. | Difficulty stub |
+| October 23, 2026 | Boss and mini-bosses | Boss: the Powder Baron, an elite Brute (level 8, +2 prefix, Unshovable) holding the throne; every 2nd enemy phase it throws a telegraphed powder keg with a 2-phase fuse. Mini-bosses: Brigand Captain, Bloodhound, Hex Matron (Hex Storm) and Iron Wall (Fortify), one per key combat, no repeats. See enemy-roster.md. | Bosses held for later |
+| October 23, 2026 | Turn par and map loot | Par = a clean, aggressive clear + 1 (targets: standard 4–6, key 7–10, boss 10–14; Hard −1). Survive and Defend maps end early, with the speed bonus, once every enemy is defeated and every reinforcement point closed. Houses: 15–25 gold or a consumable, never an heirloom. Chests: one item at 50 / 35 / 15. | Unset par; houses with an heirloom chance; unspecified chest loot |
+| October 23, 2026 | Statuses and runes | No status effects in the MVP ("cure" and "light fog" consumables dropped). Runes: 3 slots (discard past 3), target anything on the map, 30 gold at the Guildhall; pool of 7: Mend, Aegis, Shatter (−2 Stance), Clarity (+20 Hit, +2 damage), Haste, Spark, Recall. See items.md. | Status effects WIP; no rune list or slots |
+| October 23, 2026 | Co-op rules | Everything per player except shops: one shared Armory and Guildhall stock, +1 per category per extra player, first confirmed purchase wins. Reinforcements: any survivors at current HP, commander included, arriving next to the receiving commander; personal XP only. Parallel maps run on their own turns. Guildhall sells 2 runes per visit. Unique heirloom offered twice: first claim wins, the other is replaced. | Arrival to-do; ownership undecided |
+| October 23, 2026 | Cleanup: map rules, Brazier, lockpicks, Standout | Every path passes at least 2 Treasures and 2–5 Camps; an Unknown never becomes a Camp. The Brazier is the darkness's torch and ships in the MVP. Keys are renamed lockpicks (Chest Pick, Door Pick, Master Pick). The combat MVP award is renamed the **Standout**. | Treasure "2(3?)"; Camp in Unknown 3%; torch stub; Chest/Door/Skeleton Key; "Combat MVP" |
+| October 23, 2026 | Pillars | Gameplay goal and "hurry up and wait" rationale written. Run-length target: a typical solo run takes 60–75 minutes (`Godot_FE` took 4–8 hours). Ballista and War Drum held until after the MVP. Constitution against weapon weight accepted as the trade-off, to watch in playtesting. | Blank goal and rationale; no run-length target |
+| October 23, 2026 | Co-op involvement, darkness and scope | Any player can use runes on a teammate's map during its player phase; lost players spectate; game speed is a host lobby setting; players on a map vote to fast-forward its enemy phase, which pauses for boss combats and player deaths. The darkness ships as % max HP, not an attack. The revive shrine draws normally once eligible. Keg chains are unlimited, with at most 3 kegs per map (boss arena excepted). Only Cutthroats loot. No flat mitigation cap; a content warning for untagged unique heirlooms. Darkness, content and unit extras are out of MVP scope. | Open questions in those docs |
+| October 23, 2026 | Army-size event | Mercenary Camp's third option becomes "Sign a Company Charter": +1 max army size and a major curse. | "Move On" |
+
+### Superseded decisions
+
+Overturned decisions, kept for history. Don't build from these; the decision named in the last
+column replaced them.
+
+| Date | Topic | Decision | Superseded by |
+|------|-------|----------|---------------|
+| October 15, 2026 | Effect counters | Last the whole run, like Slay the Spire's Pen Nib. | October 15, 2026, Effect counters: two lanes, "this combat" and "this campaign" |
+| October 15, 2026 | MVP roster | 13 tier-2 unit types, one per weapon role plus each movement type; see unit-roster.md. | October 22, 2026, Bump and Shove distance: the Ward makes 14 |
+| October 15, 2026 | Camp re-roll | Camp gains a fourth choice: re-roll one unit's prefix. | October 16, 2026, Prefix re-roll and Re-roll price: re-rolls are a Guildhall service |
+| October 16, 2026 | Prefix re-roll | Moved from Camp to a Shop service: once per visit, price rising with each use in a run, like Slay the Spire's card removal (first pass 250 gold, +100 per use). Camp is Feast, Train, Revive. | October 16, 2026, Re-roll price (⅓ of unit value, +50% per repeat); October 20, 2026, Permadeath (no Camp Revive) |
+| October 17, 2026 | One player loses | Winners can reinforce a teammate's map; players can retreat; the team wins if anyone wins; in co-op a fallen commander is downed, not killed, and the run ends only if every commander falls. | October 20, 2026, Permadeath (no retreat) and Co-op commander (returns at critical health). Reinforcing and "the team wins if anyone wins" still stand |
+| October 20, 2026 | Permadeath | No retreat, revival or extra lives anywhere, in solo or co-op: every unit has permadeath, and a fallen commander ends the run. Camp loses Revive; co-op loses downed commanders and retreat. The negative feedback loop is accepted. | October 20, 2026, Co-op commander and Revive event / Revive shrine. No retreat, no Camp Revive and the accepted feedback loop still stand |
+| October 22, 2026 | Spiked walls | Spikes are a wall tile no unit can enter; a unit shoved into one takes 4 damage (splash rules) and stays put. They are the only bump damage; shoving into other walls or units isn't allowed. | October 22, 2026, Bump and Shove distance: shoving into a unit bumps both for 2. Spiked walls themselves still stand |
+| October 22, 2026 | Events | First-pass pool of 12 (8 reworked from `Godot_FE`, 4 new, revive shrine included; shrine appears only once a unit has fallen); no repeats per run; guaranteed stat changes only. Curses are negative heirlooms, removed at the Guildhall (50, +25 per removal). Co-op: same event, own choice. See events.md. | October 22, 2026, Curses and team events: curses are permanent; some events are team choices; Black Altar makes 13. The rest still stands |

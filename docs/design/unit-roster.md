@@ -17,7 +17,8 @@ starting point and have not been rebalanced for the new combat rules.
   not from a shield weapon type. All 14 MVP traits and Stance values are written.
 - Each recruited unit rolls a **prefix**, Terraria-style ("Sturdy Lancer", "Frail Archer"), that
   shifts its stat spread. The prefix's tier tells the player at a glance whether a unit is good.
-- Commanders keep fixed stats and names across runs (game-vision.md) and are not generated.
+- Commanders keep fixed stats and names across runs (game-vision.md), are not generated and are
+  never upgraded. The MVP commander is the Drengr ([Commander](#commander)).
 
 ## MVP roster
 
@@ -51,6 +52,28 @@ Movement types and tags are defined under [Movement and tags](#movement-and-tags
 - Not ported: `Godot_FE`'s Lancer growths are identical to Lance Skeleton's (likely a copy-paste)
   and need fresh values. The Thief's broken tag is covered under
   [Movement and tags](#movement-and-tags).
+
+## Commander
+
+The Mercenary faction's commander, decided October 23, 2026. Commanders keep fixed stats and names
+across runs, never roll prefixes, are never upgraded (a Camp's Train always goes to another unit)
+and can't be replaced by a recruit.
+
+| Commander (`Godot_FE` key) | Weapons | Movement | Tags | Stance | Base HP/MGT/SPD/DEF/RES/MOV/CON | Growths % HP/MGT/SPD/DEF/RES |
+|----------------------------|---------|----------|------|--------|---------------------------------|------------------------------|
+| Drengr (`drengr`) | Axe, sword | Default | — | 3 | 24/5/6/3/2/5/13 | 85/55/40/35/15 |
+
+- **Trait: Vanguard.** Phase Start, while no ally is closer to an enemy than this unit: gain 3
+  Block. It rewards leading from the front, and because the commander's fall ends a solo run, that
+  Block is a real trade, not a free bonus. "Closer" is tile distance; a tie still counts.
+- **Commander Heirloom: Iron Heart.** Every 7th Attack made by Your Unit this combat: that attack
+  heals the attacker for the damage it deals to HP.
+- **Starting weapon:** Simple Axe. Like any unit, it can stow a sword in its Pouch and swap it in as
+  its action; it has no Sidearm.
+- **Changes from `Godot_FE`:** Speed 7 → 6 and Defense 5 → 3, because the old Drengr was
+  overpowered; Resistance 2, which `Godot_FE` left unset (0). Its signature weapon, Dawnbreak (a
+  lifesteal sword), is not ported; it may return later as a rare weapon. Iron Heart's lifesteal
+  replaces it.
 
 ## Movement and tags
 
@@ -129,7 +152,7 @@ Stance runs 1 (fragile or evasive), 2 (standard), 3 (bulky).
 | Archer | 1 | Volley | Hit dealt while at maximum range: +2 damage | Rewards positioning |
 | Brawler | 2 | Breaker | First Hit dealt this combat: the target loses 1 extra Stance | Doubles down on breaking Stance |
 | Thief | 1 | Opportunist | Always: +15 crit chance | Punishes Exposed foes |
-| Battle Medic | 1 | Triage | Healed an ally: that ally gains 2 Block | Support that feeds Block |
+| Battle Medic | 1 | Triage | Used a staff on an ally: that ally gains 1 Stance | Support that guards against crits |
 | Hakkapel | 2 | Charge | While this unit moved 4+ tiles this turn: +2 damage | Mounted aggression |
 | Freewing | 1 | Skirmisher | After Combat: may use its remaining movement | Flier hit-and-run |
 | Lance Armor | 3 | Bulwark | Always: +1 Parry | Built-in bulk (the shield-role pattern) |
@@ -166,7 +189,7 @@ An upgraded unit is shown with a "+" ("Archer+"), like a Slay the Spire card. Ru
 | Archer+ | Volley+: Hit dealt while at maximum range: +4 damage | +2 MGT, +1 SPD | — |
 | Brawler+ | Breaker+: First Hit dealt this combat: the target loses 2 extra Stance | +4 HP, +1 MGT | — |
 | Thief+ | Opportunist+: Always: +25 crit chance | +1 SPD | Gains Sword and Sidearm (`Godot_FE`'s Cutthroat promoted to Bladehand, sword + dagger), for foes that aren't Exposed |
-| Battle Medic+ | Triage+: Healed an ally: that ally gains 4 Block | +1 MGT, +1 DEF, +1 RES | — |
+| Battle Medic+ | Triage+: Used a staff on an ally: that ally gains 2 Stance | +1 MGT, +1 DEF, +1 RES | — |
 | Hakkapel+ | Charge+: While this unit moved 4+ tiles this turn: +4 damage | +2 MGT, +1 DEF | — |
 | Freewing+ | Skirmisher+: After Combat: may use its remaining movement, and gains 2 Block if it moves | +2 SPD, +1 RES | — |
 | Lance Armor+ | Bulwark+: Always: +1 Parry, +1 Stance | +4 HP, +1 DEF | — |
@@ -261,8 +284,8 @@ noise on every stat, so a unit's quality is readable at a glance.
 The multipliers loosely follow Terraria's spread (Broken −69% to Godly +112%), compressed to five
 tiers. The same multiplier sets a recruit's price (40 gold × the multiplier). First pass, to
 retune in playtesting.
-- **Enemies:** depend on difficulty. On Normal, only elites (key-combat mini-bosses) and bosses roll
-  prefixes. Other difficulties and run settings can change this.
+- **Enemies:** depend on difficulty. On Normal, only elites (leaders and mini-bosses) and bosses
+  roll prefixes; on Hard, every enemy does, with the recruit odds below.
 - **Commanders** never roll prefixes; their stats are fixed.
 
 **Budget by tier.** Each tier has a budget matched to `Godot_FE`'s draft rolls
@@ -331,7 +354,7 @@ scrapped, never sold ([items.md](items.md#scrapping)).
 
 | Topic | Rule |
 |-------|------|
-| Offers | A Guildhall offers 3 recruits per visit, rolled from the run's seed on arrival. They don't refresh; the prefix re-roll is the Guildhall's only re-roll. |
+| Offers | A Guildhall offers 3 recruits per visit, rolled from the run's seed on arrival (in co-op, one shared stock with 1 more recruit per extra player). They don't refresh; the prefix re-roll is the Guildhall's only re-roll. |
 | Preview | Before buying, each recruit shows its full card: type, prefix (name coloured by tier), trait, stats, starting gear and price. |
 | Starting gear | One simple weapon for the unit's role (below), and nothing in Equipment or Pouch: weak, and meant to be replaced. |
 | Hand-over | When a recruit replaces a unit, one swap screen shows the leaving unit's gear beside the recruit's slots. Each item is equipped on the recruit (if usable), sent to the convoy, or scrapped. A "best fit" button suggests choices. |
@@ -349,7 +372,7 @@ scrapped, never sold ([items.md](items.md#scrapping)).
 | Archer | Simple Bow |
 | Brawler | Simple Gauntlets |
 | Thief | Simple Dagger |
-| Battle Medic | Minor Heal (staff) |
+| Battle Medic | Shelter (Block staff, unlimited uses) |
 | Mage | Anima (Fire) |
 | Shaman | Dark (Shade) |
 | Suncaster | Holy (Smite) |
@@ -357,8 +380,9 @@ scrapped, never sold ([items.md](items.md#scrapping)).
 ## Open questions
 
 - **Prefix tuning:** the first-pass list and odds above need playtesting.
+- **Lancer growths:** `Godot_FE`'s values are a copy of the Lance Skeleton's; kept as the first
+  pass, to replace once the Lancer is playtested.
 - **Re-roll details:** tune prices in playtesting.
-- **Difficulty:** the difficulty levels themselves and which enemies roll prefixes on each.
 - **Mage Tower (stub, not in the MVP):** whether it gets its own units (the vision names Mage
   Knight and Tower Guard) or draws from the magic units above. The MVP is built around Mercenary.
 - **Convoy access:** which future unit types can reach the convoy, and how.

@@ -35,6 +35,11 @@ Speed, Defense or Resistance = 2 HP = 10 Hit = 10 crit chance = 10 avoid.
 Movement, Stance and Parry are premium: worth more than one point each, so they appear alone or with
 a cost.
 
+**Rarity.** Items share the five rarities in [game-vision.md](game-vision.md#weapons-and-equipment):
+Basic, Common, Uncommon, Rare and Legendary. The budgets above are for Common; each tier above
+adds 1 point (Uncommon +1, Rare +2). Basic gear is starting kit only. Legendary items have no
+budget: they are meant to be close to unbalanced.
+
 ## Equipment
 
 `Godot_FE`'s wearable items, sorted into the vision's categories, plus its shield weapons
@@ -64,7 +69,8 @@ Speed once it passes the unit's Constitution. Most pieces weigh 0–2; heavy arm
 **Shields.** `Godot_FE`'s 9 shield *weapons* become shield Equipment: they lose their damage and
 durability, keep their defensive identity, and gain the Stance and Block the vision gives shields.
 Their weights are halved from `Godot_FE` because they now stack with a weapon's weight instead of
-replacing it. Higher-rarity shields exceed the 3-point budget, pending a rarity decision.
+replacing it. Higher-rarity shields use the larger budgets of their rarity (see [Budgets](#budgets));
+the Eye Shield is Legendary.
 
 | Shield | `Godot_FE` (as a weapon) | New effect | Weight (`Godot_FE`) |
 |--------|--------------------------|------------|---------------------|
@@ -130,11 +136,12 @@ is how a potion reaches a teammate):
 | Large Potion+ | Heal 25 HP | 5 |
 | Elixir | Heal to full | 1 |
 | Refillable Potion | Heal 15 HP; refills after each combat | 2 |
-| Chest Key | Opens chests | 3 |
-| Door Key | Opens doors | 1 |
-| Skeleton Key | Opens chests and doors | 5 |
+| Chest Pick (`Godot_FE` Chest Key) | Opens chests | 3 |
+| Door Pick (`Godot_FE` Door Key) | Opens doors | 1 |
+| Master Pick (`Godot_FE` Skeleton Key) | Opens chests and doors | 5 |
 
-Keys are the vision's lockpicks: any unit can carry one, at the cost of its Pouch.
+These are the vision's **lockpicks**, renamed from `Godot_FE`'s keys to fit the bandit theme: any
+unit can carry one, at the cost of its Pouch.
 
 `Godot_FE` had 35 stat boosters, five per stat: two that raised a stat permanently and three that
 raised a growth. They split into two kinds of item.
@@ -187,6 +194,24 @@ are the ones to watch in playtesting.
 **Save impact:** a pending Feast gain is unit state; it is saved with the unit in the player's
 roster section of the campaign block, and cleared when its level-up lands.
 
+## Runes
+
+Single-use abilities with their own 3-slot inventory, used on the player turn outside the action
+economy, targeting anything anywhere on the map (rules in
+[game-vision.md](game-vision.md#run-wide-resources)). First-pass pool, decided October 23, 2026:
+
+| Rune | Effect |
+|------|--------|
+| Mend | A unit heals 10 HP |
+| Aegis | A unit gains 6 Block |
+| Shatter | An enemy loses 2 Stance |
+| Clarity | A unit's next attack this phase gains +20 Hit and +2 damage |
+| Haste | A unit that hasn't acted this turn gains +2 Movement until Phase End |
+| Spark | A powder keg anywhere on the map explodes |
+| Recall | Two of your units swap positions |
+
+Runes cost 30 gold at the Guildhall; the Ghastly Library event and book shelves give a random one.
+
 ## Scrapping
 
 There is no selling. Any item a player doesn't want is **scrapped** for gold: a single decision, made
@@ -208,5 +233,5 @@ where the player already is, so shopping stays short and the convoy never fills 
 - **Shield and armor weights against Constitution:** most MVP units have Constitution 5–14, so a
   shield plus a weapon often passes it. Check in playtesting that shields stay worth carrying.
 - **Uniques:** the vision's "uniques" equipment category has no items yet.
-- **Item rarity:** `Godot_FE` used 7 rarities (Standard, Unique, Common to Legendary); whether
-  budgets scale with rarity is open.
+- **Item rarity per item:** the five rarities and their budgets are decided; each equipment piece
+  and trinket above still needs its rarity assigned.

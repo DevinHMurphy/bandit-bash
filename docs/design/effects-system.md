@@ -96,7 +96,9 @@ messages can refer to them.
 - **Unique heirlooms in co-op.** Normally only your own heirlooms block an offer; a partner owning
   the same heirloom doesn't. Heirlooms tagged **unique** are the exception: once any player in the
   campaign owns one, it is never offered to anyone else. Tag a heirloom unique when it affects more
-  than one player's units, e.g. anything scoped Any Ally Unit or Any Unit.
+  than one player's units, e.g. anything scoped Any Ally Unit or Any Unit. If a unique heirloom is
+  offered to two players at once, the first to claim it gets it, and the host replaces the other
+  player's offer with a different heirloom of the same rarity.
 - Statuses keep their own stacking rules (duration, weight or both); see game-vision.md.
 
 ## Determinism and multiplayer
@@ -134,11 +136,9 @@ Per [save-system.md](save-system.md):
 
 ## Open questions
 
-- **Simultaneous offers of a unique heirloom:** if two players are shown the same unique heirloom at
-  once (e.g. on a shared reward screen), who gets it? Recommended: the host grants the first claim
-  and replaces the other player's offer.
-- **Checking the unique tag:** a content test could warn when a heirloom scoped Any Ally Unit or
-  Any Unit is not tagged unique. Recommended as a warning, not an error, so exceptions stay
-  possible.
-- **Caps on flat values:** whether stacked flat mitigation needs a ceiling. Pure damage and the
-  Floor stage already keep it from breaking the game.
+None. Decided October 23, 2026:
+
+- **Checking the unique tag:** a content test warns (not errors) when a heirloom scoped Any Ally
+  Unit or Any Unit is not tagged unique, so exceptions stay possible.
+- **Caps on flat values:** no cap on stacked flat mitigation. Pure damage, splash and the darkness
+  already get through it.

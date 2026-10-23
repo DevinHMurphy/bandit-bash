@@ -18,7 +18,7 @@ These are already decided or built:
 | Fact | Source |
 |------|--------|
 | 1–4 players (`DEFAULT_MAX_PLAYERS = 4`), fixed when a campaign starts | `steam_network.gd`, save-system.md |
-| Each player has their own army: 3–6 units typical, up to 10, led by a commander | game-vision.md |
+| Each player has their own army: 4–6 units typical, up to 8, led by a commander | game-vision.md |
 | The whole army deploys in every combat; army size works like Slay the Spire's energy | game-vision.md |
 | Maps are small: standard 8×6 to 10×8, key about 12×10, boss larger | game-vision.md |
 | Standard combats should take 2–5 minutes | game-vision.md |
@@ -26,9 +26,9 @@ These are already decided or built:
 | The host resolves everything; clients send commands and replay events | effects-system.md, `Godot_FE` multiplayer plan |
 | One combat save file per campaign, holding one turn number and one phase | `combat_data.gd`, save-system.md |
 | Effect scopes include Any Ally Unit (co-op partners' units), and all players share one player phase | effect-triggers.md |
-| Each player gets their own combat MVP and their own Feast | game-vision.md, items.md |
+| Each player gets their own combat Standout and their own Feast | game-vision.md, items.md |
 
-For scale: four players with typical armies field 12–24 units. A solo standard map holds 3–6.
+For scale: four players with typical armies field 16–24 units. A solo standard map holds 4–6.
 
 ## Option A: one shared battle, maps sized per player count
 
@@ -62,7 +62,8 @@ own army. The combat ends when everyone has finished.
 - **Effects:** Any Ally Unit only reaches partner maps for effects that aren't positional; the
   shared player phase becomes one phase per map.
 - **Light links** can add co-op feel at low cost, for example:
-  - runes can be used on a partner's map;
+  - runes can be used on a partner's map (**adopted for the MVP**, October 23, 2026: any player, during
+    that map's player phase, whether or not their own map is finished);
   - closing a reinforcement point on one map delays reinforcements on every map;
   - a team objective counter spans all maps (e.g. "the team must free 3 houses").
 
@@ -136,7 +137,7 @@ controls them there.
 - Winners stay busy instead of waiting.
 - Sent units can die (permadeath), so helping is a real risk, not a free win.
 - Decide: how many units can be sent (all, or up to a number); whether they arrive at full HP or as
-  they finished; whether sent units earn XP and count toward MVP on the partner's map (recommended:
+  they finished; whether sent units earn XP and count toward the Standout on the partner's map (recommended:
   yes, for their owner).
 - Needs: deployment-edge or reinforcement-point tiles on every map (reinforcement points are
   already planned), and the host merging two players' units onto one map.
@@ -150,7 +151,7 @@ without units: use their own runes there, or pick one small team buff per partne
 ### Losing a map
 
 **L1. The team wins if anyone wins.** *(Decided.)* The combat counts as won for the team when at
-least one player wins. A player who fails their map's objective gets no gold, XP or MVP for it, and
+least one player wins. A player who fails their map's objective gets no gold, XP or Standout for it, and
 their fallen units stay dead. Simple, and keeps the run moving.
 
 **Rejected October 20, 2026** (no retreat or extra lives anywhere in the game):
@@ -203,10 +204,24 @@ reinforce. Decided October 17, revised October 20 to drop retreat (L2) and downe
   struggling player.
 - A fallen commander returns at critical health (C4), so a player is never knocked out of the run.
 
-## Co-op deployment and reinforcement arrival (to-do)
+## Co-op deployment and reinforcement arrival
 
-**A stub, to be designed.** Where reinforcements appear on a teammate's map, and how two players
-deploy onto one map. Ideas and constraints so far:
+**Decided October 23, 2026** (recorded in [game-vision.md](game-vision.md#combat-maps)):
+
+- **Arrival:** reinforcements arrive at the start of the receiving map's next player phase, on dry
+  tiles next to the receiving player's **commander**; if those are taken, on the nearest dry tiles;
+  then on the darkness's fallback. The commander is the rally point, so no banner object is needed
+  and help lands where the fight is.
+- **Sending:** any subset of surviving units, at their current HP, including the commander. A sent
+  commander that falls counts toward "every commander fell" as normal.
+- **XP:** sent units earn personal bonus XP toward the same per-combat cap, not shared XP a second
+  time; the Standout stays on each player's own map.
+- **Turns:** each parallel map runs on its own turn counter, so players never wait on each other's
+  phases.
+
+Still open: **two players on one map** in later shared battles (how the deployment zone is shared).
+
+The ideas that led here, kept for reference:
 
 - **Arrive on friendly units:** reinforcements appear next to the receiving player's units rather
   than on fixed tiles, so help lands where the fight is. Arriving might take an extra turn (sent
@@ -227,9 +242,6 @@ deploy onto one map. Ideas and constraints so far:
 - **Two players on one map** (later shared battles): how the deployment zone is shared, e.g. one
   block per player, arranged at the same time in prep.
 
-Until this is designed, the reinforcement rule in game-vision.md ("arrive on the map's deployment
-edge or a reinforcement point") and the dry-tile fallback in [the-darkness.md](the-darkness.md)
-are placeholders.
 
 ## Recovering from a lost map (closed)
 
@@ -259,7 +271,7 @@ the player").
 ## Questions any option raises
 
 - **Commander death and losing a map:** see [When one player loses](#when-one-player-loses).
-- **Gold and loot:** per player, shared, or split? (The save shape already holds one record per
-  player.)
+- **Gold and loot:** decided October 23, 2026: per player, except one shared shop stock (see
+  Co-op ownership in [game-vision.md](game-vision.md#combat-maps)).
 - **Enemy scaling** for shared fights: more enemies, stronger enemies, or both.
 - **Turn timers:** whether shared phases need a timer so one slow player can't stall the others.

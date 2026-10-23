@@ -10,9 +10,10 @@ The darkness never hides anything and never blocks movement; it only hurts units
 it. Lingering is the danger; moving forward is the answer.
 
 **Status:** adopted October 20, 2026 as the game's turn-par pressure system. Adapted to this
-design from an outside draft (`the-darkness.md` at the repo root);
+design from an outside draft (not kept);
 [Changes from the outside draft](#changes-from-the-outside-draft) lists what was changed and why.
-**How the darkness deals damage is a first pass that must be playtested.**
+**The MVP ships the first-pass damage model: percent of max HP by layer, not an attack (decided
+October 23, 2026). It must be playtested; the alternatives below stay on the table.**
 [game-vision.md](game-vision.md) wins where the two differ.
 
 ## The short version
@@ -153,9 +154,10 @@ lingering hurts, are fixed. How the hurt is dealt may change. Candidates:
 - **No unit is immune**: bosses, mini-bosses and leaders take darkness damage like everyone else.
 - It always fires its own trigger, **Darkness damage taken**, so effects can answer it (e.g. a
   heirloom: "Darkness damage taken −50%").
-- **Attack or not is open.** It decides how the darkness meets Block and Stance:
+- **Not an attack (MVP, decided October 23, 2026).** This decides how the darkness meets Block and
+  Stance; the other column is kept for playtesting:
 
-| | Not an attack (current default) | Counts as an attack |
+| | Not an attack (MVP) | Counts as an attack |
 |---|---|---|
 | Damage stages | Skipped: no Mitigation, crit or Block | Passes through them, so Block and Mitigation reduce it |
 | Stance | Never lost | Lost as for any hit that deals real damage, so lingering makes units Exposed to crits |
@@ -216,9 +218,10 @@ On [parallel maps](game-vision.md#combat-maps):
   [reinforce](game-vision.md#combat-maps) that teammate before the darkness arrives there.
 - Each unfinished map's status, which senders use to choose where to reinforce, shows turns to par,
   or, once the darkness has arrived, how much of the map is dark.
-- *(Placeholder until co-op arrival is designed.)* Reinforcements arrive on the map's arrival tiles
-  if those are dry; otherwise on the nearest dry tiles their movement type can stand on; otherwise
-  on the lowest-layer tiles available. They then follow every darkness rule.
+- Reinforcements arrive on dry tiles next to the receiving player's commander
+  ([game-vision.md](game-vision.md#combat-maps)); otherwise on the nearest dry tiles their movement
+  type can stand on; otherwise on the lowest-layer tiles available. They then follow every darkness
+  rule.
 - A map where two players fight together (joining a teammate, or a later shared battle) has one
   darkness, on one turn counter.
 
@@ -229,11 +232,13 @@ up: e.g. "While on Gloom or deeper: +3 damage", or "Phase End, while on Abyss: g
 They use a While condition on the tile's layer (see [effect-triggers.md](effect-triggers.md)).
 None are in v1.
 
-### Torches (stub)
+### Torches: the Brazier
 
-Reserved for later; no torch rules in v1. Torches are meant as the darkness's signature counterplay
-and part of its visual identity. A starting idea: a lit torch stops the tiles around it deepening
-past Dusk, so torches become positions worth holding and fighting over.
+The darkness's torch is the **Brazier**, a neutral [map object](map-objects.md#new-objects) in the
+MVP (decided October 23, 2026). A unit next to it lights or douses it as its action; while lit,
+tiles within 2 tiles never deepen past Dusk. Braziers are the darkness's signature counterplay and
+part of its visual identity: positions worth holding and fighting over, and the enemy AI douses
+them.
 
 ## How it touches other systems
 
@@ -301,10 +306,8 @@ are designed.
 
 ## Open questions
 
-- **Damage model:** percent of max HP, a status, or flat damage that grows with time spent in it.
-  Must be playtested.
-- **Attack or not:** whether darkness damage passes through the damage stages, Block and Stance
-  (see [Layers and damage](#layers-and-damage)).
+- **Damage model:** the MVP ships percent of max HP, not an attack. Playtesting decides whether a
+  status or flat damage that grows with time spent in it would play better.
 - **Small maps:** whether the first-pass creep speed and wave interval suit FEH-scale maps.
 - **Darkness-reward effects:** which heirlooms reward standing in the darkness, once the damage
   model settles.
