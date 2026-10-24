@@ -860,7 +860,10 @@ playtesting** is a first pass that is safe to build as written.
   ([events.md](events.md)).
 - **Multiplayer:** the save change to one battle state per player (parallel maps run on their own
   turns); light links beyond using runes on a teammate's map; how two players deploy onto one map
-  in later shared battles ([multiplayer-combat-options.md](multiplayer-combat-options.md)).
+  in later shared battles ([multiplayer-combat-options.md](multiplayer-combat-options.md)); what
+  happens when a player drops mid-combat (how long their paused map waits, whether a turn is
+  skipped, timeout or kick). The engine supports pausing a map and rejoining from a snapshot
+  ([event bus plan](../plans/2026-10-23-event-bus-and-effects.md#commands-concurrency-and-rejoin)).
 - **Map objects:** the rest of the second pass in [map-objects.md](map-objects.md) is unreviewed.
 - **Items:** each equipment piece and trinket still needs a rarity assigned
   ([items.md](items.md)); stronger staves for higher rarities ([weapons.md](weapons.md)).

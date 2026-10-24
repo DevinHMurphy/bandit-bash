@@ -617,7 +617,32 @@ Suggest a rename; don't apply it. Every summary and every plan ends with this ta
   When overriding a method that the parent script also implements, call `super()` unless you mean to
   replace the parent's behavior; if you do mean to, say so in a comment.
 
-### 8.5 Comments, dead code and constants
+### 8.5 Event bus and effects
+
+Applies to every script in combat, the campaign layer, effects, content definitions and their
+presentation. The design is in `docs/plans/2026-10-23-event-bus-and-effects.md` until
+`docs/design/event-bus.md` replaces it; read the relevant section before changing these systems.
+
+- **Rules code is pure.** It never touches nodes, the scene tree, autoloads (except `NetLog`, on
+  the main thread only), a bus, the global RNG or disk.
+- **Rules never `await`.** Commands resolve completely, then presentation plays the resulting facts.
+  Presentation never drives rules.
+- **Effects react through the engine's trigger dispatch**, never through `Signal.connect` on a bus.
+  Bus signals are for presentation and observers only.
+- **Every state change emits a fact.** Facts are past tense and carry ids, never objects or
+  Resources.
+- **Content definitions are read-only at runtime.** Per-item and per-unit changes live on instances
+  (deltas, granted effects), never on the shared `.tres`.
+- **Read values through `session.stats(unit_id)`**, never by assembling definition, deltas and
+  effects in the caller.
+- **Randomness goes through a roll source.** Real resolution uses the session's combat stream; never
+  `randf()`, `randi()` or `pick_random()` in rules code.
+- **Instance ids come only from `InstanceIdAllocator`** and are never parsed; use the session's
+  `describe(id)` for log and error text.
+- **Code that may run in a sandbox on a worker thread** follows the first rule strictly and does not
+  log; it returns diagnostics for the main thread to log.
+
+### 8.6 Comments, dead code and constants
 
 - Comments explain **why**, not **what**, in the present tense (§3.6).
 - Delete dead code instead of commenting it out — but only inside members you're already changing.
