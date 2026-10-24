@@ -10,13 +10,13 @@ Every number is a starting point to tune in playtesting.
 
 ## The short version
 
-- **Five rarities**, shared with all items: Basic, Common, Uncommon, Rare and Legendary.
+- **Five rarities**, shared with all items: Basic, Common, Uncommon, Rare and Legendary, plus **Unique** for items from events or other unique sources (no MVP weapon is Unique yet).
 - **Weight is the price of power.** Higher tiers hit harder and weigh more; they never lose Hit
   below their type's Simple weapon, because accuracy comes only from the weapon and leveling never
   raises it.
 - **Scaling:** every MVP weapon adds Might one-for-one (scaling modifier 1).
 - **Every bow is effective against Fliers** (×3 weapon damage), as in `Godot_FE`.
-- **No durability**, except heal staves (see [Staves](#staves)).
+- **No durability**, except per-map uses on some staves (see [Staves](#staves)).
 - **Fresh names.** `Godot_FE`'s Iron / Steel / Silver / Killer / Valor ladders are renamed; the
   rarity colour tells the player a weapon's tier, so the name can carry flavour.
 
@@ -25,10 +25,10 @@ Every number is a starting point to tune in playtesting.
 | Rarity | Weapons | Armory price | Where it comes from |
 |--------|---------|--------------|---------------------|
 | Basic | The Simple weapons and Shelter | — | Starting gear and recruits only; never loot or stock |
-| Common | 10 (Minor Heal included) | 40 | Armory, rewards, chests |
-| Uncommon | 16 | 60 | Armory, rewards, chests |
-| Rare | 17 | 150 (250 for `Godot_FE`'s Mythical weapons) | Armory, events, Ancestral Weapon, rare rewards |
-| Legendary | 9 (plus the Eye Greatshield) | Never sold | A Large Treasure chest has a 10% chance to hold a Legendary item, one a unit in the army can use, instead of its heirloom: about 3% of runs |
+| Common | 11 (Minor Heal and Rampart included) | 40 | Armory, rewards, chests |
+| Uncommon | 19 (Far Ward, Recover and Harm included) | 60 | Armory, rewards, chests |
+| Rare | 19 (Sanctuary and Ruin included) | 200 | Armory, events, Ancestral Weapon, rare rewards |
+| Legendary | 11, Everwall and Everbloom included (plus the Eye Greatshield) | Never sold | A Large Treasure chest has a 10% chance to hold a Legendary item, one a unit in the army can use, instead of its heirloom: about 3% of runs |
 
 `Godot_FE`'s seven rarities map as Standard → Basic, Common → Common, Uncommon → Uncommon, Rare and
 Mythical → Rare, Legendary → Legendary. Its Unique tier (commander signature weapons) is not ported.
@@ -73,18 +73,32 @@ Fliers, like every bow.
 
 ## Staves
 
-Staves never attack. Using one is the unit's action, on an ally in range.
+Using a staff is the unit's action. Block and heal staves target an ally; attack staves target an
+enemy. Decided October 24, 2026: **more Block, fewer heals**, a few tightly limited attack staves,
+and stubs for status staves.
 
 | Staff | Rarity | Kind | Effect | Range | Uses | Weight |
 |-------|--------|------|--------|-------|------|--------|
 | Shelter | Basic | Block | Target ally gains 3 + Might Block | 1 | Unlimited | 0 |
+| Rampart (new) | Common | Block | Target ally gains 5 + Might Block | 1 | Unlimited | 1 |
+| Far Ward (new) | Uncommon | Block | Target ally gains 3 + Might Block | 1–3 | Unlimited | 1 |
+| Sanctuary (new) | Rare | Block | Target ally and every ally adjacent to it gain 3 + Might Block | 1–2 | 2 per map | 2 |
+| Everwall (new) | Legendary | Block | Every ally within 3 tiles of the user gains 5 + Might Block | — | 1 per map | 3 |
 | Minor Heal (`Godot_FE` Minor Heal) | Common | Heal | Target ally heals 5 + Might HP | 1 | 3 per map | 0 |
+| Recover (`Godot_FE` Recover) | Uncommon | Heal | Target ally heals 15 + Might HP | 1 | 1 per map | 3 |
+| Everbloom (`Godot_FE` Everbloom) | Legendary | Heal | Target ally heals to full | 1–10 | 1 per map | 7 |
+| Harm (`Godot_FE` Harm) | Uncommon | Attack | An attack: 15 damage + Might, Magic, profile None, 100 Hit | 1–2 | 2 per map | 10 |
+| Ruin (`Godot_FE` Harm, its Mythical version) | Rare | Attack | An attack: 20 damage + Might, Magic, profile None, 85 Hit | 1–4 | 1 per map | 15 |
+| Hex, Slumber, Fetter | — | Status | **Stubs:** each will apply one status effect once status effects exist (after the MVP) | — | — | — |
 
-- **Block staves** are the everyday support tool, so they have unlimited uses. Block given on the
-  player phase lasts until that unit's side refreshes at its next Phase Start.
-- **Heal staves** are limited because HP carries over between combats; uses refresh at the start of
-  every combat. `Godot_FE`'s Minor Heal was unbreakable; limiting it stops stalling the last enemy to
-  heal everyone for free.
+- **Block staves** are the everyday support tool, so the low tiers have unlimited uses. Block given
+  on the player phase lasts until that unit's side refreshes at its next Phase Start.
+- **Heal staves** are few and limited because HP carries over between combats; uses refresh at the
+  start of every combat. `Godot_FE`'s Minor Heal was unbreakable; limiting it stops stalling the
+  last enemy to heal everyone for free. `Godot_FE`'s Heal and Imbue are cut.
+- **Attack staves** are rare and limited to 1–2 uses a map. They never counterattack (as in
+  `Godot_FE`): a unit holding one can't strike back when attacked.
+- Weights follow the conversion (`Godot_FE` staff weight − 5); new staves have first-pass weights.
 
 ## Common
 
@@ -123,7 +137,7 @@ Staves never attack. Using one is the unit's action, on an ally in range.
 
 ## Rare
 
-`Godot_FE`'s Mythical weapons are marked **M** and cost 250; the rest cost 150.
+`Godot_FE`'s Mythical weapons are marked **M**. Every Rare weapon costs 200 (one price per rarity per kind).
 
 | Weapon (`Godot_FE`) | Type | Profile | Dmg | AtkX | Range | Hit | Crit | CritX | Weight | Effect |
 |---------------------|------|---------|-----|------|-------|-----|------|-------|--------|--------|
@@ -180,7 +194,6 @@ Dark Pulse, Ray, Holy Fire, Enchanted Bow and the monster claws. Commander signa
 
 ## Open questions
 
-- **More staves:** stronger Block and heal staves for higher rarities.
 - **Weight against Constitution:** Uncommon axes and lances weigh 17–20 against Constitution 8–14,
   so their wielders lose a lot of Attack Speed. That is the intended trade-off, but check the Fighter
   and Lancer in playtesting.

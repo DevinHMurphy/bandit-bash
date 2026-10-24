@@ -156,7 +156,9 @@ puzzle, to learn which are fun.
 | Hex Matron | Hexer | Every 3rd Phase Start this combat: Hex Storm, every unit within 2 tiles of its target, friend or foe, loses 1 Stance | Bait it into catching its own pack, then crit them |
 | Iron Wall | Shieldbearer | Every 2nd Phase Start this combat: Fortify, adjacent units, friend or foe, gain 4 Block and +1 Parry until Phase End | Break the formation, or stand in the wall and share it |
 
-**The boss: the Powder Baron.** The MVP's one boss, on the boss map.
+**The boss: the Powder Baron.** The MVP's one boss. The boss map is fully scripted (fixed enemies, placement
+and scripted beats), a developed level of 15–20 minutes; key maps field their step's standard count
++1 to +3 enemies plus the mini-boss.
 
 - **Unit:** an elite Brute at level 8 with a +2 prefix and the **Unshovable** trait. It holds the
   throne (Guard behavior) and fights by every normal rule, Cleave included.

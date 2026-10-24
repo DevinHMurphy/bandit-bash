@@ -285,7 +285,8 @@ The multipliers loosely follow Terraria's spread (Broken −69% to Godly +112%),
 tiers. The same multiplier sets a recruit's price (40 gold × the multiplier). First pass, to
 retune in playtesting.
 - **Enemies:** depend on difficulty. On Normal, only elites (leaders and mini-bosses) and bosses
-  roll prefixes; on Hard, every enemy does, with the recruit odds below.
+  roll prefixes; from difficulty-ladder level 1 ([meta-progression.md](meta-progression.md#difficulty-ladder)),
+  every enemy does, with the recruit odds below.
 - **Commanders** never roll prefixes; their stats are fixed.
 
 **Budget by tier.** Each tier has a budget matched to `Godot_FE`'s draft rolls
@@ -348,7 +349,8 @@ How a bought unit joins the army and how gear moves onto it. First pass, October
 
 **Background** (decided elsewhere): recruits are bought at the Guildhall and are cheap, so
 permadeath losses can be replaced; events can also give units. A recruit joins at the army's
-average level, rounded down, with its prefix already rolled. Recruiting past max army size
+average level, rounded down, with its prefix already rolled; its stats for those levels come from
+average growths, like enemies, so the preview shows the real stats. Recruiting past max army size
 replaces an existing unit (never the commander). Dead units keep their items. Unwanted items are
 scrapped, never sold ([items.md](items.md#scrapping)).
 

@@ -17,7 +17,7 @@ These are already decided or built:
 
 | Fact | Source |
 |------|--------|
-| 1–4 players (`DEFAULT_MAX_PLAYERS = 4`), fixed when a campaign starts | `steam_network.gd`, save-system.md |
+| 1–4 players (`DEFAULT_MAX_PLAYERS = 4`), set when a campaign starts; a forfeit can lower it (decided October 24, 2026) | `steam_network.gd`, save-system.md |
 | Each player has their own army: 4–6 units typical, up to 8, led by a commander | game-vision.md |
 | The whole army deploys in every combat; army size works like Slay the Spire's energy | game-vision.md |
 | Maps are small: standard 8×6 to 10×8, key about 12×10, boss larger | game-vision.md |
@@ -25,7 +25,7 @@ These are already decided or built:
 | The team travels one shared campaign map and votes on the route | game-vision.md |
 | The host resolves everything; clients send commands and replay events | effects-system.md, `Godot_FE` multiplayer plan |
 | One combat save file per campaign, holding one turn number and one phase | `combat_data.gd`, save-system.md |
-| Effect scopes include Any Ally Unit (co-op partners' units), and all players share one player phase | effect-triggers.md |
+| Effect scopes include Any Ally Unit (co-op partners' units); phases are per map (event bus plan, question 11) | effect-triggers.md |
 | Each player gets their own combat Standout and their own Feast | game-vision.md, items.md |
 
 For scale: four players with typical armies field 16–24 units. A solo standard map holds 4–6.
@@ -267,6 +267,20 @@ Strategies considered and not adopted:
 Still usable without softening permadeath, if wanted later: each player's copy of a map scaling its
 enemy count to that player's army (the vision already aims standard combats at "a similar number to
 the player").
+
+## Disconnects and forfeits
+
+**Decided October 24, 2026** (recorded in [game-vision.md](game-vision.md#combat-maps)):
+
+- A disconnect **pauses the game** for everyone until the player reconnects (a timer shows); they
+  rejoin from a snapshot, which the event bus plan already supports.
+- After a waiting period (first pass: 2 minutes), the host can **remove** the disconnected player,
+  which counts as a forfeit.
+- Any **non-host** player can **forfeit** at any time: their army and map leave the match, their
+  seat is removed from the campaign save, and their run is archived for them as lost. The rest play
+  on. This changes the save rule that the player count is fixed for a campaign's life; the format
+  change belongs to the multiplayer plans.
+- A **host** disconnect ends the match for everyone; the host resumes from its last checkpoint.
 
 ## Questions any option raises
 

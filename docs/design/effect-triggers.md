@@ -48,9 +48,9 @@ The counter is shown on the effect's card, for example "Bulwark 7/10 this combat
 
 ## Triggers
 
-**Turn phases.** These are defined in [game-vision.md](game-vision.md#combat). In co-op, all
-players share one player phase, so Phase Start and Phase End fire once for every player's units
-together.
+**Turn phases.** These are defined in [game-vision.md](game-vision.md#combat). In co-op, phases are
+**per map**: all units on a map, reinforcements included, share its phases, and a map's player
+phase ends when every player with units on it has ended their turn (event bus plan, question 11).
 
 | Trigger | Fires when |
 |---------|------------|

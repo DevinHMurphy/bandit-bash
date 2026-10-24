@@ -74,8 +74,8 @@ informed trade, never a surprise:
 
 **Festival of Embers** (`festival_of_embers`): a lantern-lit square.
 - *Be Merry:* every unit gains +2 max HP.
-- *Collect Embers:* gain the Emberglass Vial, a consumable that heals 25 HP and refills after each
-  combat (`Godot_FE`'s event item).
+- *Collect Embers:* gain the Emberglass Vial, a **Unique** consumable that heals 12 HP, twice per
+  map (`Godot_FE`'s event item; see [items.md](items.md#consumables)).
 - *Perform for the Crowd:* gain 40 gold.
 
 **Frozen Armory** (`frozen_armory`): a frost-bound vault.

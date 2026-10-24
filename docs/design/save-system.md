@@ -186,7 +186,10 @@ A resumed enemy phase replays identically only once the RNG manager saves its st
 - Resume goes through the lobby: the host loads the campaign from the Main Menu, hosts, and only
   the campaign's players (by Steam id from the Steam connection, never from a message) and only the
   same game version are admitted. Resume needs every player present and Ready.
-- The player count is fixed when a campaign starts.
+- The player count is set when a campaign starts. **Decided October 24, 2026, not yet built:** a
+  non-host player who forfeits (or is removed by the host after a disconnect) leaves the campaign:
+  their seat is removed from the save, so resuming no longer needs them, and their run is archived
+  for them as lost. See [game-vision.md](game-vision.md#combat-maps).
 - Never send a Resource over the network; send envelopes or ids.
 
 ## Testing
