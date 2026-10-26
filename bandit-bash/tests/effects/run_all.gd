@@ -63,6 +63,7 @@ func _init() -> void:
 	_test_combat_wire_through_json()
 	_test_combat_wire_rejects_bad_data()
 	_test_combat_fact_amendments()
+	_test_combat_fact_item_id()
 	_test_campaign_wire_round_trip()
 	_test_campaign_wire_rejects_bad_data()
 	_test_combat_log_line_documented_shape()
@@ -150,6 +151,7 @@ func _test_combat_wire_rejects_bad_data() -> void:
 		"negative seq": _with(good, 1, -1),
 		"negative session": _with(good, 2, -1),
 		"unknown side": _with(good, 14, 9),
+		"int in the item id slot": _with(good, 15, 412),
 		"null slot": _with(good, 13, null),
 	}
 	for case_name: String in cases:
@@ -167,8 +169,8 @@ func _test_combat_fact_amendments() -> void:
 	phase.amount = 3
 	var wire: Array = phase.to_wire()
 	_check(
-			"amendments: side is appended last",
-			wire.size() == 15 and wire[14] == CombatFact.CombatSide.ENEMY,
+			"amendments: side in slot 14, item id appended after it",
+			wire.size() == 16 and wire[14] == CombatFact.CombatSide.ENEMY and wire[15] == "",
 			str(wire)
 	)
 	var back: CombatFact = CombatFact.from_wire(wire)
@@ -222,6 +224,51 @@ func _test_combat_fact_amendments() -> void:
 			"amendments: old kind values unchanged",
 			CombatFact.Kind.PHASE_START == 0 and CombatFact.Kind.MODIFIER_EXPIRED == 34
 			and CombatFact.Kind.size() == 42
+	)
+
+
+# The item, weapon or rune an action fact names (event bus plan, follow-up F2).
+func _test_combat_fact_item_id() -> void:
+	var potion: CombatFact = CombatFact.new(CombatFact.Kind.ITEM_USED, "unit:57", "unit:58")
+	potion.item_id = "item:412"
+	var swap: CombatFact = CombatFact.new(CombatFact.Kind.WEAPON_SWAPPED, "unit:57")
+	swap.item_id = "item:9"
+	var rune: CombatFact = CombatFact.new(CombatFact.Kind.RUNE_USED, "", "enemy:61")
+	rune.item_id = "rune:3"
+	rune.amount = 1
+	rune.tile = Vector2i(5, 2)
+
+	for fact: CombatFact in [potion, swap, rune]:
+		var kind_name: String = CombatFact.Kind.find_key(fact.kind)
+		var back: CombatFact = CombatFact.from_wire(fact.to_wire())
+		_check(
+				"item id: %s round trip" % [kind_name],
+				back != null and back.item_id == fact.item_id and back.to_wire() == fact.to_wire()
+		)
+		var parsed: Variant = JSON.parse_string(JSON.stringify(fact.to_wire()))
+		var through_json: CombatFact = CombatFact.from_wire(parsed if parsed is Array else [])
+		_check(
+				"item id: %s through JSON" % [kind_name],
+				through_json != null and through_json.to_wire() == fact.to_wire()
+		)
+
+	var rune_back: CombatFact = CombatFact.from_wire(rune.to_wire())
+	_check(
+			"item id: a rune keeps its target, tile and casting seat",
+			rune_back != null and rune_back.actor_id.is_empty()
+			and rune_back.target_id == "enemy:61" and rune_back.tile == Vector2i(5, 2)
+			and rune_back.amount == 1
+	)
+	_check(
+			"item id: log line names the item",
+			potion.to_log_line(_describe) == (
+					"s0#0 ITEM_USED unit:57 (Hakkapel) -> unit:58 item item:412 (Iron Axe)"
+			),
+			potion.to_log_line(_describe)
+	)
+	_check(
+			"item id: empty on other kinds",
+			CombatFact.new(CombatFact.Kind.HIT_TAKEN).item_id.is_empty()
 	)
 
 
@@ -712,14 +759,31 @@ func _test_permissions_denial_beats_grant() -> void:
 			not grant_line.applied and grant_line.note == "denial beats grant"
 	)
 
-	var unshovable: int = CombatValue.Permission.UNSHOVABLE
-	var boss: Array[Modifier] = [
-		_mod(unshovable, GRANT, 0.0, UNIT_TRAIT, "enemy:1", "Bulwark"),
+	var may_move: int = CombatValue.Permission.MAY_MOVE_AFTER_ACTING
+	var skirmisher: Array[Modifier] = [
+		_mod(may_move, GRANT, 0.0, UNIT_TRAIT, "unit:3", "Skirmisher"),
 	]
 	_check(
 			"permission: off by default, a grant turns it on",
-			not ValueBreakdown.compute_permission(unshovable, []).is_allowed()
-			and ValueBreakdown.compute_permission(unshovable, boss).is_allowed()
+			not ValueBreakdown.compute_permission(may_move, []).is_allowed()
+			and ValueBreakdown.compute_permission(may_move, skirmisher).is_allowed()
+	)
+
+	var shovable: int = CombatValue.Permission.CAN_BE_SHOVED
+	var boss: Array[Modifier] = [
+		_mod(shovable, DENY, 0.0, UNIT_TRAIT, "enemy:1", "Unshovable"),
+		_mod(shovable, GRANT, 0.0, HEIRLOOM, "h:9", "Battering Ram"),
+	]
+	var boss_answer: ValueBreakdown = ValueBreakdown.compute_permission(shovable, boss)
+	_check(
+			"permission: CAN_BE_SHOVED allowed by default",
+			ValueBreakdown.compute_permission(shovable, []).is_allowed()
+	)
+	_check(
+			"permission: a grant can't cancel Unshovable's denial",
+			not boss_answer.is_allowed()
+			and boss_answer.to_text() == "denied by Unshovable = denied",
+			boss_answer.to_text()
 	)
 
 	var grow: int = CampaignValue.Permission.STAT_CAN_GROW
@@ -801,7 +865,7 @@ func _test_value_keys_seeded_and_disjoint() -> void:
 		"EFFECTIVE_MODIFIER", "STAFF_AMOUNT", "MOVEMENT",
 	]
 	var expected_permissions: PackedStringArray = [
-		"CAN_COUNTER", "UNSHOVABLE", "MAY_MOVE_AFTER_ACTING", "FREE_WEAPON_SWAP",
+		"CAN_COUNTER", "CAN_BE_SHOVED", "MAY_MOVE_AFTER_ACTING", "FREE_WEAPON_SWAP",
 		"SKIP_MITIGATION_ON_CRIT",
 	]
 	var expected_stages: PackedStringArray = ["ATTACK", "MITIGATION", "CRITICAL", "MULTIPLIERS"]
@@ -1140,12 +1204,12 @@ func _test_describe_operations() -> void:
 			"permanently give the other unit +1 Movement"
 	)
 
-	var unshovable: SetPermission = SetPermission.new()
-	unshovable.permission = CombatValue.Permission.UNSHOVABLE
-	_snapshot("set permission: allow", unshovable.describe(), "allow Unshovable")
-	unshovable.permission = CampaignValue.Permission.STAT_CAN_GROW
-	unshovable.allow = false
-	_snapshot("set permission: deny", unshovable.describe(), "deny Stat Can Grow")
+	var permission_op: SetPermission = SetPermission.new()
+	permission_op.permission = CombatValue.Permission.CAN_BE_SHOVED
+	_snapshot("set permission: allow", permission_op.describe(), "allow Can Be Shoved")
+	permission_op.permission = CampaignValue.Permission.STAT_CAN_GROW
+	permission_op.allow = false
+	_snapshot("set permission: deny", permission_op.describe(), "deny Stat Can Grow")
 
 	var grant: CampaignGrant = CampaignGrant.new()
 	grant.amount = 50
@@ -1429,7 +1493,7 @@ func _test_key_fields_offer_a_dropdown() -> void:
 	_check(
 			"dropdown: timed modifiers offer values and permissions",
 			String(timed_hint.get("hint_string", "")).contains("Hit:4")
-			and String(timed_hint.get("hint_string", "")).contains("Unshovable:3001")
+			and String(timed_hint.get("hint_string", "")).contains("Can Be Shoved:3001")
 	)
 
 

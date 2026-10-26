@@ -61,11 +61,8 @@ enum Permission {
 	## May counter when the weapon's range covers the distance. Allowed by default; denied while
 	## holding a staff.
 	CAN_COUNTER = 3000,
-	# ASSUMPTION: a boss's Unshovable grants this key. The plan says denial beats grant so that
-	# Unshovable can't be cancelled, which holds only if the key is inverted (a "can be shoved"
-	# permission that the boss denies). Needs an answer before content uses it.
-	## Can't be shoved. Off by default.
-	UNSHOVABLE = 3001,
+	## May be shoved. Allowed by default; the Unshovable trait denies it, so no grant can cancel it.
+	CAN_BE_SHOVED = 3001,
 	## May spend the remaining movement after acting (Skirmisher). Off by default.
 	MAY_MOVE_AFTER_ACTING = 3002,
 	## Swaps weapons for free once per unit turn, before acting (Sidearm). Off by default.
@@ -89,7 +86,7 @@ const RULE_MAX: Dictionary[int, float] = {}
 ## The answer of each permission that no modifier grants or denies.
 const PERMISSION_DEFAULTS: Dictionary[int, bool] = {
 	Permission.CAN_COUNTER: true,
-	Permission.UNSHOVABLE: false,
+	Permission.CAN_BE_SHOVED: true,
 	Permission.MAY_MOVE_AFTER_ACTING: false,
 	Permission.FREE_WEAPON_SWAP: false,
 	Permission.SKIP_MITIGATION_ON_CRIT: false,

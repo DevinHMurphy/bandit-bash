@@ -104,15 +104,13 @@ enum Kind {
 	BLOCK_STANCE_REFRESHED = 35,
 	## The actor's Stance changed outside a refresh (a hit, Shatter, an effect), never below 0.
 	STANCE_CHANGED = 36,
-	# ASSUMPTION: the item's instance id has no field; actor is the user, target the unit it was
-	# used on (itself or an adjacent ally). The combat core plan doesn't place the item.
-	## The actor used a Pouch item on the target (itself or an adjacent ally).
+	## The actor used the Pouch item [member item_id] on the target (itself or an adjacent ally).
 	ITEM_USED = 37,
-	## The actor swapped its Weapon slot and stowed weapon.
+	## The actor swapped its Weapon slot and stowed weapon; [member item_id] is the weapon now in
+	## the Weapon slot.
 	WEAPON_SWAPPED = 38,
-	# ASSUMPTION: a rune has no owner, so actor is empty, target is what it was cast on and tile
-	# its tile; the rune's id has no field. The combat core plan doesn't place either.
-	## A rune was cast on the target.
+	## The rune [member item_id] was cast on the target at [member tile]. A rune has no owner, so
+	## the actor is empty and [member amount] is the casting seat.
 	RUNE_USED = 39,
 	## The actor waited, ending its turn.
 	UNIT_WAITED = 40,
@@ -169,7 +167,7 @@ enum DamageType {
 const NO_TILE: Vector2i = Vector2i(-1, -1)
 
 # Slot types of the wire array, in to_wire() order: i = int, s = String.
-const WIRE_PATTERN: String = "iiissiiiiisiiii"
+const WIRE_PATTERN: String = "iiissiiiiisiiiis"
 
 # Largest integer a JSON number (a double) holds exactly, 2^53. A wire array that went through JSON
 # arrives with float numbers; anything beyond this lost precision on the way.
@@ -231,6 +229,10 @@ var flags: int = 0
 ## Whose phase a phase fact belongs to; [constant CombatSide.NONE] on every other kind.
 var side: CombatSide = CombatSide.NONE
 
+## Instance id of the item, weapon or rune the fact is about ([constant ITEM_USED],
+## [constant WEAPON_SWAPPED], [constant RUNE_USED]). Empty on every other kind.
+var item_id: String = ""
+
 
 func _init(fact_kind: Kind, fact_actor_id: String = "", fact_target_id: String = "") -> void:
 	kind = fact_kind
@@ -258,6 +260,7 @@ func to_wire() -> Array:
 		tile.y,
 		flags,
 		side,
+		item_id,
 	]
 
 
@@ -277,6 +280,8 @@ func to_log_line(describe: Callable = Callable()) -> String:
 		parts.append(_describe_id(target_id, describe))
 	if side != CombatSide.NONE:
 		parts.append("side %s" % [String(CombatSide.find_key(side)).to_lower()])
+	if not item_id.is_empty():
+		parts.append("item %s" % [_describe_id(item_id, describe)])
 	if amount != 0 or hp_amount != 0 or block_amount != 0:
 		parts.append("amount %d" % [amount])
 		if hp_amount != 0 or block_amount != 0:
@@ -346,6 +351,7 @@ static func from_wire(data: Array) -> CombatFact:
 	fact.tile = Vector2i(values[11], values[12])
 	fact.flags = values[13]
 	fact.side = side_value as CombatSide
+	fact.item_id = values[15]
 	return fact
 
 
