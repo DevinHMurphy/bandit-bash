@@ -35,11 +35,11 @@ before their consumers are checked are the costliest to fix).
 
 - **Design:** ideation closed for the MVP (design reviews of October 23–24, 2026). Remaining design
   items are content or tuning; see [Design items by plan](#design-items-by-plan).
-- **Code:** the save system is built. P01 EB1–EB3, P02 CC1 and P13 R1–R3 are built and tested headless (on `build/p13-r1-r3`, not yet merged into `feature/save-system`).
+- **Code:** the save system is built. P01 EB1–EB3, P02 CC1 and P13 R1–R3 are built and tested headless (merged into `feature/save-system`).
   Nothing gameplay-related is built yet.
 - **Current milestone:** [M0 Foundations](#milestones).
-- **Current focus:** Tracks A and B are built (P01 EB2–EB3 with F1–F2, P02 CC1, P13 R1–R3). Merge `build/p13-r1-r3`
-  into `feature/save-system`, then build EB4 (with F3–F4). Planning in parallel: P08 question 1, P03 sketch, P04 draft.
+- **Current focus:** Tracks A and B are built and merged into `feature/save-system` (P01 EB2–EB3 with F1–F2, P02 CC1,
+  P13 R1–R3). Build EB4 (with F3–F4) next. Planning in parallel: P08 question 1, P03 sketch, P04 draft.
 
 ## Milestones
 
@@ -64,7 +64,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | ID | Plan | File | Status | Depends on | Unblocks | Design basis |
 |----|------|------|--------|-----------|----------|--------------|
 | P00 | Save system | [2026-10-13-save-system.md](2026-10-13-save-system.md) | **Implemented** October 14, 2026 (multiplayer paths untested live) | — | All | save-system.md |
-| P01 | Event bus and effects | [2026-10-23-event-bus-and-effects.md](2026-10-23-event-bus-and-effects.md) | **In progress** (approved October 26, 2026; amended with P02's and P13's needs the same day): EB1 implemented; EB2, EB3 and fix-ups F1–F2 built (229 headless tests pass; on `build/p13-r1-r3`, not yet merged); EB4 ready | P00 | Every gameplay plan | effects-system.md, effect-triggers.md |
+| P01 | Event bus and effects | [2026-10-23-event-bus-and-effects.md](2026-10-23-event-bus-and-effects.md) | **In progress** (approved October 26, 2026; amended with P02's and P13's needs the same day): EB1 implemented; EB2, EB3 and fix-ups F1–F2 built (229 headless tests pass; merged); EB4 ready | P00 | Every gameplay plan | effects-system.md, effect-triggers.md |
 | P02 | Combat core: turns and phases, action economy, the exchange, damage stages, Block, Stance, triangle, crits, Parry, Shove, staves, Pouch items, weapon swaps, runes, forecast, `CombatGrid` interface | [2026-10-26-combat-core.md](2026-10-26-combat-core.md) | **Approved** October 26, 2026 (reviewed: questions 9–12 answered, seven fixes). Implementation gated on P01 EB4; CC1 built on `build/p01-eb2-eb3-cc1` (fix-up F2 adds `item_id`) | P01 (EB2–EB4, plus amendments N1–N10) | P04, P05, P06, P07 | game-vision.md Combat |
 | P03 | Content catalog: unit types, traits and upgrades, the Drengr, prefixes, weapons, staves, items, ingredients, runes, heirlooms, curses | — | **Not started** (sketch before EB5; may split into units / items / heirlooms) | P01 (EB3, EB5) | M1 content, P08, P09 | unit-roster.md, weapons.md, items.md, heirlooms.md, events.md (curses) |
 | P04 | Combat map: grid, terrain, pathing, deployment, objectives, reinforcement points, map objects, map authoring and its checks | — | **Not started** (draft before EB6) | P01 (EB6), P02 | P05, P06, P07, M1 | game-vision.md Combat maps, map-objects.md |
@@ -76,7 +76,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P10 | Net transport: `Net` autoload, RPCs, command validation, Steam lobby integration | — | **Not started** | P00, P01 | P11 | multiplayer-combat-options.md, `steam_multiplayer_kit/` (read first) |
 | P11 | Co-op combat: parallel maps, reinforcements, rune routing, spectating, fast-forward votes, disconnects and forfeits, per-map battle saves | — | **Not started** | P01 (EB6–EB7), P02, P04, P08, P10 | M4 | game-vision.md Multiplayer maps, multiplayer-combat-options.md |
 | P12 | Statistics recording and the Waystation war table | — | **Not started** | P01, P08 | M5 | meta-progression.md (MVP parts) |
-| P13 | RNG streams: run seed, named streams and their derivation, co-op stream layout, save and resume in the reserved `rng` sections, determinism rules | [2026-10-26-rng-streams.md](2026-10-26-rng-streams.md) | **In progress** (approved October 26, 2026): R1–R3 built (126 headless tests pass; on `build/p13-r1-r3`, not yet merged); R4 ready; R5 waits on P08 question 1 | P00 | P01 EB4/EB6, P02, P04, P05, P06, P08, P09, P11 | save-system.md (`rng` sections), P01 roll sources |
+| P13 | RNG streams: run seed, named streams and their derivation, co-op stream layout, save and resume in the reserved `rng` sections, determinism rules | [2026-10-26-rng-streams.md](2026-10-26-rng-streams.md) | **In progress** (approved October 26, 2026): R1–R3 built (126 headless tests pass; merged); R4 ready; R5 waits on P08 question 1 | P00 | P01 EB4/EB6, P02, P04, P05, P06, P08, P09, P11 | save-system.md (`rng` sections), P01 roll sources |
 | P20 | Meta progression: unlocks, difficulty ladder, almanac, Hall of Heroes, run history, achievements, Waystation stations | — | Post-MVP | P12 | — | meta-progression.md |
 | P21 | Training yard and tutorials | — | Post-MVP | P07 | — | meta-progression.md |
 | P22 | Dev console | — | Post-MVP (scoped when needed) | P01 | — | meta-progression.md Developer tools |
@@ -186,12 +186,11 @@ more enemy factions, units with convoy access, shared and hybrid co-op battles, 
 
 ## Next actions
 
-1. Merge `build/p13-r1-r3` (EB2, EB3, CC1, F1–F2, R1–R3) into `feature/save-system`.
-2. Build P01 EB4, including F3 (base stat keys, `Stat` enum) and F4 (three new blocks). Its gates
+1. Build P01 EB4, including F3 (base stat keys, `Stat` enum) and F4 (three new blocks). Its gates
    are open.
-3. P13 R4 (run seed; edits `SaveService`) can run alongside EB4.
-4. Answer P08 question 1 (`CampaignSession` owner) before EB6; question 2 is answered by P13.
-5. Sketch P03 before EB5; draft P04 before EB6 (P04 implements P02's `CombatGrid`).
+2. P13 R4 (run seed; edits `SaveService`) can run alongside EB4.
+3. Answer P08 question 1 (`CampaignSession` owner) before EB6; question 2 is answered by P13.
+4. Sketch P03 before EB5; draft P04 before EB6 (P04 implements P02's `CombatGrid`).
 
 ## Change log
 
