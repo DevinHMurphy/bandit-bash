@@ -384,7 +384,9 @@ Haste rune and Quick Soles change it; P03 supplies the base stat and P04 spends 
 ### What P02 needs from P01 (EB2–EB4)
 
 The reason P02 is drafted before EB2. Each item is checked against the P01 plan; anything P01
-doesn't already promise is amended into P01 before EB2 starts.
+doesn't already promise is amended into P01 before EB2 starts. **All ten were amended into P01 on
+October 26, 2026** ([Amendments from P02 and P13](2026-10-23-event-bus-and-effects.md#amendments-from-p02-and-p13));
+the "P01 today" column records the state before that.
 
 | # | Need | P01 today |
 |---|------|-----------|

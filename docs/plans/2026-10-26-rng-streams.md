@@ -230,6 +230,9 @@ P01's 2RN hit roll is built on `RngStream` by `LiveRolls` (P02 need N8). Weighte
 ### What P13 needs from other plans
 
 Like P02's needs, these are amended into the plans that own them before their steps are built.
+R-N1–R-N4 were amended into P01 on October 26, 2026
+([Amendments from P02 and P13](2026-10-23-event-bus-and-effects.md#amendments-from-p02-and-p13));
+R-N5 and R-N6 wait on P04 and P08.
 
 | # | Plan | Need |
 |---|------|------|

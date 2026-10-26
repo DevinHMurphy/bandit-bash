@@ -1,7 +1,8 @@
 # Plan: Event Bus and Effects Architecture
 **Date:** October 23, 2026
-**Status:** Approved October 26, 2026 — in progress: EB1 implemented October 26, 2026; EB2 waits on
-the P02 draft (see the orchestrator's Gates)
+**Status:** Approved October 26, 2026 — in progress: EB1 implemented October 26, 2026; amended
+October 26, 2026 with the combat core's and RNG plan's needs
+([Amendments from P02 and P13](#amendments-from-p02-and-p13)); EB2 may start
 
 The foundation that every gameplay IMPL plan plugs into: how combat and the campaign announce what
 happened, how heirlooms, items, traits, curses, runes and enemy traits react to it, and how numbers
@@ -71,6 +72,8 @@ Questions already settled by the design docs are listed first as answered. Every
 | 14 | Content ids and catalog (also: "UI configurable" from our discussion) | — | **Every carrier and standalone effect has a stable string `id`.** One `EffectCatalog` loads definitions from `res://data/`. Authoring is in the Godot inspector; ids keep other tools (spreadsheet import, mods) possible later. | **Answered October 24, 2026:** content ids are `snake_case`, equal to the file name, unique within their kind (not Godot UIDs). One static `EffectCatalog` class (not an autoload) with typed lookups, loaded once at startup on the main thread via `ResourceLoader.list_directory()` (export-safe). Layout under `res://data/` per kind. Inspector authoring. Content tests: id = file name, no duplicates, every reference resolves, definitions unchanged by the suite. **Instance ids (same day):** kind + counter (`item:412`), minted only by one host-owned `InstanceIdAllocator` with a preset per kind; never parsed, never reused; readable through describe helpers and the logging in [Logging and debugging](#logging-and-debugging). |
 | 15 | Who owns the sessions | New autoload here / the run-flow plan | **No autoload in this plan.** The campaign/run-flow IMPL plan owns `CampaignSession` (likely from its own autoload). This plan exposes a `combat_session_opened(session)` signal for observers (audio, UI, achievements). | **Answered October 24, 2026:** A. No autoload in this plan; the campaign and run-flow plan owns `CampaignSession` (stub: [2026-10-24-campaign-run-flow.md](2026-10-24-campaign-run-flow.md)). Discovery: `CampaignSession.combat_encounter_opened(encounter)` / `combat_encounter_closed(encounter)` and `CombatEncounter.session_opened(session)`. `CampaignSession` and `CombatEncounter` depend on no scene or autoload except `NetLog`. |
 | 16 | Where the rules live | — | **Add a short "Event bus and effects" subsection to `.claude/rules/gdscript.md` §8, and a living `docs/design/event-bus.md`** written at the end of implementation, like save-system.md. `.claude/` needs your OK. | **Answered October 24, 2026:** both. `.claude/rules/gdscript.md` §8.5 "Event bus and effects" added the same day (it links this plan until `docs/design/event-bus.md` exists); the design doc is written in EB8. |
+| 17 | Rounding of values that end as whole numbers (heals halved by Cursed Blood, +20% healing, Movement, Hit) | Per key, halves up / per key, round down / each caller rounds | **Per key, halves up.** Each key declares its rounding, applied once at the end; the default matches damage stage 5 and gold. | **Answered October 26, 2026:** as recommended. Damage stages stay exact (P02's stage 5 rounds); darkness keeps its floor, minimum 1 (P06). See [Amendments from P02 and P13](#amendments-from-p02-and-p13). |
+| 18 | Which attack spends a "next attack" modifier (Momentum, Clarity, Bloodied Banner) | Any attack, hit or miss / only attacks on its own turn / only a hit | **Any attack, hit or miss**, counters included: the literal reading, and the one the Momentum fixture assumes. | **Answered October 26, 2026:** as recommended. |
 
 ## Scope
 
@@ -268,12 +271,15 @@ One `EffectEngine` per session.
   Unit (the owner's seat), Any Ally Unit, Any Unit. Instances whose scope can see other maps live in
   the `CombatEncounter`, not a session (question 12; see [Sessions](#sessions)).
 - **Conditions** come in the three families from effect-triggers.md: Counter (Every Nth / First,
-  with a lane), Chance (draws from the session's combat RNG stream), and While. While covers state
+  with a lane), Chance (one `roll_percent` through the roll source), and While. While covers state
   (Exposed), comparisons (strict, re-checked at every attack), position (adjacent, max range,
   moved N+, within N, no ally closer), exchange role and darkness layer.
 - **Counter lanes:** combat (reset each battle, saved in `COMBAT`) and campaign (reset per run,
   saved with the owner). One instance can have a counter in each lane. **Charges** (Burglar's Roll,
-  heal-staff uses, potion uses) use the same two lanes.
+  heal-staff uses, potion uses) use the same two lanes. Combat-lane counters and charges start
+  fresh in every `CombatSession` at battle start, so per-map uses (staves, potions, Guard Tonics)
+  refill each combat, and they move with their instance when a unit changes maps; campaign-lane
+  values (Elixir, lockpicks, run totals) are copied in and written back (P02 need N7).
 
 #### Inline and queued operations
 
@@ -336,7 +342,15 @@ A trigger only has an inline window if it fires before its amount is committed (
   and active timed modifiers, check their conditions live, sum flat values, multiply percent
   values, and apply any override. They return a **`ValueBreakdown`**, a total plus one line per
   source, so the forecast can print "8 dmg − 5 Iron Skin × 0.5 Bulwark (10th hit) = 2". The keys
-  live in `CombatValue` / `CampaignValue` enums; each downstream plan adds its keys.
+  live in `CombatValue` / `CampaignValue` enums; each downstream plan adds its keys (EB2 seeds the
+  combat core's, which are already approved).
+- **Values are exact; rounding is per key** (P02 need N1, question 17). A query computes in floats
+  and `get_value()` returns the exact total. Each key declares one rounding rule, applied once at
+  the end by `get_int()`: `HALF_UP` (the default), `FLOOR` or `EXACT` (never rounded by the query;
+  the `DamageStage` keys are `EXACT` because P02's stage 5 rounds the whole damage once). The same
+  rule covers amounts shaped in an inline window: a heal or Block gain stays exact through its
+  window and rounds halves up when applied; darkness damage floors with a minimum of 1 (P06).
+  Rounding adds a tolerance of 1e-9 so float error at an exact half (5 × 1.1) never flips the result.
 - **Read API and stat sheets.** Callers (combat rules, the AI, the forecast, the UI) never assemble
   a value themselves; they ask the session: `session.stats(unit_id).get_value(key, ctx)` for the
   number and `.explain(key, ctx)` for the `ValueBreakdown`. Behind that API each value has two
@@ -356,7 +370,25 @@ A trigger only has an inline window if it fires before its amount is committed (
     happen only at save-system.md's checkpoints.
 - **Timed modifiers** come from operations with an expiry: this exchange (ends at After Combat),
   until Phase End, until the end of the next phase, next attack, this combat. Examples: Momentum, War Horn, Tactical Map, Haste, Clarity.
-  They are session state.
+  They are session state. Each one has an **end** and optional **uses** (P02 need N6):
+
+  | End | Expires at | Content |
+  |-----|-----------|---------|
+  | `THIS_EXCHANGE` | After Combat of the exchange it was added in | — |
+  | `UNTIL_PHASE_END` | Phase End of the phase it was added in (P02's Phase End step 5) | Iron Wall, Tactical Map, Haste, Clarity |
+  | `END_OF_NEXT_PHASE` | Phase End of the phase after the one it was added in | War Horn ("your units keep the bonus through your next phase") |
+  | `THIS_COMBAT` | Battle end (combat lane, dropped) | Momentum, Bloodied Banner |
+
+  - The session counts phases (both sides); a modifier records the phase it was added in. One added
+    between phases (at placement, before the first Phase Start) belongs to the next phase to start.
+  - **Uses:** "next attack" is one use, spent when the holder's next attack that started after the
+    modifier was added finishes, counters included, hit or miss (question 18). "Next attack this
+    phase" (Clarity) is one use with `UNTIL_PHASE_END`; "next attack this combat" (Momentum,
+    Bloodied Banner) is one use with `THIS_COMBAT`. Whichever comes first ends it.
+  - **Boundary API:** rules code calls `EffectEngine.reach_boundary(boundary, subject_id)` with
+    `ATTACK_RESOLVED` (the attacker's id), `EXCHANGE_END`, `PHASE_END` or `COMBAT_END`, at the points
+    P02 names. The engine expires what is due and emits one `MODIFIER_EXPIRED` per modifier, which
+    also invalidates the stat sheet.
 - **Permissions** are boolean queries (may use remaining movement, open without a lockpick,
   Sidearm free swap, Unshovable, Speed can't grow). **Denial beats grant**, so a curse or a boss's
   Unshovable can't be quietly cancelled (question 9).
@@ -402,10 +434,22 @@ crit rolls, Chance conditions and random target selectors.
 
 | Roll source | Used by | Behavior |
 |-------------|---------|----------|
-| `LiveRolls` | Real resolution on the host | Draws from the session's seeded combat stream |
+| `LiveRolls` | Real resolution on the host | Wraps the `RngStream` it is given at construction (the seat's `COMBAT_ROLLS` stream, P13) and draws only from it (P13 need R-N1) |
 | `ForecastRolls` | The player forecast (question 8, A) | Hits land, chance effects fail; every probability is reported for display, and chance-gated effects are listed as "25%: +X" lines |
 | `ForcedRolls` | AI branch enumeration | Returns a given outcome sequence and its combined probability |
-| `SampledRolls` | AI sampling when branches are too many | A deterministic generator seeded from the session `seq`, so a resumed enemy phase makes identical decisions; never the combat stream |
+| `SampledRolls` | AI sampling when branches are too many | A deterministic generator seeded with P13's `RngKey.mix()` over the session `seq` and the candidate (unit, tile, target, weapon), so a resumed enemy phase makes identical decisions; never a stream (P13 need R-N2) |
+
+**The `RollSource` interface** (P02 need N8), shared by all four. Rolls are `Godot_FE`'s
+(`CustomUtilityLibrary.random_rolls_bool`): d100 means an integer from 0 to 99.
+
+| Method | Rule | Reported probability |
+|--------|------|----------------------|
+| `roll_hit_2rn(hit_percent: int) -> bool` | Two d100; hit if their integer average is below `hit_percent` | The true two-roll probability (pairs summing to at most `2 × hit_percent − 1`, over 10,000) |
+| `roll_percent(chance: int) -> bool` | One d100; success if below `chance` (crits, Chance conditions) | `chance` / 100 |
+| `pick_index(count: int) -> int` | Uniform pick (`RandomOf` selectors) | 1 / `count` per choice |
+
+Each call appends a `RollRecord` (kind, displayed value, probability, outcome) to the source, which
+is what the forecast displays and the branch enumeration multiplies.
 
 **What the AI gets:** an `ExchangeOutcome` summary built by running branches (every hit or miss,
 crit, chance proc, ending early when either unit is defeated): probability of a kill, probability
@@ -422,6 +466,13 @@ most two (Weapon slot plus a stowed weapon), where `Godot_FE` cycled a 4-slot in
 must be cheap to create (only the state an exchange can read, copied on write) and EB9 measures it.
 Exact enumeration up to a branch budget, then sampling, is the AI plan's choice once the numbers
 exist.
+
+**Sandbox state hook** (P02 need N9). The engine can't know the combat core's state, so EB4 defines
+an abstract `SandboxState` (`RefCounted`) with one method, `copy_for_sandbox() -> SandboxState`. A
+session holds its rules state as a `SandboxState`; the sandbox calls `copy_for_sandbox()` and
+copies the engine's instances, counters, timed modifiers and stat sheets itself. P02's
+`CombatState` extends it (copy on write where it matters; no nodes or Resources). EB4's tests use a
+small fake state.
 
 **Threading.** Sandboxes share no mutable state, so candidate evaluations are independent and can
 run in parallel on Godot's `WorkerThreadPool` (a group task over candidates, waiting for all to
@@ -462,7 +513,7 @@ type in its dropdowns. That is the "UI configurable" goal.
 | `EffectDefinition` | `id`, `trigger` (enum, `ALWAYS` for always-on), `scope`, `conditions[]`, `operations[]`, counter and charge settings, `tags` (`unique`, `curse`) | — |
 | `EffectCondition` | Base class with `test(ctx)` and `describe()` | `CounterCondition`, `ChanceCondition`, `WhileStateCondition`, `WhileCompareCondition`, `WhilePositionCondition`, `WhileRoleCondition`, `WhileLayerCondition` |
 | `EffectOperation` | Base class with `apply(ctx)`, `describe()`, and whether it is inline | `ModifyValue` (always-on modifiers), `ModifyThat` (inline), `AddTimedModifier`, `GainResource` (HP, Block, Stance), `DealSplash`, `ChangeBaseStat` (permanent, e.g. stat boosters, Training Weights), `SetPermission`, `CampaignGrant` (gold, heirloom, recruit, rune), `CustomOperation` (the script escape hatch) |
-| `TargetSelector` | Who an operation affects | `Owner`, `FactActor`, `FactTarget`, `Area` (center, radius, side filter, include self), `AllOfScope`, `RandomOf` (draws from the session stream) |
+| `TargetSelector` | Who an operation affects | `Owner`, `FactActor`, `FactTarget`, `Area` (center, radius, side filter, include self), `AllOfScope`, `RandomOf` (`pick_index` through the roll source) |
 | `ValueSource` | How much | `Constant`, `PercentOfFact` (amount, HP amount, overheal), `StatOf`, `CountOf` (selector), `CounterValue` |
 | Carrier definitions | `id`, display data, `effects: Array[EffectDefinition]` | Base `EffectCarrierDefinition`; heirlooms (curses are heirlooms tagged `curse`), items, unit types, enemy classes and runes extend it in their own plans |
 
@@ -557,13 +608,18 @@ CampaignSession
     on the encounter's own `CombatBus`, so client forecasts can peek encounter counters.
   - Cross-map heirlooms reach other players' units, so effects-system.md's **unique** tag rule
     applies to them.
-- **`CombatSession`** holds one map's state, its seeded RNG stream (from the upcoming RNG manager,
-  injected), an `EffectEngine`, a `CombatBus`, the fact log and a playback queue. It accepts
+- **`CombatSession`** holds one map's state, its seeded RNG stream (P13, injected), an
+  `EffectEngine`, a `CombatBus`, the fact log and a playback queue. It accepts
   commands through one validated entry point and returns the fact batch each command produced. In
   co-op (Option B) the host runs one session per player's map. Sessions have their own `session_id`
   and a list of `seats`, so Option D's shared battles need no reshaping.
 - **`CampaignSession`** holds run state and has its own engine and `CampaignBus`. It is the bridge
   into combat:
+  - **Randomness is injected, never looked up** (P13 need R-N3). `CampaignSession` holds P13's
+    `RngStreams` and hands out streams: the `CombatEncounter` receives the `ENCOUNTER_SETUP`
+    stream and draws the whole setup once at battle start (reinforcement waves included); each
+    `CombatSession` receives the setup results, its seat's `COMBAT_ROLLS` stream (wrapped in
+    `LiveRolls`) and its seat's `MAP_LOOT` lookup. Neither ever sees the registry.
   - At battle start it builds the `CombatEncounter` and each seat's `CombatSession`, and registers
     that seat's carriers (unit traits, item instances, heirlooms, curses) in the session, or in the
     encounter for cross-map scopes, copying campaign-lane counters in.
@@ -699,7 +755,8 @@ categorized, and tagged with the peer id, which matters most when two machines' 
 - **Desync detection** (debug builds): host and clients hash the session state after each batch;
   the host's hash travels with the batch, and a client logs WARN with the `seq` on a mismatch.
 - **Repro dumps.** `debug_dump()` on a session writes its latest snapshot, the commands since it
-  and the resulting facts as JSON to `user://logs/`. Resolution is deterministic, so a headless
+  and the resulting facts as JSON to `user://logs/`. Snapshots and dumps carry the run seed, the
+  build version and the live stream states (P13 need R-N4), so a dump names the run it came from. Resolution is deterministic, so a headless
   test can load the dump, replay the commands and reproduce the bug exactly.
 - `project.godot`'s `file_logging/enable_file_logging` (already recommended by `NetLog`'s doc)
   keeps every run's lines in `user://logs/godot.log` on each machine.
@@ -723,6 +780,61 @@ Each plan below builds on this one. The table is the interlink map.
 | Multiplayer combat (multiplayer-combat-options) | Map finished, call for aid, reinforcement sent / arrived, seat dropped / rejoined | — | Uses `CombatEncounter` transfers and rune routing | Net adapter sends session and encounter fact batches and `command_rejected`; rejoin via snapshot + catch-up log; drop policy; selection markers; one combat state per map |
 | Every UI / presentation plan | — | — | — | Views rebuild from mirror state at any moment; no optimistic changes; pending state on confirm |
 | Combat UI and forecast | Commands only | Runs player forecasts (`ForecastRolls`) from origin tile, path and weapon; reads `ValueBreakdown` and generated text | — | Request objects for popups. Owns the stub: investigate `Godot_FE`'s ranged multi-tile forecast defect (FR-GRID-6) |
+
+### Amendments from P02 and P13
+
+Added October 26, 2026, before EB2, from the combat core plan's
+[needs from P01](2026-10-26-combat-core.md#what-p02-needs-from-p01-eb2eb4) and the RNG plan's
+[needs from other plans](2026-10-26-rng-streams.md#what-p13-needs-from-other-plans). Each row
+names the step that builds it; rules already written into a section above are linked there.
+
+| # | Need | Step | Where |
+|---|------|------|-------|
+| N1 | Exact values; rounding once, per key | EB2 | [Value queries](#the-effect-engine) (question 17) |
+| N2 | `DamageStage` and the combat core's `CombatValue` keys | EB2 | Seeded keys, below |
+| N5 | The combat core's permission keys | EB2 | Seeded keys, below |
+| N3 | `EffectContext` fields for "that attack / that hit" | EB4 | Attack context, below |
+| N4 | Inline flags: lifesteal, skip Mitigation, damage type override | EB4 | Attack context, below |
+| N6 | Timed-modifier ends, uses and the boundary call | EB4 | [Timed modifiers](#the-effect-engine) (question 18) |
+| N7 | Per-map reset of combat-lane charges | EB4 | [Counter lanes](#the-effect-engine) |
+| N8 | `roll_hit_2rn` and `roll_percent` on every roll source | EB4 | [`RollSource` interface](#forecast-and-ai-simulation) |
+| N9 | Sandbox copies the combat state through `copy_for_sandbox()` | EB4 | [Sandbox state hook](#forecast-and-ai-simulation) |
+| N10 | `BLOCK_GAINED` inline window for every Block gain | EB4 | Block gains, below |
+| R-N1 | `LiveRolls` wraps a given `RngStream` | EB4 | [Roll sources](#forecast-and-ai-simulation) |
+| R-N2 | `SampledRolls` seeds with `RngKey.mix()` | EB4 | [Roll sources](#forecast-and-ai-simulation) |
+| R-N3 | Streams injected into the encounter and sessions | EB6 | [Sessions](#sessions) |
+| R-N4 | Run seed, build version and stream states in snapshots and dumps | EB7 | [Logging and debugging](#logging-and-debugging) |
+
+**Seeded keys (EB2).** EB2 creates the enums with the combat core's keys already in them, so EB2's
+tests run on real keys and P02 appends nothing later. Every key rounds `HALF_UP` unless noted.
+
+- `CombatValue`: `ATTACK_SPEED`, `NET_WEIGHT`, `ATK_X`, `PARRY`, `HIT`, `AVOID`, `CRIT_CHANCE`,
+  `CRIT_X`, `STANCE_MAX`, `SHOVE_DISTANCE`, `RANGE_MIN`, `RANGE_MAX`, `DAMAGE_TYPE` (an enum value:
+  replace-base and fixed modes only), `EFFECTIVE_MODIFIER`, `STAFF_AMOUNT`, `MOVEMENT`. The combat
+  core also reads `POUCH_ITEM_WEIGHT` from the campaign list, at battle start.
+- `DamageStage`: `ATTACK`, `MITIGATION`, `CRITICAL`, `MULTIPLIERS`, all `EXACT`.
+- Permission keys: `CAN_COUNTER` (denied while holding a staff), `UNSHOVABLE`,
+  `MAY_MOVE_AFTER_ACTING`, `FREE_WEAPON_SWAP`, `SKIP_MITIGATION_ON_CRIT`.
+- Base stats (HP, MGT, SPD, CON, DEF, RES, LCK) belong to the units plan (P03), which appends them.
+
+**Attack context (EB4).** `EffectContext` carries, for every trigger in an attack's or a hit's
+inline window: attacker id, defender id, weapon instance id, origin tile, distance, exchange role
+(attacker or defender), attack index within the exchange, whether the defender was Exposed before
+this hit, and whether this hit is a crit. Inline operations set:
+
+- **Flags** `LIFESTEAL` and `SKIP_MITIGATION`. Flags only turn on, never off, so the order of inline
+  operations still can't matter.
+- **A damage type override.** Two overrides on one hit resolve like a replace-base collision (the
+  most specific source wins, with a warning).
+
+**Block gains (EB4).** Every Block gain goes through one engine call that opens the `BLOCK_GAINED`
+inline window. That covers `GainResource(BLOCK)`, Block staves, Guard Tonics and Phase Start effects
+(Vanguard, Phalanx). The amount stays exact through the window and rounds halves up, never below 0
+(Brittle Guard). The Phase Start refresh to 0 is not a gain. A negative amount (Haunted's −2) is a
+loss: `BLOCK_LOST` (P02 CC1), with no window.
+
+**Build order.** EB2 and EB3 need nothing else. EB4 also needs the RNG plan's R1–R3 (`RngKey`,
+`RngStream`, `RngStreams`), which are pure and can be built alongside EB2–EB3.
 
 ### Rejected alternatives
 
@@ -778,12 +890,12 @@ EB1 facts + buses ──┬─────────────────�
 | Step | Files | Description | Risk | Verification |
 |------|-------|-------------|------|--------------|
 | EB1 Facts and buses | `scripts/bus/combat_fact.gd`, `campaign_fact.gd`, `combat_bus.gd`, `campaign_bus.gd`, `bus_channel.gd`, `bus_tracer.gd`; `scripts/autoload/net_log.gd` (append `COMBAT`, `EFFECTS`, `CAMPAIGN`, `AI` categories; widen class doc) | Fact classes with kinds, wire round-trip and a log-line formatter; buses with domain channels; tracer that records fact order | 🟢 | `tests/effects/run_all.gd`: wire round-trip; tracer order; fact log lines match the documented shape |
-| EB2 Values and modifiers | `scripts/effects/modifier.gd`, `value_breakdown.gd`, `combat_value.gd`, `campaign_value.gd`, `damage_stage.gd`, `stat_sheet.gd` (static part only; invalidation arrives in EB4) | The five modifier modes in fixed order (replace base, add / multiply, floor / cap, fixed, then rule clamps) and permission math, all with sources | 🟢 | Shuffled-source property test (order of sources never changes the total); one test per mode boundary (replace base keeps bonuses; fixed ignores them, floors and caps included; rule clamps still apply after fixed); denial beats grant; override precedence and its warning; highest floor and lowest cap; breakdown text names what a fixed value overrode |
+| EB2 Values and modifiers | `scripts/effects/modifier.gd`, `value_breakdown.gd`, `combat_value.gd`, `campaign_value.gd`, `damage_stage.gd`, `stat_sheet.gd` (static part only; invalidation arrives in EB4) | The five modifier modes in fixed order (replace base, add / multiply, floor / cap, fixed, then rule clamps) and permission math, all with sources; exact values with each key's rounding rule (`get_value` / `get_int`); the combat core's seeded keys and permissions ([Amendments](#amendments-from-p02-and-p13)) | 🟢 | Shuffled-source property test (order of sources never changes the total); one test per mode boundary (replace base keeps bonuses; fixed ignores them, floors and caps included; rule clamps still apply after fixed); denial beats grant; override precedence and its warning; highest floor and lowest cap; breakdown text names what a fixed value overrode; `get_value` stays exact (a halved 3 is 1.5) while `get_int` rounds by the key's rule (`HALF_UP` 1.5 → 2, `FLOOR` → 1, `EXACT` untouched); float error at a half doesn't flip the rounding (5 × 1.1 → 6) |
 | EB3 Definitions and blocks | `scripts/effects/effect_definition.gd`, `effect_carrier_definition.gd`, `blocks/conditions/*`, `blocks/operations/*`, `blocks/selectors/*`, `blocks/values/*` | The inspector model and `describe()` text generation | 🟡 many new `class_name`s | `--import`, then `--check-only` on every file; `describe()` snapshot per block |
-| EB4 Instances and engine | `scripts/effects/effect_instance.gd`, `effect_owner.gd`, `effect_context.gd`, `effect_engine.gd`, `reaction_queue.gd`, `timed_modifier.gd`, `rolls/roll_source.gd` (+ `live_rolls`, `forecast_rolls`, `forced_rolls`, `sampled_rolls`), `sandbox.gd`, `exchange_outcome.gd` | Registration and indexes, scope, dispatch, inline windows per trigger, inline vs queued, reaction queue (draining at every step boundary) and cap, counters and charges per lane, timed modifiers, observers, roll sources, the sandbox and branch summary, the `stats(unit_id)` read API with cached sheets, fact-driven invalidation and verify mode | 🟡 | Golden fact logs for the 13 coverage fixtures; determinism (shuffled registration order gives the same log); sandbox purity (real state, RNG and counters unchanged after any number of forecasts); a forecast with `ForcedRolls` matching a real resolution with the same outcomes gives the same facts; `ExchangeOutcome` kill probability matches hand-computed 2RN odds on a fixture; Momentum's +15 Hit appears in a branch after a miss; the same candidate set evaluated on `WorkerThreadPool` and single-threaded gives identical results; for each invalidating fact kind (equip, delta, gain, loss, timed modifier gained / expired, transfer between sessions) the cached value equals a fresh computation; the whole suite runs with verify mode on; the deepest known chain (Brute → Cleave → Defeated → Grave Candle) resolves; a deliberate loop fixture stops at depth 16; a "worst legitimate step" fixture (maximum bonus turns, AtkX 2, Cleave splash, both armies' heirlooms) stays under 256; a keg chain is never cut |
+| EB4 Instances and engine | `scripts/effects/effect_instance.gd`, `effect_owner.gd`, `effect_context.gd`, `effect_engine.gd`, `reaction_queue.gd`, `timed_modifier.gd`, `rolls/roll_source.gd` (+ `live_rolls`, `forecast_rolls`, `forced_rolls`, `sampled_rolls`), `sandbox.gd`, `sandbox_state.gd`, `roll_record.gd`, `exchange_outcome.gd` | Registration and indexes, scope, dispatch, inline windows per trigger, inline vs queued, reaction queue (draining at every step boundary) and cap, counters and charges per lane (combat lane fresh per session), timed modifiers with ends, uses and `reach_boundary()`, observers, roll sources (`roll_hit_2rn`, `roll_percent`, `pick_index`; `LiveRolls` over a given `RngStream`; `SampledRolls` from `RngKey.mix()`), the attack context's fields and flags, the single Block-gain path, the sandbox with its `SandboxState` hook and branch summary, the `stats(unit_id)` read API with cached sheets, fact-driven invalidation and verify mode. **Needs P13 R1–R3** | 🟡 | `roll_hit_2rn`'s reported probability equals the exact two-roll count at Hit 0, 1, 50, 99 and 100, and 10⁵ `LiveRolls` draws match it; `LiveRolls` advances only its own stream; `SampledRolls` gives the same draws for the same `seq` and candidate; each timed-modifier end expires at its boundary (Iron Wall at its own Phase End, War Horn at the next one); a "next attack" use is spent by a counter and by a miss, and an attack already under way when it was added doesn't spend it; staff, Guard Tonic and Phase Start Block gains all open `BLOCK_GAINED`; a per-map charge spent in one combat is full in the next; flags set in any order give the same hit; golden fact logs for the 13 coverage fixtures; determinism (shuffled registration order gives the same log); sandbox purity (real state, RNG and counters unchanged after any number of forecasts); a forecast with `ForcedRolls` matching a real resolution with the same outcomes gives the same facts; `ExchangeOutcome` kill probability matches hand-computed 2RN odds on a fixture; Momentum's +15 Hit appears in a branch after a miss; the same candidate set evaluated on `WorkerThreadPool` and single-threaded gives identical results; for each invalidating fact kind (equip, delta, gain, loss, timed modifier gained / expired, transfer between sessions) the cached value equals a fresh computation; the whole suite runs with verify mode on; the deepest known chain (Brute → Cleave → Defeated → Grave Candle) resolves; a deliberate loop fixture stops at depth 16; a "worst legitimate step" fixture (maximum bonus turns, AtkX 2, Cleave splash, both armies' heirlooms) stays under 256; a keg chain is never cut |
 | EB5 Catalog and content tests | `scripts/effects/effect_catalog.gd`, `tests/effects/content_test.gd`, `tests/effects/fixtures/*.tres` | Static catalog with typed lookups, loaded via `ResourceLoader.list_directory()` from `res://data/{heirlooms,curses,items/weapons,items/equipment,items/trinkets,items/consumables,runes,units,enemies,effects}`; content rules | 🟡 new registry | The content test passes on fixtures and fails on deliberately bad fixtures (id ≠ file name, duplicate id, dangling reference); every catalog definition hashes the same before and after the whole suite |
-| EB6 Sessions, encounter and bridge | `scripts/sessions/combat_session.gd`, `combat_encounter.gd`, `campaign_session.gd`, `command.gd`, `fact_playback.gd`, `presentation_request.gd`, `instance_id_allocator.gd` | The allocator with per-kind presets and `describe(id)`; INFO / DEBUG logging per [Logging and debugging](#logging-and-debugging); | Session skeletons with a minimal fake state for tests; the command queue (arrival stamps, atomic resolution, resolve-time validation, `command_rejected`, ownership check, `based_on_seq` stale-forecast check); fact batches with `seq`; the in-memory catch-up log; playback with speed and pause hooks; the encounter (cross-map instances, forwarding, delivery, routing, transfers); campaign→combat bridge with lane write-back | 🔴 sets the contracts every plan uses | Headless scenarios: start a battle, run fixture commands, end, with campaign lanes written back and combat lanes dropped; a unit moved between sessions keeps its counters; a cross-map fixture ("Every 10th Hit dealt by Any Ally Unit") counts hits on two sessions and delivers its operation to the right one; a positional condition never matches across sessions; two seats racing for one chest: the first resolves, the second is rejected at no cost; a stale attack is rejected, a stale move that is still legal is accepted; a command for another seat's unit is rejected |
-| EB7 Serialization, rejoin and repro | Changes in EB1, EB4 and EB6 files | `to_wire` / `from_wire`; capture/restore helpers; `snapshot()` / `load_snapshot()` on sessions and the encounter built from them; idempotent mirror apply by `seq`; debug state hash per batch; `debug_dump()` repro files | 🟡 | Round-trip tests, including the float-to-int conversion rule; a mirror rebuilt from snapshot + catch-up facts equals the host's state; a resent batch doesn't double-apply; ids minted after a resume match the original run; a dump replayed headlessly reproduces the same facts; a deliberately diverged mirror logs a hash mismatch |
+| EB6 Sessions, encounter and bridge | `scripts/sessions/combat_session.gd`, `combat_encounter.gd`, `campaign_session.gd`, `command.gd`, `fact_playback.gd`, `presentation_request.gd`, `instance_id_allocator.gd` | The allocator with per-kind presets and `describe(id)`; INFO / DEBUG logging per [Logging and debugging](#logging-and-debugging); | Session skeletons with a minimal fake state for tests; the command queue (arrival stamps, atomic resolution, resolve-time validation, `command_rejected`, ownership check, `based_on_seq` stale-forecast check); fact batches with `seq`; the in-memory catch-up log; playback with speed and pause hooks; the encounter (cross-map instances, forwarding, delivery, routing, transfers); campaign→combat bridge with lane write-back; stream injection (the encounter draws the setup once; each session gets its `COMBAT_ROLLS` stream and `MAP_LOOT` lookup) | 🔴 sets the contracts every plan uses | Headless scenarios: two seats' sessions roll independently, and neither holds the registry; start a battle, run fixture commands, end, with campaign lanes written back and combat lanes dropped; a unit moved between sessions keeps its counters; a cross-map fixture ("Every 10th Hit dealt by Any Ally Unit") counts hits on two sessions and delivers its operation to the right one; a positional condition never matches across sessions; two seats racing for one chest: the first resolves, the second is rejected at no cost; a stale attack is rejected, a stale move that is still legal is accepted; a command for another seat's unit is rejected |
+| EB7 Serialization, rejoin and repro | Changes in EB1, EB4 and EB6 files | `to_wire` / `from_wire`; capture/restore helpers; `snapshot()` / `load_snapshot()` on sessions and the encounter built from them; idempotent mirror apply by `seq`; debug state hash per batch; `debug_dump()` repro files carrying the run seed, build version and stream states | 🟡 | A dump records its run seed and stream states; round-trip tests, including the float-to-int conversion rule; a mirror rebuilt from snapshot + catch-up facts equals the host's state; a resent batch doesn't double-apply; ids minted after a resume match the original run; a dump replayed headlessly reproduces the same facts; a deliberately diverged mirror logs a hash mismatch |
 | EB8 Docs | `docs/design/event-bus.md` (new); `effect-triggers.md` (Campaign section, Block gained, inline-window column, per-map phases); `heirlooms.md` (Gilded Purse and Scrapper's Tongs wording); `multiplayer-combat-options.md` (questions 10–11); `.claude/rules/gdscript.md` §8.5 (point its link at `docs/design/event-bus.md`) | The living reference and the design-doc updates. The §8.5 rule subsection itself was added during planning (question 16) | 🟢 | Review |
 | EB9 Benchmark | `tests/bench/forecast_bench.tscn` + script | Seeded AI-like workload on a 6-vs-5 fixture map: sandbox creation cost, value queries with and without cached stat sheets, one player forecast, and a full `ExchangeOutcome` at exact enumeration for exchanges of 2, 4 and 8 attacks, each single-threaded and on `WorkerThreadPool` | 🟢 | Median and p95 printed; these numbers set the AI plan's branch budget. Until it runs, every performance statement is **unmeasured** |
 
