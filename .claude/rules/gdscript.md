@@ -637,6 +637,9 @@ presentation. The design is in `docs/plans/2026-10-23-event-bus-and-effects.md` 
   effects in the caller.
 - **Randomness goes through a roll source.** Real resolution uses the session's combat stream; never
   `randf()`, `randi()` or `pick_random()` in rules code.
+- **Gameplay randomness comes only from an `RngStream` handed to the code** (P13,
+  `docs/plans/2026-10-26-rng-streams.md`); cosmetic randomness uses its own unsaved generator in
+  presentation code and never a stream.
 - **Instance ids come only from `InstanceIdAllocator`** and are never parsed; use the session's
   `describe(id)` for log and error text.
 - **Code that may run in a sandbox on a worker thread** follows the first rule strictly and does not

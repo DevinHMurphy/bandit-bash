@@ -45,7 +45,7 @@ TBD. Known so far:
 | # | Question | Options | Recommendation | Answer |
 |---|----------|---------|----------------|--------|
 | 1 | What owns `CampaignSession`? | New run autoload / inside `SaveService` / other | TBD | |
-| 2 | The RNG manager (reserved `rng` keys in campaign and combat): this plan or its own? | — | TBD | |
+| 2 | The RNG manager (reserved `rng` keys in campaign and combat): this plan or its own? | — | Its own plan | **Answered October 26, 2026:** its own plan, P13 [2026-10-26-rng-streams.md](2026-10-26-rng-streams.md). This plan holds `RngStreams` in `CampaignSession` and registers its save sections from the autoload chosen in question 1. |
 | 3 | Price and scrap value of modified items (deltas): here or the items plan? | — | TBD | |
 
 ## Scope

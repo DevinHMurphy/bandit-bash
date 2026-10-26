@@ -145,8 +145,9 @@ lingering hurts, are fixed. How the hurt is dealt may change. Candidates:
 | Abyss | 3 or more | 50% of max HP |
 
 - Damage applies at each side's own **Phase End**, to that side's units on flooded tiles: player
-  units at the end of the player phase, enemy units at the end of the enemy phase. It resolves with
-  the other Phase End effects (Bleed, Poison).
+  units at the end of the player phase, enemy units at the end of the enemy phase. It applies after
+  that side's Phase End and Unit Turn End effects have resolved, so a Phase End heal lands first
+  (combat core plan, question 12).
 - Units that move through darkness without ending their side's phase in it take no damage.
 - Damage uses the tile's layer at the moment it applies, is rounded down with a minimum of 1, and
   can defeat a unit. Permadeath applies as always; a commander defeated by the darkness ends a solo

@@ -456,25 +456,27 @@ of them (e.g. "Before Combat: +2 Block").
 | Phase | When | Happens here |
 |-------|------|--------------|
 | Phase Start | A side's phase begins (player or enemy) | That side's units refresh Block and Stance, then Phase Start effects apply |
-| Unit Turn Start | A unit begins its action | Per-unit start effects |
+| Unit Turn Start | Each unit of the side, in the Phase Start window: after the refresh and Phase Start effects, before the side gets control (as `Godot_FE`'s beginning phase) | Per-unit start effects, at the unit's position at the start of the phase |
 | Before Combat | A combat exchange begins, before the first attack | Applies to both the initiator and the defender |
 | After Combat | A combat exchange resolves | Applies to both participants that survive |
-| Unit Turn End | A unit finishes its action | Per-unit end effects |
+| Unit Turn End | Each unit of the side, in the Phase End window: after the Phase End trigger and before darkness damage, mirroring Unit Turn Start; every unit gets it, acting or not | Per-unit end effects, at the unit's final position for the phase |
 | Phase End | A side's phase ends | End-of-phase effects: darkness damage, Phase End heals; statuses (Bleed, Poison) after the MVP |
 
 **Exchange.** The initiator takes the first turn, the defender the second; extra turns earned
 from Attack Speed are added at the end. The exchange ends as soon as either unit is defeated.
 
 The faster unit (initiator or defender) gets bonus turns from the Attack Speed gap. The first
-threshold is `ExtraTurnConstant = 4`, and each later one is 2 further apart than the last, the same
-spacing `Godot_FE/` used:
+threshold is `ExtraTurnConstant = 4` (a gap of 4 **or more**, Fire Emblem's rule), and each later
+one is 2 further apart than the last, the spacing `Godot_FE/` used. There is **no cap**:
 
 | AS gap | Bonus turns |
 |--------|-------------|
 | 0–3 | 0 |
 | 4–9 | 1 |
 | 10–17 | 2 |
-| 18+ | 3 (maximum) |
+| 18–27 | 3 |
+| 28–39 | 4 |
+| 40+ | 5, and so on (54, 70, …) |
 
 **Each turn** the attacker makes a number of attacks:
 
@@ -524,14 +526,15 @@ that changes damage is a modifier on one of these stages; see
 Attack     = Weapon.attack + Weapon.scaling_modifier * Unit.scaling_stat + Status.attack + Equipment.attack
              (scaling_stat is Might unless the weapon names another)
 Damage     = Attacker.attack - Defender.mitigation
-Mitigation = Unit.source_stat + Equipment + Heirloom + Status
+Mitigation = Unit.source_stat + Terrain (DEF or RES bonus) + Equipment + Heirloom + Status
 Effective  = (EffectiveModifier * Weapon.attack) + scaling + status + equipment,
              EffectiveModifier = 3 + status + equipment + heirloom bonuses
 ```
 
-Mitigation comes from the unit's own stat for the incoming damage type (table below), plus flat
-reductions from equipment, heirlooms and status effects ("take 5 less damage"). The defender's
-weapon does not add mitigation.
+Mitigation comes from the unit's own stat for the incoming damage type (table below), plus the
+DEF or RES bonus of the terrain it stands on ([unit-roster.md](unit-roster.md#movement-and-tags);
+Split takes half of each), plus flat reductions from equipment, heirlooms and status effects
+("take 5 less damage"). The defender's weapon does not add mitigation.
 
 | Damage type | Source stat |
 |-------------|--------------|
@@ -865,7 +868,7 @@ relying on an old value.
 | Crits | `crit − crit_avoid`, any time | Only when Exposed (Stance 0); base 25; no crit avoid |
 | Block, Stance | None | Core defensive systems; both are unit stats that refresh each turn |
 | Damage types | Physical, Magic, True | Physical, Magic, Split, Pure |
-| Extra strikes | At AS gaps of 4, 6, 8, … (its system doc also lists the cumulative gaps as 5, 11, 19, i.e. "more than"; check the code when porting) | Bonus turns at gaps of 4 or more, 10 or more and 18 or more, capped at 3 |
+| Extra strikes | At AS gaps strictly above 4, 10, 18 (5, 11, 19, …), uncapped (`combat_exchange.gd:470`; read as an off-by-one bug) | Bonus turns at gaps of 4 or more, 10 or more, 18 or more, 28 or more, …, uncapped |
 | XP | Per hit and per defeat, linear formula with tier multiplier; clamps 1–25 / 2–100 | Mostly shared per combat, plus a small capped personal bonus for actions |
 | Tiers and levels | Tiers 1, 2 and 4 with promotions; level caps per tier | No tiers: units are upgraded or unupgraded; no level cap |
 | Durability | Per use; weapons break | Only some weapons, per map |
@@ -1078,6 +1081,7 @@ are moved to [Superseded decisions](#superseded-decisions), so every row here is
 | October 24, 2026 | Recruits, key and boss combats | Recruits' join-level stats come from average growths. Key maps: the step's standard count +1 to +3, plus the mini-boss. Boss combats are fully scripted, developed levels of 15–20 minutes (par about 14–18), with variations later; the run-length target rises to 60–80 minutes. | Unspecified recruit stats and enemy counts; boss par 10–14; 60–75 minute target |
 | October 24, 2026 | Disconnects and forfeits | A disconnect pauses the game until the player reconnects; after 2 minutes the host can remove them (a forfeit). Non-host players can forfeit: they leave the campaign (seat removed from the save) and their run is archived as lost. | Undecided |
 | October 24, 2026 | Empty pools and modified items | An event option with an empty reward pool is greyed out; a shop, reward or chest slot with an empty pool rolls from its kind's main pool. Event-modified items are shown as "Infused <name>" with a marker. | Undecided |
+| October 26, 2026 | Bonus turns and combat rules | Bonus turns at AS gaps of 4 or more, 10, 18, 28, 40, … (each step 2 wider), **uncapped**. Damage stages 1–4 keep exact values; stage 5 rounds once, halves up. Crits roll one d100. A defender counters only if its weapon's range covers the distance; a staff holder never counters; heal staves target only damaged allies. A shove is offered only if it moves the target or bumps or spikes it. Terrain DEF/RES adds to mitigation. See the combat core plan. | Bonus turns capped at 3 (October 14, 2026); unstated rounding, crit roll, counter and shove rules |
 
 ### Superseded decisions
 
@@ -1094,3 +1098,6 @@ column replaced them.
 | October 20, 2026 | Permadeath | No retreat, revival or extra lives anywhere, in solo or co-op: every unit has permadeath, and a fallen commander ends the run. Camp loses Revive; co-op loses downed commanders and retreat. The negative feedback loop is accepted. | October 20, 2026, Co-op commander and Revive event / Revive shrine. No retreat, no Camp Revive and the accepted feedback loop still stand |
 | October 22, 2026 | Spiked walls | Spikes are a wall tile no unit can enter; a unit shoved into one takes 4 damage (splash rules) and stays put. They are the only bump damage; shoving into other walls or units isn't allowed. | October 22, 2026, Bump and Shove distance: shoving into a unit bumps both for 2. Spiked walls themselves still stand |
 | October 22, 2026 | Events | First-pass pool of 12 (8 reworked from `Godot_FE`, 4 new, revive shrine included; shrine appears only once a unit has fallen); no repeats per run; guaranteed stat changes only. Curses are negative heirlooms, removed at the Guildhall (50, +25 per removal). Co-op: same event, own choice. See events.md. | October 22, 2026, Curses and team events: curses are permanent; some events are team choices; Black Altar makes 13. The rest still stands |
+| October 26, 2026 | Unit Turn Start and Breaker | Unit Turn Start fires for each unit of a side in the Phase Start window, after the refresh and Phase Start effects and before the side gets control (`Godot_FE`'s beginning phase), so per-unit start effects use the position at the start of the phase. Extra Stance loss on a hit (Breaker, Breaker's Maul) applies only when damage reached Block or HP. | Unit Turn Start as "a unit begins its action"; Breaker on fully countered hits unstated |
+| October 26, 2026 | Unit Turn End | Fires for each unit of a side in the Phase End window, mirroring Unit Turn Start; every unit gets both, acting or not, and per-unit end effects (Radiance) use final positions. | Unit Turn End as "a unit finishes its action" |
+| October 26, 2026 | Phase End order | At Phase End, Phase End and Unit Turn End effects (heals, Block) resolve before darkness damage, so a Phase End heal can save a unit from that phase's darkness. | Unstated |

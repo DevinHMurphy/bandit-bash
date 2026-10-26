@@ -55,10 +55,10 @@ phase ends when every player with units on it has ended their turn (event bus pl
 | Trigger | Fires when |
 |---------|------------|
 | Phase Start | A side's phase begins, after that side's Block and Stance refresh |
-| Unit Turn Start | A unit begins its action |
+| Unit Turn Start | For each unit of a side, at its side's Phase Start, after Phase Start effects and before the side gets control |
 | Before Combat | A combat exchange begins, before the first attack |
 | After Combat | A combat exchange resolves, for each participant that survives |
-| Unit Turn End | A unit finishes its action |
+| Unit Turn End | For each unit of a side, at its side's Phase End, after the Phase End trigger and before darkness damage; every unit gets it, acting or not |
 | Phase End | A side's phase ends |
 
 **Combat events.** Each event has a pair: one side does it, the other side has it done to them.
