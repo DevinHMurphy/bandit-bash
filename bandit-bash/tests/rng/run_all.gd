@@ -10,11 +10,13 @@
 # ==============================================================================
 
 extends SceneTree
-## Headless tests for the RNG streams: keys and the SplitMix64 mixer ([RngKey]).
+## Headless tests for the RNG streams: keys and the SplitMix64 mixer ([RngKey]) and streams
+## ([RngStream]).
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/rng/run_all.gd[/code][br]
-## Prints PASS or FAIL per case and exits with code 1 if any case fails.[br]
+## Prints PASS or FAIL per case and exits with code 1 if any case fails. Cases that feed in bad
+## input make the RNG classes log errors on purpose; only FAIL lines mean a problem.[br]
 ## Expected 64-bit values are written as 16 hex digits (unsigned two's complement) and were
 ## computed outside Godot with arbitrary-precision integers, so they check the limb arithmetic
 ## rather than repeat it.
@@ -74,6 +76,24 @@ const PURPOSE_VALUES: Dictionary[String, int] = {
 	"COMBAT_ROLLS": 13,
 }
 
+# PCG32 golden draws, computed outside Godot with a reference PCG32 seeded the way Godot seeds it
+# (it reproduces Godot's own state and first draws for seed 12345, pinned below):
+# [stream seed, state after seeding, first eight d100 rolls (0-99), state after those eight].
+const STREAM_GOLDENS: Array = [
+	[
+		"bc77f654851212ec", "62431fcec4f6c10e",
+		[70, 21, 59, 87, 64, 45, 60, 70], "cc2d5a3f97d8faf6",
+	],
+	[
+		"3a4d5c5407d30526", "0e0c0dfeacce1b40",
+		[50, 97, 0, 20, 87, 3, 36, 30], "",
+	],
+]
+const SEED_12345_STATE: String = "946bacc26b2c1a97"
+
+# 2^53: the largest integer below which every integer survives as a JSON number.
+const JSON_EXACT_LIMIT: int = 9007199254740992
+
 const _LOW_32: int = 0xFFFFFFFF
 const _TWO_POW_31: int = 0x80000000
 const _TWO_POW_32: int = 0x100000000
@@ -84,7 +104,7 @@ var _passes: int = 0
 
 
 func _init() -> void:
-	print("--- RNG stream tests ---")
+	print("--- RNG stream tests. Errors from RngStream below are expected. ---")
 
 	_test_hex_helpers_round_trip()
 	_test_mix_matches_splitmix64_reference()
@@ -95,6 +115,15 @@ func _init() -> void:
 	_test_each_key_part_changes_the_seed()
 	_test_save_key_round_trip()
 	_test_save_key_rejects_bad_text()
+	_test_stream_golden_first_draws()
+	_test_stream_capture_restore_continues()
+	_test_stream_capture_survives_json()
+	_test_stream_restore_rejects_bad_text()
+	_test_roll_percent_draws_once()
+	_test_pick_index()
+	_test_pick_weighted_distribution()
+	_test_pick_weighted_rejects_bad_weights()
+	_test_shuffle_indices()
 
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)
@@ -234,6 +263,226 @@ func _test_save_key_round_trip() -> void:
 func _test_save_key_rejects_bad_text() -> void:
 	for text: String in ["", "1:2:3", "1:2:3:4:5:6", "a:1:2:3:4", "9:2:x:0:-1", "99:0:0:0:0"]:
 		_check("save key: rejects \"%s\"" % [text], RngKey.from_save_key(text) == null)
+
+
+func _test_stream_golden_first_draws() -> void:
+	var stream_12345: RngStream = RngStream.new(12345)
+	_check(
+			"stream golden: Godot's state for seed 12345",
+			stream_12345.capture() == SEED_12345_STATE,
+			stream_12345.capture()
+	)
+
+	for golden: Array in STREAM_GOLDENS:
+		var seed_hex: String = golden[0]
+		var stream: RngStream = RngStream.new(_from_hex(seed_hex))
+		_check(
+				"stream golden: %s state after seeding" % [seed_hex],
+				stream.capture() == golden[1],
+				stream.capture()
+		)
+		var rolls: Array[int] = []
+		for i: int in 8:
+			rolls.append(stream.randi_range(0, 99))
+		_check(
+				"stream golden: %s first eight d100" % [seed_hex],
+				rolls == Array(golden[2], TYPE_INT, &"", null),
+				str(rolls)
+		)
+		var after: String = golden[3]
+		if not after.is_empty():
+			_check(
+					"stream golden: %s state after eight draws" % [seed_hex],
+					stream.capture() == after,
+					stream.capture()
+			)
+
+	var derived: RngStream = RngStream.new(RngKey.derive_seed(
+			RUN_SEED, RngKey.RngPurpose.REWARD, 2, 5, 0, -1
+	))
+	_check(
+			"stream golden: seeded from a derived key",
+			derived.capture() == "62431fcec4f6c10e",
+			derived.capture()
+	)
+
+
+func _test_stream_capture_restore_continues() -> void:
+	var stream: RngStream = RngStream.new(_from_hex("bc77f654851212ec"))
+	for i: int in 5:
+		stream.randi_range(0, 99)
+	var saved: String = stream.capture()
+	var expected: Array[int] = _draws(stream, 12)
+
+	var other: RngStream = RngStream.new(999)
+	_check("capture/restore: restore accepts a capture", other.restore(saved))
+	_check(
+			"capture/restore: another stream continues identically",
+			_draws(other, 12) == expected
+	)
+
+	_check("capture/restore: restore rewinds the same stream", stream.restore(saved))
+	_check("capture/restore: rewound draws repeat", _draws(stream, 12) == expected)
+	_check(
+			"capture/restore: capture after restore matches",
+			stream.restore(saved) and stream.capture() == saved
+	)
+
+
+func _test_stream_capture_survives_json() -> void:
+	var stream: RngStream = RngStream.new(_from_hex("bc77f654851212ec"))
+	var state: int = _from_hex(stream.capture())
+	_check(
+			"json: the state is above 2^53",
+			state > JSON_EXACT_LIMIT or state < -JSON_EXACT_LIMIT,
+			str(state)
+	)
+
+	var as_number: Variant = JSON.parse_string(JSON.stringify({"state": state}))
+	var number_back: float = (as_number as Dictionary).get("state", 0.0)
+	_check("json: the state as a number loses bits", int(number_back) != state)
+
+	var expected: Array[int] = _draws(RngStream.new(_from_hex("bc77f654851212ec")), 10)
+	var parsed: Variant = JSON.parse_string(JSON.stringify({"state": stream.capture()}))
+	var text: String = (parsed as Dictionary).get("state", "")
+	var restored: RngStream = RngStream.new(0)
+	_check(
+			"json: the captured string restores exactly",
+			restored.restore(text) and _draws(restored, 10) == expected
+	)
+
+
+func _test_stream_restore_rejects_bad_text() -> void:
+	var stream: RngStream = RngStream.new(42)
+	var before: String = stream.capture()
+	var all_rejected: bool = true
+	for text: String in ["", "62431fcec4f6c10", "62431fcec4f6c10e0", "62431fcec4f6c1zz",
+			"-2431fcec4f6c10e", "+2431fcec4f6c10e"]:
+		all_rejected = all_rejected and not stream.restore(text)
+	_check("restore: rejects malformed states", all_rejected)
+	_check("restore: a rejected state leaves the stream unchanged", stream.capture() == before)
+	_check(
+			"restore: upper-case hex accepted",
+			stream.restore("62431FCEC4F6C10E") and stream.capture() == "62431fcec4f6c10e"
+	)
+
+
+func _test_roll_percent_draws_once() -> void:
+	var stream: RngStream = RngStream.new(7)
+	var twin: RngStream = RngStream.new(7)
+	var matches_d100: bool = true
+	var never_at_0: bool = true
+	var always_at_100: bool = true
+	for i: int in 300:
+		var chance: int = i % 3 * 50
+		var rolled: bool = stream.roll_percent(chance)
+		var expected: bool = twin.randi_range(0, 99) < chance
+		matches_d100 = matches_d100 and rolled == expected
+		never_at_0 = never_at_0 and not (chance == 0 and rolled)
+		always_at_100 = always_at_100 and (chance != 100 or rolled)
+	_check("roll_percent: one d100 below the chance, one draw per call", matches_d100)
+	_check("roll_percent: chance 0 never succeeds", never_at_0)
+	_check("roll_percent: chance 100 always succeeds", always_at_100)
+	_check("roll_percent: same position as the twin", stream.capture() == twin.capture())
+
+
+func _test_pick_index() -> void:
+	var stream: RngStream = RngStream.new(11)
+	var in_range: bool = true
+	var seen: Dictionary[int, bool] = {}
+	for i: int in 200:
+		var picked: int = stream.pick_index(5)
+		in_range = in_range and picked >= 0 and picked < 5
+		seen[picked] = true
+	_check("pick_index: always in range", in_range)
+	_check("pick_index: every index reachable", seen.size() == 5, str(seen.keys()))
+
+	var before: String = stream.capture()
+	_check("pick_index: count 1 is 0", stream.pick_index(1) == 0)
+	_check("pick_index: count 0 is -1", stream.pick_index(0) == -1)
+	_check("pick_index: count 0 and 1 draw nothing", stream.capture() == before)
+
+
+func _test_pick_weighted_distribution() -> void:
+	var weights: PackedInt32Array = [1, 2, 3, 0, 4]
+	var draws: int = 100000
+	var counts: PackedInt32Array = [0, 0, 0, 0, 0]
+	var stream: RngStream = RngStream.new(_from_hex("3a4d5c5407d30526"))
+	for i: int in draws:
+		var picked: int = stream.pick_weighted(weights)
+		if picked >= 0:
+			counts[picked] += 1
+
+	_check("pick_weighted: weight 0 never picked", counts[3] == 0, str(counts))
+	# NOTE: the stream is seeded, so the counts are fixed; 0.01 is about 7 standard deviations at
+	# this many draws, so a correct pick passes and an off-by-one weight boundary fails.
+	var within: bool = true
+	for i: int in weights.size():
+		var share: float = float(counts[i]) / float(draws)
+		within = within and absf(share - float(weights[i]) / 10.0) < 0.01
+	_check("pick_weighted: shares match weight / total", within, str(counts))
+
+	var twin: RngStream = RngStream.new(_from_hex("3a4d5c5407d30526"))
+	var expected_first: int = -1
+	var remaining: int = twin.randi_range(0, 9)
+	for i: int in weights.size():
+		remaining -= weights[i]
+		if remaining < 0:
+			expected_first = i
+			break
+	_check(
+			"pick_weighted: one integer roll over the total",
+			RngStream.new(_from_hex("3a4d5c5407d30526")).pick_weighted(weights) == expected_first
+	)
+
+
+func _test_pick_weighted_rejects_bad_weights() -> void:
+	var stream: RngStream = RngStream.new(3)
+	var before: String = stream.capture()
+	_check("pick_weighted: empty is -1", stream.pick_weighted(PackedInt32Array()) == -1)
+	_check("pick_weighted: all zero is -1", stream.pick_weighted(PackedInt32Array([0, 0])) == -1)
+	_check("pick_weighted: negative is -1", stream.pick_weighted(PackedInt32Array([3, -1])) == -1)
+	_check(
+			"pick_weighted: total above 2^31 is -1",
+			stream.pick_weighted(PackedInt32Array([2147483647, 2])) == -1
+	)
+	_check("pick_weighted: rejected calls draw nothing", stream.capture() == before)
+	_check(
+			"pick_weighted: total of exactly 2^31 accepted",
+			stream.pick_weighted(PackedInt32Array([2147483647, 1])) >= 0
+	)
+
+
+func _test_shuffle_indices() -> void:
+	var order: PackedInt32Array = RngStream.new(5).shuffle_indices(10)
+	var sorted: PackedInt32Array = order.duplicate()
+	sorted.sort()
+	_check(
+			"shuffle_indices: a permutation of 0 to 9",
+			sorted == PackedInt32Array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]),
+			str(order)
+	)
+	_check(
+			"shuffle_indices: same seed, same order",
+			RngStream.new(5).shuffle_indices(10) == order
+	)
+	_check(
+			"shuffle_indices: another seed, another order",
+			RngStream.new(6).shuffle_indices(10) != order
+	)
+	_check("shuffle_indices: 0 is empty", RngStream.new(5).shuffle_indices(0).is_empty())
+	_check(
+			"shuffle_indices: 1 is [0]",
+			RngStream.new(5).shuffle_indices(1) == PackedInt32Array([0])
+	)
+
+
+# The next `count` d100 rolls of a stream.
+func _draws(stream: RngStream, count: int) -> Array[int]:
+	var rolls: Array[int] = []
+	for i: int in count:
+		rolls.append(stream.randi_range(0, 99))
+	return rolls
 
 
 # 16 lowercase hex digits of value's two's-complement bits. Shifts only non-negative values,
