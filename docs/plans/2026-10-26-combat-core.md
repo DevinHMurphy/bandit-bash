@@ -368,7 +368,8 @@ Haste rune and Quick Soles change it; P03 supplies the base stat and P04 spends 
 `DamageStage` keys (`ATTACK`, `MITIGATION`, `CRITICAL`, `MULTIPLIERS`). It reads
 `POUCH_ITEM_WEIGHT` (P01's campaign list, read at battle start).
 
-**Permissions:** `CAN_COUNTER` (denied while holding a staff), `UNSHOVABLE`,
+**Permissions:** `CAN_COUNTER` (denied while holding a staff), `CAN_BE_SHOVED` (Unshovable denies
+it; P01 question 19),
 `MAY_MOVE_AFTER_ACTING` (Skirmisher, Bloodhound's Collar), `FREE_WEAPON_SWAP` (Sidearm),
 `SKIP_MITIGATION_ON_CRIT` (Kukri).
 
@@ -380,6 +381,7 @@ Haste rune and Quick Soles change it; P03 supplies the base stat and P04 spends 
 | Kinds `BLOCK_STANCE_REFRESHED`, `STANCE_CHANGED`, `ITEM_USED`, `WEAPON_SWAPPED`, `RUNE_USED`, `UNIT_WAITED`, `BLOCK_LOST` | Every state change emits a fact; `BLOCK_LOST` covers Block taken away outside damage (Haunted: "loses 2 Block") |
 | `Source.SPIKE` | Spiked-wall damage is separable from a bump |
 | `PHASE_START` carries the turn number in `amount` | The mirror and presentation know the turn |
+| New field `item_id`, appended after `side` (P01 question 20, fix F2) | `ITEM_USED`, `WEAPON_SWAPPED` and `RUNE_USED` name the item, weapon or rune; `RUNE_USED` carries the casting seat in `amount`. Mirrors spend charges and empty rune slots from them |
 
 ### What P02 needs from P01 (EB2–EB4)
 

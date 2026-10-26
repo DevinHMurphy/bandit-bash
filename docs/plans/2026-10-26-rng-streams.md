@@ -1,6 +1,6 @@
 # Plan: RNG Streams
 **Date:** October 26, 2026
-**Status:** **Approved** October 26, 2026 (review fixes: `TEAM_CHOICE`, per-seat encounter additions, 16-bit-limb mixer, integer weights, starting-heirloom draws). Orchestrator ID
+**Status:** **Approved** October 26, 2026 (review fixes: `TEAM_CHOICE`, per-seat encounter additions, 16-bit-limb mixer, integer weights, starting-heirloom draws); R1–R3 built October 26, 2026 (126 headless tests pass). Orchestrator ID
 **P13** ([game-orchestrator.md](game-orchestrator.md)). Answers question 2 of the
 [campaign and run flow stub](2026-10-24-campaign-run-flow.md).
 
@@ -109,6 +109,10 @@ A **key** names one stream: `(purpose, floor, node, seat, index)`.
   overflow: multiplication is done in **16-bit limbs** (every partial product stays below 2^32),
   additions are masked to 64 bits, and right shifts are **masked logical shifts** (GDScript's `>>`
   is arithmetic on negative values). Reference SplitMix64 vectors pin its output.
+- **Chaining** (as built): the state starts at 0 and folds in each value as
+  `splitmix64(state ^ value)`, so a single value gives standard SplitMix64 output.
+- **Save key** (as built): the five parts as numbers joined by `:`, purpose first (e.g. `9:2:5:0:-1`),
+  read back by `RngKey.from_save_key()`. Numbers, not names, so renaming a purpose changes no save.
 - A stream's sequence depends only on its key, so a new purpose, a new node type or an extra draw in
   one system never changes another stream.
 
@@ -171,7 +175,8 @@ one shared running stream during a battle, each draw would shift the other copy'
   wave's enemy group is part of the setup result; a session later reads its wave from that result
   and never rolls it.
 - **Sessions receive setup results, never the setup stream.**
-- A test asserts that every shared purpose is drawn only inside its one owner's setup call.
+- A test asserts that every shared purpose is drawn only inside its one owner's setup call (built
+  with the owners: P01 EB6 for `ENCOUNTER_SETUP`, P08 for the campaign purposes; see R6).
 
 ### Running within a node
 
@@ -219,9 +224,9 @@ for the whole battle; a Guildhall's `PREFIX_REROLL` stream advances with each re
 
 | Class | Public surface |
 |-------|----------------|
-| `RngKey` | `enum RngPurpose`; `static func derive_seed(run_seed, purpose, floor, node, seat, index) -> int`; `static func mix(values: PackedInt64Array) -> int` (the SplitMix64 chain, also used by `SampledRolls`); `func to_save_key() -> String` |
-| `RngStream` | `randi_range(min, max)`, `randf()`, `roll_percent(chance) -> bool` (one roll), `pick_index(count)`, `pick_weighted(weights: PackedInt32Array) -> int` (integer weights and an integer roll, so results are exact on every platform; every weight in the design docs is an integer), `shuffle_indices(count) -> PackedInt32Array`, `capture() -> String` (state), `restore(state: String)` |
-| `RngStreams` | `stream(key) -> RngStream`, `drop_node(floor, node)`, `capture_campaign() / restore_campaign()`, `capture_combat() / restore_combat()`, `run_seed` |
+| `RngKey` | `enum RngPurpose` (values 0–13 in catalog order; `ENCOUNTER_SETUP` is one purpose, shared or per seat by `seat`); the constructor and five fields (`purpose`, `floor_number`, `node`, `seat`, `index`; `floor_number` because `floor` is a Godot built-in); `static func derive_seed(run_seed, purpose, floor_number, node, seat, index) -> int`; `static func mix(values: PackedInt64Array) -> int` (the SplitMix64 chain, also used by `SampledRolls`); `func to_save_key() -> String`; `static func from_save_key(text) -> RngKey` (null if invalid) |
+| `RngStream` | `RngStream.new(stream_seed)`; `randi_range(min, max)`, `randf()`, `roll_percent(chance) -> bool` (one roll), `pick_index(count)`, `pick_weighted(weights: PackedInt32Array) -> int` (integer weights and an integer roll, so results are exact on every platform; every weight in the design docs is an integer), `shuffle_indices(count) -> PackedInt32Array`, `capture() -> String` (state), `restore(state: String) -> bool`. `pick_index(1)` and `randi_range(n, n)` use no draw (Godot's behavior; still deterministic) |
+| `RngStreams` | `stream(key) -> RngStream`, `drop_node(floor, node)`, `capture_campaign() / restore_campaign() -> bool`, `capture_combat() / restore_combat() -> bool` (all-or-nothing: one bad entry restores nothing, like `SaveSection.restore`; combat holds `COMBAT_ROLLS` and `MAP_LOOT`, campaign everything else, `ENCOUNTER_SETUP` neither), `run_seed` (read-only) |
 | `RunSeed` | `generate() -> int`, `format(seed) -> String`, `parse(text) -> int` (debug entry) |
 
 P01's 2RN hit roll is built on `RngStream` by `LiveRolls` (P02 need N8). Weighted picks replace
@@ -275,7 +280,7 @@ R-N5 and R-N6 wait on P04 and P08.
 | R3 Registry | `scripts/rng/rng_streams.gd` | Lazy creation, drop per node, campaign and combat capture and restore | 🟢 | R2 | Draws on one key never change another; two seats get different `REWARD` streams and the same `ENCOUNTER_SETUP` stream |
 | R4 Run seed | `scripts/rng/run_seed.gd`, `scripts/autoload/save_service.gd` (two `ASSUMPTION` sites), debug panel field | 52-bit generation, format and parse, debug entry; replaces `randi()` | 🟡 edits an existing autoload | R1 | New runs get seeds below 2^52; format → parse round trip; a typed seed reproduces a run |
 | R5 Save sections | `scripts/rng/rng_save_section.gd` (campaign and combat) | The two `rng` sections | 🟡 save format (filling reserved sections) | P08 question 1 (owner autoload) | Save, quit, resume mid-battle and mid-event reproduces the same results; `BATTLE_RETRY` replays the Begin rolls |
-| R6 Injection | P01 EB4 `LiveRolls` and EB6 session wiring (done in P01's steps against this contract) | Sessions receive streams, never the registry | 🟡 | EB4, EB6 | P01's golden logs run on seeded streams |
+| R6 Injection | P01 EB4 `LiveRolls` and EB6 session wiring (done in P01's steps against this contract) | Sessions receive streams, never the registry. The owner that creates streams logs each creation at DEBUG with its key and seed, and carries the per-draw trace flag (see [Logging](#logging)); the registry stays pure, with no `NetLog` | 🟡 | EB4, EB6 | P01's golden logs run on seeded streams; "every shared purpose is drawn only inside its one owner's setup call" (EB6 for `ENCOUNTER_SETUP`, P08 for the campaign purposes) |
 | R7 Docs | `docs/design/save-system.md` (describe the `rng` sections), orchestrator, campaign stub question 2 | Living docs | 🟢 | R5 | Review |
 
 R1–R3 are pure and can start as soon as this plan is approved; they unblock EB4's `LiveRolls` and
