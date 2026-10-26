@@ -24,23 +24,22 @@ extends RefCounted
 ## ([method to_wire]). Ids are opaque: never parse them; use the session's describe for text.
 ##
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
-##
-## @todo: TOD-001 - Record which side a PHASE_START or PHASE_END fact belongs to.
+## @tutorial(Combat core plan): docs/plans/2026-10-26-combat-core.md
 
 ## What happened. Sent over the network as an int: [b]append only[/b], with explicit values.
 enum Kind {
-	# TODO(TOD-001): Record which side PHASE_START and PHASE_END belong to; no field says yet.
-	## A side's phase began, after that side's Block and Stance refresh.
+	## [member side]'s phase began, after its Block and Stance refresh; [member amount] is the turn,
+	## which rises at the player Phase Start.
 	PHASE_START = 0,
-	## The actor began its action.
+	## The actor's turn began, in its side's Phase Start window, before the side gets control.
 	UNIT_TURN_START = 1,
 	## An exchange began, before the first attack. One fact per participant; target: its opponent.
 	BEFORE_COMBAT = 2,
 	## An exchange resolved. One fact per surviving participant; target: its opponent.
 	AFTER_COMBAT = 3,
-	## The actor finished its action.
+	## The actor's turn ended, in its side's Phase End window, whether it acted or not.
 	UNIT_TURN_END = 4,
-	## A side's phase ended.
+	## [member side]'s phase ended.
 	PHASE_END = 5,
 	## The actor attacked the target, hit or miss. Each attack counts, so AtkX 2 is two facts.
 	ATTACK_MADE = 6,
@@ -100,6 +99,25 @@ enum Kind {
 	MODIFIER_GAINED = 33,
 	## A timed modifier from [member source_effect_id] on the actor expired.
 	MODIFIER_EXPIRED = 34,
+	## The actor's Block was cleared to 0 and its Stance set to its maximum, at its side's Phase
+	## Start. Not a Block gain or loss.
+	BLOCK_STANCE_REFRESHED = 35,
+	## The actor's Stance changed outside a refresh (a hit, Shatter, an effect), never below 0.
+	STANCE_CHANGED = 36,
+	# ASSUMPTION: the item's instance id has no field; actor is the user, target the unit it was
+	# used on (itself or an adjacent ally). The combat core plan doesn't place the item.
+	## The actor used a Pouch item on the target (itself or an adjacent ally).
+	ITEM_USED = 37,
+	## The actor swapped its Weapon slot and stowed weapon.
+	WEAPON_SWAPPED = 38,
+	# ASSUMPTION: a rune has no owner, so actor is empty, target is what it was cast on and tile
+	# its tile; the rune's id has no field. The combat core plan doesn't place either.
+	## A rune was cast on the target.
+	RUNE_USED = 39,
+	## The actor waited, ending its turn.
+	UNIT_WAITED = 40,
+	## The actor lost Block outside damage (Haunted's "loses 2 Block"). No inline window.
+	BLOCK_LOST = 41,
 }
 
 ## What produced an amount. Sent over the network as an int: [b]append only[/b].
@@ -116,6 +134,19 @@ enum Source {
 	DARKNESS = 4,
 	## An effect's operation, named by [member source_effect_id].
 	EFFECT = 5,
+	## A spiked wall a shoved unit was pushed into.
+	SPIKE = 6,
+}
+
+## Whose phase a [constant PHASE_START] or [constant PHASE_END] fact belongs to. Sent over the
+## network as an int: [b]append only[/b].
+enum CombatSide {
+	## Not a phase fact.
+	NONE = 0,
+	## The player side: every seat's units on this map.
+	PLAYER = 1,
+	## The enemy side.
+	ENEMY = 2,
 }
 
 ## The damage type of an attack, which picks the defender's mitigation stat (game-vision.md
@@ -138,7 +169,7 @@ enum DamageType {
 const NO_TILE: Vector2i = Vector2i(-1, -1)
 
 # Slot types of the wire array, in to_wire() order: i = int, s = String.
-const WIRE_PATTERN: String = "iiissiiiiisiii"
+const WIRE_PATTERN: String = "iiissiiiiisiiii"
 
 # Largest integer a JSON number (a double) holds exactly, 2^53. A wire array that went through JSON
 # arrives with float numbers; anything beyond this lost precision on the way.
@@ -197,6 +228,9 @@ var tile: Vector2i = NO_TILE
 ## Bit set of extra details. No bits are defined yet.
 var flags: int = 0
 
+## Whose phase a phase fact belongs to; [constant CombatSide.NONE] on every other kind.
+var side: CombatSide = CombatSide.NONE
+
 
 func _init(fact_kind: Kind, fact_actor_id: String = "", fact_target_id: String = "") -> void:
 	kind = fact_kind
@@ -223,12 +257,13 @@ func to_wire() -> Array:
 		tile.x,
 		tile.y,
 		flags,
+		side,
 	]
 
 
 ## One log line in the shape the event bus plan documents, without NetLog's prefix:[br]
 ## [code]s0#143 HIT_TAKEN unit:57 (Hakkapel) <- enemy:61 (Brute) amount 6 (hp 4, block 2) source
-## attack[/code]
+## attack[/code], or [code]s0#1 PHASE_START side player amount 3[/code]
 ##
 ## Empty fields are left out, and amounts print only when one is non-zero.
 ## [param describe]: turns an id into display text (the session's describe); when invalid, ids
@@ -240,6 +275,8 @@ func to_log_line(describe: Callable = Callable()) -> String:
 	if not target_id.is_empty():
 		parts.append("<-" if RECEIVED_KINDS.has(kind) else "->")
 		parts.append(_describe_id(target_id, describe))
+	if side != CombatSide.NONE:
+		parts.append("side %s" % [String(CombatSide.find_key(side)).to_lower()])
 	if amount != 0 or hp_amount != 0 or block_amount != 0:
 		parts.append("amount %d" % [amount])
 		if hp_amount != 0 or block_amount != 0:
@@ -285,10 +322,12 @@ static func from_wire(data: Array) -> CombatFact:
 	var source_value: int = values[9]
 	var seq_value: int = values[1]
 	var session_value: int = values[2]
+	var side_value: int = values[14]
 	if (
 			not Kind.values().has(kind_value)
 			or not DamageType.values().has(type_value)
 			or not Source.values().has(source_value)
+			or not CombatSide.values().has(side_value)
 			or seq_value < 0
 			or session_value < 0
 	):
@@ -306,6 +345,7 @@ static func from_wire(data: Array) -> CombatFact:
 	fact.source_effect_id = values[10]
 	fact.tile = Vector2i(values[11], values[12])
 	fact.flags = values[13]
+	fact.side = side_value as CombatSide
 	return fact
 
 

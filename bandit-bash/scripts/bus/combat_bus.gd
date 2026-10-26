@@ -31,7 +31,7 @@ var flow: FlowChannel = FlowChannel.new()
 ## What happens to a unit: moves, spawns, HP, Block, Stance, defeat.
 var unit: UnitChannel = UnitChannel.new()
 
-## Exchanges, attacks, hits, shoves and object use.
+## Exchanges, attacks, hits, shoves, and the other actions: objects, items, swaps, runes, Wait.
 var action: ActionChannel = ActionChannel.new()
 
 ## The map itself: the darkness and map objects.
@@ -105,6 +105,12 @@ class UnitChannel:
 	signal defeated(fact: CombatFact)
 	## [constant CombatFact.DARKNESS_DAMAGE_TAKEN].
 	signal darkness_damage_taken(fact: CombatFact)
+	## [constant CombatFact.BLOCK_STANCE_REFRESHED].
+	signal block_stance_refreshed(fact: CombatFact)
+	## [constant CombatFact.STANCE_CHANGED].
+	signal stance_changed(fact: CombatFact)
+	## [constant CombatFact.BLOCK_LOST].
+	signal block_lost(fact: CombatFact)
 
 	func _init() -> void:
 		_route(CombatFact.Kind.UNIT_MOVED, moved)
@@ -114,9 +120,12 @@ class UnitChannel:
 		_route(CombatFact.Kind.EXPOSED, exposed)
 		_route(CombatFact.Kind.DEFEATED, defeated)
 		_route(CombatFact.Kind.DARKNESS_DAMAGE_TAKEN, darkness_damage_taken)
+		_route(CombatFact.Kind.BLOCK_STANCE_REFRESHED, block_stance_refreshed)
+		_route(CombatFact.Kind.STANCE_CHANGED, stance_changed)
+		_route(CombatFact.Kind.BLOCK_LOST, block_lost)
 
 
-## Exchanges, attacks, hits, shoves and object use.
+## Exchanges, attacks, hits, shoves, and the other actions: objects, items, swaps, runes, Wait.
 class ActionChannel:
 	extends BusChannel
 
@@ -154,6 +163,14 @@ class ActionChannel:
 	signal shoved(fact: CombatFact)
 	## [constant CombatFact.OBJECT_USED].
 	signal object_used(fact: CombatFact)
+	## [constant CombatFact.ITEM_USED].
+	signal item_used(fact: CombatFact)
+	## [constant CombatFact.WEAPON_SWAPPED].
+	signal weapon_swapped(fact: CombatFact)
+	## [constant CombatFact.RUNE_USED].
+	signal rune_used(fact: CombatFact)
+	## [constant CombatFact.UNIT_WAITED].
+	signal waited(fact: CombatFact)
 
 	func _init() -> void:
 		_route(CombatFact.Kind.BEFORE_COMBAT, exchange_started)
@@ -173,6 +190,10 @@ class ActionChannel:
 		_route(CombatFact.Kind.SHOVED_A_UNIT, shoved_unit)
 		_route(CombatFact.Kind.SHOVED, shoved)
 		_route(CombatFact.Kind.OBJECT_USED, object_used)
+		_route(CombatFact.Kind.ITEM_USED, item_used)
+		_route(CombatFact.Kind.WEAPON_SWAPPED, weapon_swapped)
+		_route(CombatFact.Kind.RUNE_USED, rune_used)
+		_route(CombatFact.Kind.UNIT_WAITED, waited)
 
 
 ## The map itself: the darkness and map objects.

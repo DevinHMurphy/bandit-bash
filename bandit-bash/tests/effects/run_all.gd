@@ -62,6 +62,7 @@ func _init() -> void:
 	_test_combat_wire_round_trip()
 	_test_combat_wire_through_json()
 	_test_combat_wire_rejects_bad_data()
+	_test_combat_fact_amendments()
 	_test_campaign_wire_round_trip()
 	_test_campaign_wire_rejects_bad_data()
 	_test_combat_log_line_documented_shape()
@@ -148,6 +149,7 @@ func _test_combat_wire_rejects_bad_data() -> void:
 		"unknown source": _with(good, 9, 99),
 		"negative seq": _with(good, 1, -1),
 		"negative session": _with(good, 2, -1),
+		"unknown side": _with(good, 14, 9),
 		"null slot": _with(good, 13, null),
 	}
 	for case_name: String in cases:
@@ -155,6 +157,72 @@ func _test_combat_wire_rejects_bad_data() -> void:
 				"combat wire bad data: %s refused" % [case_name],
 				CombatFact.from_wire(cases[case_name]) == null
 		)
+
+
+# The combat core's appended fields, kinds and source (combat core plan, CC1).
+func _test_combat_fact_amendments() -> void:
+	var phase: CombatFact = CombatFact.new(CombatFact.Kind.PHASE_START)
+	phase.seq = 1
+	phase.side = CombatFact.CombatSide.ENEMY
+	phase.amount = 3
+	var wire: Array = phase.to_wire()
+	_check(
+			"amendments: side is appended last",
+			wire.size() == 15 and wire[14] == CombatFact.CombatSide.ENEMY,
+			str(wire)
+	)
+	var back: CombatFact = CombatFact.from_wire(wire)
+	_check(
+			"amendments: side and turn survive the wire",
+			back != null and back.side == CombatFact.CombatSide.ENEMY and back.amount == 3
+	)
+	var parsed: Variant = JSON.parse_string(JSON.stringify(wire))
+	var through_json: CombatFact = CombatFact.from_wire(parsed if parsed is Array else [])
+	_check(
+			"amendments: side survives JSON",
+			through_json != null and through_json.side == CombatFact.CombatSide.ENEMY
+	)
+	_check(
+			"amendments: phase log line shows side and turn",
+			phase.to_log_line() == "s0#1 PHASE_START side enemy amount 3",
+			phase.to_log_line()
+	)
+	_check(
+			"amendments: other kinds default to no side",
+			CombatFact.new(CombatFact.Kind.UNIT_MOVED).side == CombatFact.CombatSide.NONE
+	)
+
+	var spiked: CombatFact = CombatFact.new(CombatFact.Kind.DAMAGE_TAKEN, "unit:57")
+	spiked.amount = 4
+	spiked.hp_amount = 4
+	spiked.source = CombatFact.Source.SPIKE
+	var spiked_line: String = spiked.to_log_line()
+	_check(
+			"amendments: spike source",
+			spiked_line == "s0#0 DAMAGE_TAKEN unit:57 amount 4 (hp 4, block 0) source spike"
+			and CombatFact.Source.SPIKE == 6,
+			spiked_line
+	)
+
+	var appended: Dictionary[String, int] = {
+		"BLOCK_STANCE_REFRESHED": 35,
+		"STANCE_CHANGED": 36,
+		"ITEM_USED": 37,
+		"WEAPON_SWAPPED": 38,
+		"RUNE_USED": 39,
+		"UNIT_WAITED": 40,
+		"BLOCK_LOST": 41,
+	}
+	var wrong: PackedStringArray = []
+	for kind_name: String in appended:
+		if CombatFact.Kind.get(kind_name, -1) != appended[kind_name]:
+			wrong.append(kind_name)
+	_check("amendments: seven kinds appended after the old ones", wrong.is_empty(), str(wrong))
+	_check(
+			"amendments: old kind values unchanged",
+			CombatFact.Kind.PHASE_START == 0 and CombatFact.Kind.MODIFIER_EXPIRED == 34
+			and CombatFact.Kind.size() == 42
+	)
 
 
 func _test_campaign_wire_round_trip() -> void:
