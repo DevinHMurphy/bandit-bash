@@ -1,6 +1,7 @@
 # Plan: Event Bus and Effects Architecture
 **Date:** October 23, 2026
-**Status:** Draft — every open question answered (October 24, 2026); awaiting approval to start EB1
+**Status:** Approved October 26, 2026 — in progress: EB1 implemented October 26, 2026; EB2 waits on
+the P02 draft (see the orchestrator's Gates)
 
 The foundation that every gameplay IMPL plan plugs into: how combat and the campaign announce what
 happened, how heirlooms, items, traits, curses, runes and enemy traits react to it, and how numbers
@@ -227,6 +228,25 @@ Dependencies point down; information travels up as facts. **Rules never wait on 
   (e.g. `PercentOfFact(50)` on Damage dealt and on Healed alike).
 - `to_wire()` / `from_wire()` turn a fact into an array of primitives (save-system.md: never send
   a Resource).
+- **Settled at EB1 (October 26, 2026):**
+  - **Paired triggers are two facts.** A hit emits `HIT_DEALT`, then `HIT_TAKEN`. `actor_id` is
+    always the unit the kind is about (the unit a scope tests); `target_id` is the other party. So
+    `HIT_TAKEN`'s actor is the unit hit, and the log line draws received kinds as `<-`. Before
+    Combat is one fact per participant; After Combat is one per surviving participant.
+  - **`CombatFact.DamageType`** (`NONE`, `PHYSICAL`, `MAGIC`, `SPLIT`, `PURE`) lives on the fact,
+    next to `CombatFact.Source`; weapons and the combat core use it.
+  - **`source_effect_id` is an effect *instance* id**, so EB4 gives every `EffectInstance` an
+    allocator id (a preset such as `next_effect_id()`), and `describe()` expands it (e.g.
+    "bulwark on item:412").
+  - **`hp_amount` / `block_amount`** are the parts of `amount` that reached HP and Block. For
+    healing, `amount − hp_amount` is the overheal (`PercentOfFact(overheal)`).
+  - **`CampaignFact`** fields: `seq`, `seat` (`NO_SEAT` = −1), `actor_id`, `target_id`,
+    `definition_id`, `amount`, `source_effect_id`, `flags`. Kinds: `GAINED`, `COMBAT_ENDED`,
+    `LEVELED_UP`, `EFFECT_ACTIVATED`, `COUNTER_CHANGED`. `CampaignBus` has the `run`, `army` and
+    `effect` channels; P08 appends its kinds with the `map` and `economy` channels.
+  - Every enum on a fact is append-only with explicit values. `NO_TILE` is `(-1, -1)`. `from_wire`
+    accepts whole-number floats, so facts survive JSON (repro dumps).
+  - **Gap for P02:** phase facts don't say which side's phase it is (`combat_fact.gd:TOD-001`).
 - **`CombatBus`** groups signals in `RefCounted` domain channels, following old D2: `flow`
   (phases, turns, combat end), `unit` (moved, HP, Block, Stance, defeated), `action` (exchange,
   hits, shoves, objects), `world` (tiles, darkness, objects), `effect` (activated, counter changed,

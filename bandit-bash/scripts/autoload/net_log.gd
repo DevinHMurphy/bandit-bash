@@ -6,15 +6,17 @@
 # File:     net_log.gd
 # Author:
 # Created:  October 9, 2026
-# Modified: October 9, 2026
+# Modified: October 26, 2026
 # ==============================================================================
 
 extends Node
-## Leveled, categorized, peer-tagged logging for networking code.
+## Leveled, categorized, peer-tagged logging for the whole game.
 ##
 ## Registered as autoload [code]NetLog[/code], before [code]SteamManager[/code]. Every line carries
 ## this machine's peer id, because "which machine printed this" is the question most multiplayer
 ## bugs turn on; logs pasted from two instances still read clearly.[br]
+## Main thread only: it reads the multiplayer peer, so sandboxed simulation on worker threads
+## returns its diagnostics for the main thread to log instead.[br]
 ## [b]Hot paths:[/b] gate on [method would_log] before building a formatted message, since the
 ## [code]%[/code] format runs before the call whether or not anything prints.[br]
 ## Pair with [code]file_logging/enable_file_logging[/code] in project.godot so each run lands in
@@ -29,6 +31,7 @@ enum Level {
 }
 
 ## Subsystem a line belongs to. The enum key, capitalized, is the tag printed in the line.
+## Append only, with explicit values.
 enum Category {
 	## Steam init and API availability.
 	STEAM = 0,
@@ -36,6 +39,14 @@ enum Category {
 	LOBBY = 1,
 	## Screen transitions.
 	SCENE = 2,
+	## Combat commands, facts and phases.
+	COMBAT = 3,
+	## Effect activations, counters and stat-sheet caches.
+	EFFECTS = 4,
+	## The campaign layer of a run.
+	CAMPAIGN = 5,
+	## Enemy AI decisions.
+	AI = 6,
 }
 
 ## Least severe level that still prints.
