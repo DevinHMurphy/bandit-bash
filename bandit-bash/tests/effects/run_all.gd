@@ -1027,7 +1027,7 @@ func _test_describe_conditions() -> void:
 		var position: WhilePositionCondition = WhilePositionCondition.new()
 		position.kind = kind as WhilePositionCondition.Kind
 		position.tiles = 4
-		position.side = EffectDefinition.Side.ENEMY
+		position.side = EffectDefinition.UnitSide.ENEMY
 		var kind_name: String = WhilePositionCondition.Kind.find_key(kind)
 		_snapshot("while position: %s" % [kind_name], position.describe(), expected_positions[kind])
 
@@ -1119,7 +1119,7 @@ func _test_describe_operations() -> void:
 			"gain +15 Hit on its next attack this combat"
 	)
 	var horn: AddTimedModifier = _timed(DamageStage.Key.ATTACK, ADD, 2.0)
-	horn.target = _area(Area.Center.OWNER, 2, EffectDefinition.Side.ANY, false)
+	horn.target = _area(Area.Center.OWNER, 2, EffectDefinition.UnitSide.ANY, false)
 	horn.end = AddTimedModifier.End.END_OF_NEXT_PHASE
 	_snapshot(
 			"timed: area until the end of the next phase",
@@ -1154,7 +1154,7 @@ func _test_describe_operations() -> void:
 	)
 	var stance: GainResource = _gain(GainResource.Pool.STANCE, Owner.new(), _constant(1.0))
 	_snapshot("gain: Stance", stance.describe(), "gain 1 Stance")
-	var adjacent_allies: Area = _area(Area.Center.OWNER, 1, EffectDefinition.Side.ALLY, false)
+	var adjacent_allies: Area = _area(Area.Center.OWNER, 1, EffectDefinition.UnitSide.ALLY, false)
 	_snapshot(
 			"gain: equal to a count",
 			_gain(GainResource.Pool.BLOCK, null, _count(adjacent_allies)).describe(),
@@ -1182,7 +1182,7 @@ func _test_describe_operations() -> void:
 	)
 
 	var cleave: DealSplash = DealSplash.new()
-	cleave.target = _area(Area.Center.OWNER, 1, EffectDefinition.Side.ANY, false)
+	cleave.target = _area(Area.Center.OWNER, 1, EffectDefinition.UnitSide.ANY, false)
 	cleave.amount = _constant(2.0)
 	_snapshot("splash", cleave.describe(), "deal 2 splash damage to adjacent units, friend or foe")
 	cleave.amount = _count(adjacent_allies)
@@ -1240,17 +1240,17 @@ func _test_describe_selectors() -> void:
 	_snapshot("fact target", FactTarget.new().describe(), "the other unit")
 	_snapshot(
 			"area: adjacent, friend or foe",
-			_area(Area.Center.OWNER, 1, EffectDefinition.Side.ANY, false).describe(),
+			_area(Area.Center.OWNER, 1, EffectDefinition.UnitSide.ANY, false).describe(),
 			"adjacent units, friend or foe"
 	)
 	_snapshot(
 			"area: with the center",
-			_area(Area.Center.OWNER, 2, EffectDefinition.Side.ALLY, true).describe(),
+			_area(Area.Center.OWNER, 2, EffectDefinition.UnitSide.ALLY, true).describe(),
 			"this unit and allies within 2 tiles"
 	)
 	_snapshot(
 			"area: around the fact's actor",
-			_area(Area.Center.FACT_ACTOR, 1, EffectDefinition.Side.ENEMY, false).describe(),
+			_area(Area.Center.FACT_ACTOR, 1, EffectDefinition.UnitSide.ENEMY, false).describe(),
 			"adjacent enemies of that unit"
 	)
 	var everyone: AllOfScope = AllOfScope.new()
@@ -1273,7 +1273,7 @@ func _test_describe_values() -> void:
 	_snapshot("stat of: owner", movement.describe(), "this unit's Movement")
 	movement.subject = FactTarget.new()
 	_snapshot("stat of: subject", movement.describe(), "the other unit's Movement")
-	var adjacent_allies: Area = _area(Area.Center.OWNER, 1, EffectDefinition.Side.ALLY, false)
+	var adjacent_allies: Area = _area(Area.Center.OWNER, 1, EffectDefinition.UnitSide.ALLY, false)
 	var doubled: CountOf = _count(adjacent_allies)
 	_snapshot("count of", doubled.describe(), "the number of adjacent allies")
 	doubled.each = 2.0
@@ -1321,7 +1321,7 @@ func _test_describe_coverage_fixtures() -> void:
 			"Missed: gain +15 Hit on its next attack this combat"
 	)
 
-	var adjacent_allies: Area = _area(Area.Center.OWNER, 1, EffectDefinition.Side.ALLY, false)
+	var adjacent_allies: Area = _area(Area.Center.OWNER, 1, EffectDefinition.UnitSide.ALLY, false)
 	var phalanx_gain: GainResource = _gain(GainResource.Pool.BLOCK, null, _count(adjacent_allies))
 	_snapshot(
 			"fixture: Phalanx",
@@ -1330,7 +1330,7 @@ func _test_describe_coverage_fixtures() -> void:
 	)
 
 	var splash: DealSplash = DealSplash.new()
-	splash.target = _area(Area.Center.OWNER, 1, EffectDefinition.Side.ANY, false)
+	splash.target = _area(Area.Center.OWNER, 1, EffectDefinition.UnitSide.ANY, false)
 	splash.amount = _constant(2.0)
 	_snapshot(
 			"fixture: Cleave",
@@ -1341,7 +1341,7 @@ func _test_describe_coverage_fixtures() -> void:
 	var second: CounterCondition = CounterCondition.new()
 	second.count = 2
 	var horn: AddTimedModifier = _timed(DamageStage.Key.ATTACK, ADD, 2.0)
-	horn.target = _area(Area.Center.OWNER, 2, EffectDefinition.Side.ANY, true)
+	horn.target = _area(Area.Center.OWNER, 2, EffectDefinition.UnitSide.ANY, true)
 	horn.end = AddTimedModifier.End.END_OF_NEXT_PHASE
 	_snapshot(
 			"fixture: War Horn",
@@ -1543,7 +1543,7 @@ func _gain(pool: GainResource.Pool, target: TargetSelector, amount: ValueSource)
 
 
 func _area(
-		center: Area.Center, radius: int, side: EffectDefinition.Side, with_center: bool
+		center: Area.Center, radius: int, side: EffectDefinition.UnitSide, with_center: bool
 ) -> Area:
 	var area: Area = Area.new()
 	area.center = center

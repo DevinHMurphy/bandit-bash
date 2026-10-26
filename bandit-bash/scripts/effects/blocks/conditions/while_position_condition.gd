@@ -45,7 +45,7 @@ enum Kind {
 @export_range(0, 99) var tiles: int = 1
 
 ## Which units count for [constant ADJACENT_TO] and [constant WITHIN]; ignored by the others.
-@export var side: EffectDefinition.Side = EffectDefinition.Side.ALLY
+@export var side: EffectDefinition.UnitSide = EffectDefinition.UnitSide.ALLY
 
 
 func describe() -> String:
@@ -68,8 +68,8 @@ func describe() -> String:
 
 func _side_noun() -> String:
 	match side:
-		EffectDefinition.Side.ALLY:
+		EffectDefinition.UnitSide.ALLY:
 			return "an ally"
-		EffectDefinition.Side.ENEMY:
+		EffectDefinition.UnitSide.ENEMY:
 			return "an enemy"
 	return "a unit"

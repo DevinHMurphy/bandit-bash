@@ -36,7 +36,7 @@ enum Center {
 @export_range(1, 20) var radius: int = 1
 
 ## Which units count, relative to the effect's owner.
-@export var side: EffectDefinition.Side = EffectDefinition.Side.ALLY
+@export var side: EffectDefinition.UnitSide = EffectDefinition.UnitSide.ALLY
 
 ## Whether the center unit itself is selected too. [b]Off:[/b] only the units around it.
 @export var include_center: bool = false
@@ -45,9 +45,9 @@ enum Center {
 func describe() -> String:
 	var noun: String = "units"
 	match side:
-		EffectDefinition.Side.ALLY:
+		EffectDefinition.UnitSide.ALLY:
 			noun = "allies"
-		EffectDefinition.Side.ENEMY:
+		EffectDefinition.UnitSide.ENEMY:
 			noun = "enemies"
 	var place: String = "adjacent %s" % [noun]
 	if radius > 1:
@@ -57,7 +57,7 @@ func describe() -> String:
 			place += " of that unit"
 		Center.FACT_TARGET:
 			place += " of the other unit"
-	if side == EffectDefinition.Side.ANY:
+	if side == EffectDefinition.UnitSide.ANY:
 		place += ", friend or foe"
 	if include_center:
 		var center_name: String = "this unit"

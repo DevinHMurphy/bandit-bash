@@ -112,7 +112,7 @@ enum Lane {
 
 ## Which side of the owner a unit is on, for selectors and position conditions. Saved as an int:
 ## [b]append only[/b].
-enum Side {
+enum UnitSide {
 	## Friendly units.
 	ALLY = 0,
 	## Hostile units.
