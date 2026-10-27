@@ -1,8 +1,9 @@
 # Plan: Event Bus and Effects Architecture
 **Date:** October 23, 2026
-**Status:** Approved October 26, 2026 — in progress: EB1 implemented October 26, 2026; amended
-October 26, 2026 with the combat core's and RNG plan's needs
-([Amendments from P02 and P13](#amendments-from-p02-and-p13)); EB2 may start
+**Status:** Approved October 26, 2026 — in progress: EB1–EB3 implemented, EB4 parts 1–2 built
+October 26, 2026; amended October 26, 2026 with the combat core's and RNG plan's needs
+([Amendments from P02 and P13](#amendments-from-p02-and-p13)) and with the EB4 build's findings
+([Follow-ups from the EB4 build](#follow-ups-from-the-eb4-build))
 
 The foundation that every gameplay IMPL plan plugs into: how combat and the campaign announce what
 happened, how heirlooms, items, traits, curses, runes and enemy traits react to it, and how numbers
@@ -78,6 +79,17 @@ Questions already settled by the design docs are listed first as answered. Every
 | 20 | Where `ITEM_USED`, `WEAPON_SWAPPED` and `RUNE_USED` name the item or rune, and a rune's caster (found building CC1) | New `item_id` field, seat in `amount` / two new fields / reuse `source_effect_id` | **One appended field `item_id`; `RUNE_USED` carries the casting seat in `amount`**, as `PHASE_START` carries the turn. Mirrors need both to spend a charge and empty a rune slot. | **Answered October 26, 2026:** as recommended. Fix F2. |
 | 21 | When base stats get value keys (found building EB3: Training Weights needs SPD; `STAT_CAN_GROW` must name a stat) | Seed now in EB4 / wait for P03 | **Seed in EB4:** HP, MGT, SPD, DEF, RES, CON (MOV is `MOVEMENT`), the vision's fixed list, plus one shared `Stat` enum. P03 still owns growths and meaning. | **Answered October 26, 2026:** as recommended. Addition F3. |
 | 22 | MVP content the EB3 blocks can't express (found building EB3) | Add blocks in EB4 / escape hatch until reused | **Add three in EB4:** a `CommandTarget` selector (the targeted runes), extra Stance loss as a `ModifyThat` target (Breaker, Breaker+), a `WhileMatchupCondition` for the triangle (Professional). "While Equipment is a shield" waits for real content (it is a pattern example in unit-roster.md). | **Answered October 26, 2026:** as recommended. Addition F4. |
+| 23 | Order in which an effect's conditions run (found building EB4) | Authored order, stop at the first failure, charges last / counters always advance | **Authored order, stop at the first failure, charges checked last.** A counter placed before a While counts every event; one placed after counts only events that qualify. A Chance after a failing While draws no roll. | **Answered October 26, 2026:** as recommended. |
+| 24 | A Block gain that ends at 0 (Brittle Guard on a gain of 1) | Record `BLOCK_GAINED` with amount 0 / record nothing | **Record it with amount 0.** The window already opened and may have advanced counters, and mirrors only replay facts. The minimum belongs to the effect (Brittle Guard: "minimum 0", events.md); the engine's floor of 0 is a backstop. P03's personal XP ignores 0-amount gains. | **Answered October 26, 2026:** as recommended. |
+| 25 | Where `COUNTER_CHANGED` names its lane, and how mirrors see a permanent stat change (stat boosters are used in combat) | Lane in `flags` until EB7 / new field now | **Append `STAT_CHANGED` and one int field `key` now**, its meaning set per kind as `amount`'s is. Fix F5. | **Answered October 26, 2026:** as recommended. |
+| 26 | "No ally closer to an enemy" with no enemy on the map (Vanguard) | Passes / fails | Fails (no risk to trade the Block against). | **Answered October 26, 2026:** **passes**, as built; a valid strategy, and the case is rare. |
+| 27 | How map-object cascades are exempt from the reaction caps (question 7) | By owner kind / by fact source | **By owner kind** (`EffectOwner.Kind.MAP_OBJECT`): those reactions count toward neither cap and add no depth, so a unit reacting at the end of a long keg chain starts from its own depth. | **Answered October 26, 2026:** as recommended. |
+| 28 | When Momentum's +15 Hit lands (found building EB4: the reaction queue drains only at Before Combat and After Combat) | At the After Combat drain / at once / drain after every attack | **At the After Combat drain**, with no engine or P02 change: `MISSED` stays queued, so the bonus reaches the holder's first attack in a later exchange, never a follow-up in the same one. Two misses in one exchange stack (+30). | **Answered October 26, 2026:** as recommended (the user's proposal). Cleave's queued splash lands at the same drain (P02). |
+| 29 | Where combat heals read `HEALING_RECEIVED_PERCENT` | One engine heal path / each healer | **One engine heal path** beside the Block-gain path: the Healed window, then the healed unit's `HEALING_RECEIVED_PERCENT`, rounding halves up at the end of the window, never below 0. Every heal (staves, potions, lifesteal, terrain) goes through it. | **Answered October 26, 2026:** as recommended. |
+| 30 | What "this unit" means for wide-scope effects, and how phase facts (no actor) match | Per fact / per unit in scope | **Once per fact.** Counters, charges and Chance are checked once per fire. "This unit" is the owner's unit, or for army and rune effects the fact's unit; an army effect whose condition names "this unit" on a fact with no unit is a content error (diagnostics). Filtering per unit is a selector's job (`AllOfScope`, `Area`). Phase Start and Phase End match the owner's side. Brothers in Arms needs a selector filter that doesn't exist yet (heirlooms plan). | **Answered October 26, 2026:** as recommended. |
+| 31 | Who reports content errors and cap overflows (question 7 says `push_error`) | Engine logs / engine collects, session reports | **The engine collects them in `diagnostics`, never logging;** EB6's session reports them with `push_error` (`NetLog` in release). Tests assert the list is empty. | **Answered October 26, 2026:** as recommended. |
+| 32 | The base of a percent key no one sets (it read 0, cancelling every heal) | Per-key default table / caller passes it | **A per-key `CampaignValue.DEFAULT_BASES` table**, next to `RULE_MAX`. Fix F7. | **Answered October 26, 2026:** as recommended. |
+| 33 | What happens to a defeated unit's effects, a stowed weapon's effects, and reactions already queued by a unit later defeated | Engine reads the state / P02 unregisters | **The engine reads the state:** such effects go dormant (fix F8). Reactions queued before a defeat still resolve, with the context they were queued with (a Brute killed by the counter still splashes, from its old tile). | **Answered October 26, 2026:** as recommended. |
 
 ## Scope
 
@@ -299,8 +311,8 @@ Effect text uses triggers in two ways, and the engine keeps them apart:
   chain stops at **16 generations** deep, and a resolution step (one unit's turn, one phase
   boundary, the darkness step, reinforcement arrival) stops at **256 reactions**. Map-object
   cascades are exempt: each object breaks once, so keg chains are bounded by the map. On overflow,
-  the chain stops, what already resolved stays, and the engine reports `push_error` (`NetLog` in
-  release). Reactions to one fact
+  the chain stops, what already resolved stays, and the engine records a diagnostic that the
+  session reports with `push_error` (`NetLog` in release; question 31). Reactions to one fact
   resolve by role (the fact's actor, then its target, then others), then seat (enemy side last),
   then carrier kind (unit trait → weapon → equipment → Pouch item → heirloom → curse), then
   instance id. **Curses resolve last**, so a curse always acts on the finished result and can't be
@@ -428,8 +440,9 @@ A trigger only has an inline window if it fires before its amount is committed (
 A forecast is a **simulation, not a separate calculation**. The same resolver that executes a
 command runs on a **sandbox**: a scratch copy of the state the action can read, its effect
 instances included. Inside the sandbox everything runs normally: counters advance, reactions
-queue and resolve, timed modifiers apply, so Momentum's +15 Hit after a miss, Flow's 3rd attack and
-a Stance break enabling crits on later attacks all appear within one exchange. Nothing leaves the
+queue and resolve, timed modifiers apply, so Flow's 3rd attack and a Stance break enabling crits on
+later attacks appear within one exchange, and Momentum's +15 Hit after a miss appears from the next
+exchange (question 28). Nothing leaves the
 sandbox: the real state, the real RNG stream and the real counters are untouched, and no fact
 reaches the bus. Because it is the same code, **the forecast equals what executes** by construction.
 
@@ -473,8 +486,8 @@ Exact enumeration up to a branch budget, then sampling, is the AI plan's choice 
 exist.
 
 **Sandbox state hook** (P02 need N9). The engine can't know the combat core's state, so EB4 defines
-an abstract `SandboxState` (`RefCounted`) with one method, `copy_for_sandbox() -> SandboxState`. A
-session holds its rules state as a `SandboxState`; the sandbox calls `copy_for_sandbox()` and
+an abstract `SandboxState` (`RefCounted`) with `copy_for_sandbox() -> SandboxState` and the map
+reads and writes the engine needs (the full list is fix F6). A session holds its rules state as a `SandboxState`; the sandbox calls `copy_for_sandbox()` and
 copies the engine's instances, counters, timed modifiers and stat sheets itself. P02's
 `CombatState` extends it (copy on write where it matters; no nodes or Resources). EB4's tests use a
 small fake state.
@@ -855,6 +868,20 @@ Gaps the build of EB2, EB3 and P02 CC1 found (questions 19–22, answered Octobe
 | F2 | Append `item_id: String` to `CombatFact` (wire array 15 → 16 slots) | Fix-up before EB4 (amends P02 CC1) | The instance id of the item, weapon or rune the fact is about; empty otherwise. `ITEM_USED`: actor the user, target the recipient. `WEAPON_SWAPPED`: the weapon now in the Weapon slot. `RUNE_USED`: actor empty, target and tile what it was cast on, `amount` the casting seat. Runes get instance ids (`rune:N`) from the allocator's new `next_rune_id()` preset (EB6), so two copies of one rune are told apart. Remove both `# ASSUMPTION`s |
 | F3 | Append base stat keys `HP`, `MGT`, `SPD`, `DEF`, `RES`, `CON` to `CombatValue.Key`, and one shared `Stat` enum (the same seven stats, `MOV` included) | EB4 | `STAT_CAN_GROW` and `LEVEL_UP_GUARANTEED_GAINS` modifiers name a `Stat` (resolves `campaign_value.gd` TOD-001). Training Weights' fixture uses `SPD` |
 | F4 | Three blocks: `CommandTarget` selector; extra Stance loss as a `ModifyThat` target; `WhileMatchupCondition` (triangle Advantage, Standoff, Disadvantage) | EB4 | `EffectContext` gains the command target, the hit's extra Stance loss (added at stage 8, P02 question 10) and the attacker's triangle result. Fixtures: Mend (replacing "on the command's target" in the coverage table), Breaker, Professional |
+
+#### Follow-ups from the EB4 build
+
+Gaps the build of EB4 found (questions 23–33, answered October 26, 2026). Each is built in EB4.
+
+| # | Change | Detail |
+|---|--------|--------|
+| F5 | Append `CombatFact.Kind.STAT_CHANGED` and an int field `key` (wire array 16 → 17 slots) | `STAT_CHANGED`: actor the unit, `amount` the delta, `key` the `Stat`; `ChangeBaseStat` records it. `COUNTER_CHANGED`: `key` is the lane. Empty (0) for other kinds |
+| F6 | `SandboxState` is the engine's whole view of the map: 17 abstract methods, the contract P02's `CombatState` implements | `copy_for_sandbox()`; reads `unit_ids()` (defeated excluded, roster then spawn order), `has_unit`, `side_of`, `seat_of`, `tile_of`, `walking_distance` (with terrain, −1 for no path), `get_hp`, `get_block`, `get_stance`, `tiles_moved`, `darkness_layer`, `equipped_weapon_id`; writes `set_hp`, `set_block`, `set_stance` (called only by the engine's resource paths, which clamp and emit the facts); `deal_splash` (P02's one splash rule, recording through `EffectEngine.record`). "Within N" uses walking distance and "no ally closer" tile distance, per effect-triggers.md |
+| F7 | `CampaignValue.DEFAULT_BASES` | `HEALING_RECEIVED_PERCENT` 100, `GRADE_BONUS_PERCENT` 25 (vision: grade bonuses +25% each), `SCRAP_PERCENT` 20 (vision: 20% of buy price), `SHARED_XP_PERCENT` 100, `UNIT_XP_PERCENT` 100, `PRICE_PERCENT` 100. Keys not listed start at 0 |
+| F8 | Dormant carriers | An instance owned by a unit, or by an item it carries, is dormant while `has_unit()` is false; a weapon's instances are dormant unless it is `equipped_weapon_id()`. Dormant: no query contributions, no reactions, counters and charges kept. Army, rune and map-object owners are never dormant (Grave Candle fires). Works inside the sandbox, so a forecast that swaps weapons needs nothing extra |
+
+The sandbox copies the whole session for every branch, with no copy on write yet; its cost is
+**unmeasured** until EB9, and copy on write is a follow-up only if EB9 misses the budget.
 
 ### Rejected alternatives
 

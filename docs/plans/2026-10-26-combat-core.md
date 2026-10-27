@@ -162,6 +162,10 @@ All rules code follows gdscript.md §8.5: pure, never awaits, reads values throu
   ingredients) are campaign-lane charges or consume the item.
 - `CombatState.copy_for_sandbox()` gives P01's sandbox a cheap copy (copy on write where it
   matters); it holds no nodes or Resources.
+- `CombatState` extends P01's `SandboxState` and implements all 17 of its methods (P01 fix F6),
+  `equipped_weapon_id()` included. Writes to HP, Block and Stance from effects arrive through the
+  engine's resource paths, which emit the facts. A defeated unit's effects and a stowed weapon's
+  effects are dormant (P01 fix F8), so P02 never unregisters them.
 
 ### CombatGrid
 
@@ -286,11 +290,14 @@ Given attacker, defender, the attacker's weapon and origin tile:
      | 8 | After hit | If damage reached Block or HP: `DAMAGE_DEALT` / `DAMAGE_TAKEN`, Stance −1 plus any extra Stance loss from that hit's inline effects (Breaker, Breaker's Maul; question 10), never below 0 (`STANCE_CHANGED`); `EXPOSED` when it reaches 0; after-hit effects. A fully countered hit (0) costs no Stance, extra loss included |
 
    - **Lifesteal** (an inline flag): heals the attacker for the damage that reached HP, after
-     stage 7 (`HEALED`).
+     stage 7 (`HEALED`), through the engine's one heal path, which applies
+     `HEALING_RECEIVED_PERCENT` (P01 question 29). Staves, potions and terrain heal through it too.
    - **Defeat:** HP 0 emits `DEFEATED` and `DEFEATED_AN_ENEMY`, removes the unit from occupancy and
      ends the exchange at once.
 6. **After Combat** facts for each surviving participant; timed modifiers "this exchange" expire;
-   the reaction queue drains.
+   the reaction queue drains. Reactions to facts from inside the exchange resolve here, after the
+   last attack: Cleave's splash and Momentum's bonus (P01 question 28) never act between attacks.
+   A reaction queued by a unit defeated later in the exchange still resolves (P01 question 33).
 
 The triangle: Balance beats Nimble, Power beats Balance, Nimble beats Power; same profile is a
 Standoff; profile None never takes part (both sides Standoff).
@@ -299,7 +306,10 @@ Standoff; profile None never takes part (both sides Standoff).
 
 One resolver for every splash source (Cleave, Trample, powder kegs, bumps, spiked walls): flat
 damage, no hit roll, no Mitigation, no crit, no Stance loss; Block absorbs it; it fires
-`DAMAGE_TAKEN` (with `source` SPLASH, BUMP or SPIKE), never `HIT_TAKEN`; it can defeat.
+`DAMAGE_TAKEN` (with `source` SPLASH, BUMP or SPIKE), never `HIT_TAKEN`; it can defeat. A queued
+splash (Cleave) resolves at the next drain, centered on the tile its source stood on when it was
+queued, even if that unit has since been defeated. The engine calls it through
+`SandboxState.deal_splash()`.
 
 ### Shove
 
@@ -330,7 +340,8 @@ damage, no hit roll, no Mitigation, no crit, no Stance loss; Block absorbs it; i
   eaten ingredients heal and add a permanent growth delta. Permanent deltas are written to the
   roster by P08's bridge at battle end. `ITEM_USED`.
 - **Weapon swap:** exchanges the Weapon slot and the stowed weapon; only the Weapon slot counts
-  toward Attack Speed; `WEAPON_SWAPPED`. As an action it ends the unit's turn; with Sidearm it is
+  toward Attack Speed, and only its effects apply (a stowed weapon's are dormant, P01 fix F8);
+  `WEAPON_SWAPPED`. As an action it ends the unit's turn; with Sidearm it is
   free once per unit turn, before acting, and the attack command can name either weapon (the
   forecast cycles both).
 - **Runes:** `CastRuneCommand`; the rune's operation resolves on its target; the rune leaves its

@@ -35,11 +35,11 @@ before their consumers are checked are the costliest to fix).
 
 - **Design:** ideation closed for the MVP (design reviews of October 23–24, 2026). Remaining design
   items are content or tuning; see [Design items by plan](#design-items-by-plan).
-- **Code:** the save system is built. P01 EB1–EB3, P02 CC1 and P13 R1–R3 are built and tested headless (merged into `feature/save-system`).
+- **Code:** the save system is built. P01 EB1–EB3, P02 CC1 and P13 R1–R3 are built and tested headless (merged into `feature/save-system`); P01 EB4 parts 1–2 are built on `build/p01-eb4`.
   Nothing gameplay-related is built yet.
 - **Current milestone:** [M0 Foundations](#milestones).
 - **Current focus:** Tracks A and B are built and merged into `feature/save-system` (P01 EB2–EB3 with F1–F2, P02 CC1,
-  P13 R1–R3). Build EB4 (with F3–F4) next. Planning in parallel: P08 question 1, P03 sketch, P04 draft.
+  P13 R1–R3). EB4 is in progress: parts 1–2 built and reviewed (P01 questions 23–33, fixes F5–F8); parts 3–5 next. Planning in parallel: P08 question 1, P03 sketch, P04 draft.
 
 ## Milestones
 
@@ -156,7 +156,8 @@ from starting; each is asked inside its plan's Open Questions.
 
 | Plan | Item | Source |
 |------|------|--------|
-| P03 | The Ring of Favor needs a Legendary-sized effect; Heavy Brick is Unique with no source; the Lancer's growths are a `Godot_FE` copy-paste; item effects may sit outside their ported rarity's budget | items.md, unit-roster.md |
+| P03 | The Ring of Favor needs a Legendary-sized effect; Heavy Brick is Unique with no source; the Lancer's growths are a `Godot_FE` copy-paste; item effects may sit outside their ported rarity's budget; Brothers in Arms needs a selector filter ("adjacent to a unit of another player") the engine doesn't have (P01 question 30) | items.md, unit-roster.md, heirlooms.md |
+| P08 | Personal XP for "gave Block" ignores `BLOCK_GAINED` facts with amount 0 (P01 question 24) | P01 |
 | P04 / P06 | Turn par and reinforcement timers per map are set when maps are authored; darkness values on small maps need M1 playtesting | game-vision.md, the-darkness.md |
 | P05 | The Brigands' real name and theme (flavor only) | enemy-roster.md |
 | P07 | `Godot_FE`'s ranged multi-tile forecast defect (FR-GRID-6) to investigate | P01 contracts |
@@ -186,7 +187,7 @@ more enemy factions, units with convoy access, shared and hybrid co-op battles, 
 
 ## Next actions
 
-1. Build P01 EB4, including F3 (base stat keys, `Stat` enum) and F4 (three new blocks). Its gates
+1. Finish P01 EB4 (parts 3–5: roll sources and the sandbox, cached stat sheets, the `rng_key.gd` markers), with F3–F8. Its gates
    are open.
 2. P13 R4 (run seed; edits `SaveService`) can run alongside EB4.
 3. Answer P08 question 1 (`CampaignSession` owner) before EB6; question 2 is answered by P13.
@@ -210,3 +211,4 @@ more enemy factions, units with convoy access, shared and hybrid co-op battles, 
 | October 26, 2026 | **P01 amended** with P02's N1–N10 and P13's R-N1–R-N4 (new section "Amendments from P02 and P13"; EB2, EB4, EB6 and EB7 rows updated). P01 questions 17–18 answered: values exact, rounding once per key (default halves up); a "next attack" modifier is spent by any attack, counters and misses included. Timed modifiers got ends, uses and a boundary call; roll sources got `roll_hit_2rn` / `roll_percent` / `pick_index` on `Godot_FE`'s 0–99 d100; `SandboxState` hook. **EB2–EB3 gate open**; EB4 waits on P13 R1–R3. |
 | October 26, 2026 | **Track A built** on `build/p01-eb2-eb3-cc1`: P01 EB2, EB3 and P02 CC1 (217 headless tests pass). The build found four gaps, answered as P01 questions 19–22: Unshovable becomes a denial of `CAN_BE_SHOVED` (F1); `CombatFact.item_id` appended, rune caster's seat in `amount`, runes get instance ids (F2); base stat keys and a `Stat` enum in EB4 (F3); `CommandTarget`, extra Stance loss and `WhileMatchupCondition` blocks in EB4 (F4). Corrected the amendment's stat list (Luck was cut). F1–F2 are fix-ups before merge. |
 | October 26, 2026 | **Track B built**: P13 R1–R3 (126 headless tests pass), on `build/p13-r1-r3` after Track A and its F1–F2 fix-up (229 pass). Reviewed the build's decisions and recorded them in P13: the mixer's chaining rule, numeric save keys, purposes 0–13, the section split, all-or-nothing restores, `floor_number`, the added constructors and `from_save_key()`. Stream-creation logging and the "shared purpose drawn once" test move to their owners (R6: P01 EB6 and P08). **EB4 gates open.** |
+| October 26, 2026 | **P01 EB4 parts 1–2 built** on `build/p01-eb4` (engine core, block runtime, F3–F4, golden fact logs for the 15 fixtures). Reviewed the build and recorded P01 questions 23–33 and fixes F5–F8: authored condition order; a 0 Block gain is still a fact; `STAT_CHANGED` and a `key` field (lane, stat); Vanguard passes with no enemy; map-object reactions exempt from both caps by owner kind; Momentum lands at the After Combat drain and stacks; one heal path with `HEALING_RECEIVED_PERCENT`; effects fire once per fact; the session reports engine diagnostics (EB6); `CampaignValue.DEFAULT_BASES`; dormant carriers (defeated units, stowed weapons); `SandboxState`'s 17 methods as the contract with P02's `CombatState`. P02 updated (splash and Momentum timing, heal path, `CombatState` contract, stowed weapons). Sandbox cost is unmeasured until EB9; copy on write only if EB9 misses its budget. |
