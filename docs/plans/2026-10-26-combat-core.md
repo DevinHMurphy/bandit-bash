@@ -43,6 +43,7 @@ because the combat core is its first and heaviest consumer. Gaps found while dra
 | 10 | Extra Stance loss on a fully countered hit (Breaker, Breaker's Maul) | Only if damage got through / always | Only if damage got through | **Answered:** extra Stance loss adds to stage 8's loss, which happens only when damage reached Block or HP. |
 | 11 | When Unit Turn End fires, now that Unit Turn Start is at Phase Start | After the unit's action (unchanged) / each unit in the Phase End window | Phase End window | **Answered October 26, 2026:** for each unit of the side in the Phase End window, mirroring Unit Turn Start, so a unit's "turn" is its side's phase and every unit gets both triggers. Effects like Radiance count units at their final positions. Vision and effect-triggers.md updated. |
 | 12 | At Phase End, do queued effects resolve before darkness damage? | Effects first / darkness first | Effects first | **Answered October 26, 2026 (approval check):** the reaction queue drains after Unit Turn End and before the darkness hook, so Phase End heals and Unit Turn End Block land first and a heal can save a unit from that phase's darkness; it drains again after. |
+| 13 | How `CombatState` answers `SandboxState.walking_distance()` ("within N" is walking distance in effect-triggers.md, but `CombatGrid` offers only Manhattan `distance` and lists it for "within N") | Add `walking_distance` to `CombatGrid` / compute it in `CombatState` / treat "within N" as Manhattan | **Add `walking_distance(a, b) -> int` to `CombatGrid`**, P04 implements it: 4-directional steps over tiles a foot unit can stand on, ignoring units (bodies don't block an aura) and movement cost; −1 when there is no path. The stub returns Manhattan distance on its open rectangle. `distance` stays for range and "no ally closer". | Open (found preparing CC2); the CC2 prompt assumes the recommendation. |
 
 No open questions remain. Derived facts other plans must respect are under
 [Notes for other plans](#notes-for-other-plans).
@@ -175,7 +176,8 @@ configurable tiles) for P02's tests.
 
 | Method | Returns | Used for |
 |--------|---------|----------|
-| `distance(a, b)` | Tiles up plus across (Manhattan) | Range, "within N" |
+| `distance(a, b)` | Tiles up plus across (Manhattan) | Range, "no ally closer" |
+| `walking_distance(a, b)` | 4-directional steps over tiles a foot unit can stand on, ignoring units and movement cost; −1 with no path (question 13) | "Within N" (`SandboxState.walking_distance`) |
 | `neighbors(tile)` | The four orthogonal tiles | Adjacency, Shove |
 | `step(tile, direction)` | The next tile in a direction, or `CombatFact.NO_TILE` off the map | Shove |
 | `can_stand(tile, movement_type)` | Whether that movement type may stand there | Shove landing |
