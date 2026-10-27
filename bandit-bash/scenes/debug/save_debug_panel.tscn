@@ -52,3 +52,13 @@ text = "Win Run"
 unique_name_in_owner = true
 layout_mode = 2
 text = "Lose Run"
+
+[node name="SeedField" type="LineEdit" parent="Column"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "Run seed, e.g. 3F9A-12C0-77E1-A"
+
+[node name="SeedRunButton" type="Button" parent="Column"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "New Solo Run From Seed"

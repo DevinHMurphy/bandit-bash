@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: October 14, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -63,6 +63,7 @@ func _init() -> void:
 	_test_settings_repairs_hand_edits()
 	_test_settings_volume_db()
 	_test_campaign_solo_round_trip()
+	_test_campaign_run_seed_exact_in_json()
 	_test_campaign_multiplayer_shape()
 	_test_campaign_rejects_bad_data()
 	_test_sections_capture_keeps_unregistered()
@@ -486,6 +487,27 @@ func _test_campaign_solo_round_trip() -> void:
 	_check("campaign solo: battle flag defaults off", not fresh.combat_in_progress)
 	var solo_file: String = CampaignData.get_file_name(CampaignData.Mode.SOLO)
 	_check("campaign solo: file name", solo_file == "campaign_solo.json")
+
+
+# Run seeds are saved as plain JSON numbers, not strings: every seed is below 2^52, where JSON
+# numbers are exact (save-system.md, Data rules). "seed" is CampaignData's core key.
+func _test_campaign_run_seed_exact_in_json() -> void:
+	var seeds: Array[int] = [RunSeed.MAX_SEED, 0, 0xFFFFFFFF, RunSeed.generate()]
+	for run_seed: int in seeds:
+		_clear_test_dir()
+		SaveFile.write(TEST_PATH, CampaignData.create_solo(run_seed).to_envelope())
+		var result: SaveFile.ReadResult = SaveFile.read(TEST_PATH)
+		var saved: Variant = _core(result).get("seed")
+		var loaded: CampaignData = CampaignData.new()
+		var err: Error = loaded.load_envelope(result.envelope)
+		_check(
+				"run seed %s: saved as a JSON number" % [RunSeed.format(run_seed)],
+				typeof(saved) == TYPE_FLOAT, type_string(typeof(saved))
+		)
+		_check(
+				"run seed %s: loads back exactly" % [RunSeed.format(run_seed)],
+				err == OK and loaded.run_seed == run_seed, str(loaded.run_seed)
+		)
 
 
 func _test_campaign_multiplayer_shape() -> void:

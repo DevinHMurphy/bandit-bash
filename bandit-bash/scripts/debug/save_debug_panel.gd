@@ -6,7 +6,7 @@
 # File:     save_debug_panel.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: October 14, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 extends PanelContainer
@@ -20,6 +20,8 @@ extends PanelContainer
 ## checkpoint; "End Player Phase" moves to the enemy phase and saves (the only battle save point
 ## besides Begin); "End Enemy Phase" starts the next turn without saving, as the real combat flow
 ## will.[br]
+## "New Solo Run From Seed" starts a solo run from the seed typed in the field above it
+## ([method RunSeed.parse]'s form), abandoning any solo run first, and stays on this screen.[br]
 ## Works the same for a multiplayer host, whose saves also reach the clients. On a client every
 ## button is disabled, since clients never save a campaign; it shows the host's replica instead.
 
@@ -31,6 +33,8 @@ extends PanelContainer
 @onready var _end_battle_button: Button = %EndBattleButton
 @onready var _win_button: Button = %WinButton
 @onready var _lose_button: Button = %LoseButton
+@onready var _seed_field: LineEdit = %SeedField
+@onready var _seed_run_button: Button = %SeedRunButton
 
 
 func _ready() -> void:
@@ -45,6 +49,7 @@ func _ready() -> void:
 	_end_battle_button.pressed.connect(_on_end_battle_button_pressed)
 	_win_button.pressed.connect(_on_win_button_pressed)
 	_lose_button.pressed.connect(_on_lose_button_pressed)
+	_seed_run_button.pressed.connect(_on_seed_run_button_pressed)
 	_refresh(_describe_resume())
 
 
@@ -64,6 +69,11 @@ func _refresh(message: String) -> void:
 
 	var lines: PackedStringArray = []
 	var is_client: bool = SteamNetwork.has_active_session() and not SteamNetwork.is_authoritative()
+	_seed_run_button.disabled = (
+			is_client
+			or not SaveService.has_open_save_file()
+			or (has_campaign and campaign.mode != CampaignData.Mode.SOLO)
+	)
 	if is_client:
 		var replica: CampaignData = SaveService.multiplayer_replica
 		var floor_text: String = "?" if replica == null else str(replica.floors_climbed)
@@ -75,6 +85,7 @@ func _refresh(message: String) -> void:
 				"Checkpoint %d  ·  floor %d  ·  run time %ds"
 				% [campaign.checkpoint_seq, campaign.floors_climbed, campaign.play_time_seconds]
 		)
+		lines.append("Seed %s" % [RunSeed.format(campaign.run_seed)])
 		if in_battle:
 			var phase_name: String = String(CombatData.Phase.find_key(combat.phase)).to_lower()
 			lines.append("Battle: turn %d, %s phase" % [combat.turn, phase_name])
@@ -132,6 +143,25 @@ func _on_win_button_pressed() -> void:
 
 func _on_lose_button_pressed() -> void:
 	_end_run(false)
+
+
+# Stays on the gameplay screen: going back through Loading would be a screen edge that
+# scene_router.gd's flow block doesn't list, and nothing on this placeholder screen reads the seed.
+func _on_seed_run_button_pressed() -> void:
+	var typed_seed: int = RunSeed.parse(_seed_field.text)
+	if typed_seed == RunSeed.NO_SEED:
+		_refresh("Not a run seed: '%s'." % [_seed_field.text])
+		return
+
+	# The solo slot holds one run, so an existing one is abandoned first: archived as lost, as the
+	# Main Menu's Abandon does.
+	if SaveService.has_solo_campaign():
+		var abandon_err: Error = SaveService.abandon_run(CampaignData.Mode.SOLO)
+		if abandon_err != OK:
+			_refresh("Abandoning the solo run failed: %s" % [error_string(abandon_err)])
+			return
+	var err: Error = SaveService.start_new_solo_run(typed_seed)
+	_report("Run started from seed %s" % [RunSeed.format(typed_seed)], err)
 
 
 # In multiplayer the host's end_run() sends the archive record before this moves everyone, and
