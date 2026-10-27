@@ -1,8 +1,8 @@
 # Plan: Event Bus and Effects Architecture
 **Date:** October 23, 2026
-**Status:** Approved October 26, 2026 — in progress: EB1–EB4 implemented October 26, 2026 (490
-headless effect tests pass); EB5 waits on the P03 sketch, EB6 on P04 and P08 question 1, EB9 on P02
-CC3; amended October 26, 2026 with the combat core's and RNG plan's needs
+**Status:** Approved October 26, 2026 — in progress: EB1–EB4 implemented October 26, 2026 (532
+headless effect tests pass); EB5 waits on the P03 sketch, EB6 on P04 and P08 question 1; EB9 is ready
+(P02 CC3 built); fixes F9–F12 built with P02 CC2–CC5 October 27, 2026; amended October 26, 2026 with the combat core's and RNG plan's needs
 ([Amendments from P02 and P13](#amendments-from-p02-and-p13)) and with the EB4 build's findings
 ([Follow-ups from the EB4 build](#follow-ups-from-the-eb4-build))
 
@@ -96,6 +96,7 @@ Questions already settled by the design docs are listed first as answered. Every
 | 36 | How `SampledRolls` turns a candidate's ids into numbers for `RngKey.mix()` (`sampled_rolls.gd` assumption) | As the class doc describes / other | **As built and documented in the class doc.** Only the host's AI samples; the rule must stay fixed within a build so a resumed battle decides the same. | **Answered October 27, 2026:** as recommended. |
 | 37 | Assumptions left from EB1–EB2: a rune is the least specific source (`modifier.gd`); a floor applies before a cap, so a cap below a floor wins (`value_breakdown.gd`); on equal specificity the lowest source id wins (`value_breakdown.gd`); map tiles are never negative (`combat_fact.gd` `NO_TILE`) | Confirm / change each | **Confirm all four.** No MVP content hits the first three; P04 takes "no negative tile coordinates" as a map rule. | **Answered October 27, 2026:** as recommended. |
 | 38 | What "within N tiles" measures (found preparing P02 CC2: effect-triggers.md said walking distance, P02's grid offered only grid distance, and EB4's blocks chose by radius) | One measure / two terms the effect picks | Walking distance for all. | **Answered October 27, 2026 (user):** **two terms, the effect picks.** "Within N tiles" is grid distance, ignoring walls and terrain (an explosion, a magical cleave). "Within N movable tiles" counts the steps the source could take with its own movement type (a healing aura). Fix F9. |
+| 39 | Whether defenders can change the damage they take, and how effects say "against X" or "from X" (found reviewing P02 CC2–CC5) | Two-sided damage stages with an attack condition / attacker only | **Two-sided:** every damage stage reads the attacker's bonuses and the defender's changes to damage taken. `DamageStage` gains `INCOMING_MULTIPLIERS` (defender); `MITIGATION` may go negative; a new `WhileAttackCondition` tests the attack in flight from the holder's side (opponent tag, opponent unit type, damage type, weapon type, crit). Splash and darkness keep their own rules. Fix F12. | **Answered October 27, 2026 (user):** as recommended; the architecture must carry these for future content. |
 
 ## Scope
 
@@ -877,7 +878,7 @@ Gaps the build of EB2, EB3 and P02 CC1 found (questions 19–22, answered Octobe
 
 #### Follow-ups from the EB4 build
 
-Gaps the build of EB4 found (questions 23–33, answered October 26, 2026), built in EB4, and one found preparing P02 CC2 (question 38, answered October 27, 2026), built in CC2's cleanup step.
+Gaps the build of EB4 found (questions 23–33, answered October 26, 2026), built in EB4, and those found preparing and building P02 CC2–CC5 (questions 38–39, answered October 27, 2026), built in that track (F9–F12).
 
 | # | Change | Detail |
 |---|--------|--------|
@@ -886,6 +887,9 @@ Gaps the build of EB4 found (questions 23–33, answered October 26, 2026), buil
 | F7 | `CampaignValue.DEFAULT_BASES` | `HEALING_RECEIVED_PERCENT` 100, `GRADE_BONUS_PERCENT` 25 (vision: grade bonuses +25% each), `SCRAP_PERCENT` 20 (vision: 20% of buy price), `SHARED_XP_PERCENT` 100, `UNIT_XP_PERCENT` 100, `PRICE_PERCENT` 100. Keys not listed start at 0 |
 | F8 | Dormant carriers | An instance owned by a unit, or by an item it carries, is dormant while `has_unit()` is false; a weapon's instances are dormant unless it is `equipped_weapon_id()`. Dormant: no query contributions, no reactions, counters and charges kept. Army, rune and map-object owners are never dormant (Grave Candle fires). Works inside the sandbox, so a forecast that swaps weapons needs nothing extra |
 | F9 | Two distance terms (question 38) | `Area` and `WhilePositionCondition` (kind `WITHIN`) gain an exported distance mode: `GRID` (default; "within N tiles") or `MOVABLE` ("within N movable tiles", through `SandboxState.walking_distance`, measured with the source's movement type). Radius 1 in `GRID` mode stays the four neighbors. `describe()` writes "movable" for `MOVABLE`. Built in P02 CC2's cleanup step |
+| F10 | `Area.Center.COMMAND_TARGET` (3) | Area staves: Sanctuary is the target and allies adjacent to it; the staff record gains an `area`, and each unit it selects gets Staff amount + Might (no area: the target only). Everwall is `Area(OWNER, 3)` in grid mode. Built in P02 CC5's fix-up |
+| F11 | Growth changes | `ChangeBaseStat.mode`: `BASE` (default) or `GROWTH`. `GROWTH` changes no combat value; it records `CombatFact.Kind.GROWTH_CHANGED` (43; actor the unit, `amount` percentage points, `key` the `Stat`; bus signal `growth_changed`) through `EffectEngine.add_growth()` and `SandboxState.add_growth()`, and `CombatUnitState` keeps the changes for the battle-end bridge (EB6) and the `combat_state` save section (P02 CC8). Fixture: Cave Carrot |
+| F12 | Two-sided damage stages (question 39) | `DamageStage.Key.INCOMING_MULTIPLIERS` (1004, base 1); `HitDamage.outgoing` and `.incoming` breakdowns; `WhileAttackCondition` (`role`, `kind`, `type_name`, `damage_type`); `SandboxState` reads `tags_of`, `unit_type_of`, `weapon_type_of` (unit type, weapon type and tags are plain strings until P03). Conditional modifiers are tested live, never cached. With F11, `SandboxState` has **21 methods** |
 
 The sandbox copies the whole session for every branch, with no copy on write yet; its cost is
 **unmeasured** until EB9, and copy on write is a follow-up only if EB9 misses the budget.

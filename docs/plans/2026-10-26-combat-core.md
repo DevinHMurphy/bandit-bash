@@ -1,7 +1,7 @@
 # Plan: Combat Core
 **Date:** October 26, 2026
 **Status:** **Approved** October 26, 2026, after review (questions 9–12 answered, seven fixes
-applied). In progress: CC1 implemented; CC2–CC5 ready (P01 EB4 implemented); CC6 waits on P01
+applied). In progress: CC1–CC5 implemented October 27, 2026 (with P01 fixes F9–F12; 428 headless combat tests pass); CC6 waits on P01
 EB6. Orchestrator ID
 **P02** ([game-orchestrator.md](game-orchestrator.md)).
 
@@ -44,6 +44,9 @@ because the combat core is its first and heaviest consumer. Gaps found while dra
 | 11 | When Unit Turn End fires, now that Unit Turn Start is at Phase Start | After the unit's action (unchanged) / each unit in the Phase End window | Phase End window | **Answered October 26, 2026:** for each unit of the side in the Phase End window, mirroring Unit Turn Start, so a unit's "turn" is its side's phase and every unit gets both triggers. Effects like Radiance count units at their final positions. Vision and effect-triggers.md updated. |
 | 12 | At Phase End, do queued effects resolve before darkness damage? | Effects first / darkness first | Effects first | **Answered October 26, 2026 (approval check):** the reaction queue drains after Unit Turn End and before the darkness hook, so Phase End heals and Unit Turn End Block land first and a heal can save a unit from that phase's darkness; it drains again after. |
 | 13 | How `CombatState` answers `SandboxState.walking_distance()` ("within N" was walking distance in effect-triggers.md, but `CombatGrid` offered only grid `distance` and listed it for "within N") | Add `walking_distance` to `CombatGrid` / compute it in `CombatState` / grid distance only | **Add `walking_distance` to `CombatGrid`**, P04 implements it. | **Answered October 27, 2026 (user):** add it, and keep two terms the effect picks (P01 question 38): "within N tiles" is grid `distance`, ignoring walls; "within N movable tiles" is `walking_distance(a, b, movement_type)`, the steps the source could take with its own movement type. `CombatState.walking_distance(from_id, to_id)` passes the source's movement type. The stub returns grid distance on its open rectangle. |
+| 14 | How a staff with no range is used (Everwall: "every ally within 3 tiles of the user", range "—" in weapons.md; found building CC5) | No target, centered on the user / target self | **No target:** the command names only the staff, and its area centers on the user. CC6's command and validator. | Open (CC6) |
+| 15 | Whether defenders can change the damage they take (found reviewing CC2–CC5: stage 4 read only the attacker's multipliers) | Two-sided stages / attacker only | **Two-sided:** every damage stage reads the attacker's bonuses and the defender's changes to damage taken; stage 4 adds `INCOMING_MULTIPLIERS`; `MITIGATION` may go negative; P01's `WhileAttackCondition` makes them conditional ("×2 against Beasts", "×2 from magic"). | **Answered October 27, 2026 (user):** as recommended; architecture must allow these for future content. P01 question 39, fix F12. |
+| 16 | Where combat rule bases live (found reviewing CC2–CC5: both Multipliers 1, effectiveness 3 and Shove distance 1 are set by `CombatState.load_bases()` at placement, so a unit not placed through `place_unit` reads 0) | A per-key default-base table the stat sheet falls back to / keep them in `load_bases` | **A default-base table** for rule constants, as P01 fix F7 did for campaign percents, so no read depends on placement. Weapon numbers stay in `load_bases`. | Open |
 
 No open questions remain. Derived facts other plans must respect are under
 [Notes for other plans](#notes-for-other-plans).
@@ -150,7 +153,7 @@ All rules code follows gdscript.md §8.5: pure, never awaits, reads values throu
   (enemies: none), tile, current HP, Block, current Stance, whether it has acted this phase, tiles
   moved and movement cost spent this turn (for "moved N+ tiles" and "remaining movement"), whether
   a second move is pending (a `MAY_MOVE_AFTER_ACTING` permission fired), whether it was shoved this
-  phase, whether its Sidearm swap is spent this turn, its equipped and stowed weapon instance ids.
+  phase, whether its Sidearm swap is spent this turn, its equipped and stowed weapon instance ids, its movement type, unit type and tags (plain strings until P03), its Pouch item, and the growth changes it gained this battle (P01 fix F11) for the battle-end bridge.
   Maximum HP, Stance maximum and every combat value are queries, never stored.
 - **Placement:** a unit placed on the map at any time (battle start, a spawn, reinforcement
   arrival, a transfer between maps) starts with Block 0 and its full Stance, so units attacked
@@ -164,7 +167,7 @@ All rules code follows gdscript.md §8.5: pure, never awaits, reads values throu
   ingredients) are campaign-lane charges or consume the item.
 - `CombatState.copy_for_sandbox()` gives P01's sandbox a cheap copy (copy on write where it
   matters); it holds no nodes or Resources.
-- `CombatState` extends P01's `SandboxState` and implements all 17 of its methods (P01 fix F6),
+- `CombatState` extends P01's `SandboxState` and implements all 21 of its methods (P01 fixes F6, F11 and F12),
   `equipped_weapon_id()` included. Writes to HP, Block and Stance from effects arrive through the
   engine's resource paths, which emit the facts. A defeated unit's effects and a stowed weapon's
   effects are dormant (P01 fix F8), so P02 never unregisters them.
@@ -284,9 +287,9 @@ Given attacker, defender, the attacker's weapon and origin tile:
      | # | Stage | Rule |
      |---|-------|------|
      | 1 | Attack | Weapon damage + Might (scaling modifier 1) + flat attack modifiers, ± the triangle (`round(weapon damage ÷ 4)`, halves up, at least 1, for Advantage and Disadvantage), and effectiveness: if the weapon is effective against the defender, weapon damage counts `EffectiveModifier` times (3 + bonuses) |
-     | 2 | Mitigation | Subtract the defender's stat for the damage type (Physical DEF, Magic RES, Split ½ × (DEF + RES), Pure skips this stage) + the terrain's DEF or RES bonus (Split: half of each) + flat mitigation modifiers. A crit with "skips Mitigation" (Kukri) skips it too |
+     | 2 | Mitigation | Subtract the defender's stat for the damage type (Physical DEF, Magic RES, Split ½ × (DEF + RES), Pure skips this stage) + the terrain's DEF or RES bonus (Split: half of each) + flat mitigation modifiers, which may make it negative ("takes 2 more damage"; question 15). A crit with "skips Mitigation" (Kukri) skips it too |
      | 3 | Critical | × the weapon's CritX (+ modifiers) on a crit |
-     | 4 | Multipliers | × every percent modifier, multiplied together |
+     | 4 | Multipliers | The attacker's `MULTIPLIERS` × the defender's `INCOMING_MULTIPLIERS` (question 15); a "that hit" modifier joins the key it targets. Each side's sources appear in the breakdown |
      | 5 | Floor | Round once, halves up; never below 0. A 0 is fully countered |
      | 6 | Block | The defender's Block absorbs what it can |
      | 7 | HP | HP takes the rest |
@@ -441,8 +444,8 @@ the "P01 today" column records the state before that.
 
 - **New `COMBAT` section `combat_state`**, version 1, one per session (a `SaveSection` in solo; the
   per-map format is P11's change): every unit's `CombatUnitState`, the turn, the phase side, the
-  seats that have ended this phase, shoved-this-phase ids, each unit's movement spent and pending
-  second move (Save & Quit works mid-phase), and rune slots per seat. Plain JSON, ids as
+  seats that have ended this phase, shoved-this-phase ids, each unit's movement spent, pending
+  second move and growth changes (Save & Quit works mid-phase), and rune slots per seat. Plain JSON, ids as
   strings, enums as string ids (save-system.md data rules).
 - `CombatData`'s core `turn` and `phase` are kept equal to the solo session's values, so the save
   summary still shows them; P11 decides their future for parallel maps.

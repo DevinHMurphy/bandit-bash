@@ -35,11 +35,11 @@ before their consumers are checked are the costliest to fix).
 
 - **Design:** ideation closed for the MVP (design reviews of October 23–24, 2026). Remaining design
   items are content or tuning; see [Design items by plan](#design-items-by-plan).
-- **Code:** the save system is built. P01 EB1–EB4, P02 CC1 and P13 R1–R3 are built and tested headless (merged into `feature/save-system`; effects 490, RNG 126, save 196 tests pass).
-  No gameplay rules are built yet: the engine runs on test harnesses until P02 lands.
+- **Code:** the save system is built. P01 EB1–EB4, P02 CC1–CC5 and P13 R1–R3 are built and tested headless (combat 428, effects 532, RNG 126, save 196 tests pass).
+  The combat rules (exchange, splash, Shove, staves, Pouch items, swaps, runes) run in tests; no turn loop or map yet.
 - **Current milestone:** [M0 Foundations](#milestones).
-- **Current focus:** the effect engine (P01 EB4, with F3–F8) is built and merged. Next is the combat core (P02 CC2, then CC3–CC5),
-  with P13 R4 alongside. Planning in parallel: P08 question 1, P03 sketch, P04 draft (they gate EB5 and EB6).
+- **Current focus:** P02 CC2–CC5 are built (with P01 fixes F9–F12, two-sided damage stages). The turn loop (CC6) needs P01 EB6,
+  which needs the P04 draft and P08 question 1: planning is now the critical path. Builds meanwhile: R4, EB9, a warnings fix-up.
 
 ## Milestones
 
@@ -64,8 +64,8 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | ID | Plan | File | Status | Depends on | Unblocks | Design basis |
 |----|------|------|--------|-----------|----------|--------------|
 | P00 | Save system | [2026-10-13-save-system.md](2026-10-13-save-system.md) | **Implemented** October 14, 2026 (multiplayer paths untested live) | — | All | save-system.md |
-| P01 | Event bus and effects | [2026-10-23-event-bus-and-effects.md](2026-10-23-event-bus-and-effects.md) | **In progress** (approved October 26, 2026; amended with P02's and P13's needs the same day): EB1–EB4 implemented with fixes F1–F8 (490 headless tests pass; merged); EB5 waits on P03, EB6 on P04 and P08 question 1, EB9 on P02 CC3 | P00 | Every gameplay plan | effects-system.md, effect-triggers.md |
-| P02 | Combat core: turns and phases, action economy, the exchange, damage stages, Block, Stance, triangle, crits, Parry, Shove, staves, Pouch items, weapon swaps, runes, forecast, `CombatGrid` interface | [2026-10-26-combat-core.md](2026-10-26-combat-core.md) | **Approved** October 26, 2026 (reviewed: questions 9–12 answered, seven fixes). **In progress:** CC1 built (fix-up F2 adds `item_id`); CC2–CC5 ready (P01 EB4 implemented); CC6 waits on EB6 | P01 (EB2–EB4, plus amendments N1–N10) | P04, P05, P06, P07 | game-vision.md Combat |
+| P01 | Event bus and effects | [2026-10-23-event-bus-and-effects.md](2026-10-23-event-bus-and-effects.md) | **In progress** (approved October 26, 2026; amended with P02's and P13's needs the same day): EB1–EB4 implemented with fixes F1–F12 (532 headless tests pass); EB5 waits on P03, EB6 on P04 and P08 question 1; EB9 ready | P00 | Every gameplay plan | effects-system.md, effect-triggers.md |
+| P02 | Combat core: turns and phases, action economy, the exchange, damage stages, Block, Stance, triangle, crits, Parry, Shove, staves, Pouch items, weapon swaps, runes, forecast, `CombatGrid` interface | [2026-10-26-combat-core.md](2026-10-26-combat-core.md) | **Approved** October 26, 2026 (reviewed: questions 9–12 answered, seven fixes). **In progress:** CC1–CC5 built (428 headless combat tests pass); CC6 waits on EB6; open questions 14 (CC6) and 16 | P01 (EB2–EB4, plus amendments N1–N10) | P04, P05, P06, P07 | game-vision.md Combat |
 | P03 | Content catalog: unit types, traits and upgrades, the Drengr, prefixes, weapons, staves, items, ingredients, runes, heirlooms, curses | — | **Not started** (sketch before EB5; may split into units / items / heirlooms) | P01 (EB3, EB5) | M1 content, P08, P09 | unit-roster.md, weapons.md, items.md, heirlooms.md, events.md (curses) |
 | P04 | Combat map: grid, terrain, pathing, deployment, objectives, reinforcement points, map objects, map authoring and its checks | — | **Not started** (draft before EB6) | P01 (EB6), P02 | P05, P06, P07, M1 | game-vision.md Combat maps, map-objects.md |
 | P05 | Enemies and AI: classes, intents, danger zone, ruthless AI, signature moves, elites, mini-bosses, the Powder Baron | — | **Not started** | P02, P04 | M1, M2 | enemy-roster.md |
@@ -128,8 +128,8 @@ mark it **Open** here.
 | P01 EB4 live rolls (within EB2–EB4) | P13 approved ✅ (October 26, 2026); P13 R1–R3 implemented ✅ (`RngStream` is what `LiveRolls` wraps); P01 amended with P13's needs R-N1 and R-N2 ✅ (October 26, 2026) ([RNG plan](2026-10-26-rng-streams.md#what-p13-needs-from-other-plans)) | Real resolution and P02's golden-log tests need seeded streams | **Open** October 26, 2026 (R1–R3 built) |
 | P01 EB6 Sessions, encounter, bridge | P04 drafted (including P13 need R-N5: stable container indices); P08 question 1 (`CampaignSession` owner) answered; P13 approved and P01 amended with R-N3 ✅ (the encounter draws the whole setup once; sessions get their own streams) | Sessions carry turns, deployment, commands and the RNG injection point | Closed |
 | P01 EB7 Serialization, rejoin | EB6; P01 amended with P13 need R-N4 ✅ (run seed, build and live stream states in snapshots and repro dumps) | — | Closed |
-| P02 implementation (CC2–CC5; CC6 waits on EB6) | P01 EB4 implemented ✅ (October 26, 2026) | Combat rules are effect-engine consumers | **Open** October 26, 2026 |
-| P01 EB9 Benchmark | P02 CC3 (a real `CombatState` and exchange to measure) | Sandbox creation cost means little on the fake test state; the numbers decide copy on write and the AI's branch budget | Closed |
+| P02 implementation (CC2–CC5; CC6 waits on EB6) | P01 EB4 implemented ✅ (October 26, 2026) | Combat rules are effect-engine consumers | **Open** October 26, 2026; CC2–CC5 built October 27, 2026 |
+| P01 EB9 Benchmark | P02 CC3 (a real `CombatState` and exchange to measure) | Sandbox creation cost means little on the fake test state; the numbers decide copy on write and the AI's branch budget | **Open** October 27, 2026 (CC3 built) |
 | P03 implementation | P01 EB5 implemented | Content is catalog data | Closed |
 | P04 implementation | P01 EB6, P02 core turn loop | Maps run inside sessions | Closed |
 | P11 implementation | P10 implemented, P01 EB7, the per-map battle save format | Co-op needs transport, snapshots and saves | Closed |
@@ -189,14 +189,13 @@ more enemy factions, units with convoy access, shared and hybrid co-op battles, 
 
 ## Next actions
 
-1. P01 questions 34–37 are answered (October 27, 2026); the CC2 build removes their markers. P02
-   question 13 and P01 question 38 are answered: two distance terms, fix F9 in CC2's cleanup step.
-2. Build P02 CC2 (state, grid stub, keys; `CombatState` implements `SandboxState`'s 17 methods),
-   then CC3 (the exchange), then CC4 and CC5. One track, in order.
-3. P13 R4 (run seed; edits `SaveService`) alongside, as its own track.
-4. Planning, here: answer P08 question 1 (`CampaignSession` owner), sketch P03, draft P04. P03
-   opens EB5; P04 and P08 question 1 open EB6, which CC6 needs.
-5. After CC3: P01 EB9 (benchmark), which decides copy on write and the AI's branch budget.
+1. Merge `build/p02-cc2-cc5` (CC2–CC5 and these plan updates) into `feature/save-system`; R4 merges when done.
+2. Planning, here (critical path to CC6): P08 question 1 (`CampaignSession` owner), draft P04 (it implements
+   `CombatGrid` with `walking_distance`, P02 question 13), sketch P03. P04 and P08 question 1 open EB6; P03 opens EB5.
+3. Build P01 EB9 (benchmark) now that CC3 exists: it decides copy on write and the AI's branch budget.
+4. A fix-up after R4 merges: the six GDScript warning settings gdscript.md §4 expects in `project.godot`
+   (user agreed October 27, 2026), fixing what they flag, plus P02 question 16 if answered.
+5. P02 question 14 (staff with no range) is answered with CC6.
 
 ## Change log
 
@@ -220,3 +219,4 @@ more enemy factions, units with convoy access, shared and hybrid co-op battles, 
 | October 26, 2026 | **P01 EB4 implemented** and merged into `feature/save-system` (parts 3–5: roll sources, the sandbox and `ExchangeOutcome`; cached stat sheets with fact-driven invalidation and verify mode; the `rng_key.gd` markers; F8 dormant carriers). Effects 490, RNG 126 and save 196 headless tests pass. P02 CC2–CC5 gate opened; new gate: EB9 waits on CC3. P01 questions 34–37 opened for the assumptions left in code. |
 | October 27, 2026 | P01 questions 34–37 answered as recommended (conditional expected damage before defeat; forecast random picks marked random; sampled-roll encoding as built; the four EB1–EB2 assumptions confirmed, P04 owns non-negative tiles). Preparing CC2 found that `CombatGrid` has no walking distance although "within N" uses one: P02 question 13 opened with a recommendation (`CombatGrid.walking_distance`). CC2–CC5 and R4 build prompts issued. |
 | October 27, 2026 | P02 question 13 and P01 question 38 answered by the user: two distance terms the effect picks, "within N tiles" (grid distance, ignoring walls) and "within N movable tiles" (`CombatGrid.walking_distance` with the source's movement type). effect-triggers.md updated; P01 fix F9 (a distance mode on `Area` and `WhilePositionCondition`) goes into CC2's cleanup step. P04 settles whether units block movable distance. |
+| October 27, 2026 | **P02 CC2–CC5 built** on `build/p02-cc2-cc5` with three fix-ups (P01 fixes F10–F12: area staves through `Area.Center.COMMAND_TARGET`, growth changes and `GROWTH_CHANGED`, two-sided damage stages with `INCOMING_MULTIPLIERS` and `WhileAttackCondition`; `SandboxState` now 21 methods). Verified headless: combat 428, effects 532, RNG 126, save 196. User decision (P01 question 39, P02 question 15): defenders can change the damage they take, for future content. Opened P02 questions 14 (staff with no range, CC6) and 16 (rule bases in a default table). EB9 gate opened. |
