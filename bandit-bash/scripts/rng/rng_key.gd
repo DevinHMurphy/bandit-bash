@@ -109,11 +109,10 @@ func _init(
 	index = key_index
 
 
-## A string naming this key in a save file. Purposes are written as numbers, so renaming one never
-## orphans saved streams. [method from_save_key] reads it back.
+## A string naming this key in a save file: the five parts as decimals joined by ":", purpose first,
+## such as [code]9:2:5:0:-1[/code]. Purposes are written as numbers, so renaming one never orphans
+## saved streams. [method from_save_key] reads it back.
 func to_save_key() -> String:
-	# ASSUMPTION: the save key is the five parts as decimals joined by ":", purpose first
-	# (e.g. "9:2:5:0:-1"); the plan names to_save_key() but not its format.
 	return _SAVE_KEY_FORMAT % [purpose, floor_number, node, seat, index]
 
 
@@ -135,8 +134,8 @@ static func derive_seed(
 ## running result and mixed again. An empty array gives [code]0[/code].[br]
 ## Also seeds P01's [code]SampledRolls[/code] from a session [code]seq[/code] and a candidate.
 static func mix(values: PackedInt64Array) -> int:
-	# ASSUMPTION: the chain starts at 0 and folds each value in as splitmix64(state ^ value); the
-	# plan names SplitMix64 chained over the parts but not the chaining rule.
+	# The chain starts at 0 and folds each value in as splitmix64(state ^ value), so one value gives
+	# standard SplitMix64 output.
 	var state: int = 0
 	for value: int in values:
 		state = _splitmix64(state ^ value)
