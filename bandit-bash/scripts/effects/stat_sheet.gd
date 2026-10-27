@@ -6,7 +6,7 @@
 # File:     stat_sheet.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 class_name StatSheet
@@ -114,7 +114,9 @@ func explain(
 		return static_answer
 	var modifiers: Array[Modifier] = get_modifiers(key, stat)
 	modifiers.append_array(live)
-	return ValueBreakdown.compute(key, get_base(key), _base_labels.get(key, ""), modifiers)
+	return ValueBreakdown.compute(
+			key, get_base(key), _base_labels.get(key, "") as String, modifiers
+	)
 
 
 ## Whether [param permission] is allowed. Any denial beats any grant.
@@ -146,7 +148,7 @@ func explain_static(key: int, stat: int = Modifier.NO_STAT) -> ValueBreakdown:
 	var slot: int = _slot(key, stat)
 	if not _cache.has(slot):
 		_cache[slot] = ValueBreakdown.compute(
-				key, get_base(key), _base_labels.get(key, ""), get_modifiers(key, stat)
+				key, get_base(key), _base_labels.get(key, "") as String, get_modifiers(key, stat)
 		)
 	return _cache[slot]
 
@@ -168,7 +170,7 @@ func explain_static_permission(
 func copy_for(engine: EffectEngine) -> StatSheet:
 	var copy: StatSheet = StatSheet.new(subject_id, engine)
 	for key: int in _bases:
-		copy.set_base(key, _bases[key], _base_labels.get(key, ""))
+		copy.set_base(key, _bases[key], _base_labels.get(key, "") as String)
 	for key: int in _modifiers:
 		for modifier: Modifier in _modifiers[key]:
 			copy.add_modifier(modifier)

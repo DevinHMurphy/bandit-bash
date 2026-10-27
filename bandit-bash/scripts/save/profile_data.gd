@@ -6,7 +6,7 @@
 # File:     profile_data.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: October 14, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 class_name ProfileData
@@ -71,8 +71,8 @@ func load_envelope(envelope: Dictionary) -> Error:
 
 	var core: Dictionary = envelope[SaveFile.KEY_CORE]
 	last_steam_name = str(core.get(_KEY_LAST_STEAM_NAME, ""))
-	play_time_seconds = maxi(int(core.get(_KEY_PLAY_TIME_SECONDS, 0)), 0)
-	created_at = int(core.get(_KEY_CREATED_AT, 0))
+	play_time_seconds = maxi(core.get(_KEY_PLAY_TIME_SECONDS, 0) as int, 0)
+	created_at = core.get(_KEY_CREATED_AT, 0) as int
 	sections = envelope[SaveFile.KEY_SECTIONS]
 	return OK
 

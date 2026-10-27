@@ -6,7 +6,7 @@
 # File:     save_file.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: October 14, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 class_name SaveFile
@@ -309,16 +309,16 @@ static func _is_valid_envelope(data: Variant) -> bool:
 			return false
 	if typeof(envelope.get(KEY_GAME_VERSION)) != TYPE_STRING:
 		return false
-	return not _parse_version(envelope[KEY_GAME_VERSION]).is_empty()
+	return not _parse_version(envelope[KEY_GAME_VERSION] as String).is_empty()
 
 
 # True when a is newer than b by checkpoint_seq, then saved_at.
 static func _is_newer(a: Dictionary, b: Dictionary) -> bool:
-	var seq_a: int = int(a[KEY_CHECKPOINT_SEQ])
-	var seq_b: int = int(b[KEY_CHECKPOINT_SEQ])
+	var seq_a: int = a[KEY_CHECKPOINT_SEQ] as int
+	var seq_b: int = b[KEY_CHECKPOINT_SEQ] as int
 	if seq_a != seq_b:
 		return seq_a > seq_b
-	return int(a[KEY_SAVED_AT]) > int(b[KEY_SAVED_AT])
+	return (a[KEY_SAVED_AT] as int) > (b[KEY_SAVED_AT] as int)
 
 
 # Makes <path> hold the chosen copy and removes a leftover .tmp. Failures are warnings, not errors:

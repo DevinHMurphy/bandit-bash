@@ -79,7 +79,7 @@ func apply(ctx: EffectContext) -> void:
 	var points: int = ValueBreakdown.round_to_int(value, ValueBreakdown.Rounding.HALF_UP)
 	for unit_id: String in _targets(target, ctx):
 		if mode == Mode.GROWTH:
-			ctx.engine.add_growth(unit_id, stat, points, instance.instance_id)
+			ctx.engine.add_growth(unit_id, stat as int, points, instance.instance_id)
 			continue
 		ctx.engine.add_delta(unit_id, Modifier.new(
 				key, Modifier.Mode.ADD, value, instance.source_kind, instance.instance_id,

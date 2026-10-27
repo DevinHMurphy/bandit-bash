@@ -6,7 +6,7 @@
 # File:     archive_record.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: October 14, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 class_name ArchiveRecord
@@ -118,14 +118,14 @@ func load_envelope(envelope: Dictionary) -> Error:
 
 	mode = loaded_mode as CampaignData.Mode
 	won = outcome == _OUTCOME_WON
-	started_at = int(core.get(_KEY_STARTED_AT, 0))
-	ended_at = int(core.get(_KEY_ENDED_AT, 0))
-	play_time_seconds = maxi(int(core.get(_KEY_PLAY_TIME_SECONDS, 0)), 0)
-	run_seed = int(core.get(_KEY_SEED, 0))
+	started_at = core.get(_KEY_STARTED_AT, 0) as int
+	ended_at = core.get(_KEY_ENDED_AT, 0) as int
+	play_time_seconds = maxi(core.get(_KEY_PLAY_TIME_SECONDS, 0) as int, 0)
+	run_seed = core.get(_KEY_SEED, 0) as int
 	difficulty = str(core.get(_KEY_DIFFICULTY, ""))
 	modifiers = _read_strings(core.get(_KEY_MODIFIERS))
-	floors_climbed = maxi(int(core.get(_KEY_FLOORS_CLIMBED, 0)), 0)
-	combat_maps_completed = maxi(int(core.get(_KEY_COMBAT_MAPS_COMPLETED, 0)), 0)
+	floors_climbed = maxi(core.get(_KEY_FLOORS_CLIMBED, 0) as int, 0)
+	combat_maps_completed = maxi(core.get(_KEY_COMBAT_MAPS_COMPLETED, 0) as int, 0)
 	players = loaded_players
 	return OK
 
@@ -165,7 +165,7 @@ static func from_campaign(
 		player.name = player_names.get(campaign_player.seat, "")
 		var roster: Variant = campaign_player.sections.get(ROSTER_SECTION_KEY, {})
 		if typeof(roster) == TYPE_DICTIONARY:
-			player.roster = roster.duplicate(true)
+			player.roster = (roster as Dictionary).duplicate(true)
 		record.players.append(player)
 	return record
 
@@ -225,7 +225,7 @@ class ArchivedPlayer:
 			return null
 
 		var player: ArchivedPlayer = ArchivedPlayer.new()
-		player.seat = int(entry[_KEY_SEAT])
+		player.seat = entry[_KEY_SEAT] as int
 		player.steam_id = str(entry.get(_KEY_STEAM_ID, ""))
 		player.name = str(entry.get(_KEY_NAME, ""))
 		player.roster = entry.get(_KEY_ROSTER, {})

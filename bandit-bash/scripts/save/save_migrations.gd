@@ -6,7 +6,7 @@
 # File:     save_migrations.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: October 14, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 class_name SaveMigrations
@@ -40,7 +40,7 @@ static func run(envelope: Dictionary, current_version: int, steps: Array[Callabl
 		)
 		return ERR_BUG
 
-	var file_version: int = int(envelope.get(SaveFile.KEY_SCHEMA_VERSION, 0))
+	var file_version: int = envelope.get(SaveFile.KEY_SCHEMA_VERSION, 0) as int
 	if file_version < 1:
 		push_error("SaveMigrations: invalid schema version %d." % [file_version])
 		return ERR_INVALID_DATA

@@ -6,7 +6,7 @@
 # File:     steam_network.gd
 # Author:
 # Created:  October 9, 2026
-# Modified: October 14, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 extends Node
@@ -338,8 +338,8 @@ func get_friend_lobbies() -> Array[FriendLobby]:
 		var friend_id: int = Steam.getFriendByIndex(i, Steam.FRIEND_FLAG_IMMEDIATE)
 		var game: Dictionary = Steam.getFriendGamePlayed(friend_id)
 		# ASSUMPTION: GodotSteam reports the app as "id" and the lobby as "lobby"; unverified live.
-		var lobby_id: int = int(game.get("lobby", 0))
-		if int(game.get("id", 0)) != app_id or lobby_id == 0:
+		var lobby_id: int = game.get("lobby", 0) as int
+		if (game.get("id", 0) as int) != app_id or lobby_id == 0:
 			continue
 		var entry: FriendLobby = FriendLobby.new()
 		entry.friend_steam_id = friend_id

@@ -6,7 +6,7 @@
 # File:     campaign_data.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: October 14, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 class_name CampaignData
@@ -160,16 +160,16 @@ func load_envelope(envelope: Dictionary) -> Error:
 		return ERR_INVALID_DATA
 
 	mode = mode_key
-	run_seed = int(core.get(_KEY_SEED, 0))
+	run_seed = core.get(_KEY_SEED, 0) as int
 	difficulty = str(core.get(_KEY_DIFFICULTY, ""))
 	modifiers = _read_strings(core.get(_KEY_MODIFIERS))
-	play_time_seconds = maxi(int(core.get(_KEY_PLAY_TIME_SECONDS, 0)), 0)
-	started_at = int(core.get(_KEY_STARTED_AT, 0))
-	last_opened = int(core.get(_KEY_LAST_OPENED, 0))
-	checkpoint_seq = int(envelope[SaveFile.KEY_CHECKPOINT_SEQ])
+	play_time_seconds = maxi(core.get(_KEY_PLAY_TIME_SECONDS, 0) as int, 0)
+	started_at = core.get(_KEY_STARTED_AT, 0) as int
+	last_opened = core.get(_KEY_LAST_OPENED, 0) as int
+	checkpoint_seq = envelope[SaveFile.KEY_CHECKPOINT_SEQ] as int
 	level_id = str(core.get(_KEY_LEVEL_ID, ""))
-	floors_climbed = maxi(int(core.get(_KEY_FLOORS_CLIMBED, 0)), 0)
-	combat_maps_completed = maxi(int(core.get(_KEY_COMBAT_MAPS_COMPLETED, 0)), 0)
+	floors_climbed = maxi(core.get(_KEY_FLOORS_CLIMBED, 0) as int, 0)
+	combat_maps_completed = maxi(core.get(_KEY_COMBAT_MAPS_COMPLETED, 0) as int, 0)
 	combat_in_progress = core.get(_KEY_COMBAT_IN_PROGRESS, false) == true
 	players = loaded_players
 	sections = envelope[SaveFile.KEY_SECTIONS]
@@ -243,7 +243,7 @@ static func get_mode_id(slot_mode: Mode) -> String:
 ## The [enum Mode] saved as [param mode_id], or -1 when it isn't a known id.
 static func find_mode(mode_id: String) -> int:
 	var mode_key: Variant = _MODE_IDS.find_key(mode_id)
-	return -1 if mode_key == null else int(mode_key)
+	return -1 if mode_key == null else (mode_key as int)
 
 
 # Returns an empty array when the list is missing or any entry is malformed; the caller treats
@@ -326,7 +326,7 @@ class PlayerRun:
 			return null
 
 		var player: PlayerRun = PlayerRun.new()
-		player.seat = int(entry[_KEY_SEAT])
+		player.seat = entry[_KEY_SEAT] as int
 		player.steam_id = str(entry.get(_KEY_STEAM_ID, ""))
 		player.sections = entry.get(_KEY_SECTIONS, {})
 		return player

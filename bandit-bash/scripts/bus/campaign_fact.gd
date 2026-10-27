@@ -6,7 +6,7 @@
 # File:     campaign_fact.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 class_name CampaignFact
@@ -124,7 +124,7 @@ func to_log_line(describe: Callable = Callable()) -> String:
 
 func _kind_name() -> String:
 	var key: Variant = Kind.find_key(kind)
-	return "KIND_%d" % [kind] if key == null else String(key)
+	return "KIND_%d" % [kind] if key == null else (key as String)
 
 
 func _describe_id(id: String, describe: Callable) -> String:
@@ -152,7 +152,7 @@ static func from_wire(data: Array) -> CampaignFact:
 		push_warning("CampaignFact: wire data out of range - %s" % [data])
 		return null
 
-	var fact: CampaignFact = CampaignFact.new(kind_value as Kind, seat_value, values[3])
+	var fact: CampaignFact = CampaignFact.new(kind_value as Kind, seat_value, values[3] as String)
 	fact.seq = seq_value
 	fact.target_id = values[4]
 	fact.definition_id = values[5]

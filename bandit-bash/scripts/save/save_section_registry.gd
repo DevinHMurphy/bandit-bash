@@ -6,7 +6,7 @@
 # File:     save_section_registry.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: October 14, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 class_name SaveSectionRegistry
@@ -96,7 +96,7 @@ func restore(block: SaveSection.Block, sections: Dictionary) -> Error:
 		if not prepared.has(key):
 			section.reset()
 			continue
-		var restore_err: Error = section.restore(prepared[key])
+		var restore_err: Error = section.restore(prepared[key] as Dictionary)
 		if restore_err != OK:
 			push_error("SaveSectionRegistry: '%s' refused its data." % [key])
 			return restore_err
@@ -149,7 +149,9 @@ func restore_players(players: Array[CampaignData.PlayerRun]) -> Error:
 			if not prepared.has(prepared_key):
 				section.reset(player.seat)
 				continue
-			var restore_err: Error = section.restore(player.seat, prepared[prepared_key])
+			var restore_err: Error = section.restore(
+					player.seat, prepared[prepared_key] as Dictionary
+			)
 			if restore_err != OK:
 				push_error("SaveSectionRegistry: '%s' refused seat %d." % [key, player.seat])
 				return restore_err
@@ -205,7 +207,7 @@ static func _prepare(
 		push_error("SaveSectionRegistry: section '%s' is malformed." % [label])
 		return ERR_INVALID_DATA
 
-	var version: int = int(section_entry[KEY_VERSION])
+	var version: int = section_entry[KEY_VERSION] as int
 	if version < 1:
 		push_error("SaveSectionRegistry: section '%s' has version %d." % [label, version])
 		return ERR_INVALID_DATA

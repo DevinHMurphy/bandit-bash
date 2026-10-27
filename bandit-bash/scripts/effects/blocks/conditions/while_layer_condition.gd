@@ -6,7 +6,7 @@
 # File:     while_layer_condition.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 @tool
@@ -38,7 +38,7 @@ enum Layer {
 
 
 func describe() -> String:
-	var layer_name: String = String(Layer.find_key(layer)).capitalize()
+	var layer_name: String = (Layer.find_key(layer) as String).capitalize()
 	return "while on %s%s" % [layer_name, " or deeper" if or_deeper else ""]
 
 

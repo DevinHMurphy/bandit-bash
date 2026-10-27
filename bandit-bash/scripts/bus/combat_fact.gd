@@ -294,7 +294,7 @@ func to_log_line(describe: Callable = Callable()) -> String:
 		parts.append("<-" if RECEIVED_KINDS.has(kind) else "->")
 		parts.append(_describe_id(target_id, describe))
 	if side != CombatSide.NONE:
-		parts.append("side %s" % [String(CombatSide.find_key(side)).to_lower()])
+		parts.append("side %s" % [(CombatSide.find_key(side) as String).to_lower()])
 	if not item_id.is_empty():
 		parts.append("item %s" % [_describe_id(item_id, describe)])
 	# Numbers, not names: facts stay independent of the effect classes that own these enums.
@@ -307,9 +307,9 @@ func to_log_line(describe: Callable = Callable()) -> String:
 		if hp_amount != 0 or block_amount != 0:
 			parts.append("(hp %d, block %d)" % [hp_amount, block_amount])
 	if source != Source.NONE:
-		parts.append("source %s" % [String(Source.find_key(source)).to_lower()])
+		parts.append("source %s" % [(Source.find_key(source) as String).to_lower()])
 	if damage_type != DamageType.NONE:
-		parts.append("type %s" % [String(DamageType.find_key(damage_type)).to_lower()])
+		parts.append("type %s" % [(DamageType.find_key(damage_type) as String).to_lower()])
 	if not source_effect_id.is_empty():
 		parts.append("effect %s" % [_describe_id(source_effect_id, describe)])
 	if tile != NO_TILE:
@@ -321,7 +321,7 @@ func to_log_line(describe: Callable = Callable()) -> String:
 
 func _kind_name() -> String:
 	var key: Variant = Kind.find_key(kind)
-	return "KIND_%d" % [kind] if key == null else String(key)
+	return "KIND_%d" % [kind] if key == null else (key as String)
 
 
 func _describe_id(id: String, describe: Callable) -> String:
@@ -359,7 +359,9 @@ static func from_wire(data: Array) -> CombatFact:
 		push_warning("CombatFact: wire data out of range - %s" % [data])
 		return null
 
-	var fact: CombatFact = CombatFact.new(kind_value as Kind, values[3], values[4])
+	var fact: CombatFact = CombatFact.new(
+			kind_value as Kind, values[3] as String, values[4] as String
+	)
 	fact.seq = seq_value
 	fact.session_id = session_value
 	fact.amount = values[5]
@@ -368,7 +370,7 @@ static func from_wire(data: Array) -> CombatFact:
 	fact.damage_type = type_value as DamageType
 	fact.source = source_value as Source
 	fact.source_effect_id = values[10]
-	fact.tile = Vector2i(values[11], values[12])
+	fact.tile = Vector2i(values[11] as int, values[12] as int)
 	fact.flags = values[13]
 	fact.side = side_value as CombatSide
 	fact.item_id = values[15]
