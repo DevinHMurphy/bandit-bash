@@ -18,6 +18,9 @@ extends SandboxState
 ## engine's tests: Block absorbs, then HP; Damage taken; a unit at 0 HP is defeated. A defeated
 ## unit leaves the map: it has no tile any more, as when the combat core clears its occupancy.
 
+# This script, preloaded as a type for its copy (gdscript.md, Naming): it has no class name.
+const FakeState = preload("res://tests/effects/harness/fake_state.gd")
+
 ## Weapon type by weapon instance id, for conditions that test it.
 var weapon_types: Dictionary[String, String] = {}
 
@@ -55,8 +58,7 @@ func summary() -> String:
 
 
 func copy_for_sandbox() -> SandboxState:
-	# Variant: the copy is this script, which has no class name to type it with.
-	var copy: Variant = (get_script() as GDScript).new()
+	var copy: FakeState = FakeState.new()
 	copy.weapon_types = weapon_types.duplicate()
 	for id: String in _order:
 		var original: FakeUnit = _units[id]

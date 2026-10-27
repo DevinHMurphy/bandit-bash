@@ -18,7 +18,8 @@ extends "res://tests/effects/engine_cases.gd"
 ## the single Block-gain and heal paths. Every scenario also asserts that the engine reported no
 ## diagnostics. Shares the helpers of engine_cases.gd.
 
-const FakeExchange: GDScript = preload("res://tests/effects/harness/fake_exchange.gd")
+# A preloaded script used as a type (gdscript.md, Naming): the harness has no class name.
+const FakeExchange = preload("res://tests/effects/harness/fake_exchange.gd")
 
 const ENEMY_SIDE: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
 const HEIRLOOM: Modifier.SourceKind = Modifier.SourceKind.HEIRLOOM
@@ -292,7 +293,7 @@ func _test_golden_iron_heart() -> void:
 func _test_golden_momentum() -> void:
 	var engine: EffectEngine = _battle(["p1", "e1"], [0, 1, 1])
 	engine.register(_instance("effect:mo", _momentum(), _owner("p1"), TRAIT, "Momentum"))
-	var harness: Variant = _harness(engine)
+	var harness: FakeExchange = _harness(engine)
 	harness.exchange("p1", "e1", "aa")
 	harness.exchange("p1", "e1", "a")
 	_golden("Momentum", engine)
@@ -337,7 +338,7 @@ func _test_golden_war_horn() -> void:
 			EffectDefinition.Trigger.PHASE_START, [second], [horn]
 	)
 	engine.register(_instance("effect:wh", war_horn, _owner("e1"), TRAIT, "War Horn"))
-	var harness: Variant = _harness(engine)
+	var harness: FakeExchange = _harness(engine)
 	harness.phase_start(ENEMY_SIDE)
 	harness.phase_end(ENEMY_SIDE)
 	var second_start: int = engine.fact_log.size()
@@ -434,7 +435,7 @@ func _test_golden_training_weights() -> void:
 func _test_golden_brittle_guard() -> void:
 	var engine: EffectEngine = _battle(["p1", "p2", "e1"])
 	engine.register(_instance("effect:bg", _brittle_guard(), _army(), CURSE, "Brittle Guard"))
-	var harness: Variant = _harness(engine)
+	var harness: FakeExchange = _harness(engine)
 	harness.staff_block("p2", "p1", 3.0)
 	harness.staff_block("p2", "p1", 1.0)
 	_golden("Brittle Guard (3 -> 2, 1 -> 0)", engine)
@@ -514,7 +515,7 @@ func _test_inline_window_per_trigger() -> void:
 func _test_momentum_stacks() -> void:
 	var engine: EffectEngine = _battle(["p1", "e1"], [0, 0, 1])
 	engine.register(_instance("effect:mo", _momentum(), _owner("p1"), TRAIT, "Momentum"))
-	var harness: Variant = _harness(engine)
+	var harness: FakeExchange = _harness(engine)
 	harness.exchange("p1", "e1", "aa")
 	_ok("momentum: two misses give two modifiers", engine.get_timed_modifiers("p1").size() == 2)
 	harness.exchange("p1", "e1", "a")
@@ -528,7 +529,7 @@ func _test_momentum_stacks() -> void:
 
 func _test_next_attack_uses() -> void:
 	var engine: EffectEngine = _battle(["p1", "e1"], [0, 1, 1])
-	var harness: Variant = _harness(engine)
+	var harness: FakeExchange = _harness(engine)
 	engine.add_timed_modifier("p1", _hit_bonus("miss"), AddTimedModifier.End.THIS_COMBAT, 1)
 	engine.add_timed_modifier("e1", _hit_bonus("counter"), AddTimedModifier.End.THIS_COMBAT, 1)
 	harness.exchange("p1", "e1", "ad")
@@ -555,7 +556,7 @@ func _test_next_attack_uses() -> void:
 
 func _test_timed_ends() -> void:
 	var engine: EffectEngine = _battle(["p1", "e1"])
-	var harness: Variant = _harness(engine)
+	var harness: FakeExchange = _harness(engine)
 	var end: Dictionary[String, AddTimedModifier.End] = {
 		"wall": AddTimedModifier.End.UNTIL_PHASE_END,
 		"horn": AddTimedModifier.End.END_OF_NEXT_PHASE,
@@ -605,7 +606,7 @@ func _test_per_map_charges() -> void:
 	var first: EffectEngine = _battle(["p1", "e1"])
 	first.register(item)
 	first.register(lasting)
-	var harness: Variant = _harness(first)
+	var harness: FakeExchange = _harness(first)
 	_ok(
 			"charges: one use each this combat",
 			harness.use_item("p1", "p1", item) and not harness.use_item("p1", "p1", item)
@@ -617,7 +618,7 @@ func _test_per_map_charges() -> void:
 	var second: EffectEngine = _battle(["p1", "e1"])
 	second.register(item)
 	second.register(lasting)
-	var next_combat: Variant = _harness(second)
+	var next_combat: FakeExchange = _harness(second)
 	_ok(
 			"charges: a per-map charge is full in the next combat",
 			next_combat.use_item("p1", "p1", item)
@@ -640,7 +641,7 @@ func _test_block_gain_path() -> void:
 			EffectDefinition.Trigger.PHASE_START, [], [_block(3.0)]
 	)
 	engine.register(_instance("effect:ps", phase, _owner("p2"), TRAIT, "Vanguard"))
-	var harness: Variant = _harness(engine)
+	var harness: FakeExchange = _harness(engine)
 	harness.phase_start(PLAYER)
 	harness.staff_block("p1", "p2", 3.0)
 	harness.use_item("p1", "p1", item)
@@ -731,9 +732,9 @@ func _test_observers() -> void:
 func _test_iron_rations() -> void:
 	var engine: EffectEngine = _battle(["p1", "p2", "q1", "e1"])
 	engine.register(_instance("effect:ir", _iron_rations(), _army(), HEIRLOOM, "Iron Rations"))
-	var harness: Variant = _harness(engine)
+	var harness: FakeExchange = _harness(engine)
 	harness.phase_start(PLAYER)
-	var fake: Variant = _fake(engine)
+	var fake: FakeState = _fake(engine)
 	var after_first: String = "%d,%d,%d" % [
 		fake.unit("p1").block, fake.unit("p2").block, fake.unit("q1").block
 	]
@@ -900,8 +901,7 @@ func _test_step_cap() -> void:
 
 
 func _test_keg_chain() -> void:
-	# Variant: the fake state's script has no class name to type it with.
-	var fake: Variant = FakeState.new()
+	var fake: FakeState = FakeState.new()
 	var engine: EffectEngine = EffectEngine.new(fake, ForcedRolls.new())
 	var blast: DealSplash = DealSplash.new()
 	blast.target = _area(Area.Center.OWNER, 1, EffectDefinition.UnitSide.ANY, false)
@@ -985,7 +985,7 @@ func _test_shuffled_registration() -> void:
 		_shuffle(instances, variant)
 		for instance: EffectInstance in instances:
 			engine.register(instance)
-		var harness: Variant = _harness(engine)
+		var harness: FakeExchange = _harness(engine)
 		harness.phase_start(PLAYER)
 		harness.exchange("p2", "e1", "aad")
 		harness.exchange("p1", "e2", "ad")
@@ -1075,7 +1075,7 @@ func _iron_rations() -> EffectDefinition:
 # Attack stage 5, Mitigation stage 1, Multipliers stage 1, CritX 3.
 func _battle(ids: Array, outcomes: Array = []) -> EffectEngine:
 	var engine: EffectEngine = _world(PackedInt32Array(outcomes))
-	var fake: Variant = _fake(engine)
+	var fake: FakeState = _fake(engine)
 	for id: String in ["p1", "p2", "q1", "e1", "e2", "keg"]:
 		if not ids.has(id):
 			fake.unit(id).defeated = true
@@ -1088,7 +1088,7 @@ func _battle(ids: Array, outcomes: Array = []) -> EffectEngine:
 	return engine
 
 
-func _harness(engine: EffectEngine) -> Variant:
+func _harness(engine: EffectEngine) -> FakeExchange:
 	return FakeExchange.new(engine)
 
 
@@ -1136,7 +1136,7 @@ func _golden(name: String, engine: EffectEngine, start: int = 0) -> void:
 	var lines: PackedStringArray = []
 	for i: int in range(start, engine.fact_log.size()):
 		lines.append(engine.fact_log[i].to_log_line())
-	var wanted: PackedStringArray = PackedStringArray(GOLDEN.get(name, []))
+	var wanted: PackedStringArray = PackedStringArray(GOLDEN.get(name, []) as Array)
 	_ok("golden %s" % [name], lines == wanted, "\n\t" + "\n\t".join(lines))
 	_clean(name, engine)
 

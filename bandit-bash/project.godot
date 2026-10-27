@@ -24,6 +24,15 @@ SteamNetwork="*res://scripts/autoload/steam_network.gd"
 SaveService="*res://scripts/autoload/save_service.gd"
 SceneRouter="*res://scripts/autoload/scene_router.gd"
 
+[debug]
+
+gdscript/warnings/untyped_declaration=2
+gdscript/warnings/unsafe_property_access=2
+gdscript/warnings/unsafe_method_access=2
+gdscript/warnings/unsafe_call_argument=2
+gdscript/warnings/integer_division=2
+gdscript/warnings/narrowing_conversion=2
+
 [display]
 
 window/stretch/mode="canvas_items"

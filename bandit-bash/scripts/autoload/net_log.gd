@@ -6,7 +6,7 @@
 # File:     net_log.gd
 # Author:
 # Created:  October 9, 2026
-# Modified: October 26, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 extends Node
@@ -92,7 +92,7 @@ func _log(level: Level, category: Category, message: String) -> void:
 	# get_unique_id() returns 1 with no peer attached, the same value as solo play.
 	var line: String = "[%s][%s][peer %d] %s" % [
 		Level.find_key(level),
-		String(Category.find_key(category)).capitalize(),
+		(Category.find_key(category) as String).capitalize(),
 		multiplayer.get_unique_id(),
 		message,
 	]

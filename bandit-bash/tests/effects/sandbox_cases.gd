@@ -6,7 +6,7 @@
 # File:     sandbox_cases.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 extends "res://tests/effects/golden_cases.gd"
@@ -164,7 +164,7 @@ func _test_sandbox_purity() -> void:
 		elif i % 3 == 2:
 			rolls = SampledRolls.new(engine.fact_log.size(), ["p2", Vector2i(1, 0), "e1", ""])
 		var sandbox: Sandbox = Sandbox.new(engine, rolls)
-		var harness: Variant = _harness(sandbox.engine)
+		var harness: FakeExchange = _harness(sandbox.engine)
 		harness.exchange("p2", "e1", "aad")
 		harness.phase_end(PLAYER)
 		harness.phase_start(ENEMY_SIDE)
@@ -184,7 +184,7 @@ func _test_forced_forecast_equals_real() -> void:
 	var engine: EffectEngine = _live_battle(stream)
 	var before: Sandbox = Sandbox.new(engine, ForecastRolls.new())
 	var start: int = engine.fact_log.size()
-	var real: Variant = _harness(engine)
+	var real: FakeExchange = _harness(engine)
 	real.exchange("p1", "e1", "aad")
 	real.exchange("e1", "p2", "ad")
 	var outcomes: PackedInt32Array = []
@@ -192,7 +192,7 @@ func _test_forced_forecast_equals_real() -> void:
 		outcomes.append(record.outcome)
 
 	var replay: Sandbox = Sandbox.new(before.engine, ForcedRolls.new(outcomes))
-	var forecast: Variant = _harness(replay.engine)
+	var forecast: FakeExchange = _harness(replay.engine)
 	forecast.exchange("p1", "e1", "aad")
 	forecast.exchange("e1", "p2", "ad")
 	var real_lines: PackedStringArray = []
@@ -282,7 +282,7 @@ func _test_worker_threads_match() -> void:
 		bases.append(Sandbox.new(engine, ForecastRolls.new()).engine)
 		slots.append(Slot.new())
 	var task: Callable = func(index: int) -> void:
-		slots[index].text = _evaluate(bases[index], candidates[index])
+		slots[index].text = _evaluate(bases[index], candidates[index] as Array)
 	var group: int = WorkerThreadPool.add_group_task(task, candidates.size())
 	WorkerThreadPool.wait_for_group_task_completion(group)
 	var pooled: PackedStringArray = []
@@ -353,7 +353,7 @@ func _resolver(
 		var defender_block: int = state.get_block(defender)
 		var attacker_hp: int = state.get_hp(attacker)
 		var attacker_block: int = state.get_block(attacker)
-		var harness: Variant = FakeExchange.new(sandbox.engine)
+		var harness: FakeExchange = FakeExchange.new(sandbox.engine)
 		for i: int in exchanges:
 			if state.has_unit(attacker) and state.has_unit(defender):
 				harness.exchange(attacker, defender, order)

@@ -6,7 +6,7 @@
 # File:     save_select_screen.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: October 14, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 extends Control
@@ -127,14 +127,16 @@ func _describe_multi(summary: SaveFileSummary) -> String:
 
 # Saved times are UTC; shown in the player's time zone.
 func _format_local_time(unix_seconds: int) -> String:
-	var bias_minutes: int = int(Time.get_time_zone_from_system().get("bias", 0))
+	var bias_minutes: int = Time.get_time_zone_from_system().get("bias", 0) as int
 	return Time.get_datetime_string_from_unix_time(unix_seconds + bias_minutes * 60, true)
 
 
 # Whole hours and minutes; leftover seconds are dropped on purpose.
-@warning_ignore("integer_division")
 func _format_play_time(seconds: int) -> String:
+	# Truncation is the point (above). On each statement: 4.7 ignores it on the func for the body.
+	@warning_ignore("integer_division")
 	var minutes: int = seconds / 60
+	@warning_ignore("integer_division")
 	return "%dh %02dm" % [minutes / 60, minutes % 60]
 
 

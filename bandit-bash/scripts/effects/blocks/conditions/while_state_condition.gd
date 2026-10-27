@@ -6,7 +6,7 @@
 # File:     while_state_condition.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 @tool
@@ -41,7 +41,7 @@ enum Subject {
 
 
 func describe() -> String:
-	var state_name: String = String(State.find_key(state)).capitalize()
+	var state_name: String = (State.find_key(state) as String).capitalize()
 	if subject == Subject.OPPONENT:
 		return "while the opponent is %s" % [state_name]
 	return "while %s" % [state_name]

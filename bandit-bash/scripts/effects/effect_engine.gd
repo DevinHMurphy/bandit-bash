@@ -1037,7 +1037,7 @@ static func _source_of(source_effect_id: String) -> CombatFact.Source:
 
 static func _kind_name(kind: int) -> String:
 	var name: Variant = CombatFact.Kind.find_key(kind)
-	return "KIND_%d" % [kind] if name == null else String(name)
+	return "KIND_%d" % [kind] if name == null else (name as String)
 
 
 # An inline window opened but not yet recorded: what waits for its fact.

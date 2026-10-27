@@ -6,7 +6,7 @@
 # File:     fake_exchange.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -18,6 +18,9 @@ extends RefCounted
 ## is a placeholder. Hit is HIT minus AVOID; damage is (Attack stage - Mitigation stage) × CritX on
 ## a crit × Multipliers stage, rounded half up, never below 0; a crit needs an Exposed defender and
 ## rolls [constant CRIT_BASE] + CRIT_CHANCE. None of this is a combat rule.
+
+# A preloaded script used as a type (gdscript.md, Naming): the fake state has no class name.
+const FakeState = preload("res://tests/effects/harness/fake_state.gd")
 
 # The harness's crit roll base, standing in for the combat core's.
 const CRIT_BASE: int = 25
@@ -143,8 +146,8 @@ func attack(ctx: EffectContext) -> bool:
 	if defeated:
 		engine.record(CombatFact.new(CombatFact.Kind.DEFEATED, d, a), ctx)
 		engine.record(CombatFact.new(CombatFact.Kind.DEFEATED_AN_ENEMY, a, d), ctx)
-		# Variant: the fake state has no class name; its units are marked defeated directly.
-		var fake: Variant = state
+		# The fake state's units are marked defeated directly.
+		var fake: FakeState = state
 		fake.unit(d).defeated = true
 	engine.reach_boundary(EffectEngine.Boundary.ATTACK_RESOLVED, a)
 	return defeated

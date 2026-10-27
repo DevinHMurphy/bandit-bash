@@ -269,7 +269,7 @@ func has_tag(tag: Tag) -> bool:
 ## stats keep their abbreviations).
 static func key_name(key: int) -> String:
 	if CombatValue.STAT_KEYS.values().has(key) and key != CombatValue.Key.MOVEMENT:
-		return String(CombatValue.Key.find_key(key))
+		return CombatValue.Key.find_key(key) as String
 	var found: Variant = CombatValue.Key.find_key(key)
 	if found == null:
 		found = CombatValue.Permission.find_key(key)
@@ -278,10 +278,10 @@ static func key_name(key: int) -> String:
 	if found == null:
 		found = CampaignValue.Permission.find_key(key)
 	if found != null:
-		return String(found).capitalize()
+		return (found as String).capitalize()
 	var stage: Variant = DamageStage.Key.find_key(key)
 	if stage != null:
-		return "%s stage" % [String(stage).capitalize()]
+		return "%s stage" % [(stage as String).capitalize()]
 	return "Key %d" % [key]
 
 
@@ -328,7 +328,7 @@ static func describe_modifier(
 	var shown: String = format_number(value)
 	if CombatValue.ENUM_KEYS.has(key):
 		var type_name: Variant = CombatFact.DamageType.find_key(roundi(value))
-		shown = shown if type_name == null else String(type_name).capitalize()
+		shown = shown if type_name == null else (type_name as String).capitalize()
 	match mode:
 		Modifier.Mode.REPLACE_BASE:
 			return "%s %s instead of its base" % [name, shown]

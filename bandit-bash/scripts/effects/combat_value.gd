@@ -6,7 +6,7 @@
 # File:     combat_value.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 class_name CombatValue
@@ -112,6 +112,14 @@ const STAT_KEYS: Dictionary[int, int] = {
 	Stat.RES: Key.RES,
 	Stat.CON: Key.CON,
 	Stat.MOV: Key.MOVEMENT,
+}
+
+## The base of each key a unit has without one being set; keys not listed start at 0.
+## Effectiveness is [code]EffectiveModifier = 3[/code] (game-vision.md, Damage;
+## [code]Godot_FE[/code] ×3); a shove pushes 1 tile (game-vision.md, Shove: "1 tile by default").
+const DEFAULT_BASES: Dictionary[int, float] = {
+	Key.EFFECTIVE_MODIFIER: 3.0,
+	Key.SHOVE_DISTANCE: 1.0,
 }
 
 ## Rounding of each key; keys not listed round [constant ValueBreakdown.HALF_UP].

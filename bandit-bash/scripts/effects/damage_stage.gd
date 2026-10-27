@@ -37,6 +37,13 @@ enum Key {
 	INCOMING_MULTIPLIERS = 1004,
 }
 
+## The base of each key a unit has without one being set; keys not listed start at 0. Both stage 4
+## sides start at 1, so their percent modifiers multiply into it, placed or not.
+const DEFAULT_BASES: Dictionary[int, float] = {
+	Key.MULTIPLIERS: 1.0,
+	Key.INCOMING_MULTIPLIERS: 1.0,
+}
+
 ## Rounding of each key; keys not listed round [constant ValueBreakdown.HALF_UP].
 const ROUNDING: Dictionary[int, int] = {
 	Key.ATTACK: ValueBreakdown.Rounding.EXACT,

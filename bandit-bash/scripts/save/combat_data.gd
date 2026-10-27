@@ -6,7 +6,7 @@
 # File:     combat_data.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: October 14, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 class_name CombatData
@@ -96,13 +96,13 @@ func load_envelope(envelope: Dictionary) -> Error:
 
 	var core: Dictionary = envelope[SaveFile.KEY_CORE]
 	var phase_key: Variant = _PHASE_IDS.find_key(str(core.get(_KEY_PHASE, "")))
-	var loaded_turn: int = int(core.get(_KEY_TURN, 0))
+	var loaded_turn: int = core.get(_KEY_TURN, 0) as int
 	if phase_key == null or loaded_turn < 1:
 		return ERR_INVALID_DATA
 
 	turn = loaded_turn
 	phase = phase_key
-	checkpoint_seq = int(envelope[SaveFile.KEY_CHECKPOINT_SEQ])
+	checkpoint_seq = envelope[SaveFile.KEY_CHECKPOINT_SEQ] as int
 	sections = envelope[SaveFile.KEY_SECTIONS]
 	return OK
 

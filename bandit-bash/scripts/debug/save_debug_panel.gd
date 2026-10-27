@@ -87,7 +87,7 @@ func _refresh(message: String) -> void:
 		)
 		lines.append("Seed %s" % [RunSeed.format(campaign.run_seed)])
 		if in_battle:
-			var phase_name: String = String(CombatData.Phase.find_key(combat.phase)).to_lower()
+			var phase_name: String = (CombatData.Phase.find_key(combat.phase) as String).to_lower()
 			lines.append("Battle: turn %d, %s phase" % [combat.turn, phase_name])
 		elif campaign.combat_in_progress:
 			lines.append("Battle waiting to restart: press Begin Battle.")

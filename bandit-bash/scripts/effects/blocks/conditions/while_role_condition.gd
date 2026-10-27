@@ -6,7 +6,7 @@
 # File:     while_role_condition.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 @tool
@@ -31,7 +31,7 @@ enum Role {
 
 
 func describe() -> String:
-	return "while it is the %s" % [String(Role.find_key(role)).to_lower()]
+	return "while it is the %s" % [(Role.find_key(role) as String).to_lower()]
 
 
 func test(ctx: EffectContext) -> bool:

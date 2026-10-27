@@ -58,13 +58,13 @@ static func seed_for(session_seq: int, candidate: Array) -> int:
 	for part: Variant in candidate:
 		match typeof(part):
 			TYPE_INT:
-				values.append(part)
+				values.append(part as int)
 			TYPE_VECTOR2I:
 				var tile: Vector2i = part
 				values.append(tile.x)
 				values.append(tile.y)
 			TYPE_STRING, TYPE_STRING_NAME:
-				var bytes: PackedByteArray = String(part).to_utf8_buffer()
+				var bytes: PackedByteArray = (part as String).to_utf8_buffer()
 				values.append(bytes.size())
 				for start: int in range(0, bytes.size(), _BYTES_PER_VALUE):
 					var packed: int = 0

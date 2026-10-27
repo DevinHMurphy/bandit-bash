@@ -31,13 +31,6 @@ extends SandboxState
 ## @todo: TOD-001 - Answer darkness_layer() from the darkness plan (P06); every tile is DRY.
 ## @todo: TOD-002 - Read weapon numbers from the weapons plan's (P03) definitions and instances.
 
-## How many times weapon damage counts against a unit the weapon is effective against, before
-## bonuses: [code]EffectiveModifier = 3[/code] (game-vision.md, Damage; [code]Godot_FE[/code] ×3).
-const EFFECTIVE_MODIFIER_BASE: float = 3.0
-
-## Tiles a shove pushes before bonuses (game-vision.md, Shove: "1 tile by default").
-const SHOVE_DISTANCE_BASE: float = 1.0
-
 ## Terrain, walls and objects. Shared with sandbox copies. Never null in use.
 var grid: CombatGrid = null
 
@@ -104,11 +97,12 @@ func equipped_weapon(unit_id: String) -> WeaponStats:
 	return weapon(equipped_weapon_id(unit_id))
 
 
-## Sets [param unit_id]'s base values in [param engine] that come from the combat rules rather than
-## its unit type: its weapon's numbers (Hit, crit, CritX, AtkX, range, damage type, damage as the
-## Attack stage, staff amount), its net weight (weapon plus Pouch items, before equipment and
-## effects), and the rule bases (both Multipliers 1, effectiveness 3, Shove distance 1). Called on
-## placement and after every weapon swap; with no weapon, the weapon numbers are 0.
+## Sets [param unit_id]'s base values in [param engine] that come from its weapon rather than its
+## unit type: the weapon's numbers (Hit, crit, CritX, AtkX, range, damage type, damage as the
+## Attack stage, staff amount) and its net weight (weapon plus Pouch items, before equipment and
+## effects). Called on placement and after every weapon swap; with no weapon, the weapon numbers
+## are 0. Rule bases aren't set here: [StatSheet] falls back to
+## [constant DamageStage.DEFAULT_BASES] and [constant CombatValue.DEFAULT_BASES].
 func load_bases(engine: EffectEngine, unit_id: String) -> void:
 	var holder: CombatUnitState = unit(unit_id)
 	if holder == null:
@@ -130,12 +124,6 @@ func load_bases(engine: EffectEngine, unit_id: String) -> void:
 	engine.set_base(
 			unit_id, CombatValue.Key.NET_WEIGHT, held.weight + pouch_weight, "weapon and Pouch"
 	)
-	engine.set_base(unit_id, DamageStage.Key.MULTIPLIERS, 1.0, "rule")
-	engine.set_base(unit_id, DamageStage.Key.INCOMING_MULTIPLIERS, 1.0, "rule")
-	engine.set_base(
-			unit_id, CombatValue.Key.EFFECTIVE_MODIFIER, EFFECTIVE_MODIFIER_BASE, "rule"
-	)
-	engine.set_base(unit_id, CombatValue.Key.SHOVE_DISTANCE, SHOVE_DISTANCE_BASE, "rule")
 
 
 ## The state of [param id], defeated or not; null if unknown.

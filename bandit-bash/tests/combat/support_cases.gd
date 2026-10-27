@@ -18,7 +18,8 @@ extends RefCounted
 ## Item and rune effects are fixtures built from the effect blocks, with the values of items.md and
 ## weapons.md. Every scenario also asserts that the engine reported no diagnostics.
 
-const CombatWorld: GDScript = preload("res://tests/combat/combat_world.gd")
+# A preloaded script used as a type (gdscript.md, Naming): the test map has no class name.
+const CombatWorld = preload("res://tests/combat/combat_world.gd")
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
@@ -181,7 +182,7 @@ func run() -> void:
 
 
 func _test_block_staff() -> void:
-	var world: Variant = _team()
+	var world: CombatWorld = _team()
 	world.arm("p2", world.add_weapon("w:shelter", "shelter").id)
 	_same("block staff: legal", _staff_reason(world, "p2", "p1"), "")
 	var result: StaffResolver.Result = _staff(world, "p2", "p1")
@@ -193,7 +194,7 @@ func _test_block_staff() -> void:
 
 
 func _test_heal_staff() -> void:
-	var world: Variant = _team()
+	var world: CombatWorld = _team()
 	world.arm("p2", world.add_weapon("w:heal", "minor_heal").id)
 	world.add_effect("effect:heal_uses", _uses(3, COMBAT_LANE), "p2", WEAPON, "w:heal")
 	_same("heal staff: not on a full ally", _staff_reason(world, "p2", "p1"), "not damaged")
@@ -213,7 +214,7 @@ func _test_heal_staff() -> void:
 # Sanctuary (weapons.md): the target ally and every ally adjacent to it gain 3 + Might Block, 2
 # uses per map, range 1-2. p3 stands next to p1; p4 is too far.
 func _test_sanctuary() -> void:
-	var world: Variant = _team()
+	var world: CombatWorld = _team()
 	world.add_unit("p3", PLAYER, 0, Vector2i(1, 2), BASES)
 	world.add_unit("p4", PLAYER, 0, Vector2i(6, 6), BASES)
 	var staff: CombatState.WeaponStats = _area_staff(
@@ -241,7 +242,7 @@ func _test_sanctuary() -> void:
 # Everwall (weapons.md): every ally within 3 tiles of the user, the user included, gains 5 + Might
 # Block, 1 use per map; grid distance. p4 is 3 tiles from p2, p5 4 tiles.
 func _test_everwall() -> void:
-	var world: Variant = _team()
+	var world: CombatWorld = _team()
 	world.add_unit("p3", PLAYER, 0, Vector2i(1, 2), BASES)
 	world.add_unit("p4", PLAYER, 0, Vector2i(5, 1), BASES)
 	world.add_unit("p5", PLAYER, 0, Vector2i(5, 2), BASES)
@@ -263,7 +264,7 @@ func _test_everwall() -> void:
 
 
 func _test_attack_staff() -> void:
-	var world: Variant = _team()
+	var world: CombatWorld = _team()
 	world.arm("p2", world.add_weapon("w:harm", "harm").id)
 	world.add_effect("effect:harm_uses", _uses(2, COMBAT_LANE), "p2", WEAPON, "w:harm")
 	world.state.set_hp("e1", 60)
@@ -282,7 +283,7 @@ func _test_attack_staff() -> void:
 
 
 func _test_potion() -> void:
-	var world: Variant = _team()
+	var world: CombatWorld = _team()
 	_give(world, "p1", "item:potion", _heal_item(8.0, 1, COMBAT_LANE))
 	world.state.set_hp("p1", 5)
 	var result: ItemUseResolver.Result = _use(world, "p1", "p1", "item:potion")
@@ -294,7 +295,7 @@ func _test_potion() -> void:
 
 
 func _test_guard_tonic() -> void:
-	var world: Variant = _team()
+	var world: CombatWorld = _team()
 	_give(world, "p1", "item:tonic", _block_item(6.0, 1, COMBAT_LANE))
 	_use(world, "p1", "p2", "item:tonic")
 	_ok("guard tonic: an adjacent ally gains 6 Block", world.state.get_block("p2") == 6)
@@ -302,7 +303,7 @@ func _test_guard_tonic() -> void:
 
 
 func _test_elixir() -> void:
-	var world: Variant = _team()
+	var world: CombatWorld = _team()
 	var full: StatOf = StatOf.new()
 	full.key = CombatValue.Key.HP
 	full.subject = CommandTarget.new()
@@ -319,7 +320,7 @@ func _test_elixir() -> void:
 
 
 func _test_stat_booster() -> void:
-	var world: Variant = _team()
+	var world: CombatWorld = _team()
 	var boost: ChangeBaseStat = ChangeBaseStat.new()
 	boost.target = CommandTarget.new()
 	boost.key = CombatValue.Key.MGT
@@ -337,7 +338,7 @@ func _test_stat_booster() -> void:
 # Cave Carrot (items.md, Ingredients): eaten by p1 for an adjacent ally, heal 5 and +5% RES growth,
 # one total use.
 func _test_ingredient() -> void:
-	var world: Variant = _team()
+	var world: CombatWorld = _team()
 	var growth: ChangeBaseStat = ChangeBaseStat.new()
 	growth.target = CommandTarget.new()
 	growth.key = CombatValue.Key.RES
@@ -364,7 +365,7 @@ func _test_ingredient() -> void:
 
 
 func _test_item_legality() -> void:
-	var world: Variant = _team()
+	var world: CombatWorld = _team()
 	_give(world, "p1", "item:potion", _heal_item(8.0, 1, COMBAT_LANE))
 	_same(
 			"item: not in its Pouch",
@@ -375,7 +376,7 @@ func _test_item_legality() -> void:
 	_same("item: an ally too far", _use_reason(world, "p1", "p2", "item:potion"), "not adjacent")
 	world.state.move_unit("e1", Vector2i(1, 2))
 	_same("item: never on a foe", _use_reason(world, "p1", "e1", "item:potion"), "not an ally")
-	var trinket: Variant = _team()
+	var trinket: CombatWorld = _team()
 	_give(trinket, "p1", "item:ring", _always_item(CombatValue.Key.HIT, 5.0))
 	_same(
 			"item: a trinket has nothing to use",
@@ -388,7 +389,7 @@ func _test_item_legality() -> void:
 
 
 func _test_sidearm_swap() -> void:
-	var world: Variant = _team()
+	var world: CombatWorld = _team()
 	world.add_weapon("w:sword", "sword")
 	world.add_weapon("w:axe", "axe")
 	world.arm("p2", "w:sword", "w:axe")
@@ -408,7 +409,7 @@ func _test_sidearm_swap() -> void:
 
 
 func _test_swap_as_action() -> void:
-	var world: Variant = _team()
+	var world: CombatWorld = _team()
 	world.add_weapon("w:sword", "sword")
 	world.add_weapon("w:bow", "bow")
 	world.arm("p1", "w:sword", "w:bow")
@@ -420,13 +421,13 @@ func _test_swap_as_action() -> void:
 			world.engine.stats("p1").get_int(CombatValue.Key.RANGE_MAX) == 3
 	)
 	_same("swap: not twice", _swap(world, "p1", false), "already acted")
-	var bare: Variant = _team()
+	var bare: CombatWorld = _team()
 	_same("swap: nothing stowed", _swap(bare, "p1", false), "no stowed weapon")
 	_golden("weapon swap as the action", world)
 
 
 func _test_runes() -> void:
-	var world: Variant = _team()
+	var world: CombatWorld = _team()
 	var mend: EffectInstance = _rune(world, "rune:mend", _rune_gain(GainResource.Pool.HP, 10.0))
 	var aegis: EffectInstance = _rune(world, "rune:aegis", _rune_gain(GainResource.Pool.BLOCK, 6.0))
 	var shatter: EffectInstance = _rune(
@@ -450,7 +451,7 @@ func _test_runes() -> void:
 
 
 func _test_recall() -> void:
-	var world: Variant = _team()
+	var world: CombatWorld = _team()
 	world.state.rune_slots[0] = PackedStringArray(["rune:recall", "rune:recall2"])
 	_same(
 			"recall: swaps two of the seat's units",
@@ -484,7 +485,7 @@ func _test_recall() -> void:
 
 
 func _test_wait() -> void:
-	var world: Variant = _team()
+	var world: CombatWorld = _team()
 	_ok("wait: ends the turn", world.state.wait(world.engine, "p1"))
 	_ok("wait: acted", world.state.unit("p1").has_acted)
 	_ok("wait: not twice", not world.state.wait(world.engine, "p1"))
@@ -496,7 +497,7 @@ func _test_uses_between_battles() -> void:
 	var potion_uses: EffectInstance = null
 	var elixir_uses: EffectInstance = null
 	for battle: int in 2:
-		var world: Variant = _team()
+		var world: CombatWorld = _team()
 		world.arm("p2", world.add_weapon("w:heal", "minor_heal").id)
 		if staff_uses == null:
 			staff_uses = world.add_effect(
@@ -537,52 +538,54 @@ func _test_uses_between_battles() -> void:
 
 # p1 at (1, 1) and p2 at (2, 1) on seat 0, e1 at (3, 1); 20 HP and Stance 2 each. Rolls come from
 # a seeded stream; a case that attacks makes its hits sure.
-func _team() -> Variant:
-	var world: Variant = CombatWorld.new(LiveRolls.new(RngStream.new(SEED)))
+func _team() -> CombatWorld:
+	var world: CombatWorld = CombatWorld.new(LiveRolls.new(RngStream.new(SEED)))
 	world.add_unit("p1", PLAYER, 0, Vector2i(1, 1), BASES)
 	world.add_unit("p2", PLAYER, 0, Vector2i(2, 1), BASES)
 	world.add_unit("e1", ENEMY, -1, Vector2i(3, 1), BASES)
 	return world
 
 
-func _staff(world: Variant, user: String, target: String) -> StaffResolver.Result:
+func _staff(world: CombatWorld, user: String, target: String) -> StaffResolver.Result:
 	world.engine.begin_step()
 	return StaffResolver.resolve(world.engine, world.state, user, target)
 
 
-func _staff_reason(world: Variant, user: String, target: String) -> String:
+func _staff_reason(world: CombatWorld, user: String, target: String) -> String:
 	return StaffResolver.check(world.engine, world.state, user, target)
 
 
-func _attack(world: Variant, attacker: String, defender: String) -> ExchangeResolver.Result:
+func _attack(world: CombatWorld, attacker: String, defender: String) -> ExchangeResolver.Result:
 	world.engine.begin_step()
 	return ExchangeResolver.resolve(world.engine, world.state, attacker, defender)
 
 
-func _use(world: Variant, user: String, target: String, item: String) -> ItemUseResolver.Result:
+func _use(
+		world: CombatWorld, user: String, target: String, item: String
+) -> ItemUseResolver.Result:
 	world.engine.begin_step()
 	return ItemUseResolver.resolve(world.engine, world.state, user, target, item)
 
 
-func _use_reason(world: Variant, user: String, target: String, item: String) -> String:
+func _use_reason(world: CombatWorld, user: String, target: String, item: String) -> String:
 	return ItemUseResolver.check(world.engine, world.state, user, target, item)
 
 
-func _swap(world: Variant, unit_id: String, is_free: bool) -> String:
+func _swap(world: CombatWorld, unit_id: String, is_free: bool) -> String:
 	world.engine.begin_step()
 	return WeaponSwap.resolve(world.engine, world.state, unit_id, is_free)
 
 
 # Puts item_id in unit_id's Pouch with definition as its use effect; returns the instance.
 func _give(
-		world: Variant, unit_id: String, item_id: String, definition: EffectDefinition
+		world: CombatWorld, unit_id: String, item_id: String, definition: EffectDefinition
 ) -> EffectInstance:
 	world.state.unit(unit_id).pouch_item_id = item_id
 	return world.add_effect("effect:" + item_id, definition, unit_id, POUCH, item_id)
 
 
 # A rune in seat 0's slots, with definition as its effect.
-func _rune(world: Variant, rune_id: String, definition: EffectDefinition) -> EffectInstance:
+func _rune(world: CombatWorld, rune_id: String, definition: EffectDefinition) -> EffectInstance:
 	if not world.state.rune_slots.has(0):
 		world.state.rune_slots[0] = PackedStringArray()
 	world.state.rune_slots[0].append(rune_id)
@@ -596,7 +599,12 @@ func _rune(world: Variant, rune_id: String, definition: EffectDefinition) -> Eff
 
 # A Block staff with range 1 to range_max, amount before Might, and area as its shape.
 func _area_staff(
-		world: Variant, weapon_id: String, label: String, amount: int, range_max: int, area: Area
+		world: CombatWorld,
+		weapon_id: String,
+		label: String,
+		amount: int,
+		range_max: int,
+		area: Area
 ) -> CombatState.WeaponStats:
 	var staff: CombatState.WeaponStats = world.add_weapon(weapon_id, "shelter")
 	staff.label = label
@@ -667,7 +675,7 @@ func _sidearm() -> EffectDefinition:
 	return _item([grant], 0, COMBAT_LANE)
 
 
-func _last_attack_amount(world: Variant) -> int:
+func _last_attack_amount(world: CombatWorld) -> int:
 	var engine: EffectEngine = world.engine
 	for fact: CombatFact in engine.fact_log:
 		if fact.kind == CombatFact.Kind.HIT_DEALT:
@@ -677,7 +685,7 @@ func _last_attack_amount(world: Variant) -> int:
 
 # Compares the log from start on with GOLDEN[name]; on a mismatch prints the actual log as a
 # GDScript array for review. Also checks the engine reported no diagnostics.
-func _golden(name: String, world: Variant, start: int = 0) -> void:
+func _golden(name: String, world: CombatWorld, start: int = 0) -> void:
 	var lines: Array[String] = world.log_lines(start)
 	var expected: Array = GOLDEN.get(name, [])
 	var same: bool = lines.size() == expected.size()
@@ -692,7 +700,7 @@ func _golden(name: String, world: Variant, start: int = 0) -> void:
 	_quiet(world)
 
 
-func _quiet(world: Variant) -> void:
+func _quiet(world: CombatWorld) -> void:
 	var engine: EffectEngine = world.engine
 	_ok("diagnostics: none", engine.diagnostics.is_empty(), str(engine.diagnostics))
 

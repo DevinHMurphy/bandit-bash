@@ -6,7 +6,7 @@
 # File:     stats_cases.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 extends "res://tests/effects/golden_cases.gd"
@@ -68,7 +68,7 @@ func _test_invalidating_facts() -> void:
 		var other: StatSheet = engine.stats("e1")
 		engine.record(CombatFact.new(kind, "p1"))
 		if engine.stats("p1") != cached and engine.stats("e1") == other:
-			dropped.append(CombatFact.Kind.find_key(kind))
+			dropped.append(CombatFact.Kind.find_key(kind) as String)
 	_ok(
 			"invalidation: each input fact drops its actor's sheet only",
 			dropped.size() == 5, str(dropped)
@@ -234,7 +234,7 @@ func _test_sandbox_copies_sheets() -> void:
 
 func _test_defeated_unit_goes_dormant() -> void:
 	var engine: EffectEngine = _battle(["p1", "p2", "e1"])
-	var fake: Variant = _fake(engine)
+	var fake: FakeState = _fake(engine)
 	var rally: EffectDefinition = _definition(
 			EffectDefinition.Trigger.ALWAYS, [], [_modify_value(HIT, ADD, 10.0)]
 	)
@@ -276,7 +276,7 @@ func _test_defeated_unit_goes_dormant() -> void:
 
 func _test_weapon_swap_moves_effects() -> void:
 	var engine: EffectEngine = _swap_battle()
-	var fake: Variant = _fake(engine)
+	var fake: FakeState = _fake(engine)
 	_ok("weapons: only the equipped sword counts", engine.stats("p1").get_value(HIT) == 90.0)
 	engine.record(CombatFact.new(CombatFact.Kind.ATTACK_MADE, "p1", "e1"))
 	engine.drain()
@@ -297,7 +297,7 @@ func _test_sandbox_swap_stays_in_the_sandbox() -> void:
 	var engine: EffectEngine = _swap_battle()
 	var cached: StatSheet = engine.stats("p1")
 	var sandbox: Sandbox = Sandbox.new(engine, ForecastRolls.new())
-	var branch: Variant = sandbox.engine.state
+	var branch: FakeState = sandbox.engine.state
 	branch.unit("p1").weapon = "item:bow"
 	var swapped: CombatFact = CombatFact.new(CombatFact.Kind.WEAPON_SWAPPED, "p1")
 	swapped.item_id = "item:bow"

@@ -16,7 +16,8 @@ extends RefCounted
 ## Every shove starts with p1 at (1, 1) pushing the unit at (2, 1) to the right on an 8 by 4 stub
 ## map. Every scenario also asserts that the engine reported no diagnostics.
 
-const CombatWorld: GDScript = preload("res://tests/combat/combat_world.gd")
+# A preloaded script used as a type (gdscript.md, Naming): the test map has no class name.
+const CombatWorld = preload("res://tests/combat/combat_world.gd")
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
@@ -110,7 +111,7 @@ func run() -> void:
 
 
 func _test_one_tile() -> void:
-	var world: Variant = _push()
+	var world: CombatWorld = _push()
 	var result: ShoveResolver.Result = _shove(world)
 	_ok("shove: legal", result.is_legal)
 	_ok("shove: one tile away", world.state.tile_of("e1") == Vector2i(3, 1))
@@ -125,7 +126,7 @@ func _test_one_tile() -> void:
 
 
 func _test_edge() -> void:
-	var world: Variant = _push(Vector2i(4, 4))
+	var world: CombatWorld = _push(Vector2i(4, 4))
 	world.add_effect("effect:pole", _shove_bonus(1.0), "p1")
 	var result: ShoveResolver.Result = _shove(world)
 	_ok("edge: stops at the map's edge", world.state.tile_of("e1") == Vector2i(3, 1))
@@ -135,7 +136,7 @@ func _test_edge() -> void:
 
 
 func _test_wall() -> void:
-	var world: Variant = _push()
+	var world: CombatWorld = _push()
 	world.grid.set_blocker(Vector2i(4, 1), CombatGrid.Blocker.PLAIN)
 	world.add_effect("effect:pole", _shove_bonus(1.0), "p1")
 	var result: ShoveResolver.Result = _shove(world)
@@ -146,14 +147,14 @@ func _test_wall() -> void:
 
 
 func _test_terrain() -> void:
-	var world: Variant = _push()
+	var world: CombatWorld = _push()
 	world.grid.forbid(Vector2i(4, 1), FOOT)
 	world.add_effect("effect:pole", _shove_bonus(1.0), "p1")
 	_shove(world)
 	_ok("water: never onto a tile it can't stand on", world.state.tile_of("e1") == Vector2i(3, 1))
 	_golden("tile it can't stand on", world)
 
-	var flier: Variant = _push()
+	var flier: CombatWorld = _push()
 	flier.grid.forbid(Vector2i(4, 1), FOOT)
 	flier.state.unit("e1").movement_type = CombatGrid.MovementType.FLIER
 	flier.add_effect("effect:pole", _shove_bonus(1.0), "p1")
@@ -163,7 +164,7 @@ func _test_terrain() -> void:
 
 
 func _test_bump() -> void:
-	var world: Variant = _push()
+	var world: CombatWorld = _push()
 	world.add_unit("e2", ENEMY, -1, Vector2i(3, 1))
 	var result: ShoveResolver.Result = _shove(world)
 	_ok("bump: legal without moving (question 8)", result.is_legal and result.path.tiles_moved == 0)
@@ -173,7 +174,7 @@ func _test_bump() -> void:
 
 
 func _test_spiked_wall() -> void:
-	var world: Variant = _push()
+	var world: CombatWorld = _push()
 	world.grid.set_blocker(Vector2i(3, 1), CombatGrid.Blocker.SPIKED_WALL)
 	world.engine.gain_block("e1", 1.0)
 	var start: int = world.engine.fact_log.size()
@@ -184,7 +185,7 @@ func _test_spiked_wall() -> void:
 
 
 func _test_oil_slide() -> void:
-	var world: Variant = _push()
+	var world: CombatWorld = _push()
 	for x: int in [3, 4, 5]:
 		world.grid.set_slick(Vector2i(x, 1))
 	var result: ShoveResolver.Result = _shove(world)
@@ -194,7 +195,7 @@ func _test_oil_slide() -> void:
 
 
 func _test_oil_slide_into_a_unit() -> void:
-	var world: Variant = _push()
+	var world: CombatWorld = _push()
 	world.grid.set_slick(Vector2i(3, 1))
 	world.grid.set_slick(Vector2i(4, 1))
 	world.add_unit("p2", PLAYER, 0, Vector2i(5, 1))
@@ -208,7 +209,7 @@ func _test_oil_slide_into_a_unit() -> void:
 
 
 func _test_shove_distance() -> void:
-	var world: Variant = _push()
+	var world: CombatWorld = _push()
 	world.add_effect("effect:pole", _shove_bonus(1.0), "p1")
 	var reach: int = world.engine.stats("p1").get_int(CombatValue.Key.SHOVE_DISTANCE)
 	_ok("distance: 1 by default, 2 with +1", reach == 2)
@@ -218,7 +219,7 @@ func _test_shove_distance() -> void:
 
 
 func _test_lethal_bump() -> void:
-	var world: Variant = _push()
+	var world: CombatWorld = _push()
 	world.add_unit("e2", ENEMY, -1, Vector2i(3, 1))
 	world.state.set_hp("e1", 2)
 	_shove(world)
@@ -228,24 +229,24 @@ func _test_lethal_bump() -> void:
 
 
 func _test_legality() -> void:
-	var far: Variant = _push()
+	var far: CombatWorld = _push()
 	far.state.move_unit("e1", Vector2i(3, 1))
 	_same("legal: not adjacent", _reason(far), "not adjacent")
-	var guarded: Variant = _push()
+	var guarded: CombatWorld = _push()
 	guarded.state.set_stance("e1", 1)
 	_same("legal: a foe with Stance can't be shoved", _reason(guarded), "a foe must be Exposed")
-	var ally: Variant = _push()
+	var ally: CombatWorld = _push()
 	ally.add_unit("p2", PLAYER, 0, Vector2i(1, 2))
 	_same(
 			"legal: an ally is always willing",
 			ShoveResolver.check(ally.engine, ally.state, "p1", "p2"),
 			""
 	)
-	var twice: Variant = _push()
+	var twice: CombatWorld = _push()
 	_shove(twice)
 	twice.state.move_unit("p1", Vector2i(2, 1))
 	_same("legal: once per phase", _reason(twice), "already shoved this phase")
-	var boss: Variant = _push()
+	var boss: CombatWorld = _push()
 	var unshovable: SetPermission = SetPermission.new()
 	unshovable.permission = CombatValue.Permission.CAN_BE_SHOVED
 	unshovable.allow = false
@@ -253,10 +254,10 @@ func _test_legality() -> void:
 	definition.operations.assign([unshovable])
 	boss.add_effect("effect:unshovable", definition, "e1")
 	_same("legal: Unshovable", _reason(boss), "can't be shoved")
-	var stuck: Variant = _push()
+	var stuck: CombatWorld = _push()
 	stuck.grid.set_blocker(Vector2i(3, 1), CombatGrid.Blocker.PLAIN)
 	_same("legal: nothing would happen", _reason(stuck), "nothing would happen")
-	var keg: Variant = _push()
+	var keg: CombatWorld = _push()
 	keg.add_unit("keg", OBJECT_SIDE, -1, Vector2i(1, 2))
 	_same(
 			"legal: objects aren't shoved",
@@ -268,7 +269,7 @@ func _test_legality() -> void:
 
 
 func _test_reactions_resolve_inside() -> void:
-	var world: Variant = _push()
+	var world: CombatWorld = _push()
 	var amount: Constant = Constant.new()
 	amount.value = 2.0
 	var gain: GainResource = GainResource.new()
@@ -287,20 +288,20 @@ func _test_reactions_resolve_inside() -> void:
 
 
 # p1 (seat 0) at (1, 1) facing an Exposed enemy e1 at (2, 1); every unit has 20 HP and Stance 2.
-func _push(size: Vector2i = Vector2i(8, 4)) -> Variant:
-	var world: Variant = CombatWorld.new(null, size)
+func _push(size: Vector2i = Vector2i(8, 4)) -> CombatWorld:
+	var world: CombatWorld = CombatWorld.new(null, size)
 	world.add_unit("p1", PLAYER, 0, Vector2i(1, 1))
 	world.add_unit("e1", ENEMY, -1, Vector2i(2, 1))
 	world.state.set_stance("e1", 0)
 	return world
 
 
-func _shove(world: Variant) -> ShoveResolver.Result:
+func _shove(world: CombatWorld) -> ShoveResolver.Result:
 	world.engine.begin_step()
 	return ShoveResolver.resolve(world.engine, world.state, "p1", "e1")
 
 
-func _reason(world: Variant) -> String:
+func _reason(world: CombatWorld) -> String:
 	return ShoveResolver.check(world.engine, world.state, "p1", "e1")
 
 
@@ -317,7 +318,7 @@ func _shove_bonus(amount: float) -> EffectDefinition:
 
 # Compares the log from start on with GOLDEN[name]; on a mismatch prints the actual log as a
 # GDScript array for review. Also checks the engine reported no diagnostics.
-func _golden(name: String, world: Variant, start: int = 0) -> void:
+func _golden(name: String, world: CombatWorld, start: int = 0) -> void:
 	var lines: Array[String] = world.log_lines(start)
 	var expected: Array = GOLDEN.get(name, [])
 	var same: bool = lines.size() == expected.size()
@@ -332,7 +333,7 @@ func _golden(name: String, world: Variant, start: int = 0) -> void:
 	_quiet(world)
 
 
-func _quiet(world: Variant) -> void:
+func _quiet(world: CombatWorld) -> void:
 	var engine: EffectEngine = world.engine
 	_ok("diagnostics: none", engine.diagnostics.is_empty(), str(engine.diagnostics))
 

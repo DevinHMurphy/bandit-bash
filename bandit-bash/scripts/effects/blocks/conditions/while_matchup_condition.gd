@@ -6,7 +6,7 @@
 # File:     while_matchup_condition.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 @tool
@@ -36,7 +36,7 @@ enum Matchup {
 
 
 func describe() -> String:
-	return "while this unit has triangle %s" % [String(Matchup.find_key(matchup)).capitalize()]
+	return "while this unit has triangle %s" % [(Matchup.find_key(matchup) as String).capitalize()]
 
 
 func test(ctx: EffectContext) -> bool:

@@ -999,8 +999,9 @@ func _write_profile(now_msec: int) -> Error:
 
 
 # Whole seconds only; the leftover milliseconds stay behind the flush point for the next save.
-@warning_ignore("integer_division")
 func _get_whole_seconds_since(since_msec: int, now_msec: int) -> int:
+	# Truncation is the point (above). On the statement: 4.7 ignores it on the func for the body.
+	@warning_ignore("integer_division")
 	return maxi(now_msec - since_msec, 0) / 1000
 
 
@@ -1041,7 +1042,7 @@ func _read_last_selected() -> int:
 		return NO_SAVE_FILE
 
 	var core: Dictionary = result.envelope[SaveFile.KEY_CORE]
-	var save_number: int = int(core.get(_KEY_SAVE_NUMBER, NO_SAVE_FILE))
+	var save_number: int = core.get(_KEY_SAVE_NUMBER, NO_SAVE_FILE) as int
 	return save_number if is_valid_save_number(save_number) else NO_SAVE_FILE
 
 

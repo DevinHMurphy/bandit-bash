@@ -68,7 +68,9 @@ func describe() -> String:
 		Kind.DAMAGE_TYPE:
 			if role == Role.ATTACKING:
 				linker = "with"
-			var type_text: String = String(CombatFact.DamageType.find_key(damage_type)).to_lower()
+			var type_text: String = (
+					(CombatFact.DamageType.find_key(damage_type) as String).to_lower()
+			)
 			return "%s %s" % [linker, type_text]
 		Kind.WEAPON_TYPE:
 			if role == Role.ATTACKING:

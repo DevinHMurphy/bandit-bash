@@ -69,7 +69,7 @@ func add_unit(
 	}
 	# Untyped parameter: callers pass dictionary literals, which are untyped.
 	for key: int in bases:
-		all_bases[key] = float(bases[key])
+		all_bases[key] = bases[key] as float
 	for key: int in all_bases:
 		engine.set_base(id, key, all_bases[key])
 	var unit: CombatUnitState = CombatUnitState.new()
@@ -161,5 +161,5 @@ func log_lines(start: int = 0) -> Array[String]:
 func kinds(start: int = 0) -> String:
 	var names: PackedStringArray = []
 	for i: int in range(start, engine.fact_log.size()):
-		names.append(String(CombatFact.Kind.find_key(engine.fact_log[i].kind)))
+		names.append(CombatFact.Kind.find_key(engine.fact_log[i].kind) as String)
 	return " ".join(names)

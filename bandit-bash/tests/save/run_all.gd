@@ -94,15 +94,15 @@ func _test_round_trip() -> void:
 	_check("round trip: write OK", write_err == OK, error_string(write_err))
 	_check("round trip: read OK", result.error == OK, error_string(result.error))
 	_check("round trip: from live file", result.source == SaveFile.Source.LIVE)
-	_check("round trip: string field", _core(result).get("name") == "Ada")
-	_check("round trip: int field", int(_core(result).get("count", 0)) == 3)
+	_check("round trip: string field", (_core(result).get("name") == "Ada") as bool)
+	_check("round trip: int field", (_core(result).get("count", 0) as int) == 3)
 	var data: Dictionary = result.envelope[SaveFile.KEY_SECTIONS]["unlocks"]["data"]
-	_check("round trip: section data", data.get("knight") == true)
+	_check("round trip: section data", (data.get("knight") == true) as bool)
 	_check(
 			"round trip: game version stamped",
-			result.envelope[SaveFile.KEY_GAME_VERSION] == SaveFile.get_running_version()
+			(result.envelope[SaveFile.KEY_GAME_VERSION] == SaveFile.get_running_version()) as bool
 	)
-	_check("round trip: saved_at stamped", int(result.envelope[SaveFile.KEY_SAVED_AT]) > 0)
+	_check("round trip: saved_at stamped", (result.envelope[SaveFile.KEY_SAVED_AT] as int) > 0)
 	_check("round trip: no .tmp left", not FileAccess.file_exists(_temp()))
 	_check("round trip: first write makes no .bak", not FileAccess.file_exists(_backup()))
 
@@ -124,8 +124,8 @@ func _test_steam_id_and_float_precision() -> void:
 	var core: Dictionary = _core(SaveFile.read(TEST_PATH))
 
 	var steam_id_back: int = str(core.get("steam_id")).to_int()
-	var ratio_back: float = float(core.get("ratio", 0.0))
-	_check("precision: Steam id exact as string", core.get("steam_id") == STEAM_ID)
+	var ratio_back: float = core.get("ratio", 0.0) as float
+	_check("precision: Steam id exact as string", (core.get("steam_id") == STEAM_ID) as bool)
 	_check("precision: Steam id converts back exactly", steam_id_back == 76561198000000001)
 	_check("precision: float exact", ratio_back == ratio, str(ratio_back))
 
@@ -282,19 +282,19 @@ func _test_migrations_run_in_order() -> void:
 	_check("migrate 1->3: OK", err_one == OK, error_string(err_one))
 	_check(
 			"migrate 1->3: both steps ran",
-			core_one.get("coins") == 100 and not core_one.has("gold")
+			(core_one.get("coins") == 100) as bool and not core_one.has("gold")
 	)
-	_check("migrate 1->3: version set", int(from_one[SaveFile.KEY_SCHEMA_VERSION]) == 3)
+	_check("migrate 1->3: version set", (from_one[SaveFile.KEY_SCHEMA_VERSION] as int) == 3)
 
 	var from_two: Dictionary = SaveFile.make_envelope(2, {"gold": 7})
 	SaveMigrations.run(from_two, 3, steps)
 	var core_two: Dictionary = from_two[SaveFile.KEY_CORE]
-	_check("migrate 2->3: only the last step ran", core_two.get("coins") == 7)
+	_check("migrate 2->3: only the last step ran", (core_two.get("coins") == 7) as bool)
 
 	var current: Dictionary = SaveFile.make_envelope(3, {"coins": 5})
 	var err_current: Error = SaveMigrations.run(current, 3, steps)
 	var core_current: Dictionary = current[SaveFile.KEY_CORE]
-	_check("migrate 3->3: no-op", err_current == OK and core_current.get("coins") == 5)
+	_check("migrate 3->3: no-op", err_current == OK and (core_current.get("coins") == 5) as bool)
 
 
 func _test_migrations_reject_bad_versions() -> void:
@@ -559,11 +559,11 @@ func _test_sections_capture_keeps_unregistered() -> void:
 	var captured: Dictionary = registry.capture(SaveSection.Block.PROFILE, on_disk)
 	_check(
 			"sections capture: unregistered kept",
-			captured.get("removed_feature") == on_disk["removed_feature"]
+			(captured.get("removed_feature") == on_disk["removed_feature"]) as bool
 	)
 	_check(
 			"sections capture: registered written with version",
-			captured.get("unlocks") == {"version": 1, "data": {"knight": true}}
+			(captured.get("unlocks") == {"version": 1, "data": {"knight": true}}) as bool
 	)
 	_check("sections capture: input not modified", not on_disk.has("unlocks"))
 	_check(
@@ -602,7 +602,10 @@ func _test_sections_migrate_and_refuse() -> void:
 	)
 	_check("sections migrate: OK", err == OK, error_string(err))
 	_check("sections migrate: from version 1", upgraded.migrated_from == 1)
-	_check("sections migrate: restored migrated data", upgraded.data.get("migrated") == true)
+	_check(
+			"sections migrate: restored migrated data",
+			(upgraded.data.get("migrated") == true) as bool
+	)
 
 	var two_phase: SaveSectionRegistry = SaveSectionRegistry.new()
 	var fine: FakeSection = FakeSection.new("fine", 1)
@@ -654,7 +657,10 @@ func _test_sections_raw_and_replace() -> void:
 	real.data = {"real": true}
 	registry.register(SaveSection.Block.PROFILE, real)
 	var captured: Dictionary = registry.capture(SaveSection.Block.PROFILE, {})
-	_check("raw section: replaced by the real one", captured["unlocks"]["data"] == {"real": true})
+	_check(
+			"raw section: replaced by the real one",
+			(captured["unlocks"]["data"] == {"real": true}) as bool
+	)
 	_check("raw section: has_section", registry.has_section(SaveSection.Block.PROFILE, "unlocks"))
 
 
@@ -957,7 +963,7 @@ func _core(result: SaveFile.ReadResult) -> Dictionary:
 
 
 func _seq(result: SaveFile.ReadResult) -> int:
-	return int(_core(result).get("seq_marker", -1))
+	return _core(result).get("seq_marker", -1) as int
 
 
 # Reads checkpoint_seq straight from one file on disk, bypassing SaveFile's recovery.
@@ -966,7 +972,7 @@ func _seq_on_disk(path: String) -> int:
 	if typeof(data) != TYPE_DICTIONARY:
 		return -1
 	var envelope: Dictionary = data
-	return int(envelope.get(SaveFile.KEY_CHECKPOINT_SEQ, -1))
+	return envelope.get(SaveFile.KEY_CHECKPOINT_SEQ, -1) as int
 
 
 func _write_raw(path: String, text: String) -> void:
