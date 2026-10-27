@@ -40,6 +40,7 @@ static func resolve(
 	result.is_legal = true
 	state.unit(user_id).has_acted = true
 	var staff: CombatState.WeaponStats = state.equipped_weapon(user_id)
+	# TODO(TOD-001): One target only; area staves give the amount to each ally in their area.
 	var amount: float = staff_amount(engine, user_id)
 	if staff.staff == CombatState.WeaponStats.Staff.BLOCK:
 		result.amount = engine.gain_block(target_id, amount, user_id)

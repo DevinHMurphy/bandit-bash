@@ -44,6 +44,7 @@ static func cast(
 		return reason
 	if not state.has_unit(target_id):
 		return "no target on the map"
+	# TODO(TOD-001): Spark targets a powder keg through the OBJECT_OPERATIONS hook, not an effect.
 	var ctx: EffectContext = EffectContext.new()
 	ctx.command_target_id = target_id
 	if not engine.activate(rune, ctx):
