@@ -12,8 +12,8 @@
 extends RefCounted
 ## The combat state's cases for tests/combat/run_all.gd: the stub grid, [CombatUnitState],
 ## [CombatState] (placement, occupancy, the [SandboxState] reads and writes, sandbox copies,
-## defeat), [SplashResolver] through the engine, dormancy, and the combat core's value keys.
-## Reports each case through the check callable it is given.
+## defeat), [SplashResolver] through the engine, dormancy, and the combat core's value keys and
+## their default rule bases. Reports each case through the check callable it is given.
 
 # Preloaded scripts used as types (gdscript.md, Naming): the test map and stub have no class name.
 const CombatWorld = preload("res://tests/combat/combat_world.gd")
@@ -46,6 +46,7 @@ func run() -> void:
 	_test_dormancy()
 	_test_sandbox_purity()
 	_test_value_keys_present()
+	_test_rule_bases_without_placement()
 
 
 func _test_stub_grid() -> void:
@@ -380,6 +381,27 @@ func _test_value_keys_present() -> void:
 	if not CampaignValue.Key.has("POUCH_ITEM_WEIGHT"):
 		missing.append("POUCH_ITEM_WEIGHT")
 	_ok("keys: every combat core key and permission is seeded", missing.is_empty(), str(missing))
+
+
+# A unit given values but never placed (no load_bases) still reads the rule bases from the
+# default tables, labelled as rules in its breakdowns.
+func _test_rule_bases_without_placement() -> void:
+	var world: CombatWorld = CombatWorld.new()
+	world.engine.set_base("loose", CombatValue.Key.HP, 20.0)
+	var sheet: StatSheet = world.engine.stats("loose")
+	_ok("rule bases: the unit is not placed", not world.state.has_unit("loose"))
+	_ok(
+			"rule bases: both Multipliers 1",
+			sheet.get_value(DamageStage.Key.MULTIPLIERS) == 1.0
+			and sheet.get_value(DamageStage.Key.INCOMING_MULTIPLIERS) == 1.0
+	)
+	_ok("rule bases: effectiveness 3", sheet.get_value(CombatValue.Key.EFFECTIVE_MODIFIER) == 3.0)
+	_ok("rule bases: Shove distance 1", sheet.get_int(CombatValue.Key.SHOVE_DISTANCE) == 1)
+	_same(
+			"rule bases: labelled as a rule",
+			sheet.explain(DamageStage.Key.MULTIPLIERS).to_text(), "1 rule = 1"
+	)
+	_quiet(world)
 
 
 # p1 (seat 0) and p2 (seat 1) on the player side, e1 on the enemy side, all at 20 HP.

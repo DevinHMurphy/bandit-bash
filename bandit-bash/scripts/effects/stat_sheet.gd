@@ -26,10 +26,15 @@ extends RefCounted
 # Cache slots per key: one per stat plus Modifier.NO_STAT. Above the Stat enum's size.
 const _STAT_SLOTS: int = 16
 
+# Names a combat rule default in breakdowns ("1 rule ×2 effect:bane = 2").
+# ASSUMPTION: combat rule defaults keep the "rule" label CombatState.load_bases() gave them;
+# campaign defaults stay unlabelled ("base") as before.
+const _RULE_LABEL: String = "rule"
+
 ## Instance id of the unit, or the seat's id, this sheet describes.
 var subject_id: String = ""
 
-# Base value per key; a key with no base starts at 0.
+# Base value per key; a key with no base starts at its default (get_base).
 var _bases: Dictionary[int, float] = {}
 
 # Text naming each base in breakdowns, such as "Hakkapel base".
@@ -60,10 +65,13 @@ func set_base(key: int, value: float, label: String = "") -> void:
 	_drop_cached(key)
 
 
-## The base of [param key]: the one set, else its [constant CampaignValue.DEFAULT_BASES] entry,
-## else 0.
+## The base of [param key]: the one set, else its entry in [constant DamageStage.DEFAULT_BASES],
+## [constant CombatValue.DEFAULT_BASES] or [constant CampaignValue.DEFAULT_BASES], else 0. So rule
+## bases never depend on how a unit got onto the map.
 func get_base(key: int) -> float:
-	return _bases.get(key, CampaignValue.DEFAULT_BASES.get(key, 0.0))
+	if _bases.has(key):
+		return _bases[key]
+	return _default_base(key)
 
 
 ## Adds an unconditional modifier to its key.
@@ -114,9 +122,7 @@ func explain(
 		return static_answer
 	var modifiers: Array[Modifier] = get_modifiers(key, stat)
 	modifiers.append_array(live)
-	return ValueBreakdown.compute(
-			key, get_base(key), _base_labels.get(key, "") as String, modifiers
-	)
+	return ValueBreakdown.compute(key, get_base(key), _base_label(key), modifiers)
 
 
 ## Whether [param permission] is allowed. Any denial beats any grant.
@@ -148,7 +154,7 @@ func explain_static(key: int, stat: int = Modifier.NO_STAT) -> ValueBreakdown:
 	var slot: int = _slot(key, stat)
 	if not _cache.has(slot):
 		_cache[slot] = ValueBreakdown.compute(
-				key, get_base(key), _base_labels.get(key, "") as String, get_modifiers(key, stat)
+				key, get_base(key), _base_label(key), get_modifiers(key, stat)
 		)
 	return _cache[slot]
 
@@ -203,5 +209,24 @@ func _drop_cached(key: int) -> void:
 		_cache.erase(_slot(key, stat))
 
 
+# The text naming the base of `key` in breakdowns: the one set with it, else _RULE_LABEL for a
+# combat rule default, else empty ("base").
+func _base_label(key: int) -> String:
+	if _base_labels.has(key):
+		return _base_labels[key]
+	if DamageStage.DEFAULT_BASES.has(key) or CombatValue.DEFAULT_BASES.has(key):
+		return _RULE_LABEL
+	return ""
+
+
 static func _slot(key: int, stat: int) -> int:
 	return key * _STAT_SLOTS + stat + 1
+
+
+# Value keys are unique across the three classes, so the lookup order doesn't matter.
+static func _default_base(key: int) -> float:
+	if DamageStage.DEFAULT_BASES.has(key):
+		return DamageStage.DEFAULT_BASES[key]
+	if CombatValue.DEFAULT_BASES.has(key):
+		return CombatValue.DEFAULT_BASES[key]
+	return CampaignValue.DEFAULT_BASES.get(key, 0.0)
