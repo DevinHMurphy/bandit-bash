@@ -34,7 +34,8 @@ const CRIT_BASE: int = 25
 
 
 ## Resolves an exchange of [param attacker_id] on [param defender_id]. An illegal exchange records
-## nothing; see [member Result.reason]. A legal one marks the attacker as having acted.
+## nothing; see [member Result.reason]. A legal one marks the attacker as having acted, and an
+## attack staff spends a use first ([method ItemUseResolver.use_effects]).
 static func resolve(
 		engine: EffectEngine, state: CombatState, attacker_id: String, defender_id: String
 ) -> Result:
@@ -44,6 +45,11 @@ static func resolve(
 		return result
 	result.is_legal = true
 	state.unit(attacker_id).has_acted = true
+	var weapon: CombatState.WeaponStats = state.equipped_weapon(attacker_id)
+	if weapon.staff == CombatState.WeaponStats.Staff.ATTACK:
+		ItemUseResolver.spend(
+				engine, ItemUseResolver.use_effects(engine, weapon.id), defender_id
+		)
 
 	var before: EffectContext = context(engine, state, attacker_id, defender_id, attacker_id, -1)
 	engine.record(CombatFact.new(CombatFact.Kind.BEFORE_COMBAT, attacker_id, defender_id), before)
@@ -83,8 +89,8 @@ static func resolve(
 
 
 ## Why [param attacker_id] can't attack [param defender_id] now; empty when it can. Legal: both on
-## the map and on opposing sides, the attacker holds a weapon that isn't a Block or heal staff,
-## and its range covers the distance.
+## the map and on opposing sides, the attacker holds a weapon that isn't a Block or heal staff (an
+## attack staff needs a use left), and its range covers the distance.
 static func check(
 		engine: EffectEngine, state: CombatState, attacker_id: String, defender_id: String
 ) -> String:
@@ -99,6 +105,8 @@ static func check(
 		return "no weapon"
 	if weapon.is_staff() and weapon.staff != CombatState.WeaponStats.Staff.ATTACK:
 		return "a support staff can't attack"
+	if not ItemUseResolver.has_uses(ItemUseResolver.use_effects(engine, weapon.id)):
+		return "no uses left"
 	var ctx: EffectContext = context(engine, state, attacker_id, defender_id, attacker_id, -1)
 	if not in_range(engine, attacker_id, ctx):
 		return "out of range"
