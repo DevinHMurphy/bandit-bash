@@ -10,8 +10,8 @@
 # ==============================================================================
 
 extends SceneTree
-## Headless tests for the combat core: its state and grid (state_cases.gd), run on the stub grid
-## and the real effect engine.
+## Headless tests for the combat core: its state and grid (state_cases.gd) and the exchange
+## (exchange_cases.gd), run on the stub grid and the real effect engine.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/combat/run_all.gd[/code][br]
@@ -19,6 +19,7 @@ extends SceneTree
 ## [code]--script[/code] mode, so nothing here may use them.
 
 const StateCases: GDScript = preload("res://tests/combat/state_cases.gd")
+const ExchangeCases: GDScript = preload("res://tests/combat/exchange_cases.gd")
 
 var _failures: int = 0
 var _passes: int = 0
@@ -26,7 +27,7 @@ var _passes: int = 0
 
 func _init() -> void:
 	print("--- Combat core tests ---")
-	for cases_script: GDScript in [StateCases]:
+	for cases_script: GDScript in [StateCases, ExchangeCases]:
 		# Variant: the case scripts have no class name to type them with.
 		var cases: Variant = cases_script.new(_check)
 		cases.run()

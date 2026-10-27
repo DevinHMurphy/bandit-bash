@@ -19,6 +19,22 @@ extends RefCounted
 # A preloaded script used as a type (gdscript.md, Naming): the stub has no class name.
 const StubCombatGrid = preload("res://tests/combat/stub_combat_grid.gd")
 
+# Weapon presets: damage, AtkX, profile, range min, range max, Hit, crit, CritX, weight, from
+# game-vision.md's Simple weapon table and weapons.md's staves (Harm: 15 damage, 100 Hit, 1-2,
+# weight 10).
+const PRESETS: Dictionary[String, Array] = {
+	"sword": [5, 1, WeaponTriangle.Profile.NIMBLE, 1, 1, 80, 0, 3.0, 8],
+	"axe": [10, 1, WeaponTriangle.Profile.POWER, 1, 1, 65, 0, 3.0, 15],
+	"lance": [7, 1, WeaponTriangle.Profile.BALANCE, 1, 1, 80, 0, 3.0, 12],
+	"bow": [6, 1, WeaponTriangle.Profile.NONE, 2, 3, 100, 0, 3.0, 5],
+	"gauntlets": [2, 2, WeaponTriangle.Profile.NONE, 1, 1, 100, 0, 2.0, 1],
+	"dagger": [2, 1, WeaponTriangle.Profile.NIMBLE, 1, 2, 100, 0, 5.0, 3],
+	"fire": [5, 1, WeaponTriangle.Profile.BALANCE, 1, 2, 80, 0, 3.0, 1],
+	"shelter": [0, 1, WeaponTriangle.Profile.NONE, 1, 1, 0, 0, 3.0, 0],
+	"minor_heal": [0, 1, WeaponTriangle.Profile.NONE, 1, 1, 0, 0, 3.0, 0],
+	"harm": [15, 1, WeaponTriangle.Profile.NONE, 1, 2, 100, 0, 3.0, 10],
+}
+
 ## The map's terrain.
 var grid: StubCombatGrid = null
 
@@ -65,6 +81,51 @@ func add_unit(
 	if not state.place_unit(engine, unit):
 		return null
 	return unit
+
+
+## Adds weapon [param weapon_id] from a preset (game-vision.md's Simple weapons, weapons.md's
+## staves): sword, axe, lance, bow, gauntlets, dagger, fire, shelter, minor_heal, harm. Returns
+## its record for further changes before it is equipped.
+func add_weapon(weapon_id: String, preset: String) -> CombatState.WeaponStats:
+	var stats: CombatState.WeaponStats = CombatState.WeaponStats.new()
+	stats.id = weapon_id
+	stats.label = preset.capitalize()
+	# Columns: damage, AtkX, profile, range min, range max, Hit, crit, CritX, weight.
+	var columns: Array = PRESETS[preset]
+	stats.damage = columns[0]
+	stats.atk_x = columns[1]
+	stats.profile = columns[2]
+	stats.range_min = columns[3]
+	stats.range_max = columns[4]
+	stats.hit = columns[5]
+	stats.crit = columns[6]
+	stats.crit_x = columns[7]
+	stats.weight = columns[8]
+	match preset:
+		"bow":
+			stats.effective_against = PackedStringArray(["Flier"])
+		"fire":
+			stats.damage_type = CombatFact.DamageType.MAGIC
+		"shelter":
+			stats.staff = CombatState.WeaponStats.Staff.BLOCK
+			stats.staff_amount = 3
+		"minor_heal":
+			stats.staff = CombatState.WeaponStats.Staff.HEAL
+			stats.staff_amount = 5
+		"harm":
+			stats.staff = CombatState.WeaponStats.Staff.ATTACK
+			stats.damage_type = CombatFact.DamageType.MAGIC
+	state.add_weapon(stats)
+	return stats
+
+
+## Puts [param weapon_id] in [param unit_id]'s Weapon slot (and [param stowed_id] in its Pouch)
+## and reloads its bases, as a placement would.
+func arm(unit_id: String, weapon_id: String, stowed_id: String = "") -> void:
+	var holder: CombatUnitState = state.unit(unit_id)
+	holder.equipped_weapon_id = weapon_id
+	holder.stowed_weapon_id = stowed_id
+	state.load_bases(engine, unit_id)
 
 
 ## Registers [param definition] as a trait of [param unit_id] (or, with [param item_id], as an
