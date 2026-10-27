@@ -244,6 +244,7 @@ func run() -> void:
 	_test_this_unit_without_a_unit()
 	_test_stat_changed()
 	_test_deepest_chain()
+	_test_queued_reaction_outlives_its_owner()
 	_test_depth_cap()
 	_test_step_cap()
 	_test_keg_chain()
@@ -804,6 +805,29 @@ func _test_deepest_chain() -> void:
 			_log_tail(engine, 0)
 	)
 	_clean("deepest chain", engine)
+
+
+# A Brute defeated by the counter still splashes: its queued reaction keeps the context it was
+# queued with; the defeat only stops later triggers.
+func _test_queued_reaction_outlives_its_owner() -> void:
+	var engine: EffectEngine = _battle(["p1", "p2", "e1"], [1, 1])
+	engine.register(_instance("effect:cl", _cleave(), _owner("e1"), TRAIT, "Cleave"))
+	_fake(engine).unit("e1").hp = 3
+	_harness(engine).exchange("e1", "p2", "ad")
+	var splash: CombatFact = _last_of(engine, CombatFact.Kind.DAMAGE_TAKEN)
+	_ok(
+			"queued: a Brute defeated by the counter still splashes",
+			_fake(engine).unit("e1").defeated and splash.source == CombatFact.Source.SPLASH
+			and splash.actor_id == "p2" and splash.source_effect_id == "effect:cl"
+	)
+	var activations: int = _count(engine, CombatFact.Kind.EFFECT_ACTIVATED)
+	engine.record(CombatFact.new(CombatFact.Kind.HIT_DEALT, "e1", "p2"))
+	_ok(
+			"queued: a defeated owner's effect no longer triggers",
+			_count(engine, CombatFact.Kind.EFFECT_ACTIVATED) == activations
+			and engine.pending_reactions() == 0
+	)
+	_clean("queued reaction outlives its owner", engine)
 
 
 func _test_depth_cap() -> void:

@@ -30,8 +30,6 @@ extends RefCounted
 @abstract func copy_for_sandbox() -> SandboxState
 
 
-# ASSUMPTION: the engine reads and writes unit state through hooks on this class; the plan gives
-# SandboxState only copy_for_sandbox(), but conditions, selectors and resource gains need the map.
 ## Every unit and map object on the map, defeated ones excluded, in a fixed order (roster order,
 ## then spawn order). Selectors and position conditions iterate in this order.
 @abstract func unit_ids() -> PackedStringArray

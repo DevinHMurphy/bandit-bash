@@ -104,7 +104,6 @@ var diagnostics: PackedStringArray = []
 ## Every fact recorded, in [member CombatFact.seq] order.
 var fact_log: Array[CombatFact] = []
 
-var _queue: ReactionQueue = ReactionQueue.new()
 var _instances: Dictionary[String, EffectInstance] = {}
 
 # Triggered instances per trigger, each an Array[EffectInstance] in registration order.
@@ -116,9 +115,6 @@ var _unconditional: Array[EffectInstance] = []
 # Always-on instances with conditions, per key they modify: checked live on every query.
 var _conditional_by_key: Dictionary[int, Array] = {}
 
-# Base values and permanent deltas per subject, each kept as a sheet without an engine.
-var _base_sheets: Dictionary[String, StatSheet] = {}
-
 # Inline windows opened but not yet recorded, by fact.
 var _windows: Dictionary[CombatFact, InlineWindow] = {}
 
@@ -128,28 +124,28 @@ var _opening: InlineWindow = null
 # Generation of the reaction being resolved; 0 while rules code records facts.
 var _generation: int = 0
 
-var _next_seq: int = 1
 var _observers: Array[Callable] = []
-var _timed: Array[TimedModifier] = []
-
-# Phases started this battle, both sides, and whether one is under way (between Phase Start and
-# Phase End).
-var _phase: int = 0
-var _in_phase: bool = false
-
-# Attacks started this battle, and the number of the attack each unit has under way or made last.
-var _attacks: int = 0
-var _attack_of: Dictionary[String, int] = {}
 
 # Value queries in progress, by subject, key and stat, so a condition that reads the value it
 # modifies sees the static part instead of recursing.
 var _querying: Dictionary[String, bool] = {}
 
+# Everything that changes as the session resolves, apart from the instances: what a sandbox copies.
+var _run: RunState = null
 
-func _init(rules_state: SandboxState, roll_source: RollSource, session: int = 0) -> void:
+
+## [param run]: the state a sandbox starts from ([method copy_for_sandbox]); null for a new
+## battle.
+func _init(
+		rules_state: SandboxState,
+		roll_source: RollSource,
+		session: int = 0,
+		run: RunState = null
+) -> void:
 	state = rules_state
 	rolls = roll_source
 	session_id = session
+	_run = run if run != null else RunState.new()
 
 
 ## Adds [param instance] to the engine. Its combat lane starts fresh (battle start) unless
@@ -220,7 +216,7 @@ func get_deltas(subject_id: String, key: int, stat: int = Modifier.NO_STAT) -> A
 ## unconditional effects, with the live part added on every query.
 func stats(subject_id: String) -> StatSheet:
 	var sheet: StatSheet = StatSheet.new(subject_id, self)
-	var base: StatSheet = _base_sheets.get(subject_id, null)
+	var base: StatSheet = _run.base_sheets.get(subject_id, null)
 	if base != null:
 		sheet = base.copy_for(self)
 	for instance: EffectInstance in _unconditional:
@@ -237,7 +233,7 @@ func live_modifiers(
 		subject_id: String, key: int, ctx: EffectContext, stat: int = Modifier.NO_STAT
 ) -> Array[Modifier]:
 	var live: Array[Modifier] = []
-	for timed: TimedModifier in _timed:
+	for timed: TimedModifier in _run.timed:
 		if (
 				timed.holder_id == subject_id
 				and timed.modifier.key == key
@@ -262,15 +258,15 @@ func live_modifiers(
 ## when null). A fact opened with [method open_window] only releases its waiting reactions.
 func record(fact: CombatFact, ctx: EffectContext = null) -> void:
 	fact.session_id = session_id
-	fact.seq = _next_seq
-	_next_seq += 1
+	fact.seq = _run.next_seq
+	_run.next_seq += 1
 	fact_log.append(fact)
 	if fact.kind == CombatFact.Kind.PHASE_START:
-		_phase += 1
-		_in_phase = true
+		_run.phase += 1
+		_run.in_phase = true
 	elif fact.kind == CombatFact.Kind.ATTACK_MADE:
-		_attacks += 1
-		_attack_of[fact.actor_id] = _attacks
+		_run.attacks += 1
+		_run.attack_of[fact.actor_id] = _run.attacks
 	for observer: Callable in _observers:
 		observer.call(fact)
 
@@ -280,7 +276,7 @@ func record(fact: CombatFact, ctx: EffectContext = null) -> void:
 		for side_fact: CombatFact in window.side_facts:
 			record(side_fact)
 		for reaction: ReactionQueue.Reaction in window.reactions:
-			_queue.push(reaction)
+			_run.queue.push(reaction)
 		return
 	var trigger: int = _COMBAT_TRIGGERS.get(fact.kind, -1)
 	if trigger >= 0:
@@ -323,14 +319,14 @@ func activate(instance: EffectInstance, ctx: EffectContext) -> bool:
 ## Starts a new resolution step for the per-step reaction cap: one unit's turn, one phase
 ## boundary, the darkness step or reinforcement arrival.
 func begin_step() -> void:
-	_queue.begin_step()
+	_run.queue.begin_step()
 
 
 ## Resolves the reaction queue until it is empty: a step boundary. Reactions past a cap are dropped
 ## with a diagnostic; what already resolved stays.
 func drain() -> void:
-	while not _queue.is_empty():
-		var reaction: ReactionQueue.Reaction = _queue.pop()
+	while not _run.queue.is_empty():
+		var reaction: ReactionQueue.Reaction = _run.queue.pop()
 		if not reaction.exempt:
 			if reaction.generation > ReactionQueue.MAX_DEPTH:
 				diagnostics.append(
@@ -338,13 +334,13 @@ func drain() -> void:
 						% [reaction.instance.instance_id, ReactionQueue.MAX_DEPTH]
 				)
 				continue
-			if _queue.resolved_this_step >= ReactionQueue.MAX_PER_STEP:
+			if _run.queue.resolved_this_step >= ReactionQueue.MAX_PER_STEP:
 				diagnostics.append(
 						"EffectEngine: step stopped at %d reactions, dropping %s"
 						% [ReactionQueue.MAX_PER_STEP, reaction.instance.instance_id]
 				)
 				continue
-			_queue.resolved_this_step += 1
+			_run.queue.resolved_this_step += 1
 		var outer: int = _generation
 		_generation = reaction.generation
 		reaction.ctx.engine = self
@@ -356,13 +352,13 @@ func drain() -> void:
 
 ## The number of reactions waiting for [method drain].
 func pending_reactions() -> int:
-	return _queue.size()
+	return _run.queue.size()
 
 
 ## Reactions resolved since [method begin_step], map-object reactions excluded: how close the step
 ## came to [constant ReactionQueue.MAX_PER_STEP].
 func reactions_this_step() -> int:
-	return _queue.resolved_this_step
+	return _run.queue.resolved_this_step
 
 
 ## Gives [param holder_id] [param modifier] until [param end] or for [param uses] attacks (0: no
@@ -382,10 +378,10 @@ func add_timed_modifier(
 	timed.modifier = modifier
 	timed.end = end
 	timed.uses_left = maxi(uses, 0)
-	timed.phase = _phase if _in_phase else _phase + 1
-	timed.attacks_before = _attacks
+	timed.phase = _run.phase if _run.in_phase else _run.phase + 1
+	timed.attacks_before = _run.attacks
 	timed.source_effect_id = source_effect_id
-	_timed.append(timed)
+	_run.timed.append(timed)
 	var fact: CombatFact = _new_fact(CombatFact.Kind.MODIFIER_GAINED, holder_id)
 	fact.source_effect_id = source_effect_id
 	record(fact)
@@ -394,7 +390,7 @@ func add_timed_modifier(
 ## The timed modifiers [param holder_id] holds, in the order gained.
 func get_timed_modifiers(holder_id: String) -> Array[TimedModifier]:
 	var held: Array[TimedModifier] = []
-	for timed: TimedModifier in _timed:
+	for timed: TimedModifier in _run.timed:
 		if timed.holder_id == holder_id:
 			held.append(timed)
 	return held
@@ -405,13 +401,13 @@ func get_timed_modifiers(holder_id: String) -> Array[TimedModifier]:
 ## [param subject_id]: the attacker, for [constant ATTACK_RESOLVED]; ignored otherwise.
 func reach_boundary(boundary: Boundary, subject_id: String = "") -> void:
 	var expired: Array[TimedModifier] = []
-	for timed: TimedModifier in _timed:
+	for timed: TimedModifier in _run.timed:
 		if _comes_due(timed, boundary, subject_id):
 			expired.append(timed)
 	if boundary == Boundary.PHASE_END:
-		_in_phase = false
+		_run.in_phase = false
 	for timed: TimedModifier in expired:
-		_timed.erase(timed)
+		_run.timed.erase(timed)
 		var fact: CombatFact = _new_fact(CombatFact.Kind.MODIFIER_EXPIRED, timed.holder_id)
 		fact.source_effect_id = timed.source_effect_id
 		record(fact)
@@ -445,6 +441,25 @@ func tile_distance(from_id: String, to_id: String) -> int:
 	if from_tile == CombatFact.NO_TILE or to_tile == CombatFact.NO_TILE:
 		return -1
 	return absi(from_tile.x - to_tile.x) + absi(from_tile.y - to_tile.y)
+
+
+## A scratch copy for a [Sandbox], resolving with [param roll_source]: the state's
+## [method SandboxState.copy_for_sandbox], copies of every instance (counters and charges), timed
+## modifiers, base values, deltas, waiting reactions and the phase and attack counts, so facts
+## continue from this engine's [member CombatFact.seq]. Its fact log and diagnostics start empty
+## and it has no observers. Nothing it does reaches this engine. Main thread only.
+func copy_for_sandbox(roll_source: RollSource) -> EffectEngine:
+	var run: RunState = _run.copy()
+	var copy: EffectEngine = EffectEngine.new(
+			state.copy_for_sandbox(), roll_source, session_id, run
+	)
+	var copies: Dictionary[String, EffectInstance] = {}
+	for instance: EffectInstance in get_instances():
+		var instance_copy: EffectInstance = instance.copy()
+		copies[instance.instance_id] = instance_copy
+		copy.register(instance_copy, true)
+	run.queue = _run.queue.copy_for(copies)
+	return copy
 
 
 ## Adds a read-only listener called with every fact as it is recorded, on the host (XP tally,
@@ -689,7 +704,7 @@ func _fire(
 	if window != null:
 		window.reactions.append(reaction)
 	else:
-		_queue.push(reaction)
+		_run.queue.push(reaction)
 
 
 # Every condition, in authored order, then a charge: checked once per fire. A failed condition
@@ -743,7 +758,7 @@ func _comes_due(timed: TimedModifier, boundary: Boundary, subject_id: String) ->
 		Boundary.ATTACK_RESOLVED:
 			if timed.uses_left <= 0 or timed.holder_id != subject_id:
 				return false
-			if _attack_of.get(subject_id, 0) <= timed.attacks_before:
+			if _run.attack_of.get(subject_id, 0) <= timed.attacks_before:
 				return false
 			timed.uses_left -= 1
 			return timed.uses_left == 0
@@ -751,9 +766,9 @@ func _comes_due(timed: TimedModifier, boundary: Boundary, subject_id: String) ->
 			return timed.end == AddTimedModifier.End.THIS_EXCHANGE
 		Boundary.PHASE_END:
 			if timed.end == AddTimedModifier.End.UNTIL_PHASE_END:
-				return timed.phase <= _phase
+				return timed.phase <= _run.phase
 			if timed.end == AddTimedModifier.End.END_OF_NEXT_PHASE:
-				return timed.phase + 1 <= _phase
+				return timed.phase + 1 <= _run.phase
 			return false
 	return true
 
@@ -842,9 +857,9 @@ func _unindex(instance: EffectInstance) -> void:
 
 
 func _base_sheet(subject_id: String) -> StatSheet:
-	if not _base_sheets.has(subject_id):
-		_base_sheets[subject_id] = StatSheet.new(subject_id)
-	return _base_sheets[subject_id]
+	if not _run.base_sheets.has(subject_id):
+		_run.base_sheets[subject_id] = StatSheet.new(subject_id)
+	return _run.base_sheets[subject_id]
 
 
 # Records an engine-made side fact (an activation, a counter change) now, or after the fact whose
@@ -895,3 +910,40 @@ class InlineWindow:
 	var side_facts: Array[CombatFact] = []
 	## Queued reactions released when the window's fact is recorded.
 	var reactions: Array[ReactionQueue.Reaction] = []
+
+
+# What changes as a session resolves, apart from the instances; copied whole for a sandbox.
+class RunState:
+	extends RefCounted
+
+	## The next fact's [member CombatFact.seq].
+	var next_seq: int = 1
+	## Phases started this battle, both sides.
+	var phase: int = 0
+	## Whether a phase is under way (between Phase Start and Phase End).
+	var in_phase: bool = false
+	## Attacks started this battle.
+	var attacks: int = 0
+	## The number of the attack each unit has under way or made last.
+	var attack_of: Dictionary[String, int] = {}
+	## Timed modifiers held, in the order gained.
+	var timed: Array[TimedModifier] = []
+	## Base values and permanent deltas per subject, each a sheet without an engine.
+	var base_sheets: Dictionary[String, StatSheet] = {}
+	## Reactions waiting for the next drain.
+	var queue: ReactionQueue = ReactionQueue.new()
+
+	## A copy sharing nothing mutable. The queue is left empty: its reactions must point at the
+	## copied instances, so [method EffectEngine.copy_for_sandbox] copies it.
+	func copy() -> RunState:
+		var run: RunState = RunState.new()
+		run.next_seq = next_seq
+		run.phase = phase
+		run.in_phase = in_phase
+		run.attacks = attacks
+		run.attack_of = attack_of.duplicate()
+		for held: TimedModifier in timed:
+			run.timed.append(held.copy())
+		for subject_id: String in base_sheets:
+			run.base_sheets[subject_id] = base_sheets[subject_id].copy_for(null)
+		return run
