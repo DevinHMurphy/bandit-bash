@@ -6,7 +6,7 @@
 # File:     combat_fact.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 class_name CombatFact
@@ -166,8 +166,8 @@ enum DamageType {
 	PURE = 4,
 }
 
-## [member tile] when a fact has no tile.
-# ASSUMPTION: map tiles never have negative coordinates.
+## [member tile] when a fact has no tile. Map tiles never have negative coordinates (a map rule,
+## event bus plan question 37), so it names no real tile.
 const NO_TILE: Vector2i = Vector2i(-1, -1)
 
 # Slot types of the wire array, in to_wire() order: i = int, s = String.

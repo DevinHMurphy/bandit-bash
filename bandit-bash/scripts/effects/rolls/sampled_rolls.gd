@@ -6,7 +6,7 @@
 # File:     sampled_rolls.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 class_name SampledRolls
@@ -52,8 +52,8 @@ func _draw_index(count: int) -> int:
 
 ## The seed for [param session_seq] and [param candidate]. A part of another type is skipped.
 static func seed_for(session_seq: int, candidate: Array) -> int:
-	# ASSUMPTION: the candidate is encoded part by part as described in the class doc; the plan
-	# names the parts but not how ids become numbers for RngKey.mix().
+	# The encoding in the class doc is a determinism contract (event bus plan, question 36): a
+	# resumed battle must decide the same, so it stays fixed within a build.
 	var values: PackedInt64Array = [session_seq]
 	for part: Variant in candidate:
 		match typeof(part):

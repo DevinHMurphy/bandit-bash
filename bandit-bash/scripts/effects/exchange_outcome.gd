@@ -6,7 +6,7 @@
 # File:     exchange_outcome.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 class_name ExchangeOutcome
@@ -45,7 +45,7 @@ var expected_taken_block: float = 0.0
 var max_damage: int = 0
 
 ## Expected damage the attacker deals in the branches where it is defeated, given that it is; 0
-## when it never is. The damage it gets in before it dies.
+## when it never is. The damage it gets in before it dies (event bus plan, question 34).
 var expected_damage_before_defeat: float = 0.0
 
 ## Probability that the defender ends the exchange Exposed (Stance 0).
@@ -145,8 +145,6 @@ static func from_branches(branches: Array[Branch]) -> ExchangeOutcome:
 			outcome.max_damage = maxi(outcome.max_damage, branch.dealt_hp + branch.dealt_block)
 		outcome.diagnostics.append_array(branch.diagnostics)
 	outcome.branch_count = branches.size()
-	# ASSUMPTION: "expected damage before defeat" is the attacker's expected damage given that it is
-	# defeated; the plan names the number but not its definition.
 	if outcome.death_probability > 0.0:
 		outcome.expected_damage_before_defeat = dealt_when_defeated / outcome.death_probability
 	return outcome

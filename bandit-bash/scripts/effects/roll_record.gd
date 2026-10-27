@@ -6,7 +6,7 @@
 # File:     roll_record.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 class_name RollRecord
@@ -41,6 +41,11 @@ var probability: float = 0.0
 
 ## What happened: 1 for a hit or a success, 0 for a miss or a failure, the index for a pick.
 var outcome: int = 0
+
+## Whether [member outcome] only stands in for a random pick the source didn't make: a forecast
+## keeps the first candidate, so the display says the pick is random ("a random ally") instead of
+## naming it (event bus plan, question 35). False for every decided roll.
+var is_placeholder: bool = false
 
 
 func _init(roll_kind: Kind, shown: int, odds: float, result: int) -> void:

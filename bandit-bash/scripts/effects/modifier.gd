@@ -6,7 +6,7 @@
 # File:     modifier.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 class_name Modifier
@@ -110,7 +110,8 @@ func is_permission() -> bool:
 
 
 ## How specific the source is when two overrides collide on one key: lower wins. The unit's own
-## items beat its trait, which beats a heirloom (event bus plan, question 9).
+## items beat its trait, which beats a heirloom, which beats a rune (event bus plan, questions 9
+## and 37).
 func get_specificity() -> int:
 	match source_kind:
 		SourceKind.WEAPON, SourceKind.EQUIPMENT, SourceKind.POUCH_ITEM:
@@ -119,7 +120,6 @@ func get_specificity() -> int:
 			return 1
 		SourceKind.HEIRLOOM, SourceKind.CURSE:
 			return 2
-	# ASSUMPTION: a rune is the least specific source; question 9 doesn't rank runes.
 	return 3
 
 

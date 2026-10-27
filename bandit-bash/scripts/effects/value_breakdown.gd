@@ -6,7 +6,7 @@
 # File:     value_breakdown.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 class_name ValueBreakdown
@@ -128,8 +128,7 @@ func _compute_value(base: float, base_label: String, modifiers: Array[Modifier])
 		value *= modifier.value
 		_add_line("×%s %s" % [_format(modifier.value), _name(modifier)], modifier)
 
-	# ASSUMPTION: the floor applies before the cap, so a cap below a floor wins. No content sets
-	# both on one key.
+	# The floor applies before the cap, so a cap below a floor wins (event bus plan, question 37).
 	value = _apply_bound(_typed(by_mode[Modifier.Mode.FLOOR]), value, true)
 	value = _apply_bound(_typed(by_mode[Modifier.Mode.CAP]), value, false)
 
@@ -220,8 +219,7 @@ func _sorted_by_mode(modifiers: Array[Modifier]) -> Dictionary[int, Array]:
 func _pick_override(candidates: Array[Modifier], kind_name: String) -> Modifier:
 	if candidates.is_empty():
 		return null
-	# ASSUMPTION: on equal specificity the lowest source id (string order) wins; question 9 says
-	# only "ties by instance id".
+	# On equal specificity the lowest source id, in string order, wins (question 37).
 	var winner: Modifier = candidates[0]
 	for i: int in range(1, candidates.size()):
 		var loser: Modifier = candidates[i]

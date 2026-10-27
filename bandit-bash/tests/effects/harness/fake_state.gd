@@ -6,14 +6,15 @@
 # File:     fake_state.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 extends SandboxState
 ## A minimal map for the effect engine's tests: units and objects with a tile, HP, Block and Stance.
 ##
 ## Test-only, standing in for the combat core's [code]CombatState[/code]. Walking distance is the
-## tile distance (no terrain), and splash follows the combat core's rule closely enough for the
+## tile distance plus the walker's [member FakeUnit.detour] (a wall in its way, so "movable tiles"
+## can differ from grid tiles), and splash follows the combat core's rule closely enough for the
 ## engine's tests: Block absorbs, then HP; Damage taken; a unit at 0 HP is defeated. A defeated
 ## unit leaves the map: it has no tile any more, as when the combat core clears its occupancy.
 
@@ -62,6 +63,7 @@ func copy_for_sandbox() -> SandboxState:
 		unit_copy.moved = original.moved
 		unit_copy.layer = original.layer
 		unit_copy.weapon = original.weapon
+		unit_copy.detour = original.detour
 		unit_copy.defeated = original.defeated
 	return copy
 
@@ -94,7 +96,7 @@ func walking_distance(from_id: String, to_id: String) -> int:
 	if not has_unit(from_id) or not has_unit(to_id):
 		return -1
 	var delta: Vector2i = _units[from_id].tile - _units[to_id].tile
-	return absi(delta.x) + absi(delta.y)
+	return absi(delta.x) + absi(delta.y) + _units[from_id].detour
 
 
 func get_hp(id: String) -> int:
@@ -199,6 +201,8 @@ class FakeUnit:
 	var layer: int = 0
 	## Instance id of the weapon in its Weapon slot; empty for none.
 	var weapon: String = ""
+	## Extra steps every walk from this unit takes, as if a wall were in its way.
+	var detour: int = 0
 	## Whether it was defeated (kept, so its side and seat stay readable).
 	var defeated: bool = false
 
@@ -215,5 +219,6 @@ class FakeUnit:
 		unit.moved = moved
 		unit.layer = layer
 		unit.weapon = weapon
+		unit.detour = detour
 		unit.defeated = defeated
 		return unit

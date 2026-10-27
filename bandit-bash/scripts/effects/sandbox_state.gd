@@ -6,7 +6,7 @@
 # File:     sandbox_state.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 @abstract
@@ -51,8 +51,10 @@ extends RefCounted
 @abstract func tile_of(id: String) -> Vector2i
 
 
-## The walking distance from [param from_id] to [param to_id], in tiles, with terrain; -1 when
-## there is no path.
+## The walking distance from [param from_id] to [param to_id], in tiles: the steps [param from_id]
+## could take with its own movement type, walls and terrain counted; -1 when there is no path.
+## "Within N movable tiles" uses it; "within N tiles" is grid distance
+## ([method EffectEngine.tile_distance]).
 @abstract func walking_distance(from_id: String, to_id: String) -> int
 
 
