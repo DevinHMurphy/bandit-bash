@@ -6,7 +6,7 @@
 # File:     damage_stage.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 class_name DamageStage
@@ -24,12 +24,17 @@ extends RefCounted
 enum Key {
 	## Stage 1: weapon damage, scaling, flat attack bonuses, the triangle and effectiveness.
 	ATTACK = 1000,
-	## Stage 2: the defender's mitigation, subtracted. "Take 5 less damage" is +5 here.
+	## Stage 2: the defender's mitigation, subtracted. "Take 5 less damage" is +5 here, "takes 2
+	## more damage" -2; it may go below 0, which adds damage.
 	MITIGATION = 1001,
 	## Stage 3: the crit multiplier, on a crit only.
 	CRITICAL = 1002,
-	## Stage 4: every percent modifier, multiplied together.
+	## Stage 4, the attacker's side: every percent modifier on the damage it deals ("deals ×2
+	## damage to Beasts"), multiplied together.
 	MULTIPLIERS = 1003,
+	## Stage 4, the defender's side: every percent modifier on the damage it takes ("takes ×2
+	## damage from magic"), multiplied together and then with the attacker's [constant MULTIPLIERS].
+	INCOMING_MULTIPLIERS = 1004,
 }
 
 ## Rounding of each key; keys not listed round [constant ValueBreakdown.HALF_UP].
@@ -38,6 +43,7 @@ const ROUNDING: Dictionary[int, int] = {
 	Key.MITIGATION: ValueBreakdown.Rounding.EXACT,
 	Key.CRITICAL: ValueBreakdown.Rounding.EXACT,
 	Key.MULTIPLIERS: ValueBreakdown.Rounding.EXACT,
+	Key.INCOMING_MULTIPLIERS: ValueBreakdown.Rounding.EXACT,
 }
 
 ## Game-rule lower bounds, applied after every modifier. None.

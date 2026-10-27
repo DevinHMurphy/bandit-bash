@@ -18,6 +18,9 @@ extends SandboxState
 ## engine's tests: Block absorbs, then HP; Damage taken; a unit at 0 HP is defeated. A defeated
 ## unit leaves the map: it has no tile any more, as when the combat core clears its occupancy.
 
+## Weapon type by weapon instance id, for conditions that test it.
+var weapon_types: Dictionary[String, String] = {}
+
 var _units: Dictionary[String, FakeUnit] = {}
 var _order: PackedStringArray = []
 
@@ -54,6 +57,7 @@ func summary() -> String:
 func copy_for_sandbox() -> SandboxState:
 	# Variant: the copy is this script, which has no class name to type it with.
 	var copy: Variant = (get_script() as GDScript).new()
+	copy.weapon_types = weapon_types.duplicate()
 	for id: String in _order:
 		var original: FakeUnit = _units[id]
 		var unit_copy: FakeUnit = copy.add(id, original.side, original.seat, original.tile)
@@ -64,6 +68,8 @@ func copy_for_sandbox() -> SandboxState:
 		unit_copy.layer = original.layer
 		unit_copy.weapon = original.weapon
 		unit_copy.growth = original.growth.duplicate()
+		unit_copy.tags = original.tags
+		unit_copy.unit_type = original.unit_type
 		unit_copy.detour = original.detour
 		unit_copy.defeated = original.defeated
 	return copy
@@ -122,6 +128,18 @@ func darkness_layer(id: String) -> int:
 
 func equipped_weapon_id(unit_id: String) -> String:
 	return _units[unit_id].weapon if _units.has(unit_id) else ""
+
+
+func tags_of(id: String) -> PackedStringArray:
+	return _units[id].tags if _units.has(id) else PackedStringArray()
+
+
+func unit_type_of(id: String) -> String:
+	return _units[id].unit_type if _units.has(id) else ""
+
+
+func weapon_type_of(weapon_id: String) -> String:
+	return weapon_types.get(weapon_id, "")
 
 
 func set_hp(id: String, value: int) -> void:
@@ -209,6 +227,10 @@ class FakeUnit:
 	var weapon: String = ""
 	## Growth changes, in percentage points by stat.
 	var growth: Dictionary[int, int] = {}
+	## Its tags, such as "Beast".
+	var tags: PackedStringArray = []
+	## Its unit type.
+	var unit_type: String = ""
 	## Extra steps every walk from this unit takes, as if a wall were in its way.
 	var detour: int = 0
 	## Whether it was defeated (kept, so its side and seat stay readable).
@@ -228,6 +250,8 @@ class FakeUnit:
 		unit.layer = layer
 		unit.weapon = weapon
 		unit.growth = growth.duplicate()
+		unit.tags = tags
+		unit.unit_type = unit_type
 		unit.detour = detour
 		unit.defeated = defeated
 		return unit

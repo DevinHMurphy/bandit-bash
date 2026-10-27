@@ -83,6 +83,19 @@ extends RefCounted
 @abstract func equipped_weapon_id(unit_id: String) -> String
 
 
+## What [param id] is: its tags, such as "Flier" or "Armored" (unit-roster.md, Movement and tags);
+## empty for an object or an unknown id.
+@abstract func tags_of(id: String) -> PackedStringArray
+
+
+## [param id]'s unit type, such as "Archer"; empty for an object or an unknown id.
+@abstract func unit_type_of(id: String) -> String
+
+
+## The weapon type of the weapon [param weapon_id], such as "Bow"; empty when unknown.
+@abstract func weapon_type_of(weapon_id: String) -> String
+
+
 ## Sets the current HP of [param id]. The engine has already clamped [param value].
 @abstract func set_hp(id: String, value: int) -> void
 

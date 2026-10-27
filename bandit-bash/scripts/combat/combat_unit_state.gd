@@ -42,6 +42,10 @@ var movement_type: CombatGrid.MovementType = CombatGrid.MovementType.DEFAULT
 ## Movement and tags).
 var tags: PackedStringArray = []
 
+# ASSUMPTION: unit types are names until the units plan (P03) defines them.
+## The unit's type, such as "Archer" (unit-roster.md), for conditions that test it.
+var unit_type: String = ""
+
 ## Current HP.
 var hp: int = 0
 
@@ -104,6 +108,7 @@ func copy() -> CombatUnitState:
 	unit.tile = tile
 	unit.movement_type = movement_type
 	unit.tags = tags.duplicate()
+	unit.unit_type = unit_type
 	unit.hp = hp
 	unit.block = block
 	unit.stance = stance

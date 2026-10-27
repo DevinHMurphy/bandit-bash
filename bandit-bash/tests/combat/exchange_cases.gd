@@ -11,8 +11,9 @@
 
 extends RefCounted
 ## The exchange's cases for tests/combat/run_all.gd: one golden fact log per fixture in the combat
-## core plan's Verification list that the exchange covers, the property tests, and the 2RN
-## distribution test.
+## core plan's Verification list that the exchange covers, the two-sided damage stages (each side's
+## multipliers, negative Mitigation, conditions on the attack in flight), the property tests, and
+## the 2RN distribution test.
 ##
 ## Real resolution: every exchange rolls through [LiveRolls] over a seeded [RngStream]. A fixture
 ## that needs a sure outcome gets it from the numbers (Hit 100 always hits, Hit 0 always misses,
@@ -50,6 +51,31 @@ const UNIT_BASES: Dictionary = {
 
 # Reviewed golden fact logs, one CombatFact.to_log_line() per fact, by fixture name.
 const GOLDEN: Dictionary[String, Array] = {
+	"two-sided multipliers": [
+		"s0#1 BEFORE_COMBAT p1 -> e1",
+		"s0#2 BEFORE_COMBAT e1 -> p1",
+		"s0#3 ATTACK_MADE p1 -> e1",
+		"s0#4 HIT_DEALT p1 -> e1 amount 28 type magic",
+		"s0#5 HIT_TAKEN e1 <- p1 amount 28 type magic",
+		"s0#6 DAMAGE_DEALT p1 -> e1 amount 28 (hp 28, block 0) source attack type magic",
+		"s0#7 DAMAGE_TAKEN e1 <- p1 amount 28 (hp 28, block 0) source attack type magic",
+		"s0#8 STANCE_CHANGED e1 -> p1 amount -1",
+		"s0#9 ATTACK_MADE e1 -> p1",
+		"s0#10 HIT_DEALT e1 -> p1 amount 3 type physical",
+		"s0#11 HIT_TAKEN p1 <- e1 amount 3 type physical",
+		"s0#12 DAMAGE_DEALT e1 -> p1 amount 3 (hp 3, block 0) source attack type physical",
+		"s0#13 DAMAGE_TAKEN p1 <- e1 amount 3 (hp 3, block 0) source attack type physical",
+		"s0#14 STANCE_CHANGED p1 -> e1 amount -1",
+		"s0#15 ATTACK_MADE e1 -> p1",
+		"s0#16 HIT_DEALT e1 -> p1 amount 3 type physical",
+		"s0#17 HIT_TAKEN p1 <- e1 amount 3 type physical",
+		"s0#18 DAMAGE_DEALT e1 -> p1 amount 3 (hp 3, block 0) source attack type physical",
+		"s0#19 DAMAGE_TAKEN p1 <- e1 amount 3 (hp 3, block 0) source attack type physical",
+		"s0#20 STANCE_CHANGED p1 -> e1 amount -1",
+		"s0#21 EXPOSED p1 -> e1",
+		"s0#22 AFTER_COMBAT p1 -> e1",
+		"s0#23 AFTER_COMBAT e1 -> p1",
+	],
 	"plain exchange": [
 		"s0#1 BEFORE_COMBAT p1 -> e1",
 		"s0#2 BEFORE_COMBAT e1 -> p1",
@@ -415,6 +441,11 @@ func run() -> void:
 	_test_heavy_pack()
 	_test_cleave_and_momentum_after_combat()
 	_test_magic_and_terrain()
+	_test_multiplier_against_tag()
+	_test_incoming_from_magic()
+	_test_incoming_while_adjacent()
+	_test_more_damage_from_bows()
+	_test_two_sided_multipliers()
 	_test_illegal_exchanges()
 	_test_determinism()
 	_test_property_damage_never_negative()
@@ -734,6 +765,112 @@ func _test_magic_and_terrain() -> void:
 	_quiet(world)
 
 
+# "Deals ×2 damage to Beasts": the attacker's Multipliers, only against a Beast, only while it
+# attacks; its own counter target isn't a Beast here, and outside an attack nothing changes.
+func _test_multiplier_against_tag() -> void:
+	var world: Variant = _duel("sword", "gauntlets")
+	world.add_effect("effect:bane", _beast_bane(), "p1")
+	_ok("beasts: 1 outside an attack", _multipliers(world, "p1") == 1.0)
+	_ok("beasts: not a Beast, 6", _hit(world, "p1", "e1").damage == 6)
+	world.state.unit("e1").tags = PackedStringArray(["Beast"])
+	var hit: DamagePipeline.HitDamage = _hit(world, "p1", "e1")
+	_ok("beasts: ×2 against a Beast, 12", hit.damage == 12 and hit.multipliers == 2.0)
+	_same("beasts: its source", hit.outgoing.to_text(), "1 rule ×2 effect:bane = 2")
+	_ok("beasts: not when attacked", _hit(world, "e1", "p1").multipliers == 1.0)
+	_ok("beasts: still 1 outside an attack", _multipliers(world, "p1") == 1.0)
+	_quiet(world)
+
+
+# "Takes ×2 damage from magic": the defender's Incoming multipliers, magic only.
+func _test_incoming_from_magic() -> void:
+	var world: Variant = _duel("fire", "gauntlets")
+	world.add_effect("effect:frail", _magic_frailty(), "e1")
+	var hit: DamagePipeline.HitDamage = _hit(world, "p1", "e1")
+	_ok("magic: 5 + 3 - 1 RES = 7, ×2 = 14", hit.damage == 14)
+	_same("magic: its source", hit.incoming.to_text(), "1 rule ×2 effect:frail = 2")
+	_ok("magic: the attacker's side untouched", hit.outgoing.total == 1.0)
+	world.add_weapon("w:sword", "sword")
+	world.arm("p1", "w:sword")
+	_ok("magic: not from a sword", _hit(world, "p1", "e1").damage == 6)
+	_quiet(world)
+
+
+# "Takes 50% less damage while adjacent to an ally": a position condition on Incoming multipliers,
+# so moving the ally away changes the next hit with no cached sheet left behind.
+func _test_incoming_while_adjacent() -> void:
+	var world: Variant = _duel("sword", "gauntlets")
+	world.add_unit("e2", ENEMY, -1, Vector2i(2, 2), UNIT_BASES)
+	var half: ModifyValue = _times(DamageStage.Key.INCOMING_MULTIPLIERS, 0.5)
+	var beside: WhilePositionCondition = WhilePositionCondition.new()
+	beside.kind = WhilePositionCondition.Kind.ADJACENT_TO
+	beside.side = EffectDefinition.UnitSide.ALLY
+	var wall: EffectDefinition = _triggered(EffectDefinition.Trigger.ALWAYS, [beside], [half])
+	world.add_effect("effect:shield_wall", wall, "e1")
+	_ok("adjacent: 6 halved to 3", _hit(world, "p1", "e1").damage == 3)
+	world.state.move_unit("e2", Vector2i(6, 6))
+	_ok("adjacent: alone, 6 again", _hit(world, "p1", "e1").damage == 6)
+	world.state.move_unit("e2", Vector2i(2, 2))
+	_ok("adjacent: back beside it, 3", _hit(world, "p1", "e1").damage == 3)
+	_quiet(world)
+
+
+# "Takes 2 more damage from bows": Mitigation -2, which goes below 0 when DEF can't cover it.
+func _test_more_damage_from_bows() -> void:
+	var world: Variant = _duel("bow", "gauntlets", 2)
+	world.state.weapon("w:p1").weapon_type = "Bow"
+	var more: ModifyValue = _times(DamageStage.Key.MITIGATION, -2.0)
+	more.mode = ADD
+	var bows: WhileAttackCondition = _attack_condition(
+			WhileAttackCondition.Role.ATTACKED, WhileAttackCondition.Kind.WEAPON_TYPE, "Bow"
+	)
+	world.add_effect(
+			"effect:soft", _triggered(EffectDefinition.Trigger.ALWAYS, [bows], [more]), "e1"
+	)
+	var hit: DamagePipeline.HitDamage = _hit(world, "p1", "e1")
+	_ok("bows: 6 + 3 - (2 - 2) = 9", hit.damage == 9 and hit.mitigation == 0.0)
+	world.engine.set_base("e1", CombatValue.Key.DEF, 0.0)
+	hit = _hit(world, "p1", "e1")
+	_ok("bows: Mitigation -2 adds 2, 11", hit.mitigation == -2.0 and hit.damage == 11)
+	world.state.weapon("w:p1").weapon_type = "Sword"
+	_ok("bows: not from another weapon type, 9", _hit(world, "p1", "e1").damage == 9)
+	_quiet(world)
+
+
+# The attacker's ×2 against Beasts, the defender's ×2 from magic and a ×1.5 "that hit" modifier
+# multiply on one hit, each in its breakdown; then the exchange's log, with verify mode on.
+func _test_two_sided_multipliers() -> void:
+	var world: Variant = _duel("fire", "gauntlets", 1, {}, {CombatValue.Key.HP: 40.0})
+	world.state.weapon("w:p1").hit = 100
+	world.arm("p1", "w:p1")
+	world.state.unit("e1").tags = PackedStringArray(["Beast"])
+	world.state.set_hp("e1", 40)
+	world.add_effect("effect:bane", _beast_bane(), "p1")
+	world.add_effect("effect:frail", _magic_frailty(), "e1")
+	var ctx: EffectContext = _context(world, "p1", "e1", "p1", 0)
+	var hit: DamagePipeline.HitDamage = DamagePipeline.compute(world.engine, world.state, ctx)
+	_ok("stacking: 7 × 2 × 2 = 28", hit.damage == 28 and hit.multipliers == 4.0)
+	ctx.add_that_modifier(Modifier.new(
+			DamageStage.Key.MULTIPLIERS, Modifier.Mode.MULTIPLY, 1.5,
+			Modifier.SourceKind.UNIT_TRAIT, "effect:fury", "Fury"
+	))
+	hit = DamagePipeline.compute(world.engine, world.state, ctx)
+	_ok("stacking: that hit's ×1.5 too, 42", hit.damage == 42 and hit.multipliers == 6.0)
+	_same(
+			"stacking: attacker's sources",
+			hit.outgoing.to_text(),
+			"1 rule ×2 effect:bane ×1.5 Fury = 3"
+	)
+	_same("stacking: defender's sources", hit.incoming.to_text(), "1 rule ×2 effect:frail = 2")
+	_ok(
+			"stacking: sheets cached outside the attack stay at 1",
+			_multipliers(world, "p1") == 1.0
+			and world.engine.stats("e1").get_value(DamageStage.Key.INCOMING_MULTIPLIERS) == 1.0
+	)
+	_exchange(world)
+	_ok("stacking: 28 in the exchange", world.state.get_hp("e1") == 12)
+	_golden("two-sided multipliers", world)
+
+
 func _test_illegal_exchanges() -> void:
 	var world: Variant = _duel("sword", "sword", 3)
 	_same("illegal: out of range", _exchange(world).reason, "out of range")
@@ -1003,6 +1140,47 @@ func _triggered(
 	definition.conditions.assign(conditions)
 	definition.operations.assign(operations)
 	return definition
+
+
+# The attacker's Multipliers outside any attack.
+func _multipliers(world: Variant, unit_id: String) -> float:
+	return world.engine.stats(unit_id).get_value(DamageStage.Key.MULTIPLIERS)
+
+
+func _times(key: int, value: float) -> ModifyValue:
+	var modify: ModifyValue = ModifyValue.new()
+	modify.key = key
+	modify.mode = Modifier.Mode.MULTIPLY
+	modify.value = value
+	return modify
+
+
+func _attack_condition(
+		role: WhileAttackCondition.Role, kind: WhileAttackCondition.Kind, type_name: String = ""
+) -> WhileAttackCondition:
+	var condition: WhileAttackCondition = WhileAttackCondition.new()
+	condition.role = role
+	condition.kind = kind
+	condition.type_name = type_name
+	return condition
+
+
+# Deals ×2 damage to Beasts.
+func _beast_bane() -> EffectDefinition:
+	var against: WhileAttackCondition = _attack_condition(
+			WhileAttackCondition.Role.ATTACKING, WhileAttackCondition.Kind.OPPONENT_TAG, "Beast"
+	)
+	var times: ModifyValue = _times(DamageStage.Key.MULTIPLIERS, 2.0)
+	return _triggered(EffectDefinition.Trigger.ALWAYS, [against], [times])
+
+
+# Takes ×2 damage from magic.
+func _magic_frailty() -> EffectDefinition:
+	var magic: WhileAttackCondition = _attack_condition(
+			WhileAttackCondition.Role.ATTACKED, WhileAttackCondition.Kind.DAMAGE_TYPE
+	)
+	var times: ModifyValue = _times(DamageStage.Key.INCOMING_MULTIPLIERS, 2.0)
+	return _triggered(EffectDefinition.Trigger.ALWAYS, [magic], [times])
 
 
 # Momentum (Fighter): Missed: +15 Hit on the next attack this combat.

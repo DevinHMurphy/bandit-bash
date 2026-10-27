@@ -107,7 +107,7 @@ func equipped_weapon(unit_id: String) -> WeaponStats:
 ## Sets [param unit_id]'s base values in [param engine] that come from the combat rules rather than
 ## its unit type: its weapon's numbers (Hit, crit, CritX, AtkX, range, damage type, damage as the
 ## Attack stage, staff amount), its net weight (weapon plus Pouch items, before equipment and
-## effects), and the rule bases (Multipliers 1, effectiveness 3, Shove distance 1). Called on
+## effects), and the rule bases (both Multipliers 1, effectiveness 3, Shove distance 1). Called on
 ## placement and after every weapon swap; with no weapon, the weapon numbers are 0.
 func load_bases(engine: EffectEngine, unit_id: String) -> void:
 	var holder: CombatUnitState = unit(unit_id)
@@ -131,6 +131,7 @@ func load_bases(engine: EffectEngine, unit_id: String) -> void:
 			unit_id, CombatValue.Key.NET_WEIGHT, held.weight + pouch_weight, "weapon and Pouch"
 	)
 	engine.set_base(unit_id, DamageStage.Key.MULTIPLIERS, 1.0, "rule")
+	engine.set_base(unit_id, DamageStage.Key.INCOMING_MULTIPLIERS, 1.0, "rule")
 	engine.set_base(
 			unit_id, CombatValue.Key.EFFECTIVE_MODIFIER, EFFECTIVE_MODIFIER_BASE, "rule"
 	)
@@ -294,6 +295,19 @@ func equipped_weapon_id(unit_id: String) -> String:
 	return _units[unit_id].equipped_weapon_id if _units.has(unit_id) else ""
 
 
+func tags_of(id: String) -> PackedStringArray:
+	return _units[id].tags if _units.has(id) else PackedStringArray()
+
+
+func unit_type_of(id: String) -> String:
+	return _units[id].unit_type if _units.has(id) else ""
+
+
+func weapon_type_of(weapon_id: String) -> String:
+	var held: WeaponStats = weapon(weapon_id)
+	return "" if held == null else held.weapon_type
+
+
 func set_hp(id: String, value: int) -> void:
 	if _units.has(id):
 		_units[id].hp = value
@@ -351,6 +365,9 @@ class WeaponStats:
 	var id: String = ""
 	## Display name for breakdowns, such as "Iron Sword".
 	var label: String = ""
+	# ASSUMPTION: weapon types are names until the weapons plan (P03) defines them.
+	## Weapon type, such as "Bow" or "Anima": which units can use it, and what conditions test.
+	var weapon_type: String = ""
 	## Weapon damage: the Attack stage's base, the triangle's and effectiveness's measure.
 	var damage: int = 0
 	## Attacks per turn before the defender's Parry.

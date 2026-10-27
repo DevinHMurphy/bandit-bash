@@ -31,6 +31,8 @@ const YOUR_UNIT: EffectDefinition.Scope = EffectDefinition.Scope.YOUR_UNIT
 const ANY_ALLY_UNIT: EffectDefinition.Scope = EffectDefinition.Scope.ANY_ALLY_UNIT
 const ANY_UNIT: EffectDefinition.Scope = EffectDefinition.Scope.ANY_UNIT
 const TRAIT: Modifier.SourceKind = Modifier.SourceKind.UNIT_TRAIT
+const ATTACKING: WhileAttackCondition.Role = WhileAttackCondition.Role.ATTACKING
+const ATTACKED: WhileAttackCondition.Role = WhileAttackCondition.Role.ATTACKED
 
 var _check: Callable
 
@@ -46,6 +48,7 @@ func run() -> void:
 	_test_per_stat_modifiers()
 	_test_command_target_and_mend()
 	_test_while_matchup()
+	_test_while_attack()
 	_test_extra_stance_loss()
 	_test_registration_and_indexes()
 	_test_scope()
@@ -180,6 +183,58 @@ func _test_while_matchup() -> void:
 			professional.describe(),
 			"Before Combat, while this unit has triangle Advantage: gain 3 Block"
 	)
+
+
+func _test_while_attack() -> void:
+	var engine: EffectEngine = _world()
+	var fake: Variant = _fake(engine)
+	fake.unit("e1").tags = PackedStringArray(["Beast"])
+	fake.unit("e1").unit_type = "Wolf"
+	fake.weapon_types["w:bow"] = "Bow"
+	engine.set_base("p1", CombatValue.Key.DAMAGE_TYPE, CombatFact.DamageType.MAGIC)
+	var ctx: EffectContext = _context(engine, null)
+	ctx.attacker_id = "p1"
+	ctx.defender_id = "e1"
+	ctx.initiator_id = "p1"
+	ctx.weapon_id = "w:bow"
+	ctx.subject_id = "p1"
+	var beasts: WhileAttackCondition = _attack(ATTACKING, WhileAttackCondition.Kind.OPPONENT_TAG)
+	beasts.type_name = "Beast"
+	_ok("attack: no attack in flight, no pass", not beasts.test(ctx))
+	ctx.attack_index = 0
+	_ok("attack: against a Beast", beasts.test(ctx))
+	ctx.subject_id = "e1"
+	_ok("attack: only from the attacking side", not beasts.test(ctx))
+	ctx.subject_id = "p1"
+	beasts.type_name = "Flier"
+	_ok("attack: not against a Flier", not beasts.test(ctx))
+	var wolves: WhileAttackCondition = _attack(
+			ATTACKING, WhileAttackCondition.Kind.OPPONENT_UNIT_TYPE
+	)
+	wolves.type_name = "Wolf"
+	_ok("attack: against a unit type", wolves.test(ctx))
+
+	ctx.subject_id = "e1"
+	var magic: WhileAttackCondition = _attack(ATTACKED, WhileAttackCondition.Kind.DAMAGE_TYPE)
+	_ok("attack: attacked with magic (the attacker's damage type)", magic.test(ctx))
+	magic.damage_type = CombatFact.DamageType.PHYSICAL
+	_ok("attack: not with physical", not magic.test(ctx))
+	var bows: WhileAttackCondition = _attack(ATTACKED, WhileAttackCondition.Kind.WEAPON_TYPE)
+	bows.type_name = "Bow"
+	_ok("attack: attacked with a bow", bows.test(ctx))
+	ctx.weapon_id = "w:other"
+	_ok("attack: not with another weapon", not bows.test(ctx))
+	var crit: WhileAttackCondition = _attack(ATTACKED, WhileAttackCondition.Kind.IS_CRIT)
+	_ok("attack: no crit", not crit.test(ctx))
+	ctx.is_crit = true
+	_ok("attack: crit", crit.test(ctx))
+	var by_opponent: WhileAttackCondition = _attack(
+			ATTACKED, WhileAttackCondition.Kind.OPPONENT_TAG
+	)
+	by_opponent.type_name = "Beast"
+	_ok("attack: the opponent is the attacker when attacked", not by_opponent.test(ctx))
+	ctx.attack_index = -1
+	_ok("attack: before or after combat, no pass", not crit.test(ctx))
 
 
 func _test_extra_stance_loss() -> void:
@@ -1046,6 +1101,15 @@ func _area(
 	area.side = side
 	area.include_center = include_center
 	return area
+
+
+func _attack(
+		role: WhileAttackCondition.Role, kind: WhileAttackCondition.Kind
+) -> WhileAttackCondition:
+	var condition: WhileAttackCondition = WhileAttackCondition.new()
+	condition.role = role
+	condition.kind = kind
+	return condition
 
 
 func _position(kind: WhilePositionCondition.Kind) -> WhilePositionCondition:

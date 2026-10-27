@@ -14,10 +14,11 @@ extends RefCounted
 ## The eight damage stages of one hit (game-vision.md, Combat; combat core plan, The exchange).
 ##
 ## [method compute] runs stages 1 to 5: Attack (weapon damage, Might, flat bonuses, the triangle,
-## effectiveness), Mitigation, Critical and Multipliers stay exact, and stage 5 rounds once, halves
-## up, never below 0 (question 5). [method apply] runs stages 6 to 8: Block absorbs, HP takes the
-## rest, and only damage that got through costs Stance, extra loss from that hit's inline effects
-## included (question 10), and pays lifesteal through the engine's heal path.[br]
+## effectiveness), Mitigation (which may go below 0), Critical, and Multipliers (the attacker's
+## Multipliers times the defender's Incoming multipliers) stay exact, and stage 5 rounds once,
+## halves up, never below 0 (question 5). [method apply] runs stages 6 to 8: Block absorbs, HP
+## takes the rest, and only damage that got through costs Stance, extra loss from that hit's inline
+## effects included (question 10), and pays lifesteal through the engine's heal path.[br]
 ## Every value is read through the engine with the hit's [EffectContext], so "that hit" modifiers
 ## from either side's inline windows apply. Pure and static; never instantiated.
 ##
@@ -66,9 +67,9 @@ static func compute(engine: EffectEngine, state: CombatState, ctx: EffectContext
 		hit.critical = value_with_base(
 				engine, attacker, DamageStage.Key.CRITICAL, crit_x, "CritX", ctx
 		).total
-	# ASSUMPTION: stage 4 reads the attacker's Multipliers (with that hit's modifiers from either
-	# side's inline windows); a defender's own always-on percent modifiers don't join it.
-	hit.multipliers = sheet.get_value(DamageStage.Key.MULTIPLIERS, ctx)
+	hit.outgoing = sheet.explain(DamageStage.Key.MULTIPLIERS, ctx)
+	hit.incoming = engine.stats(defender).explain(DamageStage.Key.INCOMING_MULTIPLIERS, ctx)
+	hit.multipliers = hit.outgoing.total * hit.incoming.total
 
 	hit.exact = (hit.attack - hit.mitigation) * hit.critical * hit.multipliers
 	hit.damage = maxi(ValueBreakdown.round_to_int(hit.exact, ValueBreakdown.Rounding.HALF_UP), 0)
@@ -77,7 +78,8 @@ static func compute(engine: EffectEngine, state: CombatState, ctx: EffectContext
 
 ## Stage 2 for [param defender] against [param damage_type]: its stat for the type plus its tile's
 ## DEF or RES bonus (Split: half of each, both stat and terrain) as the base, and every Mitigation
-## modifier ("take 5 less damage") on top. Pure damage meets 0.
+## modifier ("take 5 less damage", "takes 2 more damage") on top, with no floor. Pure damage
+## meets 0.
 static func mitigation(
 		engine: EffectEngine,
 		state: CombatState,
@@ -177,12 +179,17 @@ class HitDamage:
 
 	## Stage 1: weapon damage, Might, flat bonuses, the triangle and effectiveness.
 	var attack: float = 0.0
-	## Stage 2: the defender's mitigation, subtracted; 0 when skipped.
+	## Stage 2: the defender's mitigation, subtracted; 0 when skipped. Below 0 it adds damage.
 	var mitigation: float = 0.0
 	## Stage 3: the crit multiplier; 1 without a crit.
 	var critical: float = 1.0
-	## Stage 4: every percent modifier, multiplied together.
+	## Stage 4: [member outgoing] times [member incoming].
 	var multipliers: float = 1.0
+	## Stage 4's attacker side, one line per source: its Multipliers, with every "that hit"
+	## modifier on the key from either side's inline windows.
+	var outgoing: ValueBreakdown = null
+	## Stage 4's defender side, one line per source: its Incoming multipliers.
+	var incoming: ValueBreakdown = null
 	## Stages 1 to 4 combined, before rounding.
 	var exact: float = 0.0
 	## Stage 5: rounded once, halves up, never below 0. 0 is fully countered.

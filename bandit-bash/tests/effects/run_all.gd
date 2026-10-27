@@ -917,7 +917,9 @@ func _test_value_keys_seeded_and_disjoint() -> void:
 		"CAN_COUNTER", "CAN_BE_SHOVED", "MAY_MOVE_AFTER_ACTING", "FREE_WEAPON_SWAP",
 		"SKIP_MITIGATION_ON_CRIT",
 	]
-	var expected_stages: PackedStringArray = ["ATTACK", "MITIGATION", "CRITICAL", "MULTIPLIERS"]
+	var expected_stages: PackedStringArray = [
+		"ATTACK", "MITIGATION", "CRITICAL", "MULTIPLIERS", "INCOMING_MULTIPLIERS",
+	]
 	_check(
 			"keys: combat core's CombatValue keys and the base stats seeded",
 			_has_keys(CombatValue.Key, expected_combat)
@@ -1330,6 +1332,20 @@ func _test_describe_selectors() -> void:
 	_snapshot("area: movable tiles", aura.describe(), "allies within 2 movable tiles")
 	aura.radius = 1
 	_snapshot("area: one movable tile", aura.describe(), "allies within 1 movable tile")
+	var against: WhileAttackCondition = WhileAttackCondition.new()
+	against.type_name = "Beast"
+	_snapshot("while attack: against a tag", against.describe(), "against Beasts")
+	against.type_name = "Armored"
+	_snapshot("while attack: an adjective tag", against.describe(), "against Armored units")
+	var from_magic: WhileAttackCondition = WhileAttackCondition.new()
+	from_magic.role = WhileAttackCondition.Role.ATTACKED
+	from_magic.kind = WhileAttackCondition.Kind.DAMAGE_TYPE
+	_snapshot("while attack: from magic", from_magic.describe(), "from magic")
+	from_magic.kind = WhileAttackCondition.Kind.WEAPON_TYPE
+	from_magic.type_name = "Bow"
+	_snapshot("while attack: from a weapon type", from_magic.describe(), "from bows")
+	from_magic.kind = WhileAttackCondition.Kind.IS_CRIT
+	_snapshot("while attack: from a crit", from_magic.describe(), "from a crit")
 	var everyone: AllOfScope = AllOfScope.new()
 	_snapshot("all of scope: default", everyone.describe(), "your units")
 	everyone.scope = EffectDefinition.Scope.ANY_UNIT
