@@ -35,11 +35,11 @@ before their consumers are checked are the costliest to fix).
 
 - **Design:** ideation closed for the MVP (design reviews of October 23–24, 2026). Remaining design
   items are content or tuning; see [Design items by plan](#design-items-by-plan).
-- **Code:** the save system is built. P01 EB1–EB4, P02 CC1–CC5 and P13 R1–R3 are built and tested headless (combat 428, effects 532, RNG 126, save 196 tests pass).
+- **Code:** the save system is built. P01 EB1–EB4, P02 CC1–CC5 and P13 R1–R4 are built, tested headless and merged into `feature/save-system` (combat 428, effects 532, RNG 154, save 196 tests pass).
   The combat rules (exchange, splash, Shove, staves, Pouch items, swaps, runes) run in tests; no turn loop or map yet.
 - **Current milestone:** [M0 Foundations](#milestones).
 - **Current focus:** P02 CC2–CC5 are built (with P01 fixes F9–F12, two-sided damage stages). The turn loop (CC6) needs P01 EB6,
-  which needs the P04 draft and P08 question 1: planning is now the critical path. Builds meanwhile: R4, EB9, a warnings fix-up.
+  which needs the P04 draft and P08 question 1: planning is now the critical path. Builds meanwhile: EB9, a warnings fix-up.
 
 ## Milestones
 
@@ -76,7 +76,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P10 | Net transport: `Net` autoload, RPCs, command validation, Steam lobby integration | — | **Not started** | P00, P01 | P11 | multiplayer-combat-options.md, `steam_multiplayer_kit/` (read first) |
 | P11 | Co-op combat: parallel maps, reinforcements, rune routing, spectating, fast-forward votes, disconnects and forfeits, per-map battle saves | — | **Not started** | P01 (EB6–EB7), P02, P04, P08, P10 | M4 | game-vision.md Multiplayer maps, multiplayer-combat-options.md |
 | P12 | Statistics recording and the Waystation war table | — | **Not started** | P01, P08 | M5 | meta-progression.md (MVP parts) |
-| P13 | RNG streams: run seed, named streams and their derivation, co-op stream layout, save and resume in the reserved `rng` sections, determinism rules | [2026-10-26-rng-streams.md](2026-10-26-rng-streams.md) | **In progress** (approved October 26, 2026): R1–R3 built (126 headless tests pass; merged); R4 ready; R5 waits on P08 question 1 | P00 | P01 EB4/EB6, P02, P04, P05, P06, P08, P09, P11 | save-system.md (`rng` sections), P01 roll sources |
+| P13 | RNG streams: run seed, named streams and their derivation, co-op stream layout, save and resume in the reserved `rng` sections, determinism rules | [2026-10-26-rng-streams.md](2026-10-26-rng-streams.md) | **In progress** (approved October 26, 2026): R1–R4 built and merged (154 headless tests pass); R5 waits on P08 question 1; R6 is built with P01 EB6 | P00 | P01 EB4/EB6, P02, P04, P05, P06, P08, P09, P11 | save-system.md (`rng` sections), P01 roll sources |
 | P20 | Meta progression: unlocks, difficulty ladder, almanac, Hall of Heroes, run history, achievements, Waystation stations | — | Post-MVP | P12 | — | meta-progression.md |
 | P21 | Training yard and tutorials | — | Post-MVP | P07 | — | meta-progression.md |
 | P22 | Dev console | — | Post-MVP (scoped when needed) | P01 | — | meta-progression.md Developer tools |
@@ -160,6 +160,8 @@ from starting; each is asked inside its plan's Open Questions.
 | P03 | The Ring of Favor needs a Legendary-sized effect; Heavy Brick is Unique with no source; the Lancer's growths are a `Godot_FE` copy-paste; item effects may sit outside their ported rarity's budget; Brothers in Arms needs a selector filter ("adjacent to a unit of another player") the engine doesn't have (P01 question 30) | items.md, unit-roster.md, heirlooms.md |
 | P08 | Personal XP for "gave Block" ignores `BLOCK_GAINED` facts with amount 0 (P01 question 24) | P01 |
 | P04 / P06 | Turn par and reinforcement timers per map are set when maps are authored; darkness values on small maps need M1 playtesting | game-vision.md, the-darkness.md |
+| P07 / P08 | Show the run seed on the pause screen (P07) and the results screen (P08), formatted by `RunSeed.format()` (P13 R4 follow-up) | P13 |
+| P12 | Whether runs abandoned by the save debug panel's "New Solo Run From Seed" count as lost runs in statistics | P13 R4 |
 | P04 | Tile coordinates are never negative (P01 question 37, `CombatFact.NO_TILE`); implement `CombatGrid.walking_distance(a, b, movement_type)` for "within N movable tiles" (P02 question 13), and settle whether other units block it and whether terrain cost counts (recommended: units don't block, each step counts 1) | P01, P02, effect-triggers.md |
 | P05 | The Brigands' real name and theme (flavor only) | enemy-roster.md |
 | P07 | `Godot_FE`'s ranged multi-tile forecast defect (FR-GRID-6) to investigate | P01 contracts |
@@ -189,13 +191,12 @@ more enemy factions, units with convoy access, shared and hybrid co-op battles, 
 
 ## Next actions
 
-1. Merge `build/p02-cc2-cc5` (CC2–CC5 and these plan updates) into `feature/save-system`; R4 merges when done.
-2. Planning, here (critical path to CC6): P08 question 1 (`CampaignSession` owner), draft P04 (it implements
+1. Planning, here (critical path to CC6): P08 question 1 (`CampaignSession` owner), draft P04 (it implements
    `CombatGrid` with `walking_distance`, P02 question 13), sketch P03. P04 and P08 question 1 open EB6; P03 opens EB5.
-3. Build P01 EB9 (benchmark) now that CC3 exists: it decides copy on write and the AI's branch budget.
-4. A fix-up after R4 merges: the six GDScript warning settings gdscript.md §4 expects in `project.godot`
-   (user agreed October 27, 2026), fixing what they flag, plus P02 question 16 if answered.
-5. P02 question 14 (staff with no range) is answered with CC6.
+2. Build P01 EB9 (benchmark) now that CC3 exists: it decides copy on write and the AI's branch budget.
+3. A fix-up: the six GDScript warning settings gdscript.md §4 expects in `project.godot` (user agreed
+   October 27, 2026), fixing what they flag, plus P02 question 16 if answered.
+4. P02 question 14 (staff with no range) is answered with CC6.
 
 ## Change log
 
@@ -220,3 +221,4 @@ more enemy factions, units with convoy access, shared and hybrid co-op battles, 
 | October 27, 2026 | P01 questions 34–37 answered as recommended (conditional expected damage before defeat; forecast random picks marked random; sampled-roll encoding as built; the four EB1–EB2 assumptions confirmed, P04 owns non-negative tiles). Preparing CC2 found that `CombatGrid` has no walking distance although "within N" uses one: P02 question 13 opened with a recommendation (`CombatGrid.walking_distance`). CC2–CC5 and R4 build prompts issued. |
 | October 27, 2026 | P02 question 13 and P01 question 38 answered by the user: two distance terms the effect picks, "within N tiles" (grid distance, ignoring walls) and "within N movable tiles" (`CombatGrid.walking_distance` with the source's movement type). effect-triggers.md updated; P01 fix F9 (a distance mode on `Area` and `WhilePositionCondition`) goes into CC2's cleanup step. P04 settles whether units block movable distance. |
 | October 27, 2026 | **P02 CC2–CC5 built** on `build/p02-cc2-cc5` with three fix-ups (P01 fixes F10–F12: area staves through `Area.Center.COMMAND_TARGET`, growth changes and `GROWTH_CHANGED`, two-sided damage stages with `INCOMING_MULTIPLIERS` and `WhileAttackCondition`; `SandboxState` now 21 methods). Verified headless: combat 428, effects 532, RNG 126, save 196. User decision (P01 question 39, P02 question 15): defenders can change the damage they take, for future content. Opened P02 questions 14 (staff with no range, CC6) and 16 (rule bases in a default table). EB9 gate opened. |
+| October 27, 2026 | **P13 R4 built** (run seed: `RunSeed` generate, format and parse; typed and command-line debug seeds; the save debug panel's seed field) with its four questions confirmed as built. Merged: `feature/save-system` fast-forwarded to Track C (P02 CC2–CC5) and R4 merged on top; combat 428, effects 532, RNG 154, save 196 headless tests pass, and the debug panel loads headless cleanly. CLAUDE.md §3 now says how to check scripts that use autoloads (`--check-only` can't). Design items added for P07/P08 (seed display) and P12 (debug restarts in statistics). |

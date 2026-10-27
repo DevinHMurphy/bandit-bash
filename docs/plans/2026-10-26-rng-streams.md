@@ -1,6 +1,6 @@
 # Plan: RNG Streams
 **Date:** October 26, 2026
-**Status:** **Approved** October 26, 2026 (review fixes: `TEAM_CHOICE`, per-seat encounter additions, 16-bit-limb mixer, integer weights, starting-heirloom draws); R1–R3 built October 26, 2026 (126 headless tests pass). Orchestrator ID
+**Status:** **Approved** October 26, 2026 (review fixes: `TEAM_CHOICE`, per-seat encounter additions, 16-bit-limb mixer, integer weights, starting-heirloom draws); R1–R3 built October 26, 2026; R4 built October 27, 2026 (154 headless RNG tests pass). Orchestrator ID
 **P13** ([game-orchestrator.md](game-orchestrator.md)). Answers question 2 of the
 [campaign and run flow stub](2026-10-24-campaign-run-flow.md).
 
@@ -15,8 +15,8 @@ foundation and the rules every gameplay plan follows when it rolls.
   files and notes that a resumed enemy phase replays identically "only once the RNG manager saves
   its state" (save-system.md, Battles). P01 expects a seeded stream injected into every
   `CombatSession` (EB4's `LiveRolls`, EB6's sessions). No plan owned it (orchestrator).
-- **The run seed is a placeholder:** `save_service.gd:343` and `:397` set `CampaignData.run_seed`
-  from a bare `randi()`, marked `# ASSUMPTION` until run setup chooses one.
+- **The run seed was a placeholder:** `save_service.gd` set `CampaignData.run_seed` from a bare
+  `randi()` at both run-creation sites, marked `# ASSUMPTION` until run setup chose one (replaced by R4).
 - **`Godot_FE`'s failure to avoid:** about 21 files drew from the one global RNG, so any unrelated
   draw (a sound's pitch, a UI roll) shifted every later outcome; its seed was re-seeded on Continue
   and lost whenever a sound played (game-vision.md, Campaign map; `10_campaign_and_run_loop.md`
@@ -219,6 +219,17 @@ for the whole battle; a Guildhall's `PREFIX_REROLL` stream advances with each re
 - **Debug entry:** a debug-panel field (and a command-line option for headless tests) starts a run
   from a typed seed. No player-facing seed entry in the MVP.
 - Replaces the `randi()` placeholder in `save_service.gd` (both `# ASSUMPTION` sites).
+- **As built (R4, October 27, 2026; confirmed by the user):**
+  - `RunSeed.generate()` keeps the low 52 bits of 8 bytes from the OS's secure source (`Crypto`),
+    never the global generator. `format()` writes 13 uppercase hex digits in groups of 4.
+  - `parse()` accepts any case, dashes anywhere or none and surrounding spaces, but needs all 13
+    digits, so a seed cut short when copied is refused; it returns `NO_SEED` (−1) otherwise.
+  - A new run's seed is the typed one (`start_new_solo_run(typed_seed)`, an optional parameter),
+    else the debug command line's `-- --run-seed=<seed>` (debug builds only; a bad value warns
+    and is ignored), else a generated one.
+  - The save debug panel's "New Solo Run From Seed" abandons any solo run (archived as lost) and
+    starts the new one on the gameplay screen; its info text shows the current seed.
+  - Showing the seed on the pause and results screens waits for those screens (follow-up).
 
 ### API sketch
 
@@ -278,7 +289,7 @@ R-N5 and R-N6 wait on P04 and P08.
 | R1 Keys and mixer | `scripts/rng/rng_key.gd`, `tests/rng/run_all.gd` | `RngPurpose`, SplitMix64 `mix` (16-bit limbs, masked shifts) and `derive_seed`, save keys | 🟢 | Approval | Reference SplitMix64 vectors, including inputs with the top bit set; adding a purpose leaves existing seeds unchanged |
 | R2 Streams | `scripts/rng/rng_stream.gd` | Draw helpers, capture and restore as strings | 🟢 | R1 | Golden first draws of a known seed (pins PCG32); capture → restore continues identically; states above 2^53 survive a JSON round trip; `pick_weighted` distribution test |
 | R3 Registry | `scripts/rng/rng_streams.gd` | Lazy creation, drop per node, campaign and combat capture and restore | 🟢 | R2 | Draws on one key never change another; two seats get different `REWARD` streams and the same `ENCOUNTER_SETUP` stream |
-| R4 Run seed | `scripts/rng/run_seed.gd`, `scripts/autoload/save_service.gd` (two `ASSUMPTION` sites), debug panel field | 52-bit generation, format and parse, debug entry; replaces `randi()` | 🟡 edits an existing autoload | R1 | New runs get seeds below 2^52; format → parse round trip; a typed seed reproduces a run |
+| R4 Run seed | `scripts/rng/run_seed.gd`, `scripts/autoload/save_service.gd` (two `ASSUMPTION` sites), `scripts/debug/save_debug_panel.gd` and `scenes/debug/save_debug_panel.tscn` (seed field), `tests/rng/run_all.gd`, `tests/save/run_all.gd` | 52-bit generation, format and parse, debug entry; replaces `randi()` | 🟡 edits an existing autoload | R1 | New runs get seeds below 2^52; format → parse round trip; a typed seed reproduces a run |
 | R5 Save sections | `scripts/rng/rng_save_section.gd` (campaign and combat) | The two `rng` sections | 🟡 save format (filling reserved sections) | P08 question 1 (owner autoload) | Save, quit, resume mid-battle and mid-event reproduces the same results; `BATTLE_RETRY` replays the Begin rolls |
 | R6 Injection | P01 EB4 `LiveRolls` and EB6 session wiring (done in P01's steps against this contract) | Sessions receive streams, never the registry. The owner that creates streams logs each creation at DEBUG with its key and seed, and carries the per-draw trace flag (see [Logging](#logging)); the registry stays pure, with no `NetLog` | 🟡 | EB4, EB6 | P01's golden logs run on seeded streams; "every shared purpose is drawn only inside its one owner's setup call" (EB6 for `ENCOUNTER_SETUP`, P08 for the campaign purposes) |
 | R7 Docs | `docs/design/save-system.md` (describe the `rng` sections), orchestrator, campaign stub question 2 | Living docs | 🟢 | R5 | Review |

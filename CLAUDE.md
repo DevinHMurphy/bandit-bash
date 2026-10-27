@@ -162,6 +162,9 @@ stop for review. No code until the plan is approved.
    global class cache: `godot --headless --path bandit-bash --import`
 2. For every `.gd` file you changed:
    `godot --headless --path bandit-bash --check-only --script res://<path inside bandit-bash>.gd`
+   `--check-only` doesn't load autoloads, so a script that uses one fails with "Identifier not
+   found". For those, load a scene that uses the script headless, or run the test suite that
+   covers it, and say which in the summary.
 3. Fix every error and every warning your change introduced. An error naming a global class or
    autoload you didn't touch usually means a stale cache: rerun step 1.
 4. If Godot can't be run, say so in the summary. Never claim code parses without running the check.
