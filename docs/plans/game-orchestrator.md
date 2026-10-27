@@ -189,7 +189,7 @@ more enemy factions, units with convoy access, shared and hybrid co-op battles, 
 
 ## Next actions
 
-1. P01 questions 34–37 are answered (October 27, 2026); the CC2 build removes their markers. Build P02
+1. P01 questions 34–37 are answered (October 27, 2026); the CC2 build removes their markers. P02
    question 13 and P01 question 38 are answered: two distance terms, fix F9 in CC2's cleanup step.
 2. Build P02 CC2 (state, grid stub, keys; `CombatState` implements `SandboxState`'s 17 methods),
    then CC3 (the exchange), then CC4 and CC5. One track, in order.
