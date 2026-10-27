@@ -246,12 +246,21 @@ func _test_sandbox_copy() -> void:
 	copy.rune_slots[0].clear()
 	copy.ended_seats.append(0)
 	copy.unit("p1").tags.append("Flier")
+	copy.add_growth("p1", CombatValue.Stat.RES, 5)
 	_ok("copy: hp is its own", state.get_hp("p1") == 20)
 	_ok("copy: occupancy is its own", state.tile_of("p2") == Vector2i(1, 2))
 	_ok("copy: defeats are its own", state.has_unit("e1"))
 	_ok("copy: runes are their own", state.rune_slots[0].has("rune:1"))
 	_ok("copy: seats are their own", not state.ended_seats.has(0))
 	_ok("copy: tags are their own", state.unit("p1").tags.is_empty())
+	_ok("copy: growth changes are their own", state.unit("p1").growth_changes.is_empty())
+	state.add_growth("p1", CombatValue.Stat.RES, 5)
+	state.add_growth("p1", CombatValue.Stat.RES, 5)
+	state.add_growth("ghost", CombatValue.Stat.RES, 5)
+	_ok(
+			"growth: changes add up per stat",
+			state.unit("p1").growth_changes == {CombatValue.Stat.RES: 10}
+	)
 
 
 func _test_engine_paths() -> void:

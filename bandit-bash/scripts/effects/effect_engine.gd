@@ -6,7 +6,7 @@
 # File:     effect_engine.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 class_name EffectEngine
@@ -230,6 +230,19 @@ func add_delta(subject_id: String, modifier: Modifier) -> void:
 ## The permanent deltas of [param subject_id] on [param key], for the campaign bridge to write back.
 func get_deltas(subject_id: String, key: int, stat: int = Modifier.NO_STAT) -> Array[Modifier]:
 	return _base_sheet(subject_id).get_modifiers(key, stat)
+
+
+## Adds [param points] percentage points to [param unit_id]'s growth for [param stat] (an
+## [enum CombatValue.Stat]) in the state, for the battle-end bridge, and records
+## [constant CombatFact.Kind.GROWTH_CHANGED]. Growths change no combat value, so no sheet drops.
+func add_growth(unit_id: String, stat: int, points: int, source_effect_id: String = "") -> void:
+	state.add_growth(unit_id, stat, points)
+	var fact: CombatFact = CombatFact.new(CombatFact.Kind.GROWTH_CHANGED, unit_id)
+	fact.amount = points
+	fact.key = stat
+	fact.source_effect_id = source_effect_id
+	fact.source = _source_of(source_effect_id)
+	record(fact)
 
 
 ## The read API: the values of [param subject_id] (a unit, or a seat's subject id). The static

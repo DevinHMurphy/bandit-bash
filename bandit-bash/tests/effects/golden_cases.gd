@@ -6,7 +6,7 @@
 # File:     golden_cases.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 extends "res://tests/effects/engine_cases.gd"
@@ -210,6 +210,11 @@ const GOLDEN: Dictionary[String, Array] = {
 		"s0#1 EFFECT_ACTIVATED p1 effect effect:mt",
 		"s0#2 ITEM_USED p1 -> p1 item item:mt",
 		"s0#3 STAT_CHANGED p1 stat 1 amount 1 source effect effect effect:mt",
+	],
+	"GROWTH_CHANGED from an eaten ingredient": [
+		"s0#1 EFFECT_ACTIVATED p1 effect effect:carrot",
+		"s0#2 ITEM_USED p1 -> p1 item item:carrot",
+		"s0#3 GROWTH_CHANGED p1 stat 4 amount 5 source effect effect effect:carrot",
 	],
 }
 
@@ -787,6 +792,31 @@ func _test_stat_changed() -> void:
 	wrong.value = 1.0
 	wrong.apply(_context(engine, item))
 	_ok("STAT_CHANGED: a key that isn't a base stat is reported", engine.diagnostics.size() == 1)
+
+	var growth_engine: EffectEngine = _battle(["p1", "e1"])
+	var growth: ChangeBaseStat = ChangeBaseStat.new()
+	growth.key = CombatValue.Key.RES
+	growth.mode = ChangeBaseStat.Mode.GROWTH
+	growth.value = 5.0
+	var carrot: EffectInstance = _instance(
+			"effect:carrot",
+			_definition(EffectDefinition.Trigger.ALWAYS, [], [growth]),
+			_p1_item("item:carrot"),
+			POUCH,
+			"Cave Carrot"
+	)
+	growth_engine.register(carrot)
+	_harness(growth_engine).use_item("p1", "p1", carrot)
+	_golden("GROWTH_CHANGED from an eaten ingredient", growth_engine)
+	_ok(
+			"GROWTH_CHANGED: no stat changes in battle",
+			growth_engine.stats("p1").get_int(CombatValue.Key.RES) == 0
+			and growth_engine.get_deltas("p1", CombatValue.Key.RES).is_empty()
+	)
+	_ok(
+			"GROWTH_CHANGED: kept on the unit's state",
+			_fake(growth_engine).unit("p1").growth == {CombatValue.Stat.RES: 5}
+	)
 
 
 func _test_deepest_chain() -> void:

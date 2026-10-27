@@ -239,7 +239,7 @@ func _test_combat_fact_amendments() -> void:
 	_check(
 			"amendments: old kind values unchanged",
 			CombatFact.Kind.PHASE_START == 0 and CombatFact.Kind.MODIFIER_EXPIRED == 34
-			and CombatFact.Kind.size() == 43
+			and CombatFact.Kind.size() == 44
 	)
 
 
@@ -1265,6 +1265,11 @@ func _test_describe_operations() -> void:
 			booster.describe(),
 			"permanently give the other unit +1 Movement"
 	)
+	var ingredient: ChangeBaseStat = ChangeBaseStat.new()
+	ingredient.key = CombatValue.Key.RES
+	ingredient.mode = ChangeBaseStat.Mode.GROWTH
+	ingredient.value = 5.0
+	_snapshot("change base stat: growth", ingredient.describe(), "permanently +5% RES growth")
 
 	var permission_op: SetPermission = SetPermission.new()
 	permission_op.permission = CombatValue.Permission.CAN_BE_SHOVED

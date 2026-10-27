@@ -63,6 +63,7 @@ func copy_for_sandbox() -> SandboxState:
 		unit_copy.moved = original.moved
 		unit_copy.layer = original.layer
 		unit_copy.weapon = original.weapon
+		unit_copy.growth = original.growth.duplicate()
 		unit_copy.detour = original.detour
 		unit_copy.defeated = original.defeated
 	return copy
@@ -135,6 +136,11 @@ func set_stance(id: String, value: int) -> void:
 	_units[id].stance = value
 
 
+func add_growth(id: String, stat: int, points: int) -> void:
+	if _units.has(id):
+		_units[id].growth[stat] = _units[id].growth.get(stat, 0) + points
+
+
 func deal_splash(
 		engine: EffectEngine,
 		source_id: String,
@@ -201,6 +207,8 @@ class FakeUnit:
 	var layer: int = 0
 	## Instance id of the weapon in its Weapon slot; empty for none.
 	var weapon: String = ""
+	## Growth changes, in percentage points by stat.
+	var growth: Dictionary[int, int] = {}
 	## Extra steps every walk from this unit takes, as if a wall were in its way.
 	var detour: int = 0
 	## Whether it was defeated (kept, so its side and seat stay readable).
@@ -219,6 +227,7 @@ class FakeUnit:
 		unit.moved = moved
 		unit.layer = layer
 		unit.weapon = weapon
+		unit.growth = growth.duplicate()
 		unit.detour = detour
 		unit.defeated = defeated
 		return unit

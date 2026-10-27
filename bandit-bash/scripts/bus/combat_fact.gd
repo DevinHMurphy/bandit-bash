@@ -120,6 +120,10 @@ enum Kind {
 	## The actor's base stat [member key] (an [enum CombatValue.Stat]) changed permanently by
 	## [member amount], such as a stat booster's +1 MGT.
 	STAT_CHANGED = 42,
+	## The actor's growth for base stat [member key] (an [enum CombatValue.Stat]) changed by
+	## [member amount] percentage points, such as an eaten ingredient's +5% RES growth. Changes no
+	## value in battle; the battle-end bridge writes it to the roster.
+	GROWTH_CHANGED = 43,
 }
 
 ## What produced an amount. Sent over the network as an int: [b]append only[/b].
@@ -296,7 +300,7 @@ func to_log_line(describe: Callable = Callable()) -> String:
 	# Numbers, not names: facts stay independent of the effect classes that own these enums.
 	if kind == Kind.COUNTER_CHANGED:
 		parts.append("lane %d" % [key])
-	elif kind == Kind.STAT_CHANGED:
+	elif kind == Kind.STAT_CHANGED or kind == Kind.GROWTH_CHANGED:
 		parts.append("stat %d" % [key])
 	if amount != 0 or hp_amount != 0 or block_amount != 0:
 		parts.append("amount %d" % [amount])

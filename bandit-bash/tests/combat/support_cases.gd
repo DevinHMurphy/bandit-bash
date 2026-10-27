@@ -11,9 +11,9 @@
 
 extends RefCounted
 ## Support action cases for tests/combat/run_all.gd: golden fact logs for each staff kind, the area
-## staves (Sanctuary, Everwall), each Pouch item kind, a Sidearm swap, runes (Mend, Aegis, Shatter,
-## Recall) and Wait, their legality, and per-map uses refilling between two battles while total
-## uses don't.
+## staves (Sanctuary, Everwall), each Pouch item kind (an eaten ingredient too), a Sidearm swap,
+## runes (Mend, Aegis, Shatter, Recall) and Wait, their legality, and per-map uses refilling between
+## two battles while total uses don't.
 ##
 ## Item and rune effects are fixtures built from the effect blocks, with the values of items.md and
 ## weapons.md. Every scenario also asserts that the engine reported no diagnostics.
@@ -105,6 +105,14 @@ const GOLDEN: Dictionary[String, Array] = {
 		"s0#2 ITEM_USED p1 -> p1 item item:draught",
 		"s0#3 STAT_CHANGED p1 stat 1 amount 1 source effect effect effect:item:draught",
 	],
+	"ingredient": [
+		"s0#1 EFFECT_ACTIVATED p1 effect effect:item:carrot",
+		"s0#2 ITEM_USED p1 -> p2 item item:carrot",
+		"s0#3 HEALED_AN_ALLY p1 -> p2 amount 5 (hp 5, block 0) source effect"
+				+ " effect effect:item:carrot",
+		"s0#4 HEALED p2 <- p1 amount 5 (hp 5, block 0) source effect effect effect:item:carrot",
+		"s0#5 GROWTH_CHANGED p2 stat 4 amount 5 source effect effect effect:item:carrot",
+	],
 	"sidearm swap": [
 		"s0#1 WEAPON_SWAPPED p2 item w:axe",
 		"s0#2 BEFORE_COMBAT p2 -> e1",
@@ -162,6 +170,7 @@ func run() -> void:
 	_test_guard_tonic()
 	_test_elixir()
 	_test_stat_booster()
+	_test_ingredient()
 	_test_item_legality()
 	_test_sidearm_swap()
 	_test_swap_as_action()
@@ -323,6 +332,35 @@ func _test_stat_booster() -> void:
 			world.engine.get_deltas("p1", CombatValue.Key.MGT).size() == 1
 	)
 	_golden("stat booster", world)
+
+
+# Cave Carrot (items.md, Ingredients): eaten by p1 for an adjacent ally, heal 5 and +5% RES growth,
+# one total use.
+func _test_ingredient() -> void:
+	var world: Variant = _team()
+	var growth: ChangeBaseStat = ChangeBaseStat.new()
+	growth.target = CommandTarget.new()
+	growth.key = CombatValue.Key.RES
+	growth.mode = ChangeBaseStat.Mode.GROWTH
+	growth.value = 5.0
+	var carrot: EffectDefinition = _item(
+			[_gain_to_target(GainResource.Pool.HP, 5.0), growth], 1, CAMPAIGN_LANE
+	)
+	_give(world, "p1", "item:carrot", carrot)
+	world.state.set_hp("p2", 12)
+	var result: ItemUseResolver.Result = _use(world, "p1", "p2", "item:carrot")
+	_ok("ingredient: heal 5", world.state.get_hp("p2") == 17)
+	_same(
+			"ingredient: +5% RES growth kept for the bridge",
+			str(world.state.unit("p2").growth_changes),
+			str({CombatValue.Stat.RES: 5})
+	)
+	_ok(
+			"ingredient: RES itself unchanged",
+			world.engine.stats("p2").get_int(CombatValue.Key.RES) == 0
+	)
+	_ok("ingredient: eaten", result.is_consumed and world.state.unit("p1").pouch_item_id.is_empty())
+	_golden("ingredient", world)
 
 
 func _test_item_legality() -> void:

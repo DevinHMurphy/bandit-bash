@@ -309,6 +309,13 @@ func set_stance(id: String, value: int) -> void:
 		_units[id].stance = value
 
 
+func add_growth(id: String, stat: int, points: int) -> void:
+	if not _units.has(id):
+		return
+	var changes: Dictionary[int, int] = _units[id].growth_changes
+	changes[stat] = changes.get(stat, 0) + points
+
+
 ## The combat core's one splash rule, through [SplashResolver]; the engine's splash is
 ## [constant CombatFact.Source.SPLASH].
 func deal_splash(

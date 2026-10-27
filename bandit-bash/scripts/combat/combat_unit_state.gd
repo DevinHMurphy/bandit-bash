@@ -85,6 +85,11 @@ var pouch_item_id: String = ""
 ## curse says otherwise (Heavy Pack: 2).
 var pouch_item_weight: int = 0
 
+## Growth changes gained this battle, in percentage points by [enum CombatValue.Stat] (an eaten
+## ingredient's +5% RES growth). They change nothing in battle; the battle-end bridge (EB6) writes
+## them to the roster.
+var growth_changes: Dictionary[int, int] = {}
+
 ## Whether it was defeated. A defeated unit stays in [CombatState], so its side and seat stay
 ## readable, but it is off the map.
 var is_defeated: bool = false
@@ -112,6 +117,7 @@ func copy() -> CombatUnitState:
 	unit.stowed_weapon_id = stowed_weapon_id
 	unit.pouch_item_id = pouch_item_id
 	unit.pouch_item_weight = pouch_item_weight
+	unit.growth_changes = growth_changes.duplicate()
 	unit.is_defeated = is_defeated
 	return unit
 

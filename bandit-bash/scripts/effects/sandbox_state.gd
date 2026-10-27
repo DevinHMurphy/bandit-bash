@@ -95,6 +95,11 @@ extends RefCounted
 @abstract func set_stance(id: String, value: int) -> void
 
 
+## Adds [param points] percentage points to [param id]'s growth for [param stat] (an
+## [enum CombatValue.Stat]), kept for the battle-end bridge. Ignores an unknown id.
+@abstract func add_growth(id: String, stat: int, points: int) -> void
+
+
 ## Resolves splash damage with the combat core's one splash rule (Block absorbs it; it fires
 ## Damage taken, never Hit taken; it can defeat), recording every fact through
 ## [method EffectEngine.record].
