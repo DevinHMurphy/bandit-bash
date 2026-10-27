@@ -6,7 +6,7 @@
 # File:     save_service.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: October 14, 2026
+# Modified: October 27, 2026
 # ==============================================================================
 
 extends Node
@@ -60,6 +60,12 @@ const LAST_SELECTED_PATH: String = SAVES_DIR + "last_selected.json"
 
 const _LAST_SELECTED_SCHEMA_VERSION: int = 1
 const _KEY_SAVE_NUMBER: String = "save_number"
+
+# One --name=value token: a separate value token could be read by Godot as a scene path.
+## Debug builds only: a user argument (after [code]--[/code]) that gives every new run this
+## seed, in [method RunSeed.parse]'s form, e.g. [code]-- --run-seed=3F9A-12C0-77E1-A[/code].
+## Lets a headless test start a known run.
+const _RUN_SEED_ARG: String = "--run-seed="
 
 # Section keys reserved for systems that don't exist yet (plan, Blocks). Each is held by a
 # RawSaveSection until its system registers the real section under the same key.
@@ -328,22 +334,27 @@ func clear_campaign() -> void:
 
 ## Starts a new solo run in the open save file and writes its first save.
 ##
-## The run becomes [member campaign] and play time starts counting.
+## The run becomes [member campaign] and play time starts counting. Its seed is
+## [param typed_seed] when given, else the debug command line's ([constant _RUN_SEED_ARG]), else
+## a new [method RunSeed.generate].
+## [param typed_seed]: a seed typed into a debug entry, or [constant RunSeed.NO_SEED].
 ## Returns [constant OK], [constant ERR_UNCONFIGURED] with no save file open,
-## [constant ERR_ALREADY_EXISTS] when a solo run is already in progress, or the write error; on
-## error no campaign is active.
-func start_new_solo_run() -> Error:
+## [constant ERR_ALREADY_EXISTS] when a solo run is already in progress,
+## [constant ERR_INVALID_PARAMETER] for a [param typed_seed] outside 0 to
+## [constant RunSeed.MAX_SEED], or the write error; on error no campaign is active.
+func start_new_solo_run(typed_seed: int = RunSeed.NO_SEED) -> Error:
 	if not has_open_save_file():
 		push_error("SaveService: can't start a run with no save file open.")
 		return ERR_UNCONFIGURED
 	if has_solo_campaign():
 		push_error("SaveService: save %d already has a solo run." % [current_save_number])
 		return ERR_ALREADY_EXISTS
+	if typed_seed != RunSeed.NO_SEED and (typed_seed < 0 or typed_seed > RunSeed.MAX_SEED):
+		push_error("SaveService: not a run seed - %d" % [typed_seed])
+		return ERR_INVALID_PARAMETER
 
-	# ASSUMPTION: a random seed until run setup chooses one; run setup belongs to the campaign
-	# system (plan, Scope).
 	_ended_run = null
-	campaign = CampaignData.create_solo(randi())
+	campaign = CampaignData.create_solo(_choose_run_seed(typed_seed))
 	_sections.reset(SaveSection.Block.CAMPAIGN)
 	_sections.reset_players(campaign.players)
 	_start_play_clock()
@@ -371,6 +382,8 @@ func continue_solo_run() -> Error:
 ## Starts a new multiplayer campaign as the host, one seat per admitted lobby member, and writes
 ## its first save. Then tells every client the run started.
 ##
+## Its seed is the debug command line's ([constant _RUN_SEED_ARG]), else a new
+## [method RunSeed.generate].
 ## [param steam_ids]: the members' Steam ids in seat order, the host first. The player count is
 ## fixed from here on (plan, row 21).
 ## Returns [constant OK], [constant ERR_UNCONFIGURED] with no save file open,
@@ -394,8 +407,7 @@ func start_new_multiplayer_run(steam_ids: PackedInt64Array) -> Error:
 		return ERR_INVALID_PARAMETER
 
 	_ended_run = null
-	# ASSUMPTION: a random seed until run setup chooses one (as for solo runs).
-	campaign = CampaignData.create_multiplayer(randi(), id_strings)
+	campaign = CampaignData.create_multiplayer(_choose_run_seed(RunSeed.NO_SEED), id_strings)
 	_sections.reset(SaveSection.Block.CAMPAIGN)
 	_sections.reset_players(campaign.players)
 	_start_play_clock()
@@ -706,6 +718,25 @@ func _activate_campaign(slot_mode: CampaignData.Mode) -> Error:
 	campaign = loaded
 	resume_point = _load_battle()
 	return OK
+
+
+# A new run's seed: typed_seed unless it is RunSeed.NO_SEED, else the debug command line's, else
+# a generated one. A command-line seed that doesn't parse is ignored with a warning, so a typo
+# can't stop a run from starting.
+func _choose_run_seed(typed_seed: int) -> int:
+	if typed_seed != RunSeed.NO_SEED:
+		return typed_seed
+	if not OS.is_debug_build():
+		return RunSeed.generate()
+	for arg: String in OS.get_cmdline_user_args():
+		if not arg.begins_with(_RUN_SEED_ARG):
+			continue
+		var seed_text: String = arg.trim_prefix(_RUN_SEED_ARG)
+		var parsed: int = RunSeed.parse(seed_text)
+		if parsed != RunSeed.NO_SEED:
+			return parsed
+		push_warning("SaveService: ignoring %s'%s', not a run seed." % [_RUN_SEED_ARG, seed_text])
+	return RunSeed.generate()
 
 
 # Reads and loads one campaign file into target. Returns ERR_FILE_NOT_FOUND for an empty slot.
