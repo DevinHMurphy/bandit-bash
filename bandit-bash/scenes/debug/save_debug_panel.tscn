@@ -1,0 +1,64 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/debug/save_debug_panel.gd" id="1_panel"]
+
+[node name="SaveDebugPanel" type="PanelContainer"]
+offset_left = 16.0
+offset_top = 16.0
+script = ExtResource("1_panel")
+
+[node name="Column" type="VBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Column"]
+layout_mode = 2
+text = "Save debug (debug builds only)"
+
+[node name="Info" type="Label" parent="Column"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="RoomButton" type="Button" parent="Column"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Room Entered (checkpoint)"
+
+[node name="BeginButton" type="Button" parent="Column"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Begin Battle (save)"
+
+[node name="PlayerPhaseButton" type="Button" parent="Column"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "End Player Phase (save)"
+
+[node name="EnemyPhaseButton" type="Button" parent="Column"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "End Enemy Phase"
+
+[node name="EndBattleButton" type="Button" parent="Column"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "End Battle (save)"
+
+[node name="WinButton" type="Button" parent="Column"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Win Run"
+
+[node name="LoseButton" type="Button" parent="Column"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Lose Run"
+
+[node name="SeedField" type="LineEdit" parent="Column"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "Run seed, e.g. 3F9A-12C0-77E1-A"
+
+[node name="SeedRunButton" type="Button" parent="Column"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "New Solo Run From Seed"

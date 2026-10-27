@@ -4,3 +4,7 @@
 
 # Dev-only Steam App ID; every machine has its own copy and it never ships.
 steam_appid.txt
+
+# Leftover copies of a GDExtension library (e.g. ~libgodotsteam...dll~RF12c684c.TMP), left when a
+# headless Godot run can't replace a DLL the open editor has locked.
+~*.TMP

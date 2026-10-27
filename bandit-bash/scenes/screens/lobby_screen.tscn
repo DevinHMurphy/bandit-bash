@@ -34,6 +34,11 @@ unique_name_in_owner = true
 layout_mode = 2
 horizontal_alignment = 1
 
+[node name="VersionLabel" type="Label" parent="Center/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+horizontal_alignment = 1
+
 [node name="CodeRow" type="HBoxContainer" parent="Center/Column"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -73,9 +78,36 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Join"
 
+[node name="FriendsRow" type="HBoxContainer" parent="Center/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="FriendsLabel" type="Label" parent="Center/Column/FriendsRow"]
+layout_mode = 2
+text = "Friends' games"
+
+[node name="RefreshFriendsButton" type="Button" parent="Center/Column/FriendsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Refresh"
+
+[node name="FriendsList" type="VBoxContainer" parent="Center/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+
 [node name="MembersList" type="VBoxContainer" parent="Center/Column"]
 unique_name_in_owner = true
 layout_mode = 2
+
+[node name="ReadyToggle" type="CheckButton" parent="Center/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Ready"
+
+[node name="InviteButton" type="Button" parent="Center/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Invite Friends"
 
 [node name="StartButton" type="Button" parent="Center/Column"]
 unique_name_in_owner = true

@@ -25,6 +25,11 @@ What's wrong now, with file:line evidence. No proposed solution here.
 ## Scope
 In scope / explicitly out of scope.
 
+## Design Basis
+Sections of `docs/design/game-vision.md` and `docs/design/living-labyrinth/master-ideation.md`
+this follows, and any gap or open item from the vision it depends on. Or the line "Not covered by
+the vision." for non-gameplay work.
+
 ## Legacy Behavior (ports from Godot_FE only)
 | Godot_FE file | Behavior | Keep / Change / Drop | Reason |
 |---------------|----------|----------------------|--------|
@@ -33,6 +38,11 @@ Tuning values carried over, each with its source file.
 
 ## Approach
 Chosen design and the alternatives rejected, with reasons.
+
+## Save Impact
+What this change persists, per `docs/design/save-system.md`: each block (profile, campaign,
+combat, settings), section key and version, whether it is per player, and the migration for any
+changed shape. Or the line "Not saved." with why nothing needs to survive a restart.
 
 ## Work Breakdown
 Ordered, independently committable steps. Each: files touched, description, risk (🟢/🟡/🔴),

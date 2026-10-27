@@ -11,6 +11,7 @@ config_version=5
 [application]
 
 config/name="Bandit Bash"
+config/version="0.1.0"
 run/main_scene="res://scenes/boot.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
@@ -20,6 +21,7 @@ config/icon="res://icon.svg"
 NetLog="*res://scripts/autoload/net_log.gd"
 SteamManager="*res://scripts/autoload/steam_manager.gd"
 SteamNetwork="*res://scripts/autoload/steam_network.gd"
+SaveService="*res://scripts/autoload/save_service.gd"
 SceneRouter="*res://scripts/autoload/scene_router.gd"
 
 [display]

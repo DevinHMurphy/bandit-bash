@@ -1,6 +1,7 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/nav_button.gd" id="1_nav"]
+[ext_resource type="Script" path="res://scripts/screens/main_menu.gd" id="2_main_menu"]
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
@@ -9,6 +10,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+script = ExtResource("2_main_menu")
 
 [node name="Center" type="CenterContainer" parent="."]
 layout_mode = 1
@@ -26,17 +28,45 @@ layout_mode = 2
 text = "Main Menu (placeholder)"
 horizontal_alignment = 1
 
-[node name="SoloButton" type="Button" parent="Center/Column"]
+[node name="Header" type="Label" parent="Center/Column"]
+unique_name_in_owner = true
 layout_mode = 2
-text = "Solo"
-script = ExtResource("1_nav")
-target_screen = 2
+horizontal_alignment = 1
+
+[node name="Status" type="Label" parent="Center/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+horizontal_alignment = 1
+
+[node name="ContinueButton" type="Button" parent="Center/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Continue Run"
+
+[node name="NewRunButton" type="Button" parent="Center/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "New Run"
+
+[node name="AbandonButton" type="Button" parent="Center/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Abandon Run"
 
 [node name="MultiplayerButton" type="Button" parent="Center/Column"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Multiplayer"
-script = ExtResource("1_nav")
-target_screen = 1
+
+[node name="ResumeMultiButton" type="Button" parent="Center/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Resume Campaign"
+
+[node name="AbandonMultiButton" type="Button" parent="Center/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Abandon Multiplayer Campaign"
 
 [node name="OptionsButton" type="Button" parent="Center/Column"]
 layout_mode = 2
@@ -46,5 +76,11 @@ target_screen = 6
 
 [node name="BackButton" type="Button" parent="Center/Column"]
 layout_mode = 2
-text = "Back to Start"
+text = "Back to Save Select"
 script = ExtResource("1_nav")
+target_screen = 7
+
+[node name="AbandonDialog" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Abandon Run"
+
