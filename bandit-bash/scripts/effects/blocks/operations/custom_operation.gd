@@ -35,3 +35,9 @@ func describe() -> String:
 
 func is_inline() -> bool:
 	return inline
+
+
+## Does nothing here; the extending script overrides it. It must follow the engine's rules: no
+## nodes, autoloads or global RNG, and every change through the engine's paths.
+func apply(_ctx: EffectContext) -> void:
+	pass

@@ -32,3 +32,15 @@ func describe() -> String:
 	if amount is Constant:
 		return "deal %s splash damage to %s" % [how_much, who]
 	return "deal splash damage equal to %s to %s" % [how_much, who]
+
+
+## Picks the targets, evaluates the amount once, and deals it to each through
+## [method EffectEngine.deal_splash].
+func apply(ctx: EffectContext) -> void:
+	if amount == null:
+		ctx.engine.diagnostics.append("DealSplash: %s has no amount" % [ctx.instance.instance_id])
+		return
+	var targets: PackedStringArray = _targets(target, ctx)
+	var damage: float = amount.evaluate(ctx)
+	for unit_id: String in targets:
+		ctx.engine.deal_splash(ctx.owner_unit_id(), unit_id, damage, ctx.instance.instance_id)

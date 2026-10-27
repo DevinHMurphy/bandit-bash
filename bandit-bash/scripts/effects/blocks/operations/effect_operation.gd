@@ -35,3 +35,25 @@ func describe_for_trigger(_trigger: EffectDefinition.Trigger) -> String:
 ## Whether this changes the action in flight rather than queueing a new one.
 func is_inline() -> bool:
 	return false
+
+
+## The always-on [Modifier] this operation gives, sourced to [param instance], or null when it
+## gives none ([ModifyValue] and [SetPermission] give one). Read by value queries.
+func make_modifier(_instance: EffectInstance) -> Modifier:
+	return null
+
+
+## Does the operation for [param ctx]'s effect and fact: an inline one changes [param ctx]; a
+## queued one acts through the engine's paths ([method EffectEngine.gain_block] and the others),
+## which record the facts.
+@abstract func apply(ctx: EffectContext) -> void
+
+
+# The units [param selector] picks, or the owner's unit when it is null (an army has none).
+func _targets(selector: TargetSelector, ctx: EffectContext) -> PackedStringArray:
+	if selector != null:
+		return selector.select(ctx)
+	var holder: String = ctx.owner_unit_id()
+	if holder.is_empty() or not ctx.engine.state.has_unit(holder):
+		return PackedStringArray()
+	return PackedStringArray([holder])

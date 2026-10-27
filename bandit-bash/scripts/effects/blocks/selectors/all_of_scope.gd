@@ -37,3 +37,7 @@ func describe() -> String:
 
 func is_owner() -> bool:
 	return scope == EffectDefinition.Scope.THIS_UNIT
+
+
+func select(ctx: EffectContext) -> PackedStringArray:
+	return ctx.engine.units_in_scope(ctx.instance.owner, scope)

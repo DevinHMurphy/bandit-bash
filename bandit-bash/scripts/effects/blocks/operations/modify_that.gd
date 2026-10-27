@@ -29,6 +29,9 @@ enum What {
 	AMOUNT = 1,
 	## A flag on that attack or hit.
 	FLAG = 2,
+	## Stance the hit's target loses beyond the usual 1, added at stage 8 (Breaker). Lost only
+	## when damage reached Block or HP.
+	EXTRA_STANCE_LOSS = 3,
 }
 
 ## A flag an inline operation turns on. Saved as an int: [b]append only[/b].
@@ -88,11 +91,43 @@ func describe_for_trigger(trigger: EffectDefinition.Trigger) -> String:
 			if flag == Flag.LIFESTEAL:
 				return "%s gains lifesteal" % [noun]
 			return "%s skips Mitigation" % [noun]
+		What.EXTRA_STANCE_LOSS:
+			return _stance_text(trigger, noun)
 	return "%s for %s" % [EffectDefinition.describe_modifier(key, mode, value), noun]
 
 
 func is_inline() -> bool:
 	return true
+
+
+## Writes the change into [param ctx]: a flag, or a "that" modifier on the value key, the amount
+## ([constant EffectContext.AMOUNT_KEY]) or the extra Stance loss
+## ([constant EffectContext.EXTRA_STANCE_LOSS_KEY]), sourced to the effect.
+func apply(ctx: EffectContext) -> void:
+	if what == What.FLAG:
+		ctx.set_flag(flag)
+		return
+	var target_key: int = key
+	if what == What.AMOUNT:
+		target_key = EffectContext.AMOUNT_KEY
+	elif what == What.EXTRA_STANCE_LOSS:
+		target_key = EffectContext.EXTRA_STANCE_LOSS_KEY
+	var instance: EffectInstance = ctx.instance
+	ctx.add_that_modifier(Modifier.new(
+			target_key, mode, value, instance.source_kind, instance.instance_id, instance.label
+	))
+
+
+# "the target loses 1 extra Stance" on a dealt hit (unit-roster.md wording); otherwise names the
+# change and the hit.
+func _stance_text(trigger: EffectDefinition.Trigger, noun: String) -> String:
+	var dealt: bool = (
+			trigger == EffectDefinition.Trigger.HIT_DEALT
+			or trigger == EffectDefinition.Trigger.CRIT_DEALT
+	)
+	if dealt and mode == Modifier.Mode.ADD and value >= 0.0:
+		return "the target loses %s extra Stance" % [EffectDefinition.format_number(value)]
+	return "%s extra Stance loss for %s" % [_amount_change(), noun]
 
 
 func _amount_change() -> String:

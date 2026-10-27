@@ -23,3 +23,7 @@ extends Resource
 
 ## This amount as effect text, such as "3" or "100% of that overheal".
 @abstract func describe() -> String
+
+
+## The amount for [param ctx]'s effect and fact, exact.
+@abstract func evaluate(ctx: EffectContext) -> float

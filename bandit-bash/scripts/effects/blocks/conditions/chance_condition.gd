@@ -28,3 +28,14 @@ extends EffectCondition
 
 func describe() -> String:
 	return "%d%% chance" % [chance_percent]
+
+
+## One [method RollSource.roll_percent] against [member chance_percent]. Never passes, and never
+## rolls, during a value query.
+func test(ctx: EffectContext) -> bool:
+	if ctx.is_query:
+		return false
+	if ctx.engine.rolls == null:
+		ctx.engine.diagnostics.append("ChanceCondition: the engine has no roll source")
+		return false
+	return ctx.engine.rolls.roll_percent(chance_percent)

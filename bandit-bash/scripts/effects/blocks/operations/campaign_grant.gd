@@ -18,6 +18,8 @@ extends EffectOperation
 ## Queued. Used by Gained effects (War Chest, Family Relic) and by narrative event outcomes.
 ##
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
+##
+## @todo: TOD-001 - Hand grants to CampaignSession (EB6); until then apply() only reports them.
 
 ## What is granted. Saved as an int: [b]append only[/b].
 enum Grant {
@@ -53,6 +55,15 @@ func describe() -> String:
 		Grant.RUNE:
 			return _grant_text("a rune", "the rune")
 	return "gain %d gold" % [amount]
+
+
+## Reports that grants aren't applied yet; see the class's @todo.
+func apply(ctx: EffectContext) -> void:
+	# TODO(TOD-001): Hand the grant to CampaignSession, which owns gold, heirlooms, the roster and
+	# rune slots (event bus plan EB6).
+	ctx.engine.diagnostics.append(
+			"CampaignGrant: %s needs a campaign session" % [ctx.instance.instance_id]
+	)
 
 
 func _grant_text(unnamed: String, named: String) -> String:

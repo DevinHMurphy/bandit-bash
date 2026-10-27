@@ -45,3 +45,12 @@ func describe() -> String:
 	if subject == Subject.OPPONENT:
 		return "while the opponent is %s" % [state_name]
 	return "while %s" % [state_name]
+
+
+func test(ctx: EffectContext) -> bool:
+	var unit_id: String = ctx.subject_id
+	if subject == Subject.OPPONENT:
+		unit_id = ctx.opponent_of(ctx.subject_id)
+	if not ctx.engine.state.has_unit(unit_id):
+		return false
+	return ctx.engine.state.get_stance(unit_id) == 0

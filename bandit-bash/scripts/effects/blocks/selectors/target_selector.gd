@@ -28,3 +28,8 @@ extends Resource
 ## Whether this selects the effect's owner, so effect text can leave the target out.
 func is_owner() -> bool:
 	return false
+
+
+## The instance ids this selects for [param ctx]'s effect and fact, in the state's unit order.
+## Selects only units and objects on the map; may be empty.
+@abstract func select(ctx: EffectContext) -> PackedStringArray

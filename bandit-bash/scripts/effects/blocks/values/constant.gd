@@ -22,3 +22,7 @@ extends ValueSource
 
 func describe() -> String:
 	return EffectDefinition.format_number(value)
+
+
+func evaluate(_ctx: EffectContext) -> float:
+	return value

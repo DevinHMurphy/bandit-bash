@@ -28,3 +28,9 @@ func describe() -> String:
 	if is_equal_approx(each, 1.0):
 		return counted
 	return "%s × %s" % [EffectDefinition.format_number(each), counted]
+
+
+func evaluate(ctx: EffectContext) -> float:
+	if selector == null:
+		return 0.0
+	return selector.select(ctx).size() * each

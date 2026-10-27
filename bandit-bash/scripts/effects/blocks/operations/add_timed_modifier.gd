@@ -84,3 +84,13 @@ func describe() -> String:
 	if to_owner:
 		return "gain %s %s" % [change, duration]
 	return "give %s %s %s" % [target.describe(), change, duration]
+
+
+## Gives each target the modifier through [method EffectEngine.add_timed_modifier].
+func apply(ctx: EffectContext) -> void:
+	var instance: EffectInstance = ctx.instance
+	for unit_id: String in _targets(target, ctx):
+		var modifier: Modifier = Modifier.new(
+				key, mode, value, instance.source_kind, instance.instance_id, instance.label
+		)
+		ctx.engine.add_timed_modifier(unit_id, modifier, end, uses, instance.instance_id)

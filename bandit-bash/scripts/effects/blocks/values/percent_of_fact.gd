@@ -44,3 +44,16 @@ const FIELD_TEXT: Dictionary[int, String] = {
 
 func describe() -> String:
 	return "%s%% of that %s" % [EffectDefinition.format_number(percent), FIELD_TEXT[field]]
+
+
+## [member percent] of the triggering fact's [member field]; 0 without a fact.
+func evaluate(ctx: EffectContext) -> float:
+	if ctx.fact == null:
+		return 0.0
+	var whole: int = ctx.fact.amount
+	match field:
+		Field.HP_AMOUNT:
+			whole = ctx.fact.hp_amount
+		Field.OVERHEAL:
+			whole = ctx.fact.amount - ctx.fact.hp_amount
+	return whole * percent / 100.0

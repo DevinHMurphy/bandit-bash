@@ -82,6 +82,19 @@ func describe() -> String:
 	return "while this unit's %s is %s than %s" % [quantity_name, direction, other]
 
 
+func test(ctx: EffectContext) -> bool:
+	if not ctx.engine.state.has_unit(ctx.subject_id):
+		return false
+	var other: float = threshold
+	if against == Against.OPPONENT:
+		var opponent: String = ctx.opponent_of(ctx.subject_id)
+		if not ctx.engine.state.has_unit(opponent):
+			return false
+		other = _quantity_of(ctx, opponent)
+	var mine: float = _quantity_of(ctx, ctx.subject_id)
+	return mine > other if comparison == Comparison.HIGHER_THAN else mine < other
+
+
 func _quantity_name() -> String:
 	match quantity:
 		Quantity.VALUE:
@@ -95,3 +108,22 @@ func _quantity_name() -> String:
 		Quantity.STANCE:
 			return "Stance"
 	return "value"
+
+
+# The quantity of unit_id, exact. A value key is read through the engine with ctx, so the
+# comparison is checked live at each attack.
+func _quantity_of(ctx: EffectContext, unit_id: String) -> float:
+	var state: SandboxState = ctx.engine.state
+	match quantity:
+		Quantity.VALUE:
+			return ctx.engine.stats(unit_id).get_value(key, ctx)
+		Quantity.CURRENT_HP:
+			return state.get_hp(unit_id)
+		Quantity.HP_PERCENT:
+			var max_hp: float = ctx.engine.stats(unit_id).get_value(CombatValue.Key.HP)
+			return 0.0 if max_hp <= 0.0 else state.get_hp(unit_id) * 100.0 / max_hp
+		Quantity.BLOCK:
+			return state.get_block(unit_id)
+		Quantity.STANCE:
+			return state.get_stance(unit_id)
+	return 0.0

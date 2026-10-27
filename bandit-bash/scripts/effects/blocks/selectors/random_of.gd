@@ -26,3 +26,15 @@ extends TargetSelector
 
 func describe() -> String:
 	return "a random one of %s" % ["?" if from == null else from.describe()]
+
+
+## One [method RollSource.pick_index] over [member from]'s units; nothing, and no roll, when it
+## selects none.
+func select(ctx: EffectContext) -> PackedStringArray:
+	if from == null:
+		return PackedStringArray()
+	var candidates: PackedStringArray = from.select(ctx)
+	if candidates.is_empty() or ctx.engine.rolls == null:
+		return PackedStringArray()
+	var picked: int = ctx.engine.rolls.pick_index(candidates.size())
+	return PackedStringArray([candidates[picked]])

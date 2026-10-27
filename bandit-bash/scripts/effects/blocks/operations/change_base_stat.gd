@@ -22,7 +22,7 @@ extends EffectOperation
 ## Who changes. [b]Null:[/b] the effect's owner.
 @export var target: TargetSelector = null
 
-## The stat key changed: a [CombatValue] key (the base stats are appended by the units plan).
+## The stat key changed: a [CombatValue] base stat key, such as [constant CombatValue.MGT].
 @export var key: int = 0
 
 ## The permanent change, in the stat's own units. Negative lowers it.
@@ -40,3 +40,14 @@ func describe() -> String:
 	if target == null or target.is_owner():
 		return "permanently %s" % [change]
 	return "permanently give %s %s" % [target.describe(), change]
+
+
+## Adds the change to each target as a permanent delta sourced to the effect
+## ([method EffectEngine.add_delta]).
+func apply(ctx: EffectContext) -> void:
+	var instance: EffectInstance = ctx.instance
+	for unit_id: String in _targets(target, ctx):
+		ctx.engine.add_delta(unit_id, Modifier.new(
+				key, Modifier.Mode.ADD, value, instance.source_kind, instance.instance_id,
+				instance.label
+		))

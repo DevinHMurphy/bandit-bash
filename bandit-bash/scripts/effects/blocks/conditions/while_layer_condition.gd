@@ -40,3 +40,10 @@ enum Layer {
 func describe() -> String:
 	var layer_name: String = String(Layer.find_key(layer)).capitalize()
 	return "while on %s%s" % [layer_name, " or deeper" if or_deeper else ""]
+
+
+func test(ctx: EffectContext) -> bool:
+	if not ctx.engine.state.has_unit(ctx.subject_id):
+		return false
+	var current: int = ctx.engine.state.darkness_layer(ctx.subject_id)
+	return current >= layer if or_deeper else current == layer

@@ -49,3 +49,23 @@ func describe_count() -> String:
 	if mode == Mode.FIRST:
 		return "First"
 	return "Every %s" % [EffectDefinition.ordinal(count)]
+
+
+## Advances the effect's counter in [member lane] and passes when it completes: on the Nth event
+## (then starts over) or, for [constant FIRST], on the first event of the lane's period. Records
+## each change. Never passes or changes during a value query.
+func test(ctx: EffectContext) -> bool:
+	if ctx.is_query or ctx.instance == null:
+		return false
+	var current: int = ctx.instance.get_counter(lane)
+	if mode == Mode.FIRST:
+		if current > 0:
+			return false
+		ctx.instance.set_counter(lane, 1)
+		ctx.engine.counter_changed(ctx.instance, lane)
+		return true
+	current += 1
+	var completed: bool = current >= count
+	ctx.instance.set_counter(lane, 0 if completed else current)
+	ctx.engine.counter_changed(ctx.instance, lane)
+	return completed

@@ -32,3 +32,7 @@ enum Role {
 
 func describe() -> String:
 	return "while it is the %s" % [String(Role.find_key(role)).to_lower()]
+
+
+func test(ctx: EffectContext) -> bool:
+	return ctx.role_of(ctx.subject_id) == role

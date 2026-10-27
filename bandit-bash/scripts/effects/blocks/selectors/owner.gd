@@ -26,3 +26,10 @@ func describe() -> String:
 
 func is_owner() -> bool:
 	return true
+
+
+func select(ctx: EffectContext) -> PackedStringArray:
+	var holder: String = ctx.owner_unit_id()
+	if not ctx.engine.state.has_unit(holder):
+		return PackedStringArray()
+	return PackedStringArray([holder])

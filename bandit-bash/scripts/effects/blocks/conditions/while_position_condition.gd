@@ -66,6 +66,29 @@ func describe() -> String:
 	return "while in position"
 
 
+func test(ctx: EffectContext) -> bool:
+	var engine: EffectEngine = ctx.engine
+	var unit_id: String = ctx.subject_id
+	if not engine.state.has_unit(unit_id):
+		return false
+	match kind:
+		Kind.AT_MAXIMUM_RANGE:
+			if ctx.opponent_of(unit_id).is_empty():
+				return false
+			return ctx.distance == engine.stats(unit_id).get_int(CombatValue.Key.RANGE_MAX, ctx)
+		Kind.MOVED_AT_LEAST:
+			return engine.state.tiles_moved(unit_id) >= tiles
+		Kind.HAS_NOT_MOVED:
+			return engine.state.tiles_moved(unit_id) == 0
+		Kind.NO_ALLY_CLOSER_TO_ENEMY:
+			return _no_ally_closer(engine, unit_id)
+		Kind.ADJACENT_TO:
+			return _any_near(engine, unit_id, 1, false)
+		Kind.WITHIN:
+			return _any_near(engine, unit_id, tiles, true)
+	return false
+
+
 func _side_noun() -> String:
 	match side:
 		EffectDefinition.UnitSide.ALLY:
@@ -73,3 +96,49 @@ func _side_noun() -> String:
 		EffectDefinition.UnitSide.ENEMY:
 			return "an enemy"
 	return "a unit"
+
+
+# Whether a unit of `side` (relative to unit_id) is within `reach` tiles: orthogonally adjacent
+# for 1 without walking, walking distance otherwise.
+func _any_near(engine: EffectEngine, unit_id: String, reach: int, walking: bool) -> bool:
+	var own_side: CombatFact.CombatSide = engine.state.side_of(unit_id)
+	for other: String in engine.state.unit_ids():
+		if other == unit_id or not engine.matches_side(own_side, other, side):
+			continue
+		var distance: int = (
+				engine.state.walking_distance(unit_id, other) if walking
+				else engine.tile_distance(unit_id, other)
+		)
+		if distance >= 1 and distance <= reach:
+			return true
+	return false
+
+
+func _no_ally_closer(engine: EffectEngine, unit_id: String) -> bool:
+	var own: int = _nearest_enemy(engine, unit_id)
+	# ASSUMPTION: with no enemy on the map, no ally is closer, so the condition passes.
+	if own < 0:
+		return true
+	var own_side: CombatFact.CombatSide = engine.state.side_of(unit_id)
+	for ally: String in engine.state.unit_ids():
+		if ally == unit_id:
+			continue
+		if not engine.matches_side(own_side, ally, EffectDefinition.UnitSide.ALLY):
+			continue
+		var theirs: int = _nearest_enemy(engine, ally)
+		if theirs >= 0 and theirs < own:
+			return false
+	return true
+
+
+# Tile distance from unit_id to its nearest enemy, or -1 when it has none.
+static func _nearest_enemy(engine: EffectEngine, unit_id: String) -> int:
+	var own_side: CombatFact.CombatSide = engine.state.side_of(unit_id)
+	var nearest: int = -1
+	for other: String in engine.state.unit_ids():
+		if not engine.matches_side(own_side, other, EffectDefinition.UnitSide.ENEMY):
+			continue
+		var distance: int = engine.tile_distance(unit_id, other)
+		if nearest < 0 or distance < nearest:
+			nearest = distance
+	return nearest

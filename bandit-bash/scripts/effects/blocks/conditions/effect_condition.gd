@@ -24,3 +24,8 @@ extends Resource
 
 ## This condition as effect text, such as "while Exposed" or "25% chance". Never empty.
 @abstract func describe() -> String
+
+
+## Whether the condition holds for [param ctx]'s effect and fact. A Counter or Chance condition
+## changes state (a count, a roll) and fails during a value query ([member EffectContext.is_query]).
+@abstract func test(ctx: EffectContext) -> bool

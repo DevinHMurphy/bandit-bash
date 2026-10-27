@@ -13,8 +13,8 @@ class_name CombatValue
 extends RefCounted
 ## Value and permission keys read during combat, other than the damage stages ([DamageStage]).
 ##
-## Seeded with the combat core's keys (combat core plan, Value keys, permissions and facts). The
-## units plan appends the base stats. Never instantiated.
+## Seeded with the combat core's keys (combat core plan, Value keys, permissions and facts) and the
+## base stats; the units plan owns the stats' growths and meaning. Never instantiated.
 ##
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
 
@@ -51,8 +51,40 @@ enum Key {
 	EFFECTIVE_MODIFIER = 13,
 	## A staff's heal or Block amount.
 	STAFF_AMOUNT = 14,
-	## The move budget, in movement cost.
+	## The move budget, in movement cost. The base stat MOV.
 	MOVEMENT = 15,
+	## Maximum HP.
+	HP = 16,
+	## Might: scales weapon damage.
+	MGT = 17,
+	## Speed: the base of Attack Speed.
+	SPD = 18,
+	## Defense: mitigates physical damage.
+	DEF = 19,
+	## Resistance: mitigates magic damage.
+	RES = 20,
+	## Constitution: carries weight without slowing Attack Speed.
+	CON = 21,
+}
+
+## A base stat, for modifiers of per-stat keys ([constant CampaignValue.STAT_CAN_GROW],
+## [constant CampaignValue.LEVEL_UP_GUARANTEED_GAINS]) and for the units plan's growths. Saved as an
+## int: [b]append only[/b], with explicit values.
+enum Stat {
+	## Maximum HP.
+	HP = 0,
+	## Might.
+	MGT = 1,
+	## Speed.
+	SPD = 2,
+	## Defense.
+	DEF = 3,
+	## Resistance.
+	RES = 4,
+	## Constitution.
+	CON = 5,
+	## Movement.
+	MOV = 6,
 }
 
 ## A combat permission: a yes or no answer, where any denial beats any grant. Values live in this
@@ -69,6 +101,17 @@ enum Permission {
 	FREE_WEAPON_SWAP = 3003,
 	## A crit skips the Mitigation stage (Kukri). Off by default.
 	SKIP_MITIGATION_ON_CRIT = 3004,
+}
+
+## The value key of each [enum Stat]; MOV is [constant MOVEMENT].
+const STAT_KEYS: Dictionary[int, int] = {
+	Stat.HP: Key.HP,
+	Stat.MGT: Key.MGT,
+	Stat.SPD: Key.SPD,
+	Stat.DEF: Key.DEF,
+	Stat.RES: Key.RES,
+	Stat.CON: Key.CON,
+	Stat.MOV: Key.MOVEMENT,
 }
 
 ## Rounding of each key; keys not listed round [constant ValueBreakdown.HALF_UP].

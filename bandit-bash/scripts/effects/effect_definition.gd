@@ -255,8 +255,11 @@ func has_tag(tag: Tag) -> bool:
 	return tags & tag != 0
 
 
-## Display name of a value or permission key, such as "Combat Gold" or "Attack stage".
+## Display name of a value or permission key, such as "Combat Gold", "Attack stage" or "SPD" (base
+## stats keep their abbreviations).
 static func key_name(key: int) -> String:
+	if CombatValue.STAT_KEYS.values().has(key) and key != CombatValue.Key.MOVEMENT:
+		return String(CombatValue.Key.find_key(key))
 	var found: Variant = CombatValue.Key.find_key(key)
 	if found == null:
 		found = CombatValue.Permission.find_key(key)
@@ -293,10 +296,25 @@ static func permission_key_hint() -> String:
 	return ",".join(entries)
 
 
+## An inspector enum hint listing [constant Modifier.NO_STAT] and every [enum CombatValue.Stat],
+## for a block's stat property.
+static func stat_hint() -> String:
+	var entries: PackedStringArray = ["None:%d" % [Modifier.NO_STAT]]
+	for name: String in CombatValue.Stat:
+		entries.append("%s:%d" % [name, CombatValue.Stat[name]])
+	return ",".join(entries)
+
+
 ## Effect text for one modifier, such as "+8 Combat Gold", "×0.5 Multipliers stage",
-## "Range Max 2 instead of its base" or "deny Can Counter".
-static func describe_modifier(key: int, mode: Modifier.Mode, value: float) -> String:
+## "Range Max 2 instead of its base", "deny Can Counter" or, for a per-stat key with
+## [param stat], "deny Stat Can Grow (SPD)".
+static func describe_modifier(
+		key: int, mode: Modifier.Mode, value: float, stat: int = Modifier.NO_STAT
+) -> String:
 	var name: String = key_name(key)
+	var stat_name: Variant = CombatValue.Stat.find_key(stat)
+	if stat_name != null:
+		name = "%s (%s)" % [name, stat_name]
 	var shown: String = format_number(value)
 	if CombatValue.ENUM_KEYS.has(key):
 		var type_name: Variant = CombatFact.DamageType.find_key(roundi(value))

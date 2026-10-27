@@ -61,8 +61,15 @@ enum SourceKind {
 	RUNE = 6,
 }
 
+## [member stat] of a modifier whose key isn't per stat.
+const NO_STAT: int = -1
+
 ## The key this modifier changes: a [CombatValue], [DamageStage] or [CampaignValue] value.
 var key: int = 0
+
+## The [enum CombatValue.Stat] a per-stat key's modifier applies to, such as Speed for Training
+## Weights' denial of [constant CampaignValue.STAT_CAN_GROW]. [constant NO_STAT] for other keys.
+var stat: int = NO_STAT
 
 ## How it changes [member key].
 var mode: Mode = Mode.ADD

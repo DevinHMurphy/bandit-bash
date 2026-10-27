@@ -21,3 +21,9 @@ extends TargetSelector
 
 func describe() -> String:
 	return "that unit"
+
+
+func select(ctx: EffectContext) -> PackedStringArray:
+	if ctx.fact == null or not ctx.engine.state.has_unit(ctx.fact.actor_id):
+		return PackedStringArray()
+	return PackedStringArray([ctx.fact.actor_id])

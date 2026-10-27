@@ -24,3 +24,7 @@ extends ValueSource
 
 func describe() -> String:
 	return "its count %s" % [EffectDefinition.LANE_TEXT[lane]]
+
+
+func evaluate(ctx: EffectContext) -> float:
+	return 0.0 if ctx.instance == null else float(ctx.instance.get_counter(lane))

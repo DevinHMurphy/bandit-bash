@@ -67,3 +67,36 @@ func describe() -> String:
 			center_name = "the other unit"
 		return "%s and %s" % [center_name, place]
 	return place
+
+
+## Units around the center, in the state's order, on [member side] relative to the owner's side.
+## Radius 1 is the orthogonal neighbors; a larger radius is walking distance.
+func select(ctx: EffectContext) -> PackedStringArray:
+	var engine: EffectEngine = ctx.engine
+	var center_id: String = _center_id(ctx)
+	var picked: PackedStringArray = []
+	if not engine.state.has_unit(center_id):
+		return picked
+	for unit_id: String in engine.state.unit_ids():
+		if unit_id == center_id:
+			if include_center:
+				picked.append(unit_id)
+			continue
+		if not engine.matches_side(ctx.instance.owner.side, unit_id, side):
+			continue
+		var distance: int = (
+				engine.tile_distance(center_id, unit_id) if radius == 1
+				else engine.state.walking_distance(center_id, unit_id)
+		)
+		if distance >= 1 and distance <= radius:
+			picked.append(unit_id)
+	return picked
+
+
+func _center_id(ctx: EffectContext) -> String:
+	if ctx.fact != null:
+		if center == Center.FACT_ACTOR:
+			return ctx.fact.actor_id
+		if center == Center.FACT_TARGET:
+			return ctx.fact.target_id
+	return ctx.owner_unit_id() if center == Center.OWNER else ""

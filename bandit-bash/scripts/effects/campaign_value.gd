@@ -17,9 +17,11 @@ extends RefCounted
 ## battle start ([constant DARKNESS_ARRIVAL_OFFSET], [constant POUCH_ITEM_WEIGHT]). Steady numbers
 ## such as gold and prices are queries on these keys, not triggers. Never instantiated.
 ##
-## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
+## [b]Per-stat keys[/b] ([constant LEVEL_UP_GUARANTEED_GAINS], [constant STAT_CAN_GROW]) are
+## queried once per [enum CombatValue.Stat]; each of their modifiers names its stat in
+## [member Modifier.stat].
 ##
-## @todo: TOD-001 - Let a modifier name the stat for STAT_CAN_GROW and LEVEL_UP_GUARANTEED_GAINS.
+## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
 
 ## A campaign value. Values live in this class's block (2000 to 2999), unique across every value
 ## key class. [b]Append only[/b], with explicit values.
@@ -48,8 +50,7 @@ enum Key {
 	EXTRA_ENEMIES = 2010,
 	## Healing received, in percent, on both layers (Cursed Blood, Cleansed Goblet).
 	HEALING_RECEIVED_PERCENT = 2011,
-	# TODO(TOD-001): Modifiers can't name the stat yet; base stat keys arrive with the units plan.
-	## Stats a level-up raises regardless of growths (Training Weights). Per stat.
+	## Points a level-up adds to a stat regardless of growths (Training Weights). Per stat.
 	LEVEL_UP_GUARANTEED_GAINS = 2012,
 	## Fewest stats a level-up raises (Royal Crest).
 	LEVEL_UP_MIN_STATS = 2013,

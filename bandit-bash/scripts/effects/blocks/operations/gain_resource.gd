@@ -71,3 +71,27 @@ func describe() -> String:
 	if to_owner:
 		return "gain %s" % [gained]
 	return "give %s %s" % [who, gained]
+
+
+## Picks the targets, then evaluates the amount once, and gives it to each through the engine's
+## paths: [method EffectEngine.heal], [method EffectEngine.gain_block] (or
+## [method EffectEngine.lose_block] for a negative amount) and [method EffectEngine.change_stance].
+func apply(ctx: EffectContext) -> void:
+	if amount == null:
+		ctx.engine.diagnostics.append("GainResource: %s has no amount" % [ctx.instance.instance_id])
+		return
+	var targets: PackedStringArray = _targets(target, ctx)
+	var how_much: float = amount.evaluate(ctx)
+	var giver: String = ctx.owner_unit_id()
+	var effect_id: String = ctx.instance.instance_id
+	for unit_id: String in targets:
+		match pool:
+			Pool.HP:
+				ctx.engine.heal(unit_id, how_much, giver, effect_id)
+			Pool.BLOCK:
+				if how_much < 0.0:
+					ctx.engine.lose_block(unit_id, -how_much, effect_id)
+				else:
+					ctx.engine.gain_block(unit_id, how_much, giver, effect_id)
+			Pool.STANCE:
+				ctx.engine.change_stance(unit_id, how_much, giver, effect_id)
