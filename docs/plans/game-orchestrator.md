@@ -31,11 +31,15 @@ opens; an unowned dependency gets an owner; or scope changes. Each update edits 
 once (plans written far ahead go stale) and never after the code that needs it (interfaces built
 before their consumers are checked are the costliest to fix).
 
+**Branches:** build tracks branch from `dev` as `feature/<step>` (e.g. `feature/EB9`) and merge back
+into `dev`; plan and orchestrator commits go to `dev`; `main` holds released state (since October 27,
+2026).
+
 ## Where we are
 
 - **Design:** ideation closed for the MVP (design reviews of October 23–24, 2026). Remaining design
   items are content or tuning; see [Design items by plan](#design-items-by-plan).
-- **Code:** the save system is built. P01 EB1–EB4, P02 CC1–CC5 and P13 R1–R4 are built, tested headless and merged into `feature/save-system` (combat 428, effects 532, RNG 154, save 196 tests pass).
+- **Code:** the save system is built. P01 EB1–EB4, P02 CC1–CC5 and P13 R1–R4 are built, tested headless and merged into `dev` (the save system is on `main`) (combat 428, effects 532, RNG 154, save 196 tests pass).
   The combat rules (exchange, splash, Shove, staves, Pouch items, swaps, runes) run in tests; no turn loop or map yet.
 - **Current milestone:** [M0 Foundations](#milestones).
 - **Current focus:** P02 CC2–CC5 are built (with P01 fixes F9–F12, two-sided damage stages). The turn loop (CC6) needs P01 EB6,
@@ -222,3 +226,4 @@ more enemy factions, units with convoy access, shared and hybrid co-op battles, 
 | October 27, 2026 | P02 question 13 and P01 question 38 answered by the user: two distance terms the effect picks, "within N tiles" (grid distance, ignoring walls) and "within N movable tiles" (`CombatGrid.walking_distance` with the source's movement type). effect-triggers.md updated; P01 fix F9 (a distance mode on `Area` and `WhilePositionCondition`) goes into CC2's cleanup step. P04 settles whether units block movable distance. |
 | October 27, 2026 | **P02 CC2–CC5 built** on `build/p02-cc2-cc5` with three fix-ups (P01 fixes F10–F12: area staves through `Area.Center.COMMAND_TARGET`, growth changes and `GROWTH_CHANGED`, two-sided damage stages with `INCOMING_MULTIPLIERS` and `WhileAttackCondition`; `SandboxState` now 21 methods). Verified headless: combat 428, effects 532, RNG 126, save 196. User decision (P01 question 39, P02 question 15): defenders can change the damage they take, for future content. Opened P02 questions 14 (staff with no range, CC6) and 16 (rule bases in a default table). EB9 gate opened. |
 | October 27, 2026 | **P13 R4 built** (run seed: `RunSeed` generate, format and parse; typed and command-line debug seeds; the save debug panel's seed field) with its four questions confirmed as built. Merged: `feature/save-system` fast-forwarded to Track C (P02 CC2–CC5) and R4 merged on top; combat 428, effects 532, RNG 154, save 196 headless tests pass, and the debug panel loads headless cleanly. CLAUDE.md §3 now says how to check scripts that use autoloads (`--check-only` can't). Design items added for P07/P08 (seed display) and P12 (debug restarts in statistics). |
+| October 27, 2026 | Branching changed by the user: `feature/save-system` merged to `main`; `dev` is the integration branch, and every track branches from it as `feature/<step>` and merges back into it. |
