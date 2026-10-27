@@ -160,7 +160,7 @@ from starting; each is asked inside its plan's Open Questions.
 | P03 | The Ring of Favor needs a Legendary-sized effect; Heavy Brick is Unique with no source; the Lancer's growths are a `Godot_FE` copy-paste; item effects may sit outside their ported rarity's budget; Brothers in Arms needs a selector filter ("adjacent to a unit of another player") the engine doesn't have (P01 question 30) | items.md, unit-roster.md, heirlooms.md |
 | P08 | Personal XP for "gave Block" ignores `BLOCK_GAINED` facts with amount 0 (P01 question 24) | P01 |
 | P04 / P06 | Turn par and reinforcement timers per map are set when maps are authored; darkness values on small maps need M1 playtesting | game-vision.md, the-darkness.md |
-| P04 | Tile coordinates are never negative (P01 question 37, `CombatFact.NO_TILE`); implement `CombatGrid.walking_distance` (P02 question 13) | P01, P02 |
+| P04 | Tile coordinates are never negative (P01 question 37, `CombatFact.NO_TILE`); implement `CombatGrid.walking_distance(a, b, movement_type)` for "within N movable tiles" (P02 question 13), and settle whether other units block it and whether terrain cost counts (recommended: units don't block, each step counts 1) | P01, P02, effect-triggers.md |
 | P05 | The Brigands' real name and theme (flavor only) | enemy-roster.md |
 | P07 | `Godot_FE`'s ranged multi-tile forecast defect (FR-GRID-6) to investigate | P01 contracts |
 | P11 | Light links beyond runes on a teammate's map | multiplayer-combat-options.md |
@@ -189,8 +189,8 @@ more enemy factions, units with convoy access, shared and hybrid co-op battles, 
 
 ## Next actions
 
-1. P01 questions 34–37 are answered (October 27, 2026); the CC2 build removes their markers. Confirm
-   P02 question 13 (`CombatGrid.walking_distance`) before CC2 starts.
+1. P01 questions 34–37 are answered (October 27, 2026); the CC2 build removes their markers. Build P02
+   question 13 and P01 question 38 are answered: two distance terms, fix F9 in CC2's cleanup step.
 2. Build P02 CC2 (state, grid stub, keys; `CombatState` implements `SandboxState`'s 17 methods),
    then CC3 (the exchange), then CC4 and CC5. One track, in order.
 3. P13 R4 (run seed; edits `SaveService`) alongside, as its own track.
@@ -219,3 +219,4 @@ more enemy factions, units with convoy access, shared and hybrid co-op battles, 
 | October 26, 2026 | **P01 EB4 parts 1–2 built** on `build/p01-eb4` (engine core, block runtime, F3–F4, golden fact logs for the 15 fixtures). Reviewed the build and recorded P01 questions 23–33 and fixes F5–F8: authored condition order; a 0 Block gain is still a fact; `STAT_CHANGED` and a `key` field (lane, stat); Vanguard passes with no enemy; map-object reactions exempt from both caps by owner kind; Momentum lands at the After Combat drain and stacks; one heal path with `HEALING_RECEIVED_PERCENT`; effects fire once per fact; the session reports engine diagnostics (EB6); `CampaignValue.DEFAULT_BASES`; dormant carriers (defeated units, stowed weapons); `SandboxState`'s 17 methods as the contract with P02's `CombatState`. P02 updated (splash and Momentum timing, heal path, `CombatState` contract, stowed weapons). Sandbox cost is unmeasured until EB9; copy on write only if EB9 misses its budget. |
 | October 26, 2026 | **P01 EB4 implemented** and merged into `feature/save-system` (parts 3–5: roll sources, the sandbox and `ExchangeOutcome`; cached stat sheets with fact-driven invalidation and verify mode; the `rng_key.gd` markers; F8 dormant carriers). Effects 490, RNG 126 and save 196 headless tests pass. P02 CC2–CC5 gate opened; new gate: EB9 waits on CC3. P01 questions 34–37 opened for the assumptions left in code. |
 | October 27, 2026 | P01 questions 34–37 answered as recommended (conditional expected damage before defeat; forecast random picks marked random; sampled-roll encoding as built; the four EB1–EB2 assumptions confirmed, P04 owns non-negative tiles). Preparing CC2 found that `CombatGrid` has no walking distance although "within N" uses one: P02 question 13 opened with a recommendation (`CombatGrid.walking_distance`). CC2–CC5 and R4 build prompts issued. |
+| October 27, 2026 | P02 question 13 and P01 question 38 answered by the user: two distance terms the effect picks, "within N tiles" (grid distance, ignoring walls) and "within N movable tiles" (`CombatGrid.walking_distance` with the source's movement type). effect-triggers.md updated; P01 fix F9 (a distance mode on `Area` and `WhilePositionCondition`) goes into CC2's cleanup step. P04 settles whether units block movable distance. |

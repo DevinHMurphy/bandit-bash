@@ -112,7 +112,8 @@ Before Combat to After Combat.
 | At maximum range | The opponent is at the far end of this unit's weapon range | "Hit dealt while at maximum range: +2 damage" |
 | Moved N+ tiles this turn | This unit moved at least N tiles during its current Unit Turn | "While this unit moved 4+ tiles this turn: +2 damage" |
 | Hasn't moved this turn | This unit has moved 0 tiles this turn | "While it hasn't moved this turn: +10 Hit" |
-| Within N tiles | Units at a walking distance of N tiles or fewer (adjacent is within 1) | "Allies within 2 tiles gain +2 damage" |
+| Within N tiles | Units N or fewer tiles away on the grid (tiles up plus tiles across), ignoring walls and terrain; adjacent is within 1 | "Units within 2 tiles take 3 damage" (an explosion, a magical cleave) |
+| Within N movable tiles | Units the source could reach in N or fewer steps with its own movement type (walls and impassable terrain count) | "Allies within 2 movable tiles heal 3" |
 | No ally closer to an enemy | No ally of this unit has a smaller tile distance (tiles up plus tiles across, ignoring terrain) to its nearest enemy than this unit has to its own; a tie still counts | "Phase Start, while no ally is closer to an enemy than this unit: gain 3 Block" |
 
 **Shove distance.** How many tiles this unit's shoves push (1 by default). Effects change it like any
