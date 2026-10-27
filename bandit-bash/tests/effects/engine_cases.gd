@@ -411,7 +411,7 @@ func _test_counter_condition() -> void:
 			"counter: lanes count apart, and the fact names the lane",
 			once.get_counter(EffectDefinition.Lane.CAMPAIGN) == 1
 			and once.get_counter(EffectDefinition.Lane.COMBAT) == 0
-			and _last_of(engine, CombatFact.Kind.COUNTER_CHANGED).flags
+			and _last_of(engine, CombatFact.Kind.COUNTER_CHANGED).key
 			== EffectDefinition.Lane.CAMPAIGN
 	)
 	once.reset_lane(EffectDefinition.Lane.CAMPAIGN)
@@ -875,7 +875,7 @@ func _test_window_releases_after_record() -> void:
 	_same(
 			"window: the fact first, then its counter and activation",
 			_log_tail(engine, 0),
-			"s0#1 HIT_TAKEN p1 <- e1 amount 4 | s0#2 COUNTER_CHANGED p1 effect effect:w"
+			"s0#1 HIT_TAKEN p1 <- e1 amount 4 | s0#2 COUNTER_CHANGED p1 lane 0 effect effect:w"
 			+ " | s0#3 EFFECT_ACTIVATED p1 effect effect:w"
 	)
 	_ok("window: its queued operation is released", engine.pending_reactions() == 1)

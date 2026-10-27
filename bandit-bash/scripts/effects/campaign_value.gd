@@ -69,6 +69,13 @@ enum Permission {
 	STAT_CAN_GROW = 4001,
 }
 
+# ASSUMPTION: healing received starts at 100% (no change) for every subject, so a heal reads its
+# key without anyone setting a base; the plan names the key but not its base.
+## The base of each key a subject has without one being set. Keys not listed start at 0.
+const DEFAULT_BASES: Dictionary[int, float] = {
+	Key.HEALING_RECEIVED_PERCENT: 100.0,
+}
+
 ## Rounding of each key; keys not listed round [constant ValueBreakdown.HALF_UP].
 const ROUNDING: Dictionary[int, int] = {}
 

@@ -51,6 +51,10 @@ func describe_count() -> String:
 	return "Every %s" % [EffectDefinition.ordinal(count)]
 
 
+func names_this_unit() -> bool:
+	return false
+
+
 ## Advances the effect's counter in [member lane] and passes when it completes: on the Nth event
 ## (then starts over) or, for [constant FIRST], on the first event of the lane's period. Records
 ## each change. Never passes or changes during a value query.

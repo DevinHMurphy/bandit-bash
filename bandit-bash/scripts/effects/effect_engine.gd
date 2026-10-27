@@ -312,7 +312,7 @@ func open_window(fact: CombatFact, ctx: EffectContext) -> void:
 func activate(instance: EffectInstance, ctx: EffectContext) -> bool:
 	ctx.engine = self
 	ctx.instance = instance
-	ctx.subject_id = instance.owner.subject_id()
+	ctx.subject_id = _this_unit(instance, ctx.command_target_id)
 	ctx.is_query = false
 	if not _passes(instance, ctx):
 		return false
@@ -357,6 +357,12 @@ func drain() -> void:
 ## The number of reactions waiting for [method drain].
 func pending_reactions() -> int:
 	return _queue.size()
+
+
+## Reactions resolved since [method begin_step], map-object reactions excluded: how close the step
+## came to [constant ReactionQueue.MAX_PER_STEP].
+func reactions_this_step() -> int:
+	return _queue.resolved_this_step
 
 
 ## Gives [param holder_id] [param modifier] until [param end] or for [param uses] attacks (0: no
@@ -431,12 +437,13 @@ func matches_side(
 	return true
 
 
-## Tiles up plus tiles across between two units, ignoring terrain; -1 if either isn't on the map.
+## Tiles up plus tiles across between two units, ignoring terrain; -1 if either has no tile. A unit
+## defeated this step keeps its tile, so a broken keg's splash still has a center.
 func tile_distance(from_id: String, to_id: String) -> int:
-	if not state.has_unit(from_id) or not state.has_unit(to_id):
-		return -1
 	var from_tile: Vector2i = state.tile_of(from_id)
 	var to_tile: Vector2i = state.tile_of(to_id)
+	if from_tile == CombatFact.NO_TILE or to_tile == CombatFact.NO_TILE:
+		return -1
 	return absi(from_tile.x - to_tile.x) + absi(from_tile.y - to_tile.y)
 
 
@@ -525,8 +532,9 @@ func lose_block(unit_id: String, amount: float, source_effect_id: String = "") -
 	return lost
 
 
-## Heals [param unit_id]: opens the Healed an ally (when another unit heals) and Healed windows,
-## rounds the shaped amount half up, caps it at maximum HP, and records both facts. Their
+## The one path for every heal: opens the Healed an ally (when another unit heals) and Healed
+## windows, applies the healed unit's [constant CampaignValue.HEALING_RECEIVED_PERCENT], rounds half
+## up at the end, never below 0, caps it at maximum HP, and records both facts. Their
 ## [member CombatFact.amount] is the heal and [member CombatFact.hp_amount] what reached HP.
 ## Returns the HP restored.
 func heal(
@@ -545,9 +553,11 @@ func heal(
 	fact.source_effect_id = source_effect_id
 	open_window(fact, ctx)
 
-	var healed: int = maxi(_half_up(ctx.shaped_amount(amount).total), 0)
+	var sheet: StatSheet = stats(unit_id)
+	var received: float = sheet.get_value(CampaignValue.Key.HEALING_RECEIVED_PERCENT, ctx) / 100.0
+	var healed: int = maxi(_half_up(ctx.shaped_amount(amount).total * received), 0)
 	var hp: int = state.get_hp(unit_id)
-	var max_hp: int = stats(unit_id).get_int(CombatValue.Key.HP)
+	var max_hp: int = sheet.get_int(CombatValue.Key.HP)
 	var restored: int = clampi(healed, 0, maxi(max_hp - hp, 0))
 	state.set_hp(unit_id, hp + restored)
 	for healed_fact: CombatFact in [ally_fact, fact]:
@@ -608,8 +618,7 @@ func counter_changed(instance: EffectInstance, lane: EffectDefinition.Lane) -> v
 	var fact: CombatFact = _new_fact(CombatFact.Kind.COUNTER_CHANGED, instance.owner.subject_id())
 	fact.amount = instance.get_counter(lane)
 	fact.source_effect_id = instance.instance_id
-	# ASSUMPTION: the lane travels in flags (0 combat, 1 campaign); CombatFact has no lane field.
-	fact.flags = lane
+	fact.key = lane
 	_side_fact(fact)
 
 
@@ -635,9 +644,7 @@ func _dispatch(
 	for instance: EffectInstance in matched:
 		action.instance = instance
 		action.fact = fact
-		action.subject_id = (
-				instance.owner.subject_id() if fact.actor_id.is_empty() else fact.actor_id
-		)
+		action.subject_id = _this_unit(instance, fact.actor_id)
 		if _passes(instance, action):
 			_fire(instance, action, trigger, window)
 	action.instance = saved_instance
@@ -685,13 +692,20 @@ func _fire(
 		_queue.push(reaction)
 
 
-# Every condition, in authored order, then a charge. A failed condition stops the test, so later
-# counters don't advance.
+# Every condition, in authored order, then a charge: checked once per fire. A failed condition
+# stops the test, so later counters don't advance. A condition about "this unit" with no unit to
+# test (an army's effect on a phase fact) is a content error.
 func _passes(instance: EffectInstance, ctx: EffectContext) -> bool:
-	# ASSUMPTION: conditions run in authored order and stop at the first failure, and charges are
-	# checked last; the plan doesn't order a counter against other conditions or charges.
 	for condition: EffectCondition in instance.definition.conditions:
-		if condition != null and not condition.test(ctx):
+		if condition == null:
+			continue
+		if ctx.subject_id.is_empty() and condition.names_this_unit():
+			diagnostics.append(
+					"EffectEngine: %s tests \"this unit\" on a fact with no unit"
+					% [instance.instance_id]
+			)
+			return false
+		if not condition.test(ctx):
 			return false
 	return instance.has_charge()
 
@@ -772,11 +786,11 @@ func _conditional_modifiers(
 	var saved_query: bool = query.is_query
 	query.engine = self
 	query.is_query = true
-	query.subject_id = subject_id
 	for instance: EffectInstance in _conditional_by_key[key]:
 		if not applies_to(instance, subject_id):
 			continue
 		query.instance = instance
+		query.subject_id = _this_unit(instance, subject_id)
 		if not _passes(instance, query):
 			continue
 		for modifier: Modifier in _modifiers_of(instance):
@@ -846,6 +860,13 @@ func _new_fact(kind: CombatFact.Kind, actor_id: String = "", target_id: String =
 	var fact: CombatFact = CombatFact.new(kind, actor_id, target_id)
 	fact.session_id = session_id
 	return fact
+
+
+# The unit "this unit" means for an instance: its own unit for a unit, item or object effect;
+# otherwise (an army or a rune) the unit the fact or query is about, which may be empty.
+static func _this_unit(instance: EffectInstance, about_id: String) -> String:
+	var holder: String = instance.owner.holder_id
+	return about_id if holder.is_empty() else holder
 
 
 # Amounts stay exact through their window and round once, halves up, when applied (question 17).

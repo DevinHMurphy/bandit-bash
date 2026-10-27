@@ -30,6 +30,10 @@ func describe() -> String:
 	return "%d%% chance" % [chance_percent]
 
 
+func names_this_unit() -> bool:
+	return false
+
+
 ## One [method RollSource.roll_percent] against [member chance_percent]. Never passes, and never
 ## rolls, during a value query.
 func test(ctx: EffectContext) -> bool:

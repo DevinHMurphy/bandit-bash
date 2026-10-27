@@ -29,3 +29,10 @@ extends Resource
 ## Whether the condition holds for [param ctx]'s effect and fact. A Counter or Chance condition
 ## changes state (a count, a roll) and fails during a value query ([member EffectContext.is_query]).
 @abstract func test(ctx: EffectContext) -> bool
+
+
+## Whether the condition tests "this unit" (its state, position, role or values). An army's effect
+## on a fact with no unit can't test it: the engine reports a content error. Counter and Chance
+## conditions test no unit.
+func names_this_unit() -> bool:
+	return true

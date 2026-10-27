@@ -70,12 +70,13 @@ func describe() -> String:
 
 
 ## Units around the center, in the state's order, on [member side] relative to the owner's side.
-## Radius 1 is the orthogonal neighbors; a larger radius is walking distance.
+## Radius 1 is the orthogonal neighbors; a larger radius is walking distance. A center defeated
+## this step (a keg that just broke) still has its tile, so its splash still lands.
 func select(ctx: EffectContext) -> PackedStringArray:
 	var engine: EffectEngine = ctx.engine
 	var center_id: String = _center_id(ctx)
 	var picked: PackedStringArray = []
-	if not engine.state.has_unit(center_id):
+	if center_id.is_empty() or engine.state.tile_of(center_id) == CombatFact.NO_TILE:
 		return picked
 	for unit_id: String in engine.state.unit_ids():
 		if unit_id == center_id:

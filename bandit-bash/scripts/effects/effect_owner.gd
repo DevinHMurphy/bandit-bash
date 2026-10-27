@@ -30,9 +30,8 @@ enum Kind {
 	ARMY = 2,
 	## A rune cast this combat. No unit holds it; it acts on the command's target.
 	RUNE = 3,
-	# ASSUMPTION: map-object cascades are exempted by owner kind; the plan exempts "map-object
-	# cascades" without saying how the engine recognizes one.
-	## A map object such as a powder keg. Its reactions are exempt from the reaction caps.
+	## A map object such as a powder keg. Its reactions count toward neither reaction cap and add
+	## no depth: each object breaks once, so the map bounds a keg chain.
 	MAP_OBJECT = 4,
 }
 

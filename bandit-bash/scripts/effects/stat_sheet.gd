@@ -59,9 +59,10 @@ func set_base(key: int, value: float, label: String = "") -> void:
 	_drop_cached(key)
 
 
-## The base of [param key]; 0 when none was set.
+## The base of [param key]: the one set, else its [constant CampaignValue.DEFAULT_BASES] entry,
+## else 0.
 func get_base(key: int) -> float:
-	return _bases.get(key, 0.0)
+	return _bases.get(key, CampaignValue.DEFAULT_BASES.get(key, 0.0))
 
 
 ## Adds an unconditional modifier to its key.

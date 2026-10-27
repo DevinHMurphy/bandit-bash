@@ -111,6 +111,8 @@ class UnitChannel:
 	signal stance_changed(fact: CombatFact)
 	## [constant CombatFact.BLOCK_LOST].
 	signal block_lost(fact: CombatFact)
+	## [constant CombatFact.STAT_CHANGED].
+	signal stat_changed(fact: CombatFact)
 
 	func _init() -> void:
 		_route(CombatFact.Kind.UNIT_MOVED, moved)
@@ -123,6 +125,7 @@ class UnitChannel:
 		_route(CombatFact.Kind.BLOCK_STANCE_REFRESHED, block_stance_refreshed)
 		_route(CombatFact.Kind.STANCE_CHANGED, stance_changed)
 		_route(CombatFact.Kind.BLOCK_LOST, block_lost)
+		_route(CombatFact.Kind.STAT_CHANGED, stat_changed)
 
 
 ## Exchanges, attacks, hits, shoves, and the other actions: objects, items, swaps, runes, Wait.

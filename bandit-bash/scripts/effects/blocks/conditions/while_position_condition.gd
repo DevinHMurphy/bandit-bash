@@ -116,7 +116,7 @@ func _any_near(engine: EffectEngine, unit_id: String, reach: int, walking: bool)
 
 func _no_ally_closer(engine: EffectEngine, unit_id: String) -> bool:
 	var own: int = _nearest_enemy(engine, unit_id)
-	# ASSUMPTION: with no enemy on the map, no ally is closer, so the condition passes.
+	# With no enemy on the map, no ally is closer, so the condition passes.
 	if own < 0:
 		return true
 	var own_side: CombatFact.CombatSide = engine.state.side_of(unit_id)

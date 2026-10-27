@@ -93,7 +93,8 @@ enum Kind {
 	OBJECT_STATE_CHANGED = 30,
 	## The effect named by [member source_effect_id] fired.
 	EFFECT_ACTIVATED = 31,
-	## A counter of the effect named by [member source_effect_id] changed.
+	## A counter of the effect named by [member source_effect_id] changed: [member amount] is the
+	## new count, [member key] its [enum EffectDefinition.Lane].
 	COUNTER_CHANGED = 32,
 	## The actor gained a timed modifier from [member source_effect_id].
 	MODIFIER_GAINED = 33,
@@ -116,6 +117,9 @@ enum Kind {
 	UNIT_WAITED = 40,
 	## The actor lost Block outside damage (Haunted's "loses 2 Block"). No inline window.
 	BLOCK_LOST = 41,
+	## The actor's base stat [member key] (an [enum CombatValue.Stat]) changed permanently by
+	## [member amount], such as a stat booster's +1 MGT.
+	STAT_CHANGED = 42,
 }
 
 ## What produced an amount. Sent over the network as an int: [b]append only[/b].
@@ -167,7 +171,7 @@ enum DamageType {
 const NO_TILE: Vector2i = Vector2i(-1, -1)
 
 # Slot types of the wire array, in to_wire() order: i = int, s = String.
-const WIRE_PATTERN: String = "iiissiiiiisiiiis"
+const WIRE_PATTERN: String = "iiissiiiiisiiiisi"
 
 # Largest integer a JSON number (a double) holds exactly, 2^53. A wire array that went through JSON
 # arrives with float numbers; anything beyond this lost precision on the way.
@@ -233,6 +237,11 @@ var side: CombatSide = CombatSide.NONE
 ## [constant WEAPON_SWAPPED], [constant RUNE_USED]). Empty on every other kind.
 var item_id: String = ""
 
+## A small number whose meaning depends on the kind: the [enum EffectDefinition.Lane] of a
+## [constant COUNTER_CHANGED], the [enum CombatValue.Stat] of a [constant STAT_CHANGED]. 0 on every
+## other kind.
+var key: int = 0
+
 
 func _init(fact_kind: Kind, fact_actor_id: String = "", fact_target_id: String = "") -> void:
 	kind = fact_kind
@@ -261,6 +270,7 @@ func to_wire() -> Array:
 		flags,
 		side,
 		item_id,
+		key,
 	]
 
 
@@ -268,7 +278,8 @@ func to_wire() -> Array:
 ## [code]s0#143 HIT_TAKEN unit:57 (Hakkapel) <- enemy:61 (Brute) amount 6 (hp 4, block 2) source
 ## attack[/code], or [code]s0#1 PHASE_START side player amount 3[/code]
 ##
-## Empty fields are left out, and amounts print only when one is non-zero.
+## Empty fields are left out, and amounts print only when one is non-zero. [member key] prints as
+## "lane N" or "stat N" on the kinds that use it.
 ## [param describe]: turns an id into display text (the session's describe); when invalid, ids
 ## print bare.
 func to_log_line(describe: Callable = Callable()) -> String:
@@ -282,6 +293,11 @@ func to_log_line(describe: Callable = Callable()) -> String:
 		parts.append("side %s" % [String(CombatSide.find_key(side)).to_lower()])
 	if not item_id.is_empty():
 		parts.append("item %s" % [_describe_id(item_id, describe)])
+	# Numbers, not names: facts stay independent of the effect classes that own these enums.
+	if kind == Kind.COUNTER_CHANGED:
+		parts.append("lane %d" % [key])
+	elif kind == Kind.STAT_CHANGED:
+		parts.append("stat %d" % [key])
 	if amount != 0 or hp_amount != 0 or block_amount != 0:
 		parts.append("amount %d" % [amount])
 		if hp_amount != 0 or block_amount != 0:
@@ -352,6 +368,7 @@ static func from_wire(data: Array) -> CombatFact:
 	fact.flags = values[13]
 	fact.side = side_value as CombatSide
 	fact.item_id = values[15]
+	fact.key = values[16]
 	return fact
 
 

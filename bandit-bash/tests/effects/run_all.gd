@@ -25,6 +25,7 @@ extends SceneTree
 
 const NetLogScript: GDScript = preload("res://scripts/autoload/net_log.gd")
 const EngineCases: GDScript = preload("res://tests/effects/engine_cases.gd")
+const GoldenCases: GDScript = preload("res://tests/effects/golden_cases.gd")
 
 # Short names for the modifier modes and source kinds, to keep the value cases readable.
 const REPLACE_BASE: Modifier.Mode = Modifier.Mode.REPLACE_BASE
@@ -66,6 +67,7 @@ func _init() -> void:
 	_test_combat_wire_rejects_bad_data()
 	_test_combat_fact_amendments()
 	_test_combat_fact_item_id()
+	_test_combat_fact_key()
 	_test_campaign_wire_round_trip()
 	_test_campaign_wire_rejects_bad_data()
 	_test_combat_log_line_documented_shape()
@@ -97,9 +99,11 @@ func _init() -> void:
 	_test_describe_coverage_fixtures()
 	_test_describe_definition_shapes()
 	_test_key_fields_offer_a_dropdown()
-	# Variant: the cases script has no class name to type it with.
+	# Variant: the case scripts have no class name to type them with.
 	var engine_cases: Variant = EngineCases.new(_check)
 	engine_cases.run()
+	var golden_cases: Variant = GoldenCases.new(_check)
+	golden_cases.run()
 
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)
@@ -157,6 +161,7 @@ func _test_combat_wire_rejects_bad_data() -> void:
 		"negative session": _with(good, 2, -1),
 		"unknown side": _with(good, 14, 9),
 		"int in the item id slot": _with(good, 15, 412),
+		"string in the key slot": _with(good, 16, "1"),
 		"null slot": _with(good, 13, null),
 	}
 	for case_name: String in cases:
@@ -175,7 +180,7 @@ func _test_combat_fact_amendments() -> void:
 	var wire: Array = phase.to_wire()
 	_check(
 			"amendments: side in slot 14, item id appended after it",
-			wire.size() == 16 and wire[14] == CombatFact.CombatSide.ENEMY and wire[15] == "",
+			wire.size() == 17 and wire[14] == CombatFact.CombatSide.ENEMY and wire[15] == "",
 			str(wire)
 	)
 	var back: CombatFact = CombatFact.from_wire(wire)
@@ -228,7 +233,7 @@ func _test_combat_fact_amendments() -> void:
 	_check(
 			"amendments: old kind values unchanged",
 			CombatFact.Kind.PHASE_START == 0 and CombatFact.Kind.MODIFIER_EXPIRED == 34
-			and CombatFact.Kind.size() == 42
+			and CombatFact.Kind.size() == 43
 	)
 
 
@@ -275,6 +280,39 @@ func _test_combat_fact_item_id() -> void:
 			"item id: empty on other kinds",
 			CombatFact.new(CombatFact.Kind.HIT_TAKEN).item_id.is_empty()
 	)
+
+
+# The appended key field and STAT_CHANGED (event bus plan EB4, answer to question 3 of part 1).
+func _test_combat_fact_key() -> void:
+	var stat: CombatFact = CombatFact.new(CombatFact.Kind.STAT_CHANGED, "unit:57")
+	stat.amount = 1
+	stat.key = CombatValue.Stat.MGT
+	var counter: CombatFact = CombatFact.new(CombatFact.Kind.COUNTER_CHANGED, "unit:57")
+	counter.amount = 3
+	counter.key = EffectDefinition.Lane.CAMPAIGN
+	_check(
+			"key: STAT_CHANGED appended after BLOCK_LOST, key in slot 16",
+			CombatFact.Kind.STAT_CHANGED == 42 and stat.to_wire().size() == 17
+			and stat.to_wire()[16] == CombatValue.Stat.MGT
+	)
+	for fact: CombatFact in [stat, counter]:
+		var parsed: Variant = JSON.parse_string(JSON.stringify(fact.to_wire()))
+		var back: CombatFact = CombatFact.from_wire(parsed if parsed is Array else [])
+		_check(
+				"key: %s keeps its key through JSON" % [CombatFact.Kind.find_key(fact.kind)],
+				back != null and back.key == fact.key and back.to_wire() == fact.to_wire()
+		)
+	_snapshot(
+			"key: stat log line",
+			stat.to_log_line(),
+			"s0#0 STAT_CHANGED unit:57 stat 1 amount 1"
+	)
+	_snapshot(
+			"key: counter log line",
+			counter.to_log_line(),
+			"s0#0 COUNTER_CHANGED unit:57 lane 1 amount 3"
+	)
+	_check("key: 0 on other kinds", CombatFact.new(CombatFact.Kind.HIT_TAKEN).key == 0)
 
 
 func _test_campaign_wire_round_trip() -> void:
