@@ -807,8 +807,8 @@ func _test_deepest_chain() -> void:
 	_clean("deepest chain", engine)
 
 
-# A Brute defeated by the counter still splashes: its queued reaction keeps the context it was
-# queued with; the defeat only stops later triggers.
+# A Brute defeated by the counter still splashes, from the tile it stood on: its queued reaction
+# keeps the context it was queued with; the defeat only stops later triggers.
 func _test_queued_reaction_outlives_its_owner() -> void:
 	var engine: EffectEngine = _battle(["p1", "p2", "e1"], [1, 1])
 	engine.register(_instance("effect:cl", _cleave(), _owner("e1"), TRAIT, "Cleave"))
@@ -816,8 +816,9 @@ func _test_queued_reaction_outlives_its_owner() -> void:
 	_harness(engine).exchange("e1", "p2", "ad")
 	var splash: CombatFact = _last_of(engine, CombatFact.Kind.DAMAGE_TAKEN)
 	_ok(
-			"queued: a Brute defeated by the counter still splashes",
-			_fake(engine).unit("e1").defeated and splash.source == CombatFact.Source.SPLASH
+			"queued: a Brute defeated by the counter still splashes from its old tile",
+			_fake(engine).unit("e1").defeated and engine.state.tile_of("e1") == CombatFact.NO_TILE
+			and splash.source == CombatFact.Source.SPLASH
 			and splash.actor_id == "p2" and splash.source_effect_id == "effect:cl"
 	)
 	var activations: int = _count(engine, CombatFact.Kind.EFFECT_ACTIVATED)

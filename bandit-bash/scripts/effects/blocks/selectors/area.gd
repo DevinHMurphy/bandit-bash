@@ -70,13 +70,18 @@ func describe() -> String:
 
 
 ## Units around the center, in the state's order, on [member side] relative to the owner's side.
-## Radius 1 is the orthogonal neighbors; a larger radius is walking distance. A center defeated
-## this step (a keg that just broke) still has its tile, so its splash still lands.
+## Radius 1 is the orthogonal neighbors; a larger radius is walking distance. An owner center that
+## has left the map since the reaction was queued (a Brute defeated by the counter, a keg that just
+## broke) is measured from the tile it stood on then, by tile distance.
 func select(ctx: EffectContext) -> PackedStringArray:
 	var engine: EffectEngine = ctx.engine
 	var center_id: String = _center_id(ctx)
 	var picked: PackedStringArray = []
-	if center_id.is_empty() or engine.state.tile_of(center_id) == CombatFact.NO_TILE:
+	var on_map: bool = engine.state.has_unit(center_id)
+	var center_tile: Vector2i = engine.state.tile_of(center_id)
+	if not on_map and center == Center.OWNER:
+		center_tile = ctx.owner_tile
+	if center_tile == CombatFact.NO_TILE:
 		return picked
 	for unit_id: String in engine.state.unit_ids():
 		if unit_id == center_id:
@@ -85,10 +90,10 @@ func select(ctx: EffectContext) -> PackedStringArray:
 			continue
 		if not engine.matches_side(ctx.instance.owner.side, unit_id, side):
 			continue
-		var distance: int = (
-				engine.tile_distance(center_id, unit_id) if radius == 1
-				else engine.state.walking_distance(center_id, unit_id)
-		)
+		var delta: Vector2i = engine.state.tile_of(unit_id) - center_tile
+		var distance: int = absi(delta.x) + absi(delta.y)
+		if radius > 1 and on_map:
+			distance = engine.state.walking_distance(center_id, unit_id)
 		if distance >= 1 and distance <= radius:
 			picked.append(unit_id)
 	return picked

@@ -76,6 +76,11 @@ extends RefCounted
 @abstract func darkness_layer(id: String) -> int
 
 
+## Instance id of the weapon in [param unit_id]'s Weapon slot; empty when it holds none. A weapon
+## carrier's effects are dormant unless it is this one, so a stowed weapon never counts.
+@abstract func equipped_weapon_id(unit_id: String) -> String
+
+
 ## Sets the current HP of [param id]. The engine has already clamped [param value].
 @abstract func set_hp(id: String, value: int) -> void
 

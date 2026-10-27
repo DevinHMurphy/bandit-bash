@@ -238,9 +238,12 @@ func get_deltas(subject_id: String, key: int, stat: int = Modifier.NO_STAT) -> A
 ## every query. Read it again after a change instead of holding it.
 func stats(subject_id: String) -> StatSheet:
 	var cached: StatSheet = _run.sheets.get(subject_id, null)
+	if cached != null and not _watch_holds(subject_id):
+		cached = null
 	if cached == null:
 		cached = fresh_stats(subject_id)
 		_run.sheets[subject_id] = cached
+		_watch(subject_id)
 	elif verify:
 		_verify_sheet(cached, fresh_stats(subject_id))
 	return cached
@@ -498,6 +501,8 @@ func copy_for_sandbox(roll_source: RollSource) -> EffectEngine:
 	# Sheets are copied, not re-derived, after the registrations above cleared the copy's cache.
 	for subject_id: String in _run.sheets:
 		run.sheets[subject_id] = _run.sheets[subject_id].copy_for(copy)
+	run.watch_ids = _run.watch_ids.duplicate()
+	run.watch_awake = _run.watch_awake.duplicate()
 	copy.verify = verify
 	return copy
 
@@ -538,11 +543,24 @@ func units_in_scope(owner: EffectOwner, scope: EffectDefinition.Scope) -> Packed
 ## Whether [param instance]'s always-on modifiers apply to [param subject_id]: its own subject, or a
 ## unit in its scope.
 func applies_to(instance: EffectInstance, subject_id: String) -> bool:
-	if subject_id.is_empty():
+	return _reaches(instance, subject_id) and not is_dormant(instance)
+
+
+## Whether [param instance] sleeps: owned by a unit, or by an item a unit carries, while that unit
+## isn't on the map (defeated, or not placed), or a weapon that isn't in its holder's Weapon slot.
+## A dormant instance adds nothing to queries and reacts to nothing; its counters and charges
+## are kept. Army, rune and map-object instances never sleep.
+func is_dormant(instance: EffectInstance) -> bool:
+	var owner: EffectOwner = instance.owner
+	if owner.kind != EffectOwner.Kind.UNIT and owner.kind != EffectOwner.Kind.ITEM:
 		return false
-	if instance.owner.subject_id() == subject_id:
+	if not state.has_unit(owner.holder_id):
 		return true
-	return in_scope(instance.owner, subject_id, instance.definition.scope)
+	return (
+			owner.kind == EffectOwner.Kind.ITEM
+			and instance.source_kind == Modifier.SourceKind.WEAPON
+			and state.equipped_weapon_id(owner.holder_id) != owner.owner_id
+	)
 
 
 ## The one path for every Block gain: opens the [constant CombatFact.Kind.BLOCK_GAINED] window,
@@ -738,6 +756,7 @@ func _fire(
 	reaction.instance = instance
 	reaction.ctx = ctx.copy_for_reaction()
 	reaction.ctx.engine = null
+	reaction.ctx.owner_tile = state.tile_of(instance.owner.holder_id)
 	reaction.operations = queued
 	reaction.exempt = instance.owner.kind == EffectOwner.Kind.MAP_OBJECT
 	reaction.generation = _generation if reaction.exempt else _generation + 1
@@ -765,13 +784,22 @@ func _passes(instance: EffectInstance, ctx: EffectContext) -> bool:
 	return instance.has_charge()
 
 
+# Whether the instance's always-on modifiers reach the subject, asleep or not: its own subject, or
+# a unit in its scope.
+func _reaches(instance: EffectInstance, subject_id: String) -> bool:
+	if subject_id.is_empty():
+		return false
+	if instance.owner.subject_id() == subject_id:
+		return true
+	return in_scope(instance.owner, subject_id, instance.definition.scope)
+
+
 # Whether the fact is about a unit in the instance's scope. Phase facts have no actor: they match
-# the owner's side. A unit or item effect needs its unit on the map.
+# the owner's side. A dormant instance sees nothing.
 func _sees_fact(instance: EffectInstance, fact: CombatFact) -> bool:
 	var owner: EffectOwner = instance.owner
-	if owner.kind != EffectOwner.Kind.ARMY and owner.kind != EffectOwner.Kind.RUNE:
-		if not state.has_unit(owner.holder_id):
-			return false
+	if is_dormant(instance):
+		return false
 	if fact.actor_id.is_empty():
 		return fact.side != CombatFact.CombatSide.NONE and fact.side == owner.side
 	return in_scope(owner, fact.actor_id, instance.definition.scope)
@@ -791,6 +819,30 @@ func _reacts_before(a: EffectInstance, b: EffectInstance, fact: CombatFact) -> b
 	if a.source_kind != b.source_kind:
 		return a.source_kind < b.source_kind
 	return a.instance_id < b.instance_id
+
+
+# Remembers which unconditional instances reach the subject and whether each is awake, so a read
+# notices a unit leaving the map or a weapon swap even when no fact announced it.
+func _watch(subject_id: String) -> void:
+	var ids: PackedStringArray = []
+	var awake: PackedByteArray = []
+	for instance: EffectInstance in _unconditional:
+		if _reaches(instance, subject_id):
+			ids.append(instance.instance_id)
+			awake.append(0 if is_dormant(instance) else 1)
+	_run.watch_ids[subject_id] = ids
+	_run.watch_awake[subject_id] = awake
+
+
+# Whether every watched instance of the subject is as awake as when its sheet was built.
+func _watch_holds(subject_id: String) -> bool:
+	var ids: PackedStringArray = _run.watch_ids.get(subject_id, PackedStringArray())
+	var awake: PackedByteArray = _run.watch_awake.get(subject_id, PackedByteArray())
+	for i: int in ids.size():
+		var instance: EffectInstance = _instances.get(ids[i], null)
+		if instance == null or (0 if is_dormant(instance) else 1) != awake[i]:
+			return false
+	return true
 
 
 # Verify mode: every static answer of the cached sheet must equal the fresh one's, for every key
@@ -1008,6 +1060,10 @@ class RunState:
 	## Cached stat sheets per subject, each linked to its engine; a missing entry is rebuilt on its
 	## next read.
 	var sheets: Dictionary[String, StatSheet] = {}
+	## Per cached sheet: the instances that reach its subject, and whether each was awake.
+	var watch_ids: Dictionary[String, PackedStringArray] = {}
+	## Parallel to [member watch_ids]: 1 awake, 0 dormant.
+	var watch_awake: Dictionary[String, PackedByteArray] = {}
 
 	## A copy sharing nothing mutable. The queue and the sheets are left empty: they must point at
 	## the copied instances and engine, so [method EffectEngine.copy_for_sandbox] copies them.

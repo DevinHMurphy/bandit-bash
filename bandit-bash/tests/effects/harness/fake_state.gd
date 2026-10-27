@@ -14,7 +14,8 @@ extends SandboxState
 ##
 ## Test-only, standing in for the combat core's [code]CombatState[/code]. Walking distance is the
 ## tile distance (no terrain), and splash follows the combat core's rule closely enough for the
-## engine's tests: Block absorbs, then HP; Damage taken; a unit at 0 HP is defeated.
+## engine's tests: Block absorbs, then HP; Damage taken; a unit at 0 HP is defeated. A defeated
+## unit leaves the map: it has no tile any more, as when the combat core clears its occupancy.
 
 var _units: Dictionary[String, FakeUnit] = {}
 var _order: PackedStringArray = []
@@ -60,6 +61,7 @@ func copy_for_sandbox() -> SandboxState:
 		unit_copy.stance = original.stance
 		unit_copy.moved = original.moved
 		unit_copy.layer = original.layer
+		unit_copy.weapon = original.weapon
 		unit_copy.defeated = original.defeated
 	return copy
 
@@ -85,7 +87,7 @@ func seat_of(id: String) -> int:
 
 
 func tile_of(id: String) -> Vector2i:
-	return _units[id].tile if _units.has(id) else CombatFact.NO_TILE
+	return _units[id].tile if has_unit(id) else CombatFact.NO_TILE
 
 
 func walking_distance(from_id: String, to_id: String) -> int:
@@ -113,6 +115,10 @@ func tiles_moved(id: String) -> int:
 
 func darkness_layer(id: String) -> int:
 	return _units[id].layer if _units.has(id) else 0
+
+
+func equipped_weapon_id(unit_id: String) -> String:
+	return _units[unit_id].weapon if _units.has(unit_id) else ""
 
 
 func set_hp(id: String, value: int) -> void:
@@ -191,6 +197,8 @@ class FakeUnit:
 	var moved: int = 0
 	## Darkness layer of its tile.
 	var layer: int = 0
+	## Instance id of the weapon in its Weapon slot; empty for none.
+	var weapon: String = ""
 	## Whether it was defeated (kept, so its side and seat stay readable).
 	var defeated: bool = false
 
@@ -206,5 +214,6 @@ class FakeUnit:
 		unit.stance = stance
 		unit.moved = moved
 		unit.layer = layer
+		unit.weapon = weapon
 		unit.defeated = defeated
 		return unit

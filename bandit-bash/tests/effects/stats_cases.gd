@@ -25,6 +25,9 @@ func run() -> void:
 	_test_transfer_between_sessions()
 	_test_verify_catches_a_stale_sheet()
 	_test_sandbox_copies_sheets()
+	_test_defeated_unit_goes_dormant()
+	_test_weapon_swap_moves_effects()
+	_test_sandbox_swap_stays_in_the_sandbox()
 
 
 func _test_verify_on_in_this_build() -> void:
@@ -227,3 +230,108 @@ func _test_sandbox_copies_sheets() -> void:
 			and sandbox.engine.stats("p1").get_value(HIT) == 10.0
 	)
 	_clean("sandbox sheets", sandbox.engine)
+
+
+func _test_defeated_unit_goes_dormant() -> void:
+	var engine: EffectEngine = _battle(["p1", "p2", "e1"])
+	var fake: Variant = _fake(engine)
+	var rally: EffectDefinition = _definition(
+			EffectDefinition.Trigger.ALWAYS, [], [_modify_value(HIT, ADD, 10.0)]
+	)
+	rally.scope = YOUR_UNIT
+	engine.register(_instance("effect:rally", rally, _owner("p1"), TRAIT, "Rally"))
+	var banner: EffectDefinition = _definition(
+			EffectDefinition.Trigger.ALWAYS, [], [_modify_value(HIT, ADD, 5.0)]
+	)
+	banner.scope = YOUR_UNIT
+	engine.register(_instance("effect:banner", banner, _army(), HEIRLOOM, "Banner"))
+	var third: CounterCondition = CounterCondition.new()
+	third.count = 3
+	var guard: EffectDefinition = _definition(
+			EffectDefinition.Trigger.HIT_TAKEN, [third], [_block(1.0)]
+	)
+	var counted: EffectInstance = _instance("effect:guard", guard, _owner("p1"), TRAIT, "Guard")
+	engine.register(counted)
+	_ok("dormant: the aura reaches an ally", engine.stats("p2").get_value(HIT) == 95.0)
+	engine.record(CombatFact.new(CombatFact.Kind.HIT_TAKEN, "p1", "e1"))
+	engine.record(CombatFact.new(CombatFact.Kind.HIT_TAKEN, "p1", "e1"))
+
+	# Defeated behind the engine's back: no fact. The cached sheet must notice on its own.
+	fake.unit("p1").defeated = true
+	_ok(
+			"dormant: a defeated unit's aura leaves the sheets; the army's stays",
+			engine.stats("p2").get_value(HIT) == 85.0
+	)
+	var activations: int = _count(engine, CombatFact.Kind.EFFECT_ACTIVATED)
+	engine.record(CombatFact.new(CombatFact.Kind.HIT_TAKEN, "p1", "e1"))
+	_ok(
+			"dormant: it reacts to nothing and keeps its counters",
+			_count(engine, CombatFact.Kind.EFFECT_ACTIVATED) == activations
+			and counted.get_counter(EffectDefinition.Lane.COMBAT) == 2
+	)
+	fake.unit("p1").defeated = false
+	_ok("dormant: back on the map, it wakes", engine.stats("p2").get_value(HIT) == 95.0)
+	_clean("dormant defeated unit", engine)
+
+
+func _test_weapon_swap_moves_effects() -> void:
+	var engine: EffectEngine = _swap_battle()
+	var fake: Variant = _fake(engine)
+	_ok("weapons: only the equipped sword counts", engine.stats("p1").get_value(HIT) == 90.0)
+	engine.record(CombatFact.new(CombatFact.Kind.ATTACK_MADE, "p1", "e1"))
+	engine.drain()
+	fake.unit("p1").weapon = "item:bow"
+	var swapped: CombatFact = CombatFact.new(CombatFact.Kind.WEAPON_SWAPPED, "p1")
+	swapped.item_id = "item:bow"
+	engine.record(swapped)
+	engine.record(CombatFact.new(CombatFact.Kind.ATTACK_MADE, "p1", "e1"))
+	engine.drain()
+	_ok(
+			"weapons: a swap moves the effects to the bow",
+			engine.stats("p1").get_value(HIT) == 100.0 and fake.unit("p1").block == 1
+	)
+	_clean("weapon swap", engine)
+
+
+func _test_sandbox_swap_stays_in_the_sandbox() -> void:
+	var engine: EffectEngine = _swap_battle()
+	var cached: StatSheet = engine.stats("p1")
+	var sandbox: Sandbox = Sandbox.new(engine, ForecastRolls.new())
+	var branch: Variant = sandbox.engine.state
+	branch.unit("p1").weapon = "item:bow"
+	var swapped: CombatFact = CombatFact.new(CombatFact.Kind.WEAPON_SWAPPED, "p1")
+	swapped.item_id = "item:bow"
+	sandbox.engine.record(swapped)
+	_ok(
+			"weapons: the branch swapped to the bow",
+			sandbox.engine.stats("p1").get_value(HIT) == 100.0
+	)
+	_ok(
+			"weapons: the real state's effects are as they were",
+			_fake(engine).unit("p1").weapon == "item:sword" and engine.stats("p1") == cached
+			and cached.get_value(HIT) == 90.0
+	)
+	_clean("sandbox swap", sandbox.engine)
+
+
+# p1 holds a sword (+10 Hit, "Attack made: gain 1 Block") in its Weapon slot and a stowed bow
+# (+20 Hit).
+func _swap_battle() -> EffectEngine:
+	var engine: EffectEngine = _battle(["p1", "e1"])
+	_fake(engine).unit("p1").weapon = "item:sword"
+	var sword: EffectDefinition = _definition(
+			EffectDefinition.Trigger.ALWAYS, [], [_modify_value(HIT, ADD, 10.0)]
+	)
+	var sword_guard: EffectDefinition = _definition(
+			EffectDefinition.Trigger.ATTACK_MADE, [], [_block(1.0)]
+	)
+	var bow: EffectDefinition = _definition(
+			EffectDefinition.Trigger.ALWAYS, [], [_modify_value(HIT, ADD, 20.0)]
+	)
+	var weapon: Modifier.SourceKind = Modifier.SourceKind.WEAPON
+	engine.register(_instance("effect:sword", sword, _p1_item("item:sword"), weapon, "Sword"))
+	engine.register(
+			_instance("effect:guard", sword_guard, _p1_item("item:sword"), weapon, "Sword")
+	)
+	engine.register(_instance("effect:bow", bow, _p1_item("item:bow"), weapon, "Bow"))
+	return engine

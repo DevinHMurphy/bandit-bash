@@ -82,6 +82,10 @@ var matchup: WhileMatchupCondition.Matchup = WhileMatchupCondition.Matchup.STAND
 ## The unit or object a command (a rune, a Pouch item) targets; empty otherwise.
 var command_target_id: String = ""
 
+## Where the effect's own unit stood when its reaction was queued, so a queued splash lands from
+## that tile even if the unit was defeated since; [constant CombatFact.NO_TILE] outside a reaction.
+var owner_tile: Vector2i = CombatFact.NO_TILE
+
 ## Bit set of [enum ModifyThat.Flag] turned on by inline operations.
 var flags: int = 0
 
@@ -191,4 +195,5 @@ func copy_for_reaction() -> EffectContext:
 	copy.is_crit = is_crit
 	copy.matchup = matchup
 	copy.command_target_id = command_target_id
+	copy.owner_tile = owner_tile
 	return copy

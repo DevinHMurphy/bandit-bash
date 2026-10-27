@@ -361,6 +361,7 @@ func _test_reaction_order() -> void:
 	var orders: PackedStringArray = []
 	for shuffle: int in 3:
 		var shuffled: EffectEngine = _world()
+		_fake(shuffled).unit("p1").weapon = "item:w"
 		var copies: Array[EffectInstance] = []
 		for instance: EffectInstance in instances:
 			copies.append(instance.copy())
@@ -741,6 +742,7 @@ func _test_change_base_stat() -> void:
 func _test_always_on_modifiers() -> void:
 	var engine: EffectEngine = _world()
 	var fake: Variant = _fake(engine)
+	fake.unit("p2").weapon = "item:staff"
 	var hit: int = CombatValue.Key.HIT
 	engine.set_base("p1", hit, 70.0)
 	engine.set_base("p2", hit, 70.0)
