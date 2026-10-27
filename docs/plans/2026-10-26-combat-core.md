@@ -1,7 +1,8 @@
 # Plan: Combat Core
 **Date:** October 26, 2026
 **Status:** **Approved** October 26, 2026, after review (questions 9–12 answered, seven fixes
-applied). Orchestrator ID
+applied). In progress: CC1 implemented; CC2–CC5 ready (P01 EB4 implemented); CC6 waits on P01
+EB6. Orchestrator ID
 **P02** ([game-orchestrator.md](game-orchestrator.md)).
 
 The rules of a fight: turns and phases, the action economy, the exchange (Attack Speed, bonus

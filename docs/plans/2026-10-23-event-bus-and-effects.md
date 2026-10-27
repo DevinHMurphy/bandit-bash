@@ -1,7 +1,8 @@
 # Plan: Event Bus and Effects Architecture
 **Date:** October 23, 2026
-**Status:** Approved October 26, 2026 — in progress: EB1–EB3 implemented, EB4 parts 1–2 built
-October 26, 2026; amended October 26, 2026 with the combat core's and RNG plan's needs
+**Status:** Approved October 26, 2026 — in progress: EB1–EB4 implemented October 26, 2026 (490
+headless effect tests pass); EB5 waits on the P03 sketch, EB6 on P04 and P08 question 1, EB9 on P02
+CC3; amended October 26, 2026 with the combat core's and RNG plan's needs
 ([Amendments from P02 and P13](#amendments-from-p02-and-p13)) and with the EB4 build's findings
 ([Follow-ups from the EB4 build](#follow-ups-from-the-eb4-build))
 
@@ -90,6 +91,10 @@ Questions already settled by the design docs are listed first as answered. Every
 | 31 | Who reports content errors and cap overflows (question 7 says `push_error`) | Engine logs / engine collects, session reports | **The engine collects them in `diagnostics`, never logging;** EB6's session reports them with `push_error` (`NetLog` in release). Tests assert the list is empty. | **Answered October 26, 2026:** as recommended. |
 | 32 | The base of a percent key no one sets (it read 0, cancelling every heal) | Per-key default table / caller passes it | **A per-key `CampaignValue.DEFAULT_BASES` table**, next to `RULE_MAX`. Fix F7. | **Answered October 26, 2026:** as recommended. |
 | 33 | What happens to a defeated unit's effects, a stowed weapon's effects, and reactions already queued by a unit later defeated | Engine reads the state / P02 unregisters | **The engine reads the state:** such effects go dormant (fix F8). Reactions queued before a defeat still resolve, with the context they were queued with (a Brute killed by the counter still splashes, from its old tile). | **Answered October 26, 2026:** as recommended. |
+| 34 | What `ExchangeOutcome`'s "expected damage before defeat" measures (`exchange_outcome.gd` assumption) | Damage dealt given the attacker is defeated / over all branches | **Given the attacker is defeated:** "how much it does before it dies", the reading of `Godot_FE`'s TODO this settles. The AI plan (P05) may add others. | Open |
+| 35 | What a player forecast shows for a random pick, such as `RandomOf` (`forecast_rolls.gd` assumption) | First candidate / mark it random | **The sandbox keeps the first candidate, and its `RollRecord` marks the pick as random,** so P07 shows "a random ally" instead of naming one, as question 8 does for Chance. | Open |
+| 36 | How `SampledRolls` turns a candidate's ids into numbers for `RngKey.mix()` (`sampled_rolls.gd` assumption) | As the class doc describes / other | **As built and documented in the class doc.** Only the host's AI samples; the rule must stay fixed within a build so a resumed battle decides the same. | Open |
+| 37 | Assumptions left from EB1–EB2: a rune is the least specific source (`modifier.gd`); a floor applies before a cap, so a cap below a floor wins (`value_breakdown.gd`); on equal specificity the lowest source id wins (`value_breakdown.gd`); map tiles are never negative (`combat_fact.gd` `NO_TILE`) | Confirm / change each | **Confirm all four.** No MVP content hits the first three; P04 takes "no negative tile coordinates" as a map rule. | Open |
 
 ## Scope
 
@@ -871,7 +876,7 @@ Gaps the build of EB2, EB3 and P02 CC1 found (questions 19–22, answered Octobe
 
 #### Follow-ups from the EB4 build
 
-Gaps the build of EB4 found (questions 23–33, answered October 26, 2026). Each is built in EB4.
+Gaps the build of EB4 found (questions 23–33, answered October 26, 2026). All four were built in EB4.
 
 | # | Change | Detail |
 |---|--------|--------|
