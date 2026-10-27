@@ -27,6 +27,7 @@ const NetLogScript: GDScript = preload("res://scripts/autoload/net_log.gd")
 const EngineCases: GDScript = preload("res://tests/effects/engine_cases.gd")
 const GoldenCases: GDScript = preload("res://tests/effects/golden_cases.gd")
 const SandboxCases: GDScript = preload("res://tests/effects/sandbox_cases.gd")
+const StatsCases: GDScript = preload("res://tests/effects/stats_cases.gd")
 
 # Short names for the modifier modes and source kinds, to keep the value cases readable.
 const REPLACE_BASE: Modifier.Mode = Modifier.Mode.REPLACE_BASE
@@ -107,6 +108,8 @@ func _init() -> void:
 	golden_cases.run()
 	var sandbox_cases: Variant = SandboxCases.new(_check)
 	sandbox_cases.run()
+	var stats_cases: Variant = StatsCases.new(_check)
+	stats_cases.run()
 
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)

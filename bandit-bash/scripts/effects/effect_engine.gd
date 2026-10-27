@@ -85,6 +85,17 @@ const _COMBAT_TRIGGERS: Dictionary[int, int] = {
 	CombatFact.Kind.BLOCK_GAINED: EffectDefinition.Trigger.BLOCK_GAINED,
 }
 
+# Facts that change their actor's stat sheet inputs: a weapon swapped into the slot, a permanent
+# stat change, a timed modifier gained or expired, a unit placed (arriving from another map).
+# Recording one drops the actor's cached sheet, so a mirror that follows facts stays in step.
+const _INVALIDATING_KINDS: Array[int] = [
+	CombatFact.Kind.WEAPON_SWAPPED,
+	CombatFact.Kind.STAT_CHANGED,
+	CombatFact.Kind.MODIFIER_GAINED,
+	CombatFact.Kind.MODIFIER_EXPIRED,
+	CombatFact.Kind.UNIT_SPAWNED,
+]
+
 # Reaction-order rank of an enemy owner's seat: after every player seat (question 6).
 const _ENEMY_SEAT_RANK: int = 1 << 20
 
@@ -103,6 +114,10 @@ var diagnostics: PackedStringArray = []
 
 ## Every fact recorded, in [member CombatFact.seq] order.
 var fact_log: Array[CombatFact] = []
+
+## Verify mode: every cached [method stats] read is also built fresh, and a difference is reported
+## in [member diagnostics]. On in tests and debug builds, off in release.
+var verify: bool = OS.is_debug_build()
 
 var _instances: Dictionary[String, EffectInstance] = {}
 
@@ -161,6 +176,7 @@ func register(instance: EffectInstance, keep_combat_lane: bool = false) -> void:
 		instance.reset_lane(EffectDefinition.Lane.COMBAT)
 	_instances[instance.instance_id] = instance
 	_index(instance)
+	_run.sheets.clear()
 
 
 ## Removes the instance [param instance_id]. Returns it, with its state, or null if unknown.
@@ -170,6 +186,7 @@ func unregister(instance_id: String) -> EffectInstance:
 		return null
 	_instances.erase(instance_id)
 	_unindex(instance)
+	_run.sheets.clear()
 	return instance
 
 
@@ -194,17 +211,20 @@ func set_holder(owner_id: String, holder_id: String) -> void:
 	for instance: EffectInstance in _instances.values():
 		if instance.owner.owner_id == owner_id and instance.owner.kind == EffectOwner.Kind.ITEM:
 			instance.owner.holder_id = holder_id
+	_run.sheets.clear()
 
 
 ## Sets the base of [param key] for [param subject_id], such as its unit type's base stat.
 func set_base(subject_id: String, key: int, value: float, label: String = "") -> void:
 	_base_sheet(subject_id).set_base(key, value, label)
+	_run.sheets.erase(subject_id)
 
 
 ## Adds a sourced permanent change to [param subject_id] (a stat booster, an item's delta). Kept as
 ## a modifier, so breakdowns name it.
 func add_delta(subject_id: String, modifier: Modifier) -> void:
 	_base_sheet(subject_id).add_modifier(modifier)
+	_run.sheets.erase(subject_id)
 
 
 ## The permanent deltas of [param subject_id] on [param key], for the campaign bridge to write back.
@@ -212,9 +232,23 @@ func get_deltas(subject_id: String, key: int, stat: int = Modifier.NO_STAT) -> A
 	return _base_sheet(subject_id).get_modifiers(key, stat)
 
 
-## The values of [param subject_id] (a unit, or a seat's subject id): its bases, deltas and
-## unconditional effects, with the live part added on every query.
+## The read API: the values of [param subject_id] (a unit, or a seat's subject id). The static
+## part (bases, deltas, unconditional effects) is cached until a change to its inputs drops it:
+## registration, a holder, a base or delta, or a fact that touches them; the live part is added on
+## every query. Read it again after a change instead of holding it.
 func stats(subject_id: String) -> StatSheet:
+	var cached: StatSheet = _run.sheets.get(subject_id, null)
+	if cached == null:
+		cached = fresh_stats(subject_id)
+		_run.sheets[subject_id] = cached
+	elif verify:
+		_verify_sheet(cached, fresh_stats(subject_id))
+	return cached
+
+
+## The sheet [method stats] would build for [param subject_id] if nothing were cached. Verify mode
+## compares every cached read with it; tests use it directly.
+func fresh_stats(subject_id: String) -> StatSheet:
 	var sheet: StatSheet = StatSheet.new(subject_id, self)
 	var base: StatSheet = _run.base_sheets.get(subject_id, null)
 	if base != null:
@@ -267,6 +301,8 @@ func record(fact: CombatFact, ctx: EffectContext = null) -> void:
 	elif fact.kind == CombatFact.Kind.ATTACK_MADE:
 		_run.attacks += 1
 		_run.attack_of[fact.actor_id] = _run.attacks
+	if _INVALIDATING_KINDS.has(fact.kind):
+		_run.sheets.erase(fact.actor_id)
 	for observer: Callable in _observers:
 		observer.call(fact)
 
@@ -459,6 +495,10 @@ func copy_for_sandbox(roll_source: RollSource) -> EffectEngine:
 		copies[instance.instance_id] = instance_copy
 		copy.register(instance_copy, true)
 	run.queue = _run.queue.copy_for(copies)
+	# Sheets are copied, not re-derived, after the registrations above cleared the copy's cache.
+	for subject_id: String in _run.sheets:
+		run.sheets[subject_id] = _run.sheets[subject_id].copy_for(copy)
+	copy.verify = verify
 	return copy
 
 
@@ -753,6 +793,32 @@ func _reacts_before(a: EffectInstance, b: EffectInstance, fact: CombatFact) -> b
 	return a.instance_id < b.instance_id
 
 
+# Verify mode: every static answer of the cached sheet must equal the fresh one's, for every key
+# and stat either holds.
+func _verify_sheet(cached: StatSheet, fresh: StatSheet) -> void:
+	var slots: Array[Vector2i] = cached.get_slots()
+	for slot: Vector2i in fresh.get_slots():
+		if not slots.has(slot):
+			slots.append(slot)
+	for slot: Vector2i in slots:
+		var same: bool = true
+		if _is_permission(slot.x):
+			same = (
+					cached.explain_static_permission(slot.x, slot.y).is_allowed()
+					== fresh.explain_static_permission(slot.x, slot.y).is_allowed()
+			)
+		else:
+			same = is_equal_approx(
+					cached.explain_static(slot.x, slot.y).total,
+					fresh.explain_static(slot.x, slot.y).total
+			)
+		if not same:
+			diagnostics.append(
+					"EffectEngine: cached sheet of %s is out of date for key %d (stat %d)"
+					% [cached.subject_id, slot.x, slot.y]
+			)
+
+
 func _comes_due(timed: TimedModifier, boundary: Boundary, subject_id: String) -> bool:
 	match boundary:
 		Boundary.ATTACK_RESOLVED:
@@ -884,6 +950,13 @@ static func _this_unit(instance: EffectInstance, about_id: String) -> String:
 	return about_id if holder.is_empty() else holder
 
 
+static func _is_permission(key: int) -> bool:
+	return (
+			CombatValue.Permission.values().has(key)
+			or CampaignValue.Permission.values().has(key)
+	)
+
+
 # Amounts stay exact through their window and round once, halves up, when applied (question 17).
 static func _half_up(value: float) -> int:
 	return ValueBreakdown.round_to_int(value, ValueBreakdown.Rounding.HALF_UP)
@@ -932,9 +1005,12 @@ class RunState:
 	var base_sheets: Dictionary[String, StatSheet] = {}
 	## Reactions waiting for the next drain.
 	var queue: ReactionQueue = ReactionQueue.new()
+	## Cached stat sheets per subject, each linked to its engine; a missing entry is rebuilt on its
+	## next read.
+	var sheets: Dictionary[String, StatSheet] = {}
 
-	## A copy sharing nothing mutable. The queue is left empty: its reactions must point at the
-	## copied instances, so [method EffectEngine.copy_for_sandbox] copies it.
+	## A copy sharing nothing mutable. The queue and the sheets are left empty: they must point at
+	## the copied instances and engine, so [method EffectEngine.copy_for_sandbox] copies them.
 	func copy() -> RunState:
 		var run: RunState = RunState.new()
 		run.next_seq = next_seq

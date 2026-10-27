@@ -41,14 +41,15 @@ var _modifiers: Dictionary[int, Array] = {}
 # Static answers per cache slot (key and stat), dropped when that key's inputs change.
 var _cache: Dictionary[int, ValueBreakdown] = {}
 
-# The engine adding the live part; null for a standalone sheet.
-var _engine: EffectEngine = null
+# The engine adding the live part, held weakly: an engine caches its sheets, so a strong
+# reference back would be a cycle. Null for a standalone sheet.
+var _engine_ref: WeakRef = null
 
 
 ## [param engine]: adds the live part to every query. [b]Null:[/b] static values only.
 func _init(subject: String, engine: EffectEngine = null) -> void:
 	subject_id = subject
-	_engine = engine
+	_engine_ref = null if engine == null else weakref(engine)
 
 
 ## Sets the base of [param key], replacing any earlier base. [param label] names it in
@@ -105,9 +106,10 @@ func explain(
 		key: int, ctx: EffectContext = null, stat: int = Modifier.NO_STAT
 ) -> ValueBreakdown:
 	var static_answer: ValueBreakdown = explain_static(key, stat)
-	if _engine == null:
+	var engine: EffectEngine = _engine()
+	if engine == null:
 		return static_answer
-	var live: Array[Modifier] = _engine.live_modifiers(subject_id, key, ctx, stat)
+	var live: Array[Modifier] = engine.live_modifiers(subject_id, key, ctx, stat)
 	if live.is_empty():
 		return static_answer
 	var modifiers: Array[Modifier] = get_modifiers(key, stat)
@@ -127,9 +129,10 @@ func explain_permission(
 		permission: int, ctx: EffectContext = null, stat: int = Modifier.NO_STAT
 ) -> ValueBreakdown:
 	var static_answer: ValueBreakdown = explain_static_permission(permission, stat)
-	if _engine == null:
+	var engine: EffectEngine = _engine()
+	if engine == null:
 		return static_answer
-	var live: Array[Modifier] = _engine.live_modifiers(subject_id, permission, ctx, stat)
+	var live: Array[Modifier] = engine.live_modifiers(subject_id, permission, ctx, stat)
 	if live.is_empty():
 		return static_answer
 	var modifiers: Array[Modifier] = get_modifiers(permission, stat)
@@ -170,6 +173,27 @@ func copy_for(engine: EffectEngine) -> StatSheet:
 		for modifier: Modifier in _modifiers[key]:
 			copy.add_modifier(modifier)
 	return copy
+
+
+## Every key and stat this sheet holds a base or a modifier for, as (key, stat) pairs: what
+## [EffectEngine]'s verify mode compares.
+func get_slots() -> Array[Vector2i]:
+	var slots: Array[Vector2i] = []
+	for key: int in _bases:
+		slots.append(Vector2i(key, Modifier.NO_STAT))
+	for key: int in _modifiers:
+		for modifier: Modifier in _modifiers[key]:
+			var slot: Vector2i = Vector2i(key, modifier.stat)
+			if not slots.has(slot):
+				slots.append(slot)
+	return slots
+
+
+func _engine() -> EffectEngine:
+	if _engine_ref == null:
+		return null
+	var engine: EffectEngine = _engine_ref.get_ref()
+	return engine
 
 
 func _drop_cached(key: int) -> void:
