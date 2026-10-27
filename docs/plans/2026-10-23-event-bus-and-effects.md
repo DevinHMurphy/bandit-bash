@@ -1,8 +1,8 @@
 # Plan: Event Bus and Effects Architecture
 **Date:** October 23, 2026
 **Status:** Approved October 26, 2026 — in progress: EB1–EB4 implemented October 26, 2026 (532
-headless effect tests pass); EB5 waits on the P03 sketch, EB6 on P04 and P08 question 1; EB9 is ready
-(P02 CC3 built); fixes F9–F12 built with P02 CC2–CC5 October 27, 2026; amended October 26, 2026 with the combat core's and RNG plan's needs
+headless effect tests pass); EB9 implemented October 27, 2026 (results below F12); EB5 waits on the P03 sketch, EB6 on P04
+(P08 question 1 answered); fixes F9–F12 built with P02 CC2–CC5 October 27, 2026; amended October 26, 2026 with the combat core's and RNG plan's needs
 ([Amendments from P02 and P13](#amendments-from-p02-and-p13)) and with the EB4 build's findings
 ([Follow-ups from the EB4 build](#follow-ups-from-the-eb4-build))
 
@@ -891,8 +891,17 @@ Gaps the build of EB4 found (questions 23–33, answered October 26, 2026), buil
 | F11 | Growth changes | `ChangeBaseStat.mode`: `BASE` (default) or `GROWTH`. `GROWTH` changes no combat value; it records `CombatFact.Kind.GROWTH_CHANGED` (43; actor the unit, `amount` percentage points, `key` the `Stat`; bus signal `growth_changed`) through `EffectEngine.add_growth()` and `SandboxState.add_growth()`, and `CombatUnitState` keeps the changes for the battle-end bridge (EB6) and the `combat_state` save section (P02 CC8). Fixture: Cave Carrot |
 | F12 | Two-sided damage stages (question 39) | `DamageStage.Key.INCOMING_MULTIPLIERS` (1004, base 1); `HitDamage.outgoing` and `.incoming` breakdowns; `WhileAttackCondition` (`role`, `kind`, `type_name`, `damage_type`); `SandboxState` reads `tags_of`, `unit_type_of`, `weapon_type_of` (unit type, weapon type and tags are plain strings until P03). Conditional modifiers are tested live, never cached. With F11, `SandboxState` has **21 methods** |
 
-The sandbox copies the whole session for every branch, with no copy on write yet; its cost is
-**unmeasured** until EB9, and copy on write is a follow-up only if EB9 misses the budget.
+**EB9 results (October 27, 2026; debug build, Ryzen 7 9800X3D, 16 logical cores; medians).** A
+sandbox costs 0.9 ms, almost half of it copying cached stat sheets. A player forecast (sandbox plus
+one exchange) takes 1.9 ms for 2 attacks and 2.6 ms for 8, fast enough to recompute on hover. A
+cached value query takes 3.5 µs against 55 µs uncached; verify mode costs about 75× (debug only).
+An exact `ExchangeOutcome` costs 1.8–2.7 ms per branch: 7 ms for 2 attacks (4 branches), 32 ms for
+4 (16), 1.45 s for 8 (536). `WorkerThreadPool` at low priority gives about 2.4×; high priority is
+about 2× slower than the main thread and is not used. One exchange reads only 2–3 of the 11 units it
+copies. **Decisions left to the AI plan (P05):** the branch budget (exact enumeration is affordable
+to roughly 16 branches; beyond that, sampling), and whether to make sandboxes copy on write or lazy
+(each branch spends about a third to a half of its cost on the copy). Release-build numbers are
+unmeasured.
 
 ### Rejected alternatives
 

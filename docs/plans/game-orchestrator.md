@@ -68,7 +68,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | ID | Plan | File | Status | Depends on | Unblocks | Design basis |
 |----|------|------|--------|-----------|----------|--------------|
 | P00 | Save system | [2026-10-13-save-system.md](2026-10-13-save-system.md) | **Implemented** October 14, 2026 (multiplayer paths untested live) | — | All | save-system.md |
-| P01 | Event bus and effects | [2026-10-23-event-bus-and-effects.md](2026-10-23-event-bus-and-effects.md) | **In progress** (approved October 26, 2026; amended with P02's and P13's needs the same day): EB1–EB4 implemented with fixes F1–F12 (532 headless tests pass); EB5 waits on P03, EB6 on P04 and P08 question 1; EB9 ready | P00 | Every gameplay plan | effects-system.md, effect-triggers.md |
+| P01 | Event bus and effects | [2026-10-23-event-bus-and-effects.md](2026-10-23-event-bus-and-effects.md) | **In progress** (approved October 26, 2026; amended with P02's and P13's needs the same day): EB1–EB4 implemented with fixes F1–F12 (532 headless tests pass); EB9 implemented (results in P01); EB5 waits on P03, EB6 on P04 | P00 | Every gameplay plan | effects-system.md, effect-triggers.md |
 | P02 | Combat core: turns and phases, action economy, the exchange, damage stages, Block, Stance, triangle, crits, Parry, Shove, staves, Pouch items, weapon swaps, runes, forecast, `CombatGrid` interface | [2026-10-26-combat-core.md](2026-10-26-combat-core.md) | **Approved** October 26, 2026 (reviewed: questions 9–12 answered, seven fixes). **In progress:** CC1–CC5 built (428 headless combat tests pass); CC6 waits on EB6; open questions 14 (CC6) and 16 | P01 (EB2–EB4, plus amendments N1–N10) | P04, P05, P06, P07 | game-vision.md Combat |
 | P03 | Content catalog: unit types, traits and upgrades, the Drengr, prefixes, weapons, staves, items, ingredients, runes, heirlooms, curses | — | **Not started** (sketch before EB5; may split into units / items / heirlooms) | P01 (EB3, EB5) | M1 content, P08, P09 | unit-roster.md, weapons.md, items.md, heirlooms.md, events.md (curses) |
 | P04 | Combat map: grid, terrain, pathing, deployment, objectives, reinforcement points, map objects, map authoring and its checks | — | **Not started** (draft before EB6) | P01 (EB6), P02 | P05, P06, P07, M1 | game-vision.md Combat maps, map-objects.md |
@@ -133,7 +133,7 @@ mark it **Open** here.
 | P01 EB6 Sessions, encounter, bridge | P04 drafted (including P13 need R-N5: stable container indices); P08 question 1 (`CampaignSession` owner) answered ✅ (October 27, 2026: `CampaignService`); P13 approved and P01 amended with R-N3 ✅ (the encounter draws the whole setup once; sessions get their own streams) | Sessions carry turns, deployment, commands and the RNG injection point | Closed |
 | P01 EB7 Serialization, rejoin | EB6; P01 amended with P13 need R-N4 ✅ (run seed, build and live stream states in snapshots and repro dumps) | — | Closed |
 | P02 implementation (CC2–CC5; CC6 waits on EB6) | P01 EB4 implemented ✅ (October 26, 2026) | Combat rules are effect-engine consumers | **Open** October 26, 2026; CC2–CC5 built October 27, 2026 |
-| P01 EB9 Benchmark | P02 CC3 (a real `CombatState` and exchange to measure) | Sandbox creation cost means little on the fake test state; the numbers decide copy on write and the AI's branch budget | **Open** October 27, 2026 (CC3 built) |
+| P01 EB9 Benchmark | P02 CC3 (a real `CombatState` and exchange to measure) | Sandbox creation cost means little on the fake test state; the numbers decide copy on write and the AI's branch budget | **Open** October 27, 2026 (CC3 built); implemented October 27, 2026 |
 | P03 implementation | P01 EB5 implemented | Content is catalog data | Closed |
 | P04 implementation | P01 EB6, P02 core turn loop | Maps run inside sessions | Closed |
 | P11 implementation | P10 implemented, P01 EB7, the per-map battle save format | Co-op needs transport, snapshots and saves | Closed |
@@ -168,6 +168,7 @@ from starting; each is asked inside its plan's Open Questions.
 | P12 | Whether runs abandoned by the save debug panel's "New Solo Run From Seed" count as lost runs in statistics | P13 R4 |
 | P04 | Tile coordinates are never negative (P01 question 37, `CombatFact.NO_TILE`); implement `CombatGrid.walking_distance(a, b, movement_type)` for "within N movable tiles" (P02 question 13), and settle whether other units block it and whether terrain cost counts (recommended: units don't block, each step counts 1) | P01, P02, effect-triggers.md |
 | P05 | The Brigands' real name and theme (flavor only) | enemy-roster.md |
+| P05 | The AI's branch budget and whether sandboxes become copy on write or lazy, from P01 EB9's results (exact `ExchangeOutcome` is about 2 ms per branch; one exchange reads 2–3 of 11 units); measure a release build first | P01 EB9 |
 | P07 | `Godot_FE`'s ranged multi-tile forecast defect (FR-GRID-6) to investigate | P01 contracts |
 | P11 | Light links beyond runes on a teammate's map | multiplayer-combat-options.md |
 
@@ -195,12 +196,10 @@ more enemy factions, units with convoy access, shared and hybrid co-op battles, 
 
 ## Next actions
 
-1. Planning, here (critical path to CC6): draft P04 (it implements `CombatGrid` with `walking_distance`,
-   P02 question 13), then sketch P03. P04 opens EB6 (P08 question 1 is answered); P03 opens EB5.
-2. Build P01 EB9 (benchmark) now that CC3 exists: it decides copy on write and the AI's branch budget.
-3. A fix-up: the six GDScript warning settings gdscript.md §4 expects in `project.godot` (user agreed
-   October 27, 2026), fixing what they flag, plus P02 question 16 (answered: a rule-constants table).
-4. P02 question 14 (staff with no range) is answered with CC6.
+1. Draft P04 (combat map), here: it implements `CombatGrid` with `walking_distance` (P02 question 13)
+   and opens EB6, the last gate before the turn loop (CC6).
+2. Then sketch P03 (content catalog), which opens EB5.
+3. P02 question 14 (staff with no range) is answered with CC6.
 
 ## Change log
 
@@ -228,3 +227,4 @@ more enemy factions, units with convoy access, shared and hybrid co-op battles, 
 | October 27, 2026 | **P13 R4 built** (run seed: `RunSeed` generate, format and parse; typed and command-line debug seeds; the save debug panel's seed field) with its four questions confirmed as built. Merged: `feature/save-system` fast-forwarded to Track C (P02 CC2–CC5) and R4 merged on top; combat 428, effects 532, RNG 154, save 196 headless tests pass, and the debug panel loads headless cleanly. CLAUDE.md §3 now says how to check scripts that use autoloads (`--check-only` can't). Design items added for P07/P08 (seed display) and P12 (debug restarts in statistics). |
 | October 27, 2026 | Branching changed by the user: `feature/save-system` merged to `main`; `dev` is the integration branch, and every track branches from it as `feature/<step>` and merges back into it. |
 | October 27, 2026 | P08 question 1 answered: a new `CampaignService` autoload owns `CampaignSession` (host session, client mirror), `RngStreams`, the id allocator and their save sections, and builds the session on a new `SaveService.campaign_activated` signal; built in P01 EB6, so P13 R5 follows EB6. P02 question 16 answered: combat rule bases move to a constants table (warnings fix-up). EB6 now waits only on the P04 draft. |
+| October 27, 2026 | **GDScript warnings fix-up and P01 EB9 merged into `dev`** (verified merged: combat 434, effects 532, RNG 154, save 204; the bench passes its checks). The six warning settings are Error in `project.godot`; combat rule bases live in default tables (P02 question 16). EB9: sandbox 0.9 ms, player forecast 1.9–2.6 ms, exact `ExchangeOutcome` 7 ms / 32 ms / 1.45 s for 2 / 4 / 8 attacks (debug build); the branch budget and copy on write go to P05. Next: the P04 draft. |
