@@ -210,7 +210,6 @@ func defeat(engine: EffectEngine, id: String, by_id: String, source_effect_id: S
 	_occupancy.erase(gone.tile)
 
 
-# ASSUMPTION: Wait lives here; the plan lists it among the support actions but gives it no file.
 ## The Wait action: [param id] ends its turn without acting and records
 ## [constant CombatFact.Kind.UNIT_WAITED]. Returns false, recording nothing, when it is off the
 ## map or has already acted.

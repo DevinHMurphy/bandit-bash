@@ -80,8 +80,6 @@ static func check(
 	return ""
 
 
-# ASSUMPTION: an item's use effects are found this way; the plan puts its uses on "the item's
-# effect instance" without saying how the combat core finds it.
 ## The use effects of [param item_id], in instance id order: its registered effects with no
 ## trigger and no always-on modifier, which fire only when the item is used. Their charges are its
 ## uses.

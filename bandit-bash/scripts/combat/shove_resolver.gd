@@ -72,8 +72,8 @@ static func resolve(
 		var moved: CombatFact = CombatFact.new(CombatFact.Kind.UNIT_MOVED, target_id)
 		moved.tile = path.final_tile
 		engine.record(moved)
-	# ASSUMPTION: bump and spike damage is credited to the shover, who caused it, so a lethal bump
-	# counts as its defeat of an enemy; the plan names the damage but not its source.
+	# Bump and spike damage is credited to the shover, who caused it, so a lethal bump
+	# counts as its defeat of an enemy.
 	match path.stop:
 		Stop.BUMP:
 			SplashResolver.deal(
