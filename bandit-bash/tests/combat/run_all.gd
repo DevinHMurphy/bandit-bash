@@ -19,10 +19,11 @@ extends SceneTree
 ## Prints PASS or FAIL per case and exits with code 1 if any case fails. Autoloads don't exist in
 ## [code]--script[/code] mode, so nothing here may use them.
 
-const StateCases: GDScript = preload("res://tests/combat/state_cases.gd")
-const ExchangeCases: GDScript = preload("res://tests/combat/exchange_cases.gd")
-const ShoveCases: GDScript = preload("res://tests/combat/shove_cases.gd")
-const SupportCases: GDScript = preload("res://tests/combat/support_cases.gd")
+# Preloaded scripts used as types (gdscript.md, Naming): the case scripts have no class name.
+const StateCases = preload("res://tests/combat/state_cases.gd")
+const ExchangeCases = preload("res://tests/combat/exchange_cases.gd")
+const ShoveCases = preload("res://tests/combat/shove_cases.gd")
+const SupportCases = preload("res://tests/combat/support_cases.gd")
 
 var _failures: int = 0
 var _passes: int = 0
@@ -30,10 +31,10 @@ var _passes: int = 0
 
 func _init() -> void:
 	print("--- Combat core tests ---")
-	for cases_script: GDScript in [StateCases, ExchangeCases, ShoveCases, SupportCases]:
-		# Variant: the case scripts have no class name to type them with.
-		var cases: Variant = cases_script.new(_check)
-		cases.run()
+	StateCases.new(_check).run()
+	ExchangeCases.new(_check).run()
+	ShoveCases.new(_check).run()
+	SupportCases.new(_check).run()
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)
 

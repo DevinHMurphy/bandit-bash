@@ -193,7 +193,10 @@ func _test_mix_chains_values_in_order() -> void:
 
 func _test_derive_seed_golden_values() -> void:
 	for row: Array in DERIVED_SEEDS:
-		var key: RngKey = RngKey.new(row[0], row[1], row[2], row[3], row[4])
+		var key: RngKey = RngKey.new(
+				row[0] as RngKey.RngPurpose,
+				row[1] as int, row[2] as int, row[3] as int, row[4] as int
+		)
 		var expected: String = row[5]
 		var actual: String = _hex(RngKey.derive_seed(
 				RUN_SEED, key.purpose, key.floor_number, key.node, key.seat, key.index
@@ -224,7 +227,8 @@ func _test_purpose_values_are_pinned() -> void:
 		var has_name: bool = RngKey.RngPurpose.has(purpose_name)
 		_check(
 				"purposes: %s is %d" % [purpose_name, PURPOSE_VALUES[purpose_name]],
-				has_name and RngKey.RngPurpose[purpose_name] == PURPOSE_VALUES[purpose_name]
+				has_name
+				and (RngKey.RngPurpose[purpose_name] == PURPOSE_VALUES[purpose_name]) as bool
 		)
 	_check(
 			"purposes: every value is pinned here",
@@ -295,7 +299,7 @@ func _test_stream_golden_first_draws() -> void:
 		var stream: RngStream = RngStream.new(_from_hex(seed_hex))
 		_check(
 				"stream golden: %s state after seeding" % [seed_hex],
-				stream.capture() == golden[1],
+				(stream.capture() == golden[1]) as bool,
 				stream.capture()
 		)
 		var rolls: Array[int] = []
@@ -303,7 +307,7 @@ func _test_stream_golden_first_draws() -> void:
 			rolls.append(stream.randi_range(0, 99))
 		_check(
 				"stream golden: %s first eight d100" % [seed_hex],
-				rolls == Array(golden[2], TYPE_INT, &"", null),
+				rolls == Array(golden[2] as Array, TYPE_INT, &"", null),
 				str(rolls)
 		)
 		var after: String = golden[3]
@@ -781,7 +785,7 @@ func _test_typed_seed_reproduces_run() -> void:
 
 	var golden: Array = STREAM_GOLDENS[0]
 	var expected: Array[int] = []
-	expected.assign(golden[2])
+	expected.assign(golden[2] as Array)
 	var from_text: RngStreams = RngStreams.new(RunSeed.parse("3f9a-12c0-77e1-a"))
 	var reward_key: RngKey = RngKey.new(RngKey.RngPurpose.REWARD, 2, 5, 0)
 	var rolls: Array[int] = _draws(from_text.stream(reward_key), 8)

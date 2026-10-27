@@ -15,8 +15,9 @@ extends RefCounted
 ## defeat), [SplashResolver] through the engine, dormancy, and the combat core's value keys.
 ## Reports each case through the check callable it is given.
 
-const CombatWorld: GDScript = preload("res://tests/combat/combat_world.gd")
-const StubGrid: GDScript = preload("res://tests/combat/stub_combat_grid.gd")
+# Preloaded scripts used as types (gdscript.md, Naming): the test map and stub have no class name.
+const CombatWorld = preload("res://tests/combat/combat_world.gd")
+const StubGrid = preload("res://tests/combat/stub_combat_grid.gd")
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
@@ -48,8 +49,7 @@ func run() -> void:
 
 
 func _test_stub_grid() -> void:
-	# Variant: the stub has no class name to type it with.
-	var grid: Variant = StubGrid.new(Vector2i(4, 3))
+	var grid: StubGrid = StubGrid.new(Vector2i(4, 3))
 	_ok(
 			"grid: distance is tiles up plus across",
 			grid.distance(Vector2i(0, 0), Vector2i(3, 2)) == 5
@@ -92,7 +92,7 @@ func _test_stub_grid() -> void:
 
 
 func _test_placement() -> void:
-	var world: Variant = CombatWorld.new()
+	var world: CombatWorld = CombatWorld.new()
 	var p1: CombatUnitState = world.add_unit(
 			"p1", PLAYER, 0, Vector2i(1, 1), {CombatValue.Key.STANCE_MAX: 3.0}
 	)
@@ -118,7 +118,7 @@ func _test_placement() -> void:
 
 
 func _test_reads() -> void:
-	var world: Variant = _two_sides()
+	var world: CombatWorld = _two_sides()
 	var state: CombatState = world.state
 	_ok("reads: placement order", state.unit_ids() == PackedStringArray(["p1", "p2", "e1"]))
 	_ok("reads: units of a side", state.units_of(ENEMY) == PackedStringArray(["e1"]))
@@ -176,7 +176,7 @@ func _test_walking_distance_uses_the_walker() -> void:
 
 
 func _test_occupancy() -> void:
-	var world: Variant = _two_sides()
+	var world: CombatWorld = _two_sides()
 	var state: CombatState = world.state
 	world.grid.set_blocker(Vector2i(5, 5), CombatGrid.Blocker.SPIKED_WALL)
 	world.add_unit("keg", OBJECT_SIDE, -1, Vector2i(4, 4))
@@ -205,7 +205,7 @@ func _test_occupancy() -> void:
 
 
 func _test_defeat() -> void:
-	var world: Variant = _two_sides()
+	var world: CombatWorld = _two_sides()
 	var state: CombatState = world.state
 	state.defeat(world.engine, "e1", "p1")
 	_ok(
@@ -226,7 +226,7 @@ func _test_defeat() -> void:
 
 
 func _test_sandbox_copy() -> void:
-	var world: Variant = _two_sides()
+	var world: CombatWorld = _two_sides()
 	var state: CombatState = world.state
 	state.turn = 2
 	state.phase_side = PLAYER
@@ -264,7 +264,7 @@ func _test_sandbox_copy() -> void:
 
 
 func _test_engine_paths() -> void:
-	var world: Variant = _two_sides()
+	var world: CombatWorld = _two_sides()
 	var engine: EffectEngine = world.engine
 	var state: CombatState = world.state
 	engine.gain_block("p1", 3.0, "p2")
@@ -287,7 +287,7 @@ func _test_engine_paths() -> void:
 
 
 func _test_splash() -> void:
-	var world: Variant = _two_sides()
+	var world: CombatWorld = _two_sides()
 	var engine: EffectEngine = world.engine
 	var state: CombatState = world.state
 	state.set_block("e1", 1)
@@ -312,7 +312,7 @@ func _test_splash() -> void:
 
 
 func _test_dormancy() -> void:
-	var world: Variant = _two_sides()
+	var world: CombatWorld = _two_sides()
 	var engine: EffectEngine = world.engine
 	var state: CombatState = world.state
 	var hit_bonus: EffectDefinition = _always(CombatValue.Key.HIT, 10.0)
@@ -340,7 +340,7 @@ func _test_dormancy() -> void:
 
 
 func _test_sandbox_purity() -> void:
-	var world: Variant = _two_sides()
+	var world: CombatWorld = _two_sides()
 	var engine: EffectEngine = world.engine
 	var state: CombatState = world.state
 	var sandbox: Sandbox = Sandbox.new(engine, ForecastRolls.new())
@@ -383,8 +383,8 @@ func _test_value_keys_present() -> void:
 
 
 # p1 (seat 0) and p2 (seat 1) on the player side, e1 on the enemy side, all at 20 HP.
-func _two_sides() -> Variant:
-	var world: Variant = CombatWorld.new()
+func _two_sides() -> CombatWorld:
+	var world: CombatWorld = CombatWorld.new()
 	world.add_unit("p1", PLAYER, 0, Vector2i(1, 1))
 	world.add_unit("p2", PLAYER, 1, Vector2i(1, 2))
 	world.add_unit("e1", ENEMY, -1, Vector2i(3, 1))
@@ -413,7 +413,7 @@ func _always(key: int, value: float) -> EffectDefinition:
 
 
 # Every scenario ends with no engine diagnostics.
-func _quiet(world: Variant) -> void:
+func _quiet(world: CombatWorld) -> void:
 	var engine: EffectEngine = world.engine
 	_ok("diagnostics: none", engine.diagnostics.is_empty(), str(engine.diagnostics))
 

@@ -18,7 +18,8 @@ extends RefCounted
 ## Runs on the test-only [code]fake_state.gd[/code] map, so no combat rules are involved. Reports
 ## each case through the check callable it is given.
 
-const FakeState: GDScript = preload("res://tests/effects/harness/fake_state.gd")
+# A preloaded script used as a type (gdscript.md, Naming): the fake state has no class name.
+const FakeState = preload("res://tests/effects/harness/fake_state.gd")
 
 # Short names for the sides and modes, to keep the cases readable.
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
@@ -187,7 +188,7 @@ func _test_while_matchup() -> void:
 
 func _test_while_attack() -> void:
 	var engine: EffectEngine = _world()
-	var fake: Variant = _fake(engine)
+	var fake: FakeState = _fake(engine)
 	fake.unit("e1").tags = PackedStringArray(["Beast"])
 	fake.unit("e1").unit_type = "Wolf"
 	fake.weapon_types["w:bow"] = "Bow"
@@ -338,7 +339,7 @@ func _test_scope() -> void:
 	var wrong: PackedStringArray = []
 	for row: Array in cases:
 		var owner: EffectOwner = row[0]
-		if engine.in_scope(owner, row[1], row[2]) != row[3]:
+		if engine.in_scope(owner, row[1] as String, row[2] as EffectDefinition.Scope) != row[3]:
 			wrong.append("%s %s %d" % [owner.owner_id, row[1], row[2]])
 	_ok("scope: owner-relative scopes", wrong.is_empty(), ", ".join(wrong))
 	_same(
@@ -508,7 +509,7 @@ func _test_chance_condition() -> void:
 
 func _test_while_conditions() -> void:
 	var engine: EffectEngine = _world()
-	var fake: Variant = _fake(engine)
+	var fake: FakeState = _fake(engine)
 	var ctx: EffectContext = _exchange_context(engine, "p1", "e1", "p1")
 	ctx.subject_id = "p1"
 
@@ -559,7 +560,7 @@ func _test_while_conditions() -> void:
 
 func _test_position_conditions() -> void:
 	var engine: EffectEngine = _world()
-	var fake: Variant = _fake(engine)
+	var fake: FakeState = _fake(engine)
 	var ctx: EffectContext = _exchange_context(engine, "p1", "e1", "p1")
 	ctx.subject_id = "p1"
 	ctx.distance = 2
@@ -741,7 +742,7 @@ func _test_modify_that() -> void:
 
 func _test_gain_resource_paths() -> void:
 	var engine: EffectEngine = _world()
-	var fake: Variant = _fake(engine)
+	var fake: FakeState = _fake(engine)
 	var healer: EffectInstance = _instance(
 			"effect:h", _definition(EffectDefinition.Trigger.ALWAYS, [], []),
 			_owner("p2"), TRAIT
@@ -790,7 +791,7 @@ func _test_gain_resource_paths() -> void:
 
 func _test_deal_splash() -> void:
 	var engine: EffectEngine = _world()
-	var fake: Variant = _fake(engine)
+	var fake: FakeState = _fake(engine)
 	fake.unit("p2").block = 1
 	fake.unit("e1").hp = 2
 	var cleave: EffectInstance = _instance(
@@ -839,7 +840,7 @@ func _test_change_base_stat() -> void:
 
 func _test_always_on_modifiers() -> void:
 	var engine: EffectEngine = _world()
-	var fake: Variant = _fake(engine)
+	var fake: FakeState = _fake(engine)
 	fake.unit("p2").weapon = "item:staff"
 	var hit: int = CombatValue.Key.HIT
 	engine.set_base("p1", hit, 70.0)
@@ -988,8 +989,7 @@ func _test_window_releases_after_record() -> void:
 #   p1 (0,0)  p2 (1,0)  e1 (2,0)  .  e2 (4,0)
 #   q1 (0,1)                                      keg (6,6)
 func _world(outcomes: PackedInt32Array = PackedInt32Array()) -> EffectEngine:
-	# Variant: the fake state's script has no class name to type it with.
-	var fake: Variant = FakeState.new()
+	var fake: FakeState = FakeState.new()
 	fake.add("p1", PLAYER, 0, Vector2i(0, 0))
 	fake.add("p2", PLAYER, 0, Vector2i(1, 0))
 	fake.add("q1", PLAYER, 1, Vector2i(0, 1))
@@ -1003,8 +1003,8 @@ func _world(outcomes: PackedInt32Array = PackedInt32Array()) -> EffectEngine:
 	return engine
 
 
-# The engine's fake state, untyped so its setup methods can be called.
-func _fake(engine: EffectEngine) -> Variant:
+# The engine's fake state, typed so its setup methods can be called.
+func _fake(engine: EffectEngine) -> FakeState:
 	return engine.state
 
 

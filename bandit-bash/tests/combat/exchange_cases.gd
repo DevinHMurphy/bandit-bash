@@ -20,7 +20,8 @@ extends RefCounted
 ## crit chance 100 always crits), never from a forced roll. Every scenario also asserts that the
 ## engine reported no diagnostics.
 
-const CombatWorld: GDScript = preload("res://tests/combat/combat_world.gd")
+# A preloaded script used as a type (gdscript.md, Naming): the test map has no class name.
+const CombatWorld = preload("res://tests/combat/combat_world.gd")
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
@@ -456,7 +457,7 @@ func run() -> void:
 
 
 func _test_plain_exchange() -> void:
-	var world: Variant = _duel("sword", "sword")
+	var world: CombatWorld = _duel("sword", "sword")
 	var result: ExchangeResolver.Result = _exchange(world)
 	_ok(
 			"plain: legal, countered, two turns",
@@ -469,7 +470,7 @@ func _test_plain_exchange() -> void:
 
 
 func _test_triangle_advantage() -> void:
-	var world: Variant = _duel("lance", "sword")
+	var world: CombatWorld = _duel("lance", "sword")
 	var ctx: EffectContext = _context(world, "p1", "e1", "p1", 0)
 	_ok("triangle: a lance has Advantage over a sword", ctx.matchup == ADVANTAGE)
 	_ok("triangle: +15 Hit", ExchangeResolver.hit_chance(world.engine, world.state, ctx) == 95)
@@ -486,7 +487,7 @@ func _test_triangle_advantage() -> void:
 
 
 func _test_effectiveness() -> void:
-	var world: Variant = _duel("bow", "sword", 2)
+	var world: CombatWorld = _duel("bow", "sword", 2)
 	world.state.unit("e1").tags = PackedStringArray(["Flier"])
 	var hit: DamagePipeline.HitDamage = _hit(world, "p1", "e1")
 	_ok("effective: a bow against a flier", hit.is_effective)
@@ -500,19 +501,19 @@ func _test_effectiveness() -> void:
 
 
 func _test_bonus_turn_at_four() -> void:
-	var world: Variant = _duel("dagger", "dagger", 1, {CombatValue.Key.SPD: 9.0})
+	var world: CombatWorld = _duel("dagger", "dagger", 1, {CombatValue.Key.SPD: 9.0})
 	var order: PackedStringArray = _order(world)
 	_same("bonus: a gap of exactly 4 gives one", ",".join(order), "p1,e1,p1")
 	_exchange(world)
 	_golden("bonus turn at a gap of 4", world)
 
-	var three: Variant = _duel("dagger", "dagger", 1, {CombatValue.Key.SPD: 8.0})
+	var three: CombatWorld = _duel("dagger", "dagger", 1, {CombatValue.Key.SPD: 8.0})
 	_same(
 			"bonus: a gap of 3 gives none",
 			",".join(ExchangeResolver.turn_order(three.engine, three.state, "p1", "e1")),
 			"p1,e1"
 	)
-	var slower: Variant = _duel("dagger", "dagger", 1, {}, {CombatValue.Key.SPD: 9.0})
+	var slower: CombatWorld = _duel("dagger", "dagger", 1, {}, {CombatValue.Key.SPD: 9.0})
 	_same(
 			"bonus: the faster defender gets it",
 			",".join(ExchangeResolver.turn_order(slower.engine, slower.state, "p1", "e1")),
@@ -521,14 +522,14 @@ func _test_bonus_turn_at_four() -> void:
 
 
 func _test_bonus_turns_at_ten() -> void:
-	var world: Variant = _duel("dagger", "dagger", 1, {CombatValue.Key.SPD: 15.0})
+	var world: CombatWorld = _duel("dagger", "dagger", 1, {CombatValue.Key.SPD: 15.0})
 	var order: PackedStringArray = _order(world)
 	_same("bonus: a gap of exactly 10 gives two", ",".join(order), "p1,e1,p1,p1")
 	world.state.set_hp("e1", 40)
 	world.engine.set_base("e1", CombatValue.Key.HP, 40.0)
 	_exchange(world)
 	_golden("bonus turns at a gap of 10", world)
-	var nine: Variant = _duel("dagger", "dagger", 1, {CombatValue.Key.SPD: 14.0})
+	var nine: CombatWorld = _duel("dagger", "dagger", 1, {CombatValue.Key.SPD: 14.0})
 	_ok(
 			"bonus: a gap of 9 gives one",
 			ExchangeResolver.turn_order(nine.engine, nine.state, "p1", "e1").size() == 3
@@ -536,7 +537,7 @@ func _test_bonus_turns_at_ten() -> void:
 
 
 func _test_crit_on_exposed() -> void:
-	var world: Variant = _duel("dagger", "sword", 1)
+	var world: CombatWorld = _duel("dagger", "sword", 1)
 	world.state.weapon("w:p1").crit = 75
 	world.state.load_bases(world.engine, "p1")
 	world.state.set_stance("e1", 0)
@@ -546,7 +547,7 @@ func _test_crit_on_exposed() -> void:
 	_ok("crit: (2 + 3 - 2) x CritX 5 = 15", world.state.get_hp("e1") == 5)
 	_golden("crit on an Exposed target", world)
 
-	var guarded: Variant = _duel("dagger", "sword", 1)
+	var guarded: CombatWorld = _duel("dagger", "sword", 1)
 	guarded.state.weapon("w:p1").crit = 75
 	guarded.state.load_bases(guarded.engine, "p1")
 	_exchange(guarded)
@@ -555,7 +556,7 @@ func _test_crit_on_exposed() -> void:
 
 
 func _test_parry_cuts_attacks() -> void:
-	var world: Variant = _duel("gauntlets", "gauntlets")
+	var world: CombatWorld = _duel("gauntlets", "gauntlets")
 	_ok(
 			"parry: AtkX 2 makes two attacks",
 			ExchangeResolver.attacks_per_turn(world.engine, world.state, "p1", "e1", "p1") == 2
@@ -576,7 +577,7 @@ func _test_parry_cuts_attacks() -> void:
 
 
 func _test_full_mitigation() -> void:
-	var world: Variant = _duel("dagger", "dagger", 1, {}, {CombatValue.Key.DEF: 20.0})
+	var world: CombatWorld = _duel("dagger", "dagger", 1, {}, {CombatValue.Key.DEF: 20.0})
 	_exchange(world)
 	_ok("countered: no damage", world.state.get_hp("e1") == 20)
 	_ok("countered: no Stance lost", world.state.get_stance("e1") == 2)
@@ -585,7 +586,7 @@ func _test_full_mitigation() -> void:
 
 
 func _test_block_absorbs() -> void:
-	var world: Variant = _duel("dagger", "sword", 1, {CombatValue.Key.MGT: 5.0})
+	var world: CombatWorld = _duel("dagger", "sword", 1, {CombatValue.Key.MGT: 5.0})
 	world.engine.gain_block("e1", 4.0)
 	var start: int = world.engine.fact_log.size()
 	_exchange(world)
@@ -596,7 +597,7 @@ func _test_block_absorbs() -> void:
 
 
 func _test_defeat_mid_exchange() -> void:
-	var world: Variant = _duel("gauntlets", "sword", 1, {CombatValue.Key.MGT: 4.0})
+	var world: CombatWorld = _duel("gauntlets", "sword", 1, {CombatValue.Key.MGT: 4.0})
 	world.state.set_hp("e1", 5)
 	var result: ExchangeResolver.Result = _exchange(world)
 	_ok("defeat: the defender falls", result.defender_defeated and not world.state.has_unit("e1"))
@@ -606,7 +607,7 @@ func _test_defeat_mid_exchange() -> void:
 
 
 func _test_attacker_defeated_by_counter() -> void:
-	var world: Variant = _duel("sword", "dagger", 1, {}, {CombatValue.Key.SPD: 9.0})
+	var world: CombatWorld = _duel("sword", "dagger", 1, {}, {CombatValue.Key.SPD: 9.0})
 	world.state.weapon("w:p1").hit = 0
 	world.state.load_bases(world.engine, "p1")
 	world.state.set_hp("p1", 3)
@@ -617,17 +618,17 @@ func _test_attacker_defeated_by_counter() -> void:
 
 
 func _test_bow_cannot_counter_at_one() -> void:
-	var world: Variant = _duel("sword", "bow")
+	var world: CombatWorld = _duel("sword", "bow")
 	var result: ExchangeResolver.Result = _exchange(world)
 	_ok("bow: can't counter at 1", not result.can_counter and result.turns == 1)
 	_golden("bow can't counter at 1", world)
 
 
 func _test_staff_holder_cannot_counter() -> void:
-	var world: Variant = _duel("dagger", "harm", 1)
+	var world: CombatWorld = _duel("dagger", "harm", 1)
 	var result: ExchangeResolver.Result = _exchange(world)
 	_ok("staff: an attack staff in range still can't counter", not result.can_counter)
-	var shelter: Variant = _duel("dagger", "shelter", 1)
+	var shelter: CombatWorld = _duel("dagger", "shelter", 1)
 	_ok("staff: nor a Block staff", not _exchange(shelter).can_counter)
 	_golden("staff holder can't counter", world)
 	_quiet(shelter)
@@ -635,7 +636,7 @@ func _test_staff_holder_cannot_counter() -> void:
 
 func _test_lifesteal() -> void:
 	# A bow can't counter at 1, so only p1's attack touches p1's HP.
-	var world: Variant = _duel("dagger", "bow", 1, {CombatValue.Key.MGT: 5.0})
+	var world: CombatWorld = _duel("dagger", "bow", 1, {CombatValue.Key.MGT: 5.0})
 	world.state.set_hp("p1", 10)
 	var lifesteal: ModifyThat = ModifyThat.new()
 	lifesteal.what = ModifyThat.What.FLAG
@@ -650,7 +651,7 @@ func _test_lifesteal() -> void:
 
 
 func _test_turn_one_full_stance() -> void:
-	var world: Variant = _duel("dagger", "sword", 1, {}, {CombatValue.Key.STANCE_MAX: 3.0})
+	var world: CombatWorld = _duel("dagger", "sword", 1, {}, {CombatValue.Key.STANCE_MAX: 3.0})
 	world.state.weapon("w:p1").crit = 75
 	world.state.load_bases(world.engine, "p1")
 	_ok("turn 1: placed with full Stance", world.state.get_stance("e1") == 3)
@@ -661,13 +662,13 @@ func _test_turn_one_full_stance() -> void:
 
 
 func _test_breaker_on_full_counter() -> void:
-	var world: Variant = _duel("dagger", "sword", 1, {}, {CombatValue.Key.DEF: 20.0})
+	var world: CombatWorld = _duel("dagger", "sword", 1, {}, {CombatValue.Key.DEF: 20.0})
 	world.add_effect("effect:breaker", _breaker(), "p1")
 	_exchange(world)
 	_ok("breaker: a fully countered hit costs no Stance", world.state.get_stance("e1") == 2)
 	_golden("breaker on a fully countered hit", world)
 
-	var through: Variant = _duel("dagger", "sword", 1)
+	var through: CombatWorld = _duel("dagger", "sword", 1)
 	through.add_effect("effect:breaker", _breaker(), "p1")
 	_exchange(through)
 	_ok("breaker: a hit that gets through costs 2", through.state.get_stance("e1") == 0)
@@ -677,12 +678,12 @@ func _test_breaker_on_full_counter() -> void:
 func _test_heavy_pack() -> void:
 	# A dagger weighs 3: Constitution 3 carries it, so only the Pouch can slow p1.
 	var bases: Dictionary = {CombatValue.Key.SPD: 9.0, CombatValue.Key.CON: 3.0}
-	var light: Variant = _duel("dagger", "dagger", 1, bases)
+	var light: CombatWorld = _duel("dagger", "dagger", 1, bases)
 	var ctx: EffectContext = ExchangeResolver.context(
 			light.engine, light.state, "p1", "e1", "p1", -1
 	)
 	_ok("pack: Attack Speed 9 with an empty Pouch", _speed(light, "p1", ctx) == 9)
-	var heavy: Variant = _duel("dagger", "dagger", 1, bases)
+	var heavy: CombatWorld = _duel("dagger", "dagger", 1, bases)
 	var holder: CombatUnitState = heavy.state.unit("p1")
 	holder.pouch_item_id = "item:potion"
 	holder.pouch_item_weight = 2
@@ -703,7 +704,7 @@ func _test_heavy_pack() -> void:
 func _test_cleave_and_momentum_after_combat() -> void:
 	# p1 always misses (Momentum); the faster Brute e1 hits it twice (Cleave, twice); p2 stands
 	# next to e1 and only the splash reaches it.
-	var world: Variant = _duel("sword", "dagger", 1, {}, {CombatValue.Key.SPD: 9.0})
+	var world: CombatWorld = _duel("sword", "dagger", 1, {}, {CombatValue.Key.SPD: 9.0})
 	world.add_unit("p2", PLAYER, 0, Vector2i(2, 2), UNIT_BASES)
 	world.state.weapon("w:p1").hit = 0
 	world.state.load_bases(world.engine, "p1")
@@ -721,7 +722,7 @@ func _test_cleave_and_momentum_after_combat() -> void:
 	)
 
 	# p1 is faster: p1 hits, the Brute counters (Cleave queued), p1's bonus turn defeats it.
-	var later: Variant = _duel("sword", "dagger", 1, {CombatValue.Key.SPD: 9.0})
+	var later: CombatWorld = _duel("sword", "dagger", 1, {CombatValue.Key.SPD: 9.0})
 	later.add_unit("p2", PLAYER, 0, Vector2i(2, 2), UNIT_BASES)
 	later.add_effect("effect:cleave", _cleave(), "e1")
 	later.state.set_hp("e1", 12)
@@ -734,7 +735,7 @@ func _test_cleave_and_momentum_after_combat() -> void:
 
 
 func _test_magic_and_terrain() -> void:
-	var world: Variant = _duel("fire", "sword", 1, {}, {CombatValue.Key.RES: 1.0})
+	var world: CombatWorld = _duel("fire", "sword", 1, {}, {CombatValue.Key.RES: 1.0})
 	var forest: CombatGrid.TileBonus = CombatGrid.TileBonus.new()
 	forest.avoid = 20
 	forest.defense = 1
@@ -768,7 +769,7 @@ func _test_magic_and_terrain() -> void:
 # "Deals ×2 damage to Beasts": the attacker's Multipliers, only against a Beast, only while it
 # attacks; its own counter target isn't a Beast here, and outside an attack nothing changes.
 func _test_multiplier_against_tag() -> void:
-	var world: Variant = _duel("sword", "gauntlets")
+	var world: CombatWorld = _duel("sword", "gauntlets")
 	world.add_effect("effect:bane", _beast_bane(), "p1")
 	_ok("beasts: 1 outside an attack", _multipliers(world, "p1") == 1.0)
 	_ok("beasts: not a Beast, 6", _hit(world, "p1", "e1").damage == 6)
@@ -783,7 +784,7 @@ func _test_multiplier_against_tag() -> void:
 
 # "Takes ×2 damage from magic": the defender's Incoming multipliers, magic only.
 func _test_incoming_from_magic() -> void:
-	var world: Variant = _duel("fire", "gauntlets")
+	var world: CombatWorld = _duel("fire", "gauntlets")
 	world.add_effect("effect:frail", _magic_frailty(), "e1")
 	var hit: DamagePipeline.HitDamage = _hit(world, "p1", "e1")
 	_ok("magic: 5 + 3 - 1 RES = 7, ×2 = 14", hit.damage == 14)
@@ -798,7 +799,7 @@ func _test_incoming_from_magic() -> void:
 # "Takes 50% less damage while adjacent to an ally": a position condition on Incoming multipliers,
 # so moving the ally away changes the next hit with no cached sheet left behind.
 func _test_incoming_while_adjacent() -> void:
-	var world: Variant = _duel("sword", "gauntlets")
+	var world: CombatWorld = _duel("sword", "gauntlets")
 	world.add_unit("e2", ENEMY, -1, Vector2i(2, 2), UNIT_BASES)
 	var half: ModifyValue = _times(DamageStage.Key.INCOMING_MULTIPLIERS, 0.5)
 	var beside: WhilePositionCondition = WhilePositionCondition.new()
@@ -816,7 +817,7 @@ func _test_incoming_while_adjacent() -> void:
 
 # "Takes 2 more damage from bows": Mitigation -2, which goes below 0 when DEF can't cover it.
 func _test_more_damage_from_bows() -> void:
-	var world: Variant = _duel("bow", "gauntlets", 2)
+	var world: CombatWorld = _duel("bow", "gauntlets", 2)
 	world.state.weapon("w:p1").weapon_type = "Bow"
 	var more: ModifyValue = _times(DamageStage.Key.MITIGATION, -2.0)
 	more.mode = ADD
@@ -839,7 +840,7 @@ func _test_more_damage_from_bows() -> void:
 # The attacker's ×2 against Beasts, the defender's ×2 from magic and a ×1.5 "that hit" modifier
 # multiply on one hit, each in its breakdown; then the exchange's log, with verify mode on.
 func _test_two_sided_multipliers() -> void:
-	var world: Variant = _duel("fire", "gauntlets", 1, {}, {CombatValue.Key.HP: 40.0})
+	var world: CombatWorld = _duel("fire", "gauntlets", 1, {}, {CombatValue.Key.HP: 40.0})
 	world.state.weapon("w:p1").hit = 100
 	world.arm("p1", "w:p1")
 	world.state.unit("e1").tags = PackedStringArray(["Beast"])
@@ -872,15 +873,15 @@ func _test_two_sided_multipliers() -> void:
 
 
 func _test_illegal_exchanges() -> void:
-	var world: Variant = _duel("sword", "sword", 3)
+	var world: CombatWorld = _duel("sword", "sword", 3)
 	_same("illegal: out of range", _exchange(world).reason, "out of range")
-	var shelter: Variant = _duel("shelter", "sword")
+	var shelter: CombatWorld = _duel("shelter", "sword")
 	_same(
 			"illegal: a Block staff can't attack",
 			_exchange(shelter).reason,
 			"a support staff can't attack"
 	)
-	var ally: Variant = _duel("sword", "sword")
+	var ally: CombatWorld = _duel("sword", "sword")
 	ally.add_unit("p2", PLAYER, 0, Vector2i(1, 2), UNIT_BASES)
 	ally.arm("p2", ally.add_weapon("w:p2", "sword").id)
 	_same(
@@ -896,18 +897,18 @@ func _test_illegal_exchanges() -> void:
 
 
 func _test_determinism() -> void:
-	var first: Variant = _duel("axe", "lance")
-	var second: Variant = _duel("axe", "lance")
+	var first: CombatWorld = _duel("axe", "lance")
+	var second: CombatWorld = _duel("axe", "lance")
 	_exchange(first)
 	_exchange(second)
 	_ok("determinism: same seed, same log", first.log_lines() == second.log_lines())
-	var other: Variant = _duel("axe", "lance", 1, {}, {}, SEED + 1)
+	var other: CombatWorld = _duel("axe", "lance", 1, {}, {}, SEED + 1)
 	_exchange(other)
 	_ok("determinism: the stream is the only randomness", other.engine.rolls.records.size() > 0)
 
 
 func _test_property_damage_never_negative() -> void:
-	var world: Variant = _duel("sword", "sword")
+	var world: CombatWorld = _duel("sword", "sword")
 	var stream: RngStream = RngStream.new(SEED)
 	var lowest: int = 0
 	for i: int in 300:
@@ -929,7 +930,7 @@ func _test_property_exchanges() -> void:
 		var stream: RngStream = RngStream.new(SEED + i)
 		var own: String = weapons[stream.randi_range(0, weapons.size() - 1)]
 		var theirs: String = weapons[stream.randi_range(0, weapons.size() - 1)]
-		var world: Variant = _duel(
+		var world: CombatWorld = _duel(
 				own, theirs, 1,
 				{CombatValue.Key.SPD: float(stream.randi_range(0, 20))},
 				{CombatValue.Key.SPD: float(stream.randi_range(0, 20))},
@@ -1049,8 +1050,8 @@ func _duel(
 		own_bases: Dictionary = {},
 		their_bases: Dictionary = {},
 		stream_seed: int = SEED
-) -> Variant:
-	var world: Variant = CombatWorld.new(LiveRolls.new(RngStream.new(stream_seed)))
+) -> CombatWorld:
+	var world: CombatWorld = CombatWorld.new(LiveRolls.new(RngStream.new(stream_seed)))
 	var p1_bases: Dictionary = UNIT_BASES.duplicate()
 	p1_bases.merge(own_bases, true)
 	var e1_bases: Dictionary = UNIT_BASES.duplicate()
@@ -1065,24 +1066,24 @@ func _duel(
 
 
 func _exchange(
-		world: Variant, attacker: String = "p1", defender: String = "e1"
+		world: CombatWorld, attacker: String = "p1", defender: String = "e1"
 ) -> ExchangeResolver.Result:
 	world.engine.begin_step()
 	return ExchangeResolver.resolve(world.engine, world.state, attacker, defender)
 
 
 # Stages 1 to 5 of attacker's hit on defender, outside an exchange (no facts).
-func _hit(world: Variant, attacker: String, defender: String) -> DamagePipeline.HitDamage:
+func _hit(world: CombatWorld, attacker: String, defender: String) -> DamagePipeline.HitDamage:
 	var ctx: EffectContext = _context(world, attacker, defender, attacker, 0)
 	return DamagePipeline.compute(world.engine, world.state, ctx)
 
 
-func _speed(world: Variant, unit_id: String, ctx: EffectContext) -> int:
+func _speed(world: CombatWorld, unit_id: String, ctx: EffectContext) -> int:
 	return ExchangeResolver.attack_speed(world.engine, unit_id, ctx).get_int()
 
 
 # The displayed Hit or chance of every roll made, in order.
-func _shown_rolls(world: Variant) -> String:
+func _shown_rolls(world: CombatWorld) -> String:
 	var shown: PackedStringArray = []
 	var rolls: RollSource = world.engine.rolls
 	for record: RollRecord in rolls.records:
@@ -1090,7 +1091,7 @@ func _shown_rolls(world: Variant) -> String:
 	return ",".join(shown)
 
 
-func _count(world: Variant, kind: CombatFact.Kind) -> int:
+func _count(world: CombatWorld, kind: CombatFact.Kind) -> int:
 	var found: int = 0
 	var engine: EffectEngine = world.engine
 	for fact: CombatFact in engine.fact_log:
@@ -1100,7 +1101,7 @@ func _count(world: Variant, kind: CombatFact.Kind) -> int:
 
 
 # Whether nothing but After Combat (and what its drain resolves) follows a defeat in the attacks.
-func _stops_at_defeat(world: Variant) -> bool:
+func _stops_at_defeat(world: CombatWorld) -> bool:
 	var engine: EffectEngine = world.engine
 	var defeated: bool = false
 	for fact: CombatFact in engine.fact_log:
@@ -1143,7 +1144,7 @@ func _triggered(
 
 
 # The attacker's Multipliers outside any attack.
-func _multipliers(world: Variant, unit_id: String) -> float:
+func _multipliers(world: CombatWorld, unit_id: String) -> float:
 	return world.engine.stats(unit_id).get_value(DamageStage.Key.MULTIPLIERS)
 
 
@@ -1220,7 +1221,7 @@ func _breaker() -> EffectDefinition:
 
 # Compares the log from start on with GOLDEN[name]; on a mismatch prints the actual log as a
 # GDScript array for review. Also checks the engine reported no diagnostics.
-func _golden(name: String, world: Variant, start: int = 0) -> void:
+func _golden(name: String, world: CombatWorld, start: int = 0) -> void:
 	var lines: Array[String] = world.log_lines(start)
 	var expected: Array = GOLDEN.get(name, [])
 	var same: bool = lines.size() == expected.size()
@@ -1235,7 +1236,7 @@ func _golden(name: String, world: Variant, start: int = 0) -> void:
 	_quiet(world)
 
 
-func _quiet(world: Variant) -> void:
+func _quiet(world: CombatWorld) -> void:
 	var engine: EffectEngine = world.engine
 	_ok("diagnostics: none", engine.diagnostics.is_empty(), str(engine.diagnostics))
 
@@ -1249,10 +1250,10 @@ func _same(case_name: String, actual: String, expected: String) -> void:
 
 
 func _context(
-		world: Variant, attacker: String, defender: String, initiator: String, index: int
+		world: CombatWorld, attacker: String, defender: String, initiator: String, index: int
 ) -> EffectContext:
 	return ExchangeResolver.context(world.engine, world.state, attacker, defender, initiator, index)
 
 
-func _order(world: Variant) -> PackedStringArray:
+func _order(world: CombatWorld) -> PackedStringArray:
 	return ExchangeResolver.turn_order(world.engine, world.state, "p1", "e1")

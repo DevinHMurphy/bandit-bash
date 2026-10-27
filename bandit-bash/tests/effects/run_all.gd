@@ -24,10 +24,11 @@ extends SceneTree
 ## is read from its script.
 
 const NetLogScript: GDScript = preload("res://scripts/autoload/net_log.gd")
-const EngineCases: GDScript = preload("res://tests/effects/engine_cases.gd")
-const GoldenCases: GDScript = preload("res://tests/effects/golden_cases.gd")
-const SandboxCases: GDScript = preload("res://tests/effects/sandbox_cases.gd")
-const StatsCases: GDScript = preload("res://tests/effects/stats_cases.gd")
+# Preloaded scripts used as types (gdscript.md, Naming): the case scripts have no class name.
+const EngineCases = preload("res://tests/effects/engine_cases.gd")
+const GoldenCases = preload("res://tests/effects/golden_cases.gd")
+const SandboxCases = preload("res://tests/effects/sandbox_cases.gd")
+const StatsCases = preload("res://tests/effects/stats_cases.gd")
 
 # Short names for the modifier modes and source kinds, to keep the value cases readable.
 const REPLACE_BASE: Modifier.Mode = Modifier.Mode.REPLACE_BASE
@@ -101,15 +102,10 @@ func _init() -> void:
 	_test_describe_coverage_fixtures()
 	_test_describe_definition_shapes()
 	_test_key_fields_offer_a_dropdown()
-	# Variant: the case scripts have no class name to type them with.
-	var engine_cases: Variant = EngineCases.new(_check)
-	engine_cases.run()
-	var golden_cases: Variant = GoldenCases.new(_check)
-	golden_cases.run()
-	var sandbox_cases: Variant = SandboxCases.new(_check)
-	sandbox_cases.run()
-	var stats_cases: Variant = StatsCases.new(_check)
-	stats_cases.run()
+	EngineCases.new(_check).run()
+	GoldenCases.new(_check).run()
+	SandboxCases.new(_check).run()
+	StatsCases.new(_check).run()
 
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)
@@ -186,7 +182,10 @@ func _test_combat_fact_amendments() -> void:
 	var wire: Array = phase.to_wire()
 	_check(
 			"amendments: side in slot 14, item id appended after it",
-			wire.size() == 17 and wire[14] == CombatFact.CombatSide.ENEMY and wire[15] == "",
+			(
+					wire.size() == 17 and wire[14] == CombatFact.CombatSide.ENEMY
+					and wire[15] == ""
+			) as bool,
 			str(wire)
 	)
 	var back: CombatFact = CombatFact.from_wire(wire)
@@ -195,7 +194,9 @@ func _test_combat_fact_amendments() -> void:
 			back != null and back.side == CombatFact.CombatSide.ENEMY and back.amount == 3
 	)
 	var parsed: Variant = JSON.parse_string(JSON.stringify(wire))
-	var through_json: CombatFact = CombatFact.from_wire(parsed if parsed is Array else [])
+	var through_json: CombatFact = CombatFact.from_wire(
+			(parsed as Array) if parsed is Array else []
+	)
 	_check(
 			"amendments: side survives JSON",
 			through_json != null and through_json.side == CombatFact.CombatSide.ENEMY
@@ -262,7 +263,9 @@ func _test_combat_fact_item_id() -> void:
 				back != null and back.item_id == fact.item_id and back.to_wire() == fact.to_wire()
 		)
 		var parsed: Variant = JSON.parse_string(JSON.stringify(fact.to_wire()))
-		var through_json: CombatFact = CombatFact.from_wire(parsed if parsed is Array else [])
+		var through_json: CombatFact = CombatFact.from_wire(
+				(parsed as Array) if parsed is Array else []
+		)
 		_check(
 				"item id: %s through JSON" % [kind_name],
 				through_json != null and through_json.to_wire() == fact.to_wire()
@@ -298,12 +301,14 @@ func _test_combat_fact_key() -> void:
 	counter.key = EffectDefinition.Lane.CAMPAIGN
 	_check(
 			"key: STAT_CHANGED appended after BLOCK_LOST, key in slot 16",
-			CombatFact.Kind.STAT_CHANGED == 42 and stat.to_wire().size() == 17
-			and stat.to_wire()[16] == CombatValue.Stat.MGT
+			(
+					CombatFact.Kind.STAT_CHANGED == 42 and stat.to_wire().size() == 17
+					and stat.to_wire()[16] == CombatValue.Stat.MGT
+			) as bool
 	)
 	for fact: CombatFact in [stat, counter]:
 		var parsed: Variant = JSON.parse_string(JSON.stringify(fact.to_wire()))
-		var back: CombatFact = CombatFact.from_wire(parsed if parsed is Array else [])
+		var back: CombatFact = CombatFact.from_wire((parsed as Array) if parsed is Array else [])
 		_check(
 				"key: %s keeps its key through JSON" % [CombatFact.Kind.find_key(fact.kind)],
 				back != null and back.key == fact.key and back.to_wire() == fact.to_wire()
@@ -338,7 +343,9 @@ func _test_campaign_wire_round_trip() -> void:
 	)
 
 	var parsed: Variant = JSON.parse_string(JSON.stringify(fact.to_wire()))
-	var through_json: CampaignFact = CampaignFact.from_wire(parsed if parsed is Array else [])
+	var through_json: CampaignFact = CampaignFact.from_wire(
+			(parsed as Array) if parsed is Array else []
+	)
 	_check(
 			"campaign json: round trip equal",
 			through_json != null and through_json.to_wire() == fact.to_wire()
@@ -1571,22 +1578,22 @@ func _test_key_fields_offer_a_dropdown() -> void:
 	var value_hint: Dictionary = _property(ModifyValue.new(), "key")
 	_check(
 			"dropdown: value keys by name",
-			value_hint.get("hint", -1) == PROPERTY_HINT_ENUM
-			and String(value_hint.get("hint_string", "")).contains("Combat Gold:2000")
-			and String(value_hint.get("hint_string", "")).contains("Multipliers stage:1003"),
+			(value_hint.get("hint", -1) == PROPERTY_HINT_ENUM) as bool
+			and (value_hint.get("hint_string", "") as String).contains("Combat Gold:2000")
+			and (value_hint.get("hint_string", "") as String).contains("Multipliers stage:1003"),
 			str(value_hint.get("hint_string", ""))
 	)
 	var permission_hint: Dictionary = _property(SetPermission.new(), "permission")
 	_check(
 			"dropdown: permission keys by name",
-			permission_hint.get("hint", -1) == PROPERTY_HINT_ENUM
-			and String(permission_hint.get("hint_string", "")).contains("Can Counter:3000")
+			(permission_hint.get("hint", -1) == PROPERTY_HINT_ENUM) as bool
+			and (permission_hint.get("hint_string", "") as String).contains("Can Counter:3000")
 	)
 	var timed_hint: Dictionary = _property(AddTimedModifier.new(), "key")
 	_check(
 			"dropdown: timed modifiers offer values and permissions",
-			String(timed_hint.get("hint_string", "")).contains("Hit:4")
-			and String(timed_hint.get("hint_string", "")).contains("Can Be Shoved:3001")
+			(timed_hint.get("hint_string", "") as String).contains("Hit:4")
+			and (timed_hint.get("hint_string", "") as String).contains("Can Be Shoved:3001")
 	)
 
 
