@@ -566,6 +566,20 @@ func _test_selectors() -> void:
 	_same("select: this unit and allies within 2", ",".join(allies.select(ctx)), "p1,p2,q1")
 	var enemies: Area = _area(Area.Center.FACT_ACTOR, 4, EffectDefinition.UnitSide.ENEMY, false)
 	_same("select: enemies around that unit", ",".join(enemies.select(ctx)), "e1,e2")
+	var sanctuary: Area = _area(
+			Area.Center.COMMAND_TARGET, 1, EffectDefinition.UnitSide.ALLY, true
+	)
+	_ok("select: no command, no target area", sanctuary.select(ctx).is_empty())
+	ctx.command_target_id = "p1"
+	_same(
+			"select: the target and allies adjacent to it",
+			",".join(sanctuary.select(ctx)),
+			"p1,p2,q1"
+	)
+	sanctuary.include_center = false
+	ctx.command_target_id = "e1"
+	_same("select: allies adjacent to an enemy target", ",".join(sanctuary.select(ctx)), "p2")
+	ctx.command_target_id = ""
 
 	# A wall in p2's way: every walk from p2 takes 2 extra steps.
 	_fake(engine).unit("p2").detour = 2

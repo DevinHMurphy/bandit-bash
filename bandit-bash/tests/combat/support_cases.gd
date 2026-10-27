@@ -10,9 +10,10 @@
 # ==============================================================================
 
 extends RefCounted
-## Support action cases for tests/combat/run_all.gd: golden fact logs for each staff kind, each
-## Pouch item kind, a Sidearm swap, runes (Mend, Aegis, Shatter, Recall) and Wait, their legality,
-## and per-map uses refilling between two battles while total uses don't.
+## Support action cases for tests/combat/run_all.gd: golden fact logs for each staff kind, the area
+## staves (Sanctuary, Everwall), each Pouch item kind, a Sidearm swap, runes (Mend, Aegis, Shatter,
+## Recall) and Wait, their legality, and per-map uses refilling between two battles while total
+## uses don't.
 ##
 ## Item and rune effects are fixtures built from the effect blocks, with the values of items.md and
 ## weapons.md. Every scenario also asserts that the engine reported no diagnostics.
@@ -42,6 +43,21 @@ const GOLDEN: Dictionary[String, Array] = {
 	"block staff": [
 		"s0#1 BLOCK_GAINED p1 <- p2 amount 6 (hp 0, block 6)",
 		"s0#2 USED_STAFF_ON_ALLY p2 -> p1",
+	],
+	"sanctuary": [
+		"s0#1 BLOCK_GAINED p1 <- p2 amount 6 (hp 0, block 6)",
+		"s0#2 BLOCK_GAINED p2 amount 6 (hp 0, block 6)",
+		"s0#3 BLOCK_GAINED p3 <- p2 amount 6 (hp 0, block 6)",
+		"s0#4 EFFECT_ACTIVATED p2 effect effect:sanctuary_uses",
+		"s0#5 USED_STAFF_ON_ALLY p2 -> p1",
+	],
+	"everwall": [
+		"s0#1 BLOCK_GAINED p1 <- p2 amount 8 (hp 0, block 8)",
+		"s0#2 BLOCK_GAINED p2 amount 8 (hp 0, block 8)",
+		"s0#3 BLOCK_GAINED p3 <- p2 amount 8 (hp 0, block 8)",
+		"s0#4 BLOCK_GAINED p4 <- p2 amount 8 (hp 0, block 8)",
+		"s0#5 EFFECT_ACTIVATED p2 effect effect:everwall_uses",
+		"s0#6 USED_STAFF_ON_ALLY p2 -> p1",
 	],
 	"heal staff": [
 		"s0#1 HEALED_AN_ALLY p2 -> p1 amount 8 (hp 5, block 0)",
@@ -139,6 +155,8 @@ func _init(check: Callable) -> void:
 func run() -> void:
 	_test_block_staff()
 	_test_heal_staff()
+	_test_sanctuary()
+	_test_everwall()
 	_test_attack_staff()
 	_test_potion()
 	_test_guard_tonic()
@@ -180,6 +198,58 @@ func _test_heal_staff() -> void:
 		_staff(world, "p2", "p1")
 	world.state.set_hp("p1", 10)
 	_same("heal staff: 3 per map", _staff_reason(world, "p2", "p1"), "no uses left")
+	_quiet(world)
+
+
+# Sanctuary (weapons.md): the target ally and every ally adjacent to it gain 3 + Might Block, 2
+# uses per map, range 1-2. p3 stands next to p1; p4 is too far.
+func _test_sanctuary() -> void:
+	var world: Variant = _team()
+	world.add_unit("p3", PLAYER, 0, Vector2i(1, 2), BASES)
+	world.add_unit("p4", PLAYER, 0, Vector2i(6, 6), BASES)
+	var staff: CombatState.WeaponStats = _area_staff(
+			world, "w:sanctuary", "Sanctuary", 3, 2,
+			_area(Area.Center.COMMAND_TARGET, 1, true)
+	)
+	world.arm("p2", staff.id)
+	world.add_effect("effect:sanctuary_uses", _uses(2, COMBAT_LANE), "p2", WEAPON, staff.id)
+	_same(
+			"sanctuary: text", staff.area.describe(), "the target and adjacent allies of the target"
+	)
+	var result: StaffResolver.Result = _staff(world, "p2", "p1")
+	_ok("sanctuary: 3 + Might 3 to each of three", result.amount == 18)
+	var blocks: Array[int] = []
+	for id: String in ["p1", "p2", "p3", "p4", "e1"]:
+		blocks.append(world.state.get_block(id))
+	_same("sanctuary: target, user and p3; not p4 or the foe", str(blocks), "[6, 6, 6, 0, 0]")
+	_golden("sanctuary", world)
+	_staff(world, "p2", "p3")
+	_ok("sanctuary: centered on its target", world.state.get_block("p2") == 6)
+	_same("sanctuary: 2 per map", _staff_reason(world, "p2", "p1"), "no uses left")
+	_quiet(world)
+
+
+# Everwall (weapons.md): every ally within 3 tiles of the user, the user included, gains 5 + Might
+# Block, 1 use per map; grid distance. p4 is 3 tiles from p2, p5 4 tiles.
+func _test_everwall() -> void:
+	var world: Variant = _team()
+	world.add_unit("p3", PLAYER, 0, Vector2i(1, 2), BASES)
+	world.add_unit("p4", PLAYER, 0, Vector2i(5, 1), BASES)
+	world.add_unit("p5", PLAYER, 0, Vector2i(5, 2), BASES)
+	var staff: CombatState.WeaponStats = _area_staff(
+			world, "w:everwall", "Everwall", 5, 1, _area(Area.Center.OWNER, 3, true)
+	)
+	world.arm("p2", staff.id)
+	world.add_effect("effect:everwall_uses", _uses(1, COMBAT_LANE), "p2", WEAPON, staff.id)
+	_same("everwall: text", staff.area.describe(), "this unit and allies within 3 tiles")
+	var result: StaffResolver.Result = _staff(world, "p2", "p1")
+	_ok("everwall: 5 + Might 3 to each of four", result.amount == 32)
+	var blocks: Array[int] = []
+	for id: String in ["p1", "p2", "p3", "p4", "p5", "e1"]:
+		blocks.append(world.state.get_block(id))
+	_same("everwall: within 3 of the user", str(blocks), "[8, 8, 8, 8, 0, 0]")
+	_golden("everwall", world)
+	_same("everwall: 1 per map", _staff_reason(world, "p2", "p1"), "no uses left")
 	_quiet(world)
 
 
@@ -484,6 +554,28 @@ func _rune(world: Variant, rune_id: String, definition: EffectDefinition) -> Eff
 	)
 	world.engine.register(instance)
 	return instance
+
+
+# A Block staff with range 1 to range_max, amount before Might, and area as its shape.
+func _area_staff(
+		world: Variant, weapon_id: String, label: String, amount: int, range_max: int, area: Area
+) -> CombatState.WeaponStats:
+	var staff: CombatState.WeaponStats = world.add_weapon(weapon_id, "shelter")
+	staff.label = label
+	staff.staff_amount = amount
+	staff.range_max = range_max
+	staff.area = area
+	return staff
+
+
+# Allies around center, in grid distance.
+func _area(center: Area.Center, radius: int, include_center: bool) -> Area:
+	var area: Area = Area.new()
+	area.center = center
+	area.radius = radius
+	area.side = EffectDefinition.UnitSide.ALLY
+	area.include_center = include_center
+	return area
 
 
 # A use-only effect: its charges count a staff's uses.

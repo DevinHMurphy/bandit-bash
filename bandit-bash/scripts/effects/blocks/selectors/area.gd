@@ -12,8 +12,8 @@
 @tool
 class_name Area
 extends TargetSelector
-## Selects units around a center: "adjacent units, friend or foe" (Cleave), "allies within 2 tiles",
-## "allies within 2 movable tiles".
+## Selects units around a center: "adjacent units, friend or foe" (Cleave), "the target and adjacent
+## allies of the target" (Sanctuary), "allies within 2 tiles", "allies within 2 movable tiles".
 ##
 ## [member distance] picks the measure (effect-triggers.md, Position and movement): grid distance,
 ## where radius 1 is the four orthogonal neighbors, or the steps the center could walk with its own
@@ -29,6 +29,9 @@ enum Center {
 	FACT_ACTOR = 1,
 	## The triggering fact's other party.
 	FACT_TARGET = 2,
+	## The unit a command targets: the ally an area staff (Sanctuary) is used on. Outside a
+	## command there is none, and the area selects nothing.
+	COMMAND_TARGET = 3,
 }
 
 ## The unit the area is centered on.
@@ -70,6 +73,8 @@ func describe() -> String:
 			place += " of that unit"
 		Center.FACT_TARGET:
 			place += " of the other unit"
+		Center.COMMAND_TARGET:
+			place += " of the target"
 	if side == EffectDefinition.UnitSide.ANY:
 		place += ", friend or foe"
 	if include_center:
@@ -78,6 +83,8 @@ func describe() -> String:
 			center_name = "that unit"
 		elif center == Center.FACT_TARGET:
 			center_name = "the other unit"
+		elif center == Center.COMMAND_TARGET:
+			center_name = "the target"
 		return "%s and %s" % [center_name, place]
 	return place
 
@@ -118,4 +125,6 @@ func _center_id(ctx: EffectContext) -> String:
 			return ctx.fact.actor_id
 		if center == Center.FACT_TARGET:
 			return ctx.fact.target_id
+	if center == Center.COMMAND_TARGET:
+		return ctx.command_target_id
 	return ctx.owner_unit_id() if center == Center.OWNER else ""

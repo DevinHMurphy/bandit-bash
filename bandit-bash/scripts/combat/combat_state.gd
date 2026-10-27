@@ -370,6 +370,9 @@ class WeaponStats:
 	var staff: Staff = Staff.NONE
 	## A Block or heal staff's amount before Might.
 	var staff_amount: int = 0
+	# ASSUMPTION: an area staff carries its shape as an Area selector until P03's staff data does.
+	## An area staff's shape around its target or user (Sanctuary, Everwall); null: the target only.
+	var area: Area = null
 
 	## Whether it is a staff of any kind; its holder never counters.
 	func is_staff() -> bool:

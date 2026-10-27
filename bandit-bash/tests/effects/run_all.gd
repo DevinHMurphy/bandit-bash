@@ -1315,6 +1315,11 @@ func _test_describe_selectors() -> void:
 			_area(Area.Center.FACT_ACTOR, 1, EffectDefinition.UnitSide.ENEMY, false).describe(),
 			"adjacent enemies of that unit"
 	)
+	_snapshot(
+			"area: around the command target",
+			_area(Area.Center.COMMAND_TARGET, 1, EffectDefinition.UnitSide.ALLY, true).describe(),
+			"the target and adjacent allies of the target"
+	)
 	var aura: Area = _area(Area.Center.OWNER, 2, EffectDefinition.UnitSide.ALLY, false)
 	aura.distance = EffectDefinition.Distance.MOVABLE
 	_snapshot("area: movable tiles", aura.describe(), "allies within 2 movable tiles")

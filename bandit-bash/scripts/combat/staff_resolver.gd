@@ -17,15 +17,14 @@ extends RefCounted
 ## scales with Might, game-vision.md). A Block staff gives it through the engine's Block-gain path
 ## (the Block gained window: Brittle Guard), a heal staff through the heal path (Healed an ally and
 ## Healed windows, healing received, capped at maximum HP with the overheal recorded); heal staves
-## target only damaged allies, Block staves any ally. Healing never rolls to hit. A staff with
+## target only damaged allies, Block staves any ally. An area staff gives the amount to each unit
+## its [member CombatState.WeaponStats.area] selects. Healing never rolls to hit. A staff with
 ## limited uses spends one ([method ItemUseResolver.use_effects]), then
 ## [constant CombatFact.Kind.USED_STAFF_ON_ALLY] is recorded and the queue drains. Attack staves
 ## attack through [ExchangeResolver]. Using a staff is the unit's action. Pure and static; the
 ## caller starts the resolution step.
 ##
 ## @tutorial(Combat core plan): docs/plans/2026-10-26-combat-core.md
-##
-## @todo: TOD-001 - Area staves (Sanctuary, Everwall) give each ally in their area the amount.
 
 
 ## [param user_id] uses the staff in its Weapon slot on [param target_id]. An illegal use records
@@ -40,12 +39,12 @@ static func resolve(
 	result.is_legal = true
 	state.unit(user_id).has_acted = true
 	var staff: CombatState.WeaponStats = state.equipped_weapon(user_id)
-	# TODO(TOD-001): One target only; area staves give the amount to each ally in their area.
 	var amount: float = staff_amount(engine, user_id)
-	if staff.staff == CombatState.WeaponStats.Staff.BLOCK:
-		result.amount = engine.gain_block(target_id, amount, user_id)
-	else:
-		result.amount = engine.heal(target_id, amount, user_id)
+	for recipient: String in _recipients(engine, state, user_id, target_id):
+		if staff.staff == CombatState.WeaponStats.Staff.BLOCK:
+			result.amount += engine.gain_block(recipient, amount, user_id)
+		else:
+			result.amount += engine.heal(recipient, amount, user_id)
 	ItemUseResolver.spend(engine, ItemUseResolver.use_effects(engine, staff.id), target_id)
 	engine.record(CombatFact.new(CombatFact.Kind.USED_STAFF_ON_ALLY, user_id, target_id))
 	engine.drain()
@@ -91,6 +90,24 @@ static func staff_amount(engine: EffectEngine, user_id: String) -> float:
 	)
 
 
+# The units the staff gives its amount to: the target, or what its area selects, in state order.
+static func _recipients(
+		engine: EffectEngine, state: CombatState, user_id: String, target_id: String
+) -> PackedStringArray:
+	var staff: CombatState.WeaponStats = state.equipped_weapon(user_id)
+	if staff.area == null:
+		return PackedStringArray([target_id])
+	var ctx: EffectContext = EffectContext.new()
+	ctx.engine = engine
+	ctx.command_target_id = target_id
+	# The area reads its owner's side and unit from an instance: the staff, held by its user.
+	var owner: EffectOwner = EffectOwner.for_item(
+			staff.id, user_id, state.seat_of(user_id), state.side_of(user_id)
+	)
+	ctx.instance = EffectInstance.new("", null, owner, Modifier.SourceKind.WEAPON, staff.label)
+	return staff.area.select(ctx)
+
+
 ## What a staff use did, for its caller.
 class Result:
 	extends RefCounted
@@ -99,5 +116,5 @@ class Result:
 	var is_legal: bool = false
 	## Why it wasn't; empty when it was.
 	var reason: String = ""
-	## Block gained or HP restored.
+	## Block gained or HP restored, over every recipient.
 	var amount: int = 0
