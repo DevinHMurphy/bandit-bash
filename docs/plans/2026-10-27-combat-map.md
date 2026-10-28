@@ -1,6 +1,7 @@
 # Plan: Combat Map
 **Date:** October 27, 2026
-**Status:** Draft — awaiting approval. Orchestrator ID **P04**
+**Status:** **Approved** October 27, 2026, after review (questions 12–13 answered; "within N
+movable tiles" cut; no prep screen in any combat). Orchestrator ID **P04**
 ([game-orchestrator.md](game-orchestrator.md)). Its approval opens P01 EB6 (sessions).
 
 The battlefield: how a map is authored and loaded, terrain, movement and pathing, deployment,
@@ -16,16 +17,15 @@ P07 draws all of it.
   pathing, no deployment, no objective and no way for a combat to end, so the turn loop (P02 CC6)
   and the sessions that host it (P01 EB6) have nothing to run on.
 - **The grid can't see units.** `CombatGrid` is pure and shared by every sandbox
-  (`scripts/combat/combat_grid.gd:20-23`), but two of its methods need occupancy:
-  `validate_path(unit_id, path)` (`:112`) must reject enemy tiles and occupied destinations, and
-  `walking_distance` (`:84`) must follow the source's movement, enemies blocking (question 3).
-  The stub ignores both: its `validate_path` charges 1 per step and never looks at units
+  (`scripts/combat/combat_grid.gd:20-23`), but `validate_path(unit_id, path)` (`:112`) must reject
+  enemy tiles and occupied destinations; the stub charges 1 per step and never looks at units
   (`stub_combat_grid.gd:103-115`). Object state (a door opened, debris broken) has the same
   problem: it changes during resolution, so it can't live in a shared grid.
 - **Contracts are waiting on this plan:** `CombatGrid` (P02 question 1), the `AFTER_STEP`,
   `AFTER_ENEMY_PHASE` and `OBJECT_OPERATIONS` hooks (P02, Turn and phase loop), a stable index per
   chest, house and shelf for `MAP_LOOT` (P13 need R-N5), tile coordinates never negative (P01
-  question 37), and "within N movable tiles" (P01 question 38, P02 question 13).
+  question 37). "Within N movable tiles" (P01 question 38, P02 question 13) was cut in this plan's
+  review (question 12): every "within N tiles" is grid distance.
 - **`Godot_FE` defects to avoid** (`Godot_FE/docs/systems/08_grid_pathing_ai.md` §6): a
   reinforcement wave stalls forever when its spawn tile is occupied; A* is rebuilt for the whole
   map per unit and per cursor move; tiles are keyed by `str(Vector2i)`; four near-identical range
@@ -41,8 +41,8 @@ user). Question 12 was found while drafting.
 |---|----------|---------|----------------|--------|
 | 1 | How maps are authored | Scene + rules resource, converted to pure data / scene read live / data files only | **A scene per map** (terrain and marker layers painted in the editor) **plus a `CombatMapDefinition` resource**, converted at battle start into a pure `MapLayout`; the authoring check runs on the layout | **Answered October 27, 2026:** as recommended. |
 | 2 | Movement rules | Carry over `Godot_FE` / change | **Carry over:** four directions, cost per movement type, own side (teammates' units included) passable, enemies solid, no ending on an occupied tile; a closed door blocks everyone, debris and kegs everyone but fliers | **Answered October 27, 2026:** as recommended. |
-| 3 | What "within N movable tiles" measures | The source's movement / steps ignoring units and cost | **The source's movement:** reachable with N movement points, terrain cost counted, enemies blocking, allies not | **Answered October 27, 2026:** as recommended (revised from the earlier steps-only suggestion, to match "account for where the unit can move"). |
-| 4 | Deployment | Prep screen every combat / automatic | Prep screen with swaps, from roster order | **Answered October 27, 2026 (user, changed):** **automatic deployment, on by default**, placing units by their role; an **opening swap** on the map until the first unit acts on turn 1; the **prep screen only for key and boss combats**; an Options setting turns automatic deployment off (prep screen everywhere). |
+| 3 | What "within N movable tiles" measures | The source's movement / steps ignoring units and cost | **The source's movement:** reachable with N movement points, terrain cost counted, enemies blocking, allies not | **Answered October 27, 2026:** as recommended; **superseded the same day by question 12: the term is cut.** |
+| 4 | Deployment | Prep screen every combat / automatic | Prep screen with swaps, from roster order | **Answered October 27, 2026 (user, changed):** **automatic deployment, on by default**, placing units by their role; an **opening swap** on the map until the first unit acts on turn 1; the **prep screen only for key and boss combats**; an Options setting turns automatic deployment off (prep screen everywhere). **Changed in review (user):** **no prep screen in any combat**; re-gearing moves to Camps (a campaign rule, P08), and the map before the boss has a Camp, so no combat needs prep. The Options setting is dropped with it: with no prep screen, the opening swap is the manual path. |
 | 5 | Objective rules | — | Rout: no enemy on the map (waves not yet arrived are cancelled). Leader: the marked enemy falls. Seize: any player unit ends its turn on the tile. Survive N: the end of turn N's enemy phase, or early once no enemy is left and every point is closed. Defend: lost when an enemy ends its turn on the tile, else as Survive. Lost everywhere: the commander falls in solo, or every player unit is defeated | **Answered October 27, 2026:** as recommended. |
 | 6 | Reinforcements | Turn list / turn list + zone triggers | **Authored arrival turns per point** (zone triggers dropped); waves drawn at battle start (P13); arrive after the enemy phase; a point closes for good when a player unit ends its turn on it; arrivals stop once the darkness arrives; an occupied arrival tile uses the nearest free tile | **Answered October 27, 2026 (user, extended):** as recommended, plus **distinct, always-visible arrival markers** and **warnings**: every open point shows the turns until its next wave; the player phase before a wave shows its classes and count; a banner announces the arrival. |
 | 7 | Attacking a map object | Carry over `Godot_FE` / change | **No hit roll, the object never counters, the attacker's normal turns** (object Attack Speed 5 by default); Attack and Mitigation against its DEF or RES, multipliers, floor; no crit, Block or Stance | **Answered October 27, 2026 (user, extended):** as recommended, **through the same exchange flow and facts as an attack on a unit** (Before and After Combat, `ATTACK_MADE`, `HIT_DEALT`, `DAMAGE_DEALT`, with the object as target), so effects, logs and UI see one flow. |
@@ -50,8 +50,8 @@ user). Question 12 was found while drafting.
 | 9 | Who places enemies | P04 slots + P05 contents / P05 all | **P04 authors enemy slots** (tile, position variance, group slot); P05 owns classes, groups and prefixes; setup draws from `ENCOUNTER_SETUP` | **Answered October 27, 2026:** as recommended. |
 | 10 | Save sections | — | P04 takes the reserved combat section `entities` (object state) and adds `combat_map` (map id, setup choices, reinforcement points, objective progress); `enemy_units` goes to P05 | **Answered October 27, 2026:** as recommended. |
 | 11 | Who owns terrain data | P04 / P03 | **P04:** terrain definitions and the movement-type enum; P03's unit data refers to them; terrain healing through `tile_bonus` | **Answered October 27, 2026:** as recommended. |
-| 12 | Where questions that need units or object state are answered (found drafting: the shared grid sees neither) | Move them to `CombatState`, which holds P04's map state / give the grid methods a state parameter / let the grid hold a live state reference | **Move them to `CombatState`.** `CombatGrid` stays terrain-only and shared. `CombatState` gains one P04-owned member, `map: MapState` (objects, reinforcement points, objective progress), copied by `copy_for_sandbox()`. `validate_path` and `walking_distance` move from `CombatGrid` to `CombatState`, which calls P04's pathing with itself; `CombatState.can_stand()` and `blocker_at()` fold in object state, and P02's resolvers call those instead of the grid's (`rune_resolver.gd:80-81`, `shove_resolver.gd:145`). A live reference is rejected: sandboxes share the grid (`combat_grid.gd:20-23`). | Open |
-| 13 | Survive and Defend end early "with every reinforcement point closed" (vision): does a point with no waves left count as closed? | Yes / only when a player closes it | **Yes:** a point with no waves left can send nothing, so requiring a unit to stand on it only adds a chore. | Open |
+| 12 | Where questions that need units or object state are answered (found drafting: the shared grid sees neither) | Move them to `CombatState`, which holds P04's map state / give the grid methods a state parameter / let the grid hold a live state reference | **Move them to `CombatState`.** `CombatGrid` stays terrain-only and shared. `CombatState` gains one P04-owned member, `map: MapState` (objects, reinforcement points, objective progress), copied by `copy_for_sandbox()`. `validate_path` and `walking_distance` move from `CombatGrid` to `CombatState`, which calls P04's pathing with itself; `CombatState.can_stand()` and `blocker_at()` fold in object state, and P02's resolvers call those instead of the grid's (`rune_resolver.gd:80-81`, `shove_resolver.gd:145`). A live reference is rejected: sandboxes share the grid (`combat_grid.gd:20-23`). | **Answered October 27, 2026 (user):** **cut "within N movable tiles"**; every "within N tiles" is grid distance (absolute). That removes `walking_distance` everywhere (P01 fix F9's `MOVABLE` mode, `SandboxState.walking_distance`, `CombatGrid.walking_distance`). What remains is unavoidable for movement itself and stays small: `CombatState` holds `map: MapState` and checks paths against units and objects (below, Grid, state and pathing). |
+| 13 | Survive and Defend end early "with every reinforcement point closed" (vision): does a point with no waves left count as closed? | Yes / only when a player closes it | **Yes:** a point with no waves left can send nothing, so requiring a unit to stand on it only adds a chore. | **Answered October 27, 2026:** as recommended. |
 
 ## Scope
 
@@ -59,11 +59,11 @@ user). Question 12 was found while drafting.
 - Map authoring: the map scene, `CombatMapDefinition`, conversion to `MapLayout`, map pools per
   combat type (standard, key, boss) as data, and the authoring check.
 - Terrain definitions (unit-roster.md's table) and terrain healing values.
-- `MapGrid`, the real `CombatGrid`; pathing: reach, path validation with cost, "within N movable
-  tiles", nearest free tile.
-- Moving the unit- and object-aware queries into `CombatState` (question 12), with P02's call sites.
-- Deployment: automatic deployment, the opening swap's rules, the Options setting, which combats
-  use the prep screen.
+- `MapGrid`, the real `CombatGrid`; pathing: reach, path validation with cost, nearest free tile.
+- Removing "within N movable tiles" (question 12): P01 fix F9's `MOVABLE` mode,
+  `SandboxState.walking_distance` and `CombatGrid.walking_distance`.
+- `CombatState` checking paths and blockers against units and objects, with P02's call sites.
+- Deployment: automatic deployment and the opening swap's rules.
 - Objectives, win and loss checks (`AFTER_STEP`), `COMBAT_ENDED`.
 - Reinforcement points: arrival turns, closing, arrival placement, warnings as facts
   (`AFTER_ENEMY_PHASE`).
@@ -78,8 +78,9 @@ user). Question 12 was found while drafting.
 - Enemy classes, groups, prefixes and the AI, including how enemies choose objects (P05).
 - The darkness: flow, damage, erosion timing, the Brazier's effect and the source-candidate check
   (P06). P04 exposes what P06 needs (below).
-- Every visual: tiles, arrival markers, banners, the prep screen, the opening-swap interaction,
-  hover previews (P07).
+- Every visual: tiles, arrival markers, banners, the opening-swap interaction, hover previews
+  (P07).
+- Re-gearing at Camps (P08; question 4).
 - Units sent between co-op maps (P11); P04 supplies the nearest-free-tile query it uses.
 - Choosing a map from a pool for a node (the encounter draws it from `ENCOUNTER_SETUP`, P01 EB6
   and P13); P04 supplies the pools.
@@ -114,13 +115,13 @@ user). Question 12 was found while drafting.
   Objectives sections are empty, so they add nothing here.
 
 **Gaps and conflicts in the vision**
-- **Turn par disagrees with itself:** Combat maps says boss par is "about 14–18" and ladder level 6
-  lowers par by 1; the decision log of October 23, 2026 says boss "10–14" and "Hard −1". P04 only
-  stores each map's authored par, so this doesn't block the plan; the vision needs one value.
-- **Question 4 changes described behavior:** standard combats lose their battle-prep step, so the
-  vision's "gear moves only in army management and battle prep" holds for key and boss combats
-  only; army management on the campaign map still allows gear changes. The vision is not edited by
-  this plan.
+- **Turn par** (user, October 27, 2026): set by hand on each map, with no target range; small
+  combats should sit well below the vision's figures, which also disagree with each other (Combat
+  maps: boss "about 14–18", ladder level 6 −1; the October 23 decision log: boss "10–14", "Hard −1").
+  The vision update is pending for the ideation thread.
+- **Question 4 changes described behavior:** no combat has a battle-prep step, and re-gearing moves
+  to Camps, so the vision's "gear moves only in army management and battle prep" and Camp's
+  "choose one" need updating (pending for the ideation thread; P08 owns the Camp rule).
 - The vision's terrain list includes "house, door and chest tiles"; map-objects.md makes houses,
   doors and chests objects. Here they are objects standing on terrain (a house object on House
   terrain), which keeps both readings true.
@@ -134,7 +135,7 @@ user). Question 12 was found while drafting.
 | `combat_map_grid.gd` `update_astar_points` | Rebuilds A* for the whole map, per unit, before every path | Change | One cost-bounded flood per query on these small maps; nothing cached that a sandbox would share |
 | `combat_map_grid.gd` (four DFS variants) | Separate range searches | Change | One flood function (`08` §7) |
 | `combat_map_grid.gd` | Tiles keyed by `str(Vector2i)` | Change | `Vector2i` keys |
-| `combat/Combat.gd:176`, `:340-348`, `combat/CController.gd:2015-2029` | Player units fill `ally_spawn_tiles` in party order; battle prep swaps units between spawn tiles | Change | Question 4: automatic deployment by role, an opening swap, the prep screen only for key and boss combats |
+| `combat/Combat.gd:176`, `:340-348`, `combat/CController.gd:2015-2029` | Player units fill `ally_spawn_tiles` in party order; battle prep swaps units between spawn tiles | Change | Question 4: automatic deployment by role and an opening swap; no prep screen |
 | `combat/Combat.gd:143-146` | `victory_condition` with Seize and Defend declared, never working; `turns_to_survive` | Change | Built (question 5) |
 | `scripts/combat/reinforcements/combat_map_reinforcement_manager.gd`, `08` FR-REIN-1 | Waves on listed turns (`TURN_COUNT_<n>`) or when a player unit first enters a zone; spawned one by one with a camera pan | Keep turns; drop zones and the camera pan in the logic | Question 6; the vision says "on a timer"; presentation is P07's |
 | `08` §6 | A wave whose spawn tile is occupied never completes, stalling the turn | Drop (bug) | The nearest free tile is used (question 6) |
@@ -168,7 +169,7 @@ map scene (.tscn)                terrain layers + marker layers, painted in the 
 MapLayout (RefCounted, pure)     terrain per tile, markers, object spots, enemy slots, sources
         ├── MapGrid extends CombatGrid    terrain-only, shared by every sandbox
         └── MapState (in CombatState)     objects, reinforcement points, objective progress
-Pathing (static)                 flood, path check, movable distance, nearest free tile
+Pathing (static)                 flood, path check, reach, nearest free tile
 AutoDeploy (static)              units → deployment tiles
 Objectives (static)              win / loss checks (AFTER_STEP)
 Reinforcements (static)          warnings and arrivals (AFTER_ENEMY_PHASE)
@@ -199,14 +200,19 @@ or Resource reference survives `MapLoader`.
   leader slot; a reinforcement point off a standable tile; a door, lever group or passage pair that
   doesn't match up. P06 adds "at least 2 darkness source candidates".
 
-### Grid, state and pathing (questions 2, 3, 12)
+### Grid, state and pathing (questions 2, 12)
 
+- **One distance for effects:** every "within N tiles" is grid distance, tiles up plus tiles
+  across, ignoring walls and terrain (question 12). `walking_distance` is removed from
+  `CombatGrid` and `SandboxState`, and P01 fix F9's `MOVABLE` mode from `Area` and
+  `WhilePositionCondition` (nothing authored uses it yet).
 - **`MapGrid`** implements `CombatGrid` from the layout: `distance`, `neighbors`, `step`,
   `can_stand` and `blocker_at` for terrain alone, `is_slick`, `tile_bonus` (avoid, DEF, RES,
-  healing).
-- **`CombatState` answers everything that depends on units or objects** (question 12): its
-  `can_stand` and `blocker_at` add object state to the grid's answer; `validate_path(unit_id,
-  path)` and `walking_distance(from_id, to)` call `Pathing` with the state.
+  healing), and the terrain cost of a path for a movement type.
+- **`CombatState` checks what depends on units or objects**, because only it knows them: its
+  `can_stand` and `blocker_at` add object state to the grid's answer (P02's resolvers call these),
+  and `validate_path(unit_id, path)` lives on `CombatState`, calling `Pathing`. That is the whole
+  change to P02's code.
 - **Pathing** is one cost-bounded flood over the four directions (`08` §7), parameterised by the
   mover (movement type, side): terrain cost per movement type, own-side units passable, enemies and
   impassable objects solid. Uses:
@@ -214,8 +220,6 @@ or Resource reference survives `MapLoader`.
     `MOVEMENT` (minus cost already spent this turn), destination unoccupied; returns tiles moved and
     cost (`CombatGrid.PathCheck`).
   - **Reach:** every tile a unit can end on this turn (P05's danger zone, P07's move preview).
-  - **"Within N movable tiles":** the target is reachable by the source with N movement points
-    (question 3); a target standing on an enemy-blocked tile is reached if its tile is.
   - **Nearest free tile:** the closest free tile a given movement type can stand on, by that
     movement's cost, ties in `CombatGrid.DIRECTIONS` order; reinforcement arrivals and P11's
     reinforcing allies.
@@ -239,8 +243,8 @@ or Resource reference survives `MapLoader`.
 - **The opening swap:** until the first player unit acts on turn 1, the player may swap any two of
   their units standing on deployment tiles. It is a command (the unit-turn command path, P02 CC6),
   legal only in that window and only between that seat's units; it records `UNIT_MOVED` for both.
-- **The prep screen** (P07) appears for key and boss combats, or for every combat when the Options
-  setting "Automatic deployment" is off; it starts from the automatic layout.
+- **No prep screen** in any combat (question 4). Gear changes happen outside combat; re-gearing at
+  Camps is P08's rule, and the map before the boss has a Camp.
 - **Co-op:** each seat deploys on its own map copy the same way.
 
 ### Objectives and the end of a combat (questions 5, 13)
@@ -338,8 +342,9 @@ question 7, isn't needed: `OBJECT_STATE_CHANGED` carries it.)
   rebuild it for the whole map per unit; a flood on maps this small is simpler and copies nothing.
 - **Zone-triggered reinforcements:** the vision says "on a timer"; zone triggers add an authoring
   concept and a rule the player can't see coming.
-- **A prep screen for every combat:** the user's call (question 4), against the vision's pillar of
-  reducing cognitive burden.
+- **A prep screen for some or every combat:** the user's call (question 4): re-gearing moves to
+  Camps, and heavy menuing was `Godot_FE`'s biggest drag, against the vision's pillar of reducing
+  cognitive burden.
 - **Map data only in files (no scene):** painting terrain in the editor is the authoring tool; the
   scene is converted to pure data at load, so the rules never see it.
 
@@ -355,17 +360,16 @@ question 7, isn't needed: `OBJECT_STATE_CHANGED` carries it.)
   swap is still allowed, and whether `COMBAT_ENDED` was recorded. Plain JSON, ids as strings, enums as
   string ids (save-system.md data rules). Registered from `CampaignService` (P08 question 1).
 - **`enemy_units`** (reserved) is left to P05.
-- **Settings:** `SettingsData` gains `auto_deploy` (bool, default true); its version bumps, with a
-  migration that fills the default.
-- Nothing in the profile or campaign blocks; map pools are content.
+- Nothing in the profile, campaign or settings; map pools are content. (The automatic-deployment
+  setting was dropped with the prep screen, question 4.)
 
 ## Work Breakdown
 
 | Step | Files | Description | Risk | Gate | Verification |
 |------|-------|-------------|------|------|--------------|
 | MP1 Terrain and layout | `scripts/map/terrain_definition.gd`, `data/terrain/*.tres`, `scripts/map/combat_map_definition.gd`, `scripts/map/map_layout.gd`, `scripts/map/map_loader.gd`, `tests/map/run_all.gd` | Terrain resources from unit-roster.md's table; the definition resource; scene → `MapLayout`; stable ids | 🟢 | Approval | Every terrain row loads with its costs; a fixture scene converts to the expected layout; ids are stable across two loads |
-| MP2 Grid, state and pathing | `scripts/map/map_grid.gd`, `scripts/map/pathing.gd`, `scripts/map/map_state.gd`; changes in `scripts/combat/combat_grid.gd`, `combat_state.gd`, `rune_resolver.gd`, `shove_resolver.gd`, `tests/combat/stub_combat_grid.gd` | `MapGrid`; the flood, path check, reach, movable distance and nearest free tile; question 12's move into `CombatState` | 🔴 interface change in P02 code | MP1 | Golden reach and path tests per movement type × terrain cost; enemy blocks, ally passes, occupied destination rejected, closed and opened door; movable distance with cost and blockers; every existing combat, effects, RNG and save test still passes |
-| MP3 Deployment | `scripts/map/auto_deploy.gd`, `scripts/save/settings_data.gd` | Automatic deployment; the opening-swap legality rule; `auto_deploy` setting | 🟡 settings format | MP2 | Each role lands where specified; commander in the second row; ties by roster order; the same army and map give the same layout; swap legal before the first action only; settings migration fills the default |
+| MP2 Grid, state and pathing | `scripts/map/map_grid.gd`, `scripts/map/pathing.gd`, `scripts/map/map_state.gd`; changes in `scripts/combat/combat_grid.gd`, `combat_state.gd`, `rune_resolver.gd`, `shove_resolver.gd`, `tests/combat/stub_combat_grid.gd`, `scripts/effects/sandbox_state.gd`, `blocks/selectors/area.gd`, `blocks/conditions/while_position_condition.gd`, the effects test fake | `MapGrid`; the flood, path check, reach and nearest free tile; `validate_path` and object-aware `can_stand` / `blocker_at` on `CombatState`; removing `walking_distance` and the `MOVABLE` mode | 🔴 interface change in P01 and P02 code | MP1 | Golden reach and path tests per movement type × terrain cost; enemy blocks, ally passes, occupied destination rejected, closed and opened door; every existing combat, effects, RNG and save test still passes (those that tested `MOVABLE` are removed, and say so) |
+| MP3 Deployment | `scripts/map/auto_deploy.gd` | Automatic deployment; the opening-swap legality rule | 🟢 | MP2 | Each role lands where specified; commander in the second row; ties by roster order; the same army and map give the same layout; swap legal before the first action only |
 | MP4 Objectives | `scripts/map/objectives.gd` | Win and loss checks, `COMBAT_ENDED` | 🟡 | MP2 (hook wiring with P02 CC6) | Each objective's win and loss, Rout cancelling pending waves, Survive's early end, a solo commander's defeat, `COMBAT_ENDED` once |
 | MP5 M1 map and the check | `scripts/map/map_check.gd`, `maps/standard/m1_greybox.tscn` + `.tres` | One greybox standard map (Rout, about 8×6 to 10×8, at least 8 deployment tiles, cover for both sides); the authoring check | 🟢 | MP1–MP4 | The M1 map passes the check; deliberately bad fixtures fail it, one rule each |
 | MP6 Map objects | `scripts/map/map_objects.gd`, changes in `scripts/combat/exchange_resolver.gd` (object defender) | Every object in the table; breaking through the exchange; explosions and chains; `OBJECT_OPERATIONS`; Cutthroat carry and drop; P06's queries | 🟡 touches the exchange | MP2 | Golden fact logs per object; an attack on debris has the same fact shape as one on a unit; a 3-keg chain; debris restores its terrain; lever toggles both ways; chest loot equal on two co-op copies; a sandbox breaking a keg leaves the real map unchanged |
@@ -380,19 +384,19 @@ turn loop with P02 CC6.
 
 | Change | Kind | Current | Proposed | Status | Places to check | Risk |
 |--------|------|---------|----------|--------|-----------------|------|
-| `validate_path` and `walking_distance` move from `CombatGrid` to `CombatState` | Interface | On the shared grid, blind to units | On `CombatState`, through `Pathing` | Suggested (question 12) | `combat_grid.gd`, `combat_state.gd`, `stub_combat_grid.gd`, every caller in `scripts/combat/` and `tests/` | 🔴 |
-| `CombatState.can_stand` and `blocker_at` include object state; resolvers call them instead of the grid's | Behavior | Grid terrain only | Terrain and objects | Suggested | `rune_resolver.gd:80-81`, `shove_resolver.gd:145` | 🟡 |
-| `CombatState` gains `map: MapState`, copied by `copy_for_sandbox()` | Interface | — | New member | Suggested | `combat_state.gd`, sandbox tests | 🟡 |
-| The exchange accepts an object as defender | Behavior | Units only | Units or objects | Suggested | `exchange_resolver.gd`, `damage_pipeline.gd` | 🟡 |
-| `CombatFact.Kind` appends `REINFORCEMENT_INCOMING` (44), `REINFORCEMENT_ARRIVED` (45) | Enum | 44 kinds | 46 | Suggested | `combat_fact.gd`, `combat_bus.gd` routing | 🟢 |
-| `SettingsData` gains `auto_deploy` | Save format (settings) | — | Field, version bump with migration | Suggested | `settings_data.gd`, save tests | 🟡 |
-| New combat section `combat_map`; reserved `entities` taken over | Save format | Reserved placeholder | Real sections, version 1 | Suggested | `save_service.gd` reserved keys, save tests | 🔴 |
+| `validate_path` moves from `CombatGrid` to `CombatState`; the grid keeps a terrain-only path cost | Interface | On the shared grid, blind to units | On `CombatState`, through `Pathing` | Approved | `combat_grid.gd`, `combat_state.gd`, `stub_combat_grid.gd`, every caller in `scripts/combat/` and `tests/` | 🔴 |
+| `walking_distance` removed from `CombatGrid` and `SandboxState` (21 → 20 methods); `MOVABLE` removed from `Area` and `WhilePositionCondition` | Interface | Grid or movable distance per effect | Grid distance only | Approved (question 12) | `combat_grid.gd`, `sandbox_state.gd`, `combat_state.gd`, `area.gd`, `while_position_condition.gd`, the effects test fake, their tests | 🔴 |
+| `CombatState.can_stand` and `blocker_at` include object state; resolvers call them instead of the grid's | Behavior | Grid terrain only | Terrain and objects | Approved | `rune_resolver.gd:80-81`, `shove_resolver.gd:145` | 🟡 |
+| `CombatState` gains `map: MapState`, copied by `copy_for_sandbox()` | Interface | — | New member | Approved | `combat_state.gd`, sandbox tests | 🟡 |
+| The exchange accepts an object as defender | Behavior | Units only | Units or objects | Approved | `exchange_resolver.gd`, `damage_pipeline.gd` | 🟡 |
+| `CombatFact.Kind` appends `REINFORCEMENT_INCOMING` (44), `REINFORCEMENT_ARRIVED` (45) | Enum | 44 kinds | 46 | Approved | `combat_fact.gd`, `combat_bus.gd` routing | 🟢 |
+| New combat section `combat_map`; reserved `entities` taken over | Save format | Reserved placeholder | Real sections, version 1 | Approved | `save_service.gd` reserved keys, save tests | 🔴 |
 
 ## Verification
 
 - **Pathing golden tests:** reach and path for every movement type over a fixture of every terrain;
   enemies block, allies pass, occupied destinations are rejected; doors closed and opened; debris
-  before and after breaking; movable distance with terrain cost and blockers.
+  before and after breaking.
 - **Deployment fixtures:** the Mercenary starting army (Archer, Battle Medic, Hakkapel, Drengr) and a
   six-unit army on the M1 map land as specified; the same inputs give the same layout.
 - **Objectives:** one test per row of the objectives table and per loss.
@@ -411,6 +415,6 @@ turn loop with P02 CC6.
 ## Rollback
 
 Every step is its own commit on `feature/P04-<step>` and merges into `dev` separately. MP2 is the
-only step that changes existing code (P02's grid interface and two resolvers); reverting it restores
-`StubCombatGrid` and the old signatures, and the later steps depend on it. MP3's settings migration
-is additive: an old `settings.json` without `auto_deploy` still loads.
+only step that changes existing code (P02's grid interface, two resolvers, and P01's
+`walking_distance` and `MOVABLE`); reverting it restores `StubCombatGrid`, the old signatures and
+the movable mode, and the later steps depend on it. Every other step is additive.
