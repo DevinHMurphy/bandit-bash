@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="TerrainDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/map/terrain_definition.gd" id="1_ertru"]
+
+[resource]
+script = ExtResource("1_ertru")
+id = "fort"
+display_name = "Fort"
+cost_default = 2
+cost_heavy = 2
+cost_mobile = 2
+cost_mounted = 2
+cost_flier = 2
+avoid = 20
+defense = 2
+resistance = 2
+heal_percent = 20

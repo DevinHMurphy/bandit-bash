@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="TerrainDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/map/terrain_definition.gd" id="1_833ii"]
+
+[resource]
+script = ExtResource("1_833ii")
+id = "wooded_knoll"
+display_name = "Wooded Knoll"
+cost_default = 3
+cost_heavy = 4
+cost_mobile = 2
+cost_mounted = 3
+avoid = 25
+defense = 1
+resistance = 1
