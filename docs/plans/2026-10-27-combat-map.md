@@ -55,7 +55,7 @@ user). Question 12 was found while drafting.
 | 14 | Front vs striker (found building MP3) | Front = Armored, Heavy, Shover only / every non-mounted melee unit | **Front = Armored, Heavy and the Shover** (ranked by HP + DEF); other melee are strikers. **Ranged** = the equipped weapon can't attack at 1 **or deals magic damage** (a Mage's 1–2 tome is ranged; 1–2 physical weapons stay melee) | **Answered October 28, 2026:** as recommended. |
 | 15 | Edge tiles for Mounted and Flier strikers (MP3) | — | An edge tile has at most 2 neighboring deployment tiles; such a striker takes the nearest row with a free tile and prefers an edge within it | **Answered October 28, 2026:** as built. |
 | 16 | The commander ends up front-most when an army has no front or striker units (MP3) | Accept / push it back | **Accept:** rare (the Drengr is melee itself); the opening swap fixes it | **Answered October 28, 2026:** as recommended. |
-| 17 | How the opening-swap window closes (MP3) | A `MapState` flag / derive from history | **`MapState.opening_swap_open`** (default true), cleared when the first player command on turn 1 resolves, whatever its outcome (P02 CC6 clears it); saved in `combat_map` | **Answered October 28, 2026:** as recommended. |
+| 17 | How the opening-swap window closes (MP3) | A `MapState` flag / derive from history | **`MapState.opening_swap_open`** (default true), cleared when the first player command on turn 1 resolves, whatever its outcome (P02 CC6 clears it); saved in `combat_map` | **Answered October 28, 2026:** a `MapState` flag, saved in `combat_map`. **Amended the same day by P02 question 17 (user):** the window comes before turn 1 and only when the seat's opening-swap setting is on; CC6 opens it at battle start and the seat's Start command closes it. The flag defaults to false. |
 | 18 | Authoring format for markers with parameters: reinforcement arrival turns, door and lever groups, passage pairs, multi-tile doors, enemy-slot variance and group (MP1–MP3) | `MapMarker` nodes in the scene / a table on `CombatMapDefinition` keyed by tile | **`MapMarker` nodes**, snapped to the grid, with exported kind, group id, arrival turns, pair id, variance tiles and group slot; plain markers stay tile layers; built with MP5, extended by MP6–MP7 | **Answered October 28, 2026:** as recommended. |
 | 19 | `CombatState.validate_path` takes the engine (MP2) | Accept / look up | **Accept:** the unit's movement is an engine value, as in `place_unit` and `load_bases` | **Answered October 28, 2026:** as recommended. |
 
@@ -251,9 +251,11 @@ or Resource reference survives `MapLoader`.
   4. **The commander takes the second row**: a solo commander's fall ends the run. Traits that want
      the front (the Drengr's Vanguard) are the player's call through the opening swap.
   5. Ties by roster order.
-- **The opening swap:** until the first player unit acts on turn 1, the player may swap any two of
-  their units standing on deployment tiles. It is a command (the unit-turn command path, P02 CC6),
-  legal only in that window and only between that seat's units; it records `UNIT_MOVED` for both.
+- **The opening swap** (a player setting, P02 question 17): with it on, the battle opens in a swap
+  window before turn 1, in which the player may swap any two of their units standing on deployment
+  tiles, then presses Start, which runs turn 1's Phase Start. With it off, there is no window and no
+  Start press. A swap is a command (the unit-turn command path, P02 CC6), legal only in that window
+  and only between that seat's units; it records `UNIT_MOVED` for both.
 - **No prep screen** in any combat (question 4). Gear changes happen outside combat; re-gearing at
   Camps is P08's rule, and the map before the boss has a Camp.
 - **Co-op:** each seat deploys on its own map copy the same way.
