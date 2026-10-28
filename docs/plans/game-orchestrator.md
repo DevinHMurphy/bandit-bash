@@ -39,7 +39,7 @@ into `dev`; plan and orchestrator commits go to `dev`; `main` holds released sta
 
 - **Design:** ideation closed for the MVP (design reviews of October 23–24, 2026). Remaining design
   items are content or tuning; see [Design items by plan](#design-items-by-plan).
-- **Code:** the save system is built. P01 EB1–EB4, P02 CC1–CC5 and P13 R1–R4 are built, tested headless and merged into `dev` (the save system is on `main`) (combat 428, effects 532, RNG 154, save 196 tests pass).
+- **Code:** the save system is built. P01 EB1–EB4 and EB9, P02 CC1–CC5, P04 MP1–MP3 and P13 R1–R4 are built, tested headless and merged into `dev` (the save system is on `main`) (map 235, combat 426, effects 521, RNG 154, save 204 tests pass).
   The combat rules (exchange, splash, Shove, staves, Pouch items, swaps, runes) run in tests; no turn loop or map yet.
 - **Current milestone:** [M0 Foundations](#milestones).
 - **Current focus:** P02 CC2–CC5 are built (with P01 fixes F9–F12, two-sided damage stages). The turn loop (CC6) needs P01 EB6,
@@ -71,7 +71,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P01 | Event bus and effects | [2026-10-23-event-bus-and-effects.md](2026-10-23-event-bus-and-effects.md) | **In progress** (approved October 26, 2026; amended with P02's and P13's needs the same day): EB1–EB4 implemented with fixes F1–F12 (532 headless tests pass); EB9 implemented (results in P01); EB5 waits on P03, EB6 on P04 | P00 | Every gameplay plan | effects-system.md, effect-triggers.md |
 | P02 | Combat core: turns and phases, action economy, the exchange, damage stages, Block, Stance, triangle, crits, Parry, Shove, staves, Pouch items, weapon swaps, runes, forecast, `CombatGrid` interface | [2026-10-26-combat-core.md](2026-10-26-combat-core.md) | **Approved** October 26, 2026 (reviewed: questions 9–12 answered, seven fixes). **In progress:** CC1–CC5 built (428 headless combat tests pass); CC6 waits on EB6; open questions 14 (CC6) and 16 | P01 (EB2–EB4, plus amendments N1–N10) | P04, P05, P06, P07 | game-vision.md Combat |
 | P03 | Content catalog: unit types, traits and upgrades, the Drengr, prefixes, weapons, staves, items, ingredients, runes, heirlooms, curses | — | **Not started** (sketch before EB5; may split into units / items / heirlooms) | P01 (EB3, EB5) | M1 content, P08, P09 | unit-roster.md, weapons.md, items.md, heirlooms.md, events.md (curses) |
-| P04 | Combat map: grid, terrain, pathing, deployment, objectives, reinforcement points, map objects, map authoring and its checks | [2026-10-27-combat-map.md](2026-10-27-combat-map.md) | **Approved** October 27, 2026 (13 questions answered; "within N movable tiles" cut; no prep screen); MP1–MP3 ready, MP4 wiring with P02 CC6, MP8 after EB7 | P01 (EB6), P02 | P05, P06, P07, M1 | game-vision.md Combat maps, map-objects.md |
+| P04 | Combat map: grid, terrain, pathing, deployment, objectives, reinforcement points, map objects, map authoring and its checks | [2026-10-27-combat-map.md](2026-10-27-combat-map.md) | **Approved** October 27, 2026 (13 questions answered; "within N movable tiles" cut; no prep screen); **In progress:** MP1–MP3 built and merged October 28, 2026 (235 headless map tests pass); MP4–MP7 ready (MP4 wired with P02 CC6), MP8 after EB7 | P01 (EB6), P02 | P05, P06, P07, M1 | game-vision.md Combat maps, map-objects.md |
 | P05 | Enemies and AI: classes, intents, danger zone, ruthless AI, signature moves, elites, mini-bosses, the Powder Baron | — | **Not started** | P02, P04 | M1, M2 | enemy-roster.md |
 | P06 | The darkness | — | **Not started** | P02, P04 | M1 | the-darkness.md |
 | P07 | Combat UI and forecast: forecast panel, move preview (darkness damage), danger zone and intent display, HUD | — | **Not started** (minimal version for M1) | P02, P04, P05 | M1, M2 | game-vision.md Combat, Enemy intentions |
@@ -198,12 +198,12 @@ more enemy factions, units with convoy access, shared and hybrid co-op battles, 
 
 ## Next actions
 
-1. Build P04 MP1–MP3 (terrain and layout; grid, state and pathing, removing `walking_distance` and
-   `MOVABLE`; automatic deployment) on `feature/P04-MP1-MP3`, then MP5 (the M1 greybox map and the check).
-2. Build P01 EB6 (sessions, encounter, bridge, `CampaignService`), now open; then P02 CC6 (turn loop)
-   and P13 R5–R6. EB6 and MP1–MP3 touch different files and can run side by side.
-3. Sketch P03 (content catalog), which opens EB5.
-4. Vision updates pending for the ideation thread (Design items by plan).
+1. Build P01 EB6 (sessions, encounter, bridge, `CampaignService`) on `feature/EB6`; then P02 CC6 (turn loop),
+   P04 MP4 wiring and P13 R5–R6.
+2. Alongside: P04 MP5 (M1 greybox map and the authoring check), then MP6–MP7 (objects, reinforcements).
+3. Review the nine `# ASSUMPTION` markers MP1–MP3 left in `scripts/map/`.
+4. Sketch P03 (content catalog), which opens EB5.
+5. Vision updates pending for the ideation thread (Design items by plan).
 
 ## Change log
 
@@ -234,3 +234,4 @@ more enemy factions, units with convoy access, shared and hybrid co-op battles, 
 | October 27, 2026 | **GDScript warnings fix-up and P01 EB9 merged into `dev`** (verified merged: combat 434, effects 532, RNG 154, save 204; the bench passes its checks). The six warning settings are Error in `project.godot`; combat rule bases live in default tables (P02 question 16). EB9: sandbox 0.9 ms, player forecast 1.9–2.6 ms, exact `ExchangeOutcome` 7 ms / 32 ms / 1.45 s for 2 / 4 / 8 attacks (debug build); the branch budget and copy on write go to P05. Next: the P04 draft. |
 | October 27, 2026 | **P04 Combat map drafted** ([2026-10-27-combat-map.md](2026-10-27-combat-map.md)). Answers before drafting: scene + definition converted to a pure layout; `Godot_FE` movement rules; "within N movable tiles" follows the source's movement; **automatic deployment by role, on by default, with an opening swap; the prep screen only for key and boss combats** (user); objective rules; timed reinforcement points with **distinct arrival markers and warnings** (user, two new fact kinds); object attacks **through the normal exchange flow and facts** (user); objects, enemy slots, `entities` + new `combat_map` sections, terrain owned by P04. Found drafting: the shared grid can't see units or object state (question 12, recommended: move those queries into `CombatState`, a P02 interface change). Flagged, not edited: the vision's two turn-par values, and question 4 narrowing "gear moves in battle prep". EB6 now waits on P04's approval. |
 | October 27, 2026 | **P04 Combat map approved** after review. User decisions: "within N movable tiles" is **cut** (every "within N tiles" is grid distance; P04 MP2 removes `walking_distance` and P01 F9's `MOVABLE`; P01 question 38 and P02 question 13 reversed; effect-triggers.md updated); a reinforcement point with no waves left counts as closed; turn par set by hand per map; **no prep screen in any combat**, re-gearing at Camps (P08), the automatic-deployment setting dropped. `CombatState` still takes `validate_path` and object-aware blockers (needed for movement). **P01 EB6 gate opened.** Vision updates queued for the ideation thread. |
+| October 28, 2026 | **P04 MP1–MP3 merged into `dev`** (terrain definitions, map definition, layout and loader; `MapGrid`, `MapState`, `Pathing`, `validate_path` on `CombatState`, `walking_distance` and `MOVABLE` removed; automatic deployment and the opening swap's legality). Verified: map 235, combat 426, effects 521, RNG 154, save 204. Nine `# ASSUMPTION` markers in `scripts/map/` await review. EB6 re-read against later decisions; its prompt issued. |

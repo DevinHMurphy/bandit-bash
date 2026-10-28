@@ -1,6 +1,6 @@
 # Plan: Combat Map
 **Date:** October 27, 2026
-**Status:** **Approved** October 27, 2026, after review (questions 12–13 answered; "within N
+**Status:** **Approved** October 27, 2026; MP1–MP3 implemented October 28, 2026. After review (questions 12–13 answered; "within N
 movable tiles" cut; no prep screen in any combat). Orchestrator ID **P04**
 ([game-orchestrator.md](game-orchestrator.md)). Its approval opens P01 EB6 (sessions).
 
