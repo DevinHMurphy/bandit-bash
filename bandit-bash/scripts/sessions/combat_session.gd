@@ -23,7 +23,7 @@ extends RefCounted
 ## Randomness comes only from the roll source it is given: [LiveRolls] over its seat's
 ## [code]COMBAT_ROLLS[/code] stream. It never sees the run's stream registry.[br]
 ## Main thread only. It depends on no scene or autoload except [code]NetLog[/code] (through
-## [method net_log]), and builds no log text unless [code]would_log()[/code] says the line prints.
+## [method logger]), and builds no log text unless the line prints.
 ##
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
 
@@ -80,6 +80,14 @@ var playback: FactPlayback = null
 ## The run's id allocator: what [method describe] names ids from. Never null in use.
 var ids: InstanceIdAllocator = null
 
+## The encounter's shared setup results (the map, and what steps 2 to 5 drew); null outside an
+## encounter.
+var setup: CombatEncounter.EncounterSetup = null
+
+## This map's seat's setup results (steps 6 and 7: additions and container contents); null outside
+## an encounter.
+var seat_setup: CombatEncounter.SeatSetup = null
+
 ## Whether this map's combat has ended ([constant CombatFact.Kind.COMBAT_ENDED] was recorded).
 ## From then on every command is rejected.
 var is_finished: bool = false
@@ -99,9 +107,6 @@ var _reported_diagnostics: int = 0
 
 # Base values each placed unit was given, by unit id, so a transfer can carry them to another map.
 var _bases: Dictionary[String, Dictionary] = {}
-
-# The NetLog autoload, found on first use.
-var _net: NetLogScript = null
 
 
 ## [param grid]: the map, shared with the encounter's other sessions. [param rolls]: [LiveRolls]
@@ -560,23 +565,24 @@ func _log_command(batch: FactBatch) -> void:
 		net.info(NetLogScript.Category.COMBAT, describe_batch(batch))
 
 
-# The NetLog autoload when a line at level in category would print; null when it wouldn't or
-# when the autoload doesn't exist yet.
 func _logger(level: NetLogScript.Level, category: NetLogScript.Category) -> NetLogScript:
-	if _net == null:
-		_net = net_log()
-	if _net == null or not _net.would_log(level, category):
-		return null
-	return _net
+	return CombatSession.logger(level, category)
 
 
-## The [code]NetLog[/code] autoload, reached by node path; null before autoloads exist (during a
-## headless [code]--script[/code] run's [code]_init[/code]), when the sessions log nothing.
-static func net_log() -> NetLogScript:
+## The [code]NetLog[/code] autoload, reached by node path, when a line at [param level] in
+## [param category] would print; null when it wouldn't, or before autoloads exist (during a
+## headless [code]--script[/code] run's [code]_init[/code]), so nothing is logged then. The
+## sessions layer logs only through this: check it before building a line.
+static func logger(
+		level: NetLogScript.Level, category: NetLogScript.Category
+) -> NetLogScript:
 	var tree: SceneTree = Engine.get_main_loop() as SceneTree
 	if tree == null or tree.root == null:
 		return null
-	return tree.root.get_node_or_null(^"NetLog") as NetLogScript
+	var net: NetLogScript = tree.root.get_node_or_null(^"NetLog") as NetLogScript
+	if net == null or not net.would_log(level, category):
+		return null
+	return net
 
 
 ## Hands out arrival stamps. One clock is shared by every session of an encounter, so stamps give
