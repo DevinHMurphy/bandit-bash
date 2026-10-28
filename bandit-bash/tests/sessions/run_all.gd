@@ -12,7 +12,8 @@
 extends SceneTree
 ## Headless tests for the sessions layer: [InstanceIdAllocator], [Command] and the session queue,
 ## [CombatSession], [FactPlayback] and [PresentationRequest]; [CombatEncounter]'s setup steps,
-## stream injection, cross-map effects, routing and transfers.
+## stream injection, cross-map effects, routing and transfers; [CampaignSession]'s battle bridge
+## and grants; and the [code]CampaignService[/code] autoload's lifecycle.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/sessions/run_all.gd[/code][br]
@@ -22,6 +23,12 @@ extends SceneTree
 ## The cases run on the first frame, not in [code]_init[/code]: autoloads exist only from then on
 ## in [code]--script[/code] mode, and the sessions log through [code]NetLog[/code]. This script
 ## never names an autoload, since it compiles before they are registered; it reaches them as nodes.
+## [br][b]Lifecycle cases[/b] drive the real [code]SaveService[/code], which writes save files, so
+## they run only with a test user folder and are skipped otherwise. Put an [code]override.cfg[/code]
+## in [code]bandit-bash/[/code] for the run, then delete it (never commit it):[br]
+## [code][application][/code][br]
+## [code]config/use_custom_user_dir=true[/code][br]
+## [code]config/custom_user_dir_name="bandit_bash_tests"[/code]
 
 # The combat map tests' fixture: 5 × 4, deployment (0, 3) (1, 3) (2, 3), an enemy slot at (3, 2),
 # a chest (container 0) at (0, 0) and a house (container 1) at (0, 2).
@@ -42,8 +49,12 @@ const NODE: int = 5
 const LOG_WARN: int = 1
 const LOG_DEBUG: int = 3
 
+# A second run seed for the debug panel's seed restart.
+const OTHER_SEED: int = 0x123456789ABCD
+
 var _failures: int = 0
 var _passes: int = 0
+var _skips: int = 0
 var _has_run: bool = false
 
 
@@ -54,38 +65,44 @@ func _process(_delta: float) -> bool:
 	print("--- Sessions tests. Warnings and errors from rejected commands are expected. ---")
 	_set_log_level(LOG_WARN)
 
-	_test_allocator()
-	_test_presentation_request()
-	_test_playback_order_and_speed()
-	_test_playback_fast_forward_and_hold()
-	_test_arrival_and_atomic_resolution()
-	_test_chest_race()
-	_test_ownership()
-	_test_stale_forecast()
-	_test_batches_and_catch_up()
-	_test_diagnostics_reported()
-	_test_finished_map()
-	_test_describe_and_log_lines()
+	_run(_test_allocator)
+	_run(_test_presentation_request)
+	_run(_test_playback_order_and_speed)
+	_run(_test_playback_fast_forward_and_hold)
+	_run(_test_arrival_and_atomic_resolution)
+	_run(_test_chest_race)
+	_run(_test_ownership)
+	_run(_test_stale_forecast)
+	_run(_test_batches_and_catch_up)
+	_run(_test_diagnostics_reported)
+	_run(_test_finished_map)
+	_run(_test_describe_and_log_lines)
 
-	_test_setup_order()
-	_test_map_choice()
-	_test_setup_streams()
-	_test_container_contents()
-	_test_setup_draws_only_inside_setup()
-	_test_combat_rolls_injection()
-	_test_deploy_after_setup()
-	_test_cross_map_counting()
-	_test_positional_never_across()
-	_test_rune_routing()
-	_test_arrival_order_across_maps()
-	_test_unit_transfer()
+	_run(_test_setup_order)
+	_run(_test_map_choice)
+	_run(_test_setup_streams)
+	_run(_test_container_contents)
+	_run(_test_setup_draws_only_inside_setup)
+	_run(_test_combat_rolls_injection)
+	_run(_test_deploy_after_setup)
+	_run(_test_cross_map_counting)
+	_run(_test_positional_never_across)
+	_run(_test_rune_routing)
+	_run(_test_arrival_order_across_maps)
+	_run(_test_unit_transfer)
 
-	print("--- %d passed, %d failed ---" % [_passes, _failures])
+	_run(_test_bridge_begin_and_end)
+	_run(_test_bridge_cross_map_grants)
+	_run(_test_bridge_restart_rolls_the_same)
+	_run(_test_bridge_close_mid_battle)
+	_run(_test_service_lifecycle)
+
+	print("--- %d passed, %d failed, %d skipped ---" % [_passes, _failures, _skips])
 	quit(1 if _failures > 0 else 0)
 	return false
 
 
-func _test_allocator() -> void:
+func _test_allocator() -> bool:
 	var ids: InstanceIdAllocator = InstanceIdAllocator.new()
 	var item: String = ids.next_item_id("Iron Axe")
 	var unit: String = ids.next_unit_id("Drengr")
@@ -112,9 +129,10 @@ func _test_allocator() -> void:
 			ids.is_known(seat_id) and ids.describe(seat_id) == "seat:1 (army of seat 1)"
 	))
 	_check("allocator: naming mints nothing", ids.get_next_value() == 7)
+	return true
 
 
-func _test_presentation_request() -> void:
+func _test_presentation_request() -> bool:
 	var request: PresentationRequest = PresentationRequest.new("choice")
 	var answers: Array = []
 	request.completed.connect(func(result: Variant) -> void: answers.append(result))
@@ -126,9 +144,10 @@ func _test_presentation_request() -> void:
 	cancelled.cancel()
 	var no_answer: bool = (cancelled.result == null) as bool
 	_check("request: cancel", cancelled.is_done and cancelled.is_cancelled and no_answer)
+	return true
 
 
-func _test_playback_order_and_speed() -> void:
+func _test_playback_order_and_speed() -> bool:
 	var bus: CombatBus = CombatBus.new()
 	var tracer: BusTracer = BusTracer.new()
 	tracer.attach_combat(bus)
@@ -154,9 +173,10 @@ func _test_playback_order_and_speed() -> void:
 		CombatFact.Kind.UNIT_MOVED, CombatFact.Kind.UNIT_MOVED, CombatFact.Kind.UNIT_MOVED,
 	]))
 	_check("playback: a long frame carries its leftover time", long_frame.advance(2.0) == 3)
+	return true
 
 
-func _test_playback_fast_forward_and_hold() -> void:
+func _test_playback_fast_forward_and_hold() -> bool:
 	var bus: CombatBus = CombatBus.new()
 	var tracer: BusTracer = BusTracer.new()
 	tracer.attach_combat(bus)
@@ -199,9 +219,10 @@ func _test_playback_fast_forward_and_hold() -> void:
 	request.complete()
 	_check("hold: continues once completed", held.advance(0.0) == 1 and held.pending() == 0)
 	held_bus.action.hit_dealt.disconnect(hold_on_hit)
+	return true
 
 
-func _test_arrival_and_atomic_resolution() -> void:
+func _test_arrival_and_atomic_resolution() -> bool:
 	var world: World = World.new()
 	var a: String = world.add_unit("Drengr", PLAYER, 0, Vector2i(0, 3))
 	var e: String = world.add_unit("Brute", ENEMY, -1, Vector2i(1, 3))
@@ -237,9 +258,10 @@ func _test_arrival_and_atomic_resolution() -> void:
 			and world.session.resolve_next() == null
 	))
 	_check("atomic: no diagnostics", world.session.engine.diagnostics.is_empty())
+	return true
 
 
-func _test_chest_race() -> void:
+func _test_chest_race() -> bool:
 	var world: World = World.new(PackedInt32Array([0, 1]))
 	var a: String = world.add_unit("Drengr", PLAYER, 0, Vector2i(1, 0))
 	var b: String = world.add_unit("Archer", PLAYER, 1, Vector2i(0, 1))
@@ -270,9 +292,10 @@ func _test_chest_race() -> void:
 			and world.session.state.tile_of(b) == Vector2i(0, 1)
 			and world.session.last_seq() == start + 1
 	))
+	return true
 
 
-func _test_ownership() -> void:
+func _test_ownership() -> bool:
 	var world: World = World.new(PackedInt32Array([0, 1]))
 	var a: String = world.add_unit("Drengr", PLAYER, 0, Vector2i(0, 3))
 	var b: String = world.add_unit("Archer", PLAYER, 1, Vector2i(2, 3))
@@ -290,9 +313,10 @@ func _test_ownership() -> void:
 	_check("ownership: an enemy is rejected", batches[1].is_rejected())
 	_check("ownership: its own unit resolves", not batches[2].is_rejected())
 	_check("ownership: any seat may cast a rune", not batches[3].is_rejected())
+	return true
 
 
-func _test_stale_forecast() -> void:
+func _test_stale_forecast() -> bool:
 	var world: World = World.new(PackedInt32Array([0, 1]))
 	var a: String = world.add_unit("Drengr", PLAYER, 0, Vector2i(0, 3))
 	var b: String = world.add_unit("Archer", PLAYER, 1, Vector2i(2, 3))
@@ -324,9 +348,10 @@ func _test_stale_forecast() -> void:
 	fresh.based_on_seq = world.session.last_seq()
 	world.session.submit(fresh)
 	_check("stale: a forecast from now resolves", not world.session.resolve_next().is_rejected())
+	return true
 
 
-func _test_batches_and_catch_up() -> void:
+func _test_batches_and_catch_up() -> bool:
 	var world: World = World.new()
 	var a: String = world.add_unit("Drengr", PLAYER, 0, Vector2i(0, 3))
 	var deployed: CombatSession.FactBatch = world.session.flush("deployment")
@@ -364,9 +389,10 @@ func _test_batches_and_catch_up() -> void:
 			not world.session.can_catch_up(2) and world.session.facts_since(2).is_empty()
 	))
 	_check("catch-up: ahead of the session is refused", not world.session.can_catch_up(9))
+	return true
 
 
-func _test_diagnostics_reported() -> void:
+func _test_diagnostics_reported() -> bool:
 	var world: World = World.new()
 	world.add_unit("Drengr", PLAYER, 0, Vector2i(0, 3))
 	print("    (one ERROR line about a fixture diagnostic follows)")
@@ -377,9 +403,10 @@ func _test_diagnostics_reported() -> void:
 	))
 	world.session.submit(DiagnosticFixture.new(""))
 	_check("diagnostics: reported once", world.session.resolve_next().diagnostics.is_empty())
+	return true
 
 
-func _test_finished_map() -> void:
+func _test_finished_map() -> bool:
 	var world: World = World.new()
 	var a: String = world.add_unit("Drengr", PLAYER, 0, Vector2i(0, 3))
 	world.session.submit(EndMapFixture.new())
@@ -390,9 +417,10 @@ func _test_finished_map() -> void:
 			"finished: later commands are rejected",
 			batches[1].rejected_reason == "the combat on this map has ended"
 	)
+	return true
 
 
-func _test_describe_and_log_lines() -> void:
+func _test_describe_and_log_lines() -> bool:
 	var world: World = World.new()
 	var a: String = world.add_unit("Drengr", PLAYER, 0, Vector2i(0, 3))
 	var e: String = world.add_unit("Brute", ENEMY, -1, Vector2i(1, 3))
@@ -449,9 +477,10 @@ func _test_describe_and_log_lines() -> void:
 			"s0 CMD arrival 3 seat 0 %s (Drengr) attack %s (Brute) based_on s0#1 -> REJECTED "
 			% [a, e] + "stale forecast (s0#"
 	), world.session.describe_batch(rejected))
+	return true
 
 
-func _test_setup_order() -> void:
+func _test_setup_order() -> bool:
 	# An Array, not a PackedStringArray: lambdas capture packed arrays by value.
 	var trace: Array[String] = []
 	var battle: Battle = Battle.new(PackedInt32Array([1, 0]))
@@ -476,9 +505,10 @@ func _test_setup_order() -> void:
 			encounter.setup.layout != null and encounter.setup.map.id == "map_a"
 	))
 	_check("setup: runs once", battle.set_up() == ERR_ALREADY_IN_USE)
+	return true
 
 
-func _test_map_choice() -> void:
+func _test_map_choice() -> bool:
 	var pool: Array[CombatMapDefinition] = Battle.pool(["map_a", "map_b", "map_c"])
 	var first: Battle = Battle.new()
 	var second: Battle = Battle.new()
@@ -511,9 +541,10 @@ func _test_map_choice() -> void:
 	_check("map: an empty pool sets nothing up", (
 			no_map.set_up(empty) == ERR_CANT_OPEN and no_map.encounter.setup == null
 	))
+	return true
 
 
-func _test_setup_streams() -> void:
+func _test_setup_streams() -> bool:
 	var battle: Battle = Battle.new(PackedInt32Array([0, 1]))
 	var shared: Array[RngStream] = []
 	var seat_draws: Dictionary[int, int] = {}
@@ -570,9 +601,10 @@ func _test_setup_streams() -> void:
 	))
 	_check("streams: loot only in step 7", loot_in_step_2 == [null])
 	_check("streams: no ENCOUNTER_SETUP stream in step 7", seat_stream_in_step_7 == [null, null])
+	return true
 
 
-func _test_container_contents() -> void:
+func _test_container_contents() -> bool:
 	var first: Battle = Battle.new(PackedInt32Array([0, 1]), true)
 	var again: Battle = Battle.new(PackedInt32Array([0, 1]), true)
 	first.set_up()
@@ -593,9 +625,10 @@ func _test_container_contents() -> void:
 			again.encounter.setup.summary() == first.encounter.setup.summary(),
 			first.encounter.setup.summary()
 	)
+	return true
 
 
-func _test_setup_draws_only_inside_setup() -> void:
+func _test_setup_draws_only_inside_setup() -> bool:
 	var battle: Battle = Battle.new(PackedInt32Array([0, 1]), true)
 	var setup_streams: Array[RngStream] = []
 	var contexts: Array[CombatEncounter.SetupContext] = []
@@ -651,9 +684,10 @@ func _test_setup_draws_only_inside_setup() -> void:
 	_check("only in setup: no session or encounter holds a stream or the registry", (
 			holds.is_empty()
 	), ", ".join(holds))
+	return true
 
 
-func _test_combat_rolls_injection() -> void:
+func _test_combat_rolls_injection() -> bool:
 	var battle: Battle = Battle.new(PackedInt32Array([0, 1]))
 	battle.set_up()
 	battle.open()
@@ -680,9 +714,10 @@ func _test_combat_rolls_injection() -> void:
 	))
 	var fresh: RngStream = Battle.fresh_stream(RngKey.RngPurpose.COMBAT_ROLLS, 0, -1)
 	_check("rolls: the session's draws are its seat stream's", draws_0[0] == fresh.roll_percent(50))
+	return true
 
 
-func _test_deploy_after_setup() -> void:
+func _test_deploy_after_setup() -> bool:
 	var placements: PackedStringArray = []
 	var before_draws: PackedStringArray = []
 	var after_draws: PackedStringArray = []
@@ -718,9 +753,10 @@ func _test_deploy_after_setup() -> void:
 			_check("deploy: bases set", hp == 20)
 	_check("deploy: no draw", before_draws == after_draws)
 	_check("deploy: the same army and map, the same layout", placements[0] == placements[1])
+	return true
 
 
-func _test_cross_map_counting() -> void:
+func _test_cross_map_counting() -> bool:
 	var battle: Battle = Battle.new(PackedInt32Array([0, 1]))
 	battle.set_up()
 	battle.open()
@@ -792,9 +828,10 @@ func _test_cross_map_counting() -> void:
 			not CombatEncounter.is_cross_map(battle.army_effect(0, narrower))
 			and not CombatEncounter.is_cross_map(unit_owned)
 	))
+	return true
 
 
-func _test_positional_never_across() -> void:
+func _test_positional_never_across() -> bool:
 	var battle: Battle = Battle.new(PackedInt32Array([0, 1]))
 	battle.set_up()
 	battle.open()
@@ -838,9 +875,10 @@ func _test_positional_never_across() -> void:
 	_check("position: an ally on its own map is", (
 			_count_of(s0.engine.fact_log, CombatFact.Kind.EFFECT_ACTIVATED) == 1
 	))
+	return true
 
 
-func _test_rune_routing() -> void:
+func _test_rune_routing() -> bool:
 	var battle: Battle = Battle.new(PackedInt32Array([0, 1]))
 	battle.set_up()
 	battle.open()
@@ -862,9 +900,10 @@ func _test_rune_routing() -> void:
 	_check("rune: an unknown map routes nothing", (
 			battle.encounter.submit(RuneFixture.new(1, rune, a0), 7) == CombatSession.NO_ARRIVAL
 	))
+	return true
 
 
-func _test_arrival_order_across_maps() -> void:
+func _test_arrival_order_across_maps() -> bool:
 	var battle: Battle = Battle.new(PackedInt32Array([0, 1]))
 	battle.set_up()
 	battle.open()
@@ -882,9 +921,10 @@ func _test_arrival_order_across_maps() -> void:
 	_check("order: resolved in arrival order across maps", (
 			" ".join(order) == "1@s1 2@s0 3@s1"
 	), " ".join(order))
+	return true
 
 
-func _test_unit_transfer() -> void:
+func _test_unit_transfer() -> bool:
 	var battle: Battle = Battle.new(PackedInt32Array([0, 1]))
 	battle.set_up()
 	battle.open()
@@ -947,6 +987,396 @@ func _test_unit_transfer() -> void:
 			resolve.get_counter(EffectDefinition.Lane.COMBAT) == 4
 			and s1.engine.diagnostics.is_empty()
 	))
+	return true
+
+
+func _test_bridge_begin_and_end() -> bool:
+	var run: CampaignSession = CampaignSession.new(
+			CampaignData.Mode.SOLO, RUN_SEED, PackedInt32Array([0])
+	)
+	var request: CampaignSession.BattleRequest = _request(run, {0: ["Drengr", "Archer"]})
+	var a: String = request.armies[0].units[0].id
+	var stubborn: EffectDefinition = _counting("stubborn", EffectDefinition.Lane.CAMPAIGN)
+	var counted: EffectInstance = _carrier(run, a, stubborn)
+	counted.set_counter(EffectDefinition.Lane.CAMPAIGN, 5)
+	counted.set_counter(EffectDefinition.Lane.COMBAT, 7)
+	var flask: EffectDefinition = _hit_dealt_block("flask", 1.0)
+	flask.charges = 3
+	flask.charge_lane = EffectDefinition.Lane.CAMPAIGN
+	var charged: EffectInstance = _carrier(run, a, flask)
+	charged.charges_left = 2
+	var benched: EffectInstance = _carrier(run, "unit:99", _hit_dealt_block("benched", 1.0))
+	var banner_definition: EffectDefinition = _every_hit_by_allies(3)
+	banner_definition.scope = EffectDefinition.Scope.YOUR_UNIT
+	var banner: EffectInstance = EffectInstance.new(
+			run.ids.next_effect_id(),
+			banner_definition,
+			EffectOwner.for_army(InstanceIdAllocator.seat_subject_id(0), 0),
+			Modifier.SourceKind.HEIRLOOM
+	)
+	run.add_carrier(banner)
+
+	var events: Array[String] = []
+	run.combat_encounter_opened.connect(func(encounter: CombatEncounter) -> void:
+		events.append("encounter opened")
+		encounter.session_opened.connect(
+				func(session: CombatSession) -> void:
+					events.append("s%d opened" % [session.session_id])
+		)
+	)
+	run.combat_encounter_closed.connect(
+			func(_encounter: CombatEncounter) -> void: events.append("encounter closed")
+	)
+	var battle: CombatEncounter = run.begin_battle(request)
+	_check("bridge: begins", battle != null and run.encounter == battle)
+	if battle == null:
+		return true
+	var session: CombatSession = battle.get_session(0)
+	var copy: EffectInstance = session.engine.get_instance(counted.instance_id)
+	_check("bridge: observers hear the encounter, then each session", (
+			events == ["encounter opened", "s0 opened"]
+	), str(events))
+	_check("bridge: carriers registered as copies", copy != null and copy != counted)
+	_check("bridge: campaign lane copied in, combat lane fresh", (
+			copy.get_counter(EffectDefinition.Lane.CAMPAIGN) == 5
+			and copy.get_counter(EffectDefinition.Lane.COMBAT) == 0
+	))
+	_check("bridge: a unit outside the battle brings nothing", (
+			session.engine.get_instance(benched.instance_id) == null
+	))
+	_check("bridge: a Your Unit heirloom joins its seat's map", (
+			session.engine.get_instance(banner.instance_id) != null
+			and battle.get_cross_map_instances().is_empty()
+	))
+	_check("bridge: the army is deployed", (
+			session.state.has_unit(a)
+			and _layout_has_deployment(session, session.state.tile_of(a))
+	))
+	print("    (one error about a battle already on follows)")
+	_check("bridge: one battle at a time", run.begin_battle(request) == null)
+
+	var e: String = run.ids.next_enemy_id("Brute")
+	var enemy: CombatUnitState = CombatUnitState.new()
+	enemy.id = e
+	enemy.side = ENEMY
+	enemy.tile = Vector2i(3, 2)
+	enemy.hp = 20
+	session.add_unit(enemy, Battle.unit_bases())
+	for i: int in 2:
+		battle.submit(AttackFixture.new(0, a, e), 0)
+	battle.resolve_queued()
+	session.engine.add_growth(a, CombatValue.Stat.RES, 5)
+	_check("bridge: the battle counts on the copies", (
+			copy.get_counter(EffectDefinition.Lane.CAMPAIGN) == 7
+			and copy.get_counter(EffectDefinition.Lane.COMBAT) == 0
+			and counted.get_counter(EffectDefinition.Lane.CAMPAIGN) == 5
+	))
+
+	var result: CampaignSession.BattleResult = run.end_battle()
+	_check("bridge: campaign lanes written back", (
+			counted.get_counter(EffectDefinition.Lane.CAMPAIGN) == 7
+			and charged.charges_left == 0
+	), "%d, %d charges" % [
+			counted.get_counter(EffectDefinition.Lane.CAMPAIGN), charged.charges_left
+	])
+	_check("bridge: combat lanes dropped", counted.get_counter(EffectDefinition.Lane.COMBAT) == 7)
+	_check("bridge: growth changes left for the run flow", (
+			result.growth_changes.has(a)
+			and result.growth_changes[a] == {CombatValue.Stat.RES: 5}
+	), str(result.growth_changes))
+	_check("bridge: the encounter is closed and announced", (
+			run.encounter == null
+			and battle.is_closed
+			and events[events.size() - 1] == "encounter closed"
+	))
+	_check("bridge: no battle, nothing to end", run.end_battle() == null)
+	return true
+
+
+func _test_bridge_cross_map_grants() -> bool:
+	var run: CampaignSession = CampaignSession.new(
+			CampaignData.Mode.MULTIPLAYER, RUN_SEED, PackedInt32Array([1, 0])
+	)
+	var request: CampaignSession.BattleRequest = _request(run, {0: ["Drengr"], 1: ["Archer"]})
+	var a0: String = request.armies[0].units[0].id
+	var a1: String = request.armies[1].units[0].id
+	# "Every 2nd Hit dealt by Any Ally Unit: gain 50 gold" on seat 0's army.
+	var purse: EffectDefinition = _every_hit_by_allies(2)
+	var gold: CampaignGrant = CampaignGrant.new()
+	gold.amount = 50
+	purse.operations.assign([gold])
+	var heirloom: EffectInstance = EffectInstance.new(
+			run.ids.next_effect_id(),
+			purse,
+			EffectOwner.for_army(InstanceIdAllocator.seat_subject_id(0), 0),
+			Modifier.SourceKind.HEIRLOOM
+	)
+	run.add_carrier(heirloom)
+	var recorded: Array[CampaignSession.Grant] = []
+	run.grant_recorded.connect(
+			func(grant: CampaignSession.Grant) -> void: recorded.append(grant)
+	)
+	var battle: CombatEncounter = run.begin_battle(request)
+	var e0: String = _add_enemy(run, battle.get_session(0))
+	var e1: String = _add_enemy(run, battle.get_session(1))
+	_check("grants: the heirloom went to the encounter", (
+			battle.get_cross_map_instances().size() == 1
+			and battle.get_cross_map_instances()[0].instance_id == heirloom.instance_id
+	))
+
+	var sandbox: Sandbox = Sandbox.new(battle.get_session(0).engine, ForecastRolls.new())
+	for i: int in 2:
+		sandbox.engine.record(CombatFact.new(CombatFact.Kind.HIT_DEALT, a0, e0))
+	sandbox.engine.drain()
+	_check("grants: a forecast grants nothing", recorded.is_empty() and run.grants.is_empty())
+
+	battle.submit(AttackFixture.new(0, a0, e0), 0)
+	battle.resolve_queued()
+	_check("grants: nothing before the effect fires", run.grants.is_empty())
+	battle.submit(AttackFixture.new(1, a1, e1), 1)
+	battle.resolve_queued()
+	var grant: CampaignSession.Grant = null if run.grants.is_empty() else run.grants[0]
+	_check("grants: recorded for the owner's seat when it fires", (
+			run.grants.size() == 1
+			and recorded.size() == 1
+			and grant.seat == 0
+			and grant.grant == CampaignGrant.Grant.GOLD
+			and grant.amount == 50
+			and grant.source_effect_id == heirloom.instance_id
+			and grant.describe() == "gold 50"
+	))
+	_check("grants: no diagnostics", battle.get_session(1).engine.diagnostics.is_empty())
+	var result: CampaignSession.BattleResult = run.end_battle()
+	_check("grants: the battle's grants come with its result", (
+			result.grants.size() == 1 and result.grants[0] == grant
+	))
+	return true
+
+
+func _test_bridge_restart_rolls_the_same() -> bool:
+	var summaries: PackedStringArray = []
+	var run: CampaignSession = CampaignSession.new(
+			CampaignData.Mode.MULTIPLAYER, RUN_SEED, PackedInt32Array([0, 1])
+	)
+	run.add_setup_step(CombatEncounter.SetupStep.CONTAINER_CONTENTS, Battle.fill_containers)
+	var again: CampaignSession = CampaignSession.new(
+			CampaignData.Mode.MULTIPLAYER, RUN_SEED, PackedInt32Array([0, 1])
+	)
+	again.add_setup_step(CombatEncounter.SetupStep.CONTAINER_CONTENTS, Battle.fill_containers)
+	for campaign: CampaignSession in [run, run, again]:
+		var battle: CombatEncounter = campaign.begin_battle(_request(campaign, {}))
+		summaries.append(battle.setup.summary())
+		battle.get_session(0).engine.rolls.roll_percent(50)
+		campaign.end_battle()
+	_check("restart: the same node set up twice in one run gives the same results", (
+			summaries[1] == summaries[0]
+	))
+	_check("restart: a fresh run with the same seed gives the same results", (
+			summaries[2] == summaries[0]
+	))
+	_check("restart: the sessions roll from the registry's COMBAT_ROLLS", (
+			run.rng.stream(Battle.rolls_key(0)).capture()
+			!= Battle.fresh_stream(RngKey.RngPurpose.COMBAT_ROLLS, 0, -1).capture()
+	))
+	return true
+
+
+func _test_bridge_close_mid_battle() -> bool:
+	var run: CampaignSession = CampaignSession.new(
+			CampaignData.Mode.SOLO, RUN_SEED, PackedInt32Array([0])
+	)
+	var request: CampaignSession.BattleRequest = _request(run, {0: ["Drengr"]})
+	var a: String = request.armies[0].units[0].id
+	var stubborn: EffectDefinition = _counting("stubborn", EffectDefinition.Lane.CAMPAIGN)
+	var counted: EffectInstance = _carrier(run, a, stubborn)
+	var closed: Array[CombatEncounter] = []
+	run.combat_encounter_closed.connect(
+			func(encounter: CombatEncounter) -> void: closed.append(encounter)
+	)
+	var battle: CombatEncounter = run.begin_battle(request)
+	var e: String = _add_enemy(run, battle.get_session(0))
+	battle.submit(AttackFixture.new(0, a, e), 0)
+	battle.resolve_queued()
+	run.close()
+	_check("close: a battle in progress is dropped and announced", (
+			run.is_closed and run.encounter == null and closed == [battle] and battle.is_closed
+	))
+	_check("close: nothing is written back", (
+			counted.get_counter(EffectDefinition.Lane.CAMPAIGN) == 0
+	))
+	print("    (one error about beginning a battle on a closed run follows)")
+	_check("close: nothing begins again", run.begin_battle(request) == null)
+	return true
+
+
+func _test_service_lifecycle() -> bool:
+	var custom_dir: bool = ProjectSettings.get_setting(
+			"application/config/use_custom_user_dir", false
+	)
+	var dir_name: String = ProjectSettings.get_setting(
+			"application/config/custom_user_dir_name", ""
+	)
+	if not custom_dir or not dir_name.contains("test"):
+		_skips += 1
+		print("SKIP  service lifecycle: needs a test user folder (see the class doc)")
+		return true
+	var saves: Node = root.get_node(^"SaveService")
+	var service: Node = root.get_node(^"CampaignService")
+	var activations: Array[String] = []
+	var run_ends: Array[int] = []
+	var started: Array[CampaignSession] = []
+	var ended: Array[CampaignSession] = []
+	var on_activated: Callable = func(mode: CampaignData.Mode, resumed: bool) -> void:
+		activations.append("%s %s" % [CampaignData.Mode.find_key(mode), resumed])
+	var on_run_ended: Callable = func(mode: CampaignData.Mode, _won: bool) -> void:
+		run_ends.append(mode)
+	var on_started: Callable = func(session: CampaignSession) -> void: started.append(session)
+	var on_ended: Callable = func(session: CampaignSession) -> void: ended.append(session)
+	saves.connect(&"campaign_activated", on_activated)
+	saves.connect(&"run_ended", on_run_ended)
+	service.connect(&"session_started", on_started)
+	service.connect(&"session_ended", on_ended)
+	SaveFile.delete_folder("user://saves/")
+
+	saves.call(&"open_save_file", 1)
+	saves.call(&"start_new_solo_run", RUN_SEED)
+	var first: CampaignSession = service.get(&"session")
+	_check("service: a new run builds a session", (
+			first != null
+			and first.mode == CampaignData.Mode.SOLO
+			and first.rng.run_seed == RUN_SEED
+			and first.seats == PackedInt32Array([0])
+			and activations == ["SOLO false"]
+	), str(activations))
+	saves.call(&"abandon_run", CampaignData.Mode.SOLO)
+	_check("service: abandoning tears it down", (
+			service.get(&"session") == null and first.is_closed and ended == [first]
+	))
+
+	saves.call(&"start_new_solo_run", RUN_SEED)
+	var second: CampaignSession = service.get(&"session")
+	saves.call(&"close_save_file")
+	_check("service: closing the save file tears it down", (
+			second != null and second.is_closed and service.get(&"session") == null
+	))
+
+	# Closing the save file kept the run in its slot, so it is continued.
+	saves.call(&"open_save_file", 1)
+	saves.call(&"continue_solo_run")
+	var third: CampaignSession = service.get(&"session")
+	_check("service: a continued run builds a session", (
+			third != null
+			and third.rng.run_seed == RUN_SEED
+			and activations[activations.size() - 1] == "SOLO true"
+	), str(activations))
+	var panel_scene: PackedScene = load("res://scenes/debug/save_debug_panel.tscn")
+	var panel: Node = panel_scene.instantiate()
+	root.add_child(panel)
+	var field: LineEdit = panel.get_node(^"%SeedField")
+	var button: Button = panel.get_node(^"%SeedRunButton")
+	field.text = RunSeed.format(OTHER_SEED)
+	started.clear()
+	ended.clear()
+	run_ends.clear()
+	button.pressed.emit()
+	var fourth: CampaignSession = service.get(&"session")
+	_check("service: the debug seed restart ends with exactly one live session", (
+			third.is_closed
+			and fourth != null
+			and not fourth.is_closed
+			and fourth.rng.run_seed == OTHER_SEED
+			and started == [fourth]
+			and ended == [third]
+			and run_ends == [CampaignData.Mode.SOLO]
+	), "%d started, %d ended" % [started.size(), ended.size()])
+	panel.free()
+
+	saves.call(&"close_save_file")
+	saves.call(&"open_save_file", 1)
+	saves.call(&"continue_solo_run")
+	var fifth: CampaignSession = service.get(&"session")
+	_check("service: the restarted run continues from its seed", (
+			fifth != null
+			and fourth.is_closed
+			and fifth.rng.run_seed == OTHER_SEED
+			and activations[activations.size() - 1] == "SOLO true"
+	), str(activations))
+
+	var begun: int = service.call(&"begin_battle", _request(fifth, {0: ["Drengr"]}))
+	_check("service: a battle begins and is saved", (
+			begun == OK and fifth.encounter != null and saves.get(&"combat") != null
+	), error_string(begun))
+	var result: CampaignSession.BattleResult = service.call(&"end_battle")
+	_check("service: the battle ends and is saved", (
+			result != null and fifth.encounter == null and saves.get(&"combat") == null
+	))
+
+	saves.call(&"abandon_run", CampaignData.Mode.SOLO)
+	saves.call(&"close_save_file")
+	saves.disconnect(&"campaign_activated", on_activated)
+	saves.disconnect(&"run_ended", on_run_ended)
+	service.disconnect(&"session_started", on_started)
+	service.disconnect(&"session_ended", on_ended)
+	SaveFile.delete_folder("user://saves/")
+	return true
+
+
+# A battle request on the fixture map: each seat's army from its unit types, in roster order.
+func _request(run: CampaignSession, types_by_seat: Dictionary) -> CampaignSession.BattleRequest:
+	var request: CampaignSession.BattleRequest = CampaignSession.BattleRequest.new()
+	request.floor_number = FLOOR
+	request.node = NODE
+	request.pool = Battle.pool(["map_a"])
+	# Untyped: callers pass dictionary literals, which are untyped.
+	for seat: Variant in types_by_seat:
+		var army: CampaignSession.Army = CampaignSession.Army.new()
+		var types: Array = types_by_seat[seat]
+		for unit_type: Variant in types:
+			var unit: CombatUnitState = CombatUnitState.new()
+			unit.id = run.ids.next_unit_id(unit_type as String)
+			unit.seat = seat as int
+			unit.unit_type = unit_type as String
+			unit.hp = 20
+			army.units.append(unit)
+			army.bases[unit.id] = Battle.unit_bases()
+		request.armies[seat as int] = army
+	return request
+
+
+# Adds [param definition] to the run as a trait of [param unit_id] (seat 0). Returns the carrier.
+func _carrier(
+		run: CampaignSession, unit_id: String, definition: EffectDefinition
+) -> EffectInstance:
+	var instance: EffectInstance = EffectInstance.new(
+			run.ids.next_effect_id(),
+			definition,
+			EffectOwner.for_unit(unit_id, 0, PLAYER),
+			Modifier.SourceKind.UNIT_TRAIT
+	)
+	run.add_carrier(instance)
+	return instance
+
+
+# "Hit dealt: count toward 100 in [param lane]" — a counter that never passes in these cases.
+func _counting(id: String, lane: EffectDefinition.Lane) -> EffectDefinition:
+	var definition: EffectDefinition = _hit_dealt_block(id, 1.0, 100)
+	var counter: CounterCondition = definition.conditions[0] as CounterCondition
+	counter.lane = lane
+	return definition
+
+
+func _add_enemy(run: CampaignSession, session: CombatSession) -> String:
+	var enemy: CombatUnitState = CombatUnitState.new()
+	enemy.id = run.ids.next_enemy_id("Brute")
+	enemy.side = ENEMY
+	enemy.tile = Vector2i(3, 2)
+	enemy.hp = 20
+	session.add_unit(enemy, Battle.unit_bases())
+	return enemy.id
+
+
+func _layout_has_deployment(session: CombatSession, tile: Vector2i) -> bool:
+	return session.layout.tiles_of(MapLayout.MarkerKind.DEPLOYMENT).has(tile)
 
 
 # A setup step that appends [param label] (with the seat, for per-seat steps) to [param trace].
@@ -1035,6 +1465,14 @@ func _seqs(facts: Array[CombatFact]) -> String:
 	for fact: CombatFact in facts:
 		parts.append(str(fact.seq))
 	return " ".join(parts)
+
+
+# Runs one case. A script error aborts a case without failing a check, so each case returns true
+# at its end and a case that doesn't is reported.
+func _run(test: Callable) -> void:
+	var finished: Variant = test.call()
+	if not (finished is bool and finished as bool):
+		_check("%s ran to its end" % [test.get_method()], false)
 
 
 func _set_log_level(level: int) -> void:

@@ -6,7 +6,7 @@
 # File:     save_service.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: October 27, 2026
+# Modified: October 28, 2026
 # ==============================================================================
 
 extends Node
@@ -36,6 +36,12 @@ signal save_file_opened(save_number: int)
 
 ## The open save file was closed; [member profile] is null again.
 signal save_file_closed()
+
+## A run became active on this machine as [member campaign]: a new one after its first save, a
+## continued solo run, or a resumed multiplayer one. [code]CampaignService[/code] builds its session
+## on it. Not emitted on a multiplayer client, which has no [member campaign].
+## [param mode]: which slot. [param resumed]: false for a new run, true for a saved one.
+signal campaign_activated(mode: CampaignData.Mode, resumed: bool)
 
 ## A run ended and its campaign slot was emptied.
 ## [param mode]: which slot. [param won]: true for a win, false for a loss or abandon.
@@ -332,7 +338,8 @@ func clear_campaign() -> void:
 	_end_campaign()
 
 
-## Starts a new solo run in the open save file and writes its first save.
+## Starts a new solo run in the open save file, writes its first save, then emits
+## [signal campaign_activated].
 ##
 ## The run becomes [member campaign] and play time starts counting. Its seed is
 ## [param typed_seed] when given, else the debug command line's ([constant _RUN_SEED_ARG]), else
@@ -361,10 +368,13 @@ func start_new_solo_run(typed_seed: int = RunSeed.NO_SEED) -> Error:
 	var err: Error = save_checkpoint()
 	if err != OK:
 		_end_campaign()
-	return err
+		return err
+	campaign_activated.emit(campaign.mode, false)
+	return OK
 
 
-## Loads the open save file's solo run as [member campaign] and starts counting play time.
+## Loads the open save file's solo run as [member campaign], starts counting play time and emits
+## [signal campaign_activated].
 ##
 ## Sets [member resume_point], loading [member combat] when the battle can resume. A combat file
 ## left by a crash outside a battle is deleted; an unusable one during a battle is deleted and the
@@ -376,11 +386,12 @@ func continue_solo_run() -> Error:
 	var err: Error = _activate_campaign(CampaignData.Mode.SOLO)
 	if err == OK:
 		_start_play_clock()
+		campaign_activated.emit(CampaignData.Mode.SOLO, true)
 	return err
 
 
 ## Starts a new multiplayer campaign as the host, one seat per admitted lobby member, and writes
-## its first save. Then tells every client the run started.
+## its first save. Then tells every client the run started and emits [signal campaign_activated].
 ##
 ## Its seed is the debug command line's ([constant _RUN_SEED_ARG]), else a new
 ## [method RunSeed.generate].
@@ -416,6 +427,7 @@ func start_new_multiplayer_run(steam_ids: PackedInt64Array) -> Error:
 		_end_campaign()
 		return err
 	_announce_run_started()
+	campaign_activated.emit(CampaignData.Mode.MULTIPLAYER, false)
 	return OK
 
 
@@ -430,7 +442,7 @@ func load_multiplayer_campaign() -> Error:
 
 
 ## Resumes the loaded multiplayer campaign once every player is in the lobby and Ready: starts
-## play time and tells every client the run started.
+## play time, tells every client the run started and emits [signal campaign_activated].
 ##
 ## Returns [constant OK], or [constant ERR_UNCONFIGURED] when no multiplayer campaign is loaded.
 func resume_multiplayer_run() -> Error:
@@ -439,6 +451,7 @@ func resume_multiplayer_run() -> Error:
 		return ERR_UNCONFIGURED
 	_start_play_clock()
 	_announce_run_started()
+	campaign_activated.emit(CampaignData.Mode.MULTIPLAYER, true)
 	return OK
 
 

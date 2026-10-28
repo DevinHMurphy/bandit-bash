@@ -105,6 +105,9 @@ var _cross_map: Dictionary[String, EffectInstance] = {}
 var _in_transit: Array[Transfer] = []
 var _next_seq: int = 1
 
+# The session each unit sent from another map last arrived on, by unit id.
+var _arrived_on: Dictionary[String, int] = {}
+
 
 ## [param battle_seats]: every seat in the battle; each gets a map.
 func _init(
@@ -229,6 +232,18 @@ func get_sessions() -> Array[CombatSession]:
 func session_of_seat(seat: int) -> CombatSession:
 	var session_id: int = _session_of_seat.get(seat, -1)
 	return get_session(session_id)
+
+
+## The session whose record of [param unit_id] is current: the map it last arrived on from another
+## map, else the first map that has it. Null when no map has it. A finished map keeps the record of
+## a unit it sent away, so read a unit through this, never by searching the sessions.
+func session_of_unit(unit_id: String) -> CombatSession:
+	if _arrived_on.has(unit_id):
+		return get_session(_arrived_on[unit_id])
+	for session: CombatSession in _sessions:
+		if session.state.unit(unit_id) != null:
+			return session
+	return null
 
 
 ## Adds [param instance] as a cross-map effect: it counts facts on every map and its operations
@@ -436,6 +451,7 @@ func _arrive(target: CombatSession, transfer: Transfer) -> bool:
 	unit.has_been_shoved = false
 	unit.has_used_sidearm = false
 	target.add_unit(unit, transfer.bases)
+	_arrived_on[unit.id] = target.session_id
 
 	var net: NetLogScript = CombatSession.logger(
 			NetLogScript.Level.INFO, NetLogScript.Category.COMBAT
