@@ -910,7 +910,11 @@ func _test_content_errors() -> void:
 	)
 	var grant: CampaignGrant = CampaignGrant.new()
 	grant.apply(_context(engine, engine.get_instance("effect:x")))
-	_ok("content: a campaign grant changes nothing in the engine", engine.diagnostics.size() == 1)
+	_ok("content: a campaign grant joins the engine's grants", (
+			engine.diagnostics.size() == 1
+			and engine.grants.size() == 1
+			and engine.grants[0].source_effect_id == "effect:x"
+	))
 
 
 func _test_queued_operations_wait() -> void:

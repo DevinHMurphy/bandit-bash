@@ -6,7 +6,7 @@
 # File:     effect_engine.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 27, 2026
+# Modified: October 28, 2026
 # ==============================================================================
 
 class_name EffectEngine
@@ -114,6 +114,11 @@ var diagnostics: PackedStringArray = []
 
 ## Every fact recorded, in [member CombatFact.seq] order.
 var fact_log: Array[CombatFact] = []
+
+## Every campaign grant applied here, in order: [CampaignGrant] adds one when its reaction
+## resolves, so a reaction a cap drops grants nothing. A sandbox's copy starts its own empty list,
+## so forecasts grant nothing. The session hands them to the campaign session.
+var grants: Array[Grant] = []
 
 ## Verify mode: every cached [method stats] read is also built fresh, and a difference is reported
 ## in [member diagnostics]. On in tests and debug builds, off in release.
@@ -1038,6 +1043,22 @@ static func _source_of(source_effect_id: String) -> CombatFact.Source:
 static func _kind_name(kind: int) -> String:
 	var name: Variant = CombatFact.Kind.find_key(kind)
 	return "KIND_%d" % [kind] if name == null else (name as String)
+
+
+## One campaign grant an effect applied: who gets what, and from which effect. Plain data.
+class Grant:
+	extends RefCounted
+
+	## The seat that gets it: the effect owner's.
+	var seat: int = -1
+	## What is granted: a [enum CampaignGrant.Grant].
+	var grant: int = 0
+	## Gold, for [constant CampaignGrant.Grant.GOLD].
+	var amount: int = 0
+	## The heirloom, unit type or rune granted; may be empty.
+	var definition_id: String = ""
+	## The effect instance that granted it.
+	var source_effect_id: String = ""
 
 
 # An inline window opened but not yet recorded: what waits for its fact.

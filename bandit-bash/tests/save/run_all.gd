@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: October 27, 2026
+# Modified: October 28, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -18,8 +18,9 @@ extends SceneTree
 ## [code]godot --headless --path bandit-bash --script res://tests/save/run_all.gd[/code][br]
 ## Prints PASS or FAIL per case and exits with code 1 if any case fails. Cases that feed in broken
 ## files make [SaveFile] log errors and warnings on purpose; only FAIL lines mean a problem.[br]
-## Works in [constant TEST_DIR] and deletes it afterwards. Autoloads don't exist in
-## [code]--script[/code] mode, so nothing here may use [code]SaveService[/code].
+## Works in [constant TEST_DIR] and deletes it afterwards. The cases run in [code]_init[/code],
+## before autoloads exist (in [code]--script[/code] mode they exist from the first frame, and their
+## names are unknown while this script compiles), so nothing here may use [code]SaveService[/code].
 
 ## Scratch folder for test files. Emptied before and after the run.
 const TEST_DIR: String = "user://test_saves/"

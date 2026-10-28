@@ -23,8 +23,7 @@ extends RefCounted
 ##
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
 
-# ASSUMPTION: the counter starts at 1; no plan sets a first value.
-## The value the first id of a run carries.
+## The value the first id of a run carries: ids count from 1.
 const FIRST_VALUE: int = 1
 
 # The next value to mint, shared by every kind.
@@ -99,9 +98,8 @@ func _mint(kind: String, label: String) -> String:
 	return id
 
 
-# ASSUMPTION: a seat's army is queried as "seat:N", the form every existing test uses; no plan
-# names it. It is a seat, not an instance, so it never comes from the counter.
-## The id [param seat]'s army is queried by: the [member EffectOwner.owner_id] of its heirlooms and
-## curses.
+# A seat, not an instance, so it never comes from the counter.
+## The id [param seat]'s army is queried by, [code]seat:N[/code]: the
+## [member EffectOwner.owner_id] of its heirlooms and curses.
 static func seat_subject_id(seat: int) -> String:
 	return "seat:%d" % [seat]
