@@ -20,6 +20,8 @@ extends RefCounted
 ## [FactBatch], to [signal batch_resolved] for the network and to [member playback] for this peer.
 ## Facts since the last checkpoint stay in memory for a client that rejoins ([method facts_since]).
 ## Engine diagnostics are reported at ERROR after every batch (event bus plan, question 31).[br]
+## The turn loop is [PhaseRunner]'s: [method open_battle] starts it, every command ends with
+## [constant CombatHooks.Hook.AFTER_STEP], and other plans plug in through [member hooks].[br]
 ## Randomness comes only from the roll source it is given: [LiveRolls] over its seat's
 ## [code]COMBAT_ROLLS[/code] stream. It never sees the run's stream registry.[br]
 ## Main thread only. It depends on no scene or autoload except [code]NetLog[/code] (through
@@ -76,6 +78,9 @@ var bus: CombatBus = null
 
 ## Plays this session's batches on [member bus] on this peer.
 var playback: FactPlayback = null
+
+## Where other plans' rules plug into this map's turn loop ([PhaseRunner]).
+var hooks: CombatHooks = CombatHooks.new()
 
 ## The run's id allocator: what [method describe] names ids from. Never null in use.
 var ids: InstanceIdAllocator = null
@@ -192,6 +197,7 @@ func resolve_next() -> FactBatch:
 	engine.begin_step()
 	command.resolve(self)
 	engine.drain()
+	PhaseRunner.end_step(self)
 	_finish_batch(batch)
 	_log_command(batch)
 	batch_resolved.emit(batch)
@@ -219,6 +225,13 @@ func flush(label: String) -> FactBatch:
 	_log_command(batch)
 	batch_resolved.emit(batch)
 	return batch
+
+
+## Opens the battle once the army is deployed: turn 1's player Phase Start
+## ([method PhaseRunner.open_battle]), sent as its own batch. Returns that batch.
+func open_battle() -> FactBatch:
+	PhaseRunner.open_battle(self)
+	return flush("battle start")
 
 
 ## The [member CombatFact.seq] of the last fact recorded; 0 before any.

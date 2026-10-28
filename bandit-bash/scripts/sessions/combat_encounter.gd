@@ -209,6 +209,7 @@ func open_sessions(combat_rolls: Dictionary[int, RngStream]) -> bool:
 		session.setup = setup
 		session.seat_setup = setup.seats[seat]
 		session.fact_recorded.connect(_on_session_fact_recorded)
+		session.hooks.add(CombatHooks.Hook.ARRIVALS, _on_session_arrivals_due)
 		_sessions.append(session)
 		_session_of_seat[seat] = index
 	for session: CombatSession in _sessions:
@@ -351,8 +352,8 @@ func send_unit(
 	return ""
 
 
-## Places every unit on its way to [param session_id], at the receiving map's Phase Start (the
-## combat core's phase runner calls this before the Block and Stance refresh, P02 CC6): its
+## Places every unit on its way to [param session_id], at the receiving map's player Phase Start
+## (each session's [constant CombatHooks.Hook.ARRIVALS], before the Block and Stance refresh): its
 ## effects join the map with their counters and charges, then it is placed with Block 0 and full
 ## Stance, recording [constant CombatFact.Kind.UNIT_SPAWNED]. Returns the ids placed; a unit with
 ## no free tile stays on its way.
@@ -465,6 +466,11 @@ func _arrive(target: CombatSession, transfer: Transfer) -> bool:
 				% [_tag(), target.describe(unit.id), target.session_id, tile]
 		)
 	return true
+
+
+# A session's ARRIVALS hook: its player Phase Start is starting.
+func _on_session_arrivals_due(session: CombatSession) -> void:
+	deliver_arrivals(session.session_id)
 
 
 # Mirrors a cross-map instance's counter and activation facts as encounter facts.

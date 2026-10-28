@@ -102,6 +102,7 @@ func _process(_delta: float) -> bool:
 	_run(_test_rune_routing)
 	_run(_test_arrival_order_across_maps)
 	_run(_test_unit_transfer)
+	_run(_test_arrivals_before_refresh)
 
 	_run(_test_bridge_begin_and_end)
 	_run(_test_bridge_cross_map_grants)
@@ -1014,6 +1015,40 @@ func _test_unit_transfer() -> bool:
 			resolve.get_counter(EffectDefinition.Lane.COMBAT) == 4
 			and s1.engine.diagnostics.is_empty()
 	))
+	return true
+
+
+# The receiving map's player Phase Start delivers units on their way (the ARRIVALS hook) before the
+# Block and Stance refresh, so an arrival gets the refresh and its Unit Turn Start like the rest.
+func _test_arrivals_before_refresh() -> bool:
+	var battle: Battle = Battle.new(PackedInt32Array([0, 1]))
+	battle.set_up()
+	battle.open()
+	var s0: CombatSession = battle.encounter.get_session(0)
+	var s1: CombatSession = battle.encounter.get_session(1)
+	var a0: String = battle.add_unit(0, "Drengr", PLAYER, 0, Vector2i(0, 3))
+	var a1: String = battle.add_unit(1, "Archer", PLAYER, 1, Vector2i(0, 3))
+	battle.encounter.submit(EndMapFixture.new(), 0)
+	battle.encounter.resolve_queued()
+	battle.encounter.send_unit(a0, 0, 1, Vector2i(1, 3))
+	var start: int = s1.engine.fact_log.size()
+	s1.open_battle()
+	var order: PackedStringArray = []
+	for i: int in range(start, s1.engine.fact_log.size()):
+		var fact: CombatFact = s1.engine.fact_log[i]
+		order.append("%s %s" % [CombatFact.Kind.find_key(fact.kind), fact.actor_id])
+	_check("arrivals: before the refresh, then refreshed and started like the rest", (
+			order == PackedStringArray([
+				"UNIT_SPAWNED %s" % [a0],
+				"BLOCK_STANCE_REFRESHED %s" % [a1],
+				"BLOCK_STANCE_REFRESHED %s" % [a0],
+				"PHASE_START ",
+				"UNIT_TURN_START %s" % [a1],
+				"UNIT_TURN_START %s" % [a0],
+			])
+	), str(order))
+	_check("arrivals: none left on the way", battle.encounter.units_in_transit().is_empty())
+	_check("arrivals: no diagnostics", s1.engine.diagnostics.is_empty())
 	return true
 
 
