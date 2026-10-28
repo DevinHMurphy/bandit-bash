@@ -22,6 +22,7 @@ NetLog="*res://scripts/autoload/net_log.gd"
 SteamManager="*res://scripts/autoload/steam_manager.gd"
 SteamNetwork="*res://scripts/autoload/steam_network.gd"
 SaveService="*res://scripts/autoload/save_service.gd"
+CampaignService="*res://scripts/autoload/campaign_service.gd"
 SceneRouter="*res://scripts/autoload/scene_router.gd"
 
 [debug]

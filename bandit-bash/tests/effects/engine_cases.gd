@@ -6,7 +6,7 @@
 # File:     engine_cases.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 27, 2026
+# Modified: October 28, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -910,7 +910,7 @@ func _test_content_errors() -> void:
 	)
 	var grant: CampaignGrant = CampaignGrant.new()
 	grant.apply(_context(engine, engine.get_instance("effect:x")))
-	_ok("content: a campaign grant waits for a campaign session", engine.diagnostics.size() == 2)
+	_ok("content: a campaign grant changes nothing in the engine", engine.diagnostics.size() == 1)
 
 
 func _test_queued_operations_wait() -> void:
