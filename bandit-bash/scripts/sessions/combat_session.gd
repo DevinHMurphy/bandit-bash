@@ -496,8 +496,8 @@ func _set_bases(unit_id: String, bases: Dictionary) -> void:
 	_bases[unit_id] = kept
 
 
-# ASSUMPTION: deployment ranks tiles by the enemies already on the map (placed by P05's enemy slot
-# step), or by the map's enemy slots when none are; P04 names "enemy starting tiles" only.
+# The enemies' starting tiles deployment ranks by: the enemies already on the map (placed by P05's
+# enemy slot step), or the map's enemy slots when none are.
 func _enemy_start_tiles() -> Array[Vector2i]:
 	var tiles: Array[Vector2i] = []
 	for enemy_id: String in state.units_of(CombatFact.CombatSide.ENEMY):

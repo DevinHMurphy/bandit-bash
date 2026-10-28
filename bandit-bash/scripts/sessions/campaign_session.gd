@@ -328,9 +328,8 @@ func _combat_rolls(floor_number: int, node: int, seat: int) -> RngStream:
 	return rng.stream(key)
 
 
-# ASSUMPTION: the bridge takes each seat's army as plain combat data until the units plan (P03)
-# and the run flow (P08) hold the roster; no plan sets this input yet.
-## What a battle begins from: its node, its map pool and each seat's army.
+## What a battle begins from: its node, its map pool and each seat's army, as plain combat data
+## until the units plan (P03) and the run flow (P08) hold the roster.
 class BattleRequest:
 	extends RefCounted
 

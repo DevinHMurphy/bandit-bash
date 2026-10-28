@@ -258,7 +258,8 @@ func add_cross_map(instance: EffectInstance) -> bool:
 	# ASSUMPTION: one instance registered in every session's engine is how a cross-map effect
 	# forwards, since the engine has no forwarding hook: each map dispatches it from its own trigger
 	# index and the shared object holds the one counter. Its queued operations resolve on the map
-	# where the trigger happened, so "Your Units" never reaches the owner's map from another one.
+	# where the trigger happened, so "Your Units" never reaches the owner's map from another one;
+	# deferred, since no MVP content needs it.
 	for session: CombatSession in _sessions:
 		session.engine.register(instance, true)
 	return true
@@ -502,8 +503,8 @@ func _tag() -> String:
 static func is_cross_map(instance: EffectInstance) -> bool:
 	if instance == null or instance.definition == null:
 		return false
-	# ASSUMPTION: only army owners are cross-map. A unit's or item's effect sleeps on every map
-	# its holder isn't on (event bus plan, fix F8), so it can't count on a partner's map.
+	# Only army owners are cross-map: a unit's or item's effect sleeps on every map its holder
+	# isn't on (event bus plan, fix F8), so it can't count on a partner's map.
 	if instance.owner.kind != EffectOwner.Kind.ARMY:
 		return false
 	var scope: EffectDefinition.Scope = instance.definition.scope
