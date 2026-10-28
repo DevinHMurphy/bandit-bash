@@ -39,7 +39,7 @@ into `dev`; plan and orchestrator commits go to `dev`; `main` holds released sta
 
 - **Design:** ideation closed for the MVP (design reviews of October 23–24, 2026). Remaining design
   items are content or tuning; see [Design items by plan](#design-items-by-plan).
-- **Code:** the save system is built. P01 EB1–EB4 and EB9, P02 CC1–CC5, P04 MP1–MP3 and P13 R1–R4 are built, tested headless and merged into `dev` (the save system is on `main`) (map 235, combat 426, effects 521, RNG 154, save 204 tests pass).
+- **Code:** the save system is built. P01 EB1–EB4, EB6 and EB9, P02 CC1–CC5, P04 MP1–MP3 and P13 R1–R4 are built, tested headless and merged into `dev` (the save system is on `main`) (sessions 156, map 235, combat 426, effects 521, RNG 154, save 204 tests pass).
   The combat rules (exchange, splash, Shove, staves, Pouch items, swaps, runes) run in tests; no turn loop or map yet.
 - **Current milestone:** [M0 Foundations](#milestones).
 - **Current focus:** P02 CC2–CC5 are built (with P01 fixes F9–F12, two-sided damage stages). The turn loop (CC6) needs P01 EB6,
@@ -80,7 +80,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P10 | Net transport: `Net` autoload, RPCs, command validation, Steam lobby integration | — | **Not started** | P00, P01 | P11 | multiplayer-combat-options.md, `steam_multiplayer_kit/` (read first) |
 | P11 | Co-op combat: parallel maps, reinforcements, rune routing, spectating, fast-forward votes, disconnects and forfeits, per-map battle saves | — | **Not started** | P01 (EB6–EB7), P02, P04, P08, P10 | M4 | game-vision.md Multiplayer maps, multiplayer-combat-options.md |
 | P12 | Statistics recording and the Waystation war table | — | **Not started** | P01, P08 | M5 | meta-progression.md (MVP parts) |
-| P13 | RNG streams: run seed, named streams and their derivation, co-op stream layout, save and resume in the reserved `rng` sections, determinism rules | [2026-10-26-rng-streams.md](2026-10-26-rng-streams.md) | **In progress** (approved October 26, 2026): R1–R4 built and merged (154 headless tests pass); R5 registers from `CampaignService`, so it follows P01 EB6; R6 is built with P01 EB6 | P00 | P01 EB4/EB6, P02, P04, P05, P06, P08, P09, P11 | save-system.md (`rng` sections), P01 roll sources |
+| P13 | RNG streams: run seed, named streams and their derivation, co-op stream layout, save and resume in the reserved `rng` sections, determinism rules | [2026-10-26-rng-streams.md](2026-10-26-rng-streams.md) | **In progress** (approved October 26, 2026): R1–R4 built and merged (154 headless tests pass); R5 is ready (it registers from `CampaignService`, built in EB6); R6 built with P01 EB4 and EB6 | P00 | P01 EB4/EB6, P02, P04, P05, P06, P08, P09, P11 | save-system.md (`rng` sections), P01 roll sources |
 | P20 | Meta progression: unlocks, difficulty ladder, almanac, Hall of Heroes, run history, achievements, Waystation stations | — | Post-MVP | P12 | — | meta-progression.md |
 | P21 | Training yard and tutorials | — | Post-MVP | P07 | — | meta-progression.md |
 | P22 | Dev console | — | Post-MVP (scoped when needed) | P01 | — | meta-progression.md Developer tools |
@@ -131,8 +131,8 @@ mark it **Open** here.
 | P01 EB5 Catalog and content tests | P03 sketched (content kinds, `res://data/` layout) | The catalog's typed lookups and layout follow the content kinds | Closed |
 | P01 EB4 live rolls (within EB2–EB4) | P13 approved ✅ (October 26, 2026); P13 R1–R3 implemented ✅ (`RngStream` is what `LiveRolls` wraps); P01 amended with P13's needs R-N1 and R-N2 ✅ (October 26, 2026) ([RNG plan](2026-10-26-rng-streams.md#what-p13-needs-from-other-plans)) | Real resolution and P02's golden-log tests need seeded streams | **Open** October 26, 2026 (R1–R3 built) |
 | P01 EB6 Sessions, encounter, bridge | P04 approved ✅ (October 27, 2026; including P13 need R-N5: stable container indices); P08 question 1 (`CampaignSession` owner) answered ✅ (October 27, 2026: `CampaignService`); P13 approved and P01 amended with R-N3 ✅ (the encounter draws the whole setup once; sessions get their own streams) | Sessions carry turns, deployment, commands and the RNG injection point | **Open** October 27, 2026 |
-| P01 EB7 Serialization, rejoin | EB6; P01 amended with P13 need R-N4 ✅ (run seed, build and live stream states in snapshots and repro dumps) | — | Closed |
-| P02 implementation (CC2–CC5; CC6 waits on EB6) | P01 EB4 implemented ✅ (October 26, 2026) | Combat rules are effect-engine consumers | **Open** October 26, 2026; CC2–CC5 built October 27, 2026 |
+| P01 EB7 Serialization, rejoin | EB6; P01 amended with P13 need R-N4 ✅ (run seed, build and live stream states in snapshots and repro dumps) | — | **Open** October 28, 2026 (EB6 implemented) |
+| P02 implementation (CC2–CC5; CC6 waits on EB6) | P01 EB4 implemented ✅ (October 26, 2026); EB6 implemented ✅ (October 28, 2026), so CC6 may start | Combat rules are effect-engine consumers | **Open** October 26, 2026; CC2–CC5 built October 27, 2026 |
 | P01 EB9 Benchmark | P02 CC3 (a real `CombatState` and exchange to measure) | Sandbox creation cost means little on the fake test state; the numbers decide copy on write and the AI's branch budget | **Open** October 27, 2026 (CC3 built); implemented October 27, 2026 |
 | P03 implementation | P01 EB5 implemented | Content is catalog data | Closed |
 | P04 implementation | P01 EB6, P02 core turn loop | Maps run inside sessions | Closed |
@@ -198,10 +198,10 @@ more enemy factions, units with convoy access, shared and hybrid co-op battles, 
 
 ## Next actions
 
-1. Build P01 EB6 (sessions, encounter, bridge, `CampaignService`) on `feature/EB6`; then P02 CC6 (turn loop),
-   P04 MP4 wiring and P13 R5–R6.
-2. Alongside: P04 MP5 (M1 greybox map and the authoring check), then MP6–MP7 (objects, reinforcements).
-3. Review the nine `# ASSUMPTION` markers MP1–MP3 left in `scripts/map/`.
+1. Answer the EB6 review questions (in the session of October 28, 2026), then the EB6 fix-ups.
+2. Build P02 CC6 (turn loop, commands, hooks), now open; with it P04 MP4 wiring. Also open: P01 EB7
+   (serialization, rejoin), P13 R5 (rng sections).
+3. Alongside: P04 MP3 fix-ups, then MP5 (M1 greybox map, `MapMarker` nodes, the check), then MP6–MP7.
 4. Sketch P03 (content catalog), which opens EB5.
 5. Vision updates pending for the ideation thread (Design items by plan).
 
@@ -237,3 +237,4 @@ more enemy factions, units with convoy access, shared and hybrid co-op battles, 
 | October 28, 2026 | **P04 MP1–MP3 merged into `dev`** (terrain definitions, map definition, layout and loader; `MapGrid`, `MapState`, `Pathing`, `validate_path` on `CombatState`, `walking_distance` and `MOVABLE` removed; automatic deployment and the opening swap's legality). Verified: map 235, combat 426, effects 521, RNG 154, save 204. Nine `# ASSUMPTION` markers in `scripts/map/` await review. EB6 re-read against later decisions; its prompt issued. |
 | October 28, 2026 | EB6 decisions recorded as P01 questions 40–43: an ordered list of battle-setup steps (map, objects, darkness sources, enemy slots, reinforcement waves, per-seat additions, then **container contents rolled at battle start** from each container's `MAP_LOOT` stream, at the user's request); EB6 host and solo only; no save sections in EB6; campaign grants recorded by `CampaignSession` for P08. P13's injection and save text and P04's setup steps updated to match (`MAP_LOOT` streams are no longer saved). |
 | October 28, 2026 | P04 MP3 report reviewed; P04 questions 14–19 answered: front = Armored, Heavy and the Shover, ranged = can't attack at 1 or deals magic damage (fix-up); edge tiles as built; commander front-most accepted when unavoidable; `MapState.opening_swap_open` closed by the first resolved player command (fix-up; P02 CC6 clears it); parameterized markers become `MapMarker` nodes (MP5); `validate_path` keeps its engine argument. Fix-up branch: `feature/P04-MP3-fixups`. |
+| October 28, 2026 | **P01 EB6 merged into `dev`**: `InstanceIdAllocator`, commands and the per-session queue, `CombatSession`, `FactPlayback`, `CombatEncounter` with ordered setup steps and setup-only streams, `CampaignSession`, the `CampaignService` autoload and `SaveService.campaign_activated`, logging per level. Verified: sessions 156 (1 skipped without a test user folder), map 235, combat 426, effects 521, RNG 154, save 204; headless launch clean. Gates opened: P02 CC6, P01 EB7, P13 R5. Review questions raised to the user (cross-map delivery, grants, stale sessions, transfers). |

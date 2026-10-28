@@ -1,7 +1,7 @@
 # Plan: Event Bus and Effects Architecture
 **Date:** October 23, 2026
 **Status:** Approved October 26, 2026 — in progress: EB1–EB4 implemented October 26, 2026 (532
-headless effect tests pass); EB9 implemented October 27, 2026 (results below F12); EB5 waits on the P03 sketch, EB6 on P04
+headless effect tests pass); EB9 implemented October 27, 2026 (results below F12); EB6 implemented October 28, 2026 (156 headless session tests); EB5 waits on the P03 sketch, EB7 is ready
 (P08 question 1 answered); fixes F9–F12 built with P02 CC2–CC5 October 27, 2026; amended October 26, 2026 with the combat core's and RNG plan's needs
 ([Amendments from P02 and P13](#amendments-from-p02-and-p13)) and with the EB4 build's findings
 ([Follow-ups from the EB4 build](#follow-ups-from-the-eb4-build))
