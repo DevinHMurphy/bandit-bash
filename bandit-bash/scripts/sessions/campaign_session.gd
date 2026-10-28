@@ -69,6 +69,10 @@ var grants: Array[Grant] = []
 ## Whether [method close] was called: the run ended or its save file closed.
 var is_closed: bool = false
 
+## The per-draw trace flag handed to every battle's sessions
+## ([member CombatSession.is_tracing_draws]). Off by default.
+var is_tracing_draws: bool = false
+
 # The run's effect carriers on the campaign layer (unit traits, items, heirlooms, curses), by
 # instance id: the side that keeps campaign-lane values between battles.
 var _carriers: Dictionary[String, EffectInstance] = {}
@@ -147,6 +151,7 @@ func begin_battle(request: BattleRequest) -> CombatEncounter:
 		rolls[seat] = _combat_rolls(request.floor_number, request.node, seat)
 	battle.open_sessions(rolls)
 	for session: CombatSession in battle.get_sessions():
+		session.is_tracing_draws = is_tracing_draws
 		session.grant_received.connect(receive_grant)
 	_register_carriers(battle, request)
 	for seat: int in seats:

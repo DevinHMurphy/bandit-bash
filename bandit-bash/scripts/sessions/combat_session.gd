@@ -92,6 +92,10 @@ var seat_setup: CombatEncounter.SeatSetup = null
 ## From then on every command is rejected.
 var is_finished: bool = false
 
+## The per-draw trace for desync and determinism hunts (RNG streams plan, Logging): when on, every
+## roll this session made is logged at DEBUG after its batch. Off by default; it changes no roll.
+var is_tracing_draws: bool = false
+
 var _clock: ArrivalClock = null
 var _queue: Array[Command] = []
 
@@ -104,6 +108,9 @@ var _batched_up_to: int = 0
 
 # Engine diagnostics already reported.
 var _reported_diagnostics: int = 0
+
+# Roll records already traced (or skipped while tracing was off).
+var _traced_rolls: int = 0
 
 # Base values each placed unit was given, by unit id, so a transfer can carry them to another map.
 var _bases: Dictionary[String, Dictionary] = {}
@@ -220,10 +227,17 @@ func can_catch_up(seq: int) -> bool:
 
 
 ## The batched facts after [param seq], in order, for a client that rejoins; empty when it is
-## current or when [method can_catch_up] is false.
+## current or when [method can_catch_up] is false, which is reported at WARN.
 func facts_since(seq: int) -> Array[CombatFact]:
 	var missed: Array[CombatFact] = []
 	if not can_catch_up(seq):
+		var net: NetLogScript = _logger(NetLogScript.Level.WARN, NetLogScript.Category.COMBAT)
+		if net != null:
+			net.warn(
+					NetLogScript.Category.COMBAT,
+					"s%d catch-up gap: asked from #%d, kept #%d to #%d"
+					% [session_id, seq, _checkpoint_seq, last_seq()]
+			)
 		return missed
 	for fact: CombatFact in _catch_up:
 		if fact.seq > seq:
@@ -318,10 +332,12 @@ func describe(id: String) -> String:
 
 ## The log line of [param batch]: its command, sender, arrival and result, such as
 ## [code]s0 CMD arrival 7 seat 1 unit:57 (Hakkapel) move+attack enemy:61 (Brute) based_on s0#140
-## -> REJECTED stale forecast (s0#142 touched enemy:61)[/code].
+## -> REJECTED stale forecast (s0#142 touched enemy:61)[/code]. Facts recorded outside a command
+## print as [code]s0 BATCH deployment -> OK s0#1-s0#3[/code].
 func describe_batch(batch: FactBatch) -> String:
-	var parts: PackedStringArray = ["s%d CMD" % [session_id]]
+	var parts: PackedStringArray = ["s%d BATCH" % [session_id]]
 	if batch.arrival != NO_ARRIVAL:
+		parts[0] = "s%d CMD" % [session_id]
 		parts.append("arrival %d seat %d" % [batch.arrival, batch.seat])
 	if not batch.actor_id.is_empty():
 		parts.append(describe(batch.actor_id))
@@ -429,7 +445,31 @@ func _finish_batch(batch: FactBatch) -> void:
 					NetLogScript.Category.EFFECTS, "s%d: %s" % [session_id, engine.diagnostics[i]]
 			)
 	_reported_diagnostics = engine.diagnostics.size()
+	_trace_draws()
 	playback.enqueue(batch.facts)
+
+
+# The per-draw trace: each roll since the last batch, at DEBUG, when tracing is on.
+func _trace_draws() -> void:
+	var records: Array[RollRecord] = engine.rolls.records
+	var net: NetLogScript = null
+	if is_tracing_draws:
+		net = _logger(NetLogScript.Level.DEBUG, NetLogScript.Category.COMBAT)
+	if net != null:
+		for i: int in range(_traced_rolls, records.size()):
+			var record: RollRecord = records[i]
+			net.debug(
+					NetLogScript.Category.COMBAT,
+					"s%d DRAW %s %d p %.4f -> %d"
+					% [
+						session_id,
+						RollRecord.Kind.find_key(record.kind),
+						record.value,
+						record.probability,
+						record.outcome,
+					]
+			)
+	_traced_rolls = records.size()
 
 
 func _set_bases(unit_id: String, bases: Dictionary) -> void:
@@ -492,15 +532,6 @@ func _trigger_of(effect_fact: CombatFact) -> String:
 		):
 			return CombatFact.Kind.find_key(earlier.kind) as String
 	return "?"
-
-
-# The count an every-Nth counter in lane reaches when it passes (and starts over at 0).
-static func _counter_target(instance: EffectInstance, lane: int) -> int:
-	for condition: EffectCondition in instance.definition.conditions:
-		var counter: CounterCondition = condition as CounterCondition
-		if counter != null and counter.lane == lane:
-			return counter.count if counter.mode == CounterCondition.Mode.EVERY_NTH else 1
-	return 1
 
 
 # The engine's observer: every fact as it is recorded. Tracks the map's end, reports grants, logs,
@@ -583,6 +614,15 @@ static func logger(
 	if net == null or not net.would_log(level, category):
 		return null
 	return net
+
+
+# The count an every-Nth counter in lane reaches when it passes (and starts over at 0).
+static func _counter_target(instance: EffectInstance, lane: int) -> int:
+	for condition: EffectCondition in instance.definition.conditions:
+		var counter: CounterCondition = condition as CounterCondition
+		if counter != null and counter.lane == lane:
+			return counter.count if counter.mode == CounterCondition.Mode.EVERY_NTH else 1
+	return 1
 
 
 ## Hands out arrival stamps. One clock is shared by every session of an encounter, so stamps give
