@@ -24,8 +24,8 @@ extends RefCounted
 ## [method write_back] copies campaign-lane counters and charges back before
 ## [code]SaveService.end_battle()[/code]; [method end_battle] then drops the battle and its combat
 ## lanes. Observers find each battle through [signal combat_encounter_opened].[br]
-## [b]Grants:[/b] [CampaignGrant]s that fire in battle reach [method receive_grant], which records
-## and reports them; no save section is registered yet (question 42).
+## [b]Grants:[/b] [CampaignGrant]s that apply in battle reach [method receive_grant] after their
+## batch, which records and reports them; no save section is registered yet (question 42).
 ##
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md

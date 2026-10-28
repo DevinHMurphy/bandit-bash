@@ -105,6 +105,7 @@ func _process(_delta: float) -> bool:
 
 	_run(_test_bridge_begin_and_end)
 	_run(_test_bridge_cross_map_grants)
+	_run(_test_dropped_grant_not_recorded)
 	_run(_test_bridge_restart_rolls_the_same)
 	_run(_test_bridge_close_mid_battle)
 	_run(_test_service_lifecycle)
@@ -1143,7 +1144,12 @@ func _test_bridge_cross_map_grants() -> bool:
 	for i: int in 2:
 		sandbox.engine.record(CombatFact.new(CombatFact.Kind.HIT_DEALT, a0, e0))
 	sandbox.engine.drain()
-	_check("grants: a forecast grants nothing", recorded.is_empty() and run.grants.is_empty())
+	_check("grants: a forecast grants nothing", (
+			sandbox.engine.grants.size() == 1
+			and battle.get_session(0).engine.grants.is_empty()
+			and recorded.is_empty()
+			and run.grants.is_empty()
+	))
 
 	battle.submit(AttackFixture.new(0, a0, e0), 0)
 	battle.resolve_queued()
@@ -1165,6 +1171,32 @@ func _test_bridge_cross_map_grants() -> bool:
 	_check("grants: the battle's grants come with its result", (
 			result.grants.size() == 1 and result.grants[0] == grant
 	))
+	return true
+
+
+func _test_dropped_grant_not_recorded() -> bool:
+	var world: World = World.new()
+	var a: String = world.add_unit("Drengr", PLAYER, 0, Vector2i(0, 3))
+	# "Hit dealt: gain 1 gold", one reaction per hit.
+	var tithe: EffectDefinition = _hit_dealt_block("tithe", 1.0)
+	var gold: CampaignGrant = CampaignGrant.new()
+	gold.amount = 1
+	tithe.operations.assign([gold])
+	world.add_trait(a, tithe)
+	var received: Array[int] = []
+	world.session.grant_received.connect(
+			func(_seat: int, _grant: int, amount: int, _id: String, _effect: String) -> void:
+				received.append(amount)
+	)
+	print("    (one error about a step stopped at 256 reactions follows)")
+	world.session.submit(HitsFixture.new(0, a, ReactionQueue.MAX_PER_STEP + 1))
+	var batch: CombatSession.FactBatch = world.session.resolve_next()
+	_check("grants: a reaction dropped by the cap grants nothing", (
+			received.size() == ReactionQueue.MAX_PER_STEP
+			and world.session.engine.grants.size() == ReactionQueue.MAX_PER_STEP
+			and batch.diagnostics.size() == 1
+			and batch.diagnostics[0].contains("step stopped")
+	), "%d grants" % [received.size()])
 	return true
 
 
@@ -1934,6 +1966,22 @@ class RollFixture:
 		session.engine.rolls.roll_percent(25)
 		session.engine.rolls.pick_index(3)
 		session.engine.record(CombatFact.new(CombatFact.Kind.ATTACK_MADE, actor_id, target))
+
+
+# Records [member count] hits by its unit in one command, so one step queues that many reactions.
+class HitsFixture:
+	extends Command
+
+	var count: int = 0
+
+	func _init(sender: int, unit_id: String, hits: int) -> void:
+		seat = sender
+		actor_id = unit_id
+		count = hits
+
+	func resolve(session: CombatSession) -> void:
+		for i: int in count:
+			session.engine.record(CombatFact.new(CombatFact.Kind.HIT_DEALT, actor_id))
 
 
 # Ends the map's combat, as the objectives check will (P04 MP4).

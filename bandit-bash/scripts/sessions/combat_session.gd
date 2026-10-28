@@ -40,7 +40,7 @@ signal batch_resolved(batch: FactBatch)
 ## plays facts through [member bus] instead.
 signal fact_recorded(fact: CombatFact)
 
-## An effect that grants something on the campaign layer fired ([CampaignGrant]).
+## A [CampaignGrant] applied in the batch just finished ([member EffectEngine.grants]), once each.
 ## [param seat]: the effect owner's seat. [param grant]: a [enum CampaignGrant.Grant].
 ## [param amount]: gold, for [constant CampaignGrant.Grant.GOLD]. [param definition_id]: the
 ## heirloom, unit type or rune; may be empty. [param source_effect_id]: the effect instance.
@@ -111,6 +111,9 @@ var _reported_diagnostics: int = 0
 
 # Roll records already traced (or skipped while tracing was off).
 var _traced_rolls: int = 0
+
+# Engine grants already handed on.
+var _reported_grants: int = 0
 
 # Base values each placed unit was given, by unit id, so a transfer can carry them to another map.
 var _bases: Dictionary[String, Dictionary] = {}
@@ -445,6 +448,12 @@ func _finish_batch(batch: FactBatch) -> void:
 					NetLogScript.Category.EFFECTS, "s%d: %s" % [session_id, engine.diagnostics[i]]
 			)
 	_reported_diagnostics = engine.diagnostics.size()
+	for i: int in range(_reported_grants, engine.grants.size()):
+		var grant: EffectEngine.Grant = engine.grants[i]
+		grant_received.emit(
+				grant.seat, grant.grant, grant.amount, grant.definition_id, grant.source_effect_id
+		)
+	_reported_grants = engine.grants.size()
 	_trace_draws()
 	playback.enqueue(batch.facts)
 
@@ -534,35 +543,13 @@ func _trigger_of(effect_fact: CombatFact) -> String:
 	return "?"
 
 
-# The engine's observer: every fact as it is recorded. Tracks the map's end, reports grants, logs,
-# and tells host-side observers.
+# The engine's observer: every fact as it is recorded. Tracks the map's end, logs, and tells
+# host-side observers.
 func _on_engine_fact(fact: CombatFact) -> void:
-	match fact.kind:
-		CombatFact.Kind.COMBAT_ENDED:
-			is_finished = true
-		CombatFact.Kind.EFFECT_ACTIVATED:
-			_report_grants(fact)
+	if fact.kind == CombatFact.Kind.COMBAT_ENDED:
+		is_finished = true
 	_log_fact(fact)
 	fact_recorded.emit(fact)
-
-
-# ASSUMPTION: a grant reaches the campaign session when its effect fires, read from the
-# EFFECT_ACTIVATED fact, because the engine has no path from an operation to the session
-# (decision 43). A reaction later dropped by a reaction cap still reports its grant.
-func _report_grants(fact: CombatFact) -> void:
-	var instance: EffectInstance = engine.get_instance(fact.source_effect_id)
-	if instance == null:
-		return
-	for operation: EffectOperation in instance.definition.operations:
-		var grant: CampaignGrant = operation as CampaignGrant
-		if grant != null:
-			grant_received.emit(
-					instance.owner.seat,
-					grant.grant,
-					grant.amount,
-					grant.definition_id,
-					instance.instance_id
-			)
 
 
 # Every fact at DEBUG, effect facts as effect lines; phase changes at INFO.
