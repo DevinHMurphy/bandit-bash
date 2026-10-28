@@ -200,7 +200,8 @@ for the whole battle; a Guildhall's `PREFIX_REROLL` stream advances with each re
 - **Rules code never sees the registry.** `CampaignSession` hands each consumer the stream it needs:
   the `CombatEncounter` gets the `ENCOUNTER_SETUP` stream, draws the whole setup with it at battle
   start and gives every session the same results; each `CombatSession` gets its seat's
-  `COMBAT_ROLLS` stream (wrapped by P01's `LiveRolls`) and that seat's `MAP_LOOT` lookup. This
+  `COMBAT_ROLLS` stream (wrapped by P01's `LiveRolls`); every container's contents are rolled in the
+  encounter's setup from that seat's `MAP_LOOT` stream for the container (P01 question 40). This
   satisfies gdscript.md §8.5 (no autoloads, no global RNG in rules).
 - **Sandboxes never touch a live stream:** forecasts and AI simulation use P01's `ForecastRolls`,
   `ForcedRolls` and `SampledRolls`. `SampledRolls` seeds itself with this plan's mixer from the
@@ -254,7 +255,7 @@ R-N5 and R-N6 wait on P04 and P08.
 |---|------|------|
 | R-N1 | P01 EB4 | `LiveRolls` wraps an `RngStream` given at construction; its 2RN and one-roll methods (P02 need N8) draw only from it |
 | R-N2 | P01 EB4 | `SampledRolls` seeds itself with `RngKey.mix()` over the session `seq` and the candidate, never a stream |
-| R-N3 | P01 EB6 | `CombatEncounter` receives the `ENCOUNTER_SETUP` stream and draws the whole setup once at battle start; each `CombatSession` receives its seat's `COMBAT_ROLLS` stream and a `MAP_LOOT` lookup, never the registry |
+| R-N3 | P01 EB6 | `CombatEncounter` receives the `ENCOUNTER_SETUP` stream and draws the whole setup once at battle start; each `CombatSession` receives its seat's `COMBAT_ROLLS` stream, never the registry; container contents are drawn from `MAP_LOOT` in setup (P01 question 40, October 28, 2026) |
 | R-N4 | P01 EB7 | Snapshots and repro dumps include the run seed, the build version and the live stream states |
 | R-N5 | P04 | Every chest, house and shelf has a stable authored index per map (the `MAP_LOOT` key's `index`) |
 | R-N6 | P08 | `CampaignSession` holds `RngStreams`; its owner autoload registers the two `rng` save sections (question 1) |
@@ -273,9 +274,11 @@ R-N5 and R-N6 wait on P04 and P08.
   they are re-derived from the key and the run seed. A `SaveSection` (all seats' streams live in
   one registry on the host).
 - **Combat `rng` section** (reserved key), version 1: the live battle streams (every seat's
-  `COMBAT_ROLLS` and opened `MAP_LOOT` streams), same shape. Written at Begin, at every
+  `COMBAT_ROLLS` streams), same shape. Written at Begin, at every
   player-phase checkpoint and at battle end. `ENCOUNTER_SETUP` isn't saved: it is fully drawn at
-  battle start and its results are battle state (P04's `enemy_units` and `entities` sections).
+  battle start and its results are battle state (P05's `enemy_units` and P04's `entities` sections).
+  Nor is `MAP_LOOT`: container contents are rolled at battle start and saved in `entities` (P01
+  question 40).
   `BATTLE_RETRY` needs nothing from this section: the battle's streams are re-derived from their
   keys.
 - **`CampaignData.run_seed`** keeps its key and type; new seeds are below 2^52. No migration.

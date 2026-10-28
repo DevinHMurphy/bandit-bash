@@ -194,6 +194,10 @@ or Resource reference survives `MapLoader`.
   and saves.
 - **Candidates.** Object spots and darkness sources are candidates; the encounter's
   `ENCOUNTER_SETUP` draw picks the active ones (map-objects.md "placed from candidates"; P13).
+- **Setup steps** (P01 question 40, October 28, 2026): P04 registers step 2 (objects at candidate
+  spots), step 5 (reinforcement waves) and step 7 (each container's contents, per seat, from its
+  own `MAP_LOOT` stream by container index). Contents are rolled at battle start and kept in
+  `MapState`, so they are saved in `entities` and a Cutthroat or a player finds the same item.
 - **The authoring check** (`MapCheck`) runs on the layout and fails the content test on: fewer than 8
   deployment tiles; more than 3 powder kegs (the Powder Baron's arena may waive it); a duplicate
   container index; a negative tile coordinate; an objective without its tile (Seize, Defend) or
