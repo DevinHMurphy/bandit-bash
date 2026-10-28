@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="TerrainDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/map/terrain_definition.gd" id="1_yiui7"]
+
+[resource]
+script = ExtResource("1_yiui7")
+id = "spilled_oil"
+display_name = "Spilled Oil"
+is_slick = true

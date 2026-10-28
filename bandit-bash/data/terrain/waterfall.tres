@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="TerrainDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/map/terrain_definition.gd" id="1_wby7c"]
+
+[resource]
+script = ExtResource("1_wby7c")
+id = "waterfall"
+display_name = "Waterfall"
+cost_default = 0
+cost_heavy = 0
+cost_mobile = 0
+cost_mounted = 0
+avoid = 10

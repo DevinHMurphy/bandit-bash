@@ -77,8 +77,8 @@ static func recall(
 	var first: CombatUnitState = state.unit(first_id)
 	var second: CombatUnitState = state.unit(second_id)
 	if (
-			not state.grid.can_stand(second.tile, first.movement_type)
-			or not state.grid.can_stand(first.tile, second.movement_type)
+			not state.can_stand(second.tile, first.movement_type)
+			or not state.can_stand(first.tile, second.movement_type)
 	):
 		return "a unit can't stand on the other's tile"
 	state.swap_units(first_id, second_id)

@@ -1,0 +1,67 @@
+[gd_scene format=4]
+
+[ext_resource type="Texture2D" path="res://icon.svg" id="1_21nvt"]
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_hslxh"]
+texture = ExtResource("1_21nvt")
+0:0/0 = 0
+0:0/0/custom_data_0 = "plain"
+1:0/0 = 0
+1:0/0/custom_data_0 = "road"
+2:0/0 = 0
+2:0/0/custom_data_0 = "forest"
+3:0/0 = 0
+3:0/0/custom_data_0 = "wall"
+4:0/0 = 0
+4:0/0/custom_data_0 = "river"
+5:0/0 = 0
+5:0/0/custom_data_0 = "mountain"
+6:0/0 = 0
+6:0/0/custom_data_0 = "house"
+7:0/0 = 0
+7:0/0/custom_data_0 = "fort"
+0:1/0 = 0
+0:1/0/custom_data_0 = "lava"
+1:1/0 = 0
+1:1/0/custom_data_1 = "deployment"
+2:1/0 = 0
+2:1/0/custom_data_1 = "seize"
+3:1/0 = 0
+3:1/0/custom_data_1 = "reinforcement_point"
+4:1/0 = 0
+4:1/0/custom_data_1 = "enemy_slot"
+5:1/0 = 0
+5:1/0/custom_data_1 = "darkness_source"
+6:1/0 = 0
+6:1/0/custom_data_1 = "chest"
+7:1/0 = 0
+7:1/0/custom_data_1 = "door"
+0:2/0 = 0
+0:2/0/custom_data_1 = "lever"
+1:2/0 = 0
+1:2/0/custom_data_1 = "house"
+2:2/0 = 0
+2:2/0/custom_data_1 = "wooden_debris"
+3:2/0 = 0
+3:2/0/custom_data_1 = "bogus"
+
+[sub_resource type="TileSet" id="TileSet_looap"]
+custom_data_layer_0/name = "terrain"
+custom_data_layer_0/type = 4
+custom_data_layer_1/name = "marker"
+custom_data_layer_1/type = 4
+sources/0 = SubResource("TileSetAtlasSource_hslxh")
+
+[node name="FixtureMap" type="Node2D" unique_id=255036425]
+
+[node name="Terrain" type="TileMapLayer" parent="." unique_id=47418560]
+tile_map_data = PackedByteArray("AAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAACAAAAAAACAAAAAAADAAAAAAADAAAAAAAEAAAAAAAEAAAAAAAAAAEAAAAAAAAAAAABAAEAAAABAAAAAAACAAEAAAABAAAAAAADAAEAAAAFAAAAAAAEAAEAAAAEAAAAAAAAAAIAAAAGAAAAAAABAAIAAAAAAAAAAAACAAIAAAAHAAAAAAADAAIAAAAAAAAAAAAEAAIAAAAAAAAAAAAAAAMAAAAAAAAAAAABAAMAAAAAAAAAAAACAAMAAAAAAAAAAAADAAMAAAAAAAAAAAAEAAMAAAAAAAAAAAA=")
+tile_set = SubResource("TileSet_looap")
+
+[node name="Markers" type="TileMapLayer" parent="." unique_id=346256628]
+tile_map_data = PackedByteArray("AAACAAMAAAABAAEAAAAAAAMAAAABAAEAAAABAAMAAAABAAEAAAACAAIAAAACAAEAAAAEAAMAAAADAAEAAAAEAAIAAAADAAEAAAADAAIAAAAEAAEAAAABAAEAAAAFAAEAAAA=")
+tile_set = SubResource("TileSet_looap")
+
+[node name="Objects" type="TileMapLayer" parent="." unique_id=1666338024]
+tile_map_data = PackedByteArray("AAABAAIAAAACAAIAAAAAAAIAAAABAAIAAAACAAEAAAAHAAEAAAABAAEAAAAAAAIAAAAAAAAAAAAGAAEAAAA=")
+tile_set = SubResource("TileSet_looap")

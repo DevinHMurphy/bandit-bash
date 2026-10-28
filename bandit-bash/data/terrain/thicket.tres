@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="TerrainDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/map/terrain_definition.gd" id="1_q8p3q"]
+
+[resource]
+script = ExtResource("1_q8p3q")
+id = "thicket"
+display_name = "Thicket"
+cost_default = 2
+cost_heavy = 3
+cost_mobile = 2
+cost_mounted = 3
+avoid = 15
+defense = 1
+resistance = 1

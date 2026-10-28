@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="TerrainDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/map/terrain_definition.gd" id="1_4bfat"]
+
+[resource]
+script = ExtResource("1_4bfat")
+id = "peak"
+display_name = "Peak"
+cost_default = 0
+cost_heavy = 0
+cost_mobile = 4
+cost_mounted = 0
+avoid = 40
+defense = 2
+resistance = 2

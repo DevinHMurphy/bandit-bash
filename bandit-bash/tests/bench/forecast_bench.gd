@@ -963,11 +963,6 @@ class ReadTracker:
 		_note(id, SCAN)
 		return super(id)
 
-	func walking_distance(from_id: String, to_id: String) -> int:
-		_note(from_id, DATA)
-		_note(to_id, DATA)
-		return super(from_id, to_id)
-
 	func get_hp(id: String) -> int:
 		_note(id, DATA)
 		return super(id)

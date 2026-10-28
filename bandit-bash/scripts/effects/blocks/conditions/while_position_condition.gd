@@ -16,8 +16,8 @@ extends EffectCondition
 ## moved, no ally closer to an enemy, adjacent to or within N tiles of a unit.
 ##
 ## Terms follow effect-triggers.md, Position and movement: adjacent means the four orthogonal
-## neighbors; "within N tiles" is grid distance and "within N movable tiles" the steps this unit
-## could walk ([member distance]). Checked live. Never matches across parallel maps.
+## neighbors; "within N tiles" is grid distance, ignoring walls and terrain, the only effect
+## distance (combat map plan, question 12). Checked live. Never matches across parallel maps.
 ##
 ## @tutorial(Effect triggers): docs/design/effect-triggers.md
 
@@ -33,7 +33,7 @@ enum Kind {
 	NO_ALLY_CLOSER_TO_ENEMY = 3,
 	## A unit of [member side] is on an orthogonally neighboring tile.
 	ADJACENT_TO = 4,
-	## A unit of [member side] is within [member tiles] tiles, measured by [member distance].
+	## A unit of [member side] is within [member tiles] tiles by grid distance.
 	WITHIN = 5,
 }
 
@@ -42,18 +42,11 @@ enum Kind {
 
 ## Tiles for [constant MOVED_AT_LEAST] and [constant WITHIN]; ignored by the other kinds.
 ##
-## [b]Units:[/b] tiles. [b]1 with WITHIN in GRID mode:[/b] the same as adjacent.
+## [b]Units:[/b] tiles. [b]1 with WITHIN:[/b] the same as adjacent.
 @export_range(0, 99) var tiles: int = 1
 
 ## Which units count for [constant ADJACENT_TO] and [constant WITHIN]; ignored by the others.
 @export var side: EffectDefinition.UnitSide = EffectDefinition.UnitSide.ALLY
-
-## How [constant WITHIN] measures [member tiles]; ignored by the other kinds.
-##
-## [b]GRID:[/b] "within N tiles", tiles up plus tiles across, ignoring walls and terrain.
-## [b]MOVABLE:[/b] "within N movable tiles", the steps this unit could take with its own movement
-## type, so walls and impassable terrain count.
-@export var distance: EffectDefinition.Distance = EffectDefinition.Distance.GRID
 
 
 func describe() -> String:
@@ -70,8 +63,6 @@ func describe() -> String:
 			return "while adjacent to %s" % [_side_noun()]
 		Kind.WITHIN:
 			var unit_word: String = "tile" if tiles == 1 else "tiles"
-			if distance == EffectDefinition.Distance.MOVABLE:
-				unit_word = "movable " + unit_word
 			return "while within %d %s of %s" % [tiles, unit_word, _side_noun()]
 	return "while in position"
 
@@ -93,11 +84,9 @@ func test(ctx: EffectContext) -> bool:
 		Kind.NO_ALLY_CLOSER_TO_ENEMY:
 			return _no_ally_closer(engine, unit_id)
 		Kind.ADJACENT_TO:
-			return _any_near(engine, unit_id, 1, false)
+			return _any_near(engine, unit_id, 1)
 		Kind.WITHIN:
-			return _any_near(
-					engine, unit_id, tiles, distance == EffectDefinition.Distance.MOVABLE
-			)
+			return _any_near(engine, unit_id, tiles)
 	return false
 
 
@@ -110,17 +99,13 @@ func _side_noun() -> String:
 	return "a unit"
 
 
-# Whether a unit of `side` (relative to unit_id) is within `reach` tiles: grid distance, or the
-# steps unit_id could walk when `walking`.
-func _any_near(engine: EffectEngine, unit_id: String, reach: int, walking: bool) -> bool:
+# Whether a unit of `side` (relative to unit_id) is within `reach` tiles by grid distance.
+func _any_near(engine: EffectEngine, unit_id: String, reach: int) -> bool:
 	var own_side: CombatFact.CombatSide = engine.state.side_of(unit_id)
 	for other: String in engine.state.unit_ids():
 		if other == unit_id or not engine.matches_side(own_side, other, side):
 			continue
-		var steps: int = (
-				engine.state.walking_distance(unit_id, other) if walking
-				else engine.tile_distance(unit_id, other)
-		)
+		var steps: int = engine.tile_distance(unit_id, other)
 		if steps >= 1 and steps <= reach:
 			return true
 	return false

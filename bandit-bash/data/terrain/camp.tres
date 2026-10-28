@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="TerrainDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/map/terrain_definition.gd" id="1_iyf54"]
+
+[resource]
+script = ExtResource("1_iyf54")
+id = "camp"
+display_name = "Camp"
+cost_default = 2
+cost_heavy = 2
+cost_mobile = 3
+cost_mounted = 3
+avoid = 15
+defense = 1
+resistance = 1
+heal_flat = 2

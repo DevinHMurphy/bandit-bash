@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="TerrainDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/map/terrain_definition.gd" id="1_sq8va"]
+
+[resource]
+script = ExtResource("1_sq8va")
+id = "broken_wall"
+display_name = "Broken Wall"

@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="TerrainDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/map/terrain_definition.gd" id="1_1acjx"]
+
+[resource]
+script = ExtResource("1_1acjx")
+id = "cracked_wall"
+display_name = "Cracked Wall"
+cost_default = 0
+cost_heavy = 0
+cost_mobile = 0
+cost_mounted = 0

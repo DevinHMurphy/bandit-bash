@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="TerrainDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/map/terrain_definition.gd" id="1_lmytv"]
+
+[resource]
+script = ExtResource("1_lmytv")
+id = "castle_gate"
+display_name = "Castle Gate"
+cost_default = 2
+cost_heavy = 2
+cost_mobile = 3
+cost_mounted = 3
+avoid = 30
+defense = 3
+heal_flat = 4
