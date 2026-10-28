@@ -43,6 +43,11 @@ signal save_file_closed()
 ## [param mode]: which slot. [param resumed]: false for a new run, true for a saved one.
 signal campaign_activated(mode: CampaignData.Mode, resumed: bool)
 
+## The active campaign was dropped without ending its run: [method clear_campaign], or
+## [method load_multiplayer_campaign] about to load another. Its files are untouched.
+## [code]CampaignService[/code] closes its session on it.
+signal campaign_cleared()
+
 ## A run ended and its campaign slot was emptied.
 ## [param mode]: which slot. [param won]: true for a win, false for a loss or abandon.
 signal run_ended(mode: CampaignData.Mode, won: bool)
@@ -333,9 +338,10 @@ func has_campaign(slot_mode: CampaignData.Mode) -> bool:
 
 
 ## Drops the active campaign without saving, e.g. before the Main Menu opens a lobby for a new
-## multiplayer campaign. The files are untouched.
+## multiplayer campaign, and emits [signal campaign_cleared]. The files are untouched.
 func clear_campaign() -> void:
 	_end_campaign()
+	campaign_cleared.emit()
 
 
 ## Starts a new solo run in the open save file, writes its first save, then emits
@@ -434,10 +440,12 @@ func start_new_multiplayer_run(steam_ids: PackedInt64Array) -> Error:
 ## Loads the open save file's multiplayer campaign as [member campaign], ready for the lobby to
 ## gather its players. Play time doesn't count until [method resume_multiplayer_run].
 ##
-## Applies the same battle load table as [method continue_solo_run].
+## Emits [signal campaign_cleared] first, since the campaign active until now is dropped. Applies
+## the same battle load table as [method continue_solo_run].
 ## Returns [constant OK], [constant ERR_UNCONFIGURED] with no save file open, or the read or load
 ## error; on error no campaign is active.
 func load_multiplayer_campaign() -> Error:
+	campaign_cleared.emit()
 	return _activate_campaign(CampaignData.Mode.MULTIPLAYER)
 
 

@@ -1358,6 +1358,23 @@ func _test_service_lifecycle() -> bool:
 			result != null and fifth.encounter == null and saves.get(&"combat") == null
 	))
 
+	saves.call(&"clear_campaign")
+	_check("service: clearing the campaign tears the session down", (
+			fifth.is_closed and service.get(&"session") == null and saves.get(&"campaign") == null
+	))
+	var steam_ids: PackedInt64Array = [76561198000000001, 76561198000000002]
+	saves.call(&"start_new_multiplayer_run", steam_ids)
+	var hosted: CampaignSession = service.get(&"session")
+	var loaded: int = saves.call(&"load_multiplayer_campaign")
+	_check("service: loading a multiplayer campaign tears the session down", (
+			hosted != null
+			and hosted.seats == PackedInt32Array([0, 1])
+			and hosted.is_closed
+			and service.get(&"session") == null
+			and loaded == OK
+	), error_string(loaded))
+
+	saves.call(&"abandon_run", CampaignData.Mode.MULTIPLAYER)
 	saves.call(&"abandon_run", CampaignData.Mode.SOLO)
 	saves.call(&"close_save_file")
 	saves.disconnect(&"campaign_activated", on_activated)

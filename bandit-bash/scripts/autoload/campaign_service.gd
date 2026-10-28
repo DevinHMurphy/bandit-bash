@@ -18,8 +18,9 @@ extends Node
 ## autoload:[/b] the session must outlive every screen change, and the save sections it will own
 ## must register before any save file opens (campaign and run flow plan, question 1).[br]
 ## A session is built on [signal SaveService.campaign_activated] and closed on
-## [signal SaveService.run_ended] and [signal SaveService.save_file_closed], so every way a run
-## starts (new, continued, resumed, the debug panel's seed restart) leaves exactly one. On a
+## [signal SaveService.run_ended], [signal SaveService.save_file_closed] and
+## [signal SaveService.campaign_cleared], so every way a run starts (new, continued, resumed, the
+## debug panel's seed restart) leaves exactly one, and none outlives its campaign. On a
 ## multiplayer client there is none until client mirrors (EB7) and transport (P10) exist (event
 ## bus plan, question 41). No save sections yet (question 42): the [code]rng[/code] sections are
 ## P13 R5's, [code]instance_ids[/code] EB7's.
@@ -41,6 +42,7 @@ func _ready() -> void:
 	SaveService.campaign_activated.connect(_on_save_service_campaign_activated)
 	SaveService.run_ended.connect(_on_save_service_run_ended)
 	SaveService.save_file_closed.connect(_on_save_service_save_file_closed)
+	SaveService.campaign_cleared.connect(_on_save_service_campaign_cleared)
 
 
 ## Begins the battle [param request] describes, after the player presses Begin: sets it up
@@ -115,4 +117,8 @@ func _on_save_service_run_ended(_mode: CampaignData.Mode, _won: bool) -> void:
 
 
 func _on_save_service_save_file_closed() -> void:
+	_replace_session(null)
+
+
+func _on_save_service_campaign_cleared() -> void:
 	_replace_session(null)
