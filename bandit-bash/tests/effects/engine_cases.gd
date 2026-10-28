@@ -593,14 +593,6 @@ func _test_position_conditions() -> void:
 	within.tiles = 2
 	_ok("position: an enemy within 2 tiles", within.test(ctx))
 
-	# A wall in p1's way: e1 is 2 grid tiles away but 4 steps' walk.
-	fake.unit("p1").detour = 2
-	_ok("f9: within N tiles ignores walls", within.test(ctx))
-	within.distance = EffectDefinition.Distance.MOVABLE
-	_ok("f9: within N movable tiles counts them", not within.test(ctx))
-	within.tiles = 4
-	_ok("f9: within 4 movable tiles reaches", within.test(ctx))
-
 
 func _test_selectors() -> void:
 	var engine: EffectEngine = _world(PackedInt32Array([1]))
@@ -636,18 +628,6 @@ func _test_selectors() -> void:
 	ctx.command_target_id = "e1"
 	_same("select: allies adjacent to an enemy target", ",".join(sanctuary.select(ctx)), "p2")
 	ctx.command_target_id = ""
-
-	# A wall in p2's way: every walk from p2 takes 2 extra steps.
-	_fake(engine).unit("p2").detour = 2
-	_same("f9: grid area ignores walls", ",".join(allies.select(ctx)), "p1,p2,q1")
-	allies.distance = EffectDefinition.Distance.MOVABLE
-	_same("f9: movable area counts the walk", ",".join(allies.select(ctx)), "p2")
-	allies.radius = 4
-	_same("f9: movable area of 4 reaches", ",".join(allies.select(ctx)), "p1,p2,q1")
-	var adjacent_walk: Area = _area(Area.Center.OWNER, 1, EffectDefinition.UnitSide.ANY, false)
-	adjacent_walk.distance = EffectDefinition.Distance.MOVABLE
-	_ok("f9: movable radius 1 walks too", adjacent_walk.select(ctx).is_empty())
-	_fake(engine).unit("p2").detour = 0
 
 	var scope: AllOfScope = AllOfScope.new()
 	_same("select: your units", ",".join(scope.select(ctx)), "p1,p2")

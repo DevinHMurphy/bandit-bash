@@ -11,7 +11,8 @@
 
 extends SceneTree
 ## Headless tests for the combat map: terrain definitions and loading a map scene into a
-## [MapLayout] (layout_cases.gd).
+## [MapLayout] (layout_cases.gd); [MapGrid], [MapState], [Pathing] and the [CombatState] checks
+## built on them (grid_cases.gd).
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/map/run_all.gd[/code][br]
@@ -20,6 +21,7 @@ extends SceneTree
 
 # Preloaded scripts used as types (gdscript.md, Naming): the case scripts have no class name.
 const LayoutCases = preload("res://tests/map/layout_cases.gd")
+const GridCases = preload("res://tests/map/grid_cases.gd")
 
 var _failures: int = 0
 var _passes: int = 0
@@ -28,6 +30,7 @@ var _passes: int = 0
 func _init() -> void:
 	print("--- Combat map tests ---")
 	LayoutCases.new(_check).run()
+	GridCases.new(_check).run()
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)
 

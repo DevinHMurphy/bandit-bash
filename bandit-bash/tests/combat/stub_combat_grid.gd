@@ -14,9 +14,8 @@ extends CombatGrid
 ## core's tests.
 ##
 ## Test-only. Tiles from (0, 0) to [member size] minus one are on the map. Walls, spiked walls,
-## oil, tiles some movement types can't stand on, and terrain bonuses are set per tile. Walking
-## distance is the grid distance between two tiles on the map: the stub has no pathing, so walls,
-## units and terrain cost never lengthen a walk (the maps plan decides those).
+## oil, tiles some movement types can't stand on, and terrain bonuses are set per tile. Every tile
+## a movement type can stand on costs 1 to enter; the maps plan's [MapGrid] has real costs.
 
 ## The map's width and height in tiles.
 var size: Vector2i = Vector2i(8, 8)
@@ -65,12 +64,9 @@ func contains(tile: Vector2i) -> bool:
 	return tile.x >= 0 and tile.y >= 0 and tile.x < size.x and tile.y < size.y
 
 
-func walking_distance(
-		a: Vector2i, b: Vector2i, _movement_type: CombatGrid.MovementType
-) -> int:
-	if not contains(a) or not contains(b):
-		return -1
-	return distance(a, b)
+## 1 for a tile [param movement_type] can stand on, 0 otherwise.
+func move_cost(tile: Vector2i, movement_type: CombatGrid.MovementType) -> int:
+	return 1 if can_stand(tile, movement_type) else 0
 
 
 func step(tile: Vector2i, direction: Vector2i) -> Vector2i:
@@ -96,20 +92,3 @@ func is_slick(tile: Vector2i) -> bool:
 
 func tile_bonus(tile: Vector2i) -> CombatGrid.TileBonus:
 	return _bonuses.get(tile, CombatGrid.TileBonus.new())
-
-
-## Legal when every step goes to an orthogonal neighbor that is on the map and unblocked; each
-## step costs 1.
-func validate_path(_unit_id: String, path: Array[Vector2i]) -> CombatGrid.PathCheck:
-	var check: CombatGrid.PathCheck = CombatGrid.PathCheck.new()
-	if path.is_empty():
-		check.reason = "empty path"
-		return check
-	for i: int in range(1, path.size()):
-		if distance(path[i - 1], path[i]) != 1 or blocker_at(path[i]) != CombatGrid.Blocker.NONE:
-			check.reason = "blocked at %s" % [path[i]]
-			return check
-	check.is_legal = true
-	check.tiles_moved = path.size() - 1
-	check.cost = check.tiles_moved
-	return check

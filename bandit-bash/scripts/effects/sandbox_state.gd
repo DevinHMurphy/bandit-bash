@@ -51,13 +51,6 @@ extends RefCounted
 @abstract func tile_of(id: String) -> Vector2i
 
 
-## The walking distance from [param from_id] to [param to_id], in tiles: the steps [param from_id]
-## could take with its own movement type, walls and terrain counted; -1 when there is no path.
-## "Within N movable tiles" uses it; "within N tiles" is grid distance
-## ([method EffectEngine.tile_distance]).
-@abstract func walking_distance(from_id: String, to_id: String) -> int
-
-
 ## Current HP of [param id].
 @abstract func get_hp(id: String) -> int
 

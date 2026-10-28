@@ -1088,19 +1088,6 @@ func _test_describe_conditions() -> void:
 		position.side = EffectDefinition.UnitSide.ENEMY
 		var kind_name: String = WhilePositionCondition.Kind.find_key(kind)
 		_snapshot("while position: %s" % [kind_name], position.describe(), expected_positions[kind])
-	var movable: WhilePositionCondition = WhilePositionCondition.new()
-	movable.kind = WhilePositionCondition.Kind.WITHIN
-	movable.side = EffectDefinition.UnitSide.ALLY
-	movable.distance = EffectDefinition.Distance.MOVABLE
-	movable.tiles = 2
-	_snapshot(
-			"while position: movable", movable.describe(), "while within 2 movable tiles of an ally"
-	)
-	movable.tiles = 1
-	_snapshot(
-			"while position: one movable tile", movable.describe(),
-			"while within 1 movable tile of an ally"
-	)
 
 	var defender: WhileRoleCondition = WhileRoleCondition.new()
 	defender.role = WhileRoleCondition.Role.DEFENDER
@@ -1334,11 +1321,6 @@ func _test_describe_selectors() -> void:
 			_area(Area.Center.COMMAND_TARGET, 1, EffectDefinition.UnitSide.ALLY, true).describe(),
 			"the target and adjacent allies of the target"
 	)
-	var aura: Area = _area(Area.Center.OWNER, 2, EffectDefinition.UnitSide.ALLY, false)
-	aura.distance = EffectDefinition.Distance.MOVABLE
-	_snapshot("area: movable tiles", aura.describe(), "allies within 2 movable tiles")
-	aura.radius = 1
-	_snapshot("area: one movable tile", aura.describe(), "allies within 1 movable tile")
 	var against: WhileAttackCondition = WhileAttackCondition.new()
 	against.type_name = "Beast"
 	_snapshot("while attack: against a tag", against.describe(), "against Beasts")

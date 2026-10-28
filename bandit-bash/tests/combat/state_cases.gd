@@ -37,7 +37,6 @@ func run() -> void:
 	_test_stub_grid()
 	_test_placement()
 	_test_reads()
-	_test_walking_distance_uses_the_walker()
 	_test_occupancy()
 	_test_defeat()
 	_test_sandbox_copy()
@@ -54,16 +53,6 @@ func _test_stub_grid() -> void:
 	_ok(
 			"grid: distance is tiles up plus across",
 			grid.distance(Vector2i(0, 0), Vector2i(3, 2)) == 5
-	)
-	_ok(
-			"grid: the open stub walks the grid distance",
-			grid.walking_distance(Vector2i(0, 0), Vector2i(3, 2), CombatGrid.MovementType.HEAVY)
-			== 5
-	)
-	_ok(
-			"grid: no walk off the map",
-			grid.walking_distance(Vector2i(0, 0), Vector2i(4, 0), CombatGrid.MovementType.DEFAULT)
-			== -1
 	)
 	_ok("grid: a corner has two neighbors", grid.neighbors(Vector2i(0, 0)).size() == 2)
 	_ok("grid: a middle tile has four", grid.neighbors(Vector2i(1, 1)).size() == 4)
@@ -85,11 +74,13 @@ func _test_stub_grid() -> void:
 	var bonus: CombatGrid.TileBonus = grid.tile_bonus(Vector2i(0, 0))
 	_ok("grid: plain ground has no bonus", bonus.avoid == 0 and bonus.defense == 0)
 
+	var foot: CombatGrid.MovementType = CombatGrid.MovementType.DEFAULT
 	var path: Array[Vector2i] = [Vector2i(0, 0), Vector2i(0, 1), Vector2i(1, 1)]
-	var check: CombatGrid.PathCheck = grid.validate_path("p1", path)
-	_ok("grid: a legal path", check.is_legal and check.tiles_moved == 2 and check.cost == 2)
+	_ok("grid: a path costs 1 a step", grid.path_cost(path, foot) == 2)
 	path.append(Vector2i(2, 0))
-	_ok("grid: a jump is illegal", not grid.validate_path("p1", path).is_legal)
+	_ok("grid: a jump has no cost", grid.path_cost(path, foot) == -1)
+	_ok("grid: water costs nothing on foot", grid.move_cost(Vector2i(1, 2), foot) == 0)
+	_ok("grid: off the map costs nothing", grid.move_cost(Vector2i(4, 0), foot) == 0)
 
 
 func _test_placement() -> void:
@@ -142,38 +133,6 @@ func _test_reads() -> void:
 			state.get_hp("p1") == 7 and state.get_block("p1") == 4 and state.get_stance("p1") == 1
 	)
 	_quiet(world)
-
-
-func _test_walking_distance_uses_the_walker() -> void:
-	var grid: RecordingGrid = RecordingGrid.new()
-	var state: CombatState = CombatState.new(grid)
-	var engine: EffectEngine = EffectEngine.new(state, ForcedRolls.new(PackedInt32Array()))
-	for id: String in ["flier", "foot"]:
-		engine.set_base(id, CombatValue.Key.STANCE_MAX, 2.0)
-	var flier: CombatUnitState = _unit("flier", PLAYER, 0, Vector2i(0, 0))
-	flier.movement_type = CombatGrid.MovementType.FLIER
-	var foot: CombatUnitState = _unit("foot", PLAYER, 0, Vector2i(2, 0))
-	state.place_unit(engine, flier)
-	state.place_unit(engine, foot)
-	_ok("walk: a flier walks the grid", state.walking_distance("flier", "foot") == 2)
-	_ok("walk: with its own movement type", grid.last_type == CombatGrid.MovementType.FLIER)
-	_ok("walk: on foot, the long way round", state.walking_distance("foot", "flier") == 4)
-	_ok("walk: the walker's type, not the target's", grid.last_type == 0)
-	_ok("walk: nobody to walk to", state.walking_distance("foot", "x") == -1)
-
-	var within: WhilePositionCondition = WhilePositionCondition.new()
-	within.kind = WhilePositionCondition.Kind.WITHIN
-	within.tiles = 3
-	within.distance = EffectDefinition.Distance.MOVABLE
-	var ctx: EffectContext = EffectContext.new()
-	ctx.engine = engine
-	ctx.subject_id = "foot"
-	_ok("walk: not within 3 movable tiles on foot", not within.test(ctx))
-	ctx.subject_id = "flier"
-	_ok("walk: within 3 movable tiles flying", within.test(ctx))
-	within.distance = EffectDefinition.Distance.GRID
-	ctx.subject_id = "foot"
-	_ok("walk: within 3 tiles either way", within.test(ctx))
 
 
 func _test_occupancy() -> void:
@@ -446,18 +405,3 @@ func _ok(case_name: String, passed: bool, detail: String = "") -> void:
 
 func _same(case_name: String, actual: String, expected: String) -> void:
 	_check.call(case_name, actual == expected, "got \"%s\"" % [actual])
-
-
-## A grid that records the movement type it was asked about; a unit on foot walks twice as far.
-class RecordingGrid:
-	extends "res://tests/combat/stub_combat_grid.gd"
-
-	## The movement type of the last walking_distance call.
-	var last_type: int = -1
-
-	func walking_distance(
-			a: Vector2i, b: Vector2i, movement_type: CombatGrid.MovementType
-	) -> int:
-		last_type = movement_type
-		var steps: int = super(a, b, movement_type)
-		return steps if movement_type == CombatGrid.MovementType.FLIER else steps * 2

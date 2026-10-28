@@ -21,7 +21,9 @@ extends SandboxState
 ## effects go dormant while [method has_unit] is false, and a stowed weapon's while it isn't
 ## [method equipped_weapon_id], so nothing is ever unregistered for a defeat or a swap.[br]
 ## Plain data with ids only: [method copy_for_sandbox] copies everything except [member grid] and
-## the weapon records, which are shared and never changed by rules code.[br]
+## the weapon records, which are shared and never changed by rules code; [member map] is copied.
+## Questions that depend on units or map objects ([method can_stand], [method blocker_at],
+## [method validate_path]) are answered here, never by the shared grid.[br]
 ## Each weapon's numbers ([WeaponStats]) become its holder's base values when the unit is placed
 ## or swaps weapons ([method load_bases]), so effects that replace a weapon's base (Short Quiver's
 ## range) and conditions that read it (at maximum range) see the weapon in the Weapon slot.
@@ -31,8 +33,11 @@ extends SandboxState
 ## @todo: TOD-001 - Answer darkness_layer() from the darkness plan (P06); every tile is DRY.
 ## @todo: TOD-002 - Read weapon numbers from the weapons plan's (P03) definitions and instances.
 
-## Terrain, walls and objects. Shared with sandbox copies. Never null in use.
+## Terrain and walls. Shared with sandbox copies. Never null in use.
 var grid: CombatGrid = null
+
+## The map objects' state: which tiles they block. Copied for a sandbox. Never null.
+var map: MapState = MapState.new()
 
 ## The turn counter: it rises at the player Phase Start, so 0 before the first one.
 var turn: int = 0
@@ -146,14 +151,33 @@ func occupant_at(tile: Vector2i) -> String:
 
 
 ## What stands in the way on [param tile]: [constant CombatGrid.Blocker.UNIT] for a unit,
-## [constant CombatGrid.Blocker.PLAIN] for a map object kept here, otherwise the grid's answer.
+## [constant CombatGrid.Blocker.PLAIN] for a map object standing there or blocking it in
+## [member map], otherwise the grid's answer. Shove asks this, never the grid.
 func blocker_at(tile: Vector2i) -> CombatGrid.Blocker:
 	var occupant: String = occupant_at(tile)
 	if not occupant.is_empty():
 		if _units[occupant].side == CombatFact.CombatSide.NONE:
 			return CombatGrid.Blocker.PLAIN
 		return CombatGrid.Blocker.UNIT
+	if map.blocking_at(tile) != MapState.Blocking.NONE:
+		return CombatGrid.Blocker.PLAIN
 	return grid.blocker_at(tile)
+
+
+## Whether a unit of [param movement_type] may stand on [param tile] as far as terrain and map
+## objects go; units are not counted, so a swap or a shove asks [method occupant_at] as well.
+## Rules code asks this, never [method CombatGrid.can_stand].
+func can_stand(tile: Vector2i, movement_type: CombatGrid.MovementType) -> bool:
+	return grid.can_stand(tile, movement_type) and not map.blocks(tile, movement_type)
+
+
+## Whether [param unit_id] may walk [param path] now, and what it costs: [method Pathing.check_path]
+## on this state. [param path] starts with the unit's tile; the budget is its
+## [constant CombatValue.Key.MOVEMENT] in [param engine], less the cost already spent this turn.
+func validate_path(
+		engine: EffectEngine, unit_id: String, path: Array[Vector2i]
+) -> CombatGrid.PathCheck:
+	return Pathing.check_path(engine, self, unit_id, path)
 
 
 ## Moves [param id] to the free tile [param tile], updating occupancy. Records nothing: the action
@@ -212,6 +236,7 @@ func wait(engine: EffectEngine, id: String) -> bool:
 
 func copy_for_sandbox() -> SandboxState:
 	var copy: CombatState = CombatState.new(grid)
+	copy.map = map.copy()
 	copy.turn = turn
 	copy.phase_side = phase_side
 	copy.ended_seats = ended_seats.duplicate()
@@ -247,15 +272,6 @@ func seat_of(id: String) -> int:
 
 func tile_of(id: String) -> Vector2i:
 	return _units[id].tile if has_unit(id) else CombatFact.NO_TILE
-
-
-## Steps [param from_id] could take to [param to_id]'s tile with its own movement type, through
-## [method CombatGrid.walking_distance]; -1 when either is off the map or there is no path.
-func walking_distance(from_id: String, to_id: String) -> int:
-	if not has_unit(from_id) or not has_unit(to_id):
-		return -1
-	var walker: CombatUnitState = _units[from_id]
-	return grid.walking_distance(walker.tile, _units[to_id].tile, walker.movement_type)
 
 
 func get_hp(id: String) -> int:

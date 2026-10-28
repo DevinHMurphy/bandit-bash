@@ -12,17 +12,20 @@
 @abstract
 class_name CombatGrid
 extends RefCounted
-## The map as the combat rules see it: distances, terrain, walls and objects, never units.
+## The map's terrain as the combat rules see it: distances, movement costs, walls, never units or
+## map objects.
 ##
-## The narrow interface between the combat core and the maps plan (P04), which implements it; the
-## combat core's tests use a stub. Occupancy lives in [CombatState]; the grid answers terrain and
-## objects only. Darkness layers and map objects answer through [method blocker_at] and the
-## combat core's hooks, not through new methods here.[br]
+## The narrow interface between the combat core and the maps plan (P04): [MapGrid] implements it,
+## the combat core's tests use a stub. Anything that changes during a combat lives in
+## [CombatState]: occupancy, and map objects in its [member CombatState.map]. So the questions
+## that depend on them are [CombatState]'s ([method CombatState.can_stand],
+## [method CombatState.blocker_at], [method CombatState.validate_path]), and rules code asks it
+## rather than the grid.[br]
 ## [b]Pure and shared:[/b] a sandbox copy of [CombatState] keeps the same grid, so rules code
-## never changes a grid, and an implementation whose objects change during resolution must keep
-## that state out of the grid.
+## never changes a grid.
 ##
 ## @tutorial(Combat core plan): docs/plans/2026-10-26-combat-core.md
+## @tutorial(Combat map plan): docs/plans/2026-10-27-combat-map.md
 
 ## How a unit crosses terrain (unit-roster.md, Movement and tags). [b]Append only[/b], with
 ## explicit values.
@@ -77,11 +80,24 @@ func neighbors(tile: Vector2i) -> Array[Vector2i]:
 	return found
 
 
-## The fewest four-directional steps from [param a] to [param b] for [param movement_type], over
-## tiles it can stand on; -1 when there is no path or either tile is off the map. "Within N
-## movable tiles" ([method SandboxState.walking_distance]). Whether other units block the path,
-## and whether terrain cost counts, is the maps plan's to decide.
-@abstract func walking_distance(a: Vector2i, b: Vector2i, movement_type: MovementType) -> int
+## The terrain cost of walking [param path] for [param movement_type]: the sum of
+## [method move_cost] over every tile after the first. Units and objects are not counted;
+## [method CombatState.validate_path] checks those.
+## Returns -1 when a step isn't to an orthogonal neighbor on the map, or enters a tile
+## [param movement_type] can't.
+func path_cost(path: Array[Vector2i], movement_type: MovementType) -> int:
+	var total: int = 0
+	for i: int in range(1, path.size()):
+		var cost: int = move_cost(path[i], movement_type)
+		if distance(path[i - 1], path[i]) != 1 or cost <= 0:
+			return -1
+		total += cost
+	return total
+
+
+## Movement points [param movement_type] pays to enter [param tile], terrain only; 0 when it
+## can't enter it or the tile is off the map.
+@abstract func move_cost(tile: Vector2i, movement_type: MovementType) -> int
 
 
 ## The tile one step from [param tile] in [param direction] (one of [constant DIRECTIONS]), or
@@ -106,12 +122,6 @@ func neighbors(tile: Vector2i) -> Array[Vector2i]:
 @abstract func tile_bonus(tile: Vector2i) -> TileBonus
 
 
-## Whether [param unit_id] may walk [param path] this turn, and what it costs. [param path] starts
-## with the unit's current tile. The maps plan owns movement cost and pathing; the unit's budget is
-## its [constant CombatValue.Key.MOVEMENT].
-@abstract func validate_path(unit_id: String, path: Array[Vector2i]) -> PathCheck
-
-
 ## A tile's terrain bonuses (unit-roster.md, the terrain table). All 0 on plain ground.
 class TileBonus:
 	extends RefCounted
@@ -128,7 +138,7 @@ class TileBonus:
 	var heal_percent: int = 0
 
 
-## The answer of [method CombatGrid.validate_path].
+## The answer of [method CombatState.validate_path].
 class PathCheck:
 	extends RefCounted
 

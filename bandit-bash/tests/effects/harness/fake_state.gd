@@ -12,11 +12,10 @@
 extends SandboxState
 ## A minimal map for the effect engine's tests: units and objects with a tile, HP, Block and Stance.
 ##
-## Test-only, standing in for the combat core's [code]CombatState[/code]. Walking distance is the
-## tile distance plus the walker's [member FakeUnit.detour] (a wall in its way, so "movable tiles"
-## can differ from grid tiles), and splash follows the combat core's rule closely enough for the
-## engine's tests: Block absorbs, then HP; Damage taken; a unit at 0 HP is defeated. A defeated
-## unit leaves the map: it has no tile any more, as when the combat core clears its occupancy.
+## Test-only, standing in for the combat core's [code]CombatState[/code]. Splash follows the
+## combat core's rule closely enough for the engine's tests: Block absorbs, then HP; Damage taken;
+## a unit at 0 HP is defeated. A defeated unit leaves the map: it has no tile any more, as when the
+## combat core clears its occupancy.
 
 # This script, preloaded as a type for its copy (gdscript.md, Naming): it has no class name.
 const FakeState = preload("res://tests/effects/harness/fake_state.gd")
@@ -72,7 +71,6 @@ func copy_for_sandbox() -> SandboxState:
 		unit_copy.growth = original.growth.duplicate()
 		unit_copy.tags = original.tags
 		unit_copy.unit_type = original.unit_type
-		unit_copy.detour = original.detour
 		unit_copy.defeated = original.defeated
 	return copy
 
@@ -99,13 +97,6 @@ func seat_of(id: String) -> int:
 
 func tile_of(id: String) -> Vector2i:
 	return _units[id].tile if has_unit(id) else CombatFact.NO_TILE
-
-
-func walking_distance(from_id: String, to_id: String) -> int:
-	if not has_unit(from_id) or not has_unit(to_id):
-		return -1
-	var delta: Vector2i = _units[from_id].tile - _units[to_id].tile
-	return absi(delta.x) + absi(delta.y) + _units[from_id].detour
 
 
 func get_hp(id: String) -> int:
@@ -202,7 +193,6 @@ static func _defeat_fact(
 	return fact
 
 
-
 ## A unit or object on the fake map.
 class FakeUnit:
 	extends RefCounted
@@ -233,8 +223,6 @@ class FakeUnit:
 	var tags: PackedStringArray = []
 	## Its unit type.
 	var unit_type: String = ""
-	## Extra steps every walk from this unit takes, as if a wall were in its way.
-	var detour: int = 0
 	## Whether it was defeated (kept, so its side and seat stay readable).
 	var defeated: bool = false
 
@@ -254,6 +242,5 @@ class FakeUnit:
 		unit.growth = growth.duplicate()
 		unit.tags = tags
 		unit.unit_type = unit_type
-		unit.detour = detour
 		unit.defeated = defeated
 		return unit

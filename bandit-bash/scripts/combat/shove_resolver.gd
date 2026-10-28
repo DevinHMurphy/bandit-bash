@@ -142,7 +142,7 @@ static func trace(
 		if blocker == CombatGrid.Blocker.SPIKED_WALL:
 			path.stop = Stop.SPIKE
 			break
-		if blocker != CombatGrid.Blocker.NONE or not state.grid.can_stand(next, movement):
+		if blocker != CombatGrid.Blocker.NONE or not state.can_stand(next, movement):
 			path.stop = Stop.BLOCKED
 			break
 		tile = next

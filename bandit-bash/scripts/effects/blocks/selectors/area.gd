@@ -13,11 +13,11 @@
 class_name Area
 extends TargetSelector
 ## Selects units around a center: "adjacent units, friend or foe" (Cleave), "the target and adjacent
-## allies of the target" (Sanctuary), "allies within 2 tiles", "allies within 2 movable tiles".
+## allies of the target" (Sanctuary), "allies within 2 tiles".
 ##
-## [member distance] picks the measure (effect-triggers.md, Position and movement): grid distance,
-## where radius 1 is the four orthogonal neighbors, or the steps the center could walk with its own
-## movement type. Never reaches across parallel maps.
+## Measured by grid distance, tiles up plus tiles across, ignoring walls and terrain; radius 1 is
+## the four orthogonal neighbors. Grid distance is the only effect distance (combat map plan,
+## question 12). Never reaches across parallel maps.
 ##
 ## @tutorial(Effect triggers): docs/design/effect-triggers.md
 
@@ -46,14 +46,6 @@ enum Center {
 ## Whether the center unit itself is selected too. [b]Off:[/b] only the units around it.
 @export var include_center: bool = false
 
-## How [member radius] is measured.
-##
-## [b]GRID:[/b] "within N tiles", tiles up plus tiles across, ignoring walls and terrain (an
-## explosion, a magical cleave). [b]MOVABLE:[/b] "within N movable tiles", the steps the center
-## unit could take with its own movement type, so walls and impassable terrain count (a healing
-## aura).
-@export var distance: EffectDefinition.Distance = EffectDefinition.Distance.GRID
-
 
 func describe() -> String:
 	var noun: String = "units"
@@ -63,10 +55,7 @@ func describe() -> String:
 		EffectDefinition.UnitSide.ENEMY:
 			noun = "enemies"
 	var place: String = "adjacent %s" % [noun]
-	if distance == EffectDefinition.Distance.MOVABLE:
-		var tile_word: String = "movable tile" if radius == 1 else "movable tiles"
-		place = "%s within %d %s" % [noun, radius, tile_word]
-	elif radius > 1:
+	if radius > 1:
 		place = "%s within %d tiles" % [noun, radius]
 	match center:
 		Center.FACT_ACTOR:
@@ -90,16 +79,15 @@ func describe() -> String:
 
 
 ## Units around the center, in the state's order, on [member side] relative to the owner's side,
-## measured by [member distance]. An owner center that has left the map since the reaction was
-## queued (a Brute defeated by the counter, a keg that just broke) can't walk, so it is measured
-## from the tile it stood on then, by grid distance, in either mode.
+## within [member radius] by grid distance. An owner center that has left the map since the
+## reaction was queued (a Brute defeated by the counter, a keg that just broke) is measured from
+## the tile it stood on then.
 func select(ctx: EffectContext) -> PackedStringArray:
 	var engine: EffectEngine = ctx.engine
 	var center_id: String = _center_id(ctx)
 	var picked: PackedStringArray = []
-	var on_map: bool = engine.state.has_unit(center_id)
 	var center_tile: Vector2i = engine.state.tile_of(center_id)
-	if not on_map and center == Center.OWNER:
+	if not engine.state.has_unit(center_id) and center == Center.OWNER:
 		center_tile = ctx.owner_tile
 	if center_tile == CombatFact.NO_TILE:
 		return picked
@@ -112,8 +100,6 @@ func select(ctx: EffectContext) -> PackedStringArray:
 			continue
 		var delta: Vector2i = engine.state.tile_of(unit_id) - center_tile
 		var steps: int = absi(delta.x) + absi(delta.y)
-		if distance == EffectDefinition.Distance.MOVABLE and on_map:
-			steps = engine.state.walking_distance(center_id, unit_id)
 		if steps >= 1 and steps <= radius:
 			picked.append(unit_id)
 	return picked

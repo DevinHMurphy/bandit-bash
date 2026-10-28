@@ -121,16 +121,6 @@ enum UnitSide {
 	ANY = 2,
 }
 
-## How "within N" measures, for selectors and position conditions (effect-triggers.md, Position
-## and movement; event bus plan, question 38). Saved as an int: [b]append only[/b].
-enum Distance {
-	## "Within N tiles": tiles up plus tiles across on the grid, ignoring walls and terrain.
-	GRID = 0,
-	## "Within N movable tiles": the steps the source could take with its own movement type
-	## ([method SandboxState.walking_distance]).
-	MOVABLE = 1,
-}
-
 ## Bits of [member tags].
 enum Tag {
 	## Once any player owns it, it is never offered to anyone else (co-op).
