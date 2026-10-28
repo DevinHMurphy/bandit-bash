@@ -203,7 +203,8 @@ or Resource reference survives `MapLoader`.
 - **Setup steps** (P01 question 40, October 28, 2026): P04 registers step 2 (objects at candidate
   spots), step 5 (reinforcement waves) and step 7 (each container's contents, per seat, from its
   own `MAP_LOOT` stream by container index). Contents are rolled at battle start and kept in
-  `MapState`, so they are saved in `entities` and a Cutthroat or a player finds the same item.
+  `MapState`, so they are saved in `entities` and a Cutthroat or a player finds the same item. MP6
+  adds that `MapState` field; until then EB6 keeps the contents in the setup result (P01 question 46).
 - **The authoring check** (`MapCheck`) runs on the layout and fails the content test on: fewer than 8
   deployment tiles; more than 3 powder kegs (the Powder Baron's arena may waive it); a duplicate
   container index; a negative tile coordinate; an objective without its tile (Seize, Defend) or
@@ -272,7 +273,8 @@ or Resource reference survives `MapLoader`.
   defeated. In co-op, a commander's fall loses that player's map; the combat ends when every map has
   finished (P01 sessions, P11).
 - `Objectives.check(state)` runs on P02's `AFTER_STEP` hook and records `COMBAT_ENDED` (won or lost)
-  once; the session stops taking commands for that map.
+  once, with `side` naming the side that won (`CombatSide.PLAYER` or `ENEMY`); the session stops
+  taking commands for that map, and only a won map may send units (P01 question 48).
 - **Early-end speed bonus** for Survive and Defend is a grade input for P08 (the vision), carried in
   the `COMBAT_ENDED` fact.
 
@@ -380,7 +382,7 @@ question 7, isn't needed: `OBJECT_STATE_CHANGED` carries it.)
 | MP1 Terrain and layout | `scripts/map/terrain_definition.gd`, `data/terrain/*.tres`, `scripts/map/combat_map_definition.gd`, `scripts/map/map_layout.gd`, `scripts/map/map_loader.gd`, `tests/map/run_all.gd` | Terrain resources from unit-roster.md's table; the definition resource; scene → `MapLayout`; stable ids | 🟢 | Approval | Every terrain row loads with its costs; a fixture scene converts to the expected layout; ids are stable across two loads |
 | MP2 Grid, state and pathing | `scripts/map/map_grid.gd`, `scripts/map/pathing.gd`, `scripts/map/map_state.gd`; changes in `scripts/combat/combat_grid.gd`, `combat_state.gd`, `rune_resolver.gd`, `shove_resolver.gd`, `tests/combat/stub_combat_grid.gd`, `scripts/effects/sandbox_state.gd`, `blocks/selectors/area.gd`, `blocks/conditions/while_position_condition.gd`, the effects test fake | `MapGrid`; the flood, path check, reach and nearest free tile; `validate_path` and object-aware `can_stand` / `blocker_at` on `CombatState`; removing `walking_distance` and the `MOVABLE` mode | 🔴 interface change in P01 and P02 code | MP1 | Golden reach and path tests per movement type × terrain cost; enemy blocks, ally passes, occupied destination rejected, closed and opened door; every existing combat, effects, RNG and save test still passes (those that tested `MOVABLE` are removed, and say so) |
 | MP3 Deployment | `scripts/map/auto_deploy.gd` | Automatic deployment; the opening-swap legality rule | 🟢 | MP2 | Each role lands where specified; commander in the second row; ties by roster order; the same army and map give the same layout; swap legal before the first action only |
-| MP4 Objectives | `scripts/map/objectives.gd` | Win and loss checks, `COMBAT_ENDED` | 🟡 | MP2 (hook wiring with P02 CC6) | Each objective's win and loss, Rout cancelling pending waves, Survive's early end, a solo commander's defeat, `COMBAT_ENDED` once |
+| MP4 Objectives | `scripts/map/objectives.gd` | Win and loss checks, `COMBAT_ENDED` with the winning `side` | 🟡 | MP2 (hook wiring with P02 CC6) | Each objective's win and loss, Rout cancelling pending waves, Survive's early end, a solo commander's defeat, `COMBAT_ENDED` once |
 | MP5 M1 map and the check | `scripts/map/map_check.gd`, `maps/standard/m1_greybox.tscn` + `.tres` | One greybox standard map (Rout, about 8×6 to 10×8, at least 8 deployment tiles, cover for both sides); the authoring check | 🟢 | MP1–MP4 | The M1 map passes the check; deliberately bad fixtures fail it, one rule each |
 | MP6 Map objects | `scripts/map/map_objects.gd`, changes in `scripts/combat/exchange_resolver.gd` (object defender) | Every object in the table; breaking through the exchange; explosions and chains; `OBJECT_OPERATIONS`; Cutthroat carry and drop; P06's queries | 🟡 touches the exchange | MP2 | Golden fact logs per object; an attack on debris has the same fact shape as one on a unit; a 3-keg chain; debris restores its terrain; lever toggles both ways; chest loot equal on two co-op copies; a sandbox breaking a keg leaves the real map unchanged |
 | MP7 Reinforcements | `scripts/map/reinforcements.gd`, `scripts/bus/combat_fact.gd` (two kinds) | Arrival turns, warnings, arrival placement, closing, the darkness stop | 🟡 fact contract | MP2, MP6 | Warnings at the right Phase Starts with the preview the phase before; arrival on an occupied point uses the nearest free tile and the wave completes; a closed point never sends; no arrivals after the darkness; Rout ignores pending waves |

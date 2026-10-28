@@ -1,7 +1,7 @@
 # Plan: Event Bus and Effects Architecture
 **Date:** October 23, 2026
 **Status:** Approved October 26, 2026 — in progress: EB1–EB4 implemented October 26, 2026 (532
-headless effect tests pass); EB9 implemented October 27, 2026 (results below F12); EB6 implemented October 28, 2026 (156 headless session tests); EB5 waits on the P03 sketch, EB7 is ready
+headless effect tests pass); EB9 implemented October 27, 2026 (results below F12); EB6 implemented October 28, 2026 with its fix-ups (questions 44–49; 159 headless session tests, 169 with a test user folder); EB5 waits on the P03 sketch, EB7 is ready
 (P08 question 1 answered); fixes F9–F12 built with P02 CC2–CC5 October 27, 2026; amended October 26, 2026 with the combat core's and RNG plan's needs
 ([Amendments from P02 and P13](#amendments-from-p02-and-p13)) and with the EB4 build's findings
 ([Follow-ups from the EB4 build](#follow-ups-from-the-eb4-build))
@@ -101,6 +101,12 @@ Questions already settled by the design docs are listed first as answered. Every
 | 41 | Clients in EB6 | Host and solo only / mirrors now | **Host and solo only:** on a client, `CampaignService` holds no session until mirrors (EB7) and transport (P10) exist. | **Answered October 28, 2026:** as recommended. |
 | 42 | Save sections in EB6 | None / `instance_ids` now | **None:** `instance_ids` is EB7's, the `rng` sections P13 R5's. | **Answered October 28, 2026:** as recommended. |
 | 43 | Where `CampaignGrant` sends gold, heirlooms, recruits and runes (`campaign_grant.gd` TOD-001), while `CampaignData` has no gold or roster yet | `CampaignSession` records them / wait | **`CampaignSession` receives, records and reports them;** applying them is P08's. The TODO moves there. | **Answered October 28, 2026:** as recommended. |
+| 44 | Cross-map delivery: the engine has no forwarding hook, so a cross-map effect is one instance registered in every session's engine (found building EB6) | Build the hook now / keep the workaround | **Keep the workaround; defer the hook.** No MVP content reaches across maps (question 12). Its limit: queued operations resolve on the map where the trigger happened, so "Your Units" lands there, never on the owner's map. P11 or post-MVP content builds the hook when it needs it | **Answered October 28, 2026:** as recommended (kept as an `# ASSUMPTION` marker in `combat_encounter.gd`). |
+| 45 | How a `CampaignGrant` reaches the campaign session (question 43): EB6 read it from `EFFECT_ACTIVATED`, so a reaction a cap dropped still granted | An engine grant list / the activation fact | **`EffectEngine.grants`:** `CampaignGrant.apply()` appends an `EffectEngine.Grant` (seat, grant, amount, definition id, source effect) when its reaction resolves; the session emits `grant_received` once per new entry after its batch. A sandbox's engine keeps its own list, so forecasts grant nothing | **Answered October 28, 2026:** as recommended; built in the EB6 fix-ups. |
+| 46 | Where container contents (setup step 7) live before `MapState` has a field for them | The setup result / a `MapState` field now | **The setup result** until P04 MP6 adds the `MapState` field, which step 7 then fills | **Answered October 28, 2026:** as recommended (marker kept until MP6). |
+| 47 | A session outlives its campaign after `clear_campaign()` or `load_multiplayer_campaign()` (found building EB6) | A teardown signal / leave it | **`SaveService.campaign_cleared()`**, emitted by `clear_campaign()` and by `load_multiplayer_campaign()` before it loads; `CampaignService` closes its session on it | **Answered October 28, 2026:** as recommended; built in the EB6 fix-ups. |
+| 48 | Which maps may send units to another (EB6 built "finished") | Won / finished | **Won only:** "a player who wins their map can send any of their surviving units" (game-vision.md); a lost map's player spectates. `COMBAT_ENDED` carries the winning side in `side` and `CombatSession.is_won` reads it, so P04 MP4's objective check must set `side` | **Answered October 28, 2026:** as recommended; built in the EB6 fix-ups. |
+| 49 | EB6's other assumptions, deviations and gaps | Confirm / change | **Confirm:** ids count from 1; a seat's army is `seat:N`; deployment ranks by enemy slots when no enemy is placed yet; only army-owned effects are cross-map; `BattleRequest` is the bridge's input until P03 and P08. **Accept the deviations:** setup streams stay outside the registry (P13); sessions reach `NetLog` by node path; effect logs in two lines; no `campaign_activated` on a client until EB7 and P10; `CampaignService.session_started` / `session_ended`; the `engine_cases.gd` change; lifecycle tests only with a test user folder. **Gaps:** stat-sheet rebuilds leave the DEBUG logging row (the engine never logs); timed modifiers carried on a transfer and a player's "Your Unit" heirlooms on a partner's map go to P11; a unit's "Any Ally Unit" effects sleeping on a partner's map is by design (question 12) | **Answered October 28, 2026:** as recommended; markers removed in the EB6 fix-ups. |
 
 ## Scope
 
@@ -774,7 +780,7 @@ categorized, and tagged with the peer id, which matters most when two machines' 
   | ERROR | Reaction cap hit, cache verify mismatch, invalid content at load, unresolvable id |
   | WARN | Override collision, `command_rejected` (with reason), client mirror hash mismatch, unexpected rejoin catch-up gap |
   | INFO | Commands (seat, arrival stamp, `based_on_seq`, result), phase changes, battle start / end, unit transfers between maps, rejoin and snapshot |
-  | DEBUG | Every fact as it resolves, every effect activation (counter before / after, inline or queued, what it changed), stat-sheet rebuilds, AI's top candidates per enemy with their ratings |
+  | DEBUG | Every fact as it resolves, every effect activation (counter before / after, inline or queued, what it changed), AI's top candidates per enemy with their ratings |
 
 - **Line shapes,** each prefixed by NetLog's `[LEVEL][Category][peer N]`:
   - Fact: `s0#143 HIT_TAKEN unit:57 (Hakkapel) <- enemy:61 (Brute) amount 6 (hp 4, block 2) source attack`
