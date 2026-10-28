@@ -93,6 +93,11 @@ var setup: CombatEncounter.EncounterSetup = null
 ## an encounter.
 var seat_setup: CombatEncounter.SeatSetup = null
 
+## Each seat's commander on this map, by seat, as [method deploy] placed it; a seat whose army
+## has no commander here has no entry. [Objectives] loses the map when one is defeated. Not saved
+## yet (P02 CC8).
+var commander_ids: Dictionary[int, String] = {}
+
 ## Whether this map's combat has ended ([constant CombatFact.Kind.COMBAT_ENDED] was recorded).
 ## From then on every command is rejected.
 var is_finished: bool = false
@@ -173,6 +178,8 @@ func next_arrival() -> int:
 ## Resolves the oldest queued command and returns its batch; null when nothing is queued. Checks
 ## it first (see [Command]); a rejected command records nothing, tells only its seat through
 ## [signal command_rejected], and returns a batch with [member FactBatch.rejected_reason] set.
+## A resolved command ends its step with [constant CombatHooks.Hook.AFTER_STEP]
+## ([method PhaseRunner.end_step]), so the objective checks may end the map inside its batch.
 ## Facts recorded since the last batch outside any command go out first, as their own batch.
 func resolve_next() -> FactBatch:
 	if _queue.is_empty():
@@ -276,7 +283,8 @@ func mark_checkpoint() -> void:
 ## tiles with [AutoDeploy], with no random draw, and records
 ## [constant CombatFact.Kind.UNIT_SPAWNED] for each one placed. Their weapons must already be in
 ## [member state]. [param bases]: each unit's base values (value key to number) by unit id.
-## [param commander_id]: empty when the army has none here. Returns where each unit went.
+## [param commander_id]: empty when the army has none here; once placed, it is the commander of its
+## seat in [member commander_ids]. Returns where each unit went.
 func deploy(
 		units: Array[CombatUnitState],
 		bases: Dictionary[String, Dictionary],
@@ -297,6 +305,8 @@ func deploy(
 		if placement.tiles.has(unit.id):
 			unit.tile = placement.tiles[unit.id]
 			add_unit(unit)
+	if not commander_id.is_empty() and state.has_unit(commander_id):
+		commander_ids[state.seat_of(commander_id)] = commander_id
 	return placement
 
 

@@ -12,8 +12,8 @@
 extends SceneTree
 ## Headless tests for the sessions layer: [InstanceIdAllocator], [Command] and the session queue,
 ## [CombatSession], [FactPlayback] and [PresentationRequest]; [CombatEncounter]'s setup steps,
-## stream injection, cross-map effects, routing and transfers; [CampaignSession]'s battle bridge
-## and grants; and the [code]CampaignService[/code] autoload's lifecycle.
+## stream injection, cross-map effects, routing, transfers and each map's end; [CampaignSession]'s
+## battle bridge and grants; and the [code]CampaignService[/code] autoload's lifecycle.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/sessions/run_all.gd[/code][br]
@@ -103,6 +103,7 @@ func _process(_delta: float) -> bool:
 	_run(_test_arrival_order_across_maps)
 	_run(_test_unit_transfer)
 	_run(_test_arrivals_before_refresh)
+	_run(_test_objectives_end_each_map)
 
 	_run(_test_bridge_begin_and_end)
 	_run(_test_bridge_cross_map_grants)
@@ -1028,6 +1029,8 @@ func _test_arrivals_before_refresh() -> bool:
 	var s1: CombatSession = battle.encounter.get_session(1)
 	var a0: String = battle.add_unit(0, "Drengr", PLAYER, 0, Vector2i(0, 3))
 	var a1: String = battle.add_unit(1, "Archer", PLAYER, 1, Vector2i(0, 3))
+	# An enemy, so the objective check (Rout) doesn't end the map at its Phase Start.
+	battle.add_unit(1, "Brute", ENEMY, -1, Vector2i(1, 2))
 	battle.encounter.submit(EndMapFixture.new(), 0)
 	battle.encounter.resolve_queued()
 	battle.encounter.send_unit(a0, 0, 1, Vector2i(1, 3))
@@ -1049,6 +1052,40 @@ func _test_arrivals_before_refresh() -> bool:
 	), str(order))
 	_check("arrivals: none left on the way", battle.encounter.units_in_transit().is_empty())
 	_check("arrivals: no diagnostics", s1.engine.diagnostics.is_empty())
+	return true
+
+
+# Co-op: the encounter registers the objective checks on every map; one map's end ends only its
+# session, a map won that way may send units, and the encounter ends with the last map.
+func _test_objectives_end_each_map() -> bool:
+	var battle: Battle = Battle.new(PackedInt32Array([0, 1]))
+	battle.set_up()
+	battle.open()
+	var s0: CombatSession = battle.encounter.get_session(0)
+	var s1: CombatSession = battle.encounter.get_session(1)
+	var a0: String = battle.add_unit(0, "Drengr", PLAYER, 0, Vector2i(0, 3))
+	battle.add_unit(1, "Archer", PLAYER, 1, Vector2i(0, 3))
+	var e1: String = battle.add_unit(1, "Brute", ENEMY, -1, Vector2i(1, 2))
+	s0.open_battle()
+	s1.open_battle()
+	var ended: CombatFact = s0.engine.fact_log[s0.engine.fact_log.size() - 1]
+	_check("objectives: a map with no enemy is won by Rout at its Phase Start", (
+			s0.is_won
+			and ended.kind == CombatFact.Kind.COMBAT_ENDED
+			and ended.side == PLAYER
+	))
+	_check("objectives: the other map goes on, and so does the encounter", (
+			not s1.is_finished and not battle.encounter.is_finished()
+	))
+	_check(
+			"objectives: the won map may send a unit",
+			battle.encounter.send_unit(a0, 0, 1, Vector2i(2, 3)).is_empty()
+	)
+	battle.encounter.submit(DefeatFixture.new(e1), 1)
+	battle.encounter.resolve_queued()
+	_check("objectives: the last map's end ends the encounter", (
+			s1.is_won and battle.encounter.is_finished()
+	))
 	return true
 
 
@@ -2060,3 +2097,16 @@ class EndMapFixture:
 		var ended: CombatFact = CombatFact.new(CombatFact.Kind.COMBAT_ENDED)
 		ended.side = winner
 		session.engine.record(ended)
+
+
+# Defeats [member unit_id] through CombatState.defeat: a step that ends a map by its objective.
+class DefeatFixture:
+	extends Command
+
+	var unit_id: String = ""
+
+	func _init(defeated_id: String) -> void:
+		unit_id = defeated_id
+
+	func resolve(session: CombatSession) -> void:
+		session.state.defeat(session.engine, unit_id, "")
