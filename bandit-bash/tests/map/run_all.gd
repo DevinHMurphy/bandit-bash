@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 27, 2026
+# Modified: October 28, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -16,8 +16,10 @@ extends SceneTree
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/map/run_all.gd[/code][br]
-## Prints PASS or FAIL per case and exits with code 1 if any case fails. Autoloads don't exist in
-## [code]--script[/code] mode, so nothing here may use them.
+## Prints PASS or FAIL per case and exits with code 1 if any case fails. The cases run in
+## [code]_init[/code], before autoloads exist (in [code]--script[/code] mode they exist from the
+## first frame, and their names are unknown while this script compiles), so nothing here may use
+## them.
 
 # Preloaded scripts used as types (gdscript.md, Naming): the case scripts have no class name.
 const LayoutCases = preload("res://tests/map/layout_cases.gd")
