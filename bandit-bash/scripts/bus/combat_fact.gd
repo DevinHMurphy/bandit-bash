@@ -6,7 +6,7 @@
 # File:     combat_fact.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 27, 2026
+# Modified: October 28, 2026
 # ==============================================================================
 
 class_name CombatFact
@@ -85,7 +85,7 @@ enum Kind {
 	UNIT_MOVED = 26,
 	## The actor appeared on the map at [member tile].
 	UNIT_SPAWNED = 27,
-	## This session's combat ended.
+	## This session's combat ended; [member side] is the side that won it.
 	COMBAT_ENDED = 28,
 	## The darkness advanced.
 	DARKNESS_ADVANCED = 29,
@@ -144,10 +144,10 @@ enum Source {
 	SPIKE = 6,
 }
 
-## Whose phase a [constant PHASE_START] or [constant PHASE_END] fact belongs to. Sent over the
-## network as an int: [b]append only[/b].
+## Whose phase a [constant PHASE_START] or [constant PHASE_END] fact belongs to, or who won a
+## [constant COMBAT_ENDED]. Sent over the network as an int: [b]append only[/b].
 enum CombatSide {
-	## Not a phase fact.
+	## Not a phase fact or a combat end.
 	NONE = 0,
 	## The player side: every seat's units on this map.
 	PLAYER = 1,
@@ -234,7 +234,8 @@ var tile: Vector2i = NO_TILE
 ## Bit set of extra details. No bits are defined yet.
 var flags: int = 0
 
-## Whose phase a phase fact belongs to; [constant CombatSide.NONE] on every other kind.
+## Whose phase a phase fact belongs to, or the side that won a [constant COMBAT_ENDED];
+## [constant CombatSide.NONE] on every other kind.
 var side: CombatSide = CombatSide.NONE
 
 ## Instance id of the item, weapon or rune the fact is about ([constant ITEM_USED],

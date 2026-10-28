@@ -235,7 +235,7 @@ func session_of_seat(seat: int) -> CombatSession:
 
 
 ## The session whose record of [param unit_id] is current: the map it last arrived on from another
-## map, else the first map that has it. Null when no map has it. A finished map keeps the record of
+## map, else the first map that has it. Null when no map has it. A won map keeps the record of
 ## a unit it sent away, so read a unit through this, never by searching the sessions.
 func session_of_unit(unit_id: String) -> CombatSession:
 	if _arrived_on.has(unit_id):
@@ -296,11 +296,12 @@ func resolve_queued() -> Array[CombatSession.FactBatch]:
 	return batches
 
 
-## Sends [param unit_id], a player unit on the finished map [param from_session_id], toward the map
-## [param to_session_id], where it arrives at that map's next Phase Start
-## ([method deliver_arrivals]) on [param arrival_tile] or the nearest free tile. Its effects leave
-## the sending map with their state; the finished map keeps the unit's record as it was. Returns
-## why it can't be sent, or empty when it was.
+## Sends [param unit_id], a surviving player unit on the won map [param from_session_id], toward
+## the map [param to_session_id], still being fought, where it arrives at that map's next Phase
+## Start ([method deliver_arrivals]) on [param arrival_tile] or the nearest free tile. Only a won
+## map sends (the vision: "a player who wins their map can send any of their surviving units"); a
+## lost map's player spectates. Its effects leave with their state; the won map keeps the unit's
+## record as it was. Returns why it can't be sent, or empty when it was.
 func send_unit(
 		unit_id: String, from_session_id: int, to_session_id: int, arrival_tile: Vector2i
 ) -> String:
@@ -308,10 +309,10 @@ func send_unit(
 	var target: CombatSession = get_session(to_session_id)
 	if source == null or target == null or source == target:
 		return "no such pair of maps"
-	# ASSUMPTION: only a finished map sends units, from the vision's "a player who wins their map
-	# can send any of their surviving units"; whether it must be won is the multiplayer plan's.
 	if not source.is_finished:
 		return "s%d is still being fought" % [from_session_id]
+	if not source.is_won:
+		return "s%d was lost" % [from_session_id]
 	if target.is_finished:
 		return "s%d has finished" % [to_session_id]
 	if (
@@ -673,7 +674,7 @@ class SeatSetup:
 		seat = owner_seat
 
 
-# A unit on its way from a finished map to another one.
+# A unit on its way from a won map to another one.
 class Transfer:
 	extends RefCounted
 

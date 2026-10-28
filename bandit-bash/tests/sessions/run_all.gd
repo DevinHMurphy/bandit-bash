@@ -941,7 +941,7 @@ func _test_arrival_order_across_maps() -> bool:
 
 
 func _test_unit_transfer() -> bool:
-	var battle: Battle = Battle.new(PackedInt32Array([0, 1]))
+	var battle: Battle = Battle.new(PackedInt32Array([0, 1, 2]))
 	battle.set_up()
 	battle.open()
 	var s0: CombatSession = battle.encounter.get_session(0)
@@ -964,10 +964,21 @@ func _test_unit_transfer() -> bool:
 			"transfer: a map still being fought sends no one",
 			battle.encounter.send_unit(a0, 0, 1, Vector2i(0, 3)) == "s0 is still being fought"
 	)
+	var s2: CombatSession = battle.encounter.get_session(2)
+	var a2: String = battle.add_unit(2, "Lancer", PLAYER, 2, Vector2i(0, 3))
+	battle.encounter.submit(EndMapFixture.new(ENEMY), 2)
 	battle.encounter.submit(EndMapFixture.new(), 0)
 	battle.encounter.resolve_queued()
+	_check("transfer: the ending fact says who won", (
+			s0.is_finished and s0.is_won and s2.is_finished and not s2.is_won and not s1.is_won
+	))
+	_check(
+			"transfer: a lost map sends no one; its player spectates",
+			battle.encounter.send_unit(a2, 2, 1, Vector2i(0, 3)) == "s2 was lost"
+			and s2.state.has_unit(a2)
+	)
 	var reason: String = battle.encounter.send_unit(a0, 0, 1, Vector2i(0, 3))
-	_check("transfer: a finished map sends a survivor", reason.is_empty(), reason)
+	_check("transfer: a won map sends a survivor", reason.is_empty(), reason)
 	_check("transfer: its effects leave the sending map", (
 			s0.engine.get_instance(resolve.instance_id) == null
 			and battle.encounter.units_in_transit() == PackedStringArray([a0])
@@ -2001,9 +2012,16 @@ class HitsFixture:
 			session.engine.record(CombatFact.new(CombatFact.Kind.HIT_DEALT, actor_id))
 
 
-# Ends the map's combat, as the objectives check will (P04 MP4).
+# Ends the map's combat as the objectives check will (P04 MP4), naming the side that won.
 class EndMapFixture:
 	extends Command
 
+	var winner: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
+
+	func _init(winning_side: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER) -> void:
+		winner = winning_side
+
 	func resolve(session: CombatSession) -> void:
-		session.engine.record(CombatFact.new(CombatFact.Kind.COMBAT_ENDED))
+		var ended: CombatFact = CombatFact.new(CombatFact.Kind.COMBAT_ENDED)
+		ended.side = winner
+		session.engine.record(ended)

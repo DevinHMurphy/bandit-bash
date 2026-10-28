@@ -92,6 +92,10 @@ var seat_setup: CombatEncounter.SeatSetup = null
 ## From then on every command is rejected.
 var is_finished: bool = false
 
+## Whether the player side won this map: its [constant CombatFact.Kind.COMBAT_ENDED] named the
+## player side ([member CombatFact.side]). False while the map is being fought and when it was lost.
+var is_won: bool = false
+
 ## The per-draw trace for desync and determinism hunts (RNG streams plan, Logging): when on, every
 ## roll this session made is logged at DEBUG after its batch. Off by default; it changes no roll.
 var is_tracing_draws: bool = false
@@ -548,6 +552,7 @@ func _trigger_of(effect_fact: CombatFact) -> String:
 func _on_engine_fact(fact: CombatFact) -> void:
 	if fact.kind == CombatFact.Kind.COMBAT_ENDED:
 		is_finished = true
+		is_won = fact.side == CombatFact.CombatSide.PLAYER
 	_log_fact(fact)
 	fact_recorded.emit(fact)
 
