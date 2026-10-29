@@ -1,0 +1,45 @@
+[gd_resource type="Resource" script_class="UnitTypeDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="2_op"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="3_mod"]
+[ext_resource type="Script" path="res://scripts/content/unit_type_definition.gd" id="5_unit"]
+
+[sub_resource type="Resource" id="Resource_trait_op"]
+script = ExtResource("3_mod")
+key = 4
+value = 5.0
+
+[sub_resource type="Resource" id="Resource_trait"]
+script = ExtResource("1_eff")
+id = "loadout_archer_trait"
+operations = Array[ExtResource("2_op")]([SubResource("Resource_trait_op")])
+
+[sub_resource type="Resource" id="Resource_plus_op"]
+script = ExtResource("3_mod")
+key = 4
+value = 10.0
+
+[sub_resource type="Resource" id="Resource_plus"]
+script = ExtResource("1_eff")
+id = "loadout_archer_trait_plus"
+operations = Array[ExtResource("2_op")]([SubResource("Resource_plus_op")])
+
+[resource]
+script = ExtResource("5_unit")
+trait_name = "Volley"
+role = "bow"
+weapon_types = PackedStringArray("bow")
+movement_type = 0
+stance = 1
+starting_weapon_id = "loadout_simple_bow"
+innate_effects = Array[ExtResource("1_eff")]([])
+base_stats = Dictionary[int, int]({0: 13, 1: 5, 2: 8, 3: 0, 4: 0, 5: 6, 6: 5})
+growths = Dictionary[int, int]({0: 55, 1: 38, 2: 58, 3: 8, 4: 17})
+upgraded_effects = Array[ExtResource("1_eff")]([SubResource("Resource_plus")])
+upgrade_stat_gains = Dictionary[int, int]({1: 2, 2: 1})
+upgrade_weapon_types = PackedStringArray()
+is_commander = false
+id = "loadout_archer"
+display_name = "Archer"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_trait")])

@@ -6,7 +6,7 @@
 # File:     combat_unit_state.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 27, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 class_name CombatUnitState
@@ -14,10 +14,10 @@ extends RefCounted
 ## One unit's state on one map: where it stands, its HP, Block and Stance, and what it has done
 ## this turn and phase.
 ##
-## Plain data with ids only, owned by [CombatState]. Maximum HP, maximum Stance and every combat
-## value are queries ([method EffectEngine.stats]), never stored here. Rules code changes HP,
-## Block and Stance only through the effect engine's resource paths and the combat core's damage
-## rules, which emit the facts.
+## Plain data with ids only, owned by [CombatState]; [Loadout] builds it from a unit's instance.
+## Maximum HP, maximum Stance and every combat value are queries ([method EffectEngine.stats]),
+## never stored here. Rules code changes HP, Block and Stance only through the effect engine's
+## resource paths and the combat core's damage rules, which emit the facts.
 ##
 ## @tutorial(Combat core plan): docs/plans/2026-10-26-combat-core.md
 
@@ -37,14 +37,16 @@ var tile: Vector2i = CombatFact.NO_TILE
 ## How it crosses terrain: walking distance and where a shove may land it.
 var movement_type: CombatGrid.MovementType = CombatGrid.MovementType.DEFAULT
 
-# ASSUMPTION: unit tags are plain strings until the units plan (P03) defines them.
-## What the unit is, for weapon effectiveness: "Flier", "Armored", "Mounted" (unit-roster.md,
-## Movement and tags).
+## What the unit is, from [constant ContentIds.TAGS], such as [code]flier[/code]: weapon
+## effectiveness and conditions test them. [Loadout] checks them against the list.
 var tags: PackedStringArray = []
 
-# ASSUMPTION: unit types are names until the units plan (P03) defines them.
-## The unit's type, such as "Archer" (unit-roster.md), for conditions that test it.
+## Content id of the unit's type, such as [code]archer[/code], for conditions that test it.
 var unit_type: String = ""
+
+## What its unit type is for, from [constant ContentIds.ROLES], such as [code]shover[/code],
+## which auto-deployment reads. [b]Empty:[/b] no role (commanders).
+var role: String = ""
 
 ## Current HP.
 var hp: int = 0
@@ -80,6 +82,10 @@ var equipped_weapon_id: String = ""
 ## Instance id of the weapon stowed in its Pouch; empty when none.
 var stowed_weapon_id: String = ""
 
+## Instance id of the gear in its Equipment slot; empty when none. Its weight and bonuses are its
+## effects, so nothing here reads it.
+var equipment_id: String = ""
+
 ## Instance id of the consumable or trinket in its Pouch; empty when none. A Pouch holds one item,
 ## or a stowed weapon instead.
 var pouch_item_id: String = ""
@@ -109,6 +115,7 @@ func copy() -> CombatUnitState:
 	unit.movement_type = movement_type
 	unit.tags = tags.duplicate()
 	unit.unit_type = unit_type
+	unit.role = role
 	unit.hp = hp
 	unit.block = block
 	unit.stance = stance
@@ -120,6 +127,7 @@ func copy() -> CombatUnitState:
 	unit.has_used_sidearm = has_used_sidearm
 	unit.equipped_weapon_id = equipped_weapon_id
 	unit.stowed_weapon_id = stowed_weapon_id
+	unit.equipment_id = equipment_id
 	unit.pouch_item_id = pouch_item_id
 	unit.pouch_item_weight = pouch_item_weight
 	unit.growth_changes = growth_changes.duplicate()

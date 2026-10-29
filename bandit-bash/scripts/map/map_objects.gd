@@ -34,8 +34,6 @@ extends RefCounted
 ## @todo: TOD-001 - Pick each container's item from P03's pools; contents are a category and a
 ## rarity until then.
 ## @todo: TOD-002 - Read the Cutthroat from P05's enemy data, not a unit type name.
-## @todo: TOD-003 - Read which units pick locks from P03's unit data (tag or effect permission,
-## escalated).
 ## @todo: TOD-004 - Read Spark from P03's rune catalog, not an effect definition id.
 ## @todo: TOD-005 - Place objects from setup step 2's draw; every candidate spot is placed now.
 
@@ -99,17 +97,12 @@ const USED_FROM_NEXT_TO: Array[MapLayout.ObjectKind] = [
 ## The unit type of the Cutthroat: the only enemy that opens chests and searches, needing no key.
 const CUTTHROAT_UNIT_TYPE: String = "Cutthroat"
 
-# ASSUMPTION: a unit tag marks who picks locks, a stopgap escalated to the user and orchestrator
-# (they lean toward an effect permission). TODO(TOD-003): Read it from P03's unit data.
-## The unit tag that lets a unit open a chest or door with a lockpick.
-const LOCKPICKER_TAG: String = "Lockpicker"
-
 ## The [member EffectDefinition.id] of a key's use effect: any unit opens a chest or door with it,
 ## and it is used up (user decision, October 29, 2026).
 const KEY_EFFECT_ID: String = "key"
 
 ## The [member EffectDefinition.id] of a lockpick's use effect: only a lock picker
-## ([constant LOCKPICKER_TAG]) opens with it, and it is kept (user decision, October 29, 2026).
+## ([method can_pick_locks]) opens with it, and it is kept (user decision, October 29, 2026).
 const LOCKPICK_EFFECT_ID: String = "lockpick"
 
 # TODO(TOD-004): Spark, until P03's rune catalog says which rune it is.
@@ -427,9 +420,11 @@ static func is_cutthroat(state: CombatState, unit_id: String) -> bool:
 	)
 
 
-## Whether [param unit_id] may open a lock with a lockpick ([constant LOCKPICKER_TAG]).
-static func can_pick_locks(state: CombatState, unit_id: String) -> bool:
-	return state.tags_of(unit_id).has(LOCKPICKER_TAG)
+## Whether [param unit_id] may open a lock with a lockpick: its
+## [constant CombatValue.Permission.CAN_PICK_LOCKS], denied unless an effect grants it (the
+## Thief's innate grant).
+static func can_pick_locks(engine: EffectEngine, unit_id: String) -> bool:
+	return engine.stats(unit_id).is_allowed(CombatValue.Permission.CAN_PICK_LOCKS)
 
 
 ## Every tile of the door [param door] belongs to: the 4-connected door tiles with its lever group,
@@ -561,7 +556,7 @@ static func _unlock_reason(
 			var effects: Array[EffectInstance] = ItemUseResolver.use_effects(engine, item_id)
 			return "" if ItemUseResolver.has_uses(effects) else "no uses left"
 		LOCKPICK_EFFECT_ID:
-			return "" if can_pick_locks(state, unit_id) else "can't pick locks"
+			return "" if can_pick_locks(engine, unit_id) else "can't pick locks"
 	return "not a key or a lockpick"
 
 

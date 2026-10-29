@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="UnitPrefixDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/unit_prefix_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+tier = -1
+stat_deltas = Dictionary[int, int]({3: -2})
+growth_deltas = Dictionary[int, int]({3: -10})
+id = "loadout_brittle"
+display_name = "Brittle"

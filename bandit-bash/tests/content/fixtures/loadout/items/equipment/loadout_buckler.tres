@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="EquipmentDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="2_op"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="3_mod"]
+[ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="4_def"]
+
+[sub_resource type="Resource" id="Resource_guard_op"]
+script = ExtResource("3_mod")
+key = 19
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_guard"]
+script = ExtResource("1_eff")
+id = "loadout_buckler_guard"
+operations = Array[ExtResource("2_op")]([SubResource("Resource_guard_op")])
+
+[resource]
+script = ExtResource("4_def")
+category = "shield"
+rarity = 1
+weight = 4
+id = "loadout_buckler"
+display_name = "Buckler"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_guard")])

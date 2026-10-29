@@ -6,7 +6,7 @@
 # File:     auto_deploy.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 28, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 class_name AutoDeploy
@@ -24,12 +24,10 @@ extends RefCounted
 ## layout ([member MapState.opening_swap_open]).
 ##
 ## @tutorial(Combat map plan, Deployment): docs/plans/2026-10-27-combat-map.md
-##
-## @todo: TOD-001 - Read the Shover from the units plan's (P03) unit data, not a unit type name.
 
 ## A unit's place in the deployment order, from its data. Saved as an int: [b]append only[/b].
 enum Role {
-	## Melee and built to hold: Armored, Heavy or the Shover. Takes the nearest tiles.
+	## Melee and built to hold: Armored, Heavy or the shover role. Takes the nearest tiles.
 	FRONT = 0,
 	## Every other melee unit. Mounted units and fliers prefer the edges of their row.
 	STRIKER = 1,
@@ -40,12 +38,8 @@ enum Role {
 	SUPPORT = 3,
 }
 
-# TODO(TOD-001): The Ward is unit-roster.md's Shover role; no unit data marks shove specialists.
-## The unit type that counts as the Shover for [constant Role.FRONT].
-const SHOVER_UNIT_TYPE: String = "Ward"
-
 ## The tag that counts as Armored for [constant Role.FRONT].
-const ARMORED_TAG: String = "Armored"
+const ARMORED_TAG: String = ContentIds.TAG_ARMORED
 
 ## The weapon minimum range from which a unit is [constant Role.RANGED]: it can't attack at
 ## distance 1. A 1–2 physical weapon (a javelin, a hand axe) stays melee.
@@ -111,8 +105,9 @@ static func deploy(
 
 
 ## [param unit]'s role from its data: a staff makes it support; then an equipped weapon that can't
-## attack at distance 1 or deals magic damage makes it ranged; then Armored, Heavy or the Shover
-## make it front; every other unit is a striker. A unit with no weapon counts as melee.
+## attack at distance 1 or deals magic damage makes it ranged; then Armored, Heavy or the
+## [constant ContentIds.ROLE_SHOVER] role ([member CombatUnitState.role]) make it front; every
+## other unit is a striker. A unit with no weapon counts as melee.
 static func role_of(state: CombatState, unit: CombatUnitState) -> Role:
 	var held: CombatState.WeaponStats = state.weapon(unit.equipped_weapon_id)
 	var stowed: CombatState.WeaponStats = state.weapon(unit.stowed_weapon_id)
@@ -126,7 +121,7 @@ static func role_of(state: CombatState, unit: CombatUnitState) -> Role:
 	if (
 			unit.tags.has(ARMORED_TAG)
 			or unit.movement_type == CombatGrid.MovementType.HEAVY
-			or unit.unit_type == SHOVER_UNIT_TYPE
+			or unit.role == ContentIds.ROLE_SHOVER
 	):
 		return Role.FRONT
 	return Role.STRIKER

@@ -20,7 +20,8 @@ extends RefCounted
 ## session hands each consumer the one stream it needs.[br]
 ## [b]The battle bridge:[/b] [method begin_battle] builds the [CombatEncounter], runs its setup,
 ## opens one [CombatSession] per seat, registers copies of the run's effect carriers (in the
-## encounter for cross-map scopes) with their campaign-lane counters, and deploys each army.
+## encounter for cross-map scopes) with their campaign-lane counters, loads each army's unit
+## instances ([Loadout]) and deploys each army.
 ## [method write_back] copies campaign-lane counters and charges back before
 ## [code]SaveService.end_battle()[/code]; [method end_battle] then drops the battle and its combat
 ## lanes. Observers find each battle through [signal combat_encounter_opened].[br]
@@ -80,6 +81,12 @@ var _carriers: Dictionary[String, EffectInstance] = {}
 
 # The copies registered in the battle in progress, by instance id.
 var _battle_copies: Dictionary[String, EffectInstance] = {}
+
+# The units the battle in progress loaded from instances, for write_back().
+var _loaded: Array[Loadout.LoadedUnit] = []
+
+# Heirlooms already made carriers, as "seat:content id", so a second battle doesn't add them again.
+var _heirloom_carriers: Dictionary[String, bool] = {}
 
 # Setup steps other plans registered, applied to every battle: [step, Callable] pairs.
 var _setup_steps: Array[Array] = []
@@ -173,15 +180,33 @@ func begin_battle(request: BattleRequest) -> CombatEncounter:
 		MapObjects.place(session)
 		# P06's darkness step registers before this (reinforcements.gd:TOD-001).
 		Reinforcements.register(session, _wave_groups)
+	var catalog: EffectCatalog.Index = (
+			request.catalog if request.catalog != null else EffectCatalog.index()
+	)
+	for seat: int in request.armies:
+		_add_heirlooms(catalog, seat, request.armies[seat].heirloom_ids)
 	_register_carriers(battle, request)
 	for seat: int in seats:
 		var army: Army = request.armies.get(seat, null)
 		var session: CombatSession = battle.session_of_seat(seat)
 		if army == null:
 			continue
+		var units: Array[CombatUnitState] = army.units.duplicate()
+		var bases: Dictionary[String, Dictionary] = army.bases.duplicate()
+		var commander_id: String = army.commander_id
 		for weapon: CombatState.WeaponStats in army.weapons:
 			session.state.add_weapon(weapon)
-		session.deploy(army.units, army.bases, army.commander_id)
+		# Effects before deployment, so the full Stance set at placement counts them.
+		for loaded: Loadout.LoadedUnit in _load_army(catalog, army, seat):
+			for weapon: CombatState.WeaponStats in loaded.weapons:
+				session.state.add_weapon(weapon)
+			for instance: EffectInstance in loaded.effects:
+				session.engine.register(instance)
+			units.append(loaded.state)
+			bases[loaded.state.id] = loaded.bases
+			if commander_id.is_empty() and catalog.commander(loaded.state.unit_type) != null:
+				commander_id = loaded.state.id
+		session.deploy(units, bases, commander_id)
 		session.flush("deployment")
 	for session: CombatSession in battle.get_sessions():
 		var swap_seats: PackedInt32Array = []
@@ -203,9 +228,12 @@ func begin_battle(request: BattleRequest) -> CombatEncounter:
 
 
 ## Copies every registered carrier's campaign-lane counter, and its charges when they refill per
-## run, back from the battle to the campaign layer. Combat lanes stay behind. Call before
+## run, back from the battle to the campaign layer, and each loaded unit's to its unit and item
+## instances ([method Loadout.LoadedUnit.write_back]). Combat lanes stay behind. Call before
 ## [code]SaveService.end_battle()[/code]; calling it twice changes nothing more.
 func write_back() -> void:
+	for loaded: Loadout.LoadedUnit in _loaded:
+		loaded.write_back()
 	for instance_id: String in _battle_copies:
 		var copy: EffectInstance = _battle_copies[instance_id]
 		var carrier: EffectInstance = _carriers.get(instance_id, null)
@@ -278,6 +306,7 @@ func abandon_battle() -> void:
 	var closed: CombatEncounter = encounter
 	encounter = null
 	_battle_copies.clear()
+	_loaded.clear()
 	for session: CombatSession in closed.get_sessions():
 		if session.grant_received.is_connected(receive_grant):
 			session.grant_received.disconnect(receive_grant)
@@ -308,6 +337,8 @@ func _register_carriers(battle: CombatEncounter, request: BattleRequest) -> void
 	for seat: int in request.armies:
 		for unit: CombatUnitState in request.armies[seat].units:
 			in_battle[unit.id] = seat
+		for unit: UnitInstance in request.armies[seat].unit_instances:
+			in_battle[unit.instance_id] = seat
 	var carrier_ids: Array[String] = []
 	carrier_ids.assign(_carriers.keys())
 	carrier_ids.sort()
@@ -328,6 +359,38 @@ func _register_carriers(battle: CombatEncounter, request: BattleRequest) -> void
 		if not battle.add_cross_map(copy):
 			session.engine.register(copy)
 		_battle_copies[instance_id] = copy
+
+
+# Loads each of the army's unit instances (Loadout.load_unit), reporting what was wrong with their
+# data. Returns the units that loaded, in roster order; they are kept for write_back().
+func _load_army(catalog: EffectCatalog.Index, army: Army, seat: int) -> Array[Loadout.LoadedUnit]:
+	var units: Array[Loadout.LoadedUnit] = []
+	for unit: UnitInstance in army.unit_instances:
+		var loaded: Loadout.LoadedUnit = Loadout.load_unit(
+				catalog, unit, army.item_instances, CombatFact.CombatSide.PLAYER, seat, ids
+		)
+		for problem: String in loaded.problems:
+			push_error("CampaignSession: %s" % [problem])
+		if loaded.is_loaded():
+			units.append(loaded)
+			_loaded.append(loaded)
+	return units
+
+
+# Makes each heirloom of [param heirloom_ids] a carrier of the run for [param seat], once.
+func _add_heirlooms(
+		catalog: EffectCatalog.Index, seat: int, heirloom_ids: PackedStringArray
+) -> void:
+	for heirloom_id: String in heirloom_ids:
+		var key: String = "%d:%s" % [seat, heirloom_id]
+		if _heirloom_carriers.has(key):
+			continue
+		if catalog.heirloom(heirloom_id) == null:
+			push_error("CampaignSession: heirloom \"%s\" is not in the catalog" % [heirloom_id])
+			continue
+		for instance: EffectInstance in Loadout.heirloom_effects(catalog, heirloom_id, seat, ids):
+			add_carrier(instance)
+		_heirloom_carriers[key] = true
 
 
 func _collect_growth(result: BattleResult, session: CombatSession, unit_id: String) -> void:
@@ -354,8 +417,8 @@ func _combat_rolls(floor_number: int, node: int, seat: int) -> RngStream:
 	return rng.stream(key)
 
 
-## What a battle begins from: its node, its map pool and each seat's army, as plain combat data
-## until the units plan (P03) and the run flow (P08) hold the roster.
+## What a battle begins from: its node, its map pool and each seat's army, as unit and item
+## instances for [Loadout], plain combat data, or both.
 class BattleRequest:
 	extends RefCounted
 
@@ -367,6 +430,9 @@ class BattleRequest:
 	var pool: Array[CombatMapDefinition] = []
 	## Each seat's army, by seat. A seat without one gets an empty map.
 	var armies: Dictionary[int, Army] = {}
+	## The content the loadout reads. [b]Null:[/b] the loaded catalog
+	## ([method EffectCatalog.index]); tests pass a fixture tree.
+	var catalog: EffectCatalog.Index = null
 	# ASSUMPTION: a seat with no entry has the setting on, until P07 owns the setting's default.
 	## Each seat's opening-swap setting, by seat (the setting itself is P07's): on, its map opens in
 	## the swap window before turn 1 and waits for its Start command; off, turn 1 starts at once. A
@@ -374,7 +440,8 @@ class BattleRequest:
 	var opening_swap: Dictionary[int, bool] = {}
 
 
-## One seat's army for a battle.
+## One seat's army for a battle: units already in combat form ([member units]), units to load
+## ([member unit_instances]), or both; loaded units deploy after the others, in roster order.
 class Army:
 	extends RefCounted
 
@@ -384,8 +451,18 @@ class Army:
 	var bases: Dictionary[String, Dictionary] = {}
 	## The records of the weapons the units hold.
 	var weapons: Array[CombatState.WeaponStats] = []
-	## The commander's id; empty when the army has none here.
+	## The commander's id; empty when the army has none here. [b]Empty with
+	## [member unit_instances]:[/b] the loaded unit whose type is a commander.
 	var commander_id: String = ""
+	## Units to load ([method Loadout.load_unit]), in roster order. Their campaign-lane counters
+	## and charges are written back to them at battle end. [b]Empty:[/b] none.
+	var unit_instances: Array[UnitInstance] = []
+	## The item instances [member unit_instances] carry, by instance id.
+	var item_instances: Dictionary[String, ItemInstance] = {}
+	## Content ids of the seat's heirlooms and curses, its Commander Heirloom included. Each is
+	## made a carrier of the run the first time a battle names it, so its campaign lane lasts the
+	## run ([method Loadout.heirloom_effects]). [b]Empty:[/b] none.
+	var heirloom_ids: PackedStringArray = []
 
 
 ## What a battle leaves for the run flow to apply (P08).

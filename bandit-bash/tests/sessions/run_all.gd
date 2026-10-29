@@ -13,8 +13,10 @@ extends SceneTree
 ## Headless tests for the sessions layer: [InstanceIdAllocator], [Command] and the session queue,
 ## [CombatSession], [FactPlayback] and [PresentationRequest]; [CombatEncounter]'s setup steps,
 ## stream injection, cross-map effects, routing, transfers and each map's end; [CampaignSession]'s
-## battle bridge and grants; and the [code]CampaignService[/code] autoload's lifecycle and its
-## [RngSaveSection]s.
+## battle bridge and grants, with armies loaded through [Loadout]; and the
+## [code]CampaignService[/code] autoload's lifecycle and its [RngSaveSection]s. Every catalog
+## definition and loadout fixture is hashed before the first case and after the last, and the run
+## fails if any changed.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/sessions/run_all.gd[/code][br]
@@ -34,6 +36,11 @@ extends SceneTree
 # The combat map tests' fixture: 5 × 4, deployment (0, 3) (1, 3) (2, 3), an enemy slot at (3, 2),
 # a chest (container 0) at (0, 0) and a house (container 1) at (0, 2).
 const FIXTURE_SCENE: PackedScene = preload("res://tests/map/fixture_map.tscn")
+
+# Preloaded scripts used as types (gdscript.md, Naming): the content suite's hashing, and the
+# loadout fixture tree the bridge cases load units from.
+const CatalogCases = preload("res://tests/content/catalog_cases.gd")
+const LoadoutCases = preload("res://tests/content/loadout_cases.gd")
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
@@ -77,6 +84,8 @@ func _process(_delta: float) -> bool:
 	_has_run = true
 	print("--- Sessions tests. Warnings and errors from rejected commands are expected. ---")
 	_set_log_level(LOG_WARN)
+	# Hashed before any case loads a definition (event bus plan, question 50).
+	var before: Dictionary[String, String] = CatalogCases.hash_definitions([LoadoutCases.TREE])
 
 	_run(_test_allocator)
 	_run(_test_presentation_request)
@@ -113,6 +122,8 @@ func _process(_delta: float) -> bool:
 	_run(_test_bridge_restart_rolls_the_same)
 	_run(_test_bridge_close_mid_battle)
 	_run(_test_rng_section_refuses_a_battle)
+	_run(_test_bridge_loadout_equals_by_hand)
+	_run(_test_bridge_loadout_writes_back)
 	_run(_test_service_lifecycle)
 	_run(_test_service_rng_campaign_streams)
 	_run(_test_service_rng_battle_streams)
@@ -120,6 +131,13 @@ func _process(_delta: float) -> bool:
 
 	_run(_test_logger_gating)
 	_run(_test_logging_changes_nothing)
+
+	var changed: PackedStringArray = CatalogCases.changed_definitions(
+			before, CatalogCases.hash_definitions([LoadoutCases.TREE])
+	)
+	_check("definitions: none changed during the run (%d hashed)" % [before.size()], (
+			changed.is_empty()
+	), ", ".join(changed))
 
 	print("--- %d passed, %d failed, %d skipped ---" % [_passes, _failures, _skips])
 	quit(1 if _failures > 0 else 0)
@@ -1229,6 +1247,243 @@ func _test_bridge_begin_and_end() -> bool:
 	))
 	_check("bridge: no battle, nothing to end", run.end_battle() == null)
 	return true
+
+
+# The same battle twice: once from unit and item instances through the loadout, once built by
+# hand with the numbers unit-roster.md gives (Drengr; a Swift Archer+ with +1 MGT from an event).
+# Deployment, every unit's state and values, and a real attack's facts must match line for line.
+func _test_bridge_loadout_equals_by_hand() -> bool:
+	var loaded: Array[String] = _loadout_battle(true)
+	var by_hand: Array[String] = _loadout_battle(false)
+	_check("loadout: a battle loaded from instances equals one built by hand", (
+			not loaded.is_empty() and loaded == by_hand
+	), _first_difference(loaded, by_hand))
+	_check("loadout: the comparison covers deployment, values and an attack", (
+			loaded.size() > 40
+			and "\n".join(loaded).contains("HIT_DEALT")
+			and "\n".join(loaded).contains("UNIT_SPAWNED")
+	), str(loaded.size()))
+	return true
+
+
+func _test_bridge_loadout_writes_back() -> bool:
+	var run: CampaignSession = CampaignSession.new(
+			CampaignData.Mode.SOLO, RUN_SEED, PackedInt32Array([0])
+	)
+	var archer: UnitInstance = UnitInstance.new(run.ids.next_unit_id("Archer"), "loadout_archer")
+	archer.counters["loadout_archer_trait"] = 3
+	var request: CampaignSession.BattleRequest = _loadout_request([archer], {})
+	request.armies[0].heirloom_ids = PackedStringArray(["loadout_iron_heart"])
+	var battle: CombatEncounter = run.begin_battle(request)
+	if battle == null:
+		_check("loadout write back: begins", false)
+		return true
+	var session: CombatSession = battle.get_session(0)
+	var trait_copy: EffectInstance = null
+	var hearts: int = 0
+	for instance: EffectInstance in session.engine.get_instances():
+		if instance.definition.id == "loadout_archer_trait":
+			trait_copy = instance
+		elif instance.definition.id == "loadout_iron_heart_effect":
+			hearts += 1
+	_check("loadout write back: the trait's campaign lane is copied in", (
+			trait_copy != null and trait_copy.get_counter(EffectTerms.Lane.CAMPAIGN) == 3
+	))
+	_check("loadout write back: the seat's heirloom joins its map", hearts == 1, str(hearts))
+	if trait_copy != null:
+		trait_copy.set_counter(EffectTerms.Lane.CAMPAIGN, 4)
+	run.end_battle()
+	var written: int = archer.counters.get("loadout_archer_trait", 0)
+	_check("loadout write back: the trait's counter goes back to the unit", written == 4, (
+			str(archer.counters)
+	))
+	battle = run.begin_battle(request)
+	hearts = 0
+	for instance: EffectInstance in battle.get_session(0).engine.get_instances():
+		if instance.definition.id == "loadout_iron_heart_effect":
+			hearts += 1
+	_check("loadout write back: an heirloom is made a carrier once", hearts == 1, str(hearts))
+	run.end_battle()
+	return true
+
+
+# Runs the comparison battle, [param from_instances] through the loadout or built by hand, and
+# returns its lines: each unit's state and values after deployment, then every fact.
+func _loadout_battle(from_instances: bool) -> Array[String]:
+	var run: CampaignSession = CampaignSession.new(
+			CampaignData.Mode.SOLO, RUN_SEED, PackedInt32Array([0])
+	)
+	# Every id is minted before the battle, so both runs name everything the same.
+	var drengr_id: String = run.ids.next_unit_id("Drengr")
+	var archer_id: String = run.ids.next_unit_id("Archer")
+	var axe_id: String = run.ids.next_item_id("Simple Axe")
+	var bow_id: String = run.ids.next_item_id("Simple Bow")
+	var enemy_id: String = run.ids.next_enemy_id("Brute")
+	var catalog: EffectCatalog.Index = EffectCatalog.load_tree(LoadoutCases.TREE)
+	var request: CampaignSession.BattleRequest = null
+	if from_instances:
+		var drengr: UnitInstance = UnitInstance.new(drengr_id, "loadout_drengr")
+		drengr.weapon_id = axe_id
+		var archer: UnitInstance = UnitInstance.new(archer_id, "loadout_archer")
+		archer.weapon_id = bow_id
+		archer.prefix_id = "loadout_swift"
+		archer.is_upgraded = true
+		archer.stat_deltas.append(ItemInstance.StatDelta.new(
+				CombatValue.Key.MGT, 1.0, "dark_goblet", "Dark Goblet"
+		))
+		request = _loadout_request([drengr, archer], {
+			axe_id: ItemInstance.new(axe_id, "loadout_simple_axe"),
+			bow_id: ItemInstance.new(bow_id, "loadout_simple_bow"),
+		})
+	else:
+		request = _loadout_request([], {})
+		var army: CampaignSession.Army = request.armies[0]
+		army.units = [
+			_hand_unit(drengr_id, "loadout_drengr", "", 24, axe_id, []),
+			_hand_unit(archer_id, "loadout_archer", "bow", 13, bow_id, []),
+		]
+		army.commander_id = drengr_id
+		# unit-roster.md: Drengr 24/5/6/3/2/5/13, Stance 3; Archer 13/5/8/0/0/5/6, Stance 1,
+		# Swift +3 SPD, Archer+ +2 MGT +1 SPD, and +1 MGT from the event.
+		army.bases[drengr_id] = _hand_bases([24, 5, 6, 3, 2, 5, 13], 3)
+		army.bases[archer_id] = _hand_bases([13, 8, 12, 0, 0, 5, 6], 1)
+		army.weapons = [
+			_hand_weapon(
+					axe_id, "Simple Axe", "axe", 10, WeaponTriangle.Profile.POWER, 1, 65, 15, []
+			),
+			_hand_weapon(bow_id, "Simple Bow", "bow", 6, WeaponTriangle.Profile.NONE, 3, 100, 5, [
+				"flier",
+			]),
+		]
+		army.weapons[1].range_min = 2
+		run.add_carrier(EffectInstance.new(
+				run.ids.next_effect_id(),
+				catalog.unit_type("loadout_archer").upgraded_effects[0],
+				EffectOwner.for_unit(archer_id, 0, PLAYER),
+				Modifier.SourceKind.UNIT_TRAIT,
+				"Volley+"
+		))
+	var battle: CombatEncounter = run.begin_battle(request)
+	if battle == null:
+		return []
+	var session: CombatSession = battle.get_session(0)
+	var enemy: CombatUnitState = CombatUnitState.new()
+	enemy.id = enemy_id
+	enemy.side = ENEMY
+	enemy.tile = Vector2i(3, 2)
+	enemy.hp = 20
+	session.add_unit(enemy, Battle.unit_bases())
+
+	var lines: Array[String] = []
+	for unit_id: String in session.state.unit_ids():
+		lines.append_array(_unit_lines(session, unit_id))
+	# The opening swap window holds turn 1 until the enemy is on the map; then, within the bow's
+	# range of the enemy wherever deployment put the Archer, it attacks.
+	session.state.move_unit(archer_id, Vector2i(3, 0))
+	session.submit(StartCommand.new(0))
+	session.submit(UnitTurnCommand.new(0, archer_id, UnitTurnCommand.Action.ATTACK, enemy_id))
+	session.resolve_queued()
+	for fact: CombatFact in session.engine.fact_log:
+		lines.append(fact.to_log_line())
+	run.end_battle()
+	return lines
+
+
+# A request on the fixture map whose seat 0 loads [param units] carrying [param items], from the
+# loadout fixture tree. The map opens in the swap window, so turn 1 waits for a Start command.
+func _loadout_request(
+		units: Array[UnitInstance], items: Dictionary
+) -> CampaignSession.BattleRequest:
+	var request: CampaignSession.BattleRequest = CampaignSession.BattleRequest.new()
+	request.floor_number = FLOOR
+	request.node = NODE
+	request.pool = Battle.pool(["map_a"])
+	request.catalog = EffectCatalog.load_tree(LoadoutCases.TREE)
+	var army: CampaignSession.Army = CampaignSession.Army.new()
+	army.unit_instances = units
+	army.item_instances.assign(items)
+	request.armies[0] = army
+	return request
+
+
+func _hand_unit(
+		id: String, unit_type: String, role: String, hp: int, weapon_id: String, tags: Array
+) -> CombatUnitState:
+	var unit: CombatUnitState = CombatUnitState.new()
+	unit.id = id
+	unit.seat = 0
+	unit.unit_type = unit_type
+	unit.role = role
+	unit.hp = hp
+	unit.equipped_weapon_id = weapon_id
+	unit.tags = PackedStringArray(tags)
+	return unit
+
+
+# HP, MGT, SPD, DEF, RES, MOV, CON in unit-roster.md's order, and the Stance.
+func _hand_bases(stats: Array[int], stance: int) -> Dictionary:
+	var keys: Array[int] = [
+		CombatValue.Key.HP, CombatValue.Key.MGT, CombatValue.Key.SPD, CombatValue.Key.DEF,
+		CombatValue.Key.RES, CombatValue.Key.MOVEMENT, CombatValue.Key.CON,
+	]
+	var bases: Dictionary = {CombatValue.Key.STANCE_MAX: float(stance)}
+	for i: int in keys.size():
+		bases[keys[i]] = float(stats[i])
+	return bases
+
+
+func _hand_weapon(
+		id: String,
+		label: String,
+		weapon_type: String,
+		damage: int,
+		profile: WeaponTriangle.Profile,
+		range_max: int,
+		hit: int,
+		weight: int,
+		effective: Array
+) -> CombatState.WeaponStats:
+	var weapon: CombatState.WeaponStats = CombatState.WeaponStats.new()
+	weapon.id = id
+	weapon.label = label
+	weapon.weapon_type = weapon_type
+	weapon.damage = damage
+	weapon.profile = profile
+	weapon.range_max = range_max
+	weapon.hit = hit
+	weapon.weight = weight
+	weapon.effective_against = PackedStringArray(effective)
+	return weapon
+
+
+# One unit's state and the combat values the battle reads, one line each.
+func _unit_lines(session: CombatSession, unit_id: String) -> Array[String]:
+	var unit: CombatUnitState = session.state.unit(unit_id)
+	var lines: Array[String] = [
+		"%s %s role %s tile %s hp %d stance %d block %d move %d tags %s weapon %s" % [
+			unit_id, unit.unit_type, unit.role, unit.tile, unit.hp, unit.stance, unit.block,
+			unit.movement_type, unit.tags, unit.equipped_weapon_id,
+		],
+	]
+	var sheet: StatSheet = session.engine.stats(unit_id)
+	for key: int in CombatValue.Key.values():
+		lines.append("%s %s %d" % [unit_id, CombatValue.Key.find_key(key), sheet.get_int(key)])
+	lines.append("%s ATTACK %d" % [unit_id, sheet.get_int(DamageStage.Key.ATTACK)])
+	var weapon: CombatState.WeaponStats = session.state.equipped_weapon(unit_id)
+	if weapon != null:
+		lines.append("%s weapon %s %s %d %d %d-%d %d %d %s %s" % [
+			unit_id, weapon.label, weapon.weapon_type, weapon.damage, weapon.profile,
+			weapon.range_min, weapon.range_max, weapon.hit, weapon.weight,
+			weapon.effective_against, weapon.crit_x,
+		])
+	return lines
+
+
+func _first_difference(a: Array[String], b: Array[String]) -> String:
+	for i: int in mini(a.size(), b.size()):
+		if a[i] != b[i]:
+			return "line %d: %s | %s" % [i, a[i], b[i]]
+	return "%d lines vs %d" % [a.size(), b.size()]
 
 
 func _test_bridge_cross_map_grants() -> bool:

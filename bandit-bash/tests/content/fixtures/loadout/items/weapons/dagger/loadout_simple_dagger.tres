@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="WeaponDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/weapon_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+weapon_type = "dagger"
+profile = 3
+damage = 2
+hit = 100
+crit_x = 5.0
+range_min = 1
+range_max = 2
+effective_against = PackedStringArray()
+weight = 3
+id = "loadout_simple_dagger"
+display_name = "Simple Dagger"

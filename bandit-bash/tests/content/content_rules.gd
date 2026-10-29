@@ -20,8 +20,9 @@ extends RefCounted
 ## heirloom scoped Any Ally Unit or wider without the unique tag. P03's rules (content catalog
 ## plan, Data layout): the folder matches the data, weapons and staves have a range and attacks
 ## start at 1, string ids are in their [ContentIds] list, every sellable item has a price, and
-## no Basic, Legendary or Unique item has one. [constant LOAD] fails a file the catalog turned
-## away.[br]
+## no Basic, Legendary or Unique item has one; and (event bus plan, question 50) no effect lacks
+## operations, no faction lists its commander among its starting units, and starting gear fits
+## its slots. [constant LOAD] fails a file the catalog turned away.[br]
 ## The price rules read the price through a callable, so their fixtures can run against a table
 ## with a row missing or a price for an unsold rarity, which [Prices] itself never has.
 ##
@@ -54,6 +55,13 @@ const UNKNOWN_ID: String = "unknown_id"
 const UNPRICED: String = "unpriced"
 ## A Basic, Legendary or Unique item that has a price.
 const UNSELLABLE_PRICED: String = "unsellable_priced"
+## An effect with no operations: it can never do anything.
+const NO_OPERATIONS: String = "no_operations"
+## A commander among a faction's starting unit types; the commander is its own field.
+const COMMANDER_STARTING: String = "commander_starting"
+## A faction's starting gear in the wrong slot: a non-weapon in the Weapon slot, a non-equipment
+## in the Equipment slot, equipment in the Pouch, or more than three slots.
+const GEAR_SLOT: String = "gear_slot"
 
 ## Every rule that fails the test.
 const FAILURE_RULES: PackedStringArray = [
@@ -69,7 +77,15 @@ const FAILURE_RULES: PackedStringArray = [
 	UNKNOWN_ID,
 	UNPRICED,
 	UNSELLABLE_PRICED,
+	NO_OPERATIONS,
+	COMMANDER_STARTING,
+	GEAR_SLOT,
 ]
+
+# A faction's starting gear slots in order (FactionDefinition.starting_gear).
+const WEAPON_SLOT: int = 0
+const EQUIPMENT_SLOT: int = 1
+const SLOT_COUNT: int = 3
 
 # The one folder of each kind whose folder doesn't depend on its data, relative to the root.
 const KIND_FOLDERS: Dictionary[EffectCatalog.Kind, String] = {
@@ -196,9 +212,14 @@ func _check_references(path: String, resource: Resource) -> void:
 		_reference(path, "commander_id", faction.commander_id, EffectCatalog.Kind.COMMANDER, true)
 		for type_id: String in faction.starting_unit_type_ids:
 			_reference(path, "starting_unit_type_ids", type_id, EffectCatalog.Kind.UNIT_TYPE, true)
+			if _index.kind_of(type_id) == EffectCatalog.Kind.COMMANDER:
+				_fail(COMMANDER_STARTING, path, "starting_unit_type_ids names commander \"%s\"" % [
+					type_id,
+				])
 		for gear: PackedStringArray in faction.starting_gear:
 			for item_id: String in gear:
 				_item_reference(path, item_id)
+			_check_gear_slots(path, gear)
 	elif resource is StaffDefinition:
 		var staff: StaffDefinition = resource
 		_reference(path, "area_shape_id", staff.area_shape_id, EffectCatalog.Kind.SHAPE)
@@ -212,6 +233,28 @@ func _check_references(path: String, resource: Resource) -> void:
 			if operation is CampaignGrant:
 				var grant: CampaignGrant = operation
 				_grant_reference(path, grant)
+
+
+# One starting unit's gear, Weapon, Equipment then Pouch: each item that resolves must fit its slot.
+# Ids that don't resolve are the dangling rule's.
+func _check_gear_slots(path: String, gear: PackedStringArray) -> void:
+	if gear.size() > SLOT_COUNT:
+		_fail(GEAR_SLOT, path, "starting_gear lists %d slots; a unit has %d" % [
+			gear.size(), SLOT_COUNT,
+		])
+	for slot: int in mini(gear.size(), SLOT_COUNT):
+		var item: ItemDefinition = _index.item(gear[slot])
+		if item == null:
+			continue
+		var fits: bool = not item is EquipmentDefinition
+		if slot == WEAPON_SLOT:
+			fits = item is WeaponDefinition
+		elif slot == EQUIPMENT_SLOT:
+			fits = item is EquipmentDefinition
+		if not fits:
+			_fail(GEAR_SLOT, path, "starting_gear puts \"%s\", a %s, in the %s slot" % [
+				gear[slot], item.kind, ["Weapon", "Equipment", "Pouch"][slot],
+			])
 
 
 func _grant_reference(path: String, grant: CampaignGrant) -> void:
@@ -322,6 +365,8 @@ func _check_effects(path: String, resource: Resource) -> void:
 			_fail(EMPTY_TEXT, path, "%s is empty" % [where])
 			continue
 		_check_effect_text(path, where, effect)
+		if effect.operations.is_empty():
+			_fail(NO_OPERATIONS, path, "%s has no operations" % [where])
 		if is_heirloom:
 			_check_heirloom_scope(path, where, effect)
 		if not EffectEngine.INLINE_TRIGGERS.has(effect.trigger):

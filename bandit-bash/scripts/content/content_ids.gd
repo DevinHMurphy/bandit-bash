@@ -66,6 +66,24 @@ const SHAPE_SQUARE: String = "square"
 ## Shape kind: the center's row and column, out to the size each way.
 const SHAPE_CROSS: String = "cross"
 
+## Unit tag: heavily armored. Auto-deployment puts Armored units in front.
+const TAG_ARMORED: String = "armored"
+
+## Unit role: the shove specialist (the Ward). Auto-deployment puts it in front.
+const ROLE_SHOVER: String = "shover"
+
+## Staff kind: gives Block (Shelter).
+const STAFF_BLOCK: String = "block"
+
+## Staff kind: heals (Minor Heal).
+const STAFF_HEAL: String = "heal"
+
+## Staff kind: attacks like a weapon and never counters (Harm, Ruin).
+const STAFF_ATTACK: String = "attack"
+
+## Staff kind: a status staff, a stub until status effects exist.
+const STAFF_STATUS: String = "status"
+
 ## Weapon types (game-vision.md, Weapons and equipment). A staff is a weapon type, so the same
 ## list names the folders under [code]data/items/weapons/[/code] and
 ## [code]data/prefixes/weapons/[/code].
@@ -83,7 +101,7 @@ const WEAPON_TYPES: PackedStringArray = [
 ]
 
 ## Unit tags: what a unit is (unit-roster.md, Movement and tags). Terror is for enemies only.
-const TAGS: PackedStringArray = ["armored", "mounted", "flier", "terror"]
+const TAGS: PackedStringArray = [TAG_ARMORED, "mounted", "flier", "terror"]
 
 ## Unit roles: what a unit type is for (unit-roster.md, the MVP roster's Role column).
 ## Auto-deployment looks for [code]shover[/code].
@@ -98,7 +116,7 @@ const ROLES: PackedStringArray = [
 	"mounted",
 	"flier",
 	"armored",
-	"shover",
+	ROLE_SHOVER,
 	"anima",
 	"dark",
 	"holy",
@@ -108,7 +126,7 @@ const ROLES: PackedStringArray = [
 const ITEM_KINDS: PackedStringArray = [ITEM_WEAPON, ITEM_EQUIPMENT, ITEM_TRINKET, ITEM_CONSUMABLE]
 
 ## What a staff does (weapons.md, Staves). Status staves are stubs until status effects exist.
-const STAFF_KINDS: PackedStringArray = ["block", "heal", "attack", "status"]
+const STAFF_KINDS: PackedStringArray = [STAFF_BLOCK, STAFF_HEAL, STAFF_ATTACK, STAFF_STATUS]
 
 ## How a consumable is used (items.md, Consumables; content catalog plan, question 5).
 const CONSUMABLE_USE_KINDS: PackedStringArray = [
