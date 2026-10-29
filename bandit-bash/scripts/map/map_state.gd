@@ -6,12 +6,13 @@
 # File:     map_state.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 27, 2026
+# Modified: October 28, 2026
 # ==============================================================================
 
 class_name MapState
 extends RefCounted
-## The parts of one map that change during a combat: which tiles map objects block.
+## The parts of one map that change during a combat: which tiles map objects block, and whether
+## the opening swap window is open.
 ##
 ## Held by [CombatState] as [member CombatState.map] and copied with it for a sandbox, so a
 ## forecast that opens a door never opens the real one. [MapGrid] stays terrain-only and shared.
@@ -29,6 +30,11 @@ enum Blocking {
 	## Every unit except fliers: debris and powder kegs.
 	ALL_BUT_FLIERS = 2,
 }
+
+## Whether the opening swap window is open: before turn 1, when the seat's opening-swap setting
+## is on. The command path (P02 CC6) opens it at battle start and the seat's Start command closes
+## it; [method AutoDeploy.check_opening_swap] reads it. False with the setting off: no window.
+var opening_swap_open: bool = false
 
 var _blocking: Dictionary[Vector2i, Blocking] = {}
 
@@ -60,5 +66,6 @@ func blocks(tile: Vector2i, movement_type: CombatGrid.MovementType) -> bool:
 ## A copy sharing nothing mutable, for a sandbox.
 func copy() -> MapState:
 	var map_copy: MapState = MapState.new()
+	map_copy.opening_swap_open = opening_swap_open
 	map_copy._blocking = _blocking.duplicate()
 	return map_copy

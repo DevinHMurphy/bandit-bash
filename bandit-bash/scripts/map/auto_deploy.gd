@@ -6,7 +6,7 @@
 # File:     auto_deploy.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 27, 2026
+# Modified: October 28, 2026
 # ==============================================================================
 
 class_name AutoDeploy
@@ -17,11 +17,15 @@ extends RefCounted
 ## Rules code: pure and static. Deployment tiles are ranked by grid distance to the nearest enemy
 ## starting tile; a "row" is every tile at one such distance, nearest first. The commander takes
 ## the second row; then front units take the nearest tiles, strikers the next, ranged units the
-## tiles 1–2 behind a front unit, and support units the tiles behind the line next to the most
-## allies. Ties go by roster order. A unit is only placed on a tile it can stand on.[br]
-## The opening swap is how the player changes this layout: there is no prep screen.
+## tiles 1–2 behind a front unit (behind a striker when no front unit is placed), and support
+## units the tiles behind the line next to the most allies. Tiles at the same distance rank
+## row-major; units tie by roster order. A unit is only placed on a tile it can stand on.[br]
+## There is no prep screen: the opening swap, a player setting, is how the player changes this
+## layout ([member MapState.opening_swap_open]).
 ##
 ## @tutorial(Combat map plan, Deployment): docs/plans/2026-10-27-combat-map.md
+##
+## @todo: TOD-001 - Read the Shover from the units plan's (P03) unit data, not a unit type name.
 
 ## A unit's place in the deployment order, from its data. Saved as an int: [b]append only[/b].
 enum Role {
@@ -29,21 +33,22 @@ enum Role {
 	FRONT = 0,
 	## Every other melee unit. Mounted units and fliers prefer the edges of their row.
 	STRIKER = 1,
-	## Its weapon's minimum range is 2 or more. Stands 1–2 tiles behind a front unit.
+	## Its equipped weapon can't attack at distance 1, or deals magic damage (a tome). Stands 1–2
+	## tiles behind a front unit.
 	RANGED = 2,
 	## Holds a staff, equipped or stowed. Stands behind the line, next to the most allies.
 	SUPPORT = 3,
 }
 
-# ASSUMPTION: the Shover is the Ward unit type (unit-roster.md's Shover role); no data marks
-# shove specialists.
+# TODO(TOD-001): The Ward is unit-roster.md's Shover role; no unit data marks shove specialists.
 ## The unit type that counts as the Shover for [constant Role.FRONT].
 const SHOVER_UNIT_TYPE: String = "Ward"
 
 ## The tag that counts as Armored for [constant Role.FRONT].
 const ARMORED_TAG: String = "Armored"
 
-## The weapon minimum range from which a unit is [constant Role.RANGED].
+## The weapon minimum range from which a unit is [constant Role.RANGED]: it can't attack at
+## distance 1. A 1–2 physical weapon (a javelin, a hand axe) stays melee.
 const RANGED_MIN_RANGE: int = 2
 
 
@@ -90,7 +95,6 @@ static func deploy(
 		if _prefers_edges(unit):
 			tile = plan.edge_in_row_of(unit, tile)
 		plan.place(unit, tile)
-	# ASSUMPTION: with no front unit placed, ranged units stand behind the strikers instead.
 	var line: Array[Vector2i] = plan.tiles_of(fronts)
 	if line.is_empty():
 		line = plan.tiles_of(strikers)
@@ -106,15 +110,18 @@ static func deploy(
 	return plan.finish(units)
 
 
-## [param unit]'s role from its data: a staff makes it support, then a long minimum range ranged,
-## then Armored, Heavy or the Shover front; every other unit is a striker. A unit with no weapon
-## counts as melee.
+## [param unit]'s role from its data: a staff makes it support; then an equipped weapon that can't
+## attack at distance 1 or deals magic damage makes it ranged; then Armored, Heavy or the Shover
+## make it front; every other unit is a striker. A unit with no weapon counts as melee.
 static func role_of(state: CombatState, unit: CombatUnitState) -> Role:
 	var held: CombatState.WeaponStats = state.weapon(unit.equipped_weapon_id)
 	var stowed: CombatState.WeaponStats = state.weapon(unit.stowed_weapon_id)
 	if (held != null and held.is_staff()) or (stowed != null and stowed.is_staff()):
 		return Role.SUPPORT
-	if held != null and held.range_min >= RANGED_MIN_RANGE:
+	if held != null and (
+			held.range_min >= RANGED_MIN_RANGE
+			or held.damage_type == CombatFact.DamageType.MAGIC
+	):
 		return Role.RANGED
 	if (
 			unit.tags.has(ARMORED_TAG)
@@ -126,9 +133,10 @@ static func role_of(state: CombatState, unit: CombatUnitState) -> Role:
 
 
 ## Why [param seat] may not swap its units [param first_id] and [param second_id] now; empty when
-## it may. Legal only in the first player phase before any player unit on this map has acted, and
-## only between two of the seat's own units on [param deployment_tiles], each able to stand on the
-## other's tile. The swap itself is the unit-turn command path's (P02 CC6).
+## it may. Legal only while [member MapState.opening_swap_open] is set (the window before turn 1),
+## and only between two of the seat's own units on [param deployment_tiles], each able to stand on
+## the other's tile, as for Recall. Opening and closing the window, and the swap itself, are the
+## unit-turn command path's (P02 CC6).
 static func check_opening_swap(
 		state: CombatState,
 		seat: int,
@@ -136,13 +144,8 @@ static func check_opening_swap(
 		second_id: String,
 		deployment_tiles: Array[Vector2i]
 ) -> String:
-	if state.turn != 1 or state.phase_side != CombatFact.CombatSide.PLAYER:
-		return "not the first player phase"
-	# ASSUMPTION: a unit defeated during its own action no longer counts as having acted; the
-	# window closes for good only once a saved flag records the first action (MP8).
-	for unit_id: String in state.units_of(CombatFact.CombatSide.PLAYER):
-		if state.unit(unit_id).has_acted:
-			return "a unit has already acted"
+	if not state.map.opening_swap_open:
+		return "the opening swap is closed"
 	if first_id == second_id:
 		return "not two of the seat's units"
 	for unit_id: String in [first_id, second_id]:
@@ -223,7 +226,6 @@ class _Plan:
 					nearest = distance
 			_enemy_distance[tile] = maxi(nearest, 0)
 			ranked.append(tile)
-		# ASSUMPTION: tiles at the same distance from the enemy rank row-major.
 		ranked.sort_custom(_is_ranked_before)
 
 	# The tiles of the second row, or of the first when there is only one.
@@ -243,9 +245,8 @@ class _Plan:
 
 	# The first free edge tile for `unit` in the row of `nearest` (its nearest free tile), else
 	# `nearest` itself.
-	# ASSUMPTION: a striker that prefers edges still takes the nearest row with a free tile, and an
-	# edge tile has at most 2 deployment-tile neighbors (a corner of a rectangular zone, the end of
-	# a line); the plan names no rule for "the zone's edge tiles".
+	# A striker that prefers edges still takes the nearest row with a free tile. An edge tile has at
+	# most 2 deployment-tile neighbors: a corner of a rectangular zone, the end of a line.
 	func edge_in_row_of(unit: CombatUnitState, nearest: Vector2i) -> Vector2i:
 		if nearest == CombatFact.NO_TILE:
 			return nearest
