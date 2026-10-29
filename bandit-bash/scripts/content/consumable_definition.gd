@@ -36,7 +36,7 @@ extends ItemDefinition
 
 ## When [member uses] refill. [b]Combat:[/b] at the start of every combat ("1 per map", potions).
 ## [b]Campaign:[/b] never in a run: spent for good when they run out (the Elixir, the Key).
-@export var uses_lane: EffectDefinition.Lane = EffectDefinition.Lane.COMBAT
+@export var uses_lane: EffectTerms.Lane = EffectTerms.Lane.COMBAT
 
 @export_group("Cooked")
 

@@ -103,7 +103,7 @@ static func check(
 	if _is_object(state, attacker_id):
 		return "an object can't attack"
 	if not _is_object(state, defender_id) and not engine.matches_side(
-			state.side_of(attacker_id), defender_id, EffectDefinition.UnitSide.ENEMY
+			state.side_of(attacker_id), defender_id, EffectTerms.UnitSide.ENEMY
 	):
 		return "not an enemy"
 	var weapon: CombatState.WeaponStats = state.equipped_weapon(attacker_id)

@@ -6,7 +6,7 @@
 # File:     sandbox_cases.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 27, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 extends "res://tests/effects/golden_cases.gd"
@@ -305,7 +305,7 @@ func _live_battle(stream: RngStream) -> EffectEngine:
 	var seventh: CounterCondition = CounterCondition.new()
 	seventh.count = 3
 	var iron_heart: EffectDefinition = _definition(
-			EffectDefinition.Trigger.ATTACK_MADE, [seventh], [_lifesteal()]
+			EffectTerms.Trigger.ATTACK_MADE, [seventh], [_lifesteal()]
 	)
 	iron_heart.scope = YOUR_UNIT
 	engine.register(_instance("effect:mo", _momentum(), _owner("p1"), TRAIT, "Momentum"))
@@ -320,8 +320,8 @@ func _fingerprint(engine: EffectEngine, stream: RngStream) -> PackedStringArray:
 	var counters: PackedStringArray = []
 	for instance: EffectInstance in engine.get_instances():
 		counters.append("%s %d/%d/%d" % [
-			instance.instance_id, instance.get_counter(EffectDefinition.Lane.COMBAT),
-			instance.get_counter(EffectDefinition.Lane.CAMPAIGN), instance.charges_left,
+			instance.instance_id, instance.get_counter(EffectTerms.Lane.COMBAT),
+			instance.get_counter(EffectTerms.Lane.CAMPAIGN), instance.charges_left,
 		])
 	return PackedStringArray([
 		_fake(engine).summary(),

@@ -260,7 +260,7 @@ func session_of_unit(unit_id: String) -> CombatSession:
 func add_cross_map(instance: EffectInstance) -> bool:
 	if not is_cross_map(instance) or _cross_map.has(instance.instance_id):
 		return false
-	instance.reset_lane(EffectDefinition.Lane.COMBAT)
+	instance.reset_lane(EffectTerms.Lane.COMBAT)
 	_cross_map[instance.instance_id] = instance
 	# ASSUMPTION: one instance registered in every session's engine is how a cross-map effect
 	# forwards, since the engine has no forwarding hook: each map dispatches it from its own trigger
@@ -530,8 +530,8 @@ static func is_cross_map(instance: EffectInstance) -> bool:
 	# isn't on (event bus plan, fix F8), so it can't count on a partner's map.
 	if instance.owner.kind != EffectOwner.Kind.ARMY:
 		return false
-	var scope: EffectDefinition.Scope = instance.definition.scope
-	if scope != EffectDefinition.Scope.ANY_ALLY_UNIT and scope != EffectDefinition.Scope.ANY_UNIT:
+	var scope: EffectTerms.Scope = instance.definition.scope
+	if scope != EffectTerms.Scope.ANY_ALLY_UNIT and scope != EffectTerms.Scope.ANY_UNIT:
 		return false
 	for condition: EffectCondition in instance.definition.conditions:
 		if condition is WhilePositionCondition:

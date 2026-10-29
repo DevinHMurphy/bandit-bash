@@ -6,7 +6,7 @@
 # File:     shove_cases.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 27, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -276,7 +276,7 @@ func _test_reactions_resolve_inside() -> void:
 	gain.pool = GainResource.Pool.BLOCK
 	gain.amount = amount
 	var definition: EffectDefinition = EffectDefinition.new()
-	definition.trigger = EffectDefinition.Trigger.SHOVED_A_UNIT
+	definition.trigger = EffectTerms.Trigger.SHOVED_A_UNIT
 	definition.operations.assign([gain])
 	world.add_effect("effect:shoving_pole", definition, "p1")
 	_shove(world)

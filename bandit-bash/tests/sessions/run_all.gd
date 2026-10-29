@@ -809,7 +809,7 @@ func _test_cross_map_counting() -> bool:
 	var s1: CombatSession = battle.encounter.get_session(1)
 
 	_check("cross-map: hits on both maps count toward one counter", (
-			heirloom.get_counter(EffectDefinition.Lane.COMBAT) == 0
+			heirloom.get_counter(EffectTerms.Lane.COMBAT) == 0
 			and _count_of(s1.engine.fact_log, CombatFact.Kind.EFFECT_ACTIVATED) == 1
 			and _count_of(s0.engine.fact_log, CombatFact.Kind.EFFECT_ACTIVATED) == 0
 	))
@@ -839,7 +839,7 @@ func _test_cross_map_counting() -> bool:
 	))
 
 	var narrower: EffectDefinition = _every_hit_by_allies(10)
-	narrower.scope = EffectDefinition.Scope.YOUR_UNIT
+	narrower.scope = EffectTerms.Scope.YOUR_UNIT
 	var unit_owned: EffectInstance = EffectInstance.new(
 			"effect:x",
 			_every_hit_by_allies(10),
@@ -962,8 +962,8 @@ func _test_unit_transfer() -> bool:
 			Modifier.SourceKind.UNIT_TRAIT
 	)
 	s0.engine.register(resolve)
-	resolve.set_counter(EffectDefinition.Lane.COMBAT, 3)
-	resolve.set_counter(EffectDefinition.Lane.CAMPAIGN, 5)
+	resolve.set_counter(EffectTerms.Lane.COMBAT, 3)
+	resolve.set_counter(EffectTerms.Lane.CAMPAIGN, 5)
 	s0.state.set_block(a0, 4)
 
 	_check(
@@ -1003,8 +1003,8 @@ func _test_unit_transfer() -> bool:
 	), str(unit.tile))
 	_check("transfer: its effects keep their counters", (
 			s1.engine.get_instance(resolve.instance_id) == resolve
-			and resolve.get_counter(EffectDefinition.Lane.COMBAT) == 3
-			and resolve.get_counter(EffectDefinition.Lane.CAMPAIGN) == 5
+			and resolve.get_counter(EffectTerms.Lane.COMBAT) == 3
+			and resolve.get_counter(EffectTerms.Lane.CAMPAIGN) == 5
 	))
 	var last: CombatFact = s1.engine.fact_log[s1.engine.fact_log.size() - 1]
 	_check("transfer: placed fresh, with its bases", (
@@ -1017,7 +1017,7 @@ func _test_unit_transfer() -> bool:
 	battle.encounter.submit(AttackFixture.new(0, a0, e1), 1)
 	battle.encounter.resolve_queued()
 	_check("transfer: its effects work on the new map", (
-			resolve.get_counter(EffectDefinition.Lane.COMBAT) == 4
+			resolve.get_counter(EffectTerms.Lane.COMBAT) == 4
 			and s1.engine.diagnostics.is_empty()
 	))
 	return true
@@ -1129,18 +1129,18 @@ func _test_bridge_begin_and_end() -> bool:
 	)
 	var request: CampaignSession.BattleRequest = _request(run, {0: ["Drengr", "Archer"]})
 	var a: String = request.armies[0].units[0].id
-	var stubborn: EffectDefinition = _counting("stubborn", EffectDefinition.Lane.CAMPAIGN)
+	var stubborn: EffectDefinition = _counting("stubborn", EffectTerms.Lane.CAMPAIGN)
 	var counted: EffectInstance = _carrier(run, a, stubborn)
-	counted.set_counter(EffectDefinition.Lane.CAMPAIGN, 5)
-	counted.set_counter(EffectDefinition.Lane.COMBAT, 7)
+	counted.set_counter(EffectTerms.Lane.CAMPAIGN, 5)
+	counted.set_counter(EffectTerms.Lane.COMBAT, 7)
 	var flask: EffectDefinition = _hit_dealt_block("flask", 1.0)
 	flask.charges = 3
-	flask.charge_lane = EffectDefinition.Lane.CAMPAIGN
+	flask.charge_lane = EffectTerms.Lane.CAMPAIGN
 	var charged: EffectInstance = _carrier(run, a, flask)
 	charged.charges_left = 2
 	var benched: EffectInstance = _carrier(run, "unit:99", _hit_dealt_block("benched", 1.0))
 	var banner_definition: EffectDefinition = _every_hit_by_allies(3)
-	banner_definition.scope = EffectDefinition.Scope.YOUR_UNIT
+	banner_definition.scope = EffectTerms.Scope.YOUR_UNIT
 	var banner: EffectInstance = EffectInstance.new(
 			run.ids.next_effect_id(),
 			banner_definition,
@@ -1171,8 +1171,8 @@ func _test_bridge_begin_and_end() -> bool:
 	), str(events))
 	_check("bridge: carriers registered as copies", copy != null and copy != counted)
 	_check("bridge: campaign lane copied in, combat lane fresh", (
-			copy.get_counter(EffectDefinition.Lane.CAMPAIGN) == 5
-			and copy.get_counter(EffectDefinition.Lane.COMBAT) == 0
+			copy.get_counter(EffectTerms.Lane.CAMPAIGN) == 5
+			and copy.get_counter(EffectTerms.Lane.COMBAT) == 0
 	))
 	_check("bridge: a unit outside the battle brings nothing", (
 			session.engine.get_instance(benched.instance_id) == null
@@ -1200,19 +1200,19 @@ func _test_bridge_begin_and_end() -> bool:
 	battle.resolve_queued()
 	session.engine.add_growth(a, CombatValue.Stat.RES, 5)
 	_check("bridge: the battle counts on the copies", (
-			copy.get_counter(EffectDefinition.Lane.CAMPAIGN) == 7
-			and copy.get_counter(EffectDefinition.Lane.COMBAT) == 0
-			and counted.get_counter(EffectDefinition.Lane.CAMPAIGN) == 5
+			copy.get_counter(EffectTerms.Lane.CAMPAIGN) == 7
+			and copy.get_counter(EffectTerms.Lane.COMBAT) == 0
+			and counted.get_counter(EffectTerms.Lane.CAMPAIGN) == 5
 	))
 
 	var result: CampaignSession.BattleResult = run.end_battle()
 	_check("bridge: campaign lanes written back", (
-			counted.get_counter(EffectDefinition.Lane.CAMPAIGN) == 7
+			counted.get_counter(EffectTerms.Lane.CAMPAIGN) == 7
 			and charged.charges_left == 0
 	), "%d, %d charges" % [
-			counted.get_counter(EffectDefinition.Lane.CAMPAIGN), charged.charges_left
+			counted.get_counter(EffectTerms.Lane.CAMPAIGN), charged.charges_left
 	])
-	_check("bridge: combat lanes dropped", counted.get_counter(EffectDefinition.Lane.COMBAT) == 7)
+	_check("bridge: combat lanes dropped", counted.get_counter(EffectTerms.Lane.COMBAT) == 7)
 	_check("bridge: growth changes left for the run flow", (
 			result.growth_changes.has(a)
 			and result.growth_changes[a] == {CombatValue.Stat.RES: 5}
@@ -1351,7 +1351,7 @@ func _test_bridge_close_mid_battle() -> bool:
 	)
 	var request: CampaignSession.BattleRequest = _request(run, {0: ["Drengr"]})
 	var a: String = request.armies[0].units[0].id
-	var stubborn: EffectDefinition = _counting("stubborn", EffectDefinition.Lane.CAMPAIGN)
+	var stubborn: EffectDefinition = _counting("stubborn", EffectTerms.Lane.CAMPAIGN)
 	var counted: EffectInstance = _carrier(run, a, stubborn)
 	var closed: Array[CombatEncounter] = []
 	run.combat_encounter_closed.connect(
@@ -1366,7 +1366,7 @@ func _test_bridge_close_mid_battle() -> bool:
 			run.is_closed and run.encounter == null and closed == [battle] and battle.is_closed
 	))
 	_check("close: nothing is written back", (
-			counted.get_counter(EffectDefinition.Lane.CAMPAIGN) == 0
+			counted.get_counter(EffectTerms.Lane.CAMPAIGN) == 0
 	))
 	print("    (one error about beginning a battle on a closed run follows)")
 	_check("close: nothing begins again", run.begin_battle(request) == null)
@@ -1625,7 +1625,7 @@ func _carrier(
 
 
 # "Hit dealt: count toward 100 in [param lane]" — a counter that never passes in these cases.
-func _counting(id: String, lane: EffectDefinition.Lane) -> EffectDefinition:
+func _counting(id: String, lane: EffectTerms.Lane) -> EffectDefinition:
 	var definition: EffectDefinition = _hit_dealt_block(id, 1.0, 100)
 	var counter: CounterCondition = definition.conditions[0] as CounterCondition
 	counter.lane = lane
@@ -1655,7 +1655,7 @@ func _recorder(trace: Array[String], label: String) -> Callable:
 # "Hit dealt by Any Ally Unit: that unit gains 2 Block", every [param every]th hit this combat.
 func _every_hit_by_allies(every: int) -> EffectDefinition:
 	var definition: EffectDefinition = _hit_dealt_block("war_ledger", 2.0, every)
-	definition.scope = EffectDefinition.Scope.ANY_ALLY_UNIT
+	definition.scope = EffectTerms.Scope.ANY_ALLY_UNIT
 	var gain: GainResource = definition.operations[0] as GainResource
 	gain.target = FactActor.new()
 	return definition
@@ -1692,7 +1692,7 @@ func _count_of(facts: Array[CombatFact], kind: CombatFact.Kind) -> int:
 func _hit_dealt_block(id: String, block: float, every: int = 1) -> EffectDefinition:
 	var definition: EffectDefinition = EffectDefinition.new()
 	definition.id = id
-	definition.trigger = EffectDefinition.Trigger.HIT_DEALT
+	definition.trigger = EffectTerms.Trigger.HIT_DEALT
 	if every > 1:
 		var counter: CounterCondition = CounterCondition.new()
 		counter.count = every

@@ -6,7 +6,7 @@
 # File:     forecast_bench.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 27, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 extends Node
@@ -656,7 +656,7 @@ func _vanguard() -> EffectDefinition:
 	var front: WhilePositionCondition = WhilePositionCondition.new()
 	front.kind = WhilePositionCondition.Kind.NO_ALLY_CLOSER_TO_ENEMY
 	return _definition(
-			EffectDefinition.Trigger.PHASE_START, [front],
+			EffectTerms.Trigger.PHASE_START, [front],
 			[_gain_block(null, _constant(3.0))]
 	)
 
@@ -669,22 +669,22 @@ func _momentum() -> EffectDefinition:
 	bonus.value = 15.0
 	bonus.end = AddTimedModifier.End.THIS_COMBAT
 	bonus.uses = 1
-	return _definition(EffectDefinition.Trigger.MISSED, [], [bonus])
+	return _definition(EffectTerms.Trigger.MISSED, [], [bonus])
 
 
 # Phalanx: Unit Turn Start: gain 1 Block per adjacent ally.
 func _phalanx() -> EffectDefinition:
 	var count: CountOf = CountOf.new()
-	count.selector = _area(1, EffectDefinition.UnitSide.ALLY, false)
-	return _definition(EffectDefinition.Trigger.UNIT_TURN_START, [], [_gain_block(null, count)])
+	count.selector = _area(1, EffectTerms.UnitSide.ALLY, false)
+	return _definition(EffectTerms.Trigger.UNIT_TURN_START, [], [_gain_block(null, count)])
 
 
 # Cleave (Brute): Hit dealt: 2 splash damage to adjacent units, friend or foe.
 func _cleave() -> EffectDefinition:
 	var splash: DealSplash = DealSplash.new()
-	splash.target = _area(1, EffectDefinition.UnitSide.ANY, false)
+	splash.target = _area(1, EffectTerms.UnitSide.ANY, false)
 	splash.amount = _constant(2.0)
-	return _definition(EffectDefinition.Trigger.HIT_DEALT, [], [splash])
+	return _definition(EffectTerms.Trigger.HIT_DEALT, [], [splash])
 
 
 # War Horn: the second Phase Start: units within 2 tiles get +2 Attack until the end of the next
@@ -693,11 +693,11 @@ func _war_horn() -> EffectDefinition:
 	var second: CounterCondition = CounterCondition.new()
 	second.count = 2
 	var horn: AddTimedModifier = AddTimedModifier.new()
-	horn.target = _area(2, EffectDefinition.UnitSide.ANY, true)
+	horn.target = _area(2, EffectTerms.UnitSide.ANY, true)
 	horn.key = DamageStage.Key.ATTACK
 	horn.value = 2.0
 	horn.end = AddTimedModifier.End.END_OF_NEXT_PHASE
-	return _definition(EffectDefinition.Trigger.PHASE_START, [second], [horn])
+	return _definition(EffectTerms.Trigger.PHASE_START, [second], [horn])
 
 
 # Iron Heart (heirloom): every 7th attack by your units has lifesteal.
@@ -708,9 +708,9 @@ func _iron_heart() -> EffectDefinition:
 	lifesteal.what = ModifyThat.What.FLAG
 	lifesteal.flag = ModifyThat.Flag.LIFESTEAL
 	var heart: EffectDefinition = _definition(
-			EffectDefinition.Trigger.ATTACK_MADE, [seventh], [lifesteal]
+			EffectTerms.Trigger.ATTACK_MADE, [seventh], [lifesteal]
 	)
-	heart.scope = EffectDefinition.Scope.YOUR_UNIT
+	heart.scope = EffectTerms.Scope.YOUR_UNIT
 	return heart
 
 
@@ -725,9 +725,9 @@ func _brittle_guard() -> EffectDefinition:
 	floor_zero.mode = Modifier.Mode.FLOOR
 	floor_zero.value = 0.0
 	var guard: EffectDefinition = _definition(
-			EffectDefinition.Trigger.BLOCK_GAINED, [], [lower, floor_zero]
+			EffectTerms.Trigger.BLOCK_GAINED, [], [lower, floor_zero]
 	)
-	guard.scope = EffectDefinition.Scope.YOUR_UNIT
+	guard.scope = EffectTerms.Scope.YOUR_UNIT
 	guard.tags = EffectDefinition.Tag.CURSE
 	return guard
 
@@ -739,7 +739,7 @@ func _beast_bane() -> EffectDefinition:
 	against.kind = WhileAttackCondition.Kind.OPPONENT_TAG
 	against.type_name = "Beast"
 	return _definition(
-			EffectDefinition.Trigger.ALWAYS, [against],
+			EffectTerms.Trigger.ALWAYS, [against],
 			[_times(DamageStage.Key.MULTIPLIERS, 2.0)]
 	)
 
@@ -750,13 +750,13 @@ func _magic_frailty() -> EffectDefinition:
 	magic.role = WhileAttackCondition.Role.ATTACKED
 	magic.kind = WhileAttackCondition.Kind.DAMAGE_TYPE
 	return _definition(
-			EffectDefinition.Trigger.ALWAYS, [magic],
+			EffectTerms.Trigger.ALWAYS, [magic],
 			[_times(DamageStage.Key.INCOMING_MULTIPLIERS, 2.0)]
 	)
 
 
 func _definition(
-		trigger: EffectDefinition.Trigger, conditions: Array, operations: Array
+		trigger: EffectTerms.Trigger, conditions: Array, operations: Array
 ) -> EffectDefinition:
 	var definition: EffectDefinition = EffectDefinition.new()
 	definition.trigger = trigger
@@ -779,7 +779,7 @@ func _constant(value: float) -> Constant:
 	return constant
 
 
-func _area(radius: int, side: EffectDefinition.UnitSide, include_center: bool) -> Area:
+func _area(radius: int, side: EffectTerms.UnitSide, include_center: bool) -> Area:
 	var area: Area = Area.new()
 	area.center = Area.Center.OWNER
 	area.radius = radius

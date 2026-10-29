@@ -6,7 +6,7 @@
 # File:     stat_of.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 @tool
@@ -29,12 +29,12 @@ extends ValueSource
 func _validate_property(property: Dictionary) -> void:
 	if property["name"] == "key":
 		property["hint"] = PROPERTY_HINT_ENUM
-		property["hint_string"] = EffectDefinition.value_key_hint()
+		property["hint_string"] = EffectTerms.value_key_hint()
 
 
 func describe() -> String:
 	var whose: String = "this unit" if subject == null else subject.describe()
-	return "%s's %s" % [whose, EffectDefinition.key_name(key)]
+	return "%s's %s" % [whose, EffectTerms.key_name(key)]
 
 
 ## The first selected unit's value of [member key], exact; 0 when none is selected.

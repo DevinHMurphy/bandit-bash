@@ -6,7 +6,7 @@
 # File:     add_timed_modifier.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 @tool
@@ -65,13 +65,13 @@ func _validate_property(property: Dictionary) -> void:
 	if property["name"] == "key":
 		property["hint"] = PROPERTY_HINT_ENUM
 		property["hint_string"] = "%s,%s" % [
-			EffectDefinition.value_key_hint(),
-			EffectDefinition.permission_key_hint(),
+			EffectTerms.value_key_hint(),
+			EffectTerms.permission_key_hint(),
 		]
 
 
 func describe() -> String:
-	var change: String = EffectDefinition.describe_modifier(key, mode, value)
+	var change: String = EffectTerms.describe_modifier(key, mode, value)
 	var duration: String = END_TEXT[end]
 	if uses == 1:
 		duration = "on its next attack %s" % [duration]

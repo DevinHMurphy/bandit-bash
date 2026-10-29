@@ -6,7 +6,7 @@
 # File:     golden_cases.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 27, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 extends "res://tests/effects/engine_cases.gd"
@@ -261,7 +261,7 @@ func run() -> void:
 func _test_golden_vanguard() -> void:
 	var engine: EffectEngine = _battle(["p1", "p2", "e1"])
 	var vanguard: EffectDefinition = _definition(
-			EffectDefinition.Trigger.PHASE_START,
+			EffectTerms.Trigger.PHASE_START,
 			[_position(WhilePositionCondition.Kind.NO_ALLY_CLOSER_TO_ENEMY)],
 			[_block(3.0)]
 	)
@@ -277,14 +277,14 @@ func _test_golden_iron_heart() -> void:
 	seventh.count = 7
 	var lifesteal: ModifyThat = _lifesteal()
 	var iron_heart: EffectDefinition = _definition(
-			EffectDefinition.Trigger.ATTACK_MADE, [seventh], [lifesteal]
+			EffectTerms.Trigger.ATTACK_MADE, [seventh], [lifesteal]
 	)
 	iron_heart.scope = YOUR_UNIT
 	var instance: EffectInstance = _instance(
 			"effect:ih", iron_heart, _army(), HEIRLOOM, "Iron Heart"
 	)
 	engine.register(instance)
-	instance.set_counter(EffectDefinition.Lane.COMBAT, 6)
+	instance.set_counter(EffectTerms.Lane.COMBAT, 6)
 	_fake(engine).unit("p1").hp = 10
 	_harness(engine).exchange("p1", "e1", "a")
 	_golden("Iron Heart (7th attack)", engine)
@@ -307,9 +307,9 @@ func _test_golden_momentum() -> void:
 func _test_golden_phalanx() -> void:
 	var engine: EffectEngine = _battle(["p1", "p2", "q1", "e1"])
 	var count: CountOf = CountOf.new()
-	count.selector = _area(Area.Center.OWNER, 1, EffectDefinition.UnitSide.ALLY, false)
+	count.selector = _area(Area.Center.OWNER, 1, EffectTerms.UnitSide.ALLY, false)
 	var phalanx: EffectDefinition = _definition(
-			EffectDefinition.Trigger.UNIT_TURN_START,
+			EffectTerms.Trigger.UNIT_TURN_START,
 			[],
 			[_gain(GainResource.Pool.BLOCK, null, count)]
 	)
@@ -330,12 +330,12 @@ func _test_golden_war_horn() -> void:
 	var second: CounterCondition = CounterCondition.new()
 	second.count = 2
 	var horn: AddTimedModifier = AddTimedModifier.new()
-	horn.target = _area(Area.Center.OWNER, 2, EffectDefinition.UnitSide.ANY, true)
+	horn.target = _area(Area.Center.OWNER, 2, EffectTerms.UnitSide.ANY, true)
 	horn.key = DamageStage.Key.ATTACK
 	horn.value = 2.0
 	horn.end = AddTimedModifier.End.END_OF_NEXT_PHASE
 	var war_horn: EffectDefinition = _definition(
-			EffectDefinition.Trigger.PHASE_START, [second], [horn]
+			EffectTerms.Trigger.PHASE_START, [second], [horn]
 	)
 	engine.register(_instance("effect:wh", war_horn, _owner("e1"), TRAIT, "War Horn"))
 	var harness: FakeExchange = _harness(engine)
@@ -373,7 +373,7 @@ func _test_golden_lantern_oil() -> void:
 			ModifyThat.What.VALUE, MULTIPLY, 0.5, DamageStage.Key.MULTIPLIERS
 	)
 	var lantern: EffectDefinition = _definition(
-			EffectDefinition.Trigger.DARKNESS_DAMAGE_TAKEN, [], [halve]
+			EffectTerms.Trigger.DARKNESS_DAMAGE_TAKEN, [], [halve]
 	)
 	lantern.scope = YOUR_UNIT
 	engine.register(_instance("effect:lo", lantern, _army(), HEIRLOOM, "Lantern Oil"))
@@ -384,7 +384,7 @@ func _test_golden_lantern_oil() -> void:
 func _test_golden_bounty_ledger() -> void:
 	var engine: EffectEngine = _battle(["p1", "e1"])
 	var ledger: EffectDefinition = _definition(
-			EffectDefinition.Trigger.ALWAYS,
+			EffectTerms.Trigger.ALWAYS,
 			[],
 			[_modify_value(CampaignValue.Key.COMBAT_GOLD, ADD, 8.0)]
 	)
@@ -408,7 +408,7 @@ func _test_golden_training_weights() -> void:
 	var might: ModifyValue = _modify_value(CampaignValue.Key.LEVEL_UP_GUARANTEED_GAINS, ADD, 1.0)
 	might.stat = CombatValue.Stat.MGT
 	var weights: EffectDefinition = _definition(
-			EffectDefinition.Trigger.ALWAYS, [], [slower, no_speed, might]
+			EffectTerms.Trigger.ALWAYS, [], [slower, no_speed, might]
 	)
 	engine.set_base("p1", CombatValue.Key.SPD, 6.0, "Fighter base")
 	var equipped: EffectOwner = _p1_item("item:tw")
@@ -452,7 +452,7 @@ func _test_golden_haunted() -> void:
 func _test_golden_mend() -> void:
 	var engine: EffectEngine = _battle(["p1", "p2", "e1"])
 	var mend: EffectDefinition = _definition(
-			EffectDefinition.Trigger.ALWAYS,
+			EffectTerms.Trigger.ALWAYS,
 			[],
 			[_gain(GainResource.Pool.HP, CommandTarget.new(), _constant(10.0))]
 	)
@@ -470,7 +470,7 @@ func _test_golden_breaker() -> void:
 	var first: CounterCondition = CounterCondition.new()
 	first.mode = CounterCondition.Mode.FIRST
 	var breaker: EffectDefinition = _definition(
-			EffectDefinition.Trigger.HIT_DEALT,
+			EffectTerms.Trigger.HIT_DEALT,
 			[first],
 			[_modify_that(ModifyThat.What.EXTRA_STANCE_LOSS, ADD, 1.0)]
 	)
@@ -482,7 +482,7 @@ func _test_golden_breaker() -> void:
 func _test_golden_professional() -> void:
 	var engine: EffectEngine = _battle(["p1", "e1"], [0])
 	var professional: EffectDefinition = _definition(
-			EffectDefinition.Trigger.BEFORE_COMBAT,
+			EffectTerms.Trigger.BEFORE_COMBAT,
 			[WhileMatchupCondition.new()],
 			[_block(3.0)]
 	)
@@ -498,13 +498,13 @@ func _test_inline_window_per_trigger() -> void:
 		var engine: EffectEngine = _battle(["p1", "e1"])
 		var flag: ModifyThat = _lifesteal()
 		var definition: EffectDefinition = _definition(
-				trigger as EffectDefinition.Trigger, [], [flag]
+				trigger as EffectTerms.Trigger, [], [flag]
 		)
 		engine.register(_instance("effect:w", definition, _owner("p1"), TRAIT))
 		var ctx: EffectContext = EffectContext.new()
 		engine.open_window(CombatFact.new(_kind_of(trigger), "p1", "e1"), ctx)
 		if ctx.has_flag(ModifyThat.Flag.LIFESTEAL) and engine.diagnostics.is_empty():
-			opened.append(EffectDefinition.TRIGGER_TEXT[trigger])
+			opened.append(EffectTerms.TRIGGER_TEXT[trigger])
 	_ok(
 			"windows: every inline trigger changes the action before it is recorded",
 			opened.size() == 9,
@@ -591,11 +591,11 @@ func _test_timed_ends() -> void:
 
 func _test_per_map_charges() -> void:
 	var tonic: EffectDefinition = _definition(
-			EffectDefinition.Trigger.ALWAYS, [], [_block_to_target(3.0)]
+			EffectTerms.Trigger.ALWAYS, [], [_block_to_target(3.0)]
 	)
 	tonic.charges = 1
 	var elixir: EffectDefinition = tonic.duplicate()
-	elixir.charge_lane = EffectDefinition.Lane.CAMPAIGN
+	elixir.charge_lane = EffectTerms.Lane.CAMPAIGN
 	var item: EffectInstance = _instance(
 			"effect:gt", tonic, _p1_item("item:gt"), POUCH, "Guard Tonic"
 	)
@@ -631,14 +631,14 @@ func _test_block_gain_path() -> void:
 	var engine: EffectEngine = _battle(["p1", "p2", "e1"])
 	engine.register(_instance("effect:bg", _brittle_guard(), _army(), CURSE, "Brittle Guard"))
 	var tonic: EffectDefinition = _definition(
-			EffectDefinition.Trigger.ALWAYS, [], [_block_to_target(3.0)]
+			EffectTerms.Trigger.ALWAYS, [], [_block_to_target(3.0)]
 	)
 	var item: EffectInstance = _instance(
 			"effect:gt", tonic, _p1_item("item:gt"), POUCH, "Guard Tonic"
 	)
 	engine.register(item)
 	var phase: EffectDefinition = _definition(
-			EffectDefinition.Trigger.PHASE_START, [], [_block(3.0)]
+			EffectTerms.Trigger.PHASE_START, [], [_block(3.0)]
 	)
 	engine.register(_instance("effect:ps", phase, _owner("p2"), TRAIT, "Vanguard"))
 	var harness: FakeExchange = _harness(engine)
@@ -662,13 +662,13 @@ func _test_heal_path() -> void:
 	var halved: ModifyValue = _modify_value(
 			CampaignValue.Key.HEALING_RECEIVED_PERCENT, MULTIPLY, 0.5
 	)
-	var cursed_blood: EffectDefinition = _definition(EffectDefinition.Trigger.ALWAYS, [], [halved])
+	var cursed_blood: EffectDefinition = _definition(EffectTerms.Trigger.ALWAYS, [], [halved])
 	cursed_blood.scope = YOUR_UNIT
 	engine.register(_instance("effect:cb", cursed_blood, _army(), CURSE, "Cursed Blood"))
 	_fake(engine).unit("p1").hp = 1
 	_ok("heal: received percent halves, then rounds half up (5 -> 3)", engine.heal("p1", 5.0) == 3)
 	var plus_one: EffectDefinition = _definition(
-			EffectDefinition.Trigger.HEALED, [], [_modify_that(ModifyThat.What.AMOUNT, ADD, 1.0)]
+			EffectTerms.Trigger.HEALED, [], [_modify_that(ModifyThat.What.AMOUNT, ADD, 1.0)]
 	)
 	engine.register(_instance("effect:plus", plus_one, _owner("p1"), TRAIT, "Goblet"))
 	_ok(
@@ -676,7 +676,7 @@ func _test_heal_path() -> void:
 			engine.heal("p1", 5.0) == 3
 	)
 	var minus: EffectDefinition = _definition(
-			EffectDefinition.Trigger.HEALED, [], [_modify_that(ModifyThat.What.AMOUNT, ADD, -10.0)]
+			EffectTerms.Trigger.HEALED, [], [_modify_that(ModifyThat.What.AMOUNT, ADD, -10.0)]
 	)
 	engine.register(_instance("effect:minus", minus, _owner("p2"), TRAIT, "Wound"))
 	_fake(engine).unit("p2").hp = 1
@@ -694,11 +694,11 @@ func _test_flags_in_any_order() -> void:
 		var engine: EffectEngine = _battle(["p1", "e1"], [1])
 		_fake(engine).unit("p1").hp = 10
 		var lifesteal: EffectDefinition = _definition(
-				EffectDefinition.Trigger.ATTACK_MADE, [], [_lifesteal()]
+				EffectTerms.Trigger.ATTACK_MADE, [], [_lifesteal()]
 		)
 		var pierce: ModifyThat = _lifesteal()
 		pierce.flag = ModifyThat.Flag.SKIP_MITIGATION
-		var skip: EffectDefinition = _definition(EffectDefinition.Trigger.HIT_DEALT, [], [pierce])
+		var skip: EffectDefinition = _definition(EffectTerms.Trigger.HIT_DEALT, [], [pierce])
 		var instances: Array[EffectInstance] = [
 			_instance("effect:a", lifesteal, _owner("p1"), TRAIT),
 			_instance("effect:b", skip, _owner("p1"), TRAIT),
@@ -748,7 +748,7 @@ func _test_iron_rations() -> void:
 func _test_vanguard_without_enemies() -> void:
 	var engine: EffectEngine = _battle(["p1", "p2"])
 	var vanguard: EffectDefinition = _definition(
-			EffectDefinition.Trigger.PHASE_START,
+			EffectTerms.Trigger.PHASE_START,
 			[_position(WhilePositionCondition.Kind.NO_ALLY_CLOSER_TO_ENEMY)],
 			[_block(3.0)]
 	)
@@ -764,7 +764,7 @@ func _test_vanguard_without_enemies() -> void:
 func _test_this_unit_without_a_unit() -> void:
 	var engine: EffectEngine = _battle(["p1", "e1"])
 	var exposed: EffectDefinition = _definition(
-			EffectDefinition.Trigger.PHASE_START, [WhileStateCondition.new()], [_block(1.0)]
+			EffectTerms.Trigger.PHASE_START, [WhileStateCondition.new()], [_block(1.0)]
 	)
 	exposed.scope = YOUR_UNIT
 	engine.register(_instance("effect:x", exposed, _army(), HEIRLOOM))
@@ -781,7 +781,7 @@ func _test_stat_changed() -> void:
 	var booster: ChangeBaseStat = ChangeBaseStat.new()
 	booster.key = CombatValue.Key.MGT
 	booster.value = 1.0
-	var tonic: EffectDefinition = _definition(EffectDefinition.Trigger.ALWAYS, [], [booster])
+	var tonic: EffectDefinition = _definition(EffectTerms.Trigger.ALWAYS, [], [booster])
 	var item: EffectInstance = _instance(
 			"effect:mt", tonic, _p1_item("item:mt"), POUCH, "Might Tonic"
 	)
@@ -801,7 +801,7 @@ func _test_stat_changed() -> void:
 	growth.value = 5.0
 	var carrot: EffectInstance = _instance(
 			"effect:carrot",
-			_definition(EffectDefinition.Trigger.ALWAYS, [], [growth]),
+			_definition(EffectTerms.Trigger.ALWAYS, [], [growth]),
 			_p1_item("item:carrot"),
 			POUCH,
 			"Cave Carrot"
@@ -825,7 +825,7 @@ func _test_deepest_chain() -> void:
 	engine.register(_instance("effect:cl", _cleave(), _owner("e1"), TRAIT, "Cleave"))
 	var others: AllOfScope = AllOfScope.new()
 	var candle_gain: GainResource = _gain(GainResource.Pool.BLOCK, others, _constant(4.0))
-	var candle: EffectDefinition = _definition(EffectDefinition.Trigger.DEFEATED, [], [candle_gain])
+	var candle: EffectDefinition = _definition(EffectTerms.Trigger.DEFEATED, [], [candle_gain])
 	candle.scope = YOUR_UNIT
 	engine.register(_instance("effect:gc", candle, _army(), HEIRLOOM, "Grave Candle"))
 	_fake(engine).unit("p2").hp = 5
@@ -865,7 +865,7 @@ func _test_queued_reaction_outlives_its_owner() -> void:
 func _test_depth_cap() -> void:
 	var engine: EffectEngine = _battle(["p1", "e1"])
 	var echo: EffectDefinition = _definition(
-			EffectDefinition.Trigger.BLOCK_GAINED, [], [_block(1.0)]
+			EffectTerms.Trigger.BLOCK_GAINED, [], [_block(1.0)]
 	)
 	engine.register(_instance("effect:loop", echo, _owner("p1"), TRAIT, "Echo"))
 	engine.begin_step()
@@ -882,7 +882,7 @@ func _test_depth_cap() -> void:
 func _test_step_cap() -> void:
 	var engine: EffectEngine = _battle(["p1", "p2", "q1", "e1"])
 	var fan: EffectDefinition = _definition(
-			EffectDefinition.Trigger.BLOCK_GAINED, [], [_block(1.0)]
+			EffectTerms.Trigger.BLOCK_GAINED, [], [_block(1.0)]
 	)
 	fan.scope = ANY_ALLY_UNIT
 	for unit_id: String in ["p1", "p2", "q1"]:
@@ -904,9 +904,9 @@ func _test_keg_chain() -> void:
 	var fake: FakeState = FakeState.new()
 	var engine: EffectEngine = EffectEngine.new(fake, ForcedRolls.new())
 	var blast: DealSplash = DealSplash.new()
-	blast.target = _area(Area.Center.OWNER, 1, EffectDefinition.UnitSide.ANY, false)
+	blast.target = _area(Area.Center.OWNER, 1, EffectTerms.UnitSide.ANY, false)
 	blast.amount = _constant(1.0)
-	var keg: EffectDefinition = _definition(EffectDefinition.Trigger.DAMAGE_TAKEN, [], [blast])
+	var keg: EffectDefinition = _definition(EffectTerms.Trigger.DAMAGE_TAKEN, [], [blast])
 	for i: int in 20:
 		var id: String = "keg:%d" % [i]
 		fake.add(id, OBJECT_SIDE, -1, Vector2i(i, 0), 1)
@@ -916,7 +916,7 @@ func _test_keg_chain() -> void:
 	fake.add("p1", PLAYER, 0, Vector2i(20, 0))
 	engine.set_base("p1", CombatValue.Key.HP, 20.0)
 	var brace: EffectDefinition = _definition(
-			EffectDefinition.Trigger.DAMAGE_TAKEN, [], [_block(2.0)]
+			EffectTerms.Trigger.DAMAGE_TAKEN, [], [_block(2.0)]
 	)
 	engine.register(_instance("effect:brace", brace, _owner("p1"), TRAIT, "Brace"))
 	engine.begin_step()
@@ -941,7 +941,7 @@ func _test_worst_legitimate_step() -> void:
 	var seventh: CounterCondition = CounterCondition.new()
 	seventh.count = 7
 	var iron_heart: EffectDefinition = _definition(
-			EffectDefinition.Trigger.ATTACK_MADE, [seventh], [_lifesteal()]
+			EffectTerms.Trigger.ATTACK_MADE, [seventh], [_lifesteal()]
 	)
 	iron_heart.scope = YOUR_UNIT
 	var regimental: Array[EffectInstance] = [
@@ -1006,21 +1006,21 @@ func _momentum() -> EffectDefinition:
 	bonus.value = 15.0
 	bonus.end = AddTimedModifier.End.THIS_COMBAT
 	bonus.uses = 1
-	return _definition(EffectDefinition.Trigger.MISSED, [], [bonus])
+	return _definition(EffectTerms.Trigger.MISSED, [], [bonus])
 
 
 func _cleave() -> EffectDefinition:
 	var splash: DealSplash = DealSplash.new()
-	splash.target = _area(Area.Center.OWNER, 1, EffectDefinition.UnitSide.ANY, false)
+	splash.target = _area(Area.Center.OWNER, 1, EffectTerms.UnitSide.ANY, false)
 	splash.amount = _constant(2.0)
-	return _definition(EffectDefinition.Trigger.HIT_DEALT, [], [splash])
+	return _definition(EffectTerms.Trigger.HIT_DEALT, [], [splash])
 
 
 func _overflowing_cup() -> EffectDefinition:
 	var overheal: PercentOfFact = PercentOfFact.new()
 	overheal.field = PercentOfFact.Field.OVERHEAL
 	var cup: EffectDefinition = _definition(
-			EffectDefinition.Trigger.HEALED,
+			EffectTerms.Trigger.HEALED,
 			[],
 			[_gain(GainResource.Pool.BLOCK, FactActor.new(), overheal)]
 	)
@@ -1031,7 +1031,7 @@ func _overflowing_cup() -> EffectDefinition:
 # Brittle Guard's minimum is its own (events.md: "minimum 0"); the engine's floor is a backstop.
 func _brittle_guard() -> EffectDefinition:
 	var guard: EffectDefinition = _definition(
-			EffectDefinition.Trigger.BLOCK_GAINED,
+			EffectTerms.Trigger.BLOCK_GAINED,
 			[],
 			[
 				_modify_that(ModifyThat.What.AMOUNT, ADD, -1.0),
@@ -1047,7 +1047,7 @@ func _haunted() -> EffectDefinition:
 	var pick: RandomOf = RandomOf.new()
 	pick.from = AllOfScope.new()
 	var haunted: EffectDefinition = _definition(
-			EffectDefinition.Trigger.PHASE_START,
+			EffectTerms.Trigger.PHASE_START,
 			[],
 			[_gain(GainResource.Pool.BLOCK, pick, _constant(-2.0))]
 	)
@@ -1060,7 +1060,7 @@ func _iron_rations() -> EffectDefinition:
 	var first: CounterCondition = CounterCondition.new()
 	first.mode = CounterCondition.Mode.FIRST
 	var rations: EffectDefinition = _definition(
-			EffectDefinition.Trigger.PHASE_START,
+			EffectTerms.Trigger.PHASE_START,
 			[first],
 			[_gain(GainResource.Pool.BLOCK, AllOfScope.new(), _constant(3.0))]
 	)
@@ -1125,7 +1125,7 @@ func _count(engine: EffectEngine, kind: CombatFact.Kind) -> int:
 func _kind_of(trigger: int) -> CombatFact.Kind:
 	for kind: int in CombatFact.Kind.values():
 		var name: String = CombatFact.Kind.find_key(kind)
-		if EffectDefinition.Trigger.get(name, -1) == trigger:
+		if EffectTerms.Trigger.get(name, -1) == trigger:
 			return kind as CombatFact.Kind
 	return CombatFact.Kind.PHASE_START
 

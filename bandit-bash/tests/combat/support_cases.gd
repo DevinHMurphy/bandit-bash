@@ -6,7 +6,7 @@
 # File:     support_cases.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 28, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -25,8 +25,8 @@ const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
 const POUCH: Modifier.SourceKind = Modifier.SourceKind.POUCH_ITEM
 const WEAPON: Modifier.SourceKind = Modifier.SourceKind.WEAPON
-const COMBAT_LANE: EffectDefinition.Lane = EffectDefinition.Lane.COMBAT
-const CAMPAIGN_LANE: EffectDefinition.Lane = EffectDefinition.Lane.CAMPAIGN
+const COMBAT_LANE: EffectTerms.Lane = EffectTerms.Lane.COMBAT
+const CAMPAIGN_LANE: EffectTerms.Lane = EffectTerms.Lane.CAMPAIGN
 
 # The seed of every scenario's stream.
 const SEED: int = 20261027
@@ -623,21 +623,21 @@ func _area(center: Area.Center, radius: int, include_center: bool) -> Area:
 	var area: Area = Area.new()
 	area.center = center
 	area.radius = radius
-	area.side = EffectDefinition.UnitSide.ALLY
+	area.side = EffectTerms.UnitSide.ALLY
 	area.include_center = include_center
 	return area
 
 
 # A use-only effect: its charges count a staff's uses.
-func _uses(charges: int, lane: EffectDefinition.Lane) -> EffectDefinition:
+func _uses(charges: int, lane: EffectTerms.Lane) -> EffectDefinition:
 	return _item([], charges, lane)
 
 
-func _heal_item(amount: float, charges: int, lane: EffectDefinition.Lane) -> EffectDefinition:
+func _heal_item(amount: float, charges: int, lane: EffectTerms.Lane) -> EffectDefinition:
 	return _item([_gain_to_target(GainResource.Pool.HP, amount)], charges, lane)
 
 
-func _block_item(amount: float, charges: int, lane: EffectDefinition.Lane) -> EffectDefinition:
+func _block_item(amount: float, charges: int, lane: EffectTerms.Lane) -> EffectDefinition:
 	return _item([_gain_to_target(GainResource.Pool.BLOCK, amount)], charges, lane)
 
 
@@ -655,7 +655,7 @@ func _gain_to_target(pool: GainResource.Pool, amount: float) -> GainResource:
 	return gain
 
 
-func _item(operations: Array, charges: int, lane: EffectDefinition.Lane) -> EffectDefinition:
+func _item(operations: Array, charges: int, lane: EffectTerms.Lane) -> EffectDefinition:
 	var definition: EffectDefinition = EffectDefinition.new()
 	definition.operations.assign(operations)
 	definition.charges = charges

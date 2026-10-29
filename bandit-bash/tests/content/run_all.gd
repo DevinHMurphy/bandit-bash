@@ -266,7 +266,7 @@ func _test_other_item_fixtures() -> void:
 			and consumable.use_kind == "ingredient"
 			and consumable.amount == 5
 			and consumable.uses == 1
-			and consumable.uses_lane == EffectDefinition.Lane.CAMPAIGN
+			and consumable.uses_lane == EffectTerms.Lane.CAMPAIGN
 	))
 	_check("fixture consumable: cooked gains", (
 			consumable.cooked_gains.size() == 1

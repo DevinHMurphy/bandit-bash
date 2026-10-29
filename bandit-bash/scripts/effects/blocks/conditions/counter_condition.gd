@@ -6,7 +6,7 @@
 # File:     counter_condition.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 @tool
@@ -37,18 +37,18 @@ enum Mode {
 @export_range(1, 1000) var count: int = 1
 
 ## When the count resets: every battle or once per run.
-@export var lane: EffectDefinition.Lane = EffectDefinition.Lane.COMBAT
+@export var lane: EffectTerms.Lane = EffectTerms.Lane.COMBAT
 
 
 func describe() -> String:
-	return "%s time %s" % [describe_count().to_lower(), EffectDefinition.LANE_TEXT[lane]]
+	return "%s time %s" % [describe_count().to_lower(), EffectTerms.LANE_TEXT[lane]]
 
 
 ## The words before the trigger: "Every 10th" or "First".
 func describe_count() -> String:
 	if mode == Mode.FIRST:
 		return "First"
-	return "Every %s" % [EffectDefinition.ordinal(count)]
+	return "Every %s" % [EffectTerms.ordinal(count)]
 
 
 func names_this_unit() -> bool:
