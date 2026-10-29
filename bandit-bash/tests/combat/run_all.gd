@@ -12,7 +12,8 @@
 extends SceneTree
 ## Headless tests for the combat core: its state and grid (state_cases.gd), the exchange
 ## (exchange_cases.gd), Shove and splash (shove_cases.gd), and the support actions
-## (support_cases.gd), run on the stub grid and the real effect engine.
+## (support_cases.gd), run on the stub grid and the real effect engine; and the turn loop and
+## commands (turn_cases.gd), run in a [CombatSession] on a small real map.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/combat/run_all.gd[/code][br]
@@ -26,6 +27,7 @@ const StateCases = preload("res://tests/combat/state_cases.gd")
 const ExchangeCases = preload("res://tests/combat/exchange_cases.gd")
 const ShoveCases = preload("res://tests/combat/shove_cases.gd")
 const SupportCases = preload("res://tests/combat/support_cases.gd")
+const TurnCases = preload("res://tests/combat/turn_cases.gd")
 
 var _failures: int = 0
 var _passes: int = 0
@@ -37,6 +39,7 @@ func _init() -> void:
 	ExchangeCases.new(_check).run()
 	ShoveCases.new(_check).run()
 	SupportCases.new(_check).run()
+	TurnCases.new(_check).run()
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)
 

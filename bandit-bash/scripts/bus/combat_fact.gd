@@ -85,7 +85,9 @@ enum Kind {
 	UNIT_MOVED = 26,
 	## The actor appeared on the map at [member tile].
 	UNIT_SPAWNED = 27,
-	## This session's combat ended; [member side] is the side that won it.
+	## This session's combat ended; [member side] is the side that won it, [member amount] the
+	## turn it ended on, and [member key] the turns a Survive or Defend map was won early
+	## ([Objectives]).
 	COMBAT_ENDED = 28,
 	## The darkness advanced.
 	DARKNESS_ADVANCED = 29,
@@ -208,7 +210,7 @@ var actor_id: String = ""
 ## Instance id of the other party (see [enum Kind]). Empty when none.
 var target_id: String = ""
 
-## The fact's main quantity: damage, healing, Block or a counter value. 0 when none.
+## The fact's main quantity: damage, healing, Block, a counter value or a turn. 0 when none.
 var amount: int = 0
 
 ## The part of [member amount] that reached HP. For healing, [member amount] minus this is the
@@ -243,8 +245,8 @@ var side: CombatSide = CombatSide.NONE
 var item_id: String = ""
 
 ## A small number whose meaning depends on the kind: the [enum EffectDefinition.Lane] of a
-## [constant COUNTER_CHANGED], the [enum CombatValue.Stat] of a [constant STAT_CHANGED]. 0 on every
-## other kind.
+## [constant COUNTER_CHANGED], the [enum CombatValue.Stat] of a [constant STAT_CHANGED], the turns
+## won early of a [constant COMBAT_ENDED]. 0 on every other kind.
 var key: int = 0
 
 

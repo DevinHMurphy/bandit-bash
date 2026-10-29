@@ -20,6 +20,8 @@ extends RefCounted
 ## [FactBatch], to [signal batch_resolved] for the network and to [member playback] for this peer.
 ## Facts since the last checkpoint stay in memory for a client that rejoins ([method facts_since]).
 ## Engine diagnostics are reported at ERROR after every batch (event bus plan, question 31).[br]
+## The turn loop is [PhaseRunner]'s: [method open_battle] starts it, every command ends with
+## [constant CombatHooks.Hook.AFTER_STEP], and other plans plug in through [member hooks].[br]
 ## Randomness comes only from the roll source it is given: [LiveRolls] over its seat's
 ## [code]COMBAT_ROLLS[/code] stream. It never sees the run's stream registry.[br]
 ## Main thread only. It depends on no scene or autoload except [code]NetLog[/code] (through
@@ -77,6 +79,9 @@ var bus: CombatBus = null
 ## Plays this session's batches on [member bus] on this peer.
 var playback: FactPlayback = null
 
+## Where other plans' rules plug into this map's turn loop ([PhaseRunner]).
+var hooks: CombatHooks = CombatHooks.new()
+
 ## The run's id allocator: what [method describe] names ids from. Never null in use.
 var ids: InstanceIdAllocator = null
 
@@ -87,6 +92,11 @@ var setup: CombatEncounter.EncounterSetup = null
 ## This map's seat's setup results (steps 6 and 7: additions and container contents); null outside
 ## an encounter.
 var seat_setup: CombatEncounter.SeatSetup = null
+
+## Each seat's commander on this map, by seat, as [method deploy] placed it; a seat whose army
+## has no commander here has no entry. [Objectives] loses the map when one is defeated. Not saved
+## yet (P02 CC8).
+var commander_ids: Dictionary[int, String] = {}
 
 ## Whether this map's combat has ended ([constant CombatFact.Kind.COMBAT_ENDED] was recorded).
 ## From then on every command is rejected.
@@ -168,6 +178,8 @@ func next_arrival() -> int:
 ## Resolves the oldest queued command and returns its batch; null when nothing is queued. Checks
 ## it first (see [Command]); a rejected command records nothing, tells only its seat through
 ## [signal command_rejected], and returns a batch with [member FactBatch.rejected_reason] set.
+## A resolved command ends its step with [constant CombatHooks.Hook.AFTER_STEP]
+## ([method PhaseRunner.end_step]), so the objective checks may end the map inside its batch.
 ## Facts recorded since the last batch outside any command go out first, as their own batch.
 func resolve_next() -> FactBatch:
 	if _queue.is_empty():
@@ -192,6 +204,7 @@ func resolve_next() -> FactBatch:
 	engine.begin_step()
 	command.resolve(self)
 	engine.drain()
+	PhaseRunner.end_step(self)
 	_finish_batch(batch)
 	_log_command(batch)
 	batch_resolved.emit(batch)
@@ -219,6 +232,16 @@ func flush(label: String) -> FactBatch:
 	_log_command(batch)
 	batch_resolved.emit(batch)
 	return batch
+
+
+## Opens the battle once the army is deployed ([method PhaseRunner.open_battle]): the opening swap
+## window when any of [param swap_seats] (seats whose opening-swap setting is on) has units here,
+## otherwise turn 1's player Phase Start, sent as its own batch with any facts not yet batched.
+## Returns that batch; null when there was nothing to send, as when the window opens right after
+## the deployment batch (opening it records nothing).
+func open_battle(swap_seats: PackedInt32Array = PackedInt32Array()) -> FactBatch:
+	PhaseRunner.open_battle(self, swap_seats)
+	return flush("battle start")
 
 
 ## The [member CombatFact.seq] of the last fact recorded; 0 before any.
@@ -263,7 +286,8 @@ func mark_checkpoint() -> void:
 ## tiles with [AutoDeploy], with no random draw, and records
 ## [constant CombatFact.Kind.UNIT_SPAWNED] for each one placed. Their weapons must already be in
 ## [member state]. [param bases]: each unit's base values (value key to number) by unit id.
-## [param commander_id]: empty when the army has none here. Returns where each unit went.
+## [param commander_id]: empty when the army has none here; once placed, it is the commander of its
+## seat in [member commander_ids]. Returns where each unit went.
 func deploy(
 		units: Array[CombatUnitState],
 		bases: Dictionary[String, Dictionary],
@@ -284,6 +308,8 @@ func deploy(
 		if placement.tiles.has(unit.id):
 			unit.tile = placement.tiles[unit.id]
 			add_unit(unit)
+	if not commander_id.is_empty() and state.has_unit(commander_id):
+		commander_ids[state.seat_of(commander_id)] = commander_id
 	return placement
 
 

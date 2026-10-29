@@ -6,7 +6,7 @@
 # File:     combat_state.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 27, 2026
+# Modified: October 28, 2026
 # ==============================================================================
 
 class_name CombatState
@@ -47,6 +47,15 @@ var phase_side: CombatFact.CombatSide = CombatFact.CombatSide.NONE
 
 ## Seats that have ended their turn in the current player phase.
 var ended_seats: PackedInt32Array = []
+
+## Whether the current phase's Phase End has run: true from then until the next Phase Start, when
+## no unit of either side may act ([PhaseRunner]).
+var is_phase_ended: bool = false
+
+## Seats in the opening swap window ([member MapState.opening_swap_open]) that haven't sent their
+## Start: those with the opening-swap setting on and units on the map. Turn 1's player Phase Start
+## runs when it empties ([method PhaseRunner.start]). Not saved yet (P02 CC8).
+var seats_to_start: PackedInt32Array = []
 
 ## Rune instance ids in each seat's slots, copied in at battle start by the campaign bridge. A cast
 ## rune leaves its slot.
@@ -240,6 +249,8 @@ func copy_for_sandbox() -> SandboxState:
 	copy.turn = turn
 	copy.phase_side = phase_side
 	copy.ended_seats = ended_seats.duplicate()
+	copy.is_phase_ended = is_phase_ended
+	copy.seats_to_start = seats_to_start.duplicate()
 	for seat: int in rune_slots:
 		copy.rune_slots[seat] = rune_slots[seat].duplicate()
 	for id: String in _order:

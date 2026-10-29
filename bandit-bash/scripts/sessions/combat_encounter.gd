@@ -187,8 +187,9 @@ func run_setup(pool: Array[CombatMapDefinition], streams: SetupStreams) -> Error
 ## Opens one session per seat on the chosen map, each rolling from its seat's
 ## [code]COMBAT_ROLLS[/code] stream in [param combat_rolls] (by seat) wrapped in [LiveRolls], and
 ## emits [signal session_opened] for each. Session ids follow [member seats]: the lowest seat's map
-## is session 0. Call once, after [method run_setup]. Returns false, opening nothing, before setup,
-## when already open, or when a seat has no stream.
+## is session 0. Each session gets the encounter's arrivals ([method deliver_arrivals]) and the
+## objective checks ([method Objectives.register]) as hooks. Call once, after [method run_setup].
+## Returns false, opening nothing, before setup, when already open, or when a seat has no stream.
 func open_sessions(combat_rolls: Dictionary[int, RngStream]) -> bool:
 	if setup == null or is_closed or not _sessions.is_empty():
 		return false
@@ -209,6 +210,8 @@ func open_sessions(combat_rolls: Dictionary[int, RngStream]) -> bool:
 		session.setup = setup
 		session.seat_setup = setup.seats[seat]
 		session.fact_recorded.connect(_on_session_fact_recorded)
+		session.hooks.add(CombatHooks.Hook.ARRIVALS, _on_session_arrivals_due)
+		Objectives.register(session)
 		_sessions.append(session)
 		_session_of_seat[seat] = index
 	for session: CombatSession in _sessions:
@@ -351,8 +354,8 @@ func send_unit(
 	return ""
 
 
-## Places every unit on its way to [param session_id], at the receiving map's Phase Start (the
-## combat core's phase runner calls this before the Block and Stance refresh, P02 CC6): its
+## Places every unit on its way to [param session_id], at the receiving map's player Phase Start
+## (each session's [constant CombatHooks.Hook.ARRIVALS], before the Block and Stance refresh): its
 ## effects join the map with their counters and charges, then it is placed with Block 0 and full
 ## Stance, recording [constant CombatFact.Kind.UNIT_SPAWNED]. Returns the ids placed; a unit with
 ## no free tile stays on its way.
@@ -377,6 +380,17 @@ func units_in_transit() -> PackedStringArray:
 	for transfer: Transfer in _in_transit:
 		waiting.append(transfer.unit.id)
 	return waiting
+
+
+## Whether every map's combat has ended ([member CombatSession.is_finished]): a map's end ends only
+## its own session, and the battle ends with the last one. False before [method open_sessions].
+func is_finished() -> bool:
+	if _sessions.is_empty():
+		return false
+	for session: CombatSession in _sessions:
+		if not session.is_finished:
+			return false
+	return true
 
 
 ## Ends the encounter: its sessions stop reporting here and routing stops. The caller writes
@@ -465,6 +479,11 @@ func _arrive(target: CombatSession, transfer: Transfer) -> bool:
 				% [_tag(), target.describe(unit.id), target.session_id, tile]
 		)
 	return true
+
+
+# A session's ARRIVALS hook: its player Phase Start is starting.
+func _on_session_arrivals_due(session: CombatSession) -> void:
+	deliver_arrivals(session.session_id)
 
 
 # Mirrors a cross-map instance's counter and activation facts as encounter facts.
