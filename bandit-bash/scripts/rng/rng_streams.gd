@@ -6,7 +6,7 @@
 # File:     rng_streams.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 28, 2026
 # ==============================================================================
 
 class_name RngStreams
@@ -18,20 +18,21 @@ extends RefCounted
 ## so a save holds only each live stream's position; [method drop_node] drops a node's streams
 ## when the node ends.[br]
 ## Streams fall into save sections by purpose: [method capture_combat] holds every
-## [constant RngKey.COMBAT_ROLLS] and [constant RngKey.MAP_LOOT] stream, [method capture_campaign]
-## every other purpose except [constant RngKey.ENCOUNTER_SETUP]. That one is never saved: it is
-## drawn whole at battle start and its results are battle state, and a battle restarted from Begin
-## re-derives it from its key like every other battle stream.
+## [constant RngKey.COMBAT_ROLLS] stream, [method capture_campaign] every other purpose except
+## [constant RngKey.ENCOUNTER_SETUP] and [constant RngKey.MAP_LOOT]. Those two are never saved: a
+## battle's setup draws them whole at battle start and their results are battle state (container
+## contents included), and a battle restarted from Begin re-derives them from their keys like
+## every other battle stream. [RngSaveSection] saves the two sections.
 ##
 ## @tutorial(RNG streams plan): docs/plans/2026-10-26-rng-streams.md
 
-# Purposes saved in the combat section; ENCOUNTER_SETUP is in no section.
+# Purposes saved in the combat section; the unsaved ones are in no section.
 const _COMBAT_PURPOSES: Array[RngKey.RngPurpose] = [
 	RngKey.RngPurpose.COMBAT_ROLLS,
-	RngKey.RngPurpose.MAP_LOOT,
 ]
 const _UNSAVED_PURPOSES: Array[RngKey.RngPurpose] = [
 	RngKey.RngPurpose.ENCOUNTER_SETUP,
+	RngKey.RngPurpose.MAP_LOOT,
 ]
 
 ## The run's seed, fixed at construction. Assigning it is an error: every live stream and every

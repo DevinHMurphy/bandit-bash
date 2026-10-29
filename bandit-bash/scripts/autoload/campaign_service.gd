@@ -15,18 +15,21 @@ extends Node
 ##
 ## Registered as autoload [code]CampaignService[/code], after [code]SaveService[/code] (its
 ## [code]_ready()[/code] connects to it) and before [code]SceneRouter[/code]. [b]Why an
-## autoload:[/b] the session must outlive every screen change, and the save sections it will own
-## must register before any save file opens (campaign and run flow plan, question 1).[br]
+## autoload:[/b] the session must outlive every screen change, and the save sections it owns must
+## register before any save file opens (campaign and run flow plan, question 1).[br]
 ## A session is built on [signal SaveService.campaign_activated] and closed on
 ## [signal SaveService.run_ended], [signal SaveService.save_file_closed] and
 ## [signal SaveService.campaign_cleared], so every way a run starts (new, continued, resumed, the
 ## debug panel's seed restart) leaves exactly one, and none outlives its campaign. On a
 ## multiplayer client there is none until client mirrors (EB7) and transport (P10) exist (event
-## bus plan, question 41). No save sections yet (question 42): the [code]rng[/code] sections are
-## P13 R5's, [code]instance_ids[/code] EB7's.
+## bus plan, question 41).[br]
+## [b]Save sections:[/b] the two [code]rng[/code] sections, campaign and combat ([RngSaveSection]).
+## Each new session is handed to both before [signal session_started], so a continued run's
+## streams are restored before anything draws from them. [code]instance_ids[/code] is EB7's.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
+## @tutorial(Save system design): docs/design/save-system.md
 
 ## A run's session was built: connect here to follow its battles.
 signal session_started(session: CampaignSession)
@@ -37,8 +40,14 @@ signal session_ended(session: CampaignSession)
 ## The run in progress on this machine; null outside a run and on a multiplayer client.
 var session: CampaignSession = null
 
+var _campaign_rng: RngSaveSection = RngSaveSection.new(SaveSection.Block.CAMPAIGN)
+var _combat_rng: RngSaveSection = RngSaveSection.new(SaveSection.Block.COMBAT)
+
 
 func _ready() -> void:
+	# Replaces the placeholders SaveService reserved under the same key.
+	SaveService.register_section(SaveSection.Block.CAMPAIGN, _campaign_rng)
+	SaveService.register_section(SaveSection.Block.COMBAT, _combat_rng)
 	SaveService.campaign_activated.connect(_on_save_service_campaign_activated)
 	SaveService.run_ended.connect(_on_save_service_run_ended)
 	SaveService.save_file_closed.connect(_on_save_service_save_file_closed)
@@ -76,14 +85,33 @@ func end_battle() -> CampaignSession.BattleResult:
 	return session.end_battle()
 
 
+# The rng sections let go of the previous session first, so a section that refuses the
+# replacement never keeps reading a closed run.
 func _replace_session(replacement: CampaignSession) -> void:
 	var previous: CampaignSession = session
 	session = replacement
+	_campaign_rng.detach()
+	_combat_rng.detach()
+	if replacement != null:
+		_attach_rng_sections(replacement)
 	if previous != null:
 		previous.close()
 		session_ended.emit(previous)
 	if replacement != null:
 		session_started.emit(replacement)
+
+
+# Applies the streams SaveService restored for this run to the session just built. A refusal
+# can't happen on a new session (it has no battle, and restore checked the data); if it does, the
+# held data stays held and is saved again unchanged.
+func _attach_rng_sections(built: CampaignSession) -> void:
+	for section: RngSaveSection in [_campaign_rng, _combat_rng]:
+		var err: Error = section.attach(built)
+		if err != OK:
+			push_error(
+					"CampaignService: the rng section refused the new session - %s"
+					% [error_string(err)]
+			)
 
 
 func _on_save_service_campaign_activated(mode: CampaignData.Mode, resumed: bool) -> void:

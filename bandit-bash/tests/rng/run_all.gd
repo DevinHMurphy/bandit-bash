@@ -6,12 +6,14 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 27, 2026
+# Modified: October 28, 2026
 # ==============================================================================
 
 extends SceneTree
 ## Headless tests for the RNG streams: keys and the SplitMix64 mixer ([RngKey]), streams
-## ([RngStream]), a run's registry ([RngStreams]) and the run seed ([RunSeed]).
+## ([RngStream]), a run's registry ([RngStreams]), its save sections ([RngSaveSection]) and the
+## run seed ([RunSeed]). The save sections through the real [code]SaveService[/code] are in the
+## sessions suite's lifecycle cases.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/rng/run_all.gd[/code][br]
@@ -107,7 +109,10 @@ var _passes: int = 0
 
 
 func _init() -> void:
-	print("--- RNG tests. Errors from RngStream, RngStreams and RunSeed below are expected. ---")
+	print(
+			"--- RNG tests. Errors from RngStream, RngStreams, RngSaveSection and RunSeed below"
+			+ " are expected. ---"
+	)
 
 	_test_hex_helpers_round_trip()
 	_test_mix_matches_splitmix64_reference()
@@ -136,6 +141,14 @@ func _init() -> void:
 	_test_registry_restore_replaces_one_section()
 	_test_registry_restore_rejects_bad_data()
 	_test_registry_run_seed_is_fixed()
+	_test_save_section_contract()
+	_test_save_section_round_trip(SaveSection.Block.CAMPAIGN)
+	_test_save_section_round_trip(SaveSection.Block.COMBAT)
+	_test_save_section_holds_until_attached()
+	_test_save_section_resets()
+	_test_save_section_rejects_bad_entries(SaveSection.Block.CAMPAIGN)
+	_test_save_section_rejects_bad_entries(SaveSection.Block.COMBAT)
+	_test_save_sections_skip_unsaved_purposes()
 	_test_run_seed_generate_range()
 	_test_run_seed_format()
 	_test_run_seed_format_parse_round_trip()
@@ -605,14 +618,17 @@ func _test_registry_sections() -> void:
 			str(registry.capture_campaign().keys())
 	)
 	_check(
-			"sections: combat holds COMBAT_ROLLS and MAP_LOOT",
-			registry.capture_combat().keys() == ["13:2:5:0:-1", "13:2:5:1:-1", "12:2:5:1:3"],
+			"sections: combat holds only COMBAT_ROLLS",
+			registry.capture_combat().keys() == ["13:2:5:0:-1", "13:2:5:1:-1"],
 			str(registry.capture_combat().keys())
 	)
 	var all_strings: bool = true
 	for state: String in registry.capture_campaign().values() + registry.capture_combat().values():
 		all_strings = all_strings and state.length() == 16
-	_check("sections: ENCOUNTER_SETUP is in neither; states are strings", all_strings)
+	_check(
+			"sections: ENCOUNTER_SETUP and MAP_LOOT are in neither; states are strings",
+			all_strings
+	)
 
 
 func _test_registry_round_trip_through_json() -> void:
@@ -623,11 +639,11 @@ func _test_registry_round_trip_through_json() -> void:
 		RngKey.new(RngKey.RngPurpose.REWARD, 2, 5, 0),
 		RngKey.new(RngKey.RngPurpose.LEVEL_UPS, 2, 5, 1),
 		RngKey.new(RngKey.RngPurpose.COMBAT_ROLLS, 2, 5, 1),
-		RngKey.new(RngKey.RngPurpose.MAP_LOOT, 2, 5, 1, 3),
 	]
 	var expected: Array = []
 	for key: RngKey in keys:
 		expected.append(_draws(original.stream(key), 10))
+	var loot_key: RngKey = RngKey.new(RngKey.RngPurpose.MAP_LOOT, 2, 5, 1, 3)
 
 	var resumed: RngStreams = RngStreams.new(RUN_SEED)
 	var campaign_data: Dictionary = JSON.parse_string(campaign_json)
@@ -639,6 +655,11 @@ func _test_registry_round_trip_through_json() -> void:
 	for key: RngKey in keys:
 		actual.append(_draws(resumed.stream(key), 10))
 	_check("round trip: every restored stream continues identically", actual == expected)
+	var fresh_loot: RngStream = RngStreams.new(RUN_SEED).stream(loot_key)
+	_check(
+			"round trip: an unsaved MAP_LOOT stream starts again from its key",
+			resumed.stream(loot_key).capture() == fresh_loot.capture()
+	)
 
 
 func _test_registry_restore_replaces_one_section() -> void:
@@ -681,8 +702,10 @@ func _test_registry_restore_rejects_bad_data() -> void:
 	for data: Dictionary in bad_campaign:
 		all_rejected = all_rejected and not registry.restore_campaign(data)
 	all_rejected = all_rejected and not registry.restore_combat({"9:2:5:0:-1": good_state})
+	all_rejected = all_rejected and not registry.restore_combat({"12:2:5:1:3": good_state})
+	all_rejected = all_rejected and not registry.restore_campaign({"12:2:5:1:3": good_state})
 	_check(
-			"restore: rejects wrong-section, unknown, malformed and bad-state entries",
+			"restore: rejects wrong-section, unsaved, unknown, malformed and bad-state entries",
 			all_rejected
 	)
 	_check(
@@ -696,6 +719,204 @@ func _test_registry_run_seed_is_fixed() -> void:
 	var registry: RngStreams = RngStreams.new(RUN_SEED)
 	registry.run_seed = 5
 	_check("run_seed: reads back the construction seed", registry.run_seed == RUN_SEED)
+
+
+func _test_save_section_contract() -> void:
+	for block: SaveSection.Block in [SaveSection.Block.CAMPAIGN, SaveSection.Block.COMBAT]:
+		var section: RngSaveSection = RngSaveSection.new(block)
+		var label: String = _block_label(block)
+		_check(
+				"rng section %s: key rng, version 1" % [label],
+				section.get_key() == "rng" and section.get_version() == 1
+		)
+		_check(
+				"rng section %s: empty with no session and nothing held" % [label],
+				section.capture().is_empty()
+		)
+	print("    (one error about an rng section without a session follows)")
+	_check(
+			"rng section: attach refuses null",
+			RngSaveSection.new(SaveSection.Block.CAMPAIGN).attach(null) == ERR_INVALID_PARAMETER
+	)
+
+
+# Capture from one run, through JSON, restore and attach to a new run: the block's streams
+# continue exactly where they were, and the other block's streams start from their keys.
+func _test_save_section_round_trip(block: SaveSection.Block) -> void:
+	var label: String = _block_label(block)
+	var live: CampaignSession = _session_with_every_section()
+	var saving: RngSaveSection = RngSaveSection.new(block)
+	saving.attach(live)
+	var captured: Dictionary = saving.capture()
+	var has_big_state: bool = false
+	for state: Variant in captured.values():
+		var value: int = _from_hex(state as String)
+		has_big_state = has_big_state or value > JSON_EXACT_LIMIT or value < -JSON_EXACT_LIMIT
+	_check("rng section %s: some state is above 2^53" % [label], has_big_state)
+
+	var keys: Array[RngKey] = _keys_of(captured)
+	var expected: Array = []
+	for key: RngKey in keys:
+		expected.append(_draws(live.rng.stream(key), 10))
+
+	var json_data: Variant = JSON.parse_string(JSON.stringify(captured))
+	var loading: RngSaveSection = RngSaveSection.new(block)
+	var resumed: CampaignSession = CampaignSession.new(
+			CampaignData.Mode.SOLO, RUN_SEED, PackedInt32Array([0, 1])
+	)
+	var restored: Error = loading.restore(json_data as Dictionary)
+	var attached: Error = loading.attach(resumed)
+	_check(
+			"rng section %s: restore and attach accept the JSON" % [label],
+			restored == OK and attached == OK
+	)
+	_check(
+			"rng section %s: the attached run captures the saved data" % [label],
+			loading.capture() == captured
+	)
+	var actual: Array = []
+	for key: RngKey in keys:
+		actual.append(_draws(resumed.rng.stream(key), 10))
+	_check(
+			"rng section %s: every stream continues identically (%d streams)"
+			% [label, keys.size()],
+			keys.size() >= 2 and actual == expected
+	)
+	var other: Dictionary = (
+			resumed.rng.capture_campaign() if block == SaveSection.Block.COMBAT
+			else resumed.rng.capture_combat()
+	)
+	_check("rng section %s: the other block's streams aren't restored" % [label], other.is_empty())
+
+
+func _test_save_section_holds_until_attached() -> void:
+	var saved: Dictionary = _session_with_every_section().rng.capture_campaign()
+	var live: CampaignSession = CampaignSession.new(
+			CampaignData.Mode.SOLO, RUN_SEED, PackedInt32Array([0])
+	)
+	var shop: RngStream = live.rng.stream(RngKey.new(RngKey.RngPurpose.SHOP_STOCK, 4, 4))
+	_draws(shop, 3)
+	var live_before: Dictionary = live.rng.capture_campaign()
+	var section: RngSaveSection = RngSaveSection.new(SaveSection.Block.CAMPAIGN)
+	section.attach(live)
+
+	_check("rng section: restore accepts the data", section.restore(saved) == OK)
+	_check(
+			"rng section: restore leaves the attached run's registry alone",
+			live.rng.capture_campaign() == live_before
+			and is_same(live.rng.stream(RngKey.new(RngKey.RngPurpose.SHOP_STOCK, 4, 4)), shop)
+	)
+	_check(
+			"rng section: until attached, capture returns the held data",
+			section.capture() == saved
+	)
+
+	var built: CampaignSession = CampaignSession.new(
+			CampaignData.Mode.SOLO, RUN_SEED, PackedInt32Array([0])
+	)
+	section.attach(built)
+	_check(
+			"rng section: attach applies the held data to the new run",
+			built.rng.capture_campaign() == saved
+	)
+	section.detach()
+	_check("rng section: once applied, nothing is held", section.capture().is_empty())
+
+
+# A campaign reset belongs to a new run or none; a combat reset happens at Begin, while the run's
+# battle streams are live.
+func _test_save_section_resets() -> void:
+	var live: CampaignSession = _session_with_every_section()
+	var campaign: RngSaveSection = RngSaveSection.new(SaveSection.Block.CAMPAIGN)
+	var combat: RngSaveSection = RngSaveSection.new(SaveSection.Block.COMBAT)
+	campaign.attach(live)
+	combat.attach(live)
+	campaign.reset()
+	combat.reset()
+	_check("rng section: a campaign reset lets go of the run", campaign.capture().is_empty())
+	_check(
+			"rng section: a combat reset keeps reading the run",
+			combat.capture() == live.rng.capture_combat() and not combat.capture().is_empty()
+	)
+
+	var held: RngSaveSection = RngSaveSection.new(SaveSection.Block.COMBAT)
+	held.restore(live.rng.capture_combat())
+	held.reset()
+	var fresh: CampaignSession = CampaignSession.new(
+			CampaignData.Mode.SOLO, RUN_SEED, PackedInt32Array([0])
+	)
+	held.attach(fresh)
+	_check(
+			"rng section: a reset drops the held data, so nothing is applied",
+			held.capture().is_empty() and fresh.rng.capture_combat().is_empty()
+	)
+
+
+# A bad entry fails the load through the real section registry, and neither the run's registry
+# nor what the section reads changes.
+func _test_save_section_rejects_bad_entries(block: SaveSection.Block) -> void:
+	var label: String = _block_label(block)
+	var live: CampaignSession = _session_with_every_section()
+	var section: RngSaveSection = RngSaveSection.new(block)
+	section.attach(live)
+	var registry: SaveSectionRegistry = SaveSectionRegistry.new()
+	registry.register(block, section)
+	var campaign_before: Dictionary = live.rng.capture_campaign()
+	var combat_before: Dictionary = live.rng.capture_combat()
+	var rolls_key: RngKey = RngKey.new(RngKey.RngPurpose.COMBAT_ROLLS, 2, 5, 0)
+	var reward_key: RngKey = RngKey.new(RngKey.RngPurpose.REWARD, 2, 5, 0)
+	var rolls: RngStream = live.rng.stream(rolls_key)
+	var reward: RngStream = live.rng.stream(reward_key)
+
+	var good_state: String = "62431fcec4f6c10e"
+	var own_key: String = "13:2:5:0:-1" if block == SaveSection.Block.COMBAT else "9:2:5:0:-1"
+	var other_key: String = "9:2:5:0:-1" if block == SaveSection.Block.COMBAT else "13:2:5:0:-1"
+	var bad_data: Array[Dictionary] = [
+		{"99:0:0:0:0": good_state},
+		{other_key: good_state},
+		{"12:2:5:1:3": good_state},
+		{own_key: 7.0},
+		{own_key: good_state, "x": good_state},
+	]
+	print("    (errors from %d refused %s rng sections follow)" % [bad_data.size(), label])
+	var all_failed: bool = true
+	for data: Dictionary in bad_data:
+		var err: Error = registry.restore(block, {"rng": {"version": 1, "data": data}})
+		all_failed = all_failed and err != OK
+	_check(
+			"rng section %s: unknown, other-block, unsaved and non-string entries fail the load"
+			% [label],
+			all_failed
+	)
+	_check(
+			"rng section %s: a failed load leaves the run's registry untouched" % [label],
+			live.rng.capture_campaign() == campaign_before
+			and live.rng.capture_combat() == combat_before
+			and is_same(live.rng.stream(rolls_key), rolls)
+			and is_same(live.rng.stream(reward_key), reward)
+	)
+	var still_reads_run: bool = (
+			section.capture() == combat_before if block == SaveSection.Block.COMBAT
+			else section.capture() == campaign_before
+	)
+	_check("rng section %s: and the section still reads the run" % [label], still_reads_run)
+
+
+func _test_save_sections_skip_unsaved_purposes() -> void:
+	var live: CampaignSession = _session_with_every_section()
+	var loot_key: String = RngKey.new(RngKey.RngPurpose.MAP_LOOT, 2, 5, 1, 3).to_save_key()
+	var setup_key: String = RngKey.new(RngKey.RngPurpose.ENCOUNTER_SETUP, 2, 5).to_save_key()
+	var campaign: RngSaveSection = RngSaveSection.new(SaveSection.Block.CAMPAIGN)
+	var combat: RngSaveSection = RngSaveSection.new(SaveSection.Block.COMBAT)
+	campaign.attach(live)
+	combat.attach(live)
+	var captured: Dictionary = campaign.capture()
+	captured.merge(combat.capture())
+	_check(
+			"rng sections: a MAP_LOOT stream is in neither capture",
+			not captured.has(loot_key) and not captured.is_empty()
+	)
+	_check("rng sections: nor is an ENCOUNTER_SETUP stream", not captured.has(setup_key))
 
 
 func _test_run_seed_generate_range() -> void:
@@ -808,6 +1029,36 @@ func _registry_with_every_section() -> RngStreams:
 	for i: int in keys.size():
 		_draws(registry.stream(keys[i]), i + 1)
 	return registry
+
+
+# A two-seat run whose registry has the same streams as _registry_with_every_section().
+func _session_with_every_section() -> CampaignSession:
+	var session: CampaignSession = CampaignSession.new(
+			CampaignData.Mode.MULTIPLAYER, RUN_SEED, PackedInt32Array([0, 1])
+	)
+	var fixture: RngStreams = _registry_with_every_section()
+	var restored: bool = session.rng.restore_campaign(fixture.capture_campaign())
+	restored = session.rng.restore_combat(fixture.capture_combat()) and restored
+	for unsaved: RngKey in [
+		RngKey.new(RngKey.RngPurpose.ENCOUNTER_SETUP, 2, 5),
+		RngKey.new(RngKey.RngPurpose.MAP_LOOT, 2, 5, 1, 3),
+	]:
+		_draws(session.rng.stream(unsaved), 2)
+	if not restored:
+		push_error("rng tests: the fixture run didn't restore")
+	return session
+
+
+# The keys of captured section data, in its order.
+func _keys_of(data: Dictionary) -> Array[RngKey]:
+	var keys: Array[RngKey] = []
+	for save_key: Variant in data:
+		keys.append(RngKey.from_save_key(save_key as String))
+	return keys
+
+
+func _block_label(block: SaveSection.Block) -> String:
+	return "combat" if block == SaveSection.Block.COMBAT else "campaign"
 
 
 # The next `count` d100 rolls of a stream.
