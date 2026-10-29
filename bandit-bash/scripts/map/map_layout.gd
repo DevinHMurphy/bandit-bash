@@ -6,7 +6,7 @@
 # File:     map_layout.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 27, 2026
+# Modified: October 28, 2026
 # ==============================================================================
 
 class_name MapLayout
@@ -245,7 +245,8 @@ class Terrain:
 		return terrain
 
 
-## One authored marker on one tile.
+## One authored marker on one tile, from a marker layer or a [MapMarker] node. Parameters a kind
+## doesn't use keep their defaults.
 class Marker:
 	extends RefCounted
 
@@ -259,3 +260,12 @@ class Marker:
 	var index: int = -1
 	## The stable index among containers, the [code]MAP_LOOT[/code] index; -1 when not one.
 	var container_index: int = -1
+	## An enemy slot's position variance: how far from [member tile] its enemy may be placed
+	## ([member MapMarker.variance_tiles]). 0 for a fixed slot and for other kinds.
+	var variance_tiles: int = 0
+	## An enemy slot's group slot ([member MapMarker.group_slot]); empty for none.
+	var group_slot: String = ""
+	## The lever group a door or lever belongs to; -1 for none. [MapCheck] matches them up.
+	var group_id: int = -1
+	## The pair a passage end belongs to; -1 for none. [MapCheck] matches them up.
+	var pair_id: int = -1
