@@ -6,7 +6,7 @@
 # File:     effect_engine.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 28, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 class_name EffectEngine
@@ -145,6 +145,8 @@ var _opening: InlineWindow = null
 var _generation: int = 0
 
 var _observers: Array[Callable] = []
+
+var _context_observers: Array[Callable] = []
 
 # Value queries in progress, by subject, key and stat, so a condition that reads the value it
 # modifies sees the static part instead of recursing.
@@ -326,6 +328,8 @@ func record(fact: CombatFact, ctx: EffectContext = null) -> void:
 		_run.sheets.erase(fact.actor_id)
 	for observer: Callable in _observers:
 		observer.call(fact)
+	for observer: Callable in _context_observers:
+		observer.call(fact, ctx)
 
 	var window: InlineWindow = _windows.get(fact, null)
 	if window != null:
@@ -504,7 +508,7 @@ func tile_distance(from_id: String, to_id: String) -> int:
 ## [method SandboxState.copy_for_sandbox], copies of every instance (counters and charges), timed
 ## modifiers, base values, deltas, waiting reactions and the phase and attack counts, so facts
 ## continue from this engine's [member CombatFact.seq]. Its fact log and diagnostics start empty
-## and it has no observers. Nothing it does reaches this engine. Main thread only.
+## and it has no observers of either kind. Nothing it does reaches this engine. Main thread only.
 func copy_for_sandbox(roll_source: RollSource) -> EffectEngine:
 	var run: RunState = _run.copy()
 	var copy: EffectEngine = EffectEngine.new(
@@ -529,6 +533,15 @@ func copy_for_sandbox(roll_source: RollSource) -> EffectEngine:
 ## Standout, objectives). It must not change rules state.
 func add_observer(observer: Callable) -> void:
 	_observers.append(observer)
+
+
+## Adds a read-only listener called as [code]observer(fact, ctx)[/code] with every fact as it is
+## recorded, after the [method add_observer] listeners: [param ctx] is the context the fact was
+## recorded with ("that attack", "that hit", with its inline changes so far), or null when none.
+## Read-only like any observer: it must change neither rules state nor the context. The forecast
+## reads each hit's own context through it ([CombatForecast]).
+func add_context_observer(observer: Callable) -> void:
+	_context_observers.append(observer)
 
 
 ## Whether [param unit_id] is in [param scope] relative to [param owner] (effect-triggers.md,

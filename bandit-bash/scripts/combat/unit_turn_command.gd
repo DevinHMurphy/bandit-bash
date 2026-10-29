@@ -6,7 +6,7 @@
 # File:     unit_turn_command.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 28, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 class_name UnitTurnCommand
@@ -99,10 +99,10 @@ func get_target_id() -> String:
 	return target_id
 
 
-func forecast_reads() -> PackedStringArray:
-	if action != Action.ATTACK and action != Action.STAFF and action != Action.SHOVE:
-		return PackedStringArray()
-	return PackedStringArray([actor_id, get_target_id()])
+## Attacks, staves and shoves act on what their forecast showed; every other action only needs to
+## be legal.
+func needs_fresh_forecast() -> bool:
+	return action == Action.ATTACK or action == Action.STAFF or action == Action.SHOVE
 
 
 func validate(session: CombatSession) -> String:
@@ -117,14 +117,12 @@ func validate(session: CombatSession) -> String:
 			return "%s has no move left after acting" % [actor_id]
 	elif unit.has_acted:
 		return "%s has acted" % [actor_id]
-	var walk: Array[Vector2i] = _walk(session.state)
-	var check: CombatGrid.PathCheck = session.state.validate_path(session.engine, actor_id, walk)
-	if not check.is_legal:
-		return "path: %s" % [check.reason]
-	# The action is checked from the path's last tile on a copy, so nothing real moves.
+	# The path and the action are checked on a copy, so nothing real moves.
 	var trial: EffectEngine = session.engine.copy_for_sandbox(ForcedRolls.new())
 	var trial_state: CombatState = trial.state
-	_walk_to(trial, trial_state, walk, check)
+	var check: CombatGrid.PathCheck = walk_path(trial, trial_state, actor_id, path)
+	if not check.is_legal:
+		return "path: %s" % [check.reason]
 	return _action_reason(trial, trial_state)
 
 
@@ -138,8 +136,7 @@ func resolve(session: CombatSession) -> void:
 			moved.tile = state.tile_of(unit_id)
 			engine.record(moved)
 		return
-	var walk: Array[Vector2i] = _walk(state)
-	_walk_to(engine, state, walk, state.validate_path(engine, actor_id, walk))
+	walk_path(engine, state, actor_id, path)
 	match action:
 		Action.WAIT:
 			state.wait(engine, actor_id)
@@ -231,29 +228,27 @@ func _uses_sidearm(state: CombatState) -> bool:
 	)
 
 
-# The path to walk: as sent, or the unit's own tile when it stays.
-func _walk(state: CombatState) -> Array[Vector2i]:
-	if not path.is_empty():
-		return path
-	var stay: Array[Vector2i] = [state.tile_of(actor_id)]
-	return stay
-
-
-# Moves the unit to the path's end, counts the tiles and cost, and records Unit moved when it
-# moved. [param check] is the path's legal check.
-func _walk_to(
-		engine: EffectEngine,
-		state: CombatState,
-		walk: Array[Vector2i],
-		check: CombatGrid.PathCheck
-) -> void:
-	if check.tiles_moved == 0:
-		return
+## Walks [param unit_id] along [param path] in [param state]: checks it
+## ([method CombatState.validate_path]; an empty path stays on the unit's tile) and, if it is legal
+## and leaves the tile, moves the unit to its last tile, adds the tiles and movement cost to its
+## turn, and records [constant CombatFact.Kind.UNIT_MOVED]. An illegal path changes nothing.
+## The command and [CombatForecast] both walk through this, so a forecast walks as the command
+## does. Returns the path's check.
+static func walk_path(
+		engine: EffectEngine, state: CombatState, unit_id: String, path: Array[Vector2i]
+) -> CombatGrid.PathCheck:
+	var walk: Array[Vector2i] = path
+	if walk.is_empty():
+		walk = [state.tile_of(unit_id)]
+	var check: CombatGrid.PathCheck = state.validate_path(engine, unit_id, walk)
+	if not check.is_legal or check.tiles_moved == 0:
+		return check
 	var end: Vector2i = walk[walk.size() - 1]
-	state.move_unit(actor_id, end)
-	var unit: CombatUnitState = state.unit(actor_id)
+	state.move_unit(unit_id, end)
+	var unit: CombatUnitState = state.unit(unit_id)
 	unit.tiles_moved += check.tiles_moved
 	unit.movement_spent += check.cost
-	var moved: CombatFact = CombatFact.new(CombatFact.Kind.UNIT_MOVED, actor_id)
+	var moved: CombatFact = CombatFact.new(CombatFact.Kind.UNIT_MOVED, unit_id)
 	moved.tile = end
 	engine.record(moved)
+	return check

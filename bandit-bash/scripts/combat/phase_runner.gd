@@ -6,7 +6,7 @@
 # File:     phase_runner.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 28, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 class_name PhaseRunner
@@ -280,7 +280,7 @@ static func _heal_on_terrain(session: CombatSession, unit_id: String) -> void:
 		var is_allowed: bool = run.call(session, unit_id)
 		if not is_allowed:
 			return
-	# ASSUMPTION: the percent part is exact and the heal path rounds the total once, half up
-	# (event bus plan, questions 17 and 29); Godot_FE floored the percent part on its own.
+	# The percent part is exact and the heal path rounds the total once, half up (event bus plan,
+	# questions 17 and 29); Godot_FE floored the percent part on its own.
 	var amount: float = bonus.heal_flat + max_hp * bonus.heal_percent / 100.0
 	session.engine.heal(unit_id, amount)
