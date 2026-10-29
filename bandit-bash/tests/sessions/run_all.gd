@@ -13,7 +13,7 @@ extends SceneTree
 ## Headless tests for the sessions layer: [InstanceIdAllocator], [Command] and the session queue,
 ## [CombatSession], [FactPlayback] and [PresentationRequest]; [CombatEncounter]'s setup steps,
 ## stream injection, cross-map effects, routing and transfers; [CampaignSession]'s battle bridge
-## and grants; and the [code]CampaignService[/code] autoload's lifecycle.
+## and grants; and the [code]CampaignService[/code] autoload's lifecycle and its [RngSaveSection]s.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/sessions/run_all.gd[/code][br]
@@ -108,7 +108,11 @@ func _process(_delta: float) -> bool:
 	_run(_test_dropped_grant_not_recorded)
 	_run(_test_bridge_restart_rolls_the_same)
 	_run(_test_bridge_close_mid_battle)
+	_run(_test_rng_section_refuses_a_battle)
 	_run(_test_service_lifecycle)
+	_run(_test_service_rng_campaign_streams)
+	_run(_test_service_rng_battle_streams)
+	_run(_test_service_rng_held_data_dropped)
 
 	_run(_test_logger_gating)
 	_run(_test_logging_changes_nothing)
@@ -1267,14 +1271,34 @@ func _test_bridge_close_mid_battle() -> bool:
 	return true
 
 
+# A restore replaces stream objects, so held data must never be applied to a run whose battle
+# sessions already hold their streams.
+func _test_rng_section_refuses_a_battle() -> bool:
+	var run: CampaignSession = CampaignSession.new(
+			CampaignData.Mode.SOLO, RUN_SEED, PackedInt32Array([0])
+	)
+	var battle: CombatEncounter = run.begin_battle(_request(run, {}))
+	var rolls: RngStream = run.rng.stream(Battle.rolls_key(0))
+	battle.get_session(0).engine.rolls.roll_percent(50)
+	var before: String = rolls.capture()
+	var fresh_state: String = Battle.fresh_stream(RngKey.RngPurpose.COMBAT_ROLLS, 0, -1).capture()
+	var saved: Dictionary = {Battle.rolls_key(0).to_save_key(): fresh_state}
+	var section: RngSaveSection = RngSaveSection.new(SaveSection.Block.COMBAT)
+	section.restore(saved)
+	print("    (one error about restoring into a battle in progress follows)")
+	var err: Error = section.attach(run)
+	_check("rng section: attach refuses a run with a battle on", (
+			err == ERR_ALREADY_IN_USE
+			and is_same(run.rng.stream(Battle.rolls_key(0)), rolls)
+			and rolls.capture() == before
+	), error_string(err))
+	_check("rng section: and keeps the data held", section.capture() == saved)
+	run.end_battle()
+	return true
+
+
 func _test_service_lifecycle() -> bool:
-	var custom_dir: bool = ProjectSettings.get_setting(
-			"application/config/use_custom_user_dir", false
-	)
-	var dir_name: String = ProjectSettings.get_setting(
-			"application/config/custom_user_dir_name", ""
-	)
-	if not custom_dir or not dir_name.contains("test"):
+	if not _has_test_user_dir():
 		_skips += 1
 		print("SKIP  service lifecycle: needs a test user folder (see the class doc)")
 		return true
@@ -1392,6 +1416,214 @@ func _test_service_lifecycle() -> bool:
 	saves.disconnect(&"run_ended", on_run_ended)
 	service.disconnect(&"session_started", on_started)
 	service.disconnect(&"session_ended", on_ended)
+	SaveFile.delete_folder("user://saves/")
+	return true
+
+
+# Through the real SaveService: a new run draws campaign streams, saves, closes and continues, and
+# its next draws match a run that was never interrupted. Events don't exist yet; REWARD stands in
+# for a stream drawn mid-event.
+func _test_service_rng_campaign_streams() -> bool:
+	if not _has_test_user_dir():
+		_skips += 1
+		print("SKIP  service rng campaign streams: needs a test user folder (see the class doc)")
+		return true
+	var saves: Node = root.get_node(^"SaveService")
+	var service: Node = root.get_node(^"CampaignService")
+	SaveFile.delete_folder("user://saves/")
+	var keys: Array[RngKey] = [
+		RngKey.new(RngKey.RngPurpose.MAP_GENERATION),
+		RngKey.new(RngKey.RngPurpose.REWARD, FLOOR, NODE, 0),
+	]
+	var uninterrupted: RngStreams = RngStreams.new(RUN_SEED)
+
+	saves.call(&"open_save_file", 1)
+	saves.call(&"start_new_solo_run", RUN_SEED)
+	var first: CampaignSession = service.get(&"session")
+	for key: RngKey in keys:
+		_draws(first.rng.stream(key), 5)
+		_draws(uninterrupted.stream(key), 5)
+	var saved: int = saves.call(&"save_checkpoint")
+	var file: CampaignData = _read_campaign(saves)
+	var entry: Dictionary = file.sections.get("rng", {})
+	var data: Dictionary = entry.get("data", {})
+	_check("service rng: the campaign file has an rng section at version 1", (
+			saved == OK
+			and entry.get("version", 0) as int == 1
+			and data == first.rng.capture_campaign()
+			and data.size() == keys.size()
+	), str(entry))
+
+	saves.call(&"close_save_file")
+	saves.call(&"open_save_file", 1)
+	var continued: int = saves.call(&"continue_solo_run")
+	var second: CampaignSession = service.get(&"session")
+	var expected: Array = []
+	var actual: Array = []
+	for key: RngKey in keys:
+		expected.append(_draws(uninterrupted.stream(key), 10))
+		actual.append(_draws(second.rng.stream(key), 10))
+	_check("service rng: a continued run's campaign streams draw on as if never saved", (
+			continued == OK and second != null and second != first and actual == expected
+	), error_string(continued))
+
+	saves.call(&"abandon_run", CampaignData.Mode.SOLO)
+	saves.call(&"close_save_file")
+	SaveFile.delete_folder("user://saves/")
+	return true
+
+
+# Begin, roll, save, close and resume: the battle's rolls go on where they were. Then the same
+# battle with a combat file that can't be trusted restarts from Begin (BATTLE_RETRY) from fresh
+# streams, never from the file's saved rng section, and replays its Begin rolls.
+func _test_service_rng_battle_streams() -> bool:
+	if not _has_test_user_dir():
+		_skips += 1
+		print("SKIP  service rng battle streams: needs a test user folder (see the class doc)")
+		return true
+	var saves: Node = root.get_node(^"SaveService")
+	var service: Node = root.get_node(^"CampaignService")
+	SaveFile.delete_folder("user://saves/")
+	var reward_key: RngKey = RngKey.new(RngKey.RngPurpose.REWARD, FLOOR, NODE, 0)
+	var reward_reference: RngStream = RngStreams.new(RUN_SEED).stream(reward_key)
+	var rolls_reference: RngStream = Battle.fresh_stream(RngKey.RngPurpose.COMBAT_ROLLS, 0, -1)
+
+	saves.call(&"open_save_file", 1)
+	saves.call(&"start_new_solo_run", RUN_SEED)
+	var run: CampaignSession = service.get(&"session")
+	_draws(run.rng.stream(reward_key), 3)
+	_draws(reward_reference, 3)
+	var begun: int = service.call(&"begin_battle", _request(run, {0: ["Drengr"]}))
+	# One roll through the battle's session, then the rest on the registry's stream: they match
+	# the reference only if the session holds that very stream.
+	var begin_hit: bool = rolls_reference.roll_percent(50)
+	var begin_rolls: Array[int] = _draws(rolls_reference, 6)
+	var first_hit: bool = run.encounter.get_session(0).engine.rolls.roll_percent(50)
+	var first_rolls: Array[int] = _draws(run.rng.stream(Battle.rolls_key(0)), 6)
+	var phase_saved: int = saves.call(&"save_checkpoint")
+	var next_rolls: Array[int] = _draws(rolls_reference, 6)
+	_check("service rng: a battle rolls from a fresh COMBAT_ROLLS stream", (
+			begun == OK
+			and phase_saved == OK
+			and first_hit == begin_hit
+			and first_rolls == begin_rolls
+	), "%s, %s" % [error_string(begun), error_string(phase_saved)])
+
+	saves.call(&"close_save_file")
+	saves.call(&"open_save_file", 1)
+	saves.call(&"continue_solo_run")
+	var resumed: CampaignSession = service.get(&"session")
+	var resume_point: int = saves.get(&"resume_point")
+	_check("service rng: a resumed battle's rolls go on where they were saved", (
+			resume_point == CombatData.ResumePoint.BATTLE
+			and _draws(resumed.rng.stream(Battle.rolls_key(0)), 6) == next_rolls
+	), "resume point %d" % [resume_point])
+	_check("service rng: and the campaign streams are as they were at Begin", (
+			_draws(resumed.rng.stream(reward_key), 4) == _draws(reward_reference, 4)
+	))
+
+	# A combat file several checkpoints ahead isn't trusted, though its rng section is readable and
+	# holds the rolls already made.
+	saves.call(&"close_save_file")
+	var combat_path: String = (
+			(saves.call(&"get_save_file_dir", 1) as String)
+			+ CombatData.get_file_name(CampaignData.Mode.SOLO)
+	)
+	var combat_file: SaveFile.ReadResult = SaveFile.read(combat_path)
+	var envelope: Dictionary = combat_file.envelope
+	var saved_sections: Dictionary = envelope.get(SaveFile.KEY_SECTIONS, {})
+	envelope[SaveFile.KEY_CHECKPOINT_SEQ] = envelope[SaveFile.KEY_CHECKPOINT_SEQ] as int + 5
+	var rewritten: Error = SaveFile.write(combat_path, envelope)
+	saves.call(&"open_save_file", 1)
+	print("    (one warning about a battle that restarts from Begin follows)")
+	saves.call(&"continue_solo_run")
+	var retried: CampaignSession = service.get(&"session")
+	var retry_point: int = saves.get(&"resume_point")
+	var combat_section: RngSaveSection = service.get(&"_combat_rng")
+	_check("service rng: an untrusted combat file restarts the battle with no combat streams", (
+			rewritten == OK
+			and saved_sections.has("rng")
+			and retry_point == CombatData.ResumePoint.BATTLE_RETRY
+			and retried.rng.capture_combat().is_empty()
+			and combat_section.capture().is_empty()
+	), "resume point %d" % [retry_point])
+	var rebegun: int = service.call(&"begin_battle", _request(retried, {0: ["Drengr"]}))
+	var retry_hit: bool = (
+			rebegun == OK and retried.encounter.get_session(0).engine.rolls.roll_percent(50)
+	)
+	_check("service rng: the restarted battle replays its Begin rolls from fresh streams", (
+			rebegun == OK
+			and retry_hit == begin_hit
+			and _draws(retried.rng.stream(Battle.rolls_key(0)), 6) == begin_rolls
+	), error_string(rebegun))
+
+	service.call(&"end_battle")
+	saves.call(&"abandon_run", CampaignData.Mode.SOLO)
+	saves.call(&"close_save_file")
+	SaveFile.delete_folder("user://saves/")
+	return true
+
+
+# Data SaveService restored but no session took yet (a multiplayer campaign waiting in its lobby)
+# is dropped by clear_campaign() and by the run's end; loading a multiplayer campaign drops the
+# run that was live before it (event bus plan, question 47).
+func _test_service_rng_held_data_dropped() -> bool:
+	if not _has_test_user_dir():
+		_skips += 1
+		print("SKIP  service rng held data: needs a test user folder (see the class doc)")
+		return true
+	var saves: Node = root.get_node(^"SaveService")
+	var service: Node = root.get_node(^"CampaignService")
+	var campaign_rng: RngSaveSection = service.get(&"_campaign_rng")
+	var combat_rng: RngSaveSection = service.get(&"_combat_rng")
+	SaveFile.delete_folder("user://saves/")
+
+	saves.call(&"open_save_file", 1)
+	saves.call(&"start_new_solo_run", RUN_SEED)
+	saves.call(&"clear_campaign")
+	var steam_ids: PackedInt64Array = [76561198000000001, 76561198000000002]
+	saves.call(&"start_new_multiplayer_run", steam_ids)
+	var hosted: CampaignSession = service.get(&"session")
+	_draws(hosted.rng.stream(RngKey.new(RngKey.RngPurpose.REWARD, FLOOR, NODE, 1)), 4)
+	service.call(&"begin_battle", _request(hosted, {}))
+	_draws(hosted.rng.stream(Battle.rolls_key(1)), 4)
+	saves.call(&"save_checkpoint")
+	var hosted_campaign: Dictionary = campaign_rng.capture()
+	var hosted_combat: Dictionary = combat_rng.capture()
+
+	saves.call(&"clear_campaign")
+	_check("service rng: clearing a live run leaves nothing to save", (
+			campaign_rng.capture().is_empty() and combat_rng.capture().is_empty()
+	))
+
+	saves.call(&"continue_solo_run")
+	var solo: CampaignSession = service.get(&"session")
+	_draws(solo.rng.stream(RngKey.new(RngKey.RngPurpose.MAP_GENERATION)), 3)
+	var loaded: int = saves.call(&"load_multiplayer_campaign")
+	_check("service rng: loading a multiplayer campaign drops the live run's streams", (
+			loaded == OK
+			and solo.is_closed
+			and service.get(&"session") == null
+			and not hosted_campaign.is_empty()
+			and not hosted_combat.is_empty()
+			and campaign_rng.capture() == hosted_campaign
+			and combat_rng.capture() == hosted_combat
+	), error_string(loaded))
+
+	saves.call(&"clear_campaign")
+	_check("service rng: clear_campaign drops the held data", (
+			campaign_rng.capture().is_empty() and combat_rng.capture().is_empty()
+	))
+
+	saves.call(&"load_multiplayer_campaign")
+	var was_held: bool = campaign_rng.capture() == hosted_campaign
+	saves.call(&"end_run", false)
+	_check("service rng: the run's end drops the held data", (
+			was_held and campaign_rng.capture().is_empty() and combat_rng.capture().is_empty()
+	))
+
+	saves.call(&"abandon_run", CampaignData.Mode.SOLO)
+	saves.call(&"close_save_file")
 	SaveFile.delete_folder("user://saves/")
 	return true
 
@@ -1626,6 +1858,38 @@ func _seqs(facts: Array[CombatFact]) -> String:
 	for fact: CombatFact in facts:
 		parts.append(str(fact.seq))
 	return " ".join(parts)
+
+
+# The next `count` d100 rolls of a stream.
+func _draws(stream: RngStream, count: int) -> Array[int]:
+	var rolls: Array[int] = []
+	for i: int in count:
+		rolls.append(stream.randi_range(0, 99))
+	return rolls
+
+
+# Whether this run uses a test user folder, which the lifecycle cases need (see the class doc).
+func _has_test_user_dir() -> bool:
+	var custom_dir: bool = ProjectSettings.get_setting(
+			"application/config/use_custom_user_dir", false
+	)
+	var dir_name: String = ProjectSettings.get_setting(
+			"application/config/custom_user_dir_name", ""
+	)
+	return custom_dir and dir_name.contains("test")
+
+
+# Save file 1's solo campaign as written on disk.
+func _read_campaign(saves: Node) -> CampaignData:
+	var path: String = (
+			(saves.call(&"get_save_file_dir", 1) as String)
+			+ CampaignData.get_file_name(CampaignData.Mode.SOLO)
+	)
+	var loaded: CampaignData = CampaignData.new()
+	var result: SaveFile.ReadResult = SaveFile.read(path)
+	if result.error != OK or loaded.load_envelope(result.envelope) != OK:
+		push_error("sessions tests: can't read %s" % [path])
+	return loaded
 
 
 # Runs one case. A script error aborts a case without failing a check, so each case returns true

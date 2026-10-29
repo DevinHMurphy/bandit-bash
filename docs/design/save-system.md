@@ -106,8 +106,9 @@ func reset() -> void:
    later misses that file's load.
 4. Reserved keys are already held by a placeholder until their system arrives; registering under
    the same key takes the slot over and reads whatever was saved there at version 1. Reserved now:
-   profile `unlocks`, `achievements`, `statistics`, `hall_of_heroes`; campaign `rng`; combat
-   `enemy_units`, `entities`, `rng`. The archive copies the per-player section named `roster`.
+   profile `unlocks`, `achievements`, `statistics`, `hall_of_heroes`; combat `enemy_units`,
+   `entities`. `CampaignService` has taken over the campaign and combat `rng` keys
+   ([RNG streams](#rng-streams)). The archive copies the per-player section named `roster`.
 5. In your class doc, add `@tutorial(Save system design): docs/design/save-system.md` and say which
    block and key you own.
 
@@ -174,7 +175,50 @@ On continue, `SaveService.resume_point` says where to pick up:
 
 A combat system must therefore keep battle-changed state (unit HP, items used, deaths) in its
 `COMBAT` section, and apply the results to `CAMPAIGN`/player sections only before `end_battle()`.
-A resumed enemy phase replays identically only once the RNG manager saves its state in `rng`.
+A resumed battle's rolls continue where they were saved (next section).
+
+## RNG streams
+
+Every gameplay random result comes from a stream in the run's `RngStreams`, which the
+`CampaignSession` holds ([RNG streams plan](../plans/2026-10-26-rng-streams.md)). A stream's seed
+is re-derived from the run seed (`CampaignData.run_seed`, in `core`) and the stream's key, so a
+save holds only where each live stream has got to. `CampaignService` registers two sections, both
+`RngSaveSection`:
+
+| Block | Key | Version | Holds |
+|-------|-----|---------|-------|
+| `CAMPAIGN` | `rng` | 1 | Every live stream of a campaign purpose: map, routes, `?` nodes, events, starting offer, shop, prefix re-rolls, rewards, level-ups |
+| `COMBAT` | `rng` | 1 | The battle's live `COMBAT_ROLLS` streams, one per seat |
+
+Both have the same shape, `{save_key: state}`:
+
+```json
+"rng": { "version": 1, "data": { "9:2:5:0:-1": "62431fcec4f6c10e" } }
+```
+
+- **`save_key`** is the stream's key as numbers, `purpose:floor:node:seat:index` (`-1` for an
+  unused part). Numbers, not names, so renaming a purpose changes no save.
+- **`state`** is 16 hex digits. It is a string because it is a 64-bit integer, above JSON's 2^53.
+- **Every seat's streams are in the one section.** They live in one registry on the host, so these
+  are `SaveSection`s, not `PlayerSaveSection`s.
+- **Never saved:** seeds (re-derived from the key), and the `ENCOUNTER_SETUP` and `MAP_LOOT`
+  streams. A battle's setup draws those two in full at Begin; what they decide (the map, enemies,
+  container contents) is battle state, saved in `enemy_units` and `entities`.
+- **Restore is all or nothing.** An unknown key, a key whose purpose belongs to the other block
+  or is never saved, or a state that isn't a valid string fails the whole section. That stops the
+  load; for the combat block it means the battle restarts from Begin.
+- **Load order.** Sections restore while a file loads, before the run's session exists. The section
+  checks the data and holds it; `CampaignService` applies it to the new session before
+  `session_started`, so nothing can draw from a stream about to be replaced.
+- **`BATTLE`** continues each `COMBAT_ROLLS` stream from the last battle save. **`BATTLE_RETRY`**
+  uses nothing from the combat section: the battle's streams start fresh from their keys, so the
+  restarted battle replays the Begin rolls.
+- **A campaign stream drawn during a battle** is saved only by `end_battle()`, since campaign
+  writes keep the sections captured at Begin. A resumed battle would draw it again from its Begin
+  position.
+
+Rolling back to an older build is safe: one without `RngSaveSection` holds `rng` as a reserved
+placeholder (or as an unknown section) and writes the data back unchanged.
 
 ## Multiplayer
 
