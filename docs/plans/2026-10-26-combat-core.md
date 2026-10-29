@@ -3,7 +3,8 @@
 **Status:** **Approved** October 26, 2026, after review (questions 9–12 answered, seven fixes
 applied). In progress: CC1–CC5 implemented October 27, 2026 (with P01 fixes F9–F12); CC6
 (turn loop, hooks, commands, the opening swap window and Start) implemented October 28, 2026 with
-P04 MP4 (525 headless combat tests pass, question 18). CC7 is next; CC8 waits on P01 EB7.
+P04 MP4 (question 18); CC7 (forecast, AI summary, the any-fact stale rule) implemented October 29,
+2026 (608 headless combat tests pass, question 19). CC8 waits on P01 EB7.
 Orchestrator ID
 **P02** ([game-orchestrator.md](game-orchestrator.md)).
 
