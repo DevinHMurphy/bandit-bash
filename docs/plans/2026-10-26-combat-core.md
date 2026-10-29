@@ -1,9 +1,10 @@
 # Plan: Combat Core
 **Date:** October 26, 2026
 **Status:** **Approved** October 26, 2026, after review (questions 9–12 answered, seven fixes
-applied). In progress: CC1–CC5 implemented October 27, 2026 (with P01 fixes F9–F12); CC6 part 1
-(turn loop, hooks, commands) built October 28, 2026 on `feature/CC6-MP4` (491 headless combat
-tests pass, question 18), its opening-swap part waiting on the P04 MP3 fix-ups. Orchestrator ID
+applied). In progress: CC1–CC5 implemented October 27, 2026 (with P01 fixes F9–F12); CC6
+(turn loop, hooks, commands, the opening swap window and Start) implemented October 28, 2026 with
+P04 MP4 (525 headless combat tests pass, question 18). CC7 is next; CC8 waits on P01 EB7.
+Orchestrator ID
 **P02** ([game-orchestrator.md](game-orchestrator.md)).
 
 The rules of a fight: turns and phases, the action economy, the exchange (Attack Speed, bonus
