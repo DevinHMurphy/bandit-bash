@@ -24,14 +24,15 @@ extends SandboxState
 ## the weapon records, which are shared and never changed by rules code; [member map] is copied.
 ## Questions that depend on units or map objects ([method can_stand], [method blocker_at],
 ## [method validate_path]) are answered here, never by the shared grid.[br]
-## Each weapon's numbers ([WeaponStats]) become its holder's base values when the unit is placed
-## or swaps weapons ([method load_bases]), so effects that replace a weapon's base (Short Quiver's
-## range) and conditions that read it (at maximum range) see the weapon in the Weapon slot.
+## Each weapon's numbers ([WeaponStats], built by [Loadout] from its definition) become its
+## holder's base values when the unit is placed or swaps weapons ([method load_bases]), so effects
+## that replace a weapon's base (Short Quiver's range) and conditions that read it (at maximum
+## range) see the weapon in the Weapon slot. A weapon prefix and an item's deltas are effects of
+## the item, never part of its record, so they sleep with a stowed weapon.
 ##
 ## @tutorial(Combat core plan): docs/plans/2026-10-26-combat-core.md
 ##
 ## @todo: TOD-001 - Answer darkness_layer() from the darkness plan (P06); every tile is DRY.
-## @todo: TOD-002 - Read weapon numbers from the weapons plan's (P03) definitions and instances.
 
 ## Terrain and walls. Shared with sandbox copies. Never null in use.
 var grid: CombatGrid = null
@@ -68,8 +69,7 @@ var _order: PackedStringArray = []
 
 var _occupancy: Dictionary[Vector2i, String] = {}
 
-# ASSUMPTION: the combat state holds each weapon's combat numbers; P02 names no source for them.
-# TODO(TOD-002): Weapon records by instance id, until the weapons plan (P03) supplies them.
+# Weapon records by item instance id, from the loadout.
 var _weapons: Dictionary[String, WeaponStats] = {}
 
 
@@ -368,8 +368,9 @@ func deal_splash(
 	)
 
 
-## One weapon's numbers in combat (game-vision.md, Weapons and equipment; weapons.md). Read-only
-## once added to a [CombatState].
+## One weapon's numbers in combat (game-vision.md, Weapons and equipment; weapons.md): its
+## [WeaponDefinition]'s, copied by [method Loadout.weapon_record]. Read-only once added to a
+## [CombatState].
 class WeaponStats:
 	extends RefCounted
 
@@ -389,8 +390,8 @@ class WeaponStats:
 	var id: String = ""
 	## Display name for breakdowns, such as "Iron Sword".
 	var label: String = ""
-	# ASSUMPTION: weapon types are names until the weapons plan (P03) defines them.
-	## Weapon type, such as "Bow" or "Anima": which units can use it, and what conditions test.
+	## Weapon type, from [constant ContentIds.WEAPON_TYPES], such as [code]bow[/code]: which units
+	## can use it, and what conditions test.
 	var weapon_type: String = ""
 	## Weapon damage: the Attack stage's base, the triangle's and effectiveness's measure.
 	var damage: int = 0
@@ -412,7 +413,8 @@ class WeaponStats:
 	var weight: int = 0
 	## Which mitigation stat it meets.
 	var damage_type: CombatFact.DamageType = CombatFact.DamageType.PHYSICAL
-	## Unit tags it is effective against, such as "Flier".
+	## Unit tags it is effective against, from [constant ContentIds.TAGS], such as
+	## [code]flier[/code].
 	var effective_against: PackedStringArray = []
 	## What it does as a staff.
 	var staff: Staff = Staff.NONE

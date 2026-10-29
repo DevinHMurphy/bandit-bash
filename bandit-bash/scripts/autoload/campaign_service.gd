@@ -6,7 +6,7 @@
 # File:     campaign_service.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 28, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 extends Node
@@ -14,9 +14,10 @@ extends Node
 ## checkpoints.
 ##
 ## Registered as autoload [code]CampaignService[/code], after [code]SaveService[/code] (its
-## [code]_ready()[/code] connects to it) and before [code]SceneRouter[/code]. [b]Why an
-## autoload:[/b] the session must outlive every screen change, and the save sections it owns must
-## register before any save file opens (campaign and run flow plan, question 1).[br]
+## [code]_ready()[/code] connects to it) and before [code]SceneRouter[/code]; its
+## [code]_ready()[/code] also loads the content catalog ([method EffectCatalog.load_catalog]).
+## [b]Why an autoload:[/b] the session must outlive every screen change, and the save sections it
+## owns must register before any save file opens (campaign and run flow plan, question 1).[br]
 ## A session is built on [signal SaveService.campaign_activated] and closed on
 ## [signal SaveService.run_ended], [signal SaveService.save_file_closed] and
 ## [signal SaveService.campaign_cleared], so every way a run starts (new, continued, resumed, the
@@ -45,6 +46,9 @@ var _combat_rng: RngSaveSection = RngSaveSection.new(SaveSection.Block.COMBAT)
 
 
 func _ready() -> void:
+	# The content catalog loads here, on the main thread, before anything can look content up from
+	# a worker thread (EffectCatalog's class doc). No earlier autoload reads content.
+	EffectCatalog.load_catalog()
 	# Replaces the placeholders SaveService reserved under the same key.
 	SaveService.register_section(SaveSection.Block.CAMPAIGN, _campaign_rng)
 	SaveService.register_section(SaveSection.Block.COMBAT, _combat_rng)

@@ -1,0 +1,55 @@
+[gd_resource type="Resource" script_class="UnitTypeDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="2_op"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="3_mod"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/set_permission.gd" id="4_perm"]
+[ext_resource type="Script" path="res://scripts/content/unit_type_definition.gd" id="5_unit"]
+
+[sub_resource type="Resource" id="Resource_trait_op"]
+script = ExtResource("3_mod")
+key = 6
+value = 15.0
+
+[sub_resource type="Resource" id="Resource_trait"]
+script = ExtResource("1_eff")
+id = "loadout_thief_trait"
+operations = Array[ExtResource("2_op")]([SubResource("Resource_trait_op")])
+
+[sub_resource type="Resource" id="Resource_plus_op"]
+script = ExtResource("3_mod")
+key = 6
+value = 25.0
+
+[sub_resource type="Resource" id="Resource_plus"]
+script = ExtResource("1_eff")
+id = "loadout_thief_trait_plus"
+operations = Array[ExtResource("2_op")]([SubResource("Resource_plus_op")])
+
+[sub_resource type="Resource" id="Resource_picks_op"]
+script = ExtResource("4_perm")
+permission = 3005
+
+[sub_resource type="Resource" id="Resource_picks"]
+script = ExtResource("1_eff")
+id = "loadout_thief_picks_locks"
+operations = Array[ExtResource("2_op")]([SubResource("Resource_picks_op")])
+
+[resource]
+script = ExtResource("5_unit")
+trait_name = "Opportunist"
+role = "dagger"
+weapon_types = PackedStringArray("dagger")
+movement_type = 2
+stance = 1
+starting_weapon_id = "loadout_simple_dagger"
+innate_effects = Array[ExtResource("1_eff")]([SubResource("Resource_picks")])
+base_stats = Dictionary[int, int]({0: 14, 1: 3, 2: 9, 3: 2, 4: 1, 5: 6, 6: 6})
+growths = Dictionary[int, int]({0: 65, 1: 30, 2: 65, 3: 25, 4: 20})
+upgraded_effects = Array[ExtResource("1_eff")]([SubResource("Resource_plus")])
+upgrade_stat_gains = Dictionary[int, int]({2: 1})
+upgrade_weapon_types = PackedStringArray("sword")
+is_commander = false
+id = "loadout_thief"
+display_name = "Thief"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_trait")])

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="UnitTypeDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/unit_type_definition.gd" id="1_unit"]
+
+[resource]
+script = ExtResource("1_unit")
+weapon_types = PackedStringArray("axe", "sword")
+stance = 3
+starting_weapon_id = "loadout_simple_axe"
+base_stats = Dictionary[int, int]({0: 24, 1: 5, 2: 6, 3: 3, 4: 2, 5: 13, 6: 5})
+growths = Dictionary[int, int]({0: 85, 1: 55, 2: 40, 3: 35, 4: 15})
+is_commander = true
+commander_heirloom_id = "loadout_iron_heart"
+id = "loadout_drengr"
+display_name = "Drengr"

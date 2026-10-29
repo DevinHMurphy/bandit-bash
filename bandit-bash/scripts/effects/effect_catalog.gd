@@ -21,10 +21,13 @@ extends RefCounted
 ## order wins and the repeat is reported in [method problems].[br]
 ## [b]Read-only:[/b] definitions are shared Resources, so never change one; per-unit and per-item
 ## state lives on instances. The content test hashes every definition before and after its run.[br]
-## Loads on the main thread, on [method load_catalog] or the first lookup. A lookup from another
-## thread before that finds nothing, because loading there could race. Static; never instantiated,
-## and not an autoload. [method load_tree] builds a separate [EffectCatalog.Index] of any folder,
-## which is how the content test runs the same loading on its fixtures.
+## Loads once, on the main thread: the [code]CampaignService[/code] autoload calls
+## [method load_catalog] at startup, and a main-thread lookup before then loads it too. A lookup
+## from another thread (P05's AI) before it has loaded is an error and finds nothing, since
+## loading there could race. Static; never instantiated, and not an autoload.
+## [method load_tree] builds a separate [EffectCatalog.Index] of any folder, which is how the
+## content test runs the same loading on its fixtures; [method index] hands the loaded catalog to
+## code that reads through an index ([Loadout]), so tests can pass a fixture tree instead.
 ##
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
 ## @tutorial(Content catalog plan): docs/plans/2026-10-29-content-catalog.md
@@ -102,6 +105,12 @@ static func load_catalog() -> void:
 ## Whether [method load_catalog] has run.
 static func is_loaded() -> bool:
 	return _index != null
+
+
+## The loaded catalog as an [EffectCatalog.Index], loading it first on the main thread. Never
+## null: an empty index from another thread before it has loaded (reported as an error).
+static func index() -> Index:
+	return _require()
 
 
 ## A new [EffectCatalog.Index] of every definition under [param root], walked the way the catalog
@@ -284,10 +293,14 @@ static func id_of(resource: Resource) -> String:
 	return ""
 
 
-# The catalog, loading it first on the main thread.
+# The catalog, loading it first on the main thread. From another thread before it loaded, the
+# empty index, with an error: a silent miss there would read as "no such content".
 static func _require() -> Index:
 	load_catalog()
-	return _index if _index != null else _empty
+	if _index == null:
+		push_error("EffectCatalog: looked up from another thread before load_catalog() ran")
+		return _empty
+	return _index
 
 
 # Adds every file under [param folder] to [param index], folders depth first, in name order, so

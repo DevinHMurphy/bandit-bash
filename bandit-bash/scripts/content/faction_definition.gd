@@ -12,8 +12,8 @@
 @tool
 class_name FactionDefinition
 extends EffectCarrierDefinition
-## A player faction: its commander, fixed starting army and max army size (game-vision.md, Run
-## structure; content catalog plan, question 10).
+## A player faction: its commander, fixed starting army, max army size and starting gold
+## (game-vision.md, Run structure; content catalog plan, questions 10 and 18).
 ##
 ## Lives in [code]res://data/factions/[/code]. The run start reads it to build the army. Every id
 ## it names must exist in the catalog; the content test checks them.
@@ -37,3 +37,7 @@ extends EffectCarrierDefinition
 ## past the hard ceiling of 8.[br]
 ## [b]Units:[/b] units. The Mercenary's is 4, and it starts full.
 @export_range(1, 8) var max_army_size: int = 4
+
+## Gold the army starts a run with (game-vision.md, the faction table: Mercenary 100).[br]
+## [b]Units:[/b] gold. [b]0:[/b] the run starts with none.
+@export_range(0, 1000, 1, "or_greater") var starting_gold: int = 0

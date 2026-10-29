@@ -146,7 +146,8 @@ func _test_chest_locks() -> void:
 	var world: ObjectWorld = ObjectWorld.new(PLAIN_ROWS, [[Vector2i(1, 0), CHEST]])
 	world.state().map.contents[0] = {"kind": "item", "rarity": "common"}
 	world.add_unit("p1", PLAYER, Vector2i(1, 0))
-	world.add_unit("p2", PLAYER, Vector2i(5, 3), "", ["Lockpicker"])
+	world.add_unit("p2", PLAYER, Vector2i(5, 3))
+	world.grant_lock_picking("p2")
 	world.add_unit("e1", ENEMY, Vector2i(0, 3))
 	var pick: String = world.give_item("p1", MapObjects.LOCKPICK_EFFECT_ID, 1)
 	world.open()
@@ -160,7 +161,7 @@ func _test_chest_locks() -> void:
 			MapObjects.check_use(world.engine(), world.state(), "p1", "object:0", pick),
 			"can't pick locks"
 	)
-	world.state().unit("p1").tags = PackedStringArray(["Lockpicker"])
+	world.grant_lock_picking("p1")
 	var batch: CombatSession.FactBatch = world.send(world.use("p1", "object:0", [], pick))
 	_ok("locks: a lock picker opens it", batch.rejected_reason.is_empty(), batch.rejected_reason)
 	_ok("locks: the lockpick is kept", world.state().unit("p1").pouch_item_id == pick)
@@ -715,6 +716,11 @@ class ObjectWorld:
 		"sword": [5, 1, WeaponTriangle.Profile.NIMBLE, 80, 8],
 	}
 
+	# The loadout fixtures' Thief: its innate effects grant CAN_PICK_LOCKS (no real Thief until
+	# P03 CT13).
+	const LOADOUT_TREE: String = "res://tests/content/fixtures/loadout/"
+	const LOCK_PICKER_TYPE: String = "loadout_thief"
+
 	var ids: InstanceIdAllocator = InstanceIdAllocator.new()
 	var session: CombatSession = null
 
@@ -797,6 +803,22 @@ class ObjectWorld:
 
 	# Puts an item in [param unit_id]'s Pouch whose use effect is [param effect_id] with
 	# [param uses] campaign-lane uses. Returns the item id.
+	# Registers the fixture Thief's innate effects on [param unit_id], as the loadout would, so it
+	# may pick locks.
+	func grant_lock_picking(unit_id: String) -> void:
+		var thief: UnitTypeDefinition = EffectCatalog.load_tree(LOADOUT_TREE).unit_type(
+				LOCK_PICKER_TYPE
+		)
+		for effect: EffectDefinition in thief.innate_effects:
+			session.engine.register(EffectInstance.new(
+					"eff:%s:%s" % [effect.id, unit_id],
+					effect,
+					EffectOwner.for_unit(unit_id, session.state.seat_of(unit_id), (
+							session.state.side_of(unit_id)
+					)),
+					Modifier.SourceKind.UNIT_TRAIT
+			))
+
 	func give_item(unit_id: String, effect_id: String, uses: int) -> String:
 		var item_id: String = "item:%s:%s" % [effect_id, unit_id]
 		var definition: EffectDefinition = EffectDefinition.new()

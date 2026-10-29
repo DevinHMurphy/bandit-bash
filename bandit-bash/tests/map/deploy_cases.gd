@@ -6,7 +6,7 @@
 # File:     deploy_cases.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 28, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -119,6 +119,18 @@ func _test_roles() -> void:
 	var thrower: CombatUnitState = _unit(world, "sellsword", "thrower")
 	_add_weapon(world, thrower.equipped_weapon_id, "javelin")
 	_ok("role: a 1-2 physical weapon stays melee", AutoDeploy.role_of(world.state, thrower) == 1)
+	# Question 13: the shover role, read from the unit type, makes a unit front; its name doesn't.
+	var shover: CombatUnitState = _unit(world, "sellsword", "shover")
+	shover.role = ContentIds.ROLE_SHOVER
+	_ok("role: the shover role is front", AutoDeploy.role_of(world.state, shover) == 0)
+	var named: CombatUnitState = _unit(world, "sellsword", "named")
+	named.unit_type = "Ward"
+	_ok("role: a type named Ward without the role is not", (
+			AutoDeploy.role_of(world.state, named) == 1
+	))
+	var armored: CombatUnitState = _unit(world, "sellsword", "armored")
+	armored.tags = PackedStringArray([ContentIds.TAG_ARMORED])
+	_ok("role: the armored tag is front", AutoDeploy.role_of(world.state, armored) == 0)
 
 
 func _test_mercenary_army() -> void:

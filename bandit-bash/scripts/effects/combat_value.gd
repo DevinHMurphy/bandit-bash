@@ -6,7 +6,7 @@
 # File:     combat_value.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 27, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 class_name CombatValue
@@ -101,6 +101,8 @@ enum Permission {
 	FREE_WEAPON_SWAP = 3003,
 	## A crit skips the Mitigation stage (Kukri). Off by default.
 	SKIP_MITIGATION_ON_CRIT = 3004,
+	## Opens a chest or door with a Lockpick (the Thief's innate grant). Denied by default.
+	CAN_PICK_LOCKS = 3005,
 }
 
 ## The value key of each [enum Stat]; MOV is [constant MOVEMENT].
@@ -141,4 +143,5 @@ const PERMISSION_DEFAULTS: Dictionary[int, bool] = {
 	Permission.MAY_MOVE_AFTER_ACTING: false,
 	Permission.FREE_WEAPON_SWAP: false,
 	Permission.SKIP_MITIGATION_ON_CRIT: false,
+	Permission.CAN_PICK_LOCKS: false,
 }

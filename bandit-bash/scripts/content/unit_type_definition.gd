@@ -27,6 +27,10 @@ extends EffectCarrierDefinition
 ## [member upgrade_movement_type] when the upgrade keeps the unit's movement type.
 const KEEP_MOVEMENT: int = -1
 
+## The trait's name, such as "Volley"; an upgraded unit shows it with "+"
+## ([method trait_label]). [b]Empty:[/b] the type has no trait.
+@export var trait_name: String = ""
+
 # ASSUMPTION: a commander has no role; unit-roster.md's Role column doesn't list the Drengr.
 ## What the unit type is for, from [constant ContentIds.ROLES], such as [code]shover[/code], which
 ## auto-deployment looks for. [b]Empty:[/b] no role.
@@ -115,6 +119,14 @@ func _validate_property(property: Dictionary) -> void:
 			entries.append("%s:%d" % [name.capitalize(), CombatGrid.MovementType[name]])
 		property["hint"] = PROPERTY_HINT_ENUM
 		property["hint_string"] = ",".join(entries)
+
+
+## The trait's name as shown on a unit: [member trait_name], with "+" when
+## [param is_upgraded] (unit-roster.md, Upgrades: "Volley+"). Empty when there is no trait.
+func trait_label(is_upgraded: bool) -> String:
+	if trait_name.is_empty() or not is_upgraded:
+		return trait_name
+	return trait_name + "+"
 
 
 ## Whether an upgrade changes the movement type ([member upgrade_movement_type]).

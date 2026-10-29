@@ -18,32 +18,19 @@ extends EffectCarrierDefinition
 ## Lives in [code]res://data/shapes/[/code], reused by [member EffectCarrierDefinition.id]; its
 ## effects stay empty. A size change at runtime (a future rune prefix) applies as a delta on the
 ## caster's side and never edits a shape file. [method tiles] is pure: it knows nothing of the map,
-## so tiles off the map or behind walls are the caller's to drop.
+## so tiles off the map or behind walls are the caller's to drop. Distance is always grid
+## distance, tiles up plus tiles across: "within N movable tiles" was cut (P04 question 12).
 ##
 ## @tutorial(Content catalog plan): docs/plans/2026-10-29-content-catalog.md
-##
-## @todo: TOD-001 - Measure [constant MOVABLE] shapes by pathing with the source's movement type
-## (P03 CT6); [method tiles] measures every shape by grid distance until then.
-
-## How far a tile is from the center. Saved as an int: [b]append only[/b], with explicit values.
-enum Distance {
-	## Grid distance: tiles up plus tiles across, ignoring walls and terrain ("within N tiles").
-	GRID = 0,
-	## Steps the source could walk with its own movement type ("within N movable tiles").
-	MOVABLE = 1,
-}
 
 ## The shape, from [constant ContentIds.SHAPE_KINDS]. [b]tile:[/b] the center only.
-## [b]radius:[/b] within [member size] by distance. [b]square:[/b] within [member size] along both
-## axes. [b]cross:[/b] the center's row and column, [member size] each way.
+## [b]radius:[/b] within [member size] by grid distance. [b]square:[/b] within [member size]
+## along both axes. [b]cross:[/b] the center's row and column, [member size] each way.
 @export var kind: String = ContentIds.SHAPE_TILE
 
 ## How far the shape reaches from the center; [code]tile[/code] ignores it.[br]
 ## [b]Units:[/b] tiles. [b]0:[/b] the center only. [b]1:[/b] radius 1 is the four neighbors.
 @export_range(0, 20, 1, "or_greater") var size: int = 0
-
-## How [code]radius[/code] measures distance.
-@export var distance: Distance = Distance.GRID
 
 ## Whether the center tile is covered too. [b]Off:[/b] only the tiles around it, as Cleave hits
 ## the units adjacent to the Brute and not the Brute.
@@ -75,7 +62,6 @@ func tiles(center: Vector2i) -> Array[Vector2i]:
 func _covers(offset: Vector2i, reach: int) -> bool:
 	match kind:
 		ContentIds.SHAPE_RADIUS:
-			# TODO(TOD-001): MOVABLE needs pathing; it measures grid distance until CT6.
 			return absi(offset.x) + absi(offset.y) <= reach
 		ContentIds.SHAPE_CROSS:
 			return offset.x == 0 or offset.y == 0

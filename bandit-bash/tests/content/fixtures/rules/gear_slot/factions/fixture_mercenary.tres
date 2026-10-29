@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="FactionDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/faction_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+commander_id = "fixture_lord"
+starting_unit_type_ids = PackedStringArray("fixture_grunt")
+starting_gear = Array[PackedStringArray]([PackedStringArray("fixture_buckler", "", "")])
+id = "fixture_mercenary"
+display_name = "Fixture Mercenary"

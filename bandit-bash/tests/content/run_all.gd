@@ -14,7 +14,8 @@ extends SceneTree
 ## effect text, [method TargetShape.tiles] for every kind at sizes 0 to 3, the [Prices] tables,
 ## the [ContentIds] lists and their inspector hints, and the [code]res://data/[/code] folders.
 ## [EffectCatalog] and the content test, its rules over all of [code]res://data/[/code] and the
-## rule fixtures, live in catalog_cases.gd. Every catalog definition is hashed before the first
+## rule fixtures, live in catalog_cases.gd; unit and item instances and [Loadout] in
+## loadout_cases.gd. Every catalog definition and every loadout fixture is hashed before the first
 ## case and after the last, and the run fails if any changed.
 ##
 ## Run from the repo root:[br]
@@ -25,6 +26,10 @@ extends SceneTree
 
 # A preloaded script used as a type (gdscript.md, Naming): the cases script has no class name.
 const CatalogCases = preload("res://tests/content/catalog_cases.gd")
+const LoadoutCases = preload("res://tests/content/loadout_cases.gd")
+
+# Fixture trees whose definitions are hashed with the catalog's.
+const HASHED_TREES: PackedStringArray = [LoadoutCases.TREE]
 
 const FIXTURE_DIR: String = "res://tests/content/fixtures/"
 
@@ -78,7 +83,7 @@ var _passes: int = 0
 func _init() -> void:
 	print("--- Content definition tests ---")
 	# Hashed before any case loads a definition, so the check covers the whole run.
-	var before: Dictionary[String, String] = CatalogCases.hash_catalog()
+	var before: Dictionary[String, String] = CatalogCases.hash_definitions(HASHED_TREES)
 
 	_test_unit_type_fixture()
 	_test_commander_fixture()
@@ -101,6 +106,7 @@ func _init() -> void:
 	_test_inspector_hints()
 	_test_data_layout()
 	CatalogCases.new(_check).run()
+	LoadoutCases.new(_check).run()
 	_test_definitions_unchanged(before)
 
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
@@ -323,7 +329,6 @@ func _test_shape_fixture() -> void:
 	_check("fixture target_shape: the target and its four neighbors", (
 			shape.tiles(Vector2i(4, 4)).size() == 5
 			and shape.tiles(Vector2i(4, 4)).has(Vector2i(4, 4))
-			and shape.distance == TargetShape.Distance.GRID
 	))
 
 
@@ -398,12 +403,13 @@ func _test_shape_edges() -> void:
 			_shape(ContentIds.SHAPE_TILE, 0, false).tiles(Vector2i.ZERO).is_empty()
 	)
 	var fresh: TargetShape = TargetShape.new()
-	_check("shapes: defaults are the center tile by grid distance", (
+	_check("shapes: defaults are the center tile", (
 			fresh.kind == ContentIds.SHAPE_TILE
 			and fresh.size == 0
-			and fresh.distance == TargetShape.Distance.GRID
 			and fresh.includes_center
 	))
+	# Question 18 (a): grid distance only, so no shape stores a distance setting.
+	_check("shapes: no distance setting", fresh.get("distance") == null)
 
 
 func _test_item_prices() -> void:
@@ -618,15 +624,12 @@ func _test_data_layout() -> void:
 
 
 # Definitions are read-only (event bus plan, Definitions and instances): [param before] is
-# [method CatalogCases.hash_catalog] from the start of the run.
+# [method CatalogCases.hash_definitions] from the start of the run.
 func _test_definitions_unchanged(before: Dictionary[String, String]) -> void:
-	var after: Dictionary[String, String] = CatalogCases.hash_catalog()
-	var changed: PackedStringArray = []
-	for id: String in before:
-		if after.get(id, "") != before[id]:
-			changed.append(id)
+	var after: Dictionary[String, String] = CatalogCases.hash_definitions(HASHED_TREES)
+	var changed: PackedStringArray = CatalogCases.changed_definitions(before, after)
 	_check("catalog: no definition changed during the run (%d hashed)" % [before.size()], (
-			changed.is_empty() and after.size() == before.size()
+			changed.is_empty()
 	), ", ".join(changed))
 
 

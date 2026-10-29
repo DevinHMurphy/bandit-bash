@@ -48,6 +48,9 @@ const BAD_TREES: Dictionary[String, String] = {
 	"range_attack_staff": ContentRules.RANGE,
 	"unknown_tag": ContentRules.UNKNOWN_ID,
 	"unknown_curse_tier": ContentRules.UNKNOWN_ID,
+	"no_operations": ContentRules.NO_OPERATIONS,
+	"commander_starting": ContentRules.COMMANDER_STARTING,
+	"gear_slot": ContentRules.GEAR_SLOT,
 }
 
 # The trees checked by their own cases rather than BAD_TREES.
@@ -508,6 +511,33 @@ static func hash_catalog() -> Dictionary[String, String]:
 	for id: String in EffectCatalog.ids():
 		hashes[id] = fingerprint(EffectCatalog.definition(id))
 	return hashes
+
+
+## [method hash_catalog], plus the [method fingerprint] of every definition under each fixture tree
+## in [param roots], by root and id. A tree loads the same shared instances its cases use, so a
+## suite whose cases change one is caught.
+static func hash_definitions(roots: PackedStringArray) -> Dictionary[String, String]:
+	var hashes: Dictionary[String, String] = hash_catalog()
+	for root: String in roots:
+		var index: EffectCatalog.Index = EffectCatalog.load_tree(root)
+		for id: String in index.ids():
+			hashes["%s %s" % [root, id]] = fingerprint(index.definition(id))
+	return hashes
+
+
+## The ids in [param before] (a [method hash_definitions] result) whose hash is different or gone
+## in [param after]; also notes ids added since.
+static func changed_definitions(
+		before: Dictionary[String, String], after: Dictionary[String, String]
+) -> PackedStringArray:
+	var changed: PackedStringArray = []
+	for id: String in before:
+		if after.get(id, "") != before[id]:
+			changed.append(id)
+	for id: String in after:
+		if not before.has(id):
+			changed.append("%s (added)" % [id])
+	return changed
 
 
 ## A hash of [param value] and everything it stores: every stored property of an object, its
