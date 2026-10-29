@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="UnitPrefixDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_chpjd"]
+[ext_resource type="Script" path="res://scripts/content/unit_prefix_definition.gd" id="2_epyxx"]
+
+[resource]
+script = ExtResource("2_epyxx")
+stat_deltas = Dictionary[int, int]({
+0: 4,
+3: 1
+})
+growth_deltas = Dictionary[int, int]({
+0: 15,
+3: 10
+})
+id = "unit_prefix"
+display_name = "Sturdy"

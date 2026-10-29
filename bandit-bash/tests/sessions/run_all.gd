@@ -6,14 +6,15 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 28, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 extends SceneTree
 ## Headless tests for the sessions layer: [InstanceIdAllocator], [Command] and the session queue,
 ## [CombatSession], [FactPlayback] and [PresentationRequest]; [CombatEncounter]'s setup steps,
-## stream injection, cross-map effects, routing and transfers; [CampaignSession]'s battle bridge
-## and grants; and the [code]CampaignService[/code] autoload's lifecycle and its [RngSaveSection]s.
+## stream injection, cross-map effects, routing, transfers and each map's end; [CampaignSession]'s
+## battle bridge and grants; and the [code]CampaignService[/code] autoload's lifecycle and its
+## [RngSaveSection]s.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/sessions/run_all.gd[/code][br]
@@ -102,8 +103,11 @@ func _process(_delta: float) -> bool:
 	_run(_test_rune_routing)
 	_run(_test_arrival_order_across_maps)
 	_run(_test_unit_transfer)
+	_run(_test_arrivals_before_refresh)
+	_run(_test_objectives_end_each_map)
 
 	_run(_test_bridge_begin_and_end)
+	_run(_test_bridge_opening_swap_per_seat)
 	_run(_test_bridge_cross_map_grants)
 	_run(_test_dropped_grant_not_recorded)
 	_run(_test_bridge_restart_rolls_the_same)
@@ -351,12 +355,15 @@ func _test_stale_forecast() -> bool:
 	old_move.based_on_seq = forecast_seq
 	world.session.submit(old_move)
 	var batches: Array[CombatSession.FactBatch] = world.session.resolve_queued()
-	var touched: int = batches[0].first_seq()
+	var first: CombatFact = batches[0].facts[0]
+	var expected: String = "stale forecast (s0#%d %s after s0#%d)" % [
+		first.seq, CombatFact.Kind.find_key(first.kind), forecast_seq,
+	]
 
 	_check("stale: the partner's attack resolves", not batches[0].is_rejected())
 	_check(
-			"stale: an attack on a target touched since its forecast is rejected",
-			batches[1].rejected_reason == "stale forecast (s0#%d touched %s)" % [touched, e],
+			"stale: an attack after any fact since its forecast is rejected, naming the first",
+			batches[1].rejected_reason == expected,
 			batches[1].rejected_reason
 	)
 	_check("stale: a legal move from an old forecast is accepted", (
@@ -629,16 +636,16 @@ func _test_container_contents() -> bool:
 	var again: Battle = Battle.new(PackedInt32Array([0, 1]), true)
 	first.set_up()
 	again.set_up()
-	var seat_0: Dictionary[int, Variant] = first.encounter.setup.seats[0].contents
-	var seat_1: Dictionary[int, Variant] = first.encounter.setup.seats[1].contents
+	var seat_0: Dictionary[int, Variant] = first.encounter.setup.seats[0].map.contents
+	var seat_1: Dictionary[int, Variant] = first.encounter.setup.seats[1].map.contents
 	_check("loot: every container is filled", (
 			seat_0.keys() == [0, 1] and seat_1.keys() == [0, 1]
 	), str(seat_0))
 	var differ: bool = (seat_0[0] != seat_1[0] and seat_0[1] != seat_1[1]) as bool
 	_check("loot: two seats, the same container, different contents", differ)
 	_check("loot: the same seat gets the same contents twice", (
-			again.encounter.setup.seats[0].contents == seat_0
-			and again.encounter.setup.seats[1].contents == seat_1
+			again.encounter.setup.seats[0].map.contents == seat_0
+			and again.encounter.setup.seats[1].map.contents == seat_1
 	))
 	_check(
 			"setup: twice from fresh streams, identical results",
@@ -807,7 +814,7 @@ func _test_cross_map_counting() -> bool:
 	var s1: CombatSession = battle.encounter.get_session(1)
 
 	_check("cross-map: hits on both maps count toward one counter", (
-			heirloom.get_counter(EffectDefinition.Lane.COMBAT) == 0
+			heirloom.get_counter(EffectTerms.Lane.COMBAT) == 0
 			and _count_of(s1.engine.fact_log, CombatFact.Kind.EFFECT_ACTIVATED) == 1
 			and _count_of(s0.engine.fact_log, CombatFact.Kind.EFFECT_ACTIVATED) == 0
 	))
@@ -837,7 +844,7 @@ func _test_cross_map_counting() -> bool:
 	))
 
 	var narrower: EffectDefinition = _every_hit_by_allies(10)
-	narrower.scope = EffectDefinition.Scope.YOUR_UNIT
+	narrower.scope = EffectTerms.Scope.YOUR_UNIT
 	var unit_owned: EffectInstance = EffectInstance.new(
 			"effect:x",
 			_every_hit_by_allies(10),
@@ -960,8 +967,8 @@ func _test_unit_transfer() -> bool:
 			Modifier.SourceKind.UNIT_TRAIT
 	)
 	s0.engine.register(resolve)
-	resolve.set_counter(EffectDefinition.Lane.COMBAT, 3)
-	resolve.set_counter(EffectDefinition.Lane.CAMPAIGN, 5)
+	resolve.set_counter(EffectTerms.Lane.COMBAT, 3)
+	resolve.set_counter(EffectTerms.Lane.CAMPAIGN, 5)
 	s0.state.set_block(a0, 4)
 
 	_check(
@@ -1001,8 +1008,8 @@ func _test_unit_transfer() -> bool:
 	), str(unit.tile))
 	_check("transfer: its effects keep their counters", (
 			s1.engine.get_instance(resolve.instance_id) == resolve
-			and resolve.get_counter(EffectDefinition.Lane.COMBAT) == 3
-			and resolve.get_counter(EffectDefinition.Lane.CAMPAIGN) == 5
+			and resolve.get_counter(EffectTerms.Lane.COMBAT) == 3
+			and resolve.get_counter(EffectTerms.Lane.CAMPAIGN) == 5
 	))
 	var last: CombatFact = s1.engine.fact_log[s1.engine.fact_log.size() - 1]
 	_check("transfer: placed fresh, with its bases", (
@@ -1015,9 +1022,109 @@ func _test_unit_transfer() -> bool:
 	battle.encounter.submit(AttackFixture.new(0, a0, e1), 1)
 	battle.encounter.resolve_queued()
 	_check("transfer: its effects work on the new map", (
-			resolve.get_counter(EffectDefinition.Lane.COMBAT) == 4
+			resolve.get_counter(EffectTerms.Lane.COMBAT) == 4
 			and s1.engine.diagnostics.is_empty()
 	))
+	return true
+
+
+# The receiving map's player Phase Start delivers units on their way (the ARRIVALS hook) before the
+# Block and Stance refresh, so an arrival gets the refresh and its Unit Turn Start like the rest.
+func _test_arrivals_before_refresh() -> bool:
+	var battle: Battle = Battle.new(PackedInt32Array([0, 1]))
+	battle.set_up()
+	battle.open()
+	var s0: CombatSession = battle.encounter.get_session(0)
+	var s1: CombatSession = battle.encounter.get_session(1)
+	var a0: String = battle.add_unit(0, "Drengr", PLAYER, 0, Vector2i(0, 3))
+	var a1: String = battle.add_unit(1, "Archer", PLAYER, 1, Vector2i(0, 3))
+	# An enemy, so the objective check (Rout) doesn't end the map at its Phase Start.
+	battle.add_unit(1, "Brute", ENEMY, -1, Vector2i(1, 2))
+	battle.encounter.submit(EndMapFixture.new(), 0)
+	battle.encounter.resolve_queued()
+	battle.encounter.send_unit(a0, 0, 1, Vector2i(1, 3))
+	var start: int = s1.engine.fact_log.size()
+	s1.open_battle()
+	var order: PackedStringArray = []
+	for i: int in range(start, s1.engine.fact_log.size()):
+		var fact: CombatFact = s1.engine.fact_log[i]
+		order.append("%s %s" % [CombatFact.Kind.find_key(fact.kind), fact.actor_id])
+	_check("arrivals: before the refresh, then refreshed and started like the rest", (
+			order == PackedStringArray([
+				"UNIT_SPAWNED %s" % [a0],
+				"BLOCK_STANCE_REFRESHED %s" % [a1],
+				"BLOCK_STANCE_REFRESHED %s" % [a0],
+				"PHASE_START ",
+				"UNIT_TURN_START %s" % [a1],
+				"UNIT_TURN_START %s" % [a0],
+			])
+	), str(order))
+	_check("arrivals: none left on the way", battle.encounter.units_in_transit().is_empty())
+	_check("arrivals: no diagnostics", s1.engine.diagnostics.is_empty())
+	return true
+
+
+# Co-op: the encounter registers the objective checks on every map; one map's end ends only its
+# session, a map won that way may send units, and the encounter ends with the last map.
+func _test_objectives_end_each_map() -> bool:
+	var battle: Battle = Battle.new(PackedInt32Array([0, 1]))
+	battle.set_up()
+	battle.open()
+	var s0: CombatSession = battle.encounter.get_session(0)
+	var s1: CombatSession = battle.encounter.get_session(1)
+	var a0: String = battle.add_unit(0, "Drengr", PLAYER, 0, Vector2i(0, 3))
+	battle.add_unit(1, "Archer", PLAYER, 1, Vector2i(0, 3))
+	var e1: String = battle.add_unit(1, "Brute", ENEMY, -1, Vector2i(1, 2))
+	s0.open_battle()
+	s1.open_battle()
+	var ended: CombatFact = s0.engine.fact_log[s0.engine.fact_log.size() - 1]
+	_check("objectives: a map with no enemy is won by Rout at its Phase Start", (
+			s0.is_won
+			and ended.kind == CombatFact.Kind.COMBAT_ENDED
+			and ended.side == PLAYER
+	))
+	_check("objectives: the other map goes on, and so does the encounter", (
+			not s1.is_finished and not battle.encounter.is_finished()
+	))
+	_check(
+			"objectives: the won map may send a unit",
+			battle.encounter.send_unit(a0, 0, 1, Vector2i(2, 3)).is_empty()
+	)
+	battle.encounter.submit(DefeatFixture.new(e1), 1)
+	battle.encounter.resolve_queued()
+	_check("objectives: the last map's end ends the encounter", (
+			s1.is_won and battle.encounter.is_finished()
+	))
+	return true
+
+
+# The opening-swap setting reaches each map per seat: on (the default, no entry) the map waits in
+# the swap window at turn 0; off, turn 1's player Phase Start runs as the battle begins.
+func _test_bridge_opening_swap_per_seat() -> bool:
+	var run: CampaignSession = CampaignSession.new(
+			CampaignData.Mode.MULTIPLAYER, RUN_SEED, PackedInt32Array([0, 1])
+	)
+	var request: CampaignSession.BattleRequest = _request(
+			run, {0: ["Drengr", "Archer"], 1: ["Drengr", "Archer"]}
+	)
+	request.opening_swap[1] = false
+	var battle: CombatEncounter = run.begin_battle(request)
+	var on: CombatSession = battle.session_of_seat(0)
+	var off: CombatSession = battle.session_of_seat(1)
+	_check("swap setting: on by default, the window waits for Start", (
+			on.state.map.opening_swap_open
+			and on.state.turn == 0
+			and on.state.seats_to_start == PackedInt32Array([0])
+	))
+	var kinds: PackedStringArray = []
+	for fact: CombatFact in off.engine.fact_log:
+		kinds.append(CombatFact.Kind.find_key(fact.kind) as String)
+	_check("swap setting: off, turn 1 starts at once", (
+			not off.state.map.opening_swap_open
+			and off.state.turn == 1
+			and kinds.has("PHASE_START")
+	), " ".join(kinds))
+	run.end_battle()
 	return true
 
 
@@ -1027,18 +1134,18 @@ func _test_bridge_begin_and_end() -> bool:
 	)
 	var request: CampaignSession.BattleRequest = _request(run, {0: ["Drengr", "Archer"]})
 	var a: String = request.armies[0].units[0].id
-	var stubborn: EffectDefinition = _counting("stubborn", EffectDefinition.Lane.CAMPAIGN)
+	var stubborn: EffectDefinition = _counting("stubborn", EffectTerms.Lane.CAMPAIGN)
 	var counted: EffectInstance = _carrier(run, a, stubborn)
-	counted.set_counter(EffectDefinition.Lane.CAMPAIGN, 5)
-	counted.set_counter(EffectDefinition.Lane.COMBAT, 7)
+	counted.set_counter(EffectTerms.Lane.CAMPAIGN, 5)
+	counted.set_counter(EffectTerms.Lane.COMBAT, 7)
 	var flask: EffectDefinition = _hit_dealt_block("flask", 1.0)
 	flask.charges = 3
-	flask.charge_lane = EffectDefinition.Lane.CAMPAIGN
+	flask.charge_lane = EffectTerms.Lane.CAMPAIGN
 	var charged: EffectInstance = _carrier(run, a, flask)
 	charged.charges_left = 2
 	var benched: EffectInstance = _carrier(run, "unit:99", _hit_dealt_block("benched", 1.0))
 	var banner_definition: EffectDefinition = _every_hit_by_allies(3)
-	banner_definition.scope = EffectDefinition.Scope.YOUR_UNIT
+	banner_definition.scope = EffectTerms.Scope.YOUR_UNIT
 	var banner: EffectInstance = EffectInstance.new(
 			run.ids.next_effect_id(),
 			banner_definition,
@@ -1069,8 +1176,8 @@ func _test_bridge_begin_and_end() -> bool:
 	), str(events))
 	_check("bridge: carriers registered as copies", copy != null and copy != counted)
 	_check("bridge: campaign lane copied in, combat lane fresh", (
-			copy.get_counter(EffectDefinition.Lane.CAMPAIGN) == 5
-			and copy.get_counter(EffectDefinition.Lane.COMBAT) == 0
+			copy.get_counter(EffectTerms.Lane.CAMPAIGN) == 5
+			and copy.get_counter(EffectTerms.Lane.COMBAT) == 0
 	))
 	_check("bridge: a unit outside the battle brings nothing", (
 			session.engine.get_instance(benched.instance_id) == null
@@ -1098,19 +1205,19 @@ func _test_bridge_begin_and_end() -> bool:
 	battle.resolve_queued()
 	session.engine.add_growth(a, CombatValue.Stat.RES, 5)
 	_check("bridge: the battle counts on the copies", (
-			copy.get_counter(EffectDefinition.Lane.CAMPAIGN) == 7
-			and copy.get_counter(EffectDefinition.Lane.COMBAT) == 0
-			and counted.get_counter(EffectDefinition.Lane.CAMPAIGN) == 5
+			copy.get_counter(EffectTerms.Lane.CAMPAIGN) == 7
+			and copy.get_counter(EffectTerms.Lane.COMBAT) == 0
+			and counted.get_counter(EffectTerms.Lane.CAMPAIGN) == 5
 	))
 
 	var result: CampaignSession.BattleResult = run.end_battle()
 	_check("bridge: campaign lanes written back", (
-			counted.get_counter(EffectDefinition.Lane.CAMPAIGN) == 7
+			counted.get_counter(EffectTerms.Lane.CAMPAIGN) == 7
 			and charged.charges_left == 0
 	), "%d, %d charges" % [
-			counted.get_counter(EffectDefinition.Lane.CAMPAIGN), charged.charges_left
+			counted.get_counter(EffectTerms.Lane.CAMPAIGN), charged.charges_left
 	])
-	_check("bridge: combat lanes dropped", counted.get_counter(EffectDefinition.Lane.COMBAT) == 7)
+	_check("bridge: combat lanes dropped", counted.get_counter(EffectTerms.Lane.COMBAT) == 7)
 	_check("bridge: growth changes left for the run flow", (
 			result.growth_changes.has(a)
 			and result.growth_changes[a] == {CombatValue.Stat.RES: 5}
@@ -1249,7 +1356,7 @@ func _test_bridge_close_mid_battle() -> bool:
 	)
 	var request: CampaignSession.BattleRequest = _request(run, {0: ["Drengr"]})
 	var a: String = request.armies[0].units[0].id
-	var stubborn: EffectDefinition = _counting("stubborn", EffectDefinition.Lane.CAMPAIGN)
+	var stubborn: EffectDefinition = _counting("stubborn", EffectTerms.Lane.CAMPAIGN)
 	var counted: EffectInstance = _carrier(run, a, stubborn)
 	var closed: Array[CombatEncounter] = []
 	run.combat_encounter_closed.connect(
@@ -1264,7 +1371,7 @@ func _test_bridge_close_mid_battle() -> bool:
 			run.is_closed and run.encounter == null and closed == [battle] and battle.is_closed
 	))
 	_check("close: nothing is written back", (
-			counted.get_counter(EffectDefinition.Lane.CAMPAIGN) == 0
+			counted.get_counter(EffectTerms.Lane.CAMPAIGN) == 0
 	))
 	print("    (one error about beginning a battle on a closed run follows)")
 	_check("close: nothing begins again", run.begin_battle(request) == null)
@@ -1751,7 +1858,7 @@ func _carrier(
 
 
 # "Hit dealt: count toward 100 in [param lane]" — a counter that never passes in these cases.
-func _counting(id: String, lane: EffectDefinition.Lane) -> EffectDefinition:
+func _counting(id: String, lane: EffectTerms.Lane) -> EffectDefinition:
 	var definition: EffectDefinition = _hit_dealt_block(id, 1.0, 100)
 	var counter: CounterCondition = definition.conditions[0] as CounterCondition
 	counter.lane = lane
@@ -1781,7 +1888,7 @@ func _recorder(trace: Array[String], label: String) -> Callable:
 # "Hit dealt by Any Ally Unit: that unit gains 2 Block", every [param every]th hit this combat.
 func _every_hit_by_allies(every: int) -> EffectDefinition:
 	var definition: EffectDefinition = _hit_dealt_block("war_ledger", 2.0, every)
-	definition.scope = EffectDefinition.Scope.ANY_ALLY_UNIT
+	definition.scope = EffectTerms.Scope.ANY_ALLY_UNIT
 	var gain: GainResource = definition.operations[0] as GainResource
 	gain.target = FactActor.new()
 	return definition
@@ -1818,7 +1925,7 @@ func _count_of(facts: Array[CombatFact], kind: CombatFact.Kind) -> int:
 func _hit_dealt_block(id: String, block: float, every: int = 1) -> EffectDefinition:
 	var definition: EffectDefinition = EffectDefinition.new()
 	definition.id = id
-	definition.trigger = EffectDefinition.Trigger.HIT_DEALT
+	definition.trigger = EffectTerms.Trigger.HIT_DEALT
 	if every > 1:
 		var counter: CounterCondition = CounterCondition.new()
 		counter.count = every
@@ -2066,7 +2173,7 @@ class Battle:
 			if marker.container_index < 0:
 				continue
 			var stream: RngStream = ctx.loot_stream(marker.container_index)
-			ctx.seat_setup.contents[marker.container_index] = (
+			ctx.seat_setup.map.contents[marker.container_index] = (
 					"item_%d" % [stream.randi_range(0, 1 << 30)]
 			)
 
@@ -2112,7 +2219,7 @@ class MoveFixture:
 		session.engine.record(moved)
 
 
-# Records one hit of its unit on a target, as an exchange would; its forecast read both.
+# Records one hit of its unit on a target, as an exchange would; it needs a fresh forecast.
 class AttackFixture:
 	extends Command
 
@@ -2129,8 +2236,8 @@ class AttackFixture:
 	func get_target_id() -> String:
 		return target
 
-	func forecast_reads() -> PackedStringArray:
-		return PackedStringArray([actor_id, target])
+	func needs_fresh_forecast() -> bool:
+		return true
 
 	func validate(session: CombatSession) -> String:
 		if not session.state.has_unit(actor_id) or not session.state.has_unit(target):
@@ -2289,3 +2396,16 @@ class EndMapFixture:
 		var ended: CombatFact = CombatFact.new(CombatFact.Kind.COMBAT_ENDED)
 		ended.side = winner
 		session.engine.record(ended)
+
+
+# Defeats [member unit_id] through CombatState.defeat: a step that ends a map by its objective.
+class DefeatFixture:
+	extends Command
+
+	var unit_id: String = ""
+
+	func _init(defeated_id: String) -> void:
+		unit_id = defeated_id
+
+	func resolve(session: CombatSession) -> void:
+		session.state.defeat(session.engine, unit_id, "")

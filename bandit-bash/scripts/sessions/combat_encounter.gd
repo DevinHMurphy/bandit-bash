@@ -6,7 +6,7 @@
 # File:     combat_encounter.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 28, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 class_name CombatEncounter
@@ -187,8 +187,11 @@ func run_setup(pool: Array[CombatMapDefinition], streams: SetupStreams) -> Error
 ## Opens one session per seat on the chosen map, each rolling from its seat's
 ## [code]COMBAT_ROLLS[/code] stream in [param combat_rolls] (by seat) wrapped in [LiveRolls], and
 ## emits [signal session_opened] for each. Session ids follow [member seats]: the lowest seat's map
-## is session 0. Call once, after [method run_setup]. Returns false, opening nothing, before setup,
-## when already open, or when a seat has no stream.
+## is session 0. Each session's map state starts as a copy of its seat's
+## [member SeatSetup.map], container contents included, and it gets the encounter's arrivals
+## ([method deliver_arrivals]) and the objective checks ([method Objectives.register]) as hooks.
+## Call once, after [method run_setup].
+## Returns false, opening nothing, before setup, when already open, or when a seat has no stream.
 func open_sessions(combat_rolls: Dictionary[int, RngStream]) -> bool:
 	if setup == null or is_closed or not _sessions.is_empty():
 		return false
@@ -208,7 +211,11 @@ func open_sessions(combat_rolls: Dictionary[int, RngStream]) -> bool:
 		)
 		session.setup = setup
 		session.seat_setup = setup.seats[seat]
+		# A copy, so the setup result stays as rolled while the battle changes the map.
+		session.state.map = setup.seats[seat].map.copy()
 		session.fact_recorded.connect(_on_session_fact_recorded)
+		session.hooks.add(CombatHooks.Hook.ARRIVALS, _on_session_arrivals_due)
+		Objectives.register(session)
 		_sessions.append(session)
 		_session_of_seat[seat] = index
 	for session: CombatSession in _sessions:
@@ -253,7 +260,7 @@ func session_of_unit(unit_id: String) -> CombatSession:
 func add_cross_map(instance: EffectInstance) -> bool:
 	if not is_cross_map(instance) or _cross_map.has(instance.instance_id):
 		return false
-	instance.reset_lane(EffectDefinition.Lane.COMBAT)
+	instance.reset_lane(EffectTerms.Lane.COMBAT)
 	_cross_map[instance.instance_id] = instance
 	# ASSUMPTION: one instance registered in every session's engine is how a cross-map effect
 	# forwards, since the engine has no forwarding hook: each map dispatches it from its own trigger
@@ -351,8 +358,8 @@ func send_unit(
 	return ""
 
 
-## Places every unit on its way to [param session_id], at the receiving map's Phase Start (the
-## combat core's phase runner calls this before the Block and Stance refresh, P02 CC6): its
+## Places every unit on its way to [param session_id], at the receiving map's player Phase Start
+## (each session's [constant CombatHooks.Hook.ARRIVALS], before the Block and Stance refresh): its
 ## effects join the map with their counters and charges, then it is placed with Block 0 and full
 ## Stance, recording [constant CombatFact.Kind.UNIT_SPAWNED]. Returns the ids placed; a unit with
 ## no free tile stays on its way.
@@ -377,6 +384,17 @@ func units_in_transit() -> PackedStringArray:
 	for transfer: Transfer in _in_transit:
 		waiting.append(transfer.unit.id)
 	return waiting
+
+
+## Whether every map's combat has ended ([member CombatSession.is_finished]): a map's end ends only
+## its own session, and the battle ends with the last one. False before [method open_sessions].
+func is_finished() -> bool:
+	if _sessions.is_empty():
+		return false
+	for session: CombatSession in _sessions:
+		if not session.is_finished:
+			return false
+	return true
 
 
 ## Ends the encounter: its sessions stop reporting here and routing stops. The caller writes
@@ -467,6 +485,11 @@ func _arrive(target: CombatSession, transfer: Transfer) -> bool:
 	return true
 
 
+# A session's ARRIVALS hook: its player Phase Start is starting.
+func _on_session_arrivals_due(session: CombatSession) -> void:
+	deliver_arrivals(session.session_id)
+
+
 # Mirrors a cross-map instance's counter and activation facts as encounter facts.
 func _on_session_fact_recorded(fact: CombatFact) -> void:
 	if not _cross_map.has(fact.source_effect_id):
@@ -507,8 +530,8 @@ static func is_cross_map(instance: EffectInstance) -> bool:
 	# isn't on (event bus plan, fix F8), so it can't count on a partner's map.
 	if instance.owner.kind != EffectOwner.Kind.ARMY:
 		return false
-	var scope: EffectDefinition.Scope = instance.definition.scope
-	if scope != EffectDefinition.Scope.ANY_ALLY_UNIT and scope != EffectDefinition.Scope.ANY_UNIT:
+	var scope: EffectTerms.Scope = instance.definition.scope
+	if scope != EffectTerms.Scope.ANY_ALLY_UNIT and scope != EffectTerms.Scope.ANY_UNIT:
 		return false
 	for condition: EffectCondition in instance.definition.conditions:
 		if condition is WhilePositionCondition:
@@ -647,7 +670,7 @@ class EncounterSetup:
 		for seat: int in seats:
 			by_seat[str(seat)] = {
 				"additions": seats[seat].additions,
-				"contents": seats[seat].contents,
+				"contents": seats[seat].map.contents,
 			}
 		var data: Dictionary = {
 			"map": "" if map == null else map.id,
@@ -665,11 +688,10 @@ class SeatSetup:
 	var seat: int = -1
 	## Additions to this seat's map only (step 6), under a key each owning plan chooses.
 	var additions: Dictionary[String, Variant] = {}
-	# ASSUMPTION: contents stay in the seat's setup result until MapState holds them (P04 MP6);
-	# decision 40 makes them map state.
-	## Each container's contents on this seat's map (step 7), by container index: plain data, such
-	## as an item definition id.
-	var contents: Dictionary[int, Variant] = {}
+	## This seat's map state as setup leaves it: step 7 writes each container's contents into its
+	## [member MapState.contents] (event bus plan, questions 40 and 46). Each session starts from a
+	## copy ([method CombatEncounter.open_sessions]).
+	var map: MapState = MapState.new()
 
 	func _init(owner_seat: int) -> void:
 		seat = owner_seat

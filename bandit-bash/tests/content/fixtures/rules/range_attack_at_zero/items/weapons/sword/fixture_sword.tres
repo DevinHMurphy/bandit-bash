@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="WeaponDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/weapon_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+weapon_type = "sword"
+range_min = 0
+id = "fixture_sword"
+display_name = "Fixture Sword"

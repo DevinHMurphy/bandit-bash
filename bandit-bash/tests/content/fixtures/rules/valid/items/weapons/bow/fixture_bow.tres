@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="WeaponDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/weapon_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+weapon_type = "bow"
+damage = 6
+hit = 100
+range_min = 2
+range_max = 3
+effective_against = PackedStringArray("flier")
+rarity = 1
+weight = 5
+id = "fixture_bow"
+display_name = "Fixture Bow"

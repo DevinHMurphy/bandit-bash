@@ -6,7 +6,7 @@
 # File:     combat_fact.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 28, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 class_name CombatFact
@@ -73,7 +73,8 @@ enum Kind {
 	USED_STAFF_ON_ALLY = 20,
 	## The actor took darkness damage at its side's Phase End. Not an attack.
 	DARKNESS_DAMAGE_TAKEN = 21,
-	## The actor used the map object named by the target.
+	## The actor used the map object named by the target, at [member tile]; [member item_id] is
+	## the key or lockpick it opened a lock with, if any.
 	OBJECT_USED = 22,
 	## The actor shoved the target.
 	SHOVED_A_UNIT = 23,
@@ -85,16 +86,19 @@ enum Kind {
 	UNIT_MOVED = 26,
 	## The actor appeared on the map at [member tile].
 	UNIT_SPAWNED = 27,
-	## This session's combat ended; [member side] is the side that won it.
+	## This session's combat ended; [member side] is the side that won it, [member amount] the
+	## turn it ended on, and [member key] the turns a Survive or Defend map was won early
+	## ([Objectives]).
 	COMBAT_ENDED = 28,
 	## The darkness advanced.
 	DARKNESS_ADVANCED = 29,
-	## The map object named by the actor changed state.
+	## The map object named by the actor changed state at [member tile]: [member key] is the
+	## [enum MapObjects.Change]; the target is the unit or object that caused it, if one did.
 	OBJECT_STATE_CHANGED = 30,
 	## The effect named by [member source_effect_id] fired.
 	EFFECT_ACTIVATED = 31,
 	## A counter of the effect named by [member source_effect_id] changed: [member amount] is the
-	## new count, [member key] its [enum EffectDefinition.Lane].
+	## new count, [member key] its [enum EffectTerms.Lane].
 	COUNTER_CHANGED = 32,
 	## The actor gained a timed modifier from [member source_effect_id].
 	MODIFIER_GAINED = 33,
@@ -124,6 +128,13 @@ enum Kind {
 	## [member amount] percentage points, such as an eaten ingredient's +5% RES growth. Changes no
 	## value in battle; the battle-end bridge writes it to the roster.
 	GROWTH_CHANGED = 43,
+	## The reinforcement point named by the actor, at [member tile], has a wave to come:
+	## [member amount] is the turns until it arrives, this one included (1: after this turn's enemy
+	## phase). In the player phase right before it arrives, [member unit_types] previews it.
+	REINFORCEMENT_INCOMING = 44,
+	## A wave arrived at the reinforcement point named by the actor, at [member tile], after its
+	## units' [constant UNIT_SPAWNED]: [member amount] is how many were placed.
+	REINFORCEMENT_ARRIVED = 45,
 }
 
 ## What produced an amount. Sent over the network as an int: [b]append only[/b].
@@ -174,8 +185,8 @@ enum DamageType {
 ## event bus plan question 37), so it names no real tile.
 const NO_TILE: Vector2i = Vector2i(-1, -1)
 
-# Slot types of the wire array, in to_wire() order: i = int, s = String.
-const WIRE_PATTERN: String = "iiissiiiiisiiiisi"
+# Slot types of the wire array, in to_wire() order: i = int, s = String, a = a list of Strings.
+const WIRE_PATTERN: String = "iiissiiiiisiiiisia"
 
 # Largest integer a JSON number (a double) holds exactly, 2^53. A wire array that went through JSON
 # arrives with float numbers; anything beyond this lost precision on the way.
@@ -208,7 +219,7 @@ var actor_id: String = ""
 ## Instance id of the other party (see [enum Kind]). Empty when none.
 var target_id: String = ""
 
-## The fact's main quantity: damage, healing, Block or a counter value. 0 when none.
+## The fact's main quantity: damage, healing, Block, a counter value or a turn. 0 when none.
 var amount: int = 0
 
 ## The part of [member amount] that reached HP. For healing, [member amount] minus this is the
@@ -242,10 +253,16 @@ var side: CombatSide = CombatSide.NONE
 ## [constant WEAPON_SWAPPED], [constant RUNE_USED]). Empty on every other kind.
 var item_id: String = ""
 
-## A small number whose meaning depends on the kind: the [enum EffectDefinition.Lane] of a
-## [constant COUNTER_CHANGED], the [enum CombatValue.Stat] of a [constant STAT_CHANGED]. 0 on every
-## other kind.
+## A small number whose meaning depends on the kind: the [enum EffectTerms.Lane] of a
+## [constant COUNTER_CHANGED], the [enum CombatValue.Stat] of a [constant STAT_CHANGED], the turns
+## won early of a [constant COMBAT_ENDED], the [enum MapObjects.Change] of an
+## [constant OBJECT_STATE_CHANGED]. 0 on every other kind.
 var key: int = 0
+
+## The unit type ([member CombatUnitState.unit_type]) of each unit in a coming wave, in arrival
+## order, so its size is the wave's count: set on a [constant REINFORCEMENT_INCOMING] in the player
+## phase right before the wave arrives. Empty on every other fact.
+var unit_types: PackedStringArray = []
 
 
 func _init(fact_kind: Kind, fact_actor_id: String = "", fact_target_id: String = "") -> void:
@@ -276,6 +293,7 @@ func to_wire() -> Array:
 		side,
 		item_id,
 		key,
+		unit_types,
 	]
 
 
@@ -284,7 +302,8 @@ func to_wire() -> Array:
 ## attack[/code], or [code]s0#1 PHASE_START side player amount 3[/code]
 ##
 ## Empty fields are left out, and amounts print only when one is non-zero. [member key] prints as
-## "lane N" or "stat N" on the kinds that use it.
+## "lane N", "stat N" or "change N" on the kinds that use it; [member unit_types] last, as
+## "types A, B".
 ## [param describe]: turns an id into display text (the session's describe); when invalid, ids
 ## print bare.
 func to_log_line(describe: Callable = Callable()) -> String:
@@ -303,6 +322,8 @@ func to_log_line(describe: Callable = Callable()) -> String:
 		parts.append("lane %d" % [key])
 	elif kind == Kind.STAT_CHANGED or kind == Kind.GROWTH_CHANGED:
 		parts.append("stat %d" % [key])
+	elif kind == Kind.OBJECT_STATE_CHANGED:
+		parts.append("change %d" % [key])
 	if amount != 0 or hp_amount != 0 or block_amount != 0:
 		parts.append("amount %d" % [amount])
 		if hp_amount != 0 or block_amount != 0:
@@ -317,6 +338,8 @@ func to_log_line(describe: Callable = Callable()) -> String:
 		parts.append("tile %s" % [tile])
 	if flags != 0:
 		parts.append("flags 0x%x" % [flags])
+	if not unit_types.is_empty():
+		parts.append("types %s" % [", ".join(unit_types)])
 	return " ".join(parts)
 
 
@@ -376,6 +399,7 @@ static func from_wire(data: Array) -> CombatFact:
 	fact.side = side_value as CombatSide
 	fact.item_id = values[15]
 	fact.key = values[16]
+	fact.unit_types = values[17]
 	return fact
 
 
@@ -390,6 +414,11 @@ static func _normalize_wire(data: Array, pattern: String) -> Array:
 			if typeof(value) != TYPE_STRING:
 				return []
 			values.append(value)
+		elif pattern[i] == "a":
+			var strings: PackedStringArray = _string_list(value)
+			if strings.size() != _list_size(value):
+				return []
+			values.append(strings)
 		elif typeof(value) == TYPE_INT:
 			values.append(value)
 		elif typeof(value) == TYPE_FLOAT:
@@ -400,3 +429,30 @@ static func _normalize_wire(data: Array, pattern: String) -> Array:
 		else:
 			return []
 	return values
+
+
+# value's Strings: a PackedStringArray as is, or each String of an Array (after JSON); empty for
+# anything else. Fewer than _list_size(value) means an element wasn't a String.
+static func _string_list(value: Variant) -> PackedStringArray:
+	if typeof(value) == TYPE_PACKED_STRING_ARRAY:
+		return value
+	var strings: PackedStringArray = []
+	if typeof(value) != TYPE_ARRAY:
+		return strings
+	# Untyped: a wire array's elements are checked one by one.
+	for element: Variant in value:
+		if typeof(element) == TYPE_STRING:
+			var text: String = element
+			strings.append(text)
+	return strings
+
+
+# How many elements a list slot holds; -1 when value isn't a list, so it never matches.
+static func _list_size(value: Variant) -> int:
+	if typeof(value) == TYPE_PACKED_STRING_ARRAY:
+		var packed: PackedStringArray = value
+		return packed.size()
+	if typeof(value) == TYPE_ARRAY:
+		var list: Array = value
+		return list.size()
+	return -1

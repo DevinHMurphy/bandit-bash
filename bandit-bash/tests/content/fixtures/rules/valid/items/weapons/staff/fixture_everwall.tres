@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="StaffDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/staff_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+staff_kind = "block"
+base_amount = 3
+area_shape_id = "fixture_adjacent"
+weapon_type = "staff"
+damage_type = 2
+range_min = 0
+range_max = 0
+rarity = 2
+id = "fixture_everwall"
+display_name = "Fixture Everwall"

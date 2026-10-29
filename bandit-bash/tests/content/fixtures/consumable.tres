@@ -1,0 +1,37 @@
+[gd_resource type="Resource" script_class="ConsumableDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_wmytf"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_nmqqo"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_68hpv"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/change_base_stat.gd" id="4_3vhof"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="5_dtisg"]
+[ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="6_we4lh"]
+
+[sub_resource type="Resource" id="Resource_jpcn8"]
+script = ExtResource("5_dtisg")
+
+[sub_resource type="Resource" id="Resource_d4xii"]
+script = ExtResource("4_3vhof")
+target = SubResource("Resource_jpcn8")
+key = 20
+mode = 1
+value = 5.0
+
+[sub_resource type="Resource" id="Resource_pwnpf"]
+script = ExtResource("1_wmytf")
+id = "fixture_cave_carrot_eaten"
+operations = Array[ExtResource("3_68hpv")]([SubResource("Resource_d4xii")])
+
+[resource]
+script = ExtResource("6_we4lh")
+use_kind = "ingredient"
+amount = 5
+uses_lane = 1
+cooked_gains = Dictionary[int, int]({
+4: 1
+})
+rarity = 1
+tags = PackedStringArray()
+id = "consumable"
+display_name = "Fixture Cave Carrot"
+effects = Array[ExtResource("1_wmytf")]([SubResource("Resource_pwnpf")])

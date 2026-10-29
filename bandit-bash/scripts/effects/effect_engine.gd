@@ -6,7 +6,7 @@
 # File:     effect_engine.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 28, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 class_name EffectEngine
@@ -44,45 +44,45 @@ enum Boundary {
 ## Triggers that fire before their amount is committed, so inline operations can change it
 ## (event bus plan, question 5).
 const INLINE_TRIGGERS: Array[int] = [
-	EffectDefinition.Trigger.ATTACK_MADE,
-	EffectDefinition.Trigger.HIT_DEALT,
-	EffectDefinition.Trigger.HIT_TAKEN,
-	EffectDefinition.Trigger.CRIT_DEALT,
-	EffectDefinition.Trigger.CRIT_TAKEN,
-	EffectDefinition.Trigger.HEALED,
-	EffectDefinition.Trigger.HEALED_AN_ALLY,
-	EffectDefinition.Trigger.DARKNESS_DAMAGE_TAKEN,
-	EffectDefinition.Trigger.BLOCK_GAINED,
+	EffectTerms.Trigger.ATTACK_MADE,
+	EffectTerms.Trigger.HIT_DEALT,
+	EffectTerms.Trigger.HIT_TAKEN,
+	EffectTerms.Trigger.CRIT_DEALT,
+	EffectTerms.Trigger.CRIT_TAKEN,
+	EffectTerms.Trigger.HEALED,
+	EffectTerms.Trigger.HEALED_AN_ALLY,
+	EffectTerms.Trigger.DARKNESS_DAMAGE_TAKEN,
+	EffectTerms.Trigger.BLOCK_GAINED,
 ]
 
 # The trigger of each combat fact kind that is one. Facts without an entry dispatch nothing.
 const _COMBAT_TRIGGERS: Dictionary[int, int] = {
-	CombatFact.Kind.PHASE_START: EffectDefinition.Trigger.PHASE_START,
-	CombatFact.Kind.UNIT_TURN_START: EffectDefinition.Trigger.UNIT_TURN_START,
-	CombatFact.Kind.BEFORE_COMBAT: EffectDefinition.Trigger.BEFORE_COMBAT,
-	CombatFact.Kind.AFTER_COMBAT: EffectDefinition.Trigger.AFTER_COMBAT,
-	CombatFact.Kind.UNIT_TURN_END: EffectDefinition.Trigger.UNIT_TURN_END,
-	CombatFact.Kind.PHASE_END: EffectDefinition.Trigger.PHASE_END,
-	CombatFact.Kind.ATTACK_MADE: EffectDefinition.Trigger.ATTACK_MADE,
-	CombatFact.Kind.HIT_DEALT: EffectDefinition.Trigger.HIT_DEALT,
-	CombatFact.Kind.HIT_TAKEN: EffectDefinition.Trigger.HIT_TAKEN,
-	CombatFact.Kind.MISSED: EffectDefinition.Trigger.MISSED,
-	CombatFact.Kind.DODGED: EffectDefinition.Trigger.DODGED,
-	CombatFact.Kind.DAMAGE_DEALT: EffectDefinition.Trigger.DAMAGE_DEALT,
-	CombatFact.Kind.DAMAGE_TAKEN: EffectDefinition.Trigger.DAMAGE_TAKEN,
-	CombatFact.Kind.CRIT_DEALT: EffectDefinition.Trigger.CRIT_DEALT,
-	CombatFact.Kind.CRIT_TAKEN: EffectDefinition.Trigger.CRIT_TAKEN,
-	CombatFact.Kind.EXPOSED: EffectDefinition.Trigger.EXPOSED,
-	CombatFact.Kind.DEFEATED_AN_ENEMY: EffectDefinition.Trigger.DEFEATED_AN_ENEMY,
-	CombatFact.Kind.DEFEATED: EffectDefinition.Trigger.DEFEATED,
-	CombatFact.Kind.HEALED_AN_ALLY: EffectDefinition.Trigger.HEALED_AN_ALLY,
-	CombatFact.Kind.HEALED: EffectDefinition.Trigger.HEALED,
-	CombatFact.Kind.USED_STAFF_ON_ALLY: EffectDefinition.Trigger.USED_STAFF_ON_ALLY,
-	CombatFact.Kind.DARKNESS_DAMAGE_TAKEN: EffectDefinition.Trigger.DARKNESS_DAMAGE_TAKEN,
-	CombatFact.Kind.OBJECT_USED: EffectDefinition.Trigger.OBJECT_USED,
-	CombatFact.Kind.SHOVED_A_UNIT: EffectDefinition.Trigger.SHOVED_A_UNIT,
-	CombatFact.Kind.SHOVED: EffectDefinition.Trigger.SHOVED,
-	CombatFact.Kind.BLOCK_GAINED: EffectDefinition.Trigger.BLOCK_GAINED,
+	CombatFact.Kind.PHASE_START: EffectTerms.Trigger.PHASE_START,
+	CombatFact.Kind.UNIT_TURN_START: EffectTerms.Trigger.UNIT_TURN_START,
+	CombatFact.Kind.BEFORE_COMBAT: EffectTerms.Trigger.BEFORE_COMBAT,
+	CombatFact.Kind.AFTER_COMBAT: EffectTerms.Trigger.AFTER_COMBAT,
+	CombatFact.Kind.UNIT_TURN_END: EffectTerms.Trigger.UNIT_TURN_END,
+	CombatFact.Kind.PHASE_END: EffectTerms.Trigger.PHASE_END,
+	CombatFact.Kind.ATTACK_MADE: EffectTerms.Trigger.ATTACK_MADE,
+	CombatFact.Kind.HIT_DEALT: EffectTerms.Trigger.HIT_DEALT,
+	CombatFact.Kind.HIT_TAKEN: EffectTerms.Trigger.HIT_TAKEN,
+	CombatFact.Kind.MISSED: EffectTerms.Trigger.MISSED,
+	CombatFact.Kind.DODGED: EffectTerms.Trigger.DODGED,
+	CombatFact.Kind.DAMAGE_DEALT: EffectTerms.Trigger.DAMAGE_DEALT,
+	CombatFact.Kind.DAMAGE_TAKEN: EffectTerms.Trigger.DAMAGE_TAKEN,
+	CombatFact.Kind.CRIT_DEALT: EffectTerms.Trigger.CRIT_DEALT,
+	CombatFact.Kind.CRIT_TAKEN: EffectTerms.Trigger.CRIT_TAKEN,
+	CombatFact.Kind.EXPOSED: EffectTerms.Trigger.EXPOSED,
+	CombatFact.Kind.DEFEATED_AN_ENEMY: EffectTerms.Trigger.DEFEATED_AN_ENEMY,
+	CombatFact.Kind.DEFEATED: EffectTerms.Trigger.DEFEATED,
+	CombatFact.Kind.HEALED_AN_ALLY: EffectTerms.Trigger.HEALED_AN_ALLY,
+	CombatFact.Kind.HEALED: EffectTerms.Trigger.HEALED,
+	CombatFact.Kind.USED_STAFF_ON_ALLY: EffectTerms.Trigger.USED_STAFF_ON_ALLY,
+	CombatFact.Kind.DARKNESS_DAMAGE_TAKEN: EffectTerms.Trigger.DARKNESS_DAMAGE_TAKEN,
+	CombatFact.Kind.OBJECT_USED: EffectTerms.Trigger.OBJECT_USED,
+	CombatFact.Kind.SHOVED_A_UNIT: EffectTerms.Trigger.SHOVED_A_UNIT,
+	CombatFact.Kind.SHOVED: EffectTerms.Trigger.SHOVED,
+	CombatFact.Kind.BLOCK_GAINED: EffectTerms.Trigger.BLOCK_GAINED,
 }
 
 # Facts that change their actor's stat sheet inputs: a weapon swapped into the slot, a permanent
@@ -146,6 +146,8 @@ var _generation: int = 0
 
 var _observers: Array[Callable] = []
 
+var _context_observers: Array[Callable] = []
+
 # Value queries in progress, by subject, key and stat, so a condition that reads the value it
 # modifies sees the static part instead of recursing.
 var _querying: Dictionary[String, bool] = {}
@@ -178,7 +180,7 @@ func register(instance: EffectInstance, keep_combat_lane: bool = false) -> void:
 		diagnostics.append("EffectEngine: %s is already registered" % [instance.instance_id])
 		return
 	if not keep_combat_lane:
-		instance.reset_lane(EffectDefinition.Lane.COMBAT)
+		instance.reset_lane(EffectTerms.Lane.COMBAT)
 	_instances[instance.instance_id] = instance
 	_index(instance)
 	_run.sheets.clear()
@@ -326,6 +328,8 @@ func record(fact: CombatFact, ctx: EffectContext = null) -> void:
 		_run.sheets.erase(fact.actor_id)
 	for observer: Callable in _observers:
 		observer.call(fact)
+	for observer: Callable in _context_observers:
+		observer.call(fact, ctx)
 
 	var window: InlineWindow = _windows.get(fact, null)
 	if window != null:
@@ -369,7 +373,7 @@ func activate(instance: EffectInstance, ctx: EffectContext) -> bool:
 	ctx.is_query = false
 	if not _passes(instance, ctx):
 		return false
-	_fire(instance, ctx, EffectDefinition.Trigger.ALWAYS)
+	_fire(instance, ctx, EffectTerms.Trigger.ALWAYS)
 	return true
 
 
@@ -475,13 +479,13 @@ func reach_boundary(boundary: Boundary, subject_id: String = "") -> void:
 func matches_side(
 		reference_side: CombatFact.CombatSide,
 		other_id: String,
-		side: EffectDefinition.UnitSide
+		side: EffectTerms.UnitSide
 ) -> bool:
 	var other_side: CombatFact.CombatSide = state.side_of(other_id)
 	match side:
-		EffectDefinition.UnitSide.ALLY:
+		EffectTerms.UnitSide.ALLY:
 			return other_side == reference_side and other_side != CombatFact.CombatSide.NONE
-		EffectDefinition.UnitSide.ENEMY:
+		EffectTerms.UnitSide.ENEMY:
 			return (
 					other_side != reference_side
 					and other_side != CombatFact.CombatSide.NONE
@@ -504,7 +508,7 @@ func tile_distance(from_id: String, to_id: String) -> int:
 ## [method SandboxState.copy_for_sandbox], copies of every instance (counters and charges), timed
 ## modifiers, base values, deltas, waiting reactions and the phase and attack counts, so facts
 ## continue from this engine's [member CombatFact.seq]. Its fact log and diagnostics start empty
-## and it has no observers. Nothing it does reaches this engine. Main thread only.
+## and it has no observers of either kind. Nothing it does reaches this engine. Main thread only.
 func copy_for_sandbox(roll_source: RollSource) -> EffectEngine:
 	var run: RunState = _run.copy()
 	var copy: EffectEngine = EffectEngine.new(
@@ -531,26 +535,35 @@ func add_observer(observer: Callable) -> void:
 	_observers.append(observer)
 
 
+## Adds a read-only listener called as [code]observer(fact, ctx)[/code] with every fact as it is
+## recorded, after the [method add_observer] listeners: [param ctx] is the context the fact was
+## recorded with ("that attack", "that hit", with its inline changes so far), or null when none.
+## Read-only like any observer: it must change neither rules state nor the context. The forecast
+## reads each hit's own context through it ([CombatForecast]).
+func add_context_observer(observer: Callable) -> void:
+	_context_observers.append(observer)
+
+
 ## Whether [param unit_id] is in [param scope] relative to [param owner] (effect-triggers.md,
 ## Scopes). Map objects are in no scope wider than This unit.
-func in_scope(owner: EffectOwner, unit_id: String, scope: EffectDefinition.Scope) -> bool:
+func in_scope(owner: EffectOwner, unit_id: String, scope: EffectTerms.Scope) -> bool:
 	if unit_id.is_empty():
 		return false
-	if scope == EffectDefinition.Scope.THIS_UNIT:
+	if scope == EffectTerms.Scope.THIS_UNIT:
 		return unit_id == owner.holder_id
 	var side: CombatFact.CombatSide = state.side_of(unit_id)
 	if side == CombatFact.CombatSide.NONE:
 		return false
 	match scope:
-		EffectDefinition.Scope.YOUR_UNIT:
+		EffectTerms.Scope.YOUR_UNIT:
 			return side == owner.side and state.seat_of(unit_id) == owner.seat
-		EffectDefinition.Scope.ANY_ALLY_UNIT:
+		EffectTerms.Scope.ANY_ALLY_UNIT:
 			return side == owner.side
 	return true
 
 
 ## Every unit on the map in [param scope] relative to [param owner], in the state's order.
-func units_in_scope(owner: EffectOwner, scope: EffectDefinition.Scope) -> PackedStringArray:
+func units_in_scope(owner: EffectOwner, scope: EffectTerms.Scope) -> PackedStringArray:
 	var units: PackedStringArray = []
 	for unit_id: String in state.unit_ids():
 		if in_scope(owner, unit_id, scope):
@@ -705,7 +718,7 @@ func deal_splash(
 
 
 ## Records that [param instance]'s counter in [param lane] changed. Called by [CounterCondition].
-func counter_changed(instance: EffectInstance, lane: EffectDefinition.Lane) -> void:
+func counter_changed(instance: EffectInstance, lane: EffectTerms.Lane) -> void:
 	var fact: CombatFact = _new_fact(CombatFact.Kind.COUNTER_CHANGED, instance.owner.subject_id())
 	fact.amount = instance.get_counter(lane)
 	fact.source_effect_id = instance.instance_id
@@ -965,7 +978,7 @@ func _modifiers_of(instance: EffectInstance) -> Array[Modifier]:
 
 func _index(instance: EffectInstance) -> void:
 	var trigger: int = instance.definition.trigger
-	if trigger != EffectDefinition.Trigger.ALWAYS:
+	if trigger != EffectTerms.Trigger.ALWAYS:
 		if not _by_trigger.has(trigger):
 			var list: Array[EffectInstance] = []
 			_by_trigger[trigger] = list

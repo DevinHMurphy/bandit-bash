@@ -6,7 +6,7 @@
 # File:     instance_id_allocator.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 28, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 class_name InstanceIdAllocator
@@ -103,3 +103,18 @@ func _mint(kind: String, label: String) -> String:
 ## [member EffectOwner.owner_id] of its heirlooms and curses.
 static func seat_subject_id(seat: int) -> String:
 	return "seat:%d" % [seat]
+
+
+# A map object's spot, not a minted instance: its id is the same on every co-op copy of the map
+# and every load (combat map plan, Authoring and loading), so it never comes from the counter.
+## The id of the map object on spot [param spot_index] ([member MapLayout.Marker.index]),
+## [code]object:N[/code]. Named with [method set_label] when the object is placed.
+static func object_id(spot_index: int) -> String:
+	return "object:%d" % [spot_index]
+
+
+# Not minted, for the same reason as object_id().
+## The id of reinforcement point [param point_index] ([member MapLayout.Marker.index]),
+## [code]point:N[/code]. Named with [method set_label] when its waves are loaded.
+static func point_id(point_index: int) -> String:
+	return "point:%d" % [point_index]

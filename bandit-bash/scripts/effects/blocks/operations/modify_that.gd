@@ -6,7 +6,7 @@
 # File:     modify_that.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 @tool
@@ -44,15 +44,15 @@ enum Flag {
 
 ## What "that" names in effect text, per trigger with an inline window.
 const THAT_TEXT: Dictionary[int, String] = {
-	EffectDefinition.Trigger.ATTACK_MADE: "that attack",
-	EffectDefinition.Trigger.HIT_DEALT: "that hit",
-	EffectDefinition.Trigger.HIT_TAKEN: "that hit",
-	EffectDefinition.Trigger.CRIT_DEALT: "that hit",
-	EffectDefinition.Trigger.CRIT_TAKEN: "that hit",
-	EffectDefinition.Trigger.HEALED: "that heal",
-	EffectDefinition.Trigger.HEALED_AN_ALLY: "that heal",
-	EffectDefinition.Trigger.DARKNESS_DAMAGE_TAKEN: "that darkness damage",
-	EffectDefinition.Trigger.BLOCK_GAINED: "that Block gain",
+	EffectTerms.Trigger.ATTACK_MADE: "that attack",
+	EffectTerms.Trigger.HIT_DEALT: "that hit",
+	EffectTerms.Trigger.HIT_TAKEN: "that hit",
+	EffectTerms.Trigger.CRIT_DEALT: "that hit",
+	EffectTerms.Trigger.CRIT_TAKEN: "that hit",
+	EffectTerms.Trigger.HEALED: "that heal",
+	EffectTerms.Trigger.HEALED_AN_ALLY: "that heal",
+	EffectTerms.Trigger.DARKNESS_DAMAGE_TAKEN: "that darkness damage",
+	EffectTerms.Trigger.BLOCK_GAINED: "that Block gain",
 }
 
 ## What part of the action changes.
@@ -75,14 +75,14 @@ const THAT_TEXT: Dictionary[int, String] = {
 func _validate_property(property: Dictionary) -> void:
 	if property["name"] == "key":
 		property["hint"] = PROPERTY_HINT_ENUM
-		property["hint_string"] = EffectDefinition.value_key_hint()
+		property["hint_string"] = EffectTerms.value_key_hint()
 
 
 func describe() -> String:
-	return describe_for_trigger(EffectDefinition.Trigger.ALWAYS)
+	return describe_for_trigger(EffectTerms.Trigger.ALWAYS)
 
 
-func describe_for_trigger(trigger: EffectDefinition.Trigger) -> String:
+func describe_for_trigger(trigger: EffectTerms.Trigger) -> String:
 	var noun: String = _noun(trigger)
 	match what:
 		What.AMOUNT:
@@ -93,7 +93,7 @@ func describe_for_trigger(trigger: EffectDefinition.Trigger) -> String:
 			return "%s skips Mitigation" % [noun]
 		What.EXTRA_STANCE_LOSS:
 			return _stance_text(trigger, noun)
-	return "%s for %s" % [EffectDefinition.describe_modifier(key, mode, value), noun]
+	return "%s for %s" % [EffectTerms.describe_modifier(key, mode, value), noun]
 
 
 func is_inline() -> bool:
@@ -120,29 +120,29 @@ func apply(ctx: EffectContext) -> void:
 
 # "the target loses 1 extra Stance" on a dealt hit (unit-roster.md wording); otherwise names the
 # change and the hit.
-func _stance_text(trigger: EffectDefinition.Trigger, noun: String) -> String:
+func _stance_text(trigger: EffectTerms.Trigger, noun: String) -> String:
 	var dealt: bool = (
-			trigger == EffectDefinition.Trigger.HIT_DEALT
-			or trigger == EffectDefinition.Trigger.CRIT_DEALT
+			trigger == EffectTerms.Trigger.HIT_DEALT
+			or trigger == EffectTerms.Trigger.CRIT_DEALT
 	)
 	if dealt and mode == Modifier.Mode.ADD and value >= 0.0:
-		return "the target loses %s extra Stance" % [EffectDefinition.format_number(value)]
+		return "the target loses %s extra Stance" % [EffectTerms.format_number(value)]
 	return "%s extra Stance loss for %s" % [_amount_change(), noun]
 
 
 func _amount_change() -> String:
-	var number: String = EffectDefinition.format_number(absf(value))
+	var number: String = EffectTerms.format_number(absf(value))
 	match mode:
 		Modifier.Mode.ADD:
 			return "%s%s" % ["-" if value < 0.0 else "+", number]
 		Modifier.Mode.MULTIPLY:
-			return "×%s" % [EffectDefinition.format_number(value)]
+			return "×%s" % [EffectTerms.format_number(value)]
 		Modifier.Mode.FLOOR:
 			return "at least %s" % [number]
 		Modifier.Mode.CAP:
 			return "at most %s" % [number]
-	return "set %s" % [EffectDefinition.format_number(value)]
+	return "set %s" % [EffectTerms.format_number(value)]
 
 
-static func _noun(trigger: EffectDefinition.Trigger) -> String:
+static func _noun(trigger: EffectTerms.Trigger) -> String:
 	return THAT_TEXT.get(trigger, "that action")

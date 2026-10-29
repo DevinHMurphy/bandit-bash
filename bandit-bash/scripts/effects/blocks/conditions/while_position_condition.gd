@@ -6,7 +6,7 @@
 # File:     while_position_condition.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 27, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 @tool
@@ -46,7 +46,7 @@ enum Kind {
 @export_range(0, 99) var tiles: int = 1
 
 ## Which units count for [constant ADJACENT_TO] and [constant WITHIN]; ignored by the others.
-@export var side: EffectDefinition.UnitSide = EffectDefinition.UnitSide.ALLY
+@export var side: EffectTerms.UnitSide = EffectTerms.UnitSide.ALLY
 
 
 func describe() -> String:
@@ -92,9 +92,9 @@ func test(ctx: EffectContext) -> bool:
 
 func _side_noun() -> String:
 	match side:
-		EffectDefinition.UnitSide.ALLY:
+		EffectTerms.UnitSide.ALLY:
 			return "an ally"
-		EffectDefinition.UnitSide.ENEMY:
+		EffectTerms.UnitSide.ENEMY:
 			return "an enemy"
 	return "a unit"
 
@@ -120,7 +120,7 @@ func _no_ally_closer(engine: EffectEngine, unit_id: String) -> bool:
 	for ally: String in engine.state.unit_ids():
 		if ally == unit_id:
 			continue
-		if not engine.matches_side(own_side, ally, EffectDefinition.UnitSide.ALLY):
+		if not engine.matches_side(own_side, ally, EffectTerms.UnitSide.ALLY):
 			continue
 		var theirs: int = _nearest_enemy(engine, ally)
 		if theirs >= 0 and theirs < own:
@@ -133,7 +133,7 @@ static func _nearest_enemy(engine: EffectEngine, unit_id: String) -> int:
 	var own_side: CombatFact.CombatSide = engine.state.side_of(unit_id)
 	var nearest: int = -1
 	for other: String in engine.state.unit_ids():
-		if not engine.matches_side(own_side, other, EffectDefinition.UnitSide.ENEMY):
+		if not engine.matches_side(own_side, other, EffectTerms.UnitSide.ENEMY):
 			continue
 		var distance: int = engine.tile_distance(unit_id, other)
 		if nearest < 0 or distance < nearest:

@@ -6,13 +6,16 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 28, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 extends SceneTree
 ## Headless tests for the combat map: terrain definitions and loading a map scene into a
 ## [MapLayout] (layout_cases.gd); [MapGrid], [MapState], [Pathing] and the [CombatState] checks
-## built on them (grid_cases.gd); [AutoDeploy] and the opening swap (deploy_cases.gd).
+## built on them (grid_cases.gd); [AutoDeploy] and the opening swap (deploy_cases.gd); [Objectives],
+## run in a [CombatSession] (objective_cases.gd); [MapCheck] (check_cases.gd); the M1 map, its
+## [MapMarker] nodes and a battle opened on it (m1_cases.gd); [MapObjects] (object_cases.gd);
+## [Reinforcements] (reinforcement_cases.gd).
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/map/run_all.gd[/code][br]
@@ -25,6 +28,11 @@ extends SceneTree
 const LayoutCases = preload("res://tests/map/layout_cases.gd")
 const GridCases = preload("res://tests/map/grid_cases.gd")
 const DeployCases = preload("res://tests/map/deploy_cases.gd")
+const ObjectiveCases = preload("res://tests/map/objective_cases.gd")
+const CheckCases = preload("res://tests/map/check_cases.gd")
+const M1Cases = preload("res://tests/map/m1_cases.gd")
+const ObjectCases = preload("res://tests/map/object_cases.gd")
+const ReinforcementCases = preload("res://tests/map/reinforcement_cases.gd")
 
 var _failures: int = 0
 var _passes: int = 0
@@ -35,6 +43,11 @@ func _init() -> void:
 	LayoutCases.new(_check).run()
 	GridCases.new(_check).run()
 	DeployCases.new(_check).run()
+	ObjectiveCases.new(_check).run()
+	CheckCases.new(_check).run()
+	M1Cases.new(_check).run()
+	ObjectCases.new(_check).run()
+	ReinforcementCases.new(_check).run()
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)
 

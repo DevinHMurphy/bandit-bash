@@ -6,7 +6,7 @@
 # File:     effect_instance.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 class_name EffectInstance
@@ -40,7 +40,7 @@ var label: String = ""
 ## definition has no limit.
 var charges_left: int = -1
 
-# Count per lane (EffectDefinition.Lane); a lane with no entry is at 0.
+# Count per lane (EffectTerms.Lane); a lane with no entry is at 0.
 var _counters: Dictionary[int, int] = {}
 
 
@@ -60,12 +60,12 @@ func _init(
 
 
 ## The count of [param lane]'s counter.
-func get_counter(lane: EffectDefinition.Lane) -> int:
+func get_counter(lane: EffectTerms.Lane) -> int:
 	return _counters.get(lane, 0)
 
 
 ## Sets [param lane]'s counter, such as a campaign-lane value copied in at battle start.
-func set_counter(lane: EffectDefinition.Lane, value: int) -> void:
+func set_counter(lane: EffectTerms.Lane, value: int) -> void:
 	_counters[lane] = value
 
 
@@ -82,7 +82,7 @@ func spend_charge() -> void:
 
 ## Starts [param lane]'s period over: its counter goes to 0 and, if the charges refill in that
 ## lane, they refill.
-func reset_lane(lane: EffectDefinition.Lane) -> void:
+func reset_lane(lane: EffectTerms.Lane) -> void:
 	_counters.erase(lane)
 	if definition != null and definition.charge_lane == lane:
 		charges_left = _full_charges()
@@ -95,7 +95,7 @@ func copy() -> EffectInstance:
 	)
 	instance.charges_left = charges_left
 	for lane: int in _counters:
-		instance.set_counter(lane as EffectDefinition.Lane, _counters[lane])
+		instance.set_counter(lane as EffectTerms.Lane, _counters[lane])
 	return instance
 
 

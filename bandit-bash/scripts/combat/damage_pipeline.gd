@@ -6,7 +6,7 @@
 # File:     damage_pipeline.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 27, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 class_name DamagePipeline
@@ -79,7 +79,8 @@ static func compute(engine: EffectEngine, state: CombatState, ctx: EffectContext
 ## Stage 2 for [param defender] against [param damage_type]: its stat for the type plus its tile's
 ## DEF or RES bonus (Split: half of each, both stat and terrain) as the base, and every Mitigation
 ## modifier ("take 5 less damage", "takes 2 more damage") on top, with no floor. Pure damage
-## meets 0.
+## meets 0. A map object meets only its own DEF or RES: terrain bonuses are for a unit standing
+## on the tile.
 static func mitigation(
 		engine: EffectEngine,
 		state: CombatState,
@@ -88,7 +89,11 @@ static func mitigation(
 		ctx: EffectContext
 ) -> ValueBreakdown:
 	var sheet: StatSheet = engine.stats(defender)
-	var bonus: CombatGrid.TileBonus = state.grid.tile_bonus(state.tile_of(defender))
+	var bonus: CombatGrid.TileBonus = CombatGrid.TileBonus.new()
+	# ASSUMPTION: an object takes no terrain DEF or RES (the plan names only its own; Godot_FE gave
+	# an entity its own terrain in place of the tile's).
+	if state.side_of(defender) != CombatFact.CombatSide.NONE:
+		bonus = state.grid.tile_bonus(state.tile_of(defender))
 	var defense: float = sheet.get_value(CombatValue.Key.DEF, ctx) + bonus.defense
 	var resistance: float = sheet.get_value(CombatValue.Key.RES, ctx) + bonus.resistance
 	var base: float = defense

@@ -6,7 +6,7 @@
 # File:     staff_resolver.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 27, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 class_name StaffResolver
@@ -65,7 +65,7 @@ static func check(
 	):
 		return "no Block or heal staff"
 	var side: CombatFact.CombatSide = state.side_of(user_id)
-	if not engine.matches_side(side, target_id, EffectDefinition.UnitSide.ALLY):
+	if not engine.matches_side(side, target_id, EffectTerms.UnitSide.ALLY):
 		return "not an ally"
 	var ctx: EffectContext = EffectContext.new()
 	ctx.distance = state.grid.distance(state.tile_of(user_id), state.tile_of(target_id))

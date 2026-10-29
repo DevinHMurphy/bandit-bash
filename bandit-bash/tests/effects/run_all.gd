@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 28, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -165,6 +165,8 @@ func _test_combat_wire_rejects_bad_data() -> void:
 		"unknown side": _with(good, 14, 9),
 		"int in the item id slot": _with(good, 15, 412),
 		"string in the key slot": _with(good, 16, "1"),
+		"int in the unit types slot": _with(good, 17, 2),
+		"int among the unit types": _with(good, 17, ["Bandit", 2]),
 		"null slot": _with(good, 13, null),
 	}
 	for case_name: String in cases:
@@ -184,7 +186,7 @@ func _test_combat_fact_amendments() -> void:
 	_check(
 			"amendments: side in slot 14, item id appended after it",
 			(
-					wire.size() == 17 and wire[14] == CombatFact.CombatSide.ENEMY
+					wire.size() == 18 and wire[14] == CombatFact.CombatSide.ENEMY
 					and wire[15] == ""
 			) as bool,
 			str(wire)
@@ -241,7 +243,12 @@ func _test_combat_fact_amendments() -> void:
 	_check(
 			"amendments: old kind values unchanged",
 			CombatFact.Kind.PHASE_START == 0 and CombatFact.Kind.MODIFIER_EXPIRED == 34
-			and CombatFact.Kind.size() == 44
+			and CombatFact.Kind.size() == 46
+	)
+	_check(
+			"amendments: the reinforcement kinds appended last (combat map plan, New facts)",
+			CombatFact.Kind.REINFORCEMENT_INCOMING == 44
+			and CombatFact.Kind.REINFORCEMENT_ARRIVED == 45
 	)
 
 
@@ -299,11 +306,11 @@ func _test_combat_fact_key() -> void:
 	stat.key = CombatValue.Stat.MGT
 	var counter: CombatFact = CombatFact.new(CombatFact.Kind.COUNTER_CHANGED, "unit:57")
 	counter.amount = 3
-	counter.key = EffectDefinition.Lane.CAMPAIGN
+	counter.key = EffectTerms.Lane.CAMPAIGN
 	_check(
 			"key: STAT_CHANGED appended after BLOCK_LOST, key in slot 16",
 			(
-					CombatFact.Kind.STAT_CHANGED == 42 and stat.to_wire().size() == 17
+					CombatFact.Kind.STAT_CHANGED == 42 and stat.to_wire().size() == 18
 					and stat.to_wire()[16] == CombatValue.Stat.MGT
 			) as bool
 	)
@@ -407,7 +414,7 @@ func _test_combat_log_line_optional_parts() -> void:
 	var full: CombatFact = _full_combat_fact()
 	var expected: String = (
 			"s1#40 DAMAGE_TAKEN unit:57 (Hakkapel) <- enemy:61 (Brute) amount 5 (hp 3, block 2)"
-			+ " source splash type split effect effect:9 tile (4, 7) flags 0x3"
+			+ " source splash type split effect effect:9 tile (4, 7) flags 0x3 types Bandit, Archer"
 	)
 	var full_line: String = full.to_log_line(_describe)
 	_check("log line: every optional part", full_line == expected, full_line)
@@ -1013,27 +1020,27 @@ func _test_stat_sheet_caches_and_invalidates() -> void:
 func _test_describe_helpers() -> void:
 	var ordinals: PackedStringArray = []
 	for number: int in [1, 2, 3, 4, 10, 11, 12, 13, 21, 22, 101, 111, 112]:
-		ordinals.append(EffectDefinition.ordinal(number))
+		ordinals.append(EffectTerms.ordinal(number))
 	_check(
 			"describe: ordinals",
 			", ".join(ordinals) == "1st, 2nd, 3rd, 4th, 10th, 11th, 12th, 13th, 21st, 22nd, 101st,"
 			+ " 111th, 112th",
 			", ".join(ordinals)
 	)
-	_snapshot("key name: combat value", EffectDefinition.key_name(CombatValue.Key.ATK_X), "Atk X")
+	_snapshot("key name: combat value", EffectTerms.key_name(CombatValue.Key.ATK_X), "Atk X")
 	_snapshot(
 			"key name: damage stage",
-			EffectDefinition.key_name(DamageStage.Key.MULTIPLIERS),
+			EffectTerms.key_name(DamageStage.Key.MULTIPLIERS),
 			"Multipliers stage"
 	)
 	_snapshot(
 			"key name: campaign permission",
-			EffectDefinition.key_name(CampaignValue.Permission.STAT_CAN_GROW),
+			EffectTerms.key_name(CampaignValue.Permission.STAT_CAN_GROW),
 			"Stat Can Grow"
 	)
-	_snapshot("key name: unknown", EffectDefinition.key_name(999), "Key 999")
-	_snapshot("number: whole", EffectDefinition.format_number(3.0), "3")
-	_snapshot("number: fraction", EffectDefinition.format_number(0.5), "0.5")
+	_snapshot("key name: unknown", EffectTerms.key_name(999), "Key 999")
+	_snapshot("number: whole", EffectTerms.format_number(3.0), "3")
+	_snapshot("number: fraction", EffectTerms.format_number(0.5), "0.5")
 
 
 func _test_describe_conditions() -> void:
@@ -1043,7 +1050,7 @@ func _test_describe_conditions() -> void:
 	_snapshot("counter: words before the trigger", tenth.describe_count(), "Every 10th")
 	var first: CounterCondition = CounterCondition.new()
 	first.mode = CounterCondition.Mode.FIRST
-	first.lane = EffectDefinition.Lane.CAMPAIGN
+	first.lane = EffectTerms.Lane.CAMPAIGN
 	_snapshot("counter: first", first.describe(), "first time this campaign")
 
 	var chance: ChanceCondition = ChanceCondition.new()
@@ -1086,7 +1093,7 @@ func _test_describe_conditions() -> void:
 		var position: WhilePositionCondition = WhilePositionCondition.new()
 		position.kind = kind as WhilePositionCondition.Kind
 		position.tiles = 4
-		position.side = EffectDefinition.UnitSide.ENEMY
+		position.side = EffectTerms.UnitSide.ENEMY
 		var kind_name: String = WhilePositionCondition.Kind.find_key(kind)
 		_snapshot("while position: %s" % [kind_name], position.describe(), expected_positions[kind])
 
@@ -1142,7 +1149,7 @@ func _test_describe_operations() -> void:
 	halve.value = 0.5
 	_snapshot(
 			"modify that: value, named by trigger",
-			halve.describe_for_trigger(EffectDefinition.Trigger.HIT_TAKEN),
+			halve.describe_for_trigger(EffectTerms.Trigger.HIT_TAKEN),
 			"×0.5 Multipliers stage for that hit"
 	)
 	_check("modify that: inline", halve.is_inline())
@@ -1150,13 +1157,13 @@ func _test_describe_operations() -> void:
 	lifesteal.what = ModifyThat.What.FLAG
 	_snapshot(
 			"modify that: lifesteal",
-			lifesteal.describe_for_trigger(EffectDefinition.Trigger.ATTACK_MADE),
+			lifesteal.describe_for_trigger(EffectTerms.Trigger.ATTACK_MADE),
 			"that attack gains lifesteal"
 	)
 	lifesteal.flag = ModifyThat.Flag.SKIP_MITIGATION
 	_snapshot(
 			"modify that: skip Mitigation",
-			lifesteal.describe_for_trigger(EffectDefinition.Trigger.CRIT_DEALT),
+			lifesteal.describe_for_trigger(EffectTerms.Trigger.CRIT_DEALT),
 			"that hit skips Mitigation"
 	)
 	var brittle: ModifyThat = ModifyThat.new()
@@ -1164,7 +1171,7 @@ func _test_describe_operations() -> void:
 	brittle.value = -1.0
 	_snapshot(
 			"modify that: amount",
-			brittle.describe_for_trigger(EffectDefinition.Trigger.BLOCK_GAINED),
+			brittle.describe_for_trigger(EffectTerms.Trigger.BLOCK_GAINED),
 			"-1 to that Block gain"
 	)
 	_snapshot("modify that: no trigger", brittle.describe(), "-1 to that action")
@@ -1178,7 +1185,7 @@ func _test_describe_operations() -> void:
 			"gain +15 Hit on its next attack this combat"
 	)
 	var horn: AddTimedModifier = _timed(DamageStage.Key.ATTACK, ADD, 2.0)
-	horn.target = _area(Area.Center.OWNER, 2, EffectDefinition.UnitSide.ANY, false)
+	horn.target = _area(Area.Center.OWNER, 2, EffectTerms.UnitSide.ANY, false)
 	horn.end = AddTimedModifier.End.END_OF_NEXT_PHASE
 	_snapshot(
 			"timed: area until the end of the next phase",
@@ -1213,7 +1220,7 @@ func _test_describe_operations() -> void:
 	)
 	var stance: GainResource = _gain(GainResource.Pool.STANCE, Owner.new(), _constant(1.0))
 	_snapshot("gain: Stance", stance.describe(), "gain 1 Stance")
-	var adjacent_allies: Area = _area(Area.Center.OWNER, 1, EffectDefinition.UnitSide.ALLY, false)
+	var adjacent_allies: Area = _area(Area.Center.OWNER, 1, EffectTerms.UnitSide.ALLY, false)
 	_snapshot(
 			"gain: equal to a count",
 			_gain(GainResource.Pool.BLOCK, null, _count(adjacent_allies)).describe(),
@@ -1241,7 +1248,7 @@ func _test_describe_operations() -> void:
 	)
 
 	var cleave: DealSplash = DealSplash.new()
-	cleave.target = _area(Area.Center.OWNER, 1, EffectDefinition.UnitSide.ANY, false)
+	cleave.target = _area(Area.Center.OWNER, 1, EffectTerms.UnitSide.ANY, false)
 	cleave.amount = _constant(2.0)
 	_snapshot("splash", cleave.describe(), "deal 2 splash damage to adjacent units, friend or foe")
 	cleave.amount = _count(adjacent_allies)
@@ -1304,22 +1311,22 @@ func _test_describe_selectors() -> void:
 	_snapshot("fact target", FactTarget.new().describe(), "the other unit")
 	_snapshot(
 			"area: adjacent, friend or foe",
-			_area(Area.Center.OWNER, 1, EffectDefinition.UnitSide.ANY, false).describe(),
+			_area(Area.Center.OWNER, 1, EffectTerms.UnitSide.ANY, false).describe(),
 			"adjacent units, friend or foe"
 	)
 	_snapshot(
 			"area: with the center",
-			_area(Area.Center.OWNER, 2, EffectDefinition.UnitSide.ALLY, true).describe(),
+			_area(Area.Center.OWNER, 2, EffectTerms.UnitSide.ALLY, true).describe(),
 			"this unit and allies within 2 tiles"
 	)
 	_snapshot(
 			"area: around the fact's actor",
-			_area(Area.Center.FACT_ACTOR, 1, EffectDefinition.UnitSide.ENEMY, false).describe(),
+			_area(Area.Center.FACT_ACTOR, 1, EffectTerms.UnitSide.ENEMY, false).describe(),
 			"adjacent enemies of that unit"
 	)
 	_snapshot(
 			"area: around the command target",
-			_area(Area.Center.COMMAND_TARGET, 1, EffectDefinition.UnitSide.ALLY, true).describe(),
+			_area(Area.Center.COMMAND_TARGET, 1, EffectTerms.UnitSide.ALLY, true).describe(),
 			"the target and adjacent allies of the target"
 	)
 	var against: WhileAttackCondition = WhileAttackCondition.new()
@@ -1338,7 +1345,7 @@ func _test_describe_selectors() -> void:
 	_snapshot("while attack: from a crit", from_magic.describe(), "from a crit")
 	var everyone: AllOfScope = AllOfScope.new()
 	_snapshot("all of scope: default", everyone.describe(), "your units")
-	everyone.scope = EffectDefinition.Scope.ANY_UNIT
+	everyone.scope = EffectTerms.Scope.ANY_UNIT
 	_snapshot("all of scope: any unit", everyone.describe(), "every unit")
 	_snapshot("random of", _random_of_army().describe(), "a random one of your units")
 
@@ -1356,13 +1363,13 @@ func _test_describe_values() -> void:
 	_snapshot("stat of: owner", movement.describe(), "this unit's Movement")
 	movement.subject = FactTarget.new()
 	_snapshot("stat of: subject", movement.describe(), "the other unit's Movement")
-	var adjacent_allies: Area = _area(Area.Center.OWNER, 1, EffectDefinition.UnitSide.ALLY, false)
+	var adjacent_allies: Area = _area(Area.Center.OWNER, 1, EffectTerms.UnitSide.ALLY, false)
 	var doubled: CountOf = _count(adjacent_allies)
 	_snapshot("count of", doubled.describe(), "the number of adjacent allies")
 	doubled.each = 2.0
 	_snapshot("count of: each", doubled.describe(), "2 × the number of adjacent allies")
 	var counter: CounterValue = CounterValue.new()
-	counter.lane = EffectDefinition.Lane.CAMPAIGN
+	counter.lane = EffectTerms.Lane.CAMPAIGN
 	_snapshot("counter value", counter.describe(), "its count this campaign")
 
 
@@ -1371,7 +1378,7 @@ func _test_describe_coverage_fixtures() -> void:
 	var no_ally_closer: WhilePositionCondition = WhilePositionCondition.new()
 	no_ally_closer.kind = WhilePositionCondition.Kind.NO_ALLY_CLOSER_TO_ENEMY
 	var vanguard: EffectDefinition = _definition(
-			EffectDefinition.Trigger.PHASE_START,
+			EffectTerms.Trigger.PHASE_START,
 			[no_ally_closer],
 			[_gain(GainResource.Pool.BLOCK, null, _constant(3.0))]
 	)
@@ -1386,9 +1393,9 @@ func _test_describe_coverage_fixtures() -> void:
 	var lifesteal: ModifyThat = ModifyThat.new()
 	lifesteal.what = ModifyThat.What.FLAG
 	var iron_heart: EffectDefinition = _definition(
-			EffectDefinition.Trigger.ATTACK_MADE, [seventh], [lifesteal]
+			EffectTerms.Trigger.ATTACK_MADE, [seventh], [lifesteal]
 	)
-	iron_heart.scope = EffectDefinition.Scope.YOUR_UNIT
+	iron_heart.scope = EffectTerms.Scope.YOUR_UNIT
 	_snapshot(
 			"fixture: Iron Heart",
 			iron_heart.describe(),
@@ -1400,35 +1407,35 @@ func _test_describe_coverage_fixtures() -> void:
 	plus_hit.uses = 1
 	_snapshot(
 			"fixture: Momentum",
-			_definition(EffectDefinition.Trigger.MISSED, [], [plus_hit]).describe(),
+			_definition(EffectTerms.Trigger.MISSED, [], [plus_hit]).describe(),
 			"Missed: gain +15 Hit on its next attack this combat"
 	)
 
-	var adjacent_allies: Area = _area(Area.Center.OWNER, 1, EffectDefinition.UnitSide.ALLY, false)
+	var adjacent_allies: Area = _area(Area.Center.OWNER, 1, EffectTerms.UnitSide.ALLY, false)
 	var phalanx_gain: GainResource = _gain(GainResource.Pool.BLOCK, null, _count(adjacent_allies))
 	_snapshot(
 			"fixture: Phalanx",
-			_definition(EffectDefinition.Trigger.UNIT_TURN_START, [], [phalanx_gain]).describe(),
+			_definition(EffectTerms.Trigger.UNIT_TURN_START, [], [phalanx_gain]).describe(),
 			"Unit Turn Start: gain Block equal to the number of adjacent allies"
 	)
 
 	var splash: DealSplash = DealSplash.new()
-	splash.target = _area(Area.Center.OWNER, 1, EffectDefinition.UnitSide.ANY, false)
+	splash.target = _area(Area.Center.OWNER, 1, EffectTerms.UnitSide.ANY, false)
 	splash.amount = _constant(2.0)
 	_snapshot(
 			"fixture: Cleave",
-			_definition(EffectDefinition.Trigger.HIT_DEALT, [], [splash]).describe(),
+			_definition(EffectTerms.Trigger.HIT_DEALT, [], [splash]).describe(),
 			"Hit dealt: deal 2 splash damage to adjacent units, friend or foe"
 	)
 
 	var second: CounterCondition = CounterCondition.new()
 	second.count = 2
 	var horn: AddTimedModifier = _timed(DamageStage.Key.ATTACK, ADD, 2.0)
-	horn.target = _area(Area.Center.OWNER, 2, EffectDefinition.UnitSide.ANY, true)
+	horn.target = _area(Area.Center.OWNER, 2, EffectTerms.UnitSide.ANY, true)
 	horn.end = AddTimedModifier.End.END_OF_NEXT_PHASE
 	_snapshot(
 			"fixture: War Horn",
-			_definition(EffectDefinition.Trigger.PHASE_START, [second], [horn]).describe(),
+			_definition(EffectTerms.Trigger.PHASE_START, [second], [horn]).describe(),
 			"Every 2nd Phase Start this combat: give this unit and units within 2 tiles, friend or"
 			+ " foe +2 Attack stage until the end of the next phase"
 	)
@@ -1436,8 +1443,8 @@ func _test_describe_coverage_fixtures() -> void:
 	var cup_gain: GainResource = _gain(
 			GainResource.Pool.BLOCK, FactActor.new(), _percent_of_overheal()
 	)
-	var cup: EffectDefinition = _definition(EffectDefinition.Trigger.HEALED, [], [cup_gain])
-	cup.scope = EffectDefinition.Scope.YOUR_UNIT
+	var cup: EffectDefinition = _definition(EffectTerms.Trigger.HEALED, [], [cup_gain])
+	cup.scope = EffectTerms.Scope.YOUR_UNIT
 	_snapshot(
 			"fixture: Overflowing Cup",
 			cup.describe(),
@@ -1449,9 +1456,9 @@ func _test_describe_coverage_fixtures() -> void:
 	halve.mode = MULTIPLY
 	halve.value = 0.5
 	var lantern: EffectDefinition = _definition(
-			EffectDefinition.Trigger.DARKNESS_DAMAGE_TAKEN, [], [halve]
+			EffectTerms.Trigger.DARKNESS_DAMAGE_TAKEN, [], [halve]
 	)
-	lantern.scope = EffectDefinition.Scope.YOUR_UNIT
+	lantern.scope = EffectTerms.Scope.YOUR_UNIT
 	_snapshot(
 			"fixture: Lantern Oil",
 			lantern.describe(),
@@ -1461,7 +1468,7 @@ func _test_describe_coverage_fixtures() -> void:
 	var gold: ModifyValue = _modify_value(CampaignValue.Key.COMBAT_GOLD, ADD, 8.0)
 	_snapshot(
 			"fixture: Bounty Ledger",
-			_definition(EffectDefinition.Trigger.ALWAYS, [], [gold]).describe(),
+			_definition(EffectTerms.Trigger.ALWAYS, [], [gold]).describe(),
 			"Always: +8 Combat Gold"
 	)
 
@@ -1473,7 +1480,7 @@ func _test_describe_coverage_fixtures() -> void:
 	)
 	_snapshot(
 			"fixture: Training Weights without stats named (engine cases name them)",
-			_definition(EffectDefinition.Trigger.ALWAYS, [], [no_growth, gain_might]).describe(),
+			_definition(EffectTerms.Trigger.ALWAYS, [], [no_growth, gain_might]).describe(),
 			"Always: deny Stat Can Grow, +1 Level Up Guaranteed Gains"
 	)
 
@@ -1481,9 +1488,9 @@ func _test_describe_coverage_fixtures() -> void:
 	minus_one.what = ModifyThat.What.AMOUNT
 	minus_one.value = -1.0
 	var brittle: EffectDefinition = _definition(
-			EffectDefinition.Trigger.BLOCK_GAINED, [], [minus_one]
+			EffectTerms.Trigger.BLOCK_GAINED, [], [minus_one]
 	)
-	brittle.scope = EffectDefinition.Scope.YOUR_UNIT
+	brittle.scope = EffectTerms.Scope.YOUR_UNIT
 	brittle.tags = EffectDefinition.Tag.CURSE
 	_snapshot(
 			"fixture: Brittle Guard",
@@ -1497,8 +1504,8 @@ func _test_describe_coverage_fixtures() -> void:
 	)
 
 	var haunt: GainResource = _gain(GainResource.Pool.BLOCK, _random_of_army(), _constant(-2.0))
-	var haunted: EffectDefinition = _definition(EffectDefinition.Trigger.PHASE_START, [], [haunt])
-	haunted.scope = EffectDefinition.Scope.YOUR_UNIT
+	var haunted: EffectDefinition = _definition(EffectTerms.Trigger.PHASE_START, [], [haunt])
+	haunted.scope = EffectTerms.Scope.YOUR_UNIT
 	_snapshot(
 			"fixture: Haunted",
 			haunted.describe(),
@@ -1517,7 +1524,7 @@ func _test_describe_definition_shapes() -> void:
 	halve.value = 0.5
 	_snapshot(
 			"definition: counter, then other conditions",
-			_definition(EffectDefinition.Trigger.HIT_TAKEN, [chance, tenth], [halve]).describe(),
+			_definition(EffectTerms.Trigger.HIT_TAKEN, [chance, tenth], [halve]).describe(),
 			"Every 10th Hit taken this combat, 25% chance: ×0.5 Multipliers stage for that hit"
 	)
 
@@ -1525,16 +1532,16 @@ func _test_describe_definition_shapes() -> void:
 	var atk_x: ModifyValue = _modify_value(CombatValue.Key.ATK_X, ADD, 1.0)
 	_snapshot(
 			"definition: always-on with a While condition",
-			_definition(EffectDefinition.Trigger.ALWAYS, [exposed], [atk_x]).describe(),
+			_definition(EffectTerms.Trigger.ALWAYS, [exposed], [atk_x]).describe(),
 			"While Exposed: +1 Atk X"
 	)
 
 	var heal: GainResource = _gain(GainResource.Pool.HP, null, _constant(10.0))
-	var potion: EffectDefinition = _definition(EffectDefinition.Trigger.ALWAYS, [], [heal])
+	var potion: EffectDefinition = _definition(EffectTerms.Trigger.ALWAYS, [], [heal])
 	potion.charges = 3
 	_snapshot("definition: charges", potion.describe(), "Always: heal 10 (3 uses this combat)")
 	potion.charges = 1
-	potion.charge_lane = EffectDefinition.Lane.CAMPAIGN
+	potion.charge_lane = EffectTerms.Lane.CAMPAIGN
 	_snapshot("definition: one charge", potion.describe(), "Always: heal 10 (1 use this campaign)")
 
 	var carrier: EffectCarrierDefinition = EffectCarrierDefinition.new()
@@ -1542,7 +1549,7 @@ func _test_describe_definition_shapes() -> void:
 	carrier.display_name = "Bounty Ledger"
 	var gold: ModifyValue = _modify_value(CampaignValue.Key.COMBAT_GOLD, ADD, 8.0)
 	carrier.effects = [
-		_definition(EffectDefinition.Trigger.ALWAYS, [], [gold]),
+		_definition(EffectTerms.Trigger.ALWAYS, [], [gold]),
 		null,
 		potion,
 	]
@@ -1592,7 +1599,7 @@ func _snapshot(case_name: String, actual: String, expected: String) -> void:
 
 
 func _definition(
-		trigger: EffectDefinition.Trigger, conditions: Array, operations: Array
+		trigger: EffectTerms.Trigger, conditions: Array, operations: Array
 ) -> EffectDefinition:
 	var definition: EffectDefinition = EffectDefinition.new()
 	definition.trigger = trigger
@@ -1626,7 +1633,7 @@ func _gain(pool: GainResource.Pool, target: TargetSelector, amount: ValueSource)
 
 
 func _area(
-		center: Area.Center, radius: int, side: EffectDefinition.UnitSide, with_center: bool
+		center: Area.Center, radius: int, side: EffectTerms.UnitSide, with_center: bool
 ) -> Area:
 	var area: Area = Area.new()
 	area.center = center
@@ -1713,6 +1720,7 @@ func _full_combat_fact() -> CombatFact:
 	fact.source_effect_id = "effect:9"
 	fact.tile = Vector2i(4, 7)
 	fact.flags = 3
+	fact.unit_types = PackedStringArray(["Bandit", "Archer"])
 	return fact
 
 

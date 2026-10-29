@@ -6,7 +6,7 @@
 # File:     while_compare_condition.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 @tool
@@ -70,7 +70,7 @@ enum Against {
 func _validate_property(property: Dictionary) -> void:
 	if property["name"] == "key":
 		property["hint"] = PROPERTY_HINT_ENUM
-		property["hint_string"] = EffectDefinition.value_key_hint()
+		property["hint_string"] = EffectTerms.value_key_hint()
 
 
 func describe() -> String:
@@ -78,7 +78,7 @@ func describe() -> String:
 	var direction: String = "higher" if comparison == Comparison.HIGHER_THAN else "lower"
 	var other: String = "its opponent's"
 	if against == Against.THRESHOLD:
-		other = EffectDefinition.format_number(threshold)
+		other = EffectTerms.format_number(threshold)
 	return "while this unit's %s is %s than %s" % [quantity_name, direction, other]
 
 
@@ -98,7 +98,7 @@ func test(ctx: EffectContext) -> bool:
 func _quantity_name() -> String:
 	match quantity:
 		Quantity.VALUE:
-			return EffectDefinition.key_name(key)
+			return EffectTerms.key_name(key)
 		Quantity.CURRENT_HP:
 			return "HP"
 		Quantity.HP_PERCENT:

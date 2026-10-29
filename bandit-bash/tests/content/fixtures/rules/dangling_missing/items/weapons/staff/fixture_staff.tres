@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="StaffDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/staff_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+staff_kind = "block"
+area_shape_id = "fixture_missing"
+weapon_type = "staff"
+range_max = 2
+id = "fixture_staff"
+display_name = "Fixture Staff"

@@ -6,7 +6,7 @@
 # File:     engine_cases.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 28, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -27,10 +27,10 @@ const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
 const OBJECT_SIDE: CombatFact.CombatSide = CombatFact.CombatSide.NONE
 const ADD: Modifier.Mode = Modifier.Mode.ADD
 const MULTIPLY: Modifier.Mode = Modifier.Mode.MULTIPLY
-const THIS_UNIT: EffectDefinition.Scope = EffectDefinition.Scope.THIS_UNIT
-const YOUR_UNIT: EffectDefinition.Scope = EffectDefinition.Scope.YOUR_UNIT
-const ANY_ALLY_UNIT: EffectDefinition.Scope = EffectDefinition.Scope.ANY_ALLY_UNIT
-const ANY_UNIT: EffectDefinition.Scope = EffectDefinition.Scope.ANY_UNIT
+const THIS_UNIT: EffectTerms.Scope = EffectTerms.Scope.THIS_UNIT
+const YOUR_UNIT: EffectTerms.Scope = EffectTerms.Scope.YOUR_UNIT
+const ANY_ALLY_UNIT: EffectTerms.Scope = EffectTerms.Scope.ANY_ALLY_UNIT
+const ANY_UNIT: EffectTerms.Scope = EffectTerms.Scope.ANY_UNIT
 const TRAIT: Modifier.SourceKind = Modifier.SourceKind.UNIT_TRAIT
 const ATTACKING: WhileAttackCondition.Role = WhileAttackCondition.Role.ATTACKING
 const ATTACKED: WhileAttackCondition.Role = WhileAttackCondition.Role.ATTACKED
@@ -85,7 +85,7 @@ func _test_base_stat_keys() -> void:
 			and CombatValue.STAT_KEYS[CombatValue.Stat.MOV] == CombatValue.Key.MOVEMENT
 			and CombatValue.STAT_KEYS[CombatValue.Stat.SPD] == CombatValue.Key.SPD
 	)
-	_same("f3: key name of a base stat", EffectDefinition.key_name(CombatValue.Key.SPD), "SPD")
+	_same("f3: key name of a base stat", EffectTerms.key_name(CombatValue.Key.SPD), "SPD")
 
 
 func _test_per_stat_modifiers() -> void:
@@ -100,7 +100,7 @@ func _test_per_stat_modifiers() -> void:
 	)
 	more_might.stat = CombatValue.Stat.MGT
 	var weights: EffectDefinition = _definition(
-			EffectDefinition.Trigger.ALWAYS, [], [slower, no_speed, more_might]
+			EffectTerms.Trigger.ALWAYS, [], [slower, no_speed, more_might]
 	)
 	_same(
 			"f3: Training Weights text names its stats",
@@ -136,7 +136,7 @@ func _test_command_target_and_mend() -> void:
 	var engine: EffectEngine = _world()
 	_fake(engine).unit("p2").hp = 5
 	var mend: EffectDefinition = _definition(
-			EffectDefinition.Trigger.ALWAYS,
+			EffectTerms.Trigger.ALWAYS,
 			[],
 			[_gain(GainResource.Pool.HP, CommandTarget.new(), _constant(10.0))]
 	)
@@ -175,7 +175,7 @@ func _test_while_matchup() -> void:
 	_ok("f4: a unit outside the exchange has no matchup", not advantage.test(ctx))
 
 	var professional: EffectDefinition = _definition(
-			EffectDefinition.Trigger.BEFORE_COMBAT,
+			EffectTerms.Trigger.BEFORE_COMBAT,
 			[advantage],
 			[_block(3.0)]
 	)
@@ -243,7 +243,7 @@ func _test_extra_stance_loss() -> void:
 	first.mode = CounterCondition.Mode.FIRST
 	var breaker_loss: ModifyThat = _modify_that(ModifyThat.What.EXTRA_STANCE_LOSS, ADD, 1.0)
 	var breaker: EffectDefinition = _definition(
-			EffectDefinition.Trigger.HIT_DEALT, [first], [breaker_loss]
+			EffectTerms.Trigger.HIT_DEALT, [first], [breaker_loss]
 	)
 	_same(
 			"f4: Breaker text (unit-roster.md wording)",
@@ -252,7 +252,7 @@ func _test_extra_stance_loss() -> void:
 	)
 	_same(
 			"f4: extra Stance loss on a hit taken names the hit",
-			breaker_loss.describe_for_trigger(EffectDefinition.Trigger.HIT_TAKEN),
+			breaker_loss.describe_for_trigger(EffectTerms.Trigger.HIT_TAKEN),
 			"+1 extra Stance loss for that hit"
 	)
 
@@ -270,7 +270,7 @@ func _test_extra_stance_loss() -> void:
 func _test_registration_and_indexes() -> void:
 	var engine: EffectEngine = _world()
 	var block: EffectDefinition = _definition(
-			EffectDefinition.Trigger.PHASE_START,
+			EffectTerms.Trigger.PHASE_START,
 			[],
 			[_block(1.0)]
 	)
@@ -294,7 +294,7 @@ func _test_registration_and_indexes() -> void:
 	_ok("index: an unregistered effect no longer fires", _fake(engine).unit("p1").block == 1)
 
 	var always: EffectDefinition = _definition(
-			EffectDefinition.Trigger.ALWAYS, [], [_block(1.0)]
+			EffectTerms.Trigger.ALWAYS, [], [_block(1.0)]
 	)
 	engine.register(_instance("effect:c", always, _owner("p1"), TRAIT))
 	engine.record(_phase_fact(PLAYER))
@@ -304,20 +304,20 @@ func _test_registration_and_indexes() -> void:
 	var counted: EffectInstance = _instance(
 			"effect:d", block, _owner("p1"), TRAIT
 	)
-	counted.set_counter(EffectDefinition.Lane.COMBAT, 4)
-	counted.set_counter(EffectDefinition.Lane.CAMPAIGN, 9)
+	counted.set_counter(EffectTerms.Lane.COMBAT, 4)
+	counted.set_counter(EffectTerms.Lane.CAMPAIGN, 9)
 	engine.register(counted)
 	_ok(
 			"index: registering starts the combat lane fresh, keeps the campaign lane",
-			counted.get_counter(EffectDefinition.Lane.COMBAT) == 0
-			and counted.get_counter(EffectDefinition.Lane.CAMPAIGN) == 9
+			counted.get_counter(EffectTerms.Lane.COMBAT) == 0
+			and counted.get_counter(EffectTerms.Lane.CAMPAIGN) == 9
 	)
 	engine.unregister("effect:d")
-	counted.set_counter(EffectDefinition.Lane.COMBAT, 4)
+	counted.set_counter(EffectTerms.Lane.COMBAT, 4)
 	engine.register(counted, true)
 	_ok(
 			"index: a transfer keeps the combat lane",
-			counted.get_counter(EffectDefinition.Lane.COMBAT) == 4
+			counted.get_counter(EffectTerms.Lane.COMBAT) == 4
 	)
 
 
@@ -339,7 +339,7 @@ func _test_scope() -> void:
 	var wrong: PackedStringArray = []
 	for row: Array in cases:
 		var owner: EffectOwner = row[0]
-		if engine.in_scope(owner, row[1] as String, row[2] as EffectDefinition.Scope) != row[3]:
+		if engine.in_scope(owner, row[1] as String, row[2] as EffectTerms.Scope) != row[3]:
 			wrong.append("%s %s %d" % [owner.owner_id, row[1], row[2]])
 	_ok("scope: owner-relative scopes", wrong.is_empty(), ", ".join(wrong))
 	_same(
@@ -352,9 +352,9 @@ func _test_scope() -> void:
 func _test_dispatch_scope() -> void:
 	var engine: EffectEngine = _world()
 	var gain: GainResource = _gain(GainResource.Pool.BLOCK, Owner.new(), _constant(1.0))
-	var allies: EffectDefinition = _definition(EffectDefinition.Trigger.HIT_TAKEN, [], [gain])
+	var allies: EffectDefinition = _definition(EffectTerms.Trigger.HIT_TAKEN, [], [gain])
 	allies.scope = ANY_ALLY_UNIT
-	var yours: EffectDefinition = _definition(EffectDefinition.Trigger.HIT_TAKEN, [], [gain])
+	var yours: EffectDefinition = _definition(EffectTerms.Trigger.HIT_TAKEN, [], [gain])
 	yours.scope = YOUR_UNIT
 	engine.register(_instance("effect:ally", allies, _owner("p1"), TRAIT))
 	engine.register(_instance("effect:yours", yours, _owner("p2"), TRAIT))
@@ -365,7 +365,7 @@ func _test_dispatch_scope() -> void:
 			_fake(engine).unit("p1").block == 1 and _fake(engine).unit("p2").block == 0
 	)
 
-	var phase: EffectDefinition = _definition(EffectDefinition.Trigger.PHASE_START, [], [gain])
+	var phase: EffectDefinition = _definition(EffectTerms.Trigger.PHASE_START, [], [gain])
 	engine.register(_instance("effect:p", phase, _owner("q1"), TRAIT))
 	engine.register(_instance("effect:e", phase, _owner("e1"), TRAIT))
 	engine.record(_phase_fact(ENEMY))
@@ -392,7 +392,7 @@ func _test_dispatch_scope() -> void:
 func _test_reaction_order() -> void:
 	var engine: EffectEngine = _world()
 	var mark: EffectDefinition = _definition(
-			EffectDefinition.Trigger.HIT_TAKEN,
+			EffectTerms.Trigger.HIT_TAKEN,
 			[],
 			[_gain(GainResource.Pool.STANCE, null, _constant(0.0))]
 	)
@@ -439,7 +439,7 @@ func _test_counter_condition() -> void:
 	third.count = 3
 	var instance: EffectInstance = _instance(
 			"effect:third",
-			_definition(EffectDefinition.Trigger.HIT_TAKEN, [third], [_block(1.0)]),
+			_definition(EffectTerms.Trigger.HIT_TAKEN, [third], [_block(1.0)]),
 			_owner("p1"),
 			TRAIT
 	)
@@ -452,10 +452,10 @@ func _test_counter_condition() -> void:
 
 	var first: CounterCondition = CounterCondition.new()
 	first.mode = CounterCondition.Mode.FIRST
-	first.lane = EffectDefinition.Lane.CAMPAIGN
+	first.lane = EffectTerms.Lane.CAMPAIGN
 	var once: EffectInstance = _instance(
 			"effect:first",
-			_definition(EffectDefinition.Trigger.HIT_DEALT, [first], [_block(1.0)]),
+			_definition(EffectTerms.Trigger.HIT_DEALT, [first], [_block(1.0)]),
 			_owner("p2"),
 			TRAIT
 	)
@@ -466,22 +466,22 @@ func _test_counter_condition() -> void:
 	_ok("counter: First fires once per lane period", _fake(engine).unit("p2").block == 1)
 	_ok(
 			"counter: lanes count apart, and the fact names the lane",
-			once.get_counter(EffectDefinition.Lane.CAMPAIGN) == 1
-			and once.get_counter(EffectDefinition.Lane.COMBAT) == 0
+			once.get_counter(EffectTerms.Lane.CAMPAIGN) == 1
+			and once.get_counter(EffectTerms.Lane.COMBAT) == 0
 			and _last_of(engine, CombatFact.Kind.COUNTER_CHANGED).key
-			== EffectDefinition.Lane.CAMPAIGN
+			== EffectTerms.Lane.CAMPAIGN
 	)
-	once.reset_lane(EffectDefinition.Lane.CAMPAIGN)
+	once.reset_lane(EffectTerms.Lane.CAMPAIGN)
 	_ok(
 			"counter: a lane reset starts First over",
-			once.get_counter(EffectDefinition.Lane.CAMPAIGN) == 0
+			once.get_counter(EffectTerms.Lane.CAMPAIGN) == 0
 	)
 
 	var query: EffectContext = _context(engine, instance)
 	query.is_query = true
 	_ok(
 			"counter: a value query never passes or counts",
-			not third.test(query) and instance.get_counter(EffectDefinition.Lane.COMBAT) == 0
+			not third.test(query) and instance.get_counter(EffectTerms.Lane.COMBAT) == 0
 	)
 
 
@@ -584,12 +584,12 @@ func _test_position_conditions() -> void:
 	_ok("position: no ally closer than p2", vanguard.test(ctx))
 
 	var adjacent_enemy: WhilePositionCondition = _position(WhilePositionCondition.Kind.ADJACENT_TO)
-	adjacent_enemy.side = EffectDefinition.UnitSide.ENEMY
+	adjacent_enemy.side = EffectTerms.UnitSide.ENEMY
 	_ok("position: p2 is adjacent to an enemy", adjacent_enemy.test(ctx))
 	ctx.subject_id = "p1"
 	_ok("position: p1 isn't", not adjacent_enemy.test(ctx))
 	var within: WhilePositionCondition = _position(WhilePositionCondition.Kind.WITHIN)
-	within.side = EffectDefinition.UnitSide.ENEMY
+	within.side = EffectTerms.UnitSide.ENEMY
 	within.tiles = 2
 	_ok("position: an enemy within 2 tiles", within.test(ctx))
 
@@ -597,7 +597,7 @@ func _test_position_conditions() -> void:
 func _test_selectors() -> void:
 	var engine: EffectEngine = _world(PackedInt32Array([1]))
 	var instance: EffectInstance = _instance(
-			"effect:s", _definition(EffectDefinition.Trigger.HIT_TAKEN, [], []),
+			"effect:s", _definition(EffectTerms.Trigger.HIT_TAKEN, [], []),
 			_owner("p2"), TRAIT
 	)
 	var ctx: EffectContext = _context(engine, instance)
@@ -608,14 +608,14 @@ func _test_selectors() -> void:
 	ctx.fact = CombatFact.new(CombatFact.Kind.HEALED, "p1")
 	_ok("select: no fact target", FactTarget.new().select(ctx).is_empty())
 
-	var around: Area = _area(Area.Center.OWNER, 1, EffectDefinition.UnitSide.ANY, false)
+	var around: Area = _area(Area.Center.OWNER, 1, EffectTerms.UnitSide.ANY, false)
 	_same("select: adjacent units, friend or foe", ",".join(around.select(ctx)), "p1,e1")
-	var allies: Area = _area(Area.Center.OWNER, 2, EffectDefinition.UnitSide.ALLY, true)
+	var allies: Area = _area(Area.Center.OWNER, 2, EffectTerms.UnitSide.ALLY, true)
 	_same("select: this unit and allies within 2", ",".join(allies.select(ctx)), "p1,p2,q1")
-	var enemies: Area = _area(Area.Center.FACT_ACTOR, 4, EffectDefinition.UnitSide.ENEMY, false)
+	var enemies: Area = _area(Area.Center.FACT_ACTOR, 4, EffectTerms.UnitSide.ENEMY, false)
 	_same("select: enemies around that unit", ",".join(enemies.select(ctx)), "e1,e2")
 	var sanctuary: Area = _area(
-			Area.Center.COMMAND_TARGET, 1, EffectDefinition.UnitSide.ALLY, true
+			Area.Center.COMMAND_TARGET, 1, EffectTerms.UnitSide.ALLY, true
 	)
 	_ok("select: no command, no target area", sanctuary.select(ctx).is_empty())
 	ctx.command_target_id = "p1"
@@ -660,10 +660,10 @@ func _test_selectors() -> void:
 func _test_value_sources() -> void:
 	var engine: EffectEngine = _world()
 	var instance: EffectInstance = _instance(
-			"effect:v", _definition(EffectDefinition.Trigger.HEALED, [], []),
+			"effect:v", _definition(EffectTerms.Trigger.HEALED, [], []),
 			_owner("p2"), TRAIT
 	)
-	instance.set_counter(EffectDefinition.Lane.COMBAT, 4)
+	instance.set_counter(EffectTerms.Lane.COMBAT, 4)
 	var ctx: EffectContext = _context(engine, instance)
 	ctx.fact = CombatFact.new(CombatFact.Kind.HEALED, "p2")
 	ctx.fact.amount = 10
@@ -683,7 +683,7 @@ func _test_value_sources() -> void:
 	movement.key = CombatValue.Key.MOVEMENT
 	_ok("value: this unit's Movement", movement.evaluate(ctx) == 5.0)
 	var count: CountOf = CountOf.new()
-	count.selector = _area(Area.Center.OWNER, 1, EffectDefinition.UnitSide.ALLY, false)
+	count.selector = _area(Area.Center.OWNER, 1, EffectTerms.UnitSide.ALLY, false)
 	count.each = 2.0
 	_ok("value: 2 per adjacent ally", count.evaluate(ctx) == 2.0)
 	_ok("value: its count this combat", CounterValue.new().evaluate(ctx) == 4.0)
@@ -692,7 +692,7 @@ func _test_value_sources() -> void:
 func _test_modify_that() -> void:
 	var engine: EffectEngine = _world()
 	var instance: EffectInstance = _instance(
-			"effect:bulwark", _definition(EffectDefinition.Trigger.HIT_TAKEN, [], []),
+			"effect:bulwark", _definition(EffectTerms.Trigger.HIT_TAKEN, [], []),
 			_owner("p1"), TRAIT, "Bulwark"
 	)
 	var ctx: EffectContext = _context(engine, instance)
@@ -724,14 +724,14 @@ func _test_gain_resource_paths() -> void:
 	var engine: EffectEngine = _world()
 	var fake: FakeState = _fake(engine)
 	var healer: EffectInstance = _instance(
-			"effect:h", _definition(EffectDefinition.Trigger.ALWAYS, [], []),
+			"effect:h", _definition(EffectTerms.Trigger.ALWAYS, [], []),
 			_owner("p2"), TRAIT
 	)
 	var ctx: EffectContext = _context(engine, healer)
 	fake.unit("p1").hp = 10
 	var heal_p1: GainResource = _gain(
 			GainResource.Pool.HP,
-			_area(Area.Center.OWNER, 1, EffectDefinition.UnitSide.ALLY, false),
+			_area(Area.Center.OWNER, 1, EffectTerms.UnitSide.ALLY, false),
 			_constant(14.5)
 	)
 	heal_p1.apply(ctx)
@@ -775,11 +775,11 @@ func _test_deal_splash() -> void:
 	fake.unit("p2").block = 1
 	fake.unit("e1").hp = 2
 	var cleave: EffectInstance = _instance(
-			"effect:cleave", _definition(EffectDefinition.Trigger.HIT_DEALT, [], []),
+			"effect:cleave", _definition(EffectTerms.Trigger.HIT_DEALT, [], []),
 			_owner("p2"), TRAIT
 	)
 	var splash: DealSplash = DealSplash.new()
-	splash.target = _area(Area.Center.OWNER, 1, EffectDefinition.UnitSide.ANY, false)
+	splash.target = _area(Area.Center.OWNER, 1, EffectTerms.UnitSide.ANY, false)
 	splash.amount = _constant(2.0)
 	splash.apply(_context(engine, cleave))
 	_same(
@@ -801,7 +801,7 @@ func _test_change_base_stat() -> void:
 	booster.key = CombatValue.Key.MGT
 	booster.value = 1.0
 	var instance: EffectInstance = _instance(
-			"effect:tonic", _definition(EffectDefinition.Trigger.ALWAYS, [], [booster]),
+			"effect:tonic", _definition(EffectTerms.Trigger.ALWAYS, [], [booster]),
 			EffectOwner.for_item("item:tonic", "p1", 0, PLAYER),
 			Modifier.SourceKind.POUCH_ITEM,
 			"Might Tonic"
@@ -826,7 +826,7 @@ func _test_always_on_modifiers() -> void:
 	engine.set_base("p1", hit, 70.0)
 	engine.set_base("p2", hit, 70.0)
 	var sharp: EffectDefinition = _definition(
-			EffectDefinition.Trigger.ALWAYS, [], [_modify_value(hit, ADD, 10.0)]
+			EffectTerms.Trigger.ALWAYS, [], [_modify_value(hit, ADD, 10.0)]
 	)
 	sharp.scope = YOUR_UNIT
 	var army: EffectOwner = EffectOwner.for_army("seat:0", 0)
@@ -834,7 +834,7 @@ func _test_always_on_modifiers() -> void:
 			_instance("effect:banner", sharp, army, Modifier.SourceKind.HEIRLOOM, "Banner")
 	)
 	var desperate: EffectDefinition = _definition(
-			EffectDefinition.Trigger.ALWAYS,
+			EffectTerms.Trigger.ALWAYS,
 			[WhileStateCondition.new()],
 			[_modify_value(hit, ADD, 15.0)]
 	)
@@ -842,7 +842,7 @@ func _test_always_on_modifiers() -> void:
 	var counter: SetPermission = SetPermission.new()
 	counter.permission = CombatValue.Permission.CAN_COUNTER
 	counter.allow = false
-	var staff: EffectDefinition = _definition(EffectDefinition.Trigger.ALWAYS, [], [counter])
+	var staff: EffectDefinition = _definition(EffectTerms.Trigger.ALWAYS, [], [counter])
 	var held_by_p2: EffectOwner = EffectOwner.for_item("item:staff", "p2", 0, PLAYER)
 	engine.register(
 			_instance("effect:staff", staff, held_by_p2, Modifier.SourceKind.WEAPON, "Staff")
@@ -880,7 +880,7 @@ func _test_add_timed_modifier() -> void:
 	horn.end = AddTimedModifier.End.THIS_COMBAT
 	horn.uses = 1
 	var instance: EffectInstance = _instance(
-			"effect:momentum", _definition(EffectDefinition.Trigger.MISSED, [], [horn]),
+			"effect:momentum", _definition(EffectTerms.Trigger.MISSED, [], [horn]),
 			_owner("p1"), TRAIT, "Momentum"
 	)
 	horn.apply(_context(engine, instance))
@@ -900,7 +900,7 @@ func _test_content_errors() -> void:
 	var engine: EffectEngine = _world()
 	var lifesteal: ModifyThat = _modify_that(ModifyThat.What.FLAG, ADD, 0.0)
 	var misplaced: EffectDefinition = _definition(
-			EffectDefinition.Trigger.PHASE_START, [], [lifesteal]
+			EffectTerms.Trigger.PHASE_START, [], [lifesteal]
 	)
 	engine.register(_instance("effect:x", misplaced, _owner("p1"), TRAIT))
 	engine.record(_phase_fact(PLAYER))
@@ -920,7 +920,7 @@ func _test_content_errors() -> void:
 func _test_queued_operations_wait() -> void:
 	var engine: EffectEngine = _world()
 	var block: EffectDefinition = _definition(
-			EffectDefinition.Trigger.HIT_TAKEN, [], [_block(2.0)]
+			EffectTerms.Trigger.HIT_TAKEN, [], [_block(2.0)]
 	)
 	engine.register(_instance("effect:q", block, _owner("p1"), TRAIT))
 	engine.record(CombatFact.new(CombatFact.Kind.HIT_TAKEN, "p1", "e1"))
@@ -939,7 +939,7 @@ func _test_window_releases_after_record() -> void:
 	var engine: EffectEngine = _world()
 	var tenth: CounterCondition = CounterCondition.new()
 	var both: EffectDefinition = _definition(
-			EffectDefinition.Trigger.HIT_TAKEN,
+			EffectTerms.Trigger.HIT_TAKEN,
 			[tenth],
 			[
 				_modify_that(ModifyThat.What.VALUE, MULTIPLY, 0.5, DamageStage.Key.MULTIPLIERS),
@@ -1022,7 +1022,7 @@ func _exchange_context(
 
 
 func _definition(
-		trigger: EffectDefinition.Trigger, conditions: Array, operations: Array
+		trigger: EffectTerms.Trigger, conditions: Array, operations: Array
 ) -> EffectDefinition:
 	var definition: EffectDefinition = EffectDefinition.new()
 	definition.trigger = trigger
@@ -1077,7 +1077,7 @@ func _modify_that(
 
 
 func _area(
-		center: Area.Center, radius: int, side: EffectDefinition.UnitSide, include_center: bool
+		center: Area.Center, radius: int, side: EffectTerms.UnitSide, include_center: bool
 ) -> Area:
 	var area: Area = Area.new()
 	area.center = center

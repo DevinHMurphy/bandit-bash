@@ -6,7 +6,7 @@
 # File:     combat_state.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 27, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 class_name CombatState
@@ -36,7 +36,7 @@ extends SandboxState
 ## Terrain and walls. Shared with sandbox copies. Never null in use.
 var grid: CombatGrid = null
 
-## The map objects' state: which tiles they block. Copied for a sandbox. Never null.
+## The map objects' state ([MapState]). Copied for a sandbox. Never null.
 var map: MapState = MapState.new()
 
 ## The turn counter: it rises at the player Phase Start, so 0 before the first one.
@@ -47,6 +47,15 @@ var phase_side: CombatFact.CombatSide = CombatFact.CombatSide.NONE
 
 ## Seats that have ended their turn in the current player phase.
 var ended_seats: PackedInt32Array = []
+
+## Whether the current phase's Phase End has run: true from then until the next Phase Start, when
+## no unit of either side may act ([PhaseRunner]).
+var is_phase_ended: bool = false
+
+## Seats in the opening swap window ([member MapState.opening_swap_open]) that haven't sent their
+## Start: those with the opening-swap setting on and units on the map. Turn 1's player Phase Start
+## runs when it empties ([method PhaseRunner.start]). Not saved yet (P02 CC8).
+var seats_to_start: PackedInt32Array = []
 
 ## Rune instance ids in each seat's slots, copied in at battle start by the campaign bridge. A cast
 ## rune leaves its slot.
@@ -206,21 +215,30 @@ func swap_units(first_id: String, second_id: String) -> void:
 
 ## Records [param id]'s defeat and takes it off the map: [constant CombatFact.Kind.DEFEATED],
 ## then [constant CombatFact.Kind.DEFEATED_AN_ENEMY] when [param by_id] is on the other side,
-## then it leaves occupancy. Its effects react to its own defeat before they go dormant.
-## [param by_id]: the unit that defeated it, or empty.
+## then it leaves occupancy and drops any loot it carried ([method MapObjects.drop_carried]). Its
+## effects react to its own defeat before they go dormant. A map object (side
+## [constant CombatFact.CombatSide.NONE]) records neither fact: it leaves the map and breaks
+## ([method MapObjects.broken]). [param by_id]: the unit or object that defeated it, or empty.
 func defeat(engine: EffectEngine, id: String, by_id: String, source_effect_id: String = "") -> void:
 	if not has_unit(id):
+		return
+	if side_of(id) == CombatFact.CombatSide.NONE:
+		var broken: CombatUnitState = _units[id]
+		broken.is_defeated = true
+		_occupancy.erase(broken.tile)
+		MapObjects.broken(engine, self, id, by_id, source_effect_id)
 		return
 	var defeated: CombatFact = CombatFact.new(CombatFact.Kind.DEFEATED, id, by_id)
 	defeated.source_effect_id = source_effect_id
 	engine.record(defeated)
-	if engine.matches_side(side_of(by_id), id, EffectDefinition.UnitSide.ENEMY):
+	if engine.matches_side(side_of(by_id), id, EffectTerms.UnitSide.ENEMY):
 		var kill: CombatFact = CombatFact.new(CombatFact.Kind.DEFEATED_AN_ENEMY, by_id, id)
 		kill.source_effect_id = source_effect_id
 		engine.record(kill)
 	var gone: CombatUnitState = _units[id]
 	gone.is_defeated = true
 	_occupancy.erase(gone.tile)
+	MapObjects.drop_carried(self, id, by_id)
 
 
 ## The Wait action: [param id] ends its turn without acting and records
@@ -240,6 +258,8 @@ func copy_for_sandbox() -> SandboxState:
 	copy.turn = turn
 	copy.phase_side = phase_side
 	copy.ended_seats = ended_seats.duplicate()
+	copy.is_phase_ended = is_phase_ended
+	copy.seats_to_start = seats_to_start.duplicate()
 	for seat: int in rune_slots:
 		copy.rune_slots[seat] = rune_slots[seat].duplicate()
 	for id: String in _order:

@@ -6,7 +6,7 @@
 # File:     campaign_session.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 28, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 class_name CampaignSession
@@ -31,6 +31,7 @@ extends RefCounted
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 ##
 ## @todo: TOD-001 - Apply recorded grants: gold, heirlooms, recruits and runes (P08).
+## @todo: TOD-002 - Hand the reinforcement waves P05's group source; the base draws no group.
 
 ## A battle began: its setup ran and its sessions are about to open, so a listener can connect to
 ## [signal CombatEncounter.session_opened] first.
@@ -86,8 +87,14 @@ var _setup_steps: Array[Array] = []
 # Grants received since the battle began.
 var _battle_grants: Array[Grant] = []
 
+# Where reinforcement waves' groups come from, for setup step 5 and their arrivals.
+# TODO(TOD-002): P05's enemy groups; this base draws none, so no point sends a wave yet.
+var _wave_groups: Reinforcements.GroupSource = Reinforcements.GroupSource.new()
 
-## [param run_seed]: the campaign's seed. [param run_seats]: every seat of the run.
+
+## [param run_seed]: the campaign's seed. [param run_seats]: every seat of the run. Registers the
+## combat map's own setup steps: the reinforcement waves ([method Reinforcements.draw_waves]) and
+## each container's contents ([method MapObjects.roll_contents]).
 func _init(run_mode: CampaignData.Mode, run_seed: int, run_seats: PackedInt32Array) -> void:
 	mode = run_mode
 	seats = run_seats.duplicate()
@@ -95,6 +102,11 @@ func _init(run_mode: CampaignData.Mode, run_seed: int, run_seats: PackedInt32Arr
 	rng = RngStreams.new(run_seed)
 	for seat: int in seats:
 		ids.set_label(InstanceIdAllocator.seat_subject_id(seat), "army of seat %d" % [seat])
+	add_setup_step(
+			CombatEncounter.SetupStep.REINFORCEMENT_WAVES,
+			Reinforcements.draw_waves.bind(_wave_groups)
+	)
+	add_setup_step(CombatEncounter.SetupStep.CONTAINER_CONTENTS, MapObjects.roll_contents)
 
 
 ## Adds [param instance] to the run's carriers: a unit trait, an item's effect, a heirloom or a
@@ -120,9 +132,13 @@ func add_setup_step(step: CombatEncounter.SetupStep, run: Callable) -> void:
 
 ## Begins the battle [param request] describes: builds the encounter, runs its setup from fresh
 ## setup streams (so a restart from Begin rolls the same), emits [signal combat_encounter_opened],
-## opens one session per seat with its seat's [code]COMBAT_ROLLS[/code] stream, registers copies of
-## the carriers of the units and armies in the battle, and deploys each army. Returns the
-## encounter; null, with nothing begun, when a battle is already on, the run is closed, or setup
+## opens one session per seat with its seat's [code]COMBAT_ROLLS[/code] stream, places each map's
+## objects ([method MapObjects.place]) and reinforcement points ([method Reinforcements.register]),
+## registers copies of the carriers of the units and armies in the battle, deploys each army, then
+## opens each map's battle
+## ([method CombatSession.open_battle]): the opening swap window for the seats whose
+## [member BattleRequest.opening_swap] setting is on, turn 1's player Phase Start otherwise. Returns
+## the encounter; null, with nothing begun, when a battle is already on, the run is closed, or setup
 ## fails.
 func begin_battle(request: BattleRequest) -> CombatEncounter:
 	if is_closed or encounter != null or request == null:
@@ -153,6 +169,10 @@ func begin_battle(request: BattleRequest) -> CombatEncounter:
 	for session: CombatSession in battle.get_sessions():
 		session.is_tracing_draws = is_tracing_draws
 		session.grant_received.connect(receive_grant)
+		# Before deployment, so no unit takes a breakable's tile.
+		MapObjects.place(session)
+		# P06's darkness step registers before this (reinforcements.gd:TOD-001).
+		Reinforcements.register(session, _wave_groups)
 	_register_carriers(battle, request)
 	for seat: int in seats:
 		var army: Army = request.armies.get(seat, null)
@@ -163,6 +183,12 @@ func begin_battle(request: BattleRequest) -> CombatEncounter:
 			session.state.add_weapon(weapon)
 		session.deploy(army.units, army.bases, army.commander_id)
 		session.flush("deployment")
+	for session: CombatSession in battle.get_sessions():
+		var swap_seats: PackedInt32Array = []
+		for seat: int in session.seats:
+			if request.opening_swap.get(seat, true):
+				swap_seats.append(seat)
+		session.open_battle(swap_seats)
 
 	var net: NetLogScript = CombatSession.logger(
 			NetLogScript.Level.INFO, NetLogScript.Category.CAMPAIGN
@@ -186,9 +212,9 @@ func write_back() -> void:
 		if carrier == null:
 			continue
 		carrier.set_counter(
-				EffectDefinition.Lane.CAMPAIGN, copy.get_counter(EffectDefinition.Lane.CAMPAIGN)
+				EffectTerms.Lane.CAMPAIGN, copy.get_counter(EffectTerms.Lane.CAMPAIGN)
 		)
-		if carrier.definition.charge_lane == EffectDefinition.Lane.CAMPAIGN:
+		if carrier.definition.charge_lane == EffectTerms.Lane.CAMPAIGN:
 			carrier.charges_left = copy.charges_left
 
 
@@ -341,6 +367,11 @@ class BattleRequest:
 	var pool: Array[CombatMapDefinition] = []
 	## Each seat's army, by seat. A seat without one gets an empty map.
 	var armies: Dictionary[int, Army] = {}
+	# ASSUMPTION: a seat with no entry has the setting on, until P07 owns the setting's default.
+	## Each seat's opening-swap setting, by seat (the setting itself is P07's): on, its map opens in
+	## the swap window before turn 1 and waits for its Start command; off, turn 1 starts at once. A
+	## seat with no entry has it on.
+	var opening_swap: Dictionary[int, bool] = {}
 
 
 ## One seat's army for a battle.

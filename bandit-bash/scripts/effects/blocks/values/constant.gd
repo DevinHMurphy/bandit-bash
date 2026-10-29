@@ -6,7 +6,7 @@
 # File:     constant.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 @tool
@@ -21,7 +21,7 @@ extends ValueSource
 
 
 func describe() -> String:
-	return EffectDefinition.format_number(value)
+	return EffectTerms.format_number(value)
 
 
 func evaluate(_ctx: EffectContext) -> float:

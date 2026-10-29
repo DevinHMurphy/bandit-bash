@@ -6,7 +6,7 @@
 # File:     map_loader.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 27, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 class_name MapLoader
@@ -16,8 +16,11 @@ extends RefCounted
 ## [b]Scene format:[/b] a [TileMapLayer] named [code]Terrain[/code] whose tiles carry a
 ## [code]terrain[/code] custom data string, a [member TerrainDefinition.id]; every other
 ## [TileMapLayer] is a marker layer whose tiles carry a [code]marker[/code] custom data string,
-## a key of [constant MARKERS] or [constant OBJECTS]. Marker layers may overlap, so one tile can
-## hold several markers. A tile on the map is a tile with terrain; markers off it are problems.[br]
+## a key of [constant MARKERS] or [constant OBJECTS]. Markers with parameters are [MapMarker]
+## nodes anywhere in the scene, each on the terrain cell under it; a door node gives one door
+## marker per tile it covers. Marker layers and nodes may overlap, so one tile can hold several
+## markers; either way gives the same [MapLayout.Marker] and the same stable id. A tile on the map
+## is a tile with terrain; markers off it are problems.[br]
 ## Touches scenes and resources, so it runs on the main thread before any rules code; nothing it
 ## returns references them. Problems are collected in [member MapLayout.problems], not logged.
 ##
@@ -46,9 +49,9 @@ const MARKERS: Dictionary[String, MapLayout.MarkerKind] = {
 	"darkness_source": MapLayout.MarkerKind.DARKNESS_SOURCE,
 }
 
-# ASSUMPTION: the Door and "Debris, Barrel" rows of unit-roster.md's terrain table are objects
-# (plan question 8), so they are object markers here and have no terrain definition; a barrel is
-# not a separate object.
+# The Door and "Debris, Barrel" rows of unit-roster.md's terrain table are objects (combat map
+# plan, questions 8 and 20), so they are object markers here with no terrain definition; a barrel
+# is not a separate object.
 ## Marker names for object spots, each an [constant MapLayout.MarkerKind.OBJECT_SPOT].
 const OBJECTS: Dictionary[String, MapLayout.ObjectKind] = {
 	"chest": MapLayout.ObjectKind.CHEST,
@@ -95,6 +98,10 @@ static func from_scene(root: Node, map_id: String) -> MapLayout:
 		var marker_layer: TileMapLayer = child as TileMapLayer
 		if marker_layer != null and marker_layer != terrain_layer:
 			_read_markers(layout, marker_layer)
+	var marker_nodes: Array[MapMarker] = []
+	_find_marker_nodes(root, marker_nodes)
+	for marker_node: MapMarker in marker_nodes:
+		_read_marker_node(layout, terrain_layer, marker_node)
 	layout.index_markers()
 	return layout
 
@@ -137,6 +144,54 @@ static func _read_markers(layout: MapLayout, layer: TileMapLayer) -> void:
 			layout.problems.append(
 					"unknown marker \"%s\" at %s on %s" % [marker_name, cell, layer.name]
 			)
+
+
+# Every MapMarker under node, depth first in child order. A recursive search: a map scene holds a
+# few dozen nodes.
+static func _find_marker_nodes(node: Node, found: Array[MapMarker]) -> void:
+	for child: Node in node.get_children():
+		var marker_node: MapMarker = child as MapMarker
+		if marker_node != null:
+			found.append(marker_node)
+		_find_marker_nodes(child, found)
+
+
+static func _read_marker_node(
+		layout: MapLayout, terrain_layer: TileMapLayer, marker_node: MapMarker
+) -> void:
+	var tile: Vector2i = marker_node.tile_on(terrain_layer)
+	if not MapMarker.LAYOUT_KINDS.has(marker_node.kind):
+		layout.problems.append("unknown kind %d of marker node %s at %s" % [
+			marker_node.kind, marker_node.name, tile,
+		])
+		return
+	var covered: Array[Vector2i] = [tile]
+	if marker_node.kind == MapMarker.Kind.DOOR:
+		covered.clear()
+		var size: Vector2i = marker_node.door_tiles_size()
+		for y: int in size.y:
+			for x: int in size.x:
+				covered.append(tile + Vector2i(x, y))
+	var object_kind: MapLayout.ObjectKind = MapLayout.ObjectKind.NONE
+	if MapMarker.OBJECT_KINDS.has(marker_node.kind):
+		object_kind = MapMarker.OBJECT_KINDS[marker_node.kind]
+	for cell: Vector2i in covered:
+		if not layout.has_tile(cell):
+			layout.problems.append("marker node %s off the map at %s" % [marker_node.name, cell])
+			continue
+		var marker: MapLayout.Marker = layout.add_marker(
+				MapMarker.LAYOUT_KINDS[marker_node.kind], cell, object_kind
+		)
+		match marker_node.kind:
+			MapMarker.Kind.ENEMY_SLOT:
+				marker.variance_tiles = marker_node.variance_tiles
+				marker.group_slot = marker_node.group_slot
+			MapMarker.Kind.DOOR, MapMarker.Kind.LEVER:
+				marker.group_id = marker_node.group_id
+			MapMarker.Kind.PASSAGE:
+				marker.pair_id = marker_node.pair_id
+			MapMarker.Kind.REINFORCEMENT_POINT:
+				marker.arrival_turns = PackedInt32Array(marker_node.arrival_turns)
 
 
 # The custom data string of [param cell]; empty when the tile set has no such layer or the value

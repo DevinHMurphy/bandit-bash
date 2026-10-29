@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="TrinketDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_flf0c"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_bkpj8"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_8kp7p"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_vjfm1"]
+[ext_resource type="Script" path="res://scripts/content/trinket_definition.gd" id="5_cqggy"]
+
+[sub_resource type="Resource" id="Resource_wdifv"]
+script = ExtResource("4_vjfm1")
+key = 6
+value = 10.0
+
+[sub_resource type="Resource" id="Resource_jnyio"]
+script = ExtResource("1_flf0c")
+id = "fixture_lucky_coin"
+operations = Array[ExtResource("3_8kp7p")]([SubResource("Resource_wdifv")])
+
+[resource]
+script = ExtResource("5_cqggy")
+rarity = 1
+tags = PackedStringArray()
+id = "trinket"
+display_name = "Fixture Lucky Coin"
+effects = Array[ExtResource("1_flf0c")]([SubResource("Resource_jnyio")])

@@ -6,7 +6,7 @@
 # File:     counter_value.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 @tool
@@ -19,11 +19,11 @@ extends ValueSource
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
 
 ## The lane whose count is read.
-@export var lane: EffectDefinition.Lane = EffectDefinition.Lane.COMBAT
+@export var lane: EffectTerms.Lane = EffectTerms.Lane.COMBAT
 
 
 func describe() -> String:
-	return "its count %s" % [EffectDefinition.LANE_TEXT[lane]]
+	return "its count %s" % [EffectTerms.LANE_TEXT[lane]]
 
 
 func evaluate(ctx: EffectContext) -> float:

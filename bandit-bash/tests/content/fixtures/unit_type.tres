@@ -1,0 +1,61 @@
+[gd_resource type="Resource" script_class="UnitTypeDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_2aypv"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_w5fse"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_qunug"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_yjqen"]
+[ext_resource type="Script" path="res://scripts/content/unit_type_definition.gd" id="5_8ls5i"]
+
+[sub_resource type="Resource" id="Resource_1yllp"]
+script = ExtResource("4_yjqen")
+key = 6
+value = 15.0
+
+[sub_resource type="Resource" id="Resource_kg3c1"]
+script = ExtResource("1_2aypv")
+id = "fixture_opportunist"
+operations = Array[ExtResource("3_qunug")]([SubResource("Resource_1yllp")])
+
+[sub_resource type="Resource" id="Resource_x6t5k"]
+script = ExtResource("4_yjqen")
+key = 6
+value = 25.0
+
+[sub_resource type="Resource" id="Resource_rc5ep"]
+script = ExtResource("1_2aypv")
+id = "fixture_opportunist_plus"
+operations = Array[ExtResource("3_qunug")]([SubResource("Resource_x6t5k")])
+
+[resource]
+script = ExtResource("5_8ls5i")
+role = "dagger"
+weapon_types = PackedStringArray("dagger")
+movement_type = 2
+tags = PackedStringArray()
+stance = 1
+starting_weapon_id = "simple_dagger"
+base_stats = Dictionary[int, int]({
+0: 14,
+1: 3,
+2: 9,
+3: 2,
+4: 1,
+5: 6,
+6: 6
+})
+growths = Dictionary[int, int]({
+0: 65,
+1: 30,
+2: 65,
+3: 25,
+4: 20
+})
+upgraded_effects = Array[ExtResource("1_2aypv")]([SubResource("Resource_rc5ep")])
+upgrade_stat_gains = Dictionary[int, int]({
+2: 1
+})
+upgrade_weapon_types = PackedStringArray("sword")
+upgrade_tags = PackedStringArray()
+id = "unit_type"
+display_name = "Fixture Thief"
+effects = Array[ExtResource("1_2aypv")]([SubResource("Resource_kg3c1")])

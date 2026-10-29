@@ -6,7 +6,7 @@
 # File:     gain_resource.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 @tool
@@ -54,7 +54,7 @@ func describe() -> String:
 	var who: String = "" if to_owner else target.describe()
 	var constant: Constant = amount as Constant
 	if constant != null and constant.value < 0.0:
-		var lost: String = EffectDefinition.format_number(-constant.value)
+		var lost: String = EffectTerms.format_number(-constant.value)
 		if to_owner:
 			return "lose %s %s" % [lost, pool_name]
 		return "remove %s %s from %s" % [lost, pool_name, who]

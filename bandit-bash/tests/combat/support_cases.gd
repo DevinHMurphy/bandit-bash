@@ -6,7 +6,7 @@
 # File:     support_cases.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 27, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -25,8 +25,8 @@ const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
 const POUCH: Modifier.SourceKind = Modifier.SourceKind.POUCH_ITEM
 const WEAPON: Modifier.SourceKind = Modifier.SourceKind.WEAPON
-const COMBAT_LANE: EffectDefinition.Lane = EffectDefinition.Lane.COMBAT
-const CAMPAIGN_LANE: EffectDefinition.Lane = EffectDefinition.Lane.CAMPAIGN
+const COMBAT_LANE: EffectTerms.Lane = EffectTerms.Lane.COMBAT
+const CAMPAIGN_LANE: EffectTerms.Lane = EffectTerms.Lane.CAMPAIGN
 
 # The seed of every scenario's stream.
 const SEED: int = 20261027
@@ -58,7 +58,7 @@ const GOLDEN: Dictionary[String, Array] = {
 		"s0#3 BLOCK_GAINED p3 <- p2 amount 8 (hp 0, block 8)",
 		"s0#4 BLOCK_GAINED p4 <- p2 amount 8 (hp 0, block 8)",
 		"s0#5 EFFECT_ACTIVATED p2 effect effect:everwall_uses",
-		"s0#6 USED_STAFF_ON_ALLY p2 -> p1",
+		"s0#6 USED_STAFF_ON_ALLY p2 -> p2",
 	],
 	"heal staff": [
 		"s0#1 HEALED_AN_ALLY p2 -> p1 amount 8 (hp 5, block 0)",
@@ -240,26 +240,30 @@ func _test_sanctuary() -> void:
 
 
 # Everwall (weapons.md): every ally within 3 tiles of the user, the user included, gains 5 + Might
-# Block, 1 use per map; grid distance. p4 is 3 tiles from p2, p5 4 tiles.
+# Block, 1 use per map; grid distance. Range 0: its only target is its user, which the unit-turn
+# command fills in (P02 question 14; turn_cases.gd sends it with no target). p4 is 3 tiles from
+# p2, p5 4 tiles.
 func _test_everwall() -> void:
 	var world: CombatWorld = _team()
 	world.add_unit("p3", PLAYER, 0, Vector2i(1, 2), BASES)
 	world.add_unit("p4", PLAYER, 0, Vector2i(5, 1), BASES)
 	world.add_unit("p5", PLAYER, 0, Vector2i(5, 2), BASES)
 	var staff: CombatState.WeaponStats = _area_staff(
-			world, "w:everwall", "Everwall", 5, 1, _area(Area.Center.OWNER, 3, true)
+			world, "w:everwall", "Everwall", 5, 0, _area(Area.Center.OWNER, 3, true)
 	)
+	staff.range_min = 0
 	world.arm("p2", staff.id)
 	world.add_effect("effect:everwall_uses", _uses(1, COMBAT_LANE), "p2", WEAPON, staff.id)
 	_same("everwall: text", staff.area.describe(), "this unit and allies within 3 tiles")
-	var result: StaffResolver.Result = _staff(world, "p2", "p1")
+	_same("everwall: range 0 reaches no ally", _staff_reason(world, "p2", "p1"), "out of range")
+	var result: StaffResolver.Result = _staff(world, "p2", "p2")
 	_ok("everwall: 5 + Might 3 to each of four", result.amount == 32)
 	var blocks: Array[int] = []
 	for id: String in ["p1", "p2", "p3", "p4", "p5", "e1"]:
 		blocks.append(world.state.get_block(id))
 	_same("everwall: within 3 of the user", str(blocks), "[8, 8, 8, 8, 0, 0]")
 	_golden("everwall", world)
-	_same("everwall: 1 per map", _staff_reason(world, "p2", "p1"), "no uses left")
+	_same("everwall: 1 per map", _staff_reason(world, "p2", "p2"), "no uses left")
 	_quiet(world)
 
 
@@ -619,21 +623,21 @@ func _area(center: Area.Center, radius: int, include_center: bool) -> Area:
 	var area: Area = Area.new()
 	area.center = center
 	area.radius = radius
-	area.side = EffectDefinition.UnitSide.ALLY
+	area.side = EffectTerms.UnitSide.ALLY
 	area.include_center = include_center
 	return area
 
 
 # A use-only effect: its charges count a staff's uses.
-func _uses(charges: int, lane: EffectDefinition.Lane) -> EffectDefinition:
+func _uses(charges: int, lane: EffectTerms.Lane) -> EffectDefinition:
 	return _item([], charges, lane)
 
 
-func _heal_item(amount: float, charges: int, lane: EffectDefinition.Lane) -> EffectDefinition:
+func _heal_item(amount: float, charges: int, lane: EffectTerms.Lane) -> EffectDefinition:
 	return _item([_gain_to_target(GainResource.Pool.HP, amount)], charges, lane)
 
 
-func _block_item(amount: float, charges: int, lane: EffectDefinition.Lane) -> EffectDefinition:
+func _block_item(amount: float, charges: int, lane: EffectTerms.Lane) -> EffectDefinition:
 	return _item([_gain_to_target(GainResource.Pool.BLOCK, amount)], charges, lane)
 
 
@@ -651,7 +655,7 @@ func _gain_to_target(pool: GainResource.Pool, amount: float) -> GainResource:
 	return gain
 
 
-func _item(operations: Array, charges: int, lane: EffectDefinition.Lane) -> EffectDefinition:
+func _item(operations: Array, charges: int, lane: EffectTerms.Lane) -> EffectDefinition:
 	var definition: EffectDefinition = EffectDefinition.new()
 	definition.operations.assign(operations)
 	definition.charges = charges

@@ -6,7 +6,7 @@
 # File:     pathing.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 27, 2026
+# Modified: October 28, 2026
 # ==============================================================================
 
 class_name Pathing
@@ -100,8 +100,9 @@ static func reach(
 static func nearest_free_tile(
 		state: CombatState, origin: Vector2i, movement_type: CombatGrid.MovementType
 ) -> Vector2i:
-	# ASSUMPTION: the search crosses units of either side, since an arrival is placed, not walked;
-	# terrain and objects still bound it.
+	# The search crosses units of either side, since an arrival is placed, not walked (combat map
+	# plan, question 20): a boxed-in wave still lands on the nearest open tile. Terrain and objects
+	# still bound it.
 	var reached: Dictionary[Vector2i, int] = flood(
 			state, origin, -1, movement_type, CombatFact.CombatSide.NONE
 	)

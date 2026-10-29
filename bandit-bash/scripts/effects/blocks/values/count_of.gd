@@ -6,7 +6,7 @@
 # File:     count_of.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 @tool
@@ -27,7 +27,7 @@ func describe() -> String:
 	var counted: String = "the number of %s" % ["?" if selector == null else selector.describe()]
 	if is_equal_approx(each, 1.0):
 		return counted
-	return "%s × %s" % [EffectDefinition.format_number(each), counted]
+	return "%s × %s" % [EffectTerms.format_number(each), counted]
 
 
 func evaluate(ctx: EffectContext) -> float:

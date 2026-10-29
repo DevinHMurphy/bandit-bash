@@ -6,7 +6,7 @@
 # File:     change_base_stat.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 27, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 @tool
@@ -48,16 +48,16 @@ enum Mode {
 func _validate_property(property: Dictionary) -> void:
 	if property["name"] == "key":
 		property["hint"] = PROPERTY_HINT_ENUM
-		property["hint_string"] = EffectDefinition.value_key_hint()
+		property["hint_string"] = EffectTerms.value_key_hint()
 
 
 func describe() -> String:
-	var change: String = EffectDefinition.describe_modifier(key, Modifier.Mode.ADD, value)
+	var change: String = EffectTerms.describe_modifier(key, Modifier.Mode.ADD, value)
 	if mode == Mode.GROWTH:
 		change = "%s%s%% %s growth" % [
 			"-" if value < 0.0 else "+",
-			EffectDefinition.format_number(absf(value)),
-			EffectDefinition.key_name(key),
+			EffectTerms.format_number(absf(value)),
+			EffectTerms.key_name(key),
 		]
 	if target == null or target.is_owner():
 		return "permanently %s" % [change]

@@ -6,7 +6,7 @@
 # File:     stats_cases.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 27, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 extends "res://tests/effects/golden_cases.gd"
@@ -82,7 +82,7 @@ func _test_invalidating_facts() -> void:
 func _test_cached_equals_fresh() -> void:
 	var engine: EffectEngine = _battle(["p1", "p2", "e1"])
 	var sights: EffectDefinition = _definition(
-			EffectDefinition.Trigger.ALWAYS, [], [_modify_value(HIT, ADD, 5.0)]
+			EffectTerms.Trigger.ALWAYS, [], [_modify_value(HIT, ADD, 5.0)]
 	)
 	var scope: EffectInstance = _instance(
 			"effect:sights", sights, EffectOwner.for_item("item:sights", "p2", 0, PLAYER),
@@ -98,7 +98,7 @@ func _test_cached_equals_fresh() -> void:
 		booster.apply(_context(engine, scope))
 	var gain: Callable = func() -> void:
 		var banner: EffectDefinition = _definition(
-				EffectDefinition.Trigger.ALWAYS, [], [_modify_value(HIT, ADD, 10.0)]
+				EffectTerms.Trigger.ALWAYS, [], [_modify_value(HIT, ADD, 10.0)]
 		)
 		banner.scope = YOUR_UNIT
 		engine.register(_instance("effect:banner", banner, _army(), HEIRLOOM, "Banner"))
@@ -151,17 +151,17 @@ func _test_transfer_between_sessions() -> void:
 	var counted: CounterCondition = CounterCondition.new()
 	counted.count = 10
 	var keen: EffectDefinition = _definition(
-			EffectDefinition.Trigger.ALWAYS, [], [_modify_value(HIT, ADD, 5.0)]
+			EffectTerms.Trigger.ALWAYS, [], [_modify_value(HIT, ADD, 5.0)]
 	)
 	var instance: EffectInstance = _instance("effect:keen", keen, _owner("p1"), TRAIT, "Keen")
 	from.register(instance)
-	instance.set_counter(EffectDefinition.Lane.COMBAT, 3)
+	instance.set_counter(EffectTerms.Lane.COMBAT, 3)
 	var arriving: EffectDefinition = _definition(
-			EffectDefinition.Trigger.HIT_TAKEN, [counted], [_block(1.0)]
+			EffectTerms.Trigger.HIT_TAKEN, [counted], [_block(1.0)]
 	)
 	var bulwark: EffectInstance = _instance("effect:bw", arriving, _owner("p1"), TRAIT, "Bulwark")
 	from.register(bulwark)
-	bulwark.set_counter(EffectDefinition.Lane.COMBAT, 7)
+	bulwark.set_counter(EffectTerms.Lane.COMBAT, 7)
 	_ok("transfer: read on the old map", from.stats("p1").get_value(HIT) == 85.0)
 	to.stats("p1").get_value(HIT)
 	for id: String in ["effect:keen", "effect:bw"]:
@@ -174,7 +174,7 @@ func _test_transfer_between_sessions() -> void:
 	)
 	_ok(
 			"transfer: the unit keeps its counters",
-			bulwark.get_counter(EffectDefinition.Lane.COMBAT) == 7
+			bulwark.get_counter(EffectTerms.Lane.COMBAT) == 7
 	)
 	_clean("transfer (from)", from)
 	_clean("transfer (to)", to)
@@ -183,7 +183,7 @@ func _test_transfer_between_sessions() -> void:
 func _test_verify_catches_a_stale_sheet() -> void:
 	var engine: EffectEngine = _battle(["p1", "p2", "e1"])
 	var sights: EffectDefinition = _definition(
-			EffectDefinition.Trigger.ALWAYS, [], [_modify_value(HIT, ADD, 5.0)]
+			EffectTerms.Trigger.ALWAYS, [], [_modify_value(HIT, ADD, 5.0)]
 	)
 	var item: EffectInstance = _instance(
 			"effect:sights",
@@ -236,19 +236,19 @@ func _test_defeated_unit_goes_dormant() -> void:
 	var engine: EffectEngine = _battle(["p1", "p2", "e1"])
 	var fake: FakeState = _fake(engine)
 	var rally: EffectDefinition = _definition(
-			EffectDefinition.Trigger.ALWAYS, [], [_modify_value(HIT, ADD, 10.0)]
+			EffectTerms.Trigger.ALWAYS, [], [_modify_value(HIT, ADD, 10.0)]
 	)
 	rally.scope = YOUR_UNIT
 	engine.register(_instance("effect:rally", rally, _owner("p1"), TRAIT, "Rally"))
 	var banner: EffectDefinition = _definition(
-			EffectDefinition.Trigger.ALWAYS, [], [_modify_value(HIT, ADD, 5.0)]
+			EffectTerms.Trigger.ALWAYS, [], [_modify_value(HIT, ADD, 5.0)]
 	)
 	banner.scope = YOUR_UNIT
 	engine.register(_instance("effect:banner", banner, _army(), HEIRLOOM, "Banner"))
 	var third: CounterCondition = CounterCondition.new()
 	third.count = 3
 	var guard: EffectDefinition = _definition(
-			EffectDefinition.Trigger.HIT_TAKEN, [third], [_block(1.0)]
+			EffectTerms.Trigger.HIT_TAKEN, [third], [_block(1.0)]
 	)
 	var counted: EffectInstance = _instance("effect:guard", guard, _owner("p1"), TRAIT, "Guard")
 	engine.register(counted)
@@ -267,7 +267,7 @@ func _test_defeated_unit_goes_dormant() -> void:
 	_ok(
 			"dormant: it reacts to nothing and keeps its counters",
 			_count(engine, CombatFact.Kind.EFFECT_ACTIVATED) == activations
-			and counted.get_counter(EffectDefinition.Lane.COMBAT) == 2
+			and counted.get_counter(EffectTerms.Lane.COMBAT) == 2
 	)
 	fake.unit("p1").defeated = false
 	_ok("dormant: back on the map, it wakes", engine.stats("p2").get_value(HIT) == 95.0)
@@ -320,13 +320,13 @@ func _swap_battle() -> EffectEngine:
 	var engine: EffectEngine = _battle(["p1", "e1"])
 	_fake(engine).unit("p1").weapon = "item:sword"
 	var sword: EffectDefinition = _definition(
-			EffectDefinition.Trigger.ALWAYS, [], [_modify_value(HIT, ADD, 10.0)]
+			EffectTerms.Trigger.ALWAYS, [], [_modify_value(HIT, ADD, 10.0)]
 	)
 	var sword_guard: EffectDefinition = _definition(
-			EffectDefinition.Trigger.ATTACK_MADE, [], [_block(1.0)]
+			EffectTerms.Trigger.ATTACK_MADE, [], [_block(1.0)]
 	)
 	var bow: EffectDefinition = _definition(
-			EffectDefinition.Trigger.ALWAYS, [], [_modify_value(HIT, ADD, 20.0)]
+			EffectTerms.Trigger.ALWAYS, [], [_modify_value(HIT, ADD, 20.0)]
 	)
 	var weapon: Modifier.SourceKind = Modifier.SourceKind.WEAPON
 	engine.register(_instance("effect:sword", sword, _p1_item("item:sword"), weapon, "Sword"))

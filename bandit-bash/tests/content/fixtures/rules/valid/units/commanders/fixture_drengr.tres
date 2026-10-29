@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="UnitTypeDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="2_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="3_con"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="4_gain"]
+[ext_resource type="Script" path="res://scripts/content/unit_type_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_amount"]
+script = ExtResource("3_con")
+value = 3.0
+
+[sub_resource type="Resource" id="Resource_op"]
+script = ExtResource("4_gain")
+pool = 1
+amount = SubResource("Resource_amount")
+
+[sub_resource type="Resource" id="Resource_effect"]
+script = ExtResource("1_eff")
+id = "fixture_drengr_effect"
+trigger = 1
+operations = Array[ExtResource("2_ops")]([SubResource("Resource_op")])
+
+[resource]
+script = ExtResource("9_def")
+weapon_types = PackedStringArray("axe")
+is_commander = true
+commander_heirloom_id = "fixture_iron_heart"
+id = "fixture_drengr"
+display_name = "Fixture Drengr"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])
