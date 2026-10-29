@@ -1,6 +1,6 @@
 # Plan: RNG Streams
 **Date:** October 26, 2026
-**Status:** **Approved** October 26, 2026 (review fixes: `TEAM_CHOICE`, per-seat encounter additions, 16-bit-limb mixer, integer weights, starting-heirloom draws); R1–R3 built October 26, 2026; R4 built October 27, 2026 (154 headless RNG tests pass). Orchestrator ID
+**Status:** **Approved** October 26, 2026 (review fixes: `TEAM_CHOICE`, per-seat encounter additions, 16-bit-limb mixer, integer weights, starting-heirloom draws); R1–R3 built October 26, 2026; R4 built October 27, 2026; R5 (the campaign and combat `rng` save sections, `RngSaveSection`, registered from `CampaignService`) merged October 29, 2026 with R7's save-system.md section (186 headless RNG tests pass). Orchestrator ID
 **P13** ([game-orchestrator.md](game-orchestrator.md)). Answers question 2 of the
 [campaign and run flow stub](2026-10-24-campaign-run-flow.md).
 
