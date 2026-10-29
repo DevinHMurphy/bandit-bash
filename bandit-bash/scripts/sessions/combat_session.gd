@@ -234,10 +234,13 @@ func flush(label: String) -> FactBatch:
 	return batch
 
 
-## Opens the battle once the army is deployed: turn 1's player Phase Start
-## ([method PhaseRunner.open_battle]), sent as its own batch. Returns that batch.
-func open_battle() -> FactBatch:
-	PhaseRunner.open_battle(self)
+## Opens the battle once the army is deployed ([method PhaseRunner.open_battle]): the opening swap
+## window when any of [param swap_seats] (seats whose opening-swap setting is on) has units here,
+## otherwise turn 1's player Phase Start, sent as its own batch with any facts not yet batched.
+## Returns that batch; null when there was nothing to send, as when the window opens right after
+## the deployment batch (opening it records nothing).
+func open_battle(swap_seats: PackedInt32Array = PackedInt32Array()) -> FactBatch:
+	PhaseRunner.open_battle(self, swap_seats)
 	return flush("battle start")
 
 

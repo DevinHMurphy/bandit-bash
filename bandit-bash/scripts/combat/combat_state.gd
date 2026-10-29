@@ -52,6 +52,11 @@ var ended_seats: PackedInt32Array = []
 ## no unit of either side may act ([PhaseRunner]).
 var is_phase_ended: bool = false
 
+## Seats in the opening swap window ([member MapState.opening_swap_open]) that haven't sent their
+## Start: those with the opening-swap setting on and units on the map. Turn 1's player Phase Start
+## runs when it empties ([method PhaseRunner.start]). Not saved yet (P02 CC8).
+var seats_to_start: PackedInt32Array = []
+
 ## Rune instance ids in each seat's slots, copied in at battle start by the campaign bridge. A cast
 ## rune leaves its slot.
 var rune_slots: Dictionary[int, PackedStringArray] = {}
@@ -245,6 +250,7 @@ func copy_for_sandbox() -> SandboxState:
 	copy.phase_side = phase_side
 	copy.ended_seats = ended_seats.duplicate()
 	copy.is_phase_ended = is_phase_ended
+	copy.seats_to_start = seats_to_start.duplicate()
 	for seat: int in rune_slots:
 		copy.rune_slots[seat] = rune_slots[seat].duplicate()
 	for id: String in _order:

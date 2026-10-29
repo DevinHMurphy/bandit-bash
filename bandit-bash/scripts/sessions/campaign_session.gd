@@ -121,8 +121,10 @@ func add_setup_step(step: CombatEncounter.SetupStep, run: Callable) -> void:
 ## Begins the battle [param request] describes: builds the encounter, runs its setup from fresh
 ## setup streams (so a restart from Begin rolls the same), emits [signal combat_encounter_opened],
 ## opens one session per seat with its seat's [code]COMBAT_ROLLS[/code] stream, registers copies of
-## the carriers of the units and armies in the battle, and deploys each army. Returns the
-## encounter; null, with nothing begun, when a battle is already on, the run is closed, or setup
+## the carriers of the units and armies in the battle, deploys each army, then opens each map's
+## battle ([method CombatSession.open_battle]): the opening swap window for the seats whose
+## [member BattleRequest.opening_swap] setting is on, turn 1's player Phase Start otherwise. Returns
+## the encounter; null, with nothing begun, when a battle is already on, the run is closed, or setup
 ## fails.
 func begin_battle(request: BattleRequest) -> CombatEncounter:
 	if is_closed or encounter != null or request == null:
@@ -163,6 +165,12 @@ func begin_battle(request: BattleRequest) -> CombatEncounter:
 			session.state.add_weapon(weapon)
 		session.deploy(army.units, army.bases, army.commander_id)
 		session.flush("deployment")
+	for session: CombatSession in battle.get_sessions():
+		var swap_seats: PackedInt32Array = []
+		for seat: int in session.seats:
+			if request.opening_swap.get(seat, true):
+				swap_seats.append(seat)
+		session.open_battle(swap_seats)
 
 	var net: NetLogScript = CombatSession.logger(
 			NetLogScript.Level.INFO, NetLogScript.Category.CAMPAIGN
@@ -341,6 +349,11 @@ class BattleRequest:
 	var pool: Array[CombatMapDefinition] = []
 	## Each seat's army, by seat. A seat without one gets an empty map.
 	var armies: Dictionary[int, Army] = {}
+	# ASSUMPTION: a seat with no entry has the setting on, until P07 owns the setting's default.
+	## Each seat's opening-swap setting, by seat (the setting itself is P07's): on, its map opens in
+	## the swap window before turn 1 and waits for its Start command; off, turn 1 starts at once. A
+	## seat with no entry has it on.
+	var opening_swap: Dictionary[int, bool] = {}
 
 
 ## One seat's army for a battle.

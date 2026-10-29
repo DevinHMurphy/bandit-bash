@@ -106,6 +106,7 @@ func _process(_delta: float) -> bool:
 	_run(_test_objectives_end_each_map)
 
 	_run(_test_bridge_begin_and_end)
+	_run(_test_bridge_opening_swap_per_seat)
 	_run(_test_bridge_cross_map_grants)
 	_run(_test_dropped_grant_not_recorded)
 	_run(_test_bridge_restart_rolls_the_same)
@@ -1086,6 +1087,36 @@ func _test_objectives_end_each_map() -> bool:
 	_check("objectives: the last map's end ends the encounter", (
 			s1.is_won and battle.encounter.is_finished()
 	))
+	return true
+
+
+# The opening-swap setting reaches each map per seat: on (the default, no entry) the map waits in
+# the swap window at turn 0; off, turn 1's player Phase Start runs as the battle begins.
+func _test_bridge_opening_swap_per_seat() -> bool:
+	var run: CampaignSession = CampaignSession.new(
+			CampaignData.Mode.MULTIPLAYER, RUN_SEED, PackedInt32Array([0, 1])
+	)
+	var request: CampaignSession.BattleRequest = _request(
+			run, {0: ["Drengr", "Archer"], 1: ["Drengr", "Archer"]}
+	)
+	request.opening_swap[1] = false
+	var battle: CombatEncounter = run.begin_battle(request)
+	var on: CombatSession = battle.session_of_seat(0)
+	var off: CombatSession = battle.session_of_seat(1)
+	_check("swap setting: on by default, the window waits for Start", (
+			on.state.map.opening_swap_open
+			and on.state.turn == 0
+			and on.state.seats_to_start == PackedInt32Array([0])
+	))
+	var kinds: PackedStringArray = []
+	for fact: CombatFact in off.engine.fact_log:
+		kinds.append(CombatFact.Kind.find_key(fact.kind) as String)
+	_check("swap setting: off, turn 1 starts at once", (
+			not off.state.map.opening_swap_open
+			and off.state.turn == 1
+			and kinds.has("PHASE_START")
+	), " ".join(kinds))
+	run.end_battle()
 	return true
 
 

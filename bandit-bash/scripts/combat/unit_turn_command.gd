@@ -23,7 +23,9 @@ extends Command
 ## [constant CombatValue.Permission.MAY_MOVE_AFTER_ACTING] allows, with the movement left.
 ## A staff of range 0 targets its user:
 ## the command names no target and the user is filled in (question 14). An attack always needs a
-## target at range 1 or more. The action ends the unit's turn; it fires no Unit Turn End.
+## target at range 1 or more. The action ends the unit's turn; it fires no Unit Turn End.[br]
+## Before turn 1, in the opening swap window, the only action is [constant Action.OPENING_SWAP]
+## (question 17); it records [constant CombatFact.Kind.UNIT_MOVED] for both units.
 ##
 ## @tutorial(Combat core plan): docs/plans/2026-10-26-combat-core.md
 
@@ -34,8 +36,8 @@ enum Action {
 	WAIT = 0,
 	## Starts an exchange with [member target_id] ([ExchangeResolver]).
 	ATTACK = 1,
-	## Uses the Block or heal staff in the Weapon slot on [member target_id], or on the user when the
-	## staff's range is 0 and no target is named ([StaffResolver]).
+	## Uses the Block or heal staff in the Weapon slot on [member target_id], or on the user when
+	## the staff's range is 0 and no target is named ([StaffResolver]).
 	STAFF = 2,
 	## Shoves [member target_id] ([ShoveResolver]).
 	SHOVE = 3,
@@ -46,6 +48,10 @@ enum Action {
 	SWAP_WEAPON = 5,
 	## Only moves: the second move after acting, while one is pending.
 	MOVE = 6,
+	## Trades tiles with [member target_id], another of the seat's units, both on deployment tiles,
+	## in the opening swap window before turn 1 ([method AutoDeploy.check_opening_swap]). Takes no
+	## path and ends no turn.
+	OPENING_SWAP = 7,
 }
 
 ## The tiles the unit walks, starting on its own tile ([method CombatState.validate_path]). Empty:
@@ -100,6 +106,8 @@ func forecast_reads() -> PackedStringArray:
 
 
 func validate(session: CombatSession) -> String:
+	if action == Action.OPENING_SWAP:
+		return _swap_reason(session)
 	var reason: String = CommandValidator.unit_phase_reason(session, actor_id)
 	if not reason.is_empty():
 		return reason
@@ -123,6 +131,13 @@ func validate(session: CombatSession) -> String:
 func resolve(session: CombatSession) -> void:
 	var engine: EffectEngine = session.engine
 	var state: CombatState = session.state
+	if action == Action.OPENING_SWAP:
+		state.swap_units(actor_id, target_id)
+		for unit_id: String in [actor_id, target_id]:
+			var moved: CombatFact = CombatFact.new(CombatFact.Kind.UNIT_MOVED, unit_id)
+			moved.tile = state.tile_of(unit_id)
+			engine.record(moved)
+		return
 	var walk: Array[Vector2i] = _walk(state)
 	_walk_to(engine, state, walk, state.validate_path(engine, actor_id, walk))
 	match action:
@@ -179,6 +194,22 @@ func _action_reason(engine: EffectEngine, state: CombatState) -> String:
 		Action.SWAP_WEAPON:
 			return WeaponSwap.check(engine, state, actor_id, false)
 	return "unknown action %d" % [action]
+
+
+# Why the opening swap can't be made now; empty when it can.
+func _swap_reason(session: CombatSession) -> String:
+	var reason: String = CommandValidator.swap_window_reason(session, seat)
+	if not reason.is_empty():
+		return reason
+	if path.size() > 1:
+		return "a swap takes no path"
+	return AutoDeploy.check_opening_swap(
+			session.state,
+			seat,
+			actor_id,
+			target_id,
+			session.layout.tiles_of(MapLayout.MarkerKind.DEPLOYMENT)
+	)
 
 
 # The staff's target: the one named, else the user for a range-0 staff; empty when neither.

@@ -12,8 +12,9 @@
 extends RefCounted
 ## Turn loop and command cases for tests/combat/run_all.gd: Phase Start and Phase End order, the
 ## full hook order, terrain healing, the enemy phase as one command, the unit-turn, end-turn and
-## rune commands with their rejections, the second move, a range-0 staff, and a scripted two-side
-## fight that runs to a defeat and repeats exactly.
+## rune commands with their rejections, the second move, a range-0 staff, a scripted two-side fight
+## that runs to a defeat and repeats exactly, and battle start: the opening swap window, its swaps
+## and Start commands, and the setting off.
 ##
 ## Each case runs a real [CombatSession] on a small hand-built map (plain, with a fort at (1, 1)
 ## for terrain healing), so commands go through the session's queue as they do in a battle. Every
@@ -58,6 +59,11 @@ func run() -> void:
 	_test_rune_command()
 	_test_enemy_command_rejected()
 	_test_scripted_fight()
+	_test_opening_swap_then_start()
+	_test_window_rejects_other_commands()
+	_test_swap_rejections()
+	_test_two_seats_wait_for_start()
+	_test_swap_setting_off()
 
 
 # Phase Start: refresh, terrain healing, PHASE_START with the turn, then Unit Turn Start per unit in
@@ -514,6 +520,200 @@ func _fight() -> PackedStringArray:
 	return lines
 
 
+# Setting on: the battle opens in the swap window with nothing recorded; a swap trades tiles,
+# records UNIT_MOVED for both and ends no turn; Start runs turn 1's Phase Start, where Phalanx
+# (Block per adjacent ally) reads the tile after the swap.
+func _test_opening_swap_then_start() -> void:
+	var world: TurnWorld = TurnWorld.new()
+	world.mark_deployment([Vector2i(0, 3), Vector2i(2, 3), Vector2i(3, 3)])
+	world.add_unit("p1", PLAYER, 0, Vector2i(0, 3))
+	world.add_unit("p2", PLAYER, 0, Vector2i(3, 3))
+	world.add_unit("p3", PLAYER, 0, Vector2i(2, 3))
+	world.add_unit("e1", ENEMY, -1, Vector2i(5, 0))
+	world.add_effect("effect:ph", "p1", _phalanx())
+	world.session.flush("deployment")
+	var start: int = world.log_size()
+	var opened: CombatSession.FactBatch = world.session.open_battle(PackedInt32Array([0]))
+	_ok("swap: the window opens with nothing recorded", (
+			opened == null
+			and world.log_size() == start
+			and world.state().map.opening_swap_open
+			and world.state().turn == 0
+	))
+	var swap: CombatSession.FactBatch = world.send(_swap(0, "p1", "p3"))
+	_ok("swap: resolves", not swap.is_rejected(), swap.rejected_reason)
+	_same("swap: UNIT_MOVED for both", world.lines(start), [
+		"s0#%d UNIT_MOVED p1 tile (2, 3)" % [start + 1],
+		"s0#%d UNIT_MOVED p3 tile (0, 3)" % [start + 2],
+	])
+	_ok("swap: ends no turn", (
+			not world.state().unit("p1").has_acted and not world.state().unit("p3").has_acted
+	))
+	var started: CombatSession.FactBatch = world.send(StartCommand.new(0))
+	_ok("start: resolves", not started.is_rejected(), started.rejected_reason)
+	_ok("start: closes the window and runs turn 1", (
+			not world.state().map.opening_swap_open
+			and world.state().turn == 1
+			and world.kinds(start + 2).contains("PHASE_START")
+	), world.kinds(start + 2))
+	_same("start: Phalanx counts the ally next to p1's new tile", world.state().get_block("p1"), 1)
+	_quiet(world)
+
+
+# In the window only swaps and Start are taken.
+func _test_window_rejects_other_commands() -> void:
+	var world: TurnWorld = TurnWorld.new()
+	world.mark_deployment([Vector2i(0, 3), Vector2i(1, 3)])
+	world.add_unit("p1", PLAYER, 0, Vector2i(0, 3), "sword")
+	world.add_unit("p2", PLAYER, 0, Vector2i(1, 3))
+	world.add_unit("e1", ENEMY, -1, Vector2i(0, 2))
+	world.session.open_battle(PackedInt32Array([0]))
+	var start: int = world.log_size()
+	var reason: String = "only swaps and Start before turn 1"
+	_same(
+			"window: a wait is rejected",
+			world.send(UnitTurnCommand.new(0, "p2", WAIT)).rejected_reason,
+			reason
+	)
+	_same(
+			"window: an attack is rejected",
+			world.send(UnitTurnCommand.new(0, "p1", ATTACK, "e1")).rejected_reason,
+			reason
+	)
+	_same("window: end turn is rejected", world.send(EndTurnCommand.new(0)).rejected_reason, reason)
+	_same(
+			"window: a rune is rejected",
+			world.send(CastRuneCommand.new(0, "rune:mend", "p1")).rejected_reason,
+			reason
+	)
+	_same("window: nothing was recorded", world.log_size(), start)
+	_quiet(world)
+
+
+# A swap needs both units on deployment tiles and no path; after the last Start, swaps and Start
+# are rejected.
+func _test_swap_rejections() -> void:
+	var world: TurnWorld = TurnWorld.new()
+	world.mark_deployment([Vector2i(0, 3), Vector2i(1, 3)])
+	world.add_unit("p1", PLAYER, 0, Vector2i(0, 3))
+	world.add_unit("p2", PLAYER, 0, Vector2i(1, 3))
+	world.add_unit("p3", PLAYER, 0, Vector2i(3, 3))
+	world.add_unit("e1", ENEMY, -1, Vector2i(5, 0))
+	world.session.open_battle(PackedInt32Array([0]))
+	_same(
+			"swap: off the deployment tiles",
+			world.send(_swap(0, "p1", "p3")).rejected_reason,
+			"not on a deployment tile"
+	)
+	var walk: Array[Vector2i] = [Vector2i(0, 3), Vector2i(0, 2)]
+	var walking: UnitTurnCommand = _swap(0, "p1", "p2")
+	walking.path = walk
+	_same("swap: with a path", world.send(walking).rejected_reason, "a swap takes no path")
+	world.send(StartCommand.new(0))
+	_same(
+			"swap: after Start",
+			world.send(_swap(0, "p1", "p2")).rejected_reason,
+			"the opening swap is closed"
+	)
+	_same(
+			"start: twice",
+			world.send(StartCommand.new(0)).rejected_reason,
+			"the opening swap is closed"
+	)
+	_quiet(world)
+
+
+# Two seats on one map: Phase Start waits for both Starts; a seat that started can't swap, and no
+# seat swaps another's units.
+func _test_two_seats_wait_for_start() -> void:
+	var world: TurnWorld = TurnWorld.new(PackedInt32Array([0, 1]))
+	world.mark_deployment([Vector2i(0, 3), Vector2i(1, 3), Vector2i(2, 3), Vector2i(3, 3)])
+	world.add_unit("p1", PLAYER, 0, Vector2i(0, 3))
+	world.add_unit("p2", PLAYER, 0, Vector2i(1, 3))
+	world.add_unit("q1", PLAYER, 1, Vector2i(2, 3))
+	world.add_unit("q2", PLAYER, 1, Vector2i(3, 3))
+	world.add_unit("e1", ENEMY, -1, Vector2i(5, 0))
+	world.session.open_battle(PackedInt32Array([0, 1]))
+	var start: int = world.log_size()
+	world.send(StartCommand.new(0))
+	_ok("two seats: one Start runs nothing", (
+			world.state().turn == 0
+			and world.state().map.opening_swap_open
+			and world.log_size() == start
+	))
+	_same(
+			"two seats: a seat that started can't swap",
+			world.send(_swap(0, "p1", "p2")).rejected_reason,
+			"seat 0 has started"
+	)
+	_same(
+			"two seats: not another seat's unit",
+			world.send(_swap(0, "q1", "q2")).rejected_reason,
+			"q1 isn't seat 0's unit"
+	)
+	_same(
+			"two seats: not with another seat's unit",
+			world.send(_swap(1, "q1", "p2")).rejected_reason,
+			"not two of the seat's units"
+	)
+	var swap: CombatSession.FactBatch = world.send(_swap(1, "q1", "q2"))
+	_ok("two seats: the other seat still swaps", not swap.is_rejected(), swap.rejected_reason)
+	world.send(StartCommand.new(1))
+	_ok("two seats: the last Start runs turn 1", (
+			world.state().turn == 1
+			and not world.state().map.opening_swap_open
+			and world.kinds(start).contains("PHASE_START")
+	))
+	_quiet(world)
+
+
+# Setting off (or on only for a seat with no units here): no window, turn 1 runs as the battle
+# opens, and swaps and Start are rejected.
+func _test_swap_setting_off() -> void:
+	for swap_seats: PackedInt32Array in [PackedInt32Array(), PackedInt32Array([1])]:
+		var world: TurnWorld = TurnWorld.new()
+		world.mark_deployment([Vector2i(0, 3), Vector2i(1, 3)])
+		world.add_unit("p1", PLAYER, 0, Vector2i(0, 3))
+		world.add_unit("p2", PLAYER, 0, Vector2i(1, 3))
+		world.add_unit("e1", ENEMY, -1, Vector2i(5, 0))
+		var opened: CombatSession.FactBatch = world.session.open_battle(swap_seats)
+		var label: String = "swap off %s" % [swap_seats]
+		_ok("%s: turn 1 at once" % [label], (
+				opened != null
+				and world.state().turn == 1
+				and not world.state().map.opening_swap_open
+		))
+		_same(
+				"%s: a swap is rejected" % [label],
+				world.send(_swap(0, "p1", "p2")).rejected_reason,
+				"the opening swap is closed"
+		)
+		_same(
+				"%s: Start is rejected" % [label],
+				world.send(StartCommand.new(0)).rejected_reason,
+				"the opening swap is closed"
+		)
+		_quiet(world)
+
+
+func _swap(sender: int, unit_id: String, other_id: String) -> UnitTurnCommand:
+	return UnitTurnCommand.new(sender, unit_id, UnitTurnCommand.Action.OPENING_SWAP, other_id)
+
+
+# Phalanx (unit-roster.md, Lancer): Unit Turn Start, gain 1 Block per adjacent ally.
+func _phalanx() -> EffectDefinition:
+	var adjacent: Area = Area.new()
+	adjacent.center = Area.Center.OWNER
+	adjacent.radius = 1
+	adjacent.side = EffectDefinition.UnitSide.ALLY
+	adjacent.include_center = false
+	var count: CountOf = CountOf.new()
+	count.selector = adjacent
+	return _definition(
+			EffectDefinition.Trigger.UNIT_TURN_START, [_gain(GainResource.Pool.BLOCK, count)]
+	)
+
+
 func _definition(trigger: EffectDefinition.Trigger, operations: Array) -> EffectDefinition:
 	var definition: EffectDefinition = EffectDefinition.new()
 	definition.trigger = trigger
@@ -586,6 +786,12 @@ class TurnWorld:
 
 	func engine() -> EffectEngine:
 		return session.engine
+
+	# Marks [param tiles] as deployment tiles on the map, for the opening swap.
+	func mark_deployment(tiles: Array[Vector2i]) -> void:
+		for tile: Vector2i in tiles:
+			session.layout.add_marker(MapLayout.MarkerKind.DEPLOYMENT, tile)
+		session.layout.index_markers()
 
 	# Places a unit with HP 20, Stance 2, 5 movement, Might 3, Speed 5, Constitution 20, holding
 	# [param weapon] (a WEAPONS preset) when given.

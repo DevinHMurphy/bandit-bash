@@ -15,6 +15,9 @@ extends RefCounted
 ## command, and the [CombatHooks] other plans register into (combat core plan, Turn and phase
 ## loop).
 ##
+## [b]Battle start[/b] ([method open_battle]): with a seat's opening-swap setting on, the battle
+## opens in the swap window before turn 1, and turn 1's player Phase Start runs once every such
+## seat has sent Start ([method start]); with it off, Phase Start runs at once.[br]
 ## A turn is one player phase, then one enemy phase; [member CombatState.turn] rises at the player
 ## Phase Start. [b]Phase Start[/b], in order: (player only) [constant CombatHooks.Hook.ARRIVALS];
 ## each unit of the side has its Block cleared and Stance set to its maximum
@@ -40,11 +43,39 @@ extends RefCounted
 const ENEMY_COMMANDS_PER_UNIT: int = 2
 
 
-## Opens the battle on [param session] once its army is deployed: turn 1's player Phase Start,
-## then the step's end. Records outside any command; the caller flushes the batch.
-static func open_battle(session: CombatSession) -> void:
+## Opens the battle on [param session] once its army is deployed. When any of [param swap_seats]
+## (the seats whose opening-swap setting is on) has units on the map, opens the opening swap
+## window instead ([member MapState.opening_swap_open], [member CombatState.seats_to_start]) and
+## records nothing; turn 1 waits for their Start commands ([method start]). Otherwise runs turn
+## 1's player Phase Start, then the step's end. Records outside any command; the caller flushes
+## the batch.
+static func open_battle(
+		session: CombatSession, swap_seats: PackedInt32Array = PackedInt32Array()
+) -> void:
+	var waiting: PackedInt32Array = []
+	for seat: int in seats_with_units(session):
+		if swap_seats.has(seat):
+			waiting.append(seat)
+	if not waiting.is_empty():
+		session.state.seats_to_start = waiting
+		session.state.map.opening_swap_open = true
+		return
 	_phase_start(session, CombatFact.CombatSide.PLAYER)
 	end_step(session)
+
+
+## [param seat]'s Start in the opening swap window. When no seat is left to start, closes the
+## window and runs turn 1's player Phase Start, so position effects read the tiles after every
+## swap. The session ends the step ([method CombatSession.resolve_next]).
+static func start(session: CombatSession, seat: int) -> void:
+	var state: CombatState = session.state
+	var index: int = state.seats_to_start.find(seat)
+	if index >= 0:
+		state.seats_to_start.remove_at(index)
+	if not state.seats_to_start.is_empty():
+		return
+	state.map.opening_swap_open = false
+	_phase_start(session, CombatFact.CombatSide.PLAYER)
 
 
 ## Ends [param seat]'s turn in the player phase. When every seat with units on the map has ended,

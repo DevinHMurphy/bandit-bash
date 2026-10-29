@@ -22,14 +22,29 @@ extends RefCounted
 ## @tutorial(Combat core plan): docs/plans/2026-10-26-combat-core.md
 
 
-## Why [param seat] can't act in the player phase of [param session] now: it isn't the player
-## phase (before turn 1 included), the phase has ended, or the seat has ended its turn.
+## Why [param seat] can't act in the player phase of [param session] now: the opening swap window
+## is open, it isn't the player phase (before turn 1 included), the phase has ended, or the seat
+## has ended its turn.
 static func player_phase_reason(session: CombatSession, seat: int) -> String:
 	var state: CombatState = session.state
+	if state.map.opening_swap_open:
+		return "only swaps and Start before turn 1"
 	if state.phase_side != CombatFact.CombatSide.PLAYER or state.is_phase_ended:
 		return "not the player phase"
 	if state.ended_seats.has(seat):
 		return "seat %d has ended its turn" % [seat]
+	return ""
+
+
+## Why [param seat] can't swap or send Start in [param session] now: the opening swap window is
+## closed (the setting is off, or every seat has started), or the seat has started already or has
+## the setting off.
+static func swap_window_reason(session: CombatSession, seat: int) -> String:
+	var state: CombatState = session.state
+	if not state.map.opening_swap_open:
+		return "the opening swap is closed"
+	if not state.seats_to_start.has(seat):
+		return "seat %d has started" % [seat]
 	return ""
 
 
