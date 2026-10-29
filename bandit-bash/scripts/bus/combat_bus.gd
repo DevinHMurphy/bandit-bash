@@ -6,7 +6,7 @@
 # File:     combat_bus.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 27, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 class_name CombatBus
@@ -34,7 +34,7 @@ var unit: UnitChannel = UnitChannel.new()
 ## Exchanges, attacks, hits, shoves, and the other actions: objects, items, swaps, runes, Wait.
 var action: ActionChannel = ActionChannel.new()
 
-## The map itself: the darkness and map objects.
+## The map itself: the darkness, map objects and reinforcement points.
 var world: WorldChannel = WorldChannel.new()
 
 ## Effect activations, counters and timed modifiers.
@@ -202,7 +202,7 @@ class ActionChannel:
 		_route(CombatFact.Kind.UNIT_WAITED, waited)
 
 
-## The map itself: the darkness and map objects.
+## The map itself: the darkness, map objects and reinforcement points.
 class WorldChannel:
 	extends BusChannel
 
@@ -210,10 +210,16 @@ class WorldChannel:
 	signal darkness_advanced(fact: CombatFact)
 	## [constant CombatFact.OBJECT_STATE_CHANGED].
 	signal object_state_changed(fact: CombatFact)
+	## [constant CombatFact.REINFORCEMENT_INCOMING].
+	signal reinforcement_incoming(fact: CombatFact)
+	## [constant CombatFact.REINFORCEMENT_ARRIVED].
+	signal reinforcement_arrived(fact: CombatFact)
 
 	func _init() -> void:
 		_route(CombatFact.Kind.DARKNESS_ADVANCED, darkness_advanced)
 		_route(CombatFact.Kind.OBJECT_STATE_CHANGED, object_state_changed)
+		_route(CombatFact.Kind.REINFORCEMENT_INCOMING, reinforcement_incoming)
+		_route(CombatFact.Kind.REINFORCEMENT_ARRIVED, reinforcement_arrived)
 
 
 ## Effect activations, counters and timed modifiers.

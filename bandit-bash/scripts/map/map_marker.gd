@@ -21,7 +21,8 @@ extends Node2D
 ## layers, so a marker's stable id is the same whichever way it was authored. A door marker covers
 ## [member door_size] tiles and becomes one door marker per tile.[br]
 ## Authoring data only: nothing here runs in a battle. The loader reads the exports and frees the
-## scene. Each kind reads only its own exports.
+## scene. Each kind reads only its own exports. A reinforcement point may also be a plain marker
+## tile, which has no arrival turns.
 ##
 ## @tutorial(Combat map plan, Authoring and loading): docs/plans/2026-10-27-combat-map.md
 
@@ -37,6 +38,8 @@ enum Kind {
 	LEVER = 2,
 	## One end of passage pair [member pair_id].
 	PASSAGE = 3,
+	## A reinforcement point, sending a wave on each of its [member arrival_turns].
+	REINFORCEMENT_POINT = 4,
 }
 
 ## The layout marker kind of each [enum Kind].
@@ -45,6 +48,7 @@ const LAYOUT_KINDS: Dictionary[Kind, MapLayout.MarkerKind] = {
 	Kind.DOOR: MapLayout.MarkerKind.OBJECT_SPOT,
 	Kind.LEVER: MapLayout.MarkerKind.OBJECT_SPOT,
 	Kind.PASSAGE: MapLayout.MarkerKind.OBJECT_SPOT,
+	Kind.REINFORCEMENT_POINT: MapLayout.MarkerKind.REINFORCEMENT_POINT,
 }
 
 ## The object of each [enum Kind] that marks an object spot.
@@ -60,6 +64,7 @@ const _KIND_COLORS: Dictionary[Kind, Color] = {
 	Kind.DOOR: Color(0.45, 0.25, 0.1, 0.6),
 	Kind.LEVER: Color(0.7, 0.7, 0.7, 0.85),
 	Kind.PASSAGE: Color(0.25, 0.75, 0.65, 0.85),
+	Kind.REINFORCEMENT_POINT: Color(0.85, 0.15, 0.2, 0.85),
 }
 const _VARIANCE_COLOR: Color = Color(1.0, 0.45, 0.1, 0.5)
 const _SLOT_RADIUS: float = 0.3
@@ -104,6 +109,12 @@ const _SLOT_RADIUS: float = 0.3
 		door_size = value
 		if is_node_ready():
 			queue_redraw()
+
+## A reinforcement point's arrival turns: one wave each, arriving after that turn's enemy phase
+## ([Reinforcements]); its group is drawn at battle start. Order doesn't matter; a turn listed
+## twice sends two waves.[br]
+## [b]Units:[/b] turns. [b]Empty:[/b] the point never sends, so it counts as closed.
+@export_range(1, 99) var arrival_turns: Array[int] = []
 
 
 func _ready() -> void:

@@ -111,3 +111,10 @@ static func seat_subject_id(seat: int) -> String:
 ## [code]object:N[/code]. Named with [method set_label] when the object is placed.
 static func object_id(spot_index: int) -> String:
 	return "object:%d" % [spot_index]
+
+
+# Not minted, for the same reason as object_id().
+## The id of reinforcement point [param point_index] ([member MapLayout.Marker.index]),
+## [code]point:N[/code]. Named with [method set_label] when its waves are loaded.
+static func point_id(point_index: int) -> String:
+	return "point:%d" % [point_index]

@@ -54,6 +54,9 @@ enum Change {
 	DOUSED = 4,
 	## A breakable broken: off the map, its tile clear, its terrain back.
 	DESTROYED = 5,
+	## A reinforcement point closed for good by the unit named as the target, which earns the
+	## personal-XP bonus (P08); the actor is the point ([method Reinforcements.close_points]).
+	POINT_CLOSED = 6,
 }
 
 ## HP, DEF and RES of each breakable (map-objects.md, from Godot_FE's entity data).

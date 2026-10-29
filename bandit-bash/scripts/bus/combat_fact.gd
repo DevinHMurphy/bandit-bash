@@ -128,6 +128,13 @@ enum Kind {
 	## [member amount] percentage points, such as an eaten ingredient's +5% RES growth. Changes no
 	## value in battle; the battle-end bridge writes it to the roster.
 	GROWTH_CHANGED = 43,
+	## The reinforcement point named by the actor, at [member tile], has a wave to come:
+	## [member amount] is the turns until it arrives, this one included (1: after this turn's enemy
+	## phase). In the player phase right before it arrives, [member unit_types] previews it.
+	REINFORCEMENT_INCOMING = 44,
+	## A wave arrived at the reinforcement point named by the actor, at [member tile], after its
+	## units' [constant UNIT_SPAWNED]: [member amount] is how many were placed.
+	REINFORCEMENT_ARRIVED = 45,
 }
 
 ## What produced an amount. Sent over the network as an int: [b]append only[/b].
@@ -178,8 +185,8 @@ enum DamageType {
 ## event bus plan question 37), so it names no real tile.
 const NO_TILE: Vector2i = Vector2i(-1, -1)
 
-# Slot types of the wire array, in to_wire() order: i = int, s = String.
-const WIRE_PATTERN: String = "iiissiiiiisiiiisi"
+# Slot types of the wire array, in to_wire() order: i = int, s = String, a = a list of Strings.
+const WIRE_PATTERN: String = "iiissiiiiisiiiisia"
 
 # Largest integer a JSON number (a double) holds exactly, 2^53. A wire array that went through JSON
 # arrives with float numbers; anything beyond this lost precision on the way.
@@ -252,6 +259,11 @@ var item_id: String = ""
 ## [constant OBJECT_STATE_CHANGED]. 0 on every other kind.
 var key: int = 0
 
+## The unit type ([member CombatUnitState.unit_type]) of each unit in a coming wave, in arrival
+## order, so its size is the wave's count: set on a [constant REINFORCEMENT_INCOMING] in the player
+## phase right before the wave arrives. Empty on every other fact.
+var unit_types: PackedStringArray = []
+
 
 func _init(fact_kind: Kind, fact_actor_id: String = "", fact_target_id: String = "") -> void:
 	kind = fact_kind
@@ -281,6 +293,7 @@ func to_wire() -> Array:
 		side,
 		item_id,
 		key,
+		unit_types,
 	]
 
 
@@ -289,7 +302,8 @@ func to_wire() -> Array:
 ## attack[/code], or [code]s0#1 PHASE_START side player amount 3[/code]
 ##
 ## Empty fields are left out, and amounts print only when one is non-zero. [member key] prints as
-## "lane N", "stat N" or "change N" on the kinds that use it.
+## "lane N", "stat N" or "change N" on the kinds that use it; [member unit_types] last, as
+## "types A, B".
 ## [param describe]: turns an id into display text (the session's describe); when invalid, ids
 ## print bare.
 func to_log_line(describe: Callable = Callable()) -> String:
@@ -324,6 +338,8 @@ func to_log_line(describe: Callable = Callable()) -> String:
 		parts.append("tile %s" % [tile])
 	if flags != 0:
 		parts.append("flags 0x%x" % [flags])
+	if not unit_types.is_empty():
+		parts.append("types %s" % [", ".join(unit_types)])
 	return " ".join(parts)
 
 
@@ -383,6 +399,7 @@ static func from_wire(data: Array) -> CombatFact:
 	fact.side = side_value as CombatSide
 	fact.item_id = values[15]
 	fact.key = values[16]
+	fact.unit_types = values[17]
 	return fact
 
 
@@ -397,6 +414,11 @@ static func _normalize_wire(data: Array, pattern: String) -> Array:
 			if typeof(value) != TYPE_STRING:
 				return []
 			values.append(value)
+		elif pattern[i] == "a":
+			var strings: PackedStringArray = _string_list(value)
+			if strings.size() != _list_size(value):
+				return []
+			values.append(strings)
 		elif typeof(value) == TYPE_INT:
 			values.append(value)
 		elif typeof(value) == TYPE_FLOAT:
@@ -407,3 +429,30 @@ static func _normalize_wire(data: Array, pattern: String) -> Array:
 		else:
 			return []
 	return values
+
+
+# value's Strings: a PackedStringArray as is, or each String of an Array (after JSON); empty for
+# anything else. Fewer than _list_size(value) means an element wasn't a String.
+static func _string_list(value: Variant) -> PackedStringArray:
+	if typeof(value) == TYPE_PACKED_STRING_ARRAY:
+		return value
+	var strings: PackedStringArray = []
+	if typeof(value) != TYPE_ARRAY:
+		return strings
+	# Untyped: a wire array's elements are checked one by one.
+	for element: Variant in value:
+		if typeof(element) == TYPE_STRING:
+			var text: String = element
+			strings.append(text)
+	return strings
+
+
+# How many elements a list slot holds; -1 when value isn't a list, so it never matches.
+static func _list_size(value: Variant) -> int:
+	if typeof(value) == TYPE_PACKED_STRING_ARRAY:
+		var packed: PackedStringArray = value
+		return packed.size()
+	if typeof(value) == TYPE_ARRAY:
+		var list: Array = value
+		return list.size()
+	return -1

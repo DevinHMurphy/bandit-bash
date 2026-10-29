@@ -12,15 +12,17 @@
 class_name MapState
 extends RefCounted
 ## The parts of one map that change during a combat: its map objects, which tiles they block, the
-## containers' contents, the loot taken from them, and whether the opening swap window is open.
+## containers' contents, the loot taken from them, its reinforcement points and their waves, and
+## whether the opening swap window is open.
 ##
 ## Held by [CombatState] as [member CombatState.map] and copied with it for a sandbox, so a
 ## forecast that opens a door or breaks a keg never touches the real map. [MapGrid] stays
 ## terrain-only and shared. Movement asks this state whether an object stops a unit; standing on an
-## object's tile is decided by occupancy, as for units. [MapObjects] changes it and records the
-## facts. Plain data with ids only.[br]
+## object's tile is decided by occupancy, as for units. [MapObjects] and [Reinforcements] change it
+## and record the facts. Plain data with ids only.[br]
 ## [b]Not saved yet:[/b] [member objects], [member contents], [member found] and [member carried]
-## join the [code]entities[/code] section in P04 MP8.
+## join the [code]entities[/code] section in P04 MP8; [member points],
+## [member are_waves_cancelled] and [member has_darkness_arrived] join [code]combat_map[/code].
 ##
 ## @tutorial(Combat map plan): docs/plans/2026-10-27-combat-map.md
 
@@ -53,6 +55,17 @@ var found: Dictionary[int, Array] = {}
 
 ## The loot each Cutthroat carries, by unit id, until it is defeated ([method MapObjects.loot]).
 var carried: Dictionary[String, Array] = {}
+
+## Every reinforcement point on the map, by point index ([member MapLayout.Marker.index]), with
+## its waves ([method Reinforcements.load_waves]).
+var points: Dictionary[int, PointState] = {}
+
+## Whether every wave not yet arrived is cancelled: Rout's win ([method Reinforcements.cancel]).
+var are_waves_cancelled: bool = false
+
+## Whether the darkness has arrived, so no reinforcement point sends again; read only through
+## [method Reinforcements.has_darkness_arrived]. Nothing sets it until P06's darkness step.
+var has_darkness_arrived: bool = false
 
 var _blocking: Dictionary[Vector2i, Blocking] = {}
 
@@ -117,6 +130,10 @@ func copy() -> MapState:
 		map_copy.found[seat] = found[seat].duplicate(true)
 	for unit_id: String in carried:
 		map_copy.carried[unit_id] = carried[unit_id].duplicate(true)
+	for point_index: int in points:
+		map_copy.points[point_index] = points[point_index].copy()
+	map_copy.are_waves_cancelled = are_waves_cancelled
+	map_copy.has_darkness_arrived = has_darkness_arrived
 	return map_copy
 
 
@@ -172,4 +189,36 @@ class ObjectState:
 		state_copy.is_lit = is_lit
 		state_copy.is_used = is_used
 		state_copy.is_destroyed = is_destroyed
+		return state_copy
+
+
+## One reinforcement point's state: its waves in arrival order, how many have arrived, and whether
+## a player unit closed it ([Reinforcements]).
+class PointState:
+	extends RefCounted
+
+	## Its id ([method InstanceIdAllocator.point_id]).
+	var id: String = ""
+	## Its stable point index, [member MapLayout.Marker.index].
+	var index: int = -1
+	## Where its waves arrive.
+	var tile: Vector2i = CombatFact.NO_TILE
+	## Its waves, drawn at battle start, by arrival turn: plain data in the shape of
+	## [constant Objectives.WAVES_KEY].
+	var waves: Array[Dictionary] = []
+	## How many of [member waves], from the first, have arrived.
+	var sent: int = 0
+	## Closed for good by a player unit ending its turn on it.
+	var is_closed: bool = false
+
+	## A copy sharing nothing mutable.
+	func copy() -> PointState:
+		var state_copy: PointState = PointState.new()
+		state_copy.id = id
+		state_copy.index = index
+		state_copy.tile = tile
+		for wave: Dictionary in waves:
+			state_copy.waves.append(wave.duplicate(true))
+		state_copy.sent = sent
+		state_copy.is_closed = is_closed
 		return state_copy
