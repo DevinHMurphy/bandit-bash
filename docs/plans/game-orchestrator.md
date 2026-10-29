@@ -196,6 +196,7 @@ flowchart LR
     MP2 --> MP4[MP4 objectives]
     MP4 --> MP5[MP5 M1 map + check]
     MP2 --> MP6[MP6 map objects]
+    MP5 --> MP6
     MP6 --> MP7[MP7 reinforcements]
     MP8[MP8 save sections]
   end
@@ -274,6 +275,7 @@ from starting; each is asked inside its plan's Open Questions.
 |------|------|--------|
 | P03 | The Ring of Favor needs a Legendary-sized effect; Heavy Brick is Unique with no source; the Lancer's growths are a `Godot_FE` copy-paste; item effects may sit outside their ported rarity's budget; Brothers in Arms needs a selector filter ("adjacent to a unit of another player") the engine doesn't have (P01 question 30); the content test rejects a staff or weapon with no range, and an attack (weapon or attack staff) with range 0 (P02 question 14); say which rune is Recall, or let a rune declare that it targets a second unit (CC6 treats any cast naming a second unit as Recall until then, P02 question 18); mark shove specialists in unit data, so auto-deployment reads the Shover from it instead of the Ward's type name (`auto_deploy.gd:TOD-001`) | items.md, unit-roster.md, heirlooms.md, weapons.md |
 | P08 | Personal XP for "gave Block" ignores `BLOCK_GAINED` facts with amount 0 (P01 question 24) | P01 |
+| P08 | What each whole turn under par is worth in the speed bonus (MP4 counts the turns) | P04 question 21 |
 | P08 | Re-gearing at Camps (user, October 27, 2026: no combat has a prep screen; the map before the boss has a Camp); decide whether army management stays available anywhere else on the campaign map, given the goal of less menuing | P04 question 4 |
 | P04 / P06 | Turn par and reinforcement timers per map are set when maps are authored; darkness values on small maps need M1 playtesting | game-vision.md, the-darkness.md |
 | P07 / P08 | Show the run seed on the pause screen (P07) and the results screen (P08), formatted by `RunSeed.format()` (P13 R4 follow-up) | P13 |
@@ -281,9 +283,11 @@ from starting; each is asked inside its plan's Open Questions.
 | P12 | Whether runs abandoned by the save debug panel's "New Solo Run From Seed" count as lost runs in statistics | P13 R4 |
 | P04 | Tile coordinates are never negative (P01 question 37, `CombatFact.NO_TILE`); `MapCheck` enforces it (MP5). ("Within N movable tiles" was cut October 27, 2026.) | P01 |
 | P05 | The Brigands' real name and theme (flavor only) | enemy-roster.md |
+| P05 | Mark bosses and mini-bosses in enemy data; until then MP4's objectives treat the enemy on a leader slot as the boss | P04 question 21 |
 | P05 | The AI's branch budget and whether sandboxes become copy on write or lazy, from P01 EB9's results (exact `ExchangeOutcome` is about 2 ms per branch; one exchange reads 2–3 of 11 units); measure a release build first | P01 EB9 |
 | P07 | `Godot_FE`'s ranged multi-tile forecast defect (FR-GRID-6) to investigate | P01 contracts |
 | P11 | Light links beyond runes on a teammate's map | multiplayer-combat-options.md |
+| P11 | Shared battles (post-MVP): MP4 loses a map shared by several seats when any commander falls; confirm or change it when shared battles are planned | P04 question 21 |
 | P11 | A unit sent to a partner's map loses its timed modifiers (Momentum and the like); carry them with the unit | P01 question 49 |
 | P11 | A player's "Your Unit" heirlooms don't follow their unit onto a partner's map; players will likely expect them to keep working | P01 question 49 |
 | P11 | Cross-map delivery: a cross-map effect's queued operations resolve on the map where it triggered, so "Your Units" never reaches the owner's map; build the engine's forwarding hook when content needs it | P01 question 44 |
@@ -314,12 +318,16 @@ more enemy factions, units with convoy access, shared and hybrid co-op battles, 
 ## Next actions
 
 1. **Build P04 MP5** (the M1 greybox map, `MapMarker` nodes, `MapCheck`) and **P02 CC7**
-   (forecast and the AI summary): the critical path to M1, now that CC6 and MP4 are in.
-2. **Alongside, on separate branches:**
-   - P04 MP6 (map objects and the container-contents field; once the user confirms them, it
-     also removes the four MP1/MP2 `ASSUMPTION` markers);
+   (forecast and the AI summary): the critical path to M1, now that CC6 and MP4 are in. Prompts
+   issued October 28, 2026. MP5 also removes the confirmed markers in its files (P04 questions 20
+   and 21); CC7 removes the terrain-healing one (P02 question 18).
+2. **Alongside, on separate branches** (prompts issued October 28, 2026):
+   - P01 EB7 (serialization, rejoin), branched from `dev` now that CC6 is merged. It and R5 both
+     register sections in `CampaignService._ready()`: whichever merges second rebases;
    - P13 R5 (`rng` sections from `CampaignService`, in progress);
-   - P01 EB7 (serialization, rejoin), branched from `dev` now that CC6 is merged.
+   - P04 MP6 (map objects and the container-contents field) **after MP5 merges**: door and lever
+     groups and passage pairs are `MapMarker` nodes, which MP5 builds (P04 question 18), and both
+     steps edit the layout and loader.
 3. **After them:** MP7 after MP6; CC8 after EB7; MP8 after CC8.
 4. **Plan one step ahead:** sketch P03 (content catalog, which opens EB5), then draft P05 (enemies
    and AI) and P06 (the darkness). Both depend only on P02 and P04, which are approved.
@@ -365,3 +373,4 @@ more enemy factions, units with convoy access, shared and hybrid co-op battles, 
 | October 28, 2026 | **P02 CC6 part 1 built** on `feature/CC6-MP4` (ec2f83d, in its own worktree): `PhaseRunner`, `CombatHooks`, `CommandValidator`, the unit-turn, end-turn and cast-rune commands; combat 491, sessions 162 (1 skipped), other suites unchanged. Its swap part waits on the MP3 fix-ups (129cedf, not yet reviewed), so the agent builds MP4 first. P02 question 18 answered by the user (all choices accepted, including terrain healing rounding once through the heal path); a P03 item added (which rune is Recall). |
 | October 28, 2026 | **P04 MP3 fix-ups merged into `dev`** (9f7801a): a unit is ranged when its equipped weapon can't attack at 1 or deals magic damage; the opening swap reads only `MapState.opening_swap_open` (default false, copied for sandboxes; CC6 opens and closes it; MP8 saves it); the confirmed deploy markers became docs; "Shover = Ward" became `auto_deploy.gd:TOD-001` (P03 item). Verified: sessions 169 with the test user folder, map 240, combat 426, effects 521, RNG 154, save 204; headless launch clean. CC6's swap part is unblocked; the step graph shows R5 in progress. Four MP1/MP2 assumptions raised to the user. |
 | October 28, 2026 | **P02 CC6 + P04 MP4 merged into `dev`** (3119226): the turn loop (`PhaseRunner`, `CombatHooks`, `CommandValidator`), the unit-turn, end-turn, cast-rune and Start commands, the opening swap window (`BattleRequest.opening_swap` per seat, opened by `CombatSession.open_battle`, closed by the last Start, which runs turn 1's player Phase Start), and `Objectives` ending each map with `COMBAT_ENDED` and the winning `side`. Verified: sessions 178 with the test user folder, map 293, combat 525, effects 521, RNG 154, save 204; headless launch clean. Gates opened: P02 CC7, P04 MP5. New assumptions raised to the user (objective ties, the speed bonus count, shared-map commanders, the boss slot, the waves' shape, the swap default). |
+| October 28, 2026 | User confirmed P04 questions 20 (four MP1/MP2 assumptions) and 21 (MP4's assumptions); design items added for P05 (boss marking), P08 (speed bonus worth) and P11 (shared-map commanders). MP6 now follows MP5 (`MapMarker` nodes; a new edge on the step graph). Prompts issued: P04 MP5, P02 CC7, P01 EB7, P04 MP6 (to start after MP5 merges). |
