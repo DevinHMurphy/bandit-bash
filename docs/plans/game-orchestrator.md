@@ -41,21 +41,20 @@ into `dev`; plan and orchestrator commits go to `dev`; `main` holds released sta
 - **Design:** ideation closed for the MVP (design reviews of October 23–24, 2026). Remaining design
   items are content or tuning; see [Design items by plan](#design-items-by-plan).
 - **Code:** the save system is built and on `main`. On `dev`, built, tested headless and merged:
-  - P01: EB1–EB4, EB6 (with its fix-ups) and EB9;
+  - P01: EB1–EB6 (EB6 with its fix-ups) and EB9;
   - P02: CC1–CC7;
   - P04: MP1–MP6 (with the MP3 fix-ups);
   - P03: CT1 (content definitions, id lists, prices, the `res://data/` folders);
   - P13: R1–R4 and R6.
 
   Tests passing (with a test user folder): sessions 178, map 419, combat 608, effects 521, RNG 154,
-  save 204 and content 256. The combat rules (exchange, splash, Shove, staves, Pouch items, swaps, runes) run
+  save 204 and content 358. The combat rules (exchange, splash, Shove, staves, Pouch items, swaps, runes) run
   in tests. Battles run inside sessions, with setup, commands, grants and transfers between maps,
   and now a turn loop: phases and hooks, unit turns, end turn, runes, the enemy phase as one
   command (every enemy Waits until P05's AI), the optional opening swap with Start, and
   objectives that end each map with `COMBAT_ENDED`. The M1 greybox map loads and passes its
   check, and the forecast (`CombatForecast`) equals execution.
-- **Current milestone:** [M0 Foundations](#milestones); only EB7 remains of its exit criteria
-  (EB5 waits on P03).
+- **Current milestone:** [M0 Foundations](#milestones); only EB7 remains of its exit criteria.
 - **Current focus:** P02's and P04's parts of M1 are nearly built (MP7 left), so
   **planning is now M1's critical path**: sketch P03 (the starting army subset), then draft P05
   (2–3 classes and the AI), P06 (the darkness) and P07 (minimal UI). Code alongside: P04 MP7,
@@ -84,7 +83,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | ID | Plan | File | Status | Depends on | Unblocks | Design basis |
 |----|------|------|--------|-----------|----------|--------------|
 | P00 | Save system | [2026-10-13-save-system.md](2026-10-13-save-system.md) | **Implemented** October 14, 2026 (multiplayer paths untested live) | — | All | save-system.md |
-| P01 | Event bus and effects | [2026-10-23-event-bus-and-effects.md](2026-10-23-event-bus-and-effects.md) | **In progress** (approved October 26, 2026; amended with P02's and P13's needs the same day): EB1–EB4 implemented with fixes F1–F12; EB9 implemented (results in P01); EB6 implemented October 28, 2026 with its fix-ups (questions 40–49); EB7 ready; EB5 waits on P03 | P00 | Every gameplay plan | effects-system.md, effect-triggers.md |
+| P01 | Event bus and effects | [2026-10-23-event-bus-and-effects.md](2026-10-23-event-bus-and-effects.md) | **In progress** (approved October 26, 2026; amended with P02's and P13's needs the same day): EB1–EB4 implemented with fixes F1–F12; EB9 implemented (results in P01); EB6 implemented October 28, 2026 with its fix-ups (questions 40–49); EB5 (the content catalog) implemented October 29, 2026; EB7 ready; an exit-crash fix-up in progress | P00 | Every gameplay plan | effects-system.md, effect-triggers.md |
 | P02 | Combat core: turns and phases, action economy, the exchange, damage stages, Block, Stance, triangle, crits, Parry, Shove, staves, Pouch items, weapon swaps, runes, forecast, `CombatGrid` interface | [2026-10-26-combat-core.md](2026-10-26-combat-core.md) | **Approved** October 26, 2026 (reviewed: questions 9–12 answered, seven fixes). **In progress:** CC1–CC7 built and merged (CC6 with P04 MP4, October 28, 2026; CC7 October 29, 2026; 608 headless combat tests pass); CC8 after EB7; no open questions (14: range 0 is self; 17: the opening swap is a setting, its window before turn 1 closed by Start; 18: CC6 part 1 choices accepted; 19: any fact makes a forecast stale) | P01 (EB2–EB4, plus amendments N1–N10) | P04, P05, P06, P07 | game-vision.md Combat |
 | P03 | Content catalog: unit types, traits and upgrades, the Drengr, prefixes, weapons, staves, items, ingredients, runes, heirlooms, curses | [2026-10-29-content-catalog.md](2026-10-29-content-catalog.md) | **Approved** October 29, 2026 (one plan, staged; questions 1–17 answered; P01 amendments F15–F17). CT1 (definitions, id lists, prices, data folders) merged October 29, 2026 (256 content tests; question 18 answered: its fixes go to CT2), so EB5 may start; M1 needs CT1, EB5, CT2 and CT3 | P01 (EB3, EB5) | M1 content, P08, P09 | unit-roster.md, weapons.md, items.md, heirlooms.md, events.md (curses) |
 | P04 | Combat map: grid, terrain, pathing, deployment, objectives, reinforcement points, map objects, map authoring and its checks | [2026-10-27-combat-map.md](2026-10-27-combat-map.md) | **Approved** October 27, 2026 (13 questions answered; "within N movable tiles" cut; no prep screen); **In progress:** MP1–MP4 built and merged October 28, 2026, with the MP3 fix-ups (MP4 with P02 CC6); MP5 (the M1 greybox map, `MapMarker`, `MapCheck`) merged October 29, 2026 (questions 20–22 answered); MP6 (map objects, breaking, kegs, Spark, contents in `MapState`) merged October 29, 2026 (419 headless map tests pass; question 23 answered); MP7 in progress (prompt issued October 29, 2026); MP8 after EB7 and CC8 | P01 (EB6), P02 | P05, P06, P07, M1 | game-vision.md Combat maps, map-objects.md |
@@ -227,10 +226,10 @@ flowchart LR
   classDef active fill:#bbdefb,stroke:#1565c0,color:#1b1b1b
   classDef ready fill:#fff3c4,stroke:#b8860b,color:#1b1b1b
   classDef waiting fill:#e0e0e0,stroke:#757575,color:#1b1b1b
-  class R1,R2,R3,R4,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,CT1 done
+  class R1,R2,R3,R4,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,CT1,EB5 done
   class R5,MP7 active
-  class EB7,EB5 ready
-  class CC8,MP8,CT2,CT3,CT6,CT7 waiting
+  class EB7,CT2 ready
+  class CC8,MP8,CT3,CT6,CT7 waiting
 ```
 
 `CC6 --- MP4`: built together; MP4's objective checks run on CC6's `AFTER_STEP` hook.
@@ -244,7 +243,7 @@ mark it **Open** here.
 |------|-----------|-----|--------|
 | P01 EB1 Facts and buses | P01 approved | — | **Open** October 26, 2026; implemented |
 | P01 EB2–EB4 Values, blocks, engine | P02 drafted and approved ✅ (October 26, 2026); P01 amended with P02's needs N1–N10 ([combat core plan](2026-10-26-combat-core.md#what-p02-needs-from-p01-eb2eb4)): exact float values, `EffectContext` fields, inline flags, permissions, expiry boundaries, per-map charges, 2RN and one-roll methods on roll sources, a sandbox hook for `CombatState`. The phase-side gap is settled by P02 step CC1. P01 amended ✅ (October 26, 2026; [Amendments from P02 and P13](2026-10-23-event-bus-and-effects.md#amendments-from-p02-and-p13), P01 questions 17–18) | Damage stages, stat sheets, forecasts, rolls and AI simulation sit on both sides | **Open** October 26, 2026 (EB2 and EB3 built; EB4 also needed the live-rolls row below, now open) |
-| P01 EB5 Catalog and content tests | P03 CT1 merged (the definition classes and the `res://data/` layout; P03 approved October 29, 2026) | The catalog's typed lookups and layout follow the content kinds | **Open** October 29, 2026 (CT1 merged) |
+| P01 EB5 Catalog and content tests | P03 CT1 merged (the definition classes and the `res://data/` layout; P03 approved October 29, 2026) | The catalog's typed lookups and layout follow the content kinds | **Open** October 29, 2026 (CT1 merged); implemented October 29, 2026 |
 | P01 EB4 live rolls (within EB2–EB4) | P13 approved ✅ (October 26, 2026); P13 R1–R3 implemented ✅ (`RngStream` is what `LiveRolls` wraps); P01 amended with P13's needs R-N1 and R-N2 ✅ (October 26, 2026) ([RNG plan](2026-10-26-rng-streams.md#what-p13-needs-from-other-plans)) | Real resolution and P02's golden-log tests need seeded streams | **Open** October 26, 2026 (R1–R3 built) |
 | P01 EB6 Sessions, encounter, bridge | P04 approved ✅ (October 27, 2026; including P13 need R-N5: stable container indices); P08 question 1 (`CampaignSession` owner) answered ✅ (October 27, 2026: `CampaignService`); P13 approved and P01 amended with R-N3 ✅ (the encounter draws the whole setup once; sessions get their own streams) | Sessions carry turns, deployment, commands and the RNG injection point | **Open** October 27, 2026; implemented with fix-ups October 28, 2026 |
 | P01 EB7 Serialization, rejoin | EB6; P01 amended with P13 need R-N4 ✅ (run seed, build and live stream states in snapshots and repro dumps) | — | **Open** October 28, 2026 (EB6 implemented) |
@@ -253,7 +252,7 @@ mark it **Open** here.
 | P02 CC8 Save section | P01 EB7 | `combat_state` capture builds on EB7's capture and restore helpers | Closed |
 | P13 R5 `rng` save sections | P08 question 1 ✅; P01 EB6 implemented ✅ (October 28, 2026; `CampaignService` registers them) | The sections belong to the autoload that owns the streams | **Open** October 28, 2026 |
 | P03 CT1 Definitions and layout | P03 approved ✅ (October 29, 2026) | — | **Open** October 29, 2026; implemented October 29, 2026 |
-| P03 CT2 onward | P01 EB5 implemented | Content is catalog data; the loadout reads the catalog | Closed |
+| P03 CT2 onward | P01 EB5 implemented ✅ (October 29, 2026) | Content is catalog data; the loadout reads the catalog | **Open** October 29, 2026 |
 | P04 MP1–MP3, MP6 | P04 approved ✅ (October 27, 2026) | — | **Open** October 27, 2026; MP1–MP3 built October 28, 2026; MP6 built October 29, 2026, so MP7 may start |
 | P04 MP4 Objectives | P02 CC6 (the `AFTER_STEP` hook) | The checks run on the turn loop's hook; built with CC6 | **Open** October 28, 2026 (EB6 implemented, so CC6 may start); implemented with CC6 October 28, 2026, so MP5 may start |
 | P04 MP8 Save sections | P01 EB7, P02 CC8 | `entities` and `combat_map` follow the session snapshot and `combat_state` | Closed |
@@ -298,6 +297,7 @@ from starting; each is asked inside its plan's Open Questions.
 | P05 | The Brigands' real name and theme (flavor only) | enemy-roster.md |
 | P05 | Mark bosses and mini-bosses in enemy data; until then MP4's objectives treat the enemy on a leader slot as the boss | P04 question 21 |
 | P05 | Whether enemy slots need a stable index (MP5 gives them none; adding one changes `MapLayout` ids, so decide before maps are authored in bulk) | P04 MP5 |
+| P05 | Enemy classes need their own catalog kind: an `EnemyClassDefinition` would count as a unit type in `EffectCatalog` and fail the folder rule in `enemies/` (P01 EB5) | P01 EB5 |
 | P05 | The AI's branch budget and whether sandboxes become copy on write or lazy, from P01 EB9's results (exact `ExchangeOutcome` is about 2 ms per branch; one exchange reads 2–3 of 11 units); measure a release build first | P01 EB9 |
 | P07 | `Godot_FE`'s ranged multi-tile forecast defect (FR-GRID-6) to investigate | P01 contracts |
 | P11 | Light links beyond runes on a teammate's map | multiplayer-combat-options.md |
@@ -332,18 +332,18 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 
 ## Next actions
 
-1. **M1's critical path:** CT1 is merged; build P01 **EB5** (the catalog: it walks `res://data/`
-   recursively and adds P03's content rules), then CT2 and CT3. Planning alongside: draft
-   P05 (enemies and AI: 2–3 classes, the rating formula over `CombatForecast` /
-   `ExchangeOutcome`; enemy classes extend P03's `UnitTypeDefinition`), P06 (the darkness) and P07
-   (minimal UI). P05 and P06 depend only on P02 and P04, which are approved.
+1. **M1's critical path:** CT1 and EB5 are merged; build P03 **CT2** (instances, the loadout, the
+   stopgap replacements and CT1's definition fixes), then CT3. Planning alongside: draft P05
+   (enemies and AI: 2–3 classes, the rating formula over `CombatForecast` / `ExchangeOutcome`;
+   enemy classes extend P03's `UnitTypeDefinition` and need their own catalog kind), P06 (the
+   darkness) and P07 (minimal UI). P05 and P06 depend only on P02 and P04, which are approved.
 2. **Code, on separate branches:**
-   - P04 MP7 (reinforcements: arrival turns, warnings, closing, the darkness stop), now that MP6
-     is in; prompt issued October 29, 2026;
-   - P01 EB7 (serialization, rejoin; in progress): merge `dev` in first, since MP6 replaced
-     `SeatSetup.contents` with `SeatSetup.map` and changed the session files. It and R5 both
+   - the P01 **exit-crash fix-up** (`feature/effects-exit-crash`, in progress: investigate the
+     orchestrator's hypothesis, then break the effects reference cycle if the gate passes);
+   - P04 MP7 (reinforcements; committed on `feature/MP7`, report not yet reviewed);
+   - P01 EB7 (serialization, rejoin; prompt not yet sent): merge `dev` in first. It and R5 both
      register sections in `CampaignService._ready()`: whichever merges second rebases;
-   - P13 R5 (`rng` sections from `CampaignService`, in progress).
+   - P13 R5 (`rng` sections from `CampaignService`, in progress, uncommitted).
 3. **After them:** CC8 after EB7; MP8 after CC8.
 4. Vision updates pending for the ideation thread (Design items by plan).
 
@@ -400,3 +400,4 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 | October 29, 2026 | **P03 approved** (questions 15, 16 (a, c) and 17 answered as recommended): the weapon prefix model now with its content after the vision (P01 amendment F16, `ItemInstance.prefix_id`); rune area, random and pair kinds, `CastRuneCommand` carrying a tile and the rune preview (P02 changes approved for CT7); shared `TargetShape` (P01 amendment F17, built in CT6). Gates: P03 CT1 open; EB5 opens when CT1 merges; CT2 onward after EB5. The step graph gains a P03 box. CT1 prompt issued. |
 | October 29, 2026 | **P03 CT1 merged into `dev`** (a7e7302): the 14 definitions in `scripts/content/`, `content_ids.gd` (every fixed id list), `prices.gd` (items.md's table, runes 30, heirloom tiers, the scrap rate from `CampaignValue`), 35 `res://data/` folders (`prefixes/runes/` reserved) and a new content suite. Verified: sessions 178 with the test user folder, map 419, combat 608, effects 521, RNG 154, save 204, content 256; headless launch clean. EB5's gate opens. P03 question 18 raised (movable distance, faction funds, a full-heal staff, trait names, seven assumptions). Tooling issue logged: `--check-only` crashes now and then, and a leak warning, around `EffectDefinition`. |
 | October 29, 2026 | P03 question 18 answered by the user (all as recommended): `TargetShape` measures grid distance only (question 17 and P01 F17 corrected: P04 question 12 cut movable distance); `FactionDefinition.starting_gold` (Mercenary 100); a full-heal setting on heal staves for Everbloom (CT4, with P02's staff resolver); `UnitTypeDefinition.trait_name` with "+" for the upgrade; CT1's seven assumptions accepted. The definition fixes go into CT2. |
+| October 29, 2026 | **P01 EB5 merged into `dev`** (3aa2699): `EffectCatalog` (static, loads `res://data/` once through `ResourceLoader.list_directory()`, folders included; lookup by id and typed per kind, sub-kinds included) and the content test with every P01 and P03 rule, over `res://data/` and 22 bad fixture trees; definitions hashed before and after the content suite. The test lives in P03's `tests/content` (a deviation from P01's EB5 row, accepted). Verified: sessions 178 with the test user folder, map 419, combat 608, effects 521, RNG 154, save 204, content 358; headless launch clean. CT2's gate opens; M0 needs only EB7. P01 question 50 raised (three assumptions, the range reading, five follow-ups). The exit-crash fix-up is in progress; EB5 saw 0 crashes in 40 `--check-only` runs and 10 content-suite runs. |
