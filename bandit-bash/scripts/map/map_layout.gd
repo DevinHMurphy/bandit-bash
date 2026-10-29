@@ -267,3 +267,6 @@ class Marker:
 	var group_id: int = -1
 	## The pair a passage end belongs to; -1 for none. [MapCheck] matches them up.
 	var pair_id: int = -1
+	## A reinforcement point's arrival turns, as authored ([member MapMarker.arrival_turns]); empty
+	## for a plain marker tile and for other kinds.
+	var arrival_turns: PackedInt32Array = []

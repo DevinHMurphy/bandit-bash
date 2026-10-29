@@ -6,7 +6,7 @@
 # File:     objective_cases.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 28, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -204,7 +204,8 @@ func _test_survive_early_end() -> void:
 	_quiet(world)
 
 
-# A point with a wave still to come keeps Survive going until the wave's turn has passed.
+# A point with a wave still to come keeps Survive going until the wave has arrived, after its
+# turn's enemy phase; the map ends in that step.
 func _test_survive_waits_for_waves() -> void:
 	var world: ObjectiveWorld = ObjectiveWorld.new(
 			CombatMapDefinition.Objective.SURVIVE, 5, [POINT]
@@ -221,8 +222,8 @@ func _test_survive_waits_for_waves() -> void:
 	))
 	world.send(EndTurnCommand.new(0))
 	var ended: CombatFact = world.ended()
-	_ok("survive waves: ends early once it has passed", (
-			world.session.is_won and ended.amount == 3 and ended.key == 3
+	_ok("survive waves: ends early once it has arrived", (
+			world.session.is_won and ended.amount == 2 and ended.key == 3
 	), ended.to_log_line() if ended != null else "no end")
 	_quiet(world)
 
@@ -427,9 +428,11 @@ class ObjectiveWorld:
 	func state() -> CombatState:
 		return session.state
 
-	# Sets the setup's reinforcement waves (Objectives.WAVES_KEY).
+	# Sets the setup's reinforcement waves (Objectives.WAVES_KEY) and registers the points as the
+	# battle does; the base group source builds no unit, so every wave arrives empty.
 	func set_waves(waves: Dictionary) -> void:
 		session.setup.shared[Objectives.WAVES_KEY] = waves
+		Reinforcements.register(session, Reinforcements.GroupSource.new())
 
 	# Places a unit with HP 20, Stance 2, 5 movement, Might 3, Speed 5, Constitution 20, holding
 	# [param weapon] (a WEAPONS preset) when given. Player units are seat 0's.

@@ -190,6 +190,8 @@ static func _read_marker_node(
 				marker.group_id = marker_node.group_id
 			MapMarker.Kind.PASSAGE:
 				marker.pair_id = marker_node.pair_id
+			MapMarker.Kind.REINFORCEMENT_POINT:
+				marker.arrival_turns = PackedInt32Array(marker_node.arrival_turns)
 
 
 # The custom data string of [param cell]; empty when the tile set has no such layer or the value

@@ -6,7 +6,7 @@
 # File:     objectives.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 28, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 class_name Objectives
@@ -27,8 +27,9 @@ extends RefCounted
 ## is defeated.[br]
 ## - [b]Seize:[/b] won when a player unit ends its turn on a seize tile.[br]
 ## - [b]Survive and Defend:[/b] won when turn [member CombatMapDefinition.survive_turns]'s enemy
-## Phase End has run, or early when no enemy is on the map and every reinforcement point is closed.
-## A point with no waves left is closed.[br]
+## Phase End has run, or early when no enemy is on the map and no reinforcement point is open
+## ([method Reinforcements.is_open]): a point a player closed and a point with no waves left count
+## as closed.[br]
 ## A unit "ends its turn" at its side's Phase End, where it records
 ## [constant CombatFact.Kind.UNIT_TURN_END] with its tile. Nothing is checked before turn 1, nor on
 ## a map with no setup. The fact's [member CombatFact.amount] is the turn the combat ended on, and
@@ -38,18 +39,14 @@ extends RefCounted
 ##
 ## @tutorial(Combat map plan): docs/plans/2026-10-27-combat-map.md
 ##
-## @todo: TOD-001 - Cancel the waves not yet arrived in cancel_pending_waves() (P04 MP7).
-## @todo: TOD-002 - Count a point a player unit closed as closed (P04 MP7); now only a point with
-## no waves left is.
-## @todo: TOD-003 - Read the waves P04 MP7 draws; it may add fields to a wave, never drop "turn".
 ## @todo: TOD-004 - Read the boss or mini-boss P05 marks; until then it is the enemy placed on a
 ## leader slot.
 
-# TODO(TOD-003): The waves' shape until P04 MP7 draws them; MP7 may add fields, never drop "turn".
 ## The key of [member CombatEncounter.EncounterSetup.shared] where setup step 5 puts the
-## reinforcement waves (P04 MP7). Its value maps each reinforcement point's
-## [member MapLayout.Marker.index], as a String, to an Array of waves, each a Dictionary whose
-## [code]"turn"[/code] is its arrival turn. A point with no entry has no waves.
+## reinforcement waves ([method Reinforcements.draw_waves]). Its value maps each reinforcement
+## point's [member MapLayout.Marker.index], as a String, to an Array of waves by arrival turn, each
+## a Dictionary of [constant Reinforcements.TURN_KEY] and [constant Reinforcements.GROUP_KEY]. A
+## point with no entry has no waves.
 const WAVES_KEY: String = "reinforcement_waves"
 
 const _ROUT: CombatMapDefinition.Objective = CombatMapDefinition.Objective.ROUT
@@ -101,35 +98,15 @@ static func turns_early(session: CombatSession) -> int:
 
 
 ## Cancels every reinforcement wave on [param session]'s map that hasn't arrived: Rout's win
-## calls it. The one entry point for that; P04 MP7 fills it in. Until then waves exist only in
-## the setup result and nothing sends them, so it changes nothing.
-static func cancel_pending_waves(_session: CombatSession) -> void:
-	# TODO(TOD-001): Mark the session's pending waves cancelled once reinforcements exist (P04 MP7).
-	pass
+## calls it ([method Reinforcements.cancel]).
+static func cancel_pending_waves(session: CombatSession) -> void:
+	Reinforcements.cancel(session.state)
 
 
-## The waves still to come at reinforcement point [param point_index] on [param session]'s map:
-## those whose arrival turn is the current turn or later ([constant WAVES_KEY]).
+## The waves still to come at reinforcement point [param point_index] on [param session]'s map
+## ([method Reinforcements.waves_left]).
 static func waves_left(session: CombatSession, point_index: int) -> int:
-	if session.setup == null:
-		return 0
-	var drawn: Variant = session.setup.shared.get(WAVES_KEY, {})
-	if not drawn is Dictionary:
-		return 0
-	var by_point: Dictionary = drawn
-	var waves: Variant = by_point.get(str(point_index), [])
-	if not waves is Array:
-		return 0
-	var left: int = 0
-	# Untyped: setup results are plain data.
-	for wave: Variant in waves:
-		if not wave is Dictionary:
-			continue
-		# A float after a JSON round trip.
-		var arrival: float = (wave as Dictionary).get("turn", 0)
-		if arrival >= session.state.turn:
-			left += 1
-	return left
+	return Reinforcements.waves_left(session.state, point_index)
 
 
 
@@ -215,15 +192,14 @@ static func _has_survived(session: CombatSession) -> bool:
 	return survive_turns > 0 and _turns_finished(session.state) >= survive_turns
 
 
-# Survive and Defend's early end: no enemy on the map and every reinforcement point closed.
+# Survive and Defend's early end: no enemy on the map and no reinforcement point open.
 static func _is_cleared(session: CombatSession) -> bool:
 	if not session.state.units_of(CombatFact.CombatSide.ENEMY).is_empty():
 		return false
-	# TODO(TOD-002): A point a player unit closed is closed too (P04 MP7).
 	for point: MapLayout.Marker in session.layout.markers_of(
 			MapLayout.MarkerKind.REINFORCEMENT_POINT
 	):
-		if waves_left(session, point.index) > 0:
+		if Reinforcements.is_open(session.state, point.index):
 			return false
 	return true
 

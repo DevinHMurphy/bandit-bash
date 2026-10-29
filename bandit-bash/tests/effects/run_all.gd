@@ -165,6 +165,8 @@ func _test_combat_wire_rejects_bad_data() -> void:
 		"unknown side": _with(good, 14, 9),
 		"int in the item id slot": _with(good, 15, 412),
 		"string in the key slot": _with(good, 16, "1"),
+		"int in the unit types slot": _with(good, 17, 2),
+		"int among the unit types": _with(good, 17, ["Bandit", 2]),
 		"null slot": _with(good, 13, null),
 	}
 	for case_name: String in cases:
@@ -184,7 +186,7 @@ func _test_combat_fact_amendments() -> void:
 	_check(
 			"amendments: side in slot 14, item id appended after it",
 			(
-					wire.size() == 17 and wire[14] == CombatFact.CombatSide.ENEMY
+					wire.size() == 18 and wire[14] == CombatFact.CombatSide.ENEMY
 					and wire[15] == ""
 			) as bool,
 			str(wire)
@@ -241,7 +243,12 @@ func _test_combat_fact_amendments() -> void:
 	_check(
 			"amendments: old kind values unchanged",
 			CombatFact.Kind.PHASE_START == 0 and CombatFact.Kind.MODIFIER_EXPIRED == 34
-			and CombatFact.Kind.size() == 44
+			and CombatFact.Kind.size() == 46
+	)
+	_check(
+			"amendments: the reinforcement kinds appended last (combat map plan, New facts)",
+			CombatFact.Kind.REINFORCEMENT_INCOMING == 44
+			and CombatFact.Kind.REINFORCEMENT_ARRIVED == 45
 	)
 
 
@@ -303,7 +310,7 @@ func _test_combat_fact_key() -> void:
 	_check(
 			"key: STAT_CHANGED appended after BLOCK_LOST, key in slot 16",
 			(
-					CombatFact.Kind.STAT_CHANGED == 42 and stat.to_wire().size() == 17
+					CombatFact.Kind.STAT_CHANGED == 42 and stat.to_wire().size() == 18
 					and stat.to_wire()[16] == CombatValue.Stat.MGT
 			) as bool
 	)
@@ -407,7 +414,7 @@ func _test_combat_log_line_optional_parts() -> void:
 	var full: CombatFact = _full_combat_fact()
 	var expected: String = (
 			"s1#40 DAMAGE_TAKEN unit:57 (Hakkapel) <- enemy:61 (Brute) amount 5 (hp 3, block 2)"
-			+ " source splash type split effect effect:9 tile (4, 7) flags 0x3"
+			+ " source splash type split effect effect:9 tile (4, 7) flags 0x3 types Bandit, Archer"
 	)
 	var full_line: String = full.to_log_line(_describe)
 	_check("log line: every optional part", full_line == expected, full_line)
@@ -1713,6 +1720,7 @@ func _full_combat_fact() -> CombatFact:
 	fact.source_effect_id = "effect:9"
 	fact.tile = Vector2i(4, 7)
 	fact.flags = 3
+	fact.unit_types = PackedStringArray(["Bandit", "Archer"])
 	return fact
 
 
