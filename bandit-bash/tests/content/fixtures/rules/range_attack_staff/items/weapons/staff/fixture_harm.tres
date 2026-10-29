@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="StaffDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/staff_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+staff_kind = "attack"
+weapon_type = "staff"
+range_min = 0
+id = "fixture_harm"
+display_name = "Fixture Harm"

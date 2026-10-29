@@ -13,12 +13,18 @@ extends SceneTree
 ## Headless tests for the content definitions: one fixture per kind loads with its fields and
 ## effect text, [method TargetShape.tiles] for every kind at sizes 0 to 3, the [Prices] tables,
 ## the [ContentIds] lists and their inspector hints, and the [code]res://data/[/code] folders.
+## [EffectCatalog] and the content test, its rules over all of [code]res://data/[/code] and the
+## rule fixtures, live in catalog_cases.gd. Every catalog definition is hashed before the first
+## case and after the last, and the run fails if any changed.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/content/run_all.gd[/code][br]
 ## Prints PASS or FAIL per case and exits with code 1 if any case fails. The fixtures live in
 ## [code]tests/content/fixtures/[/code], never under [code]data/[/code], which the catalog loads.
 ## The cases run in [code]_init[/code]; nothing here uses an autoload.
+
+# A preloaded script used as a type (gdscript.md, Naming): the cases script has no class name.
+const CatalogCases = preload("res://tests/content/catalog_cases.gd")
 
 const FIXTURE_DIR: String = "res://tests/content/fixtures/"
 
@@ -71,6 +77,8 @@ var _passes: int = 0
 
 func _init() -> void:
 	print("--- Content definition tests ---")
+	# Hashed before any case loads a definition, so the check covers the whole run.
+	var before: Dictionary[String, String] = CatalogCases.hash_catalog()
 
 	_test_unit_type_fixture()
 	_test_commander_fixture()
@@ -92,6 +100,8 @@ func _init() -> void:
 	_test_id_lists_contents()
 	_test_inspector_hints()
 	_test_data_layout()
+	CatalogCases.new(_check).run()
+	_test_definitions_unchanged(before)
 
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)
@@ -605,6 +615,19 @@ func _test_data_layout() -> void:
 			if child != "all" and not ContentIds.WEAPON_TYPES.has(child):
 				extra.append("%s/%s" % [parent, child])
 	_check("data: no weapon folder outside the weapon types", extra.is_empty(), ", ".join(extra))
+
+
+# Definitions are read-only (event bus plan, Definitions and instances): [param before] is
+# [method CatalogCases.hash_catalog] from the start of the run.
+func _test_definitions_unchanged(before: Dictionary[String, String]) -> void:
+	var after: Dictionary[String, String] = CatalogCases.hash_catalog()
+	var changed: PackedStringArray = []
+	for id: String in before:
+		if after.get(id, "") != before[id]:
+			changed.append(id)
+	_check("catalog: no definition changed during the run (%d hashed)" % [before.size()], (
+			changed.is_empty() and after.size() == before.size()
+	), ", ".join(changed))
 
 
 # Checks what every fixture shares: its id is its file name, it has a display name, and its effect
