@@ -41,8 +41,11 @@ extends RefCounted
 ## @todo: TOD-001 - Cancel the waves not yet arrived in cancel_pending_waves() (P04 MP7).
 ## @todo: TOD-002 - Count a point a player unit closed as closed (P04 MP7); now only a point with
 ## no waves left is.
+## @todo: TOD-003 - Read the waves P04 MP7 draws; it may add fields to a wave, never drop "turn".
+## @todo: TOD-004 - Read the boss or mini-boss P05 marks; until then it is the enemy placed on a
+## leader slot.
 
-# ASSUMPTION: the waves' shape until P04 MP7 draws them; MP7 may add fields, never drop "turn".
+# TODO(TOD-003): The waves' shape until P04 MP7 draws them; MP7 may add fields, never drop "turn".
 ## The key of [member CombatEncounter.EncounterSetup.shared] where setup step 5 puts the
 ## reinforcement waves (P04 MP7). Its value maps each reinforcement point's
 ## [member MapLayout.Marker.index], as a String, to an Array of waves, each a Dictionary whose
@@ -68,8 +71,8 @@ static func check(session: CombatSession) -> void:
 		return
 	var definition: CombatMapDefinition = session.setup.map
 	var winner: CombatFact.CombatSide = CombatFact.CombatSide.NONE
-	# ASSUMPTION: a loss beats a win reached in the same step (the commander and the last enemy
-	# falling to one exchange, or Defend's tile taken as turn N's enemy phase ends).
+	# A loss beats a win reached in the same step (the commander and the last enemy falling to one
+	# exchange, or Defend's tile taken as turn N's enemy phase ends): combat map plan, question 21.
 	if _is_lost(session):
 		winner = CombatFact.CombatSide.ENEMY
 	elif _is_won(session):
@@ -93,7 +96,7 @@ static func turns_early(session: CombatSession) -> int:
 	var definition: CombatMapDefinition = session.setup.map
 	if definition.objective != _SURVIVE and definition.objective != _DEFEND:
 		return 0
-	# ASSUMPTION: the speed bonus counts whole turns not finished; P08 sets what each is worth.
+	# The speed bonus counts whole turns not finished; P08 sets what each is worth.
 	return maxi(0, definition.survive_turns - _turns_finished(session.state))
 
 
@@ -133,7 +136,7 @@ static func waves_left(session: CombatSession, point_index: int) -> int:
 
 static func _is_lost(session: CombatSession) -> bool:
 	var state: CombatState = session.state
-	# ASSUMPTION: any commander's fall loses a map shared by several seats.
+	# Any commander's fall loses a map shared by several seats (shared battles are post-MVP, P11).
 	for commander_id: String in session.commander_ids.values():
 		var commander: CombatUnitState = state.unit(commander_id)
 		if commander != null and commander.is_defeated:
@@ -163,7 +166,7 @@ static func _is_won(session: CombatSession) -> bool:
 
 
 # Whether every enemy that appeared on a leader slot is defeated; false when none did.
-# ASSUMPTION: the boss or mini-boss is the enemy placed on a leader slot until P05 marks bosses.
+# TODO(TOD-004): The boss or mini-boss is the enemy placed on a leader slot until P05 marks bosses.
 static func _marked_enemies_defeated(session: CombatSession) -> bool:
 	var state: CombatState = session.state
 	var slots: Array[Vector2i] = session.layout.tiles_of(MapLayout.MarkerKind.LEADER_SLOT)

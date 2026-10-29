@@ -6,7 +6,7 @@
 # File:     combat_map_definition.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 27, 2026
+# Modified: October 28, 2026
 # ==============================================================================
 
 class_name CombatMapDefinition
@@ -55,8 +55,6 @@ enum Objective {
 ## Which kind of combat the map is drawn for.
 @export var combat_type: CombatType = CombatType.STANDARD
 
-# ASSUMPTION: a pool is a name shared by the maps one node can draw from; the plan names pools
-# per combat type but no format for them.
 ## The pool this map belongs to; maps with the same combat type and pool are drawn from together.
 ## [b]Empty:[/b] the combat type's default pool.
 @export var pool: String = ""
