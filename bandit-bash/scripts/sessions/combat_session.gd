@@ -6,7 +6,7 @@
 # File:     combat_session.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 28, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 class_name CombatSession
@@ -176,7 +176,9 @@ func next_arrival() -> int:
 
 
 ## Resolves the oldest queued command and returns its batch; null when nothing is queued. Checks
-## it first (see [Command]); a rejected command records nothing, tells only its seat through
+## it first (see [Command]); a command that [method Command.needs_fresh_forecast] is stale if any
+## fact was recorded after its [member Command.based_on_seq]. A rejected command records nothing,
+## tells only its seat through
 ## [signal command_rejected], and returns a batch with [member FactBatch.rejected_reason] set.
 ## A resolved command ends its step with [constant CombatHooks.Hook.AFTER_STEP]
 ## ([method PhaseRunner.end_step]), so the objective checks may end the map inside its batch.
@@ -365,8 +367,8 @@ func describe(id: String) -> String:
 
 ## The log line of [param batch]: its command, sender, arrival and result, such as
 ## [code]s0 CMD arrival 7 seat 1 unit:57 (Hakkapel) move+attack enemy:61 (Brute) based_on s0#140
-## -> REJECTED stale forecast (s0#142 touched enemy:61)[/code]. Facts recorded outside a command
-## print as [code]s0 BATCH deployment -> OK s0#1-s0#3[/code].
+## -> REJECTED stale forecast (s0#141 RUNE_USED after s0#140)[/code]. Facts recorded outside a
+## command print as [code]s0 BATCH deployment -> OK s0#1-s0#3[/code].
 func describe_batch(batch: FactBatch) -> String:
 	var parts: PackedStringArray = ["s%d BATCH" % [session_id]]
 	if batch.arrival != NO_ARRIVAL:
@@ -438,29 +440,24 @@ func _check(command: Command) -> String:
 	return _stale_reason(command)
 
 
-# The stale-forecast rule: any fact since the forecast's seq about an id or tile it read.
+# The stale-forecast rule: a command that needs a fresh forecast is stale once any fact has been
+# recorded on this map since its forecast's seq. The reason names the first such fact.
 func _stale_reason(command: Command) -> String:
-	if command.based_on_seq == Command.NO_SEQ:
-		return ""
-	var reads: PackedStringArray = command.forecast_reads()
-	var tiles: Array[Vector2i] = command.forecast_tiles()
-	if reads.is_empty() and tiles.is_empty():
+	if command.based_on_seq == Command.NO_SEQ or not command.needs_fresh_forecast():
 		return ""
 	if command.based_on_seq < 0 or command.based_on_seq > last_seq():
 		return "forecast based on unknown s%d#%d" % [session_id, command.based_on_seq]
+	if command.based_on_seq == last_seq():
+		return ""
 	# Facts are logged in seq order from 1, so the first fact after based_on_seq is at that index.
-	for i: int in range(command.based_on_seq, engine.fact_log.size()):
-		var fact: CombatFact = engine.fact_log[i]
-		var touched: String = ""
-		if not fact.actor_id.is_empty() and reads.has(fact.actor_id):
-			touched = fact.actor_id
-		elif not fact.target_id.is_empty() and reads.has(fact.target_id):
-			touched = fact.target_id
-		elif fact.tile != CombatFact.NO_TILE and tiles.has(fact.tile):
-			touched = str(fact.tile)
-		if not touched.is_empty():
-			return "stale forecast (s%d#%d touched %s)" % [session_id, fact.seq, touched]
-	return ""
+	var first: CombatFact = engine.fact_log[command.based_on_seq]
+	return "stale forecast (s%d#%d %s after s%d#%d)" % [
+		session_id,
+		first.seq,
+		CombatFact.Kind.find_key(first.kind),
+		session_id,
+		command.based_on_seq,
+	]
 
 
 # Fills batch with the facts not yet batched, keeps them for catch-up, reports new diagnostics

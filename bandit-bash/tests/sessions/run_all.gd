@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 28, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -350,12 +350,15 @@ func _test_stale_forecast() -> bool:
 	old_move.based_on_seq = forecast_seq
 	world.session.submit(old_move)
 	var batches: Array[CombatSession.FactBatch] = world.session.resolve_queued()
-	var touched: int = batches[0].first_seq()
+	var first: CombatFact = batches[0].facts[0]
+	var expected: String = "stale forecast (s0#%d %s after s0#%d)" % [
+		first.seq, CombatFact.Kind.find_key(first.kind), forecast_seq,
+	]
 
 	_check("stale: the partner's attack resolves", not batches[0].is_rejected())
 	_check(
-			"stale: an attack on a target touched since its forecast is rejected",
-			batches[1].rejected_reason == "stale forecast (s0#%d touched %s)" % [touched, e],
+			"stale: an attack after any fact since its forecast is rejected, naming the first",
+			batches[1].rejected_reason == expected,
 			batches[1].rejected_reason
 	)
 	_check("stale: a legal move from an old forecast is accepted", (
@@ -1951,7 +1954,7 @@ class MoveFixture:
 		session.engine.record(moved)
 
 
-# Records one hit of its unit on a target, as an exchange would; its forecast read both.
+# Records one hit of its unit on a target, as an exchange would; it needs a fresh forecast.
 class AttackFixture:
 	extends Command
 
@@ -1968,8 +1971,8 @@ class AttackFixture:
 	func get_target_id() -> String:
 		return target
 
-	func forecast_reads() -> PackedStringArray:
-		return PackedStringArray([actor_id, target])
+	func needs_fresh_forecast() -> bool:
+		return true
 
 	func validate(session: CombatSession) -> String:
 		if not session.state.has_unit(actor_id) or not session.state.has_unit(target):
