@@ -41,24 +41,27 @@ into `dev`; plan and orchestrator commits go to `dev`; `main` holds released sta
 - **Design:** ideation closed for the MVP (design reviews of October 23–24, 2026). Remaining design
   items are content or tuning; see [Design items by plan](#design-items-by-plan).
 - **Code:** the save system is built and on `main`. On `dev`, built, tested headless and merged:
-  - P01: EB1–EB6 (EB6 with its fix-ups) and EB9;
+  - P01: EB1–EB6 (EB6 with its fix-ups), EB5 (the catalog), EB9 and the exit-crash fix-up
+    (`EffectTerms`, F18);
   - P02: CC1–CC7;
-  - P04: MP1–MP6 (with the MP3 fix-ups);
+  - P04: MP1–MP7 (with the MP3 fix-ups);
   - P03: CT1 (content definitions, id lists, prices, the `res://data/` folders);
   - P13: R1–R4 and R6.
 
-  Tests passing (with a test user folder): sessions 178, map 419, combat 608, effects 521, RNG 154,
+  Tests passing (with a test user folder): sessions 178, map 461, combat 608, effects 524, RNG 154,
   save 204 and content 358. The combat rules (exchange, splash, Shove, staves, Pouch items, swaps, runes) run
   in tests. Battles run inside sessions, with setup, commands, grants and transfers between maps,
   and now a turn loop: phases and hooks, unit turns, end turn, runes, the enemy phase as one
   command (every enemy Waits until P05's AI), the optional opening swap with Start, and
-  objectives that end each map with `COMBAT_ENDED`. The M1 greybox map loads and passes its
-  check, and the forecast (`CombatForecast`) equals execution.
+  objectives that end each map with `COMBAT_ENDED`, and reinforcement points that warn, send
+  waves and close (no real waves until P05 draws the groups). The M1 greybox map loads and passes
+  its check, and the forecast (`CombatForecast`) equals execution. The content catalog
+  (`EffectCatalog`) loads `res://data/`, though no content is written yet.
 - **Current milestone:** [M0 Foundations](#milestones); only EB7 remains of its exit criteria.
-- **Current focus:** P02's and P04's parts of M1 are nearly built (MP7 left), so
-  **planning is now M1's critical path**: sketch P03 (the starting army subset), then draft P05
-  (2–3 classes and the AI), P06 (the darkness) and P07 (minimal UI). Code alongside: P04 MP7,
-  P13 R5 and P01 EB7.
+- **Current focus:** P02's and P04's parts of M1 are built (only their save steps, CC8 and MP8,
+  remain), so M1's critical path is **P03 CT2 → CT3** (instances, the loadout, the M1 content),
+  with **planning** P05 (2–3 classes and the AI), P06 (the darkness) and P07 (minimal UI)
+  alongside. Code alongside: P13 R5 and P01 EB7.
 
 ## Milestones
 
@@ -83,10 +86,10 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | ID | Plan | File | Status | Depends on | Unblocks | Design basis |
 |----|------|------|--------|-----------|----------|--------------|
 | P00 | Save system | [2026-10-13-save-system.md](2026-10-13-save-system.md) | **Implemented** October 14, 2026 (multiplayer paths untested live) | — | All | save-system.md |
-| P01 | Event bus and effects | [2026-10-23-event-bus-and-effects.md](2026-10-23-event-bus-and-effects.md) | **In progress** (approved October 26, 2026; amended with P02's and P13's needs the same day): EB1–EB4 implemented with fixes F1–F12; EB9 implemented (results in P01); EB6 implemented October 28, 2026 with its fix-ups (questions 40–49); EB5 (the content catalog) implemented October 29, 2026; EB7 ready; an exit-crash fix-up in progress | P00 | Every gameplay plan | effects-system.md, effect-triggers.md |
+| P01 | Event bus and effects | [2026-10-23-event-bus-and-effects.md](2026-10-23-event-bus-and-effects.md) | **In progress** (approved October 26, 2026; amended with P02's and P13's needs the same day): EB1–EB4 implemented with fixes F1–F12; EB9 implemented (results in P01); EB6 implemented October 28, 2026 with its fix-ups (questions 40–49); EB5 (the content catalog) implemented October 29, 2026 (question 50 answered); the exit-crash fix-up implemented October 29, 2026 (amendment F18, `EffectTerms`; question 51 raised); EB7 ready | P00 | Every gameplay plan | effects-system.md, effect-triggers.md |
 | P02 | Combat core: turns and phases, action economy, the exchange, damage stages, Block, Stance, triangle, crits, Parry, Shove, staves, Pouch items, weapon swaps, runes, forecast, `CombatGrid` interface | [2026-10-26-combat-core.md](2026-10-26-combat-core.md) | **Approved** October 26, 2026 (reviewed: questions 9–12 answered, seven fixes). **In progress:** CC1–CC7 built and merged (CC6 with P04 MP4, October 28, 2026; CC7 October 29, 2026; 608 headless combat tests pass); CC8 after EB7; no open questions (14: range 0 is self; 17: the opening swap is a setting, its window before turn 1 closed by Start; 18: CC6 part 1 choices accepted; 19: any fact makes a forecast stale) | P01 (EB2–EB4, plus amendments N1–N10) | P04, P05, P06, P07 | game-vision.md Combat |
 | P03 | Content catalog: unit types, traits and upgrades, the Drengr, prefixes, weapons, staves, items, ingredients, runes, heirlooms, curses | [2026-10-29-content-catalog.md](2026-10-29-content-catalog.md) | **Approved** October 29, 2026 (one plan, staged; questions 1–17 answered; P01 amendments F15–F17). CT1 (definitions, id lists, prices, data folders) merged October 29, 2026 (256 content tests; question 18 answered: its fixes go to CT2), so EB5 may start; M1 needs CT1, EB5, CT2 and CT3 | P01 (EB3, EB5) | M1 content, P08, P09 | unit-roster.md, weapons.md, items.md, heirlooms.md, events.md (curses) |
-| P04 | Combat map: grid, terrain, pathing, deployment, objectives, reinforcement points, map objects, map authoring and its checks | [2026-10-27-combat-map.md](2026-10-27-combat-map.md) | **Approved** October 27, 2026 (13 questions answered; "within N movable tiles" cut; no prep screen); **In progress:** MP1–MP4 built and merged October 28, 2026, with the MP3 fix-ups (MP4 with P02 CC6); MP5 (the M1 greybox map, `MapMarker`, `MapCheck`) merged October 29, 2026 (questions 20–22 answered); MP6 (map objects, breaking, kegs, Spark, contents in `MapState`) merged October 29, 2026 (419 headless map tests pass; question 23 answered); MP7 in progress (prompt issued October 29, 2026); MP8 after EB7 and CC8 | P01 (EB6), P02 | P05, P06, P07, M1 | game-vision.md Combat maps, map-objects.md |
+| P04 | Combat map: grid, terrain, pathing, deployment, objectives, reinforcement points, map objects, map authoring and its checks | [2026-10-27-combat-map.md](2026-10-27-combat-map.md) | **Approved** October 27, 2026 (13 questions answered; "within N movable tiles" cut; no prep screen); **In progress:** MP1–MP4 built and merged October 28, 2026, with the MP3 fix-ups (MP4 with P02 CC6); MP5 (the M1 greybox map, `MapMarker`, `MapCheck`) merged October 29, 2026 (questions 20–22 answered); MP6 (map objects, breaking, kegs, Spark, contents in `MapState`) merged October 29, 2026 (question 23 answered); MP7 (reinforcements) merged October 29, 2026 (461 headless map tests pass; question 24 raised); MP8 after EB7 and CC8 | P01 (EB6), P02 | P05, P06, P07, M1 | game-vision.md Combat maps, map-objects.md |
 | P05 | Enemies and AI: classes, intents, danger zone, ruthless AI, signature moves, elites, mini-bosses, the Powder Baron | — | **Not started** | P02, P04 | M1, M2 | enemy-roster.md |
 | P06 | The darkness | — | **Not started** | P02, P04 | M1 | the-darkness.md |
 | P07 | Combat UI and forecast: forecast panel, move preview (darkness damage), danger zone and intent display, HUD | — | **Not started** (minimal version for M1) | P02, P04, P05 | M1, M2 | game-vision.md Combat, Enemy intentions |
@@ -95,7 +98,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P10 | Net transport: `Net` autoload, RPCs, command validation, Steam lobby integration | — | **Not started** | P00, P01 | P11 | multiplayer-combat-options.md, `steam_multiplayer_kit/` (read first) |
 | P11 | Co-op combat: parallel maps, reinforcements, rune routing, spectating, fast-forward votes, disconnects and forfeits, per-map battle saves | — | **Not started** | P01 (EB6–EB7), P02, P04, P08, P10 | M4 | game-vision.md Multiplayer maps, multiplayer-combat-options.md |
 | P12 | Statistics recording and the Waystation war table | — | **Not started** | P01, P08 | M5 | meta-progression.md (MVP parts) |
-| P13 | RNG streams: run seed, named streams and their derivation, co-op stream layout, save and resume in the reserved `rng` sections, determinism rules | [2026-10-26-rng-streams.md](2026-10-26-rng-streams.md) | **In progress** (approved October 26, 2026): R1–R4 built and merged (154 headless tests pass); R6 built with P01 EB4 and EB6; R5 in progress (`feature/R5`, in its own worktree, prompt issued October 28, 2026; it registers from `CampaignService`, built in EB6) | P00 | P01 EB4/EB6, P02, P04, P05, P06, P08, P09, P11 | save-system.md (`rng` sections), P01 roll sources |
+| P13 | RNG streams: run seed, named streams and their derivation, co-op stream layout, save and resume in the reserved `rng` sections, determinism rules | [2026-10-26-rng-streams.md](2026-10-26-rng-streams.md) | **In progress** (approved October 26, 2026): R1–R4 built and merged (154 headless tests pass); R6 built with P01 EB4 and EB6; R5 in progress (`feature/R5`, in its own worktree, prompt issued October 28, 2026; it registers from `CampaignService`, built in EB6; it must merge `dev` in and rename to `EffectTerms` (P01 F18) in `tests/sessions/run_all.gd`) | P00 | P01 EB4/EB6, P02, P04, P05, P06, P08, P09, P11 | save-system.md (`rng` sections), P01 roll sources |
 | P20 | Meta progression: unlocks, difficulty ladder, almanac, Hall of Heroes, run history, achievements, Waystation stations | — | Post-MVP | P12 | — | meta-progression.md |
 | P21 | Training yard and tutorials | — | Post-MVP | P07 | — | meta-progression.md |
 | P22 | Dev console | — | Post-MVP (scoped when needed) | P01 | — | meta-progression.md Developer tools |
@@ -180,6 +183,7 @@ flowchart LR
     EB6 --> EB7[EB7 serialization, rejoin]
     EB4 --> EB9[EB9 bench]
     EB5[EB5 catalog]
+    EB4 --> EBF[exit-crash fix-up]
   end
   subgraph P02[P02 Combat core]
     CC1 --> CC2 --> CC3
@@ -226,8 +230,8 @@ flowchart LR
   classDef active fill:#bbdefb,stroke:#1565c0,color:#1b1b1b
   classDef ready fill:#fff3c4,stroke:#b8860b,color:#1b1b1b
   classDef waiting fill:#e0e0e0,stroke:#757575,color:#1b1b1b
-  class R1,R2,R3,R4,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,CT1,EB5 done
-  class R5,MP7 active
+  class R1,R2,R3,R4,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,EB5,EBF done
+  class R5 active
   class EB7,CT2 ready
   class CC8,MP8,CT3,CT6,CT7 waiting
 ```
@@ -253,7 +257,7 @@ mark it **Open** here.
 | P13 R5 `rng` save sections | P08 question 1 ✅; P01 EB6 implemented ✅ (October 28, 2026; `CampaignService` registers them) | The sections belong to the autoload that owns the streams | **Open** October 28, 2026 |
 | P03 CT1 Definitions and layout | P03 approved ✅ (October 29, 2026) | — | **Open** October 29, 2026; implemented October 29, 2026 |
 | P03 CT2 onward | P01 EB5 implemented ✅ (October 29, 2026) | Content is catalog data; the loadout reads the catalog | **Open** October 29, 2026 |
-| P04 MP1–MP3, MP6 | P04 approved ✅ (October 27, 2026) | — | **Open** October 27, 2026; MP1–MP3 built October 28, 2026; MP6 built October 29, 2026, so MP7 may start |
+| P04 MP1–MP3, MP6 | P04 approved ✅ (October 27, 2026) | — | **Open** October 27, 2026; MP1–MP3 built October 28, 2026; MP6 built October 29, 2026, so MP7 may start; MP7 built October 29, 2026 |
 | P04 MP4 Objectives | P02 CC6 (the `AFTER_STEP` hook) | The checks run on the turn loop's hook; built with CC6 | **Open** October 28, 2026 (EB6 implemented, so CC6 may start); implemented with CC6 October 28, 2026, so MP5 may start |
 | P04 MP8 Save sections | P01 EB7, P02 CC8 | `entities` and `combat_map` follow the session snapshot and `combat_state` | Closed |
 | P11 implementation | P10 implemented, P01 EB7, the per-map battle save format | Co-op needs transport, snapshots and saves | Closed |
@@ -268,7 +272,7 @@ plan that depends on it is approved.
 | `CampaignSession` ownership and lifecycle | P01 EB6, P08, P11, P12 | P08 (question 1): the `CampaignService` autoload, built in P01 EB6 | **Owned** October 27, 2026 |
 | RNG streams manager (reserved `rng` save keys in campaign and combat) | P01 EB4/EB6, P02, P04–P06, P08, P09, P11 | **P13** (its own plan; answers P08 question 2) | Owned October 26, 2026, not started |
 | Modified-item price and scrap formula (from deltas) | P03, P08, P09 | **P03** (P03 question 8; step CT10) | **Owned** October 29, 2026 |
-| Exit crash and leak around the effects engine (found building P03 CT1; investigated October 29, 2026). **Crash:** a segfault (exit 139) after the work is done, during teardown: `--check-only` on any script that loads the effects classes crashes 20–45% of runs (`prices.gd` 7/15, `counter_condition.gd` 4/20, `effect_definition.gd` 4/20); the content suite 1/10; the effects suite and the game launch 0/10. Check results stay valid (the parse finished). **Leak:** deterministic when a runner script names `ValueBreakdown` and a class in the effects cycle directly (`value_breakdown.gd` and `modifier.gd` never freed at exit); the real suites and the game don't. **Likely cause:** engine teardown of one large GDScript reference cycle: `EffectDefinition` → its block types → `EffectContext` → `EffectEngine` → `EffectDefinition`; 31 scripts name `EffectDefinition`, mostly for its enums and text helpers. A two-script cycle never crashes; no matching upstream issue found | Every step's verification; the shipped game once gameplay loads effects | P01: a fix-up that moves the enums and text helpers blocks use into a leaf script, breaking the back-edges, measured over 50 runs (target 0 crashes); if crashes remain, report upstream with a repro | **Open** |
+| Exit crash and leak around the effects engine (found building P03 CT1; fixed October 29, 2026). **Cause:** Godot engine issue godotengine/godot#117975: `GDScriptLanguage::finish()` reads an already-freed script at exit (access violation, exit 139), fixed by PR #117991 in 4.8 only; 4.7.2 still has it (#124935). Blocks reading `EffectDefinition`'s enums and helpers triggered it, not the reference cycle as such (still 16 scripts). **Fix:** P01 amendment F18 moves those into the `EffectTerms` leaf (31 scripts naming `EffectDefinition` → 6): 0 crashes in 50 `--check-only` runs on each of two scripts that crashed 30–45% before, 0/20 content-suite runs, no leak | Every step's verification: a crashing run still exits 139 after a failed check, so verification reads the output for errors, not only the exit code | P01 (question 51): new code names `EffectTerms`; revisit only if a 4.8 upgrade is chosen | **Resolved** October 29, 2026 |
 | Per-map battle save format (one battle state per map) | P11 | P11 | Owned, not started |
 | Forfeit save change (a campaign's player count can shrink) | P10, P11 | P11 | Owned, not started |
 | Archive record gains run score and ladder level (schema bump and migration) | P12, P20 | P12 (score), P20 (ladder) | Owned, not started |
@@ -286,6 +290,7 @@ from starting; each is asked inside its plan's Open Questions.
 | P04 / P13 | How many candidate object spots a map activates at setup (step 2 draw; MP6 places every candidate until a count has a basis, `map_objects.gd:TOD-005`) | P04 MP6 |
 | P08 | Personal XP for "gave Block" ignores `BLOCK_GAINED` facts with amount 0 (P01 question 24) | P01 |
 | P08 | What each whole turn under par is worth in the speed bonus (MP4 counts the turns) | P04 question 21 |
+| P08 | Personal XP for closing a reinforcement point: MP7 records `OBJECT_STATE_CHANGED` with `MapObjects.Change.POINT_CLOSED` (the point as actor, the unit as target), and only a point that can still send closes for XP; P08 sets the amount | P04 question 24 |
 | P08 | Re-gearing at Camps (user, October 27, 2026: no combat has a prep screen; the map before the boss has a Camp); decide whether army management stays available anywhere else on the campaign map, given the goal of less menuing | P04 question 4 |
 | P04 / P06 | Turn par and reinforcement timers per map are set when maps are authored; darkness values on small maps need M1 playtesting. The M1 greybox map's par is 5, provisional (P04 MP5); its `# ASSUMPTION` is a `;` comment in the `.tres`, which an editor re-save drops | game-vision.md, the-darkness.md |
 | P06 | The M1 greybox map has no darkness-source candidates; P06's check requires 2, so P06 adds them to it | P04 MP5 |
@@ -297,6 +302,7 @@ from starting; each is asked inside its plan's Open Questions.
 | P05 | The Brigands' real name and theme (flavor only) | enemy-roster.md |
 | P05 | Mark bosses and mini-bosses in enemy data; until then MP4's objectives treat the enemy on a leader slot as the boss | P04 question 21 |
 | P05 | Whether enemy slots need a stable index (MP5 gives them none; adding one changes `MapLayout` ids, so decide before maps are authored in bulk) | P04 MP5 |
+| P05 | Reinforcement groups: fill `Reinforcements.GroupSource` (one group per arrival turn, drawn at setup step 5) and hand it to the waves in `CampaignSession` (`campaign_session.gd:TOD-002`, `reinforcements.gd:TOD-002`); until then the real game sends no waves | P04 MP7 |
 | P05 | Enemy classes need their own catalog kind: an `EnemyClassDefinition` would count as a unit type in `EffectCatalog` and fail the folder rule in `enemies/` (P01 EB5) | P01 EB5 |
 | P05 | The AI's branch budget and whether sandboxes become copy on write or lazy, from P01 EB9's results (exact `ExchangeOutcome` is about 2 ms per branch; one exchange reads 2–3 of 11 units); measure a release build first | P01 EB9 |
 | P07 | `Godot_FE`'s ranged multi-tile forecast defect (FR-GRID-6) to investigate | P01 contracts |
@@ -338,13 +344,14 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
    enemy classes extend P03's `UnitTypeDefinition` and need their own catalog kind), P06 (the
    darkness) and P07 (minimal UI). P05 and P06 depend only on P02 and P04, which are approved.
 2. **Code, on separate branches:**
-   - the P01 **exit-crash fix-up** (`feature/effects-exit-crash`, in progress: investigate the
-     orchestrator's hypothesis, then break the effects reference cycle if the gate passes);
-   - P04 MP7 (reinforcements; committed on `feature/MP7`, report not yet reviewed);
-   - P01 EB7 (serialization, rejoin; prompt not yet sent): merge `dev` in first. It and R5 both
-     register sections in `CampaignService._ready()`: whichever merges second rebases;
-   - P13 R5 (`rng` sections from `CampaignService`, in progress, uncommitted).
-3. **After them:** CC8 after EB7; MP8 after CC8.
+   - P01 EB7 (serialization, rejoin; prompt not yet sent): merge `dev` in first and use
+     `EffectTerms` (F18). It and R5 both register sections in `CampaignService._ready()`:
+     whichever merges second rebases;
+   - P13 R5 (`rng` sections from `CampaignService`, in progress, uncommitted): merge `dev` in and
+     rename to `EffectTerms` in `tests/sessions/run_all.gd` before reporting.
+3. **After them:** CC8 after EB7 (it also adds MP7's steps to `combat_hooks.gd`'s docs); MP8
+   after CC8 (it also removes the accepted `# ASSUMPTION` above `map_check.gd`'s point rule and
+   saves MP7's `MapState` fields).
 4. Vision updates pending for the ideation thread (Design items by plan).
 
 ## Change log
@@ -401,3 +408,4 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 | October 29, 2026 | **P03 CT1 merged into `dev`** (a7e7302): the 14 definitions in `scripts/content/`, `content_ids.gd` (every fixed id list), `prices.gd` (items.md's table, runes 30, heirloom tiers, the scrap rate from `CampaignValue`), 35 `res://data/` folders (`prefixes/runes/` reserved) and a new content suite. Verified: sessions 178 with the test user folder, map 419, combat 608, effects 521, RNG 154, save 204, content 256; headless launch clean. EB5's gate opens. P03 question 18 raised (movable distance, faction funds, a full-heal staff, trait names, seven assumptions). Tooling issue logged: `--check-only` crashes now and then, and a leak warning, around `EffectDefinition`. |
 | October 29, 2026 | P03 question 18 answered by the user (all as recommended): `TargetShape` measures grid distance only (question 17 and P01 F17 corrected: P04 question 12 cut movable distance); `FactionDefinition.starting_gold` (Mercenary 100); a full-heal setting on heal staves for Everbloom (CT4, with P02's staff resolver); `UnitTypeDefinition.trait_name` with "+" for the upgrade; CT1's seven assumptions accepted. The definition fixes go into CT2. |
 | October 29, 2026 | **P01 EB5 merged into `dev`** (3aa2699): `EffectCatalog` (static, loads `res://data/` once through `ResourceLoader.list_directory()`, folders included; lookup by id and typed per kind, sub-kinds included) and the content test with every P01 and P03 rule, over `res://data/` and 22 bad fixture trees; definitions hashed before and after the content suite. The test lives in P03's `tests/content` (a deviation from P01's EB5 row, accepted). Verified: sessions 178 with the test user folder, map 419, combat 608, effects 521, RNG 154, save 204, content 358; headless launch clean. CT2's gate opens; M0 needs only EB7. P01 question 50 raised (three assumptions, the range reading, five follow-ups). The exit-crash fix-up is in progress; EB5 saw 0 crashes in 40 `--check-only` runs and 10 content-suite runs. |
+| October 29, 2026 | P01 question 50 answered by the user (EB5's assumptions and follow-ups, as recommended; the follow-ups go into P03 CT2). **P01 exit-crash fix-up merged into `dev`** (85f2f74): the cause is engine issue godotengine/godot#117975 (fixed in 4.8 only); amendment F18 moves `EffectDefinition`'s shared enums, text tables and helpers into the `EffectTerms` leaf, and the crash (0/50 `--check-only` runs on each of two scripts) and the leak are gone; the cross-cutting row is resolved. **P04 MP7 merged into `dev`** (c7e85c9, after the fix-up, with no conflicts or old names): reinforcement-point markers with arrival turns, the setup step 5 draw through `Reinforcements.GroupSource` (empty until P05), warnings, arrival after the enemy phase on the nearest free tile, closing, Rout cancelling waves and the darkness stop; `REINFORCEMENT_INCOMING` (44), `REINFORCEMENT_ARRIVED` (45), `CombatFact.unit_types` (wire slot 18). Verified on each merge: sessions 178 with the test user folder, map 461, combat 608, effects 524, RNG 154, save 204, content 358; headless launch clean. Raised: P01 question 51 (keep `EffectTerms`, stay on 4.7.1, the exit-code caveat) and P04 question 24 (MP7's timing change, one assumption, follow-ups for CC8 and MP8). Design items added for P05 (reinforcement groups) and P08 (XP for closing a point). R5 must merge `dev` in and rename. Branches `feature/MP7` and `feature/effects-exit-crash` and the probe worktree removed. |
