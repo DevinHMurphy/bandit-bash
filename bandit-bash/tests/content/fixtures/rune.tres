@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="RuneDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_xmwsy"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_wu1l0"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_5ervk"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="4_ppxfm"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="5_nx7j2"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="6_wc6gh"]
+[ext_resource type="Script" path="res://scripts/content/rune_definition.gd" id="7_vnxwp"]
+
+[sub_resource type="Resource" id="Resource_57iw3"]
+script = ExtResource("4_ppxfm")
+value = 10.0
+
+[sub_resource type="Resource" id="Resource_ydf2s"]
+script = ExtResource("6_wc6gh")
+
+[sub_resource type="Resource" id="Resource_yytl8"]
+script = ExtResource("5_nx7j2")
+pool = 0
+target = SubResource("Resource_ydf2s")
+amount = SubResource("Resource_57iw3")
+
+[sub_resource type="Resource" id="Resource_uu3ui"]
+script = ExtResource("1_xmwsy")
+id = "fixture_mend"
+operations = Array[ExtResource("3_5ervk")]([SubResource("Resource_yytl8")])
+
+[resource]
+script = ExtResource("7_vnxwp")
+target_kind = "area"
+shape_id = "target_shape"
+id = "rune"
+display_name = "Fixture Mend"
+effects = Array[ExtResource("1_xmwsy")]([SubResource("Resource_uu3ui")])

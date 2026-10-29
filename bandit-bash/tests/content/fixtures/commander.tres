@@ -1,0 +1,52 @@
+[gd_resource type="Resource" script_class="UnitTypeDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_ai0s0"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_q1uq4"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_s450c"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="4_jpd6x"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="5_rxk5p"]
+[ext_resource type="Script" path="res://scripts/content/unit_type_definition.gd" id="6_akd5u"]
+
+[sub_resource type="Resource" id="Resource_rwnma"]
+script = ExtResource("4_jpd6x")
+value = 3.0
+
+[sub_resource type="Resource" id="Resource_8cpjp"]
+script = ExtResource("5_rxk5p")
+amount = SubResource("Resource_rwnma")
+
+[sub_resource type="Resource" id="Resource_6lyd3"]
+script = ExtResource("1_ai0s0")
+id = "fixture_vanguard"
+trigger = 1
+operations = Array[ExtResource("3_s450c")]([SubResource("Resource_8cpjp")])
+
+[resource]
+script = ExtResource("6_akd5u")
+weapon_types = PackedStringArray("axe", "sword")
+tags = PackedStringArray()
+stance = 3
+starting_weapon_id = "simple_axe"
+base_stats = Dictionary[int, int]({
+0: 24,
+1: 5,
+2: 6,
+3: 3,
+4: 2,
+5: 13,
+6: 5
+})
+growths = Dictionary[int, int]({
+0: 85,
+1: 55,
+2: 40,
+3: 35,
+4: 15
+})
+upgrade_weapon_types = PackedStringArray()
+upgrade_tags = PackedStringArray()
+is_commander = true
+commander_heirloom_id = "iron_heart"
+id = "commander"
+display_name = "Fixture Drengr"
+effects = Array[ExtResource("1_ai0s0")]([SubResource("Resource_6lyd3")])

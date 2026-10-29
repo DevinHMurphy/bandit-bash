@@ -1,0 +1,43 @@
+[gd_resource type="Resource" script_class="EquipmentDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_vr4ak"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_uu1ti"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_vrmuv"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_nb0t6"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="5_gpql3"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="6_i10on"]
+[ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="7_t5u2f"]
+
+[sub_resource type="Resource" id="Resource_mnl00"]
+script = ExtResource("4_nb0t6")
+key = 19
+value = 2.0
+
+[sub_resource type="Resource" id="Resource_86wev"]
+script = ExtResource("1_vr4ak")
+id = "fixture_iron_shield_defense"
+operations = Array[ExtResource("3_vrmuv")]([SubResource("Resource_mnl00")])
+
+[sub_resource type="Resource" id="Resource_h05ls"]
+script = ExtResource("5_gpql3")
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_5hbde"]
+script = ExtResource("6_i10on")
+amount = SubResource("Resource_h05ls")
+
+[sub_resource type="Resource" id="Resource_s27hl"]
+script = ExtResource("1_vr4ak")
+id = "fixture_iron_shield_block"
+trigger = 3
+operations = Array[ExtResource("3_vrmuv")]([SubResource("Resource_5hbde")])
+
+[resource]
+script = ExtResource("7_t5u2f")
+category = "shield"
+rarity = 1
+weight = 4
+tags = PackedStringArray()
+id = "equipment"
+display_name = "Fixture Iron Shield"
+effects = Array[ExtResource("1_vr4ak")]([SubResource("Resource_86wev"), SubResource("Resource_s27hl")])

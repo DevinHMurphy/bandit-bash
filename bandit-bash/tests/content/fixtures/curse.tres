@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="CurseDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_7x3pv"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_1g76t"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_psfpa"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_dpk2p"]
+[ext_resource type="Script" path="res://scripts/content/curse_definition.gd" id="5_ma2ia"]
+
+[sub_resource type="Resource" id="Resource_puyrg"]
+script = ExtResource("4_dpk2p")
+key = 18
+value = -1.0
+
+[sub_resource type="Resource" id="Resource_wxu0f"]
+script = ExtResource("1_7x3pv")
+id = "fixture_leaden_boots"
+scope = 1
+operations = Array[ExtResource("3_psfpa")]([SubResource("Resource_puyrg")])
+tags = 2
+
+[resource]
+script = ExtResource("5_ma2ia")
+tier = "major"
+id = "curse"
+display_name = "Fixture Leaden Boots"
+effects = Array[ExtResource("1_7x3pv")]([SubResource("Resource_wxu0f")])
