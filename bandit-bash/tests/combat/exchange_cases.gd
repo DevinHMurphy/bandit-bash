@@ -6,7 +6,7 @@
 # File:     exchange_cases.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 27, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -641,7 +641,7 @@ func _test_lifesteal() -> void:
 	var lifesteal: ModifyThat = ModifyThat.new()
 	lifesteal.what = ModifyThat.What.FLAG
 	lifesteal.flag = ModifyThat.Flag.LIFESTEAL
-	var made: EffectDefinition.Trigger = EffectDefinition.Trigger.ATTACK_MADE
+	var made: EffectTerms.Trigger = EffectTerms.Trigger.ATTACK_MADE
 	world.add_effect("effect:iron_heart", _triggered(made, [], [lifesteal]), "p1")
 	world.engine.gain_block("e1", 2.0)
 	var start: int = world.engine.fact_log.size()
@@ -804,8 +804,8 @@ func _test_incoming_while_adjacent() -> void:
 	var half: ModifyValue = _times(DamageStage.Key.INCOMING_MULTIPLIERS, 0.5)
 	var beside: WhilePositionCondition = WhilePositionCondition.new()
 	beside.kind = WhilePositionCondition.Kind.ADJACENT_TO
-	beside.side = EffectDefinition.UnitSide.ALLY
-	var wall: EffectDefinition = _triggered(EffectDefinition.Trigger.ALWAYS, [beside], [half])
+	beside.side = EffectTerms.UnitSide.ALLY
+	var wall: EffectDefinition = _triggered(EffectTerms.Trigger.ALWAYS, [beside], [half])
 	world.add_effect("effect:shield_wall", wall, "e1")
 	_ok("adjacent: 6 halved to 3", _hit(world, "p1", "e1").damage == 3)
 	world.state.move_unit("e2", Vector2i(6, 6))
@@ -825,7 +825,7 @@ func _test_more_damage_from_bows() -> void:
 			WhileAttackCondition.Role.ATTACKED, WhileAttackCondition.Kind.WEAPON_TYPE, "Bow"
 	)
 	world.add_effect(
-			"effect:soft", _triggered(EffectDefinition.Trigger.ALWAYS, [bows], [more]), "e1"
+			"effect:soft", _triggered(EffectTerms.Trigger.ALWAYS, [bows], [more]), "e1"
 	)
 	var hit: DamagePipeline.HitDamage = _hit(world, "p1", "e1")
 	_ok("bows: 6 + 3 - (2 - 2) = 9", hit.damage == 9 and hit.mitigation == 0.0)
@@ -1130,11 +1130,11 @@ func _always(key: int, value: float) -> EffectDefinition:
 	modify.key = key
 	modify.mode = ADD
 	modify.value = value
-	return _triggered(EffectDefinition.Trigger.ALWAYS, [], [modify])
+	return _triggered(EffectTerms.Trigger.ALWAYS, [], [modify])
 
 
 func _triggered(
-		trigger: EffectDefinition.Trigger, conditions: Array, operations: Array
+		trigger: EffectTerms.Trigger, conditions: Array, operations: Array
 ) -> EffectDefinition:
 	var definition: EffectDefinition = EffectDefinition.new()
 	definition.trigger = trigger
@@ -1172,7 +1172,7 @@ func _beast_bane() -> EffectDefinition:
 			WhileAttackCondition.Role.ATTACKING, WhileAttackCondition.Kind.OPPONENT_TAG, "Beast"
 	)
 	var times: ModifyValue = _times(DamageStage.Key.MULTIPLIERS, 2.0)
-	return _triggered(EffectDefinition.Trigger.ALWAYS, [against], [times])
+	return _triggered(EffectTerms.Trigger.ALWAYS, [against], [times])
 
 
 # Takes ×2 damage from magic.
@@ -1181,7 +1181,7 @@ func _magic_frailty() -> EffectDefinition:
 			WhileAttackCondition.Role.ATTACKED, WhileAttackCondition.Kind.DAMAGE_TYPE
 	)
 	var times: ModifyValue = _times(DamageStage.Key.INCOMING_MULTIPLIERS, 2.0)
-	return _triggered(EffectDefinition.Trigger.ALWAYS, [magic], [times])
+	return _triggered(EffectTerms.Trigger.ALWAYS, [magic], [times])
 
 
 # Momentum (Fighter): Missed: +15 Hit on the next attack this combat.
@@ -1192,7 +1192,7 @@ func _momentum() -> EffectDefinition:
 	bonus.value = 15.0
 	bonus.end = AddTimedModifier.End.THIS_COMBAT
 	bonus.uses = 1
-	return _triggered(EffectDefinition.Trigger.MISSED, [], [bonus])
+	return _triggered(EffectTerms.Trigger.MISSED, [], [bonus])
 
 
 # Cleave (Brute): Hit dealt: deal 2 splash damage to adjacent units, friend or foe.
@@ -1200,13 +1200,13 @@ func _cleave() -> EffectDefinition:
 	var area: Area = Area.new()
 	area.center = Area.Center.OWNER
 	area.radius = 1
-	area.side = EffectDefinition.UnitSide.ANY
+	area.side = EffectTerms.UnitSide.ANY
 	var amount: Constant = Constant.new()
 	amount.value = 2.0
 	var splash: DealSplash = DealSplash.new()
 	splash.target = area
 	splash.amount = amount
-	return _triggered(EffectDefinition.Trigger.HIT_DEALT, [], [splash])
+	return _triggered(EffectTerms.Trigger.HIT_DEALT, [], [splash])
 
 
 # Breaker (Brawler): the first Hit dealt each combat: the target loses 1 extra Stance.
@@ -1216,7 +1216,7 @@ func _breaker() -> EffectDefinition:
 	var extra: ModifyThat = ModifyThat.new()
 	extra.what = ModifyThat.What.EXTRA_STANCE_LOSS
 	extra.value = 1.0
-	return _triggered(EffectDefinition.Trigger.HIT_DEALT, [first], [extra])
+	return _triggered(EffectTerms.Trigger.HIT_DEALT, [first], [extra])
 
 
 # Compares the log from start on with GOLDEN[name]; on a mismatch prints the actual log as a

@@ -802,7 +802,7 @@ class ObjectWorld:
 		var definition: EffectDefinition = EffectDefinition.new()
 		definition.id = effect_id
 		definition.charges = uses
-		definition.charge_lane = EffectDefinition.Lane.CAMPAIGN
+		definition.charge_lane = EffectTerms.Lane.CAMPAIGN
 		session.engine.register(EffectInstance.new(
 				"eff:%s:%s" % [effect_id, unit_id],
 				definition,

@@ -231,7 +231,7 @@ func defeat(engine: EffectEngine, id: String, by_id: String, source_effect_id: S
 	var defeated: CombatFact = CombatFact.new(CombatFact.Kind.DEFEATED, id, by_id)
 	defeated.source_effect_id = source_effect_id
 	engine.record(defeated)
-	if engine.matches_side(side_of(by_id), id, EffectDefinition.UnitSide.ENEMY):
+	if engine.matches_side(side_of(by_id), id, EffectTerms.UnitSide.ENEMY):
 		var kill: CombatFact = CombatFact.new(CombatFact.Kind.DEFEATED_AN_ENEMY, by_id, id)
 		kill.source_effect_id = source_effect_id
 		engine.record(kill)

@@ -6,7 +6,7 @@
 # File:     effect_operation.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 @tool
@@ -28,7 +28,7 @@ extends Resource
 
 ## This operation's text inside an effect with [param trigger]. Inline operations name what they
 ## change ("that hit", "that heal"); the rest return [method describe].
-func describe_for_trigger(_trigger: EffectDefinition.Trigger) -> String:
+func describe_for_trigger(_trigger: EffectTerms.Trigger) -> String:
 	return describe()
 
 

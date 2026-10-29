@@ -6,7 +6,7 @@
 # File:     percent_of_fact.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 @tool
@@ -43,7 +43,7 @@ const FIELD_TEXT: Dictionary[int, String] = {
 
 
 func describe() -> String:
-	return "%s%% of that %s" % [EffectDefinition.format_number(percent), FIELD_TEXT[field]]
+	return "%s%% of that %s" % [EffectTerms.format_number(percent), FIELD_TEXT[field]]
 
 
 ## [member percent] of the triggering fact's [member field]; 0 without a fact.

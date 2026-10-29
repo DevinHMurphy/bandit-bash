@@ -6,7 +6,7 @@
 # File:     modify_value.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 @tool
@@ -40,14 +40,14 @@ extends EffectOperation
 func _validate_property(property: Dictionary) -> void:
 	if property["name"] == "key":
 		property["hint"] = PROPERTY_HINT_ENUM
-		property["hint_string"] = EffectDefinition.value_key_hint()
+		property["hint_string"] = EffectTerms.value_key_hint()
 	elif property["name"] == "stat":
 		property["hint"] = PROPERTY_HINT_ENUM
-		property["hint_string"] = EffectDefinition.stat_hint()
+		property["hint_string"] = EffectTerms.stat_hint()
 
 
 func describe() -> String:
-	return EffectDefinition.describe_modifier(key, mode, value, stat)
+	return EffectTerms.describe_modifier(key, mode, value, stat)
 
 
 ## Always-on modifiers are read by value queries, not applied: this only reports a content error.

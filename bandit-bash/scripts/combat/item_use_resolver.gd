@@ -6,7 +6,7 @@
 # File:     item_use_resolver.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 27, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 class_name ItemUseResolver
@@ -70,7 +70,7 @@ static func check(
 		if state.grid.distance(state.tile_of(user_id), state.tile_of(target_id)) != 1:
 			return "not adjacent"
 		var side: CombatFact.CombatSide = state.side_of(user_id)
-		if not engine.matches_side(side, target_id, EffectDefinition.UnitSide.ALLY):
+		if not engine.matches_side(side, target_id, EffectTerms.UnitSide.ALLY):
 			return "not an ally"
 	var effects: Array[EffectInstance] = use_effects(engine, item_id)
 	if effects.is_empty():
@@ -88,7 +88,7 @@ static func use_effects(engine: EffectEngine, item_id: String) -> Array[EffectIn
 	for instance: EffectInstance in engine.get_instances():
 		if instance.owner.kind != EffectOwner.Kind.ITEM or instance.owner.owner_id != item_id:
 			continue
-		if instance.definition.trigger != EffectDefinition.Trigger.ALWAYS:
+		if instance.definition.trigger != EffectTerms.Trigger.ALWAYS:
 			continue
 		if _gives_modifiers(instance):
 			continue
@@ -119,7 +119,7 @@ static func _used_up(effects: Array[EffectInstance]) -> bool:
 	for instance: EffectInstance in effects:
 		if instance.definition.charges <= 0:
 			return false
-		if instance.definition.charge_lane != EffectDefinition.Lane.CAMPAIGN:
+		if instance.definition.charge_lane != EffectTerms.Lane.CAMPAIGN:
 			return false
 		totals = true
 		if instance.has_charge():

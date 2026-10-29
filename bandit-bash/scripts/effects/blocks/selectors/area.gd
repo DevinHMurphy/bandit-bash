@@ -6,7 +6,7 @@
 # File:     area.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 27, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 @tool
@@ -41,7 +41,7 @@ enum Center {
 @export_range(1, 20) var radius: int = 1
 
 ## Which units count, relative to the effect's owner.
-@export var side: EffectDefinition.UnitSide = EffectDefinition.UnitSide.ALLY
+@export var side: EffectTerms.UnitSide = EffectTerms.UnitSide.ALLY
 
 ## Whether the center unit itself is selected too. [b]Off:[/b] only the units around it.
 @export var include_center: bool = false
@@ -50,9 +50,9 @@ enum Center {
 func describe() -> String:
 	var noun: String = "units"
 	match side:
-		EffectDefinition.UnitSide.ALLY:
+		EffectTerms.UnitSide.ALLY:
 			noun = "allies"
-		EffectDefinition.UnitSide.ENEMY:
+		EffectTerms.UnitSide.ENEMY:
 			noun = "enemies"
 	var place: String = "adjacent %s" % [noun]
 	if radius > 1:
@@ -64,7 +64,7 @@ func describe() -> String:
 			place += " of the other unit"
 		Center.COMMAND_TARGET:
 			place += " of the target"
-	if side == EffectDefinition.UnitSide.ANY:
+	if side == EffectTerms.UnitSide.ANY:
 		place += ", friend or foe"
 	if include_center:
 		var center_name: String = "this unit"

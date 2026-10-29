@@ -98,7 +98,7 @@ enum Kind {
 	## The effect named by [member source_effect_id] fired.
 	EFFECT_ACTIVATED = 31,
 	## A counter of the effect named by [member source_effect_id] changed: [member amount] is the
-	## new count, [member key] its [enum EffectDefinition.Lane].
+	## new count, [member key] its [enum EffectTerms.Lane].
 	COUNTER_CHANGED = 32,
 	## The actor gained a timed modifier from [member source_effect_id].
 	MODIFIER_GAINED = 33,
@@ -246,7 +246,7 @@ var side: CombatSide = CombatSide.NONE
 ## [constant WEAPON_SWAPPED], [constant RUNE_USED]). Empty on every other kind.
 var item_id: String = ""
 
-## A small number whose meaning depends on the kind: the [enum EffectDefinition.Lane] of a
+## A small number whose meaning depends on the kind: the [enum EffectTerms.Lane] of a
 ## [constant COUNTER_CHANGED], the [enum CombatValue.Stat] of a [constant STAT_CHANGED], the turns
 ## won early of a [constant COMBAT_ENDED], the [enum MapObjects.Change] of an
 ## [constant OBJECT_STATE_CHANGED]. 0 on every other kind.

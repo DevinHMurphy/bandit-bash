@@ -6,7 +6,7 @@
 # File:     set_permission.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 @tool
@@ -36,14 +36,14 @@ extends EffectOperation
 func _validate_property(property: Dictionary) -> void:
 	if property["name"] == "permission":
 		property["hint"] = PROPERTY_HINT_ENUM
-		property["hint_string"] = EffectDefinition.permission_key_hint()
+		property["hint_string"] = EffectTerms.permission_key_hint()
 	elif property["name"] == "stat":
 		property["hint"] = PROPERTY_HINT_ENUM
-		property["hint_string"] = EffectDefinition.stat_hint()
+		property["hint_string"] = EffectTerms.stat_hint()
 
 
 func describe() -> String:
-	return EffectDefinition.describe_modifier(permission, _mode(), 0.0, stat)
+	return EffectTerms.describe_modifier(permission, _mode(), 0.0, stat)
 
 
 ## Always-on permissions are read by queries, not applied: this only reports a content error.

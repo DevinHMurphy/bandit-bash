@@ -6,7 +6,7 @@
 # File:     fake_state.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 27, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 extends SandboxState
@@ -177,7 +177,7 @@ func deal_splash(
 		return
 	engine.record(_defeat_fact(CombatFact.Kind.DEFEATED, target_id, source_id, source_effect_id))
 	if has_unit(source_id) and engine.matches_side(
-			side_of(source_id), target_id, EffectDefinition.UnitSide.ENEMY
+			side_of(source_id), target_id, EffectTerms.UnitSide.ENEMY
 	):
 		engine.record(_defeat_fact(
 				CombatFact.Kind.DEFEATED_AN_ENEMY, source_id, target_id, source_effect_id

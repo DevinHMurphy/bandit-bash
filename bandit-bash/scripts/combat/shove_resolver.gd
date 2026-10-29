@@ -6,7 +6,7 @@
 # File:     shove_resolver.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 27, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 class_name ShoveResolver
@@ -99,8 +99,8 @@ static func check(
 	if state.grid.distance(state.tile_of(shover_id), state.tile_of(target_id)) != 1:
 		return "not adjacent"
 	var shover_side: CombatFact.CombatSide = state.side_of(shover_id)
-	var is_ally: bool = engine.matches_side(shover_side, target_id, EffectDefinition.UnitSide.ALLY)
-	var is_foe: bool = engine.matches_side(shover_side, target_id, EffectDefinition.UnitSide.ENEMY)
+	var is_ally: bool = engine.matches_side(shover_side, target_id, EffectTerms.UnitSide.ALLY)
+	var is_foe: bool = engine.matches_side(shover_side, target_id, EffectTerms.UnitSide.ENEMY)
 	if not is_ally and not is_foe:
 		return "not a unit"
 	if is_foe and state.get_stance(target_id) > 0:

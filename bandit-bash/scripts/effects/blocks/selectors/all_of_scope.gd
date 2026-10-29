@@ -6,7 +6,7 @@
 # File:     all_of_scope.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 @tool
@@ -21,14 +21,14 @@ extends TargetSelector
 
 ## Text for each scope as a target.
 const SCOPE_TARGET_TEXT: Dictionary[int, String] = {
-	EffectDefinition.Scope.THIS_UNIT: "this unit",
-	EffectDefinition.Scope.YOUR_UNIT: "your units",
-	EffectDefinition.Scope.ANY_ALLY_UNIT: "every ally unit",
-	EffectDefinition.Scope.ANY_UNIT: "every unit",
+	EffectTerms.Scope.THIS_UNIT: "this unit",
+	EffectTerms.Scope.YOUR_UNIT: "your units",
+	EffectTerms.Scope.ANY_ALLY_UNIT: "every ally unit",
+	EffectTerms.Scope.ANY_UNIT: "every unit",
 }
 
 ## The units selected. [b]This unit:[/b] the same as [Owner].
-@export var scope: EffectDefinition.Scope = EffectDefinition.Scope.YOUR_UNIT
+@export var scope: EffectTerms.Scope = EffectTerms.Scope.YOUR_UNIT
 
 
 func describe() -> String:
@@ -36,7 +36,7 @@ func describe() -> String:
 
 
 func is_owner() -> bool:
-	return scope == EffectDefinition.Scope.THIS_UNIT
+	return scope == EffectTerms.Scope.THIS_UNIT
 
 
 func select(ctx: EffectContext) -> PackedStringArray:

@@ -746,7 +746,7 @@ func _test_stale_rule() -> void:
 	mend.amount = ten
 	field.engine().register(EffectInstance.new(
 			"effect:mend",
-			_definition(EffectDefinition.Trigger.ALWAYS, [], [mend]),
+			_definition(EffectTerms.Trigger.ALWAYS, [], [mend]),
 			EffectOwner.for_rune("rune:mend", 1),
 			Modifier.SourceKind.RUNE
 	))
@@ -956,8 +956,8 @@ func _fingerprint(field: Field) -> String:
 	for instance: EffectInstance in engine.get_instances():
 		parts.append("%s %d %d %d" % [
 			instance.instance_id,
-			instance.get_counter(EffectDefinition.Lane.COMBAT),
-			instance.get_counter(EffectDefinition.Lane.CAMPAIGN),
+			instance.get_counter(EffectTerms.Lane.COMBAT),
+			instance.get_counter(EffectTerms.Lane.CAMPAIGN),
 			instance.charges_left,
 		])
 	return "\n".join(parts)
@@ -990,7 +990,7 @@ func _momentum() -> EffectDefinition:
 	bonus.value = 15.0
 	bonus.end = AddTimedModifier.End.THIS_COMBAT
 	bonus.uses = 1
-	return _definition(EffectDefinition.Trigger.MISSED, [], [bonus])
+	return _definition(EffectTerms.Trigger.MISSED, [], [bonus])
 
 
 # Cleave (Brute): Hit dealt: 2 splash damage to adjacent units, friend or foe.
@@ -998,14 +998,14 @@ func _cleave() -> EffectDefinition:
 	var area: Area = Area.new()
 	area.center = Area.Center.OWNER
 	area.radius = 1
-	area.side = EffectDefinition.UnitSide.ANY
+	area.side = EffectTerms.UnitSide.ANY
 	area.include_center = false
 	var amount: Constant = Constant.new()
 	amount.value = 2.0
 	var splash: DealSplash = DealSplash.new()
 	splash.target = area
 	splash.amount = amount
-	return _definition(EffectDefinition.Trigger.HIT_DEALT, [], [splash])
+	return _definition(EffectTerms.Trigger.HIT_DEALT, [], [splash])
 
 
 # Every attack this unit makes has lifesteal: an inline flag that changes no damage.
@@ -1013,7 +1013,7 @@ func _lifesteal() -> EffectDefinition:
 	var flag: ModifyThat = ModifyThat.new()
 	flag.what = ModifyThat.What.FLAG
 	flag.flag = ModifyThat.Flag.LIFESTEAL
-	return _definition(EffectDefinition.Trigger.ATTACK_MADE, [], [flag])
+	return _definition(EffectTerms.Trigger.ATTACK_MADE, [], [flag])
 
 
 # Hit dealt: x2 Multipliers for that hit, an inline change the breakdown can't see (TOD-001).
@@ -1023,7 +1023,7 @@ func _double_hit() -> EffectDefinition:
 	twice.key = DamageStage.Key.MULTIPLIERS
 	twice.mode = Modifier.Mode.MULTIPLY
 	twice.value = 2.0
-	return _definition(EffectDefinition.Trigger.HIT_DEALT, [], [twice])
+	return _definition(EffectTerms.Trigger.HIT_DEALT, [], [twice])
 
 
 # Hit dealt: +3 Attack for that hit.
@@ -1033,7 +1033,7 @@ func _sharpen() -> EffectDefinition:
 	bonus.key = DamageStage.Key.ATTACK
 	bonus.mode = Modifier.Mode.ADD
 	bonus.value = 3.0
-	return _definition(EffectDefinition.Trigger.HIT_DEALT, [], [bonus])
+	return _definition(EffectTerms.Trigger.HIT_DEALT, [], [bonus])
 
 
 # Hit dealt, 25% chance: +5 Attack for that hit.
@@ -1045,7 +1045,7 @@ func _lucky() -> EffectDefinition:
 	bonus.key = DamageStage.Key.ATTACK
 	bonus.mode = Modifier.Mode.ADD
 	bonus.value = 5.0
-	return _definition(EffectDefinition.Trigger.HIT_DEALT, [chance], [bonus])
+	return _definition(EffectTerms.Trigger.HIT_DEALT, [chance], [bonus])
 
 
 # Sidearm: always allowed a free weapon swap.
@@ -1053,11 +1053,11 @@ func _sidearm() -> EffectDefinition:
 	var grant: SetPermission = SetPermission.new()
 	grant.permission = CombatValue.Permission.FREE_WEAPON_SWAP
 	grant.allow = true
-	return _definition(EffectDefinition.Trigger.ALWAYS, [], [grant])
+	return _definition(EffectTerms.Trigger.ALWAYS, [], [grant])
 
 
 func _definition(
-		trigger: EffectDefinition.Trigger, conditions: Array, operations: Array
+		trigger: EffectTerms.Trigger, conditions: Array, operations: Array
 ) -> EffectDefinition:
 	var definition: EffectDefinition = EffectDefinition.new()
 	definition.trigger = trigger
@@ -1156,7 +1156,7 @@ class Field:
 			var area: Area = Area.new()
 			area.center = Area.Center.OWNER
 			area.radius = 3
-			area.side = EffectDefinition.UnitSide.ALLY
+			area.side = EffectTerms.UnitSide.ALLY
 			area.include_center = true
 			stats.area = area
 		session.state.add_weapon(stats)

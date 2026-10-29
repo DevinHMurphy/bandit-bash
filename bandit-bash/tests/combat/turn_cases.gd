@@ -6,7 +6,7 @@
 # File:     turn_cases.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 28, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -188,7 +188,7 @@ func _test_phase_end_heal_before_darkness() -> void:
 	world.add_unit("p2", PLAYER, 0, Vector2i(3, 0))
 	world.add_unit("e1", ENEMY, -1, Vector2i(5, 3))
 	world.add_effect("effect:band", "p1", _definition(
-			EffectDefinition.Trigger.UNIT_TURN_END,
+			EffectTerms.Trigger.UNIT_TURN_END,
 			[_gain(GainResource.Pool.HP, _constant(5.0))]
 	))
 	world.session.hooks.add(
@@ -364,7 +364,7 @@ func _test_second_move() -> void:
 	skirmisher.permission = CombatValue.Permission.MAY_MOVE_AFTER_ACTING
 	skirmisher.allow = true
 	world.add_effect("effect:skirmisher", "p1", _definition(
-			EffectDefinition.Trigger.ALWAYS, [skirmisher]
+			EffectTerms.Trigger.ALWAYS, [skirmisher]
 	))
 	world.session.open_battle()
 	var walk: Array[Vector2i] = [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)]
@@ -435,7 +435,7 @@ func _test_rune_command() -> void:
 	mend.target = CommandTarget.new()
 	world.engine().register(EffectInstance.new(
 			"effect:mend",
-			_definition(EffectDefinition.Trigger.ALWAYS, [mend]),
+			_definition(EffectTerms.Trigger.ALWAYS, [mend]),
 			EffectOwner.for_rune("rune:mend", 0),
 			Modifier.SourceKind.RUNE
 	))
@@ -705,16 +705,16 @@ func _phalanx() -> EffectDefinition:
 	var adjacent: Area = Area.new()
 	adjacent.center = Area.Center.OWNER
 	adjacent.radius = 1
-	adjacent.side = EffectDefinition.UnitSide.ALLY
+	adjacent.side = EffectTerms.UnitSide.ALLY
 	adjacent.include_center = false
 	var count: CountOf = CountOf.new()
 	count.selector = adjacent
 	return _definition(
-			EffectDefinition.Trigger.UNIT_TURN_START, [_gain(GainResource.Pool.BLOCK, count)]
+			EffectTerms.Trigger.UNIT_TURN_START, [_gain(GainResource.Pool.BLOCK, count)]
 	)
 
 
-func _definition(trigger: EffectDefinition.Trigger, operations: Array) -> EffectDefinition:
+func _definition(trigger: EffectTerms.Trigger, operations: Array) -> EffectDefinition:
 	var definition: EffectDefinition = EffectDefinition.new()
 	definition.trigger = trigger
 	definition.operations.assign(operations)
@@ -871,7 +871,7 @@ class TurnWorld:
 			var area: Area = Area.new()
 			area.center = Area.Center.OWNER
 			area.radius = 3
-			area.side = EffectDefinition.UnitSide.ALLY
+			area.side = EffectTerms.UnitSide.ALLY
 			area.include_center = true
 			stats.area = area
 		return stats

@@ -660,14 +660,14 @@ static func _rune_effect(engine: EffectEngine, rune_id: String) -> EffectInstanc
 static func _keg_definitions() -> Array[EffectDefinition]:
 	if not _keg_effects.is_empty():
 		return _keg_effects
-	for trigger: EffectDefinition.Trigger in [
-		EffectDefinition.Trigger.HIT_TAKEN,
-		EffectDefinition.Trigger.DAMAGE_TAKEN,
+	for trigger: EffectTerms.Trigger in [
+		EffectTerms.Trigger.HIT_TAKEN,
+		EffectTerms.Trigger.DAMAGE_TAKEN,
 	]:
 		var definition: EffectDefinition = EffectDefinition.new()
 		definition.id = "powder_keg"
 		definition.trigger = trigger
-		definition.scope = EffectDefinition.Scope.THIS_UNIT
+		definition.scope = EffectTerms.Scope.THIS_UNIT
 		var blast: KegExplosion = KegExplosion.new()
 		blast.text = "explode"
 		definition.operations = [blast]

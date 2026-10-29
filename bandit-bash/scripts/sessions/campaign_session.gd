@@ -199,9 +199,9 @@ func write_back() -> void:
 		if carrier == null:
 			continue
 		carrier.set_counter(
-				EffectDefinition.Lane.CAMPAIGN, copy.get_counter(EffectDefinition.Lane.CAMPAIGN)
+				EffectTerms.Lane.CAMPAIGN, copy.get_counter(EffectTerms.Lane.CAMPAIGN)
 		)
-		if carrier.definition.charge_lane == EffectDefinition.Lane.CAMPAIGN:
+		if carrier.definition.charge_lane == EffectTerms.Lane.CAMPAIGN:
 			carrier.charges_left = copy.charges_left
 
 
