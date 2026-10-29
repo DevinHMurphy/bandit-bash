@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="TargetShape" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_yhyhf"]
+[ext_resource type="Script" path="res://scripts/content/target_shape.gd" id="2_hooob"]
+
+[resource]
+script = ExtResource("2_hooob")
+kind = "radius"
+size = 1
+id = "target_shape"
+display_name = "Fixture Target and Adjacent"

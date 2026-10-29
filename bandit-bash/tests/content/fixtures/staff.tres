@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="StaffDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_1w1xo"]
+[ext_resource type="Script" path="res://scripts/content/staff_definition.gd" id="2_qusnn"]
+
+[resource]
+script = ExtResource("2_qusnn")
+staff_kind = "block"
+base_amount = 3
+area_shape_id = "target_shape"
+uses = 2
+weapon_type = "staff"
+damage_type = 2
+range_max = 2
+effective_against = PackedStringArray()
+rarity = 3
+weight = 2
+tags = PackedStringArray()
+id = "staff"
+display_name = "Fixture Sanctuary"
