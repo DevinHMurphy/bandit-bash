@@ -328,7 +328,7 @@ func _check_effects(path: String, resource: Resource) -> void:
 			for operation: EffectOperation in effect.operations:
 				if operation != null and operation.is_inline():
 					_fail(INLINE_WITHOUT_WINDOW, path, "%s: \"%s\" is inline on %s" % [
-						where, operation.describe(), EffectDefinition.TRIGGER_TEXT[effect.trigger],
+						where, operation.describe(), EffectTerms.TRIGGER_TEXT[effect.trigger],
 					])
 
 
@@ -359,14 +359,14 @@ func _check_block(path: String, where: String, block: Resource) -> void:
 
 
 func _check_heirloom_scope(path: String, where: String, effect: EffectDefinition) -> void:
-	if effect.scope == EffectDefinition.Scope.THIS_UNIT:
+	if effect.scope == EffectTerms.Scope.THIS_UNIT:
 		_fail(HEIRLOOM_THIS_UNIT, path, "%s is scoped This unit" % [where])
 	elif (
-			effect.scope >= EffectDefinition.Scope.ANY_ALLY_UNIT
+			effect.scope >= EffectTerms.Scope.ANY_ALLY_UNIT
 			and not effect.has_tag(EffectDefinition.Tag.UNIQUE)
 	):
 		_warn(HEIRLOOM_NOT_UNIQUE, path, "%s is scoped %s without the unique tag" % [
-			where, EffectDefinition.SCOPE_TEXT[effect.scope],
+			where, EffectTerms.SCOPE_TEXT[effect.scope],
 		])
 
 
