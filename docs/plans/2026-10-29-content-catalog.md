@@ -1,8 +1,8 @@
 # Plan: Content Catalog
 **Date:** October 29, 2026
 **Status:** Draft — awaiting approval. Orchestrator ID **P03**
-([game-orchestrator.md](game-orchestrator.md)). Questions 1–14 answered October 29, 2026; 15 and
-16 open (raised by the answers to 2 and 12).
+([game-orchestrator.md](game-orchestrator.md)). Questions 1–14 and 16 (b) answered October 29,
+2026; 15, 16 (a and c) and 17 open.
 
 The game's content as data: unit types and the commander, prefixes, factions, weapons and staves,
 equipment, trinkets, consumables, ingredients, runes, heirlooms and curses. This plan defines the
@@ -40,15 +40,16 @@ Every content kind exists only in the design docs. The code runs on stopgaps tha
 | 5 | Lock pickers, keys and lockpicks (P04 question 23; the vision says no unit picks locks) | — | The Thief picks locks, through a permission on its unit type (not its trait text) | **Answered October 29, 2026 (user):** the **Thief** picks locks (Thief+ too; P05 gives the enemy Cutthroat the same). **Two items in all:** a **Lockpick** (never used up; only lock pickers can use it) and a **Key** (a consumable with **2 uses**, any unit, opens a chest or a door). items.md's Chest, Door and Master Picks are dropped. Vision update queued. |
 | 6 | The M1 subset | — | The Mercenary starting army (Drengr, Archer, Battle Medic, Hakkapel) with traits; the nine Simple weapons, Shelter and Minor Heal; Potion and Guard Tonic; no prefixes in M1 | **Answered October 29, 2026 (user):** as recommended. |
 | 7 | Content with known problems (Ring of Favor, Heavy Brick, the Lancer's growths, items outside their budget) | Port as written / rework first | **Port as written**, listed under [Content debt](#content-debt) | **Answered October 29, 2026 (user):** as recommended. |
-| 8 | Who owns the modified-item price and scrap formula (P08 question 3) | P03 / P08 | **P03**, which owns prices and deltas; the formula comes to the user in step CT9 | **Answered October 29, 2026 (user):** as recommended. |
+| 8 | Who owns the modified-item price and scrap formula (P08 question 3) | P03 / P08 | **P03**, which owns prices and deltas; the formula comes to the user in step CT10 | **Answered October 29, 2026 (user):** as recommended. |
 | 9 | Who saves units and items | P03 / P08 | P03 provides `UnitInstance` and `ItemInstance` with capture and restore helpers; **P08 registers `roster`**; P03 registers no section | **Answered October 29, 2026 (user):** as recommended. |
 | 10 | Factions as content (found writing this plan: game-vision.md has the faction set max army size and the starting army) | `data/factions/` in P03 / hard-coded in P08 | **`data/factions/`** with a `FactionDefinition`: commander, starting unit types and gear, max army size (Mercenary: 4). P08 reads it at run start; M1 builds its army from it | **Answered October 29, 2026 (user):** as recommended. |
 | 11 | Rarity and price of the Lockpick and the Key (no basis for the Lockpick) | — | **Both Common**, at the Common consumable price (25 gold). The Key takes the old Chest Pick's rarity; the Lockpick has no `Godot_FE` source | **Answered October 29, 2026 (user):** as recommended. |
 | 12 | How a rune says what it targets (P02 question 18 stopgap; `map_objects.gd:TOD-004`) | A target kind on the rune / infer from the command | A target kind on `RuneDefinition`: one unit, two of your units (Recall), or a map object (Spark) | **Answered October 29, 2026 (user), changing the design:** **most runes target a place on the map and have an area of effect**, and how to use them is up to the player. Selecting a rune shows a **preview** of its area and every unit it will hit before the cast. A rune whose text names its own targets ("a random enemy", "a random ally") does exactly what it says, with no aiming. The rune pool's areas are new design (vision update queued); the details are question 16. |
 | 13 | How auto-deployment finds the Shover (`auto_deploy.gd:TOD-001`; P04 question 14) | A `role` on the unit type / a tag | **A `role` id** from unit-roster.md's Role column (sword, axe, …, support, mounted, flier, armored, shover). Tags stay what a unit *is*; role is what it's for. Auto-deployment reads `shover` | **Answered October 29, 2026 (user):** as recommended. |
 | 14 | Enemy classes (P05) | Their own definition / extend the unit type | **`EnemyClassDefinition` extends `UnitTypeDefinition`** (stats, growths, weapons, traits, tags, role), adding P05's fields. `data/enemies/` stays P05's; the loadout step builds enemies and players the same way | **Answered October 29, 2026 (user):** as recommended. |
-| 15 | Weapon prefixes (raised by question 2): the vision has prefixes on units only, so which weapons roll them, from which sources (loot, shops, starting gear), with what odds, budgets, price effect and re-roll, and the lists themselves are undecided | Build the model now, content after the vision / wait entirely | **Build the model now, content after the vision:** `WeaponPrefixDefinition` (stat deltas such as damage, Hit, crit, weight and range, applicable weapon types, and for staves the staff kinds it fits), `ItemInstance.prefix_id` (a P01 contract addition, amendment F16), the folders and their content rule, and the loadout applying the deltas. The rules and lists go to the ideation thread; step CT11 enters them once the vision has them. Nothing in M1 rolls a weapon prefix | |
-| 16 | Rune targeting details (raised by question 12) | — | **(a)** Kinds: **area** (the player picks any tile; the rune's area shape and radius from there; the preview lists the tiles and every unit it will hit, through the same sandbox run as P02's forecast, so the preview equals the result), **random** (its own selector, such as a random enemy; no aiming), and **pair** for Recall (two of your units; an area doesn't fit a swap). Spark is an area rune that detonates the kegs in its area. **(b)** Until the vision sets each rune's area, area runes use radius 0 (the chosen tile only), which matches today's single-target behavior; marked as a stopgap. **(c)** P02 changes: `CastRuneCommand` carries a tile, not unit ids (a command and wire contract change), and `CombatForecast` gains the rune preview; done in CT6 with the user's approval of those P02 changes here | |
+| 15 | Weapon prefixes (raised by question 2): the vision has prefixes on units only, so which weapons roll them, from which sources (loot, shops, starting gear), with what odds, budgets, price effect and re-roll, and the lists themselves are undecided | Build the model now, content after the vision / wait entirely | **Build the model now, content after the vision:** `WeaponPrefixDefinition` (stat deltas such as damage, Hit, crit, weight and range, applicable weapon types, and for staves the staff kinds it fits), `ItemInstance.prefix_id` (a P01 contract addition, amendment F16), the folders and their content rule, and the loadout applying the deltas. The rules and lists go to the ideation thread; step CT12 enters them once the vision has them. Nothing in M1 rolls a weapon prefix | |
+| 16 | Rune targeting details (raised by question 12) | — | **(a)** Kinds: **area** (the player picks any tile; the rune's area shape and radius from there; the preview lists the tiles and every unit it will hit, through the same sandbox run as P02's forecast, so the preview equals the result), **random** (its own selector, such as a random enemy; no aiming), and **pair** for Recall (two of your units; an area doesn't fit a swap). Spark is an area rune that detonates the kegs in its area. **(b)** Until the vision sets each rune's area, area runes use radius 0 (the chosen tile only), which matches today's single-target behavior; marked as a stopgap. **(c)** P02 changes: `CastRuneCommand` carries a tile, not unit ids (a command and wire contract change), and `CombatForecast` gains the rune preview; done in CT7 with the user's approval of those P02 changes here | **(b) answered October 29, 2026 (user):** this is a gap in the targeting system, not just a rune question. **Ranges and shapes become one shared system**, reused by Cleave and every other area (question 17). Area runes cover only the chosen tile until the vision sets each rune's shape. The shared shapes also leave room for **rune prefixes** that change a rune's values and area size: **post-MVP**, so `prefixes/runes/` is reserved as a stub and nothing is built for it. (a) and (c) open. |
+| 17 | Shared target shapes (raised by 16 (b): Cleave, Sanctuary, Everwall, keg blasts and runes each describe their area their own way today) | One shared shape resource / an area per content kind | **A `TargetShape` resource** in `data/shapes/`, reused by id: a kind, a size, the distance mode (P01 F9: grid or movable) and whether the center tile counts. **Kinds now:** tile, radius (every "within N tiles" in today's content), square and cross. Directional shapes (line, cone) wait until content needs one, since they also need an origin and a facing, which a rune cast from nowhere lacks. P01's `Area` selector takes a shape in place of its own radius (amendment F17), so every area reads one system: area staves (`combat_state.gd:421`), Cleave's splash, MP6's keg blast and runes switch to it in CT6. A size change (a future rune prefix, an effect) applies at runtime as a delta and never edits a shape file | |
 
 ## Scope
 
@@ -66,6 +67,8 @@ Every content kind exists only in the design docs. The code runs on stopgaps tha
   price formula.
 - The weapon prefix model (question 15) and rune targeting with its preview (question 16); their
   content waits on the vision.
+- Shared target shapes (question 17): the `TargetShape` resource, `data/shapes/`, and moving
+  every area in content and code onto it.
 - `CombatValue.Permission.CAN_PICK_LOCKS` (P01 amendment F15) and the Thief's grant.
 
 **Out of scope**
@@ -78,6 +81,8 @@ Every content kind exists only in the design docs. The code runs on stopgaps tha
   contract).
 - Terrain and movement types (P04). Map objects (P04 MP6; P03 supplies the pools and the
   lock-picker permission).
+- Rune prefixes (post-MVP; `prefixes/runes/` is reserved, question 16 (b)), and directional
+  shapes (line, cone; question 17).
 - Status effects and status staves (post-MVP; Hex, Slumber and Fetter stay stubs). Mage Tower and
   Kingdom content. Meta-progression unlocks.
 - Art: icons and sprites are placeholders until the UI plan (P07).
@@ -103,7 +108,8 @@ Every content kind exists only in the design docs. The code runs on stopgaps tha
   keys and lockpicks (question 5) replace "lockpicks are Pouch consumables any unit can carry; no
   unit type picks locks innately"; Everwall's range "—" is 0 (P02 question 14); runes target a
   place with an area of effect and a preview (question 12), where items.md's runes target units.
-- **Not in the vision yet:** weapon prefixes (question 15) and each rune's area (question 16).
+- **Not in the vision yet:** weapon prefixes (question 15), each rune's shape (question 16), and
+  rune prefixes (post-MVP).
   Their rules and values go to the ideation thread; this plan builds the model only.
 - **Open in the vision, not a basis for values:** prefix tuning, the Lancer's growths, re-roll
   prices, balance of every listed value (each doc's "Open questions"). They are entered as
@@ -156,11 +162,12 @@ from `describe()`. Generated text is canonical; the design docs keep their wordi
 | `FactionDefinition` (question 10) | Commander id, starting unit type ids with their gear, max army size |
 | `ItemDefinition` (base) | `kind`, `rarity`, `weight` (0 for Pouch items, as the vision says), `tags` |
 | `WeaponDefinition` | `weapon_type`, profile, damage, damage type, scaling stat and modifier, AtkX, `range_min`/`range_max`, Hit, crit, CritX, `effective_against` (tag ids) |
-| `StaffDefinition` (a weapon, type `staff`) | Staff kind (Block, heal, attack, status stub), base amount (+ Might), area, uses and their refresh (per map or unlimited); attack staves use the weapon fields. Range 0 targets the user (P02 question 14) |
+| `StaffDefinition` (a weapon, type `staff`) | Staff kind (Block, heal, attack, status stub), base amount (+ Might), area (a `TargetShape` id; question 17), uses and their refresh (per map or unlimited); attack staves use the weapon fields. Range 0 targets the user (P02 question 14) |
 | `EquipmentDefinition` | Category: cloak, armor, band, quiver, coating, shield, unique |
 | `TrinketDefinition` | Nothing beyond the base; its effects are the trinket |
 | `ConsumableDefinition` | Use kind (heal, Block, full heal, key, lockpick, stat booster, ingredient), amount, uses and their refresh (per map, total, never used up); ingredients add their eaten and cooked gains |
-| `RuneDefinition` | `target_kind` (questions 12 and 16): **area** (any tile the player picks, plus the rune's `area` shape and radius), **random** (its own selector, such as a random enemy; no aiming) or **pair** (Recall: two of your units) |
+| `RuneDefinition` | `target_kind` (questions 12 and 16): **area** (any tile the player picks, plus the rune's `TargetShape` id), **random** (its own selector, such as a random enemy; no aiming) or **pair** (Recall: two of your units) |
+| `TargetShape` (question 17) | `kind` (tile, radius, square, cross), `size`, distance mode (grid or movable, P01 F9), `includes_center`; `tiles(center)` returns the tiles it covers. Read by P01's `Area` selector (F17), so staves, splash, kegs and runes share it |
 | `HeirloomDefinition` | Tier (common, uncommon, rare, shop, starting, commander), kind (profile, behavior, economy), `coop_only`; the `unique` tag as P01 defines it |
 | `CurseDefinition` (a heirloom tagged `curse`) | Tier (minor, major, severe) |
 
@@ -189,6 +196,8 @@ from `describe()`. Generated text is canonical; the design docs keep their wordi
 | `data/items/trinkets/` | Trinkets |
 | `data/items/consumables/` | Potions, Guard Tonics, the Elixir, the Key, the Lockpick, stat boosters, ingredients |
 | `data/runes/` | Runes |
+| `data/shapes/` | Target shapes, reused by id (question 17) |
+| `data/prefixes/runes/` | Reserved for rune prefixes (post-MVP stub; question 16 (b)); empty in the MVP |
 | `data/heirlooms/` | Heirlooms, starting and Commander Heirlooms included |
 | `data/curses/` | Curses |
 | `data/enemies/` | Enemy classes (P05) |
@@ -261,18 +270,20 @@ needs a migration in P08's section.
 | CT1 Definitions and layout | `scripts/content/*.gd` (one per definition, the id lists, the price table), `data/` folders | Every definition class, rarity, the fixed id lists and prices; the folder tree; one fixture per kind | 🟡 new classes | Approval | Check-only; each fixture loads and its `describe()` text is non-empty. **Opens P01 EB5** |
 | CT2 Instances and loadout | `scripts/content/unit_instance.gd`, `item_instance.gd`, `loadout.gd`; changes in `combat_state.gd`, `combat_unit_state.gd`, `auto_deploy.gd`, `combat_encounter.gd`; `CombatValue.Permission.CAN_PICK_LOCKS` | Instances with capture and restore; stat calculation; the loadout step; the role read (question 13); the permission (F15) and `MapObjects.can_pick_locks()` reading it | 🔴 replaces stopgaps in P02 and P04 code | CT1, EB5 | Round trips; a unit's stats match unit-roster.md with and without a prefix and upgrade; a battle loaded from data equals one built by hand; every existing suite still passes |
 | CT3 M1 content | `data/units/`, `data/units/commanders/`, `data/factions/`, Simple weapons, Shelter, Minor Heal, Potion, Guard Tonic, Iron Heart | The Mercenary army and its gear (question 6) | 🟢 | CT2 | The content test passes; the M1 map opens with the Mercenary army loaded from data; trait text snapshots |
-| CT4 Weapons and staves | `data/items/weapons/**` | All 70 MVP weapons and staves (weapons.md) | 🟢 | CT3 | Content test; a sample of forecasts against hand-computed values |
+| CT4 Weapons and staves | `data/items/weapons/**` | All 70 MVP weapons and staves (weapons.md); Sanctuary and Everwall name their shapes | 🟢 | CT3, CT6 | Content test; a sample of forecasts against hand-computed values |
 | CT5 Equipment, trinkets, consumables | `data/items/{equipment,trinkets,consumables}/` | items.md, with the Key and the Lockpick (question 5) | 🟢 | CT3 | Content test; Training Weights, Spirit Coating and the Short Quiver behave in combat tests |
-| CT6 Runes | `data/runes/`, changes in `cast_rune_command.gd`, `rune_resolver.gd`, `combat_forecast.gd`, `map_objects.gd` | The seven runes with their target kinds (questions 12 and 16); `CastRuneCommand` carries a tile; the rune preview (area tiles and every unit hit) through the forecast's sandbox run; area runes at radius 0 until the vision sets each area; retires both rune stopgaps | 🔴 command and wire contract | CT2 | Each rune's golden fact log; the preview equals the result; Recall as a pair, Spark detonating the kegs in its area |
-| CT7 Prefixes and pools | `data/prefixes/units/`, `scripts/content/item_pools.gd`; change in `map_objects.gd` | The 12 unit prefixes and the tier odds; loot and offer pools by kind and rarity; MP6's chest and house items (`map_objects.gd:TOD-001`) | 🟡 | CT4, CT5 | Prefix budgets match unit-roster.md's table; a seeded pool draw is stable; a Basic or Legendary item never appears in a sellable pool |
-| CT8 Heirlooms and curses | `data/heirlooms/`, `data/curses/` | heirlooms.md and events.md | 🟢 | CT2 | Content test (scopes, unique tags); a golden log per heirloom kind |
-| CT9 Modified-item prices | `scripts/content/prices.gd` | The price and scrap formula from deltas, brought to the user first (question 8) | 🟢 | CT5 | Price examples for *Infuse* and *Forge Resonance* |
-| CT10 Docs | `docs/design/content-authoring.md` (new) | How to add a unit, item or heirloom: folders, ids, fields, the content test | 🟢 | CT3 | Review |
-| CT11 Weapon prefixes | `data/prefixes/weapons/**`, `scripts/content/item_pools.gd` | The weapon prefix lists, odds and sources (question 15) | 🟡 | CT4, CT7, the vision's weapon prefix rules | Content test (folder rule, applicable types); a prefixed weapon's forecast shows the prefix in its breakdown |
+| CT6 Target shapes | `scripts/content/target_shape.gd`, `data/shapes/`; changes in P01's `blocks/selectors/area.gd`, `combat_state.gd` (staff area), `map_objects.gd` (keg blast) | `TargetShape` and its kinds (question 17); P01's `Area` reads a shape (amendment F17); the area staves, Cleave's splash and the keg blast move onto shapes; retires `combat_state.gd:421` | 🔴 changes a P01 block every area uses | CT2 | Each kind's tiles at sizes 0–3, both distance modes; every existing area test (Cleave, Sanctuary, Everwall, kegs) passes unchanged |
+| CT7 Runes | `data/runes/`, changes in `cast_rune_command.gd`, `rune_resolver.gd`, `combat_forecast.gd`, `map_objects.gd` | The seven runes with their target kinds (questions 12 and 16); `CastRuneCommand` carries a tile; the rune preview (area tiles and every unit hit) through the forecast's sandbox run; area runes cover the chosen tile until the vision sets each shape; retires both rune stopgaps | 🔴 command and wire contract | CT6 | Each rune's golden fact log; the preview equals the result; Recall as a pair, Spark detonating the kegs in its area |
+| CT8 Unit prefixes and pools | `data/prefixes/units/`, `scripts/content/item_pools.gd`; change in `map_objects.gd` | The 12 unit prefixes and the tier odds; loot and offer pools by kind and rarity; MP6's chest and house items (`map_objects.gd:TOD-001`) | 🟡 | CT4, CT5 | Prefix budgets match unit-roster.md's table; a seeded pool draw is stable; a Basic or Legendary item never appears in a sellable pool |
+| CT9 Heirlooms and curses | `data/heirlooms/`, `data/curses/` | heirlooms.md and events.md | 🟢 | CT2 | Content test (scopes, unique tags); a golden log per heirloom kind |
+| CT10 Modified-item prices | `scripts/content/prices.gd` | The price and scrap formula from deltas, brought to the user first (question 8) | 🟢 | CT5 | Price examples for *Infuse* and *Forge Resonance* |
+| CT11 Docs | `docs/design/content-authoring.md` (new) | How to add a unit, item, heirloom or shape: folders, ids, fields, the content test | 🟢 | CT3 | Review |
+| CT12 Weapon prefixes | `data/prefixes/weapons/**`, `scripts/content/item_pools.gd` | The weapon prefix lists, odds and sources (question 15) | 🟡 | CT4, CT8, the vision's weapon prefix rules | Content test (folder rule, applicable types); a prefixed weapon's forecast shows the prefix in its breakdown |
 
-M1 needs CT1, EB5, CT2 and CT3. CT4–CT11 can follow in any order their gates allow. The model for
-weapon prefixes (the definition, `ItemInstance.prefix_id`, the loadout applying it) is built in
-CT1 and CT2; only the content waits for the vision.
+M1 needs CT1, EB5, CT2 and CT3. CT4–CT12 can follow in any order their gates allow. The models for
+weapon prefixes (the definition, `ItemInstance.prefix_id`, the loadout applying it) and target
+shapes (the `TargetShape` class) are built in CT1 and CT2; only the content waits for the vision.
+Rune prefixes are post-MVP: `prefixes/runes/` exists and nothing reads it.
 
 ## Breaking Changes
 
@@ -282,7 +293,8 @@ CT1 and CT2; only the content waits for the vision.
 | Unit types, tags and weapon types checked against fixed id lists | Behavior | Any string | Ids from the lists | Proposed (CT2) | `combat_unit_state.gd`, every test fixture | 🟡 |
 | `CombatValue.Permission.CAN_PICK_LOCKS` appended | Enum (P01) | — | New value, default denied | Proposed (CT2) | `combat_value.gd`, `map_objects.gd` | 🟡 |
 | Auto-deployment reads `role` | Behavior (P04) | Ward's type name | `role == "shover"` | Proposed (CT2) | `auto_deploy.gd`, deploy tests | 🟢 |
-| Rune target kinds and `CastRuneCommand` carrying a tile | Command and wire contract (P02) | Unit ids, Recall inferred from a second unit | A tile (area), nothing (random) or two units (pair), read from the rune | Proposed (CT6) | `cast_rune_command.gd`, `rune_resolver.gd`, `map_objects.gd`, P07's rune UI, P11 | 🔴 |
+| `Area` selector reads a `TargetShape` | P01 block (amendment F17) | Its own center and radius | Center plus a shape | Proposed (CT6) | `blocks/selectors/area.gd`, every area in content and tests, `combat_state.gd`, `map_objects.gd` | 🔴 |
+| Rune target kinds and `CastRuneCommand` carrying a tile | Command and wire contract (P02) | Unit ids, Recall inferred from a second unit | A tile (area), nothing (random) or two units (pair), read from the rune | Proposed (CT7) | `cast_rune_command.gd`, `rune_resolver.gd`, `map_objects.gd`, P07's rune UI, P11 | 🔴 |
 | `ItemInstance.prefix_id` | P01 contract addition (F16) | — | New field | Proposed (CT2) | `item_instance.gd`, P08's `roster` | 🟢 |
 | `res://data/` layout | Content layout | `terrain/` only | The folders above | Proposed (CT1) | EB5's catalog | 🟢 |
 
