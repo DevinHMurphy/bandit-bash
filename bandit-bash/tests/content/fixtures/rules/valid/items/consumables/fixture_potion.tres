@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ConsumableDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+use_kind = "heal"
+amount = 10
+rarity = 1
+id = "fixture_potion"
+display_name = "Fixture Potion"

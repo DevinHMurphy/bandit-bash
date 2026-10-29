@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="HeirloomDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="2_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/campaign_grant.gd" id="3_grant"]
+[ext_resource type="Script" path="res://scripts/content/heirloom_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_op"]
+script = ExtResource("3_grant")
+grant = 3
+definition_id = "fixture_mend"
+
+[sub_resource type="Resource" id="Resource_effect"]
+script = ExtResource("1_eff")
+id = "fixture_family_relic_effect"
+trigger = 100
+scope = 2
+tags = 1
+operations = Array[ExtResource("2_ops")]([SubResource("Resource_op")])
+
+[resource]
+script = ExtResource("9_def")
+tier = "starting"
+id = "fixture_family_relic"
+display_name = "Fixture Family Relic"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])

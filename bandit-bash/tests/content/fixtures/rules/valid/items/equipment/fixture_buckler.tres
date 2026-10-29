@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="EquipmentDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+category = "shield"
+rarity = 1
+weight = 2
+id = "fixture_buckler"
+display_name = "Fixture Buckler"

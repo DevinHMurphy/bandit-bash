@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="HeirloomDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="2_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_that.gd" id="3_that"]
+[ext_resource type="Script" path="res://scripts/content/heirloom_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_op"]
+script = ExtResource("3_that")
+what = 2
+
+[sub_resource type="Resource" id="Resource_effect"]
+script = ExtResource("1_eff")
+id = "fixture_iron_heart_effect"
+trigger = 7
+scope = 1
+operations = Array[ExtResource("2_ops")]([SubResource("Resource_op")])
+
+[resource]
+script = ExtResource("9_def")
+tier = "commander"
+id = "fixture_iron_heart"
+display_name = "Fixture Iron Heart"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])

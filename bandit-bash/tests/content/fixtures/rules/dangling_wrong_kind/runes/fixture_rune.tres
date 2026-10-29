@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="RuneDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/rune_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+target_kind = "area"
+shape_id = "fixture_bow"
+id = "fixture_rune"
+display_name = "Fixture Rune"

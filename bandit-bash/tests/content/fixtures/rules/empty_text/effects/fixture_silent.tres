@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="EffectDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="2_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/custom_operation.gd" id="3_cus"]
+
+[sub_resource type="Resource" id="Resource_op"]
+script = ExtResource("3_cus")
+text = ""
+inline = false
+
+[resource]
+script = ExtResource("1_eff")
+id = "fixture_silent"
+trigger = 1
+operations = Array[ExtResource("2_ops")]([SubResource("Resource_op")])
