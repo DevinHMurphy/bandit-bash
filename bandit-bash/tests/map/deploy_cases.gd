@@ -6,14 +6,14 @@
 # File:     deploy_cases.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 27, 2026
+# Modified: October 28, 2026
 # ==============================================================================
 
 extends RefCounted
 ## The deployment cases for tests/map/run_all.gd: [AutoDeploy]'s roles, the Mercenary starting
-## army and a six-unit army on a fixture zone, the commander's row, edges, ties by roster order,
-## tiles a unit can't stand on, determinism, and the opening swap's legality. Reports each case
-## through the check callable it is given.
+## army, a six-unit army and a Mage on a fixture zone, the commander's row, edges, ties by roster
+## order, tiles a unit can't stand on, determinism, and the opening swap's legality. Reports each
+## case through the check callable it is given.
 
 # Preloaded scripts used as types (gdscript.md, Naming): the test map has no class name.
 const MapWorld = preload("res://tests/map/map_world.gd")
@@ -26,15 +26,20 @@ const MOBILE: CombatGrid.MovementType = CombatGrid.MovementType.MOBILE
 const MOUNTED: CombatGrid.MovementType = CombatGrid.MovementType.MOUNTED
 const FLIER: CombatGrid.MovementType = CombatGrid.MovementType.FLIER
 
-# Weapon presets: range min, range max, staff (game-vision.md's Simple weapons, weapons.md).
+const PHYSICAL: CombatFact.DamageType = CombatFact.DamageType.PHYSICAL
+const MAGIC: CombatFact.DamageType = CombatFact.DamageType.MAGIC
+
+# Weapon presets: range min, range max, staff, damage type (game-vision.md's Simple weapons,
+# weapons.md). The javelin stands for any 1–2 physical weapon.
 const WEAPONS: Dictionary[String, Array] = {
-	"sword": [1, 1, CombatState.WeaponStats.Staff.NONE],
-	"axe": [1, 1, CombatState.WeaponStats.Staff.NONE],
-	"lance": [1, 1, CombatState.WeaponStats.Staff.NONE],
-	"bow": [2, 3, CombatState.WeaponStats.Staff.NONE],
-	"dagger": [1, 2, CombatState.WeaponStats.Staff.NONE],
-	"fire": [1, 2, CombatState.WeaponStats.Staff.NONE],
-	"minor_heal": [1, 1, CombatState.WeaponStats.Staff.HEAL],
+	"sword": [1, 1, CombatState.WeaponStats.Staff.NONE, PHYSICAL],
+	"axe": [1, 1, CombatState.WeaponStats.Staff.NONE, PHYSICAL],
+	"lance": [1, 1, CombatState.WeaponStats.Staff.NONE, PHYSICAL],
+	"javelin": [1, 2, CombatState.WeaponStats.Staff.NONE, PHYSICAL],
+	"bow": [2, 3, CombatState.WeaponStats.Staff.NONE, PHYSICAL],
+	"dagger": [1, 2, CombatState.WeaponStats.Staff.NONE, PHYSICAL],
+	"fire": [1, 2, CombatState.WeaponStats.Staff.NONE, MAGIC],
+	"minor_heal": [1, 1, CombatState.WeaponStats.Staff.HEAL, MAGIC],
 }
 
 # Units from unit-roster.md: unit type, movement type, tags, base HP, DEF, weapon, stowed weapon.
@@ -48,6 +53,7 @@ const ROSTER: Dictionary[String, Array] = {
 	"freewing": ["Freewing", FLIER, ["Flier", "Mounted"], 17, 2, "sword", ""],
 	"sellsword": ["Sellsword", DEFAULT, [], 22, 4, "sword", ""],
 	"mage": ["Mage", DEFAULT, [], 16, 1, "fire", ""],
+	"thief": ["Thief", MOBILE, [], 14, 2, "dagger", ""],
 }
 
 # The fixture zone: 4 × 2 tiles near the bottom of a 6 × 6 plain, enemies two tiles in from the
@@ -71,6 +77,7 @@ func run() -> void:
 	_test_roles()
 	_test_mercenary_army()
 	_test_six_unit_army()
+	_test_mage()
 	_test_edges_and_roster_order()
 	_test_front_ties()
 	_test_tiles_a_unit_cant_stand_on()
@@ -88,7 +95,8 @@ func _test_roles() -> void:
 		"lance_armor": AutoDeploy.Role.FRONT,
 		"ward": AutoDeploy.Role.FRONT,
 		"freewing": AutoDeploy.Role.STRIKER,
-		"mage": AutoDeploy.Role.STRIKER,
+		"mage": AutoDeploy.Role.RANGED,
+		"thief": AutoDeploy.Role.STRIKER,
 	}
 	for key: String in expected:
 		var unit: CombatUnitState = _unit(world, key)
@@ -108,6 +116,9 @@ func _test_roles() -> void:
 	staff_in_hand.equipped_weapon_id = "w:staffer:stowed"
 	_add_weapon(world, "w:staffer:stowed", "minor_heal")
 	_ok("role: a staff in hand is support", AutoDeploy.role_of(world.state, staff_in_hand) == 3)
+	var thrower: CombatUnitState = _unit(world, "sellsword", "thrower")
+	_add_weapon(world, thrower.equipped_weapon_id, "javelin")
+	_ok("role: a 1-2 physical weapon stays melee", AutoDeploy.role_of(world.state, thrower) == 1)
 
 
 func _test_mercenary_army() -> void:
@@ -168,6 +179,30 @@ func _test_six_unit_army() -> void:
 			"six: nine units on eight tiles leave off the last role placed",
 			full.tiles.size() == 8 and full.unplaced == PackedStringArray(["medic"]),
 			str(full.unplaced)
+	)
+
+
+func _test_mage() -> void:
+	var world: MapWorld = _zone_world()
+	var army: Array[CombatUnitState] = _army(world, ["drengr", "ward", "mage", "sellsword"])
+	var placement: AutoDeploy.Placement = AutoDeploy.deploy(
+			world.engine, world.state, army, ZONE, ENEMIES, "drengr"
+	)
+	_same(
+			"mage: a tome stands behind the front",
+			_describe(placement),
+			"drengr (1, 4); ward (2, 4); mage (4, 4); sellsword (3, 4)"
+	)
+	_ok(
+			"mage: 1-2 tiles behind the front unit",
+			world.grid.distance(placement.tiles["mage"], placement.tiles["ward"]) <= 2
+			and _enemy_distance(placement.tiles["mage"]) > _enemy_distance(placement.tiles["ward"])
+	)
+	_add_weapon(world, army[2].equipped_weapon_id, "javelin")
+	_same(
+			"mage: with a javelin, a striker in roster order",
+			_describe(AutoDeploy.deploy(world.engine, world.state, army, ZONE, ENEMIES, "drengr")),
+			"drengr (1, 4); ward (2, 4); mage (3, 4); sellsword (4, 4)"
 	)
 
 
@@ -294,14 +329,13 @@ func _test_opening_swap() -> void:
 	world.add_unit("e1", ENEMY, ENEMIES[0])
 	var state: CombatState = world.state
 	_same(
-			"swap: not before the first Phase Start",
+			"swap: closed by default (the setting off)",
 			AutoDeploy.check_opening_swap(state, 0, "drengr", "archer", ZONE),
-			"not the first player phase"
+			"the opening swap is closed"
 	)
-	state.turn = 1
-	state.phase_side = CombatFact.CombatSide.PLAYER
+	state.map.opening_swap_open = true
 	_same(
-			"swap: legal before anyone acts on turn 1",
+			"swap: legal in the window before turn 1",
 			AutoDeploy.check_opening_swap(state, 0, "drengr", "archer", ZONE),
 			""
 	)
@@ -327,32 +361,21 @@ func _test_opening_swap() -> void:
 			AutoDeploy.check_opening_swap(state, 0, "drengr", "archer", outside),
 			"not on a deployment tile"
 	)
-	state.unit("hakkapel").has_acted = true
+	var copy: CombatState = state.copy_for_sandbox()
+	_ok("swap: a sandbox copy keeps the window open", copy.map.opening_swap_open)
+	copy.map.opening_swap_open = false
+	_ok("swap: closing it there leaves the real one open", state.map.opening_swap_open)
+	state.map.opening_swap_open = false
 	_same(
-			"swap: closed once a unit has acted",
+			"swap: closed once Start closes the window",
 			AutoDeploy.check_opening_swap(state, 0, "drengr", "archer", ZONE),
-			"a unit has already acted"
-	)
-	state.unit("hakkapel").has_acted = false
-	state.turn = 2
-	_same(
-			"swap: closed after turn 1",
-			AutoDeploy.check_opening_swap(state, 0, "drengr", "archer", ZONE),
-			"not the first player phase"
-	)
-	state.turn = 1
-	state.phase_side = CombatFact.CombatSide.ENEMY
-	_same(
-			"swap: closed in the enemy phase",
-			AutoDeploy.check_opening_swap(state, 0, "drengr", "archer", ZONE),
-			"not the first player phase"
+			"the opening swap is closed"
 	)
 
 	var river: MapWorld = MapWorld.new(["plain river"])
 	river.add_unit("foot", PLAYER, Vector2i(0, 0))
 	river.add_unit("flier", PLAYER, Vector2i(1, 0), FLIER)
-	river.state.turn = 1
-	river.state.phase_side = CombatFact.CombatSide.PLAYER
+	river.state.map.opening_swap_open = true
 	_same(
 			"swap: each must stand on the other's tile",
 			AutoDeploy.check_opening_swap(
@@ -410,6 +433,7 @@ func _add_weapon(world: MapWorld, weapon_id: String, preset: String) -> void:
 	stats.range_min = WEAPONS[preset][0]
 	stats.range_max = WEAPONS[preset][1]
 	stats.staff = WEAPONS[preset][2]
+	stats.damage_type = WEAPONS[preset][3]
 	world.state.add_weapon(stats)
 
 

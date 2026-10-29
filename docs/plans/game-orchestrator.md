@@ -43,10 +43,10 @@ into `dev`; plan and orchestrator commits go to `dev`; `main` holds released sta
 - **Code:** the save system is built and on `main`. On `dev`, built, tested headless and merged:
   - P01: EB1–EB4, EB6 (with its fix-ups) and EB9;
   - P02: CC1–CC5;
-  - P04: MP1–MP3;
+  - P04: MP1–MP3 (with the MP3 fix-ups);
   - P13: R1–R4 and R6.
 
-  Tests passing: sessions 159 (169 with a test user folder), map 235, combat 426, effects 521,
+  Tests passing: sessions 159 (169 with a test user folder), map 240, combat 426, effects 521,
   RNG 154 and save 204. The combat rules (exchange, splash, Shove, staves, Pouch items, swaps,
   runes) run in tests. Battles run inside sessions, with setup, commands, grants and transfers
   between maps. There is no turn loop yet.
@@ -81,9 +81,9 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 |----|------|------|--------|-----------|----------|--------------|
 | P00 | Save system | [2026-10-13-save-system.md](2026-10-13-save-system.md) | **Implemented** October 14, 2026 (multiplayer paths untested live) | — | All | save-system.md |
 | P01 | Event bus and effects | [2026-10-23-event-bus-and-effects.md](2026-10-23-event-bus-and-effects.md) | **In progress** (approved October 26, 2026; amended with P02's and P13's needs the same day): EB1–EB4 implemented with fixes F1–F12; EB9 implemented (results in P01); EB6 implemented October 28, 2026 with its fix-ups (questions 40–49); EB7 ready; EB5 waits on P03 | P00 | Every gameplay plan | effects-system.md, effect-triggers.md |
-| P02 | Combat core: turns and phases, action economy, the exchange, damage stages, Block, Stance, triangle, crits, Parry, Shove, staves, Pouch items, weapon swaps, runes, forecast, `CombatGrid` interface | [2026-10-26-combat-core.md](2026-10-26-combat-core.md) | **Approved** October 26, 2026 (reviewed: questions 9–12 answered, seven fixes). **In progress:** CC1–CC5 built (426 headless combat tests pass); CC6 ready (EB6 implemented), built with P04 MP4; no open questions (14: range 0 is self; 17: the opening swap is a setting, its window before turn 1 closed by Start) | P01 (EB2–EB4, plus amendments N1–N10) | P04, P05, P06, P07 | game-vision.md Combat |
+| P02 | Combat core: turns and phases, action economy, the exchange, damage stages, Block, Stance, triangle, crits, Parry, Shove, staves, Pouch items, weapon swaps, runes, forecast, `CombatGrid` interface | [2026-10-26-combat-core.md](2026-10-26-combat-core.md) | **Approved** October 26, 2026 (reviewed: questions 9–12 answered, seven fixes). **In progress:** CC1–CC5 built (426 headless combat tests pass); CC6 in progress with P04 MP4 (`feature/CC6-MP4`, started October 28, 2026): part 1 (turn loop, hooks, commands) built, 491 combat tests; its swap part after the MP3 fix-ups merge; no open questions (14: range 0 is self; 17: the opening swap is a setting, its window before turn 1 closed by Start; 18: CC6 part 1 choices accepted) | P01 (EB2–EB4, plus amendments N1–N10) | P04, P05, P06, P07 | game-vision.md Combat |
 | P03 | Content catalog: unit types, traits and upgrades, the Drengr, prefixes, weapons, staves, items, ingredients, runes, heirlooms, curses | — | **Not started** (sketch before EB5; may split into units / items / heirlooms) | P01 (EB3, EB5) | M1 content, P08, P09 | unit-roster.md, weapons.md, items.md, heirlooms.md, events.md (curses) |
-| P04 | Combat map: grid, terrain, pathing, deployment, objectives, reinforcement points, map objects, map authoring and its checks | [2026-10-27-combat-map.md](2026-10-27-combat-map.md) | **Approved** October 27, 2026 (13 questions answered; "within N movable tiles" cut; no prep screen); **In progress:** MP1–MP3 built and merged October 28, 2026 (235 headless map tests pass); MP3 fix-ups ready (questions 14–19); MP4 ready with P02 CC6, MP6 ready; MP5 after MP4, MP7 after MP6, MP8 after EB7 and CC8 | P01 (EB6), P02 | P05, P06, P07, M1 | game-vision.md Combat maps, map-objects.md |
+| P04 | Combat map: grid, terrain, pathing, deployment, objectives, reinforcement points, map objects, map authoring and its checks | [2026-10-27-combat-map.md](2026-10-27-combat-map.md) | **Approved** October 27, 2026 (13 questions answered; "within N movable tiles" cut; no prep screen); **In progress:** MP1–MP3 built and merged October 28, 2026, with the MP3 fix-ups (240 headless map tests pass); MP4 in progress with P02 CC6 (built before CC6's swap part); MP6 ready; MP5 after MP4, MP7 after MP6, MP8 after EB7 and CC8 | P01 (EB6), P02 | P05, P06, P07, M1 | game-vision.md Combat maps, map-objects.md |
 | P05 | Enemies and AI: classes, intents, danger zone, ruthless AI, signature moves, elites, mini-bosses, the Powder Baron | — | **Not started** | P02, P04 | M1, M2 | enemy-roster.md |
 | P06 | The darkness | — | **Not started** | P02, P04 | M1 | the-darkness.md |
 | P07 | Combat UI and forecast: forecast panel, move preview (darkness damage), danger zone and intent display, HUD | — | **Not started** (minimal version for M1) | P02, P04, P05 | M1, M2 | game-vision.md Combat, Enemy intentions |
@@ -92,7 +92,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P10 | Net transport: `Net` autoload, RPCs, command validation, Steam lobby integration | — | **Not started** | P00, P01 | P11 | multiplayer-combat-options.md, `steam_multiplayer_kit/` (read first) |
 | P11 | Co-op combat: parallel maps, reinforcements, rune routing, spectating, fast-forward votes, disconnects and forfeits, per-map battle saves | — | **Not started** | P01 (EB6–EB7), P02, P04, P08, P10 | M4 | game-vision.md Multiplayer maps, multiplayer-combat-options.md |
 | P12 | Statistics recording and the Waystation war table | — | **Not started** | P01, P08 | M5 | meta-progression.md (MVP parts) |
-| P13 | RNG streams: run seed, named streams and their derivation, co-op stream layout, save and resume in the reserved `rng` sections, determinism rules | [2026-10-26-rng-streams.md](2026-10-26-rng-streams.md) | **In progress** (approved October 26, 2026): R1–R4 built and merged (154 headless tests pass); R6 built with P01 EB4 and EB6; R5 ready (it registers from `CampaignService`, built in EB6) | P00 | P01 EB4/EB6, P02, P04, P05, P06, P08, P09, P11 | save-system.md (`rng` sections), P01 roll sources |
+| P13 | RNG streams: run seed, named streams and their derivation, co-op stream layout, save and resume in the reserved `rng` sections, determinism rules | [2026-10-26-rng-streams.md](2026-10-26-rng-streams.md) | **In progress** (approved October 26, 2026): R1–R4 built and merged (154 headless tests pass); R6 built with P01 EB4 and EB6; R5 in progress (`feature/R5`, in its own worktree, prompt issued October 28, 2026; it registers from `CampaignService`, built in EB6) | P00 | P01 EB4/EB6, P02, P04, P05, P06, P08, P09, P11 | save-system.md (`rng` sections), P01 roll sources |
 | P20 | Meta progression: unlocks, difficulty ladder, almanac, Hall of Heroes, run history, achievements, Waystation stations | — | Post-MVP | P12 | — | meta-progression.md |
 | P21 | Training yard and tutorials | — | Post-MVP | P07 | — | meta-progression.md |
 | P22 | Dev console | — | Post-MVP (scoped when needed) | P01 | — | meta-progression.md Developer tools |
@@ -190,6 +190,7 @@ flowchart LR
   subgraph P04[P04 Combat map]
     MP1 --> MP2 --> MP3
     MP3 --> MP3F[MP3 fix-ups]
+    MP3F --> CC6
     MP2 --> MP4[MP4 objectives]
     MP4 --> MP5[MP5 M1 map + check]
     MP2 --> MP6[MP6 map objects]
@@ -212,10 +213,12 @@ flowchart LR
   CC8 --> MP8
 
   classDef done fill:#c8e6c9,stroke:#2e7d32,color:#1b1b1b
+  classDef active fill:#bbdefb,stroke:#1565c0,color:#1b1b1b
   classDef ready fill:#fff3c4,stroke:#b8860b,color:#1b1b1b
   classDef waiting fill:#e0e0e0,stroke:#757575,color:#1b1b1b
-  class R1,R2,R3,R4,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,MP1,MP2,MP3 done
-  class R5,EB7,CC6,MP3F,MP4,MP6,P03S ready
+  class R1,R2,R3,R4,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,MP1,MP2,MP3,MP3F done
+  class CC6,MP4,R5 active
+  class EB7,MP6,P03S ready
   class EB5,CC7,CC8,MP5,MP7,MP8 waiting
 ```
 
@@ -267,7 +270,7 @@ from starting; each is asked inside its plan's Open Questions.
 
 | Plan | Item | Source |
 |------|------|--------|
-| P03 | The Ring of Favor needs a Legendary-sized effect; Heavy Brick is Unique with no source; the Lancer's growths are a `Godot_FE` copy-paste; item effects may sit outside their ported rarity's budget; Brothers in Arms needs a selector filter ("adjacent to a unit of another player") the engine doesn't have (P01 question 30); the content test rejects a staff or weapon with no range, and an attack (weapon or attack staff) with range 0 (P02 question 14) | items.md, unit-roster.md, heirlooms.md, weapons.md |
+| P03 | The Ring of Favor needs a Legendary-sized effect; Heavy Brick is Unique with no source; the Lancer's growths are a `Godot_FE` copy-paste; item effects may sit outside their ported rarity's budget; Brothers in Arms needs a selector filter ("adjacent to a unit of another player") the engine doesn't have (P01 question 30); the content test rejects a staff or weapon with no range, and an attack (weapon or attack staff) with range 0 (P02 question 14); say which rune is Recall, or let a rune declare that it targets a second unit (CC6 treats any cast naming a second unit as Recall until then, P02 question 18); mark shove specialists in unit data, so auto-deployment reads the Shover from it instead of the Ward's type name (`auto_deploy.gd:TOD-001`) | items.md, unit-roster.md, heirlooms.md, weapons.md |
 | P08 | Personal XP for "gave Block" ignores `BLOCK_GAINED` facts with amount 0 (P01 question 24) | P01 |
 | P08 | Re-gearing at Camps (user, October 27, 2026: no combat has a prep screen; the map before the boss has a Camp); decide whether army management stays available anywhere else on the campaign map, given the goal of less menuing | P04 question 4 |
 | P04 / P06 | Turn par and reinforcement timers per map are set when maps are authored; darkness values on small maps need M1 playtesting | game-vision.md, the-darkness.md |
@@ -311,10 +314,10 @@ more enemy factions, units with convoy access, shared and hybrid co-op battles, 
 1. **Build P02 CC6 with P04 MP4** (turn loop, commands, hooks, the enemy phase as one command, the
    opening-swap window before turn 1 closed by a Start command when the seat's setting is on,
    objective checks recording `COMBAT_ENDED` with the winning `side`, range-0 staves targeting
-   their user). This is the critical path to M1. Its swap part needs the P04 MP3 fix-ups merged.
+   their user). This is the critical path to M1. Part 1 is built; MP4 is being built now. The
+   MP3 fix-ups are on `dev`, so the swap part follows once the branch merges `dev` in.
 2. **Alongside, on separate branches:**
-   - P04 MP3 fix-ups (`feature/P04-MP3-fixups`, send first: small, and CC6 needs its
-     `opening_swap_open` flag), then MP6 (map objects and the container-contents field);
+   - P04 MP6 (map objects and the container-contents field);
    - P13 R5 (`rng` sections from `CampaignService`).
    - P01 EB7 (serialization, rejoin) may start too. It edits the same session files as CC6, so
      merge CC6 first and rebase EB7 onto it.
@@ -360,3 +363,6 @@ more enemy factions, units with convoy access, shared and hybrid co-op battles, 
 | October 28, 2026 | **P01 EB6 fix-ups merged into `dev`** (9b47f3e), with the review answers recorded as P01 questions 44–49. The changes: <br>• grants go through `EffectEngine.grants`, so a reaction dropped by the cap grants nothing; <br>• `SaveService.campaign_cleared` tears the session down; <br>• only a won map sends units, with `COMBAT_ENDED.side` naming the winner (P04 MP4 must set it); <br>• the confirmed markers are removed. <br>Cross-map delivery is deferred. Verified: sessions 159 (169 with a test user folder, both new teardown cases included), map 235, combat 426, effects 521, RNG 154, save 204; headless launch clean. Three P11 design items were added. The dependency graph is now two views (plans and build steps) colored by status, and the plan edges now follow the registry (P01 → P09, P11, P12; P02 → P11; P13 → every plan that rolls). New gates were added for R5, MP4, MP8 and CC8. |
 | October 28, 2026 | P02 question 14 answered by the user: no staff or weapon has "no range". A staff that works around its user has range 0 and targets only the user, so the player picks no target (Everwall). P02 has no open questions. The content test (P03, EB5) rejects missing ranges and attacks at range 0; the weapons.md change is queued for the ideation thread. |
 | October 28, 2026 | P02 question 17 answered by the user: the opening swap is a **player setting** (like Pokémon's Set / Shift). On: the battle opens in a swap window before turn 1, and the seat's Start command runs turn 1's Phase Start, so position effects use the final tiles. Off: no window and no Start press. P04 question 17 amended (the flag defaults to false; CC6 opens it). P07 owns the setting (default assumed on, menu, save); the vision update is queued. CC6 + MP4 and MP3 fix-up prompts issued. |
+| October 28, 2026 | Started by the user: P02 CC6 with P04 MP4 (`feature/CC6-MP4`) and the P04 MP3 fix-ups (`feature/P04-MP3-fixups`); the step graph shows them in progress. P13 R5 prompt issued, with two findings from re-reading it: sections restore while the file loads, before `CampaignService` builds the session, so each `rng` section validates and holds its data until the session exists; and `RngStreams` still saves `MAP_LOOT` in the combat section, though P01 question 40 saves it nowhere (R5 corrects it). |
+| October 28, 2026 | **P02 CC6 part 1 built** on `feature/CC6-MP4` (ec2f83d, in its own worktree): `PhaseRunner`, `CombatHooks`, `CommandValidator`, the unit-turn, end-turn and cast-rune commands; combat 491, sessions 162 (1 skipped), other suites unchanged. Its swap part waits on the MP3 fix-ups (129cedf, not yet reviewed), so the agent builds MP4 first. P02 question 18 answered by the user (all choices accepted, including terrain healing rounding once through the heal path); a P03 item added (which rune is Recall). |
+| October 28, 2026 | **P04 MP3 fix-ups merged into `dev`** (9f7801a): a unit is ranged when its equipped weapon can't attack at 1 or deals magic damage; the opening swap reads only `MapState.opening_swap_open` (default false, copied for sandboxes; CC6 opens and closes it; MP8 saves it); the confirmed deploy markers became docs; "Shover = Ward" became `auto_deploy.gd:TOD-001` (P03 item). Verified: sessions 169 with the test user folder, map 240, combat 426, effects 521, RNG 154, save 204; headless launch clean. CC6's swap part is unblocked; the step graph shows R5 in progress. Four MP1/MP2 assumptions raised to the user. |
