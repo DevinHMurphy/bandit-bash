@@ -4,7 +4,7 @@ The living map of every implementation plan for Bandit Bash: what exists, what e
 what may start next, and what stays out of scope. It keeps the project on the MVP and makes sure no
 plan reaches implementation with a missing dependency.
 
-**Created:** October 25, 2026. **Last updated:** October 28, 2026.
+**Created:** October 25, 2026. **Last updated:** October 29, 2026.
 
 This is not an implementation plan (those use the template in
 `docs/standards/gdscript-reference.md`). It has no work of its own; it tracks the plans that do.
@@ -43,10 +43,10 @@ into `dev`; plan and orchestrator commits go to `dev`; `main` holds released sta
 - **Code:** the save system is built and on `main`. On `dev`, built, tested headless and merged:
   - P01: EB1–EB4, EB6 (with its fix-ups) and EB9;
   - P02: CC1–CC6;
-  - P04: MP1–MP4 (with the MP3 fix-ups);
+  - P04: MP1–MP5 (with the MP3 fix-ups);
   - P13: R1–R4 and R6.
 
-  Tests passing (with a test user folder): sessions 178, map 293, combat 525, effects 521, RNG 154
+  Tests passing (with a test user folder): sessions 178, map 353, combat 525, effects 521, RNG 154
   and save 204. The combat rules (exchange, splash, Shove, staves, Pouch items, swaps, runes) run
   in tests. Battles run inside sessions, with setup, commands, grants and transfers between maps,
   and now a turn loop: phases and hooks, unit turns, end turn, runes, the enemy phase as one
@@ -85,7 +85,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P01 | Event bus and effects | [2026-10-23-event-bus-and-effects.md](2026-10-23-event-bus-and-effects.md) | **In progress** (approved October 26, 2026; amended with P02's and P13's needs the same day): EB1–EB4 implemented with fixes F1–F12; EB9 implemented (results in P01); EB6 implemented October 28, 2026 with its fix-ups (questions 40–49); EB7 ready; EB5 waits on P03 | P00 | Every gameplay plan | effects-system.md, effect-triggers.md |
 | P02 | Combat core: turns and phases, action economy, the exchange, damage stages, Block, Stance, triangle, crits, Parry, Shove, staves, Pouch items, weapon swaps, runes, forecast, `CombatGrid` interface | [2026-10-26-combat-core.md](2026-10-26-combat-core.md) | **Approved** October 26, 2026 (reviewed: questions 9–12 answered, seven fixes). **In progress:** CC1–CC6 built and merged (CC6 with P04 MP4, October 28, 2026; 525 headless combat tests pass); CC7 ready; CC8 after EB7; no open questions (14: range 0 is self; 17: the opening swap is a setting, its window before turn 1 closed by Start; 18: CC6 part 1 choices accepted) | P01 (EB2–EB4, plus amendments N1–N10) | P04, P05, P06, P07 | game-vision.md Combat |
 | P03 | Content catalog: unit types, traits and upgrades, the Drengr, prefixes, weapons, staves, items, ingredients, runes, heirlooms, curses | — | **Not started** (sketch before EB5; may split into units / items / heirlooms) | P01 (EB3, EB5) | M1 content, P08, P09 | unit-roster.md, weapons.md, items.md, heirlooms.md, events.md (curses) |
-| P04 | Combat map: grid, terrain, pathing, deployment, objectives, reinforcement points, map objects, map authoring and its checks | [2026-10-27-combat-map.md](2026-10-27-combat-map.md) | **Approved** October 27, 2026 (13 questions answered; "within N movable tiles" cut; no prep screen); **In progress:** MP1–MP4 built and merged October 28, 2026, with the MP3 fix-ups (MP4 with P02 CC6; 293 headless map tests pass); MP5 and MP6 ready; MP7 after MP6, MP8 after EB7 and CC8 | P01 (EB6), P02 | P05, P06, P07, M1 | game-vision.md Combat maps, map-objects.md |
+| P04 | Combat map: grid, terrain, pathing, deployment, objectives, reinforcement points, map objects, map authoring and its checks | [2026-10-27-combat-map.md](2026-10-27-combat-map.md) | **Approved** October 27, 2026 (13 questions answered; "within N movable tiles" cut; no prep screen); **In progress:** MP1–MP4 built and merged October 28, 2026, with the MP3 fix-ups (MP4 with P02 CC6); MP5 (the M1 greybox map, `MapMarker`, `MapCheck`) merged October 29, 2026 (353 headless map tests pass; question 22 open); MP6 ready; MP7 after MP6, MP8 after EB7 and CC8 | P01 (EB6), P02 | P05, P06, P07, M1 | game-vision.md Combat maps, map-objects.md |
 | P05 | Enemies and AI: classes, intents, danger zone, ruthless AI, signature moves, elites, mini-bosses, the Powder Baron | — | **Not started** | P02, P04 | M1, M2 | enemy-roster.md |
 | P06 | The darkness | — | **Not started** | P02, P04 | M1 | the-darkness.md |
 | P07 | Combat UI and forecast: forecast panel, move preview (darkness damage), danger zone and intent display, HUD | — | **Not started** (minimal version for M1) | P02, P04, P05 | M1, M2 | game-vision.md Combat, Enemy intentions |
@@ -219,9 +219,9 @@ flowchart LR
   classDef active fill:#bbdefb,stroke:#1565c0,color:#1b1b1b
   classDef ready fill:#fff3c4,stroke:#b8860b,color:#1b1b1b
   classDef waiting fill:#e0e0e0,stroke:#757575,color:#1b1b1b
-  class R1,R2,R3,R4,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,MP1,MP2,MP3,MP3F,MP4 done
-  class R5 active
-  class EB7,CC7,MP5,MP6,P03S ready
+  class R1,R2,R3,R4,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,MP1,MP2,MP3,MP3F,MP4,MP5 done
+  class R5,CC7 active
+  class EB7,MP6,P03S ready
   class EB5,CC8,MP7,MP8 waiting
 ```
 
@@ -277,13 +277,15 @@ from starting; each is asked inside its plan's Open Questions.
 | P08 | Personal XP for "gave Block" ignores `BLOCK_GAINED` facts with amount 0 (P01 question 24) | P01 |
 | P08 | What each whole turn under par is worth in the speed bonus (MP4 counts the turns) | P04 question 21 |
 | P08 | Re-gearing at Camps (user, October 27, 2026: no combat has a prep screen; the map before the boss has a Camp); decide whether army management stays available anywhere else on the campaign map, given the goal of less menuing | P04 question 4 |
-| P04 / P06 | Turn par and reinforcement timers per map are set when maps are authored; darkness values on small maps need M1 playtesting | game-vision.md, the-darkness.md |
+| P04 / P06 | Turn par and reinforcement timers per map are set when maps are authored; darkness values on small maps need M1 playtesting. The M1 greybox map's par is 5, provisional (P04 MP5); its `# ASSUMPTION` is a `;` comment in the `.tres`, which an editor re-save drops | game-vision.md, the-darkness.md |
+| P06 | The M1 greybox map has no darkness-source candidates; P06's check requires 2, so P06 adds them to it | P04 MP5 |
 | P07 / P08 | Show the run seed on the pause screen (P07) and the results screen (P08), formatted by `RunSeed.format()` (P13 R4 follow-up) | P13 |
 | P07 | The opening-swap setting (P02 question 17): an options-menu toggle, per player, saved with the player's settings (state the `PlayerSaveSection` impact); its default (assumed **on** until decided, for casual players); what the swap window shows before turn 1 (danger zone; intents only exist after Start, unless P05 previews them) | P02 question 17 |
 | P12 | Whether runs abandoned by the save debug panel's "New Solo Run From Seed" count as lost runs in statistics | P13 R4 |
 | P04 | Tile coordinates are never negative (P01 question 37, `CombatFact.NO_TILE`); `MapCheck` enforces it (MP5). ("Within N movable tiles" was cut October 27, 2026.) | P01 |
 | P05 | The Brigands' real name and theme (flavor only) | enemy-roster.md |
 | P05 | Mark bosses and mini-bosses in enemy data; until then MP4's objectives treat the enemy on a leader slot as the boss | P04 question 21 |
+| P05 | Whether enemy slots need a stable index (MP5 gives them none; adding one changes `MapLayout` ids, so decide before maps are authored in bulk) | P04 MP5 |
 | P05 | The AI's branch budget and whether sandboxes become copy on write or lazy, from P01 EB9's results (exact `ExchangeOutcome` is about 2 ms per branch; one exchange reads 2–3 of 11 units); measure a release build first | P01 EB9 |
 | P07 | `Godot_FE`'s ranged multi-tile forecast defect (FR-GRID-6) to investigate | P01 contracts |
 | P11 | Light links beyond runes on a teammate's map | multiplayer-combat-options.md |
@@ -317,17 +319,14 @@ more enemy factions, units with convoy access, shared and hybrid co-op battles, 
 
 ## Next actions
 
-1. **Build P04 MP5** (the M1 greybox map, `MapMarker` nodes, `MapCheck`) and **P02 CC7**
-   (forecast and the AI summary): the critical path to M1, now that CC6 and MP4 are in. Prompts
-   issued October 28, 2026. MP5 also removes the confirmed markers in its files (P04 questions 20
-   and 21); CC7 removes the terrain-healing one (P02 question 18).
+1. **Finish P02 CC7** (forecast and the AI summary; built, review answers out: the any-fact stale
+   rule, `add_context_observer`, one shared path walk), then merge. MP5 is merged (October 29,
+   2026).
 2. **Alongside, on separate branches** (prompts issued October 28, 2026):
-   - P01 EB7 (serialization, rejoin), branched from `dev` now that CC6 is merged. It and R5 both
-     register sections in `CampaignService._ready()`: whichever merges second rebases;
-   - P13 R5 (`rng` sections from `CampaignService`, in progress);
-   - P04 MP6 (map objects and the container-contents field) **after MP5 merges**: door and lever
-     groups and passage pairs are `MapMarker` nodes, which MP5 builds (P04 question 18), and both
-     steps edit the layout and loader.
+   - P04 MP6 (map objects and the container-contents field): MP5 is in, so send its prompt now;
+   - P01 EB7 (serialization, rejoin). It and R5 both register sections in
+     `CampaignService._ready()`: whichever merges second rebases;
+   - P13 R5 (`rng` sections from `CampaignService`, in progress).
 3. **After them:** MP7 after MP6; CC8 after EB7; MP8 after CC8.
 4. **Plan one step ahead:** sketch P03 (content catalog, which opens EB5), then draft P05 (enemies
    and AI) and P06 (the darkness). Both depend only on P02 and P04, which are approved.
@@ -374,3 +373,5 @@ more enemy factions, units with convoy access, shared and hybrid co-op battles, 
 | October 28, 2026 | **P04 MP3 fix-ups merged into `dev`** (9f7801a): a unit is ranged when its equipped weapon can't attack at 1 or deals magic damage; the opening swap reads only `MapState.opening_swap_open` (default false, copied for sandboxes; CC6 opens and closes it; MP8 saves it); the confirmed deploy markers became docs; "Shover = Ward" became `auto_deploy.gd:TOD-001` (P03 item). Verified: sessions 169 with the test user folder, map 240, combat 426, effects 521, RNG 154, save 204; headless launch clean. CC6's swap part is unblocked; the step graph shows R5 in progress. Four MP1/MP2 assumptions raised to the user. |
 | October 28, 2026 | **P02 CC6 + P04 MP4 merged into `dev`** (3119226): the turn loop (`PhaseRunner`, `CombatHooks`, `CommandValidator`), the unit-turn, end-turn, cast-rune and Start commands, the opening swap window (`BattleRequest.opening_swap` per seat, opened by `CombatSession.open_battle`, closed by the last Start, which runs turn 1's player Phase Start), and `Objectives` ending each map with `COMBAT_ENDED` and the winning `side`. Verified: sessions 178 with the test user folder, map 293, combat 525, effects 521, RNG 154, save 204; headless launch clean. Gates opened: P02 CC7, P04 MP5. New assumptions raised to the user (objective ties, the speed bonus count, shared-map commanders, the boss slot, the waves' shape, the swap default). |
 | October 28, 2026 | User confirmed P04 questions 20 (four MP1/MP2 assumptions) and 21 (MP4's assumptions); design items added for P05 (boss marking), P08 (speed bonus worth) and P11 (shared-map commanders). MP6 now follows MP5 (`MapMarker` nodes; a new edge on the step graph). Prompts issued: P04 MP5, P02 CC7, P01 EB7, P04 MP6 (to start after MP5 merges). |
+| October 29, 2026 | P02 CC7 report reviewed (built on `feature/CC7`, not yet committed; combat 595): recommendations to the user on its four questions plus one: any fact since `based_on_seq` makes an attack, staff or shove stale (the radius rule waits for shared battles); `EffectEngine.add_context_observer` for exact breakdowns; sample numbering confirmed; keep the 1,000-exchange test; share one path walk between the command and the forecast. Recorded as P01 / P02 answers once the user confirms.
+| October 29, 2026 | **P04 MP5 merged into `dev`** (b45fcb5): `MapMarker` nodes (enemy slots), the loader reading them with ids unchanged, `MapCheck` (every rule but P06's), the M1 greybox map (10×8 Rout, river and two bridges, 8 deployment tiles, 4 enemy slots and a leader slot) and its TileSet; question 20 and 21 markers removed, `objectives.gd` TOD-003 (MP7) and TOD-004 (P05) added. Verified: sessions 178 with the test user folder, map 353, combat 525, effects 521, RNG 154, save 204; headless launch clean. P04 question 22 raised (the additive `group_id` and `pair_id` marker fields; five assumptions). Design items added for P05 (enemy-slot index) and P06 (M1's darkness sources). MP6 may start. |

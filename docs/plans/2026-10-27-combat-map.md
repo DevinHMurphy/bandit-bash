@@ -1,7 +1,7 @@
 # Plan: Combat Map
 **Date:** October 27, 2026
 **Status:** **Approved** October 27, 2026; MP1–MP3 (with fix-ups) and MP4 (with P02 CC6)
-implemented October 28, 2026 (293 headless map tests pass). After review (questions 12–13 answered; "within N
+implemented October 28, 2026; MP5 implemented October 29, 2026 (353 headless map tests pass). After review (questions 12–13 answered; "within N
 movable tiles" cut; no prep screen in any combat). Orchestrator ID **P04**
 ([game-orchestrator.md](game-orchestrator.md)). Its approval opens P01 EB6 (sessions).
 
