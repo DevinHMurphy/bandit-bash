@@ -18,7 +18,7 @@ extends Command
 ## its last tile on a sandbox copy of the engine, so a rejected turn changes nothing, and
 ## [method resolve] does the same for real. Actions: Wait, Attack (any weapon, attack staves
 ## included; [member weapon_id] may name the stowed weapon when Sidearm makes the swap free), use a
-## Block or heal staff, Shove, use a Pouch item, swap weapons (the action), and
+## Block or heal staff, Shove, use a Pouch item, swap weapons (the action), use a map object, and
 ## [constant Action.MOVE]: the second move after acting that
 ## [constant CombatValue.Permission.MAY_MOVE_AFTER_ACTING] allows, with the movement left.
 ## A staff of range 0 targets its user:
@@ -52,6 +52,9 @@ enum Action {
 	## in the opening swap window before turn 1 ([method AutoDeploy.check_opening_swap]). Takes no
 	## path and ends no turn.
 	OPENING_SWAP = 7,
+	## Uses the map object [member target_id] (open, search, pull, light, take a passage), with
+	## [member item_id] as the key or lockpick when it opens a lock ([method MapObjects.use]).
+	USE_OBJECT = 8,
 }
 
 ## The tiles the unit walks, starting on its own tile ([method CombatState.validate_path]). Empty:
@@ -64,7 +67,8 @@ var action: Action = Action.WAIT
 ## The unit the action is aimed at. Empty for Wait, a weapon swap, a move, and a range-0 staff.
 var target_id: String = ""
 
-## The Pouch item an [constant Action.ITEM] uses.
+## The Pouch item an [constant Action.ITEM] uses, or the key or lockpick an
+## [constant Action.USE_OBJECT] opens a lock with; empty for none.
 var item_id: String = ""
 
 ## The weapon an [constant Action.ATTACK] uses: empty or the Weapon slot's for that weapon, the
@@ -152,6 +156,8 @@ func resolve(session: CombatSession) -> void:
 			ItemUseResolver.resolve(engine, state, actor_id, target_id, item_id)
 		Action.SWAP_WEAPON:
 			WeaponSwap.resolve(engine, state, actor_id, false)
+		Action.USE_OBJECT:
+			MapObjects.use(engine, state, actor_id, target_id, item_id)
 		Action.MOVE:
 			state.unit(actor_id).is_second_move_pending = false
 			return
@@ -190,6 +196,8 @@ func _action_reason(engine: EffectEngine, state: CombatState) -> String:
 			return ItemUseResolver.check(engine, state, actor_id, target_id, item_id)
 		Action.SWAP_WEAPON:
 			return WeaponSwap.check(engine, state, actor_id, false)
+		Action.USE_OBJECT:
+			return MapObjects.check_use(engine, state, actor_id, target_id, item_id)
 	return "unknown action %d" % [action]
 
 

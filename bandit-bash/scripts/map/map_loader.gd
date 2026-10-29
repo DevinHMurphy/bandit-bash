@@ -6,7 +6,7 @@
 # File:     map_loader.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 28, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 class_name MapLoader
@@ -17,10 +17,10 @@ extends RefCounted
 ## [code]terrain[/code] custom data string, a [member TerrainDefinition.id]; every other
 ## [TileMapLayer] is a marker layer whose tiles carry a [code]marker[/code] custom data string,
 ## a key of [constant MARKERS] or [constant OBJECTS]. Markers with parameters are [MapMarker]
-## nodes anywhere in the scene, each on the terrain cell under it. Marker layers and nodes may
-## overlap, so one tile can hold several markers; either way gives the same [MapLayout.Marker]
-## and the same stable id. A tile on the map is a tile with terrain; markers off it are
-## problems.[br]
+## nodes anywhere in the scene, each on the terrain cell under it; a door node gives one door
+## marker per tile it covers. Marker layers and nodes may overlap, so one tile can hold several
+## markers; either way gives the same [MapLayout.Marker] and the same stable id. A tile on the map
+## is a tile with terrain; markers off it are problems.[br]
 ## Touches scenes and resources, so it runs on the main thread before any rules code; nothing it
 ## returns references them. Problems are collected in [member MapLayout.problems], not logged.
 ##
@@ -165,14 +165,31 @@ static func _read_marker_node(
 			marker_node.kind, marker_node.name, tile,
 		])
 		return
-	if not layout.has_tile(tile):
-		layout.problems.append("marker node %s off the map at %s" % [marker_node.name, tile])
-		return
-	var marker: MapLayout.Marker = layout.add_marker(
-			MapMarker.LAYOUT_KINDS[marker_node.kind], tile
-	)
-	marker.variance_tiles = marker_node.variance_tiles
-	marker.group_slot = marker_node.group_slot
+	var covered: Array[Vector2i] = [tile]
+	if marker_node.kind == MapMarker.Kind.DOOR:
+		covered.clear()
+		var size: Vector2i = marker_node.door_tiles_size()
+		for y: int in size.y:
+			for x: int in size.x:
+				covered.append(tile + Vector2i(x, y))
+	var object_kind: MapLayout.ObjectKind = MapLayout.ObjectKind.NONE
+	if MapMarker.OBJECT_KINDS.has(marker_node.kind):
+		object_kind = MapMarker.OBJECT_KINDS[marker_node.kind]
+	for cell: Vector2i in covered:
+		if not layout.has_tile(cell):
+			layout.problems.append("marker node %s off the map at %s" % [marker_node.name, cell])
+			continue
+		var marker: MapLayout.Marker = layout.add_marker(
+				MapMarker.LAYOUT_KINDS[marker_node.kind], cell, object_kind
+		)
+		match marker_node.kind:
+			MapMarker.Kind.ENEMY_SLOT:
+				marker.variance_tiles = marker_node.variance_tiles
+				marker.group_slot = marker_node.group_slot
+			MapMarker.Kind.DOOR, MapMarker.Kind.LEVER:
+				marker.group_id = marker_node.group_id
+			MapMarker.Kind.PASSAGE:
+				marker.pair_id = marker_node.pair_id
 
 
 # The custom data string of [param cell]; empty when the tile set has no such layer or the value

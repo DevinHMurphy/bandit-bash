@@ -6,7 +6,7 @@
 # File:     combat_state.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 28, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 class_name CombatState
@@ -36,7 +36,7 @@ extends SandboxState
 ## Terrain and walls. Shared with sandbox copies. Never null in use.
 var grid: CombatGrid = null
 
-## The map objects' state: which tiles they block. Copied for a sandbox. Never null.
+## The map objects' state ([MapState]). Copied for a sandbox. Never null.
 var map: MapState = MapState.new()
 
 ## The turn counter: it rises at the player Phase Start, so 0 before the first one.
@@ -215,10 +215,18 @@ func swap_units(first_id: String, second_id: String) -> void:
 
 ## Records [param id]'s defeat and takes it off the map: [constant CombatFact.Kind.DEFEATED],
 ## then [constant CombatFact.Kind.DEFEATED_AN_ENEMY] when [param by_id] is on the other side,
-## then it leaves occupancy. Its effects react to its own defeat before they go dormant.
-## [param by_id]: the unit that defeated it, or empty.
+## then it leaves occupancy and drops any loot it carried ([method MapObjects.drop_carried]). Its
+## effects react to its own defeat before they go dormant. A map object (side
+## [constant CombatFact.CombatSide.NONE]) records neither fact: it leaves the map and breaks
+## ([method MapObjects.broken]). [param by_id]: the unit or object that defeated it, or empty.
 func defeat(engine: EffectEngine, id: String, by_id: String, source_effect_id: String = "") -> void:
 	if not has_unit(id):
+		return
+	if side_of(id) == CombatFact.CombatSide.NONE:
+		var broken: CombatUnitState = _units[id]
+		broken.is_defeated = true
+		_occupancy.erase(broken.tile)
+		MapObjects.broken(engine, self, id, by_id, source_effect_id)
 		return
 	var defeated: CombatFact = CombatFact.new(CombatFact.Kind.DEFEATED, id, by_id)
 	defeated.source_effect_id = source_effect_id
@@ -230,6 +238,7 @@ func defeat(engine: EffectEngine, id: String, by_id: String, source_effect_id: S
 	var gone: CombatUnitState = _units[id]
 	gone.is_defeated = true
 	_occupancy.erase(gone.tile)
+	MapObjects.drop_carried(self, id, by_id)
 
 
 ## The Wait action: [param id] ends its turn without acting and records

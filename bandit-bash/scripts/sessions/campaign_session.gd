@@ -6,7 +6,7 @@
 # File:     campaign_session.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 28, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 class_name CampaignSession
@@ -87,7 +87,8 @@ var _setup_steps: Array[Array] = []
 var _battle_grants: Array[Grant] = []
 
 
-## [param run_seed]: the campaign's seed. [param run_seats]: every seat of the run.
+## [param run_seed]: the campaign's seed. [param run_seats]: every seat of the run. Registers the
+## combat map's own setup step: each container's contents ([method MapObjects.roll_contents]).
 func _init(run_mode: CampaignData.Mode, run_seed: int, run_seats: PackedInt32Array) -> void:
 	mode = run_mode
 	seats = run_seats.duplicate()
@@ -95,6 +96,7 @@ func _init(run_mode: CampaignData.Mode, run_seed: int, run_seats: PackedInt32Arr
 	rng = RngStreams.new(run_seed)
 	for seat: int in seats:
 		ids.set_label(InstanceIdAllocator.seat_subject_id(seat), "army of seat %d" % [seat])
+	add_setup_step(CombatEncounter.SetupStep.CONTAINER_CONTENTS, MapObjects.roll_contents)
 
 
 ## Adds [param instance] to the run's carriers: a unit trait, an item's effect, a heirloom or a
@@ -120,9 +122,10 @@ func add_setup_step(step: CombatEncounter.SetupStep, run: Callable) -> void:
 
 ## Begins the battle [param request] describes: builds the encounter, runs its setup from fresh
 ## setup streams (so a restart from Begin rolls the same), emits [signal combat_encounter_opened],
-## opens one session per seat with its seat's [code]COMBAT_ROLLS[/code] stream, registers copies of
-## the carriers of the units and armies in the battle, deploys each army, then opens each map's
-## battle ([method CombatSession.open_battle]): the opening swap window for the seats whose
+## opens one session per seat with its seat's [code]COMBAT_ROLLS[/code] stream, places each map's
+## objects ([method MapObjects.place]), registers copies of the carriers of the units and armies
+## in the battle, deploys each army, then opens each map's battle
+## ([method CombatSession.open_battle]): the opening swap window for the seats whose
 ## [member BattleRequest.opening_swap] setting is on, turn 1's player Phase Start otherwise. Returns
 ## the encounter; null, with nothing begun, when a battle is already on, the run is closed, or setup
 ## fails.
@@ -155,6 +158,8 @@ func begin_battle(request: BattleRequest) -> CombatEncounter:
 	for session: CombatSession in battle.get_sessions():
 		session.is_tracing_draws = is_tracing_draws
 		session.grant_received.connect(receive_grant)
+		# Before deployment, so no unit takes a breakable's tile.
+		MapObjects.place(session)
 	_register_carriers(battle, request)
 	for seat: int in seats:
 		var army: Army = request.armies.get(seat, null)

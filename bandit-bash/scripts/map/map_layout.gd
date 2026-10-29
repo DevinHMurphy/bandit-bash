@@ -6,7 +6,7 @@
 # File:     map_layout.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 28, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 class_name MapLayout
@@ -76,8 +76,6 @@ enum ObjectKind {
 	BRAZIER = 12,
 }
 
-# ASSUMPTION: every object that gives loot from MAP_LOOT is a container, weapon racks included;
-# the plan lists "chest, house, shelf".
 ## The object kinds that give loot from [code]MAP_LOOT[/code] and so get a
 ## [member Marker.container_index].
 const CONTAINERS: Array[ObjectKind] = [
