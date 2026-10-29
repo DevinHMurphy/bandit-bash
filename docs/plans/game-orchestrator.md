@@ -85,7 +85,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P00 | Save system | [2026-10-13-save-system.md](2026-10-13-save-system.md) | **Implemented** October 14, 2026 (multiplayer paths untested live) | — | All | save-system.md |
 | P01 | Event bus and effects | [2026-10-23-event-bus-and-effects.md](2026-10-23-event-bus-and-effects.md) | **In progress** (approved October 26, 2026; amended with P02's and P13's needs the same day): EB1–EB4 implemented with fixes F1–F12; EB9 implemented (results in P01); EB6 implemented October 28, 2026 with its fix-ups (questions 40–49); EB7 ready; EB5 waits on P03 | P00 | Every gameplay plan | effects-system.md, effect-triggers.md |
 | P02 | Combat core: turns and phases, action economy, the exchange, damage stages, Block, Stance, triangle, crits, Parry, Shove, staves, Pouch items, weapon swaps, runes, forecast, `CombatGrid` interface | [2026-10-26-combat-core.md](2026-10-26-combat-core.md) | **Approved** October 26, 2026 (reviewed: questions 9–12 answered, seven fixes). **In progress:** CC1–CC7 built and merged (CC6 with P04 MP4, October 28, 2026; CC7 October 29, 2026; 608 headless combat tests pass); CC8 after EB7; no open questions (14: range 0 is self; 17: the opening swap is a setting, its window before turn 1 closed by Start; 18: CC6 part 1 choices accepted; 19: any fact makes a forecast stale) | P01 (EB2–EB4, plus amendments N1–N10) | P04, P05, P06, P07 | game-vision.md Combat |
-| P03 | Content catalog: unit types, traits and upgrades, the Drengr, prefixes, weapons, staves, items, ingredients, runes, heirlooms, curses | — | **Not started** (sketch before EB5; may split into units / items / heirlooms) | P01 (EB3, EB5) | M1 content, P08, P09 | unit-roster.md, weapons.md, items.md, heirlooms.md, events.md (curses) |
+| P03 | Content catalog: unit types, traits and upgrades, the Drengr, prefixes, weapons, staves, items, ingredients, runes, heirlooms, curses | [2026-10-29-content-catalog.md](2026-10-29-content-catalog.md) | **Draft** October 29, 2026, awaiting approval (one plan, staged; questions 1–9 answered, 10–14 open). CT1 (definitions and layout) opens P01 EB5; M1 needs CT1, EB5, CT2 and CT3 | P01 (EB3, EB5) | M1 content, P08, P09 | unit-roster.md, weapons.md, items.md, heirlooms.md, events.md (curses) |
 | P04 | Combat map: grid, terrain, pathing, deployment, objectives, reinforcement points, map objects, map authoring and its checks | [2026-10-27-combat-map.md](2026-10-27-combat-map.md) | **Approved** October 27, 2026 (13 questions answered; "within N movable tiles" cut; no prep screen); **In progress:** MP1–MP4 built and merged October 28, 2026, with the MP3 fix-ups (MP4 with P02 CC6); MP5 (the M1 greybox map, `MapMarker`, `MapCheck`) merged October 29, 2026 (questions 20–22 answered); MP6 (map objects, breaking, kegs, Spark, contents in `MapState`) merged October 29, 2026 (419 headless map tests pass; question 23 answered); MP7 in progress (prompt issued October 29, 2026); MP8 after EB7 and CC8 | P01 (EB6), P02 | P05, P06, P07, M1 | game-vision.md Combat maps, map-objects.md |
 | P05 | Enemies and AI: classes, intents, danger zone, ruthless AI, signature moves, elites, mini-bosses, the Powder Baron | — | **Not started** | P02, P04 | M1, M2 | enemy-roster.md |
 | P06 | The darkness | — | **Not started** | P02, P04 | M1 | the-darkness.md |
@@ -156,8 +156,8 @@ flowchart LR
   classDef ready fill:#fff3c4,stroke:#b8860b,color:#1b1b1b
   classDef waiting fill:#e0e0e0,stroke:#757575,color:#1b1b1b
   class P00 done
-  class P01,P02,P04,P13 active
-  class P03,P05,P06 ready
+  class P01,P02,P03,P04,P13 active
+  class P05,P06 ready
   class P07,P08,P09,P10,P11,P12 waiting
 ```
 
@@ -201,7 +201,7 @@ flowchart LR
     MP6 --> MP7[MP7 reinforcements]
     MP8[MP8 save sections]
   end
-  P03S[P03 sketch] --> EB5
+  P03S[P03 plan, CT1] --> EB5
   R3 --> EB4
   EB1 --> CC1
   EB4 --> CC3
@@ -221,8 +221,8 @@ flowchart LR
   classDef ready fill:#fff3c4,stroke:#b8860b,color:#1b1b1b
   classDef waiting fill:#e0e0e0,stroke:#757575,color:#1b1b1b
   class R1,R2,R3,R4,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6 done
-  class R5,EB7,MP7 active
-  class P03S ready
+  class R5,MP7,P03S active
+  class EB7 ready
   class EB5,CC8,MP8 waiting
 ```
 
@@ -237,7 +237,7 @@ mark it **Open** here.
 |------|-----------|-----|--------|
 | P01 EB1 Facts and buses | P01 approved | — | **Open** October 26, 2026; implemented |
 | P01 EB2–EB4 Values, blocks, engine | P02 drafted and approved ✅ (October 26, 2026); P01 amended with P02's needs N1–N10 ([combat core plan](2026-10-26-combat-core.md#what-p02-needs-from-p01-eb2eb4)): exact float values, `EffectContext` fields, inline flags, permissions, expiry boundaries, per-map charges, 2RN and one-roll methods on roll sources, a sandbox hook for `CombatState`. The phase-side gap is settled by P02 step CC1. P01 amended ✅ (October 26, 2026; [Amendments from P02 and P13](2026-10-23-event-bus-and-effects.md#amendments-from-p02-and-p13), P01 questions 17–18) | Damage stages, stat sheets, forecasts, rolls and AI simulation sit on both sides | **Open** October 26, 2026 (EB2 and EB3 built; EB4 also needed the live-rolls row below, now open) |
-| P01 EB5 Catalog and content tests | P03 sketched (content kinds, `res://data/` layout) | The catalog's typed lookups and layout follow the content kinds | Closed |
+| P01 EB5 Catalog and content tests | P03 sketched (content kinds, `res://data/` layout): drafted October 29, 2026; its step CT1 (definitions and layout) opens EB5 | The catalog's typed lookups and layout follow the content kinds | Closed |
 | P01 EB4 live rolls (within EB2–EB4) | P13 approved ✅ (October 26, 2026); P13 R1–R3 implemented ✅ (`RngStream` is what `LiveRolls` wraps); P01 amended with P13's needs R-N1 and R-N2 ✅ (October 26, 2026) ([RNG plan](2026-10-26-rng-streams.md#what-p13-needs-from-other-plans)) | Real resolution and P02's golden-log tests need seeded streams | **Open** October 26, 2026 (R1–R3 built) |
 | P01 EB6 Sessions, encounter, bridge | P04 approved ✅ (October 27, 2026; including P13 need R-N5: stable container indices); P08 question 1 (`CampaignSession` owner) answered ✅ (October 27, 2026: `CampaignService`); P13 approved and P01 amended with R-N3 ✅ (the encounter draws the whole setup once; sessions get their own streams) | Sessions carry turns, deployment, commands and the RNG injection point | **Open** October 27, 2026; implemented with fix-ups October 28, 2026 |
 | P01 EB7 Serialization, rejoin | EB6; P01 amended with P13 need R-N4 ✅ (run seed, build and live stream states in snapshots and repro dumps) | — | **Open** October 28, 2026 (EB6 implemented) |
@@ -296,7 +296,7 @@ from starting; each is asked inside its plan's Open Questions.
 | P11 | A unit sent to a partner's map loses its timed modifiers (Momentum and the like); carry them with the unit | P01 question 49 |
 | P11 | A player's "Your Unit" heirlooms don't follow their unit onto a partner's map; players will likely expect them to keep working | P01 question 49 |
 | P11 | Cross-map delivery: a cross-map effect's queued operations resolve on the map where it triggered, so "Your Units" never reaches the owner's map; build the engine's forwarding hook when content needs it | P01 question 44 |
-| Vision (ideation thread) | Pending updates from the October 27 orchestrator decisions: turn par is set by hand per map with no target range, small combats well below the current figures (which also disagree: boss "14–18" vs "10–14", ladder −1 vs "Hard −1"); no battle prep in any combat, automatic deployment with an optional opening swap (a player setting, like Pokémon's Set / Shift: on, the battle opens in a swap window closed by a Start press; off, it starts at once); Camps allow re-gearing ("gear moves only in army management and battle prep" and Camp's "choose one" change); "within N movable tiles" cut; weapons.md lists Everwall's range as "—", which becomes 0 (self), with a note that every staff and weapon has a range (October 28 decision); keys and lockpicks (user, October 29, 2026, building P04 MP6): map-objects.md and P04 say "a lockpick (used up)", but a lockpick is now kept and usable only by lock pickers, while a key opens a chest or a door for any unit and is used up | P04 questions 4, 12 and 23, P02 question 14 |
+| Vision (ideation thread) | Pending updates from the October 27 orchestrator decisions: turn par is set by hand per map with no target range, small combats well below the current figures (which also disagree: boss "14–18" vs "10–14", ladder −1 vs "Hard −1"); no battle prep in any combat, automatic deployment with an optional opening swap (a player setting, like Pokémon's Set / Shift: on, the battle opens in a swap window closed by a Start press; off, it starts at once); Camps allow re-gearing ("gear moves only in army management and battle prep" and Camp's "choose one" change); "within N movable tiles" cut; weapons.md lists Everwall's range as "—", which becomes 0 (self), with a note that every staff and weapon has a range (October 28 decision); keys and lockpicks (user, October 29, 2026, building P04 MP6): map-objects.md and P04 say "a lockpick (used up)", but a lockpick is now kept and usable only by lock pickers, while a key opens a chest or a door for any unit and is used up. Final shape (P03 question 5): two items, a Lockpick (never used up, only the Thief picks locks) and a Key (2 uses, any unit); items.md's Chest, Door and Master Picks are dropped | P04 questions 4, 12 and 23, P02 question 14, P03 question 5 |
 
 ## Scope guardrails
 
@@ -322,8 +322,8 @@ more enemy factions, units with convoy access, shared and hybrid co-op battles, 
 
 ## Next actions
 
-1. **Plan M1's remaining systems** (now the critical path): sketch P03 (content catalog: the
-   starting army subset; it opens EB5), then draft P05 (enemies and AI: 2–3 classes, the rating
+1. **Plan M1's remaining systems** (now the critical path): P03 (content catalog) is drafted and awaits approval (questions 10–14; the
+   M1 subset is CT1–CT3; CT1 opens EB5), then draft P05 (enemies and AI: 2–3 classes, the rating
    formula over `CombatForecast` / `ExchangeOutcome`), P06 (the darkness) and P07 (minimal UI).
    P05 and P06 depend only on P02 and P04, which are approved.
 2. **Code, on separate branches:**
@@ -383,3 +383,4 @@ more enemy factions, units with convoy access, shared and hybrid co-op battles, 
 | October 29, 2026 | **P02 CC7 merged into `dev`** (f64b1c0, merged with MP5 and verified on the combined tree): `CombatForecast` (exchange, staff and shove previews; `outcome()`, `sampled_outcome()`, `branch()` for P05), chance-gated lines, exact per-stage breakdowns through `EffectEngine.add_context_observer`, `UnitTurnCommand.walk_path` shared by the command and the forecast, and the any-fact stale rule (`Command.needs_fresh_forecast()` replaces `forecast_reads()` / `forecast_tiles()`). Verified: sessions 178 with the test user folder, map 353, combat 608, effects 521, RNG 154, save 204; headless launch clean. With P02's and P04's M1 parts nearly built, planning (P03 sketch, P05, P06, P07) becomes M1's critical path. |
 | October 29, 2026 | **P04 MP6 merged into `dev`** (a80f6a3, merged with CC7 and verified on the combined tree): `MapObjects` (placing and using objects, the `USE_OBJECT` action, lever groups, multi-tile doors, passages, Cutthroat carry and drop, P06's queries), breakables through the exchange (`CombatState.defeat` records "object destroyed" and restores the terrain), keg explosions and unlimited chains, Spark through `OBJECT_OPERATIONS` (`RuneResolver.cast_on_object`), door, lever and passage `MapMarker` kinds, and per-seat container contents in `MapState` (`SeatSetup.map` replaces `SeatSetup.contents`; not saved until MP8). Verified: sessions 178 with the test user folder, map 419, combat 608, effects 521, RNG 154, save 204; headless launch clean. User decision while building: keys (any unit, used up) and lockpicks (kept, lock pickers only); vision update queued. P04 question 23 raised (who picks locks; five assumptions; the candidate-spot draw). MP7 may start; EB7 must merge `dev` in. |
 | October 29, 2026 | User confirmed P04 questions 22 (MP5's marker fields and assumptions) and 23 (MP6: a `CAN_PICK_LOCKS` permission, P01 amendment F15, built by P03's first content step; five assumptions; every candidate spot placed for now). P04 MP7 prompt issued; P03 sketching started. EB7 shown in progress on the step graph. |
+| October 29, 2026 | **P03 drafted** ([2026-10-29-content-catalog.md](2026-10-29-content-catalog.md)): one staged plan (CT1 definitions and layout, CT2 instances and loadout, CT3 M1 content, then the rest). User answers 1–9: `units/commanders/` and one folder per weapon type under `items/weapons/` (the catalog indexes by id, so folders don't change it; EB5 walks them recursively); string ids; P03 owns the loadout and the modified-item price formula; P08 registers `roster`; the Thief picks locks; two items, a Lockpick (never used up, lock pickers only) and a Key (2 uses, any unit). Open: 10 (factions as content), 11 (Lockpick and Key rarity), 12 (rune target kinds), 13 (a `role` field), 14 (enemy classes extend unit types). EB7 corrected to ready: its prompt hasn't been sent. |
