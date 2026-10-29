@@ -1,7 +1,7 @@
 # Plan: Content Catalog
 **Date:** October 29, 2026
 **Status:** **Approved** October 29, 2026 (questions 1–17 answered). Orchestrator ID **P03**
-([game-orchestrator.md](game-orchestrator.md)). CT1 opens first; CT2 onward waits on
+([game-orchestrator.md](game-orchestrator.md)). CT1 implemented October 29, 2026 (question 18 open); CT2 onward waits on
 P01 EB5 (the catalog).
 
 The game's content as data: unit types and the commander, prefixes, factions, weapons and staves,
