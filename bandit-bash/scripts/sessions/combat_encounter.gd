@@ -6,7 +6,7 @@
 # File:     combat_encounter.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 28, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 class_name CombatEncounter
@@ -187,8 +187,10 @@ func run_setup(pool: Array[CombatMapDefinition], streams: SetupStreams) -> Error
 ## Opens one session per seat on the chosen map, each rolling from its seat's
 ## [code]COMBAT_ROLLS[/code] stream in [param combat_rolls] (by seat) wrapped in [LiveRolls], and
 ## emits [signal session_opened] for each. Session ids follow [member seats]: the lowest seat's map
-## is session 0. Each session gets the encounter's arrivals ([method deliver_arrivals]) and the
-## objective checks ([method Objectives.register]) as hooks. Call once, after [method run_setup].
+## is session 0. Each session's map state starts as a copy of its seat's
+## [member SeatSetup.map], container contents included, and it gets the encounter's arrivals
+## ([method deliver_arrivals]) and the objective checks ([method Objectives.register]) as hooks.
+## Call once, after [method run_setup].
 ## Returns false, opening nothing, before setup, when already open, or when a seat has no stream.
 func open_sessions(combat_rolls: Dictionary[int, RngStream]) -> bool:
 	if setup == null or is_closed or not _sessions.is_empty():
@@ -209,6 +211,8 @@ func open_sessions(combat_rolls: Dictionary[int, RngStream]) -> bool:
 		)
 		session.setup = setup
 		session.seat_setup = setup.seats[seat]
+		# A copy, so the setup result stays as rolled while the battle changes the map.
+		session.state.map = setup.seats[seat].map.copy()
 		session.fact_recorded.connect(_on_session_fact_recorded)
 		session.hooks.add(CombatHooks.Hook.ARRIVALS, _on_session_arrivals_due)
 		Objectives.register(session)
@@ -666,7 +670,7 @@ class EncounterSetup:
 		for seat: int in seats:
 			by_seat[str(seat)] = {
 				"additions": seats[seat].additions,
-				"contents": seats[seat].contents,
+				"contents": seats[seat].map.contents,
 			}
 		var data: Dictionary = {
 			"map": "" if map == null else map.id,
@@ -684,11 +688,10 @@ class SeatSetup:
 	var seat: int = -1
 	## Additions to this seat's map only (step 6), under a key each owning plan chooses.
 	var additions: Dictionary[String, Variant] = {}
-	# ASSUMPTION: contents stay in the seat's setup result until MapState holds them (P04 MP6);
-	# decision 40 makes them map state.
-	## Each container's contents on this seat's map (step 7), by container index: plain data, such
-	## as an item definition id.
-	var contents: Dictionary[int, Variant] = {}
+	## This seat's map state as setup leaves it: step 7 writes each container's contents into its
+	## [member MapState.contents] (event bus plan, questions 40 and 46). Each session starts from a
+	## copy ([method CombatEncounter.open_sessions]).
+	var map: MapState = MapState.new()
 
 	func _init(owner_seat: int) -> void:
 		seat = owner_seat

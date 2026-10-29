@@ -6,7 +6,7 @@
 # File:     combat_fact.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 28, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 class_name CombatFact
@@ -73,7 +73,8 @@ enum Kind {
 	USED_STAFF_ON_ALLY = 20,
 	## The actor took darkness damage at its side's Phase End. Not an attack.
 	DARKNESS_DAMAGE_TAKEN = 21,
-	## The actor used the map object named by the target.
+	## The actor used the map object named by the target, at [member tile]; [member item_id] is
+	## the key or lockpick it opened a lock with, if any.
 	OBJECT_USED = 22,
 	## The actor shoved the target.
 	SHOVED_A_UNIT = 23,
@@ -91,7 +92,8 @@ enum Kind {
 	COMBAT_ENDED = 28,
 	## The darkness advanced.
 	DARKNESS_ADVANCED = 29,
-	## The map object named by the actor changed state.
+	## The map object named by the actor changed state at [member tile]: [member key] is the
+	## [enum MapObjects.Change]; the target is the unit or object that caused it, if one did.
 	OBJECT_STATE_CHANGED = 30,
 	## The effect named by [member source_effect_id] fired.
 	EFFECT_ACTIVATED = 31,
@@ -246,7 +248,8 @@ var item_id: String = ""
 
 ## A small number whose meaning depends on the kind: the [enum EffectDefinition.Lane] of a
 ## [constant COUNTER_CHANGED], the [enum CombatValue.Stat] of a [constant STAT_CHANGED], the turns
-## won early of a [constant COMBAT_ENDED]. 0 on every other kind.
+## won early of a [constant COMBAT_ENDED], the [enum MapObjects.Change] of an
+## [constant OBJECT_STATE_CHANGED]. 0 on every other kind.
 var key: int = 0
 
 
@@ -286,7 +289,7 @@ func to_wire() -> Array:
 ## attack[/code], or [code]s0#1 PHASE_START side player amount 3[/code]
 ##
 ## Empty fields are left out, and amounts print only when one is non-zero. [member key] prints as
-## "lane N" or "stat N" on the kinds that use it.
+## "lane N", "stat N" or "change N" on the kinds that use it.
 ## [param describe]: turns an id into display text (the session's describe); when invalid, ids
 ## print bare.
 func to_log_line(describe: Callable = Callable()) -> String:
@@ -305,6 +308,8 @@ func to_log_line(describe: Callable = Callable()) -> String:
 		parts.append("lane %d" % [key])
 	elif kind == Kind.STAT_CHANGED or kind == Kind.GROWTH_CHANGED:
 		parts.append("stat %d" % [key])
+	elif kind == Kind.OBJECT_STATE_CHANGED:
+		parts.append("change %d" % [key])
 	if amount != 0 or hp_amount != 0 or block_amount != 0:
 		parts.append("amount %d" % [amount])
 		if hp_amount != 0 or block_amount != 0:

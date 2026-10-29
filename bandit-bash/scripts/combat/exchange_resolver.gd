@@ -6,7 +6,7 @@
 # File:     exchange_resolver.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 27, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 class_name ExchangeResolver
@@ -22,6 +22,10 @@ extends RefCounted
 ## fires for the survivors, "this exchange" modifiers expire, and the queue drains again: reactions
 ## to anything inside the exchange (Cleave's splash, Momentum) land there, never between attacks,
 ## and a reaction queued by a unit defeated later still resolves.[br]
+## [b]A map object as defender[/b] (a breakable, side [constant CombatFact.CombatSide.NONE]) goes
+## through the same flow and facts: any unit may attack it, every attack hits with no roll, there
+## is no crit, no counter and no Stance, and its Attack Speed sets the attacker's bonus turns.
+## Breaking it is [method MapObjects.broken] (combat map plan, question 7).[br]
 ## Pure and static: the same code runs for real resolution, a forecast and an AI branch, with the
 ## engine's roll source deciding. The caller starts the resolution step
 ## ([method EffectEngine.begin_step]).
@@ -89,14 +93,16 @@ static func resolve(
 
 
 ## Why [param attacker_id] can't attack [param defender_id] now; empty when it can. Legal: both on
-## the map and on opposing sides, the attacker holds a weapon that isn't a Block or heal staff (an
-## attack staff needs a use left), and its range covers the distance.
+## the map, the defender an enemy or a map object, the attacker holds a weapon that isn't a Block
+## or heal staff (an attack staff needs a use left), and its range covers the distance.
 static func check(
 		engine: EffectEngine, state: CombatState, attacker_id: String, defender_id: String
 ) -> String:
 	if not state.has_unit(attacker_id) or not state.has_unit(defender_id):
 		return "not on the map"
-	if not engine.matches_side(
+	if _is_object(state, attacker_id):
+		return "an object can't attack"
+	if not _is_object(state, defender_id) and not engine.matches_side(
 			state.side_of(attacker_id), defender_id, EffectDefinition.UnitSide.ENEMY
 	):
 		return "not an enemy"
@@ -197,22 +203,25 @@ static func hit_chance(engine: EffectEngine, state: CombatState, ctx: EffectCont
 
 ## One attack in [param ctx]: Attack made (its inline window first), the 2RN hit roll, then on a
 ## hit Hit dealt and Hit taken (windows through stage 8), the crit roll against an Exposed
-## defender, Crit dealt and Crit taken, the damage stages, and a defeat. Spends one use of the
-## attacker's "next attack" modifiers. Returns whether the defender was defeated.
+## defender, Crit dealt and Crit taken, the damage stages, and a defeat. A map object is hit with
+## no roll and never crit. Spends one use of the attacker's "next attack" modifiers. Returns
+## whether the defender was defeated.
 static func attack(engine: EffectEngine, state: CombatState, ctx: EffectContext) -> bool:
 	var a: String = ctx.attacker_id
 	var d: String = ctx.defender_id
+	var is_on_object: bool = _is_object(state, d)
 	var made: CombatFact = CombatFact.new(CombatFact.Kind.ATTACK_MADE, a, d)
 	engine.open_window(made, ctx)
 	engine.record(made, ctx)
 
-	if not engine.rolls.roll_hit_2rn(hit_chance(engine, state, ctx)):
+	if not is_on_object and not engine.rolls.roll_hit_2rn(hit_chance(engine, state, ctx)):
 		engine.record(CombatFact.new(CombatFact.Kind.MISSED, a, d), ctx)
 		engine.record(CombatFact.new(CombatFact.Kind.DODGED, d, a), ctx)
 		engine.reach_boundary(EffectEngine.Boundary.ATTACK_RESOLVED, a)
 		return false
 
-	ctx.defender_was_exposed = state.get_stance(d) == 0
+	# An object has no Stance, so it is never Exposed and never crit.
+	ctx.defender_was_exposed = not is_on_object and state.get_stance(d) == 0
 	var facts: Array[CombatFact] = [
 		CombatFact.new(CombatFact.Kind.HIT_DEALT, a, d),
 		CombatFact.new(CombatFact.Kind.HIT_TAKEN, d, a),
@@ -278,6 +287,11 @@ static func in_range(engine: EffectEngine, unit_id: String, ctx: EffectContext) 
 			ctx.distance >= sheet.get_int(CombatValue.Key.RANGE_MIN, ctx)
 			and ctx.distance <= sheet.get_int(CombatValue.Key.RANGE_MAX, ctx)
 	)
+
+
+# Whether id is a map object on the map: a breakable, of side NONE.
+static func _is_object(state: CombatState, id: String) -> bool:
+	return state.has_unit(id) and state.side_of(id) == CombatFact.CombatSide.NONE
 
 
 ## What an exchange did, for its caller (the command, the forecast, the AI).

@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 28, 2026
+# Modified: October 29, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -628,16 +628,16 @@ func _test_container_contents() -> bool:
 	var again: Battle = Battle.new(PackedInt32Array([0, 1]), true)
 	first.set_up()
 	again.set_up()
-	var seat_0: Dictionary[int, Variant] = first.encounter.setup.seats[0].contents
-	var seat_1: Dictionary[int, Variant] = first.encounter.setup.seats[1].contents
+	var seat_0: Dictionary[int, Variant] = first.encounter.setup.seats[0].map.contents
+	var seat_1: Dictionary[int, Variant] = first.encounter.setup.seats[1].map.contents
 	_check("loot: every container is filled", (
 			seat_0.keys() == [0, 1] and seat_1.keys() == [0, 1]
 	), str(seat_0))
 	var differ: bool = (seat_0[0] != seat_1[0] and seat_0[1] != seat_1[1]) as bool
 	_check("loot: two seats, the same container, different contents", differ)
 	_check("loot: the same seat gets the same contents twice", (
-			again.encounter.setup.seats[0].contents == seat_0
-			and again.encounter.setup.seats[1].contents == seat_1
+			again.encounter.setup.seats[0].map.contents == seat_0
+			and again.encounter.setup.seats[1].map.contents == seat_1
 	))
 	_check(
 			"setup: twice from fresh streams, identical results",
@@ -1905,7 +1905,7 @@ class Battle:
 			if marker.container_index < 0:
 				continue
 			var stream: RngStream = ctx.loot_stream(marker.container_index)
-			ctx.seat_setup.contents[marker.container_index] = (
+			ctx.seat_setup.map.contents[marker.container_index] = (
 					"item_%d" % [stream.randi_range(0, 1 << 30)]
 			)
 
