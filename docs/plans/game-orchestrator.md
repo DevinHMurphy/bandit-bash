@@ -349,14 +349,14 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 
 ## Next actions
 
-1. **M1's critical path:** P03 **CT3** (the M1 content: the Mercenary army, its gear and the Iron
+1. **M1's critical path:** P03 **CT3** (prompt reissued October 30, 2026 against `dev` 6c60f1f; the M1 content: the Mercenary army, its gear and the Iron
    Heart, as data) and P05 **EN1** (enemy data, prompt issued October 30, 2026), then EN2–EN4
    (setup step 4, the AI core, intents and the danger zone) and EN5 (M1's enemies, after CT3).
    EN1 and CT3 both touch the content suite: whichever merges second merges `dev` in first.
    **Planning alongside:** P06 (the darkness) and P07 (minimal UI); P06 depends only on P02 and
    P04, which are approved.
 2. **Code that may run alongside, off M1's path:**
-   - P02 **CC8** (save section; its gate opened with EB7). It also: registers the COMBAT `effects`
+   - P02 **CC8** (save section; its gate opened with EB7; prompt issued October 30, 2026). It also: registers the COMBAT `effects`
      section on EB7's helpers (P01 question 52); adds `combat_state` and P02's facts to the
      snapshot, `load_snapshot()` and the mirror, with true mid-battle dump replay
      (`combat_session.gd:TOD-001`) and the bases followed after a weapon swap or a spawn (question
