@@ -62,8 +62,8 @@ into `dev`; plan and orchestrator commits go to `dev`; `main` holds released sta
 - **Current milestone:** [M1 First playable fight](#milestones). [M0 Foundations](#milestones) is
   complete (P01 EB1–EB7 implemented and verified headless, October 30, 2026).
 - **Current focus:** P02's and P04's parts of M1 are built (only their save steps, CC8 and MP8,
-  remain, and M1 doesn't need them). M1's critical path is now **P05 EN2–EN5** with **P03 CT3**
-  (building), then **P06** (the darkness) and **P07** (minimal UI), neither planned yet. P07 needs
+  remain, and M1 doesn't need them). M1's critical path is now **P05 EN2–EN5** with P03's **CT3F** fix-up,
+  then **P06** (the darkness) and **P07** (minimal UI), neither planned yet. P07 needs
   EN4's intents; nothing yet owns the scene that starts an M1 battle and plays it (P07's plan should
   claim it).
 
@@ -92,7 +92,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P00 | Save system | [2026-10-13-save-system.md](2026-10-13-save-system.md) | **Implemented** October 14, 2026 (multiplayer paths untested live) | — | All | save-system.md |
 | P01 | Event bus and effects | [2026-10-23-event-bus-and-effects.md](2026-10-23-event-bus-and-effects.md) | **In progress** (approved October 26, 2026; amended with P02's and P13's needs the same day): EB1–EB4 implemented with fixes F1–F12; EB9 implemented (results in P01); EB6 implemented October 28, 2026 with its fix-ups (questions 40–49); EB5 (the content catalog) implemented October 29, 2026 (question 50 answered); the exit-crash fix-up implemented October 29, 2026 (amendment F18, `EffectTerms`; question 51 answered); EB7 implemented October 30, 2026 (question 60 answered), so M0 is complete | P00 | Every gameplay plan | effects-system.md, effect-triggers.md |
 | P02 | Combat core: turns and phases, action economy, the exchange, damage stages, Block, Stance, triangle, crits, Parry, Shove, staves, Pouch items, weapon swaps, runes, forecast, `CombatGrid` interface | [2026-10-26-combat-core.md](2026-10-26-combat-core.md) | **Approved** October 26, 2026 (reviewed: questions 9–12 answered, seven fixes). **In progress:** CC1–CC7 built and merged (CC6 with P04 MP4, October 28, 2026; CC7 October 29, 2026; 608 headless combat tests pass); CC8 after EB7; no open questions (14: range 0 is self; 17: the opening swap is a setting, its window before turn 1 closed by Start; 18: CC6 part 1 choices accepted; 19: any fact makes a forecast stale) | P01 (EB2–EB4, plus amendments N1–N10) | P04, P05, P06, P07 | game-vision.md Combat |
-| P03 | Content catalog: unit types, traits and upgrades, the Drengr, prefixes, weapons, staves, items, ingredients, runes, heirlooms, curses | [2026-10-29-content-catalog.md](2026-10-29-content-catalog.md) | **Approved** October 29, 2026 (one plan, staged; questions 1–17 answered; P01 amendments F15–F17). CT1 (definitions, id lists, prices, data folders) merged October 29, 2026 (256 content tests; question 18 answered: its fixes go to CT2), EB5 merged; CT2 (instances, the loadout) merged October 29, 2026 (424 content tests; question 20 raised), so CT3 may start; question 19 answered (CT13, the rest of the unit roster); M1 needs CT1, EB5, CT2 and CT3 | P01 (EB3, EB5) | M1 content, P08, P09 | unit-roster.md, weapons.md, items.md, heirlooms.md, events.md (curses) |
+| P03 | Content catalog: unit types, traits and upgrades, the Drengr, prefixes, weapons, staves, items, ingredients, runes, heirlooms, curses | [2026-10-29-content-catalog.md](2026-10-29-content-catalog.md) | **Approved** October 29, 2026 (one plan, staged; questions 1–17 answered; P01 amendments F15–F17). CT1 (definitions, id lists, prices, data folders) merged October 29, 2026 (256 content tests; question 18 answered: its fixes go to CT2), EB5 merged; CT2 (instances, the loadout) merged October 29, 2026 (424 content tests; question 20 raised), question 19 answered (CT13, the rest of the unit roster); CT3 (the M1 content) merged October 30, 2026 (019c1b3; 536 content tests; question 21 answered); M1 still needs the CT3F fix-up | P01 (EB3, EB5) | M1 content, P08, P09 | unit-roster.md, weapons.md, items.md, heirlooms.md, events.md (curses) |
 | P04 | Combat map: grid, terrain, pathing, deployment, objectives, reinforcement points, map objects, map authoring and its checks | [2026-10-27-combat-map.md](2026-10-27-combat-map.md) | **Approved** October 27, 2026 (13 questions answered; "within N movable tiles" cut; no prep screen); **In progress:** MP1–MP4 built and merged October 28, 2026, with the MP3 fix-ups (MP4 with P02 CC6); MP5 (the M1 greybox map, `MapMarker`, `MapCheck`) merged October 29, 2026 (questions 20–22 answered); MP6 (map objects, breaking, kegs, Spark, contents in `MapState`) merged October 29, 2026 (question 23 answered); MP7 (reinforcements) merged October 29, 2026 (461 headless map tests pass; question 24 raised); MP8 after EB7 and CC8 | P01 (EB6), P02 | P05, P06, P07, M1 | game-vision.md Combat maps, map-objects.md |
 | P05 | Enemies and AI: classes, intents, danger zone, ruthless AI, signature moves, elites, mini-bosses, the Powder Baron | [2026-10-30-enemies-and-ai.md](2026-10-30-enemies-and-ai.md) | **Approved** October 30, 2026 (one staged plan, EN1–EN12; questions 1–17 answered: the AI rates options with the player's forecast calculation, kills first; chained intents after every player action and while moving; generic enemy weapons with unlimited uses). M1 needs EN1–EN5. **In progress:** EN1 merged October 30, 2026 (60ae740; question 18); EN2 and EN3 ready | P02, P04 | M1, M2 | enemy-roster.md |
 | P06 | The darkness | — | **Not started** | P02, P04 | M1 | the-darkness.md |
@@ -214,6 +214,7 @@ flowchart LR
     CT2[CT2 instances, loadout] --> CT3[CT3 M1 content]
     CT2 --> CT6[CT6 target shapes] --> CT7[CT7 runes]
     CT3 --> CT13[CT13 unit roster]
+    CT3 --> CT3F[CT3F M1 content fix-up]
   end
   subgraph P05[P05 Enemies and AI]
     EN1[EN1 enemy data] --> EN2[EN2 setup step 4]
@@ -222,6 +223,7 @@ flowchart LR
   end
   EN1 --> EN5
   CT3 --> EN5
+  EN1 --> CT3F
   CT1 --> EB5
   EB5 --> CT2
   R3 --> EB4
@@ -242,9 +244,9 @@ flowchart LR
   classDef active fill:#bbdefb,stroke:#1565c0,color:#1b1b1b
   classDef ready fill:#fff3c4,stroke:#b8860b,color:#1b1b1b
   classDef waiting fill:#e0e0e0,stroke:#757575,color:#1b1b1b
-  class R1,R2,R3,R4,R5,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,CT2,EB5,EB7,EBF,EN1 done
-  class CT3,CT6,CC8,EN2,EN3 ready
-  class MP8,CT7,CT13,EN4,EN5 waiting
+  class R1,R2,R3,R4,R5,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,CT2,EB5,EB7,EBF,EN1,CT3 done
+  class CT6,CC8,CT13,CT3F,EN2,EN3,EN5 ready
+  class MP8,CT7,EN4 waiting
 ```
 
 `CC6 --- MP4`: built together; MP4's objective checks run on CC6's `AFTER_STEP` hook.
@@ -269,7 +271,7 @@ mark it **Open** here.
 | P03 CT1 Definitions and layout | P03 approved ✅ (October 29, 2026) | — | **Open** October 29, 2026; implemented October 29, 2026 |
 | P03 CT2 onward | P01 EB5 implemented ✅ (October 29, 2026) | Content is catalog data; the loadout reads the catalog | **Open** October 29, 2026 |
 | P05 EN1–EN4 | P05 approved ✅ (October 30, 2026); P02 and P04 implemented for M1 ✅ | The AI plays P02's commands on P04's maps | **Open** October 30, 2026 |
-| P05 EN5 M1 enemies | P05 EN1; P03 CT3 (the Simple Axe, Simple Bow and Minor Heal as data) | Enemies carry the player's generic weapons | Closed |
+| P05 EN5 M1 enemies | P05 EN1; P03 CT3 (the Simple Axe, Simple Bow and Minor Heal as data) | Enemies carry the player's generic weapons | **Open** October 30, 2026 (CT3 merged) |
 | P04 MP1–MP3, MP6 | P04 approved ✅ (October 27, 2026) | — | **Open** October 27, 2026; MP1–MP3 built October 28, 2026; MP6 built October 29, 2026, so MP7 may start; MP7 built October 29, 2026 |
 | P04 MP4 Objectives | P02 CC6 (the `AFTER_STEP` hook) | The checks run on the turn loop's hook; built with CC6 | **Open** October 28, 2026 (EB6 implemented, so CC6 may start); implemented with CC6 October 28, 2026, so MP5 may start |
 | P04 MP8 Save sections | P01 EB7, P02 CC8 | `entities` and `combat_map` follow the session snapshot and `combat_state` | Closed |
@@ -317,6 +319,7 @@ from starting; each is asked inside its plan's Open Questions.
 | P05 | Mark bosses and mini-bosses in enemy data (P05 EN7); until then MP4's objectives treat the enemy on a leader slot as the boss | P04 question 21 |
 | P05 | Reinforcement groups (P05 EN10): fill `Reinforcements.GroupSource` (one group per arrival turn, drawn at setup step 5) and hand it to the waves in `CampaignSession` (`campaign_session.gd:TOD-002`, `reinforcements.gd:TOD-002`); until then the real game sends no waves | P04 MP7 |
 | P07 | `Godot_FE`'s ranged multi-tile forecast defect (FR-GRID-6) to investigate | P01 contracts |
+| P07 | A pass on generated effect text before the UI shows it (CT3 found "Always: heal the target for 8 (1 use this combat)" and "+2 Attack stage for that hit"); the content suite's text snapshots change with it | P03 question 21 |
 | P11 | Light links beyond runes on a teammate's map | multiplayer-combat-options.md |
 | P11 | Shared battles (post-MVP): MP4 loses a map shared by several seats when any commander falls; confirm or change it when shared battles are planned | P04 question 21 |
 | P11 | A unit sent to a partner's map loses its timed modifiers (Momentum and the like); carry them with the unit | P01 question 49 |
@@ -324,6 +327,7 @@ from starting; each is asked inside its plan's Open Questions.
 | P11 | Cross-map delivery: a cross-map effect's queued operations resolve on the map where it triggered, so "Your Units" never reaches the owner's map; build the engine's forwarding hook when content needs it | P01 question 44 |
 | P11 | **Every map must be completed** (user, October 29, 2026; vision update queued): (1) a co-op player whose commander falls keeps controlling their surviving units (the commander still returns after the combat at critical health); (2) a map with no player units left **freezes** until help arrives (leave a stub for the darkness to keep rising there, a possible future rule); (3) the run is lost when a map still being fought has no player units and no teammate has units left to send (replaces "every commander fell in the same combat"); (4) a failed objective (a Defend tile taken) still loses that map, and the combat ends when every map is won or failed. **Battle clock for arrivals:** units sent by a player who won on turn N arrive at the receiving map's first player phase after its turn N, never sooner, so stalling gains nothing and maps keep their own pace (no joint end turn). **Sending:** a sender may send none (skip). **Answered by the user, October 29, 2026:** no hand-holding for sent units: past the dry tiles, they land on the nearest free tiles even in the darkness and take its damage at their turn's end like any unit; a map won before they arrive ends, and they return as the vision says; a map that received help loses its speed bonus (P08); a winner **must** send units to a teammate's frozen map. Still open for P11: a map with no free tile at all (recommended: they wait a phase, like the enemy waves, P04 question 24b) | game-vision.md Multiplayer maps; P04 question 24 |
 | Vision (ideation thread) | Pending updates from the October 27 orchestrator decisions: turn par is set by hand per map with no target range, small combats well below the current figures (which also disagree: boss "14–18" vs "10–14", ladder −1 vs "Hard −1"); no battle prep in any combat, automatic deployment with an optional opening swap (a player setting, like Pokémon's Set / Shift: on, the battle opens in a swap window closed by a Start press; off, it starts at once); Camps allow re-gearing ("gear moves only in army management and battle prep" and Camp's "choose one" change); "within N movable tiles" cut; weapons.md lists Everwall's range as "—", which becomes 0 (self), with a note that every staff and weapon has a range (October 28 decision); keys and lockpicks (user, October 29, 2026, building P04 MP6): map-objects.md and P04 say "a lockpick (used up)", but a lockpick is now kept and usable only by lock pickers, while a key opens a chest or a door for any unit and is used up. Final shape (P03 question 5): two items, a Lockpick (never used up, only the Thief picks locks) and a Key (2 uses, any unit); items.md's Chest, Door and Master Picks are dropped; **weapon prefixes** (user, October 29, 2026; P03 question 15): weapons roll prefixes too, some for every weapon and some for one weapon type only (no Hit prefix on a Block staff; range prefixes on bows and staves, not melee weapons). The vision needs which weapons roll them, sources, odds, budgets, price effect, re-roll and the lists; **rune targeting** (user, October 29, 2026; P03 questions 12 and 16): most runes target a place with an area of effect and show a preview of the area and every unit hit before the cast; runes whose text names their targets ("a random enemy") act as written. items.md's rune pool needs each rune's area, written as a shared target shape (tile, radius, square or cross; P03 question 17); **rune prefixes** (changing a rune's values and area size) are post-MVP; **co-op completion** (user, October 29, 2026): every map must be completed, a fallen co-op commander's player keeps their surviving units, a map with no player units freezes, the run is lost when a map still being fought has no player units and nobody can send, a failed objective loses only that map, and sent units arrive by the battle clock (after the receiving map's turn matching the sender's winning turn). This replaces game-vision.md's "that player's map is lost", "spectates until the combat ends", "the team wins if anyone wins" and "the run is lost only if every player's commander falls" (details on the P11 design item); **enemies and intents** (user, October 30, 2026; P05 questions 3, 6, 9 and 13): intents update after every player action and preview while a unit moves, with numbered lines from each enemy to its target in the order the enemy phase is expected to play; the AI rates options with the player's forecast calculation, kills first, then its target rule; humanoid enemies carry generic weapons (enemy-roster.md's Crossbowman gets a Simple Bow, not the Heavy Crossbow) and enemy weapons and staves never run out, while unique traits and signature moves have limited uses | P04 questions 4, 12 and 23, P02 question 14, P03 questions 5, 12 and 15–17 |
+| Vision (ideation thread) | From P03 question 21 (October 30, 2026): the Mercenary's starting Pouch items (M1 runs provisionally with the Potion on the Hakkapel, the Guard Tonic on the Archer and Minor Heal in the Battle Medic's Pouch); Triage's text: its Stance gain goes above the maximum and lasts until the ally's side's next Phase Start | P03 question 21 |
 
 ## Scope guardrails
 
@@ -350,13 +354,14 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 
 ## Next actions
 
-1. **M1's critical path:** P03 **CT3** (prompt reissued October 30, 2026 against `dev` 6c60f1f; the M1 content: the Mercenary army, its gear and the Iron
-   Heart, as data; still building), then a P03 fix-up: the loadout reads `ConsumableDefinition.uses`
-   as it reads a staff's, and a content rule rejects an item with both `uses` and its own charged use
-   effect (P05 question 18d). P05: EN1 merged October 30, 2026 (60ae740); **EN2** (setup step 4) and
-   **EN3** (the AI core) prompts issued October 30, 2026, then EN4 (intents and the danger zone) and
-   EN5 (M1's enemies, after CT3). EN2, EN3 and CT3 overlap in places: whichever merges later merges
-   `dev` in first.
+1. **M1's critical path:** P05 **EN2** (setup step 4) and **EN3** (the AI core), prompts issued
+   October 30, 2026; then EN4 (intents and the danger zone); **EN5** (M1's enemies) is ready now
+   that CT3 is in. P03's **CT3F M1 content fix-up** (prompt issued October 30, 2026): the loadout
+   reads `ConsumableDefinition.uses` as it reads a staff's, a content rule rejects an item with both
+   `uses` and its own charged use effect (P05 question 18d), Triage's gain goes above the Stance
+   maximum (P03 question 21), and the stale capitalized tags. These branches overlap in
+   `campaign_session.gd`, `scripts/content` and the tests: whichever merges later merges `dev` in
+   first.
    **Planning alongside:** P06 (the darkness) and P07 (minimal UI); P06 depends only on P02 and
    P04, which are approved.
 2. **Code that may run alongside, off M1's path:**
@@ -373,7 +378,8 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
    - P04 **MP8** after CC8: the map key and P04's facts in the snapshot (`combat_session.gd:TOD-002`);
      `entities` and `combat_map` with MP7's `MapState` fields and the waiting wave units (P04
      question 24b); removes the accepted `# ASSUMPTION` above `map_check.gd`'s point rule.
-   - P03 CT6 (target shapes) is ready but not on M1's path; hold it so merges stay simple.
+   - P03 CT6 (target shapes) and CT13 (the unit roster) are ready but not on M1's path; hold them
+     (M1 before breadth, and simpler merges).
 3. Vision updates pending for the ideation thread (Design items by plan).
 
 ## Change log
@@ -441,3 +447,4 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 | October 30, 2026 | P05 answers from the user: 7, 8, 10–12 and 14–17 as recommended; 13 changed (humanoid enemies carry generic weapons, the Crossbowman a Simple Bow; enemy weapons and staves never run out; unique traits and signature moves have limited uses); 9 changed to chained intents (a kill that exposes a unit shows the follow-up), pending the user's confirmation of the orchestrator's reading; 6 clarified (each option is forecast on its own tile), pending confirmation. |
 | October 30, 2026 | **P05 approved** (questions 6 and 9 confirmed: each option is forecast on its own tile with the player's forecast calculation; intents chain through the AI's expectation, in order). The step graph gains a P05 box (EN1–EN5); gates: EN1–EN4 open, EN5 after CT3. P05's design items on slot indexes, its catalog kind and the branch budget are settled by the plan; boss marking moves to EN7 and reinforcement groups to EN10. Vision update queued (intents, the AI's numbers, generic enemy weapons). P05 EN1 prompt issued. |
 | October 30, 2026 | **P05 EN1 merged into `dev`** (60ae740; verified merged: content 463, every other suite unchanged, launch clean): `EnemyClassDefinition` and `PackDefinition` with their own catalog kinds, the `enemies/` folder rules, stats by level, unlimited enemy weapon and staff uses; the loadout now enforces `StaffDefinition.uses` for player staves. User answered P05 question 18 as recommended: a consumable-uses fix-up after CT3; CC8 restores the loadout's runtime effects as themselves. EN2 and EN3 ready; prompts issued. |
+| October 30, 2026 | **P03 CT3 merged into `dev`** (019c1b3, after EN1; verified merged: content 536, map 468, every other suite unchanged, launch clean): the M1 content as data (the Drengr, Archer, Battle Medic and Hakkapel, the Mercenary faction, the nine Simple weapons, Shelter, Minor Heal, the Potion, the Guard Tonic and Iron Heart) and `StartingArmy.build`. User answered P03 question 21: as recommended, except Triage's Stance gain goes above the maximum. New step CT3F (the M1 content fix-up); EN5 gate open; a P07 design item (effect text) and a vision item (starting Pouch items, Triage) added; the runner gains a time limit per suite. |

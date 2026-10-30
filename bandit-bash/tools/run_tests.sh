@@ -7,7 +7,7 @@
 # File:     run_tests.sh
 # Author:
 # Created:  October 29, 2026
-# Modified: October 29, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 # Runs the headless test suites, parse checks and a launch check, and prints one verdict line per
 # run, so a result reads in a few lines instead of the full Godot output. Works from any folder.
@@ -23,8 +23,10 @@
 #
 # Verdicts: PASS; FAIL (a failed test, a script or parse error, a leak, or no summary line);
 # EXIT-CRASH (every test passed but the engine crashed at exit, Godot issue #117975: the results
-# stand). The exit status is 0 only when nothing failed. Each run's full output is kept in the log
-# folder printed at the end.
+# stand); HUNG (the run outlived SUITE_TIMEOUT seconds, default 300, and was stopped: a script
+# that fails to compile can leave Godot waiting forever; 0 turns the limit off). The exit status
+# is 0 only when nothing failed. Each run's full output is kept in the log folder printed at the
+# end. The limit needs `timeout` (coreutils, Git Bash); without it runs are unlimited.
 #
 # Godot: $GODOT if set, else `godot` or `godot4` on PATH, else the project's Windows install.
 # ==============================================================================
@@ -43,6 +45,17 @@ if ! "$GODOT" --version >/dev/null 2>&1; then
 	exit 2
 fi
 
+# Every Godot run goes through $LIMIT, so a hung run is stopped instead of blocking the rest.
+SUITE_TIMEOUT="${SUITE_TIMEOUT:-300}"
+LIMIT=""
+if [ "$SUITE_TIMEOUT" -gt 0 ]; then
+	if command -v timeout >/dev/null 2>&1; then
+		LIMIT="timeout -k 10 $SUITE_TIMEOUT"
+	else
+		echo "note: no timeout command, so runs have no time limit"
+	fi
+fi
+
 # Output lines that mean a run is broken, whatever its exit code says.
 BROKEN='SCRIPT ERROR|Parse Error|Compile Error|Failed to load script|leaked at exit|resources still in use'
 
@@ -51,7 +64,9 @@ verdict() {
 	summary=$(grep -E '^--- [0-9]+ passed' "$3" | tail -1)
 	broken=$(grep -cE "$BROKEN" "$3")
 	fails=$(echo "$summary" | sed -nE 's/.* ([0-9]+) failed.*/\1/p')
-	if [ -z "$summary" ] || [ "$broken" -gt 0 ] || [ "${fails:-1}" -ne 0 ]; then
+	if [ "$2" -eq 124 ] || [ "$2" -eq 137 ]; then
+		status=HUNG
+	elif [ -z "$summary" ] || [ "$broken" -gt 0 ] || [ "${fails:-1}" -ne 0 ]; then
 		status=FAIL
 	elif [ "$2" -ne 0 ]; then
 		status=EXIT-CRASH
@@ -59,7 +74,7 @@ verdict() {
 		status=PASS
 	fi
 	printf '%-10s %-10s %s (exit %s)\n' "$1" "$status" "${summary:-no summary line}" "$2"
-	if [ "$status" = FAIL ]; then
+	if [ "$status" = FAIL ] || [ "$status" = HUNG ]; then
 		failed=1
 		grep -E "^FAIL|$BROKEN" "$3" | head -15 | sed 's/^/    /'
 	fi
@@ -70,7 +85,7 @@ verdict() {
 check_scripts() {
 	for script in "$@"; do
 		log="$LOGS/check_$(basename "$script").log"
-		"$GODOT" --headless --path "$PROJECT" --check-only --script "$script" >"$log" 2>&1
+		$LIMIT "$GODOT" --headless --path "$PROJECT" --check-only --script "$script" >"$log" 2>&1
 		code=$?
 		if grep -qE "$BROKEN|^ERROR:" "$log"; then
 			printf '%-10s %-10s %s (exit %s)\n' check FAIL "$script" "$code"
@@ -85,7 +100,7 @@ check_scripts() {
 	done
 }
 
-"$GODOT" --headless --path "$PROJECT" --import >"$LOGS/import.log" 2>&1
+$LIMIT "$GODOT" --headless --path "$PROJECT" --import >"$LOGS/import.log" 2>&1
 
 case "$1" in
 --check)
@@ -136,14 +151,14 @@ trap 'rm -f "$OVERRIDE"' EXIT INT TERM
 
 for suite in $suites; do
 	log="$LOGS/$suite.log"
-	"$GODOT" --headless --path "$PROJECT" --script "res://tests/$suite/run_all.gd" >"$log" 2>&1
+	$LIMIT "$GODOT" --headless --path "$PROJECT" --script "res://tests/$suite/run_all.gd" >"$log" 2>&1
 	verdict "$suite" $? "$log"
 done
 rm -f "$OVERRIDE"
 
 if [ $run_launch -eq 1 ]; then
 	log="$LOGS/launch.log"
-	"$GODOT" --headless --path "$PROJECT" --quit-after 60 >"$log" 2>&1
+	$LIMIT "$GODOT" --headless --path "$PROJECT" --quit-after 60 >"$log" 2>&1
 	code=$?
 	problems=$(grep -E "$BROKEN|^ERROR:|^WARNING:" "$log")
 	if [ -n "$problems" ] || [ $code -ne 0 ]; then
