@@ -6,7 +6,7 @@
 # File:     consumable_definition.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 29, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 @tool
@@ -30,7 +30,8 @@ extends ItemDefinition
 ## [b]Units:[/b] HP or Block.
 @export_range(0, 30, 1, "or_greater") var amount: int = 0
 
-## Uses before it is spent or until it refills, by [member uses_lane].[br]
+## Uses before it is spent or until it refills, by [member uses_lane]. The only count of them: its
+## use effect carries no charges of its own, or the content test fails it.[br]
 ## [b]0:[/b] never used up (the Lockpick).
 @export_range(0, 9, 1, "or_greater") var uses: int = 1
 
