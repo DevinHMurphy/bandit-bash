@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="PackDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/pack_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+class_counts = Dictionary[String, int]({"fixture_crossbowman": 2})
+id = "fixture_bolt_pack"
+display_name = "Fixture Pack"

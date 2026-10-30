@@ -6,7 +6,7 @@
 # File:     content_rules.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 29, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -22,7 +22,10 @@ extends RefCounted
 ## start at 1, string ids are in their [ContentIds] list, every sellable item has a price, and
 ## no Basic, Legendary or Unique item has one; and (event bus plan, question 50) no effect lacks
 ## operations, no faction lists its commander among its starting units, and starting gear fits
-## its slots. [constant LOAD] fails a file the catalog turned away.[br]
+## its slots. P05's rules (enemies and AI plan, EN1): enemy classes live in enemies/ and packs in
+## enemies/packs/, a pack names only enemy classes, each at least once, and an enemy class has
+## target rule text and is never a commander or given a role. [constant LOAD] fails a file the
+## catalog turned away.[br]
 ## The price rules read the price through a callable, so their fixtures can run against a table
 ## with a row missing or a price for an unsold rarity, which [Prices] itself never has.
 ##
@@ -62,6 +65,10 @@ const COMMANDER_STARTING: String = "commander_starting"
 ## A faction's starting gear in the wrong slot: a non-weapon in the Weapon slot, a non-equipment
 ## in the Equipment slot, equipment in the Pouch, or more than three slots.
 const GEAR_SLOT: String = "gear_slot"
+## A pack that lists no enemy class, or a class count below 1.
+const PACK_COUNT: String = "pack_count"
+## An enemy class with no target rule text, a commander flag or a role.
+const ENEMY_CLASS: String = "enemy_class"
 
 ## Every rule that fails the test.
 const FAILURE_RULES: PackedStringArray = [
@@ -80,6 +87,8 @@ const FAILURE_RULES: PackedStringArray = [
 	NO_OPERATIONS,
 	COMMANDER_STARTING,
 	GEAR_SLOT,
+	PACK_COUNT,
+	ENEMY_CLASS,
 ]
 
 # A faction's starting gear slots in order (FactionDefinition.starting_gear).
@@ -102,6 +111,8 @@ const KIND_FOLDERS: Dictionary[EffectCatalog.Kind, String] = {
 	EffectCatalog.Kind.SHAPE: "shapes/",
 	EffectCatalog.Kind.EFFECT: "effects/",
 	EffectCatalog.Kind.TERRAIN: "terrain/",
+	EffectCatalog.Kind.ENEMY_CLASS: "enemies/",
+	EffectCatalog.Kind.PACK: "enemies/packs/",
 }
 
 # The staff kind that attacks, so its range starts at 1 like a weapon's. ContentIds.STAFF_KINDS
@@ -148,6 +159,12 @@ func _check_definition(path: String, resource: Resource) -> void:
 	if resource is ItemDefinition:
 		var item: ItemDefinition = resource
 		_check_price(path, item)
+	if resource is EnemyClassDefinition:
+		var enemy: EnemyClassDefinition = resource
+		_check_enemy_class(path, enemy)
+	elif resource is PackDefinition:
+		var pack: PackDefinition = resource
+		_check_pack_counts(path, pack)
 
 
 func _check_duplicates() -> void:
@@ -220,6 +237,10 @@ func _check_references(path: String, resource: Resource) -> void:
 			for item_id: String in gear:
 				_item_reference(path, item_id)
 			_check_gear_slots(path, gear)
+	elif resource is PackDefinition:
+		var pack: PackDefinition = resource
+		for class_id: String in pack.class_counts:
+			_reference(path, "class_counts", class_id, EffectCatalog.Kind.ENEMY_CLASS, true)
 	elif resource is StaffDefinition:
 		var staff: StaffDefinition = resource
 		_reference(path, "area_shape_id", staff.area_shape_id, EffectCatalog.Kind.SHAPE)
@@ -306,6 +327,9 @@ func _check_string_ids(path: String, resource: Resource) -> void:
 		_known_all(path, "tags", unit.tags, ContentIds.TAGS)
 		_known_all(path, "upgrade_weapon_types", unit.upgrade_weapon_types, ContentIds.WEAPON_TYPES)
 		_known_all(path, "upgrade_tags", unit.upgrade_tags, ContentIds.TAGS)
+		if resource is EnemyClassDefinition:
+			var enemy: EnemyClassDefinition = resource
+			_known(path, "target_rule_id", enemy.target_rule_id, ContentIds.TARGET_RULES)
 	elif resource is WeaponDefinition:
 		var weapon: WeaponDefinition = resource
 		_known(path, "weapon_type", weapon.weapon_type, ContentIds.WEAPON_TYPES)
@@ -436,6 +460,27 @@ func _check_price(path: String, item: ItemDefinition) -> void:
 		_fail(UNSELLABLE_PRICED, path, "a %s %s is never sold but costs %d" % [
 			rarity_name, item.kind, price,
 		])
+
+
+# The intent shows the target rule's text, so it can't be empty; an enemy class is never a
+# commander and has no role (P03 question 14), since commanders and roles are the player's.
+func _check_enemy_class(path: String, enemy: EnemyClassDefinition) -> void:
+	if enemy.target_rule_text.strip_edges().is_empty():
+		_fail(ENEMY_CLASS, path, "it has no target rule text")
+	if enemy.is_commander:
+		_fail(ENEMY_CLASS, path, "an enemy class is never a commander")
+	if not enemy.role.is_empty():
+		_fail(ENEMY_CLASS, path, "an enemy class has no role; it has \"%s\"" % [enemy.role])
+
+
+func _check_pack_counts(path: String, pack: PackDefinition) -> void:
+	if pack.class_counts.is_empty():
+		_fail(PACK_COUNT, path, "it lists no enemy class")
+	for class_id: String in pack.class_counts:
+		if pack.class_counts[class_id] < 1:
+			_fail(PACK_COUNT, path, "\"%s\" has count %d; each class fields at least 1" % [
+				class_id, pack.class_counts[class_id],
+			])
 
 
 # Every effect [param resource] carries, in its lists' order: a carrier's effects, a unit type's

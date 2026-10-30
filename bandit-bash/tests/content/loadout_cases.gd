@@ -6,7 +6,7 @@
 # File:     loadout_cases.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 29, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -14,15 +14,20 @@ extends RefCounted
 ## round trips through JSON; unit stats against unit-roster.md with and without a prefix, an
 ## upgrade and a permanent delta; [Loadout]'s combat state, bases, weapon records and effects on a
 ## real [CombatState] and [EffectEngine]; a weapon prefix sleeping with a stowed weapon; the
-## lock-picking permission; campaign-lane write-back; and bad data reported, not guessed at.
-## Reports each case through the check callable it is given.
+## lock-picking permission; campaign-lane write-back; bad data reported, not guessed at; and the
+## enemy side: an enemy class is no unit type, its stats by level with the level named, and its
+## weapons' and staves' uses unlimited while a player's run out. Reports each case through the
+## check callable it is given.
 ##
 ## The fixture tree [constant TREE] is a data root with the roster's numbers for the Archer, the
 ## Thief (with [constant CombatValue.Permission.CAN_PICK_LOCKS] in its innate effects; no real
-## Thief exists until CT13) and the Drengr. Bad-data messages are pushed as errors on purpose.
+## Thief exists until CT13) and the Drengr, enemy-roster.md's for the Brute and the Hedge Healer,
+## a Minor Heal with 3 uses per map, and a Medic to hold it on the player side. Bad-data messages
+## are pushed as errors on purpose.
 
-# A preloaded script used as a type (gdscript.md, Naming): the rules script has no class name.
+# Preloaded scripts used as types (gdscript.md, Naming): neither has a class name.
 const ContentRules = preload("res://tests/content/content_rules.gd")
+const StubCombatGrid = preload("res://tests/combat/stub_combat_grid.gd")
 
 ## The loadout fixture tree, loaded the way the catalog loads res://data/.
 const TREE: String = "res://tests/content/fixtures/loadout/"
@@ -57,6 +62,10 @@ func run() -> void:
 	_test_write_back()
 	_test_bad_data_reported()
 	_test_heirloom_effects()
+	_test_enemy_class_is_no_unit_type()
+	_test_enemy_stats_by_level()
+	_test_staff_uses_by_side()
+	_test_enemy_weapon_effects_unlimited()
 	_test_definitions_unchanged()
 
 
@@ -465,6 +474,140 @@ func _test_heirloom_effects() -> void:
 	), "")
 
 
+func _test_enemy_class_is_no_unit_type() -> void:
+	var type_ids: PackedStringArray = []
+	for definition: Resource in _index.all_of(EffectCatalog.Kind.UNIT_TYPE):
+		type_ids.append(EffectCatalog.id_of(definition))
+	_check.call("enemy class: never among the unit types", (
+			_index.unit_type("loadout_brute") == null
+			and not type_ids.has("loadout_brute")
+			and not type_ids.has("loadout_hedge_healer")
+			and type_ids.has("loadout_archer")
+	), str(type_ids))
+	_check.call("enemy class: a unit instance finds it, and its unit type otherwise", (
+			_unit("unit:1", "loadout_brute").definition(_index) is EnemyClassDefinition
+			and _unit("unit:2", "loadout_archer").definition(_index) == _index.unit_type(
+					"loadout_archer"
+			)
+	), "")
+
+
+# enemy-roster.md's Brute: 23/7/4/2/2/5/12, growths 115/60/35/20/15. At level L each stat is
+# base + floor(growth x (L - 1) / 100) (game-vision.md, Run structure).
+func _test_enemy_stats_by_level() -> void:
+	var brute: EnemyClassDefinition = _index.enemy_class("loadout_brute")
+	var expected_text: Dictionary[int, String] = {
+		1: "23/7/4/2/2/5/12",
+		3: "25/8/4/2/2/5/12",
+		5: "27/9/5/2/2/5/12",
+	}
+	for level: int in expected_text:
+		var unit: UnitInstance = _unit("unit:%d" % [level], "loadout_brute")
+		unit.level = level
+		var sheet: StatSheet = unit.stats(_index)
+		var formula_holds: bool = true
+		for stat: int in brute.base_stats:
+			var growth: int = brute.growths.get(stat, 0)
+			var gain: int = floori(float(growth * (level - 1)) / 100.0)
+			var key: int = CombatValue.STAT_KEYS[stat]
+			formula_holds = formula_holds and sheet.get_int(key) == brute.base_stats[stat] + gain
+		_check.call("level %d: each stat is base + floor(growth x (L - 1))" % [level], (
+				formula_holds and _stats(sheet) == expected_text[level]
+		), _stats(sheet))
+		var world: World = World.new(_load(unit, {}, ENEMY, -1))
+		var hp: ValueBreakdown = world.engine.stats(unit.instance_id).explain(CombatValue.Key.HP)
+		_check.call("level %d: the loadout builds the same stats in battle" % [level], (
+				_stats(world.engine.stats(unit.instance_id)) == expected_text[level]
+				and world.state.unit(unit.instance_id).hp == hp.get_int()
+		), _stats(world.engine.stats(unit.instance_id)))
+		var names_level: bool = hp.to_text().contains("Level %d" % [level])
+		_check.call("level %d: the HP breakdown %s the level" % [
+			level, "leaves out" if level == 1 else "names",
+		], names_level == (level > 1), hp.to_text())
+	var player: UnitInstance = _unit("unit:9", "loadout_archer")
+	player.level = 5
+	_check.call("level: a player unit's level adds nothing; its level-ups are deltas", (
+			_stats(player.stats(_index)) == "13/5/8/0/0/5/6"
+	), _stats(player.stats(_index)))
+
+
+# The same Minor Heal (3 uses per map) on each side: a player's runs out after three heals, an
+# enemy's never does (enemies and AI plan, question 13).
+func _test_staff_uses_by_side() -> void:
+	var player: World = _healer_world(PLAYER, "loadout_medic")
+	var enemy: World = _healer_world(ENEMY, "loadout_hedge_healer")
+	for side_world: World in [player, enemy]:
+		for _i: int in 3:
+			side_world.state.set_hp("unit:2", 5)
+			side_world.engine.begin_step()
+			var result: StaffResolver.Result = StaffResolver.resolve(
+					side_world.engine, side_world.state, "unit:1", "unit:2"
+			)
+			if result.is_legal:
+				side_world.heals += 1
+	_check.call("staff uses: both sides heal three times", (
+			player.heals == 3 and enemy.heals == 3
+	), "%d %d" % [player.heals, enemy.heals])
+	player.state.set_hp("unit:2", 5)
+	var player_reason: String = StaffResolver.check(player.engine, player.state, "unit:1", "unit:2")
+	_check.call("staff uses: a player's Minor Heal runs out after its per-map uses", (
+			player_reason == "no uses left"
+	), player_reason)
+	enemy.state.set_hp("unit:2", 5)
+	enemy.engine.begin_step()
+	var fourth: StaffResolver.Result = StaffResolver.resolve(
+			enemy.engine, enemy.state, "unit:1", "unit:2"
+	)
+	_check.call("staff uses: an enemy's Minor Heal still heals after them", (
+			fourth.is_legal and enemy.state.get_hp("unit:2") > 5
+	), fourth.reason)
+
+
+# A weapon's own charged use effect, as data could give one, and a charged effect on a trigger.
+func _test_enemy_weapon_effects_unlimited() -> void:
+	var index: EffectCatalog.Index = EffectCatalog.load_tree(TREE)
+	var use: EffectDefinition = EffectDefinition.new()
+	use.id = "fixture_use"
+	use.charges = 2
+	var rider: EffectDefinition = EffectDefinition.new()
+	rider.id = "fixture_rider"
+	rider.trigger = EffectTerms.Trigger.UNIT_TURN_START
+	rider.charges = 1
+	var staff: StaffDefinition = StaffDefinition.new()
+	staff.id = "fixture_charged_staff"
+	staff.weapon_type = "staff"
+	staff.staff_kind = ContentIds.STAFF_HEAL
+	staff.effects = [use, rider]
+	index.add(TREE + "items/weapons/staff/fixture_charged_staff.tres", staff)
+	index.finish()
+	var items: Dictionary[String, ItemInstance] = {
+		"item:1": _item("item:1", "fixture_charged_staff"),
+	}
+	var healer: UnitInstance = _unit("unit:1", "loadout_hedge_healer", "item:1")
+	var as_enemy: Loadout.LoadedUnit = Loadout.load_unit(
+			index, healer, items, ENEMY, -1, InstanceIdAllocator.new()
+	)
+	var as_player: Loadout.LoadedUnit = Loadout.load_unit(
+			index, healer, items, PLAYER, 0, InstanceIdAllocator.new()
+	)
+	var enemy_use: EffectInstance = _effect_of(as_enemy, "fixture_use")
+	_check.call("enemy weapon: a charged use effect has no limit, on a copy", (
+			enemy_use != null
+			and enemy_use.definition != use
+			and enemy_use.definition.charges == 0
+			and enemy_use.has_charge()
+			and use.charges == 2
+	), "")
+	var enemy_rider: EffectInstance = _effect_of(as_enemy, "fixture_rider")
+	_check.call("enemy weapon: a charged effect on a trigger keeps its limit", (
+			enemy_rider != null and enemy_rider.definition == rider
+	), "")
+	var player_use: EffectInstance = _effect_of(as_player, "fixture_use")
+	_check.call("enemy weapon: a player's keeps the shared definition and its limit", (
+			player_use != null and player_use.definition == use and player_use.charges_left == 2
+	), "")
+
+
 # Every case above loaded the same shared definitions; none may have changed.
 func _test_definitions_unchanged() -> void:
 	var fresh: EffectCatalog.Index = EffectCatalog.load_tree(TREE)
@@ -496,6 +639,28 @@ func _load(
 	var typed: Dictionary[String, ItemInstance] = {}
 	typed.assign(items)
 	return Loadout.load_unit(_index, unit, typed, side, seat, InstanceIdAllocator.new())
+
+
+# A healer of [param healer_type] holding Minor Heal ("unit:1") beside a Thief ally ("unit:2"), both
+# on [param side], loaded with one allocator so their effect ids differ.
+func _healer_world(side: CombatFact.CombatSide, healer_type: String) -> World:
+	var seat: int = -1 if side == ENEMY else 0
+	var ids: InstanceIdAllocator = InstanceIdAllocator.new()
+	var items: Dictionary[String, ItemInstance] = {"item:1": _item("item:1", "loadout_minor_heal")}
+	var healer: Loadout.LoadedUnit = Loadout.load_unit(
+			_index, _unit("unit:1", healer_type, "item:1"), items, side, seat, ids
+	)
+	var no_items: Dictionary[String, ItemInstance] = {}
+	var ally: Loadout.LoadedUnit = Loadout.load_unit(
+			_index, _unit("unit:2", "loadout_thief"), no_items, side, seat, ids
+	)
+	var problems: PackedStringArray = healer.problems + ally.problems
+	_check.call("staff uses: the %s side loads cleanly" % [
+		CombatFact.CombatSide.find_key(side),
+	], problems.is_empty(), str(problems))
+	var world: World = World.new(healer)
+	world.add(ally, Vector2i(1, 2))
+	return world
 
 
 func _effect_of(loaded: Loadout.LoadedUnit, effect_id: String) -> EffectInstance:
@@ -533,20 +698,26 @@ func _is_plain(value: Variant) -> bool:
 	return true
 
 
-# One loaded unit placed on an empty map with a real CombatState and EffectEngine.
+# Loaded units placed on an open map with a real CombatState and EffectEngine.
 class World:
 	extends RefCounted
 
-	var state: CombatState = CombatState.new()
+	var state: CombatState = CombatState.new(StubCombatGrid.new())
 	var engine: EffectEngine = null
+	## Legal staff uses a case counted.
+	var heals: int = 0
 
 	func _init(loaded: Loadout.LoadedUnit) -> void:
 		engine = EffectEngine.new(state, null)
+		add(loaded, Vector2i(1, 1))
+
+	## Places [param loaded] on [param tile], its weapons, effects and bases first.
+	func add(loaded: Loadout.LoadedUnit, tile: Vector2i) -> void:
 		for weapon: CombatState.WeaponStats in loaded.weapons:
 			state.add_weapon(weapon)
 		for instance: EffectInstance in loaded.effects:
 			engine.register(instance)
 		for key: int in loaded.bases:
 			engine.set_base(loaded.state.id, key, loaded.bases[key])
-		loaded.state.tile = Vector2i(1, 1)
+		loaded.state.tile = tile
 		state.place_unit(engine, loaded.state)

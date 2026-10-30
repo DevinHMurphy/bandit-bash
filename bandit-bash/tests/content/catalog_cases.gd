@@ -6,7 +6,7 @@
 # File:     catalog_cases.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 29, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -51,6 +51,13 @@ const BAD_TREES: Dictionary[String, String] = {
 	"no_operations": ContentRules.NO_OPERATIONS,
 	"commander_starting": ContentRules.COMMANDER_STARTING,
 	"gear_slot": ContentRules.GEAR_SLOT,
+	"pack_missing_class": ContentRules.DANGLING_REFERENCE,
+	"pack_not_enemy": ContentRules.DANGLING_REFERENCE,
+	"pack_count": ContentRules.PACK_COUNT,
+	"enemy_class_text": ContentRules.ENEMY_CLASS,
+	"enemy_class_role": ContentRules.ENEMY_CLASS,
+	"folder_enemy_class": ContentRules.FOLDER,
+	"folder_pack": ContentRules.FOLDER,
 }
 
 # The trees checked by their own cases rather than BAD_TREES.
@@ -81,6 +88,8 @@ const VALID_KINDS: Dictionary[String, EffectCatalog.Kind] = {
 	"fixture_adjacent": EffectCatalog.Kind.SHAPE,
 	"fixture_infuse": EffectCatalog.Kind.EFFECT,
 	"fixture_plain": EffectCatalog.Kind.TERRAIN,
+	"fixture_crossbowman": EffectCatalog.Kind.ENEMY_CLASS,
+	"fixture_bolt_pack": EffectCatalog.Kind.PACK,
 }
 
 var _check: Callable
@@ -165,6 +174,8 @@ func _test_catalog_lookups_miss() -> void:
 		EffectCatalog.shape(missing),
 		EffectCatalog.effect(missing),
 		EffectCatalog.terrain(missing),
+		EffectCatalog.enemy_class(missing),
+		EffectCatalog.pack(missing),
 	]
 	var all_null: bool = true
 	for found: Resource in misses:
@@ -242,6 +253,8 @@ func _test_valid_tree_lookups() -> void:
 		"shape": index.shape("fixture_adjacent") is TargetShape,
 		"effect": index.effect("fixture_infuse") is EffectDefinition,
 		"terrain": index.terrain("fixture_plain") is TerrainDefinition,
+		"enemy_class": index.enemy_class("fixture_crossbowman") is EnemyClassDefinition,
+		"pack": index.pack("fixture_bolt_pack") is PackDefinition,
 	}
 	for lookup: String in typed:
 		_check.call("lookups: %s finds its kind" % [lookup], typed[lookup], "")
@@ -269,6 +282,19 @@ func _test_sub_kinds() -> void:
 			index.heirloom("fixture_brittle_guard") != null
 			and index.curse("fixture_iron_heart") == null
 	), "")
+	_check.call("enemy class: never a unit type or commander, though it extends one", (
+			index.unit_type("fixture_crossbowman") == null
+			and index.commander("fixture_crossbowman") == null
+			and not index.is_of("fixture_crossbowman", EffectCatalog.Kind.UNIT_TYPE)
+			and index.enemy_class("fixture_archer") == null
+			and index.enemy_class("fixture_crossbowman").behavior
+					== EnemyClassDefinition.Behavior.HOLD
+	), "")
+	var pack: PackDefinition = index.pack("fixture_bolt_pack")
+	_check.call("pack: its units in order, each class by its count", (
+			pack != null
+			and pack.units() == PackedStringArray(["fixture_crossbowman", "fixture_crossbowman"])
+	), "" if pack == null else str(pack.units()))
 	_check.call("sub-kinds: kind_of names the own kind", (
 			index.kind_of("fixture_everwall") == EffectCatalog.Kind.STAFF
 			and index.is_of("fixture_everwall", EffectCatalog.Kind.WEAPON)
@@ -286,6 +312,8 @@ func _test_sub_kinds() -> void:
 		EffectCatalog.Kind.WEAPON_PREFIX: PackedStringArray([
 			"fixture_keen_edge", "fixture_long_draw",
 		]),
+		EffectCatalog.Kind.ENEMY_CLASS: PackedStringArray(["fixture_crossbowman"]),
+		EffectCatalog.Kind.PACK: PackedStringArray(["fixture_bolt_pack"]),
 	}
 	for kind: EffectCatalog.Kind in expected:
 		var ids: PackedStringArray = _ids_of(index.all_of(kind))

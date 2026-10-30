@@ -6,7 +6,7 @@
 # File:     loadout.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 29, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 class_name Loadout
@@ -21,6 +21,11 @@ extends RefCounted
 ## effects, granted effects, weapon prefix and stat deltas. Every change on top of a base is an
 ## always-on effect sourced to what made it, so breakdowns name it; a stowed weapon's sleep with
 ## it (event bus plan, fix F8). [method heirloom_effects] builds a seat's heirloom carriers.[br]
+## A staff's [member StaffDefinition.uses] become a use effect that combat counts
+## ([method ItemUseResolver.use_effects]). An [EnemyClassDefinition] loads like a unit type, its
+## level as a "Level L" source. An enemy's weapons and staves never run out (enemies and AI plan,
+## question 13): it gets no staff uses, and each charged use effect on them registers as a copy
+## without charges; its traits keep their limits.[br]
 ## Campaign-lane counters and charges are copied in from the instances and back out by
 ## [method LoadedUnit.write_back]. Bad data (an unknown id, gear in the wrong slot) is reported in
 ## [member LoadedUnit.problems] and skipped, never guessed at. Static and pure: it reads only the
@@ -65,7 +70,7 @@ static func load_unit(
 		ids: InstanceIdAllocator
 ) -> LoadedUnit:
 	var loaded: LoadedUnit = LoadedUnit.new()
-	var unit_type: UnitTypeDefinition = catalog.unit_type(unit.unit_type_id)
+	var unit_type: UnitTypeDefinition = unit.definition(catalog)
 	if unit_type == null:
 		loaded.problems.append("%s: unit type \"%s\" is not in the catalog" % [
 			unit.instance_id, unit.unit_type_id,
@@ -267,7 +272,10 @@ static func _add_item_effects(
 	)
 	var label: String = definition.display_name
 	var home: CounterHome = CounterHome.new(item.counters, item.charges)
-	_add_effects(loaded, ids, definition.effects, owner, label, home, kind)
+	var is_unlimited: bool = (
+			state.side == CombatFact.CombatSide.ENEMY and definition is WeaponDefinition
+	)
+	_add_effects(loaded, ids, definition.effects, owner, label, home, kind, is_unlimited)
 	var granted: Array[EffectDefinition] = []
 	for effect_id: String in item.granted_effect_ids:
 		var effect: EffectDefinition = catalog.effect(effect_id)
@@ -277,7 +285,13 @@ static func _add_item_effects(
 			])
 		else:
 			granted.append(effect)
-	_add_effects(loaded, ids, granted, owner, label, home, kind)
+	_add_effects(loaded, ids, granted, owner, label, home, kind, is_unlimited)
+	if definition is StaffDefinition and not is_unlimited:
+		var staff: StaffDefinition = definition
+		if staff.uses > 0:
+			loaded.add_effect(EffectInstance.new(
+					ids.next_effect_id(label), _staff_uses(staff), owner.copy(), kind, label
+			))
 
 	if not item.prefix_id.is_empty():
 		var prefix: WeaponPrefixDefinition = catalog.weapon_prefix(item.prefix_id)
@@ -332,7 +346,8 @@ static func _prefix_operations(prefix: WeaponPrefixDefinition) -> Array[EffectOp
 
 
 # One instance per effect of [param effects], each keeping its campaign-lane state in [param home]
-# by its key ([method CounterHome.for_effect]).
+# by its key ([method CounterHome.for_effect]). With [param is_unlimited], a use effect with
+# charges registers as a copy without them: an enemy's weapon never runs out.
 static func _add_effects(
 		loaded: LoadedUnit,
 		ids: InstanceIdAllocator,
@@ -340,7 +355,8 @@ static func _add_effects(
 		owner: EffectOwner,
 		label: String,
 		home: CounterHome,
-		kind: Modifier.SourceKind = Modifier.SourceKind.UNIT_TRAIT
+		kind: Modifier.SourceKind = Modifier.SourceKind.UNIT_TRAIT,
+		is_unlimited: bool = false
 ) -> void:
 	for index: int in effects.size():
 		var effect: EffectDefinition = effects[index]
@@ -349,6 +365,9 @@ static func _add_effects(
 		var instance: EffectInstance = EffectInstance.new(
 				ids.next_effect_id(label), effect, owner.copy(), kind, label
 		)
+		if is_unlimited and _is_charged_use(instance):
+			instance.definition = _without_charges(effect)
+			instance.charges_left = -1
 		var effect_home: CounterHome = home.for_effect(instance, index)
 		effect_home.copy_in()
 		loaded.add_effect(instance, effect_home)
@@ -374,6 +393,42 @@ static func _add_runtime(
 	loaded.add_effect(EffectInstance.new(
 			ids.next_effect_id(label), effect, owner.copy(), kind, label
 	))
+
+
+# Whether [param instance] counts an item's uses: a use effect (no trigger, no always-on modifier)
+# with charges.
+# NOTE: The same test as ItemUseResolver.use_effects, which combat counts uses by; keep them in
+# step.
+# ASSUMPTION: "uses" (question 13) are use effects only; a charged weapon effect on a trigger,
+# such as a once-per-map rider, keeps its limit on an enemy too.
+static func _is_charged_use(instance: EffectInstance) -> bool:
+	var effect: EffectDefinition = instance.definition
+	if effect.charges <= 0 or effect.trigger != EffectTerms.Trigger.ALWAYS:
+		return false
+	for operation: EffectOperation in effect.operations:
+		if operation != null and operation.make_modifier(instance) != null:
+			return false
+	return true
+
+
+# The use effect counting [param staff]'s [member StaffDefinition.uses] per map: no trigger and
+# no operations, so combat counts and spends it as the staff's uses and it does nothing else. Made
+# here, like every runtime effect, so no shared .tres changes.
+static func _staff_uses(staff: StaffDefinition) -> EffectDefinition:
+	var uses: EffectDefinition = EffectDefinition.new()
+	uses.id = "uses"
+	uses.charges = staff.uses
+	uses.charge_lane = EffectTerms.Lane.COMBAT
+	return uses
+
+
+# A copy of [param effect] with no charge limit, made here rather than changing the shared .tres.
+# It keeps the effect's id, so its counter home and logs name it as before. Its operations stay
+# shared and are never changed.
+static func _without_charges(effect: EffectDefinition) -> EffectDefinition:
+	var copy: EffectDefinition = effect.duplicate()
+	copy.charges = 0
+	return copy
 
 
 static func _add_operation(key: int, amount: float) -> ModifyValue:

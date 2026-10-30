@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 29, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -72,6 +72,7 @@ const DATA_FOLDERS: Array[String] = [
 	"heirlooms",
 	"curses",
 	"enemies",
+	"enemies/packs",
 	"effects",
 	"terrain",
 ]
@@ -553,6 +554,9 @@ func _test_id_lists_contents() -> void:
 	_check("ids: shape kinds", ContentIds.SHAPE_KINDS == PackedStringArray([
 		"tile", "radius", "square", "cross",
 	]))
+	_check("ids: the M1 enemy classes' target rules", ContentIds.TARGET_RULES == PackedStringArray([
+		"nearest_foe", "lowest_defense", "most_wounded_ally",
+	]))
 	var item_kinds: PackedStringArray = [
 		WeaponDefinition.new().kind,
 		EquipmentDefinition.new().kind,
@@ -594,6 +598,11 @@ func _test_inspector_hints() -> void:
 	_check("hints: a staff keeps its weapon hints and adds its own", (
 			_property_hint(staff, "weapon_type") == PROPERTY_HINT_ENUM
 			and _property_hint_string(staff, "staff_kind") == ",".join(ContentIds.STAFF_KINDS)
+	))
+	var enemy: Dictionary[String, Dictionary] = _properties(EnemyClassDefinition.new())
+	_check("hints: an enemy class keeps the unit hints and lists the target rules", (
+			_property_hint_string(enemy, "role") == ",".join(ContentIds.ROLES)
+			and _property_hint_string(enemy, "target_rule_id") == ",".join(ContentIds.TARGET_RULES)
 	))
 	var curse: Dictionary[String, Dictionary] = _properties(CurseDefinition.new())
 	_check("hints: a curse's tier lists the curse tiers", (
@@ -730,6 +739,7 @@ func _id_lists() -> Dictionary[String, PackedStringArray]:
 		"CURSE_TIERS": ContentIds.CURSE_TIERS,
 		"RUNE_TARGET_KINDS": ContentIds.RUNE_TARGET_KINDS,
 		"SHAPE_KINDS": ContentIds.SHAPE_KINDS,
+		"TARGET_RULES": ContentIds.TARGET_RULES,
 	}
 
 

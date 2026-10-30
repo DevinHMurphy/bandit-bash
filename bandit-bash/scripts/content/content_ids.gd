@@ -6,7 +6,7 @@
 # File:     content_ids.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 29, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 @tool
@@ -83,6 +83,15 @@ const STAFF_ATTACK: String = "attack"
 
 ## Staff kind: a status staff, a stub until status effects exist.
 const STAFF_STATUS: String = "status"
+
+## Enemy target rule: the nearest foe it can hit (the Brute).
+const TARGET_NEAREST_FOE: String = "nearest_foe"
+
+## Enemy target rule: the foe in range with the lowest Defense (the Crossbowman).
+const TARGET_LOWEST_DEFENSE: String = "lowest_defense"
+
+## Enemy target rule: the ally missing the most HP (the Hedge Healer).
+const TARGET_MOST_WOUNDED_ALLY: String = "most_wounded_ally"
 
 ## Weapon types (game-vision.md, Weapons and equipment). A staff is a weapon type, so the same
 ## list names the folders under [code]data/items/weapons/[/code] and
@@ -174,6 +183,15 @@ const RUNE_TARGET_KINDS: PackedStringArray = ["area", "random", "pair"]
 
 ## Target shape kinds (content catalog plan, question 17). Directional shapes wait for content.
 const SHAPE_KINDS: PackedStringArray = [SHAPE_TILE, SHAPE_RADIUS, SHAPE_SQUARE, SHAPE_CROSS]
+
+## Enemy target rules: whom an enemy class's AI picks among its options (enemy-roster.md, Traits,
+## behavior and intent). The AI branches on each, so each has a named constant. Only the rules of
+## classes that exist are listed.
+const TARGET_RULES: PackedStringArray = [
+	TARGET_NEAREST_FOE,
+	TARGET_LOWEST_DEFENSE,
+	TARGET_MOST_WOUNDED_ALLY,
+]
 
 
 ## Turns [param ids] into an inspector dropdown on [param property], from a definition's
