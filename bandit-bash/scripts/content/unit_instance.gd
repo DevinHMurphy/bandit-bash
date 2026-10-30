@@ -6,7 +6,7 @@
 # File:     unit_instance.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 29, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 class_name UnitInstance
@@ -14,10 +14,12 @@ extends RefCounted
 ## One unit in a run: its unit type, prefix, level, upgrade, three slots and everything it gained.
 ##
 ## The event bus plan's unit contract (Definitions and instances). Stats are computed, never
-## stored: the type's bases plus [method stat_sources] (prefix, upgrade, Sidearm, permanent
-## deltas), each a sourced modifier through the same value queries as every other, so a breakdown
-## names each source. [method stats] answers outside combat; in battle [Loadout] registers the same
-## sources as effects. Commanders never use a prefix or an upgrade, so both are ignored on one.[br]
+## stored: the type's bases plus [method stat_sources] (an enemy's level, prefix, upgrade,
+## Sidearm, permanent deltas), each a sourced modifier through the same value queries as every
+## other, so a breakdown names each source. [method stats] answers outside combat; in battle
+## [Loadout] registers the same sources as effects. Commanders never use a prefix or an upgrade,
+## so both are ignored on one. Its type is a [UnitTypeDefinition] or an [EnemyClassDefinition]
+## ([method definition]); only an enemy's [member level] adds stats here.[br]
 ## Plain data with ids only. [method capture] gives plain JSON and [method restore] reads it back;
 ## the run flow (P08) stores it in its [code]roster[/code] section. Its trait's campaign-lane
 ## counters and charges are kept by effect id and written back after every battle.
@@ -28,17 +30,21 @@ extends RefCounted
 ## [member hp] of a unit at its maximum HP, such as a new recruit.
 const FULL_HP: int = -1
 
+# Growths are percentages.
+const _PERCENT: float = 100.0
+
 ## Instance id, such as [code]unit:57[/code]; minted by the run's [InstanceIdAllocator] and never
 ## parsed. Its combat state on a map has the same id.
 var instance_id: String = ""
 
-## Content id of its [UnitTypeDefinition], such as [code]archer[/code].
+## Content id of its [UnitTypeDefinition] or [EnemyClassDefinition], such as [code]archer[/code].
 var unit_type_id: String = ""
 
 ## Content id of its [UnitPrefixDefinition]. [b]Empty:[/b] no prefix, the type in its pure form.
 var prefix_id: String = ""
 
-## Its level; 1 for a unit that never levelled.
+## Its level; 1 for a unit that never levelled. A player unit's level-ups add rolled
+## [member stat_deltas]; an enemy's level adds its growths directly ([method stat_sources]).
 var level: int = 1
 
 ## Whether it was upgraded ("Archer+"): the "+" trait, the stat gains and any big change.
@@ -94,12 +100,20 @@ func item_ids() -> PackedStringArray:
 	return ids
 
 
+## Its unit type, or its enemy class, from [param catalog]; null when the catalog has neither.
+func definition(catalog: EffectCatalog.Index) -> UnitTypeDefinition:
+	var enemy: EnemyClassDefinition = catalog.enemy_class(unit_type_id)
+	if enemy != null:
+		return enemy
+	return catalog.unit_type(unit_type_id)
+
+
 ## Its values outside combat (the roster screen, a recruit's preview): the type's base stats and
 ## Stance, then every [method stat_sources] change, sourced. Items and effects aren't counted. An
 ## unknown unit type gives an empty sheet.
 func stats(catalog: EffectCatalog.Index) -> StatSheet:
 	var sheet: StatSheet = StatSheet.new(instance_id)
-	var unit_type: UnitTypeDefinition = catalog.unit_type(unit_type_id)
+	var unit_type: UnitTypeDefinition = definition(catalog)
 	if unit_type == null:
 		return sheet
 	var bases: Dictionary[int, float] = base_values(unit_type)
@@ -122,7 +136,7 @@ func stats(catalog: EffectCatalog.Index) -> StatSheet:
 ## its prefix's and every growth delta, never below 0.[br]
 ## [b]Units:[/b] percent.
 func growth(catalog: EffectCatalog.Index, stat: int) -> int:
-	var unit_type: UnitTypeDefinition = catalog.unit_type(unit_type_id)
+	var unit_type: UnitTypeDefinition = definition(catalog)
 	if unit_type == null:
 		return 0
 	var total: int = unit_type.growths.get(stat, 0)
@@ -142,14 +156,19 @@ func trait_effects(unit_type: UnitTypeDefinition) -> Array[EffectDefinition]:
 	return unit_type.effects
 
 
-## Every change on top of its type's bases, one source each, in a fixed order: the prefix, the
-## upgrade's stat gains, Sidearm, then each permanent delta's source. Each holds always-on
-## operations ([ModifyValue], [SetPermission]). Unknown types and prefixes add nothing.
+## Every change on top of its type's bases, one source each, in a fixed order: an enemy's level
+## ("Level 3"), the prefix, the upgrade's stat gains, Sidearm, then each permanent delta's source.
+## Each holds always-on operations ([ModifyValue], [SetPermission]). Unknown types and prefixes add
+## nothing.
 func stat_sources(catalog: EffectCatalog.Index) -> Array[StatSource]:
 	var sources: Array[StatSource] = []
-	var unit_type: UnitTypeDefinition = catalog.unit_type(unit_type_id)
+	var unit_type: UnitTypeDefinition = definition(catalog)
 	if unit_type == null:
 		return sources
+	if unit_type is EnemyClassDefinition:
+		var gains: StatSource = _level_source(catalog, unit_type)
+		if not gains.operations.is_empty():
+			sources.append(gains)
 	var prefix: UnitPrefixDefinition = _prefix(catalog, unit_type)
 	if prefix != null:
 		sources.append(_prefix_source(unit_type, prefix))
@@ -204,6 +223,20 @@ func _prefix(catalog: EffectCatalog.Index, unit_type: UnitTypeDefinition) -> Uni
 
 func _upgrade_counts(unit_type: UnitTypeDefinition) -> bool:
 	return is_upgraded and not unit_type.is_commander
+
+
+# An enemy's deterministic growth (game-vision.md, Run structure): at level L, each growing stat
+# gains floor(growth % x (L - 1)). Enemies never roll a level-up, so this replaces the rolled
+# stat_deltas a player unit's level-ups add.
+# ASSUMPTION: the growth is the unit's full growth(), so an elite's prefix growth counts too.
+func _level_source(catalog: EffectCatalog.Index, unit_type: UnitTypeDefinition) -> StatSource:
+	var source: StatSource = StatSource.new("level", "Level %d" % [level])
+	var levels_gained: int = maxi(level - 1, 0)
+	for stat: int in unit_type.growths:
+		var gain: int = floori(float(growth(catalog, stat) * levels_gained) / _PERCENT)
+		if gain != 0:
+			source.add(CombatValue.STAT_KEYS[stat], gain)
+	return source
 
 
 # ASSUMPTION: "no stat can go below 0" (unit-roster.md, Prefixes) limits the prefix's own change,

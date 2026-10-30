@@ -6,7 +6,7 @@
 # File:     effect_catalog.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 29, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 class_name EffectCatalog
@@ -16,7 +16,8 @@ extends RefCounted
 ## Walks [constant DATA_ROOT] recursively with [method ResourceLoader.list_directory], which lists
 ## files by their source names in exported builds too, so nothing is registered by hand. Folders
 ## don't change what a definition is: its [enum Kind] comes from its class (and
-## [member UnitTypeDefinition.is_commander]), and the content test checks each file's folder
+## [member UnitTypeDefinition.is_commander]; an [EnemyClassDefinition] is never a unit type), and
+## the content test checks each file's folder
 ## against its data. Ids are unique across the catalog; when one repeats, the first file in path
 ## order wins and the repeat is reported in [method problems].[br]
 ## [b]Read-only:[/b] definitions are shared Resources, so never change one; per-unit and per-item
@@ -68,6 +69,11 @@ enum Kind {
 	EFFECT,
 	## A [TerrainDefinition] ([code]terrain/[/code]); [MapLoader] still loads these by path.
 	TERRAIN,
+	## An [EnemyClassDefinition] ([code]enemies/[/code]). Not a sub-kind of
+	## [constant UNIT_TYPE], so no lookup or list of player unit types includes one.
+	ENEMY_CLASS,
+	## A [PackDefinition] ([code]enemies/packs/[/code]).
+	PACK,
 }
 
 ## The folder the catalog loads.
@@ -243,8 +249,23 @@ static func terrain(id: String) -> TerrainDefinition:
 	return _require().terrain(id)
 
 
+## The enemy class [param id]; null when there is none.
+static func enemy_class(id: String) -> EnemyClassDefinition:
+	return _require().enemy_class(id)
+
+
+## The pack [param id]; null when there is none.
+static func pack(id: String) -> PackDefinition:
+	return _require().pack(id)
+
+
 ## The [enum Kind] of [param resource]; [constant NO_KIND] when it is no content definition.
 static func classify(resource: Resource) -> int:
+	# Before UnitTypeDefinition, which it extends: an enemy class must never classify as a unit type.
+	if resource is EnemyClassDefinition:
+		return Kind.ENEMY_CLASS
+	if resource is PackDefinition:
+		return Kind.PACK
 	if resource is StaffDefinition:
 		return Kind.STAFF
 	if resource is WeaponDefinition:
@@ -515,6 +536,16 @@ class Index:
 	## The terrain [param id]; null when there is none.
 	func terrain(id: String) -> TerrainDefinition:
 		return _of_kind(id, Kind.TERRAIN) as TerrainDefinition
+
+
+	## The enemy class [param id]; null when there is none.
+	func enemy_class(id: String) -> EnemyClassDefinition:
+		return _of_kind(id, Kind.ENEMY_CLASS) as EnemyClassDefinition
+
+
+	## The pack [param id]; null when there is none.
+	func pack(id: String) -> PackDefinition:
+		return _of_kind(id, Kind.PACK) as PackDefinition
 
 
 	func _of_kind(id: String, kind: Kind) -> Resource:

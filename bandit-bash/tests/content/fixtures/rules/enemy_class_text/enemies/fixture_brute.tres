@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="EnemyClassDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/enemy_class_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+target_rule_id = "nearest_foe"
+target_rule_text = "  "
+id = "fixture_brute"
+display_name = "Fixture Enemy"

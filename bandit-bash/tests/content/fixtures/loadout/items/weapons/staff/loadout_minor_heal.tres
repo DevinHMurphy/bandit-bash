@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="StaffDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/staff_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+staff_kind = "heal"
+base_amount = 5
+uses = 3
+weapon_type = "staff"
+damage_type = 2
+range_min = 1
+range_max = 1
+effective_against = PackedStringArray()
+rarity = 1
+weight = 2
+id = "loadout_minor_heal"
+display_name = "Minor Heal"
