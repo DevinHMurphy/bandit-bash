@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="StaffDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/staff_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+staff_kind = "heal"
+base_amount = 5
+uses = 3
+weapon_type = "staff"
+profile = 0
+damage = 0
+; ASSUMPTION: Magic, as weapons.md gives attack staves and every CT1/CT2 staff fixture sets; a
+; heal staff never attacks, so nothing reads it. Fragile: an editor re-save drops it.
+damage_type = 2
+range_min = 1
+range_max = 1
+effective_against = PackedStringArray()
+rarity = 1
+weight = 0
+id = "minor_heal"
+display_name = "Minor Heal"
