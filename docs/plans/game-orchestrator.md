@@ -93,7 +93,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P02 | Combat core: turns and phases, action economy, the exchange, damage stages, Block, Stance, triangle, crits, Parry, Shove, staves, Pouch items, weapon swaps, runes, forecast, `CombatGrid` interface | [2026-10-26-combat-core.md](2026-10-26-combat-core.md) | **Approved** October 26, 2026 (reviewed: questions 9–12 answered, seven fixes). **In progress:** CC1–CC7 built and merged (CC6 with P04 MP4, October 28, 2026; CC7 October 29, 2026; 608 headless combat tests pass); CC8 after EB7; no open questions (14: range 0 is self; 17: the opening swap is a setting, its window before turn 1 closed by Start; 18: CC6 part 1 choices accepted; 19: any fact makes a forecast stale) | P01 (EB2–EB4, plus amendments N1–N10) | P04, P05, P06, P07 | game-vision.md Combat |
 | P03 | Content catalog: unit types, traits and upgrades, the Drengr, prefixes, weapons, staves, items, ingredients, runes, heirlooms, curses | [2026-10-29-content-catalog.md](2026-10-29-content-catalog.md) | **Approved** October 29, 2026 (one plan, staged; questions 1–17 answered; P01 amendments F15–F17). CT1 (definitions, id lists, prices, data folders) merged October 29, 2026 (256 content tests; question 18 answered: its fixes go to CT2), EB5 merged; CT2 (instances, the loadout) merged October 29, 2026 (424 content tests; question 20 raised), so CT3 may start; question 19 answered (CT13, the rest of the unit roster); M1 needs CT1, EB5, CT2 and CT3 | P01 (EB3, EB5) | M1 content, P08, P09 | unit-roster.md, weapons.md, items.md, heirlooms.md, events.md (curses) |
 | P04 | Combat map: grid, terrain, pathing, deployment, objectives, reinforcement points, map objects, map authoring and its checks | [2026-10-27-combat-map.md](2026-10-27-combat-map.md) | **Approved** October 27, 2026 (13 questions answered; "within N movable tiles" cut; no prep screen); **In progress:** MP1–MP4 built and merged October 28, 2026, with the MP3 fix-ups (MP4 with P02 CC6); MP5 (the M1 greybox map, `MapMarker`, `MapCheck`) merged October 29, 2026 (questions 20–22 answered); MP6 (map objects, breaking, kegs, Spark, contents in `MapState`) merged October 29, 2026 (question 23 answered); MP7 (reinforcements) merged October 29, 2026 (461 headless map tests pass; question 24 raised); MP8 after EB7 and CC8 | P01 (EB6), P02 | P05, P06, P07, M1 | game-vision.md Combat maps, map-objects.md |
-| P05 | Enemies and AI: classes, intents, danger zone, ruthless AI, signature moves, elites, mini-bosses, the Powder Baron | [2026-10-30-enemies-and-ai.md](2026-10-30-enemies-and-ai.md) | **Approved** October 30, 2026 (one staged plan, EN1–EN12; questions 1–17 answered: the AI rates options with the player's forecast calculation, kills first; chained intents after every player action and while moving; generic enemy weapons with unlimited uses). M1 needs EN1–EN5; EN1 ready | P02, P04 | M1, M2 | enemy-roster.md |
+| P05 | Enemies and AI: classes, intents, danger zone, ruthless AI, signature moves, elites, mini-bosses, the Powder Baron | [2026-10-30-enemies-and-ai.md](2026-10-30-enemies-and-ai.md) | **Approved** October 30, 2026 (one staged plan, EN1–EN12; questions 1–17 answered: the AI rates options with the player's forecast calculation, kills first; chained intents after every player action and while moving; generic enemy weapons with unlimited uses). M1 needs EN1–EN5. **In progress:** EN1 merged October 30, 2026 (60ae740; question 18); EN2 and EN3 ready | P02, P04 | M1, M2 | enemy-roster.md |
 | P06 | The darkness | — | **Not started** | P02, P04 | M1 | the-darkness.md |
 | P07 | Combat UI and forecast: forecast panel, move preview (darkness damage), danger zone and intent display, HUD | — | **Not started** (minimal version for M1) | P02, P04, P05 | M1, M2 | game-vision.md Combat, Enemy intentions |
 | P08 | Campaign and run flow: `CampaignSession` ownership, campaign map generation, nodes, rewards, Armory, Guildhall, Camp, Treasure, gold, XP and level-ups, recruiting, run end | [2026-10-24-campaign-run-flow.md](2026-10-24-campaign-run-flow.md) | **Stub** (question 1 answered: `CampaignService`, built in EB6; question 2 answered by P13). Applies the grants `CampaignSession` records (P01 question 43) | P01, P03 | M3, P09, P12 | game-vision.md Run structure, Army, Units |
@@ -241,9 +241,9 @@ flowchart LR
   classDef active fill:#bbdefb,stroke:#1565c0,color:#1b1b1b
   classDef ready fill:#fff3c4,stroke:#b8860b,color:#1b1b1b
   classDef waiting fill:#e0e0e0,stroke:#757575,color:#1b1b1b
-  class R1,R2,R3,R4,R5,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,CT2,EB5,EB7,EBF done
-  class CT3,CT6,CC8,EN1 ready
-  class MP8,CT7,CT13,EN2,EN3,EN4,EN5 waiting
+  class R1,R2,R3,R4,R5,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,CT2,EB5,EB7,EBF,EN1 done
+  class CT3,CT6,CC8,EN2,EN3 ready
+  class MP8,CT7,CT13,EN4,EN5 waiting
 ```
 
 `CC6 --- MP4`: built together; MP4's objective checks run on CC6's `AFTER_STEP` hook.
@@ -350,9 +350,12 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 ## Next actions
 
 1. **M1's critical path:** P03 **CT3** (prompt reissued October 30, 2026 against `dev` 6c60f1f; the M1 content: the Mercenary army, its gear and the Iron
-   Heart, as data) and P05 **EN1** (enemy data, prompt issued October 30, 2026), then EN2–EN4
-   (setup step 4, the AI core, intents and the danger zone) and EN5 (M1's enemies, after CT3).
-   EN1 and CT3 both touch the content suite: whichever merges second merges `dev` in first.
+   Heart, as data; still building), then a P03 fix-up: the loadout reads `ConsumableDefinition.uses`
+   as it reads a staff's, and a content rule rejects an item with both `uses` and its own charged use
+   effect (P05 question 18d). P05: EN1 merged October 30, 2026 (60ae740); **EN2** (setup step 4) and
+   **EN3** (the AI core) prompts issued October 30, 2026, then EN4 (intents and the danger zone) and
+   EN5 (M1's enemies, after CT3). EN2, EN3 and CT3 overlap in places: whichever merges later merges
+   `dev` in first.
    **Planning alongside:** P06 (the darkness) and P07 (minimal UI); P06 depends only on P02 and
    P04, which are approved.
 2. **Code that may run alongside, off M1's path:**
@@ -363,7 +366,9 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
      60e); decides the `UNIT_SPAWNED` and `UNIT_MOVED` fact gaps; captures units in transit
      (`combat_encounter.gd:TOD-001`); adds MP7's steps to `combat_hooks.gd`'s docs (P04 question
      24); names saved carrier effects `<carrier id>#<effect id>` and makes the content test require
-     an id on every effect inside a carrier (P01 question 60c).
+     an id on every effect inside a carrier (P01 question 60c); restores the loadout's runtime effects (a
+     staff's per-map uses, an enemy weapon's charge-free copy, prefix and delta effects) as themselves,
+     never re-resolved from the catalog (P05 question 18e).
    - P04 **MP8** after CC8: the map key and P04's facts in the snapshot (`combat_session.gd:TOD-002`);
      `entities` and `combat_map` with MP7's `MapState` fields and the waiting wave units (P04
      question 24b); removes the accepted `# ASSUMPTION` above `map_check.gd`'s point rule.
@@ -434,3 +439,4 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 | October 30, 2026 | P01 question 60 answered by the user: as recommended, except (c): saved carrier effects are named `<carrier id>#<effect id>`, built in CC8. **P05 drafted** ([2026-10-30-enemies-and-ai.md](2026-10-30-enemies-and-ai.md)): one staged plan (EN1 enemy data, EN2 setup step 4, EN3 the AI core, EN4 intents and the danger zone, EN5 M1's enemies; EN6–EN12 after M1). User answers 1–5: M1 fields the Brute, Crossbowman and Hedge Healer; the AI rates options with kills first and the behavior's target rule, and must be obvious and manipulable (an enemy attack forecast like Fire Emblem's later); intents update after every player action and preview while a unit moves, with lines to targets; P05 computes the danger zone, P07 draws it; one staged plan. Open: 6–17 (the forecast as the AI's numbers, the ranking order, turn order, unchained intents, a 50 ms preview target, the three behaviors, M1's enemies, enemy-only weapons, levels, the darkness, slot index, threads). |
 | October 30, 2026 | P05 answers from the user: 7, 8, 10–12 and 14–17 as recommended; 13 changed (humanoid enemies carry generic weapons, the Crossbowman a Simple Bow; enemy weapons and staves never run out; unique traits and signature moves have limited uses); 9 changed to chained intents (a kill that exposes a unit shows the follow-up), pending the user's confirmation of the orchestrator's reading; 6 clarified (each option is forecast on its own tile), pending confirmation. |
 | October 30, 2026 | **P05 approved** (questions 6 and 9 confirmed: each option is forecast on its own tile with the player's forecast calculation; intents chain through the AI's expectation, in order). The step graph gains a P05 box (EN1–EN5); gates: EN1–EN4 open, EN5 after CT3. P05's design items on slot indexes, its catalog kind and the branch budget are settled by the plan; boss marking moves to EN7 and reinforcement groups to EN10. Vision update queued (intents, the AI's numbers, generic enemy weapons). P05 EN1 prompt issued. |
+| October 30, 2026 | **P05 EN1 merged into `dev`** (60ae740; verified merged: content 463, every other suite unchanged, launch clean): `EnemyClassDefinition` and `PackDefinition` with their own catalog kinds, the `enemies/` folder rules, stats by level, unlimited enemy weapon and staff uses; the loadout now enforces `StaffDefinition.uses` for player staves. User answered P05 question 18 as recommended: a consumable-uses fix-up after CT3; CC8 restores the loadout's runtime effects as themselves. EN2 and EN3 ready; prompts issued. |

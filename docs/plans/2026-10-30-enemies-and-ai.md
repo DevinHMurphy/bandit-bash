@@ -1,7 +1,7 @@
 # Plan: Enemies and AI
 **Date:** October 30, 2026
-**Status:** **Approved** October 30, 2026 (questions 1–17 answered). EN1–EN4 may start; EN5
-waits on P03 CT3.
+**Status:** **Approved** October 30, 2026 (questions 1–17 answered). **In progress:** EN1 built and
+merged October 30, 2026 (60ae740; question 18). EN2–EN4 may start; EN5 waits on P03 CT3.
 Orchestrator ID **P05** ([game-orchestrator.md](game-orchestrator.md)).
 
 The enemy side of combat: enemy classes as data, how a battle's enemies are drawn and built, the
@@ -54,6 +54,7 @@ Every enemy in a battle stands still, and nothing describes one:
 | 15 | The darkness | — | **After it arrives** (`MapState`'s flag, set by P06), every enemy behaves as Aggressive, except a boss holding a fixed tile. Every behavior prefers a dry end tile when one serves the same action on the same target (the-darkness.md, Enemy AI) | **Answered October 30, 2026 (user):** as recommended. |
 | 16 | A stable index for enemy slots (orchestrator design item from P04 MP5) | Add one / none | **None:** setup fills slots in `MapLayout` order and the allocator mints ids; a saved battle restores its units from the snapshot (CC8), never by re-deriving them from slots | **Answered October 30, 2026 (user):** as recommended. |
 | 17 | Where the AI runs | Main thread / worker threads | **The main thread for M1** (`CombatForecast` creates sandboxes on the main thread). Move it to `WorkerThreadPool` (about 2.4× in EB9) only if question 10's target is missed | **Answered October 30, 2026 (user):** as recommended. |
+| 18 | Found building EN1 (October 30, 2026): (a) the loadout turns `StaffDefinition.uses` (read by nothing before) into a per-map use effect for player staves and skips it for enemy staves, since valid data had no other way to limit a staff; (b) `ContentIds.TARGET_RULES`, not on the pre-approved list; (c) assumptions: a level's gain uses the unit's full growth, prefix growth included; "uses" are use effects only, so a charged weapon effect on a trigger keeps its limit on an enemy; (d) `ConsumableDefinition.uses` is also read by nothing; (e) the loadout's runtime effects (a staff's uses, an enemy weapon's charge-free copy) in a snapshot | Accept / change each | **(a) and (b) keep.** **(c) accept**; EN7 revisits prefix growth for elites. **(d) a P03 follow-up after CT3:** the loadout reads consumable `uses` as it reads a staff's, and a content rule rejects an item with both `uses` and its own charged use effect (CT3's Potion carries both). **(e) P02 CC8:** runtime effects restore as themselves, never re-resolved from the catalog, so an enemy's staff stays unlimited after a resume | **Answered October 30, 2026 (user):** as recommended. EN1 merged into `dev` (60ae740). |
 
 ## Scope
 
