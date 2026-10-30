@@ -222,6 +222,8 @@ flowchart LR
     EN5[EN5 M1 enemies]
   end
   EN1 --> EN5
+  EN5 --> EN4
+  EN2 --> EN4
   CT3 --> EN5
   EN1 --> CT3F
   CT1 --> EB5
