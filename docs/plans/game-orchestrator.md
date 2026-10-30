@@ -62,9 +62,10 @@ into `dev`; plan and orchestrator commits go to `dev`; `main` holds released sta
 - **Current milestone:** [M1 First playable fight](#milestones). [M0 Foundations](#milestones) is
   complete (P01 EB1–EB7 implemented and verified headless, October 30, 2026).
 - **Current focus:** P02's and P04's parts of M1 are built (only their save steps, CC8 and MP8,
-  remain), so M1's critical path is **P03 CT2 → CT3** (instances, the loadout, the M1 content),
-  with **planning** P05 (2–3 classes and the AI), P06 (the darkness) and P07 (minimal UI)
-  alongside. Code alongside: P01 EB7.
+  remain, and M1 doesn't need them). M1's critical path is now **P05 EN2–EN5** with **P03 CT3**
+  (building), then **P06** (the darkness) and **P07** (minimal UI), neither planned yet. P07 needs
+  EN4's intents; nothing yet owns the scene that starts an M1 battle and plays it (P07's plan should
+  claim it).
 
 ## Milestones
 
