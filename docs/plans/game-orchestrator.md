@@ -226,6 +226,7 @@ flowchart LR
   EN2 --> EN4
   CT3 --> EN5
   EN1 --> CT3F
+  CT3F --> EN5
   CT1 --> EB5
   EB5 --> CT2
   R3 --> EB4
@@ -247,8 +248,8 @@ flowchart LR
   classDef ready fill:#fff3c4,stroke:#b8860b,color:#1b1b1b
   classDef waiting fill:#e0e0e0,stroke:#757575,color:#1b1b1b
   class R1,R2,R3,R4,R5,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,CT2,EB5,EB7,EBF,EN1,CT3 done
-  class CT6,CC8,CT13,CT3F,EN2,EN3,EN5 ready
-  class MP8,CT7,EN4 waiting
+  class CT6,CC8,CT13,CT3F,EN2,EN3 ready
+  class MP8,CT7,EN4,EN5 waiting
 ```
 
 `CC6 --- MP4`: built together; MP4's objective checks run on CC6's `AFTER_STEP` hook.
@@ -357,8 +358,9 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 ## Next actions
 
 1. **M1's critical path:** P05 **EN2** (setup step 4) and **EN3** (the AI core), prompts issued
-   October 30, 2026; then EN4 (intents and the danger zone); **EN5** (M1's enemies) is ready now
-   that CT3 is in. P03's **CT3F M1 content fix-up** (prompt issued October 30, 2026): the loadout
+   October 30, 2026; then EN4 (intents and the danger zone); **EN5** (M1's enemies; prompt issued) starts once
+   CT3F is in, so Field Dressing can use the over-the-maximum Stance option (same text as Triage).
+   P03's **CT3F M1 content fix-up** (prompt issued October 30, 2026): the loadout
    reads `ConsumableDefinition.uses` as it reads a staff's, a content rule rejects an item with both
    `uses` and its own charged use effect (P05 question 18d), Triage's gain goes above the Stance
    maximum (P03 question 21), and the stale capitalized tags. These branches overlap in
