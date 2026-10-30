@@ -138,16 +138,14 @@ func add_setup_step(step: CombatEncounter.SetupStep, run: Callable) -> void:
 	_setup_steps.append([step, run])
 
 
-## Begins the battle [param request] describes: builds the encounter, runs its setup from fresh
-## setup streams (so a restart from Begin rolls the same), emits [signal combat_encounter_opened],
-## opens one session per seat with its seat's [code]COMBAT_ROLLS[/code] stream, places each map's
-## objects ([method MapObjects.place]) and reinforcement points ([method Reinforcements.register]),
-## registers copies of the carriers of the units and armies in the battle, deploys each army, then
-## opens each map's battle
-## ([method CombatSession.open_battle]): the opening swap window for the seats whose
-## [member BattleRequest.opening_swap] setting is on, turn 1's player Phase Start otherwise. Returns
-## the encounter; null, with nothing begun, when a battle is already on, the run is closed, or setup
-## fails.
+## Begins the battle [param request] describes: runs its setup from fresh setup streams (a restart
+## from Begin rolls the same), emits [signal combat_encounter_opened], opens one session per seat
+## on its [code]COMBAT_ROLLS[/code] stream, places each map's objects ([method MapObjects.place])
+## and reinforcement points ([method Reinforcements.register]), registers the enemy AI
+## ([method EnemyAI.register]) and copies of the battle's carriers, deploys each army, then opens
+## each map's battle ([method CombatSession.open_battle]): the swap window for seats whose
+## [member BattleRequest.opening_swap] is on, turn 1's Phase Start otherwise. Returns the
+## encounter; null, with nothing begun, when a battle is on, the run is closed, or setup fails.
 func begin_battle(request: BattleRequest) -> CombatEncounter:
 	if is_closed or encounter != null or request == null:
 		push_error("CampaignSession: can't begin a battle now")
@@ -185,6 +183,8 @@ func begin_battle(request: BattleRequest) -> CombatEncounter:
 	var catalog: EffectCatalog.Index = (
 			request.catalog if request.catalog != null else EffectCatalog.index()
 	)
+	for session: CombatSession in battle.get_sessions():
+		EnemyAI.register(session, catalog)
 	for seat: int in request.armies:
 		_add_heirlooms(catalog, seat, request.armies[seat].heirloom_ids)
 	_register_carriers(battle, request)

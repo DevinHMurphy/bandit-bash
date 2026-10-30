@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="EnemyClassDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/enemy_class_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+behavior = 2
+target_rule_id = "lowest_defense"
+target_rule_text = "Lowest Defense in range"
+weapon_types = PackedStringArray("bow")
+stance = 1
+starting_weapon_id = "loadout_simple_bow"
+base_stats = Dictionary[int, int]({0: 19, 1: 6, 2: 5, 3: 4, 4: 1, 5: 10, 6: 5})
+growths = Dictionary[int, int]({0: 75, 1: 40, 2: 35, 3: 22, 4: 18})
+id = "loadout_crossbowman"
+display_name = "Crossbowman"
