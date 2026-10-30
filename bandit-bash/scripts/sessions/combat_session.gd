@@ -6,7 +6,7 @@
 # File:     combat_session.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 29, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 class_name CombatSession
@@ -25,9 +25,19 @@ extends RefCounted
 ## Randomness comes only from the roll source it is given: [LiveRolls] over its seat's
 ## [code]COMBAT_ROLLS[/code] stream. It never sees the run's stream registry.[br]
 ## Main thread only. It depends on no scene or autoload except [code]NetLog[/code] (through
-## [method logger]), and builds no log text unless the line prints.
+## [method logger]), and builds no log text unless the line prints.[br]
+## [b]Snapshots and mirrors:[/b] [method snapshot] and [method load_snapshot] carry the map between
+## commands as plain JSON, with the run seed, the build version and the roll stream's state, and
+## are what saving and rejoining both build on. A client's mirror is a session that only ever
+## receives the host's batches through [method apply_batch]: applied once each by seq, then checked
+## against the host's [member FactBatch.state_hash] in debug builds. [method debug_dump] writes a
+## repro file to [code]user://logs/[/code].
 ##
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
+##
+## @todo: TOD-001 - Add combat_state and P02's facts to snapshot(), load_snapshot() and
+## apply_batch() (P02 CC8); until then a dump replays only from battle start, rebuilt as at Begin.
+## @todo: TOD-002 - Add the map keys and P04's facts the same way (P04 MP8).
 
 ## A command was rejected; only [param seat] is told. It cost nothing.
 ## [param arrival]: the command's arrival stamp. [param reason]: why, with bare ids.
@@ -52,6 +62,15 @@ signal grant_received(
 
 ## [method next_arrival] when nothing is queued. Arrival stamps start at 1.
 const NO_ARRIVAL: int = 0
+
+## [member FactBatch.state_hash] of a batch sent without one (release builds, rejected commands).
+const NO_HASH: int = 0
+
+## Where [method debug_dump] writes, next to Godot's own log file.
+const DUMP_DIR: String = "user://logs"
+
+# The shape of snapshot() and debug_dump() output; raised when either changes.
+const _SNAPSHOT_FORMAT: int = 1
 
 # The NetLog autoload's script, used as a type and for its enums. The autoload is reached by node
 # path, never by name: the sessions also compile in a headless --script run, before autoload names
@@ -110,6 +129,10 @@ var is_won: bool = false
 ## roll this session made is logged at DEBUG after its batch. Off by default; it changes no roll.
 var is_tracing_draws: bool = false
 
+## The run's seed, which [method snapshot] and [method debug_dump] name the run by (RNG streams
+## plan, need R-N4). Set by the encounter; 0 outside one.
+var run_seed: int = 0
+
 var _clock: ArrivalClock = null
 var _queue: Array[Command] = []
 
@@ -131,6 +154,15 @@ var _reported_grants: int = 0
 
 # Base values each placed unit was given, by unit id, so a transfer can carry them to another map.
 var _bases: Dictionary[String, Dictionary] = {}
+
+# The last seq a loaded snapshot covered: last_seq() while the fact log is empty.
+var _base_seq: int = 0
+
+# What debug_dump() replays from: the snapshot taken when the battle opened or last checkpointed,
+# every command resolved since (wire arrays), and whether each of them could be written.
+var _replay_snapshot: Dictionary = {}
+var _replay_commands: Array = []
+var _is_replay_complete: bool = true
 
 
 ## [param grid]: the map, shared with the encounter's other sessions. [param rolls]: [LiveRolls]
@@ -187,7 +219,10 @@ func resolve_next() -> FactBatch:
 	if _queue.is_empty():
 		return null
 	flush("outside commands")
+	if _replay_snapshot.is_empty():
+		_start_replay()
 	var command: Command = _queue.pop_front()
+	_record_for_replay(command)
 	var batch: FactBatch = FactBatch.new()
 	batch.session_id = session_id
 	batch.seat = command.seat
@@ -243,12 +278,17 @@ func flush(label: String) -> FactBatch:
 ## the deployment batch (opening it records nothing).
 func open_battle(swap_seats: PackedInt32Array = PackedInt32Array()) -> FactBatch:
 	PhaseRunner.open_battle(self, swap_seats)
-	return flush("battle start")
+	var batch: FactBatch = flush("battle start")
+	_start_replay()
+	return batch
 
 
-## The [member CombatFact.seq] of the last fact recorded; 0 before any.
+## The [member CombatFact.seq] of the last fact recorded or applied; before any, the last one a
+## loaded snapshot covered, else 0.
 func last_seq() -> int:
-	return 0 if engine.fact_log.is_empty() else engine.fact_log[engine.fact_log.size() - 1].seq
+	if engine.fact_log.is_empty():
+		return _base_seq
+	return engine.fact_log[engine.fact_log.size() - 1].seq
 
 
 ## Whether a client that has played every fact up to [param seq] can catch up from memory: the
@@ -278,10 +318,203 @@ func facts_since(seq: int) -> Array[CombatFact]:
 
 
 ## Forgets the catch-up facts up to now: call it when the battle checkpoints, since the saved
-## state covers them.
+## state covers them. [method debug_dump] replays from here on.
 func mark_checkpoint() -> void:
 	_checkpoint_seq = last_seq()
 	_catch_up.clear()
+	_start_replay()
+
+
+## This map's state as plain JSON values, taken between commands: [code]session[/code] (seq, seats,
+## whether it ended and was won, commanders, placed units' bases), [code]effects[/code]
+## ([method EffectEngine.capture]) and [code]rolls[/code] (its [LiveRolls] stream's state; empty
+## for another roll source), named by the run seed and the build version. Empty, with an error,
+## while reactions wait. [method load_snapshot] reverses it.
+## [param reference]: names each effect definition; see [method EffectInstance.capture].
+func snapshot(reference: Callable = Callable()) -> Dictionary:
+	if engine.pending_reactions() > 0:
+		push_error("CombatSession: s%d can't be captured while reactions wait" % [session_id])
+		return {}
+	var live: LiveRolls = engine.rolls as LiveRolls
+	return {
+		"format": _SNAPSHOT_FORMAT,
+		"run_seed": RunSeed.format(run_seed),
+		"game_version": _game_version(),
+		"session": _capture_session(),
+		"effects": engine.capture(reference),
+		"rolls": "" if live == null else live.capture(),
+	}
+
+
+## Replaces this map's state with [param data] from [method snapshot], also after a trip through
+## JSON: the effect engine's state, the roll stream's position and the session's own fields. The
+## fact log, catch-up facts and queue start empty, and seqs go on from the snapshot's. The map,
+## its units and its rules state are not in it yet ([code]TOD-001[/code]): load it into a session
+## built the way this battle was. [param resolve] and [param shared]: see
+## [method EffectEngine.restore]. Returns [constant OK]; [constant ERR_INVALID_DATA], changing
+## nothing, when the data is malformed or belongs to another map or build.
+func load_snapshot(
+		data: Dictionary,
+		resolve: Callable = Callable(),
+		shared: Dictionary[String, EffectInstance] = {}
+) -> Error:
+	var part: Variant = data.get("session", null)
+	var effects: Variant = data.get("effects", null)
+	var rolls_state: String = str(data.get("rolls", ""))
+	if (
+			_wire_int(data.get("format", null)) != _SNAPSHOT_FORMAT
+			or not part is Dictionary
+			or not effects is Dictionary
+	):
+		return _refuse_snapshot("not a session snapshot")
+	var fields: SessionFields = _read_session(part as Dictionary)
+	if fields == null:
+		return _refuse_snapshot("its session part is malformed")
+	var live: LiveRolls = engine.rolls as LiveRolls
+	if not rolls_state.is_empty() and (live == null or not RngStream.new(0).restore(rolls_state)):
+		return _refuse_snapshot("its roll stream can't be restored")
+	var err: Error = engine.restore(effects as Dictionary, resolve, shared)
+	if err != OK:
+		return err
+
+	if not rolls_state.is_empty():
+		live.restore(rolls_state)
+	is_finished = fields.is_finished
+	is_won = fields.is_won
+	commander_ids = fields.commander_ids
+	_bases = fields.bases
+	_base_seq = fields.last_seq
+	_checkpoint_seq = fields.last_seq
+	_queue.clear()
+	_catch_up.clear()
+	_batched_up_to = 0
+	_reported_diagnostics = engine.diagnostics.size()
+	_reported_grants = engine.grants.size()
+	_traced_rolls = engine.rolls.records.size()
+	_replay_snapshot = data.duplicate(true)
+	_replay_commands.clear()
+	_is_replay_complete = true
+	return OK
+
+
+## A number standing for this map's state, compared between the host and a mirror after each batch
+## (event bus plan, Logging and debugging): the [code]session[/code] and [code]effects[/code] parts
+## of [method snapshot]. The roll stream is left out, since only the host draws.
+func state_hash() -> int:
+	var parts: Dictionary = {
+		"session": _capture_session(),
+		"effects": engine.capture(_name_definition),
+	}
+	return JSON.stringify(parts, "", true).hash()
+
+
+## Applies [param batch], the host's, as this session's mirror: each fact not yet applied, in seq
+## order, through [method EffectEngine.follow], then queued for playback. A fact already applied
+## is skipped, so a resent batch changes nothing. In debug builds, a mirror that ends at the batch's
+## last seq compares [method state_hash] with the host's and reports a difference at WARN.
+## Returns [constant OK]; [constant ERR_INVALID_PARAMETER] for another map's batch;
+## [constant ERR_PARAMETER_RANGE_ERROR] when a seq is missing (the facts before the gap are
+## applied, and the client needs [method facts_since] or a snapshot); [constant ERR_INVALID_DATA]
+## when applied but the hashes differ.
+func apply_batch(batch: FactBatch) -> Error:
+	if batch == null or batch.session_id != session_id:
+		return ERR_INVALID_PARAMETER
+	var applied: Array[CombatFact] = []
+	var next: int = last_seq() + 1
+	var gap_at: int = -1
+	for fact: CombatFact in batch.facts:
+		if fact.seq < next:
+			continue
+		if fact.seq != next:
+			gap_at = fact.seq
+			break
+		applied.append(fact)
+		next += 1
+	engine.follow(applied)
+	_batched_up_to = engine.fact_log.size()
+	_catch_up.append_array(applied)
+	for fact: CombatFact in applied:
+		if fact.kind == CombatFact.Kind.COMBAT_ENDED:
+			is_finished = true
+			is_won = fact.side == CombatFact.CombatSide.PLAYER
+	playback.enqueue(applied)
+
+	if gap_at >= 0:
+		var gap_log: NetLogScript = _logger(NetLogScript.Level.WARN, NetLogScript.Category.COMBAT)
+		if gap_log != null:
+			gap_log.warn(
+					NetLogScript.Category.COMBAT,
+					"s%d mirror gap: at #%d, next was #%d" % [session_id, last_seq(), gap_at]
+			)
+		return ERR_PARAMETER_RANGE_ERROR
+	if (
+			batch.state_hash == NO_HASH
+			or batch.facts.is_empty()
+			or last_seq() != batch.last_seq()
+			or not OS.is_debug_build()
+	):
+		return OK
+	var local_hash: int = state_hash()
+	if local_hash == batch.state_hash:
+		return OK
+	var net: NetLogScript = _logger(NetLogScript.Level.WARN, NetLogScript.Category.COMBAT)
+	if net != null:
+		net.warn(
+				NetLogScript.Category.COMBAT,
+				"s%d#%d mirror hash mismatch: host %d, mirror %d"
+				% [session_id, last_seq(), batch.state_hash, local_hash]
+		)
+	return ERR_INVALID_DATA
+
+
+## Writes a repro file to [constant DUMP_DIR] and returns its path, or empty when it couldn't be
+## written (reported at ERROR). The file is JSON: the run seed, the build version, the roll
+## stream's live state, the snapshot the battle opened or last checkpointed with, every command
+## resolved since (wire arrays, in order; [code]"complete"[/code] is false when one had no wire
+## type) and the facts recorded since. Resolution is deterministic, so loading the snapshot and
+## resolving the commands again gives the same facts ([code]TOD-001[/code] for a mid-battle
+## snapshot). Facts recorded outside commands since then, such as units sent from another map,
+## replay only through their own call.
+func debug_dump() -> String:
+	var live: LiveRolls = engine.rolls as LiveRolls
+	var base_seq: int = 0
+	var base_part: Variant = _replay_snapshot.get("session", {})
+	if base_part is Dictionary:
+		var recorded: Variant = _wire_int((base_part as Dictionary).get("last_seq"))
+		base_seq = 0 if recorded == null else recorded as int
+	var facts: Array = []
+	for fact: CombatFact in engine.fact_log:
+		if fact.seq > base_seq:
+			facts.append(fact.to_wire())
+	var dump: Dictionary = {
+		"format": _SNAPSHOT_FORMAT,
+		"run_seed": RunSeed.format(run_seed),
+		"game_version": _game_version(),
+		"session_id": session_id,
+		"written_at": Time.get_datetime_string_from_system(true),
+		"rolls": "" if live == null else live.capture(),
+		"snapshot": _replay_snapshot,
+		"commands": _replay_commands,
+		"complete": _is_replay_complete,
+		"facts": facts,
+	}
+	var err: Error = DirAccess.make_dir_recursive_absolute(DUMP_DIR)
+	var path: String = "%s/combat_dump_s%d_%d_%d.json" % [
+		DUMP_DIR, session_id, Time.get_unix_time_from_system(), Time.get_ticks_usec(),
+	]
+	var file: FileAccess = null
+	if err == OK:
+		file = FileAccess.open(path, FileAccess.WRITE)
+		err = OK if file != null else FileAccess.get_open_error()
+	if err != OK:
+		push_error("CombatSession: s%d dump not written - %s" % [session_id, error_string(err)])
+		return ""
+	file.store_string(JSON.stringify(dump, "\t", true))
+	file.close()
+	var net: NetLogScript = _logger(NetLogScript.Level.INFO, NetLogScript.Category.COMBAT)
+	if net != null:
+		net.info(NetLogScript.Category.COMBAT, "s%d dump written: %s" % [session_id, path])
+	return path
 
 
 ## Places [param units] (the army in roster order, not yet on the map) on this map's deployment
@@ -449,8 +682,15 @@ func _stale_reason(command: Command) -> String:
 		return "forecast based on unknown s%d#%d" % [session_id, command.based_on_seq]
 	if command.based_on_seq == last_seq():
 		return ""
-	# Facts are logged in seq order from 1, so the first fact after based_on_seq is at that index.
-	var first: CombatFact = engine.fact_log[command.based_on_seq]
+	# Facts are logged in seq order without gaps, from 1 or from a loaded snapshot's last seq on.
+	var index: int = -1
+	if not engine.fact_log.is_empty():
+		index = command.based_on_seq + 1 - engine.fact_log[0].seq
+	if index < 0:
+		return "stale forecast (s%d#%d is before this session's log)" % [
+			session_id, command.based_on_seq,
+		]
+	var first: CombatFact = engine.fact_log[index]
 	return "stale forecast (s%d#%d %s after s%d#%d)" % [
 		session_id,
 		first.seq,
@@ -482,6 +722,8 @@ func _finish_batch(batch: FactBatch) -> void:
 		)
 	_reported_grants = engine.grants.size()
 	_trace_draws()
+	if OS.is_debug_build():
+		batch.state_hash = state_hash()
 	playback.enqueue(batch.facts)
 
 
@@ -506,6 +748,106 @@ func _trace_draws() -> void:
 					]
 			)
 	_traced_rolls = records.size()
+
+
+# The snapshot debug_dump() replays from: now, when the battle opens or checkpoints, or before the
+# first command of a session that never opened a battle.
+func _start_replay() -> void:
+	_replay_snapshot = snapshot()
+	_replay_commands.clear()
+	_is_replay_complete = true
+
+
+func _record_for_replay(command: Command) -> void:
+	if command.get_wire_type().is_empty():
+		_is_replay_complete = false
+		return
+	_replay_commands.append(command.to_wire())
+
+
+# The snapshot's session part: seats and commanders by number, bases by key id in key order.
+func _capture_session() -> Dictionary:
+	var commanders: Dictionary = {}
+	for seat: int in commander_ids:
+		commanders[str(seat)] = commander_ids[seat]
+	var unit_ids: Array[String] = []
+	unit_ids.assign(_bases.keys())
+	unit_ids.sort()
+	var bases: Dictionary = {}
+	for unit_id: String in unit_ids:
+		var keys: Array = _bases[unit_id].keys()
+		keys.sort()
+		var entries: Array = []
+		for key: Variant in keys:
+			entries.append([Modifier.key_id(key as int), _bases[unit_id][key]])
+		bases[unit_id] = entries
+	return {
+		"session_id": session_id,
+		"seats": Array(seats),
+		"last_seq": last_seq(),
+		"is_finished": is_finished,
+		"is_won": is_won,
+		"commander_ids": commanders,
+		"bases": bases,
+	}
+
+
+# The fields of a snapshot's session part, checked; null when malformed, for another map or for
+# other seats.
+func _read_session(part: Dictionary) -> SessionFields:
+	var id: Variant = _wire_int(part.get("session_id", null))
+	var seq: Variant = _wire_int(part.get("last_seq", null))
+	var part_seats: Variant = part.get("seats", null)
+	var commanders: Variant = part.get("commander_ids", null)
+	var bases: Variant = part.get("bases", null)
+	if (
+			id != session_id
+			or seq == null
+			or (seq as int) < 0
+			or not part_seats is Array
+			or not commanders is Dictionary
+			or not bases is Dictionary
+	):
+		return null
+	var seat_list: PackedInt32Array = []
+	# Untyped: the parts come from JSON and are checked entry by entry.
+	for seat: Variant in part_seats:
+		var seat_number: Variant = _wire_int(seat)
+		if seat_number == null:
+			return null
+		seat_list.append(seat_number as int)
+	if seat_list != seats:
+		return null
+	var fields: SessionFields = SessionFields.new()
+	fields.last_seq = seq
+	fields.is_finished = part.get("is_finished", false) == true
+	fields.is_won = part.get("is_won", false) == true
+	var by_seat: Dictionary = commanders
+	for seat_text: Variant in by_seat:
+		if not str(seat_text).is_valid_int() or not by_seat[seat_text] is String:
+			return null
+		fields.commander_ids[str(seat_text).to_int()] = by_seat[seat_text] as String
+	var by_unit: Dictionary = bases
+	for unit_id: Variant in by_unit:
+		if not by_unit[unit_id] is Array:
+			return null
+		var kept: Dictionary = {}
+		for entry: Variant in by_unit[unit_id]:
+			if not entry is Array or (entry as Array).size() != 2:
+				return null
+			var pair: Array = entry
+			var key: int = Modifier.key_from_id(str(pair[0]))
+			if key == Modifier.NO_KEY or not (pair[1] is float or pair[1] is int):
+				return null
+			var value: float = pair[1]
+			kept[key] = value
+		fields.bases[str(unit_id)] = kept
+	return fields
+
+
+func _refuse_snapshot(reason: String) -> Error:
+	push_error("CombatSession: s%d can't load the snapshot - %s" % [session_id, reason])
+	return ERR_INVALID_DATA
 
 
 func _set_bases(unit_id: String, bases: Dictionary) -> void:
@@ -640,6 +982,31 @@ static func _counter_target(instance: EffectInstance, lane: int) -> int:
 	return 1
 
 
+# The build's version (application/config/version), which snapshots and dumps name.
+static func _game_version() -> String:
+	return str(ProjectSettings.get_setting("application/config/version", ""))
+
+
+# Names a definition by its own id: enough for state_hash(), and no catalog search.
+static func _name_definition(definition: EffectDefinition) -> String:
+	return "" if definition == null else definition.id
+
+
+# value as an int when it is one, or when it is a whole float within JSON's exact range; null
+# otherwise.
+# NOTE: The same rule as CombatFact._normalize_wire, Command._wire_int and
+# FactBatch._whole_number; keep them in step.
+static func _wire_int(value: Variant) -> Variant:
+	if value is int:
+		return value
+	if not value is float:
+		return null
+	var number: float = value
+	if number != floorf(number) or absf(number) > CombatFact.MAX_EXACT_JSON_INT:
+		return null
+	return int(number)
+
+
 ## Hands out arrival stamps. One clock is shared by every session of an encounter, so stamps give
 ## the host's arrival order across maps.
 class ArrivalClock:
@@ -677,6 +1044,9 @@ class FactBatch:
 	var rejected_reason: String = ""
 	## Engine diagnostics raised while it resolved, already reported at ERROR.
 	var diagnostics: PackedStringArray = []
+	## The host's [method CombatSession.state_hash] after it, which a mirror checks itself against;
+	## [constant CombatSession.NO_HASH] in release builds and for a rejected command.
+	var state_hash: int = NO_HASH
 
 	## Whether the command was rejected.
 	func is_rejected() -> bool:
@@ -689,3 +1059,85 @@ class FactBatch:
 	## The seq of its last fact; 0 when it has none.
 	func last_seq() -> int:
 		return 0 if facts.is_empty() else facts[facts.size() - 1].seq
+
+	## This batch as an Array of primitives, for RPCs and repro dumps: session, seat, arrival,
+	## label, actor, target, based-on seq, rejection, diagnostics, state hash, then each fact's
+	## [method CombatFact.to_wire]. [method from_wire] reverses it. The slot order is a network
+	## contract: append new fields at the end only.
+	func to_wire() -> Array:
+		var fact_wires: Array = []
+		for fact: CombatFact in facts:
+			fact_wires.append(fact.to_wire())
+		return [
+			session_id,
+			seat,
+			arrival,
+			label,
+			actor_id,
+			target_id,
+			based_on_seq,
+			rejected_reason,
+			Array(diagnostics),
+			state_hash,
+			fact_wires,
+		]
+
+	## Rebuilds a batch from [method to_wire] output, also after a trip through JSON, where
+	## numbers arrive as floats. Returns [code]null[/code] (with a warning) for a wrong length or
+	## type, a number that isn't whole, or a fact [method CombatFact.from_wire] refuses.
+	static func from_wire(data: Array) -> FactBatch:
+		if data.size() != 11 or not data[8] is Array or not data[10] is Array:
+			push_warning("FactBatch: malformed wire data - %s" % [data])
+			return null
+		var numbers: Array = []
+		for i: int in [0, 1, 2, 6, 9]:
+			numbers.append(_whole_number(data[i]))
+		var texts_ok: bool = true
+		for i: int in [3, 4, 5, 7]:
+			texts_ok = texts_ok and data[i] is String
+		if numbers.has(null) or not texts_ok:
+			push_warning("FactBatch: wire data out of range - %s" % [data])
+			return null
+		var batch: FactBatch = FactBatch.new()
+		batch.session_id = numbers[0]
+		batch.seat = numbers[1]
+		batch.arrival = numbers[2]
+		batch.label = data[3]
+		batch.actor_id = data[4]
+		batch.target_id = data[5]
+		batch.based_on_seq = numbers[3]
+		batch.rejected_reason = data[7]
+		batch.state_hash = numbers[4]
+		for line: Variant in data[8]:
+			batch.diagnostics.append(str(line))
+		for wire: Variant in data[10]:
+			var fact: CombatFact = CombatFact.from_wire(wire as Array) if wire is Array else null
+			if fact == null:
+				push_warning("FactBatch: a fact can't be read - %s" % [wire])
+				return null
+			batch.facts.append(fact)
+		return batch
+
+	# value as an int, or null: the outer class's _wire_int() rule, which an inner class can't call
+	# unqualified.
+	# NOTE: Keep in step with CombatSession._wire_int().
+	static func _whole_number(value: Variant) -> Variant:
+		if value is int:
+			return value
+		if not value is float:
+			return null
+		var number: float = value
+		if number != floorf(number) or absf(number) > CombatFact.MAX_EXACT_JSON_INT:
+			return null
+		return int(number)
+
+
+# A snapshot's session part, read and checked by _read_session() before anything changes.
+class SessionFields:
+	extends RefCounted
+
+	var last_seq: int = 0
+	var is_finished: bool = false
+	var is_won: bool = false
+	var commander_ids: Dictionary[int, String] = {}
+	var bases: Dictionary[String, Dictionary] = {}

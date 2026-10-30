@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 29, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -14,7 +14,8 @@ extends SceneTree
 ## [CombatSession], [FactPlayback] and [PresentationRequest]; [CombatEncounter]'s setup steps,
 ## stream injection, cross-map effects, routing, transfers and each map's end; [CampaignSession]'s
 ## battle bridge and grants; and the [code]CampaignService[/code] autoload's lifecycle and its
-## [RngSaveSection]s.
+## [RngSaveSection]s and [InstanceIdSaveSection]s. Serialization, snapshots, mirrors and repro
+## dumps are in wire_cases.gd.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/sessions/run_all.gd[/code][br]
@@ -34,6 +35,9 @@ extends SceneTree
 # The combat map tests' fixture: 5 × 4, deployment (0, 3) (1, 3) (2, 3), an enemy slot at (3, 2),
 # a chest (container 0) at (0, 0) and a house (container 1) at (0, 2).
 const FIXTURE_SCENE: PackedScene = preload("res://tests/map/fixture_map.tscn")
+
+# A preloaded script used as a type (gdscript.md, Naming): the case script has no class name.
+const WireCases = preload("res://tests/sessions/wire_cases.gd")
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
@@ -117,9 +121,12 @@ func _process(_delta: float) -> bool:
 	_run(_test_service_rng_campaign_streams)
 	_run(_test_service_rng_battle_streams)
 	_run(_test_service_rng_held_data_dropped)
+	_run(_test_service_instance_ids)
 
 	_run(_test_logger_gating)
 	_run(_test_logging_changes_nothing)
+
+	WireCases.new(_check).run()
 
 	print("--- %d passed, %d failed, %d skipped ---" % [_passes, _failures, _skips])
 	quit(1 if _failures > 0 else 0)
@@ -1665,6 +1672,78 @@ func _test_service_rng_battle_streams() -> bool:
 	), error_string(rebegun))
 
 	service.call(&"end_battle")
+	saves.call(&"abandon_run", CampaignData.Mode.SOLO)
+	saves.call(&"close_save_file")
+	SaveFile.delete_folder("user://saves/")
+	return true
+
+
+# The instance_ids sections through the real SaveService: Begin saves the campaign's counter, each
+# combat checkpoint the live one, a resumed battle mints on from the checkpoint and a battle
+# restarted from Begin from Begin's counter (event bus plan, question 42).
+func _test_service_instance_ids() -> bool:
+	if not _has_test_user_dir():
+		_skips += 1
+		print("SKIP  service instance ids: needs a test user folder (see the class doc)")
+		return true
+	var saves: Node = root.get_node(^"SaveService")
+	var service: Node = root.get_node(^"CampaignService")
+	SaveFile.delete_folder("user://saves/")
+
+	saves.call(&"open_save_file", 1)
+	saves.call(&"start_new_solo_run", RUN_SEED)
+	var run: CampaignSession = service.get(&"session")
+	var request: CampaignSession.BattleRequest = _request(run, {0: ["Drengr"]})
+	var unit_id: String = request.armies[0].units[0].id
+	var begun: int = service.call(&"begin_battle", request)
+	var at_begin: int = run.ids.get_next_value()
+	run.ids.next_enemy_id("Brute")
+	var saved: int = saves.call(&"save_checkpoint")
+	var expected: PackedStringArray = [run.ids.next_enemy_id("Brute"), run.ids.next_item_id("Axe")]
+	var campaign_ids: Dictionary = _read_campaign(saves).sections.get("instance_ids", {})
+	var begin_data: Dictionary = campaign_ids.get("data", {})
+
+	saves.call(&"close_save_file")
+	saves.call(&"open_save_file", 1)
+	saves.call(&"continue_solo_run")
+	var resumed: CampaignSession = service.get(&"session")
+	var resume_point: int = saves.get(&"resume_point")
+	var minted: PackedStringArray = [
+		resumed.ids.next_enemy_id("Brute"), resumed.ids.next_item_id("Axe"),
+	]
+	_check("service ids: a resumed battle mints the ids the first run minted", (
+			begun == OK
+			and saved == OK
+			and resume_point == CombatData.ResumePoint.BATTLE
+			and minted == expected
+			and resumed.ids.label_of(unit_id) == "Drengr"
+	), "%s and %s" % [minted, expected])
+	var version: float = campaign_ids.get("version", 0.0)
+	var begin_next: float = begin_data.get("next", 0.0)
+	_check("service ids: the campaign file holds the counter as Begin captured it", (
+			roundi(version) == 1 and roundi(begin_next) == at_begin
+	), str(campaign_ids))
+
+	saves.call(&"close_save_file")
+	var combat_path: String = (
+			(saves.call(&"get_save_file_dir", 1) as String)
+			+ CombatData.get_file_name(CampaignData.Mode.SOLO)
+	)
+	var envelope: Dictionary = SaveFile.read(combat_path).envelope
+	var combat_sections: Dictionary = envelope.get(SaveFile.KEY_SECTIONS, {})
+	envelope[SaveFile.KEY_CHECKPOINT_SEQ] = envelope[SaveFile.KEY_CHECKPOINT_SEQ] as int + 5
+	SaveFile.write(combat_path, envelope)
+	saves.call(&"open_save_file", 1)
+	print("    (one warning about a battle that restarts from Begin follows)")
+	saves.call(&"continue_solo_run")
+	var retried: CampaignSession = service.get(&"session")
+	var retry_point: int = saves.get(&"resume_point")
+	_check("service ids: a battle restarted from Begin mints from Begin's counter", (
+			combat_sections.has("instance_ids")
+			and retry_point == CombatData.ResumePoint.BATTLE_RETRY
+			and retried.ids.get_next_value() == at_begin
+	), "next %d, Begin %d" % [retried.ids.get_next_value(), at_begin])
+
 	saves.call(&"abandon_run", CampaignData.Mode.SOLO)
 	saves.call(&"close_save_file")
 	SaveFile.delete_folder("user://saves/")

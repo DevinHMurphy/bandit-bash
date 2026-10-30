@@ -6,7 +6,7 @@
 # File:     live_rolls.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 class_name LiveRolls
@@ -25,6 +25,18 @@ var _stream: RngStream = null
 
 func _init(stream: RngStream) -> void:
 	_stream = stream
+
+
+## The stream's position ([method RngStream.capture]), for session snapshots and repro dumps.
+func capture() -> String:
+	return _stream.capture()
+
+
+## Continues the stream from [param state_text], written by [method capture]. The stream object is
+## the registry's own, so its save section sees the same position. Returns false, changing
+## nothing, when the text isn't a captured state.
+func restore(state_text: String) -> bool:
+	return _stream.restore(state_text)
 
 
 # Two d100; a hit if their integer average is below hit_percent, i.e. their sum is below twice it.

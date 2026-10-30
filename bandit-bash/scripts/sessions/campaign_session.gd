@@ -6,7 +6,7 @@
 # File:     campaign_session.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 29, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 class_name CampaignSession
@@ -32,6 +32,7 @@ extends RefCounted
 ##
 ## @todo: TOD-001 - Apply recorded grants: gold, heirlooms, recruits and runes (P08).
 ## @todo: TOD-002 - Hand the reinforcement waves P05's group source; the base draws no group.
+## @todo: TOD-003 - Read each seat's opening-swap setting from its owner (P07); no entry means on.
 
 ## A battle began: its setup ran and its sessions are about to open, so a listener can connect to
 ## [signal CombatEncounter.session_opened] first.
@@ -147,6 +148,7 @@ func begin_battle(request: BattleRequest) -> CombatEncounter:
 	var battle: CombatEncounter = CombatEncounter.new(
 			request.floor_number, request.node, seats, ids
 	)
+	battle.run_seed = rng.run_seed
 	for entry: Array in _setup_steps:
 		var step: CombatEncounter.SetupStep = entry[0]
 		var run: Callable = entry[1]
@@ -186,6 +188,7 @@ func begin_battle(request: BattleRequest) -> CombatEncounter:
 	for session: CombatSession in battle.get_sessions():
 		var swap_seats: PackedInt32Array = []
 		for seat: int in session.seats:
+			# TODO(TOD-003): P07 owns the setting and its default; until then no entry means on.
 			if request.opening_swap.get(seat, true):
 				swap_seats.append(seat)
 		session.open_battle(swap_seats)
@@ -367,7 +370,6 @@ class BattleRequest:
 	var pool: Array[CombatMapDefinition] = []
 	## Each seat's army, by seat. A seat without one gets an empty map.
 	var armies: Dictionary[int, Army] = {}
-	# ASSUMPTION: a seat with no entry has the setting on, until P07 owns the setting's default.
 	## Each seat's opening-swap setting, by seat (the setting itself is P07's): on, its map opens in
 	## the swap window before turn 1 and waits for its Start command; off, turn 1 starts at once. A
 	## seat with no entry has it on.

@@ -6,7 +6,7 @@
 # File:     add_timed_modifier.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 29, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 @tool
@@ -86,11 +86,13 @@ func describe() -> String:
 	return "give %s %s %s" % [target.describe(), change, duration]
 
 
-## Gives each target the modifier through [method EffectEngine.add_timed_modifier].
+## Gives each target the modifier through [method EffectEngine.add_timed_modifier], naming this
+## block by its index among the effect's operations so a mirror can rebuild it.
 func apply(ctx: EffectContext) -> void:
 	var instance: EffectInstance = ctx.instance
+	var index: int = instance.definition.operations.find(self)
 	for unit_id: String in _targets(target, ctx):
 		var modifier: Modifier = Modifier.new(
 				key, mode, value, instance.source_kind, instance.instance_id, instance.label
 		)
-		ctx.engine.add_timed_modifier(unit_id, modifier, end, uses, instance.instance_id)
+		ctx.engine.add_timed_modifier(unit_id, modifier, end, uses, instance.instance_id, index)

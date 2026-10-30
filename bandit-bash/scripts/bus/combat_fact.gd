@@ -6,7 +6,7 @@
 # File:     combat_fact.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 29, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 class_name CombatFact
@@ -100,9 +100,11 @@ enum Kind {
 	## A counter of the effect named by [member source_effect_id] changed: [member amount] is the
 	## new count, [member key] its [enum EffectTerms.Lane].
 	COUNTER_CHANGED = 32,
-	## The actor gained a timed modifier from [member source_effect_id].
+	## The actor gained a timed modifier from [member source_effect_id]; [member key] is the index
+	## of the [AddTimedModifier] among that effect's operations.
 	MODIFIER_GAINED = 33,
-	## A timed modifier from [member source_effect_id] on the actor expired.
+	## A timed modifier from [member source_effect_id] on the actor expired; [member key] is the
+	## index of the [AddTimedModifier] that gave it, as on [constant MODIFIER_GAINED].
 	MODIFIER_EXPIRED = 34,
 	## The actor's Block was cleared to 0 and its Stance set to its maximum, at its side's Phase
 	## Start. Not a Block gain or loss.
@@ -256,7 +258,8 @@ var item_id: String = ""
 ## A small number whose meaning depends on the kind: the [enum EffectTerms.Lane] of a
 ## [constant COUNTER_CHANGED], the [enum CombatValue.Stat] of a [constant STAT_CHANGED], the turns
 ## won early of a [constant COMBAT_ENDED], the [enum MapObjects.Change] of an
-## [constant OBJECT_STATE_CHANGED]. 0 on every other kind.
+## [constant OBJECT_STATE_CHANGED], the operation index of a [constant MODIFIER_GAINED] or
+## [constant MODIFIER_EXPIRED]. 0 on every other kind.
 var key: int = 0
 
 ## The unit type ([member CombatUnitState.unit_type]) of each unit in a coming wave, in arrival

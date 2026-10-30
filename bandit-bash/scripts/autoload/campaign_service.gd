@@ -6,7 +6,7 @@
 # File:     campaign_service.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 28, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 extends Node
@@ -21,11 +21,12 @@ extends Node
 ## [signal SaveService.run_ended], [signal SaveService.save_file_closed] and
 ## [signal SaveService.campaign_cleared], so every way a run starts (new, continued, resumed, the
 ## debug panel's seed restart) leaves exactly one, and none outlives its campaign. On a
-## multiplayer client there is none until client mirrors (EB7) and transport (P10) exist (event
+## multiplayer client there is none until transport (P10) delivers the host's snapshots (event
 ## bus plan, question 41).[br]
-## [b]Save sections:[/b] the two [code]rng[/code] sections, campaign and combat ([RngSaveSection]).
-## Each new session is handed to both before [signal session_started], so a continued run's
-## streams are restored before anything draws from them. [code]instance_ids[/code] is EB7's.
+## [b]Save sections:[/b] the [code]rng[/code] ([RngSaveSection]) and [code]instance_ids[/code]
+## ([InstanceIdSaveSection]) sections, one of each in the campaign and the combat block. Each new
+## session is handed to all four before [signal session_started], campaign before combat, so a
+## continued run's streams and id counter are restored before anything draws or mints.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
@@ -42,12 +43,16 @@ var session: CampaignSession = null
 
 var _campaign_rng: RngSaveSection = RngSaveSection.new(SaveSection.Block.CAMPAIGN)
 var _combat_rng: RngSaveSection = RngSaveSection.new(SaveSection.Block.COMBAT)
+var _campaign_ids: InstanceIdSaveSection = InstanceIdSaveSection.new(SaveSection.Block.CAMPAIGN)
+var _combat_ids: InstanceIdSaveSection = InstanceIdSaveSection.new(SaveSection.Block.COMBAT)
 
 
 func _ready() -> void:
-	# Replaces the placeholders SaveService reserved under the same key.
+	# The rng sections replace the placeholders SaveService reserved under their key.
 	SaveService.register_section(SaveSection.Block.CAMPAIGN, _campaign_rng)
 	SaveService.register_section(SaveSection.Block.COMBAT, _combat_rng)
+	SaveService.register_section(SaveSection.Block.CAMPAIGN, _campaign_ids)
+	SaveService.register_section(SaveSection.Block.COMBAT, _combat_ids)
 	SaveService.campaign_activated.connect(_on_save_service_campaign_activated)
 	SaveService.run_ended.connect(_on_save_service_run_ended)
 	SaveService.save_file_closed.connect(_on_save_service_save_file_closed)
@@ -92,8 +97,11 @@ func _replace_session(replacement: CampaignSession) -> void:
 	session = replacement
 	_campaign_rng.detach()
 	_combat_rng.detach()
+	_campaign_ids.detach()
+	_combat_ids.detach()
 	if replacement != null:
 		_attach_rng_sections(replacement)
+		_attach_id_sections(replacement)
 	if previous != null:
 		previous.close()
 		session_ended.emit(previous)
@@ -110,6 +118,18 @@ func _attach_rng_sections(built: CampaignSession) -> void:
 		if err != OK:
 			push_error(
 					"CampaignService: the rng section refused the new session - %s"
+					% [error_string(err)]
+			)
+
+
+# Applies the id counter SaveService restored for this run, campaign then combat, so a resumed
+# battle's later counter wins. As with the rng sections, a refusal leaves the data held.
+func _attach_id_sections(built: CampaignSession) -> void:
+	for section: InstanceIdSaveSection in [_campaign_ids, _combat_ids]:
+		var err: Error = section.attach(built)
+		if err != OK:
+			push_error(
+					"CampaignService: the instance_ids section refused the new session - %s"
 					% [error_string(err)]
 			)
 

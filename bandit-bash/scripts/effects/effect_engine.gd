@@ -6,7 +6,7 @@
 # File:     effect_engine.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 29, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 class_name EffectEngine
@@ -21,7 +21,10 @@ extends RefCounted
 ## with an inline window is opened with [method open_window] before its amount is committed.[br]
 ## [b]Pure:[/b] no nodes, autoloads, buses, global RNG or disk; the map is read and written through
 ## [member state], randomness goes through [member rolls], and problems are returned in
-## [member diagnostics], never logged, so a sandboxed copy may run on a worker thread.
+## [member diagnostics], never logged, so a sandboxed copy may run on a worker thread.[br]
+## [b]Snapshots and mirrors:[/b] [method capture] and [method restore] carry the state between
+## commands as plain JSON; a client mirror applies the host's facts with [method follow] instead of
+## resolving anything.
 ##
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
 
@@ -424,13 +427,16 @@ func reactions_this_step() -> int:
 
 ## Gives [param holder_id] [param modifier] until [param end] or for [param uses] attacks (0: no
 ## limit), and records [constant CombatFact.Kind.MODIFIER_GAINED]. One added between phases
-## belongs to the next phase to start.
+## belongs to the next phase to start. [param operation_index]: the index of the
+## [AddTimedModifier] among its effect's operations, the fact's [member CombatFact.key], so a
+## mirror can rebuild the modifier ([method follow]).
 func add_timed_modifier(
 		holder_id: String,
 		modifier: Modifier,
 		end: AddTimedModifier.End,
 		uses: int,
-		source_effect_id: String = ""
+		source_effect_id: String = "",
+		operation_index: int = 0
 ) -> void:
 	if not state.has_unit(holder_id):
 		return
@@ -442,9 +448,11 @@ func add_timed_modifier(
 	timed.phase = _run.phase if _run.in_phase else _run.phase + 1
 	timed.attacks_before = _run.attacks
 	timed.source_effect_id = source_effect_id
+	timed.operation_index = operation_index
 	_run.timed.append(timed)
 	var fact: CombatFact = _new_fact(CombatFact.Kind.MODIFIER_GAINED, holder_id)
 	fact.source_effect_id = source_effect_id
+	fact.key = operation_index
 	record(fact)
 
 
@@ -471,6 +479,7 @@ func reach_boundary(boundary: Boundary, subject_id: String = "") -> void:
 		_run.timed.erase(timed)
 		var fact: CombatFact = _new_fact(CombatFact.Kind.MODIFIER_EXPIRED, timed.holder_id)
 		fact.source_effect_id = timed.source_effect_id
+		fact.key = timed.operation_index
 		record(fact)
 
 
@@ -527,6 +536,172 @@ func copy_for_sandbox(roll_source: RollSource) -> EffectEngine:
 	run.watch_awake = _run.watch_awake.duplicate()
 	copy.verify = verify
 	return copy
+
+
+## This engine's state as plain JSON values, for session snapshots and the [code]effects[/code]
+## save section: every instance ([method EffectInstance.capture]), timed modifier, base value and
+## delta, the phase and attack counts, and the next [member CombatFact.seq]. Take it between
+## commands: waiting reactions, open windows, caches, the fact log and diagnostics aren't in it.
+## [param reference]: names each definition; see [method EffectInstance.capture].
+## [method restore] reverses it.
+func capture(reference: Callable = Callable()) -> Dictionary:
+	var instances: Array = []
+	for instance: EffectInstance in get_instances():
+		instances.append(instance.capture(reference))
+	var timed: Array = []
+	for held: TimedModifier in _run.timed:
+		timed.append(held.capture())
+	var subjects: Array[String] = []
+	subjects.assign(_run.base_sheets.keys())
+	subjects.sort()
+	var bases: Dictionary = {}
+	for subject_id: String in subjects:
+		bases[subject_id] = _run.base_sheets[subject_id].capture()
+	var attack_of: Dictionary = {}
+	for unit_id: String in _run.attack_of:
+		attack_of[unit_id] = _run.attack_of[unit_id]
+	return {
+		"next_seq": _run.next_seq,
+		"phase": _run.phase,
+		"in_phase": _run.in_phase,
+		"attacks": _run.attacks,
+		"attack_of": attack_of,
+		"timed": timed,
+		"bases": bases,
+		"instances": instances,
+	}
+
+
+## Replaces this engine's state with [param data] from [method capture], also after a trip
+## through JSON: every instance is registered with its counters and charges as captured, and the
+## fact log starts empty. [param resolve]: finds each definition; see
+## [method EffectInstance.from_capture].
+## [param shared]: instances the caller already restored, by instance id (an encounter's cross-map
+## instances), registered as they are in place of their captured copy.
+## Returns [constant OK], or [constant ERR_INVALID_DATA], changing nothing, when any part is
+## malformed.
+func restore(
+		data: Dictionary,
+		resolve: Callable = Callable(),
+		shared: Dictionary[String, EffectInstance] = {}
+) -> Error:
+	var run: RunState = RunState.new()
+	var counts: PackedInt32Array = []
+	for field: String in ["next_seq", "phase", "attacks"]:
+		var count: Variant = data.get(field, null)
+		if not (count is float or count is int):
+			return _refuse_restore("%s is missing" % [field])
+		var number: float = count
+		counts.append(roundi(number))
+	run.next_seq = counts[0]
+	run.phase = counts[1]
+	run.attacks = counts[2]
+	run.in_phase = data.get("in_phase", false) == true
+
+	var attack_of: Variant = data.get("attack_of", null)
+	var timed: Variant = data.get("timed", null)
+	var bases: Variant = data.get("bases", null)
+	var captured: Variant = data.get("instances", null)
+	if (
+			not attack_of is Dictionary
+			or not timed is Array
+			or not bases is Dictionary
+			or not captured is Array
+	):
+		return _refuse_restore("a part is missing")
+	var attacks_by_unit: Dictionary = attack_of
+	for unit_id: Variant in attacks_by_unit:
+		var attack: Variant = attacks_by_unit[unit_id]
+		if not (attack is float or attack is int):
+			return _refuse_restore("attack count of %s" % [unit_id])
+		var attack_number: float = attack
+		run.attack_of[str(unit_id)] = roundi(attack_number)
+	# Untyped: the parts come from JSON and are checked entry by entry.
+	for entry: Variant in timed:
+		var held: TimedModifier = (
+				TimedModifier.from_capture(entry as Dictionary) if entry is Dictionary else null
+		)
+		if held == null:
+			return _refuse_restore("timed modifier %s" % [entry])
+		run.timed.append(held)
+	var sheets: Dictionary = bases
+	for subject_id: Variant in sheets:
+		var sheet_data: Variant = sheets[subject_id]
+		var sheet: StatSheet = (
+				StatSheet.from_capture(str(subject_id), sheet_data as Dictionary)
+				if sheet_data is Dictionary else null
+		)
+		if sheet == null:
+			return _refuse_restore("bases of %s" % [subject_id])
+		run.base_sheets[str(subject_id)] = sheet
+	var restored: Array[EffectInstance] = []
+	for entry: Variant in captured:
+		if not entry is Dictionary:
+			return _refuse_restore("instance %s" % [entry])
+		var instance_data: Dictionary = entry
+		var instance_id: String = str(instance_data.get("id", ""))
+		var instance: EffectInstance = shared.get(instance_id, null)
+		if instance == null:
+			instance = EffectInstance.from_capture(instance_data, resolve)
+		if instance == null:
+			return _refuse_restore("instance %s" % [instance_id])
+		restored.append(instance)
+
+	for instance: EffectInstance in _instances.values():
+		_unindex(instance)
+	_instances.clear()
+	_windows.clear()
+	_opening = null
+	_generation = 0
+	fact_log.clear()
+	_run = run
+	for instance: EffectInstance in restored:
+		register(instance, true)
+	return OK
+
+
+## Applies [param facts], one batch the host recorded, in order, to this engine's state, as a
+## client mirror does: it dispatches nothing, fires no effect, draws no roll and tells no observer.
+## What it follows: the next seq, phase and attack counts, counters
+## ([constant CombatFact.Kind.COUNTER_CHANGED]), charges spent
+## ([constant CombatFact.Kind.EFFECT_ACTIVATED]), timed modifiers gained, spent and expired, and
+## permanent stat changes. Facts about the rules state are [CombatSession]'s to apply.
+## A batch is whole when it ends: the host reaches a Phase End boundary after its fact's
+## reactions, so a mirror leaves the phase only once the batch is applied.
+func follow(facts: Array[CombatFact]) -> void:
+	var is_phase_ending: bool = false
+	for fact: CombatFact in facts:
+		_run.next_seq = fact.seq + 1
+		fact_log.append(fact)
+		match fact.kind:
+			CombatFact.Kind.PHASE_START:
+				_run.phase += 1
+				_run.in_phase = true
+				is_phase_ending = false
+			CombatFact.Kind.PHASE_END:
+				is_phase_ending = true
+			CombatFact.Kind.ATTACK_MADE:
+				_run.attacks += 1
+				_run.attack_of[fact.actor_id] = _run.attacks
+				_follow_attack(fact.actor_id)
+			CombatFact.Kind.COUNTER_CHANGED:
+				var counted: EffectInstance = get_instance(fact.source_effect_id)
+				if counted != null:
+					counted.set_counter(fact.key as EffectTerms.Lane, fact.amount)
+			CombatFact.Kind.EFFECT_ACTIVATED:
+				var fired: EffectInstance = get_instance(fact.source_effect_id)
+				if fired != null:
+					fired.spend_charge()
+			CombatFact.Kind.MODIFIER_GAINED:
+				_follow_modifier_gained(fact)
+			CombatFact.Kind.MODIFIER_EXPIRED:
+				_follow_modifier_expired(fact)
+			CombatFact.Kind.STAT_CHANGED:
+				_follow_stat_changed(fact)
+		if _INVALIDATING_KINDS.has(fact.kind):
+			_run.sheets.erase(fact.actor_id)
+	if is_phase_ending:
+		_run.in_phase = false
 
 
 ## Adds a read-only listener called with every fact as it is recorded, on the host (XP tally,
@@ -900,6 +1075,96 @@ func _verify_sheet(cached: StatSheet, fresh: StatSheet) -> void:
 					"EffectEngine: cached sheet of %s is out of date for key %d (stat %d)"
 					% [cached.subject_id, slot.x, slot.y]
 			)
+
+
+func _refuse_restore(detail: String) -> Error:
+	push_error("EffectEngine: can't restore s%d - %s" % [session_id, detail])
+	return ERR_INVALID_DATA
+
+
+# A mirror spends the "next attack" uses the host spends when this attack resolves: one use of each
+# modifier the attacker held before the attack started. The host's expiry facts remove the spent.
+func _follow_attack(attacker_id: String) -> void:
+	var attack: int = _run.attack_of.get(attacker_id, 0)
+	for timed: TimedModifier in _run.timed:
+		if (
+				timed.holder_id == attacker_id
+				and timed.uses_left > 0
+				and attack > timed.attacks_before
+		):
+			timed.uses_left -= 1
+
+
+# Rebuilds the modifier add_timed_modifier() gave from the AddTimedModifier named by the fact's
+# key (its index among the definition's operations).
+func _follow_modifier_gained(fact: CombatFact) -> void:
+	var instance: EffectInstance = get_instance(fact.source_effect_id)
+	var operations: Array[EffectOperation] = (
+			[] if instance == null else instance.definition.operations
+	)
+	var operation: AddTimedModifier = (
+			operations[fact.key] as AddTimedModifier
+			if fact.key >= 0 and fact.key < operations.size() else null
+	)
+	if operation == null:
+		diagnostics.append(
+				"EffectEngine: s%d#%d names no timed modifier to follow" % [session_id, fact.seq]
+		)
+		return
+	var timed: TimedModifier = TimedModifier.new()
+	timed.holder_id = fact.actor_id
+	timed.modifier = Modifier.new(
+			operation.key,
+			operation.mode,
+			operation.value,
+			instance.source_kind,
+			instance.instance_id,
+			instance.label
+	)
+	timed.end = operation.end
+	timed.uses_left = maxi(operation.uses, 0)
+	timed.phase = _run.phase if _run.in_phase else _run.phase + 1
+	timed.attacks_before = _run.attacks
+	timed.source_effect_id = instance.instance_id
+	timed.operation_index = fact.key
+	_run.timed.append(timed)
+
+
+# Removes the earliest-gained timed modifier of the fact's holder, effect and operation. Several
+# from one operation share an end and a use count, so the host expires them in the order gained.
+func _follow_modifier_expired(fact: CombatFact) -> void:
+	for timed: TimedModifier in _run.timed:
+		if (
+				timed.holder_id == fact.actor_id
+				and timed.source_effect_id == fact.source_effect_id
+				and timed.operation_index == fact.key
+		):
+			_run.timed.erase(timed)
+			return
+
+
+# Adds the delta ChangeBaseStat added: the effect's base-mode change to that stat, or the fact's
+# rounded amount when the effect has none.
+func _follow_stat_changed(fact: CombatFact) -> void:
+	var instance: EffectInstance = get_instance(fact.source_effect_id)
+	var key: int = CombatValue.STAT_KEYS.get(fact.key, -1)
+	if instance == null or key < 0:
+		return
+	var value: float = fact.amount
+	for operation: EffectOperation in instance.definition.operations:
+		var change: ChangeBaseStat = operation as ChangeBaseStat
+		if change != null and change.key == key and change.mode == ChangeBaseStat.Mode.BASE:
+			value = change.value
+			break
+	var delta: Modifier = Modifier.new(
+			key,
+			Modifier.Mode.ADD,
+			value,
+			instance.source_kind,
+			instance.instance_id,
+			instance.label
+	)
+	add_delta(fact.actor_id, delta)
 
 
 func _comes_due(timed: TimedModifier, boundary: Boundary, subject_id: String) -> bool:

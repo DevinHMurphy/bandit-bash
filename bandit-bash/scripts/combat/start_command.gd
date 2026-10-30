@@ -6,7 +6,7 @@
 # File:     start_command.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 28, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 class_name StartCommand
@@ -21,6 +21,9 @@ extends Command
 ##
 ## @tutorial(Combat core plan): docs/plans/2026-10-26-combat-core.md
 
+## Its name on the wire ([method Command.get_wire_type]). It has no fields of its own.
+const WIRE_TYPE: String = "start"
+
 
 func _init(sender: int = -1) -> void:
 	seat = sender
@@ -28,6 +31,10 @@ func _init(sender: int = -1) -> void:
 
 func get_label() -> String:
 	return "start"
+
+
+func get_wire_type() -> String:
+	return WIRE_TYPE
 
 
 func validate(session: CombatSession) -> String:
