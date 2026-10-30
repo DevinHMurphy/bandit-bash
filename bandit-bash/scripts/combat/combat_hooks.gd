@@ -6,7 +6,7 @@
 # File:     combat_hooks.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 28, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 class_name CombatHooks
@@ -32,7 +32,9 @@ enum Hook {
 	## (P06: flooded tiles). Every registration must allow it.
 	## [code]func(session, unit_id: String) -> bool[/code].
 	TERRAIN_HEALING_ALLOWED = 1,
-	## At each side's Phase End, after Unit Turn End and the drain (P06: darkness damage).
+	## At each side's Phase End, after Unit Turn End and the drain (P06: darkness damage; P04:
+	## [method Reinforcements.close_points], a player unit ending its turn on an open point closes
+	## it, at the player Phase End only).
 	## [code]func(session, side: CombatFact.CombatSide) -> void[/code].
 	PHASE_END_EFFECTS = 2,
 	## The enemy side's turns, asked one command at a time, each after the one before resolved:
@@ -41,9 +43,12 @@ enum Hook {
 	## [code]func(session) -> Command[/code].
 	ENEMY_COMMANDS = 3,
 	## After the enemy Phase End, each registration its own step (P06's darkness step, then P04's
-	## reinforcement arrival). [code]func(session) -> void[/code].
+	## [method Reinforcements.arrive]: the waves due after this turn's enemy phase arrive, so
+	## Survive and Defend check their early end here). [code]func(session) -> void[/code].
 	AFTER_ENEMY_PHASE = 4,
-	## After every player Phase Start (P05: the new intents). [code]func(session) -> void[/code].
+	## After every player Phase Start (P05: the new intents; P04: [method Reinforcements.warn], one
+	## [constant CombatFact.Kind.REINFORCEMENT_INCOMING] per open point).
+	## [code]func(session) -> void[/code].
 	INTENTS = 5,
 	## After every resolution step: each command, each enemy turn and each phase boundary (P04:
 	## the objective checks, which end the combat). [code]func(session) -> void[/code].

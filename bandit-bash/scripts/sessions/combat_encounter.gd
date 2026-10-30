@@ -27,15 +27,14 @@ extends RefCounted
 ## [method submit] (a rune cast on a teammate's map) and stamped by one clock, so cross-map order
 ## is the host's arrival order. Units move between maps with [method send_unit] and
 ## [method deliver_arrivals].[br]
-## [b]Snapshots:[/b] [method snapshot] holds the encounter's own state and every session's
-## [method CombatSession.snapshot]; [method load_snapshot] restores the cross-map instances first
-## and hands the same objects to every map. A mirror applies encounter facts with
+## [b]Snapshots:[/b] [method snapshot] holds the encounter's own state (units on their way between
+## maps included) and every session's [method CombatSession.snapshot]; [method load_snapshot]
+## restores the cross-map instances first and hands the same objects to every map. The save
+## sections build on them ([CombatStateSection]). A mirror applies encounter facts with
 ## [method apply_batch].
 ##
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
 ## @tutorial(RNG streams plan): docs/plans/2026-10-26-rng-streams.md
-##
-## @todo: TOD-001 - Capture units on their way between maps once units can be captured (P02 CC8).
 
 ## A map's session was opened: emitted once per map by [method open_sessions].
 signal session_opened(session: CombatSession)
@@ -71,6 +70,10 @@ const _SHARED_STEPS: Array[SetupStep] = [
 
 # The NetLog autoload's script, for its type and enums; see CombatSession.logger().
 const NetLogScript = preload("res://scripts/autoload/net_log.gd")
+
+# The shape of snapshot() output; raised when it changes. Never saved as it is
+# (CombatStateSection saves its parts), so another format is refused.
+const _SNAPSHOT_FORMAT: int = 2
 
 ## The campaign floor of the combat node: part of every stream key of the battle.
 var floor_number: int = -1
@@ -434,19 +437,16 @@ func describe(id: String) -> String:
 
 
 ## The battle's state as plain JSON values, between commands: [code]encounter[/code] (the next
-## encounter seq, where sent units arrived, every cross-map instance) and [code]sessions[/code],
-## each map's [method CombatSession.snapshot] by session id, named by the run seed and the build
-## version. [method load_snapshot] reverses it. [param reference]: see
-## [method EffectInstance.capture].
+## encounter seq, where sent units arrived, every cross-map instance, every unit on its way to
+## another map with its bases, weapons and effects) and [code]sessions[/code], each map's
+## [method CombatSession.snapshot] by session id, named by the run seed and the build version.
+## [method load_snapshot] reverses it. [param reference]: see [method EffectInstance.capture].
 func snapshot(reference: Callable = Callable()) -> Dictionary:
-	# TODO(TOD-001): Units on their way between maps aren't captured yet (CombatUnitState, CC8).
-	if not _in_transit.is_empty():
-		push_warning("CombatEncounter: %s snapshot leaves out units on their way" % [_tag()])
 	var sessions: Array = []
 	for session: CombatSession in _sessions:
 		sessions.append(session.snapshot(reference))
 	return {
-		"format": 1,
+		"format": _SNAPSHOT_FORMAT,
 		"run_seed": RunSeed.format(run_seed),
 		"game_version": str(ProjectSettings.get_setting("application/config/version", "")),
 		"encounter": _capture_encounter(reference),
@@ -456,28 +456,44 @@ func snapshot(reference: Callable = Callable()) -> Dictionary:
 
 ## Replaces the battle's state with [param data] from [method snapshot], also after a trip
 ## through JSON: the cross-map instances first, then each map with
-## [method CombatSession.load_snapshot], the same cross-map objects shared by every map's engine.
-## Load it into an encounter built the way this battle was (same node, seats and setup, sessions
-## open). [param resolve]: see [method EffectInstance.from_capture]. Returns [constant OK], or
-## [constant ERR_INVALID_DATA] when the data is malformed or for another battle; a map that refused
-## leaves the maps before it loaded, so drop the encounter then.
+## [method CombatSession.load_snapshot], the same cross-map objects shared by every map's engine,
+## then the units on their way. Load it into an encounter built the way this battle was (same
+## node, seats and setup, sessions open). [param resolve]: see
+## [method EffectInstance.from_capture]. Returns [constant OK], or [constant ERR_INVALID_DATA]
+## when the data is malformed or for another battle; a map that refused leaves the maps before it
+## loaded, so drop the encounter then.
 func load_snapshot(data: Dictionary, resolve: Callable = Callable()) -> Error:
 	var part: Variant = data.get("encounter", null)
 	var maps: Variant = data.get("sessions", null)
-	if not part is Dictionary or not maps is Array or (maps as Array).size() != _sessions.size():
+	if (
+			_whole(data.get("format", null)) != _SNAPSHOT_FORMAT
+			or not part is Dictionary
+			or not maps is Array
+			or (maps as Array).size() != _sessions.size()
+	):
 		return _refuse_snapshot("not a snapshot of these maps")
 	var encounter_part: Dictionary = part
 	var next: Variant = encounter_part.get("next_seq", null)
 	var arrived: Variant = encounter_part.get("arrived_on", null)
 	var captured: Variant = encounter_part.get("cross_map", null)
+	var travelling: Variant = encounter_part.get("in_transit", null)
 	if (
 			_whole(encounter_part.get("floor", null)) != floor_number
 			or _whole(encounter_part.get("node", null)) != node
 			or not (next is float or next is int)
 			or not arrived is Dictionary
 			or not captured is Array
+			or not travelling is Array
 	):
 		return _refuse_snapshot("its encounter part is malformed or for another battle")
+	var in_transit: Array[Transfer] = []
+	for entry: Variant in travelling:
+		var transfer: Transfer = (
+				_transfer_from(entry as Dictionary, resolve) if entry is Dictionary else null
+		)
+		if transfer == null:
+			return _refuse_snapshot("a unit on its way can't be restored")
+		in_transit.append(transfer)
 	var shared: Dictionary[String, EffectInstance] = {}
 	# Untyped: the parts come from JSON and are checked entry by entry.
 	for entry: Variant in captured:
@@ -508,6 +524,7 @@ func load_snapshot(data: Dictionary, resolve: Callable = Callable()) -> Error:
 
 	_cross_map = shared
 	_arrived_on = arrived_on
+	_in_transit = in_transit
 	var next_number: float = next
 	_next_seq = roundi(next_number)
 	fact_log.clear()
@@ -670,6 +687,9 @@ func _capture_encounter(reference: Callable) -> Dictionary:
 	var cross_map: Array = []
 	for instance: EffectInstance in get_cross_map_instances():
 		cross_map.append(instance.capture(reference))
+	var in_transit: Array = []
+	for transfer: Transfer in _in_transit:
+		in_transit.append(_capture_transfer(transfer, reference))
 	return {
 		"floor": floor_number,
 		"node": node,
@@ -677,7 +697,87 @@ func _capture_encounter(reference: Callable) -> Dictionary:
 		"next_seq": _next_seq,
 		"arrived_on": arrived,
 		"cross_map": cross_map,
+		"in_transit": in_transit,
 	}
+
+
+# A unit on its way as plain JSON: its CombatUnitState, where it goes, its bases by key id in key
+# order, its weapon records and its effect instances, in the order sent.
+func _capture_transfer(transfer: Transfer, reference: Callable) -> Dictionary:
+	var keys: Array = transfer.bases.keys()
+	keys.sort()
+	var bases: Array = []
+	for key: Variant in keys:
+		bases.append([Modifier.key_id(key as int), transfer.bases[key]])
+	var weapons: Array = []
+	for weapon: CombatState.WeaponStats in transfer.weapons:
+		weapons.append(weapon.capture())
+	var instances: Array = []
+	for instance: EffectInstance in transfer.instances:
+		instances.append(instance.capture(reference))
+	return {
+		"unit": transfer.unit.capture(),
+		"to_session_id": transfer.to_session_id,
+		"tile": [transfer.tile.x, transfer.tile.y],
+		"bases": bases,
+		"weapons": weapons,
+		"instances": instances,
+	}
+
+
+# The Transfer _capture_transfer() wrote; null when any part is malformed or names a map that
+# isn't open.
+func _transfer_from(data: Dictionary, resolve: Callable) -> Transfer:
+	var unit_data: Variant = data.get("unit", null)
+	var tile_data: Variant = data.get("tile", null)
+	var bases: Variant = data.get("bases", null)
+	var weapons: Variant = data.get("weapons", null)
+	var instances: Variant = data.get("instances", null)
+	var to_id: int = _whole(data.get("to_session_id", null))
+	if (
+			not unit_data is Dictionary
+			or not tile_data is Array
+			or (tile_data as Array).size() != 2
+			or not bases is Array
+			or not weapons is Array
+			or not instances is Array
+			or get_session(to_id) == null
+	):
+		return null
+	var transfer: Transfer = Transfer.new()
+	transfer.unit = CombatUnitState.from_capture(unit_data as Dictionary)
+	transfer.to_session_id = to_id
+	var tile_parts: Array = tile_data
+	transfer.tile = Vector2i(_whole(tile_parts[0]), _whole(tile_parts[1]))
+	if transfer.unit == null or _whole(tile_parts[0]) < 0 or _whole(tile_parts[1]) < 0:
+		return null
+	# Untyped: the parts come from JSON and are checked entry by entry.
+	for entry: Variant in bases:
+		if not entry is Array or (entry as Array).size() != 2:
+			return null
+		var pair: Array = entry
+		var key: int = Modifier.key_from_id(str(pair[0]))
+		if key == Modifier.NO_KEY or not (pair[1] is float or pair[1] is int):
+			return null
+		var value: float = pair[1]
+		transfer.bases[key] = value
+	for entry: Variant in weapons:
+		var weapon: CombatState.WeaponStats = (
+				CombatState.WeaponStats.from_capture(entry as Dictionary)
+				if entry is Dictionary else null
+		)
+		if weapon == null:
+			return null
+		transfer.weapons.append(weapon)
+	for entry: Variant in instances:
+		var instance: EffectInstance = (
+				EffectInstance.from_capture(entry as Dictionary, resolve)
+				if entry is Dictionary else null
+		)
+		if instance == null:
+			return null
+		transfer.instances.append(instance)
+	return transfer
 
 
 func _refuse_snapshot(reason: String) -> Error:

@@ -58,6 +58,8 @@ const BAD_TREES: Dictionary[String, String] = {
 	"enemy_class_role": ContentRules.ENEMY_CLASS,
 	"folder_enemy_class": ContentRules.FOLDER,
 	"folder_pack": ContentRules.FOLDER,
+	"carrier_effect_id_missing": ContentRules.CARRIER_EFFECT_ID,
+	"carrier_effect_id_repeated": ContentRules.CARRIER_EFFECT_ID,
 }
 
 # The trees checked by their own cases rather than BAD_TREES.

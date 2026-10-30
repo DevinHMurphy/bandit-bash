@@ -25,13 +25,18 @@ extends Node
 ## multiplayer client there is none until transport (P10) delivers the host's snapshots (event
 ## bus plan, question 41).[br]
 ## [b]Save sections:[/b] the [code]rng[/code] ([RngSaveSection]) and [code]instance_ids[/code]
-## ([InstanceIdSaveSection]) sections, one of each in the campaign and the combat block. Each new
-## session is handed to all four before [signal session_started], campaign before combat, so a
-## continued run's streams and id counter are restored before anything draws or mints.
+## ([InstanceIdSaveSection]) sections, one of each in the campaign and the combat block, and the
+## combat block's [code]combat_state[/code] and [code]effects[/code] ([CombatStateSection]), which
+## also keep the combat block's core turn and phase equal to the battle's. Each new session is
+## handed to all of them before [signal session_started], campaign before combat, so a continued
+## run's streams and id counter are restored before anything draws or mints.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
 ## @tutorial(Save system design): docs/design/save-system.md
+##
+## @todo: TOD-001 [HIGH] - On a BATTLE resume, rebuild the battle as Begin set it up and
+## [method CombatStateSection.load_into] it; nothing does yet (P02 CC8 question).
 
 ## A run's session was built: connect here to follow its battles.
 signal session_started(session: CampaignSession)
@@ -46,6 +51,7 @@ var _campaign_rng: RngSaveSection = RngSaveSection.new(SaveSection.Block.CAMPAIG
 var _combat_rng: RngSaveSection = RngSaveSection.new(SaveSection.Block.COMBAT)
 var _campaign_ids: InstanceIdSaveSection = InstanceIdSaveSection.new(SaveSection.Block.CAMPAIGN)
 var _combat_ids: InstanceIdSaveSection = InstanceIdSaveSection.new(SaveSection.Block.COMBAT)
+var _combat_state: CombatStateSection = null
 
 
 func _ready() -> void:
@@ -57,6 +63,10 @@ func _ready() -> void:
 	SaveService.register_section(SaveSection.Block.COMBAT, _combat_rng)
 	SaveService.register_section(SaveSection.Block.CAMPAIGN, _campaign_ids)
 	SaveService.register_section(SaveSection.Block.COMBAT, _combat_ids)
+	_combat_state = CombatStateSection.new(_combat_core)
+	# The effects section restores after combat_state, which it needs (CombatStateSection).
+	SaveService.register_section(SaveSection.Block.COMBAT, _combat_state)
+	SaveService.register_section(SaveSection.Block.COMBAT, _combat_state.effects)
 	SaveService.campaign_activated.connect(_on_save_service_campaign_activated)
 	SaveService.run_ended.connect(_on_save_service_run_ended)
 	SaveService.save_file_closed.connect(_on_save_service_save_file_closed)
@@ -103,9 +113,12 @@ func _replace_session(replacement: CampaignSession) -> void:
 	_combat_rng.detach()
 	_campaign_ids.detach()
 	_combat_ids.detach()
+	_combat_state.detach()
 	if replacement != null:
 		_attach_rng_sections(replacement)
 		_attach_id_sections(replacement)
+		# TODO(TOD-001): A BATTLE resume's held battle waits here for its rebuilt battle.
+		_combat_state.attach(replacement)
 	if previous != null:
 		previous.close()
 		session_ended.emit(previous)
@@ -136,6 +149,12 @@ func _attach_id_sections(built: CampaignSession) -> void:
 					"CampaignService: the instance_ids section refused the new session - %s"
 					% [error_string(err)]
 			)
+
+
+# The combat block's data, which the combat_state section keeps equal to the battle; null outside
+# a battle.
+func _combat_core() -> CombatData:
+	return SaveService.combat
 
 
 func _on_save_service_campaign_activated(mode: CampaignData.Mode, resumed: bool) -> void:

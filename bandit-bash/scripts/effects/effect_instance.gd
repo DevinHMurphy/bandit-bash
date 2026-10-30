@@ -18,9 +18,14 @@ extends RefCounted
 ## [member instance_id]. Combat-lane state starts fresh in every battle and moves with the instance
 ## when its unit changes maps; campaign-lane values are copied in at battle start and written back
 ## before the battle ends (the session bridge's job). [method capture] and [method from_capture]
-## carry that state, as plain JSON, into session snapshots and save sections.
+## carry that state, as plain JSON, into session snapshots and save sections. A definition the
+## loadout made at runtime travels with the instance and restores as itself, never re-resolved
+## from the catalog ([Loadout]: staff uses, prefixes, stat changes, an enemy's charge-free use).
 ##
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
+
+# A saved stat name that names no stat; never a stat or Modifier.NO_STAT.
+const _BAD_STAT: int = -2
 
 ## Allocator id, such as [code]effect:12[/code]. Never parsed; breaks reaction-order ties.
 var instance_id: String = ""
@@ -101,10 +106,12 @@ func copy() -> EffectInstance:
 
 
 ## This instance's state as plain JSON values, for snapshots and saves: its definition by
-## reference, its owner, its counters by lane name and its charges.
-## [method from_capture] reverses it.
-## [param reference]: [code]reference(definition) -> String[/code]; when invalid, the catalog's
-## (a standalone effect by its id, an effect inside a carrier by the carrier's id and its index).
+## reference and its charge limit, its owner, its counters by lane name and its charges. A
+## definition no catalog entry names, made only of always-on value and permission changes (one
+## the loadout made), is also described in [code]"made"[/code]. [method from_capture] reverses
+## it.
+## [param reference]: [code]reference(definition) -> String[/code], which then names every
+## definition; when invalid, [method catalog_reference].
 func capture(reference: Callable = Callable()) -> Dictionary:
 	var definition_ref: String = ""
 	if reference.is_valid():
@@ -114,9 +121,10 @@ func capture(reference: Callable = Callable()) -> Dictionary:
 	var counters: Dictionary = {}
 	for lane: int in EffectTerms.Lane.values():
 		counters[EffectTerms.Lane.find_key(lane) as String] = get_counter(lane as EffectTerms.Lane)
-	return {
+	var data: Dictionary = {
 		"id": instance_id,
 		"definition": definition_ref,
+		"definition_charges": 0 if definition == null else definition.charges,
 		"owner": {
 			"kind": EffectOwner.Kind.find_key(owner.kind) as String,
 			"owner_id": owner.owner_id,
@@ -129,6 +137,13 @@ func capture(reference: Callable = Callable()) -> Dictionary:
 		"charges_left": charges_left,
 		"counters": counters,
 	}
+	if (
+			not reference.is_valid()
+			and _is_plain(definition)
+			and EffectInstance.catalog_definition(definition_ref) != definition
+	):
+		data["made"] = _describe_made(definition)
+	return data
 
 
 func _full_charges() -> int:
@@ -138,18 +153,28 @@ func _full_charges() -> int:
 
 
 ## An instance from [method capture] output, also after a trip through JSON, where numbers arrive
-## as floats. [param resolve]: [code]resolve(reference) -> EffectDefinition[/code], null for an
-## unknown reference; when invalid, [method catalog_definition]. Returns [code]null[/code], with
-## an error, when the definition can't be found or a field is missing or unknown.
+## as floats. A [code]"made"[/code] definition is built from its description. Any other is found
+## by [param resolve]: [code]resolve(reference) -> EffectDefinition[/code], null for an unknown
+## reference; when invalid, [method catalog_definition]. A found definition whose charge limit
+## isn't the captured one (an enemy's charge-free use) is copied with the captured limit, as
+## [Loadout] made it. Returns [code]null[/code], with an error, when the definition can't be
+## found or a field is missing or unknown.
 static func from_capture(data: Dictionary, resolve: Callable = Callable()) -> EffectInstance:
 	var reference: String = str(data.get("definition", ""))
+	var made: Variant = data.get("made", null)
+	var limit: Variant = data.get("definition_charges", null)
 	var effect: EffectDefinition = null
-	if reference.is_empty():
+	if made is Dictionary:
+		effect = _made_from(made as Dictionary, reference)
+	elif reference.is_empty():
 		effect = null
 	elif resolve.is_valid():
 		effect = resolve.call(reference)
 	else:
 		effect = EffectInstance.catalog_definition(reference)
+	if effect != null and (limit is float or limit is int):
+		var limit_number: float = limit
+		effect = _with_charges(effect, roundi(limit_number))
 	var owner_data: Variant = data.get("owner", null)
 	var counters: Variant = data.get("counters", null)
 	var kind_name: String = str(data.get("source_kind", ""))
@@ -188,10 +213,12 @@ static func from_capture(data: Dictionary, resolve: Callable = Callable()) -> Ef
 
 
 ## How [method capture] names [param effect] by default: a standalone catalog effect by its id,
-## an effect inside a catalog carrier as [code]<carrier id>#<index>[/code], anything else by its
-## own id (empty when it has none). [method catalog_definition] reverses it.
-# ASSUMPTION: an effect inside a carrier has no id of its own in the catalog (EffectCatalog.effect
-# finds only standalone ones), so a saved instance names it by its carrier and its index there.
+## an effect inside a catalog carrier (its effects, and a unit type's innate and upgraded
+## effects) as [code]<carrier id>#<effect id>[/code], anything else by its own id (empty when it
+## has none).
+## Ids, not places, so reordering a carrier's effects never breaks a save; the content test
+## requires every effect inside a carrier to have an id unique within it (event bus plan,
+## question 60). [method catalog_definition] reverses it.
 static func catalog_reference(effect: EffectDefinition) -> String:
 	if effect == null:
 		return ""
@@ -201,11 +228,8 @@ static func catalog_reference(effect: EffectDefinition) -> String:
 		var carrier: EffectCarrierDefinition = (
 				EffectCatalog.definition(carrier_id) as EffectCarrierDefinition
 		)
-		if carrier == null:
-			continue
-		var index: int = carrier.effects.find(effect)
-		if index >= 0:
-			return "%s#%d" % [carrier_id, index]
+		if carrier != null and _carried_effects(carrier).has(effect):
+			return "%s#%s" % [carrier_id, effect.id]
 	return effect.id
 
 
@@ -214,15 +238,31 @@ static func catalog_definition(reference: String) -> EffectDefinition:
 	var parts: PackedStringArray = reference.split("#")
 	if parts.size() == 1:
 		return EffectCatalog.effect(reference)
-	if parts.size() != 2 or not parts[1].is_valid_int():
+	if parts.size() != 2 or parts[1].is_empty():
 		return null
 	var carrier: EffectCarrierDefinition = (
 			EffectCatalog.definition(parts[0]) as EffectCarrierDefinition
 	)
-	var index: int = parts[1].to_int()
-	if carrier == null or index < 0 or index >= carrier.effects.size():
+	if carrier == null:
 		return null
-	return carrier.effects[index]
+	for effect: EffectDefinition in _carried_effects(carrier):
+		if effect != null and effect.id == parts[1]:
+			return effect
+	return null
+
+
+# Every effect carrier holds, in its lists' order: its effects and, for a unit type, its innate
+# and upgraded effects.
+# NOTE: The same lists as the content test's carrier id rule (tests/content/content_rules.gd,
+# _effects_of); keep them in step.
+static func _carried_effects(carrier: EffectCarrierDefinition) -> Array[EffectDefinition]:
+	var effects: Array[EffectDefinition] = []
+	effects.append_array(carrier.effects)
+	var unit_type: UnitTypeDefinition = carrier as UnitTypeDefinition
+	if unit_type != null:
+		effects.append_array(unit_type.innate_effects)
+		effects.append_array(unit_type.upgraded_effects)
+	return effects
 
 
 static func _owner_from(data: Dictionary) -> EffectOwner:
@@ -245,3 +285,150 @@ static func _owner_from(data: Dictionary) -> EffectOwner:
 	effect_owner.seat = roundi(seat_number)
 	effect_owner.side = side_value as CombatFact.CombatSide
 	return effect_owner
+
+
+# Whether capture() can describe effect: always-on, no conditions, only value and permission
+# changes. The shapes the loadout makes at runtime (Loadout._add_runtime, Loadout._staff_uses).
+static func _is_plain(effect: EffectDefinition) -> bool:
+	if effect == null or effect.trigger != EffectTerms.Trigger.ALWAYS:
+		return false
+	if not effect.conditions.is_empty():
+		return false
+	for operation: EffectOperation in effect.operations:
+		if operation == null:
+			return false
+		if operation.get_script() != ModifyValue and operation.get_script() != SetPermission:
+			return false
+	return true
+
+
+# A plain definition as JSON: its id, scope, charge lane and tags, and each operation as
+# ["modify", key, mode, value, stat] or ["permission", key, allow, stat], keys and enums by name.
+# Its charges are the capture's "definition_charges".
+static func _describe_made(effect: EffectDefinition) -> Dictionary:
+	var operations: Array = []
+	for operation: EffectOperation in effect.operations:
+		var change: ModifyValue = operation as ModifyValue
+		if change != null:
+			operations.append([
+				"modify",
+				Modifier.key_id(change.key),
+				Modifier.Mode.find_key(change.mode) as String,
+				change.value,
+				_stat_name(change.stat),
+			])
+			continue
+		var permission: SetPermission = operation as SetPermission
+		operations.append([
+			"permission",
+			Modifier.key_id(permission.permission),
+			permission.allow,
+			_stat_name(permission.stat),
+		])
+	return {
+		"id": effect.id,
+		"scope": EffectTerms.Scope.find_key(effect.scope) as String,
+		"charge_lane": EffectTerms.Lane.find_key(effect.charge_lane) as String,
+		"tags": effect.tags,
+		"operations": operations,
+	}
+
+
+# The definition _describe_made() described; null, with an error, when anything in it is unknown.
+static func _made_from(data: Dictionary, reference: String) -> EffectDefinition:
+	var scope_name: String = str(data.get("scope", ""))
+	var lane_name: String = str(data.get("charge_lane", ""))
+	var tags: Variant = data.get("tags", null)
+	var listed: Variant = data.get("operations", null)
+	if (
+			not EffectTerms.Scope.has(scope_name)
+			or not EffectTerms.Lane.has(lane_name)
+			or not (tags is float or tags is int)
+			or not listed is Array
+	):
+		push_error("EffectInstance: made definition \"%s\" is malformed - %s" % [reference, data])
+		return null
+	var effect: EffectDefinition = EffectDefinition.new()
+	effect.id = str(data.get("id", ""))
+	var scope_value: int = EffectTerms.Scope[scope_name]
+	effect.scope = scope_value as EffectTerms.Scope
+	var lane_value: int = EffectTerms.Lane[lane_name]
+	effect.charge_lane = lane_value as EffectTerms.Lane
+	var tag_bits: float = tags
+	effect.tags = roundi(tag_bits)
+	# Untyped: the parts come from JSON and are checked entry by entry.
+	for entry: Variant in listed:
+		var operation: EffectOperation = _operation_from(entry)
+		if operation == null:
+			push_error("EffectInstance: \"%s\" has a malformed operation - %s" % [reference, entry])
+			return null
+		effect.operations.append(operation)
+	return effect
+
+
+# One operation of a made definition; null when it is malformed or names something unknown.
+static func _operation_from(entry: Variant) -> EffectOperation:
+	if not entry is Array:
+		return null
+	var parts: Array = entry
+	if parts.size() == 5 and parts[0] == "modify":
+		var key: int = Modifier.key_from_id(str(parts[1]))
+		var mode_name: String = str(parts[2])
+		var stat: int = _stat_from(parts[4])
+		if (
+				key == Modifier.NO_KEY
+				or not Modifier.Mode.has(mode_name)
+				or not (parts[3] is float or parts[3] is int)
+				or stat == _BAD_STAT
+		):
+			return null
+		var change: ModifyValue = ModifyValue.new()
+		change.key = key
+		var mode_value: int = Modifier.Mode[mode_name]
+		change.mode = mode_value as Modifier.Mode
+		var amount: float = parts[3]
+		change.value = amount
+		change.stat = stat
+		return change
+	if parts.size() == 4 and parts[0] == "permission":
+		var permission_key: int = Modifier.key_from_id(str(parts[1]))
+		var permission_stat: int = _stat_from(parts[3])
+		if (
+				permission_key == Modifier.NO_KEY
+				or not parts[2] is bool
+				or permission_stat == _BAD_STAT
+		):
+			return null
+		var permission: SetPermission = SetPermission.new()
+		permission.permission = permission_key
+		var is_allowed: bool = parts[2]
+		permission.allow = is_allowed
+		permission.stat = permission_stat
+		return permission
+	return null
+
+
+# effect with a charge limit of charges: itself when it has that limit, else a copy, so the shared
+# .tres is never changed.
+# NOTE: The same copy Loadout._without_charges makes for an enemy's charged use, which changes only
+# the charges; keep them in step.
+static func _with_charges(effect: EffectDefinition, charges: int) -> EffectDefinition:
+	if effect.charges == charges:
+		return effect
+	var copy: EffectDefinition = effect.duplicate()
+	copy.charges = charges
+	return copy
+
+
+static func _stat_name(stat: int) -> String:
+	return "" if stat == Modifier.NO_STAT else CombatValue.Stat.find_key(stat) as String
+
+
+# A stat by its saved name: Modifier.NO_STAT for "", _BAD_STAT for a name it doesn't know.
+static func _stat_from(value: Variant) -> int:
+	var stat_name: String = str(value)
+	if stat_name.is_empty():
+		return Modifier.NO_STAT
+	if not CombatValue.Stat.has(stat_name):
+		return _BAD_STAT
+	return CombatValue.Stat[stat_name]
