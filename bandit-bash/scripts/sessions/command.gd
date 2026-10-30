@@ -6,7 +6,7 @@
 # File:     command.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 29, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 @abstract
@@ -20,12 +20,18 @@ extends RefCounted
 ## arrival wins and a rejected command changes nothing and costs nothing. [CombatSession] checks, in
 ## order: the map's combat is still going; the seat controls [member actor_id]; [method validate];
 ## the stale-forecast rule ([method needs_fresh_forecast]). The combat core's command types extend
-## this class (P02 CC6).
+## this class (P02 CC6).[br]
+## [b]On the wire[/b] ([method to_wire], [method from_wire]) a command travels under its type's
+## [method get_wire_type] name. [method from_wire] knows every type by that name, so a new command
+## type adds itself there.
 ##
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
 
 ## [member based_on_seq] of a command sent without a forecast.
 const NO_SEQ: int = -1
+
+# Slots every wire array starts with: type, seat, actor, based-on seq, arrival.
+const _COMMON_FIELDS: int = 5
 
 ## The seat that sent it. The host sets it from the connection, never from the message.
 var seat: int = -1
@@ -71,3 +77,92 @@ func validate(_session: CombatSession) -> String:
 ## and records every change as a fact through [member CombatSession.engine]. The session drains
 ## the reaction queue afterwards.
 @abstract func resolve(session: CombatSession) -> void
+
+
+## The name this command type goes by on the wire, one [method from_wire] knows; empty for a type
+## that is never sent, such as a test fixture. [b]Never change a name:[/b] peers and repro dumps
+## know the type by it.
+func get_wire_type() -> String:
+	return ""
+
+
+## This command as an Array of primitives, for RPCs and repro dumps:
+## [code][wire type, seat, actor id, based-on seq, arrival, its type's fields...][/code].
+## [method from_wire] reverses it. Empty, with an error, for a type with no wire name.
+## The slot order is a network contract: a type appends new fields at the end only.
+func to_wire() -> Array:
+	var wire_type: String = get_wire_type()
+	if wire_type.is_empty():
+		push_error("Command: %s has no wire type" % [get_label()])
+		return []
+	var data: Array = [wire_type, seat, actor_id, based_on_seq, arrival]
+	data.append_array(_wire_fields())
+	return data
+
+
+# Its type's fields, after the common ones. A type with fields overrides this and
+# _read_wire_fields() together.
+func _wire_fields() -> Array:
+	return []
+
+
+# Sets its type's fields from values _wire_fields() wrote, whole-number floats included. Returns
+# false when they don't fit.
+func _read_wire_fields(values: Array) -> bool:
+	return values.is_empty()
+
+
+## Rebuilds a command from [method to_wire] output, also after a trip through JSON, where numbers
+## arrive as floats. Returns [code]null[/code] (with a warning) for an unknown type, a missing or
+## mistyped field, or a number that isn't whole.
+static func from_wire(data: Array) -> Command:
+	if data.size() < _COMMON_FIELDS or not data[0] is String:
+		push_warning("Command: malformed wire data - %s" % [data])
+		return null
+	var command: Command = _of_wire_type(data[0] as String)
+	var sender: Variant = _wire_int(data[1])
+	var forecast_seq: Variant = _wire_int(data[3])
+	var stamp: Variant = _wire_int(data[4])
+	if (
+			command == null
+			or sender == null
+			or not data[2] is String
+			or forecast_seq == null
+			or stamp == null
+			or not command._read_wire_fields(data.slice(_COMMON_FIELDS))
+	):
+		push_warning("Command: wire data out of range - %s" % [data])
+		return null
+	command.seat = sender
+	command.actor_id = data[2]
+	command.based_on_seq = forecast_seq
+	command.arrival = stamp
+	return command
+
+
+# A new command of the type named on the wire; null for an unknown name.
+static func _of_wire_type(wire_type: String) -> Command:
+	match wire_type:
+		StartCommand.WIRE_TYPE:
+			return StartCommand.new()
+		EndTurnCommand.WIRE_TYPE:
+			return EndTurnCommand.new()
+		UnitTurnCommand.WIRE_TYPE:
+			return UnitTurnCommand.new()
+		CastRuneCommand.WIRE_TYPE:
+			return CastRuneCommand.new()
+	return null
+
+
+# value as an int when it is one, or when it is a whole float within JSON's exact range (it went
+# through JSON); null otherwise.
+# NOTE: The same rule as CombatFact._normalize_wire; keep the two in step.
+static func _wire_int(value: Variant) -> Variant:
+	if value is int:
+		return value
+	if not value is float:
+		return null
+	var number: float = value
+	if number != floorf(number) or absf(number) > CombatFact.MAX_EXACT_JSON_INT:
+		return null
+	return int(number)

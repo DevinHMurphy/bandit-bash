@@ -6,7 +6,7 @@
 # File:     modifier.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 27, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 class_name Modifier
@@ -63,6 +63,19 @@ enum SourceKind {
 
 ## [member stat] of a modifier whose key isn't per stat.
 const NO_STAT: int = -1
+
+## What [method key_from_id] returns for text that names no value key or permission.
+const NO_KEY: int = -1
+
+# The enums a value key or permission comes from, by the prefix that names them in saved data
+# (key_id()). The classes own disjoint blocks of numbers, so each key has exactly one prefix.
+const _KEY_ENUMS: Dictionary[String, Dictionary] = {
+	"combat": CombatValue.Key,
+	"combat_permission": CombatValue.Permission,
+	"stage": DamageStage.Key,
+	"campaign": CampaignValue.Key,
+	"campaign_permission": CampaignValue.Permission,
+}
 
 ## The key this modifier changes: a [CombatValue], [DamageStage] or [CampaignValue] value.
 var key: int = 0
@@ -135,3 +148,71 @@ func sorts_before(other: Modifier) -> bool:
 	if value != other.value:
 		return value < other.value
 	return label < other.label
+
+
+## This modifier as plain JSON values, for snapshots and saves: its key, stat and enums by name
+## (save-system.md data rules). [method from_capture] reverses it.
+func capture() -> Dictionary:
+	return {
+		"key": Modifier.key_id(key),
+		"stat": "" if stat == NO_STAT else CombatValue.Stat.find_key(stat) as String,
+		"mode": Mode.find_key(mode) as String,
+		"value": value,
+		"source_kind": SourceKind.find_key(source_kind) as String,
+		"source_id": source_id,
+		"label": label,
+	}
+
+
+## A modifier from [method capture] output, also after a trip through JSON. Returns
+## [code]null[/code] when a field is missing or names an unknown key, stat or enum value.
+static func from_capture(data: Dictionary) -> Modifier:
+	var modifier_key: int = Modifier.key_from_id(str(data.get("key", "")))
+	var mode_name: String = str(data.get("mode", ""))
+	var kind_name: String = str(data.get("source_kind", ""))
+	var stat_name: String = str(data.get("stat", ""))
+	var number: Variant = data.get("value", null)
+	if (
+			modifier_key == NO_KEY
+			or not Mode.has(mode_name)
+			or not SourceKind.has(kind_name)
+			or not (stat_name.is_empty() or CombatValue.Stat.has(stat_name))
+			or not (number is float or number is int)
+	):
+		return null
+	var mode_value: int = Mode[mode_name]
+	var kind_value: int = SourceKind[kind_name]
+	var amount: float = number
+	var modifier: Modifier = Modifier.new(
+			modifier_key,
+			mode_value as Mode,
+			amount,
+			kind_value as SourceKind,
+			str(data.get("source_id", "")),
+			str(data.get("label", ""))
+	)
+	if not stat_name.is_empty():
+		var stat_value: int = CombatValue.Stat[stat_name]
+		modifier.stat = stat_value
+	return modifier
+
+
+## [param value_key] (a [CombatValue], [DamageStage] or [CampaignValue] key or permission) as the
+## text saved data names it by, such as [code]combat.HIT[/code]; empty for an unknown key.
+## [method key_from_id] reverses it.
+static func key_id(value_key: int) -> String:
+	for prefix: String in _KEY_ENUMS:
+		var name: Variant = _KEY_ENUMS[prefix].find_key(value_key)
+		if name != null:
+			return "%s.%s" % [prefix, name]
+	return ""
+
+
+## The value key or permission [param id] names ([method key_id]); [constant NO_KEY] when it
+## names none.
+static func key_from_id(id: String) -> int:
+	var parts: PackedStringArray = id.split(".")
+	if parts.size() != 2 or not _KEY_ENUMS.has(parts[0]):
+		return NO_KEY
+	var keys: Dictionary = _KEY_ENUMS[parts[0]]
+	return keys.get(parts[1], NO_KEY)

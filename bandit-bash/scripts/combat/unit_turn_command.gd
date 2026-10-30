@@ -6,7 +6,7 @@
 # File:     unit_turn_command.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 29, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 class_name UnitTurnCommand
@@ -57,6 +57,10 @@ enum Action {
 	USE_OBJECT = 8,
 }
 
+## Its name on the wire ([method Command.get_wire_type]). Its fields follow the common ones:
+## the action, the target, the item, the weapon, then the path as x, y pairs.
+const WIRE_TYPE: String = "unit_turn"
+
 ## The tiles the unit walks, starting on its own tile ([method CombatState.validate_path]). Empty:
 ## it stays where it is.
 var path: Array[Vector2i] = []
@@ -95,6 +99,10 @@ func get_label() -> String:
 	if path.size() > 1 and action != Action.MOVE:
 		return "move+%s" % [action_name]
 	return action_name
+
+
+func get_wire_type() -> String:
+	return WIRE_TYPE
 
 
 func get_target_id() -> String:
@@ -170,6 +178,42 @@ func resolve(session: CombatSession) -> void:
 
 # Why the action can't be taken by a unit already standing at the path's end in state; empty when
 # it can. Runs on a sandbox copy: a Sidearm swap before an attack happens there first.
+func _wire_fields() -> Array:
+	var tiles: Array = []
+	for tile: Vector2i in path:
+		tiles.append(tile.x)
+		tiles.append(tile.y)
+	return [action, target_id, item_id, weapon_id, tiles]
+
+
+func _read_wire_fields(values: Array) -> bool:
+	if values.size() != 5 or not values[4] is Array:
+		return false
+	var action_value: Variant = _wire_int(values[0])
+	if action_value == null or not Action.values().has(action_value):
+		return false
+	for i: int in range(1, 4):
+		if not values[i] is String:
+			return false
+	var tiles: Array = values[4]
+	if tiles.size() % 2 != 0:
+		return false
+	var walk: Array[Vector2i] = []
+	for i: int in range(0, tiles.size(), 2):
+		var x: Variant = _wire_int(tiles[i])
+		var y: Variant = _wire_int(tiles[i + 1])
+		if x == null or y == null:
+			return false
+		walk.append(Vector2i(x as int, y as int))
+	var action_number: int = action_value
+	action = action_number as Action
+	target_id = values[1]
+	item_id = values[2]
+	weapon_id = values[3]
+	path = walk
+	return true
+
+
 func _action_reason(engine: EffectEngine, state: CombatState) -> String:
 	match action:
 		Action.WAIT, Action.MOVE:

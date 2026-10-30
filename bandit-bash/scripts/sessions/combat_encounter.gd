@@ -6,7 +6,7 @@
 # File:     combat_encounter.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 29, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 class_name CombatEncounter
@@ -26,10 +26,16 @@ extends RefCounted
 ## [member CombatFact.seq] and played on [member bus]. Commands are routed to a map by
 ## [method submit] (a rune cast on a teammate's map) and stamped by one clock, so cross-map order
 ## is the host's arrival order. Units move between maps with [method send_unit] and
-## [method deliver_arrivals].
+## [method deliver_arrivals].[br]
+## [b]Snapshots:[/b] [method snapshot] holds the encounter's own state and every session's
+## [method CombatSession.snapshot]; [method load_snapshot] restores the cross-map instances first
+## and hands the same objects to every map. A mirror applies encounter facts with
+## [method apply_batch].
 ##
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
 ## @tutorial(RNG streams plan): docs/plans/2026-10-26-rng-streams.md
+##
+## @todo: TOD-001 - Capture units on their way between maps once units can be captured (P02 CC8).
 
 ## A map's session was opened: emitted once per map by [method open_sessions].
 signal session_opened(session: CombatSession)
@@ -77,6 +83,10 @@ var seats: PackedInt32Array = []
 
 ## The run's id allocator, shared by every session. Never null in use.
 var ids: InstanceIdAllocator = null
+
+## The run's seed, handed to every session ([member CombatSession.run_seed]) so snapshots and
+## dumps name their run. Set by the campaign session before [method open_sessions]; draws nothing.
+var run_seed: int = 0
 
 ## The setup results; null until [method run_setup] succeeds.
 var setup: EncounterSetup = null
@@ -211,6 +221,7 @@ func open_sessions(combat_rolls: Dictionary[int, RngStream]) -> bool:
 		)
 		session.setup = setup
 		session.seat_setup = setup.seats[seat]
+		session.run_seed = run_seed
 		# A copy, so the setup result stays as rolled while the battle changes the map.
 		session.state.map = setup.seats[seat].map.copy()
 		session.fact_recorded.connect(_on_session_fact_recorded)
@@ -422,6 +433,134 @@ func describe(id: String) -> String:
 	return ids.describe(id)
 
 
+## The battle's state as plain JSON values, between commands: [code]encounter[/code] (the next
+## encounter seq, where sent units arrived, every cross-map instance) and [code]sessions[/code],
+## each map's [method CombatSession.snapshot] by session id, named by the run seed and the build
+## version. [method load_snapshot] reverses it. [param reference]: see
+## [method EffectInstance.capture].
+func snapshot(reference: Callable = Callable()) -> Dictionary:
+	# TODO(TOD-001): Units on their way between maps aren't captured yet (CombatUnitState, CC8).
+	if not _in_transit.is_empty():
+		push_warning("CombatEncounter: %s snapshot leaves out units on their way" % [_tag()])
+	var sessions: Array = []
+	for session: CombatSession in _sessions:
+		sessions.append(session.snapshot(reference))
+	return {
+		"format": 1,
+		"run_seed": RunSeed.format(run_seed),
+		"game_version": str(ProjectSettings.get_setting("application/config/version", "")),
+		"encounter": _capture_encounter(reference),
+		"sessions": sessions,
+	}
+
+
+## Replaces the battle's state with [param data] from [method snapshot], also after a trip
+## through JSON: the cross-map instances first, then each map with
+## [method CombatSession.load_snapshot], the same cross-map objects shared by every map's engine.
+## Load it into an encounter built the way this battle was (same node, seats and setup, sessions
+## open). [param resolve]: see [method EffectInstance.from_capture]. Returns [constant OK], or
+## [constant ERR_INVALID_DATA] when the data is malformed or for another battle; a map that refused
+## leaves the maps before it loaded, so drop the encounter then.
+func load_snapshot(data: Dictionary, resolve: Callable = Callable()) -> Error:
+	var part: Variant = data.get("encounter", null)
+	var maps: Variant = data.get("sessions", null)
+	if not part is Dictionary or not maps is Array or (maps as Array).size() != _sessions.size():
+		return _refuse_snapshot("not a snapshot of these maps")
+	var encounter_part: Dictionary = part
+	var next: Variant = encounter_part.get("next_seq", null)
+	var arrived: Variant = encounter_part.get("arrived_on", null)
+	var captured: Variant = encounter_part.get("cross_map", null)
+	if (
+			_whole(encounter_part.get("floor", null)) != floor_number
+			or _whole(encounter_part.get("node", null)) != node
+			or not (next is float or next is int)
+			or not arrived is Dictionary
+			or not captured is Array
+	):
+		return _refuse_snapshot("its encounter part is malformed or for another battle")
+	var shared: Dictionary[String, EffectInstance] = {}
+	# Untyped: the parts come from JSON and are checked entry by entry.
+	for entry: Variant in captured:
+		var instance: EffectInstance = (
+				EffectInstance.from_capture(entry as Dictionary, resolve)
+				if entry is Dictionary else null
+		)
+		if instance == null:
+			return _refuse_snapshot("a cross-map instance can't be restored")
+		shared[instance.instance_id] = instance
+	var arrived_on: Dictionary[String, int] = {}
+	var by_unit: Dictionary = arrived
+	for unit_id: Variant in by_unit:
+		var where: Variant = by_unit[unit_id]
+		if not (where is float or where is int):
+			return _refuse_snapshot("arrival of %s" % [unit_id])
+		var where_number: float = where
+		arrived_on[str(unit_id)] = roundi(where_number)
+	var map_list: Array = maps
+	for index: int in _sessions.size():
+		if not map_list[index] is Dictionary:
+			return _refuse_snapshot("map %d isn't a snapshot" % [index])
+		var err: Error = _sessions[index].load_snapshot(
+				map_list[index] as Dictionary, resolve, shared
+		)
+		if err != OK:
+			return err
+
+	_cross_map = shared
+	_arrived_on = arrived_on
+	var next_number: float = next
+	_next_seq = roundi(next_number)
+	fact_log.clear()
+	return OK
+
+
+## A number standing for the encounter's own state: the [code]encounter[/code] part of
+## [method snapshot]. Each map has its own ([method CombatSession.state_hash]).
+func state_hash() -> int:
+	var by_id: Callable = func(definition: EffectDefinition) -> String:
+		return definition.id
+	return JSON.stringify(_capture_encounter(by_id), "", true).hash()
+
+
+## Applies [param batch], encounter facts from the host, as this encounter's mirror: each fact
+## not yet applied, in encounter seq order, joins [member fact_log] and playback, and a counter
+## fact sets its cross-map instance's count. A fact already applied is skipped. Returns
+## [constant OK], [constant ERR_INVALID_PARAMETER] for null, or
+## [constant ERR_PARAMETER_RANGE_ERROR] when a seq is missing (the facts before the gap apply).
+func apply_batch(batch: CombatSession.FactBatch) -> Error:
+	if batch == null:
+		return ERR_INVALID_PARAMETER
+	var applied: Array[CombatFact] = []
+	var gap_at: int = -1
+	for fact: CombatFact in batch.facts:
+		if fact.seq < _next_seq:
+			continue
+		if fact.seq != _next_seq:
+			gap_at = fact.seq
+			break
+		_next_seq += 1
+		applied.append(fact)
+		fact_log.append(fact)
+		# ASSUMPTION: a cross-map charge is spent by the activation fact on the map where it fired
+		# (CombatSession.apply_batch), so a client follows every map of its encounter; a count is a
+		# value, not a step, so applying it here too changes nothing.
+		var instance: EffectInstance = _cross_map.get(fact.source_effect_id, null)
+		if instance != null and fact.kind == CombatFact.Kind.COUNTER_CHANGED:
+			instance.set_counter(fact.key as EffectTerms.Lane, fact.amount)
+	playback.enqueue(applied)
+	if gap_at < 0:
+		return OK
+	var net: NetLogScript = CombatSession.logger(
+			NetLogScript.Level.WARN, NetLogScript.Category.COMBAT
+	)
+	if net != null:
+		net.warn(
+				NetLogScript.Category.COMBAT,
+				"%s mirror gap: next was #%d, got #%d" % [_tag(), _next_seq, gap_at]
+		)
+	return ERR_PARAMETER_RANGE_ERROR
+
+
 # Step 1: the map, drawn from the pool with the shared stream.
 func _choose_map(pool: Array[CombatMapDefinition], ctx: SetupContext) -> bool:
 	if pool.is_empty():
@@ -520,6 +659,32 @@ func _tag() -> String:
 	return "e%d.%d" % [floor_number, node]
 
 
+# The snapshot's encounter part, in a fixed order so equal states write equal text.
+func _capture_encounter(reference: Callable) -> Dictionary:
+	var unit_ids: Array[String] = []
+	unit_ids.assign(_arrived_on.keys())
+	unit_ids.sort()
+	var arrived: Dictionary = {}
+	for unit_id: String in unit_ids:
+		arrived[unit_id] = _arrived_on[unit_id]
+	var cross_map: Array = []
+	for instance: EffectInstance in get_cross_map_instances():
+		cross_map.append(instance.capture(reference))
+	return {
+		"floor": floor_number,
+		"node": node,
+		"seats": Array(seats),
+		"next_seq": _next_seq,
+		"arrived_on": arrived,
+		"cross_map": cross_map,
+	}
+
+
+func _refuse_snapshot(reason: String) -> Error:
+	push_error("CombatEncounter: %s can't load the snapshot - %s" % [_tag(), reason])
+	return ERR_INVALID_DATA
+
+
 ## Whether [param instance] belongs in the encounter as a cross-map effect: a player's army effect
 ## (a heirloom or curse) scoped Any Ally Unit or Any Unit with no position condition, which never
 ## matches across maps. Everything else registers in its own map's session.
@@ -537,6 +702,14 @@ static func is_cross_map(instance: EffectInstance) -> bool:
 		if condition is WhilePositionCondition:
 			return false
 	return true
+
+
+# A whole number read from saved data, or -1 when it isn't one (never a floor, node or seat).
+static func _whole(value: Variant) -> int:
+	if not (value is int or value is float):
+		return -1
+	var number: float = value
+	return roundi(number) if number == floorf(number) else -1
 
 
 ## The battle's setup streams, derived fresh from the run seed and the node for one

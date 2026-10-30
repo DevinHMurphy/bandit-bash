@@ -6,7 +6,7 @@
 # File:     instance_id_allocator.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 29, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 class_name InstanceIdAllocator
@@ -19,7 +19,8 @@ extends RefCounted
 ## is lives in its own data, and the kind prefix is only for people reading logs. Log and error text
 ## comes from [method describe], never from taking an id apart.[br]
 ## The counter is saved with the campaign and at every combat checkpoint (event bus plan EB7), so
-## a resumed enemy phase mints the same ids; [method get_next_value] is what gets saved.
+## a resumed enemy phase mints the same ids: [method capture] and [method restore] carry the
+## counter and the labels.
 ##
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
 
@@ -61,9 +62,41 @@ func next_effect_id(label: String = "") -> String:
 	return _mint("effect", label)
 
 
-## The value the next id will carry. Never decreases.
+## The value the next id will carry. Never decreases while minting; only [method restore] sets it.
 func get_next_value() -> int:
 	return _next
+
+
+## The counter and every label as plain JSON values: [code]{"next": N, "labels": {id: text}}[/code],
+## the [code]instance_ids[/code] save section's data ([InstanceIdSaveSection]).
+func capture() -> Dictionary:
+	var labels: Dictionary = {}
+	for id: String in _labels:
+		labels[id] = _labels[id]
+	return {"next": _next, "labels": labels}
+
+
+## Replaces the counter and labels with [param data] from [method capture], also after a trip
+## through JSON, so ids minted from here on continue the saved run. Returns
+## [constant ERR_INVALID_DATA], changing nothing, when the counter is missing, below
+## [constant FIRST_VALUE] or not whole, or a label isn't text.
+func restore(data: Dictionary) -> Error:
+	var next: Variant = data.get("next", null)
+	var labels: Variant = data.get("labels", {})
+	if not (next is int or next is float) or not labels is Dictionary:
+		return ERR_INVALID_DATA
+	var next_number: float = next
+	if next_number != floorf(next_number) or next_number < FIRST_VALUE:
+		return ERR_INVALID_DATA
+	var restored: Dictionary[String, String] = {}
+	var entries: Dictionary = labels
+	for id: Variant in entries:
+		if not id is String or not entries[id] is String:
+			return ERR_INVALID_DATA
+		restored[id as String] = entries[id] as String
+	_next = roundi(next_number)
+	_labels = restored
+	return OK
 
 
 ## Names [param id] in [method describe]. Also how an id not minted here, such as a seat's subject

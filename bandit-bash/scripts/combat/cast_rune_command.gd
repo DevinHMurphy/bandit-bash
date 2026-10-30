@@ -6,7 +6,7 @@
 # File:     cast_rune_command.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 29, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 class_name CastRuneCommand
@@ -23,6 +23,10 @@ extends Command
 ## hook acts on the real session.
 ##
 ## @tutorial(Combat core plan): docs/plans/2026-10-26-combat-core.md
+
+## Its name on the wire ([method Command.get_wire_type]). Its fields follow the common ones: the
+## rune, the target, the second target.
+const WIRE_TYPE: String = "cast_rune"
 
 ## The rune's instance id, in [member CombatState.rune_slots] of the seat.
 var rune_id: String = ""
@@ -47,6 +51,10 @@ func _init(
 
 func get_label() -> String:
 	return "rune" if second_target_id.is_empty() else "recall"
+
+
+func get_wire_type() -> String:
+	return WIRE_TYPE
 
 
 func get_target_id() -> String:
@@ -81,6 +89,22 @@ func resolve(session: CombatSession) -> void:
 		)
 		return
 	_cast(session.engine, session.state)
+
+
+func _wire_fields() -> Array:
+	return [rune_id, target_id, second_target_id]
+
+
+func _read_wire_fields(values: Array) -> bool:
+	if values.size() != 3:
+		return false
+	for value: Variant in values:
+		if not value is String:
+			return false
+	rune_id = values[0]
+	target_id = values[1]
+	second_target_id = values[2]
+	return true
 
 
 # Casts the rune on state; returns why it couldn't, recording nothing then.

@@ -220,6 +220,35 @@ Both have the same shape, `{save_key: state}`:
 Rolling back to an older build is safe: one without `RngSaveSection` holds `rng` as a reserved
 placeholder (or as an unknown section) and writes the data back unchanged.
 
+## Instance ids
+
+Every instance id of a run (`unit:57`, `item:412`, `effect:12`) comes from one counter in the
+run's `InstanceIdAllocator`, which the `CampaignSession` holds. Ids are never reused, so the
+counter is saved; a resumed enemy phase then mints the ids the first run minted.
+`CampaignService` registers two sections, both `InstanceIdSaveSection`:
+
+| Block | Key | Version | Holds |
+|-------|-----|---------|-------|
+| `CAMPAIGN` | `instance_ids` | 1 | The counter and labels as Begin (or the last campaign checkpoint) left them |
+| `COMBAT` | `instance_ids` | 1 | The counter and labels at the last battle save |
+
+```json
+"instance_ids": { "version": 1, "data": { "next": 58, "labels": { "unit:57": "Hakkapel" } } }
+```
+
+- **`next`** is the value the next id carries, at least 1.
+- **`labels`** is the display text of every id minted or named, so log and error text stays
+  readable after a resume. Labels are text for people only; never read an id's meaning from them.
+- **Load order.** Like the `rng` sections, each holds what it restored until `CampaignService`
+  builds the session, then applies it: campaign first, then combat, so a resumed battle's later
+  counter wins. **`BATTLE_RETRY`** resets the combat block, so a restarted battle mints from
+  Begin's counter and gets the same ids as the first time.
+- A save from before these sections resumes with a fresh counter. Nothing saved before them holds
+  an instance id, so nothing can collide.
+- The battle's effect state (counters, charges, timed modifiers) is the `COMBAT` `effects` section,
+  registered with the combat state by the combat core's save step (P02 CC8) on the capture helpers
+  of the [event bus plan](../plans/2026-10-23-event-bus-and-effects.md) (EB7).
+
 ## Multiplayer
 
 - Only the host saves a campaign, in its multiplayer slot, with every player's data in the

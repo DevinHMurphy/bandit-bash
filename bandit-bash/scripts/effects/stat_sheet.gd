@@ -6,7 +6,7 @@
 # File:     stat_sheet.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 27, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 class_name StatSheet
@@ -197,6 +197,23 @@ func get_slots() -> Array[Vector2i]:
 	return slots
 
 
+## The bases and unconditional modifiers as plain JSON values, for snapshots and saves: bases in
+## key order as [code][key id, value, label][/code] ([method Modifier.key_id]), modifiers in the
+## order added. The cache and the engine link are left out. [method from_capture] reverses it.
+func capture() -> Dictionary:
+	var keys: Array[int] = []
+	keys.assign(_bases.keys())
+	keys.sort()
+	var bases: Array = []
+	for key: int in keys:
+		bases.append([Modifier.key_id(key), _bases[key], _base_labels.get(key, "") as String])
+	var modifiers: Array = []
+	for key: int in _modifiers:
+		for modifier: Modifier in _modifiers[key]:
+			modifiers.append(modifier.capture())
+	return {"bases": bases, "modifiers": modifiers}
+
+
 func _engine() -> EffectEngine:
 	if _engine_ref == null:
 		return null
@@ -217,6 +234,34 @@ func _base_label(key: int) -> String:
 	if DamageStage.DEFAULT_BASES.has(key) or CombatValue.DEFAULT_BASES.has(key):
 		return _RULE_LABEL
 	return ""
+
+
+## A sheet for [param subject] with no engine, from [method capture] output, also after a trip
+## through JSON. Returns [code]null[/code] when an entry is malformed or names an unknown key.
+static func from_capture(subject: String, data: Dictionary) -> StatSheet:
+	var bases: Variant = data.get("bases", null)
+	var modifiers: Variant = data.get("modifiers", null)
+	if not bases is Array or not modifiers is Array:
+		return null
+	var sheet: StatSheet = StatSheet.new(subject)
+	# Untyped: entries come from JSON and are checked one by one.
+	for entry: Variant in bases:
+		if not entry is Array or (entry as Array).size() != 3:
+			return null
+		var base: Array = entry
+		var key: int = Modifier.key_from_id(str(base[0]))
+		if key == Modifier.NO_KEY or not (base[1] is float or base[1] is int):
+			return null
+		var value: float = base[1]
+		sheet.set_base(key, value, str(base[2]))
+	for entry: Variant in modifiers:
+		if not entry is Dictionary:
+			return null
+		var modifier: Modifier = Modifier.from_capture(entry as Dictionary)
+		if modifier == null:
+			return null
+		sheet.add_modifier(modifier)
+	return sheet
 
 
 static func _slot(key: int, stat: int) -> int:
