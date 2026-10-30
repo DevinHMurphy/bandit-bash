@@ -1,0 +1,58 @@
+[gd_resource type="Resource" script_class="UnitTypeDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_cond"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/while_position_condition.gd" id="4_pos"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="5_mod"]
+[ext_resource type="Script" path="res://scripts/content/unit_type_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_moved"]
+script = ExtResource("4_pos")
+kind = 1
+tiles = 4
+
+[sub_resource type="Resource" id="Resource_damage"]
+script = ExtResource("5_mod")
+key = 1000
+mode = 1
+value = 2.0
+
+[sub_resource type="Resource" id="Resource_charge"]
+script = ExtResource("1_eff")
+id = "charge"
+conditions = Array[ExtResource("2_cond")]([SubResource("Resource_moved")])
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_damage")])
+
+[sub_resource type="Resource" id="Resource_damage_plus"]
+script = ExtResource("5_mod")
+key = 1000
+mode = 1
+value = 4.0
+
+[sub_resource type="Resource" id="Resource_charge_plus"]
+script = ExtResource("1_eff")
+id = "charge_plus"
+conditions = Array[ExtResource("2_cond")]([SubResource("Resource_moved")])
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_damage_plus")])
+
+[resource]
+script = ExtResource("9_def")
+trait_name = "Charge"
+role = "mounted"
+weapon_types = PackedStringArray("lance", "sword")
+movement_type = 3
+tags = PackedStringArray("mounted")
+stance = 2
+starting_weapon_id = "simple_lance"
+innate_effects = Array[ExtResource("1_eff")]([])
+base_stats = Dictionary[int, int]({0: 22, 1: 4, 2: 5, 3: 4, 4: 0, 5: 10, 6: 7})
+growths = Dictionary[int, int]({0: 70, 1: 30, 2: 40, 3: 20, 4: 12})
+upgraded_effects = Array[ExtResource("1_eff")]([SubResource("Resource_charge_plus")])
+upgrade_stat_gains = Dictionary[int, int]({1: 2, 3: 1})
+upgrade_weapon_types = PackedStringArray()
+upgrade_tags = PackedStringArray()
+is_commander = false
+id = "hakkapel"
+display_name = "Hakkapel"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_charge")])

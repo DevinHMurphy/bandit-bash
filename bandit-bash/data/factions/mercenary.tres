@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="FactionDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/faction_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+commander_id = "drengr"
+starting_unit_type_ids = PackedStringArray("hakkapel", "archer", "battle_medic")
+; ASSUMPTION: who carries the Potion, Guard Tonic and Minor Heal; no doc says. The Hakkapel (the
+; front line) takes the Potion, the Archer (Stance 1, DEF 0) the Guard Tonic, and the Battle Medic
+; stows Minor Heal, as Godot_FE's Field Medic usually started with it. Fragile: a re-save drops it.
+starting_gear = Array[PackedStringArray]([PackedStringArray("simple_lance", "", "potion"), PackedStringArray("simple_bow", "", "guard_tonic"), PackedStringArray("shelter", "", "minor_heal")])
+max_army_size = 4
+starting_gold = 100
+id = "mercenary"
+display_name = "Mercenary"

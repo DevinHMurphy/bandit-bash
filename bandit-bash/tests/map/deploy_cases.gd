@@ -6,7 +6,7 @@
 # File:     deploy_cases.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 29, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -48,7 +48,7 @@ const ROSTER: Dictionary[String, Array] = {
 	"hakkapel": ["Hakkapel", MOUNTED, ["Mounted"], 22, 4, "lance", ""],
 	"archer": ["Archer", DEFAULT, [], 13, 0, "bow", ""],
 	"medic": ["Battle Medic", MOBILE, [], 16, 1, "dagger", "minor_heal"],
-	"lance_armor": ["Lance Armor", HEAVY, ["Armored"], 23, 7, "lance", ""],
+	"lance_armor": ["Lance Armor", HEAVY, [ContentIds.TAG_ARMORED], 23, 7, "lance", ""],
 	"ward": ["Ward", HEAVY, [], 25, 7, "lance", ""],
 	"freewing": ["Freewing", FLIER, ["Flier", "Mounted"], 17, 2, "sword", ""],
 	"sellsword": ["Sellsword", DEFAULT, [], 22, 4, "sword", ""],

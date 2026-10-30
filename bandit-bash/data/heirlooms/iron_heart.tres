@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="HeirloomDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_cond"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/counter_condition.gd" id="4_count"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_that.gd" id="5_that"]
+[ext_resource type="Script" path="res://scripts/content/heirloom_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_every_7th"]
+script = ExtResource("4_count")
+mode = 0
+count = 7
+lane = 0
+
+[sub_resource type="Resource" id="Resource_lifesteal"]
+script = ExtResource("5_that")
+what = 2
+flag = 0
+
+[sub_resource type="Resource" id="Resource_effect"]
+script = ExtResource("1_eff")
+id = "lifesteal"
+trigger = 7
+scope = 1
+conditions = Array[ExtResource("2_cond")]([SubResource("Resource_every_7th")])
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_lifesteal")])
+
+[resource]
+script = ExtResource("9_def")
+tier = "commander"
+kind = ""
+id = "iron_heart"
+display_name = "Iron Heart"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])

@@ -1,0 +1,51 @@
+[gd_resource type="Resource" script_class="UnitTypeDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_cond"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/while_position_condition.gd" id="4_pos"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="5_gain"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="6_con"]
+[ext_resource type="Script" path="res://scripts/content/unit_type_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_in_front"]
+script = ExtResource("4_pos")
+kind = 3
+
+[sub_resource type="Resource" id="Resource_amount"]
+script = ExtResource("6_con")
+value = 3.0
+
+[sub_resource type="Resource" id="Resource_block"]
+script = ExtResource("5_gain")
+pool = 1
+amount = SubResource("Resource_amount")
+
+[sub_resource type="Resource" id="Resource_vanguard"]
+script = ExtResource("1_eff")
+id = "vanguard"
+trigger = 1
+conditions = Array[ExtResource("2_cond")]([SubResource("Resource_in_front")])
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_block")])
+
+[resource]
+script = ExtResource("9_def")
+trait_name = "Vanguard"
+role = ""
+weapon_types = PackedStringArray("axe", "sword")
+movement_type = 0
+tags = PackedStringArray()
+stance = 3
+starting_weapon_id = "simple_axe"
+innate_effects = Array[ExtResource("1_eff")]([])
+base_stats = Dictionary[int, int]({0: 24, 1: 5, 2: 6, 3: 3, 4: 2, 5: 13, 6: 5})
+growths = Dictionary[int, int]({0: 85, 1: 55, 2: 40, 3: 35, 4: 15})
+upgraded_effects = Array[ExtResource("1_eff")]([])
+upgrade_stat_gains = Dictionary[int, int]({})
+upgrade_weapon_types = PackedStringArray()
+upgrade_tags = PackedStringArray()
+is_commander = true
+commander_heirloom_id = "iron_heart"
+id = "drengr"
+display_name = "Drengr"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_vanguard")])

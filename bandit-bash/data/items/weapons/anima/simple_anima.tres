@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="WeaponDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/weapon_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+weapon_type = "anima"
+profile = 1
+damage = 5
+damage_type = 2
+atk_x = 1
+hit = 80
+crit = 0
+crit_x = 3.0
+range_min = 1
+range_max = 2
+effective_against = PackedStringArray()
+rarity = 0
+weight = 1
+id = "simple_anima"
+; ASSUMPTION: named for its Godot_FE tome, which game-vision.md's Simple weapon table keeps in
+; parentheses ("Anima (Fire)"); no doc names it "Simple ...". Fragile: an editor re-save drops it.
+display_name = "Fire"

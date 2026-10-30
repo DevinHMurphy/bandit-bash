@@ -6,7 +6,7 @@
 # File:     m1_cases.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 28, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -16,7 +16,9 @@ extends RefCounted
 ##
 ## The smoke test runs the real path: a [CombatEncounter] draws the map from a pool of one through
 ## [MapLoader], opens a session, places fixture enemies on every enemy slot and the leader slot,
-## deploys a four-unit army automatically and opens the battle. It fights nothing.
+## builds the Mercenary army from [code]res://data/[/code] ([method StartingArmy.build]), loads it
+## through [Loadout] as [CampaignSession] does, with Iron Heart, deploys it automatically and opens
+## the battle. It fights nothing. The fixture enemies stay until P05 enters enemy classes.
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
 const FIXTURE_SCENE: PackedScene = preload("res://tests/map/fixture_map.tscn")
@@ -239,18 +241,33 @@ func _test_battle_opens(definition: CombatMapDefinition) -> void:
 			placed += 1
 	_ok("battle: a fixture enemy in every slot", placed == 5, "%d placed" % [placed])
 
+	var catalog: EffectCatalog.Index = EffectCatalog.index()
+	var mercenary: StartingArmy = StartingArmy.build(catalog, "mercenary", ids)
+	_ok("battle: the Mercenary army builds from data", (
+			mercenary.problems.is_empty() and mercenary.units.size() == 4
+	), str(mercenary.problems))
 	var army: Array[CombatUnitState] = []
 	var bases: Dictionary[String, Dictionary] = {}
-	for unit_type: String in ["Drengr", "Archer", "Hakkapel", "Battle Medic"]:
-		var unit: CombatUnitState = CombatUnitState.new()
-		unit.id = ids.next_unit_id(unit_type)
-		unit.side = PLAYER
-		unit.seat = 0
-		unit.unit_type = unit_type
-		unit.hp = 20
-		army.append(unit)
-		bases[unit.id] = _bases()
-	var placement: AutoDeploy.Placement = session.deploy(army, bases, army[0].id)
+	var problems: PackedStringArray = []
+	# Effects before deployment, so the full Stance set at placement counts them.
+	for unit: UnitInstance in mercenary.units:
+		var loaded: Loadout.LoadedUnit = Loadout.load_unit(
+				catalog, unit, mercenary.items, PLAYER, 0, ids
+		)
+		problems.append_array(loaded.problems)
+		if not loaded.is_loaded():
+			continue
+		for weapon: CombatState.WeaponStats in loaded.weapons:
+			session.state.add_weapon(weapon)
+		for instance: EffectInstance in loaded.effects:
+			session.engine.register(instance)
+		army.append(loaded.state)
+		bases[loaded.state.id] = loaded.bases
+	for heirloom_id: String in mercenary.heirloom_ids:
+		for instance: EffectInstance in Loadout.heirloom_effects(catalog, heirloom_id, 0, ids):
+			session.engine.register(instance)
+	_ok("battle: every unit loads without problems", problems.is_empty(), str(problems))
+	var placement: AutoDeploy.Placement = session.deploy(army, bases, mercenary.commander_id)
 	var deployment: Array[Vector2i] = session.layout.tiles_of(MapLayout.MarkerKind.DEPLOYMENT)
 	var on_deployment: bool = placement.unplaced.is_empty()
 	for unit: CombatUnitState in army:
@@ -267,6 +284,12 @@ func _test_battle_opens(definition: CombatMapDefinition) -> void:
 			session.state.units_of(PLAYER).size() == 4
 			and session.state.units_of(ENEMY).size() == 5
 	))
+	_same("battle: the army as loaded, in roster order", _describe_army(session, army), (
+			"drengr Simple Axe 24/24 Stance 3; hakkapel Simple Lance 22/22 Stance 2; "
+			+ "archer Simple Bow 13/13 Stance 1; battle_medic Shelter 16/16 Stance 1"
+	))
+	var commander: String = session.commander_ids.get(0, "")
+	_ok("battle: the Drengr commands seat 0", commander == mercenary.commander_id, commander)
 	encounter.close()
 
 
@@ -288,6 +311,21 @@ func _has_cover_near(layout: MapLayout, tile: Vector2i) -> bool:
 		if terrain != null and terrain.bonus.avoid > PLAIN_AVOID:
 			return true
 	return false
+
+
+# Each unit as "type weapon HP/max HP Stance N", in [param army]'s order, joined by "; ".
+func _describe_army(session: CombatSession, army: Array[CombatUnitState]) -> String:
+	var parts: PackedStringArray = []
+	for unit: CombatUnitState in army:
+		var weapon: CombatState.WeaponStats = session.state.equipped_weapon(unit.id)
+		parts.append("%s %s %d/%d Stance %d" % [
+			unit.unit_type,
+			"-" if weapon == null else weapon.label,
+			session.state.get_hp(unit.id),
+			session.engine.stats(unit.id).get_int(CombatValue.Key.HP),
+			session.state.get_stance(unit.id),
+		])
+	return "; ".join(parts)
 
 
 # HP 20, Stance 2 and 5 movement.

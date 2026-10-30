@@ -15,8 +15,9 @@ extends SceneTree
 ## the [ContentIds] lists and their inspector hints, and the [code]res://data/[/code] folders.
 ## [EffectCatalog] and the content test, its rules over all of [code]res://data/[/code] and the
 ## rule fixtures, live in catalog_cases.gd; unit and item instances and [Loadout] in
-## loadout_cases.gd. Every catalog definition and every loadout fixture is hashed before the first
-## case and after the last, and the run fails if any changed.
+## loadout_cases.gd; the M1 content over the real data (the Mercenary army, stats, text snapshots,
+## forecasts) in m1_content_cases.gd. Every catalog definition and every loadout fixture is hashed
+## before the first case and after the last, and the run fails if any changed.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/content/run_all.gd[/code][br]
@@ -27,6 +28,7 @@ extends SceneTree
 # A preloaded script used as a type (gdscript.md, Naming): the cases script has no class name.
 const CatalogCases = preload("res://tests/content/catalog_cases.gd")
 const LoadoutCases = preload("res://tests/content/loadout_cases.gd")
+const M1ContentCases = preload("res://tests/content/m1_content_cases.gd")
 
 # Fixture trees whose definitions are hashed with the catalog's.
 const HASHED_TREES: PackedStringArray = [LoadoutCases.TREE]
@@ -108,6 +110,7 @@ func _init() -> void:
 	_test_data_layout()
 	CatalogCases.new(_check).run()
 	LoadoutCases.new(_check).run()
+	M1ContentCases.new(_check).run()
 	_test_definitions_unchanged(before)
 
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
