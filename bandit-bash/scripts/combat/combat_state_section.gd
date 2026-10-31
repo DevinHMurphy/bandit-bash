@@ -6,7 +6,7 @@
 # File:     combat_state_section.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: October 30, 2026
+# Modified: October 31, 2026
 # ==============================================================================
 
 class_name CombatStateSection
@@ -61,7 +61,7 @@ var _is_holding: bool = false
 ## kept equal.
 func _init(core: Callable = Callable()) -> void:
 	_core = core
-	effects = EffectsSection.new(self)
+	effects = EffectsSection.new(held_map_count)
 
 
 func get_key() -> String:
@@ -223,14 +223,19 @@ class EffectsSection:
 	## Finds each saved effect definition; set through [member CombatStateSection.resolve].
 	var resolve: Callable = Callable()
 
-	# Weak, since its partner holds it: a strong pair would never be freed.
-	var _partner: WeakRef = null
+	# The partner's held_map_count(), as a Callable.
+	# NOTE: Never name the outer class here. The outer script holds this one, so a reference back
+	# makes a script cycle, which 4.7.1 leaks at exit (godotengine/godot#117975; event bus plan,
+	# fix F18); a Callable holds no script reference.
+	var _held_map_count: Callable = Callable()
 	var _session: CampaignSession = null
 	var _held: Dictionary = {}
 	var _is_holding: bool = false
 
-	func _init(partner: CombatStateSection) -> void:
-		_partner = weakref(partner)
+	## [param held_map_count]: [code]held_map_count() -> int[/code], how many maps the partner's
+	## held battle has, [code]-1[/code] when it holds none.
+	func _init(held_map_count: Callable) -> void:
+		_held_map_count = held_map_count
 
 	func get_key() -> String:
 		return _KEY
@@ -267,8 +272,7 @@ class EffectsSection:
 		var cross_map: Variant = (encounter_part as Dictionary).get("cross_map", null)
 		if not cross_map is Array:
 			return _refuse("its cross-map instances are missing")
-		var partner: CombatStateSection = _partner.get_ref() as CombatStateSection
-		var maps: int = -1 if partner == null else partner.held_map_count()
+		var maps: int = _held_map_count.call() if _held_map_count.is_valid() else -1
 		if maps < 0:
 			return _refuse("there is no combat_state to go with it")
 		if maps != (sessions as Array).size():
