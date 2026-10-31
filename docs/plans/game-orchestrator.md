@@ -249,9 +249,9 @@ flowchart LR
   classDef active fill:#bbdefb,stroke:#1565c0,color:#1b1b1b
   classDef ready fill:#fff3c4,stroke:#b8860b,color:#1b1b1b
   classDef waiting fill:#e0e0e0,stroke:#757575,color:#1b1b1b
-  class R1,R2,R3,R4,R5,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,CT2,EB5,EB7,EBF,EN1,CT3,EN2,EN3 done
-  class CT6,CC8,CT13,CT3F,EN3F,EN5 ready
-  class MP8,CT7,EN4,CC10 waiting
+  class R1,R2,R3,R4,R5,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,CT2,EB5,EB7,EBF,EN1,CT3,EN2,EN3,CC8 done
+  class CT6,MP8,CT13,CT3F,EN3F,EN5 ready
+  class CT7,EN4,CC10 waiting
 ```
 
 `CC6 --- MP4`: built together; MP4's objective checks run on CC6's `AFTER_STEP` hook.
@@ -279,7 +279,7 @@ mark it **Open** here.
 | P05 EN5 M1 enemies | P05 EN1; P03 CT3 (the Simple Axe, Simple Bow and Minor Heal as data) | Enemies carry the player's generic weapons | **Open** October 30, 2026 (CT3 merged) |
 | P04 MP1–MP3, MP6 | P04 approved ✅ (October 27, 2026) | — | **Open** October 27, 2026; MP1–MP3 built October 28, 2026; MP6 built October 29, 2026, so MP7 may start; MP7 built October 29, 2026 |
 | P04 MP4 Objectives | P02 CC6 (the `AFTER_STEP` hook) | The checks run on the turn loop's hook; built with CC6 | **Open** October 28, 2026 (EB6 implemented, so CC6 may start); implemented with CC6 October 28, 2026, so MP5 may start |
-| P04 MP8 Save sections | P01 EB7, P02 CC8 | `entities` and `combat_map` follow the session snapshot and `combat_state` | Closed |
+| P04 MP8 Save sections | P01 EB7, P02 CC8 | `entities` and `combat_map` follow the session snapshot and `combat_state` | **Open** October 31, 2026 (CC8 merged) |
 | P11 implementation | P10 implemented, P01 EB7, the per-map battle save format | Co-op needs transport, snapshots and saves | Closed |
 
 ## Unowned and cross-cutting dependencies
@@ -370,9 +370,8 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
    **Planning alongside:** P06 (the darkness) and P07 (minimal UI); P06 depends only on P02 and
    P04, which are approved.
 2. **Code that may run alongside, off M1's path:**
-   - P02 **CC8** is built but back for a fix-up (P02 question 20; fix-up prompt issued October
-     31, 2026): the exit leak it causes with the enemies suite, and the three fact and wire changes
-     (`UNIT_MOVED` movement, `FactBatch.spawned`, the second-move flag). Then P04 **MP8**: the map
+   - P02 **CC8** merged October 31, 2026 (P02 question 20; question 21, a move that goes nowhere,
+     is open). Next, P04 **MP8** (ready; its gate opened with CC8): the map
      key and P04's facts in the snapshot (`combat_session.gd:TOD-002`); `entities` and
      `combat_map` with MP7's `MapState` fields and the waiting wave units (P04 question 24b);
      removes the accepted `# ASSUMPTION` above `map_check.gd`'s point rule. Then P02 **CC10**
@@ -448,3 +447,4 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 | October 30, 2026 | **P05 EN1 merged into `dev`** (60ae740; verified merged: content 463, every other suite unchanged, launch clean): `EnemyClassDefinition` and `PackDefinition` with their own catalog kinds, the `enemies/` folder rules, stats by level, unlimited enemy weapon and staff uses; the loadout now enforces `StaffDefinition.uses` for player staves. User answered P05 question 18 as recommended: a consumable-uses fix-up after CT3; CC8 restores the loadout's runtime effects as themselves. EN2 and EN3 ready; prompts issued. |
 | October 30, 2026 | **P03 CT3 merged into `dev`** (019c1b3, after EN1; verified merged: content 536, map 468, every other suite unchanged, launch clean): the M1 content as data (the Drengr, Archer, Battle Medic and Hakkapel, the Mercenary faction, the nine Simple weapons, Shelter, Minor Heal, the Potion, the Guard Tonic and Iron Heart) and `StartingArmy.build`. User answered P03 question 21: as recommended, except Triage's Stance gain goes above the maximum. New step CT3F (the M1 content fix-up); EN5 gate open; a P07 design item (effect text) and a vision item (starting Pouch items, Triage) added; the runner gains a time limit per suite. |
 | October 31, 2026 | **The consumable-uses fix-up, P05 EN2 and P05 EN3 merged into `dev`** (6e7dba5, 2a80624, 38c62ee; verified merged: content 547, enemies 59, every other suite unchanged, launch clean; the EN2/EN3 conflicts in the enemies suite and `begin_battle` resolved keeping both). User answered P05 questions 19–21 and P02 question 20 as recommended: enemy consumables stay limited; a reachable kill beats Hold and Cleave splash kills count (the EN3F fix-up); EN4 may add a breakdown-free forecast option; the three CC8 fact and wire changes; new step P02 CC10 (battle resume) after MP8. **CC8 not merged:** with EN2 and EN3 in, the enemies suite leaks at exit (259 objects, 192 resources); back for a fix-up. CT3F reissued without its merged consumable half; EN5 issued ahead of CT3F (Field Dressing set by whichever merges second). |
+| October 31, 2026 | **P02 CC8 merged into `dev`** (3c35386; verified merged: sessions 261, every other suite unchanged, launch clean, no exit leak). The leak was a script cycle between `CombatStateSection` and its inner `EffectsSection` (godot#117975), broken with a Callable; the three fact and wire changes of P02 question 20 applied (`UNIT_MOVED` movement, `FactBatch.spawned` as a 12th slot, `CombatFact.Flag.SECOND_MOVE_PENDING`); no format or version numbers change. P04 MP8 gate open. P02 question 21 raised (a move that goes nowhere desyncs a mirror). |
