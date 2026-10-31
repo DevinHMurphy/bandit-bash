@@ -61,8 +61,8 @@ into `dev`; plan and orchestrator commits go to `dev`; `main` holds released sta
   (`EffectCatalog`) loads `res://data/`, though no content is written yet.
 - **Current milestone:** [M1 First playable fight](#milestones). [M0 Foundations](#milestones) is
   complete (P01 EB1–EB7 implemented and verified headless, October 30, 2026).
-- **Current focus:** P02's and P04's parts of M1 are built (only their save steps, CC8 and MP8,
-  remain, and M1 doesn't need them). P03's M1 part is built. M1's critical path is now **P05 EN4 and EN5**,
+- **Current focus:** P02's and P04's parts of M1 are built (CC8 is merged; MP8, the map save step,
+  remains, and M1 doesn't need it). P03's M1 part is built. M1's critical path is now **P05 EN4 and EN5**,
   then **P06** (the darkness) and **P07** (minimal UI), neither planned yet. P07 needs
   EN4's intents; nothing yet owns the scene that starts an M1 battle and plays it (P07's plan should
   claim it).
