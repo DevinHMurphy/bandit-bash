@@ -6,7 +6,7 @@
 # File:     effect_engine.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 30, 2026
+# Modified: October 31, 2026
 # ==============================================================================
 
 class_name EffectEngine
@@ -849,18 +849,25 @@ func heal(
 	return restored
 
 
-## Changes [param unit_id]'s Stance by [param delta] (rounded half up), between 0 and its maximum,
-## and records [constant CombatFact.Kind.STANCE_CHANGED], then [constant CombatFact.Kind.EXPOSED]
-## when it reaches 0. Records nothing when Stance doesn't change. Returns the change.
+## Changes [param unit_id]'s Stance by [param delta] (rounded half up), never below 0, and records
+## [constant CombatFact.Kind.STANCE_CHANGED], then [constant CombatFact.Kind.EXPOSED] when it
+## reaches 0. Records nothing when Stance doesn't change. Returns the change.[br]
+## A gain stops at the unit's maximum unless [param can_exceed_maximum] (Triage); a gain never
+## lowers Stance already above it, and a loss is never capped. Only the side's Phase Start refresh
+## brings Stance above the maximum back down to it ([PhaseRunner]).
 func change_stance(
-		unit_id: String, delta: float, source_id: String = "", source_effect_id: String = ""
+		unit_id: String,
+		delta: float,
+		source_id: String = "",
+		source_effect_id: String = "",
+		can_exceed_maximum: bool = false
 ) -> int:
 	if not state.has_unit(unit_id):
 		return 0
 	var old: int = state.get_stance(unit_id)
 	var step: int = _half_up(delta)
 	var stance: int = maxi(old + step, 0)
-	if step > 0:
+	if step > 0 and not can_exceed_maximum:
 		stance = maxi(mini(stance, stats(unit_id).get_int(CombatValue.Key.STANCE_MAX)), old)
 	if stance == old:
 		return 0

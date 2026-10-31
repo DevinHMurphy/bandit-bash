@@ -6,7 +6,7 @@
 # File:     deploy_cases.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 30, 2026
+# Modified: October 31, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -45,12 +45,12 @@ const WEAPONS: Dictionary[String, Array] = {
 # Units from unit-roster.md: unit type, movement type, tags, base HP, DEF, weapon, stowed weapon.
 const ROSTER: Dictionary[String, Array] = {
 	"drengr": ["Drengr", DEFAULT, [], 24, 3, "axe", ""],
-	"hakkapel": ["Hakkapel", MOUNTED, ["Mounted"], 22, 4, "lance", ""],
+	"hakkapel": ["Hakkapel", MOUNTED, ["mounted"], 22, 4, "lance", ""],
 	"archer": ["Archer", DEFAULT, [], 13, 0, "bow", ""],
 	"medic": ["Battle Medic", MOBILE, [], 16, 1, "dagger", "minor_heal"],
 	"lance_armor": ["Lance Armor", HEAVY, [ContentIds.TAG_ARMORED], 23, 7, "lance", ""],
 	"ward": ["Ward", HEAVY, [], 25, 7, "lance", ""],
-	"freewing": ["Freewing", FLIER, ["Flier", "Mounted"], 17, 2, "sword", ""],
+	"freewing": ["Freewing", FLIER, ["flier", "mounted"], 17, 2, "sword", ""],
 	"sellsword": ["Sellsword", DEFAULT, [], 22, 4, "sword", ""],
 	"mage": ["Mage", DEFAULT, [], 16, 1, "fire", ""],
 	"thief": ["Thief", MOBILE, [], 14, 2, "dagger", ""],

@@ -6,7 +6,7 @@
 # File:     forecast_cases.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 29, 2026
+# Modified: October 31, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -1151,7 +1151,7 @@ class Field:
 		if preset == "fire" or preset == "harm":
 			stats.damage_type = CombatFact.DamageType.MAGIC
 		if preset == "bow":
-			stats.effective_against = PackedStringArray(["Flier"])
+			stats.effective_against = PackedStringArray(["flier"])
 		if preset == "everwall":
 			var area: Area = Area.new()
 			area.center = Area.Center.OWNER

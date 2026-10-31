@@ -6,16 +6,17 @@
 # File:     m1_content_cases.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: October 30, 2026
+# Modified: October 31, 2026
 # ==============================================================================
 
 extends RefCounted
 ## The M1 content cases for tests/content/run_all.gd, over the real [code]res://data/[/code]: the
 ## Mercenary faction and the army [method StartingArmy.build] makes of it, each unit type's stats
 ## against unit-roster.md, the Simple weapons, Shelter, Minor Heal, the Potion and the Guard Tonic
-## against game-vision.md and items.md, the Potion used once per map over two battles, effect text
-## snapshots of every trait, item and Iron Heart, and two forecasts of Simple weapons against
-## hand-computed numbers. Reports each case through the check callable it is given.
+## against game-vision.md and items.md, the Potion used once per map over two battles, Triage
+## taking an ally past its Stance maximum until its next Phase Start, effect text snapshots of
+## every trait, item and Iron Heart, and two forecasts of Simple weapons against hand-computed
+## numbers. Reports each case through the check callable it is given.
 ##
 ## The expected values are transcribed from the design docs, never read from the data, so a
 ## changed .tres fails here until the docs and this file agree.
@@ -23,6 +24,7 @@ extends RefCounted
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
 const ATTACK: UnitTurnCommand.Action = UnitTurnCommand.Action.ATTACK
+const STAFF: UnitTurnCommand.Action = UnitTurnCommand.Action.STAFF
 
 const NIMBLE: WeaponTriangle.Profile = WeaponTriangle.Profile.NIMBLE
 const BALANCE: WeaponTriangle.Profile = WeaponTriangle.Profile.BALANCE
@@ -102,8 +104,8 @@ const TEXT: Dictionary[String, Array] = {
 	"drengr": ["Phase Start, while no ally is closer to an enemy than this unit: gain 3 Block"],
 	"archer": ["Hit dealt, while at maximum range: +2 Attack stage for that hit"],
 	"archer+": ["Hit dealt, while at maximum range: +4 Attack stage for that hit"],
-	"battle_medic": ["Used a staff on an ally: give the other unit 1 Stance"],
-	"battle_medic+": ["Used a staff on an ally: give the other unit 2 Stance"],
+	"battle_medic": ["Used a staff on an ally: give the other unit 1 Stance, even above its maximum"],
+	"battle_medic+": ["Used a staff on an ally: give the other unit 2 Stance, even above its maximum"],
 	"hakkapel": ["While this unit moved 4+ tiles this turn: +2 Attack stage"],
 	"hakkapel+": ["While this unit moved 4+ tiles this turn: +4 Attack stage"],
 	"iron_heart": ["Every 7th Attack made by Your Unit this combat: that attack gains lifesteal"],
@@ -136,6 +138,7 @@ func run() -> void:
 	_test_staves()
 	_test_consumables()
 	_test_potion_per_map()
+	_test_triage_past_maximum()
 	_test_iron_heart()
 	_test_text_snapshots()
 	_test_bow_forecast()
@@ -508,15 +511,16 @@ func _forecast(
 	return forecast if forecast.is_legal else null
 
 
-# Loads a new unit of [param type_id] with its type's starting weapon and places it; its id, or
-# empty when it didn't load.
+# Loads a new unit of [param type_id] with its type's starting weapon, upgraded when
+# [param is_upgraded], and places it; its id, or empty when it didn't load.
 func _place(
 		session: CombatSession,
 		type_id: String,
 		side: CombatFact.CombatSide,
 		seat: int,
 		tile: Vector2i,
-		unit_id: String
+		unit_id: String,
+		is_upgraded: bool = false
 ) -> String:
 	var unit_type: UnitTypeDefinition = _catalog.unit_type(type_id)
 	if unit_type == null:
@@ -526,6 +530,7 @@ func _place(
 	)
 	var unit: UnitInstance = UnitInstance.new(unit_id, type_id)
 	unit.weapon_id = weapon.instance_id
+	unit.is_upgraded = is_upgraded
 	var items: Dictionary[String, ItemInstance] = {weapon.instance_id: weapon}
 	var loaded: Loadout.LoadedUnit = Loadout.load_unit(
 			_catalog, unit, items, side, seat, session.ids
@@ -539,6 +544,76 @@ func _place(
 		session.engine.register(instance)
 	loaded.state.tile = tile
 	return unit_id if session.add_unit(loaded.state, loaded.bases) else ""
+
+
+# The real Battle Medic's Shelter on an Archer at full Stance (maximum 1; Triage +1, Triage+ +2,
+# past the maximum), with hits landing: the forecast shows it and equals execution; the enemy
+# Phase Start leaves it; an adjacent enemy Hakkapel's one hit (11 damage against Shelter's 7 or 8
+# Block, so real damage) takes 1 of the extra and doesn't expose it; the player's next Phase Start
+# sets it back to 1. The bow can't counter at range 1; the lance's Attack Speed (3) can't double.
+func _test_triage_past_maximum() -> void:
+	for is_upgraded: bool in [false, true]:
+		var trait_name: String = "triage+" if is_upgraded else "triage"
+		var gain: int = 2 if is_upgraded else 1
+		var ids: InstanceIdAllocator = InstanceIdAllocator.new()
+		var session: CombatSession = CombatSession.new(
+				0, PackedInt32Array([0]), _plain_row(5), ForecastRolls.new(), ids
+		)
+		var medic: String = _place(
+				session, "battle_medic", PLAYER, 0, Vector2i(0, 0), ids.next_unit_id("medic"),
+				is_upgraded
+		)
+		var archer: String = _place(
+				session, "archer", PLAYER, 0, Vector2i(1, 0), ids.next_unit_id("archer")
+		)
+		var enemy: String = _place(
+				session, "hakkapel", ENEMY, -1, Vector2i(2, 0), ids.next_enemy_id("hakkapel")
+		)
+		if medic.is_empty() or archer.is_empty() or enemy.is_empty():
+			_ok("%s: the battle loads" % [trait_name], false)
+			continue
+		# The archer's Stance each time the enemy is asked for a command: before and after its hit.
+		var seen: Array[int] = []
+		session.hooks.add(CombatHooks.Hook.ENEMY_COMMANDS, func(at: CombatSession) -> Command:
+			seen.append(at.state.get_stance(archer))
+			if at.state.unit(enemy).has_acted:
+				return null
+			return UnitTurnCommand.new(-1, enemy, ATTACK, archer)
+		)
+		session.open_battle()
+
+		var command: UnitTurnCommand = UnitTurnCommand.new(0, medic, STAFF, archer)
+		var forecast: CombatForecast.StaffForecast = CombatForecast.staff(session.engine, command)
+		var shown: CombatForecast.UnitOutcome = forecast.unit(archer)
+		_ok("%s: the forecast shows Stance past the maximum" % [trait_name], (
+				shown != null and shown.stance_before == 1 and shown.stance_after == 1 + gain
+		))
+		command.based_on_seq = forecast.based_on_seq
+		session.submit(command)
+		var used: CombatSession.FactBatch = session.resolve_next()
+		_same(
+				"%s: the forecast equals execution" % [trait_name],
+				"\n".join(_fact_lines(forecast.facts)),
+				"\n".join(_fact_lines(used.facts))
+		)
+		_ok("%s: the ally's Stance is its maximum + %d" % [trait_name, gain], (
+				session.state.get_stance(archer) == 1 + gain
+		), str(session.state.get_stance(archer)))
+
+		session.submit(EndTurnCommand.new(0))
+		var turn: CombatSession.FactBatch = session.resolve_next()
+		_same(
+				"%s: kept through the enemy Phase Start, then the hit takes 1" % [trait_name],
+				str(seen),
+				str([1 + gain, gain])
+		)
+		var exposed: bool = false
+		for fact: CombatFact in turn.facts:
+			exposed = exposed or (fact.kind == CombatFact.Kind.EXPOSED and fact.actor_id == archer)
+		_ok("%s: the extra kept the ally from being Exposed" % [trait_name], not exposed)
+		_ok("%s: the ally's next Phase Start sets it to its maximum" % [trait_name], (
+				session.state.get_stance(archer) == 1 and session.state.has_unit(archer)
+		), str(session.state.get_stance(archer)))
 
 
 # A battle on a row of Plain with [param loaded] at (0, 0) and an enemy Hakkapel at (4, 0), ids
@@ -566,6 +641,13 @@ func _pouch_battle(loaded: Loadout.LoadedUnit, ids: InstanceIdAllocator) -> Comb
 		_ok("pouch battle: the battle opens", false, opened.rejected_reason)
 		return null
 	return session
+
+
+func _fact_lines(facts: Array[CombatFact]) -> PackedStringArray:
+	var lines: PackedStringArray = []
+	for fact: CombatFact in facts:
+		lines.append(fact.to_log_line())
+	return lines
 
 
 func _plain_row(width: int) -> MapGrid:
