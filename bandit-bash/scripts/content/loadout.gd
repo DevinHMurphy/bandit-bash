@@ -21,11 +21,12 @@ extends RefCounted
 ## effects, granted effects, weapon prefix and stat deltas. Every change on top of a base is an
 ## always-on effect sourced to what made it, so breakdowns name it; a stowed weapon's sleep with
 ## it (event bus plan, fix F8). [method heirloom_effects] builds a seat's heirloom carriers.[br]
-## A staff's [member StaffDefinition.uses] become a use effect that combat counts
-## ([method ItemUseResolver.use_effects]). An [EnemyClassDefinition] loads like a unit type, its
-## level as a "Level L" source. An enemy's weapons and staves never run out (enemies and AI plan,
-## question 13): it gets no staff uses, and each charged use effect on them registers as a copy
-## without charges; its traits keep their limits.[br]
+## A staff's [member StaffDefinition.uses] and a consumable's [member ConsumableDefinition.uses]
+## become a use effect that combat counts ([method ItemUseResolver.use_effects]): per map, or a
+## consumable's total uses kept on its instance. An [EnemyClassDefinition] loads like a unit type,
+## its level as a "Level L" source. An enemy's weapons and staves never run out (enemies and AI
+## plan, question 13): it gets no staff uses, and each charged use effect on them registers as a
+## copy without charges; its traits and consumables keep their limits.[br]
 ## Campaign-lane counters and charges are copied in from the instances and back out by
 ## [method LoadedUnit.write_back]. Bad data (an unknown id, gear in the wrong slot) is reported in
 ## [member LoadedUnit.problems] and skipped, never guessed at. Static and pure: it reads only the
@@ -273,7 +274,10 @@ static func _add_item_effects(
 	var label: String = definition.display_name
 	var home: CounterHome = CounterHome.new(item.counters, item.charges)
 	var is_unlimited: bool = (
-			state.side == CombatFact.CombatSide.ENEMY and definition is WeaponDefinition
+			state.side == CombatFact.CombatSide.ENEMY
+			# ASSUMPTION: question 13 names weapons and staves only, so an enemy's consumable keeps
+			# its uses.
+			and definition is WeaponDefinition
 	)
 	_add_effects(loaded, ids, definition.effects, owner, label, home, kind, is_unlimited)
 	var granted: Array[EffectDefinition] = []
@@ -286,12 +290,14 @@ static func _add_item_effects(
 		else:
 			granted.append(effect)
 	_add_effects(loaded, ids, granted, owner, label, home, kind, is_unlimited)
-	if definition is StaffDefinition and not is_unlimited:
-		var staff: StaffDefinition = definition
-		if staff.uses > 0:
-			loaded.add_effect(EffectInstance.new(
-					ids.next_effect_id(label), _staff_uses(staff), owner.copy(), kind, label
-			))
+	var uses: EffectDefinition = null if is_unlimited else _item_uses(definition)
+	if uses != null:
+		var counted: EffectInstance = EffectInstance.new(
+				ids.next_effect_id(label), uses, owner.copy(), kind, label
+		)
+		var uses_home: CounterHome = home.for_effect(counted, definition.effects.size())
+		uses_home.copy_in()
+		loaded.add_effect(counted, uses_home)
 
 	if not item.prefix_id.is_empty():
 		var prefix: WeaponPrefixDefinition = catalog.weapon_prefix(item.prefix_id)
@@ -397,8 +403,8 @@ static func _add_runtime(
 
 # Whether [param instance] counts an item's uses: a use effect (no trigger, no always-on modifier)
 # with charges.
-# NOTE: The same test as ItemUseResolver.use_effects, which combat counts uses by; keep them in
-# step.
+# NOTE: The same test as ItemUseResolver.use_effects, which combat counts uses by, and the content
+# test's double_uses rule (tests/content/content_rules.gd); keep them in step.
 # ASSUMPTION: "uses" (question 13) are use effects only; a charged weapon effect on a trigger,
 # such as a once-per-map rider, keeps its limit on an enemy too.
 static func _is_charged_use(instance: EffectInstance) -> bool:
@@ -411,14 +417,27 @@ static func _is_charged_use(instance: EffectInstance) -> bool:
 	return true
 
 
-# The use effect counting [param staff]'s [member StaffDefinition.uses] per map: no trigger and
-# no operations, so combat counts and spends it as the staff's uses and it does nothing else. Made
-# here, like every runtime effect, so no shared .tres changes.
-static func _staff_uses(staff: StaffDefinition) -> EffectDefinition:
+# The use effect counting [param definition]'s uses: a staff's per map, a consumable's by its
+# [member ConsumableDefinition.uses_lane]; null for 0 uses (unlimited) or another kind of item. No
+# trigger and no operations, so combat counts and spends it as the item's uses and it does nothing
+# else. The content test rejects an item that also has its own charged use effect, which would
+# count them twice. Made here, like every runtime effect, so no shared .tres changes.
+static func _item_uses(definition: ItemDefinition) -> EffectDefinition:
+	var count: int = 0
+	var lane: EffectTerms.Lane = EffectTerms.Lane.COMBAT
+	if definition is StaffDefinition:
+		var staff: StaffDefinition = definition
+		count = staff.uses
+	elif definition is ConsumableDefinition:
+		var consumable: ConsumableDefinition = definition
+		count = consumable.uses
+		lane = consumable.uses_lane
+	if count <= 0:
+		return null
 	var uses: EffectDefinition = EffectDefinition.new()
 	uses.id = "uses"
-	uses.charges = staff.uses
-	uses.charge_lane = EffectTerms.Lane.COMBAT
+	uses.charges = count
+	uses.charge_lane = lane
 	return uses
 
 

@@ -16,8 +16,8 @@ extends RefCounted
 ## real [CombatState] and [EffectEngine]; a weapon prefix sleeping with a stowed weapon; the
 ## lock-picking permission; campaign-lane write-back; bad data reported, not guessed at; and the
 ## enemy side: an enemy class is no unit type, its stats by level with the level named, and its
-## weapons' and staves' uses unlimited while a player's run out. Reports each case through the
-## check callable it is given.
+## weapons' and staves' uses unlimited while a player's run out; and a consumable's total uses
+## kept on its item across battles. Reports each case through the check callable it is given.
 ##
 ## The fixture tree [constant TREE] is a data root with the roster's numbers for the Archer, the
 ## Thief (with [constant CombatValue.Permission.CAN_PICK_LOCKS] in its innate effects; no real
@@ -66,6 +66,7 @@ func run() -> void:
 	_test_enemy_stats_by_level()
 	_test_staff_uses_by_side()
 	_test_enemy_weapon_effects_unlimited()
+	_test_total_uses_across_battles()
 	_test_definitions_unchanged()
 
 
@@ -605,6 +606,59 @@ func _test_enemy_weapon_effects_unlimited() -> void:
 	var player_use: EffectInstance = _effect_of(as_player, "fixture_use")
 	_check.call("enemy weapon: a player's keeps the shared definition and its limit", (
 			player_use != null and player_use.definition == use and player_use.charges_left == 2
+	), "")
+
+
+# A consumable with 2 total uses and an uncharged use effect, carried by the same Thief through
+# three battles: the count lives on the item between them, and the second use spends it and
+# empties the Pouch. An enemy's keeps its uses too.
+func _test_total_uses_across_battles() -> void:
+	var index: EffectCatalog.Index = EffectCatalog.load_tree(TREE)
+	var use: EffectDefinition = EffectDefinition.new()
+	use.id = "fixture_flask_use"
+	var flask: ConsumableDefinition = ConsumableDefinition.new()
+	flask.id = "fixture_flask"
+	flask.uses = 2
+	flask.uses_lane = EffectTerms.Lane.CAMPAIGN
+	flask.effects = [use]
+	index.add(TREE + "items/consumables/fixture_flask.tres", flask)
+	index.finish()
+	var item: ItemInstance = _item("item:1", "fixture_flask")
+	var thief: UnitInstance = _unit("unit:1", "loadout_thief")
+	thief.pouch_id = "item:1"
+	var items: Dictionary[String, ItemInstance] = {"item:1": item}
+	var outcomes: PackedStringArray = []
+	for _battle: int in 3:
+		var loaded: Loadout.LoadedUnit = Loadout.load_unit(
+				index, thief, items, PLAYER, 0, InstanceIdAllocator.new()
+		)
+		var world: World = World.new(loaded)
+		world.engine.begin_step()
+		var result: ItemUseResolver.Result = ItemUseResolver.resolve(
+				world.engine, world.state, "unit:1", "unit:1", "item:1"
+		)
+		loaded.write_back()
+		outcomes.append("%s %s %s %s" % [
+			"used" if result.is_legal else result.reason,
+			"consumed" if result.is_consumed else "kept",
+			world.state.unit("unit:1").pouch_item_id,
+			item.charges.get("uses", "-"),
+		])
+	_check.call("total uses: counted on the item across battles, spent by the second use", (
+			" | ".join(outcomes)
+			== "used kept item:1 1 | used consumed  0 | no uses left kept item:1 0"
+	), " | ".join(outcomes))
+
+	var healer: UnitInstance = _unit("unit:2", "loadout_hedge_healer")
+	healer.pouch_id = "item:2"
+	var enemy_items: Dictionary[String, ItemInstance] = {"item:2": _item("item:2", "fixture_flask")}
+	var as_enemy: Loadout.LoadedUnit = Loadout.load_unit(
+			index, healer, enemy_items, ENEMY, -1, InstanceIdAllocator.new()
+	)
+	var enemy_uses: EffectInstance = _effect_of(as_enemy, "uses")
+	# ASSUMPTION: question 13 leaves an enemy's consumables limited (loadout.gd).
+	_check.call("total uses: an enemy's consumable keeps its uses", (
+			enemy_uses != null and enemy_uses.charges_left == 2
 	), "")
 
 

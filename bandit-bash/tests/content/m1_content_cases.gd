@@ -13,9 +13,9 @@ extends RefCounted
 ## The M1 content cases for tests/content/run_all.gd, over the real [code]res://data/[/code]: the
 ## Mercenary faction and the army [method StartingArmy.build] makes of it, each unit type's stats
 ## against unit-roster.md, the Simple weapons, Shelter, Minor Heal, the Potion and the Guard Tonic
-## against game-vision.md and items.md, effect text snapshots of every trait, item and Iron Heart,
-## and two forecasts of Simple weapons against hand-computed numbers. Reports each case through the
-## check callable it is given.
+## against game-vision.md and items.md, the Potion used once per map over two battles, effect text
+## snapshots of every trait, item and Iron Heart, and two forecasts of Simple weapons against
+## hand-computed numbers. Reports each case through the check callable it is given.
 ##
 ## The expected values are transcribed from the design docs, never read from the data, so a
 ## changed .tres fails here until the docs and this file agree.
@@ -107,8 +107,8 @@ const TEXT: Dictionary[String, Array] = {
 	"hakkapel": ["While this unit moved 4+ tiles this turn: +2 Attack stage"],
 	"hakkapel+": ["While this unit moved 4+ tiles this turn: +4 Attack stage"],
 	"iron_heart": ["Every 7th Attack made by Your Unit this combat: that attack gains lifesteal"],
-	"potion": ["Always: heal the target for 8 (1 use this combat)"],
-	"guard_tonic": ["Always: give the target 6 Block (1 use this combat)"],
+	"potion": ["Always: heal the target for 8"],
+	"guard_tonic": ["Always: give the target 6 Block"],
 	"shelter": [],
 	"minor_heal": [],
 }
@@ -135,6 +135,7 @@ func run() -> void:
 	_test_simple_weapons()
 	_test_staves()
 	_test_consumables()
+	_test_potion_per_map()
 	_test_iron_heart()
 	_test_text_snapshots()
 	_test_bow_forecast()
@@ -346,14 +347,48 @@ func _test_consumables() -> void:
 		var use: EffectDefinition = (
 				consumable.effects[0] if consumable.effects.size() == 1 else null
 		)
-		_ok("%s: one use effect, 1 use per map, weightless" % [item_id], (
+		_ok("%s: one use effect counting nothing, uses per map, weightless" % [item_id], (
 				use != null
 				and use.trigger == EffectTerms.Trigger.ALWAYS
-				and use.charges == consumable.uses
-				and use.charge_lane == EffectTerms.Lane.COMBAT
+				and use.charges == 0
 				and consumable.uses_lane == EffectTerms.Lane.COMBAT
 				and consumable.weight == 0
 		))
+
+
+# The real Potion in the same Hakkapel's Pouch over two battles, one run's ids: one use per map
+# (items.md), refilled by the next battle's loadout, and never leaving the Pouch.
+func _test_potion_per_map() -> void:
+	var ids: InstanceIdAllocator = InstanceIdAllocator.new()
+	var potion: ItemInstance = ItemInstance.new(ids.next_item_id("potion"), "potion")
+	var unit: UnitInstance = UnitInstance.new(ids.next_unit_id("hakkapel"), "hakkapel")
+	unit.pouch_id = potion.instance_id
+	var items: Dictionary[String, ItemInstance] = {potion.instance_id: potion}
+	var who: String = unit.instance_id
+	for battle: int in [1, 2]:
+		var loaded: Loadout.LoadedUnit = Loadout.load_unit(_catalog, unit, items, PLAYER, 0, ids)
+		var session: CombatSession = _pouch_battle(loaded, ids)
+		if session == null:
+			return
+		session.state.set_hp(who, 10)
+		session.engine.begin_step()
+		var first: ItemUseResolver.Result = ItemUseResolver.resolve(
+				session.engine, session.state, who, who, potion.instance_id
+		)
+		_ok("potion, battle %d: heals 8 and stays in the Pouch" % [battle], (
+				first.is_legal
+				and not first.is_consumed
+				and session.state.get_hp(who) == 18
+				and session.state.unit(who).pouch_item_id == potion.instance_id
+		), first.reason)
+		var second: String = ItemUseResolver.check(
+				session.engine, session.state, who, who, potion.instance_id
+		)
+		_same("potion, battle %d: no second use this map" % [battle], second, "no uses left")
+		loaded.write_back()
+		_ok("potion, battle %d: per-map uses leave nothing on the item" % [battle], (
+				potion.charges.is_empty() and potion.counters.is_empty()
+		), "%s %s" % [potion.charges, potion.counters])
 
 
 func _test_iron_heart() -> void:
@@ -504,6 +539,33 @@ func _place(
 		session.engine.register(instance)
 	loaded.state.tile = tile
 	return unit_id if session.add_unit(loaded.state, loaded.bases) else ""
+
+
+# A battle on a row of Plain with [param loaded] at (0, 0) and an enemy Hakkapel at (4, 0), ids
+# from [param ids], opened; null when either doesn't load or it doesn't open.
+func _pouch_battle(loaded: Loadout.LoadedUnit, ids: InstanceIdAllocator) -> CombatSession:
+	if not loaded.is_loaded() or not loaded.problems.is_empty():
+		_ok("pouch battle: the unit loads", false, str(loaded.problems))
+		return null
+	var session: CombatSession = CombatSession.new(
+			0, PackedInt32Array([0]), _plain_row(5), LiveRolls.new(RngStream.new(SEED)), ids
+	)
+	for record: CombatState.WeaponStats in loaded.weapons:
+		session.state.add_weapon(record)
+	for instance: EffectInstance in loaded.effects:
+		session.engine.register(instance)
+	loaded.state.tile = Vector2i(0, 0)
+	var enemy_id: String = _place(
+			session, "hakkapel", ENEMY, -1, Vector2i(4, 0), ids.next_enemy_id("hakkapel")
+	)
+	if not session.add_unit(loaded.state, loaded.bases) or enemy_id.is_empty():
+		_ok("pouch battle: both units are placed", false)
+		return null
+	var opened: CombatSession.FactBatch = session.open_battle()
+	if opened.is_rejected():
+		_ok("pouch battle: the battle opens", false, opened.rejected_reason)
+		return null
+	return session
 
 
 func _plain_row(width: int) -> MapGrid:

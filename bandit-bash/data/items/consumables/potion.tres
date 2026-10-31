@@ -20,14 +20,10 @@ pool = 0
 target = SubResource("Resource_target")
 amount = SubResource("Resource_amount")
 
-; ASSUMPTION: combat uses an item through its use effect (ItemUseResolver), whose charges are its
-; uses; use_kind, amount, uses and uses_lane below mirror it. Fragile: an editor re-save drops it.
 [sub_resource type="Resource" id="Resource_use"]
 script = ExtResource("1_eff")
 id = "heal"
 operations = Array[ExtResource("2_ops")]([SubResource("Resource_heal")])
-charges = 1
-charge_lane = 0
 
 [resource]
 script = ExtResource("9_def")

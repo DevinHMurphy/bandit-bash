@@ -6,7 +6,7 @@
 # File:     content_rules.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 30, 2026
+# Modified: October 31, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -19,8 +19,9 @@ extends RefCounted
 ## This unit, no inline operation sits on a trigger with no inline window, and a warning for a
 ## heirloom scoped Any Ally Unit or wider without the unique tag. P03's rules (content catalog
 ## plan, Data layout): the folder matches the data, weapons and staves have a range and attacks
-## start at 1, string ids are in their [ContentIds] list, every sellable item has a price, and
-## no Basic, Legendary or Unique item has one; and (event bus plan, question 50) no effect lacks
+## start at 1, string ids are in their [ContentIds] list, every sellable item has a price, no
+## Basic, Legendary or Unique item has one, and an item with uses has no charged use effect of its
+## own (enemies and AI plan, question 18 (d)); and (event bus plan, question 50) no effect lacks
 ## operations, no faction lists its commander among its starting units, and starting gear fits
 ## its slots. P05's rules (enemies and AI plan, EN1): enemy classes live in enemies/ and packs in
 ## enemies/packs/, a pack names only enemy classes, each at least once, and an enemy class has
@@ -73,6 +74,9 @@ const ENEMY_CLASS: String = "enemy_class"
 ## An effect inside a carrier with no id, or with the id of another effect of that carrier: a
 ## saved instance names it by both ([method EffectInstance.catalog_reference]).
 const CARRIER_EFFECT_ID: String = "carrier_effect_id"
+## A staff or consumable with uses and its own charged use effect: combat would count its uses
+## twice.
+const DOUBLE_USES: String = "double_uses"
 
 ## Every rule that fails the test.
 const FAILURE_RULES: PackedStringArray = [
@@ -94,6 +98,7 @@ const FAILURE_RULES: PackedStringArray = [
 	PACK_COUNT,
 	ENEMY_CLASS,
 	CARRIER_EFFECT_ID,
+	DOUBLE_USES,
 ]
 
 # A faction's starting gear slots in order (FactionDefinition.starting_gear).
@@ -164,6 +169,7 @@ func _check_definition(path: String, resource: Resource) -> void:
 	if resource is ItemDefinition:
 		var item: ItemDefinition = resource
 		_check_price(path, item)
+		_check_uses(path, item)
 	if resource is EnemyClassDefinition:
 		var enemy: EnemyClassDefinition = resource
 		_check_enemy_class(path, enemy)
@@ -484,6 +490,42 @@ func _check_price(path: String, item: ItemDefinition) -> void:
 		_fail(UNSELLABLE_PRICED, path, "a %s %s is never sold but costs %d" % [
 			rarity_name, item.kind, price,
 		])
+
+
+# The loadout turns a staff's or consumable's uses into a use effect that combat counts, so its own
+# charged use effect would be a second count. Uses 0 with no use effect is unlimited.
+func _check_uses(path: String, item: ItemDefinition) -> void:
+	var uses: int = 0
+	if item is StaffDefinition:
+		var staff: StaffDefinition = item
+		uses = staff.uses
+	elif item is ConsumableDefinition:
+		var consumable: ConsumableDefinition = item
+		uses = consumable.uses
+	if uses <= 0:
+		return
+	for index: int in item.effects.size():
+		var effect: EffectDefinition = item.effects[index]
+		if effect != null and _is_charged_use(effect):
+			_fail(DOUBLE_USES, path, "uses is %d and effect %d is a use effect with %d charges" % [
+				uses, index, effect.charges,
+			])
+
+
+# Whether [param effect] counts uses: no trigger, no always-on modifier, and charges.
+# NOTE: The same test as Loadout._is_charged_use and ItemUseResolver.use_effects; keep them in
+# step. A modifier needs an instance to be made from, so a throwaway one stands in.
+func _is_charged_use(effect: EffectDefinition) -> bool:
+	if effect.charges <= 0 or effect.trigger != EffectTerms.Trigger.ALWAYS:
+		return false
+	var owner: EffectOwner = EffectOwner.for_item("item", "unit", 0, CombatFact.CombatSide.PLAYER)
+	var instance: EffectInstance = EffectInstance.new(
+			"content_rules", effect, owner, Modifier.SourceKind.POUCH_ITEM
+	)
+	for operation: EffectOperation in effect.operations:
+		if operation != null and operation.make_modifier(instance) != null:
+			return false
+	return true
 
 
 # The intent shows the target rule's text, so it can't be empty; an enemy class is never a
