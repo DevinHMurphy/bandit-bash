@@ -275,7 +275,7 @@ Save Impact):
   refuses data without `combat_state`, since effects need the battle's units. The held battle
   loads into a battle rebuilt the way Begin set it up (`CombatStateSection.load_into()`), units and
   turn before effects. **Not wired yet:** nothing rebuilds the battle on a `BATTLE` resume
-  (`campaign_service.gd:TOD-001`).
+  (`campaign_service.gd:TOD-001`); that is P02 CC10 (battle resume), after P04 MP8.
 - **Missing or old data.** A combat file without these sections (from before them) holds no battle,
   so `load_into()` returns `ERR_UNCONFIGURED` and the battle restarts from Begin. Version 0 is
   malformed and a newer version is refused, like any section; either stops the load and gives

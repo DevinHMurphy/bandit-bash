@@ -6,7 +6,7 @@
 # File:     combat_session.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 30, 2026
+# Modified: October 31, 2026
 # ==============================================================================
 
 class_name CombatSession
@@ -73,12 +73,6 @@ const DUMP_DIR: String = "user://logs"
 # The shape of snapshot() and debug_dump() output; raised when either changes. Snapshots are never
 # saved as they are (CombatStateSection saves their parts), so an older format is refused.
 const _SNAPSHOT_FORMAT: int = 2
-
-# The fields of each unit's capture that state_hash() leaves out: no fact carries them, so a mirror
-# can't follow them (CombatState.follow).
-const _UNFOLLOWED_UNIT_FIELDS: PackedStringArray = [
-	"tiles_moved", "movement_spent", "is_second_move_pending",
-]
 
 # The NetLog autoload's script, used as a type and for its enums. The autoload is reached by node
 # path, never by name: the sessions also compile in a headless --script run, before autoload names
@@ -161,6 +155,9 @@ var _reported_grants: int = 0
 
 # Base values each placed unit was given, by unit id, so a transfer can carry them to another map.
 var _bases: Dictionary[String, Dictionary] = {}
+
+# Each unit placed since the last batch, as FactBatch.spawned holds it.
+var _spawned: Array = []
 
 # The last seq a loaded snapshot covered: last_seq() while the fact log is empty.
 var _base_seq: int = 0
@@ -405,6 +402,7 @@ func load_snapshot(
 	_checkpoint_seq = fields.last_seq
 	_queue.clear()
 	_catch_up.clear()
+	_spawned.clear()
 	_batched_up_to = 0
 	_reported_diagnostics = engine.diagnostics.size()
 	_reported_grants = engine.grants.size()
@@ -417,9 +415,8 @@ func load_snapshot(
 
 ## A number standing for this map's state, compared between the host and a mirror after each batch
 ## (event bus plan, Logging and debugging): the [code]session[/code], [code]combat_state[/code] and
-## [code]effects[/code] parts of [method snapshot], less what no fact lets a mirror follow: each
-## unit's tiles moved, movement spent and second move, and map objects (P04,
-## [code]TOD-002[/code]). The roll stream is left out, since only the host draws.
+## [code]effects[/code] parts of [method snapshot], less map objects, whose facts a mirror doesn't
+## follow yet (P04, [code]TOD-002[/code]). The roll stream is left out, since only the host draws.
 func state_hash() -> int:
 	var parts: Dictionary = {
 		"session": _capture_session(),
@@ -431,10 +428,11 @@ func state_hash() -> int:
 
 ## Applies [param batch], the host's, as this session's mirror: each fact not yet applied, in seq
 ## order, through [method CombatState.follow] (which has the engine follow too), then queued for
-## playback. A fact already applied is skipped, so a resent batch changes nothing. A unit spawned
-## that this mirror doesn't know can't be followed (the fact carries no unit record) and is
-## reported at WARN; the mirror then needs a snapshot. In debug builds, a mirror that ends at the
-## batch's last seq compares [method state_hash] with the host's and reports a difference at WARN.
+## playback. A fact already applied is skipped, so a resent batch changes nothing. A unit placed on
+## the host comes with the batch ([member FactBatch.spawned]): its weapons, bases and effects join
+## first, and it is placed at its [constant CombatFact.Kind.UNIT_SPAWNED]. In debug builds, a
+## mirror that ends at the batch's last seq compares [method state_hash] with the host's and
+## reports a difference at WARN.
 ## Returns [constant OK]; [constant ERR_INVALID_PARAMETER] for another map's batch;
 ## [constant ERR_PARAMETER_RANGE_ERROR] when a seq is missing (the facts before the gap are
 ## applied, and the client needs [method facts_since] or a snapshot); [constant ERR_INVALID_DATA]
@@ -453,8 +451,7 @@ func apply_batch(batch: FactBatch) -> Error:
 			break
 		applied.append(fact)
 		next += 1
-	_warn_unknown_spawns(applied)
-	state.follow(engine, applied)
+	state.follow(engine, applied, _join_spawned(batch.spawned))
 	_batched_up_to = engine.fact_log.size()
 	_catch_up.append_array(applied)
 	for fact: CombatFact in applied:
@@ -574,13 +571,16 @@ func deploy(
 
 ## Places [param unit] on its tile ([method CombatState.place_unit]) after setting
 ## [param bases] (value key to number), and records [constant CombatFact.Kind.UNIT_SPAWNED]. For
-## deployment, spawns and arrivals from another map. Its weapons must already be in
-## [member state]. Returns false, placing nothing, when the tile is off the map or taken.
+## deployment, spawns and arrivals from another map. Its weapons and effects must already be in
+## [member state] and [member engine]; the next batch carries all of them for mirrors
+## ([member FactBatch.spawned]). Returns false, placing nothing, when the tile is off the map or
+## taken.
 func add_unit(unit: CombatUnitState, bases: Dictionary = {}) -> bool:
 	if not bases.is_empty():
 		_set_bases(unit.id, bases)
 	if not state.place_unit(engine, unit):
 		return false
+	_spawned.append(_capture_spawn(unit))
 	var spawned: CombatFact = CombatFact.new(CombatFact.Kind.UNIT_SPAWNED, unit.id)
 	spawned.tile = unit.tile
 	engine.record(spawned)
@@ -724,12 +724,14 @@ func _stale_reason(command: Command) -> String:
 	]
 
 
-# Fills batch with the facts not yet batched, keeps them for catch-up, reports new diagnostics
-# and queues the facts for playback on this peer.
+# Fills batch with the facts and units placed not yet batched, keeps the facts for catch-up,
+# reports new diagnostics and queues the facts for playback on this peer.
 func _finish_batch(batch: FactBatch) -> void:
 	for i: int in range(_batched_up_to, engine.fact_log.size()):
 		batch.facts.append(engine.fact_log[i])
 	_batched_up_to = engine.fact_log.size()
+	batch.spawned = _spawned
+	_spawned = []
 	_catch_up.append_array(batch.facts)
 	var net: NetLogScript = _logger(NetLogScript.Level.ERROR, NetLogScript.Category.EFFECTS)
 	for i: int in range(_reported_diagnostics, engine.diagnostics.size()):
@@ -816,34 +818,110 @@ func _capture_session() -> Dictionary:
 	}
 
 
-# The combat_state part state_hash() compares: the capture less the fields a mirror can't follow
-# and the map objects' units (side NONE), whose facts are P04's (TOD-002).
+# The combat_state part state_hash() compares: the capture less the map objects' units (side
+# NONE), whose facts are P04's (TOD-002).
 func _followed_state() -> Dictionary:
 	var captured: Dictionary = state.capture()
 	var units: Array = []
 	for entry: Variant in captured["units"]:
 		var unit: Dictionary = entry
-		if unit["side"] == CombatFact.CombatSide.find_key(CombatFact.CombatSide.NONE):
-			continue
-		for field: String in _UNFOLLOWED_UNIT_FIELDS:
-			unit.erase(field)
-		units.append(unit)
+		if unit["side"] != CombatFact.CombatSide.find_key(CombatFact.CombatSide.NONE):
+			units.append(unit)
 	captured["units"] = units
 	return captured
 
 
-# A mirror can't place a unit it has never seen: UNIT_SPAWNED names it and its tile only.
-func _warn_unknown_spawns(facts: Array[CombatFact]) -> void:
-	for fact: CombatFact in facts:
-		if fact.kind != CombatFact.Kind.UNIT_SPAWNED or state.unit(fact.actor_id) != null:
+# unit just placed, as FactBatch.spawned holds it: its state, its bases by key id in key order, its
+# weapon records and every effect it holds, its items' included.
+func _capture_spawn(unit: CombatUnitState) -> Dictionary:
+	var kept: Dictionary = _bases.get(unit.id, {})
+	var keys: Array = kept.keys()
+	keys.sort()
+	var bases: Array = []
+	for key: Variant in keys:
+		bases.append([Modifier.key_id(key as int), kept[key]])
+	var weapons: Array = []
+	for weapon_id: String in [unit.equipped_weapon_id, unit.stowed_weapon_id]:
+		var record: CombatState.WeaponStats = state.weapon(weapon_id)
+		if record != null:
+			weapons.append(record.capture())
+	var instances: Array = []
+	for instance: EffectInstance in engine.get_instances():
+		if instance.owner.holder_id == unit.id:
+			instances.append(instance.capture())
+	return {"unit": unit.capture(), "bases": bases, "weapons": weapons, "instances": instances}
+
+
+# Adds the weapons, bases and effects of each unit in records (FactBatch.spawned) that this mirror
+# doesn't know, and returns the units for CombatState.follow() to place at their UNIT_SPAWNED. Its
+# effects sleep until then, as a unit off the map's do. A record that can't be read is reported at
+# WARN and left out; the hash check then reports the difference.
+func _join_spawned(records: Array) -> Dictionary[String, CombatUnitState]:
+	var joining: Dictionary[String, CombatUnitState] = {}
+	# Untyped: the records come from the wire and are checked entry by entry.
+	for entry: Variant in records:
+		var record: Dictionary = entry if entry is Dictionary else {}
+		var unit_data: Variant = record.get("unit", null)
+		var unit: CombatUnitState = (
+				CombatUnitState.from_capture(unit_data as Dictionary)
+				if unit_data is Dictionary else null
+		)
+		if unit != null and state.unit(unit.id) != null:
 			continue
-		var net: NetLogScript = _logger(NetLogScript.Level.WARN, NetLogScript.Category.COMBAT)
-		if net != null:
-			net.warn(
-					NetLogScript.Category.COMBAT,
-					"s%d#%d mirror can't follow the spawn of %s: it needs a snapshot"
-					% [session_id, fact.seq, fact.actor_id]
-			)
+		var parts: Array = _spawn_parts(record)
+		if unit == null or parts.is_empty():
+			var net: NetLogScript = _logger(NetLogScript.Level.WARN, NetLogScript.Category.COMBAT)
+			if net != null:
+				net.warn(NetLogScript.Category.COMBAT, "s%d: a spawned unit can't be read - %s" % [
+					session_id, record,
+				])
+			continue
+		for weapon: CombatState.WeaponStats in parts[0]:
+			state.add_weapon(weapon)
+		_set_bases(unit.id, parts[1] as Dictionary)
+		for instance: EffectInstance in parts[2]:
+			if engine.get_instance(instance.instance_id) == null:
+				engine.register(instance, true)
+		joining[unit.id] = unit
+	return joining
+
+
+# A spawn record's weapon records, bases and effect instances, as [weapons, bases, instances];
+# empty when any of them can't be read.
+func _spawn_parts(record: Dictionary) -> Array:
+	var weapon_data: Variant = record.get("weapons", null)
+	var base_data: Variant = record.get("bases", null)
+	var instance_data: Variant = record.get("instances", null)
+	if not weapon_data is Array or not base_data is Array or not instance_data is Array:
+		return []
+	var weapons: Array[CombatState.WeaponStats] = []
+	for entry: Variant in weapon_data:
+		var weapon: CombatState.WeaponStats = (
+				CombatState.WeaponStats.from_capture(entry as Dictionary)
+				if entry is Dictionary else null
+		)
+		if weapon == null:
+			return []
+		weapons.append(weapon)
+	var bases: Dictionary = {}
+	for entry: Variant in base_data:
+		if not entry is Array or (entry as Array).size() != 2:
+			return []
+		var pair: Array = entry
+		var key: int = Modifier.key_from_id(str(pair[0]))
+		if key == Modifier.NO_KEY or not (pair[1] is float or pair[1] is int):
+			return []
+		var value: float = pair[1]
+		bases[key] = value
+	var instances: Array[EffectInstance] = []
+	for entry: Variant in instance_data:
+		var instance: EffectInstance = (
+				EffectInstance.from_capture(entry as Dictionary) if entry is Dictionary else null
+		)
+		if instance == null:
+			return []
+		instances.append(instance)
+	return [weapons, bases, instances]
 
 
 # The fields of a snapshot's session part, checked; null when malformed, for another map or for
@@ -1101,6 +1179,11 @@ class FactBatch:
 	## The host's [method CombatSession.state_hash] after it, which a mirror checks itself against;
 	## [constant CombatSession.NO_HASH] in release builds and for a rejected command.
 	var state_hash: int = NO_HASH
+	## Every unit placed during it ([method CombatSession.add_unit]), as plain JSON:
+	## [code]{"unit", "bases", "weapons", "instances"}[/code] ([method CombatUnitState.capture],
+	## bases by key id, [method CombatState.WeaponStats.capture],
+	## [method EffectInstance.capture]), so a mirror places it with no snapshot. Empty when none.
+	var spawned: Array = []
 
 	## Whether the command was rejected.
 	func is_rejected() -> bool:
@@ -1115,9 +1198,9 @@ class FactBatch:
 		return 0 if facts.is_empty() else facts[facts.size() - 1].seq
 
 	## This batch as an Array of primitives, for RPCs and repro dumps: session, seat, arrival,
-	## label, actor, target, based-on seq, rejection, diagnostics, state hash, then each fact's
-	## [method CombatFact.to_wire]. [method from_wire] reverses it. The slot order is a network
-	## contract: append new fields at the end only.
+	## label, actor, target, based-on seq, rejection, diagnostics, state hash, each fact's
+	## [method CombatFact.to_wire], then [member spawned]. [method from_wire] reverses it. The slot
+	## order is a network contract: append new fields at the end only.
 	func to_wire() -> Array:
 		var fact_wires: Array = []
 		for fact: CombatFact in facts:
@@ -1134,13 +1217,19 @@ class FactBatch:
 			Array(diagnostics),
 			state_hash,
 			fact_wires,
+			spawned.duplicate(true),
 		]
 
 	## Rebuilds a batch from [method to_wire] output, also after a trip through JSON, where
 	## numbers arrive as floats. Returns [code]null[/code] (with a warning) for a wrong length or
 	## type, a number that isn't whole, or a fact [method CombatFact.from_wire] refuses.
 	static func from_wire(data: Array) -> FactBatch:
-		if data.size() != 11 or not data[8] is Array or not data[10] is Array:
+		if (
+				data.size() != 12
+				or not data[8] is Array
+				or not data[10] is Array
+				or not data[11] is Array
+		):
 			push_warning("FactBatch: malformed wire data - %s" % [data])
 			return null
 		var numbers: Array = []
@@ -1170,6 +1259,12 @@ class FactBatch:
 				push_warning("FactBatch: a fact can't be read - %s" % [wire])
 				return null
 			batch.facts.append(fact)
+		# Each record is read when a mirror places its unit (CombatSession._join_spawned).
+		for record: Variant in data[11]:
+			if not record is Dictionary:
+				push_warning("FactBatch: a spawned unit isn't a record - %s" % [record])
+				return null
+			batch.spawned.append(record)
 		return batch
 
 	# value as an int, or null: the outer class's _wire_int() rule, which an inner class can't call

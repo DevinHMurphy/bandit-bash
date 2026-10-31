@@ -6,7 +6,7 @@
 # File:     save_cases.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: October 30, 2026
+# Modified: October 31, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -357,44 +357,69 @@ func _test_mirror_snapshot_after_swap_and_spawn() -> void:
 	), error_string(loaded))
 
 
-# A mirror loaded once follows a weapon swap's bases, a second move, a whole turn of both sides and
-# attacks; a spawn it has no record of is reported, and a fresh snapshot puts it right.
+# A mirror loaded once follows, hash for hash after every batch: a move that spends movement and a
+# weapon swap (its bases and a pending second move), a reinforcement spawn with no snapshot, the
+# move after acting, a whole turn of both sides and attacks (combat core plan, question 20).
 func _test_mirror_follows_batches() -> void:
 	var host: Skirmish = Skirmish.new()
 	var mirror: CombatSession = Skirmish.bare_session()
 	mirror.load_snapshot(WireCases.Kit.through_json(host.session.snapshot()) as Dictionary)
+	var results: Array[Error] = []
 	var sent: int = host.batches.size()
-	host.act(UnitTurnCommand.new(0, host.freewing, UnitTurnCommand.Action.SWAP_WEAPON, ""))
+	host.act(UnitTurnCommand.new(
+			0,
+			host.freewing,
+			UnitTurnCommand.Action.SWAP_WEAPON,
+			"",
+			host.step_path(host.freewing)
+	))
+	results.append_array(Skirmish.apply_since(host, mirror, sent))
+	var walked: CombatUnitState = mirror.state.unit(host.freewing)
+	_check.call("mirror: a move that spends movement and an action leaving a move pending", (
+			results == [OK]
+			and walked.tiles_moved == 1
+			and walked.movement_spent > 0
+			and walked.movement_spent == host.session.state.unit(host.freewing).movement_spent
+			and walked.is_second_move_pending
+			and walked.equipped_weapon_id == host.bow_id
+			and mirror.state_hash() == host.session.state_hash()
+	), str(results))
+
+	sent = host.batches.size()
+	var spawned: String = host.spawn()
+	results = Skirmish.apply_since(host, mirror, sent)
+	_check.call("mirror: a reinforcement spawn is placed from its batch, no snapshot needed", (
+			results == [OK]
+			and not host.batches[sent].spawned.is_empty()
+			and mirror.state.has_unit(spawned)
+			and mirror.state.tile_of(spawned) == host.session.state.tile_of(spawned)
+			and mirror.bases_of(spawned) == host.session.bases_of(spawned)
+			and mirror.state_hash() == host.session.state_hash()
+	), str(results))
+
+	sent = host.batches.size()
 	host.second_move(host.freewing)
+	results = Skirmish.apply_since(host, mirror, sent)
+	var moved: CombatUnitState = mirror.state.unit(host.freewing)
+	_check.call("mirror: the move after acting adds its tiles and ends the pending move", (
+			results == [OK]
+			and moved.tiles_moved == 2
+			and not moved.is_second_move_pending
+			and mirror.state_hash() == host.session.state_hash()
+	), str(results))
+
+	sent = host.batches.size()
 	host.attack_or_wait(host.archer)
 	host.act(EndTurnCommand.new(0))
 	host.attack_or_wait(host.freewing)
 	host.attack_or_wait(host.archer)
-	var results: Array[Error] = []
-	for batch: CombatSession.FactBatch in host.batches.slice(sent):
-		results.append(mirror.apply_batch(WireCases.Kit.batch_through_json(batch)))
-	_check.call("mirror: follows a swap, a second move, a turn and attacks, hash for hash", (
+	results = Skirmish.apply_since(host, mirror, sent)
+	_check.call("mirror: a turn of both sides and attacks, hash for hash", (
 			results.count(OK) == results.size()
-			and results.size() >= 5
+			and results.size() >= 4
 			and mirror.state_hash() == host.session.state_hash()
-			and mirror.state.unit(host.freewing).equipped_weapon_id == host.bow_id
 			and mirror.state.turn == host.session.state.turn
 	), str(results))
-
-	sent = host.batches.size()
-	host.spawn()
-	print("    (a WARN about a spawn the mirror can't follow and one about a hash mismatch follow)")
-	var spawn_result: Error = mirror.apply_batch(
-			WireCases.Kit.batch_through_json(host.batches[sent])
-	)
-	var reloaded: Error = mirror.load_snapshot(
-			WireCases.Kit.through_json(host.session.snapshot()) as Dictionary
-	)
-	_check.call("mirror: a spawn it can't follow is reported, and a snapshot catches it up", (
-			spawn_result == ERR_INVALID_DATA
-			and reloaded == OK
-			and mirror.state_hash() == host.session.state_hash()
-	), "%s, %s" % [error_string(spawn_result), error_string(reloaded)])
 
 
 # Units sent from a won map are in the snapshot on their way, with their bases, weapons and effects,
@@ -723,14 +748,25 @@ class Skirmish:
 
 	## [param unit_id]'s move after acting, one step to the first free tile next to it.
 	func second_move(unit_id: String) -> void:
+		act(UnitTurnCommand.new(0, unit_id, UnitTurnCommand.Action.MOVE, "", step_path(unit_id)))
+
+	## A path of one step from [param unit_id]'s tile to the first free tile next to it.
+	func step_path(unit_id: String) -> Array[Vector2i]:
 		var state: CombatState = session.state
 		var from: Vector2i = state.tile_of(unit_id)
 		var movement: CombatGrid.MovementType = state.unit(unit_id).movement_type
 		for next: Vector2i in state.grid.neighbors(from):
 			if state.occupant_at(next).is_empty() and state.can_stand(next, movement):
-				var path: Array[Vector2i] = [from, next]
-				act(UnitTurnCommand.new(0, unit_id, UnitTurnCommand.Action.MOVE, "", path))
-				return
+				return [from, next]
+		return [from]
+
+	## Applies every batch [param host] sent from index [param from] on to [param mirror], each
+	## after a trip through JSON. Returns each result.
+	static func apply_since(host: Skirmish, mirror: CombatSession, from: int) -> Array[Error]:
+		var results: Array[Error] = []
+		for batch: CombatSession.FactBatch in host.batches.slice(from):
+			results.append(mirror.apply_batch(WireCases.Kit.batch_through_json(batch)))
+		return results
 
 	## A second Brute arriving mid-phase on the free tile nearest the first, as a reinforcement
 	## does. Returns its id.

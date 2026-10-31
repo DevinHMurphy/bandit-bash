@@ -6,7 +6,7 @@
 # File:     combat_state.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 30, 2026
+# Modified: October 31, 2026
 # ==============================================================================
 
 class_name CombatState
@@ -41,11 +41,12 @@ extends SandboxState
 ## @todo: TOD-002 - Save an area staff's shape by its content id once P03 CT6 gives records one
 ## (loadout.gd:TOD-001); [method WeaponStats.capture] leaves [member WeaponStats.area] out.
 
-# Facts follow() applies only once the engine has followed every fact before them: a refresh reads
-# the unit's Stance maximum, a Pouch item's use reads its charges.
+# Facts follow() applies only once the engine has followed every fact before them: a refresh and a
+# placement read the unit's Stance maximum, a Pouch item's use reads its charges.
 const _FOLLOWED_AFTER_ENGINE: Array[CombatFact.Kind] = [
 	CombatFact.Kind.BLOCK_STANCE_REFRESHED,
 	CombatFact.Kind.ITEM_USED,
+	CombatFact.Kind.UNIT_SPAWNED,
 ]
 
 # Facts whose actor took its action, which ends its turn. An attack's is the attacker's Before
@@ -399,10 +400,16 @@ func restore(data: Dictionary) -> Error:
 ## client mirror does: the combat core's facts change the units, the turn and the phase as the
 ## host's rules did, and the engine follows the effects' state ([method EffectEngine.follow]) in
 ## step, so a value read mid-batch (the Stance a refresh sets, a Pouch item's last use) is the one
-## the host read. Draws no roll and fires nothing. A unit's tiles moved, movement spent and second
-## move aren't followed: no fact carries them. Nor are a spawned unit no state here knows, map
-## objects (P04) or a non-final End Turn or Start on a map several seats share.
-func follow(engine: EffectEngine, facts: Array[CombatFact]) -> void:
+## the host read. Draws no roll and fires nothing. Not followed: map objects (P04), a non-final End
+## Turn or Start on a map several seats share, and a second move that goes nowhere.
+## [param spawned]: units this state doesn't know, by id, each placed at its
+## [constant CombatFact.Kind.UNIT_SPAWNED] ([member CombatSession.FactBatch.spawned]); add their
+## weapons, bases and effects to [param engine] first.
+func follow(
+		engine: EffectEngine,
+		facts: Array[CombatFact],
+		spawned: Dictionary[String, CombatUnitState] = {}
+) -> void:
 	var waiting: Array[CombatFact] = []
 	# The exchange whose two Before Combat facts are open, "attacker>defender", and the last unit
 	# that swapped weapons: an attack right after its swap was a free Sidearm swap.
@@ -416,6 +423,8 @@ func follow(engine: EffectEngine, facts: Array[CombatFact]) -> void:
 		var actor: CombatUnitState = _units.get(fact.actor_id, null)
 		if actor != null and _ACTION_KINDS.has(fact.kind):
 			actor.has_acted = true
+		if actor != null and (fact.flags & CombatFact.Flag.SECOND_MOVE_PENDING) != 0:
+			actor.is_second_move_pending = true
 		match fact.kind:
 			CombatFact.Kind.PHASE_START:
 				_follow_phase_start(fact)
@@ -434,6 +443,15 @@ func follow(engine: EffectEngine, facts: Array[CombatFact]) -> void:
 					actor.stance = engine.stats(actor.id).get_int(CombatValue.Key.STANCE_MAX)
 			CombatFact.Kind.UNIT_MOVED:
 				_follow_move(fact.actor_id, fact.tile)
+				# Only a unit's own walk counts; after its action, that walk is its second move.
+				if actor != null and fact.amount > 0:
+					actor.tiles_moved += fact.amount
+					actor.movement_spent += fact.key
+					if actor.has_acted:
+						actor.is_second_move_pending = false
+			CombatFact.Kind.UNIT_SPAWNED:
+				if not _units.has(fact.actor_id) and spawned.has(fact.actor_id):
+					place_unit(engine, spawned[fact.actor_id])
 			CombatFact.Kind.DAMAGE_TAKEN:
 				if actor != null:
 					actor.hp = maxi(0, actor.hp - fact.hp_amount)

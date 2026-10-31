@@ -6,7 +6,7 @@
 # File:     campaign_service.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 30, 2026
+# Modified: October 31, 2026
 # ==============================================================================
 
 extends Node
@@ -36,7 +36,7 @@ extends Node
 ## @tutorial(Save system design): docs/design/save-system.md
 ##
 ## @todo: TOD-001 [HIGH] - On a BATTLE resume, rebuild the battle as Begin set it up and
-## [method CombatStateSection.load_into] it; nothing does yet (P02 CC8 question).
+## [method CombatStateSection.load_into] it (P02 CC10, battle resume, after P04 MP8).
 
 ## A run's session was built: connect here to follow its battles.
 signal session_started(session: CampaignSession)
@@ -117,7 +117,7 @@ func _replace_session(replacement: CampaignSession) -> void:
 	if replacement != null:
 		_attach_rng_sections(replacement)
 		_attach_id_sections(replacement)
-		# TODO(TOD-001): A BATTLE resume's held battle waits here for its rebuilt battle.
+		# TODO(TOD-001): A BATTLE resume's held battle waits here for its rebuilt battle (CC10).
 		_combat_state.attach(replacement)
 	if previous != null:
 		previous.close()

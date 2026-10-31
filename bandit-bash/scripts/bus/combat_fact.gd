@@ -6,7 +6,7 @@
 # File:     combat_fact.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 30, 2026
+# Modified: October 31, 2026
 # ==============================================================================
 
 class_name CombatFact
@@ -82,7 +82,9 @@ enum Kind {
 	SHOVED = 24,
 	## The actor gained Block; the target is the unit that gave it, if another unit did.
 	BLOCK_GAINED = 25,
-	## The actor moved; [member tile] is where it stopped.
+	## The actor moved; [member tile] is where it stopped. For its own walk, [member amount] is the
+	## tiles moved and [member key] the movement cost spent; both are 0 when it was moved (a shove,
+	## an oil slide, Recall, an opening swap, a passage).
 	UNIT_MOVED = 26,
 	## The actor appeared on the map at [member tile].
 	UNIT_SPAWNED = 27,
@@ -183,6 +185,15 @@ enum DamageType {
 	PURE = 4,
 }
 
+## Bits of [member flags]. Sent over the network inside an int: [b]append only[/b], each a new
+## power of two.
+enum Flag {
+	## On every fact of the actor's action (its Wait, Before Combat as the attacker, staff, shove,
+	## Pouch item, weapon swap or map object use): it may still move after acting
+	## ([member CombatUnitState.is_second_move_pending]).
+	SECOND_MOVE_PENDING = 1,
+}
+
 ## [member tile] when a fact has no tile. Map tiles never have negative coordinates (a map rule,
 ## event bus plan question 37), so it names no real tile.
 const NO_TILE: Vector2i = Vector2i(-1, -1)
@@ -244,7 +255,7 @@ var source_effect_id: String = ""
 ## The tile the fact happened on, or [constant NO_TILE].
 var tile: Vector2i = NO_TILE
 
-## Bit set of extra details. No bits are defined yet.
+## Bit set of extra details, [enum Flag] values. 0 when none.
 var flags: int = 0
 
 ## Whose phase a phase fact belongs to, or the side that won a [constant COMBAT_ENDED];
@@ -259,7 +270,7 @@ var item_id: String = ""
 ## [constant COUNTER_CHANGED], the [enum CombatValue.Stat] of a [constant STAT_CHANGED], the turns
 ## won early of a [constant COMBAT_ENDED], the [enum MapObjects.Change] of an
 ## [constant OBJECT_STATE_CHANGED], the operation index of a [constant MODIFIER_GAINED] or
-## [constant MODIFIER_EXPIRED]. 0 on every other kind.
+## [constant MODIFIER_EXPIRED], the movement cost of a [constant UNIT_MOVED]. 0 on every other kind.
 var key: int = 0
 
 ## The unit type ([member CombatUnitState.unit_type]) of each unit in a coming wave, in arrival

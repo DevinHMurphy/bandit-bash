@@ -6,7 +6,7 @@
 # File:     unit_turn_command.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 30, 2026
+# Modified: October 31, 2026
 # ==============================================================================
 
 class_name UnitTurnCommand
@@ -23,7 +23,9 @@ extends Command
 ## [constant CombatValue.Permission.MAY_MOVE_AFTER_ACTING] allows, with the movement left.
 ## A staff of range 0 targets its user:
 ## the command names no target and the user is filled in (question 14). An attack always needs a
-## target at range 1 or more. The action ends the unit's turn; it fires no Unit Turn End.[br]
+## target at range 1 or more. The action ends the unit's turn; it fires no Unit Turn End. When the
+## unit may still move, its action's facts carry
+## [constant CombatFact.Flag.SECOND_MOVE_PENDING], so a client mirror knows.[br]
 ## Before turn 1, in the opening swap window, the only action is [constant Action.OPENING_SWAP]
 ## (question 17); it records [constant CombatFact.Kind.UNIT_MOVED] for both units.
 ##
@@ -60,6 +62,18 @@ enum Action {
 ## Its name on the wire ([method Command.get_wire_type]). Its fields follow the common ones:
 ## the action, the target, the item, the weapon, then the path as x, y pairs.
 const WIRE_TYPE: String = "unit_turn"
+
+# The facts an action records for its unit, which carry its pending second move: the attacker's
+# Before Combat for an attack (a Sidearm swap before it too), one per target for an area staff.
+const _ACTION_FACTS: Array[CombatFact.Kind] = [
+	CombatFact.Kind.UNIT_WAITED,
+	CombatFact.Kind.BEFORE_COMBAT,
+	CombatFact.Kind.USED_STAFF_ON_ALLY,
+	CombatFact.Kind.SHOVED_A_UNIT,
+	CombatFact.Kind.ITEM_USED,
+	CombatFact.Kind.WEAPON_SWAPPED,
+	CombatFact.Kind.OBJECT_USED,
+]
 
 ## The tiles the unit walks, starting on its own tile ([method CombatState.validate_path]). Empty:
 ## it stays where it is.
@@ -149,6 +163,7 @@ func resolve(session: CombatSession) -> void:
 			engine.record(moved)
 		return
 	walk_path(engine, state, actor_id, path)
+	var acted_from: int = engine.fact_log.size()
 	match action:
 		Action.WAIT:
 			state.wait(engine, actor_id)
@@ -174,6 +189,17 @@ func resolve(session: CombatSession) -> void:
 			and engine.stats(actor_id).is_allowed(CombatValue.Permission.MAY_MOVE_AFTER_ACTING)
 	):
 		state.unit(actor_id).is_second_move_pending = true
+		_mark_second_move(engine, acted_from)
+
+
+# Sets the pending second move's flag on the action's facts recorded since index from, before the
+# batch they go out in is finished. The permission is read once the action has resolved, so the
+# flag can't be known when those facts are recorded; no effect reads flags.
+func _mark_second_move(engine: EffectEngine, from: int) -> void:
+	for i: int in range(from, engine.fact_log.size()):
+		var fact: CombatFact = engine.fact_log[i]
+		if fact.actor_id == actor_id and _ACTION_FACTS.has(fact.kind):
+			fact.flags |= CombatFact.Flag.SECOND_MOVE_PENDING
 
 
 # Why the action can't be taken by a unit already standing at the path's end in state; empty when
@@ -283,9 +309,9 @@ func _uses_sidearm(state: CombatState) -> bool:
 ## Walks [param unit_id] along [param path] in [param state]: checks it
 ## ([method CombatState.validate_path]; an empty path stays on the unit's tile) and, if it is legal
 ## and leaves the tile, moves the unit to its last tile, adds the tiles and movement cost to its
-## turn, and records [constant CombatFact.Kind.UNIT_MOVED]. An illegal path changes nothing.
-## The command and [CombatForecast] both walk through this, so a forecast walks as the command
-## does. Returns the path's check.
+## turn, and records [constant CombatFact.Kind.UNIT_MOVED] with both (a mirror adds them). An
+## illegal path changes nothing. The command and [CombatForecast] both walk through this, so a
+## forecast walks as the command does. Returns the path's check.
 static func walk_path(
 		engine: EffectEngine, state: CombatState, unit_id: String, path: Array[Vector2i]
 ) -> CombatGrid.PathCheck:
@@ -302,5 +328,7 @@ static func walk_path(
 	unit.movement_spent += check.cost
 	var moved: CombatFact = CombatFact.new(CombatFact.Kind.UNIT_MOVED, unit_id)
 	moved.tile = end
+	moved.amount = check.tiles_moved
+	moved.key = check.cost
 	engine.record(moved)
 	return check
