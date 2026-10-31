@@ -19,9 +19,9 @@ extends RefCounted
 ## transport (P10) exist (event bus plan, question 41). Rules code never sees [member rng]: this
 ## session hands each consumer the one stream it needs.[br]
 ## [b]The battle bridge:[/b] [method begin_battle] builds the [CombatEncounter], runs its setup,
-## opens one [CombatSession] per seat, registers copies of the run's effect carriers (in the
-## encounter for cross-map scopes) with their campaign-lane counters, loads each army's unit
-## instances ([Loadout]) and deploys each army.
+## opens one [CombatSession] per seat, places the enemies setup drew ([EnemySetup]), registers
+## copies of the run's effect carriers (in the encounter for cross-map scopes) with their
+## campaign-lane counters, loads each army's unit instances ([Loadout]) and deploys each army.
 ## [method write_back] copies campaign-lane counters and charges back before
 ## [code]SaveService.end_battle()[/code]; [method end_battle] then drops the battle and its combat
 ## lanes. Observers find each battle through [signal combat_encounter_opened].[br]
@@ -34,6 +34,7 @@ extends RefCounted
 ## @todo: TOD-001 - Apply recorded grants: gold, heirlooms, recruits and runes (P08).
 ## @todo: TOD-002 - Hand the reinforcement waves P05's group source; the base draws no group.
 ## @todo: TOD-003 - Read each seat's opening-swap setting from its owner (P07); no entry means on.
+## @todo: TOD-004 - Pass the enemy level modifiers (difficulty ladder, run modifiers) to the draw.
 
 ## A battle began: its setup ran and its sessions are about to open, so a listener can connect to
 ## [signal CombatEncounter.session_opened] first.
@@ -138,16 +139,17 @@ func add_setup_step(step: CombatEncounter.SetupStep, run: Callable) -> void:
 	_setup_steps.append([step, run])
 
 
-## Begins the battle [param request] describes: builds the encounter, runs its setup from fresh
-## setup streams (so a restart from Begin rolls the same), emits [signal combat_encounter_opened],
-## opens one session per seat with its seat's [code]COMBAT_ROLLS[/code] stream, places each map's
-## objects ([method MapObjects.place]) and reinforcement points ([method Reinforcements.register]),
-## registers copies of the carriers of the units and armies in the battle, deploys each army, then
-## opens each map's battle
+## Begins the battle [param request] describes: builds the encounter with this battle's enemy draw
+## ([method EnemySetup.draw]), runs its setup from fresh setup streams (so a restart from Begin
+## rolls the same), emits [signal combat_encounter_opened], opens one session per seat with its
+## seat's [code]COMBAT_ROLLS[/code] stream, places each map's objects ([method MapObjects.place]),
+## enemies ([method EnemySetup.place]) and reinforcement points
+## ([method Reinforcements.register]), registers copies of the carriers of the units and armies in
+## the battle, deploys each army, then opens each map's battle
 ## ([method CombatSession.open_battle]): the opening swap window for the seats whose
-## [member BattleRequest.opening_swap] setting is on, turn 1's player Phase Start otherwise. Returns
-## the encounter; null, with nothing begun, when a battle is already on, the run is closed, or setup
-## fails.
+## [member BattleRequest.opening_swap] setting is on, turn 1's player Phase Start otherwise.
+## Returns the encounter; null, with nothing begun, when a battle is already on, the run is closed,
+## or setup fails.
 func begin_battle(request: BattleRequest) -> CombatEncounter:
 	if is_closed or encounter != null or request == null:
 		push_error("CampaignSession: can't begin a battle now")
@@ -156,6 +158,16 @@ func begin_battle(request: BattleRequest) -> CombatEncounter:
 			request.floor_number, request.node, seats, ids
 	)
 	battle.run_seed = rng.run_seed
+	var catalog: EffectCatalog.Index = (
+			request.catalog if request.catalog != null else EffectCatalog.index()
+	)
+	# Bound per battle: the draw reads this battle's catalog and floor.
+	# TODO(TOD-004): Pass the enemy level modifiers (the difficulty ladder's, run modifiers') once
+	# they exist; none until then.
+	battle.add_setup_step(
+			CombatEncounter.SetupStep.ENEMY_SLOTS,
+			EnemySetup.draw.bind(catalog, request.floor_number, 0)
+	)
 	for entry: Array in _setup_steps:
 		var step: CombatEncounter.SetupStep = entry[0]
 		var run: Callable = entry[1]
@@ -180,11 +192,10 @@ func begin_battle(request: BattleRequest) -> CombatEncounter:
 		session.grant_received.connect(receive_grant)
 		# Before deployment, so no unit takes a breakable's tile.
 		MapObjects.place(session)
+		# Before deployment too, which ranks its tiles by the enemies' tiles.
+		EnemySetup.place(session, catalog)
 		# P06's darkness step registers before this (reinforcements.gd:TOD-001).
 		Reinforcements.register(session, _wave_groups)
-	var catalog: EffectCatalog.Index = (
-			request.catalog if request.catalog != null else EffectCatalog.index()
-	)
 	for seat: int in request.armies:
 		_add_heirlooms(catalog, seat, request.armies[seat].heirloom_ids)
 	_register_carriers(battle, request)
