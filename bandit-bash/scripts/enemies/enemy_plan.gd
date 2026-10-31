@@ -6,7 +6,7 @@
 # File:     enemy_plan.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: October 30, 2026
+# Modified: October 31, 2026
 # ==============================================================================
 
 class_name EnemyPlan
@@ -43,7 +43,7 @@ enum Kind {
 enum Step {
 	## The plan had nothing to beat.
 	ONLY_OPTION = 0,
-	## (a) It defeats its target if its hits land.
+	## (a) It defeats a player unit if its hits land: its target, or another by splash.
 	KILL = 1,
 	## (a) Among kills, the higher chance that those hits land.
 	KILL_CHANCE = 2,
@@ -107,7 +107,9 @@ var path_cost: int = 0
 ## Whether [member tile] is flooded by the darkness.
 var is_flooded: bool = false
 
-## (a) Whether its target is defeated in the forecast, where every hit lands.
+## (a) Whether a player unit is defeated in the forecast, where every hit lands: its target, or
+## another by splash such as Cleave. [member forecast]'s units name who falls; its own side's
+## losses never count.
 var is_kill: bool = false
 
 ## (a) The chance every one of its attacks in that forecast lands; 0 for no kill.

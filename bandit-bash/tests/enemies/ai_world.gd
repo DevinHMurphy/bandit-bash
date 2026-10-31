@@ -6,7 +6,7 @@
 # File:     ai_world.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: October 30, 2026
+# Modified: October 31, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -120,6 +120,32 @@ func add_player(
 	unit.equipped_weapon_id = "w:%s" % [unit_id]
 	session.state.add_weapon(_weapon(unit.equipped_weapon_id, weapon))
 	session.add_unit(unit, bases)
+
+
+## Gives [param unit_id] Cleave as a trait (enemy-roster.md, the Brute): Hit dealt, 2 splash
+## damage to every other unit adjacent to it, friend or foe, as the combat tests build it. The
+## loadout fixtures carry no trait.
+func add_cleave(unit_id: String) -> void:
+	var area: Area = Area.new()
+	area.center = Area.Center.OWNER
+	area.radius = 1
+	area.side = EffectTerms.UnitSide.ANY
+	var amount: Constant = Constant.new()
+	amount.value = 2.0
+	var splash: DealSplash = DealSplash.new()
+	splash.target = area
+	splash.amount = amount
+	var cleave: EffectDefinition = EffectDefinition.new()
+	cleave.trigger = EffectTerms.Trigger.HIT_DEALT
+	cleave.operations.assign([splash])
+	var instance_id: String = "effect:cleave:%s" % [unit_id]
+	session.engine.register(EffectInstance.new(
+			instance_id,
+			cleave,
+			EffectOwner.for_unit(unit_id, -1, ENEMY),
+			Modifier.SourceKind.UNIT_TRAIT,
+			instance_id
+	))
 
 
 ## Wounds [param unit_id] to [param hp].

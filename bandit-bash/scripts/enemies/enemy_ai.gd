@@ -6,7 +6,7 @@
 # File:     enemy_ai.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: October 30, 2026
+# Modified: October 31, 2026
 # ==============================================================================
 
 class_name EnemyAI
@@ -17,12 +17,14 @@ extends RefCounted
 ## [b]Options[/b] ([method decide]): every end tile from [method Pathing.reach], each action the
 ## behavior allows, each legal target. Each attack and staff is previewed fresh from its own end
 ## tile with [ForecastRolls] (hits land, chances fail), so terrain, Block, Stance and every effect
-## count (question 6). [b]Rating:[/b] [EnemyPlan]'s ordered steps (question 7).[br]
+## count (question 6). [b]Rating:[/b] [EnemyPlan]'s ordered steps (question 7); a kill is any
+## player unit the forecast defeats, the target or another by splash (question 21).[br]
 ## [b]Behaviors[/b] (question 11): Aggressive takes its best attack, else advances on the nearest
-## foe by path cost; Hold attacks from where it stands while a foe is in range, else as
-## Aggressive; Support heals the ally missing the most HP within reach, else regroups near its
-## allies; Support ends where the fewest player units can attack it. Every behavior drops a flooded
-## end tile when a dry one serves the same action on the same target, kill or not (question 15).
+## foe by path cost; Hold takes a kill in reach first, else attacks from where it stands while a
+## foe is in range, else as Aggressive; Support heals the ally missing the most HP within reach,
+## else regroups near its allies, ending where the fewest player units can attack it. Every
+## behavior drops a flooded end tile when a dry one serves the same action on the same target, kill
+## or not (question 15).
 ## Once the darkness has arrived ([method Reinforcements.has_darkness_arrived]), every enemy plays
 ## Aggressive on the nearest foe, except a boss holding a fixed tile.[br]
 ## [b]Order[/b] ([method next_command], question 8): each call re-decides every enemy yet to act
@@ -118,7 +120,7 @@ static func decide(
 	board.rule = definition.target_rule_id
 	if Reinforcements.has_darkness_arrived(state) and not _holds_fixed_tile(state, unit_id):
 		board.behavior = EnemyClassDefinition.Behavior.AGGRESSIVE
-		# ASSUMPTION: the target rule turns to the nearest foe with the behavior, as the-darkness.md
+		# The target rule turns to the nearest foe with the behavior, as the-darkness.md
 		# (Arrival) words it: "moves toward and attacks the nearest reachable target".
 		board.rule = ContentIds.TARGET_NEAREST_FOE
 
@@ -158,7 +160,7 @@ static func flooded_tiles(_state: CombatState) -> Dictionary[Vector2i, bool]:
 ## of its terrain. Higher is better.
 static func terrain_rating(grid: CombatGrid, tile: Vector2i) -> float:
 	var bonus: CombatGrid.TileBonus = grid.tile_bonus(tile)
-	# ASSUMPTION: avoid ÷ 50 is an exact quotient, as the plan writes it; Godot_FE's int avoid
+	# Avoid ÷ 50 is an exact quotient (question 21); Godot_FE's int avoid
 	# floors it (avoid 20 rates 0 there).
 	return bonus.avoid / AVOID_DIVISOR + bonus.defense + bonus.resistance
 
@@ -211,13 +213,12 @@ static func _attack_plan(
 	plan.weapon_id = weapon_id
 	plan.weapon_order = weapon_order
 	plan.forecast = forecast
-	var defender: CombatForecast.UnitOutcome = forecast.unit(plan.target_id)
-	plan.is_kill = defender != null and defender.is_defeated
+	plan.is_kill = _defeats_a_foe(board, forecast)
 	var chance: float = 1.0
 	var dealt: float = 0.0
 	var taken: float = 0.0
 	for attack: CombatForecast.AttackForecast in forecast.attacks:
-		# ASSUMPTION: expected damage is each hit's HP damage (Block absorbs the rest) times its hit
+		# Expected damage is each hit's HP damage (Block absorbs the rest) times its hit
 		# chance; Godot_FE's counted every hit, unweighted, before Block existed.
 		var expected: float = attack.hp_damage * attack.hit_probability
 		if attack.attacker_id == board.unit_id:
@@ -230,6 +231,19 @@ static func _attack_plan(
 	var share: float = clampf(dealt / max_hp, 0.0, 1.0) if max_hp > 0 else 0.0
 	plan.value = share * (VALUE_WEIGHT + (NO_DAMAGE_BONUS if taken == 0.0 else 0.0))
 	return plan
+
+
+# Whether forecast defeats a player unit: the target, or another by splash (Cleave beside the
+# enemy), question 21. Its own side's losses never count, for or against: it swings with its allies
+# beside it (enemy-roster.md, the Brute).
+static func _defeats_a_foe(board: Board, forecast: CombatForecast.ExchangeForecast) -> bool:
+	# ASSUMPTION: every kill counts the same: a splash kill ranks as a direct one, and two kills in
+	# one option as one; among kills, the higher chance that the enemy's hits land still wins.
+	for outcome: CombatForecast.UnitOutcome in forecast.units:
+		var side: CombatFact.CombatSide = board.state.side_of(outcome.unit_id)
+		if outcome.is_defeated and side == CombatFact.CombatSide.PLAYER:
+			return true
+	return false
 
 
 # Every heal the enemy can give this turn with the heal staff in hand: from each end tile, on each
@@ -280,7 +294,7 @@ static func _regroups(board: Board) -> Array[EnemyPlan]:
 	for tile: Vector2i in board.reach:
 		var plan: EnemyPlan = _new_plan(board, EnemyPlan.Kind.REGROUP, tile)
 		plan.safety = _safety_of(board, tile)
-		# ASSUMPTION: "nearest its allies" is the summed tile distance to every ally, ranked after
+		# "Nearest its allies" is the summed tile distance to every ally, ranked after
 		# the fewest player units that could attack the tile.
 		for ally_tile: Vector2i in allies:
 			plan.pack += state.grid.distance(tile, ally_tile)
@@ -327,15 +341,22 @@ static func _advances(board: Board) -> Array[EnemyPlan]:
 	return options
 
 
-# Hold: only the options from its own tile while it has any (Steady Aim); otherwise all of them.
+# Hold: every kill in reach, wherever it ends, since kills come first for every behavior
+# (question 21); of the rest, only those from its own tile while it has any (Steady Aim). With
+# none from its own tile, all of them. The dry rule runs before this (question 21), so a Hold enemy
+# on a flooded tile moves to a dry one that serves the same attack rather than stand.
 static func _from_own_tile(board: Board, options: Array[EnemyPlan]) -> Array[EnemyPlan]:
+	var kept: Array[EnemyPlan] = []
 	var standing: Array[EnemyPlan] = []
 	for plan: EnemyPlan in options:
-		if plan.tile == board.origin:
+		if plan.is_kill:
+			kept.append(plan)
+		elif plan.tile == board.origin:
 			standing.append(plan)
-	# ASSUMPTION: the dry rule runs first, so a Hold enemy on a flooded tile moves to a dry one
-	# that serves the same attack rather than stand.
-	return options if standing.is_empty() else standing
+	if standing.is_empty():
+		return options
+	kept.append_array(standing)
+	return kept
 
 
 # Drops each flooded option whose action, target and kill a dry option also serves
@@ -370,7 +391,7 @@ static func _rate_target_rule(board: Board, options: Array[EnemyPlan]) -> void:
 			ContentIds.TARGET_NEAREST_FOE:
 				plan.target_rule_key = nearest[plan.target_id]
 			ContentIds.TARGET_LOWEST_DEFENSE:
-				# ASSUMPTION: the target's DEF stat as its unit panel shows it, without its terrain.
+				# The target's DEF stat as its unit panel shows it, without its terrain.
 				plan.target_rule_key = board.engine.stats(plan.target_id).get_int(
 						CombatValue.Key.DEF
 				)
@@ -500,7 +521,7 @@ static func _advance_range(board: Board) -> Vector2i:
 	var stowed: CombatState.WeaponStats = board.state.weapon(holder.stowed_weapon_id)
 	if stowed != null and _attacks_with(stowed):
 		return Vector2i(stowed.range_min, stowed.range_max)
-	# ASSUMPTION: an enemy with nothing to attack with (a healer once the darkness arrives) closes
+	# An enemy with nothing to attack with (a healer once the darkness arrives) closes
 	# to an adjacent tile.
 	return Vector2i(1, 1)
 

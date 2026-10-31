@@ -6,13 +6,14 @@
 # File:     ai_cases.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: October 30, 2026
+# Modified: October 31, 2026
 # ==============================================================================
 
 extends RefCounted
 ## The enemy AI cases for tests/enemies/run_all.gd ([EnemyAI], [EnemyPlan]): each rating step
 ## deciding for the behavior that shows it (kill first, the target rule, the damage share, terrain,
-## the fixed order), Hold standing to shoot and moving only with nothing in range, Support healing
+## the fixed order), Hold standing to shoot and moving only for a kill or with nothing in range,
+## a Cleave splash kill counted and splash on an ally ignored, Support healing
 ## the ally missing the most HP from the tile fewest player units can attack and regrouping with
 ## nobody hurt, the darkness switch, the dry rule, the same board giving the same plan (on a
 ## sandbox too), re-deciding after a kill, an enemy with no class Waiting, and a headless enemy
@@ -68,6 +69,9 @@ func run() -> void:
 	_test_hold_lowest_defense()
 	_test_hold_kill_first()
 	_test_hold_moves_only_when_nothing_in_range()
+	_test_hold_moves_to_kill()
+	_test_cleave_splash_kill()
+	_test_splash_on_ally_ignored()
 	_test_value_share()
 	_test_terrain()
 	_test_fixed_order()
@@ -346,21 +350,22 @@ func _test_regroup() -> void:
 
 
 # Once the darkness has arrived, Support and Hold play Aggressive on the nearest foe: the healer
-# advances instead of healing, and the Crossbowman leaves its tile for a kill.
+# advances instead of healing, and the Crossbowman leaves its plain tile for the forest one it can
+# shoot the same foe from (terrain), which Hold's own-tile rule kept it from.
 func _test_darkness() -> void:
-	var world: AiWorld = AiWorld.new(_catalog, PLAIN_8X8)
+	var rows: Array[String] = PLAIN_8X8.duplicate()
+	rows[0] = "plain forest plain plain plain plain plain plain"
+	var world: AiWorld = AiWorld.new(_catalog, rows)
 	world.add_enemy("h1", HEALER, Vector2i(7, 7))
 	world.add_enemy("b1", BRUTE, Vector2i(6, 7))
 	world.add_enemy("c1", CROSSBOWMAN, Vector2i(0, 0))
-	world.add_player("p_tough", Vector2i(2, 0), "sword", {CombatValue.Key.DEF: 3.0})
-	world.add_player("p_weak", Vector2i(0, 6), "sword", {CombatValue.Key.DEF: 0.0})
+	world.add_player("p_tough", Vector2i(3, 0), "sword", {CombatValue.Key.DEF: 3.0})
 	world.wound("b1", 10)
-	world.wound("p_weak", 4)
 	var heal: EnemyPlan = world.decide("h1")
 	var stand: EnemyPlan = world.decide("c1")
 	_check.call("darkness: before it, the healer heals", heal.kind == EnemyPlan.Kind.STAFF)
 	_check.call("darkness: before it, Hold shoots from its tile", (
-			stand.target_id == "p_tough" and stand.path.is_empty()
+			stand.target_id == "p_tough" and stand.path.is_empty() and not stand.is_kill
 	), _describe(stand))
 	world.state().map.has_darkness_arrived = true
 	var advance: EnemyPlan = world.decide("h1")
@@ -369,10 +374,91 @@ func _test_darkness() -> void:
 			and advance.behavior == EnemyClassDefinition.Behavior.AGGRESSIVE
 			and advance.target_rule_id == ContentIds.TARGET_NEAREST_FOE
 	), _describe(advance))
-	var hunt: EnemyPlan = world.decide("c1")
-	_check.call("darkness: the Crossbowman leaves its tile for the kill", (
-			hunt.target_id == "p_weak" and hunt.is_kill and not hunt.path.is_empty()
-	), _describe(hunt))
+	var roam: EnemyPlan = world.decide("c1")
+	_check.call("darkness: the Crossbowman leaves its tile for better ground", (
+			roam.target_id == "p_tough"
+			and roam.tile == Vector2i(1, 0)
+			and roam.behavior == EnemyClassDefinition.Behavior.AGGRESSIVE
+			and roam.decided_by == EnemyPlan.Step.TERRAIN
+	), _describe(roam))
+
+
+# (a) before Hold: a kill it can reach by moving beats shooting the foe in range from its tile.
+func _test_hold_moves_to_kill() -> void:
+	var world: AiWorld = AiWorld.new(_catalog, PLAIN_8X8)
+	world.add_enemy("e1", CROSSBOWMAN, Vector2i(0, 0))
+	world.add_player("p_tough", Vector2i(2, 0), "sword", {CombatValue.Key.DEF: 3.0})
+	world.add_player("p_weak", Vector2i(0, 6), "sword", {CombatValue.Key.DEF: 0.0})
+	world.wound("p_weak", 4)
+	var plan: EnemyPlan = world.decide("e1")
+	_check.call("hold: moves to kill a foe it can reach", (
+			plan.target_id == "p_weak"
+			and plan.is_kill
+			and not plan.path.is_empty()
+			and plan.decided_by == EnemyPlan.Step.KILL
+	), _describe(plan))
+
+
+# (a) by splash: p_b (2 HP, on forest: Hit 45) stands beside (1, 2), a tile the Brute can strike
+# p_a (plain: Hit 60) from. Every unit Cleave can splash the Brute can also strike, so striking
+# p_b is a kill too; the splash kill wins on the higher chance its hit lands.
+func _test_cleave_splash_kill() -> void:
+	var world: AiWorld = AiWorld.new(_catalog, [
+		"plain plain plain plain plain plain",
+		"plain plain plain plain plain plain",
+		"forest plain plain plain plain plain",
+		"plain plain plain plain plain plain",
+	])
+	world.add_enemy("e1", BRUTE, Vector2i(0, 0))
+	world.add_cleave("e1")
+	world.add_player("p_a", Vector2i(2, 2), "bow")
+	world.add_player("p_b", Vector2i(0, 2), "bow")
+	world.wound("p_b", 2)
+	var plan: EnemyPlan = world.decide("e1")
+	var fallen: CombatForecast.UnitOutcome = (
+			null if plan.forecast == null else plan.forecast.unit("p_b")
+	)
+	_check.call("splash: strikes p_a where Cleave finishes p_b", (
+			plan.target_id == "p_a"
+			and plan.tile == Vector2i(1, 2)
+			and plan.is_kill
+			and fallen != null
+			and fallen.is_defeated
+	), _describe(plan))
+	_check.call("splash: decided by the kill's chance", (
+			plan.decided_by == EnemyPlan.Step.KILL_CHANCE
+			and is_equal_approx(plan.kill_chance, RollSource.hit_2rn_probability(60))
+	), _describe(plan))
+
+
+# Cleave on its own ally changes nothing: with a 1-HP ally beside its best tile, the Brute strikes
+# from there as it does with no ally, the ally's fall neither a kill nor a reason to move.
+func _test_splash_on_ally_ignored() -> void:
+	var alone: AiWorld = AiWorld.new(_catalog, PLAIN_6X4)
+	alone.add_enemy("e1", BRUTE, Vector2i(0, 0))
+	alone.add_cleave("e1")
+	alone.add_player("p1", Vector2i(2, 2), "bow")
+	var without: EnemyPlan = alone.decide("e1")
+	var world: AiWorld = AiWorld.new(_catalog, PLAIN_6X4)
+	world.add_enemy("e1", BRUTE, Vector2i(0, 0))
+	world.add_cleave("e1")
+	world.add_enemy("e2", BRUTE, Vector2i(3, 1))
+	world.wound("e2", 1)
+	world.add_player("p1", Vector2i(2, 2), "bow")
+	var plan: EnemyPlan = world.decide("e1")
+	var ally: CombatForecast.UnitOutcome = (
+			null if plan.forecast == null else plan.forecast.unit("e2")
+	)
+	_check.call("splash: its own ally beside the tile changes nothing", (
+			without.tile == Vector2i(2, 1)
+			and plan.tile == without.tile
+			and plan.target_id == "p1"
+			and not plan.is_kill
+			and plan.decided_by == without.decided_by
+	), "%s / %s" % [_describe(without), _describe(plan)])
+	_check.call("splash: the ally falls in the forecast all the same", (
+			ally != null and ally.is_defeated
+	))
 
 
 # The same board gives the same plan, twice and on a sandbox copy of the engine.
