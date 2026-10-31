@@ -6,7 +6,7 @@
 # File:     item_use_resolver.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 29, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 class_name ItemUseResolver
@@ -114,11 +114,13 @@ static func spend(engine: EffectEngine, effects: Array[EffectInstance], target_i
 
 
 # Whether the item's total uses are spent: some effect counts campaign-lane uses and none is left.
+# An effect with no charges counts nothing, such as a potion's heal beside the uses the loadout
+# counts for it ([method Loadout.load_unit]).
 static func _used_up(effects: Array[EffectInstance]) -> bool:
 	var totals: bool = false
 	for instance: EffectInstance in effects:
 		if instance.definition.charges <= 0:
-			return false
+			continue
 		if instance.definition.charge_lane != EffectTerms.Lane.CAMPAIGN:
 			return false
 		totals = true

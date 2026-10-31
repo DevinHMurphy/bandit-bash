@@ -58,6 +58,7 @@ const BAD_TREES: Dictionary[String, String] = {
 	"enemy_class_role": ContentRules.ENEMY_CLASS,
 	"folder_enemy_class": ContentRules.FOLDER,
 	"folder_pack": ContentRules.FOLDER,
+	"double_uses": ContentRules.DOUBLE_USES,
 }
 
 # The trees checked by their own cases rather than BAD_TREES.
@@ -112,6 +113,7 @@ func run() -> void:
 	_test_content_test_over_data()
 	_test_valid_tree_passes()
 	_test_bad_trees()
+	_test_double_uses_tree()
 	_test_warning_tree()
 	_test_price_trees()
 	_test_every_rule_has_a_tree()
@@ -380,6 +382,26 @@ func _test_bad_trees() -> void:
 				_rules(findings, false) == PackedStringArray([rule])
 				and _rules(findings, true).is_empty()
 		), _describe(findings))
+
+
+# The bad tree holds a consumable and a staff, each with uses and its own charged use effect; the
+# valid tree's Everwall has uses 0 and no use effect (unlimited), and its Potion uses and none.
+func _test_double_uses_tree() -> void:
+	var findings: Array[ContentRules.Finding] = ContentRules.new(_tree("double_uses")).check()
+	var files: PackedStringArray = []
+	for finding: ContentRules.Finding in findings:
+		files.append(finding.path.get_file())
+	files.sort()
+	_check.call("bad tree double_uses: fails the consumable and the staff, once each", (
+			files == PackedStringArray(["fixture_mend.tres", "fixture_tonic.tres"])
+	), _describe(findings))
+	var valid: EffectCatalog.Index = _tree("valid")
+	var everwall: StaffDefinition = valid.staff("fixture_everwall")
+	var potion: ConsumableDefinition = valid.consumable("fixture_potion")
+	_check.call("double uses: the valid tree has an unlimited staff and a counted potion", (
+			everwall != null and everwall.uses == 0 and everwall.effects.is_empty()
+			and potion != null and potion.uses == 1
+	), "")
 
 
 func _test_warning_tree() -> void:

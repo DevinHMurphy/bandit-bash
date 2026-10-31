@@ -1,0 +1,42 @@
+[gd_resource type="Resource" script_class="StaffDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="2_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="3_gain"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="4_target"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="5_con"]
+[ext_resource type="Script" path="res://scripts/content/staff_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_target"]
+script = ExtResource("4_target")
+
+[sub_resource type="Resource" id="Resource_amount"]
+script = ExtResource("5_con")
+value = 2.0
+
+[sub_resource type="Resource" id="Resource_heal"]
+script = ExtResource("3_gain")
+pool = 0
+target = SubResource("Resource_target")
+amount = SubResource("Resource_amount")
+
+[sub_resource type="Resource" id="Resource_use"]
+script = ExtResource("1_eff")
+id = "mend"
+operations = Array[ExtResource("2_ops")]([SubResource("Resource_heal")])
+charges = 3
+charge_lane = 0
+
+[resource]
+script = ExtResource("9_def")
+staff_kind = "heal"
+base_amount = 5
+uses = 3
+weapon_type = "staff"
+damage_type = 2
+range_min = 1
+range_max = 1
+rarity = 1
+id = "fixture_mend"
+display_name = "Fixture Mend"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_use")])
