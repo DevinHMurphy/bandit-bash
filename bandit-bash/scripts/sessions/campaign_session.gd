@@ -6,7 +6,7 @@
 # File:     campaign_session.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 30, 2026
+# Modified: October 31, 2026
 # ==============================================================================
 
 class_name CampaignSession
@@ -143,9 +143,9 @@ func add_setup_step(step: CombatEncounter.SetupStep, run: Callable) -> void:
 ## ([method EnemySetup.draw]), runs its setup from fresh setup streams (so a restart from Begin
 ## rolls the same), emits [signal combat_encounter_opened], opens one session per seat with its
 ## seat's [code]COMBAT_ROLLS[/code] stream, places each map's objects ([method MapObjects.place]),
-## enemies ([method EnemySetup.place]) and reinforcement points
-## ([method Reinforcements.register]), registers copies of the carriers of the units and armies in
-## the battle, deploys each army, then opens each map's battle
+## enemies ([method EnemySetup.place]) and reinforcement points ([method Reinforcements.register]),
+## registers the enemy AI ([method EnemyAI.register]) and copies of the carriers of the units and
+## armies in the battle, deploys each army, then opens each map's battle
 ## ([method CombatSession.open_battle]): the opening swap window for the seats whose
 ## [member BattleRequest.opening_swap] setting is on, turn 1's player Phase Start otherwise.
 ## Returns the encounter; null, with nothing begun, when a battle is already on, the run is closed,
@@ -196,6 +196,7 @@ func begin_battle(request: BattleRequest) -> CombatEncounter:
 		EnemySetup.place(session, catalog)
 		# P06's darkness step registers before this (reinforcements.gd:TOD-001).
 		Reinforcements.register(session, _wave_groups)
+		EnemyAI.register(session, catalog)
 	for seat: int in request.armies:
 		_add_heirlooms(catalog, seat, request.armies[seat].heirloom_ids)
 	_register_carriers(battle, request)
