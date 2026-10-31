@@ -6,7 +6,7 @@
 # File:     gain_resource.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 29, 2026
+# Modified: October 31, 2026
 # ==============================================================================
 
 @tool
@@ -27,7 +27,7 @@ enum Pool {
 	HP = 0,
 	## Block, which absorbs damage before HP.
 	BLOCK = 1,
-	## Stance, up to its maximum.
+	## Stance, up to its maximum unless [member can_exceed_maximum].
 	STANCE = 2,
 }
 
@@ -46,6 +46,12 @@ const POOL_TEXT: Dictionary[int, String] = {
 
 ## How much. A negative amount is a loss. [b]Null:[/b] a content error (gains nothing).
 @export var amount: ValueSource = null
+
+## Stance only: the gain may go past the unit's Stance maximum (Triage). The extra lasts until the
+## unit's side's next Phase Start, which sets Stance to its maximum; hits take it first.[br]
+## [b]Off:[/b] the gain stops at the maximum (and never lowers Stance already above it).
+## Ignored for HP and Block and for a loss.
+@export var can_exceed_maximum: bool = false
 
 
 func describe() -> String:
@@ -68,6 +74,9 @@ func describe() -> String:
 	var gained: String = "%s %s" % [how_much, pool_name]
 	if constant == null:
 		gained = "%s equal to %s" % [pool_name, how_much]
+	if pool == Pool.STANCE and can_exceed_maximum:
+		# ASSUMPTION: the wording; no design doc gives Triage's text for going past the maximum.
+		gained += ", even above its maximum"
 	if to_owner:
 		return "gain %s" % [gained]
 	return "give %s %s" % [who, gained]
@@ -94,4 +103,4 @@ func apply(ctx: EffectContext) -> void:
 				else:
 					ctx.engine.gain_block(unit_id, how_much, giver, effect_id)
 			Pool.STANCE:
-				ctx.engine.change_stance(unit_id, how_much, giver, effect_id)
+				ctx.engine.change_stance(unit_id, how_much, giver, effect_id, can_exceed_maximum)

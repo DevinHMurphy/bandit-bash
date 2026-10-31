@@ -19,6 +19,7 @@ script = ExtResource("3_gain")
 pool = 2
 target = SubResource("Resource_ally")
 amount = SubResource("Resource_amount")
+can_exceed_maximum = true
 
 [sub_resource type="Resource" id="Resource_triage"]
 script = ExtResource("1_eff")
@@ -35,6 +36,7 @@ script = ExtResource("3_gain")
 pool = 2
 target = SubResource("Resource_ally")
 amount = SubResource("Resource_amount_plus")
+can_exceed_maximum = true
 
 [sub_resource type="Resource" id="Resource_triage_plus"]
 script = ExtResource("1_eff")

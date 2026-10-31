@@ -6,14 +6,15 @@
 # File:     state_cases.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 27, 2026
+# Modified: October 31, 2026
 # ==============================================================================
 
 extends RefCounted
 ## The combat state's cases for tests/combat/run_all.gd: the stub grid, [CombatUnitState],
 ## [CombatState] (placement, occupancy, the [SandboxState] reads and writes, sandbox copies,
-## defeat), [SplashResolver] through the engine, dormancy, and the combat core's value keys and
-## their default rule bases. Reports each case through the check callable it is given.
+## defeat), Stance past its maximum and what may bring it back, [SplashResolver] through the
+## engine, dormancy, and the combat core's value keys and their default rule bases. Reports each
+## case through the check callable it is given.
 
 # Preloaded scripts used as types (gdscript.md, Naming): the test map and stub have no class name.
 const CombatWorld = preload("res://tests/combat/combat_world.gd")
@@ -41,6 +42,7 @@ func run() -> void:
 	_test_defeat()
 	_test_sandbox_copy()
 	_test_engine_paths()
+	_test_stance_above_maximum()
 	_test_splash()
 	_test_dormancy()
 	_test_sandbox_purity()
@@ -242,6 +244,38 @@ func _test_engine_paths() -> void:
 			"paths: facts",
 			world.kinds(),
 			"BLOCK_GAINED BLOCK_LOST HEALED_AN_ALLY HEALED STANCE_CHANGED EXPOSED STANCE_CHANGED"
+	)
+	_quiet(world)
+
+
+# p1's Stance maximum is 2. A gain allowed past it keeps going; nothing but the Phase Start refresh
+# brings it back: not a capped gain, not a loss, not a change to the maximum itself.
+func _test_stance_above_maximum() -> void:
+	var world: CombatWorld = _two_sides()
+	var engine: EffectEngine = world.engine
+	var state: CombatState = world.state
+	engine.change_stance("p1", 1.0, "p2")
+	_ok("above max: off, a gain at full Stance does nothing", state.get_stance("p1") == 2)
+	_same("above max: off, no fact", world.kinds(), "")
+	_ok("above max: on, a gain at full Stance passes the maximum", (
+			engine.change_stance("p1", 2.0, "p2", "", true) == 2 and state.get_stance("p1") == 4
+	))
+	engine.change_stance("p1", 1.0, "p2")
+	_ok("above max: a capped gain never lowers it", state.get_stance("p1") == 4)
+	world.add_effect("effect:lower", _always(CombatValue.Key.STANCE_MAX, -1.0), "p1")
+	_ok("above max: a lower maximum doesn't clamp it", (
+			engine.stats("p1").get_int(CombatValue.Key.STANCE_MAX) == 1
+			and state.get_stance("p1") == 4
+	))
+	engine.change_stance("p1", -1.0, "e1")
+	_ok("above max: a loss takes the extra first", state.get_stance("p1") == 3)
+	state.set_stance("p2", 0)
+	engine.change_stance("p2", 1.0, "p1", "", true)
+	_ok("above max: on, below the maximum a gain is a plain gain", state.get_stance("p2") == 1)
+	_same(
+			"above max: facts",
+			world.kinds(),
+			"STANCE_CHANGED STANCE_CHANGED STANCE_CHANGED"
 	)
 	_quiet(world)
 

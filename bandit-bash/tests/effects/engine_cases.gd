@@ -6,7 +6,7 @@
 # File:     engine_cases.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 29, 2026
+# Modified: October 31, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -767,6 +767,24 @@ func _test_gain_resource_paths() -> void:
 			+ " | s0#7 EXPOSED p2 effect effect:h"
 			+ " | s0#8 STANCE_CHANGED p2 amount 2 source effect effect effect:h"
 	)
+
+	var capped: GainResource = _gain(GainResource.Pool.STANCE, null, _constant(1.0))
+	var past: GainResource = _gain(GainResource.Pool.STANCE, null, _constant(1.0))
+	past.can_exceed_maximum = true
+	start = engine.fact_log.size()
+	capped.apply(ctx)
+	past.apply(ctx)
+	_same(
+			"gain: off by default, a full Stance gains nothing; on, it passes the maximum",
+			_log_tail(engine, start),
+			"s0#9 STANCE_CHANGED p2 amount 1 source effect effect effect:h"
+	)
+	_ok("gain: Stance is its maximum + 1", fake.unit("p2").stance == 3)
+	var lost: GainResource = _gain(GainResource.Pool.STANCE, null, _constant(-1.0))
+	lost.can_exceed_maximum = true
+	_same("gain: the option's text", " | ".join(PackedStringArray([
+		capped.describe(), past.describe(), lost.describe(),
+	])), "gain 1 Stance | gain 1 Stance, even above its maximum | lose 1 Stance")
 
 
 func _test_deal_splash() -> void:
