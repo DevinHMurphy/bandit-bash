@@ -245,9 +245,44 @@ counter is saved; a resumed enemy phase then mints the ids the first run minted.
   Begin's counter and gets the same ids as the first time.
 - A save from before these sections resumes with a fresh counter. Nothing saved before them holds
   an instance id, so nothing can collide.
-- The battle's effect state (counters, charges, timed modifiers) is the `COMBAT` `effects` section,
-  registered with the combat state by the combat core's save step (P02 CC8) on the capture helpers
-  of the [event bus plan](../plans/2026-10-23-event-bus-and-effects.md) (EB7).
+
+## Combat state
+
+The battle itself is two `COMBAT` sections, one `CombatStateSection` and its partner, which
+`CampaignService` registers in this order ([combat core plan](../plans/2026-10-26-combat-core.md),
+Save Impact):
+
+| Block | Key | Version | Holds |
+|-------|-----|---------|-------|
+| `COMBAT` | `combat_state` | 1 | Each map's units (`CombatUnitState`: tile, HP, Block, Stance, what it did this turn and phase, movement spent, a pending second move, slots, growth changes), weapon records, turn, phase side, ended and not-yet-started seats, rune slots, and the session part (seq, commanders, bases, finished and won); the encounter's seq, arrivals and units on their way between maps |
+| `COMBAT` | `effects` | 1 | Each map's effect engine (instances with counters and charges, timed modifiers, bases and deltas, phase and attack counts) and the encounter's cross-map instances |
+
+```json
+"combat_state": { "version": 1, "data": { "encounter": { }, "sessions": [ { "session": { }, "combat_state": { } } ] } },
+"effects": { "version": 1, "data": { "encounter": { "cross_map": [ ] }, "sessions": [ { } ] } }
+```
+
+- **Built from snapshots.** Each capture takes the battle's `CombatEncounter.snapshot()` and keeps
+  its own parts, so a save and a rejoining client's snapshot can't drift apart. The roll streams
+  are the combat `rng` section's, never these.
+- **Definitions by reference.** An effect is named by its catalog id, or `<carrier id>#<effect id>`
+  inside a carrier (the content test requires an id unique within each carrier). One the loadout
+  made at runtime (a staff's uses, a prefix, stat changes) is described in the save and restores
+  as itself, and an enemy's charge-free use stays unlimited: nothing is re-resolved from the
+  catalog into something else.
+- **Enums by name, ids as strings,** tiles as `[x, y]`, growth changes by stat name.
+- **Load order.** Both sections only check and hold their data while the file loads; `effects`
+  refuses data without `combat_state`, since effects need the battle's units. The held battle
+  loads into a battle rebuilt the way Begin set it up (`CombatStateSection.load_into()`), units and
+  turn before effects. **Not wired yet:** nothing rebuilds the battle on a `BATTLE` resume
+  (`campaign_service.gd:TOD-001`); that is P02 CC10 (battle resume), after P04 MP8.
+- **Missing or old data.** A combat file without these sections (from before them) holds no battle,
+  so `load_into()` returns `ERR_UNCONFIGURED` and the battle restarts from Begin. Version 0 is
+  malformed and a newer version is refused, like any section; either stops the load and gives
+  `BATTLE_RETRY`.
+- **The core follows.** Each capture sets `CombatData`'s `turn` and `phase` to the battle's (the
+  lowest seat's map; the opening swap window counts as turn 1's player phase).
+- **Not here yet:** the map objects' state and P04's facts (`combat_map`, `entities`, P04 MP8).
 
 ## Multiplayer
 

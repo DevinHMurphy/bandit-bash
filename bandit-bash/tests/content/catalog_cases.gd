@@ -6,7 +6,7 @@
 # File:     catalog_cases.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 30, 2026
+# Modified: October 31, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -58,6 +58,8 @@ const BAD_TREES: Dictionary[String, String] = {
 	"enemy_class_role": ContentRules.ENEMY_CLASS,
 	"folder_enemy_class": ContentRules.FOLDER,
 	"folder_pack": ContentRules.FOLDER,
+	"carrier_effect_id_missing": ContentRules.CARRIER_EFFECT_ID,
+	"carrier_effect_id_repeated": ContentRules.CARRIER_EFFECT_ID,
 	"double_uses": ContentRules.DOUBLE_USES,
 }
 

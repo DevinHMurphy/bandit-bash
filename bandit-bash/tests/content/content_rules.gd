@@ -6,7 +6,7 @@
 # File:     content_rules.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 30, 2026
+# Modified: October 31, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -25,8 +25,9 @@ extends RefCounted
 ## operations, no faction lists its commander among its starting units, and starting gear fits
 ## its slots. P05's rules (enemies and AI plan, EN1): enemy classes live in enemies/ and packs in
 ## enemies/packs/, a pack names only enemy classes, each at least once, and an enemy class has
-## target rule text and is never a commander or given a role. [constant LOAD] fails a file the
-## catalog turned away.[br]
+## target rule text and is never a commander or given a role. P02's rule (event bus plan,
+## question 60): every effect inside a carrier has an id unique within it, which saves name it
+## by. [constant LOAD] fails a file the catalog turned away.[br]
 ## The price rules read the price through a callable, so their fixtures can run against a table
 ## with a row missing or a price for an unsold rarity, which [Prices] itself never has.
 ##
@@ -70,6 +71,9 @@ const GEAR_SLOT: String = "gear_slot"
 const PACK_COUNT: String = "pack_count"
 ## An enemy class with no target rule text, a commander flag or a role.
 const ENEMY_CLASS: String = "enemy_class"
+## An effect inside a carrier with no id, or with the id of another effect of that carrier: a
+## saved instance names it by both ([method EffectInstance.catalog_reference]).
+const CARRIER_EFFECT_ID: String = "carrier_effect_id"
 ## A staff or consumable with uses and its own charged use effect: combat would count its uses
 ## twice.
 const DOUBLE_USES: String = "double_uses"
@@ -93,6 +97,7 @@ const FAILURE_RULES: PackedStringArray = [
 	GEAR_SLOT,
 	PACK_COUNT,
 	ENEMY_CLASS,
+	CARRIER_EFFECT_ID,
 	DOUBLE_USES,
 ]
 
@@ -387,6 +392,8 @@ func _known_all(
 func _check_effects(path: String, resource: Resource) -> void:
 	var is_heirloom: bool = resource is HeirloomDefinition
 	var effects: Array[EffectDefinition] = _effects_of(resource)
+	if resource is EffectCarrierDefinition:
+		_check_carrier_ids(path, effects)
 	for index: int in effects.size():
 		var effect: EffectDefinition = effects[index]
 		var where: String = "effect %d" % [index]
@@ -405,6 +412,23 @@ func _check_effects(path: String, resource: Resource) -> void:
 					_fail(INLINE_WITHOUT_WINDOW, path, "%s: \"%s\" is inline on %s" % [
 						where, operation.describe(), EffectTerms.TRIGGER_TEXT[effect.trigger],
 					])
+
+
+# An unset slot is the text rule's, so only the set effects are checked here.
+func _check_carrier_ids(path: String, effects: Array[EffectDefinition]) -> void:
+	var seen: Dictionary[String, int] = {}
+	for index: int in effects.size():
+		var effect: EffectDefinition = effects[index]
+		if effect == null:
+			continue
+		if effect.id.is_empty():
+			_fail(CARRIER_EFFECT_ID, path, "effect %d has no id" % [index])
+		elif seen.has(effect.id):
+			_fail(CARRIER_EFFECT_ID, path, "effects %d and %d share the id \"%s\"" % [
+				seen[effect.id], index, effect.id,
+			])
+		else:
+			seen[effect.id] = index
 
 
 func _check_effect_text(path: String, where: String, effect: EffectDefinition) -> void:
@@ -525,6 +549,8 @@ func _check_pack_counts(path: String, pack: PackDefinition) -> void:
 			])
 
 
+# NOTE: The carrier lists EffectInstance._carried_effects names saved effects in; keep them in
+# step.
 # Every effect [param resource] carries, in its lists' order: a carrier's effects, a unit type's
 # innate and upgraded effects too, or a standalone effect itself.
 func _effects_of(resource: Resource) -> Array[EffectDefinition]:

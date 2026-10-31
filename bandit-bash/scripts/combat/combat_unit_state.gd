@@ -6,7 +6,7 @@
 # File:     combat_unit_state.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 29, 2026
+# Modified: October 30, 2026
 # ==============================================================================
 
 class_name CombatUnitState
@@ -17,9 +17,12 @@ extends RefCounted
 ## Plain data with ids only, owned by [CombatState]; [Loadout] builds it from a unit's instance.
 ## Maximum HP, maximum Stance and every combat value are queries ([method EffectEngine.stats]),
 ## never stored here. Rules code changes HP, Block and Stance only through the effect engine's
-## resource paths and the combat core's damage rules, which emit the facts.
+## resource paths and the combat core's damage rules, which emit the facts. [method capture] and
+## [method from_capture] carry it as plain JSON into snapshots and the [code]combat_state[/code]
+## save section ([CombatStateSection]).
 ##
 ## @tutorial(Combat core plan): docs/plans/2026-10-26-combat-core.md
+## @tutorial(Save system design): docs/design/save-system.md
 
 ## Instance id, such as [code]unit:57[/code]. Never parsed.
 var id: String = ""
@@ -138,3 +141,145 @@ func copy() -> CombatUnitState:
 ## How many items its Pouch holds, a stowed weapon included.
 func pouch_count() -> int:
 	return (0 if pouch_item_id.is_empty() else 1) + (0 if stowed_weapon_id.is_empty() else 1)
+
+
+## Every field as plain JSON values: enums by name, the tile as [code][x, y][/code], growth
+## changes by stat name. [method from_capture] reverses it.
+func capture() -> Dictionary:
+	var growths: Dictionary = {}
+	var stats: Array = growth_changes.keys()
+	stats.sort()
+	for stat: Variant in stats:
+		growths[CombatValue.Stat.find_key(stat) as String] = growth_changes[stat]
+	return {
+		"id": id,
+		"side": CombatFact.CombatSide.find_key(side) as String,
+		"seat": seat,
+		"tile": [tile.x, tile.y],
+		"movement_type": CombatGrid.MovementType.find_key(movement_type) as String,
+		"tags": Array(tags),
+		"unit_type": unit_type,
+		"role": role,
+		"hp": hp,
+		"block": block,
+		"stance": stance,
+		"has_acted": has_acted,
+		"tiles_moved": tiles_moved,
+		"movement_spent": movement_spent,
+		"is_second_move_pending": is_second_move_pending,
+		"has_been_shoved": has_been_shoved,
+		"has_used_sidearm": has_used_sidearm,
+		"equipped_weapon_id": equipped_weapon_id,
+		"stowed_weapon_id": stowed_weapon_id,
+		"equipment_id": equipment_id,
+		"pouch_item_id": pouch_item_id,
+		"pouch_item_weight": pouch_item_weight,
+		"growth_changes": growths,
+		"is_defeated": is_defeated,
+	}
+
+
+## A unit from [method capture] output, also after a trip through JSON, where numbers arrive as
+## floats. Returns [code]null[/code] when a field is missing, of the wrong type, not a whole
+## number, or names an unknown enum value; the caller reports it.
+static func from_capture(data: Dictionary) -> CombatUnitState:
+	var side_name: String = str(data.get("side", ""))
+	var movement_name: String = str(data.get("movement_type", ""))
+	var tile_data: Variant = data.get("tile", null)
+	var tag_data: Variant = data.get("tags", null)
+	var growth_data: Variant = data.get("growth_changes", null)
+	if (
+			not data.get("id", null) is String
+			or (data["id"] as String).is_empty()
+			or not CombatFact.CombatSide.has(side_name)
+			or not CombatGrid.MovementType.has(movement_name)
+			or not tile_data is Array
+			or (tile_data as Array).size() != 2
+			or not tag_data is Array
+			or not growth_data is Dictionary
+	):
+		return null
+	var numbers: Dictionary[String, int] = {}
+	for field: String in [
+		"seat", "hp", "block", "stance", "tiles_moved", "movement_spent", "pouch_item_weight",
+	]:
+		var number: Variant = _whole(data.get(field, null))
+		if number == null:
+			return null
+		numbers[field] = number
+	var flags: Dictionary[String, bool] = {}
+	for field: String in [
+		"has_acted",
+		"is_second_move_pending",
+		"has_been_shoved",
+		"has_used_sidearm",
+		"is_defeated",
+	]:
+		if not data.get(field, null) is bool:
+			return null
+		flags[field] = data[field]
+	var texts: Dictionary[String, String] = {}
+	for field: String in [
+		"unit_type", "role", "equipped_weapon_id", "stowed_weapon_id", "equipment_id",
+		"pouch_item_id",
+	]:
+		if not data.get(field, null) is String:
+			return null
+		texts[field] = data[field]
+	var tile_parts: Array = tile_data
+	var x: Variant = _whole(tile_parts[0])
+	var y: Variant = _whole(tile_parts[1])
+	if x == null or y == null:
+		return null
+
+	var unit: CombatUnitState = CombatUnitState.new()
+	unit.id = data["id"]
+	var side_value: int = CombatFact.CombatSide[side_name]
+	unit.side = side_value as CombatFact.CombatSide
+	var movement_value: int = CombatGrid.MovementType[movement_name]
+	unit.movement_type = movement_value as CombatGrid.MovementType
+	unit.tile = Vector2i(x as int, y as int)
+	# Untyped: the parts come from JSON and are checked entry by entry.
+	for tag: Variant in tag_data:
+		if not tag is String:
+			return null
+		unit.tags.append(tag as String)
+	var by_stat: Dictionary = growth_data
+	for stat_name: Variant in by_stat:
+		var points: Variant = _whole(by_stat[stat_name])
+		if not CombatValue.Stat.has(stat_name) or points == null:
+			return null
+		var stat_value: int = CombatValue.Stat[stat_name]
+		unit.growth_changes[stat_value] = points
+	unit.seat = numbers["seat"]
+	unit.hp = numbers["hp"]
+	unit.block = numbers["block"]
+	unit.stance = numbers["stance"]
+	unit.tiles_moved = numbers["tiles_moved"]
+	unit.movement_spent = numbers["movement_spent"]
+	unit.pouch_item_weight = numbers["pouch_item_weight"]
+	unit.has_acted = flags["has_acted"]
+	unit.is_second_move_pending = flags["is_second_move_pending"]
+	unit.has_been_shoved = flags["has_been_shoved"]
+	unit.has_used_sidearm = flags["has_used_sidearm"]
+	unit.is_defeated = flags["is_defeated"]
+	unit.unit_type = texts["unit_type"]
+	unit.role = texts["role"]
+	unit.equipped_weapon_id = texts["equipped_weapon_id"]
+	unit.stowed_weapon_id = texts["stowed_weapon_id"]
+	unit.equipment_id = texts["equipment_id"]
+	unit.pouch_item_id = texts["pouch_item_id"]
+	return unit
+
+
+# value as an int when it is one, or a whole float within JSON's exact range; null otherwise.
+# NOTE: The same rule as CombatSession._wire_int; keep them in step.
+static func _whole(value: Variant) -> Variant:
+	if value is int:
+		return value
+	if not value is float:
+		return null
+	var number: float = value
+	if number != floorf(number) or absf(number) > CombatFact.MAX_EXACT_JSON_INT:
+		return null
+	return int(number)

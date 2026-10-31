@@ -6,7 +6,7 @@
 # File:     object_cases.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 29, 2026
+# Modified: October 31, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -129,7 +129,7 @@ func _test_chest() -> void:
 	)
 	_ok("chest: opened with a key", batch.rejected_reason.is_empty(), batch.rejected_reason)
 	_same_lines("chest: golden log", world.lines(start), [
-		"UNIT_MOVED p1 tile (1, 0)",
+		"UNIT_MOVED p1 amount 1 tile (1, 0)",
 		"EFFECT_ACTIVATED p1 effect eff:key:p1",
 		"OBJECT_USED p1 -> object:0 item item:key:p1 tile (1, 0)",
 		"OBJECT_STATE_CHANGED object:0 -> p1 change 0 tile (1, 0)",
@@ -255,7 +255,7 @@ func _test_searchables() -> void:
 	var start: int = world.log_size()
 	world.send(world.use("p1", "object:0", [Vector2i(1, 1), Vector2i(1, 0)]))
 	_same_lines("house: golden log", world.lines(start), [
-		"UNIT_MOVED p1 tile (1, 0)",
+		"UNIT_MOVED p1 amount 1 tile (1, 0)",
 		"OBJECT_USED p1 -> object:0 tile (1, 0)",
 		"OBJECT_STATE_CHANGED object:0 -> p1 change 2 tile (1, 0)",
 	])

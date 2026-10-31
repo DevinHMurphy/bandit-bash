@@ -16,8 +16,9 @@ extends SceneTree
 ## battle bridge and grants, with armies loaded through [Loadout]; and the
 ## [code]CampaignService[/code] autoload's lifecycle and its [RngSaveSection]s and
 ## [InstanceIdSaveSection]s. Serialization, snapshots, mirrors and repro dumps are in
-## wire_cases.gd. Every catalog definition and loadout fixture is hashed before the first case and
-## after the last, and the run fails if any changed.
+## wire_cases.gd; the battle save ([CombatStateSection], resuming mid-phase, mirrors after a swap
+## or a spawn, units on their way) in save_cases.gd. Every catalog definition and loadout fixture
+## is hashed before the first case and after the last, and the run fails if any changed.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/sessions/run_all.gd[/code][br]
@@ -39,10 +40,11 @@ extends SceneTree
 const FIXTURE_SCENE: PackedScene = preload("res://tests/map/fixture_map.tscn")
 
 # Preloaded scripts used as types (gdscript.md, Naming): the content suite's hashing, the loadout
-# fixture tree the bridge cases load units from, and the wire cases (no class name).
+# fixture tree the bridge cases load units from, and the wire and save cases (no class name).
 const CatalogCases = preload("res://tests/content/catalog_cases.gd")
 const LoadoutCases = preload("res://tests/content/loadout_cases.gd")
 const WireCases = preload("res://tests/sessions/wire_cases.gd")
+const SaveCases = preload("res://tests/sessions/save_cases.gd")
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
@@ -131,11 +133,13 @@ func _process(_delta: float) -> bool:
 	_run(_test_service_rng_battle_streams)
 	_run(_test_service_rng_held_data_dropped)
 	_run(_test_service_instance_ids)
+	_run(_test_service_combat_state)
 
 	_run(_test_logger_gating)
 	_run(_test_logging_changes_nothing)
 
 	WireCases.new(_check).run()
+	SaveCases.new(_check).run()
 
 	var changed: PackedStringArray = CatalogCases.changed_definitions(
 			before, CatalogCases.hash_definitions([LoadoutCases.TREE])
@@ -1996,6 +2000,89 @@ func _test_service_instance_ids() -> bool:
 			and retry_point == CombatData.ResumePoint.BATTLE_RETRY
 			and retried.ids.get_next_value() == at_begin
 	), "next %d, Begin %d" % [retried.ids.get_next_value(), at_begin])
+
+	saves.call(&"abandon_run", CampaignData.Mode.SOLO)
+	saves.call(&"close_save_file")
+	SaveFile.delete_folder("user://saves/")
+	return true
+
+
+# The combat_state and effects sections through the real SaveService (combat core plan, CC8): a
+# checkpoint mid-phase writes both at version 1 with the core's turn and phase equal to the
+# battle's, and a continued run holds them until they load into the battle rebuilt from Begin.
+func _test_service_combat_state() -> bool:
+	if not _has_test_user_dir():
+		_skips += 1
+		print("SKIP  service combat state: needs a test user folder (see the class doc)")
+		return true
+	var saves: Node = root.get_node(^"SaveService")
+	var service: Node = root.get_node(^"CampaignService")
+	SaveFile.delete_folder("user://saves/")
+
+	saves.call(&"open_save_file", 1)
+	saves.call(&"start_new_solo_run", RUN_SEED)
+	var run: CampaignSession = service.get(&"session")
+	var begun: int = service.call(&"begin_battle", _request(run, {0: ["Drengr", "Archer"]}))
+	var session: CombatSession = run.encounter.get_session(0)
+	var units: PackedStringArray = session.state.units_of(PLAYER)
+	# In the swap window, as WireCases.Bridge does: a map with no enemy is won at turn 1.
+	var sword: CombatState.WeaponStats = WireCases.Kit.weapon(
+			run.ids.next_item_id("Sword"), "sword"
+	)
+	session.state.add_weapon(sword)
+	var brute: CombatUnitState = CombatUnitState.new()
+	brute.id = run.ids.next_enemy_id("Brute")
+	brute.side = ENEMY
+	brute.tile = Vector2i(3, 2)
+	brute.hp = 40
+	brute.equipped_weapon_id = sword.id
+	session.add_unit(brute, WireCases.Kit.bases(40.0))
+	session.flush("enemies")
+	session.submit(StartCommand.new(0))
+	session.submit(UnitTurnCommand.new(0, units[0], UnitTurnCommand.Action.WAIT, ""))
+	session.resolve_queued()
+	var saved: int = saves.call(&"save_checkpoint")
+	var saved_hash: int = session.state_hash()
+	var core: CombatData = saves.get(&"combat")
+	var combat_path: String = (
+			(saves.call(&"get_save_file_dir", 1) as String)
+			+ CombatData.get_file_name(CampaignData.Mode.SOLO)
+	)
+	var sections: Dictionary = SaveFile.read(combat_path).envelope.get(SaveFile.KEY_SECTIONS, {})
+	var versions: Array[int] = []
+	for key: String in ["combat_state", "effects"]:
+		var entry: Dictionary = sections.get(key, {})
+		var version: float = entry.get("version", 0.0)
+		versions.append(roundi(version))
+	_check("service combat state: a checkpoint writes both sections and the core's turn", (
+			begun == OK
+			and saved == OK
+			and versions == [1, 1]
+			and core.turn == 1
+			and core.phase == CombatData.Phase.PLAYER
+			and session.state.unit(units[0]).has_acted
+	), "%s, versions %s" % [error_string(saved), versions])
+
+	saves.call(&"close_save_file")
+	saves.call(&"open_save_file", 1)
+	saves.call(&"continue_solo_run")
+	var resumed: CampaignSession = service.get(&"session")
+	var section: CombatStateSection = service.get(&"_combat_state")
+	var resume_point: int = saves.get(&"resume_point")
+	var holding: bool = section.is_holding()
+	# Until the resume flow exists (campaign_service.gd:TOD-001), the battle is rebuilt by hand.
+	resumed.begin_battle(_request(resumed, {0: ["Drengr", "Archer"]}))
+	var loaded: Error = section.load_into(resumed.encounter)
+	var again: CombatSession = resumed.encounter.get_session(0)
+	_check("service combat state: a continued run loads the battle into its rebuilt one", (
+			resume_point == CombatData.ResumePoint.BATTLE
+			and holding
+			and loaded == OK
+			and not section.is_holding()
+			and again.state_hash() == saved_hash
+			and again.state.unit(units[0]).has_acted
+			and again.state.has_unit(brute.id)
+	), "resume point %d, %s, holding %s" % [resume_point, error_string(loaded), holding])
 
 	saves.call(&"abandon_run", CampaignData.Mode.SOLO)
 	saves.call(&"close_save_file")

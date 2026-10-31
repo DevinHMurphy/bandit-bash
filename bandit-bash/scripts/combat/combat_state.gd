@@ -6,7 +6,7 @@
 # File:     combat_state.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 29, 2026
+# Modified: October 31, 2026
 # ==============================================================================
 
 class_name CombatState
@@ -28,11 +28,40 @@ extends SandboxState
 ## holder's base values when the unit is placed or swaps weapons ([method load_bases]), so effects
 ## that replace a weapon's base (Short Quiver's range) and conditions that read it (at maximum
 ## range) see the weapon in the Weapon slot. A weapon prefix and an item's deltas are effects of
-## the item, never part of its record, so they sleep with a stowed weapon.
+## the item, never part of its record, so they sleep with a stowed weapon.[br]
+## [b]Saves and mirrors:[/b] [method capture] and [method restore] carry everything but
+## [member grid] and [member map] (P04's) as plain JSON, for snapshots and the
+## [code]combat_state[/code] save section; a client mirror applies the host's facts with
+## [method follow].
 ##
 ## @tutorial(Combat core plan): docs/plans/2026-10-26-combat-core.md
+## @tutorial(Save system design): docs/design/save-system.md
 ##
 ## @todo: TOD-001 - Answer darkness_layer() from the darkness plan (P06); every tile is DRY.
+## @todo: TOD-002 - Save an area staff's shape by its content id once P03 CT6 gives records one
+## (loadout.gd:TOD-001); [method WeaponStats.capture] leaves [member WeaponStats.area] out.
+
+# Facts follow() applies only once the engine has followed every fact before them: a refresh and a
+# placement read the unit's Stance maximum, a Pouch item's use reads its charges.
+const _FOLLOWED_AFTER_ENGINE: Array[CombatFact.Kind] = [
+	CombatFact.Kind.BLOCK_STANCE_REFRESHED,
+	CombatFact.Kind.ITEM_USED,
+	CombatFact.Kind.UNIT_SPAWNED,
+]
+
+# Facts whose actor took its action, which ends its turn. An attack's is the attacker's Before
+# Combat and a swap's is WEAPON_SWAPPED, which follow() tells apart from the defender's and from a
+# free swap.
+const _ACTION_KINDS: Array[CombatFact.Kind] = [
+	CombatFact.Kind.ITEM_USED,
+	CombatFact.Kind.SHOVED_A_UNIT,
+	CombatFact.Kind.USED_STAFF_ON_ALLY,
+	CombatFact.Kind.UNIT_WAITED,
+	CombatFact.Kind.OBJECT_USED,
+]
+
+# What _seat_list() returns inside a list that isn't one; never a seat.
+const _NO_SEAT: int = -1
 
 ## Terrain and walls. Shared with sandbox copies. Never null in use.
 var grid: CombatGrid = null
@@ -55,7 +84,7 @@ var is_phase_ended: bool = false
 
 ## Seats in the opening swap window ([member MapState.opening_swap_open]) that haven't sent their
 ## Start: those with the opening-swap setting on and units on the map. Turn 1's player Phase Start
-## runs when it empties ([method PhaseRunner.start]). Not saved yet (P02 CC8).
+## runs when it empties ([method PhaseRunner.start]).
 var seats_to_start: PackedInt32Array = []
 
 ## Rune instance ids in each seat's slots, copied in at battle start by the campaign bridge. A cast
@@ -252,6 +281,233 @@ func wait(engine: EffectEngine, id: String) -> bool:
 	return true
 
 
+## This state as plain JSON values: the turn, the phase and its side, the seats that have ended
+## or not yet started, each seat's rune slots, every unit placed ([method CombatUnitState.capture],
+## defeated ones and map objects included, in placement order) and every weapon record, by id.
+## Seat lists are sorted, so equal states write equal text. [method restore] reverses it.
+func capture() -> Dictionary:
+	var runes: Dictionary = {}
+	var rune_seats: Array[int] = rune_slots.keys()
+	rune_seats.sort()
+	for seat: int in rune_seats:
+		runes[str(seat)] = Array(rune_slots[seat])
+	var units: Array = []
+	for id: String in _order:
+		units.append(_units[id].capture())
+	var weapon_ids: Array[String] = _weapons.keys()
+	weapon_ids.sort()
+	var weapons: Array = []
+	for weapon_id: String in weapon_ids:
+		weapons.append(_weapons[weapon_id].capture())
+	var ended: PackedInt32Array = ended_seats.duplicate()
+	ended.sort()
+	var starting: PackedInt32Array = seats_to_start.duplicate()
+	starting.sort()
+	return {
+		"turn": turn,
+		"phase_side": CombatFact.CombatSide.find_key(phase_side) as String,
+		"is_phase_ended": is_phase_ended,
+		"ended_seats": Array(ended),
+		"seats_to_start": Array(starting),
+		"rune_slots": runes,
+		"units": units,
+		"weapons": weapons,
+	}
+
+
+## Replaces everything [method capture] holds with [param data], also after a trip through JSON;
+## occupancy is rebuilt from the units on the map. [member grid] and [member map] are untouched,
+## but for [member MapState.opening_swap_open], which is open exactly while
+## [member seats_to_start] isn't empty ([PhaseRunner]). Bases and effects are the engine's
+## ([method EffectEngine.restore]). Returns [constant OK], or
+## [constant ERR_INVALID_DATA], changing nothing, when any part is malformed, an id repeats, two
+## units on the map share a tile, or a unit holds a weapon with no record.
+func restore(data: Dictionary) -> Error:
+	var turn_number: Variant = _whole(data.get("turn", null))
+	var side_name: String = str(data.get("phase_side", ""))
+	var ended: PackedInt32Array = _seat_list(data.get("ended_seats", null))
+	var starting: PackedInt32Array = _seat_list(data.get("seats_to_start", null))
+	var runes: Variant = data.get("rune_slots", null)
+	var unit_data: Variant = data.get("units", null)
+	var weapon_data: Variant = data.get("weapons", null)
+	if (
+			turn_number == null
+			or not CombatFact.CombatSide.has(side_name)
+			or not data.get("is_phase_ended", null) is bool
+			or ended.has(_NO_SEAT)
+			or starting.has(_NO_SEAT)
+			or not runes is Dictionary
+			or not unit_data is Array
+			or not weapon_data is Array
+	):
+		return ERR_INVALID_DATA
+	var slots: Dictionary[int, PackedStringArray] = {}
+	var by_seat: Dictionary = runes
+	for seat_text: Variant in by_seat:
+		var listed: Variant = by_seat[seat_text]
+		if not str(seat_text).is_valid_int() or not listed is Array:
+			return ERR_INVALID_DATA
+		var rune_ids: PackedStringArray = []
+		# Untyped: the parts come from JSON and are checked entry by entry.
+		for rune_id: Variant in listed:
+			if not rune_id is String:
+				return ERR_INVALID_DATA
+			rune_ids.append(rune_id as String)
+		slots[str(seat_text).to_int()] = rune_ids
+	var weapons: Dictionary[String, WeaponStats] = {}
+	for entry: Variant in weapon_data:
+		var record: WeaponStats = (
+				WeaponStats.from_capture(entry as Dictionary) if entry is Dictionary else null
+		)
+		if record == null or weapons.has(record.id):
+			return ERR_INVALID_DATA
+		weapons[record.id] = record
+	var units: Dictionary[String, CombatUnitState] = {}
+	var order: PackedStringArray = []
+	var occupancy: Dictionary[Vector2i, String] = {}
+	for entry: Variant in unit_data:
+		var placed: CombatUnitState = (
+				CombatUnitState.from_capture(entry as Dictionary) if entry is Dictionary else null
+		)
+		if placed == null or units.has(placed.id):
+			return ERR_INVALID_DATA
+		for weapon_id: String in [placed.equipped_weapon_id, placed.stowed_weapon_id]:
+			if not weapon_id.is_empty() and not weapons.has(weapon_id):
+				return ERR_INVALID_DATA
+		if not placed.is_defeated:
+			if placed.tile == CombatFact.NO_TILE or occupancy.has(placed.tile):
+				return ERR_INVALID_DATA
+			occupancy[placed.tile] = placed.id
+		units[placed.id] = placed
+		order.append(placed.id)
+
+	turn = turn_number
+	var side_value: int = CombatFact.CombatSide[side_name]
+	phase_side = side_value as CombatFact.CombatSide
+	is_phase_ended = data["is_phase_ended"]
+	ended_seats = ended
+	seats_to_start = starting
+	map.opening_swap_open = not starting.is_empty()
+	rune_slots = slots
+	_units = units
+	_order = order
+	_occupancy = occupancy
+	_weapons = weapons
+	return OK
+
+
+## Applies [param facts], one batch the host recorded, to this state and to [param engine], as a
+## client mirror does: the combat core's facts change the units, the turn and the phase as the
+## host's rules did, and the engine follows the effects' state ([method EffectEngine.follow]) in
+## step, so a value read mid-batch (the Stance a refresh sets, a Pouch item's last use) is the one
+## the host read. Draws no roll and fires nothing. Not followed: map objects (P04), a non-final End
+## Turn or Start on a map several seats share, and a second move that goes nowhere.
+## [param spawned]: units this state doesn't know, by id, each placed at its
+## [constant CombatFact.Kind.UNIT_SPAWNED] ([member CombatSession.FactBatch.spawned]); add their
+## weapons, bases and effects to [param engine] first.
+func follow(
+		engine: EffectEngine,
+		facts: Array[CombatFact],
+		spawned: Dictionary[String, CombatUnitState] = {}
+) -> void:
+	var waiting: Array[CombatFact] = []
+	# The exchange whose two Before Combat facts are open, "attacker>defender", and the last unit
+	# that swapped weapons: an attack right after its swap was a free Sidearm swap.
+	var open_exchange: String = ""
+	var swapped_id: String = ""
+	for fact: CombatFact in facts:
+		if _FOLLOWED_AFTER_ENGINE.has(fact.kind) and not waiting.is_empty():
+			engine.follow(waiting)
+			waiting = []
+		waiting.append(fact)
+		var actor: CombatUnitState = _units.get(fact.actor_id, null)
+		if actor != null and _ACTION_KINDS.has(fact.kind):
+			actor.has_acted = true
+		if actor != null and (fact.flags & CombatFact.Flag.SECOND_MOVE_PENDING) != 0:
+			actor.is_second_move_pending = true
+		match fact.kind:
+			CombatFact.Kind.PHASE_START:
+				_follow_phase_start(fact)
+			CombatFact.Kind.PHASE_END:
+				is_phase_ended = true
+				if fact.side == CombatFact.CombatSide.PLAYER:
+					ended_seats = _seats_on_map()
+			CombatFact.Kind.BLOCK_STANCE_REFRESHED:
+				if actor != null:
+					actor.has_acted = false
+					actor.tiles_moved = 0
+					actor.movement_spent = 0
+					actor.is_second_move_pending = false
+					actor.has_used_sidearm = false
+					actor.block = 0
+					actor.stance = engine.stats(actor.id).get_int(CombatValue.Key.STANCE_MAX)
+			CombatFact.Kind.UNIT_MOVED:
+				_follow_move(fact.actor_id, fact.tile)
+				# Only a unit's own walk counts; after its action, that walk is its second move.
+				if actor != null and fact.amount > 0:
+					actor.tiles_moved += fact.amount
+					actor.movement_spent += fact.key
+					if actor.has_acted:
+						actor.is_second_move_pending = false
+			CombatFact.Kind.UNIT_SPAWNED:
+				if not _units.has(fact.actor_id) and spawned.has(fact.actor_id):
+					place_unit(engine, spawned[fact.actor_id])
+			CombatFact.Kind.DAMAGE_TAKEN:
+				if actor != null:
+					actor.hp = maxi(0, actor.hp - fact.hp_amount)
+					actor.block = maxi(0, actor.block - fact.block_amount)
+			CombatFact.Kind.HEALED:
+				if actor != null:
+					actor.hp += fact.hp_amount
+			CombatFact.Kind.BLOCK_GAINED:
+				if actor != null:
+					actor.block += fact.amount
+			CombatFact.Kind.BLOCK_LOST:
+				if actor != null:
+					actor.block = maxi(0, actor.block - fact.amount)
+			CombatFact.Kind.STANCE_CHANGED:
+				if actor != null:
+					actor.stance = maxi(0, actor.stance + fact.amount)
+			CombatFact.Kind.DEFEATED:
+				if has_unit(fact.actor_id):
+					actor.is_defeated = true
+					_occupancy.erase(actor.tile)
+			CombatFact.Kind.BEFORE_COMBAT:
+				if open_exchange == "%s>%s" % [fact.target_id, fact.actor_id]:
+					open_exchange = ""
+				elif actor != null:
+					open_exchange = "%s>%s" % [fact.actor_id, fact.target_id]
+					actor.has_acted = true
+					if swapped_id == fact.actor_id:
+						actor.has_used_sidearm = true
+			CombatFact.Kind.WEAPON_SWAPPED:
+				if actor != null:
+					actor.stowed_weapon_id = actor.equipped_weapon_id
+					actor.equipped_weapon_id = fact.item_id
+					# A free Sidearm swap is told apart by the attack that follows it.
+					actor.has_acted = true
+					swapped_id = fact.actor_id
+					load_bases(engine, fact.actor_id)
+			CombatFact.Kind.ITEM_USED:
+				if actor != null and _is_used_up(engine, fact.item_id):
+					actor.pouch_item_id = ""
+					load_bases(engine, fact.actor_id)
+			CombatFact.Kind.SHOVED:
+				if actor != null:
+					actor.has_been_shoved = true
+			CombatFact.Kind.RUNE_USED:
+				if rune_slots.has(fact.amount):
+					var slots: PackedStringArray = rune_slots[fact.amount]
+					var index: int = slots.find(fact.item_id)
+					if index >= 0:
+						slots.remove_at(index)
+						rune_slots[fact.amount] = slots
+			CombatFact.Kind.GROWTH_CHANGED:
+				add_growth(fact.actor_id, fact.key, fact.amount)
+	if not waiting.is_empty():
+		engine.follow(waiting)
+
+
 func copy_for_sandbox() -> SandboxState:
 	var copy: CombatState = CombatState.new(grid)
 	copy.map = map.copy()
@@ -368,6 +624,85 @@ func deal_splash(
 	)
 
 
+# A PHASE_START as PhaseRunner._phase_start changes the state: a player Phase Start raises the
+# turn (the fact carries it), clears the ended seats and closes the opening swap window.
+func _follow_phase_start(fact: CombatFact) -> void:
+	if fact.side == CombatFact.CombatSide.PLAYER:
+		turn = fact.amount
+		ended_seats.clear()
+		seats_to_start.clear()
+		map.opening_swap_open = false
+	phase_side = fact.side
+	is_phase_ended = false
+	for id: String in unit_ids():
+		_units[id].has_been_shoved = false
+
+
+# A UNIT_MOVED to tile. A swap (the opening swap, Recall) records both units' moves, so the first
+# finds the other unit on its tile: they swap then, and the second move changes nothing.
+func _follow_move(id: String, tile: Vector2i) -> void:
+	if not has_unit(id) or tile == CombatFact.NO_TILE or _units[id].tile == tile:
+		return
+	var occupant: String = occupant_at(tile)
+	if occupant.is_empty():
+		move_unit(id, tile)
+	elif has_unit(occupant):
+		swap_units(id, occupant)
+
+
+# The seats with player units on the map, ascending: the seats that have ended at a player Phase
+# End, since it runs only once every one of them has.
+func _seats_on_map() -> PackedInt32Array:
+	var found: PackedInt32Array = []
+	for id: String in units_of(CombatFact.CombatSide.PLAYER):
+		if not found.has(_units[id].seat):
+			found.append(_units[id].seat)
+	found.sort()
+	return found
+
+
+# Whether item_id's use effects are used up, which takes it out of its holder's Pouch.
+# NOTE: The same test as ItemUseResolver._used_up; keep them in step.
+static func _is_used_up(engine: EffectEngine, item_id: String) -> bool:
+	var totals: bool = false
+	for instance: EffectInstance in ItemUseResolver.use_effects(engine, item_id):
+		if instance.definition.charges <= 0:
+			return false
+		if instance.definition.charge_lane != EffectTerms.Lane.CAMPAIGN:
+			return false
+		totals = true
+		if instance.has_charge():
+			return false
+	return totals
+
+
+# The seats in value, a JSON array of whole numbers; a list holding _NO_SEAT when it isn't one.
+static func _seat_list(value: Variant) -> PackedInt32Array:
+	if not value is Array:
+		return PackedInt32Array([_NO_SEAT])
+	var seats: PackedInt32Array = []
+	# Untyped: the parts come from JSON and are checked entry by entry.
+	for entry: Variant in value:
+		var seat: Variant = _whole(entry)
+		if seat == null or (seat as int) < 0:
+			return PackedInt32Array([_NO_SEAT])
+		seats.append(seat as int)
+	return seats
+
+
+# value as an int when it is one, or a whole float within JSON's exact range; null otherwise.
+# NOTE: The same rule as CombatSession._wire_int and CombatUnitState._whole; keep them in step.
+static func _whole(value: Variant) -> Variant:
+	if value is int:
+		return value
+	if not value is float:
+		return null
+	var number: float = value
+	if number != floorf(number) or absf(number) > CombatFact.MAX_EXACT_JSON_INT:
+		return null
+	return int(number)
+
+
 ## One weapon's numbers in combat (game-vision.md, Weapons and equipment; weapons.md): its
 ## [WeaponDefinition]'s, copied by [method Loadout.weapon_record]. Read-only once added to a
 ## [CombatState].
@@ -427,3 +762,94 @@ class WeaponStats:
 	## Whether it is a staff of any kind; its holder never counters.
 	func is_staff() -> bool:
 		return staff != Staff.NONE
+
+	## Its numbers as plain JSON values, enums by name. [member area] is left out
+	## ([code]combat_state.gd:TOD-002[/code]); no loaded record has one yet.
+	## [method from_capture] reverses it.
+	func capture() -> Dictionary:
+		return {
+			"id": id,
+			"label": label,
+			"weapon_type": weapon_type,
+			"damage": damage,
+			"atk_x": atk_x,
+			"profile": WeaponTriangle.Profile.find_key(profile) as String,
+			"range_min": range_min,
+			"range_max": range_max,
+			"hit": hit,
+			"crit": crit,
+			"crit_x": crit_x,
+			"weight": weight,
+			"damage_type": CombatFact.DamageType.find_key(damage_type) as String,
+			"effective_against": Array(effective_against),
+			"staff": Staff.find_key(staff) as String,
+			"staff_amount": staff_amount,
+		}
+
+	## A record from [method capture] output, also after a trip through JSON. Returns
+	## [code]null[/code] when a field is missing, not a whole number where one belongs, or names
+	## an unknown enum value.
+	static func from_capture(data: Dictionary) -> WeaponStats:
+		var profile_name: String = str(data.get("profile", ""))
+		var type_name: String = str(data.get("damage_type", ""))
+		var staff_name: String = str(data.get("staff", ""))
+		var effective: Variant = data.get("effective_against", null)
+		var crit_multiplier: Variant = data.get("crit_x", null)
+		if (
+				not data.get("id", null) is String
+				or not data.get("label", null) is String
+				or not data.get("weapon_type", null) is String
+				or not WeaponTriangle.Profile.has(profile_name)
+				or not CombatFact.DamageType.has(type_name)
+				or not Staff.has(staff_name)
+				or not effective is Array
+				or not (crit_multiplier is float or crit_multiplier is int)
+		):
+			return null
+		var numbers: Dictionary[String, int] = {}
+		for field: String in [
+			"damage", "atk_x", "range_min", "range_max", "hit", "crit", "weight", "staff_amount",
+		]:
+			var number: Variant = _whole_number(data.get(field, null))
+			if number == null:
+				return null
+			numbers[field] = number
+		var record: WeaponStats = WeaponStats.new()
+		record.id = data["id"]
+		record.label = data["label"]
+		record.weapon_type = data["weapon_type"]
+		# Untyped: the parts come from JSON and are checked entry by entry.
+		for tag: Variant in effective:
+			if not tag is String:
+				return null
+			record.effective_against.append(tag as String)
+		var profile_value: int = WeaponTriangle.Profile[profile_name]
+		record.profile = profile_value as WeaponTriangle.Profile
+		var type_value: int = CombatFact.DamageType[type_name]
+		record.damage_type = type_value as CombatFact.DamageType
+		var staff_value: int = Staff[staff_name]
+		record.staff = staff_value as Staff
+		var multiplier: float = crit_multiplier
+		record.crit_x = multiplier
+		record.damage = numbers["damage"]
+		record.atk_x = numbers["atk_x"]
+		record.range_min = numbers["range_min"]
+		record.range_max = numbers["range_max"]
+		record.hit = numbers["hit"]
+		record.crit = numbers["crit"]
+		record.weight = numbers["weight"]
+		record.staff_amount = numbers["staff_amount"]
+		return record
+
+	# value as an int, or null: the outer class's _whole() rule, which an inner class can't call
+	# unqualified.
+	# NOTE: Keep in step with CombatState._whole().
+	static func _whole_number(value: Variant) -> Variant:
+		if value is int:
+			return value
+		if not value is float:
+			return null
+		var number: float = value
+		if number != floorf(number) or absf(number) > CombatFact.MAX_EXACT_JSON_INT:
+			return null
+		return int(number)
