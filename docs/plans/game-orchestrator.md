@@ -62,7 +62,7 @@ into `dev`; plan and orchestrator commits go to `dev`; `main` holds released sta
 - **Current milestone:** [M1 First playable fight](#milestones). [M0 Foundations](#milestones) is
   complete (P01 EB1–EB7 implemented and verified headless, October 30, 2026).
 - **Current focus:** P02's and P04's parts of M1 are built (only their save steps, CC8 and MP8,
-  remain, and M1 doesn't need them). M1's critical path is now **P05 EN2–EN5** with P03's **CT3F** fix-up,
+  remain, and M1 doesn't need them). P03's M1 part is built. M1's critical path is now **P05 EN4 and EN5**,
   then **P06** (the darkness) and **P07** (minimal UI), neither planned yet. P07 needs
   EN4's intents; nothing yet owns the scene that starts an M1 battle and plays it (P07's plan should
   claim it).
@@ -249,9 +249,9 @@ flowchart LR
   classDef active fill:#bbdefb,stroke:#1565c0,color:#1b1b1b
   classDef ready fill:#fff3c4,stroke:#b8860b,color:#1b1b1b
   classDef waiting fill:#e0e0e0,stroke:#757575,color:#1b1b1b
-  class R1,R2,R3,R4,R5,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,CT2,EB5,EB7,EBF,EN1,CT3,EN2,EN3,CC8 done
-  class CT6,MP8,CT13,CT3F,EN3F,EN5 ready
-  class CT7,EN4,CC10 waiting
+  class R1,R2,R3,R4,R5,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,CT2,EB5,EB7,EBF,EN1,CT3,EN2,EN3,CC8,CT3F,EN3F done
+  class CT6,MP8,CT13,EN4,EN5 ready
+  class CT7,CC10 waiting
 ```
 
 `CC6 --- MP4`: built together; MP4's objective checks run on CC6's `AFTER_STEP` hook.
@@ -359,26 +359,21 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 
 ## Next actions
 
-1. **M1's critical path:** P05 EN1–EN3 are merged. Next: **EN5** (M1's enemies; prompt issued
-   October 31, 2026), the **EN3 fix-up** (a reachable kill beats Hold; Cleave splash kills count,
-   P05 question 21), then **EN4** (intents and the danger zone; it may add a breakdown-free
-   `CombatForecast` option if its preview misses 50 ms; it also runs the headless M1 battle check).
-   P03's **CT3F** (reissued: Triage's gain above the Stance maximum, P03 question 21, and the stale
-   capitalized tags; the consumable-uses half merged October 31, 2026). CT3F and EN5 both touch
-   the Stance option: Field Dressing uses it like Triage, set by whichever merges second.
-   Whichever branch merges later merges `dev` in first.
-   **Planning alongside:** P06 (the darkness) and P07 (minimal UI); P06 depends only on P02 and
-   P04, which are approved.
-2. **Code that may run alongside, off M1's path:**
-   - P02 **CC8** merged October 31, 2026 (P02 question 20; question 21, a move that goes nowhere,
-     is open). Next, P04 **MP8** (ready; its gate opened with CC8): the map
-     key and P04's facts in the snapshot (`combat_session.gd:TOD-002`); `entities` and
-     `combat_map` with MP7's `MapState` fields and the waiting wave units (P04 question 24b);
-     removes the accepted `# ASSUMPTION` above `map_check.gd`'s point rule. Then P02 **CC10**
-     (battle resume, `campaign_service.gd:TOD-001 [HIGH]`; M3 needs it).
-   - P03 CT6 (target shapes) and CT13 (the unit roster) are ready but not on M1's path; hold them
-     (M1 before breadth, and simpler merges).
-3. Vision updates pending for the ideation thread (Design items by plan).
+1. **M1's critical path (code):** P05 **EN5** (M1's enemies as data; ready, prompt issued October
+   31, 2026, not started) and **EN4** (intents, the danger zone, the hover preview against 50 ms,
+   and the headless M1 battle check once EN5 is in; ready). They run in parallel; whichever merges
+   second merges `dev` in first. EN5 sets `GainResource.can_exceed_maximum` on Field Dressing.
+2. **M1's critical path (planning):** **P06** (the darkness; depends only on P02 and P04) and
+   **P07** (minimal UI, which must also claim the scene that starts an M1 battle and plays it).
+   Neither is drafted. After EN4 and EN5, M1 is blocked on these two plans.
+3. **Open questions for the user** (each has a recommendation; a "yes" accepts it): P02 question 21
+   (reject a move that goes nowhere), P03 question 22 (`TAG_MOUNTED` and `TAG_FLIER`; Triage's
+   wording), P05 question 22 (every kill counts the same).
+4. **Off M1's path, may run alongside:** P04 **MP8** (map save sections and waiting wave units;
+   ready, prompt issued October 31, 2026, not started), then P02 **CC10** (battle resume,
+   `campaign_service.gd:TOD-001 [HIGH]`; M3 needs it). After P03 question 22: a Trivial tag
+   cleanup. P03 CT6 and CT13 are ready but held (M1 before breadth).
+5. Vision updates pending for the ideation thread (Design items by plan).
 
 ## Change log
 
@@ -448,3 +443,4 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 | October 30, 2026 | **P03 CT3 merged into `dev`** (019c1b3, after EN1; verified merged: content 536, map 468, every other suite unchanged, launch clean): the M1 content as data (the Drengr, Archer, Battle Medic and Hakkapel, the Mercenary faction, the nine Simple weapons, Shelter, Minor Heal, the Potion, the Guard Tonic and Iron Heart) and `StartingArmy.build`. User answered P03 question 21: as recommended, except Triage's Stance gain goes above the maximum. New step CT3F (the M1 content fix-up); EN5 gate open; a P07 design item (effect text) and a vision item (starting Pouch items, Triage) added; the runner gains a time limit per suite. |
 | October 31, 2026 | **The consumable-uses fix-up, P05 EN2 and P05 EN3 merged into `dev`** (6e7dba5, 2a80624, 38c62ee; verified merged: content 547, enemies 59, every other suite unchanged, launch clean; the EN2/EN3 conflicts in the enemies suite and `begin_battle` resolved keeping both). User answered P05 questions 19–21 and P02 question 20 as recommended: enemy consumables stay limited; a reachable kill beats Hold and Cleave splash kills count (the EN3F fix-up); EN4 may add a breakdown-free forecast option; the three CC8 fact and wire changes; new step P02 CC10 (battle resume) after MP8. **CC8 not merged:** with EN2 and EN3 in, the enemies suite leaks at exit (259 objects, 192 resources); back for a fix-up. CT3F reissued without its merged consumable half; EN5 issued ahead of CT3F (Field Dressing set by whichever merges second). |
 | October 31, 2026 | **P02 CC8 merged into `dev`** (3c35386; verified merged: sessions 261, every other suite unchanged, launch clean, no exit leak). The leak was a script cycle between `CombatStateSection` and its inner `EffectsSection` (godot#117975), broken with a Callable; the three fact and wire changes of P02 question 20 applied (`UNIT_MOVED` movement, `FactBatch.spawned` as a 12th slot, `CombatFact.Flag.SECOND_MOVE_PENDING`); no format or version numbers change. P04 MP8 gate open. P02 question 21 raised (a move that goes nowhere desyncs a mirror). |
+| October 31, 2026 | **P03 CT3F and P05 EN3F merged into `dev`** (fcc6722, e2cbf83; verified merged: combat 618, content 561, effects 527, enemies 64, every other suite unchanged, launch clean). CT3F: `GainResource.can_exceed_maximum` and a defaulted parameter on `EffectEngine.change_stance`; Triage and Triage+ go above the Stance maximum until the side's next Phase Start. EN3F: a reachable kill beats Hold; Cleave splash kills count (90 ms median for a full M1 enemy phase, debug build). Raised P03 question 22 (tag constants, Triage wording) and P05 question 22 (kill ranking). EN4 ready. |
