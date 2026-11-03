@@ -61,9 +61,9 @@ into `dev`; plan and orchestrator commits go to `dev`; `main` holds released sta
   (`EffectCatalog`) loads `res://data/`, though no content is written yet.
 - **Current milestone:** [M1 First playable fight](#milestones). [M0 Foundations](#milestones) is
   complete (P01 EB1–EB7 implemented and verified headless, October 30, 2026).
-- **Current focus:** P02's and P04's parts of M1 are built (CC8 is merged; MP8, the map save step,
-  remains, and M1 doesn't need it). P03's M1 part is built. M1's critical path is now **P05 EN4 and EN5**,
-  then **P06** (the darkness) and **P07** (minimal UI), neither planned yet. P07 needs
+- **Current focus:** P02's, P03's and P04's parts of M1 are built, and P05's but the EN4 fix-up.
+  M1's critical path is now **P06 DK1–DK4** and **EN4F**,
+  then **P07** (minimal UI), not yet planned. P07 needs
   EN4's intents; nothing yet owns the scene that starts an M1 battle and plays it (P07's plan should
   claim it).
 
@@ -95,7 +95,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P03 | Content catalog: unit types, traits and upgrades, the Drengr, prefixes, weapons, staves, items, ingredients, runes, heirlooms, curses | [2026-10-29-content-catalog.md](2026-10-29-content-catalog.md) | **Approved** October 29, 2026 (one plan, staged; questions 1–17 answered; P01 amendments F15–F17). CT1 (definitions, id lists, prices, data folders) merged October 29, 2026 (256 content tests; question 18 answered: its fixes go to CT2), EB5 merged; CT2 (instances, the loadout) merged October 29, 2026 (424 content tests; question 20 raised), question 19 answered (CT13, the rest of the unit roster); CT3 (the M1 content) merged October 30, 2026 (019c1b3; 536 content tests; question 21 answered); M1 still needs the CT3F fix-up | P01 (EB3, EB5) | M1 content, P08, P09 | unit-roster.md, weapons.md, items.md, heirlooms.md, events.md (curses) |
 | P04 | Combat map: grid, terrain, pathing, deployment, objectives, reinforcement points, map objects, map authoring and its checks | [2026-10-27-combat-map.md](2026-10-27-combat-map.md) | **Approved** October 27, 2026 (13 questions answered; "within N movable tiles" cut; no prep screen); **In progress:** MP1–MP4 built and merged October 28, 2026, with the MP3 fix-ups (MP4 with P02 CC6); MP5 (the M1 greybox map, `MapMarker`, `MapCheck`) merged October 29, 2026 (questions 20–22 answered); MP6 (map objects, breaking, kegs, Spark, contents in `MapState`) merged October 29, 2026 (question 23 answered); MP7 (reinforcements) merged October 29, 2026 (461 headless map tests pass; question 24 raised); MP8 after EB7 and CC8 | P01 (EB6), P02 | P05, P06, P07, M1 | game-vision.md Combat maps, map-objects.md |
 | P05 | Enemies and AI: classes, intents, danger zone, ruthless AI, signature moves, elites, mini-bosses, the Powder Baron | [2026-10-30-enemies-and-ai.md](2026-10-30-enemies-and-ai.md) | **Approved** October 30, 2026 (one staged plan, EN1–EN12; questions 1–17 answered: the AI rates options with the player's forecast calculation, kills first; chained intents after every player action and while moving; generic enemy weapons with unlimited uses). M1 needs EN1–EN5. **In progress:** EN1 merged October 30, 2026 (60ae740; question 18); EN2 and EN3 ready | P02, P04 | M1, M2 | enemy-roster.md |
-| P06 | The darkness | [2026-11-03-the-darkness.md](2026-11-03-the-darkness.md) | **Drafted** November 3, 2026 (one staged plan, DK1–DK6; questions 1–10 open, including the two P06 design items from P04; M1 needs DK1–DK4) | P02, P04 | M1 | the-darkness.md |
+| P06 | The darkness | [2026-11-03-the-darkness.md](2026-11-03-the-darkness.md) | **Approved** November 3, 2026 (one staged plan, DK1–DK6; questions 1–10 answered as recommended; M1 needs DK1–DK4); DK1 ready | P02, P04 | M1 | the-darkness.md |
 | P07 | Combat UI and forecast: forecast panel, move preview (darkness damage), danger zone and intent display, HUD | — | **Not started** (minimal version for M1) | P02, P04, P05 | M1, M2 | game-vision.md Combat, Enemy intentions |
 | P08 | Campaign and run flow: `CampaignSession` ownership, campaign map generation, nodes, rewards, Armory, Guildhall, Camp, Treasure, gold, XP and level-ups, recruiting, run end | [2026-10-24-campaign-run-flow.md](2026-10-24-campaign-run-flow.md) | **Stub** (question 1 answered: `CampaignService`, built in EB6; question 2 answered by P13). Applies the grants `CampaignSession` records (P01 question 43) | P01, P03 | M3, P09, P12 | game-vision.md Run structure, Army, Units |
 | P09 | Narrative events and curses | — | **Not started** | P01, P03, P08 | M3 | events.md |
@@ -243,14 +243,23 @@ flowchart LR
   EB7 --> MP8
   CC8 --> MP8
   MP8 --> CC10[CC10 battle resume]
+  subgraph P06[P06 The darkness]
+    DK1[DK1 state, flow] --> DK2[DK2 setup, map rule] --> DK3[DK3 darkness step] --> DK4[DK4 damage, readers]
+    DK5[DK5 save section]
+    DK6[DK6 docs]
+  end
+  DK4 --> DK5
+  MP8 --> DK5
+  DK2 --> DK6
+  EN4 --> EN4F[EN4F intents fix-up]
 
   classDef done fill:#c8e6c9,stroke:#2e7d32,color:#1b1b1b
   classDef active fill:#bbdefb,stroke:#1565c0,color:#1b1b1b
   classDef ready fill:#fff3c4,stroke:#b8860b,color:#1b1b1b
   classDef waiting fill:#e0e0e0,stroke:#757575,color:#1b1b1b
-  class R1,R2,R3,R4,R5,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,CT2,EB5,EB7,EBF,EN1,CT3,EN2,EN3,CC8,CT3F,EN3F done
-  class CT6,MP8,CT13,EN4,EN5 ready
-  class CT7,CC10 waiting
+  class R1,R2,R3,R4,R5,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,CT2,EB5,EB7,EBF,EN1,CT3,EN2,EN3,CC8,CT3F,EN3F,EN4,EN5,MP8 done
+  class CT6,CT13,CC10,DK1,EN4F ready
+  class CT7,DK2,DK3,DK4,DK5,DK6 waiting
 ```
 
 `CC6 --- MP4`: built together; MP4's objective checks run on CC6's `AFTER_STEP` hook.
@@ -276,6 +285,8 @@ mark it **Open** here.
 | P03 CT2 onward | P01 EB5 implemented ✅ (October 29, 2026) | Content is catalog data; the loadout reads the catalog | **Open** October 29, 2026 |
 | P05 EN1–EN4 | P05 approved ✅ (October 30, 2026); P02 and P04 implemented for M1 ✅ | The AI plays P02's commands on P04's maps | **Open** October 30, 2026 |
 | P05 EN5 M1 enemies | P05 EN1; P03 CT3 (the Simple Axe, Simple Bow and Minor Heal as data) | Enemies carry the player's generic weapons | **Open** October 30, 2026 (CT3 merged) |
+| P06 DK1–DK4 | P06 approved ✅ (November 3, 2026); P02 and P04 implemented for M1 ✅ | The darkness plugs into P02's hooks and P04's map | **Open** November 3, 2026 |
+| P06 DK5 Save section | P06 DK4; P04 MP8 ✅ (November 3, 2026) | Built on MP8's section pattern | Closed |
 | P04 MP1–MP3, MP6 | P04 approved ✅ (October 27, 2026) | — | **Open** October 27, 2026; MP1–MP3 built October 28, 2026; MP6 built October 29, 2026, so MP7 may start; MP7 built October 29, 2026 |
 | P04 MP4 Objectives | P02 CC6 (the `AFTER_STEP` hook) | The checks run on the turn loop's hook; built with CC6 | **Open** October 28, 2026 (EB6 implemented, so CC6 may start); implemented with CC6 October 28, 2026, so MP5 may start |
 | P04 MP8 Save sections | P01 EB7, P02 CC8 | `entities` and `combat_map` follow the session snapshot and `combat_state` | **Open** October 31, 2026 (CC8 merged) |
@@ -356,20 +367,21 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 
 ## Next actions
 
-1. **M1's critical path (code):** P05 **EN5** (M1's enemies as data; ready, prompt issued October
-   31, 2026, not started) and **EN4** (intents, the danger zone, the hover preview against 50 ms,
-   and the headless M1 battle check once EN5 is in; ready). They run in parallel; whichever merges
-   second merges `dev` in first. EN5 sets `GainResource.can_exceed_maximum` on Field Dressing.
-2. **M1's critical path (planning):** **P06** (the darkness; drafted November 3, 2026, questions 1–10 open) and
-   **P07** (minimal UI, which must also claim the scene that starts an M1 battle and plays it).
-   P07 is not drafted. After EN4 and EN5, M1 is blocked on these two plans.
-3. **Open questions for the user** (each has a recommendation; a "yes" accepts it): P02 question 21
-   (reject a move that goes nowhere), P03 question 22 (`TAG_MOUNTED` and `TAG_FLIER`; Triage's
-   wording), P05 question 22 (every kill counts the same).
-4. **Off M1's path, may run alongside:** P04 **MP8** (map save sections and waiting wave units;
-   ready, prompt issued October 31, 2026, not started), then P02 **CC10** (battle resume,
-   `campaign_service.gd:TOD-001 [HIGH]`; M3 needs it). After P03 question 22: a Trivial tag
-   cleanup. P03 CT6 and CT13 are ready but held (M1 before breadth).
+1. **M1's critical path (code):** P06 **DK1** (darkness state and flow; prompt issued November 3,
+   2026), then DK2–DK4 in order. Alongside: the P05 **EN4 fix-up** (EN4F; prompt issued November 3,
+   2026): a public `PhaseRunner` boundary entry point replacing `intents.gd`'s copy, the darkness's
+   rule text, the short target rule text, and the headless M1 battle check (P05 question 23).
+   Whichever merges second merges `dev` in first.
+2. **M1's critical path (planning):** **P07** (minimal UI: forecast panel, move preview with
+   darkness damage, intents and danger zone, HUD, and the scene that starts an M1 battle and plays
+   it; the hover preview runs off the input path, P05 question 23). Not drafted. After DK4 and
+   EN4F, M1 is blocked on P07 alone.
+3. **Open questions for the user:** P04 question 25 (MP8) and P05 question 23 (EN4, EN5); each has
+   a recommendation.
+4. **Off M1's path:** P02 **CC10** (battle resume; ready now that MP8 is in; also releases the
+   reserved `enemy_units` key, P04 question 25, and rejects a move that goes nowhere, P02 question
+   21); the Trivial tag cleanup (P03 question 22; prompt issued October 31, 2026). P03 CT6 and CT13
+   held (M1 before breadth).
 5. Vision updates pending for the ideation thread (Design items by plan).
 
 ## Change log
@@ -442,3 +454,4 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 | October 31, 2026 | **P02 CC8 merged into `dev`** (3c35386; verified merged: sessions 261, every other suite unchanged, launch clean, no exit leak). The leak was a script cycle between `CombatStateSection` and its inner `EffectsSection` (godot#117975), broken with a Callable; the three fact and wire changes of P02 question 20 applied (`UNIT_MOVED` movement, `FactBatch.spawned` as a 12th slot, `CombatFact.Flag.SECOND_MOVE_PENDING`); no format or version numbers change. P04 MP8 gate open. P02 question 21 raised (a move that goes nowhere desyncs a mirror). |
 | October 31, 2026 | **P03 CT3F and P05 EN3F merged into `dev`** (fcc6722, e2cbf83; verified merged: combat 618, content 561, effects 527, enemies 64, every other suite unchanged, launch clean). CT3F: `GainResource.can_exceed_maximum` and a defaulted parameter on `EffectEngine.change_stance`; Triage and Triage+ go above the Stance maximum until the side's next Phase Start. EN3F: a reachable kill beats Hold; Cleave splash kills count (90 ms median for a full M1 enemy phase, debug build). Raised P03 question 22 (tag constants, Triage wording) and P05 question 22 (kill ranking). EN4 ready. |
 | November 3, 2026 | User answered P02 question 21 (reject a move that goes nowhere, every move command; built with CC10), P03 question 22 (the tag constants and a note that every tag and content id comes from `ContentIds`; Triage's wording kept) and P05 question 22 (every kill counts the same). **P06 drafted** ([2026-11-03-the-darkness.md](2026-11-03-the-darkness.md)): one staged plan, DK1–DK4 for M1 (state and flow, setup step 3 and the source rule, the darkness step, damage and its readers), DK5 the `darkness` save section after MP8, DK6 docs; questions 1–10 open, the two P06 design items folded in as questions 7 and 10. |
+| November 3, 2026 | **P05 EN5, P04 MP8 and P05 EN4 merged into `dev`** (7a537b5, 8019cfb, c2bb10c; verified merged: content 590, enemies 87, map 482, sessions 282, every other suite unchanged, launch clean, no exit leak). EN5: the Brute, Crossbowman, Hedge Healer and the M1 pack as data. MP8: `entities` and `combat_map` (v1), waiting wave units, the snapshot format 3, the keg-id save fix; CC10's call order in save-system.md. EN4: chained intents, the danger zone, hover previews (107 ms median against 50 ms), `CombatSession.intents` and `intents_changed`. **P06 approved** (questions 1–10 as recommended); DK1–DK4 gate open. Raised P04 question 25 and P05 question 23; new step EN4F. |
