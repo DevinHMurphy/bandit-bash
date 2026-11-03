@@ -105,10 +105,13 @@ func reset() -> void:
    `SaveService.register_section(SaveSection.Block.PROFILE, unlock_tracker)`. A section registered
    later misses that file's load.
 4. Reserved keys are already held by a placeholder until their system arrives; registering under
-   the same key takes the slot over and reads whatever was saved there at version 1. Reserved now:
-   profile `unlocks`, `achievements`, `statistics`, `hall_of_heroes`; combat `enemy_units`,
-   `entities`. `CampaignService` has taken over the campaign and combat `rng` keys
-   ([RNG streams](#rng-streams)). The archive copies the per-player section named `roster`.
+   the same key takes the slot over and reads whatever was saved there at version 1. A section
+   that takes a reserved slot over keeps that slot's place in the restore order, ahead of every
+   section registered later, so never rely on restoring after one. Reserved now: profile
+   `unlocks`, `achievements`, `statistics`, `hall_of_heroes`; combat `enemy_units`.
+   `CampaignService` has taken over the campaign and combat `rng` keys
+   ([RNG streams](#rng-streams)) and the combat `entities` key ([Combat map](#combat-map)). The
+   archive copies the per-player section named `roster`.
 5. In your class doc, add `@tutorial(Save system design): docs/design/save-system.md` and say which
    block and key you own.
 
@@ -203,7 +206,7 @@ Both have the same shape, `{save_key: state}`:
   are `SaveSection`s, not `PlayerSaveSection`s.
 - **Never saved:** seeds (re-derived from the key), and the `ENCOUNTER_SETUP` and `MAP_LOOT`
   streams. A battle's setup draws those two in full at Begin; what they decide (the map, enemies,
-  container contents) is battle state, saved in `enemy_units` and `entities`.
+  container contents) is battle state, saved in `combat_state`, `combat_map` and `entities`.
 - **Restore is all or nothing.** An unknown key, a key whose purpose belongs to the other block
   or is never saved, or a state that isn't a valid string fails the whole section. That stops the
   load; for the combat block it means the battle restarts from Begin.
@@ -274,15 +277,57 @@ Save Impact):
 - **Load order.** Both sections only check and hold their data while the file loads; `effects`
   refuses data without `combat_state`, since effects need the battle's units. The held battle
   loads into a battle rebuilt the way Begin set it up (`CombatStateSection.load_into()`), units and
-  turn before effects. **Not wired yet:** nothing rebuilds the battle on a `BATTLE` resume
-  (`campaign_service.gd:TOD-001`); that is P02 CC10 (battle resume), after P04 MP8.
+  turn before effects, after the maps ([Combat map](#combat-map)). **Not wired yet:** nothing
+  rebuilds the battle on a `BATTLE` resume (`campaign_service.gd:TOD-001`); that is P02 CC10
+  (battle resume).
 - **Missing or old data.** A combat file without these sections (from before them) holds no battle,
   so `load_into()` returns `ERR_UNCONFIGURED` and the battle restarts from Begin. Version 0 is
   malformed and a newer version is refused, like any section; either stops the load and gives
   `BATTLE_RETRY`.
 - **The core follows.** Each capture sets `CombatData`'s `turn` and `phase` to the battle's (the
   lowest seat's map; the opening swap window counts as turn 1's player phase).
-- **Not here yet:** the map objects' state and P04's facts (`combat_map`, `entities`, P04 MP8).
+- **Definitions no catalog holds:** a powder keg's two reactions are built by `MapObjects`, so
+  `CampaignService` sets the sections' `resolve` to find them first
+  (`MapObjects.map_definition()`), as `CombatSession.load_snapshot()` always does.
+
+## Combat map
+
+Each map's objects and reinforcement points are two more `COMBAT` sections, one
+`CombatMapSection` and its partner, which `CampaignService` registers after the combat state pair
+([combat map plan](../plans/2026-10-27-combat-map.md), Save Impact):
+
+| Block | Key | Version | Holds |
+|-------|-----|---------|-------|
+| `COMBAT` | `combat_map` | 1 | Each map's id and active object spots (checked against the rebuilt battle), its reinforcement points (waves with their drawn groups, how many arrived, closed, the units waiting for room), whether the waves are cancelled and the darkness has arrived, whether the opening swap window is open, and the enemies marked as leaders |
+| `COMBAT` | `entities` | 1 | Each map's objects by stable id (`object:N`) with their state (open, lit, searched or opened, destroyed), each container's contents, the loot each seat found and each Cutthroat carries |
+
+```json
+"combat_map": { "version": 1, "data": { "sessions": [ { "map_id": "m1_greybox", "object_spots": [0, 3], "points": [ ], "leader_ids": [ ], "opening_swap_open": false } ] } },
+"entities": { "version": 1, "data": { "sessions": [ { "objects": [ ], "contents": { "0": { } }, "found": { }, "carried": { } } ] } }
+```
+
+- **Built from snapshots.** Each capture takes the battle's `CombatEncounter.snapshot()` and keeps
+  its part of each map's `map` (`MapState.capture()`), as the combat state pair does.
+- **Not repeated here:** a breakable's HP (it is a unit, in `combat_state`), the turns survived,
+  whether a Defend tile held and whether `COMBAT_ENDED` was recorded (`combat_state`'s turn, phase
+  and finished flag decide them).
+- **Leader marks** are saved because Defeat the Leader finds its leaders in the fact log, which a
+  loaded battle starts without.
+- **Load order.** Both sections only check and hold their data while the file loads, in either
+  order (`entities` takes over a reserved slot, which restores first); `is_holding()` pairs them.
+  On a `BATTLE` resume (P02 CC10), with the battle rebuilt the way Begin set it up:
+  1. If `CombatStateSection.is_holding()` or `CombatMapSection.is_holding()` is false, restart
+     from Begin (`BATTLE_RETRY`).
+  2. `CombatMapSection.load_into(battle)`: each map's `MapState` is replaced.
+  3. `CombatStateSection.load_into(battle)`: its reload carries those maps and refuses a map that
+     disagrees with its units (the swap window, a breakable).
+  4. Set the run's id counter from the combat `instance_ids` section.
+  Any error: drop the battle and restart from Begin.
+- **Missing or old data.** A combat file without these sections, or with one only, holds no maps,
+  so `load_into()` returns `ERR_UNCONFIGURED`. Version 0 is malformed and a newer version is
+  refused, like any section; either stops the load and gives `BATTLE_RETRY`.
+- **Mirrors** follow the objects and the points' closing and waves sent; the units waiting for
+  room are in no fact, so a mirror's points are left out of `CombatSession.state_hash()`.
 
 ## Multiplayer
 

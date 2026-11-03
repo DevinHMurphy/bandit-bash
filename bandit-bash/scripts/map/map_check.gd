@@ -6,7 +6,7 @@
 # File:     map_check.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 28, 2026
+# Modified: November 3, 2026
 # ==============================================================================
 
 class_name MapCheck
@@ -165,8 +165,8 @@ static func _check_objective(
 		))
 
 
-# ASSUMPTION: "standable" means every movement type can stand there, so no arrival is pushed to
-# another tile by the point's own terrain.
+# "Standable" means every movement type can stand there, so no arrival is pushed to another tile by
+# the point's own terrain (combat map plan, question 22).
 static func _check_reinforcement_points(layout: MapLayout, failures: Array[Failure]) -> void:
 	var grid: MapGrid = MapGrid.new(layout)
 	for marker: MapLayout.Marker in layout.markers_of(MapLayout.MarkerKind.REINFORCEMENT_POINT):

@@ -6,7 +6,7 @@
 # File:     reinforcements.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 29, 2026
+# Modified: November 3, 2026
 # ==============================================================================
 
 class_name Reinforcements
@@ -25,19 +25,30 @@ extends RefCounted
 ## Phase End, as for Seize ([Objectives]), so stepping off after acting doesn't close it.[br]
 ## - [b]Arrival[/b] ([constant CombatHooks.Hook.AFTER_ENEMY_PHASE]): a wave with arrival turn N
 ## arrives after turn N's enemy phase. Each unit is placed on the point if it is free, else on the
-## nearest free tile ([method Pathing.nearest_free_tile]), with Block 0 and full Stance
-## ([constant CombatFact.Kind.UNIT_SPAWNED] each); then
-## [constant CombatFact.Kind.REINFORCEMENT_ARRIVED].[br]
-## A point is [b]open[/b] while it has a wave to come, isn't closed, Rout's win hasn't cancelled the
-## waves ([method cancel]) and the darkness hasn't arrived ([method has_darkness_arrived]). Only an
-## open point warns, sends or can be closed. Pure rules code: it records through the session's
-## engine and never awaits.
+## nearest free tile flooding out from it ([method Pathing.nearest_free_tile]), with Block 0 and
+## full Stance ([constant CombatFact.Kind.UNIT_SPAWNED] each); then
+## [constant CombatFact.Kind.REINFORCEMENT_ARRIVED]. A unit with no free tile in reach
+## [b]waits[/b] ([member MapState.PointState.waiting]) and tries again after the next enemy phase,
+## ahead of that turn's wave.[br]
+## A point is [b]open[/b] while it has a wave or waiting units to come, isn't closed, Rout's win
+## hasn't cancelled the waves ([method cancel]) and the darkness hasn't arrived
+## ([method has_darkness_arrived]). Only an open point warns, sends or can be closed. Pure rules
+## code: it records through the session's engine and never awaits.
 ##
 ## @tutorial(Combat map plan): docs/plans/2026-10-27-combat-map.md
 ##
 ## @todo: TOD-001 - P06 registers its darkness step on AFTER_ENEMY_PHASE before register() runs.
 ## @todo: TOD-002 - Draw P05's enemy groups and build their units (GroupSource).
 ## @todo: TOD-003 - Answer has_darkness_arrived() from P06's darkness state.
+
+# What became of one arriving unit.
+enum _Arrival {
+	PLACED,
+	# No free tile in reach: it waits for the next arrival.
+	WAITING,
+	# Not built, so it never arrives.
+	LOST,
+}
 
 ## Display text of every reinforcement point's id, for describe.
 const POINT_LABEL: String = "Reinforcement Point"
@@ -116,15 +127,17 @@ static func load_waves(session: CombatSession) -> void:
 
 
 ## Whether reinforcement point [param point_index] on [param state]'s map is open: it has a wave
-## to come ([method waves_left]).
+## or waiting units to come ([method waves_left]).
 static func is_open(state: CombatState, point_index: int) -> bool:
 	return waves_left(state, point_index) > 0
 
 
-## The waves still to come at reinforcement point [param point_index] on [param state]'s map; 0
-## once it is closed, the waves are cancelled or the darkness has arrived, and for no such point.
+## The waves still to come at reinforcement point [param point_index] on [param state]'s map, its
+## waiting units counting as one; 0 once it is closed, the waves are cancelled or the darkness has
+## arrived, and for no such point.
 static func waves_left(state: CombatState, point_index: int) -> int:
 	var point: MapState.PointState = state.map.points.get(point_index, null)
+	# ASSUMPTION: closing a point stops its waiting units too, as it stops any wave still to come.
 	if (
 			point == null
 			or point.is_closed
@@ -132,7 +145,7 @@ static func waves_left(state: CombatState, point_index: int) -> int:
 			or has_darkness_arrived(state)
 	):
 		return 0
-	return point.waves.size() - point.sent
+	return point.waves.size() - point.sent + (0 if point.waiting.is_empty() else 1)
 
 
 ## Whether the darkness has arrived on [param state]'s map, so no point sends again
@@ -150,23 +163,26 @@ static func cancel(state: CombatState) -> void:
 
 
 ## [constant CombatHooks.Hook.INTENTS]: one [constant CombatFact.Kind.REINFORCEMENT_INCOMING] per
-## open point on [param session]'s map, by point index, for its next wave; with the wave's unit
-## types when it arrives after this turn's enemy phase.
+## open point on [param session]'s map, by point index, for what it sends next: its waiting units
+## after this turn's enemy phase, else its next wave. When that is after this turn's enemy phase,
+## it names every unit type arriving then, waiting units first.
 static func warn(session: CombatSession) -> void:
 	var state: CombatState = session.state
 	for point: MapState.PointState in _points_of(state):
 		if not is_open(state, point.index):
 			continue
-		var wave: Dictionary = point.waves[point.sent]
 		var incoming: CombatFact = CombatFact.new(
 				CombatFact.Kind.REINFORCEMENT_INCOMING, point.id
 		)
 		incoming.tile = point.tile
+		var next_turn: int = state.turn
+		if point.waiting.is_empty():
+			next_turn = _turn_of(point.waves[point.sent])
 		# Counting this turn: 1 is after this turn's enemy phase. A wave is never overdue, since
 		# arrive() sends every wave up to the current turn.
-		incoming.amount = maxi(1, _turn_of(wave) - state.turn + 1)
+		incoming.amount = maxi(1, next_turn - state.turn + 1)
 		if incoming.amount == 1:
-			incoming.unit_types = _unit_types(wave)
+			incoming.unit_types = _arriving_types(state, point)
 		session.engine.record(incoming)
 
 
@@ -193,18 +209,32 @@ static func close_points(session: CombatSession, side: CombatFact.CombatSide) ->
 
 
 ## [constant CombatHooks.Hook.AFTER_ENEMY_PHASE], bound to [param source]: each open point on
-## [param session]'s map, by point index, sends every wave whose arrival turn is this turn or
-## earlier, one after another.
+## [param session]'s map, by point index, first places its waiting units, then sends every wave
+## whose arrival turn is this turn or earlier, one after another.
 static func arrive(session: CombatSession, source: GroupSource) -> void:
 	var state: CombatState = session.state
 	for point: MapState.PointState in _points_of(state):
-		while is_open(state, point.index) and _turn_of(point.waves[point.sent]) <= state.turn:
+		if not is_open(state, point.index):
+			continue
+		# ASSUMPTION: waiting units record no REINFORCEMENT_ARRIVED of their own, only their
+		# UNIT_SPAWNED: the fact stays one per wave, which is how a mirror counts the waves sent.
+		var arriving: Array[Dictionary] = point.waiting
+		point.waiting = []
+		for entry: Dictionary in arriving:
+			if _place(session, source, point, entry) == _Arrival.WAITING:
+				point.waiting.append(entry)
+		while (
+				point.sent < point.waves.size()
+				and is_open(state, point.index)
+				and _turn_of(point.waves[point.sent]) <= state.turn
+		):
 			var wave: Dictionary = point.waves[point.sent]
 			point.sent += 1
 			_send(session, source, point, wave)
 
 
-# Places every unit of wave, then records REINFORCEMENT_ARRIVED with the count placed.
+# Places every unit of wave, then records REINFORCEMENT_ARRIVED with the count placed. Units with
+# no free tile join the point's waiting units.
 static func _send(
 		session: CombatSession,
 		source: GroupSource,
@@ -216,8 +246,13 @@ static func _send(
 	if group is Array:
 		# Untyped: setup results are plain data.
 		for entry: Variant in group:
-			if entry is Dictionary and _place(session, source, point, entry as Dictionary):
-				placed += 1
+			if not entry is Dictionary:
+				continue
+			match _place(session, source, point, entry as Dictionary):
+				_Arrival.PLACED:
+					placed += 1
+				_Arrival.WAITING:
+					point.waiting.append((entry as Dictionary).duplicate(true))
 	var arrived: CombatFact = CombatFact.new(CombatFact.Kind.REINFORCEMENT_ARRIVED, point.id)
 	arrived.tile = point.tile
 	arrived.amount = placed
@@ -225,31 +260,37 @@ static func _send(
 
 
 # Builds entry's unit and places it on point's tile when free, else on the nearest free tile its
-# movement type can stand on. Returns whether it was placed.
+# movement type reaches from the point (combat map plan, question 24b): the flood passes units and
+# stops at walls, closed doors and terrain it can't enter, so a walled pocket can be full while the
+# map has room. A unit with no such tile is dropped and waits as its entry; it is built again, with
+# a new id, when it next tries.
 static func _place(
 		session: CombatSession,
 		source: GroupSource,
 		point: MapState.PointState,
 		entry: Dictionary
-) -> bool:
+) -> _Arrival:
 	var state: CombatState = session.state
 	var unit_type: String = _unit_type_of(entry)
 	var recruit: Recruit = source.build(session, entry, session.ids.next_enemy_id(unit_type))
 	if recruit == null or recruit.unit == null:
 		_report(session, "no unit built for %s" % [unit_type], point)
-		return false
+		return _Arrival.LOST
 	var unit: CombatUnitState = recruit.unit
 	var tile: Vector2i = point.tile
 	if not state.occupant_at(tile).is_empty() or not state.can_stand(tile, unit.movement_type):
+		# ASSUMPTION: unbroken debris and kegs bound the search as walls do, since no unit but a
+		# flier walks through them; question 24b names walls, closed doors and terrain only.
 		tile = Pathing.nearest_free_tile(state, tile, unit.movement_type)
-	# ASSUMPTION: a unit with no free tile it could stand on is lost, not held for a later turn.
 	if tile == CombatFact.NO_TILE:
-		_report(session, "no free tile for %s" % [unit_type], point)
-		return false
+		return _Arrival.WAITING
 	for weapon: CombatState.WeaponStats in recruit.weapons:
 		state.add_weapon(weapon)
 	unit.tile = tile
-	return session.add_unit(unit, recruit.bases)
+	if not session.add_unit(unit, recruit.bases):
+		_report(session, "%s wasn't placed on %s" % [unit_type, tile], point)
+		return _Arrival.LOST
+	return _Arrival.PLACED
 
 
 # Adds a diagnostic about a unit of point's wave that didn't arrive.
@@ -293,6 +334,18 @@ static func _turn_of(wave: Dictionary) -> int:
 	return roundi(turn)
 
 
+# The unit types point sends after this turn's enemy phase: its waiting units, then each wave due.
+static func _arriving_types(state: CombatState, point: MapState.PointState) -> PackedStringArray:
+	var types: PackedStringArray = []
+	for entry: Dictionary in point.waiting:
+		types.append(_unit_type_of(entry))
+	for i: int in range(point.sent, point.waves.size()):
+		if _turn_of(point.waves[i]) > state.turn:
+			break
+		types.append_array(_unit_types(point.waves[i]))
+	return types
+
+
 static func _unit_types(wave: Dictionary) -> PackedStringArray:
 	var types: PackedStringArray = []
 	var group: Variant = wave.get(GROUP_KEY, [])
@@ -325,7 +378,8 @@ class GroupSource:
 
 	## The unit [param entry] (one of [method draw_group]'s) arrives as on [param session]'s map:
 	## id [param unit_id], side [constant CombatFact.CombatSide.ENEMY], seat -1, not yet placed.
-	## Null when it can't be built, and the unit is skipped.
+	## Null when it can't be built, and the unit is skipped. It may change nothing in the session
+	## but the ids it mints: a unit with no free tile is dropped and built again when it next tries.
 	func build(_session: CombatSession, _entry: Dictionary, _unit_id: String) -> Recruit:
 		return null
 

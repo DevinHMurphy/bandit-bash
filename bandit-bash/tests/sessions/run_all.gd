@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 30, 2026
+# Modified: November 3, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -17,7 +17,9 @@ extends SceneTree
 ## [code]CampaignService[/code] autoload's lifecycle and its [RngSaveSection]s and
 ## [InstanceIdSaveSection]s. Serialization, snapshots, mirrors and repro dumps are in
 ## wire_cases.gd; the battle save ([CombatStateSection], resuming mid-phase, mirrors after a swap
-## or a spawn, units on their way) in save_cases.gd. Every catalog definition and loadout fixture
+## or a spawn, units on their way) in save_cases.gd; the map save ([CombatMapSection], objects,
+## points and waiting units through a resume, a mirror and a dump) in map_save_cases.gd. Every
+## catalog definition and loadout fixture
 ## is hashed before the first case and after the last, and the run fails if any changed.
 ##
 ## Run from the repo root:[br]
@@ -40,11 +42,13 @@ extends SceneTree
 const FIXTURE_SCENE: PackedScene = preload("res://tests/map/fixture_map.tscn")
 
 # Preloaded scripts used as types (gdscript.md, Naming): the content suite's hashing, the loadout
-# fixture tree the bridge cases load units from, and the wire and save cases (no class name).
+# fixture tree the bridge cases load units from, and the wire, save and map save cases (no class
+# name).
 const CatalogCases = preload("res://tests/content/catalog_cases.gd")
 const LoadoutCases = preload("res://tests/content/loadout_cases.gd")
 const WireCases = preload("res://tests/sessions/wire_cases.gd")
 const SaveCases = preload("res://tests/sessions/save_cases.gd")
+const MapSaveCases = preload("res://tests/sessions/map_save_cases.gd")
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
@@ -134,12 +138,14 @@ func _process(_delta: float) -> bool:
 	_run(_test_service_rng_held_data_dropped)
 	_run(_test_service_instance_ids)
 	_run(_test_service_combat_state)
+	_run(_test_service_combat_map)
 
 	_run(_test_logger_gating)
 	_run(_test_logging_changes_nothing)
 
 	WireCases.new(_check).run()
 	SaveCases.new(_check).run()
+	MapSaveCases.new(_check).run()
 
 	var changed: PackedStringArray = CatalogCases.changed_definitions(
 			before, CatalogCases.hash_definitions([LoadoutCases.TREE])
@@ -2068,11 +2074,15 @@ func _test_service_combat_state() -> bool:
 	saves.call(&"continue_solo_run")
 	var resumed: CampaignSession = service.get(&"session")
 	var section: CombatStateSection = service.get(&"_combat_state")
+	var map_section: CombatMapSection = service.get(&"_combat_map")
 	var resume_point: int = saves.get(&"resume_point")
 	var holding: bool = section.is_holding()
-	# Until the resume flow exists (campaign_service.gd:TOD-001), the battle is rebuilt by hand.
+	# Until the resume flow exists (campaign_service.gd:TOD-001), the battle is rebuilt by hand,
+	# its maps loaded first (CombatMapSection).
 	resumed.begin_battle(_request(resumed, {0: ["Drengr", "Archer"]}))
-	var loaded: Error = section.load_into(resumed.encounter)
+	var loaded: Error = map_section.load_into(resumed.encounter)
+	if loaded == OK:
+		loaded = section.load_into(resumed.encounter)
 	var again: CombatSession = resumed.encounter.get_session(0)
 	_check("service combat state: a continued run loads the battle into its rebuilt one", (
 			resume_point == CombatData.ResumePoint.BATTLE
@@ -2083,6 +2093,102 @@ func _test_service_combat_state() -> bool:
 			and again.state.unit(units[0]).has_acted
 			and again.state.has_unit(brute.id)
 	), "resume point %d, %s, holding %s" % [resume_point, error_string(loaded), holding])
+
+	saves.call(&"abandon_run", CampaignData.Mode.SOLO)
+	saves.call(&"close_save_file")
+	SaveFile.delete_folder("user://saves/")
+	return true
+
+
+# The combat_map and entities sections through the real SaveService (combat map plan, MP8): a
+# checkpoint after a unit searched the fixture's house writes both at version 1, and a continued
+# run loads them, then the battle, into the battle rebuilt from Begin.
+func _test_service_combat_map() -> bool:
+	if not _has_test_user_dir():
+		_skips += 1
+		print("SKIP  service combat map: needs a test user folder (see the class doc)")
+		return true
+	var saves: Node = root.get_node(^"SaveService")
+	var service: Node = root.get_node(^"CampaignService")
+	SaveFile.delete_folder("user://saves/")
+
+	saves.call(&"open_save_file", 1)
+	saves.call(&"start_new_solo_run", RUN_SEED)
+	var run: CampaignSession = service.get(&"session")
+	var begun: int = service.call(&"begin_battle", _request(run, {0: ["Drengr", "Archer"]}))
+	var session: CombatSession = run.encounter.get_session(0)
+	# In the swap window, as the combat state case does: a map with no enemy is won at turn 1.
+	var sword: CombatState.WeaponStats = WireCases.Kit.weapon(
+			run.ids.next_item_id("Sword"), "sword"
+	)
+	session.state.add_weapon(sword)
+	var brute: CombatUnitState = CombatUnitState.new()
+	brute.id = run.ids.next_enemy_id("Brute")
+	brute.side = ENEMY
+	brute.tile = Vector2i(3, 2)
+	brute.hp = 40
+	brute.equipped_weapon_id = sword.id
+	session.add_unit(brute, WireCases.Kit.bases(40.0))
+	session.flush("enemies")
+	session.submit(StartCommand.new(0))
+	session.resolve_queued()
+	var house: MapState.ObjectState = session.state.map.objects_of(MapLayout.ObjectKind.HOUSE)[0]
+	var searcher: String = ""
+	var walk: Array[Vector2i] = []
+	for start: Vector2i in [Vector2i(0, 3), Vector2i(1, 3)]:
+		searcher = session.state.occupant_at(start)
+		if not searcher.is_empty():
+			var steps: Array = [start, house.tile]
+			if start.x == 1:
+				steps.insert(1, Vector2i(0, 3))
+			walk.assign(steps)
+			break
+	session.submit(UnitTurnCommand.new(
+			0, searcher, UnitTurnCommand.Action.USE_OBJECT, house.id, walk
+	))
+	session.resolve_queued()
+	var saved: int = saves.call(&"save_checkpoint")
+	var saved_hash: int = session.state_hash()
+	var saved_map: String = JSON.stringify(session.snapshot()["map"])
+	var combat_path: String = (
+			(saves.call(&"get_save_file_dir", 1) as String)
+			+ CombatData.get_file_name(CampaignData.Mode.SOLO)
+	)
+	var sections: Dictionary = SaveFile.read(combat_path).envelope.get(SaveFile.KEY_SECTIONS, {})
+	var versions: Array[int] = []
+	for key: String in ["combat_map", "entities"]:
+		var entry: Dictionary = sections.get(key, {})
+		var version: float = entry.get("version", 0.0)
+		versions.append(roundi(version))
+	_check("service combat map: a checkpoint writes both sections", (
+			begun == OK
+			and saved == OK
+			and versions == [1, 1]
+			and house.is_used
+			and (session.state.map.found.get(0, []) as Array).size() == 1
+	), "%s, versions %s" % [error_string(saved), versions])
+
+	saves.call(&"close_save_file")
+	saves.call(&"open_save_file", 1)
+	saves.call(&"continue_solo_run")
+	var resumed: CampaignSession = service.get(&"session")
+	var section: CombatStateSection = service.get(&"_combat_state")
+	var map_section: CombatMapSection = service.get(&"_combat_map")
+	var holding: bool = map_section.is_holding()
+	# Until the resume flow exists (campaign_service.gd:TOD-001), the battle is rebuilt by hand.
+	resumed.begin_battle(_request(resumed, {0: ["Drengr", "Archer"]}))
+	var loaded: Error = map_section.load_into(resumed.encounter)
+	if loaded == OK:
+		loaded = section.load_into(resumed.encounter)
+	var again: CombatSession = resumed.encounter.get_session(0)
+	_check("service combat map: a continued run loads the map into its rebuilt battle", (
+			holding
+			and loaded == OK
+			and not map_section.is_holding()
+			and again.state_hash() == saved_hash
+			and JSON.stringify(again.snapshot()["map"]) == saved_map
+			and again.state.map.object(house.id).is_used
+	), "%s, holding %s" % [error_string(loaded), holding])
 
 	saves.call(&"abandon_run", CampaignData.Mode.SOLO)
 	saves.call(&"close_save_file")

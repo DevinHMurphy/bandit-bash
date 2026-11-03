@@ -6,7 +6,7 @@
 # File:     objectives.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 29, 2026
+# Modified: November 3, 2026
 # ==============================================================================
 
 class_name Objectives
@@ -24,7 +24,7 @@ extends RefCounted
 ## - [b]Rout:[/b] won when no enemy is on the map; waves not yet arrived are cancelled
 ## ([method cancel_pending_waves]).[br]
 ## - [b]Defeat the Leader, Defeat the Boss:[/b] won when every enemy that appeared on a leader slot
-## is defeated.[br]
+## is defeated ([method marked_ids]).[br]
 ## - [b]Seize:[/b] won when a player unit ends its turn on a seize tile.[br]
 ## - [b]Survive and Defend:[/b] won when turn [member CombatMapDefinition.survive_turns]'s enemy
 ## Phase End has run, or early when no enemy is on the map and no reinforcement point is open
@@ -109,6 +109,23 @@ static func waves_left(session: CombatSession, point_index: int) -> int:
 	return Reinforcements.waves_left(session.state, point_index)
 
 
+## The enemies marked as leaders on [param session]'s map, in the order they appeared: those a
+## loaded battle held ([member MapState.leader_ids]), then each enemy whose
+## [constant CombatFact.Kind.UNIT_SPAWNED] since is on a leader slot. A loaded battle's fact log
+## starts empty, so the marks are saved with the map ([method CombatSession.snapshot]).
+static func marked_ids(session: CombatSession) -> PackedStringArray:
+	var state: CombatState = session.state
+	var marked: PackedStringArray = state.map.leader_ids.duplicate()
+	var slots: Array[Vector2i] = session.layout.tiles_of(MapLayout.MarkerKind.LEADER_SLOT)
+	for fact: CombatFact in session.engine.fact_log:
+		if (
+				fact.kind == CombatFact.Kind.UNIT_SPAWNED
+				and slots.has(fact.tile)
+				and state.side_of(fact.actor_id) == CombatFact.CombatSide.ENEMY
+				and not marked.has(fact.actor_id)
+		):
+			marked.append(fact.actor_id)
+	return marked
 
 
 static func _is_lost(session: CombatSession) -> bool:
@@ -145,20 +162,11 @@ static func _is_won(session: CombatSession) -> bool:
 # Whether every enemy that appeared on a leader slot is defeated; false when none did.
 # TODO(TOD-004): The boss or mini-boss is the enemy placed on a leader slot until P05 marks bosses.
 static func _marked_enemies_defeated(session: CombatSession) -> bool:
-	var state: CombatState = session.state
-	var slots: Array[Vector2i] = session.layout.tiles_of(MapLayout.MarkerKind.LEADER_SLOT)
-	var marked: int = 0
-	for fact: CombatFact in session.engine.fact_log:
-		if (
-				fact.kind != CombatFact.Kind.UNIT_SPAWNED
-				or not slots.has(fact.tile)
-				or state.side_of(fact.actor_id) != CombatFact.CombatSide.ENEMY
-		):
-			continue
-		marked += 1
-		if state.has_unit(fact.actor_id):
+	var marked: PackedStringArray = marked_ids(session)
+	for enemy_id: String in marked:
+		if session.state.has_unit(enemy_id):
 			return false
-	return marked > 0
+	return not marked.is_empty()
 
 
 # Whether a unit of side recorded Unit Turn End on a tile marked kind at the Phase End just run.

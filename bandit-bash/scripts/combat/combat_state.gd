@@ -6,7 +6,7 @@
 # File:     combat_state.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 31, 2026
+# Modified: November 3, 2026
 # ==============================================================================
 
 class_name CombatState
@@ -30,9 +30,9 @@ extends SandboxState
 ## range) see the weapon in the Weapon slot. A weapon prefix and an item's deltas are effects of
 ## the item, never part of its record, so they sleep with a stowed weapon.[br]
 ## [b]Saves and mirrors:[/b] [method capture] and [method restore] carry everything but
-## [member grid] and [member map] (P04's) as plain JSON, for snapshots and the
-## [code]combat_state[/code] save section; a client mirror applies the host's facts with
-## [method follow].
+## [member grid] and [member map] (P04's, [method MapState.capture]) as plain JSON, for snapshots
+## and the [code]combat_state[/code] save section; a client mirror applies the host's facts, map
+## objects' and reinforcement points' included, with [method follow].
 ##
 ## @tutorial(Combat core plan): docs/plans/2026-10-26-combat-core.md
 ## @tutorial(Save system design): docs/design/save-system.md
@@ -42,11 +42,12 @@ extends SandboxState
 ## (loadout.gd:TOD-001); [method WeaponStats.capture] leaves [member WeaponStats.area] out.
 
 # Facts follow() applies only once the engine has followed every fact before them: a refresh and a
-# placement read the unit's Stance maximum, a Pouch item's use reads its charges.
+# placement read the unit's Stance maximum, a Pouch item's use and a key's read its charges.
 const _FOLLOWED_AFTER_ENGINE: Array[CombatFact.Kind] = [
 	CombatFact.Kind.BLOCK_STANCE_REFRESHED,
 	CombatFact.Kind.ITEM_USED,
 	CombatFact.Kind.UNIT_SPAWNED,
+	CombatFact.Kind.OBJECT_USED,
 ]
 
 # Facts whose actor took its action, which ends its turn. An attack's is the attacker's Before
@@ -400,8 +401,10 @@ func restore(data: Dictionary) -> Error:
 ## client mirror does: the combat core's facts change the units, the turn and the phase as the
 ## host's rules did, and the engine follows the effects' state ([method EffectEngine.follow]) in
 ## step, so a value read mid-batch (the Stance a refresh sets, a Pouch item's last use) is the one
-## the host read. Draws no roll and fires nothing. Not followed: map objects (P04), a non-final End
-## Turn or Start on a map several seats share, and a second move that goes nowhere.
+## the host read. Map objects follow their changes (doors, loot, braziers, breakables, a key's last
+## use, a Cutthroat's dropped loot), and points their closing and waves sent. Draws no roll and
+## fires nothing. Not followed: a point's waiting units, which no fact carries; a non-final End Turn
+## or Start on a map several seats share; a second move that goes nowhere.
 ## [param spawned]: units this state doesn't know, by id, each placed at its
 ## [constant CombatFact.Kind.UNIT_SPAWNED] ([member CombatSession.FactBatch.spawned]); add their
 ## weapons, bases and effects to [param engine] first.
@@ -472,6 +475,17 @@ func follow(
 				if has_unit(fact.actor_id):
 					actor.is_defeated = true
 					_occupancy.erase(actor.tile)
+					MapObjects.drop_carried(self, fact.actor_id, fact.target_id)
+			CombatFact.Kind.OBJECT_USED:
+				if actor != null and MapObjects.is_key_spent(engine, fact.item_id):
+					actor.pouch_item_id = ""
+					load_bases(engine, fact.actor_id)
+			CombatFact.Kind.OBJECT_STATE_CHANGED:
+				_follow_object_change(fact)
+			CombatFact.Kind.REINFORCEMENT_ARRIVED:
+				var sender: MapState.PointState = map.point(fact.actor_id)
+				if sender != null:
+					sender.sent += 1
 			CombatFact.Kind.BEFORE_COMBAT:
 				if open_exchange == "%s>%s" % [fact.target_id, fact.actor_id]:
 					open_exchange = ""
@@ -648,6 +662,42 @@ func _follow_move(id: String, tile: Vector2i) -> void:
 		move_unit(id, tile)
 	elif has_unit(occupant):
 		swap_units(id, occupant)
+
+
+# An OBJECT_STATE_CHANGED as MapObjects and Reinforcements changed the map: the object (the actor)
+# changed by the unit named as the target. A broken breakable leaves the map as defeat() takes it
+# off, recording no DEFEATED.
+func _follow_object_change(fact: CombatFact) -> void:
+	if fact.key == MapObjects.Change.POINT_CLOSED:
+		var closed: MapState.PointState = map.point(fact.actor_id)
+		if closed != null:
+			closed.is_closed = true
+		return
+	var changed: MapState.ObjectState = map.object(fact.actor_id)
+	if changed == null:
+		return
+	match fact.key:
+		MapObjects.Change.OPENED:
+			if changed.kind == MapLayout.ObjectKind.DOOR:
+				changed.is_open = true
+				map.set_blocking(changed.tile, MapState.Blocking.NONE)
+			else:
+				MapObjects.loot(self, fact.target_id, changed)
+		MapObjects.Change.CLOSED:
+			changed.is_open = false
+			map.set_blocking(changed.tile, MapState.Blocking.ALL)
+		MapObjects.Change.SEARCHED:
+			MapObjects.loot(self, fact.target_id, changed)
+		MapObjects.Change.LIT:
+			changed.is_lit = true
+		MapObjects.Change.DOUSED:
+			changed.is_lit = false
+		MapObjects.Change.DESTROYED:
+			changed.is_destroyed = true
+			map.set_blocking(changed.tile, MapState.Blocking.NONE)
+			if has_unit(changed.id):
+				_units[changed.id].is_defeated = true
+				_occupancy.erase(changed.tile)
 
 
 # The seats with player units on the map, ascending: the seats that have ended at a player Phase

@@ -6,7 +6,7 @@
 # File:     combat_session.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 31, 2026
+# Modified: November 3, 2026
 # ==============================================================================
 
 class_name CombatSession
@@ -27,18 +27,16 @@ extends RefCounted
 ## Main thread only. It depends on no scene or autoload except [code]NetLog[/code] (through
 ## [method logger]), and builds no log text unless the line prints.[br]
 ## [b]Snapshots and mirrors:[/b] [method snapshot] and [method load_snapshot] carry the map between
-## commands as plain JSON (its units and turn, the effects, the run seed, the build version and
-## the roll stream's state), and are what saving ([CombatStateSection]) and rejoining both build
-## on. A client's mirror is a session that only ever receives the host's batches through
+## commands as plain JSON (its units and turn, the effects, the map objects and reinforcement
+## points, the run seed, the build version and the roll stream's state), and are what saving
+## ([CombatStateSection], [CombatMapSection]) and rejoining both build on. A client's mirror is a
+## session that only ever receives the host's batches through
 ## [method apply_batch]: applied once each by seq ([method CombatState.follow]), then checked
 ## against the host's [member FactBatch.state_hash] in debug builds. [method debug_dump] writes a
 ## repro file to [code]user://logs/[/code] that replays from the last checkpoint.
 ##
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
 ## @tutorial(Save system design): docs/design/save-system.md
-##
-## @todo: TOD-002 - Add the map keys and P04's facts the same way (P04 MP8), map objects' units and
-## a key's last use included.
 
 ## A command was rejected; only [param seat] is told. It cost nothing.
 ## [param arrival]: the command's arrival stamp. [param reason]: why, with bare ids.
@@ -72,7 +70,7 @@ const DUMP_DIR: String = "user://logs"
 
 # The shape of snapshot() and debug_dump() output; raised when either changes. Snapshots are never
 # saved as they are (CombatStateSection saves their parts), so an older format is refused.
-const _SNAPSHOT_FORMAT: int = 2
+const _SNAPSHOT_FORMAT: int = 3
 
 # The NetLog autoload's script, used as a type and for its enums. The autoload is reached by node
 # path, never by name: the sessions also compile in a headless --script run, before autoload names
@@ -331,16 +329,21 @@ func mark_checkpoint() -> void:
 
 ## This map's state as plain JSON values, taken between commands: [code]session[/code] (seq, seats,
 ## whether it ended and was won, commanders, placed units' bases), [code]combat_state[/code]
-## ([method CombatState.capture]: units, weapons, turn and phase), [code]effects[/code]
-## ([method EffectEngine.capture]) and [code]rolls[/code] (its [LiveRolls] stream's state; empty
-## for another roll source), named by the run seed and the build version. Empty, with an error,
-## while reactions wait. [method load_snapshot] reverses it.
+## ([method CombatState.capture]: units, map objects' included, weapons, turn and phase),
+## [code]effects[/code] ([method EffectEngine.capture]), [code]map[/code]
+## ([method MapState.capture], with every leader mark, [method Objectives.marked_ids]) and
+## [code]rolls[/code] (its [LiveRolls] stream's state; empty for another roll source), named by the
+## run seed and the build version. Empty, with an error, while reactions wait.
+## [method load_snapshot] reverses it.
 ## [param reference]: names each effect definition; see [method EffectInstance.capture].
 func snapshot(reference: Callable = Callable()) -> Dictionary:
 	if engine.pending_reactions() > 0:
 		push_error("CombatSession: s%d can't be captured while reactions wait" % [session_id])
 		return {}
 	var live: LiveRolls = engine.rolls as LiveRolls
+	var map_part: Dictionary = state.map.capture()
+	# A loaded battle's fact log starts empty, so the marks travel with the map.
+	(map_part["combat_map"] as Dictionary)["leader_ids"] = Array(Objectives.marked_ids(self))
 	return {
 		"format": _SNAPSHOT_FORMAT,
 		"run_seed": RunSeed.format(run_seed),
@@ -348,18 +351,21 @@ func snapshot(reference: Callable = Callable()) -> Dictionary:
 		"session": _capture_session(),
 		"combat_state": state.capture(),
 		"effects": engine.capture(reference),
+		"map": map_part,
 		"rolls": "" if live == null else live.capture(),
 	}
 
 
 ## Replaces this map's state with [param data] from [method snapshot], also after a trip through
 ## JSON: the units and turn first, then the effect engine's state (which needs the units back),
-## the roll stream's position (left as it is when [code]rolls[/code] is empty) and the session's
-## own fields. The fact log, catch-up facts and queue start empty, and seqs go on from the
-## snapshot's. The map objects' state isn't in it yet ([code]TOD-002[/code]): load it into a
-## session built the way this battle was. [param resolve] and [param shared]: see
-## [method EffectEngine.restore]. Returns [constant OK]; [constant ERR_INVALID_DATA], changing
-## nothing, when the data is malformed or belongs to another map or build.
+## the map objects and reinforcement points, the roll stream's position (left as it is when
+## [code]rolls[/code] is empty) and the session's own fields. The fact log, catch-up facts and
+## queue start empty, and seqs go on from the snapshot's. Load it into a session on the same map;
+## a mirror needs no objects placed first. [param resolve] and [param shared]: see
+## [method EffectEngine.restore]; a map object's reactions are found first
+## ([method MapObjects.map_definition]). Returns [constant OK]; [constant ERR_INVALID_DATA],
+## changing nothing, when the data is malformed, its map disagrees with its units (the swap
+## window, a breakable), or it belongs to another map or build.
 func load_snapshot(
 		data: Dictionary,
 		resolve: Callable = Callable(),
@@ -368,12 +374,14 @@ func load_snapshot(
 	var part: Variant = data.get("session", null)
 	var units: Variant = data.get("combat_state", null)
 	var effects: Variant = data.get("effects", null)
+	var map_part: Variant = data.get("map", null)
 	var rolls_state: String = str(data.get("rolls", ""))
 	if (
 			_wire_int(data.get("format", null)) != _SNAPSHOT_FORMAT
 			or not part is Dictionary
 			or not units is Dictionary
 			or not effects is Dictionary
+			or not map_part is Dictionary
 	):
 		return _refuse_snapshot("not a session snapshot")
 	var fields: SessionFields = _read_session(part as Dictionary)
@@ -382,16 +390,31 @@ func load_snapshot(
 	var live: LiveRolls = engine.rolls as LiveRolls
 	if not rolls_state.is_empty() and (live == null or not RngStream.new(0).restore(rolls_state)):
 		return _refuse_snapshot("its roll stream can't be restored")
-	if CombatState.new(state.grid).restore(units as Dictionary) != OK:
+	var scratch: CombatState = CombatState.new(state.grid)
+	if scratch.restore(units as Dictionary) != OK:
 		return _refuse_snapshot("its combat state is malformed")
+	if scratch.map.restore(map_part as Dictionary) != OK:
+		return _refuse_snapshot("its map part is malformed")
+	var mismatch: String = _map_mismatch(scratch)
+	if not mismatch.is_empty():
+		return _refuse_snapshot(mismatch)
+	# A map object's own reactions are in no catalog and no caller's lookup.
+	var lookup: Callable = func(reference: String) -> EffectDefinition:
+		var own: EffectDefinition = MapObjects.map_definition(reference)
+		if own != null:
+			return own
+		if resolve.is_valid():
+			return resolve.call(reference)
+		return EffectInstance.catalog_definition(reference)
 	var before: Dictionary = state.capture()
 	# Checked on a scratch state above, so it can't fail here.
 	state.restore(units as Dictionary)
-	var err: Error = engine.restore(effects as Dictionary, resolve, shared)
+	var err: Error = engine.restore(effects as Dictionary, lookup, shared)
 	if err != OK:
 		state.restore(before)
 		return err
 
+	state.map.restore(map_part as Dictionary)
 	if not rolls_state.is_empty():
 		live.restore(rolls_state)
 	is_finished = fields.is_finished
@@ -415,13 +438,16 @@ func load_snapshot(
 
 ## A number standing for this map's state, compared between the host and a mirror after each batch
 ## (event bus plan, Logging and debugging): the [code]session[/code], [code]combat_state[/code] and
-## [code]effects[/code] parts of [method snapshot], less map objects, whose facts a mirror doesn't
-## follow yet (P04, [code]TOD-002[/code]). The roll stream is left out, since only the host draws.
+## [code]effects[/code] parts of [method snapshot], map objects' units included, and the
+## [code]entities[/code] part of its map (objects, contents and loot). The roll stream is left out,
+## since only the host draws, and so are the reinforcement points: a mirror can't follow their
+## waiting units, which no fact carries.
 func state_hash() -> int:
 	var parts: Dictionary = {
 		"session": _capture_session(),
-		"combat_state": _followed_state(),
+		"combat_state": state.capture(),
 		"effects": engine.capture(_name_definition),
+		"map": state.map.capture()["entities"],
 	}
 	return JSON.stringify(parts, "", true).hash()
 
@@ -818,17 +844,28 @@ func _capture_session() -> Dictionary:
 	}
 
 
-# The combat_state part state_hash() compares: the capture less the map objects' units (side
-# NONE), whose facts are P04's (TOD-002).
-func _followed_state() -> Dictionary:
-	var captured: Dictionary = state.capture()
-	var units: Array = []
-	for entry: Variant in captured["units"]:
-		var unit: Dictionary = entry
-		if unit["side"] != CombatFact.CombatSide.find_key(CombatFact.CombatSide.NONE):
-			units.append(unit)
-	captured["units"] = units
-	return captured
+# Why restored's map and its units disagree, as load_snapshot() refuses it, which they do only when
+# the map was taken at another moment of the battle; empty when they agree. The opening swap
+# window is open exactly while seats have yet to send Start. An unbroken breakable is a unit of
+# side NONE on its tile; a broken one is off the map (placed broken when its tile was taken, it
+# never had a unit).
+func _map_mismatch(restored: CombatState) -> String:
+	if restored.map.opening_swap_open == restored.seats_to_start.is_empty():
+		return "its map's opening swap window disagrees with its seats to start"
+	for object_id: String in restored.map.objects:
+		var placed: MapState.ObjectState = restored.map.objects[object_id]
+		if not MapObjects.BREAKABLE_STATS.has(placed.kind):
+			continue
+		var unit: CombatUnitState = restored.unit(object_id)
+		var is_on_map: bool = (
+				unit != null
+				and not unit.is_defeated
+				and unit.side == CombatFact.CombatSide.NONE
+				and unit.tile == placed.tile
+		)
+		if is_on_map == placed.is_destroyed:
+			return "breakable %s and its unit disagree" % [object_id]
+	return ""
 
 
 # unit just placed, as FactBatch.spawned holds it: its state, its bases by key id in key order, its
