@@ -6,7 +6,7 @@
 # File:     save_cases.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: October 31, 2026
+# Modified: November 3, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -620,6 +620,8 @@ class Skirmish:
 		map.id = "map_a"
 		map.scene = FIXTURE_SCENE
 		request.pool.append(map)
+		# No packs to draw from, so the case's own enemy takes the enemy slot.
+		request.catalog = WireCases.Kit.catalog_without_packs()
 		var army: CampaignSession.Army = CampaignSession.Army.new()
 		var sword: CombatState.WeaponStats = WireCases.Kit.weapon(
 				run.ids.next_item_id("Sword"), "sword"
