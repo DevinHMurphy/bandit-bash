@@ -6,7 +6,7 @@
 # File:     combat_forecast.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 29, 2026
+# Modified: November 3, 2026
 # ==============================================================================
 
 class_name CombatForecast
@@ -37,12 +37,16 @@ extends RefCounted
 ## [param engine]'s map: the path, Sidearm's free swap when the command names the stowed weapon,
 ## then the exchange. [param rolls]: null for the player's preview ([ForecastRolls], with
 ## [ChanceLine]s); a [ForcedRolls] or [SampledRolls] resolves it with those rolls and lists no
-## chances.
+## chances. [param explain]: false skips each hit's [HitBreakdown], which the AI never reads
+## ([member AttackForecast.breakdown] and [member SideForecast.breakdown] stay null).
 static func exchange(
-		engine: EffectEngine, command: UnitTurnCommand, rolls: RollSource = null
+		engine: EffectEngine,
+		command: UnitTurnCommand,
+		rolls: RollSource = null,
+		explain: bool = true
 ) -> ExchangeForecast:
 	var forecast: ExchangeForecast = _preview(
-			engine, command, rolls, UnitTurnCommand.Action.ATTACK, true
+			engine, command, rolls, UnitTurnCommand.Action.ATTACK, explain
 	)
 	return forecast
 
