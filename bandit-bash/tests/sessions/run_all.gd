@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 30, 2026
+# Modified: November 3, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -2240,12 +2240,14 @@ func _scripted_battle(is_tracing: bool) -> PackedStringArray:
 	return lines
 
 
-# A battle request on the fixture map: each seat's army from its unit types, in roster order.
+# A battle request on the fixture map: each seat's army from its unit types, in roster order. Its
+# catalog has no packs, so no enemies are drawn and a case places its own.
 func _request(run: CampaignSession, types_by_seat: Dictionary) -> CampaignSession.BattleRequest:
 	var request: CampaignSession.BattleRequest = CampaignSession.BattleRequest.new()
 	request.floor_number = FLOOR
 	request.node = NODE
 	request.pool = Battle.pool(["map_a"])
+	request.catalog = WireCases.Kit.catalog_without_packs()
 	# Untyped: callers pass dictionary literals, which are untyped.
 	for seat: Variant in types_by_seat:
 		var army: CampaignSession.Army = CampaignSession.Army.new()

@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="PackDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/pack_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+class_counts = Dictionary[String, int]({"brute": 1, "crossbowman": 1, "hedge_healer": 1})
+id = "m1_pack"
+; ASSUMPTION: the name; enemies and AI plan question 12 calls it "a provisional M1 pack" and no
+; doc names it. Fragile: an editor re-save drops this comment.
+display_name = "M1 Pack"

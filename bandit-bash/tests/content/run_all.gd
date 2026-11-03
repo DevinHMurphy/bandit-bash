@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 30, 2026
+# Modified: November 3, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -16,8 +16,9 @@ extends SceneTree
 ## [EffectCatalog] and the content test, its rules over all of [code]res://data/[/code] and the
 ## rule fixtures, live in catalog_cases.gd; unit and item instances and [Loadout] in
 ## loadout_cases.gd; the M1 content over the real data (the Mercenary army, stats, text snapshots,
-## forecasts) in m1_content_cases.gd. Every catalog definition and every loadout fixture is hashed
-## before the first case and after the last, and the run fails if any changed.
+## forecasts) in m1_content_cases.gd, and M1's enemies and their pack in m1_enemy_cases.gd. Every
+## catalog definition and every loadout fixture is hashed before the first case and after the
+## last, and the run fails if any changed.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/content/run_all.gd[/code][br]
@@ -29,6 +30,7 @@ extends SceneTree
 const CatalogCases = preload("res://tests/content/catalog_cases.gd")
 const LoadoutCases = preload("res://tests/content/loadout_cases.gd")
 const M1ContentCases = preload("res://tests/content/m1_content_cases.gd")
+const M1EnemyCases = preload("res://tests/content/m1_enemy_cases.gd")
 
 # Fixture trees whose definitions are hashed with the catalog's.
 const HASHED_TREES: PackedStringArray = [LoadoutCases.TREE]
@@ -111,6 +113,7 @@ func _init() -> void:
 	CatalogCases.new(_check).run()
 	LoadoutCases.new(_check).run()
 	M1ContentCases.new(_check).run()
+	M1EnemyCases.new(_check).run()
 	_test_definitions_unchanged(before)
 
 	print("--- %d passed, %d failed ---" % [_passes, _failures])

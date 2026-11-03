@@ -1,0 +1,53 @@
+[gd_resource type="Resource" script_class="EnemyClassDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="2_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="3_gain"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/fact_target.gd" id="4_ally"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="5_con"]
+[ext_resource type="Script" path="res://scripts/content/enemy_class_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_ally"]
+script = ExtResource("4_ally")
+
+[sub_resource type="Resource" id="Resource_amount"]
+script = ExtResource("5_con")
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_stance"]
+script = ExtResource("3_gain")
+pool = 2
+target = SubResource("Resource_ally")
+amount = SubResource("Resource_amount")
+can_exceed_maximum = true
+
+[sub_resource type="Resource" id="Resource_field_dressing"]
+script = ExtResource("1_eff")
+id = "field_dressing"
+trigger = 19
+operations = Array[ExtResource("2_ops")]([SubResource("Resource_stance")])
+
+[resource]
+script = ExtResource("9_def")
+behavior = 3
+target_rule_id = "most_wounded_ally"
+; ASSUMPTION: the whole cell of enemy-roster.md's target rule column, not its first clause as
+; the EN1 fixtures have it. Fragile: an editor re-save drops this comment.
+target_rule_text = "Heals the most wounded ally; keeps away from your units"
+trait_name = "Field Dressing"
+weapon_types = PackedStringArray("staff")
+movement_type = 0
+tags = PackedStringArray()
+stance = 1
+starting_weapon_id = "minor_heal"
+innate_effects = Array[ExtResource("1_eff")]([])
+base_stats = Dictionary[int, int]({0: 12, 1: 8, 2: 5, 3: 1, 4: 7, 5: 5, 6: 5})
+growths = Dictionary[int, int]({0: 50, 1: 40, 2: 30, 3: 8, 4: 35})
+upgraded_effects = Array[ExtResource("1_eff")]([])
+upgrade_stat_gains = Dictionary[int, int]({})
+upgrade_weapon_types = PackedStringArray()
+upgrade_tags = PackedStringArray()
+is_commander = false
+id = "hedge_healer"
+display_name = "Hedge Healer"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_field_dressing")])

@@ -6,7 +6,7 @@
 # File:     wire_cases.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 30, 2026
+# Modified: November 3, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -603,6 +603,18 @@ class Kit:
 		}
 
 
+	# The real catalog without its packs: setup step 4 draws from every pack (EnemySetup.draw), so
+	# a battle on this draws no enemies and a case can place its own on the enemy slot.
+	static func catalog_without_packs() -> EffectCatalog.Index:
+		var real: EffectCatalog.Index = EffectCatalog.index()
+		var index: EffectCatalog.Index = EffectCatalog.Index.new()
+		for id: String in real.ids():
+			if not real.is_of(id, EffectCatalog.Kind.PACK):
+				index.add(real.path_of(id), real.definition(id))
+		index.finish()
+		return index
+
+
 	# "Hit dealt: gain 1 Block", every [param every]th hit this combat: a counter.
 	static func counted_block(id: String, every: int) -> EffectDefinition:
 		var definition: EffectDefinition = EffectDefinition.new()
@@ -752,9 +764,10 @@ class Field:
 		batches.append(batch)
 
 
-# A battle begun through the campaign bridge on the fixture map: each seat's two bowmen (range 2-3)
-# deployed, a trait with a counter on seat 0's first unit, optionally a cross-map heirloom, then
-# a sword-wielding enemy on each map at its enemy slot, placed in the opening swap window. Each map
+# A battle begun through the campaign bridge on the fixture map, with no packs to draw from: each
+# seat's two bowmen (range 2-3) deployed, a trait with a counter on seat 0's first unit, optionally
+# a cross-map heirloom, then a sword-wielding enemy on each map at its enemy slot, placed in the
+# opening swap window. Each map
 # checkpoints there, so a dump replays from that point, then each seat's Start begins turn 1.
 # Built the same way every time.
 class Bridge:
@@ -780,6 +793,7 @@ class Bridge:
 		map.id = "map_a"
 		map.scene = FIXTURE_SCENE
 		request.pool.append(map)
+		request.catalog = Kit.catalog_without_packs()
 		for seat: int in seats:
 			var army: CampaignSession.Army = CampaignSession.Army.new()
 			var unit_ids: PackedStringArray = []
