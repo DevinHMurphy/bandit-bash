@@ -6,7 +6,7 @@
 # File:     map_objects.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 29, 2026
+# Modified: November 3, 2026
 # ==============================================================================
 
 class_name MapObjects
@@ -73,6 +73,14 @@ const KEG_SPLASH: int = 5
 
 ## A keg's blast reach, in tiles of grid distance (map-objects.md).
 const KEG_RADIUS: int = 1
+
+## The [member EffectDefinition.id] of each of a powder keg's two reactions, by trigger: "any hit"
+## and "any splash". Saves name the reactions by these ([method map_definition]): never change
+## them.
+const KEG_EFFECT_IDS: Dictionary[EffectTerms.Trigger, String] = {
+	EffectTerms.Trigger.HIT_TAKEN: "powder_keg_hit",
+	EffectTerms.Trigger.DAMAGE_TAKEN: "powder_keg_splash",
+}
 
 ## The objects a unit uses standing on their tile (Godot_FE: chests, levers and searchables; a
 ## passage from its end).
@@ -499,6 +507,25 @@ static func erode(engine: EffectEngine, state: CombatState, object_id: String) -
 	return true
 
 
+## The definition of a map object's own reaction (a powder keg's) that [param reference] names, as
+## [method EffectInstance.capture] named it; null for anything else. No catalog holds these, so a
+## save or snapshot restores them through this ([method CombatSession.load_snapshot]).
+static func map_definition(reference: String) -> EffectDefinition:
+	for definition: EffectDefinition in _keg_definitions():
+		if definition.id == reference:
+			return definition
+	return null
+
+
+## Whether [param item_id] is a key with no use left, so it leaves its holder's Pouch: what using
+## a chest or door with it does on the host, and what a mirror follows
+## ([method CombatState.follow]). False for a lockpick and anything else.
+static func is_key_spent(engine: EffectEngine, item_id: String) -> bool:
+	if _opener_id(engine, item_id) != KEY_EFFECT_ID:
+		return false
+	return not ItemUseResolver.has_uses(ItemUseResolver.use_effects(engine, item_id))
+
+
 ## For P06: whether brazier [param object_id] is lit.
 static func is_lit(state: CombatState, object_id: String) -> bool:
 	var brazier: MapState.ObjectState = state.map.object(object_id)
@@ -568,7 +595,8 @@ static func _opener_id(engine: EffectEngine, item_id: String) -> String:
 	return ""
 
 
-# A key spends a use and leaves the Pouch once it has none; a lockpick is kept.
+# A key spends a use and leaves the Pouch once it has none ([method is_key_spent]); a lockpick is
+# kept.
 static func _spend_key(
 		engine: EffectEngine, state: CombatState, unit_id: String, item_id: String
 ) -> void:
@@ -576,7 +604,7 @@ static func _spend_key(
 		return
 	var effects: Array[EffectInstance] = ItemUseResolver.use_effects(engine, item_id)
 	ItemUseResolver.spend(engine, effects, unit_id)
-	if not ItemUseResolver.has_uses(effects):
+	if is_key_spent(engine, item_id):
 		state.unit(unit_id).pouch_item_id = ""
 		state.load_bases(engine, unit_id)
 
@@ -654,16 +682,14 @@ static func _rune_effect(engine: EffectEngine, rune_id: String) -> EffectInstanc
 	return null
 
 
-# "Any hit" and "any splash": one reaction each, both breaking the keg ([KegExplosion]).
+# "Any hit" and "any splash": one reaction each, both breaking the keg ([KegExplosion]). Each has
+# its own id, since a save names a definition by its id (map_definition()).
 static func _keg_definitions() -> Array[EffectDefinition]:
 	if not _keg_effects.is_empty():
 		return _keg_effects
-	for trigger: EffectTerms.Trigger in [
-		EffectTerms.Trigger.HIT_TAKEN,
-		EffectTerms.Trigger.DAMAGE_TAKEN,
-	]:
+	for trigger: EffectTerms.Trigger in KEG_EFFECT_IDS:
 		var definition: EffectDefinition = EffectDefinition.new()
-		definition.id = "powder_keg"
+		definition.id = KEG_EFFECT_IDS[trigger]
 		definition.trigger = trigger
 		definition.scope = EffectTerms.Scope.THIS_UNIT
 		var blast: KegExplosion = KegExplosion.new()

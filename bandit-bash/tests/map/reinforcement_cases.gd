@@ -6,17 +6,19 @@
 # File:     reinforcement_cases.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 29, 2026
+# Modified: November 3, 2026
 # ==============================================================================
 
 extends RefCounted
 ## Reinforcement cases for tests/map/run_all.gd: the point [MapMarker] kind and its arrival turns,
 ## setup step 5's draw, warnings at the right player Phase Starts with the preview the phase before,
-## arrival on a free and on an occupied point, a closed point never sending, closing only at Phase
-## End and only while the point can send, no arrivals once the darkness has arrived, Rout cancelling
-## pending waves, Survive ending early once its points are closed, and a sandbox copy.
+## arrival on a free and on an occupied point, units with no room waiting (a walled pocket that
+## overflows, Survive kept going, a closed point stopping them), a closed point never sending,
+## closing only at Phase End and only while the point can send, no arrivals once the darkness has
+## arrived, Rout cancelling pending waves, Survive ending early once its points are closed, and a
+## sandbox copy.
 ##
-## Each battle case runs a real [CombatSession] on a small plain map, its waves drawn by
+## Each battle case runs a real [CombatSession] on a small map, its waves drawn by
 ## [method Reinforcements.draw_waves] through a fixture [Reinforcements.GroupSource] (P05's groups
 ## don't exist yet) and its hooks added by [method Reinforcements.register]. Enemies Wait, so no
 ## case depends on a roll. Log lines are compared without their sequence prefix.
@@ -32,6 +34,14 @@ const PLAIN_ROWS: Array[String] = [
 	"plain plain plain plain plain plain",
 	"plain plain plain plain plain plain",
 	"plain plain plain plain plain plain",
+	"plain plain plain plain plain plain",
+]
+
+# A four-tile pocket at the top right, walled off from the rest of the map.
+const POCKET_ROWS: Array[String] = [
+	"plain plain plain wall plain plain",
+	"plain plain plain wall plain plain",
+	"plain plain plain wall wall wall",
 	"plain plain plain plain plain plain",
 ]
 
@@ -59,6 +69,9 @@ func run() -> void:
 	_test_arrival_on_free_point()
 	_test_arrival_on_occupied_point()
 	_test_no_room()
+	_test_walled_pocket()
+	_test_waiting_keeps_survive_going()
+	_test_closing_stops_waiting()
 	_test_closed_point()
 	_test_closing_needs_phase_end()
 	_test_closing_needs_a_live_point()
@@ -224,7 +237,8 @@ func _test_arrival_on_occupied_point() -> void:
 	_quiet(world)
 
 
-# With no free tile anywhere, the unit is lost and the wave still completes.
+# With no free tile anywhere, the wave completes empty and its unit waits: the point stays open
+# and warns of it for after this turn's enemy phase (combat map plan, question 24b).
 func _test_no_room() -> void:
 	var world: ReinforcementWorld = ReinforcementWorld.new(
 			[[Vector2i(1, 0), [1]]], FixtureGroups.new({1: ["Bandit"]}), ["plain plain"]
@@ -237,11 +251,121 @@ func _test_no_room() -> void:
 	_same_lines("no room: nothing placed, the wave arrives empty", world.lines_of(start, [
 		CombatFact.Kind.UNIT_SPAWNED, CombatFact.Kind.REINFORCEMENT_ARRIVED,
 	]), ["REINFORCEMENT_ARRIVED point:0 tile (1, 0)"])
-	_same(
-			"no room: reported",
-			str(world.session.engine.diagnostics),
-			str(["Reinforcements: no free tile for Bandit at point:0 (Reinforcement Point)"])
+	var point: MapState.PointState = world.state().map.points[0]
+	_ok("no room: the unit waits, a wave still to come", (
+			point.waiting.size() == 1
+			and Reinforcements.waves_left(world.state(), 0) == 1
+			and Reinforcements.is_open(world.state(), 0)
+	), str(point.waiting))
+	_same_lines("no room: the point warns of it for this turn", world.warnings_this_phase(), [
+		"turn 2: REINFORCEMENT_INCOMING point:0 amount 1 tile (1, 0) types Bandit",
+	])
+	_quiet(world)
+
+
+# A walled pocket overflows while the map has room: the flood stops at walls. Its waiting unit
+# arrives after the next enemy phase, ahead of that turn's wave, with no arrival fact of its own.
+func _test_walled_pocket() -> void:
+	var world: ReinforcementWorld = ReinforcementWorld.new(
+			[[Vector2i(5, 0), [1, 2]]],
+			FixtureGroups.new({
+				1: ["Bandit", "Bandit", "Bandit", "Bandit", "Archer"],
+				2: ["Brute"],
+			}),
+			POCKET_ROWS
 	)
+	world.add_unit("p1", PLAYER, Vector2i(0, 3))
+	world.session.open_battle()
+	var start: int = world.log_size()
+	world.send(EndTurnCommand.new(0))
+	var pocket: Array[Vector2i] = [Vector2i(4, 0), Vector2i(5, 0), Vector2i(4, 1), Vector2i(5, 1)]
+	var tiles: Array[Vector2i] = world.spawned_tiles(start)
+	var is_inside: bool = tiles.size() == 4
+	for tile: Vector2i in tiles:
+		is_inside = is_inside and pocket.has(tile)
+	_ok("pocket: four fill the pocket, none land outside it", is_inside, str(tiles))
+	_same_lines("pocket: the wave records the four it placed", world.lines_of(start, [
+		CombatFact.Kind.REINFORCEMENT_ARRIVED,
+	]), ["REINFORCEMENT_ARRIVED point:0 amount 4 tile (5, 0)"])
+	_same_lines("pocket: the waiting unit and the next wave, in one warning", (
+			world.warnings_this_phase()
+	), ["turn 2: REINFORCEMENT_INCOMING point:0 amount 1 tile (5, 0) types Archer, Brute"])
+
+	var freed: Array[String] = [world.state().occupant_at(Vector2i(4, 1)), (
+			world.state().occupant_at(Vector2i(5, 1))
+	)]
+	world.send(ObjectiveCases.DefeatFixture.new(freed, "p1"))
+	start = world.log_size()
+	world.send(EndTurnCommand.new(0))
+	var arrived: Array[String] = []
+	for fact: CombatFact in world.session.engine.fact_log.slice(start):
+		if fact.kind == CombatFact.Kind.UNIT_SPAWNED:
+			arrived.append("%s %s" % [world.state().unit_type_of(fact.actor_id), fact.tile])
+		elif fact.kind == CombatFact.Kind.REINFORCEMENT_ARRIVED:
+			arrived.append("wave of %d" % [fact.amount])
+	_same_lines("pocket: after the next enemy phase, the waiting unit first", arrived, [
+		"Archer (5, 1)",
+		"Brute (4, 1)",
+		"wave of 1",
+	])
+	_ok("pocket: nothing left to come", (
+			world.state().map.points[0].waiting.is_empty()
+			and not Reinforcements.is_open(world.state(), 0)
+	))
+	_quiet(world)
+
+
+# Waiting units count as a wave to come: Survive doesn't end early with no enemy on the map while
+# one waits, and it arrives once a tile is free.
+func _test_waiting_keeps_survive_going() -> void:
+	var world: ReinforcementWorld = ReinforcementWorld.new(
+			[[Vector2i(1, 0), [1]]],
+			FixtureGroups.new({1: ["Bandit"]}),
+			["plain plain"],
+			SURVIVE,
+			9
+	)
+	world.add_unit("p1", PLAYER, Vector2i(0, 0))
+	world.add_unit("e1", ENEMY, Vector2i(1, 0))
+	world.session.open_battle()
+	world.send(EndTurnCommand.new(0))
+	var defeated: Array[String] = ["e1"]
+	world.send(ObjectiveCases.DefeatFixture.new(defeated, "p1"))
+	_ok("waiting: no enemy on the map, but Survive goes on", (
+			not world.session.is_finished
+			and world.state().units_of(ENEMY).is_empty()
+			and Objectives.waves_left(world.session, 0) == 1
+	))
+	var start: int = world.log_size()
+	world.send(EndTurnCommand.new(0))
+	_same_lines("waiting: it arrives on the freed point after the enemy phase", world.lines_of(
+			start, [CombatFact.Kind.UNIT_SPAWNED, CombatFact.Kind.REINFORCEMENT_ARRIVED]
+	), ["UNIT_SPAWNED enemy:%d tile (1, 0)" % [world.first_enemy_value() + 1]])
+	_ok("waiting: still going with an enemy on the map", not world.session.is_finished)
+	_quiet(world)
+
+
+# Closing a point stops its waiting units too, as assumed in Reinforcements.waves_left().
+func _test_closing_stops_waiting() -> void:
+	var world: ReinforcementWorld = ReinforcementWorld.new(
+			[[Vector2i(0, 0), [1]]], FixtureGroups.new({1: ["Bandit"]}), ["plain plain"]
+	)
+	world.add_unit("p1", PLAYER, Vector2i(1, 0))
+	world.add_unit("e1", ENEMY, Vector2i(0, 0))
+	world.session.open_battle()
+	world.send(EndTurnCommand.new(0))
+	var defeated: Array[String] = ["e1"]
+	world.send(ObjectiveCases.DefeatFixture.new(defeated, "p1"))
+	var walk: Array[Vector2i] = [Vector2i(1, 0), Vector2i(0, 0)]
+	world.send(UnitTurnCommand.new(0, "p1", WAIT, "", walk))
+	var start: int = world.log_size()
+	world.send(EndTurnCommand.new(0))
+	_ok("closing: the point closes with a unit waiting, which never arrives", (
+			world.state().map.points[0].is_closed
+			and world.lines_of(start, [CombatFact.Kind.UNIT_SPAWNED]).is_empty()
+			and Reinforcements.waves_left(world.state(), 0) == 0
+	), str(world.lines_of(start, [CombatFact.Kind.UNIT_SPAWNED])))
+	_quiet(world)
 
 
 # A player unit ending its turn on an open point closes it for good: one fact, no warning and no
@@ -501,12 +625,15 @@ class ReinforcementWorld:
 	) -> void:
 		var layout: MapLayout = MapLayout.new()
 		layout.map_id = "reinforcements"
-		var plain: MapLayout.Terrain = MapLayout.Terrain.from_definition(
-				MapLoader.load_terrain("plain")
-		)
+		var cache: Dictionary[String, MapLayout.Terrain] = {}
 		for y: int in rows.size():
-			for x: int in rows[y].split(" ", false).size():
-				layout.set_terrain(Vector2i(x, y), plain)
+			var terrain_ids: PackedStringArray = rows[y].split(" ", false)
+			for x: int in terrain_ids.size():
+				if not cache.has(terrain_ids[x]):
+					cache[terrain_ids[x]] = MapLayout.Terrain.from_definition(
+							MapLoader.load_terrain(terrain_ids[x])
+					)
+				layout.set_terrain(Vector2i(x, y), cache[terrain_ids[x]])
 		# Untyped: each point is an array literal.
 		for point: Variant in points:
 			var entry: Array = point

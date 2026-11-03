@@ -6,25 +6,28 @@
 # File:     map_state.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 29, 2026
+# Modified: November 3, 2026
 # ==============================================================================
 
 class_name MapState
 extends RefCounted
 ## The parts of one map that change during a combat: its map objects, which tiles they block, the
-## containers' contents, the loot taken from them, its reinforcement points and their waves, and
-## whether the opening swap window is open.
+## containers' contents, the loot taken from them, its reinforcement points and their waves, the
+## enemies marked as leaders, and whether the opening swap window is open.
 ##
 ## Held by [CombatState] as [member CombatState.map] and copied with it for a sandbox, so a
 ## forecast that opens a door or breaks a keg never touches the real map. [MapGrid] stays
 ## terrain-only and shared. Movement asks this state whether an object stops a unit; standing on an
 ## object's tile is decided by occupancy, as for units. [MapObjects] and [Reinforcements] change it
 ## and record the facts. Plain data with ids only.[br]
-## [b]Not saved yet:[/b] [member objects], [member contents], [member found] and [member carried]
-## join the [code]entities[/code] section in P04 MP8; [member points],
-## [member are_waves_cancelled] and [member has_darkness_arrived] join [code]combat_map[/code].
+## [b]Saves and mirrors:[/b] [method capture] and [method restore] carry it as plain JSON in two
+## parts, [code]entities[/code] (the objects, contents and loot) and [code]combat_map[/code] (the
+## points, flags and leader marks), for [method CombatSession.snapshot] and the [CombatMapSection]
+## pair. A breakable's HP is its unit's, in [method CombatState.capture]. A mirror follows the
+## objects and points through [method CombatState.follow].
 ##
 ## @tutorial(Combat map plan): docs/plans/2026-10-27-combat-map.md
+## @tutorial(Save system design): docs/design/save-system.md
 
 ## Which units an object on a tile stops (map-objects.md). Saved as an int: [b]append only[/b].
 enum Blocking {
@@ -66,6 +69,11 @@ var are_waves_cancelled: bool = false
 ## Whether the darkness has arrived, so no reinforcement point sends again; read only through
 ## [method Reinforcements.has_darkness_arrived]. Nothing sets it until P06's darkness step.
 var has_darkness_arrived: bool = false
+
+## Enemies marked as leaders before the battle was last loaded: those that appeared on a leader
+## slot. Read only through [method Objectives.marked_ids], which adds the ones whose arrival is in
+## the fact log since.
+var leader_ids: PackedStringArray = []
 
 var _blocking: Dictionary[Vector2i, Blocking] = {}
 
@@ -134,7 +142,154 @@ func copy() -> MapState:
 		map_copy.points[point_index] = points[point_index].copy()
 	map_copy.are_waves_cancelled = are_waves_cancelled
 	map_copy.has_darkness_arrived = has_darkness_arrived
+	map_copy.leader_ids = leader_ids.duplicate()
 	return map_copy
+
+
+## This state as plain JSON values in two parts: [code]entities[/code] (every object by spot index
+## with its state, kind by name and tile as [code][x, y][/code]; contents by container index; the
+## loot found, by seat; the loot carried, by unit id) and [code]combat_map[/code] (every point by
+## index with its waves, how many arrived and its waiting units; the flags; [member leader_ids]).
+## Keys are written in order, so equal states write equal text. [method restore] reverses it.
+func capture() -> Dictionary:
+	var object_list: Array = []
+	for object_id: String in _sorted_ids():
+		object_list.append(_capture_object(objects[object_id]))
+	var by_container: Dictionary = {}
+	var containers: Array[int] = contents.keys()
+	containers.sort()
+	for container_index: int in containers:
+		by_container[str(container_index)] = _plain(contents[container_index])
+	var by_seat: Dictionary = {}
+	var seats: Array[int] = found.keys()
+	seats.sort()
+	for seat: int in seats:
+		by_seat[str(seat)] = _plain(found[seat])
+	var by_unit: Dictionary = {}
+	var carriers: Array[String] = carried.keys()
+	carriers.sort()
+	for unit_id: String in carriers:
+		by_unit[unit_id] = _plain(carried[unit_id])
+	var point_list: Array = []
+	var point_indexes: Array[int] = points.keys()
+	point_indexes.sort()
+	for point_index: int in point_indexes:
+		point_list.append(_capture_point(points[point_index]))
+	return {
+		"entities": {
+			"objects": object_list,
+			"contents": by_container,
+			"found": by_seat,
+			"carried": by_unit,
+		},
+		"combat_map": {
+			"points": point_list,
+			"are_waves_cancelled": are_waves_cancelled,
+			"has_darkness_arrived": has_darkness_arrived,
+			"opening_swap_open": opening_swap_open,
+			"leader_ids": Array(leader_ids),
+		},
+	}
+
+
+## Replaces everything [method capture] holds with [param data], also after a trip through JSON,
+## where whole numbers in loot and waves come back as ints. What each object blocks is rebuilt
+## from its state: a closed door every unit, an unbroken breakable every unit but fliers. Returns
+## [constant OK], or [constant ERR_INVALID_DATA], changing nothing, when a part is missing or
+## malformed or an object, point or container repeats.
+func restore(data: Dictionary) -> Error:
+	var entities: Variant = data.get("entities", null)
+	var map_part: Variant = data.get("combat_map", null)
+	if not entities is Dictionary or not map_part is Dictionary:
+		return ERR_INVALID_DATA
+	var object_data: Variant = (entities as Dictionary).get("objects", null)
+	var content_data: Variant = (entities as Dictionary).get("contents", null)
+	var found_data: Variant = (entities as Dictionary).get("found", null)
+	var carried_data: Variant = (entities as Dictionary).get("carried", null)
+	var point_data: Variant = (map_part as Dictionary).get("points", null)
+	var leader_data: Variant = (map_part as Dictionary).get("leader_ids", null)
+	var flags: Array[bool] = []
+	for flag: String in ["are_waves_cancelled", "has_darkness_arrived", "opening_swap_open"]:
+		var value: Variant = (map_part as Dictionary).get(flag, null)
+		if not value is bool:
+			return ERR_INVALID_DATA
+		flags.append(value as bool)
+	if (
+			not object_data is Array
+			or not content_data is Dictionary
+			or not found_data is Dictionary
+			or not carried_data is Dictionary
+			or not point_data is Array
+			or not leader_data is Array
+	):
+		return ERR_INVALID_DATA
+	# Untyped: the parts come from JSON and are checked entry by entry.
+	var restored_objects: Dictionary[String, ObjectState] = {}
+	var indexes: Dictionary[int, bool] = {}
+	for entry: Variant in object_data:
+		var restored: ObjectState = (
+				_object_from(entry as Dictionary) if entry is Dictionary else null
+		)
+		if restored == null or restored_objects.has(restored.id) or indexes.has(restored.index):
+			return ERR_INVALID_DATA
+		restored_objects[restored.id] = restored
+		indexes[restored.index] = true
+	var restored_contents: Dictionary[int, Variant] = {}
+	for key: Variant in content_data:
+		if not str(key).is_valid_int():
+			return ERR_INVALID_DATA
+		restored_contents[str(key).to_int()] = _plain((content_data as Dictionary)[key])
+	var restored_found: Dictionary[int, Array] = {}
+	for key: Variant in found_data:
+		var loot: Variant = (found_data as Dictionary)[key]
+		if not str(key).is_valid_int() or not loot is Array:
+			return ERR_INVALID_DATA
+		restored_found[str(key).to_int()] = _plain(loot) as Array
+	var restored_carried: Dictionary[String, Array] = {}
+	for key: Variant in carried_data:
+		var loot: Variant = (carried_data as Dictionary)[key]
+		if not key is String or not loot is Array:
+			return ERR_INVALID_DATA
+		restored_carried[key as String] = _plain(loot) as Array
+	var restored_points: Dictionary[int, PointState] = {}
+	for entry: Variant in point_data:
+		var restored_point: PointState = (
+				_point_from(entry as Dictionary) if entry is Dictionary else null
+		)
+		if restored_point == null or restored_points.has(restored_point.index):
+			return ERR_INVALID_DATA
+		restored_points[restored_point.index] = restored_point
+	var leaders: PackedStringArray = []
+	for leader_id: Variant in leader_data:
+		if not leader_id is String:
+			return ERR_INVALID_DATA
+		leaders.append(leader_id as String)
+
+	objects = restored_objects
+	contents = restored_contents
+	found = restored_found
+	carried = restored_carried
+	points = restored_points
+	are_waves_cancelled = flags[0]
+	has_darkness_arrived = flags[1]
+	opening_swap_open = flags[2]
+	leader_ids = leaders
+	_blocking.clear()
+	for object_id: String in objects:
+		var placed: ObjectState = objects[object_id]
+		if placed.kind == MapLayout.ObjectKind.DOOR and not placed.is_open:
+			set_blocking(placed.tile, Blocking.ALL)
+		elif MapObjects.BREAKABLE_STATS.has(placed.kind) and not placed.is_destroyed:
+			set_blocking(placed.tile, Blocking.ALL_BUT_FLIERS)
+	return OK
+
+
+## The reinforcement point with id [param point_id]; null if there is none.
+func point(point_id: String) -> PointState:
+	for point_index: int in points:
+		if points[point_index].id == point_id:
+			return points[point_index]
+	return null
 
 
 # Object ids by spot index, so iteration doesn't depend on insertion order.
@@ -145,6 +300,158 @@ func _sorted_ids() -> Array[String]:
 		return objects[a].index < objects[b].index
 	)
 	return ids
+
+
+# value, plain data, deep-copied with every whole float in JSON's exact range turned back into an
+# int: JSON reads every number as a float, and loot and waves only ever hold ints, so a restored
+# map captures the same text as the one saved.
+# NOTE: The same whole-number rule as CombatState._whole; keep them in step.
+static func _plain(value: Variant) -> Variant:
+	if value is Dictionary:
+		var copied: Dictionary = {}
+		for key: Variant in value:
+			copied[key] = _plain((value as Dictionary)[key])
+		return copied
+	if value is Array:
+		var items: Array = []
+		for item: Variant in value:
+			items.append(_plain(item))
+		return items
+	if value is float:
+		var number: float = value
+		if number == floorf(number) and absf(number) <= CombatFact.MAX_EXACT_JSON_INT:
+			return int(number)
+	return value
+
+
+# value as an int when it is one, or a whole float within JSON's exact range; null otherwise.
+# NOTE: The same rule as CombatState._whole; keep them in step.
+static func _whole(value: Variant) -> Variant:
+	if value is int:
+		return value
+	if not value is float:
+		return null
+	var number: float = value
+	if number != floorf(number) or absf(number) > CombatFact.MAX_EXACT_JSON_INT:
+		return null
+	return int(number)
+
+
+# A tile written as [x, y]; NO_TILE when it isn't one.
+static func _tile_from(value: Variant) -> Vector2i:
+	if not value is Array or (value as Array).size() != 2:
+		return CombatFact.NO_TILE
+	var x: Variant = _whole((value as Array)[0])
+	var y: Variant = _whole((value as Array)[1])
+	if x == null or y == null:
+		return CombatFact.NO_TILE
+	return Vector2i(x as int, y as int)
+
+
+# The inner classes are captured and read here: an inner class never names its outer one.
+# NOTE: A reference back from an inner class to its outer script makes a script cycle, which 4.7.1
+# leaks at exit (godotengine/godot#117975; see combat_state_section.gd).
+static func _capture_object(placed: ObjectState) -> Dictionary:
+	return {
+		"id": placed.id,
+		"index": placed.index,
+		"kind": MapLayout.ObjectKind.find_key(placed.kind) as String,
+		"tile": [placed.tile.x, placed.tile.y],
+		"group_id": placed.group_id,
+		"pair_id": placed.pair_id,
+		"container_index": placed.container_index,
+		"is_open": placed.is_open,
+		"is_lit": placed.is_lit,
+		"is_used": placed.is_used,
+		"is_destroyed": placed.is_destroyed,
+	}
+
+
+# An object from _capture_object(); null when malformed.
+static func _object_from(data: Dictionary) -> ObjectState:
+	var id: Variant = data.get("id", null)
+	var kind_name: String = str(data.get("kind", ""))
+	var numbers: Array = []
+	for field: String in ["index", "group_id", "pair_id", "container_index"]:
+		numbers.append(_whole(data.get(field, null)))
+	var tile: Vector2i = _tile_from(data.get("tile", null))
+	if (
+			not id is String
+			or (id as String).is_empty()
+			or not MapLayout.ObjectKind.has(kind_name)
+			or numbers.has(null)
+			or (numbers[0] as int) < 0
+			or tile == CombatFact.NO_TILE
+	):
+		return null
+	for flag: String in ["is_open", "is_lit", "is_used", "is_destroyed"]:
+		if not data.get(flag, null) is bool:
+			return null
+	var placed: ObjectState = ObjectState.new()
+	placed.is_open = data["is_open"]
+	placed.is_lit = data["is_lit"]
+	placed.is_used = data["is_used"]
+	placed.is_destroyed = data["is_destroyed"]
+	placed.id = id
+	placed.index = numbers[0]
+	var kind_value: int = MapLayout.ObjectKind[kind_name]
+	placed.kind = kind_value as MapLayout.ObjectKind
+	placed.tile = tile
+	placed.group_id = numbers[1]
+	placed.pair_id = numbers[2]
+	placed.container_index = numbers[3]
+	return placed
+
+
+static func _capture_point(sender: PointState) -> Dictionary:
+	return {
+		"id": sender.id,
+		"index": sender.index,
+		"tile": [sender.tile.x, sender.tile.y],
+		"waves": _plain(sender.waves),
+		"sent": sender.sent,
+		"is_closed": sender.is_closed,
+		"waiting": _plain(sender.waiting),
+	}
+
+
+# A point from _capture_point(); null when malformed or when more waves arrived than it has.
+static func _point_from(data: Dictionary) -> PointState:
+	var id: Variant = data.get("id", null)
+	var index: Variant = _whole(data.get("index", null))
+	var sent: Variant = _whole(data.get("sent", null))
+	var tile: Vector2i = _tile_from(data.get("tile", null))
+	var wave_data: Variant = data.get("waves", null)
+	var waiting_data: Variant = data.get("waiting", null)
+	if (
+			not id is String
+			or index == null
+			or (index as int) < 0
+			or sent == null
+			or tile == CombatFact.NO_TILE
+			or not wave_data is Array
+			or not waiting_data is Array
+			or not data.get("is_closed", null) is bool
+			or (sent as int) < 0
+			or (sent as int) > (wave_data as Array).size()
+	):
+		return null
+	var restored: PointState = PointState.new()
+	# Untyped: the parts come from JSON and are checked entry by entry.
+	for entry: Variant in wave_data:
+		if not entry is Dictionary:
+			return null
+		restored.waves.append(_plain(entry) as Dictionary)
+	for entry: Variant in waiting_data:
+		if not entry is Dictionary:
+			return null
+		restored.waiting.append(_plain(entry) as Dictionary)
+	restored.id = id
+	restored.index = index
+	restored.tile = tile
+	restored.sent = sent
+	restored.is_closed = data["is_closed"]
+	return restored
 
 
 ## One map object's state. Breakables (debris, powder kegs) are also units of side
@@ -210,6 +517,10 @@ class PointState:
 	var sent: int = 0
 	## Closed for good by a player unit ending its turn on it.
 	var is_closed: bool = false
+	## Units of arrived waves that found no free tile, in arrival order: their group entries
+	## ([constant Reinforcements.GROUP_KEY]). They try again after the next enemy phase, ahead of
+	## that turn's wave, and count as a wave still to come ([method Reinforcements.waves_left]).
+	var waiting: Array[Dictionary] = []
 
 	## A copy sharing nothing mutable.
 	func copy() -> PointState:
@@ -221,4 +532,6 @@ class PointState:
 			state_copy.waves.append(wave.duplicate(true))
 		state_copy.sent = sent
 		state_copy.is_closed = is_closed
+		for entry: Dictionary in waiting:
+			state_copy.waiting.append(entry.duplicate(true))
 		return state_copy

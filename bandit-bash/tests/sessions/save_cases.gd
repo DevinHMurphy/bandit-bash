@@ -613,6 +613,7 @@ class Skirmish:
 			load_error = _sections.sections.restore(COMBAT, saved)
 			_sections.rng.attach(run)
 			_sections.combat_state.attach(run)
+			_sections.combat_map.attach(run)
 		var request: CampaignSession.BattleRequest = CampaignSession.BattleRequest.new()
 		request.floor_number = FLOOR
 		request.node = NODE
@@ -653,6 +654,9 @@ class Skirmish:
 		session = battle.get_session(0)
 		session.batch_resolved.connect(_on_batch_resolved)
 		if not saved.is_empty():
+			# The maps first, then the battle, whose reload carries them (CombatMapSection).
+			if load_error == OK:
+				load_error = _sections.combat_map.load_into(battle)
 			if load_error == OK:
 				load_error = _sections.combat_state.load_into(battle)
 			# The resume flow sets the battle's id counter again once the battle is rebuilt.
@@ -819,7 +823,8 @@ class Skirmish:
 
 
 # The COMBAT block's sections registered as CampaignService registers them: rng, instance ids,
-# then combat_state and effects.
+# combat_state and effects, then combat_map and entities. SaveService reserves entities first, so
+# its slot comes before every other section here, as it does in a real save.
 class Registry:
 	extends RefCounted
 
@@ -827,17 +832,29 @@ class Registry:
 	var rng: RngSaveSection = RngSaveSection.new(COMBAT)
 	var ids: InstanceIdSaveSection = InstanceIdSaveSection.new(COMBAT)
 	var combat_state: CombatStateSection = CombatStateSection.new()
+	var combat_map: CombatMapSection = CombatMapSection.new()
 
 	func _init() -> void:
+		combat_state.resolve = Registry.find_definition
+		sections.register(COMBAT, RawSaveSection.new("entities"))
 		sections.register(COMBAT, rng)
 		sections.register(COMBAT, ids)
 		sections.register(COMBAT, combat_state)
 		sections.register(COMBAT, combat_state.effects)
+		sections.register(COMBAT, combat_map)
+		sections.register(COMBAT, combat_map.entities)
 
 	func attach(run: CampaignSession) -> void:
 		rng.attach(run)
 		ids.attach(run)
 		combat_state.attach(run)
+		combat_map.attach(run)
+
+	## A saved effect's definition as CampaignService finds it: a map object's reaction, else the
+	## catalog's.
+	static func find_definition(reference: String) -> EffectDefinition:
+		var own: EffectDefinition = MapObjects.map_definition(reference)
+		return own if own != null else EffectInstance.catalog_definition(reference)
 
 
 # A map with two Battle Medics loaded through the real catalog with a Minor Heal each (3 uses per

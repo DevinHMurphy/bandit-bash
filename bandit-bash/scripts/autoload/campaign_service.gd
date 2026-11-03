@@ -6,7 +6,7 @@
 # File:     campaign_service.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 31, 2026
+# Modified: November 3, 2026
 # ==============================================================================
 
 extends Node
@@ -27,7 +27,8 @@ extends Node
 ## [b]Save sections:[/b] the [code]rng[/code] ([RngSaveSection]) and [code]instance_ids[/code]
 ## ([InstanceIdSaveSection]) sections, one of each in the campaign and the combat block, and the
 ## combat block's [code]combat_state[/code] and [code]effects[/code] ([CombatStateSection]), which
-## also keep the combat block's core turn and phase equal to the battle's. Each new session is
+## also keep the combat block's core turn and phase equal to the battle's, then its
+## [code]combat_map[/code] and [code]entities[/code] ([CombatMapSection]). Each new session is
 ## handed to all of them before [signal session_started], campaign before combat, so a continued
 ## run's streams and id counter are restored before anything draws or mints.
 ##
@@ -35,8 +36,9 @@ extends Node
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
 ## @tutorial(Save system design): docs/design/save-system.md
 ##
-## @todo: TOD-001 [HIGH] - On a BATTLE resume, rebuild the battle as Begin set it up and
-## [method CombatStateSection.load_into] it (P02 CC10, battle resume, after P04 MP8).
+## @todo: TOD-001 [HIGH] - On a BATTLE resume, rebuild the battle as Begin set it up and load the
+## held battle into it: [method CombatMapSection.load_into], then
+## [method CombatStateSection.load_into] (P02 CC10, battle resume).
 
 ## A run's session was built: connect here to follow its battles.
 signal session_started(session: CampaignSession)
@@ -52,6 +54,7 @@ var _combat_rng: RngSaveSection = RngSaveSection.new(SaveSection.Block.COMBAT)
 var _campaign_ids: InstanceIdSaveSection = InstanceIdSaveSection.new(SaveSection.Block.CAMPAIGN)
 var _combat_ids: InstanceIdSaveSection = InstanceIdSaveSection.new(SaveSection.Block.COMBAT)
 var _combat_state: CombatStateSection = null
+var _combat_map: CombatMapSection = CombatMapSection.new()
 
 
 func _ready() -> void:
@@ -64,9 +67,14 @@ func _ready() -> void:
 	SaveService.register_section(SaveSection.Block.CAMPAIGN, _campaign_ids)
 	SaveService.register_section(SaveSection.Block.COMBAT, _combat_ids)
 	_combat_state = CombatStateSection.new(_combat_core)
+	_combat_state.resolve = _find_definition
 	# The effects section restores after combat_state, which it needs (CombatStateSection).
 	SaveService.register_section(SaveSection.Block.COMBAT, _combat_state)
 	SaveService.register_section(SaveSection.Block.COMBAT, _combat_state.effects)
+	# entities replaces the placeholder SaveService reserved under its key, and restores after
+	# combat_map, which it needs (CombatMapSection).
+	SaveService.register_section(SaveSection.Block.COMBAT, _combat_map)
+	SaveService.register_section(SaveSection.Block.COMBAT, _combat_map.entities)
 	SaveService.campaign_activated.connect(_on_save_service_campaign_activated)
 	SaveService.run_ended.connect(_on_save_service_run_ended)
 	SaveService.save_file_closed.connect(_on_save_service_save_file_closed)
@@ -114,11 +122,13 @@ func _replace_session(replacement: CampaignSession) -> void:
 	_campaign_ids.detach()
 	_combat_ids.detach()
 	_combat_state.detach()
+	_combat_map.detach()
 	if replacement != null:
 		_attach_rng_sections(replacement)
 		_attach_id_sections(replacement)
 		# TODO(TOD-001): A BATTLE resume's held battle waits here for its rebuilt battle (CC10).
 		_combat_state.attach(replacement)
+		_combat_map.attach(replacement)
 	if previous != null:
 		previous.close()
 		session_ended.emit(previous)
@@ -149,6 +159,13 @@ func _attach_id_sections(built: CampaignSession) -> void:
 					"CampaignService: the instance_ids section refused the new session - %s"
 					% [error_string(err)]
 			)
+
+
+# A saved effect's definition, for the combat sections: a map object's own reaction (a powder
+# keg's), which no catalog holds, else the catalog's.
+func _find_definition(reference: String) -> EffectDefinition:
+	var own: EffectDefinition = MapObjects.map_definition(reference)
+	return own if own != null else EffectInstance.catalog_definition(reference)
 
 
 # The combat block's data, which the combat_state section keeps equal to the battle; null outside
