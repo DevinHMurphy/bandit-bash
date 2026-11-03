@@ -6,7 +6,7 @@
 # File:     combat_session.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 31, 2026
+# Modified: November 3, 2026
 # ==============================================================================
 
 class_name CombatSession
@@ -60,6 +60,11 @@ signal fact_recorded(fact: CombatFact)
 signal grant_received(
 		seat: int, grant: int, amount: int, definition_id: String, source_effect_id: String
 )
+
+## [member intents] was replaced, during a step on the host ([method Intents.refresh]). For
+## presentation (P07 draws the intents and the danger zone); nothing connected may change rules
+## state. [param intents]: the new value.
+signal intents_changed(intents: Intents)
 
 ## [method next_arrival] when nothing is queued. Arrival stamps start at 1.
 const NO_ARRIVAL: int = 0
@@ -133,6 +138,12 @@ var is_tracing_draws: bool = false
 ## The run's seed, which [method snapshot] and [method debug_dump] name the run by (RNG streams
 ## plan, need R-N4). Set by the encounter; 0 outside one.
 var run_seed: int = 0
+
+## The enemies' latest intents and danger zone, kept by [method Intents.register] after every
+## player Phase Start and player step; null before the first, or with none registered. Derived
+## from the board, never saved or sent: a client's mirror computes its own
+## ([method Intents.compute]).
+var intents: Intents = null
 
 var _clock: ArrivalClock = null
 var _queue: Array[Command] = []

@@ -6,13 +6,13 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: October 31, 2026
+# Modified: November 3, 2026
 # ==============================================================================
 
 extends SceneTree
 ## Enemies suite (enemies and AI plan, P05): setup step 4 ([EnemySetup],
-## [code]enemy_setup_cases.gd[/code]) and the enemy AI ([code]ai_cases.gd[/code]) on the loadout
-## fixture tree's enemy classes.
+## [code]enemy_setup_cases.gd[/code]), the enemy AI ([code]ai_cases.gd[/code]) and its intents
+## ([code]intent_cases.gd[/code]) on the loadout fixture tree's enemy classes.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/enemies/run_all.gd[/code][br]
@@ -26,6 +26,7 @@ extends SceneTree
 const AiCases = preload("res://tests/enemies/ai_cases.gd")
 const CatalogCases = preload("res://tests/content/catalog_cases.gd")
 const EnemySetupCases = preload("res://tests/enemies/enemy_setup_cases.gd")
+const IntentCases = preload("res://tests/enemies/intent_cases.gd")
 const LoadoutCases = preload("res://tests/content/loadout_cases.gd")
 
 var _failures: int = 0
@@ -39,6 +40,7 @@ func _init() -> void:
 	EnemySetupCases.new(_check).run()
 	var catalog: EffectCatalog.Index = EffectCatalog.load_tree(LoadoutCases.TREE)
 	AiCases.new(_check, catalog).run()
+	IntentCases.new(_check, catalog).run()
 	var changed: PackedStringArray = CatalogCases.changed_definitions(
 			before, CatalogCases.hash_definitions([LoadoutCases.TREE])
 	)

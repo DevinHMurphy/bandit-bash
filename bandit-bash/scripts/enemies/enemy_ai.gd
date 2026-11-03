@@ -6,7 +6,7 @@
 # File:     enemy_ai.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: October 31, 2026
+# Modified: November 3, 2026
 # ==============================================================================
 
 class_name EnemyAI
@@ -192,8 +192,9 @@ static func _attacks(board: Board) -> Array[EnemyPlan]:
 				)
 				if order == 1:
 					command.weapon_id = held.id
+				# Without hit breakdowns: no rating step reads them.
 				var forecast: CombatForecast.ExchangeForecast = CombatForecast.exchange(
-						board.engine, command, ForecastRolls.new()
+						board.engine, command, ForecastRolls.new(), false
 				)
 				if forecast.is_legal:
 					options.append(_attack_plan(board, tile, forecast, command.weapon_id, order))
