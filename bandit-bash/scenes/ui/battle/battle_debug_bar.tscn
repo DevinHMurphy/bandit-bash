@@ -1,0 +1,40 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/battle/battle_debug_bar.gd" id="1_bar"]
+[ext_resource type="Theme" path="res://scenes/ui/battle/battle_theme.tres" id="2_theme"]
+
+[node name="BattleDebugBar" type="PanelContainer"]
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = -48.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 0
+theme = ExtResource("2_theme")
+script = ExtResource("1_bar")
+
+[node name="Row" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Status" type="Label" parent="Row"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Battle"
+vertical_alignment = 1
+
+[node name="StartButton" type="Button" parent="Row"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+text = "Start"
+
+[node name="EndTurnButton" type="Button" parent="Row"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "End Turn (debug)"
