@@ -369,13 +369,13 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 ## Next actions
 
 1. **M1's critical path (code):** P06 **DK2** (setup step 3, the source rule, the M1 map's two
-   source candidates; prompt issued November 4, 2026), then DK3 (the darkness step; it sets
+   source candidates; building since November 4, 2026), then DK3 (the darkness step; it sets
    `MapState.has_darkness_arrived`) and DK4 (damage and readers).
 2. **M1's critical path (planning):** **P07** (minimal UI: forecast panel, move preview with
    darkness damage, intents and danger zone, HUD, and the scene that starts an M1 battle and plays
    it; the hover preview runs off the input path, P05 question 23). Not drafted. After DK4, M1 is
    blocked on P07 alone.
-3. **Open questions for the user:** P06 question 11 (DK1's findings).
+3. **Open questions for the user:** none (P06 question 11 answered November 4, 2026).
 4. **Off M1's path:** P02 **CC10** (battle resume; releases the reserved `enemy_units` key, P04
    question 25; rejects a move that goes nowhere, P02 question 21); the Trivial tag cleanup (P03
    question 22; it also drops the pack-name `; ASSUMPTION` in `m1_pack.tres`). P03 CT6 and CT13
@@ -454,4 +454,4 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 | November 3, 2026 | User answered P02 question 21 (reject a move that goes nowhere, every move command; built with CC10), P03 question 22 (the tag constants and a note that every tag and content id comes from `ContentIds`; Triage's wording kept) and P05 question 22 (every kill counts the same). **P06 drafted** ([2026-11-03-the-darkness.md](2026-11-03-the-darkness.md)): one staged plan, DK1–DK4 for M1 (state and flow, setup step 3 and the source rule, the darkness step, damage and its readers), DK5 the `darkness` save section after MP8, DK6 docs; questions 1–10 open, the two P06 design items folded in as questions 7 and 10. |
 | November 3, 2026 | **P05 EN5, P04 MP8 and P05 EN4 merged into `dev`** (7a537b5, 8019cfb, c2bb10c; verified merged: content 590, enemies 87, map 482, sessions 282, every other suite unchanged, launch clean, no exit leak). EN5: the Brute, Crossbowman, Hedge Healer and the M1 pack as data. MP8: `entities` and `combat_map` (v1), waiting wave units, the snapshot format 3, the keg-id save fix; CC10's call order in save-system.md. EN4: chained intents, the danger zone, hover previews (107 ms median against 50 ms), `CombatSession.intents` and `intents_changed`. **P06 approved** (questions 1–10 as recommended); DK1–DK4 gate open. Raised P04 question 25 and P05 question 23; new step EN4F. |
 | November 4, 2026 | **P06 DK1 and P05 EN4F merged into `dev`** (e4ac466, f2a934f; verified merged: darkness 82, enemies 97, every other suite unchanged, launch clean). DK1: `DarknessFlow` and `DarknessState` on `MapState`, `darkness_layer()` answering from it. EN4F: `PhaseRunner.cross_to_enemy_phase` replaces the intents' copy (hooks on that boundary run on a stand-in session for intents), the headless M1 battle runs to `COMBAT_ENDED` deterministically. User answered P04 question 25 and P05 question 23 as recommended; P06 question 11 raised. M1's part of P05 is built. |
-| November 4, 2026 | P06 question 11 (b) accepted (sideways spread judged in M1 play); the darkness spread is terrain-blind (user). Vision note queued for the ideation thread. |
+| November 4, 2026 | P06 question 11 answered: (b) accepted (sideways spread judged in M1 play), the rest as recommended; DK2 building; the darkness spread is terrain-blind (user). Vision note queued for the ideation thread. |
