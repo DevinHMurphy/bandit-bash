@@ -63,7 +63,7 @@ into `dev`; plan and orchestrator commits go to `dev`; `main` holds released sta
   complete (P01 EB1–EB7 implemented and verified headless, October 30, 2026).
 - **Current focus:** P02's, P03's, P04's and P05's parts of M1 are built; a headless M1 battle runs to the end.
   M1's critical path is now **P06 DK3–DK4** (DK1 and DK2 merged)
-  and **P07** (minimal UI, approved November 4, 2026; UI1 building), which owns the battle scene.
+  and **P07** (minimal UI, approved November 4, 2026; UI1 merged, UI2 next), which owns the battle scene.
 
 ## Milestones
 
@@ -374,7 +374,7 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
    darkness damage, intents and danger zone, HUD, and the scene that starts an M1 battle and plays
    it; the hover preview runs off the input path, P05 question 23). Approved November 4, 2026; UI1 (prompt issued November 4, 2026) runs alongside DK2–DK4 (only UI3's darkness preview waits on DK4). After DK4, M1 is
    blocked on P07 alone.
-3. **Open questions for the user:** P06 question 12 (DK2's findings).
+3. **Open questions for the user:** P06 question 12 (DK2's findings); P07 question 14 (UI1's findings).
 4. **Off M1's path:** P02 **CC10** (battle resume; releases the reserved `enemy_units` key, P04
    question 25; rejects a move that goes nowhere, P02 question 21); the Trivial tag cleanup (P03
    question 22; it also drops the pack-name `; ASSUMPTION` in `m1_pack.tres`). P03 CT6 and CT13
@@ -457,3 +457,4 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 | November 4, 2026 | **P07 Combat UI drafted** ([2026-11-04-combat-ui.md](2026-11-04-combat-ui.md)): one staged plan, UI1–UI5 for M1 (battle scene and board, turn input, forecast and move preview, enemy information, HUD), UI6+ for M2; it owns `gameplay.tscn`. 13 questions open. |
 | November 4, 2026 | **P07 approved** (questions 1–13 as recommended). User note: nothing in it is permanent; every component is its own editable `.tscn` with tweakable values as exports. UI1 prompt issued. |
 | November 4, 2026 | **P06 DK2 merged into `dev`** (f98eb0d; verified merged: darkness 108, map 490, every other suite unchanged, launch clean): setup step 3 (active sources, the drain per objective, `first_release` with Short Wick), `MapMarker.Kind.DARKNESS_SOURCE`, `MapCheck.Rule.DARKNESS_SOURCES`, the M1 map's two candidates. P06 question 12 raised; DK3 prompt issued. |
+| November 4, 2026 | **P07 UI1 merged into `dev`** (5bcf23c; verified merged with DK2: ui 24, darkness 108, map 490, every other suite unchanged, launch clean): a new solo run opens the M1 battle on screen, the board (terrain, tokens, darkness overlay, camera) plays facts through `FactPlayback`, the end goes to Results; debug Start and End Turn buttons. P07 question 14 raised; UI2 prompt issued. User: every build prompt carries an expected-effort label. |
