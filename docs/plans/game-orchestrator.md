@@ -61,8 +61,8 @@ into `dev`; plan and orchestrator commits go to `dev`; `main` holds released sta
   (`EffectCatalog`) loads `res://data/`, though no content is written yet.
 - **Current milestone:** [M1 First playable fight](#milestones). [M0 Foundations](#milestones) is
   complete (P01 EB1–EB7 implemented and verified headless, October 30, 2026).
-- **Current focus:** P02's, P03's and P04's parts of M1 are built, and P05's but the EN4 fix-up.
-  M1's critical path is now **P06 DK1–DK4** and **EN4F**,
+- **Current focus:** P02's, P03's, P04's and P05's parts of M1 are built; a headless M1 battle runs to the end.
+  M1's critical path is now **P06 DK2–DK4** (DK1 merged),
   then **P07** (minimal UI), not yet planned. P07 needs
   EN4's intents; nothing yet owns the scene that starts an M1 battle and plays it (P07's plan should
   claim it).
@@ -257,9 +257,9 @@ flowchart LR
   classDef active fill:#bbdefb,stroke:#1565c0,color:#1b1b1b
   classDef ready fill:#fff3c4,stroke:#b8860b,color:#1b1b1b
   classDef waiting fill:#e0e0e0,stroke:#757575,color:#1b1b1b
-  class R1,R2,R3,R4,R5,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,CT2,EB5,EB7,EBF,EN1,CT3,EN2,EN3,CC8,CT3F,EN3F,EN4,EN5,MP8 done
-  class CT6,CT13,CC10,DK1,EN4F ready
-  class CT7,DK2,DK3,DK4,DK5,DK6 waiting
+  class R1,R2,R3,R4,R5,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,CT2,EB5,EB7,EBF,EN1,CT3,EN2,EN3,CC8,CT3F,EN3F,EN4,EN5,MP8,DK1,EN4F done
+  class CT6,CT13,CC10,DK2 ready
+  class CT7,DK3,DK4,DK5,DK6 waiting
 ```
 
 `CC6 --- MP4`: built together; MP4's objective checks run on CC6's `AFTER_STEP` hook.
@@ -367,20 +367,17 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 
 ## Next actions
 
-1. **M1's critical path (code):** P06 **DK1** (darkness state and flow; prompt issued November 3,
-   2026), then DK2–DK4 in order. Alongside: the P05 **EN4 fix-up** (EN4F; prompt issued November 3,
-   2026): a public `PhaseRunner` boundary entry point replacing `intents.gd`'s copy, the darkness's
-   rule text, the short target rule text, and the headless M1 battle check (P05 question 23).
-   Whichever merges second merges `dev` in first.
+1. **M1's critical path (code):** P06 **DK2** (setup step 3, the source rule, the M1 map's two
+   source candidates; prompt issued November 4, 2026), then DK3 (the darkness step; it sets
+   `MapState.has_darkness_arrived`) and DK4 (damage and readers).
 2. **M1's critical path (planning):** **P07** (minimal UI: forecast panel, move preview with
    darkness damage, intents and danger zone, HUD, and the scene that starts an M1 battle and plays
-   it; the hover preview runs off the input path, P05 question 23). Not drafted. After DK4 and
-   EN4F, M1 is blocked on P07 alone.
-3. **Open questions for the user:** P04 question 25 (MP8) and P05 question 23 (EN4, EN5); each has
-   a recommendation.
-4. **Off M1's path:** P02 **CC10** (battle resume; ready now that MP8 is in; also releases the
-   reserved `enemy_units` key, P04 question 25, and rejects a move that goes nowhere, P02 question
-   21); the Trivial tag cleanup (P03 question 22; prompt issued October 31, 2026). P03 CT6 and CT13
+   it; the hover preview runs off the input path, P05 question 23). Not drafted. After DK4, M1 is
+   blocked on P07 alone.
+3. **Open questions for the user:** P06 question 11 (DK1's findings).
+4. **Off M1's path:** P02 **CC10** (battle resume; releases the reserved `enemy_units` key, P04
+   question 25; rejects a move that goes nowhere, P02 question 21); the Trivial tag cleanup (P03
+   question 22; it also drops the pack-name `; ASSUMPTION` in `m1_pack.tres`). P03 CT6 and CT13
    held (M1 before breadth).
 5. Vision updates pending for the ideation thread (Design items by plan).
 
@@ -455,3 +452,4 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 | October 31, 2026 | **P03 CT3F and P05 EN3F merged into `dev`** (fcc6722, e2cbf83; verified merged: combat 618, content 561, effects 527, enemies 64, every other suite unchanged, launch clean). CT3F: `GainResource.can_exceed_maximum` and a defaulted parameter on `EffectEngine.change_stance`; Triage and Triage+ go above the Stance maximum until the side's next Phase Start. EN3F: a reachable kill beats Hold; Cleave splash kills count (90 ms median for a full M1 enemy phase, debug build). Raised P03 question 22 (tag constants, Triage wording) and P05 question 22 (kill ranking). EN4 ready. |
 | November 3, 2026 | User answered P02 question 21 (reject a move that goes nowhere, every move command; built with CC10), P03 question 22 (the tag constants and a note that every tag and content id comes from `ContentIds`; Triage's wording kept) and P05 question 22 (every kill counts the same). **P06 drafted** ([2026-11-03-the-darkness.md](2026-11-03-the-darkness.md)): one staged plan, DK1–DK4 for M1 (state and flow, setup step 3 and the source rule, the darkness step, damage and its readers), DK5 the `darkness` save section after MP8, DK6 docs; questions 1–10 open, the two P06 design items folded in as questions 7 and 10. |
 | November 3, 2026 | **P05 EN5, P04 MP8 and P05 EN4 merged into `dev`** (7a537b5, 8019cfb, c2bb10c; verified merged: content 590, enemies 87, map 482, sessions 282, every other suite unchanged, launch clean, no exit leak). EN5: the Brute, Crossbowman, Hedge Healer and the M1 pack as data. MP8: `entities` and `combat_map` (v1), waiting wave units, the snapshot format 3, the keg-id save fix; CC10's call order in save-system.md. EN4: chained intents, the danger zone, hover previews (107 ms median against 50 ms), `CombatSession.intents` and `intents_changed`. **P06 approved** (questions 1–10 as recommended); DK1–DK4 gate open. Raised P04 question 25 and P05 question 23; new step EN4F. |
+| November 4, 2026 | **P06 DK1 and P05 EN4F merged into `dev`** (e4ac466, f2a934f; verified merged: darkness 82, enemies 97, every other suite unchanged, launch clean). DK1: `DarknessFlow` and `DarknessState` on `MapState`, `darkness_layer()` answering from it. EN4F: `PhaseRunner.cross_to_enemy_phase` replaces the intents' copy (hooks on that boundary run on a stand-in session for intents), the headless M1 battle runs to `COMBAT_ENDED` deterministically. User answered P04 question 25 and P05 question 23 as recommended; P06 question 11 raised. M1's part of P05 is built. |
