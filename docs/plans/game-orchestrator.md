@@ -96,7 +96,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P04 | Combat map: grid, terrain, pathing, deployment, objectives, reinforcement points, map objects, map authoring and its checks | [2026-10-27-combat-map.md](2026-10-27-combat-map.md) | **Approved** October 27, 2026 (13 questions answered; "within N movable tiles" cut; no prep screen); **In progress:** MP1–MP4 built and merged October 28, 2026, with the MP3 fix-ups (MP4 with P02 CC6); MP5 (the M1 greybox map, `MapMarker`, `MapCheck`) merged October 29, 2026 (questions 20–22 answered); MP6 (map objects, breaking, kegs, Spark, contents in `MapState`) merged October 29, 2026 (question 23 answered); MP7 (reinforcements) merged October 29, 2026 (461 headless map tests pass; question 24 raised); MP8 after EB7 and CC8 | P01 (EB6), P02 | P05, P06, P07, M1 | game-vision.md Combat maps, map-objects.md |
 | P05 | Enemies and AI: classes, intents, danger zone, ruthless AI, signature moves, elites, mini-bosses, the Powder Baron | [2026-10-30-enemies-and-ai.md](2026-10-30-enemies-and-ai.md) | **Approved** October 30, 2026 (one staged plan, EN1–EN12; questions 1–17 answered: the AI rates options with the player's forecast calculation, kills first; chained intents after every player action and while moving; generic enemy weapons with unlimited uses). M1 needs EN1–EN5. **In progress:** EN1 merged October 30, 2026 (60ae740; question 18); EN2 and EN3 ready | P02, P04 | M1, M2 | enemy-roster.md |
 | P06 | The darkness | [2026-11-03-the-darkness.md](2026-11-03-the-darkness.md) | **Approved** November 3, 2026 (one staged plan, DK1–DK6; questions 1–10 answered as recommended; M1 needs DK1–DK4); DK1 ready | P02, P04 | M1 | the-darkness.md |
-| P07 | Combat UI and forecast: the battle scene, turn input, forecast panel, move preview (darkness damage), danger zone and intent display, HUD | [2026-11-04-combat-ui.md](2026-11-04-combat-ui.md) | **Drafted** November 4, 2026 (13 questions open; UI1–UI5 for M1) | P02, P04, P05 | M1, M2 | game-vision.md Combat, Enemy intentions |
+| P07 | Combat UI and forecast: the battle scene, turn input, forecast panel, move preview (darkness damage), danger zone and intent display, HUD | [2026-11-04-combat-ui.md](2026-11-04-combat-ui.md) | **Approved** November 4, 2026 (13 questions answered; nothing permanent, every component an editable `.tscn`); UI1 next | P02, P04, P05 | M1, M2 | game-vision.md Combat, Enemy intentions |
 | P08 | Campaign and run flow: `CampaignSession` ownership, campaign map generation, nodes, rewards, Armory, Guildhall, Camp, Treasure, gold, XP and level-ups, recruiting, run end | [2026-10-24-campaign-run-flow.md](2026-10-24-campaign-run-flow.md) | **Stub** (question 1 answered: `CampaignService`, built in EB6; question 2 answered by P13). Applies the grants `CampaignSession` records (P01 question 43) | P01, P03 | M3, P09, P12 | game-vision.md Run structure, Army, Units |
 | P09 | Narrative events and curses | — | **Not started** | P01, P03, P08 | M3 | events.md |
 | P10 | Net transport: `Net` autoload, RPCs, command validation, Steam lobby integration | — | **Not started** | P00, P01 | P11 | multiplayer-combat-options.md, `steam_multiplayer_kit/` (read first) |
@@ -163,8 +163,8 @@ flowchart LR
   classDef ready fill:#fff3c4,stroke:#b8860b,color:#1b1b1b
   classDef waiting fill:#e0e0e0,stroke:#757575,color:#1b1b1b
   class P00 done
-  class P01,P02,P03,P04,P05,P06,P13 active
-  class P07,P08,P09,P10,P11,P12 waiting
+  class P01,P02,P03,P04,P05,P06,P07,P13 active
+  class P08,P09,P10,P11,P12 waiting
 ```
 
 ### Build steps in progress
@@ -287,6 +287,7 @@ mark it **Open** here.
 | P05 EN5 M1 enemies | P05 EN1; P03 CT3 (the Simple Axe, Simple Bow and Minor Heal as data) | Enemies carry the player's generic weapons | **Open** October 30, 2026 (CT3 merged) |
 | P06 DK1–DK4 | P06 approved ✅ (November 3, 2026); P02 and P04 implemented for M1 ✅ | The darkness plugs into P02's hooks and P04's map | **Open** November 3, 2026 |
 | P06 DK5 Save section | P06 DK4; P04 MP8 ✅ (November 3, 2026) | Built on MP8's section pattern | Closed |
+| P07 UI1–UI5 | P07 approved ✅ (November 4, 2026); P02, P04 and P05 implemented for M1 ✅; DK4 for UI3's darkness preview | The UI reads the session and issues commands | **Open** November 4, 2026 |
 | P04 MP1–MP3, MP6 | P04 approved ✅ (October 27, 2026) | — | **Open** October 27, 2026; MP1–MP3 built October 28, 2026; MP6 built October 29, 2026, so MP7 may start; MP7 built October 29, 2026 |
 | P04 MP4 Objectives | P02 CC6 (the `AFTER_STEP` hook) | The checks run on the turn loop's hook; built with CC6 | **Open** October 28, 2026 (EB6 implemented, so CC6 may start); implemented with CC6 October 28, 2026, so MP5 may start |
 | P04 MP8 Save sections | P01 EB7, P02 CC8 | `entities` and `combat_map` follow the session snapshot and `combat_state` | **Open** October 31, 2026 (CC8 merged) |
@@ -373,9 +374,9 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
    `MapState.has_darkness_arrived`) and DK4 (damage and readers).
 2. **M1's critical path (planning):** **P07** (minimal UI: forecast panel, move preview with
    darkness damage, intents and danger zone, HUD, and the scene that starts an M1 battle and plays
-   it; the hover preview runs off the input path, P05 question 23). Drafted November 4, 2026; UI1 can start on approval, alongside DK3 and DK4 (only UI3's darkness preview waits on DK4). After DK4, M1 is
+   it; the hover preview runs off the input path, P05 question 23). Approved November 4, 2026; UI1 (prompt issued November 4, 2026) runs alongside DK2–DK4 (only UI3's darkness preview waits on DK4). After DK4, M1 is
    blocked on P07 alone.
-3. **Open questions for the user:** P07 questions 1–13 (the draft).
+3. **Open questions for the user:** none.
 4. **Off M1's path:** P02 **CC10** (battle resume; releases the reserved `enemy_units` key, P04
    question 25; rejects a move that goes nowhere, P02 question 21); the Trivial tag cleanup (P03
    question 22; it also drops the pack-name `; ASSUMPTION` in `m1_pack.tres`). P03 CT6 and CT13
@@ -456,3 +457,4 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 | November 4, 2026 | **P06 DK1 and P05 EN4F merged into `dev`** (e4ac466, f2a934f; verified merged: darkness 82, enemies 97, every other suite unchanged, launch clean). DK1: `DarknessFlow` and `DarknessState` on `MapState`, `darkness_layer()` answering from it. EN4F: `PhaseRunner.cross_to_enemy_phase` replaces the intents' copy (hooks on that boundary run on a stand-in session for intents), the headless M1 battle runs to `COMBAT_ENDED` deterministically. User answered P04 question 25 and P05 question 23 as recommended; P06 question 11 raised. M1's part of P05 is built. |
 | November 4, 2026 | P06 question 11 answered: (b) accepted (sideways spread judged in M1 play), the rest as recommended; DK2 building; the darkness spread is terrain-blind (user). Vision note queued for the ideation thread. |
 | November 4, 2026 | **P07 Combat UI drafted** ([2026-11-04-combat-ui.md](2026-11-04-combat-ui.md)): one staged plan, UI1–UI5 for M1 (battle scene and board, turn input, forecast and move preview, enemy information, HUD), UI6+ for M2; it owns `gameplay.tscn`. 13 questions open. |
+| November 4, 2026 | **P07 approved** (questions 1–13 as recommended). User note: nothing in it is permanent; every component is its own editable `.tscn` with tweakable values as exports. UI1 prompt issued. |
