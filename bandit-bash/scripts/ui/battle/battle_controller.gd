@@ -393,6 +393,7 @@ func request_end_turn() -> void:
 	if not is_accepting_input():
 		return
 	if _stage == Stage.SWAP or _stage == Stage.SWAP_PICKED:
+		# ASSUMPTION: end_turn presses Start in the swap window, the keyboard's only way to it.
 		request_start()
 		return
 	if _stage != Stage.IDLE and _stage != Stage.MOVE:
@@ -576,6 +577,7 @@ func _after_playback() -> void:
 	var acted_id: String = _sent_unit_id
 	_sent_unit_id = ""
 	_rebuild()
+	# ASSUMPTION: after a rejection the flow starts over at IDLE, not at the stage it was sent from.
 	if not _rejection.is_empty():
 		return
 	if (
