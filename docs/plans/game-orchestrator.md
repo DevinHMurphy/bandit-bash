@@ -372,7 +372,7 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
    CC10 (battle resume) after DK4.
 2. **M1's critical path (planning):** **P07** (minimal UI: forecast panel, move preview with
    darkness damage, intents and danger zone, HUD, and the scene that starts an M1 battle and plays
-   it; the hover preview runs off the input path, P05 question 23). Approved November 4, 2026; UI1 (prompt issued November 4, 2026) runs alongside DK2–DK4 (only UI3's darkness preview waits on DK4). After DK4, M1 is
+   it; the hover preview runs off the input path, P05 question 23). Approved November 4, 2026; UI1 merged; UI2 building; UI3–UI5 after UI2 (only UI3's darkness preview waits on DK4). After DK4, M1 is
    blocked on P07 alone.
 3. **Open questions for the user:** P06 questions 12 (DK2) and 13 (DK3).
 4. **Off M1's path:** P02 **CC10** (battle resume; releases the reserved `enemy_units` key, P04
