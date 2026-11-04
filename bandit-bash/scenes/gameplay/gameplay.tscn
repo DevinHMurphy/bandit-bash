@@ -1,11 +1,20 @@
-[gd_scene format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/nav_button.gd" id="1_nav"]
 [ext_resource type="PackedScene" path="res://scenes/debug/save_debug_panel.tscn" id="2_save_debug"]
 [ext_resource type="PackedScene" path="res://scenes/ui/pause_menu.tscn" id="3_pause_menu"]
 [ext_resource type="PackedScene" path="res://scenes/ui/save_indicator.tscn" id="4_save_indicator"]
+[ext_resource type="Script" path="res://scripts/ui/battle/battle_screen.gd" id="5_screen"]
+[ext_resource type="Resource" path="res://maps/standard/m1_greybox.tres" id="6_m1"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/battle_view.tscn" id="7_view"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/battle_debug_bar.tscn" id="8_debug_bar"]
 
 [node name="Gameplay" type="Node2D"]
+script = ExtResource("5_screen")
+map_definition = ExtResource("6_m1")
+
+[node name="BattleView" parent="." instance=ExtResource("7_view")]
+unique_name_in_owner = true
 
 [node name="SpawnPoints" type="Node2D" parent="."]
 
@@ -21,27 +30,33 @@
 
 [node name="Hud" type="CanvasLayer" parent="."]
 
-[node name="Center" type="CenterContainer" parent="Hud"]
+[node name="DebugBar" parent="Hud" instance=ExtResource("8_debug_bar")]
+unique_name_in_owner = true
+
+[node name="CoopPlaceholder" type="CenterContainer" parent="Hud"]
+unique_name_in_owner = true
+visible = false
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Column" type="VBoxContainer" parent="Hud/Center"]
+[node name="Column" type="VBoxContainer" parent="Hud/CoopPlaceholder"]
 layout_mode = 2
 
-[node name="Title" type="Label" parent="Hud/Center/Column"]
+[node name="Title" type="Label" parent="Hud/CoopPlaceholder/Column"]
 layout_mode = 2
 text = "Gameplay (placeholder)"
 horizontal_alignment = 1
 
-[node name="Note" type="Label" parent="Hud/Center/Column"]
+[node name="PlaceholderNote" type="Label" parent="Hud/CoopPlaceholder/Column"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "SpawnPoints and Players are where the player spawner will attach."
 horizontal_alignment = 1
 
-[node name="EndRoundButton" type="Button" parent="Hud/Center/Column"]
+[node name="EndRoundButton" type="Button" parent="Hud/CoopPlaceholder/Column"]
 layout_mode = 2
 text = "End Round"
 script = ExtResource("1_nav")

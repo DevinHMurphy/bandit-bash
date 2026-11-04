@@ -1,0 +1,47 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/battle/unit_token.gd" id="1_token"]
+[ext_resource type="Theme" path="res://scenes/ui/battle/battle_theme.tres" id="2_theme"]
+
+[node name="UnitToken" type="Node2D"]
+script = ExtResource("1_token")
+
+[node name="Frame" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_left = -13.0
+offset_top = -13.0
+offset_right = 13.0
+offset_bottom = 15.0
+mouse_filter = 2
+theme = ExtResource("2_theme")
+
+[node name="Body" type="ColorRect" parent="Frame"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_right = 26.0
+offset_bottom = 22.0
+mouse_filter = 2
+color = Color(0.6, 0.6, 0.6, 1)
+
+[node name="Letter" type="Label" parent="Frame"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_right = 26.0
+offset_bottom = 22.0
+theme_type_variation = &"TokenLetter"
+text = "?"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="HpBar" type="ProgressBar" parent="Frame"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_top = 23.0
+offset_right = 26.0
+offset_bottom = 27.0
+mouse_filter = 2
+max_value = 1.0
+step = 1.0
+value = 1.0
+show_percentage = false

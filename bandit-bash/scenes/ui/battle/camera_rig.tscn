@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/battle/camera_rig.gd" id="1_rig"]
+
+[node name="CameraRig" type="Node2D"]
+script = ExtResource("1_rig")
+
+[node name="Camera" type="Camera2D" parent="."]
+unique_name_in_owner = true
