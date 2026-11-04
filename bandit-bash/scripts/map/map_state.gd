@@ -6,14 +6,14 @@
 # File:     map_state.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: November 3, 2026
+# Modified: November 4, 2026
 # ==============================================================================
 
 class_name MapState
 extends RefCounted
 ## The parts of one map that change during a combat: its map objects, which tiles they block, the
 ## containers' contents, the loot taken from them, its reinforcement points and their waves, the
-## enemies marked as leaders, and whether the opening swap window is open.
+## enemies marked as leaders, whether the opening swap window is open, and the darkness.
 ##
 ## Held by [CombatState] as [member CombatState.map] and copied with it for a sandbox, so a
 ## forecast that opens a door or breaks a keg never touches the real map. [MapGrid] stays
@@ -24,10 +24,13 @@ extends RefCounted
 ## parts, [code]entities[/code] (the objects, contents and loot) and [code]combat_map[/code] (the
 ## points, flags and leader marks), for [method CombatSession.snapshot] and the [CombatMapSection]
 ## pair. A breakable's HP is its unit's, in [method CombatState.capture]. A mirror follows the
-## objects and points through [method CombatState.follow].
+## objects and points through [method CombatState.follow]. [member darkness] is in neither.
 ##
 ## @tutorial(Combat map plan): docs/plans/2026-10-27-combat-map.md
 ## @tutorial(Save system design): docs/design/save-system.md
+##
+## @todo: TOD-001 - Save and restore [member darkness] in its own COMBAT section, version 1
+## (darkness plan question 6); a snapshot or Save & Quit loses it until then.
 
 ## Which units an object on a tile stops (map-objects.md). Saved as an int: [b]append only[/b].
 enum Blocking {
@@ -69,6 +72,11 @@ var are_waves_cancelled: bool = false
 ## Whether the darkness has arrived, so no reinforcement point sends again; read only through
 ## [method Reinforcements.has_darkness_arrived]. Nothing sets it until P06's darkness step.
 var has_darkness_arrived: bool = false
+
+# TODO(TOD-001): Carry it in saves and snapshots (darkness plan question 6).
+## The darkness on this map: sources, drain, waves, layers and contacts. Copied for a sandbox, so
+## [method CombatState.darkness_layer] answers the same in a forecast. Never null.
+var darkness: DarknessState = DarknessState.new()
 
 ## Enemies marked as leaders before the battle was last loaded: those that appeared on a leader
 ## slot. Read only through [method Objectives.marked_ids], which adds the ones whose arrival is in
@@ -142,6 +150,7 @@ func copy() -> MapState:
 		map_copy.points[point_index] = points[point_index].copy()
 	map_copy.are_waves_cancelled = are_waves_cancelled
 	map_copy.has_darkness_arrived = has_darkness_arrived
+	map_copy.darkness = darkness.copy()
 	map_copy.leader_ids = leader_ids.duplicate()
 	return map_copy
 
