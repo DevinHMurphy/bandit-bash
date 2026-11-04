@@ -6,7 +6,7 @@
 # File:     combat_fact.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 31, 2026
+# Modified: November 4, 2026
 # ==============================================================================
 
 class_name CombatFact
@@ -92,10 +92,14 @@ enum Kind {
 	## turn it ended on, and [member key] the turns a Survive or Defend map was won early
 	## ([Objectives]).
 	COMBAT_ENDED = 28,
-	## The darkness advanced.
+	## The darkness advanced ([Darkness]); no actor. A tile deepened: [member tile], [member amount]
+	## its new layer (a [enum WhileLayerCondition.Layer]), [member key] the source index of the
+	## wave. A wave released: [member flags] has [constant Flag.DARKNESS_RELEASED], [member key] its
+	## source index, no tile, amount 0, before the tiles it entered.
 	DARKNESS_ADVANCED = 29,
 	## The map object named by the actor changed state at [member tile]: [member key] is the
-	## [enum MapObjects.Change]; the target is the unit or object that caused it, if one did.
+	## [enum MapObjects.Change]; the target is the unit or object that caused it, if one did. On a
+	## darkness contact, [member amount] is the breakable's turns of contact so far.
 	OBJECT_STATE_CHANGED = 30,
 	## The effect named by [member source_effect_id] fired.
 	EFFECT_ACTIVATED = 31,
@@ -192,6 +196,11 @@ enum Flag {
 	## Pouch item, weapon swap or map object use): it may still move after acting
 	## ([member CombatUnitState.is_second_move_pending]).
 	SECOND_MOVE_PENDING = 1,
+	## On a [constant Kind.DARKNESS_ADVANCED]: a wave was released, not a tile deepened.
+	DARKNESS_RELEASED = 2,
+	## On each [constant Kind.DARKNESS_ADVANCED] release of the first wave: the darkness arrived
+	## ([member MapState.has_darkness_arrived]).
+	DARKNESS_ARRIVED = 4,
 }
 
 ## [member tile] when a fact has no tile. Map tiles never have negative coordinates (a map rule,
@@ -270,7 +279,8 @@ var item_id: String = ""
 ## [constant COUNTER_CHANGED], the [enum CombatValue.Stat] of a [constant STAT_CHANGED], the turns
 ## won early of a [constant COMBAT_ENDED], the [enum MapObjects.Change] of an
 ## [constant OBJECT_STATE_CHANGED], the operation index of a [constant MODIFIER_GAINED] or
-## [constant MODIFIER_EXPIRED], the movement cost of a [constant UNIT_MOVED]. 0 on every other kind.
+## [constant MODIFIER_EXPIRED], the movement cost of a [constant UNIT_MOVED], the darkness source
+## index of a [constant DARKNESS_ADVANCED]. 0 on every other kind.
 var key: int = 0
 
 ## The unit type ([member CombatUnitState.unit_type]) of each unit in a coming wave, in arrival

@@ -23,8 +23,21 @@ extends RefCounted
 ## in row-major order, the enemy's id); with none, it walks to the reachable tile nearest the
 ## nearest enemy by tile distance (then path cost, row-major order) and waits. A unit whose weapon
 ## doesn't attack (the Battle Medic's Shelter) waits where it stands. Then the seat ends its turn.
+## [br]
+## [b]Past par:[/b] a second pair of battles holds back (the seat ends its turn without acting)
+## through [constant HOLD_UNTIL], so the darkness arrives at the end of turn 4 (par 5) and
+## releases again; the same seed must still give the same fact log twice.
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
+
+# The last turn the past-par driver holds back, found by trying: with the seed below, holding
+# through turn 3 runs the battle to turn 7, past both the arrival (end of turn 4) and the second
+# wave (end of turn 6); holding through 4 or more loses the commander in turn 5, through 2 wins
+# in turn 6.
+const HOLD_UNTIL: int = 3
+
+# The M1 map's turn par, as m1_greybox.tres sets it.
+const M1_TURN_PAR: int = 5
 
 # Any fixed seed: the checks compare two runs, never golden numbers.
 const SEED: int = 0xE4F_0001
@@ -72,9 +85,30 @@ func run() -> void:
 		first.outcome, first.turns, first.facts.size(), first.enemy_actions,
 	])
 
+	var held: Battle = _play(map, HOLD_UNTIL)
+	var held_again: Battle = _play(map, HOLD_UNTIL)
+	_check.call("m1 battle past par: the turn par is 5", map.turn_par == M1_TURN_PAR,
+			str(map.turn_par))
+	_check.call("m1 battle past par: runs past turn par with no command rejected", (
+			held.problems.is_empty() and held.turns > M1_TURN_PAR and held.rejected.is_empty()
+	), "%s after turn %d; rejected %s" % [held.outcome, held.turns, held.rejected])
+	_check.call("m1 battle past par: the darkness arrives at the end of turn 4", (
+			held.release_turns.size() > 0 and held.release_turns[0] == M1_TURN_PAR - 1
+	), str(held.release_turns))
+	_check.call("m1 battle past par: the next wave 2 turns later", (
+			held.release_turns.size() > 1 and held.release_turns[1] == M1_TURN_PAR + 1
+	), str(held.release_turns))
+	_check.call("m1 battle past par: the same seed gives the same fact log twice", (
+			held.facts.size() > 0 and held.facts == held_again.facts
+	), "%d / %d facts" % [held.facts.size(), held_again.facts.size()])
+	print("      m1 battle past par: %s after turn %d, %d facts, releases at %s" % [
+		held.outcome, held.turns, held.facts.size(), held.release_turns,
+	])
 
-# One battle from Begin to its end, or to MAX_TURNS.
-func _play(map: CombatMapDefinition) -> Battle:
+
+# One battle from Begin to its end, or to MAX_TURNS. Through turn [param hold_until], the seat
+# ends its turn without acting.
+func _play(map: CombatMapDefinition, hold_until: int = 0) -> Battle:
 	var played: Battle = Battle.new()
 	var run: CampaignSession = CampaignSession.new(
 			CampaignData.Mode.SOLO, SEED, PackedInt32Array([0])
@@ -108,7 +142,11 @@ func _play(map: CombatMapDefinition) -> Battle:
 	for _phase: int in MAX_TURNS:
 		if session.is_finished:
 			break
-		for unit_id: String in session.state.units_of(PLAYER):
+		var acting: PackedStringArray = (
+				session.state.units_of(PLAYER) if session.state.turn > hold_until
+				else PackedStringArray()
+		)
+		for unit_id: String in acting:
 			if session.is_finished:
 				break
 			if not session.state.has_unit(unit_id) or session.state.unit(unit_id).has_acted:
@@ -122,8 +160,17 @@ func _play(map: CombatMapDefinition) -> Battle:
 	played.outcome = "running" if not session.is_finished else (
 			"won" if session.is_won else "lost"
 	)
+	var turn: int = 0
 	for fact: CombatFact in session.engine.fact_log:
 		played.facts.append(JSON.stringify(fact.to_wire()))
+		if fact.kind == CombatFact.Kind.PHASE_START:
+			turn = fact.amount
+		var is_release: bool = (
+				fact.kind == CombatFact.Kind.DARKNESS_ADVANCED
+				and (fact.flags & CombatFact.Flag.DARKNESS_RELEASED) != 0
+		)
+		if is_release:
+			played.release_turns.append(turn)
 		var acts: bool = (
 				fact.kind == CombatFact.Kind.ATTACK_MADE
 				or fact.kind == CombatFact.Kind.USED_STAFF_ON_ALLY
@@ -261,3 +308,5 @@ class Battle:
 	var facts: PackedStringArray = []
 	## Enemy moves, attacks and staff uses.
 	var enemy_actions: int = 0
+	## The turn of each darkness wave released, in order: the turn whose darkness step released it.
+	var release_turns: PackedInt32Array = []

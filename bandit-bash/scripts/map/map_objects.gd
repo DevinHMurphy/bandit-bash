@@ -6,7 +6,7 @@
 # File:     map_objects.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 3, 2026
+# Modified: November 4, 2026
 # ==============================================================================
 
 class_name MapObjects
@@ -26,6 +26,8 @@ extends RefCounted
 ## [constant EffectOwner.Kind.MAP_OBJECT], exempt from the reaction caps), on breaking, on the
 ## darkness's erosion or on Spark: splash to every unit within 1 tile through [SplashResolver], and
 ## every breakable within 1 tile breaks, so kegs chain with no limit.[br]
+## [b]The darkness[/b] flows anew after every break and every door change
+## ([method Darkness.recalculate]); a closed door keeps its layer and stops the flow.[br]
 ## Pure and static rules code, run unchanged in a sandbox; the caller starts the resolution step.
 ##
 ## @tutorial(Map objects): docs/design/map-objects.md
@@ -55,6 +57,12 @@ enum Change {
 	## A reinforcement point closed for good by the unit named as the target, which earns the
 	## personal-XP bonus (P08); the actor is the point ([method Reinforcements.close_points]).
 	POINT_CLOSED = 6,
+	## A breakable next to a flooded tile gained a turn of contact with the darkness, below the
+	## limit; the fact's amount is its count ([Darkness]). No target.
+	CONTACTED = 7,
+	## A breakable's contact reached the limit, so the darkness breaks it: amount the count, no
+	## target; its [constant DESTROYED] follows.
+	ERODED = 8,
 }
 
 ## HP, DEF and RES of each breakable (map-objects.md, from Godot_FE's entity data).
@@ -230,8 +238,8 @@ static func check_use(
 
 
 ## [param unit_id] uses [param object_id] as its action ([method check_use]): a key is spent,
-## Object used, then the object's changes and the drain. An illegal use records nothing. Returns
-## why it was illegal; empty when it resolved.
+## Object used, then the object's changes (after a door or lever, the darkness's new flow) and the
+## drain. An illegal use records nothing. Returns why it was illegal; empty when it resolved.
 static func use(
 		engine: EffectEngine,
 		state: CombatState,
@@ -258,8 +266,10 @@ static func use(
 		MapLayout.ObjectKind.DOOR:
 			for door: MapState.ObjectState in door_tiles(state, used):
 				_set_door(engine, state, door, true, unit_id)
+			Darkness.recalculate(engine, state)
 		MapLayout.ObjectKind.LEVER:
 			_pull(engine, state, used, unit_id)
+			Darkness.recalculate(engine, state)
 		MapLayout.ObjectKind.PASSAGE:
 			var other: MapState.ObjectState = other_end(state, used)
 			state.move_unit(unit_id, other.tile)
@@ -308,7 +318,8 @@ static func drop_carried(state: CombatState, unit_id: String, by_id: String) -> 
 
 ## A breakable [param object_id] was just taken off the map by [method CombatState.defeat]:
 ## it is destroyed, its tile clear and its terrain back, Object state changed (destroyed, by
-## [param by_id]); a powder keg then explodes ([method explode]).
+## [param by_id]); a powder keg then explodes ([method explode]); then the darkness flows through
+## the new gap ([method Darkness.recalculate]).
 static func broken(
 		engine: EffectEngine,
 		state: CombatState,
@@ -324,6 +335,7 @@ static func broken(
 	_changed(engine, gone, Change.DESTROYED, by_id, source_effect_id)
 	if gone.kind == MapLayout.ObjectKind.POWDER_KEG:
 		explode(engine, state, gone)
+	Darkness.recalculate(engine, state)
 
 
 ## Powder keg [param keg] explodes: [constant KEG_SPLASH] splash to every unit within
@@ -481,10 +493,10 @@ static func is_floodable(state: CombatState, tile: Vector2i) -> bool:
 	return not blocks_darkness(state, tile)
 
 
-# ASSUMPTION: "a tile at least one movement type can stand on" (the-darkness.md) means a ground
-# movement type, since fliers stand on walls and walls block the darkness.
-## For P06: whether [param tile] stops the darkness: off the map, a tile no ground unit can stand
-## on by its terrain (walls, cliffs), a closed door, or an unbroken breakable. Units never do.
+## For P06: whether [param tile] stops the darkness: off the map, a tile no movement type but
+## Flier can stand on by its terrain (walls, cliffs), a closed door, or an unbroken breakable.
+## Fliers don't count because they stand on walls, which block it (darkness plan question 10).
+## Units never do.
 static func blocks_darkness(state: CombatState, tile: Vector2i) -> bool:
 	if state.map.blocking_at(tile) != MapState.Blocking.NONE:
 		return true
@@ -496,9 +508,9 @@ static func blocks_darkness(state: CombatState, tile: Vector2i) -> bool:
 	return true
 
 
-## For P06: the darkness erodes breakable [param object_id] at its contact limit: it breaks, and a
-## keg explodes. Returns false, changing nothing, for anything that isn't an unbroken breakable;
-## doors never erode (the-darkness.md).
+## For P06: the darkness erodes breakable [param object_id] at its contact limit ([Darkness],
+## after its [constant Change.ERODED]): it breaks, and a keg explodes. Returns false, changing
+## nothing, for anything that isn't an unbroken breakable; doors never erode (the-darkness.md).
 static func erode(engine: EffectEngine, state: CombatState, object_id: String) -> bool:
 	var target: MapState.ObjectState = state.map.object(object_id)
 	if target == null or target.is_destroyed or not BREAKABLE_STATS.has(target.kind):
