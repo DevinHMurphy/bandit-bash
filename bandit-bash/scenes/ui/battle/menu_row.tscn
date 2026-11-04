@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[node name="MenuRow" type="Button"]
+custom_minimum_size = Vector2(160, 0)
+text = "Row"
+alignment = 0

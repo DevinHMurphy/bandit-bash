@@ -11,8 +11,9 @@
 
 class_name BattleView
 extends Node2D
-## The battle board: the map scene for terrain, a [UnitToken] per unit, the [DarknessOverlay] and
-## the [CameraRig], drawn from one [CombatSession] and animated by its facts.
+## The battle board: the map scene for terrain, a [UnitToken] per unit, the [DarknessOverlay], turn
+## input's overlays, path and cursor, and the [CameraRig], drawn from one [CombatSession] and
+## animated by its facts.
 ##
 ## [method bind] builds the board from state ([BoardViewModel]); after that, facts reach it only
 ## through the session's [member CombatSession.playback], which [method advance] steps each frame:
@@ -20,9 +21,12 @@ extends Node2D
 ## darkness deepens is redrawn. Each fact's wait is the time its animation takes, so the next fact
 ## starts when it ends. The board steps its own tweens with the same time, so a test can drive it
 ## frame by frame without a running tree.[br]
-## [b]Reading only:[/b] it never changes combat state and submits no command; the screen does
-## ([BattleScreen]). Facts already queued at [method bind] are skipped, since the board is built
-## from the state they led to.
+## [b]Reading only:[/b] it never changes combat state and submits no command; turn input does
+## ([BattleController]). Facts already queued at [method bind] are skipped, since the board is
+## built from the state they led to.[br]
+## [b]Turn input's pieces[/b] (the move, attack and enemy range [TileOverlay]s, the [PathPreview]
+## and the [TileCursor]) are children here so they share the board's space and camera; the board
+## only sizes them to the map, and [BattleController] says what they show.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
@@ -106,6 +110,11 @@ var _is_settled: bool = true
 @onready var _token_layer: Node2D = %Tokens
 @onready var _number_layer: Node2D = %Numbers
 @onready var _camera: CameraRig = %CameraRig
+@onready var _move_overlay: TileOverlay = %MoveOverlay
+@onready var _attack_overlay: TileOverlay = %AttackOverlay
+@onready var _enemy_range_overlay: TileOverlay = %EnemyRangeOverlay
+@onready var _path_preview: PathPreview = %PathPreview
+@onready var _cursor: TileCursor = %TileCursor
 
 
 func _exit_tree() -> void:
@@ -197,6 +206,39 @@ func get_darkness() -> DarknessOverlay:
 	return _darkness
 
 
+## The overlay of the selected unit's move tiles (and the swap partners' tiles).
+func get_move_overlay() -> TileOverlay:
+	return _move_overlay
+
+
+## The overlay of the selected unit's attack tiles, and of an action's targets.
+func get_attack_overlay() -> TileOverlay:
+	return _attack_overlay
+
+
+## The overlay of the enemies whose range is toggled on.
+func get_enemy_range_overlay() -> TileOverlay:
+	return _enemy_range_overlay
+
+
+## The walk drawn to the hovered tile.
+func get_path_preview() -> PathPreview:
+	return _path_preview
+
+
+## The tile cursor.
+func get_cursor() -> TileCursor:
+	return _cursor
+
+
+## The tile under [param board_position], a point in the board's space; it may be off the map.
+## [constant CombatFact.NO_TILE] before [method bind].
+func tile_at(board_position: Vector2) -> Vector2i:
+	if _terrain == null:
+		return CombatFact.NO_TILE
+	return _terrain.local_to_map(_terrain.to_local(to_global(board_position)))
+
+
 ## The centre of [param tile] in the board's space.
 func tile_to_position(tile: Vector2i) -> Vector2:
 	if _terrain == null:
@@ -272,8 +314,13 @@ func _build_map(definition: CombatMapDefinition) -> void:
 			var item: CanvasItem = child as CanvasItem
 			if item != null and child != _terrain:
 				item.visible = false
+	var origin: Vector2 = tile_to_position(Vector2i.ZERO) - _tile_size() * 0.5
 	_darkness.tile_size = _tile_size()
-	_darkness.origin = tile_to_position(Vector2i.ZERO) - _tile_size() * 0.5
+	_darkness.origin = origin
+	for overlay: TileOverlay in [_move_overlay, _attack_overlay, _enemy_range_overlay]:
+		overlay.tile_size = _tile_size()
+		overlay.origin = origin
+	_cursor.tile_size = _tile_size()
 
 
 func _tile_size() -> Vector2:

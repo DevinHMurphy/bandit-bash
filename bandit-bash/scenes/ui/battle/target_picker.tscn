@@ -1,0 +1,22 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/battle/target_picker.gd" id="1_picker"]
+[ext_resource type="Theme" path="res://scenes/ui/battle/battle_theme.tres" id="2_theme"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/menu_row.tscn" id="3_row"]
+
+[node name="TargetPicker" type="PanelContainer"]
+theme = ExtResource("2_theme")
+script = ExtResource("1_picker")
+row_scene = ExtResource("3_row")
+
+[node name="Column" type="VBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Column"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Target"
+
+[node name="Rows" type="VBoxContainer" parent="Column"]
+unique_name_in_owner = true
+layout_mode = 2

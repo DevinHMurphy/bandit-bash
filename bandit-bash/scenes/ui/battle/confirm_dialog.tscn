@@ -1,0 +1,33 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/battle/confirm_dialog.gd" id="1_dialog"]
+[ext_resource type="Theme" path="res://scenes/ui/battle/battle_theme.tres" id="2_theme"]
+
+[node name="ConfirmDialog" type="PanelContainer"]
+theme = ExtResource("2_theme")
+script = ExtResource("1_dialog")
+
+[node name="Column" type="VBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="Message" type="Label" parent="Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+text = "Are you sure?"
+autowrap_mode = 3
+
+[node name="Buttons" type="HBoxContainer" parent="Column"]
+layout_mode = 2
+
+[node name="ConfirmButton" type="Button" parent="Column/Buttons"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Confirm"
+
+[node name="BackButton" type="Button" parent="Column/Buttons"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Back"

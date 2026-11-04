@@ -1,9 +1,9 @@
 [gd_scene load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://scripts/ui/battle/battle_debug_bar.gd" id="1_bar"]
+[ext_resource type="Script" path="res://scripts/ui/battle/turn_bar.gd" id="1_bar"]
 [ext_resource type="Theme" path="res://scenes/ui/battle/battle_theme.tres" id="2_theme"]
 
-[node name="BattleDebugBar" type="PanelContainer"]
+[node name="TurnBar" type="PanelContainer"]
 anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
@@ -28,13 +28,8 @@ size_flags_horizontal = 3
 text = "Battle"
 vertical_alignment = 1
 
-[node name="StartButton" type="Button" parent="Row"]
-unique_name_in_owner = true
-visible = false
-layout_mode = 2
-text = "Start"
-
 [node name="EndTurnButton" type="Button" parent="Row"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "End Turn (debug)"
+focus_mode = 0
+text = "End Turn"

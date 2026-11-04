@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/battle/tile_overlay.gd" id="1_overlay"]
+
+[node name="EnemyRangeOverlay" type="Node2D"]
+script = ExtResource("1_overlay")
+fill_color = Color(0.862745, 0.0784314, 0.235294, 0.35)
+edge_color = Color(0.862745, 0.0784314, 0.235294, 0.6)
