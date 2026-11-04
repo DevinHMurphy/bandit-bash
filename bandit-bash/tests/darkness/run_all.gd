@@ -14,7 +14,10 @@ extends SceneTree
 ## on fixture maps (flow_cases.gd); [DarknessState]'s waves and layers, the Brazier cap,
 ## recalculation after a break or a door change, [method CombatState.darkness_layer] in a
 ## forecast, and a timed full recalculation on the M1 map (state_cases.gd); [DarknessSetup]'s
-## candidates, active sources, drains, Short Wick and battles on the M1 map (setup_cases.gd).
+## candidates, active sources, drains, Short Wick and battles on the M1 map (setup_cases.gd);
+## [Darkness]'s step: golden fact logs of release, creep, erosion and doors, arrival stopping
+## reinforcements and turning the AI aggressive, stand-in safety and a timed step on M1
+## (step_cases.gd).
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/darkness/run_all.gd[/code][br]
@@ -26,6 +29,7 @@ extends SceneTree
 const FlowCases = preload("res://tests/darkness/flow_cases.gd")
 const StateCases = preload("res://tests/darkness/state_cases.gd")
 const SetupCases = preload("res://tests/darkness/setup_cases.gd")
+const StepCases = preload("res://tests/darkness/step_cases.gd")
 
 var _failures: int = 0
 var _passes: int = 0
@@ -36,6 +40,7 @@ func _init() -> void:
 	FlowCases.new(_check).run()
 	StateCases.new(_check).run()
 	SetupCases.new(_check).run()
+	StepCases.new(_check).run()
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)
 

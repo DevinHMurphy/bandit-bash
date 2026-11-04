@@ -10,20 +10,25 @@
 # ==============================================================================
 
 extends RefCounted
-## A test map for the darkness cases: a [MapLayout] from rows of terrain ids and object spots, a
-## [CombatSession] over it with the objects placed ([method MapObjects.place]), and helpers to
-## set up the darkness, open and close doors, light braziers, break breakables and place units.
+## A test map for the darkness cases: a [MapLayout] from rows of terrain ids, object spots and
+## reinforcement points, a [CombatSession] over it with the objects placed
+## ([method MapObjects.place]), and helpers to set up the darkness, open and close doors, light
+## braziers, break breakables, place units, register the turn loop's hooks, play turns and read
+## the fact log.
 ##
 ## Test-only. Terrain comes from the real definitions in [code]res://data/terrain/[/code]. The
-## engine runs in verify mode.
+## engine runs in verify mode. Enemies Wait: no [constant CombatHooks.Hook.ENEMY_COMMANDS].
 
 ## The session; its state holds the darkness in [member CombatState.map].
 var session: CombatSession = null
 
+var _layout: MapLayout = null
+
 
 ## [param rows]: one string per row, terrain ids separated by spaces. [param spots]:
-## [code][tile, MapLayout.ObjectKind][/code] each.
-func _init(rows: Array[String], spots: Array = []) -> void:
+## [code][tile, MapLayout.ObjectKind][/code] each. [param points]: reinforcement points,
+## [code][tile, arrival turns][/code] each.
+func _init(rows: Array[String], spots: Array = [], points: Array = []) -> void:
 	var layout: MapLayout = MapLayout.new()
 	layout.map_id = "darkness"
 	var cache: Dictionary[String, MapLayout.Terrain] = {}
@@ -41,7 +46,15 @@ func _init(rows: Array[String], spots: Array = []) -> void:
 		layout.add_marker(
 				MapLayout.MarkerKind.OBJECT_SPOT, entry[0] as Vector2i, entry[1] as int
 		)
+	for point: Variant in points:
+		var entry: Array = point
+		var marker: MapLayout.Marker = layout.add_marker(
+				MapLayout.MarkerKind.REINFORCEMENT_POINT, entry[0] as Vector2i
+		)
+		var turns: Array = entry[1]
+		marker.arrival_turns = PackedInt32Array(turns)
 	layout.index_markers()
+	_layout = layout
 	session = CombatSession.new(
 			0,
 			PackedInt32Array([0]),
@@ -119,6 +132,66 @@ func add_unit(id: String, side: CombatFact.CombatSide, tile: Vector2i) -> bool:
 	})
 
 
+## Registers the darkness step, then, when [param source] is given, draws the points' waves
+## through it and registers [Reinforcements], as [CampaignSession] does.
+func register(source: Reinforcements.GroupSource = null) -> void:
+	Darkness.register(session)
+	if source == null:
+		return
+	var definition: CombatMapDefinition = CombatMapDefinition.new()
+	definition.id = "darkness"
+	session.setup = CombatEncounter.EncounterSetup.new()
+	session.setup.map = definition
+	session.setup.layout = _layout
+	var ctx: CombatEncounter.SetupContext = CombatEncounter.SetupContext.new(
+			session.setup, -1, null, RngStream.new(1), null
+	)
+	ctx.step = CombatEncounter.SetupStep.REINFORCEMENT_WAVES
+	Reinforcements.draw_waves(ctx, source)
+	Reinforcements.register(session, source)
+
+
+## Submits [param command] and resolves it. Returns its batch.
+func send(command: Command) -> CombatSession.FactBatch:
+	session.submit(command)
+	return session.resolve_next()
+
+
+## Ends seat 0's turn [param turns] times.
+func end_turns(turns: int) -> void:
+	for i: int in turns:
+		send(EndTurnCommand.new(0))
+
+
+## The facts of [param kinds] in the log, each as "t<turn> <log line>" without its sequence
+## prefix, the turn the latest Phase Start's; a [constant CombatFact.Kind.DARKNESS_ADVANCED]
+## also ends with "key <source index>". [param from]: the first log index read.
+func lines(kinds: Array, from: int = 0) -> Array[String]:
+	var found: Array[String] = []
+	var turn: int = 0
+	var facts: Array[CombatFact] = session.engine.fact_log
+	for i: int in facts.size():
+		var fact: CombatFact = facts[i]
+		if fact.kind == CombatFact.Kind.PHASE_START:
+			turn = fact.amount
+		if i < from or not kinds.has(fact.kind):
+			continue
+		var line: String = fact.to_log_line()
+		line = line.substr(line.find(" ") + 1)
+		if fact.kind == CombatFact.Kind.DARKNESS_ADVANCED:
+			line += " key %d" % [fact.key]
+		found.append("t%d %s" % [turn, line])
+	return found
+
+
+## Each wave's reach, oldest first, as "8 4 0".
+func reaches() -> String:
+	var parts: PackedStringArray = []
+	for wave: DarknessState.Wave in darkness().waves:
+		parts.append(str(wave.reach))
+	return " ".join(parts)
+
+
 ## The layers of a row of [param width] tiles at row [param y], as a string such as "1 1 2 0".
 func row_layers(y: int, width: int) -> String:
 	var parts: PackedStringArray = []
@@ -136,6 +209,28 @@ static func describe(tiles: Dictionary[Vector2i, int]) -> String:
 	for tile: Vector2i in keys:
 		parts.append("%s=%d" % [tile, tiles[tile]])
 	return " ".join(parts)
+
+
+## Everything [param on]'s darkness and arrival flag hold, as text: waves (source, reach, tiles
+## entered), layers and contacts, each sorted.
+static func describe_state(on: CombatState) -> String:
+	var darkness: DarknessState = on.map.darkness
+	var parts: PackedStringArray = ["arrived %s" % [on.map.has_darkness_arrived]]
+	for wave: DarknessState.Wave in darkness.waves:
+		var entered: Dictionary[Vector2i, int] = {}
+		for tile: Vector2i in wave.entered:
+			entered[tile] = 1
+		parts.append("wave %d reach %d [%s]" % [wave.source, wave.reach, describe(entered)])
+	var layers: Dictionary[Vector2i, int] = {}
+	for tile: Vector2i in darkness.layers:
+		layers[tile] = darkness.layers[tile]
+	parts.append("layers [%s]" % [describe(layers)])
+	var ids: Array[String] = []
+	ids.assign(darkness.contacts.keys())
+	ids.sort()
+	for object_id: String in ids:
+		parts.append("%s=%d" % [object_id, darkness.contacts[object_id]])
+	return "; ".join(parts)
 
 
 ## [param deepened] as "(x, y)>layer@source" entries, in order, joined by spaces.

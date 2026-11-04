@@ -6,7 +6,7 @@
 # File:     reinforcements.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 3, 2026
+# Modified: November 4, 2026
 # ==============================================================================
 
 class_name Reinforcements
@@ -37,9 +37,7 @@ extends RefCounted
 ##
 ## @tutorial(Combat map plan): docs/plans/2026-10-27-combat-map.md
 ##
-## @todo: TOD-001 - P06 registers its darkness step on AFTER_ENEMY_PHASE before register() runs.
 ## @todo: TOD-002 - Draw P05's enemy groups and build their units (GroupSource).
-## @todo: TOD-003 - Answer has_darkness_arrived() from P06's darkness state.
 
 # What became of one arriving unit.
 enum _Arrival {
@@ -89,13 +87,12 @@ static func draw_waves(ctx: CombatEncounter.SetupContext, source: GroupSource) -
 
 ## Loads [param session]'s reinforcement points ([method load_waves]) and adds [method warn],
 ## [method close_points] and [method arrive] (bound to [param source]) to its hooks. Call once per
-## session, before the battle opens and after P06's darkness step is registered.
+## session, before the battle opens and after [method Darkness.register]: the darkness step comes
+## first on [constant CombatHooks.Hook.AFTER_ENEMY_PHASE], so a wave due at arrival never comes.
 static func register(session: CombatSession, source: GroupSource) -> void:
 	load_waves(session)
 	session.hooks.add(CombatHooks.Hook.INTENTS, Reinforcements.warn)
 	session.hooks.add(CombatHooks.Hook.PHASE_END_EFFECTS, Reinforcements.close_points)
-	# TODO(TOD-001): P06's darkness step comes first on this hook (the-darkness.md, The darkness
-	# step), so the caller registers it before calling this.
 	session.hooks.add(CombatHooks.Hook.AFTER_ENEMY_PHASE, Reinforcements.arrive.bind(source))
 
 
@@ -150,8 +147,9 @@ static func waves_left(state: CombatState, point_index: int) -> int:
 
 ## Whether the darkness has arrived on [param state]'s map, so no point sends again
 ## (the-darkness.md, Arrival): the one place reinforcements ask.
+## [member MapState.has_darkness_arrived] answers; the darkness step sets it at the first release
+## ([method Darkness.advance]).
 static func has_darkness_arrived(state: CombatState) -> bool:
-	# TODO(TOD-003): P06's darkness state answers; until then the flag nothing sets.
 	return state.map.has_darkness_arrived
 
 

@@ -178,9 +178,19 @@ func _test_breakable() -> void:
 	var darkness: DarknessState = world.darkness()
 	_flood(world, 2)
 	_layers("breakable: unbroken, it holds the wave back", world, 5, "1 1 0 0 0")
+	var before: int = world.engine().fact_log.size()
 	world.erode(Vector2i(2, 0))
-	_deepened("breakable: broken, the wave enters the newly reachable tiles",
-			darkness.recalculate(world.state()), "(2, 0)>1@0 (3, 0)>1@0 (4, 0)>1@0")
+	_layers("breakable: broken, the wave enters the newly reachable tiles", world, 5, "1 1 1 1 1")
+	var recorded: Array[String] = world.lines([CombatFact.Kind.DARKNESS_ADVANCED], before)
+	var expected: Array[String] = [
+		"t0 DARKNESS_ADVANCED amount 1 tile (2, 0) key 0",
+		"t0 DARKNESS_ADVANCED amount 1 tile (3, 0) key 0",
+		"t0 DARKNESS_ADVANCED amount 1 tile (4, 0) key 0",
+	]
+	_ok("breakable: the break records them (Darkness.recalculate)", recorded == expected,
+			str(recorded))
+	_ok("breakable: a recalculation after it enters nothing",
+			darkness.recalculate(world.state()).is_empty())
 
 
 func _test_forecast() -> void:

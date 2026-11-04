@@ -70,7 +70,8 @@ var points: Dictionary[int, PointState] = {}
 var are_waves_cancelled: bool = false
 
 ## Whether the darkness has arrived, so no reinforcement point sends again; read only through
-## [method Reinforcements.has_darkness_arrived]. Nothing sets it until P06's darkness step.
+## [method Reinforcements.has_darkness_arrived]. The darkness step sets it at the first release
+## ([method Darkness.advance]).
 var has_darkness_arrived: bool = false
 
 # TODO(TOD-001): Carry it in saves and snapshots (darkness plan question 6).
