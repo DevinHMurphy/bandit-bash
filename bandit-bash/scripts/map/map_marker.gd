@@ -6,7 +6,7 @@
 # File:     map_marker.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 29, 2026
+# Modified: November 4, 2026
 # ==============================================================================
 
 @tool
@@ -40,6 +40,9 @@ enum Kind {
 	PASSAGE = 3,
 	## A reinforcement point, sending a wave on each of its [member arrival_turns].
 	REINFORCEMENT_POINT = 4,
+	## A tile of a darkness source candidate: nodes with the same [member group_id] form one
+	## candidate ([method DarknessSetup.candidates]).
+	DARKNESS_SOURCE = 5,
 }
 
 ## The layout marker kind of each [enum Kind].
@@ -49,6 +52,7 @@ const LAYOUT_KINDS: Dictionary[Kind, MapLayout.MarkerKind] = {
 	Kind.LEVER: MapLayout.MarkerKind.OBJECT_SPOT,
 	Kind.PASSAGE: MapLayout.MarkerKind.OBJECT_SPOT,
 	Kind.REINFORCEMENT_POINT: MapLayout.MarkerKind.REINFORCEMENT_POINT,
+	Kind.DARKNESS_SOURCE: MapLayout.MarkerKind.DARKNESS_SOURCE,
 }
 
 ## The object of each [enum Kind] that marks an object spot.
@@ -65,6 +69,7 @@ const _KIND_COLORS: Dictionary[Kind, Color] = {
 	Kind.LEVER: Color(0.7, 0.7, 0.7, 0.85),
 	Kind.PASSAGE: Color(0.25, 0.75, 0.65, 0.85),
 	Kind.REINFORCEMENT_POINT: Color(0.85, 0.15, 0.2, 0.85),
+	Kind.DARKNESS_SOURCE: Color(0.3, 0.1, 0.45, 0.85),
 }
 const _VARIANCE_COLOR: Color = Color(1.0, 0.45, 0.1, 0.5)
 const _SLOT_RADIUS: float = 0.3
@@ -93,8 +98,9 @@ const _SLOT_RADIUS: float = 0.3
 @export var group_slot: String = ""
 
 ## A door's or lever's lever group: pulling a lever toggles every door with its group id
-## ([method MapObjects.use]).[br]
-## [b]-1:[/b] no group. A door opens only with a key or lockpick; a lever fails [MapCheck].
+## ([method MapObjects.use]). Darkness sources with the same id form one source candidate.[br]
+## [b]-1:[/b] no group. A door opens only with a key or lockpick; a lever fails [MapCheck]; a
+## darkness source is a one-tile candidate of its own.
 @export_range(-1, 99) var group_id: int = -1
 
 ## A passage end's pair: a unit on one end can use it to arrive at the other end with the same id.

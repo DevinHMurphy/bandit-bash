@@ -6,7 +6,7 @@
 # File:     campaign_session.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 3, 2026
+# Modified: November 4, 2026
 # ==============================================================================
 
 class_name CampaignSession
@@ -21,7 +21,8 @@ extends RefCounted
 ## [b]The battle bridge:[/b] [method begin_battle] builds the [CombatEncounter], runs its setup,
 ## opens one [CombatSession] per seat, places the enemies setup drew ([EnemySetup]), registers
 ## copies of the run's effect carriers (in the encounter for cross-map scopes) with their
-## campaign-lane counters, loads each army's unit instances ([Loadout]) and deploys each army.
+## campaign-lane counters, gives each map the darkness setup drew ([DarknessSetup]), loads each
+## army's unit instances ([Loadout]) and deploys each army.
 ## [method write_back] copies campaign-lane counters and charges back before
 ## [code]SaveService.end_battle()[/code]; [method end_battle] then drops the battle and its combat
 ## lanes. Observers find each battle through [signal combat_encounter_opened].[br]
@@ -102,8 +103,9 @@ var _wave_groups: Reinforcements.GroupSource = Reinforcements.GroupSource.new()
 
 
 ## [param run_seed]: the campaign's seed. [param run_seats]: every seat of the run. Registers the
-## combat map's own setup steps: the reinforcement waves ([method Reinforcements.draw_waves]) and
-## each container's contents ([method MapObjects.roll_contents]).
+## combat map's own setup steps: the darkness's sources and drain ([method DarknessSetup.draw]),
+## the reinforcement waves ([method Reinforcements.draw_waves]) and each container's contents
+## ([method MapObjects.roll_contents]).
 func _init(run_mode: CampaignData.Mode, run_seed: int, run_seats: PackedInt32Array) -> void:
 	mode = run_mode
 	seats = run_seats.duplicate()
@@ -111,6 +113,7 @@ func _init(run_mode: CampaignData.Mode, run_seed: int, run_seats: PackedInt32Arr
 	rng = RngStreams.new(run_seed)
 	for seat: int in seats:
 		ids.set_label(InstanceIdAllocator.seat_subject_id(seat), "army of seat %d" % [seat])
+	add_setup_step(CombatEncounter.SetupStep.DARKNESS_SOURCES, DarknessSetup.draw)
 	add_setup_step(
 			CombatEncounter.SetupStep.REINFORCEMENT_WAVES,
 			Reinforcements.draw_waves.bind(_wave_groups)
@@ -142,11 +145,11 @@ func add_setup_step(step: CombatEncounter.SetupStep, run: Callable) -> void:
 ## Begins the battle [param request] describes: the encounter with its enemy draw
 ## ([method EnemySetup.draw]) and setup from fresh streams (a restart from Begin rolls the same),
 ## [signal combat_encounter_opened], one session per seat on its [code]COMBAT_ROLLS[/code] stream,
-## then per map its objects, enemies and reinforcement points ([method MapObjects.place],
-## [method EnemySetup.place], [method Reinforcements.register]), the AI and its intents
-## ([method EnemyAI.register], [method Intents.register]), carrier copies, each army deployed, and
-## [method CombatSession.open_battle] (the opening swap window for seats with
-## [member BattleRequest.opening_swap] on, else turn 1's player Phase Start).
+## then per map its objects, enemies, reinforcement points, AI and intents
+## ([method MapObjects.place], [method EnemySetup.place], [method Reinforcements.register],
+## [method EnemyAI.register], [method Intents.register]), carrier copies, its darkness
+## ([method DarknessSetup.place], so Short Wick counts), each army deployed, and
+## [method CombatSession.open_battle] as [member BattleRequest.opening_swap] says.
 ## Returns the encounter; null, with nothing begun, when a battle is already on, the run is closed,
 ## or setup fails.
 func begin_battle(request: BattleRequest) -> CombatEncounter:
@@ -200,6 +203,8 @@ func begin_battle(request: BattleRequest) -> CombatEncounter:
 	for seat: int in request.armies:
 		_add_heirlooms(catalog, seat, request.armies[seat].heirloom_ids)
 	_register_carriers(battle, request)
+	for session: CombatSession in battle.get_sessions():
+		DarknessSetup.place(session)
 	for seat: int in seats:
 		var army: Army = request.armies.get(seat, null)
 		var session: CombatSession = battle.session_of_seat(seat)

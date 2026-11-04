@@ -6,7 +6,7 @@
 # File:     map_loader.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 29, 2026
+# Modified: November 4, 2026
 # ==============================================================================
 
 class_name MapLoader
@@ -186,7 +186,7 @@ static func _read_marker_node(
 			MapMarker.Kind.ENEMY_SLOT:
 				marker.variance_tiles = marker_node.variance_tiles
 				marker.group_slot = marker_node.group_slot
-			MapMarker.Kind.DOOR, MapMarker.Kind.LEVER:
+			MapMarker.Kind.DOOR, MapMarker.Kind.LEVER, MapMarker.Kind.DARKNESS_SOURCE:
 				marker.group_id = marker_node.group_id
 			MapMarker.Kind.PASSAGE:
 				marker.pair_id = marker_node.pair_id
