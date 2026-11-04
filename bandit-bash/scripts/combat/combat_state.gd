@@ -6,7 +6,7 @@
 # File:     combat_state.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: November 3, 2026
+# Modified: November 4, 2026
 # ==============================================================================
 
 class_name CombatState
@@ -37,7 +37,6 @@ extends SandboxState
 ## @tutorial(Combat core plan): docs/plans/2026-10-26-combat-core.md
 ## @tutorial(Save system design): docs/design/save-system.md
 ##
-## @todo: TOD-001 - Answer darkness_layer() from the darkness plan (P06); every tile is DRY.
 ## @todo: TOD-002 - Save an area staff's shape by its content id once P03 CT6 gives records one
 ## (loadout.gd:TOD-001); [method WeaponStats.capture] leaves [member WeaponStats.area] out.
 
@@ -580,9 +579,10 @@ func tiles_moved(id: String) -> int:
 	return _units[id].tiles_moved if _units.has(id) else 0
 
 
-func darkness_layer(_id: String) -> int:
-	# TODO(TOD-001): Answer from the darkness plan (P06).
-	return WhileLayerCondition.Layer.DRY
+## The layer of [param id]'s tile in [member map]'s [member MapState.darkness];
+## [constant WhileLayerCondition.Layer.DRY] for an id not on the map.
+func darkness_layer(id: String) -> int:
+	return map.darkness.layer_at(tile_of(id))
 
 
 func equipped_weapon_id(unit_id: String) -> String:
