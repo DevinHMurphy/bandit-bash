@@ -6,7 +6,7 @@
 # File:     combat_hooks.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 30, 2026
+# Modified: November 4, 2026
 # ==============================================================================
 
 class_name CombatHooks
@@ -18,7 +18,12 @@ extends RefCounted
 ## one hook in the order they were made, so the order is the session's registration order. Every
 ## registration is a pure rules function on the session (gdscript.md, Event bus and effects): it
 ## never awaits, and it records any change as a fact through [member CombatSession.engine]. Each
-## hook's doc gives its call signature.
+## hook's doc gives its call signature.[br]
+## [b]Sandboxed runs:[/b] [constant Hook.TERRAIN_HEALING_ALLOWED],
+## [constant Hook.PHASE_END_EFFECTS] and [constant Hook.AFTER_STEP] also run on a sandbox's
+## stand-in session when [Intents] foresees the enemy phase
+## ([method PhaseRunner.cross_to_enemy_phase]). A registration there reads and changes only the
+## session it is handed, never one it holds, so nothing reaches the real map.
 ##
 ## @tutorial(Combat core plan): docs/plans/2026-10-26-combat-core.md
 

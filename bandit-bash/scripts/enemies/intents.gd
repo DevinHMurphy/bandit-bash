@@ -6,7 +6,7 @@
 # File:     intents.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 3, 2026
+# Modified: November 4, 2026
 # ==============================================================================
 
 class_name Intents
@@ -15,11 +15,12 @@ extends RefCounted
 ## and the [DangerZone] (enemies and AI plan, Intents and the danger zone; questions 3, 9, 10).
 ##
 ## [b]Compute[/b] ([method compute]): a [Sandbox] of the session, rolling with [ForecastRolls],
-## plays the player Phase End and the enemy Phase Start, then the phase as
-## [method EnemyAI.next_plan] plays it: every enemy yet to act decides on the board as it is, the
-## highest-rated acts with every hit landing, and the rest decide again on that board. So a kill
-## that exposes a unit shows the follow-up that punishes it. The real phase decides again after
-## each resolved action, so a miss changes what follows (question 8).[br]
+## crosses the player Phase End (every Phase End effect, darkness damage included) and the enemy
+## Phase Start as the turn loop does ([method PhaseRunner.cross_to_enemy_phase]), then plays the
+## phase as [method EnemyAI.next_plan] plays it: every enemy yet to act decides on the board as it
+## is, the highest-rated acts with every hit landing, and the rest decide again on that board. So
+## a kill that exposes a unit shows the follow-up that punishes it. The real phase decides again
+## after each resolved action, so a miss changes what follows (question 8).[br]
 ## [b]Preview[/b] ([method preview]): the same with one player unit moved to a hovered tile, built
 ## on the latest intents. An enemy whose options the unit's old and new tiles don't touch keeps
 ## its decision from them; the rest decide again, so a move that hands a later enemy a kill moves
@@ -87,7 +88,7 @@ static func refresh(session: CombatSession, catalog: EffectCatalog.Index) -> voi
 	var state: CombatState = session.state
 	if session.is_finished or state.phase_side != CombatFact.CombatSide.PLAYER:
 		return
-	# ASSUMPTION: no intents in the opening swap window, before turn 1's Phase Start runs.
+	# No intents in the opening swap window, before turn 1's Phase Start runs (question 23).
 	if state.is_phase_ended or state.map.opening_swap_open:
 		return
 	if session.intents != null and session.intents.based_on_seq == session.last_seq():
@@ -107,7 +108,7 @@ static func compute(session: CombatSession, catalog: EffectCatalog.Index) -> Int
 	found.based_on_seq = session.last_seq()
 	var sandbox: Sandbox = Sandbox.new(session.engine, ForecastRolls.new())
 	found.danger = DangerZone.compute(sandbox.engine)
-	_open_enemy_phase(session, sandbox.engine)
+	PhaseRunner.cross_to_enemy_phase(session, sandbox.engine)
 	var no_move: Array[Vector2i] = []
 	_play(found, sandbox.engine, EnemyAI.flooded_tiles(session.state), null, no_move)
 	found.diagnostics = sandbox.engine.diagnostics
@@ -150,7 +151,7 @@ static func preview(session: CombatSession, unit_id: String, tile: Vector2i) -> 
 	found.moved_unit_id = unit_id
 	found.moved_to = tile
 	found.danger = DangerZone.compute(engine)
-	_open_enemy_phase(session, engine)
+	PhaseRunner.cross_to_enemy_phase(session, engine)
 	var touched: Array[Vector2i] = [origin, tile]
 	_play(found, engine, EnemyAI.flooded_tiles(session.state), base, touched)
 	found.diagnostics = engine.diagnostics
@@ -304,75 +305,6 @@ static func _reach_in(block: Object) -> int:
 				return -1
 			found = maxi(found, inner)
 	return found
-
-
-# The player Phase End and the enemy Phase Start on a sandbox engine, so the AI decides on the
-# board the real phase opens with: Unit Turn End and Phase End effects, "until Phase End" expiry,
-# then each enemy refreshed, healed on its terrain, and its Phase Start and Unit Turn Start
-# effects.
-static func _open_enemy_phase(session: CombatSession, engine: EffectEngine) -> void:
-	# NOTE: mirrors PhaseRunner._phase_end and _phase_start; change them together. The
-	# PHASE_END_EFFECTS registrations are left out: they act on the real session (P06's darkness
-	# damage, P04's point closing), so darkness damage isn't foreseen until P06 gives a rule.
-	var state: CombatState = engine.state
-	engine.begin_step()
-	var ended: CombatFact = CombatFact.new(CombatFact.Kind.PHASE_END)
-	ended.side = CombatFact.CombatSide.PLAYER
-	engine.record(ended)
-	for unit_id: String in state.units_of(CombatFact.CombatSide.PLAYER):
-		var turn_end: CombatFact = CombatFact.new(CombatFact.Kind.UNIT_TURN_END, unit_id)
-		turn_end.tile = state.tile_of(unit_id)
-		engine.record(turn_end)
-	engine.drain()
-	engine.reach_boundary(EffectEngine.Boundary.PHASE_END)
-	state.is_phase_ended = true
-
-	engine.begin_step()
-	state.phase_side = CombatFact.CombatSide.ENEMY
-	state.is_phase_ended = false
-	for unit_id: String in state.unit_ids():
-		state.unit(unit_id).has_been_shoved = false
-	var units: PackedStringArray = state.units_of(CombatFact.CombatSide.ENEMY)
-	for unit_id: String in units:
-		var unit: CombatUnitState = state.unit(unit_id)
-		unit.has_acted = false
-		unit.tiles_moved = 0
-		unit.movement_spent = 0
-		unit.is_second_move_pending = false
-		unit.has_used_sidearm = false
-		state.set_block(unit_id, 0)
-		state.set_stance(unit_id, engine.stats(unit_id).get_int(CombatValue.Key.STANCE_MAX))
-		engine.record(CombatFact.new(CombatFact.Kind.BLOCK_STANCE_REFRESHED, unit_id))
-	for unit_id: String in units:
-		_heal_on_terrain(session, engine, unit_id)
-	var started: CombatFact = CombatFact.new(CombatFact.Kind.PHASE_START)
-	started.side = CombatFact.CombatSide.ENEMY
-	started.amount = state.turn
-	engine.record(started)
-	for unit_id: String in state.units_of(CombatFact.CombatSide.ENEMY):
-		var turn_start: CombatFact = CombatFact.new(CombatFact.Kind.UNIT_TURN_START, unit_id)
-		turn_start.tile = state.tile_of(unit_id)
-		engine.record(turn_start)
-	engine.drain()
-
-
-# PhaseRunner's terrain healing at the enemy Phase Start, on the sandbox. The healing-allowed
-# registrations read the real session, where enemies stand where they do in the sandbox.
-static func _heal_on_terrain(
-		session: CombatSession, engine: EffectEngine, unit_id: String
-) -> void:
-	var state: CombatState = engine.state
-	var bonus: CombatGrid.TileBonus = state.grid.tile_bonus(state.tile_of(unit_id))
-	if bonus.heal_flat <= 0 and bonus.heal_percent <= 0:
-		return
-	var max_hp: int = engine.stats(unit_id).get_int(CombatValue.Key.HP)
-	if state.get_hp(unit_id) >= max_hp:
-		return
-	for run: Callable in session.hooks.get_registered(CombatHooks.Hook.TERRAIN_HEALING_ALLOWED):
-		var is_allowed: bool = run.call(session, unit_id)
-		if not is_allowed:
-			return
-	engine.heal(unit_id, bonus.heal_flat + max_hp * bonus.heal_percent / 100.0)
 
 
 # Carries plan out on engine as UnitTurnCommand.resolve would: the walk, then the action. A plan

@@ -31,9 +31,7 @@ operations = Array[ExtResource("2_ops")]([SubResource("Resource_stance")])
 script = ExtResource("9_def")
 behavior = 3
 target_rule_id = "most_wounded_ally"
-; ASSUMPTION: the whole cell of enemy-roster.md's target rule column, not its first clause as
-; the EN1 fixtures have it. Fragile: an editor re-save drops this comment.
-target_rule_text = "Heals the most wounded ally; keeps away from your units"
+target_rule_text = "Heals the most wounded ally"
 trait_name = "Field Dressing"
 weapon_types = PackedStringArray("staff")
 movement_type = 0

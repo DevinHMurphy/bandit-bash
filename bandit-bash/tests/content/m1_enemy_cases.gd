@@ -6,7 +6,7 @@
 # File:     m1_enemy_cases.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 3, 2026
+# Modified: November 4, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -97,7 +97,8 @@ func run() -> void:
 
 
 # enemy-roster.md's Classes and Traits tables, with question 13's weapons (the Simple Bow, not the
-# Heavy Crossbow) and question 11's behaviors.
+# Heavy Crossbow), question 11's behaviors, and question 23's rule text: the first clause of the
+# roster's target rule, read at a glance beside the intent.
 func _test_classes() -> void:
 	var never_unit_types: bool = true
 	for class_id: String in ROSTER:
@@ -109,12 +110,9 @@ func _test_classes() -> void:
 			+ "hedge_healer staff DEFAULT [] minor_heal Field Dressing SUPPORT"
 	))
 	_same("m1 enemies: target rules and their text", _describe_rules(), (
-			"brute nearest_foe \"Nearest foe it can hit; swings even with its own allies "
-			+ "beside it\"; "
-			+ "crossbowman lowest_defense \"Lowest Defense in range; moves only if nothing is "
-			+ "in range\"; "
-			+ "hedge_healer most_wounded_ally \"Heals the most wounded ally; keeps away from your "
-			+ "units\""
+			"brute nearest_foe \"Nearest foe it can hit\"; "
+			+ "crossbowman lowest_defense \"Lowest Defense in range\"; "
+			+ "hedge_healer most_wounded_ally \"Heals the most wounded ally\""
 	))
 
 

@@ -6,7 +6,7 @@
 # File:     intent_cases.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 3, 2026
+# Modified: November 4, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -16,7 +16,9 @@ extends RefCounted
 ## opens, a splash kill names the unit that falls, a preview equals the intents after the unit
 ## really moves there (a far move reusing every decision, a move that hands a later enemy a kill
 ## moving it up the order), intents refresh after a player command and only then, the danger zone
-## matches reach plus range for each M1 behavior, and the same board gives the same intents.
+## matches reach plus range for each M1 behavior, the same board gives the same intents, Phase End
+## effects (P06's darkness damage) are foreseen without touching the map, and the darkness's
+## switched rule reads "Nearest foe".
 ## Reports each case through the check callable it is given.
 
 # A preloaded script used as a type (gdscript.md, Naming): the world has no class name.
@@ -74,6 +76,58 @@ func run() -> void:
 	_test_danger_zone_per_behavior()
 	_test_danger_zone_blocked()
 	_test_same_board_same_intents()
+	_test_phase_end_effects_foreseen()
+	_test_darkness_rule_text()
+
+
+# The Brute's hit takes 15 of p1's 20 HP. A PHASE_END_EFFECTS registration that deals 5 to every
+# player unit at the player Phase End (as P06's darkness damage will) leaves 15: the intents
+# foresee the Brute's kill, the real map stays untouched, and the real phase plays it.
+func _test_phase_end_effects_foreseen() -> void:
+	var plain: AiWorld = AiWorld.new(_catalog, PLAIN_8X8)
+	plain.add_enemy("e1", BRUTE, Vector2i(0, 0))
+	plain.add_player("p1", Vector2i(2, 0), "bow")
+	var unscorched: EnemyIntent = Intents.compute(plain.session, _catalog).intent_of("e1")
+	var world: AiWorld = AiWorld.new(_catalog, PLAIN_8X8, ForecastRolls.new())
+	world.add_enemy("e1", BRUTE, Vector2i(0, 0))
+	world.add_player("p1", Vector2i(2, 0), "bow")
+	world.session.hooks.add(CombatHooks.Hook.PHASE_END_EFFECTS, _scorch_players)
+	_open(world)
+	var shown: Intents = world.session.intents
+	var intent: EnemyIntent = null if shown == null else shown.intent_of("e1")
+	_check.call("phase end: without the effect, the Brute's hit is no kill", (
+			unscorched != null and unscorched.target_id == "p1" and not unscorched.is_kill
+	), "" if unscorched == null else unscorched.describe())
+	_check.call("phase end: the intents foresee the kill Phase End effects set up", (
+			intent != null and intent.target_id == "p1" and intent.defeats.has("p1")
+	), _intents_text(shown))
+	_check.call("phase end: the real map is untouched", (
+			world.state().get_hp("p1") == 20 and world.engine().diagnostics.is_empty()
+	), str(world.state().get_hp("p1")))
+	_send(world, EndTurnCommand.new(0))
+	_check.call("phase end: the real phase plays the kill", not world.state().has_unit("p1"))
+
+
+# Once the darkness has arrived the healer plays the nearest foe, and its intent says so; the
+# Brute, whose own rule that is, keeps its class's text.
+func _test_darkness_rule_text() -> void:
+	var world: AiWorld = AiWorld.new(_catalog, PLAIN_8X8)
+	world.add_enemy("e1", BRUTE, Vector2i(0, 0))
+	world.add_enemy("e2", HEALER, Vector2i(6, 6))
+	world.add_player("p1", Vector2i(3, 3))
+	world.state().map.has_darkness_arrived = true
+	var shown: Intents = Intents.compute(world.session, _catalog)
+	var healer: EnemyIntent = shown.intent_of("e2")
+	var brute: EnemyIntent = shown.intent_of("e1")
+	var own_text: String = _catalog.enemy_class(BRUTE).target_rule_text
+	_check.call("darkness: the switched rule reads \"Nearest foe\"", (
+			healer != null
+			and healer.target_rule_id == ContentIds.TARGET_NEAREST_FOE
+			and healer.target_rule_text == "Nearest foe"
+	), "" if healer == null else healer.target_rule_text)
+	_check.call("darkness: an enemy on its own rule keeps its class's text", (
+			brute != null and not own_text.is_empty() and brute.target_rule_text == own_text
+	), "" if brute == null else brute.target_rule_text)
 
 
 func _test_register() -> void:
@@ -436,3 +490,12 @@ func _plan_text(plan: EnemyPlan) -> String:
 	return "%s %s -> %s at %s" % [
 		plan.actor_id, EnemyPlan.Kind.find_key(plan.kind), plan.target_id, plan.tile,
 	]
+
+
+# A PHASE_END_EFFECTS registration standing in for P06's darkness damage: 5 splash to every player
+# unit at the player Phase End, recorded through the engine of the session it is handed.
+static func _scorch_players(session: CombatSession, side: CombatFact.CombatSide) -> void:
+	if side != CombatFact.CombatSide.PLAYER:
+		return
+	for unit_id: String in session.state.units_of(CombatFact.CombatSide.PLAYER):
+		session.engine.deal_splash("", unit_id, 5.0)

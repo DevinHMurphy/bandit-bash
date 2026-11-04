@@ -6,7 +6,7 @@
 # File:     phase_runner.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 29, 2026
+# Modified: November 4, 2026
 # ==============================================================================
 
 class_name PhaseRunner
@@ -28,8 +28,9 @@ extends RefCounted
 ## [constant CombatFact.Kind.PHASE_END], [constant CombatFact.Kind.UNIT_TURN_END] for each unit,
 ## the drain, [constant CombatHooks.Hook.PHASE_END_EFFECTS], the drain again, then "until Phase
 ## End" modifiers expire. A unit's action ends its turn but fires no Unit Turn End of its own.[br]
-## The last seat's end turn resolves, as one command: player Phase End, enemy Phase Start, each
-## enemy's turn, enemy Phase End, [constant CombatHooks.Hook.AFTER_ENEMY_PHASE], and the next
+## The last seat's end turn resolves, as one command: player Phase End and enemy Phase Start
+## ([method cross_to_enemy_phase], which a sandbox can cross too), each enemy's turn, enemy Phase
+## End, [constant CombatHooks.Hook.AFTER_ENEMY_PHASE], and the next
 ## player Phase Start. Every step ends with [constant CombatHooks.Hook.AFTER_STEP]
 ## ([method end_step]); once the map's combat has ended, nothing more runs.[br]
 ## Pure rules code on the session's state and engine: it never awaits and records every change as
@@ -85,11 +86,7 @@ static func end_turn(session: CombatSession, seat: int) -> void:
 	session.state.ended_seats.append(seat)
 	if not seats_to_end(session).is_empty():
 		return
-	_phase_end(session, CombatFact.CombatSide.PLAYER)
-	if not end_step(session):
-		return
-	_phase_start(session, CombatFact.CombatSide.ENEMY)
-	if not end_step(session):
+	if not cross_to_enemy_phase(session):
 		return
 	if not _enemy_turns(session):
 		return
@@ -103,6 +100,22 @@ static func end_turn(session: CombatSession, seat: int) -> void:
 		if not end_step(session):
 			return
 	_phase_start(session, CombatFact.CombatSide.PLAYER)
+
+
+## The boundary from the player phase to the enemy phase on [param session]: the player Phase End
+## ([constant CombatHooks.Hook.PHASE_END_EFFECTS] included) and its step's end, then the enemy
+## Phase Start and its step's end ([method end_step]). [method end_turn] crosses it.
+## [param sandbox]: a [Sandbox]'s engine copied from [param session]'s; when given, the boundary
+## runs there through a stand-in session sharing [param session]'s hooks and setup, so every
+## registration reads and changes only the sandbox ([Intents] foresees the enemy phase this way).
+## Returns whether the combat goes on.
+static func cross_to_enemy_phase(session: CombatSession, sandbox: EffectEngine = null) -> bool:
+	var on: CombatSession = session if sandbox == null else _stand_in(session, sandbox)
+	_phase_end(on, CombatFact.CombatSide.PLAYER)
+	if not _end_crossing_step(on, sandbox):
+		return false
+	_phase_start(on, CombatFact.CombatSide.ENEMY)
+	return _end_crossing_step(on, sandbox)
 
 
 ## Ends a resolution step: [constant CombatHooks.Hook.AFTER_STEP] in registration order, then the
@@ -135,6 +148,44 @@ static func seats_with_units(session: CombatSession) -> PackedInt32Array:
 			found.append(seat)
 	found.sort()
 	return found
+
+
+# A session for cross_to_enemy_phase on sandbox: the sandbox's state and engine with session's
+# hooks, map, setup, seats and commanders. Its own bus, playback and fact log are never used.
+static func _stand_in(session: CombatSession, sandbox: EffectEngine) -> CombatSession:
+	# NOTE: carries every session member a PHASE_END_EFFECTS, TERRAIN_HEALING_ALLOWED or
+	# AFTER_STEP registration reads; a registration reading another needs a line here.
+	var stand_in: CombatSession = CombatSession.new(
+			session.session_id,
+			session.seats,
+			MapGrid.new(session.layout),
+			sandbox.rolls,
+			session.ids
+	)
+	var sandbox_state: CombatState = sandbox.state
+	stand_in.state = sandbox_state
+	stand_in.engine = sandbox
+	stand_in.hooks = session.hooks
+	stand_in.setup = session.setup
+	stand_in.seat_setup = session.seat_setup
+	stand_in.commander_ids = session.commander_ids.duplicate()
+	stand_in.is_finished = session.is_finished
+	stand_in.is_won = session.is_won
+	stand_in.run_seed = session.run_seed
+	return stand_in
+
+
+# end_step for cross_to_enemy_phase. A stand-in has no observer on the sandbox, so it reads the
+# combat's end from the sandbox's facts, as CombatSession's observer does.
+static func _end_crossing_step(on: CombatSession, sandbox: EffectEngine) -> bool:
+	var goes_on: bool = end_step(on)
+	if sandbox == null:
+		return goes_on
+	for fact: CombatFact in sandbox.fact_log:
+		if fact.kind == CombatFact.Kind.COMBAT_ENDED:
+			on.is_finished = true
+			on.is_won = fact.side == CombatFact.CombatSide.PLAYER
+	return not on.is_finished
 
 
 static func _phase_start(session: CombatSession, side: CombatFact.CombatSide) -> void:
