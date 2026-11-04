@@ -6,7 +6,7 @@
 # File:     check_cases.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 28, 2026
+# Modified: November 4, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -16,8 +16,9 @@ extends RefCounted
 ##
 ## The good fixture is 10 × 8 plain with a river tile at (5, 0), and holds one of everything the
 ## check looks at: 8 deployment tiles, a reinforcement point, a two-door lever group, a door no
-## lever pulls (a lockpick opens it), a passage pair, 3 powder kegs and 2 containers. Each bad
-## fixture changes one thing.
+## lever pulls (a lockpick opens it), a passage pair, 3 powder kegs and 2 containers, and no turn
+## par, so no darkness; the darkness cases give it a par and source candidates. Each bad fixture
+## changes one thing.
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
 
@@ -60,6 +61,7 @@ func run() -> void:
 	_test_door_group()
 	_test_lever_group()
 	_test_passage_pair()
+	_test_darkness_sources()
 
 
 func _test_m1_passes() -> void:
@@ -296,6 +298,86 @@ func _test_passage_pair() -> void:
 			MapCheck.Rule.PASSAGE_PAIR,
 			[Vector2i(2, 0), SPARE, Vector2i(7, 7)]
 	)
+
+
+# With a turn par the good fixture needs its candidates: a two-tile one at (0, 0)-(0, 1), group 0,
+# and a one-tile one at (9, 7).
+func _test_darkness_sources() -> void:
+	var dark: CombatMapDefinition = _definition()
+	dark.turn_par = 5
+	var failures: Array[MapCheck.Failure] = MapCheck.check(dark, _dark_layout([]))
+	_ok("darkness: two candidates pass", failures.is_empty(), MapCheck.describe(failures))
+
+	var one: MapLayout = _good_layout(false)
+	_source(one, Vector2i(0, 0), 0)
+	_source(one, Vector2i(0, 1), 0)
+	one.index_markers()
+	_only("darkness: one candidate fails", one, dark, MapCheck.Rule.DARKNESS_SOURCES, [null])
+	_same(
+			"darkness: says how many",
+			MapCheck.describe(MapCheck.check(dark, one)),
+			"DARKNESS_SOURCES: 1 source candidates, 2 needed"
+	)
+	_only(
+			"darkness: none fails",
+			_good_layout(true),
+			dark,
+			MapCheck.Rule.DARKNESS_SOURCES,
+			[null]
+	)
+
+	_only(
+			"darkness: a candidate only on a closed door fails",
+			_dark_layout([[Vector2i(5, 5), -1]]),
+			dark,
+			MapCheck.Rule.DARKNESS_SOURCES,
+			[Vector2i(5, 5)]
+	)
+	var walled: MapLayout = _dark_layout([[SPARE, -1]])
+	walled.set_terrain(SPARE, _terrain("wall"))
+	_only(
+			"darkness: a candidate only on a wall fails",
+			walled,
+			dark,
+			MapCheck.Rule.DARKNESS_SOURCES,
+			[SPARE]
+	)
+	var half: Array[MapCheck.Failure] = MapCheck.check(
+			dark, _dark_layout([[Vector2i(5, 5), 3], [Vector2i(5, 6), 3]])
+	)
+	_ok(
+			"darkness: one floodable tile is enough for a candidate",
+			half.is_empty(),
+			MapCheck.describe(half)
+	)
+
+	var survive: CombatMapDefinition = _definition(SURVIVE)
+	survive.turn_par = 5
+	var undrained: Array[MapCheck.Failure] = MapCheck.check(survive, _good_layout(true))
+	_ok(
+			"darkness: a Survive map with a par needs none",
+			undrained.is_empty(),
+			MapCheck.describe(undrained)
+	)
+
+
+# The good fixture with the two darkness candidates of _test_darkness_sources(), plus extra
+# [tile, group id] darkness markers, indexed.
+func _dark_layout(extra: Array) -> MapLayout:
+	var layout: MapLayout = _good_layout(false)
+	_source(layout, Vector2i(0, 0), 0)
+	_source(layout, Vector2i(0, 1), 0)
+	_source(layout, Vector2i(9, 7), -1)
+	# Untyped: each entry is an array literal.
+	for entry: Variant in extra:
+		var marker: Array = entry
+		_source(layout, marker[0] as Vector2i, marker[1] as int)
+	layout.index_markers()
+	return layout
+
+
+func _source(layout: MapLayout, tile: Vector2i, group_id: int) -> void:
+	layout.add_marker(MapLayout.MarkerKind.DARKNESS_SOURCE, tile).group_id = group_id
 
 
 # The good fixture (see the class doc), indexed when is_indexed; bad fixtures add markers first.

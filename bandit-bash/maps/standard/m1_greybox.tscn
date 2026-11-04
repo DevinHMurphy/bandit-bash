@@ -38,3 +38,29 @@ position = Vector2(240, 208)
 script = ExtResource("2_4mrm7")
 variance_tiles = 2
 group_slot = "B"
+
+[node name="DarknessSources" type="Node2D" parent="." unique_id=1008516621]
+
+[node name="DarknessSource1" type="Node2D" parent="DarknessSources" unique_id=1169483049]
+position = Vector2(16, 80)
+script = ExtResource("2_4mrm7")
+kind = 5
+group_id = 0
+
+[node name="DarknessSource2" type="Node2D" parent="DarknessSources" unique_id=104733285]
+position = Vector2(16, 112)
+script = ExtResource("2_4mrm7")
+kind = 5
+group_id = 0
+
+[node name="DarknessSource3" type="Node2D" parent="DarknessSources" unique_id=1807055290]
+position = Vector2(80, 240)
+script = ExtResource("2_4mrm7")
+kind = 5
+group_id = 1
+
+[node name="DarknessSource4" type="Node2D" parent="DarknessSources" unique_id=713118339]
+position = Vector2(112, 240)
+script = ExtResource("2_4mrm7")
+kind = 5
+group_id = 1

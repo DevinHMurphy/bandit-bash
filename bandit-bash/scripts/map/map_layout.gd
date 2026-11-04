@@ -6,7 +6,7 @@
 # File:     map_layout.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 29, 2026
+# Modified: November 4, 2026
 # ==============================================================================
 
 class_name MapLayout
@@ -263,7 +263,8 @@ class Marker:
 	var variance_tiles: int = 0
 	## An enemy slot's group slot ([member MapMarker.group_slot]); empty for none.
 	var group_slot: String = ""
-	## The lever group a door or lever belongs to; -1 for none. [MapCheck] matches them up.
+	## The lever group a door or lever belongs to, or the source candidate of a darkness source
+	## ([method DarknessSetup.candidates]); -1 for none. [MapCheck] matches lever groups up.
 	var group_id: int = -1
 	## The pair a passage end belongs to; -1 for none. [MapCheck] matches them up.
 	var pair_id: int = -1

@@ -24,8 +24,9 @@ extends RefCounted
 ## deepen a tile is still spent (plan question 3). Heights and flow costs are derived afresh for
 ## each operation, so a break or a door change only needs [method recalculate] (plan question 2);
 ## a tile that stops being floodable keeps its layer. Layers never fall.[br]
-## Choosing sources and the drain, scheduling waves, erosion, damage and facts belong to the
-## callers; each operation returns what deepened, in order, for them to record.
+## [DarknessSetup] chooses the sources, the drain and [member first_release]. Scheduling waves,
+## erosion, damage and facts belong to the callers; each operation returns what deepened, in
+## order, for them to record.
 ##
 ## @tutorial(The darkness): docs/design/the-darkness.md
 ## @tutorial(The darkness plan): docs/plans/2026-11-03-the-darkness.md
@@ -45,9 +46,18 @@ const BRAZIER_RADIUS: int = 2
 ## past Dusk).
 const BRAZIER_CAP: WhileLayerCondition.Layer = WhileLayerCondition.Layer.DUSK
 
+## [member first_release] on a map whose darkness never comes: before setup, and on a map with no
+## darkness ([method DarknessSetup.has_darkness]).
+const NO_RELEASE: int = -1
+
 ## The active sources; a wave's [member Wave.source] indexes this. Empty before setup chooses
 ## them, and on a map with no darkness.
 var sources: Array[Source] = []
+
+## The turn whose darkness step releases the first wave, which is arrival: turn par − 1 plus the
+## map's Short Wick offset, set at battle start ([method DarknessSetup.place]). Below 1 when that
+## falls before turn 1. [constant NO_RELEASE] when the darkness never comes.
+var first_release: int = NO_RELEASE
 
 ## Where the darkness flows toward, which sets every tile's height; [constant CombatFact.NO_TILE]
 ## for none, when every step is level.
@@ -106,6 +116,7 @@ func copy() -> DarknessState:
 	var state_copy: DarknessState = DarknessState.new()
 	for source: Source in sources:
 		state_copy.sources.append(source.copy())
+	state_copy.first_release = first_release
 	state_copy.drain = drain
 	for wave: Wave in waves:
 		state_copy.waves.append(wave.copy())

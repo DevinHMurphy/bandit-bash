@@ -6,7 +6,7 @@
 # File:     map_check.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 3, 2026
+# Modified: November 4, 2026
 # ==============================================================================
 
 class_name MapCheck
@@ -25,7 +25,7 @@ extends RefCounted
 ##
 ## @todo: TOD-001 - Let the Powder Baron's arena waive the powder keg limit (P05 boss maps).
 
-## One rule of the check. [b]Append only[/b]: P06 adds the darkness-source rule.
+## One rule of the check. [b]Append only.[/b]
 enum Rule {
 	## The loader couldn't read a tile or a marker ([member MapLayout.problems]).
 	LOAD_PROBLEM = 0,
@@ -48,6 +48,10 @@ enum Rule {
 	LEVER_GROUP = 8,
 	## A passage end in no pair, or a pair without exactly two ends.
 	PASSAGE_PAIR = 9,
+	## A map with the darkness ([method DarknessSetup.has_darkness]) has fewer than
+	## [constant MIN_SOURCE_CANDIDATES] source candidates, or a candidate with no floodable tile as
+	## the battle starts; that failure names the candidate's first tile.
+	DARKNESS_SOURCES = 10,
 }
 
 ## The fewest deployment tiles a map may author: the army-size ceiling (game-vision.md, Combat
@@ -56,6 +60,10 @@ const MIN_DEPLOYMENT_TILES: int = 8
 
 ## The most powder kegs a map may author (map-objects.md, Keg chains).
 const MAX_POWDER_KEGS: int = 3
+
+## The fewest darkness source candidates a map with the darkness may author (the-darkness.md,
+## Values: at least 2), so the active pick varies from run to run.
+const MIN_SOURCE_CANDIDATES: int = 2
 
 ## The tile the objective needs, per objective that needs one.
 const OBJECTIVE_MARKERS: Dictionary[CombatMapDefinition.Objective, MapLayout.MarkerKind] = {
@@ -84,6 +92,7 @@ static func check(definition: CombatMapDefinition, layout: MapLayout) -> Array[F
 	_check_reinforcement_points(layout, failures)
 	_check_lever_groups(layout, failures)
 	_check_passages(layout, failures)
+	_check_darkness_sources(definition, layout, failures)
 	return failures
 
 
@@ -229,6 +238,32 @@ static func _check_passages(layout: MapLayout, failures: Array[Failure]) -> void
 					Rule.PASSAGE_PAIR,
 					"pair %d has %d ends, 2 needed" % [marker.pair_id, ends[marker.pair_id]],
 					marker.tile
+			))
+
+
+# Floodable as the battle starts: doors closed and breakables standing, as DarknessSetup reads it.
+static func _check_darkness_sources(
+		definition: CombatMapDefinition, layout: MapLayout, failures: Array[Failure]
+) -> void:
+	if not DarknessSetup.has_darkness(definition):
+		return
+	var found: Array[DarknessState.Source] = DarknessSetup.candidates(layout)
+	if found.size() < MIN_SOURCE_CANDIDATES:
+		failures.append(Failure.new(
+				Rule.DARKNESS_SOURCES,
+				"%d source candidates, %d needed" % [found.size(), MIN_SOURCE_CANDIDATES]
+		))
+	var state: CombatState = DarknessSetup.start_state(layout)
+	for index: int in found.size():
+		var tiles: Array[Vector2i] = found[index].tiles
+		var is_floodable: bool = false
+		for tile: Vector2i in tiles:
+			is_floodable = is_floodable or DarknessFlow.is_floodable(state, tile)
+		if not is_floodable:
+			failures.append(Failure.new(
+					Rule.DARKNESS_SOURCES,
+					"source candidate %d has no floodable tile" % [index],
+					tiles[0]
 			))
 
 
