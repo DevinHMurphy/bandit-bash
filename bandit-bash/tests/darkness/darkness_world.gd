@@ -12,9 +12,9 @@
 extends RefCounted
 ## A test map for the darkness cases: a [MapLayout] from rows of terrain ids, object spots and
 ## reinforcement points, a [CombatSession] over it with the objects placed
-## ([method MapObjects.place]), and helpers to set up the darkness, open and close doors, light
-## braziers, break breakables, place units, register the turn loop's hooks, play turns and read
-## the fact log.
+## ([method MapObjects.place]), and helpers to set up the darkness, flood tiles, open and close
+## doors, light braziers, break breakables, place units, register the turn loop's hooks, play
+## turns and read the fact log.
 ##
 ## Test-only. Terrain comes from the real definitions in [code]res://data/terrain/[/code]. The
 ## engine runs in verify mode. Enemies Wait: no [constant CombatHooks.Hook.ENEMY_COMMANDS].
@@ -117,19 +117,31 @@ func erode(tile: Vector2i) -> bool:
 	return MapObjects.erode(engine(), state(), object_at(tile).id)
 
 
-## Places a unit with 20 HP. Returns whether it was placed.
-func add_unit(id: String, side: CombatFact.CombatSide, tile: Vector2i) -> bool:
+## Places a unit at full HP, [param max_hp] (20 by default). Returns whether it was placed.
+func add_unit(
+		id: String, side: CombatFact.CombatSide, tile: Vector2i, max_hp: int = 20
+) -> bool:
 	var unit: CombatUnitState = CombatUnitState.new()
 	unit.id = id
 	unit.side = side
 	unit.seat = 0 if side == CombatFact.CombatSide.PLAYER else -1
 	unit.tile = tile
-	unit.hp = 20
+	unit.hp = max_hp
 	return session.add_unit(unit, {
-		CombatValue.Key.HP: 20.0,
+		CombatValue.Key.HP: float(max_hp),
 		CombatValue.Key.STANCE_MAX: 2.0,
 		CombatValue.Key.MOVEMENT: 5.0,
 	})
+
+
+## Registers darkness damage ([method Darkness.register_damage]), after any [method register].
+func register_damage() -> void:
+	Darkness.register_damage(session)
+
+
+## Sets [param tile]'s layer directly, as waves would have.
+func flood(tile: Vector2i, layer: WhileLayerCondition.Layer) -> void:
+	darkness().layers[tile] = layer
 
 
 ## Registers the darkness step, then, when [param source] is given, draws the points' waves

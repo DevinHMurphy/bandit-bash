@@ -6,7 +6,7 @@
 # File:     enemy_ai.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 3, 2026
+# Modified: November 4, 2026
 # ==============================================================================
 
 class_name EnemyAI
@@ -40,7 +40,6 @@ extends RefCounted
 ## @todo: TOD-001 - Guard, Skirmisher, Block staves and a second move after acting (EN6); an enemy
 ## playing Guard or Skirmisher Waits.
 ## @todo: TOD-002 - A boss holding a fixed tile keeps its behavior after the darkness (EN7's mark).
-## @todo: TOD-003 - Read flooded tiles from P06's darkness state; until then no tile is flooded.
 
 ## (c)'s weight on the damage share: Godot_FE's damage bonus ([code]aiAction.gd[/code],
 ## [code]generate_attack_action_rating[/code]).
@@ -149,10 +148,13 @@ static func decide(
 	return _best(options)
 
 
-## The tiles the darkness has flooded on [param state]'s map, for [method decide].
-static func flooded_tiles(_state: CombatState) -> Dictionary[Vector2i, bool]:
-	# TODO(TOD-003): P06's darkness state answers; until then no tile is flooded.
+## The tiles the darkness has flooded on [param state]'s map, any layer, for [method decide]: its
+## [member MapState.darkness]. The dry rule weighs flooded against dry only, never one layer
+## against another (the-darkness.md, Enemy AI).
+static func flooded_tiles(state: CombatState) -> Dictionary[Vector2i, bool]:
 	var flooded: Dictionary[Vector2i, bool] = {}
+	for tile: Vector2i in state.map.darkness.layers:
+		flooded[tile] = true
 	return flooded
 
 

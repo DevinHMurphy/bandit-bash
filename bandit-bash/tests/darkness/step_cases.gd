@@ -127,8 +127,8 @@ func _test_schedule() -> void:
 	_quiet(world)
 
 
-# Par 1 (first release 0) and par 1 with Short Wick (-1, the same number as NO_RELEASE): released
-# at the end of turn 1, never before, then every 2 turns from there.
+# Par 1 (first release 0) and par 1 with Short Wick (-1): released at the end of turn 1, never
+# before, then every 2 turns from there.
 func _test_par_one() -> void:
 	for first_release: int in [0, -1]:
 		var world: DarknessWorld = DarknessWorld.new(CORRIDOR_7)

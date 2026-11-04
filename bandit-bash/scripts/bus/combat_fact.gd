@@ -71,7 +71,9 @@ enum Kind {
 	HEALED = 19,
 	## The actor used a staff (heal or Block) on the target.
 	USED_STAFF_ON_ALLY = 20,
-	## The actor took darkness damage at its side's Phase End. Not an attack.
+	## The actor took darkness damage at its side's Phase End ([Darkness]). Not an attack: Block
+	## never absorbs it, so [member amount] and [member hp_amount] are both the HP it lost;
+	## [member source] is [constant Source.DARKNESS]; no target.
 	DARKNESS_DAMAGE_TAKEN = 21,
 	## The actor used the map object named by the target, at [member tile]; [member item_id] is
 	## the key or lockpick it opened a lock with, if any.
