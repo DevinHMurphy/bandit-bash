@@ -6,7 +6,7 @@
 # File:     enemy_intent.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 3, 2026
+# Modified: November 4, 2026
 # ==============================================================================
 
 class_name EnemyIntent
@@ -35,6 +35,11 @@ enum Kind {
 	ADVANCE = 3,
 }
 
+# The rule text once the darkness has switched an enemy to the nearest foe (enemies and AI plan,
+# question 23): the-darkness.md's "moves toward and attacks the nearest reachable target", read at
+# a glance like the classes' first clauses.
+const _DARKNESS_RULE_TEXT: String = "Nearest foe"
+
 ## The enemy.
 var unit_id: String = ""
 
@@ -51,7 +56,7 @@ var behavior: EnemyClassDefinition.Behavior = EnemyClassDefinition.Behavior.AGGR
 var target_rule_id: String = ""
 
 ## The rule as players read it beside the icon ([member EnemyClassDefinition.target_rule_text]);
-## empty when it plays another rule than its class's, as after the darkness.
+## "Nearest foe" once the darkness has switched it. Empty for an enemy with no class.
 var target_rule_text: String = ""
 
 ## Whether its forecast defeats a player unit: its target, or another by splash.
@@ -129,6 +134,9 @@ static func from_plan(
 	intent.target_rule_id = chosen.target_rule_id
 	if definition != null and definition.target_rule_id == chosen.target_rule_id:
 		intent.target_rule_text = definition.target_rule_text
+	elif definition != null:
+		# Only the darkness plays a rule other than the class's ([method EnemyAI.decide]).
+		intent.target_rule_text = _DARKNESS_RULE_TEXT
 	intent.is_kill = chosen.is_kill
 	intent.decided_by = chosen.decided_by
 	if intent.kind != Kind.GUARD:
@@ -160,7 +168,7 @@ static func _kind_of(state: CombatState, chosen: EnemyPlan) -> Kind:
 				return Kind.HEAL
 		EnemyPlan.Kind.ADVANCE:
 			return Kind.ADVANCE
-	# ASSUMPTION: a Support regroup and a Wait show the guard icon; the vision's icon list
+	# A Support regroup and a Wait show the guard icon (question 23): the vision's icon list
 	# (attack, guard, buff, advance) has no regroup or wait icon.
 	return Kind.GUARD
 

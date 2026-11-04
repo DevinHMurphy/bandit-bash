@@ -27,9 +27,7 @@ operations = Array[ExtResource("3_ops")]([SubResource("Resource_hit")])
 script = ExtResource("9_def")
 behavior = 2
 target_rule_id = "lowest_defense"
-; ASSUMPTION: the whole cell of enemy-roster.md's target rule column, not its first clause as
-; the EN1 fixtures have it. Fragile: an editor re-save drops this comment.
-target_rule_text = "Lowest Defense in range; moves only if nothing is in range"
+target_rule_text = "Lowest Defense in range"
 trait_name = "Steady Aim"
 weapon_types = PackedStringArray("bow")
 movement_type = 0

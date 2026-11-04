@@ -30,9 +30,7 @@ operations = Array[ExtResource("2_ops")]([SubResource("Resource_splash")])
 script = ExtResource("9_def")
 behavior = 0
 target_rule_id = "nearest_foe"
-; ASSUMPTION: the whole cell of enemy-roster.md's target rule column, not its first clause as
-; the EN1 fixtures have it. Fragile: an editor re-save drops this comment.
-target_rule_text = "Nearest foe it can hit; swings even with its own allies beside it"
+target_rule_text = "Nearest foe it can hit"
 trait_name = "Cleave"
 weapon_types = PackedStringArray("axe")
 movement_type = 0
