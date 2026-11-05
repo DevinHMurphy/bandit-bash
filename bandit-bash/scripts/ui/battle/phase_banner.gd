@@ -12,13 +12,17 @@
 class_name PhaseBanner
 extends PanelContainer
 ## The banner at each phase change: "Player Phase" with its turn, or "Enemy Phase", fading in and
-## out (combat UI plan, question 11; game-vision.md, Combat: the UI shows the turn phases;
+## out; and at the battle's end, "Victory" or "Defeat", which stays (combat UI plan, questions 11
+## and 18 (f); game-vision.md, Combat: the UI shows the turn phases;
 ## Godot_FE's turn transition, [code]combat_ui.gd[/code] and
 ## [code]TurnTransitionAnimation.tscn[/code]).
 ##
 ## [BattleHud] calls [method show_phase] as each side's Phase Start fact plays. Like Godot_FE's, it
-## holds nothing up: playback goes on under it. A new banner replaces one still showing. Its fade
-## runs on the scene tree, so it pauses with the pause menu and ignores fast-forward.
+## holds nothing up: playback goes on under it. [BattleScreen] calls [method show_result] (through
+## [method BattleHud.show_result]) once the battle has ended and its playback settled, and holds
+## the route to Results for [member BattleScreen.end_banner_time]. A new banner replaces one still
+## showing. Its fade runs on the scene tree, so it pauses with the pause menu and ignores
+## fast-forward.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
@@ -30,6 +34,12 @@ extends PanelContainer
 
 ## The turn's line under the player phase's text: [code]%d[/code] the turn. Empty shows none.
 @export var turn_format: String = "Turn %d"
+
+## The text when the player side wins. It shows in [member player_color].
+@export var victory_text: String = "Victory"
+
+## The text when the player side loses. It shows in [member enemy_color].
+@export var defeat_text: String = "Defeat"
 
 ## The player phase's text colour (Godot_FE tints its player banner blue).
 @export var player_color: Color = Color(0.55, 0.75, 1.0, 1.0)
@@ -77,6 +87,23 @@ func show_phase(side: CombatFact.CombatSide, turn: int) -> void:
 		_tween.tween_property(self, ^"modulate:a", 1.0, fade_in_time)
 	_tween.tween_property(self, ^"modulate:a", 0.0, fade_out_time)
 	_tween.tween_callback(hide)
+
+
+## Shows the battle's end: [member victory_text] when [param is_won], else [member defeat_text].
+## It fades in over [member fade_in_time] and stays until hidden or replaced.
+func show_result(is_won: bool) -> void:
+	_text.text = victory_text if is_won else defeat_text
+	_text.add_theme_color_override(&"font_color", player_color if is_won else enemy_color)
+	_turn.text = ""
+	_turn.visible = false
+	_shown_count += 1
+	if _tween != null and _tween.is_valid():
+		_tween.kill()
+	visible = true
+	modulate.a = 0.0 if fade_in_time > 0.0 else 1.0
+	if fade_in_time > 0.0:
+		_tween = create_tween()
+		_tween.tween_property(self, ^"modulate:a", 1.0, fade_in_time)
 
 
 ## How many banners have been shown since the scene loaded.

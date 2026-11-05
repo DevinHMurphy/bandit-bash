@@ -6,7 +6,7 @@
 # File:     combat_forecast.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 3, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 class_name CombatForecast
@@ -28,7 +28,9 @@ extends RefCounted
 ## A preview checks what [method UnitTurnCommand.validate] checks about the unit, its path and its
 ## action, but not the phase, which needs a session. The sender copies
 ## [member Forecast.based_on_seq] into [member Command.based_on_seq].[br]
-## Pure and static. Main thread: every preview creates sandboxes.
+## Pure and static. Each preview creates sandboxes from the engine it is given, so it runs on
+## the thread that owns that engine: the main thread for a session's, or the worker resolving a
+## sandbox for that sandbox's (event bus plan, Threading).
 ##
 ## @tutorial(Combat core plan): docs/plans/2026-10-26-combat-core.md
 

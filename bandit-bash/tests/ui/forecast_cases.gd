@@ -10,17 +10,20 @@
 # ==============================================================================
 
 extends RefCounted
-## The forecast's and move preview's cases for tests/ui/run_all.gd (combat UI plan, UI3 row):
-## forecast rows against [CombatForecast] for an attack, a staff and a shove; the forecast panel
-## as the confirm, its breakdown toggle against explain's stages; weapon cycling with a Sidearm
-## unit, the forecast and the command sent; the move preview against [method Darkness.damage_at]
+## The forecast's and move preview's cases for tests/ui/run_all.gd (combat UI plan, UI3 and UI5F
+## rows): forecast rows against [CombatForecast] for an attack, a staff and a shove; the counter
+## and the defeat's chance when the all-hits line defeats the target; the staff's label; the
+## forecast panel as the confirm, its breakdown toggle against explain's stages; weapon cycling
+## with a Sidearm unit, the forecast and the command sent; the move preview against
+## [method Darkness.damage_at]
 ## and [method Intents.preview], at most one per frame under a burst of hovers; and FR-GRID-6, a
 ## ranged attack forecast from each tile it can be made from. No autoload is named or needed.
 ##
 ## [b]The harness[/b] is turn_input_cases.gd's (the board, the HUD widgets and a
 ## [BattleController] on the M1 battle) with the forecast panel scene set and [MovePreviewMarks]
-## and the [IntentDisplay] on the board, as in the gameplay scene. Cases drive the controller through its public methods
-## and the panels' own buttons; cycle_weapon goes through the root viewport as an input action.
+## and the [IntentDisplay] on the board, as in the gameplay scene. Cases drive the controller
+## through its public methods and the panels' own buttons; cycle_weapon goes through the root
+## viewport as an input action.
 
 const BattleViewCases = preload("res://tests/ui/battle_view_cases.gd")
 const TurnInputCases = preload("res://tests/ui/turn_input_cases.gd")
@@ -107,6 +110,8 @@ func run() -> void:
 		_check.call("forecast: the M1 map definition loads", false, M1_DEFINITION)
 		return
 	_test_rows_match_forecast()
+	_test_counter_on_kill()
+	_test_staff_label()
 	_test_panel_confirms()
 	_test_weapon_cycle()
 	_test_move_preview()
@@ -147,6 +152,117 @@ func _test_rows_match_forecast() -> void:
 				_fact_lines(model.forecast) == _fact_lines(direct)
 				and not _fact_lines(direct).is_empty()
 		), "%d facts against %d" % [model.forecast.facts.size(), direct.facts.size()])
+	h.close()
+
+
+# A sword user beside a 1-HP Brute on a fixture board: the all-hits line defeats the Brute before
+# it counters, yet the forecast shows its counter (Hit, strikes, and the damage of the line where
+# the attack misses, as ForcedRolls resolves it) and the defeat as a chance, never as certain.
+func _test_counter_on_kill() -> void:
+	var catalog: EffectCatalog.Index = EffectCatalog.load_tree(FIXTURE_TREE)
+	var world: AiWorld = AiWorld.new(catalog, PLAIN_8X8)
+	world.add_enemy("e1", BRUTE, Vector2i(3, 2))
+	world.add_player("p1", Vector2i(2, 2))
+	world.wound("e1", 1)
+	EnemyAI.register(world.session, catalog)
+	Intents.register(world.session, catalog)
+	world.session.open_battle()
+	var command: UnitTurnCommand = UnitTurnCommand.new(
+			0, "p1", UnitTurnCommand.Action.ATTACK, "e1"
+	)
+	var model: ForecastViewModel = ForecastViewModel.build(world.session, command)
+	var found: CombatForecast.ExchangeForecast = model.forecast as CombatForecast.ExchangeForecast
+	if found == null or not found.is_legal:
+		_check.call("counter on a kill: the fixture attack is legal", false, (
+				"" if found == null else found.reason
+		))
+		return
+	var attacker: CombatForecast.SideForecast = found.attacker
+	var defender: CombatForecast.SideForecast = found.defender
+	var kills_first: bool = (
+			defender.outcome != null
+			and defender.outcome.is_defeated
+			and defender.damage < 0
+			and defender.turns > 0
+			and found.turn_order.size() >= 2
+			and found.turn_order[0] == "p1"
+			and found.turn_order[1] == "e1"
+	)
+	# The line where the Brute counters: every strike of p1's first turn misses, then hits land.
+	var outcomes: PackedInt32Array = []
+	for _strike: int in attacker.attacks_per_turn:
+		outcomes.append(0)
+	outcomes.append(1)
+	var missed: CombatForecast.ExchangeForecast = CombatForecast.exchange(
+			world.engine(), command, ForcedRolls.new(outcomes)
+	)
+	var strikes: int = attacker.attacks_per_turn * attacker.turns
+	var chance: float = 1.0 - pow(1.0 - attacker.hit / 100.0, float(strikes))
+	var expected_hp: String = "1 → 0" + ForecastViewModel.DEFEAT_ON_HIT % [roundi(chance * 100.0)]
+	var shown_hp: String = model.row("HP").target
+	_check.call("counter on a kill: the all-hits line defeats the target before it counters", (
+			kills_first
+	), "turn order %s, defender damage %d" % [found.turn_order, defender.damage])
+	_check.call("counter on a kill: its Hit, strikes and counter damage still show", (
+			missed.defender.damage >= 0
+			and model.counter != null
+			and model.row("Damage").target == "%d" % [missed.defender.damage]
+			and model.row("Hit").target == "%d%%" % [defender.hit]
+			and model.row("Strikes").target == "%d × %d" % [
+				defender.attacks_per_turn, defender.turns,
+			]
+	), "Damage %s (expected %d), Hit %s, Strikes %s" % [
+		model.row("Damage").target, missed.defender.damage, model.row("Hit").target,
+		model.row("Strikes").target,
+	])
+	var counter_hp: String = "%d → %d" % [
+		missed.attacker.outcome.hp_before, missed.attacker.outcome.hp_after,
+	]
+	var note: String = ForecastViewModel.COUNTER_NOTE % [
+		model.actor_label, model.target_label, model.actor_label, counter_hp,
+	]
+	_check.call("counter on a kill: the defeat reads as a chance; a note gives the counter", (
+			shown_hp == expected_hp
+			and not shown_hp.ends_with("(defeated)")
+			and model.notes.has(note)
+	), "HP '%s' (expected '%s'); notes %s; expected '%s'" % [
+		shown_hp, expected_hp, model.notes, note,
+	])
+	_check.call("counter on a kill: defeat_chance is the binomial tail of the displayed Hit", (
+			is_equal_approx(ForecastViewModel.defeat_chance(60, 1, 1), 0.6)
+			and is_equal_approx(ForecastViewModel.defeat_chance(60, 1, 2), 0.84)
+			and is_equal_approx(ForecastViewModel.defeat_chance(60, 2, 2), 0.36)
+			and is_equal_approx(ForecastViewModel.defeat_chance(100, 1, 1), 1.0)
+			and is_equal_approx(ForecastViewModel.defeat_chance(0, 1, 2), 0.0)
+	))
+
+
+# M1's staff forecast names the staff by its label alone: a staff is outside the triangle, so no
+# "(None)" profile follows it.
+func _test_staff_label() -> void:
+	var h: TurnInputCases.Harness = _harness()
+	if h == null:
+		return
+	var pick: Array = []
+	for _phase: int in MAX_PHASES:
+		pick = _find(h.session, STAFF)
+		if not pick.is_empty() or h.session.is_finished:
+			break
+		_wait_phase(h)
+	if pick.is_empty():
+		_check.call("staff label: a staff use found in the M1 battle", false, "none")
+		h.close()
+		return
+	var command: UnitTurnCommand = (pick[3] as TurnInputModel.TargetOption).command
+	var model: ForecastViewModel = ForecastViewModel.build(h.session, command)
+	var held: CombatState.WeaponStats = h.session.state.equipped_weapon(command.actor_id)
+	var cell: String = model.row("Staff").actor
+	_check.call("staff label: the Staff row names the staff without a \"(None)\" profile", (
+			held != null
+			and held.profile == WeaponTriangle.Profile.NONE
+			and cell.begins_with(held.label + ": ")
+			and not cell.contains("(None)")
+	), cell)
 	h.close()
 
 
@@ -926,10 +1042,15 @@ static func _row_problems(
 			var outcome: CombatForecast.UnitOutcome = direct.unit(unit_id)
 			match row_label:
 				"HP":
-					cells.append("%d → %d%s" % [
-						outcome.hp_before, outcome.hp_after,
-						" (defeated)" if outcome.is_defeated else "",
-					])
+					if direct is CombatForecast.ExchangeForecast:
+						cells.append(ForecastViewModel.exchange_hp(
+								direct as CombatForecast.ExchangeForecast, outcome
+						))
+					else:
+						cells.append("%d → %d%s" % [
+							outcome.hp_before, outcome.hp_after,
+							" (defeated)" if outcome.is_defeated else "",
+						])
 				"Block":
 					cells.append(ForecastViewModel.NONE_TEXT if outcome.is_defeated else (
 							"%d → %d" % [outcome.block_before, outcome.block_after]
@@ -952,15 +1073,19 @@ static func _row_problems(
 		for side: CombatForecast.SideForecast in [exchange.attacker, exchange.defender]:
 			var attacks: bool = side.turns > 0
 			hits.append("%d%%" % [side.hit] if attacks else ForecastViewModel.NONE_TEXT)
-			var damage: String = "%d" % [side.damage] if side.damage >= 0 else ""
+			# The counter line's hit, when the all-hits line defeats the target before it counters.
+			var landed: CombatForecast.SideForecast = side
+			if side == exchange.defender and model.counter != null:
+				landed = model.counter.defender
+			var damage: String = "%d" % [landed.damage] if landed.damage >= 0 else ""
 			damages.append(ForecastViewModel.NONE_TEXT if damage.is_empty() else damage)
 			crits.append("%d%%" % [side.crit_chance] if attacks else ForecastViewModel.NONE_TEXT)
 			strikes.append(
 					"%d × %d" % [side.attacks_per_turn, side.turns]
 					if attacks else ForecastViewModel.NONE_TEXT
 			)
-			effective.append(ForecastViewModel.NONE_TEXT if side.breakdown == null else (
-					"Yes" if side.breakdown.stages.is_effective else "No"
+			effective.append(ForecastViewModel.NONE_TEXT if landed.breakdown == null else (
+					"Yes" if landed.breakdown.stages.is_effective else "No"
 			))
 		expect["Hit"] = hits
 		expect["Damage"] = damages

@@ -6,7 +6,7 @@
 # File:     sandbox.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 class_name Sandbox
@@ -16,9 +16,11 @@ extends RefCounted
 ##
 ## Counters advance, reactions queue and resolve and timed modifiers apply inside it, so the
 ## forecast equals what executes by construction. The real state, the real stream and the real
-## counters are untouched, and no fact reaches a bus. Create it on the main thread; it shares no
-## mutable state, so it may then resolve on a worker thread, one thread at a time. A sandbox can be
-## made from another sandbox's engine, to branch from a point inside a simulation.
+## counters are untouched, and no fact reaches a bus. Create it on the thread that owns the engine
+## it copies: the main thread for a session's, or the worker resolving a sandbox for that
+## sandbox's. It shares no mutable state, so it may then resolve on a worker thread, one thread at
+## a time (event bus plan, Threading). A sandbox can be made from another sandbox's engine, to
+## branch from a point inside a simulation.
 ##
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
 

@@ -6,13 +6,13 @@
 # File:     unit_token.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 class_name UnitToken
 extends Node2D
-## One unit on the battle board, greybox: a side-coloured square with its class letter and an HP
-## bar (combat UI plan, question 4).
+## One unit on the battle board, greybox: a side-coloured square with its type's letters and an HP
+## bar (combat UI plan, questions 4 and 18 (e)).
 ##
 ## [BattleView] places one per unit and moves it; the token only draws what it is given
 ## ([method show_unit], [method show_hp]) and holds no rules. Its origin is the tile's centre; the
@@ -32,6 +32,15 @@ extends Node2D
 # ASSUMPTION: greybox colour, as above.
 @export var other_color: Color = Color(0.6, 0.6, 0.6, 1.0)
 
+## How many letters of the unit type id the token shows, underscores skipped, upper case
+## ([method BoardViewModel.letter_of]); more than two may not fit the 26 px body.[br]
+## [b]Units:[/b] letters. [b]1:[/b] one letter, so types that share one look alike.
+@export_range(1, 3) var letter_count: int = 2
+
+## Letters to show instead, by unit type id, such as [code]"hedge_healer": "HH"[/code].[br]
+## [b]Empty:[/b] every type shows its first [member letter_count] letters.
+@export var letter_overrides: Dictionary[String, String] = {}
+
 ## The unit this token stands for; empty until [method show_unit].
 var unit_id: String = ""
 
@@ -50,12 +59,12 @@ var max_hp: int = 0
 @onready var _hp_bar: ProgressBar = %HpBar
 
 
-## Draws [param view]: its side's colour, its class letter and its HP.
+## Draws [param view]: its side's colour, its type's letters ([method letters_for]) and its HP.
 func show_unit(view: BoardViewModel.UnitView) -> void:
 	unit_id = view.id
 	tile = view.tile
 	_body.color = color_of(view.side)
-	_letter.text = view.letter
+	_letter.text = letters_for(view.unit_type)
 	show_hp(view.hp, view.max_hp)
 
 
@@ -65,6 +74,19 @@ func show_hp(current: int, maximum: int) -> void:
 	max_hp = maxi(maximum, 1)
 	_hp_bar.max_value = max_hp
 	_hp_bar.value = hp
+
+
+## The letters shown for [param unit_type]: its [member letter_overrides] entry, else its first
+## [member letter_count] letters.
+func letters_for(unit_type: String) -> String:
+	if letter_overrides.has(unit_type):
+		return letter_overrides[unit_type]
+	return BoardViewModel.letter_of(unit_type, letter_count)
+
+
+## The letters the token shows now, for tests.
+func get_letters() -> String:
+	return _letter.text
 
 
 ## The body colour for [param side].

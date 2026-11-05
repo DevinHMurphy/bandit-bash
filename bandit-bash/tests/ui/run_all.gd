@@ -22,21 +22,24 @@ extends SceneTree
 ## the gameplay screen itself: its save debug panel (hidden when the battle opens, toggled by F3
 ## and read afresh each time it shows, clear of the M1 map at the 1152×648 base size, and
 ## untouched by clicks on the deployment tiles), the HUD clear of the map at the base size and
-## wider, the run seed on the pause screen, then a new solo run's M1 battle played to its end from
-## Start and End Turn, and the route to Results.
+## wider, the run seed on the pause screen; the pause menu, opened by Esc and closed by Esc or
+## Resume, pausing the tree and the board's playback and unpausing both; then a new solo run's M1
+## battle played to its end from Start and End Turn, its Victory or Defeat banner, and the route
+## to Results after it.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/ui/run_all.gd[/code][br]
 ## Prints one PASS, FAIL or SKIP line per check and the summary line
 ## [code]--- N passed, M failed, K skipped ---[/code]; exits with code 1 on any failure.[br]
 ## The cases run from the first frame, when autoloads exist; the panel case runs over a few more
-## frames so the panel's layout and the camera settle, and the routing case over a few after that
-## so the scene change happens. This script never names an autoload, or the gameplay screen's
-## class (whose script does), since it compiles before autoloads are registered; it reaches them
-## as nodes and loads the screen at run time.[br]
-## [b]The panel and routing cases[/b] drive the real [code]SaveService[/code], which writes save
-## files, so they run only with a test user folder ([code]tools/run_tests.sh[/code] makes one; see
-## [code]tests/sessions/run_all.gd[/code]) and are skipped otherwise.
+## frames so the panel's layout and the camera settle, the pause case over real frames while the
+## board plays, and the routing case over a few after that so the scene change happens. This
+## script never names an autoload, or the gameplay screen's class (whose script does), since it
+## compiles before autoloads are registered; it reaches them as nodes and loads the screen at run
+## time.[br]
+## [b]The panel, pause and routing cases[/b] drive the real [code]SaveService[/code], which writes
+## save files, so they run only with a test user folder ([code]tools/run_tests.sh[/code] makes
+## one; see [code]tests/sessions/run_all.gd[/code]) and are skipped otherwise.
 
 const BattleViewCases = preload("res://tests/ui/battle_view_cases.gd")
 const TurnInputCases = preload("res://tests/ui/turn_input_cases.gd")
@@ -68,6 +71,19 @@ const PANEL_FRAMES: int = 3
 # Frames left for the scene change to Results before the last checks.
 const ROUTE_FRAMES: int = 3
 
+# The routing case's end banner time (the screen's end_banner_time): long enough to be seen on
+# a frame of its own, short enough not to slow the suite.
+const ROUTE_BANNER_TIME: float = 0.2
+
+# How long the routing case waits for the route to Results after the banner shows.
+const ROUTE_TIMEOUT_MSEC: int = 5000
+
+# How long the pause case holds the menu open, checking the board doesn't move meanwhile.
+const PAUSE_HOLD_MSEC: int = 300
+
+# How long the pause case waits for the board to settle once the menu closes.
+const PAUSE_SETTLE_TIMEOUT_MSEC: int = 10000
+
 # The screen size the panel case lays the screen out at: the project sets no window size, so this
 # is Godot's default window and the base size of the canvas_items stretch.
 const BASE_SCREEN_SIZE: Vector2i = Vector2i(1152, 648)
@@ -83,11 +99,19 @@ var _frame: int = 0
 var _panel_frame: int = -1
 var _wide_frame: int = -1
 var _route_frame: int = -1
+var _routed_frame: int = -1
+var _is_pause_started: bool = false
+var _is_pause_done: bool = false
 var _before: Dictionary[String, String] = {}
 
 # The panel case's gameplay screen, and the root's size before the case set it.
 var _panel_screen: Node = null
 var _old_root_size: Vector2i = Vector2i.ZERO
+
+# The routing case's screen and run, held while its end banner shows, and when the banner showed.
+var _route_screen: Node = null
+var _route_run: CampaignSession = null
+var _route_started_msec: int = 0
 
 
 func _process(_delta: float) -> bool:
@@ -115,12 +139,24 @@ func _process(_delta: float) -> bool:
 			_finish_panel_case()
 			_wide_frame = _frame
 			return false
-		if _frame < _wide_frame + PANEL_FRAMES:
+		if not _is_pause_started:
+			if _frame < _wide_frame + PANEL_FRAMES:
+				return false
+			_finish_wide_case()
+			_is_pause_started = true
+			# A coroutine over frames of its own; it sets _is_pause_done as it ends.
+			_run_pause_case()
 			return false
-		_finish_wide_case()
+		if not _is_pause_done:
+			return false
 		_begin_route()
 		return false
-	if _frame < _route_frame + ROUTE_FRAMES:
+	if _routed_frame < 0:
+		if not _poll_route():
+			return false
+		_routed_frame = _frame
+		return false
+	if _frame < _routed_frame + ROUTE_FRAMES:
 		return false
 	_finish_route_case()
 	_finish()
@@ -303,10 +339,114 @@ func _end_panel_case() -> void:
 	root.size = _old_root_size
 
 
+# A new solo run's gameplay screen past the swap window's Start; twice, a unit's walk starts to
+# play, Esc opens the pause menu, which pauses the tree and holds the walk; closed by Esc the first
+# time and by a click on Resume the second, the tree is unpaused and the walk plays to its end.
+# A coroutine over real frames, since the board plays only in its own _process; it sets
+# _is_pause_done as it ends.
+func _run_pause_case() -> void:
+	var saves: Node = root.get_node(^"SaveService")
+	var service: Node = root.get_node(^"CampaignService")
+	SaveFile.delete_folder("user://saves/")
+	saves.call(&"open_save_file", SAVE_NUMBER)
+	var err: Error = saves.call(&"start_new_solo_run", RUN_SEED)
+	var run: CampaignSession = service.get(&"session")
+	var screen: Node = null
+	if err == OK and run != null:
+		screen = (load(GAMEPLAY_SCENE) as PackedScene).instantiate()
+		root.add_child(screen)
+	var view: BattleView = null if screen == null else screen.call(&"get_view")
+	var session: CombatSession = null if view == null else view.get_session()
+	if session == null:
+		_check("pause: a new solo run's battle opens", false, error_string(err))
+	else:
+		var controller: BattleController = screen.call(&"get_controller")
+		if controller.swap_window.visible:
+			controller.swap_window.get_start_button().pressed.emit()
+			BattleViewCases.settle(view)
+		var units: PackedStringArray = TurnInputModel.acting_units(session, 0)
+		var pause: Node = screen.get_node(^"PauseMenu")
+		for round: int in mini(units.size(), 2):
+			await _pause_round(run.encounter, session, view, pause, units[round], round == 1)
+	if screen != null:
+		screen.free()
+	saves.call(&"close_save_file")
+	SaveFile.delete_folder("user://saves/")
+	# A failed round may leave the menu open, and the tree paused, for the routing case.
+	paused = false
+	_is_pause_done = true
+
+
+# One round of the pause case for unit_id: its walk to its farthest move tile starts, Esc opens the
+# menu, the walk holds while the tree is paused, then Esc (or a click on Resume, when by_resume)
+# closes it and the walk plays to its end.
+func _pause_round(
+		encounter: CombatEncounter,
+		session: CombatSession,
+		view: BattleView,
+		pause: Node,
+		unit_id: String,
+		by_resume: bool
+) -> void:
+	var how: String = "Resume" if by_resume else "Esc"
+	var origin: Vector2i = session.state.tile_of(unit_id)
+	var goal: Vector2i = origin
+	for tile: Vector2i in TurnInputModel.move_tiles(session, unit_id):
+		if session.state.grid.distance(tile, origin) > session.state.grid.distance(goal, origin):
+			goal = tile
+	var walk: Array[Vector2i] = TurnInputModel.path_to(session, unit_id, goal)
+	encounter.submit(
+			UnitTurnCommand.new(0, unit_id, UnitTurnCommand.Action.WAIT, "", walk),
+			session.session_id
+	)
+	encounter.resolve_queued()
+	await process_frame
+	var token: UnitToken = view.token_of(unit_id)
+	var playing: bool = not view.is_settled() and token != null
+	_press_key(KEY_ESCAPE)
+	await process_frame
+	var menu: Control = pause.get_node(^"%Root")
+	var opened: bool = paused and menu.visible
+	var held_at: Vector2 = token.position if token != null else Vector2.ZERO
+	var hold_start: int = Time.get_ticks_msec()
+	while Time.get_ticks_msec() - hold_start < PAUSE_HOLD_MSEC:
+		await process_frame
+	var held: bool = (
+			token != null and token.position == held_at and not view.is_settled() and paused
+	)
+	_check("pause (%s round): Esc opens the menu, pausing the tree, and the walk holds" % [how], (
+			playing and opened and held
+	), "playing %s, paused %s, menu %s, held %s" % [playing, paused, menu.visible, held])
+
+	if by_resume:
+		var resume: Button = pause.get_node(^"%ResumeButton")
+		_click(resume.get_global_rect().get_center())
+	else:
+		_press_key(KEY_ESCAPE)
+	await process_frame
+	var closed: bool = not paused and not menu.visible
+	var settle_start: int = Time.get_ticks_msec()
+	while not view.is_settled():
+		if Time.get_ticks_msec() - settle_start > PAUSE_SETTLE_TIMEOUT_MSEC:
+			break
+		await process_frame
+	var arrived: bool = (
+			token != null
+			and view.is_settled()
+			and token.position.is_equal_approx(view.tile_to_position(goal))
+	)
+	_check("pause (%s round): %s closes it, unpausing the tree, and the walk plays on" % [
+		how, how,
+	], closed and arrived, "paused %s, menu %s, settled %s, token %s, goal %s" % [
+		paused, menu.visible, view.is_settled(),
+		token.position if token != null else Vector2.ZERO, view.tile_to_position(goal),
+	])
+
+
 # A new solo run enters the gameplay screen, which begins the M1 battle; the swap window's Start
 # and the turn bar's End Turn (confirming its question) play it until it ends, and the screen ends
-# it and routes to Results. Returns true when the scene change is under way, so the remaining
-# checks wait a few frames.
+# it, shows its end banner and, after end_banner_time, routes to Results. Returns true once the
+# banner shows, so _poll_route() waits for the route and the remaining checks a few frames more.
 func _start_route_case() -> bool:
 	if not _has_test_user_dir():
 		_skips += 1
@@ -325,6 +465,7 @@ func _start_route_case() -> bool:
 
 	var scene: PackedScene = load(GAMEPLAY_SCENE)
 	var screen: Node = scene.instantiate()
+	screen.set(&"end_banner_time", ROUTE_BANNER_TIME)
 	root.add_child(screen)
 	var view: BattleView = screen.call(&"get_view")
 	var controller: BattleController = screen.call(&"get_controller")
@@ -370,11 +511,39 @@ func _start_route_case() -> bool:
 			"turn %d" % [session.state.turn]
 	))
 	var screen_now: int = router.get(&"current_screen")
-	var combat_left: Object = saves.get(&"combat")
-	_check("screen: a finished battle is ended and goes to Results", (
-			screen_now == SCREEN_RESULTS and run.encounter == null and combat_left == null
-	), "screen %d, encounter %s" % [screen_now, run.encounter])
-	screen.queue_free()
+	var hud: BattleHud = screen.call(&"get_hud")
+	var banner: PhaseBanner = hud.get_phase_banner()
+	var expected: String = banner.victory_text if session.is_won else banner.defeat_text
+	_check("screen: a finished battle shows its end banner before the route to Results", (
+			session.is_finished
+			and banner.visible
+			and banner.get_texts()[0] == expected
+			and screen_now != SCREEN_RESULTS
+			and run.encounter != null
+			and not controller.is_accepting_input()
+	), "banner '%s' shown %s, expected '%s'; screen %d" % [
+		banner.get_texts()[0], banner.visible, expected, screen_now,
+	])
+	_route_screen = screen
+	_route_run = run
+	_route_started_msec = Time.get_ticks_msec()
+	return true
+
+
+# Each frame after the end banner showed: true once the screen has routed to Results, or the wait
+# has timed out, with the routing checked; the screen is then freed.
+func _poll_route() -> bool:
+	var router: Node = root.get_node(^"SceneRouter")
+	var screen_now: int = router.get(&"current_screen")
+	var waited: int = Time.get_ticks_msec() - _route_started_msec
+	if screen_now != SCREEN_RESULTS and waited < ROUTE_TIMEOUT_MSEC:
+		return false
+	var combat_left: Object = root.get_node(^"SaveService").get(&"combat")
+	_check("screen: after the banner the battle is ended and goes to Results", (
+			screen_now == SCREEN_RESULTS and _route_run.encounter == null and combat_left == null
+	), "screen %d after %d ms, encounter %s" % [screen_now, waited, _route_run.encounter])
+	_route_screen.queue_free()
+	_route_screen = null
 	return true
 
 
@@ -399,11 +568,13 @@ func _has_test_user_dir() -> bool:
 	return custom_dir and dir_name == "bandit_bash_tests"
 
 
-# A press and release of key, by its physical position, as the input map binds it.
+# A press and release of key, by its physical position, as the input map binds it, and by its
+# keycode, as Godot's built-in ui_cancel binds Esc.
 func _press_key(key: Key) -> void:
 	for is_down: bool in [true, false]:
 		var event: InputEventKey = InputEventKey.new()
 		event.physical_keycode = key
+		event.keycode = key
 		event.pressed = is_down
 		root.push_input(event, true)
 

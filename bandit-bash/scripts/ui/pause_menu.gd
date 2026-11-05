@@ -96,12 +96,12 @@ func open() -> void:
 ## Hides the menu and unpauses.
 func close() -> void:
 	_root.visible = false
+	get_tree().paused = false
 
 
 ## The seed line's text, for tests; empty while it is hidden.
 func get_seed_text() -> String:
 	return _seed_label.text if _seed_label.visible else ""
-	get_tree().paused = false
 
 
 func _on_save_quit_button_pressed() -> void:

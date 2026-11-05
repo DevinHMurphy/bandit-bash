@@ -35,10 +35,11 @@ extends RefCounted
 ##
 ## @tutorial(Enemies and AI plan): docs/plans/2026-10-30-enemies-and-ai.md
 ##
-## @todo: TOD-001 [MEDIUM] - The move preview underperforms its 50 ms target (P05 question 10;
-## debug, M1 turn 1, per hover: 56 ms median and 181 ms p95 as UI3 built it, 17 ms and 33-40 ms
-## after UI3F, on a worker thread; every enemy is re-planned, 6 decisions for 3 enemies) and needs
-## re-architecting: see the orchestrator's design item 'Re-architect the move preview'.
+## @todo: TOD-001 [MEDIUM] - The move preview meets its 50 ms target on M1 (P05 question 10;
+## per hover on M1 turn 1: 17-18 ms median and 33-40 ms p95 in debug on a worker thread, 14 ms
+## median in release on the main thread), but its cost grows with enemies × attack options
+## (~1.9 ms each), so it is re-architected before larger maps: see the orchestrator's design item
+## 'Re-architect the move preview'.
 
 ## Every enemy that would act, in order ([member EnemyIntent.order]).
 var enemies: Array[EnemyIntent] = []
@@ -131,10 +132,11 @@ static func compute(session: CombatSession, catalog: EffectCatalog.Index) -> Int
 	return found
 
 
-# TODO(TOD-001): [MEDIUM] The move preview underperforms its 50 ms target (P05 question 10;
-# debug, M1 turn 1, per hover: 56 ms median and 181 ms p95 as UI3 built it, 17 ms and 33-40 ms
-# after UI3F, on a worker thread; every enemy is re-planned, 6 decisions for 3 enemies) and needs
-# re-architecting: see the orchestrator's design item 'Re-architect the move preview'.
+# TODO(TOD-001): [MEDIUM] The move preview meets its 50 ms target on M1 (P05 question 10;
+# per hover on M1 turn 1: 17-18 ms median and 33-40 ms p95 in debug on a worker thread, 14 ms
+# median in release on the main thread), but its cost grows with enemies × attack options
+# (~1.9 ms each), so it is re-architected before larger maps: see the orchestrator's design item
+# 'Re-architect the move preview'.
 ## The intents if player unit [param unit_id] moved to [param tile] now, before any action, built
 ## on [member CombatSession.intents] (computed afresh first when stale, not stored). The latest
 ## intents for the unit's own tile; null when nothing keeps intents on [param session], or the unit
