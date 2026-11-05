@@ -63,7 +63,7 @@ into `dev`; plan and orchestrator commits go to `dev`; `main` holds released sta
   complete (P01 EB1–EB7 implemented and verified headless, October 30, 2026).
 - **Current focus:** P02's, P03's, P04's and P05's parts of M1 are built; a headless M1 battle runs to the end.
   M1's part of P06 is built (DK1–DK4 merged); M1's critical path is now
-  **P07 UI5F**, the playtest fix-up (UI1–UI5 merged: M1's part of P07 is built), then M1's playtest, which owns the battle scene.
+  **every M1 build step is merged** (P06 DK1–DK4, P07 UI1–UI5F, November 5, 2026): M1 waits on the user's playtest and the first tuning pass, which owns the battle scene.
 
 ## Milestones
 
@@ -264,8 +264,8 @@ flowchart LR
   classDef active fill:#bbdefb,stroke:#1565c0,color:#1b1b1b
   classDef ready fill:#fff3c4,stroke:#b8860b,color:#1b1b1b
   classDef waiting fill:#e0e0e0,stroke:#757575,color:#1b1b1b
-  class R1,R2,R3,R4,R5,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,CT2,EB5,EB7,EBF,EN1,CT3,EN2,EN3,CC8,CT3F,EN3F,EN4,EN5,MP8,DK1,EN4F,DK2,DK3,UI1,DK4,UI2,UI2F,UI3,UI4,UI3F,UI5 done
-  class CT6,CT13,CC10,DK5,UI5F ready
+  class R1,R2,R3,R4,R5,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,CT2,EB5,EB7,EBF,EN1,CT3,EN2,EN3,CC8,CT3F,EN3F,EN4,EN5,MP8,DK1,EN4F,DK2,DK3,UI1,DK4,UI2,UI2F,UI3,UI4,UI3F,UI5,UI5F done
+  class CT6,CT13,CC10,DK5 ready
   class CT7,DK6 waiting
 ```
 
@@ -377,11 +377,10 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 
 ## Next actions
 
-1. **M1's critical path:** P07 **UI5F** (the forecast shows the counter on a predicted kill, a house
-   object on M1, two-letter tokens, small label and doc fixes; prompt issued November 5, 2026), then
-   **M1's playtest and first tuning pass** (UI5 found M1 very lethal: lost on turn 2 naively, turn 4
-   carefully).
-2. **Open questions for the user:** none. **Design doc to write:** the move preview re-architecture (Design items, P05 / P07).
+1. **M1's playtest (the user):** a new solo run opens the M1 battle. Notes drive the first tuning pass
+   (Block, Stance, darkness, weight, turn par; UI5 found M1 very lethal: lost on turn 2 played
+   naively, turn 4 carefully; the Archer dies in one enemy phase). Then M1's exit review.
+2. **Open questions for the user:** P07 question 19 (UI5F). **Design doc to write:** the move preview re-architecture (Design items, P05 / P07).
 3. **Off M1's path:** P02 **CC10** (battle resume: today a run continued mid-battle sits on the
    placeholder; releases the reserved `enemy_units` key, P04 question 25; rejects a move that goes
    nowhere, P02 question 21); P06 DK5 (the darkness save and mirrors) after CC10's pattern; the
@@ -474,3 +473,4 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 | November 5, 2026 | P07 question 16 (a) amended by the user: optimize the current preview and run it on a worker thread (new step UI3F), with a TODO that it underperforms and needs re-architecting; the design document still follows. **P07 UI4 merged into `dev`** (1348c5d; 17 untracked copies of UI4's files in the main checkout, byte-identical to the branch, removed first; verified: ui 103, every other suite unchanged, launch clean): intent icons, rule tooltips, numbered lines, the danger zone on R and in the swap window, previewed intents. P07 question 17 raised; UI3F and UI5 prompts issued. |
 | November 5, 2026 | P07 question 17 answered (as recommended). **P07 UI3F and UI5 merged into `dev`** (4b44afc, 44caecd; verified together: ui 131, every other suite unchanged, launch clean): the move preview on a worker thread (17 ms median, debug); the HUD, Use, layout fixes, target names, the debug panel refresh, a release export (preview 14 ms median before UI3F). **M1's part of P07 is built; every M1 build step is merged.** UI5's playtest found a misleading kill forecast and a very lethal M1. P07 question 18 raised; UI5F prompt issued. |
 | November 5, 2026 | P07 question 18 answered (as recommended); UI5F prompt reissued on the recorded base. |
+| November 5, 2026 | **P07 UI5F merged into `dev`** (7a8b40d; verified: ui 145, every other suite unchanged, launch clean): the forecast shows the counter and a kill chance, M1's house object, two-letter tokens, the end banner, doc fixes, and the pause menu's unpause (broken by UI5, fixed with a test). **Every M1 build step is merged; M1 waits on the user's playtest.** P07 question 19 raised. |
