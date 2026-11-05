@@ -62,8 +62,8 @@ into `dev`; plan and orchestrator commits go to `dev`; `main` holds released sta
 - **Current milestone:** [M1 First playable fight](#milestones). [M0 Foundations](#milestones) is
   complete (P01 EB1–EB7 implemented and verified headless, October 30, 2026).
 - **Current focus:** P02's, P03's, P04's and P05's parts of M1 are built; a headless M1 battle runs to the end.
-  M1's critical path is now **P06 DK4** (DK1–DK3 merged)
-  and **P07** (minimal UI, approved November 4, 2026; UI1 merged, UI2 building), which owns the battle scene.
+  M1's part of P06 is built (DK1–DK4 merged); M1's critical path is now
+  **P07 UI2F–UI5** (UI1 and UI2 merged: an M1 battle can be played by hand), which owns the battle scene.
 
 ## Milestones
 
@@ -250,14 +250,22 @@ flowchart LR
   MP8 --> DK5
   DK2 --> DK6
   EN4 --> EN4F[EN4F intents fix-up]
+  subgraph P07[P07 Combat UI]
+    UI1[UI1 battle scene, board] --> UI2[UI2 turn input] --> UI2F[UI2F debug panel, fast-forward]
+    UI2 --> UI3[UI3 forecast, move preview]
+    UI2 --> UI4[UI4 intents, danger zone]
+    UI2 --> UI5[UI5 HUD, M1 build]
+  end
+  DK4 --> UI3
+  EN4F --> UI4
 
   classDef done fill:#c8e6c9,stroke:#2e7d32,color:#1b1b1b
   classDef active fill:#bbdefb,stroke:#1565c0,color:#1b1b1b
   classDef ready fill:#fff3c4,stroke:#b8860b,color:#1b1b1b
   classDef waiting fill:#e0e0e0,stroke:#757575,color:#1b1b1b
-  class R1,R2,R3,R4,R5,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,CT2,EB5,EB7,EBF,EN1,CT3,EN2,EN3,CC8,CT3F,EN3F,EN4,EN5,MP8,DK1,EN4F,DK2,DK3,UI1 done
-  class CT6,CT13,CC10,DK4 ready
-  class CT7,DK5,DK6 waiting
+  class R1,R2,R3,R4,R5,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,CT2,EB5,EB7,EBF,EN1,CT3,EN2,EN3,CC8,CT3F,EN3F,EN4,EN5,MP8,DK1,EN4F,DK2,DK3,UI1,DK4,UI2 done
+  class CT6,CT13,CC10,DK5,UI2F,UI3,UI4,UI5 ready
+  class CT7,DK6 waiting
 ```
 
 `CC6 --- MP4`: built together; MP4's objective checks run on CC6's `AFTER_STEP` hook.
@@ -367,19 +375,17 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 
 ## Next actions
 
-1. **M1's critical path (code):** P06 DK2 and DK3 merged November 4, 2026; **DK4** next (prompt issued November 4, 2026;
-   damage, the AI's flooded tiles, dry-first arrivals; then DK5, the save and mirrors), alongside P07 UI2;
-   CC10 (battle resume) after DK4.
-2. **M1's critical path (planning):** **P07** (minimal UI: forecast panel, move preview with
-   darkness damage, intents and danger zone, HUD, and the scene that starts an M1 battle and plays
-   it; the hover preview runs off the input path, P05 question 23). Approved November 4, 2026; UI1 merged; UI2 building; UI3–UI5 after UI2 (only UI3's darkness preview waits on DK4). After DK4, M1 is
-   blocked on P07 alone.
-3. **Open questions for the user:** P06 questions 12 (DK2) and 13 (DK3).
-4. **Off M1's path:** P02 **CC10** (battle resume; releases the reserved `enemy_units` key, P04
-   question 25; rejects a move that goes nowhere, P02 question 21); the Trivial tag cleanup (P03
-   question 22; it also drops the pack-name `; ASSUMPTION` in `m1_pack.tres`). P03 CT6 and CT13
-   held (M1 before breadth).
-5. Vision updates pending for the ideation thread (Design items by plan).
+1. **M1's critical path:** P07 **UI2F** (Low: the save debug panel off the map and behind a
+   toggle, animations scaled by playback speed; prompt issued November 4, 2026) and **UI3**
+   (forecast and move preview; prompt issued November 4, 2026), then UI4 (intents, danger zone)
+   and UI5 (HUD, Use in the menu, the M1 build). Then M1's playtest and first tuning pass.
+2. **Open questions for the user:** P06 question 14 (DK4); P07 question 15 (UI2).
+3. **Off M1's path:** P02 **CC10** (battle resume: today a run continued mid-battle sits on the
+   placeholder; releases the reserved `enemy_units` key, P04 question 25; rejects a move that goes
+   nowhere, P02 question 21); P06 DK5 (the darkness save and mirrors) after CC10's pattern; the
+   Trivial tag cleanup (P03 question 22; drops the pack-name `; ASSUMPTION` in `m1_pack.tres`);
+   after M1, one public `Pathing.path_to` (P07 question 15 d). P03 CT6 and CT13 held.
+4. Vision updates pending for the ideation thread (Design items by plan).
 
 ## Change log
 
@@ -459,3 +465,4 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 | November 4, 2026 | **P06 DK2 merged into `dev`** (f98eb0d; verified merged: darkness 108, map 490, every other suite unchanged, launch clean): setup step 3 (active sources, the drain per objective, `first_release` with Short Wick), `MapMarker.Kind.DARKNESS_SOURCE`, `MapCheck.Rule.DARKNESS_SOURCES`, the M1 map's two candidates. P06 question 12 raised; DK3 prompt issued. |
 | November 4, 2026 | **P07 UI1 merged into `dev`** (5bcf23c; verified merged with DK2: ui 24, darkness 108, map 490, every other suite unchanged, launch clean): a new solo run opens the M1 battle on screen, the board (terrain, tokens, darkness overlay, camera) plays facts through `FactPlayback`, the end goes to Results; debug Start and End Turn buttons. P07 question 14 raised; UI2 prompt issued. User: every build prompt carries an expected-effort label. |
 | November 4, 2026 | P07 question 14 answered (as recommended, for now). **P06 DK3 merged into `dev`** (f8f4ed7; verified merged with UI1: darkness 143, enemies 102, ui 24, every other suite unchanged, launch clean): the darkness step (creep, release, erosion; arrival sets `MapState.has_darkness_arrived`), the fact contract, door and break recalculation. P06 question 13 raised; DK4 prompt issued. |
+| November 4, 2026 | P06 questions 12 and 13 answered (as recommended). **P06 DK4 and P07 UI2 merged into `dev`** (ec47252, 34b27d5; verified together: darkness 191, ui 53, every other suite unchanged, launch clean): darkness damage, the AI's flooded tiles, dry-first arrivals, P07's queries; turn input (cursor, ranges, path, action menu, targets, End Turn, the swap window, four input actions). M1's part of P06 is built; an M1 battle can be played by hand. P06 question 14 and P07 question 15 raised; P07 subgraph drawn; UI2F and UI3 prompts issued. |
