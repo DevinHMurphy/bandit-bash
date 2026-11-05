@@ -6,7 +6,7 @@
 # File:     sandbox_state.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 27, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 @abstract
@@ -76,8 +76,8 @@ extends RefCounted
 @abstract func equipped_weapon_id(unit_id: String) -> String
 
 
-## What [param id] is: its tags, such as "Flier" or "Armored" (unit-roster.md, Movement and tags);
-## empty for an object or an unknown id.
+## What [param id] is: its tags from [constant ContentIds.TAGS], such as [code]flier[/code] or
+## [code]armored[/code] (unit-roster.md, Movement and tags); empty for an object or an unknown id.
 @abstract func tags_of(id: String) -> PackedStringArray
 
 

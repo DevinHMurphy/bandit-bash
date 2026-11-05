@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 4, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -1330,16 +1330,17 @@ func _test_describe_selectors() -> void:
 			"the target and adjacent allies of the target"
 	)
 	var against: WhileAttackCondition = WhileAttackCondition.new()
-	against.type_name = "Beast"
+	# ASSUMPTION: "beast" stays: it only drives the text, and no real tag reads "against Beasts".
+	against.type_name = "beast"
 	_snapshot("while attack: against a tag", against.describe(), "against Beasts")
-	against.type_name = "Armored"
+	against.type_name = ContentIds.TAG_ARMORED
 	_snapshot("while attack: an adjective tag", against.describe(), "against Armored units")
 	var from_magic: WhileAttackCondition = WhileAttackCondition.new()
 	from_magic.role = WhileAttackCondition.Role.ATTACKED
 	from_magic.kind = WhileAttackCondition.Kind.DAMAGE_TYPE
 	_snapshot("while attack: from magic", from_magic.describe(), "from magic")
 	from_magic.kind = WhileAttackCondition.Kind.WEAPON_TYPE
-	from_magic.type_name = "Bow"
+	from_magic.type_name = "bow"
 	_snapshot("while attack: from a weapon type", from_magic.describe(), "from bows")
 	from_magic.kind = WhileAttackCondition.Kind.IS_CRIT
 	_snapshot("while attack: from a crit", from_magic.describe(), "from a crit")

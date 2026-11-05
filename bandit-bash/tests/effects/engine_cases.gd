@@ -189,9 +189,9 @@ func _test_while_matchup() -> void:
 func _test_while_attack() -> void:
 	var engine: EffectEngine = _world()
 	var fake: FakeState = _fake(engine)
-	fake.unit("e1").tags = PackedStringArray(["Beast"])
-	fake.unit("e1").unit_type = "Wolf"
-	fake.weapon_types["w:bow"] = "Bow"
+	fake.unit("e1").tags = PackedStringArray([ContentIds.TAG_ARMORED])
+	fake.unit("e1").unit_type = "wolf"
+	fake.weapon_types["w:bow"] = "bow"
 	engine.set_base("p1", CombatValue.Key.DAMAGE_TYPE, CombatFact.DamageType.MAGIC)
 	var ctx: EffectContext = _context(engine, null)
 	ctx.attacker_id = "p1"
@@ -199,20 +199,20 @@ func _test_while_attack() -> void:
 	ctx.initiator_id = "p1"
 	ctx.weapon_id = "w:bow"
 	ctx.subject_id = "p1"
-	var beasts: WhileAttackCondition = _attack(ATTACKING, WhileAttackCondition.Kind.OPPONENT_TAG)
-	beasts.type_name = "Beast"
-	_ok("attack: no attack in flight, no pass", not beasts.test(ctx))
+	var armored: WhileAttackCondition = _attack(ATTACKING, WhileAttackCondition.Kind.OPPONENT_TAG)
+	armored.type_name = ContentIds.TAG_ARMORED
+	_ok("attack: no attack in flight, no pass", not armored.test(ctx))
 	ctx.attack_index = 0
-	_ok("attack: against a Beast", beasts.test(ctx))
+	_ok("attack: against an Armored unit", armored.test(ctx))
 	ctx.subject_id = "e1"
-	_ok("attack: only from the attacking side", not beasts.test(ctx))
+	_ok("attack: only from the attacking side", not armored.test(ctx))
 	ctx.subject_id = "p1"
-	beasts.type_name = ContentIds.TAG_FLIER
-	_ok("attack: not against a Flier", not beasts.test(ctx))
+	armored.type_name = ContentIds.TAG_FLIER
+	_ok("attack: not against a Flier", not armored.test(ctx))
 	var wolves: WhileAttackCondition = _attack(
 			ATTACKING, WhileAttackCondition.Kind.OPPONENT_UNIT_TYPE
 	)
-	wolves.type_name = "Wolf"
+	wolves.type_name = "wolf"
 	_ok("attack: against a unit type", wolves.test(ctx))
 
 	ctx.subject_id = "e1"
@@ -221,7 +221,7 @@ func _test_while_attack() -> void:
 	magic.damage_type = CombatFact.DamageType.PHYSICAL
 	_ok("attack: not with physical", not magic.test(ctx))
 	var bows: WhileAttackCondition = _attack(ATTACKED, WhileAttackCondition.Kind.WEAPON_TYPE)
-	bows.type_name = "Bow"
+	bows.type_name = "bow"
 	_ok("attack: attacked with a bow", bows.test(ctx))
 	ctx.weapon_id = "w:other"
 	_ok("attack: not with another weapon", not bows.test(ctx))
@@ -232,7 +232,7 @@ func _test_while_attack() -> void:
 	var by_opponent: WhileAttackCondition = _attack(
 			ATTACKED, WhileAttackCondition.Kind.OPPONENT_TAG
 	)
-	by_opponent.type_name = "Beast"
+	by_opponent.type_name = ContentIds.TAG_ARMORED
 	_ok("attack: the opponent is the attacker when attacked", not by_opponent.test(ctx))
 	ctx.attack_index = -1
 	_ok("attack: before or after combat, no pass", not crit.test(ctx))

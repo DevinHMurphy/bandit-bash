@@ -6,7 +6,7 @@
 # File:     fake_state.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 29, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 extends SandboxState
@@ -219,7 +219,7 @@ class FakeUnit:
 	var weapon: String = ""
 	## Growth changes, in percentage points by stat.
 	var growth: Dictionary[int, int] = {}
-	## Its tags, such as "Beast".
+	## Its tags, such as [code]armored[/code].
 	var tags: PackedStringArray = []
 	## Its unit type.
 	var unit_type: String = ""

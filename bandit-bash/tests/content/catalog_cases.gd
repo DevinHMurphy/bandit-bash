@@ -13,7 +13,8 @@ extends RefCounted
 ## The catalog's cases and the content test, for tests/content/run_all.gd: [EffectCatalog] over
 ## [code]res://data/[/code] and over the fixture trees, its typed lookups and kinds, and the
 ## content rules of content_rules.gd over all of [code]res://data/[/code], a valid tree with one
-## file of every kind, and one bad tree per rule.
+## file of every kind, and one bad tree per rule; and a while-attack condition's id, checked on
+## the valid tree with one effect added in memory.
 ##
 ## Each tree under [constant RULES_DIR] is a small data root, loaded by
 ## [method EffectCatalog.load_tree] exactly as the catalog loads [code]res://data/[/code]; a bad
@@ -118,6 +119,7 @@ func run() -> void:
 	_test_double_uses_tree()
 	_test_warning_tree()
 	_test_price_trees()
+	_test_attack_condition_ids()
 	_test_every_rule_has_a_tree()
 	_test_fingerprint_detects_changes()
 
@@ -445,6 +447,47 @@ func _test_price_trees() -> void:
 	), _describe(relic_priced))
 
 
+# Each row: the condition's kind, its id, and the one rule it breaks (empty: it passes). The ids
+# the data uses pass, a commander counting as a unit type; a capitalized name, a tag outside
+# ContentIds.TAGS and another kind's id fail. The damage type kind ignores the id.
+func _test_attack_condition_ids() -> void:
+	var tag: WhileAttackCondition.Kind = WhileAttackCondition.Kind.OPPONENT_TAG
+	var unit_type: WhileAttackCondition.Kind = WhileAttackCondition.Kind.OPPONENT_UNIT_TYPE
+	var weapon: WhileAttackCondition.Kind = WhileAttackCondition.Kind.WEAPON_TYPE
+	var damage: WhileAttackCondition.Kind = WhileAttackCondition.Kind.DAMAGE_TYPE
+	var unknown: String = ContentRules.UNKNOWN_ID
+	var dangling: String = ContentRules.DANGLING_REFERENCE
+	var rows: Array[Array] = [
+		[tag, ContentIds.TAG_ARMORED, ""],
+		[tag, "Armored", unknown],
+		[tag, "beast", unknown],
+		[unit_type, "fixture_archer", ""],
+		[unit_type, "fixture_drengr", ""],
+		[unit_type, "fixture_crossbowman", ""],
+		[unit_type, "Fixture Archer", dangling],
+		[unit_type, "fixture_bow", dangling],
+		[weapon, "bow", ""],
+		[weapon, "Bow", unknown],
+		[damage, "", ""],
+	]
+	for row: Array in rows:
+		var kind: WhileAttackCondition.Kind = row[0]
+		var id: String = row[1]
+		var rule: String = row[2]
+		var findings: Array[ContentRules.Finding] = (
+				ContentRules.new(_tree_with_attack_condition(kind, id)).check()
+		)
+		var expected: PackedStringArray = (
+				PackedStringArray() if rule.is_empty() else PackedStringArray([rule])
+		)
+		var kind_name: String = (WhileAttackCondition.Kind.find_key(kind) as String).to_lower()
+		_check.call("attack condition: %s \"%s\" %s" % [
+			kind_name, id, "passes" if rule.is_empty() else "breaks " + rule,
+		], (
+				_rules(findings, false) == expected and _rules(findings, true).is_empty()
+		), _describe(findings))
+
+
 func _test_every_rule_has_a_tree() -> void:
 	var covered: PackedStringArray = [
 		ContentRules.UNPRICED, ContentRules.UNSELLABLE_PRICED,
@@ -503,6 +546,27 @@ func _test_fingerprint_detects_changes() -> void:
 
 func _tree(name: String) -> EffectCatalog.Index:
 	return EffectCatalog.load_tree(RULES_DIR + name)
+
+
+# The valid tree plus a standalone effect, Infuse's trigger and operations under one while-attack
+# condition, added in memory. The shared definitions are read, never changed.
+func _tree_with_attack_condition(
+		kind: WhileAttackCondition.Kind, id: String
+) -> EffectCatalog.Index:
+	var index: EffectCatalog.Index = _tree("valid")
+	var infuse: EffectDefinition = index.definition("fixture_infuse") as EffectDefinition
+	var condition: WhileAttackCondition = WhileAttackCondition.new()
+	condition.kind = kind
+	condition.type_name = id
+	var effect: EffectDefinition = EffectDefinition.new()
+	effect.id = "fixture_against"
+	if infuse != null:
+		effect.trigger = infuse.trigger
+		effect.operations = infuse.operations.duplicate()
+	effect.conditions = [condition]
+	index.add(index.root + "effects/fixture_against.tres", effect)
+	index.finish()
+	return index
 
 
 # Every resource file under [param folder], read with DirAccess rather than the catalog's own

@@ -6,7 +6,7 @@
 # File:     while_attack_condition.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 27, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 @tool
@@ -26,13 +26,14 @@ extends EffectCondition
 
 ## What is tested. Saved as an int: [b]append only[/b].
 enum Kind {
-	## The opponent has the tag [member type_name] ("Beast").
+	## The opponent has the tag [member type_name], such as [constant ContentIds.TAG_ARMORED].
 	OPPONENT_TAG = 0,
-	## The opponent's unit type is [member type_name] ("Archer").
+	## The opponent's unit type or enemy class id is [member type_name] ([code]archer[/code]).
 	OPPONENT_UNIT_TYPE = 1,
 	## The attack deals [member damage_type] damage.
 	DAMAGE_TYPE = 2,
-	## The attacker's weapon type is [member type_name] ("Bow").
+	## The attacker's weapon type is [member type_name], from [constant ContentIds.WEAPON_TYPES]
+	## ([code]bow[/code]).
 	WEAPON_TYPE = 3,
 	## The hit is a critical hit.
 	IS_CRIT = 4,
@@ -52,10 +53,10 @@ enum Role {
 ## What is tested.
 @export var kind: Kind = Kind.OPPONENT_TAG
 
-## The tag, unit type or weapon type matched, written as in its definition: "Beast", "Archer",
-## "Bow". Ignored by [constant DAMAGE_TYPE] and [constant IS_CRIT].[br]
-## [b]Text:[/b] a name ending in "ed" reads "Armored units", others gain an "s"; a weapon type
-## reads in lower case ("bows").
+## The id matched, as the data holds it: a tag from [constant ContentIds.TAGS], a unit type or
+## enemy class id, or a weapon type id. [constant DAMAGE_TYPE] and [constant IS_CRIT] ignore it.[br]
+## [b]Text:[/b] a tag or unit type reads capitalized, "Armored units" for one ending in "ed" and
+## with an "s" otherwise ("Hedge Healers"); a weapon type reads as its id ("bows").
 @export var type_name: String = ""
 
 ## The damage type matched by [constant DAMAGE_TYPE]; ignored by the other kinds.
@@ -75,10 +76,10 @@ func describe() -> String:
 		Kind.WEAPON_TYPE:
 			if role == Role.ATTACKING:
 				linker = "with"
-			return "%s %s" % [linker, _plural(type_name.to_lower())]
+			return "%s %s" % [linker, _plural(type_name)]
 		Kind.IS_CRIT:
 			return "on a crit" if role == Role.ATTACKING else "from a crit"
-	return "%s %s" % [linker, _plural(type_name)]
+	return "%s %s" % [linker, _plural(type_name.capitalize())]
 
 
 func test(ctx: EffectContext) -> bool:

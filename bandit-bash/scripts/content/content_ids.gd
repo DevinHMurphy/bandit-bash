@@ -18,8 +18,8 @@ extends RefCounted
 ## (content catalog plan, question 3). Every string id a definition holds must be in its list; the
 ## content test checks it. Ids are lowercase snake_case and never shown to players. Values that
 ## code branches on have a named constant, and their list is built from those constants.
-## Every tag and content id used in code or tests comes from here, through its named constant,
-## never as a string literal; an id without a constant gets one first.[br]
+## Every tag, and every id that has a named constant here, comes from that constant in code and
+## tests, never a string literal; only the content suite's pinning test spells the values out.[br]
 ## [method apply_hint] turns a list into an inspector dropdown for the definitions' exports.
 ## Pure and static; never instantiated.
 ##
