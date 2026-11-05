@@ -6,7 +6,7 @@
 # File:     campaign_service.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 3, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 extends Node
@@ -30,15 +30,12 @@ extends Node
 ## also keep the combat block's core turn and phase equal to the battle's, then its
 ## [code]combat_map[/code] and [code]entities[/code] ([CombatMapSection]). Each new session is
 ## handed to all of them before [signal session_started], campaign before combat, so a continued
-## run's streams and id counter are restored before anything draws or mints.
+## run's streams and id counter are restored before anything draws or mints. A continued run's
+## saved battle is rebuilt and loaded by [method resume_battle].
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
 ## @tutorial(Save system design): docs/design/save-system.md
-##
-## @todo: TOD-001 [HIGH] - On a BATTLE resume, rebuild the battle as Begin set it up and load the
-## held battle into it: [method CombatMapSection.load_into], then
-## [method CombatStateSection.load_into] (P02 CC10, battle resume).
 
 ## A run's session was built: connect here to follow its battles.
 signal session_started(session: CampaignSession)
@@ -55,6 +52,10 @@ var _campaign_ids: InstanceIdSaveSection = InstanceIdSaveSection.new(SaveSection
 var _combat_ids: InstanceIdSaveSection = InstanceIdSaveSection.new(SaveSection.Block.COMBAT)
 var _combat_state: CombatStateSection = null
 var _combat_map: CombatMapSection = CombatMapSection.new()
+
+# The id counter the combat instance_ids section gave a session built to resume a battle, set
+# again once the saved battle has loaded (the rebuild mints throwaway ids first); empty otherwise.
+var _battle_ids: Dictionary = {}
 
 
 func _ready() -> void:
@@ -98,6 +99,40 @@ func begin_battle(request: CampaignSession.BattleRequest) -> Error:
 	return err
 
 
+## Resumes the battle a continued run loaded ([constant CombatData.ResumePoint.BATTLE]) from
+## [param request], the request Begin had, in save-system.md's order (Combat map): with the
+## combat state and map sections both holding, the battle is rebuilt as Begin set it up
+## ([method CampaignSession.resume_battle]), its maps loaded ([method CombatMapSection.load_into]),
+## then its units, turn and effects ([method CombatStateSection.load_into]), and the run's id
+## counter set back to the combat checkpoint's. On any failure the saved battle is dropped
+## ([method SaveService.drop_battle]) and begun again from Begin ([method begin_battle]), minting
+## on from the run's counter. Returns [constant OK], resumed or restarted;
+## [constant ERR_INVALID_PARAMETER] for null; [constant ERR_UNCONFIGURED] with no session or no
+## saved battle loaded; [constant ERR_ALREADY_IN_USE] during a battle; or [method begin_battle]'s.
+func resume_battle(request: CampaignSession.BattleRequest) -> Error:
+	if request == null:
+		return ERR_INVALID_PARAMETER
+	if session == null:
+		push_error("CampaignService: no run in progress to resume a battle in.")
+		return ERR_UNCONFIGURED
+	if session.encounter != null:
+		push_error("CampaignService: a battle is already in progress.")
+		return ERR_ALREADY_IN_USE
+	if SaveService.combat == null or SaveService.resume_point != CombatData.ResumePoint.BATTLE:
+		push_error("CampaignService: no saved battle to resume.")
+		return ERR_UNCONFIGURED
+	if not _combat_state.is_holding() or not _combat_map.is_holding():
+		push_warning("CampaignService: the combat file holds no whole battle to resume.")
+	elif session.resume_battle(request, _load_saved_battle) != null:
+		return OK
+	var dropped: Error = SaveService.drop_battle()
+	if dropped != OK:
+		push_warning(
+				"CampaignService: the old combat file wasn't deleted - %s" % [error_string(dropped)]
+		)
+	return begin_battle(request)
+
+
 ## Ends the battle in progress: writes campaign-lane values back
 ## ([method CampaignSession.write_back]), saves with [method SaveService.end_battle], then drops
 ## the battle ([method CampaignSession.end_battle]). Returns the result for the run flow; null with
@@ -123,10 +158,11 @@ func _replace_session(replacement: CampaignSession) -> void:
 	_combat_ids.detach()
 	_combat_state.detach()
 	_combat_map.detach()
+	_battle_ids = {}
 	if replacement != null:
 		_attach_rng_sections(replacement)
 		_attach_id_sections(replacement)
-		# TODO(TOD-001): A BATTLE resume's held battle waits here for its rebuilt battle (CC10).
+		# A saved battle stays held until resume_battle() loads it.
 		_combat_state.attach(replacement)
 		_combat_map.attach(replacement)
 	if previous != null:
@@ -150,7 +186,8 @@ func _attach_rng_sections(built: CampaignSession) -> void:
 
 
 # Applies the id counter SaveService restored for this run, campaign then combat, so a resumed
-# battle's later counter wins. As with the rng sections, a refusal leaves the data held.
+# battle's later counter wins, and keeps it for resume_battle(). As with the rng sections, a
+# refusal leaves the data held.
 func _attach_id_sections(built: CampaignSession) -> void:
 	for section: InstanceIdSaveSection in [_campaign_ids, _combat_ids]:
 		var err: Error = section.attach(built)
@@ -159,6 +196,21 @@ func _attach_id_sections(built: CampaignSession) -> void:
 					"CampaignService: the instance_ids section refused the new session - %s"
 					% [error_string(err)]
 			)
+	if SaveService.resume_point == CombatData.ResumePoint.BATTLE:
+		_battle_ids = built.ids.capture()
+
+
+# Loads the held battle into battle, rebuilt as Begin set it up (save-system.md, Combat map, steps
+# 2 to 4): its maps, then its units, turn and effects, then the combat checkpoint's id counter.
+func _load_saved_battle(battle: CombatEncounter) -> Error:
+	var err: Error = _combat_map.load_into(battle)
+	if err == OK:
+		err = _combat_state.load_into(battle)
+	if err == OK and not _battle_ids.is_empty():
+		# Captured from an allocator, so it can't be refused.
+		err = session.ids.restore(_battle_ids)
+		_battle_ids = {}
+	return err
 
 
 # A saved effect's definition, for the combat sections: a map object's own reaction (a powder

@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 3, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -80,6 +80,11 @@ const EFFECTS_CATEGORY: CombatSession.NetLogScript.Category = (
 # A second run seed for the debug panel's seed restart.
 const OTHER_SEED: int = 0x123456789ABCD
 
+# The battle the gameplay screen begins (gameplay.tscn's BattleScreen): M1 on floor 1, node 1.
+const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
+const M1_FLOOR: int = 1
+const M1_NODE: int = 1
+
 var _failures: int = 0
 var _passes: int = 0
 var _skips: int = 0
@@ -139,6 +144,8 @@ func _process(_delta: float) -> bool:
 	_run(_test_service_instance_ids)
 	_run(_test_service_combat_state)
 	_run(_test_service_combat_map)
+	_run(_test_service_resume_battle)
+	_run(_test_service_resume_falls_back)
 
 	_run(_test_logger_gating)
 	_run(_test_logging_changes_nothing)
@@ -2076,18 +2083,17 @@ func _test_service_combat_state() -> bool:
 	var section: CombatStateSection = service.get(&"_combat_state")
 	var map_section: CombatMapSection = service.get(&"_combat_map")
 	var resume_point: int = saves.get(&"resume_point")
-	var holding: bool = section.is_holding()
-	# Until the resume flow exists (campaign_service.gd:TOD-001), the battle is rebuilt by hand,
-	# its maps loaded first (CombatMapSection).
-	resumed.begin_battle(_request(resumed, {0: ["Drengr", "Archer"]}))
-	var loaded: Error = map_section.load_into(resumed.encounter)
-	if loaded == OK:
-		loaded = section.load_into(resumed.encounter)
+	var holding: bool = section.is_holding() and map_section.is_holding()
+	var loaded: int = service.call(
+			&"resume_battle", _request(resumed, {0: ["Drengr", "Archer"]})
+	)
+	var after_point: int = saves.get(&"resume_point")
 	var again: CombatSession = resumed.encounter.get_session(0)
 	_check("service combat state: a continued run loads the battle into its rebuilt one", (
 			resume_point == CombatData.ResumePoint.BATTLE
 			and holding
 			and loaded == OK
+			and after_point == CombatData.ResumePoint.BATTLE
 			and not section.is_holding()
 			and again.state_hash() == saved_hash
 			and again.state.unit(units[0]).has_acted
@@ -2174,16 +2180,16 @@ func _test_service_combat_map() -> bool:
 	var resumed: CampaignSession = service.get(&"session")
 	var section: CombatStateSection = service.get(&"_combat_state")
 	var map_section: CombatMapSection = service.get(&"_combat_map")
-	var holding: bool = map_section.is_holding()
-	# Until the resume flow exists (campaign_service.gd:TOD-001), the battle is rebuilt by hand.
-	resumed.begin_battle(_request(resumed, {0: ["Drengr", "Archer"]}))
-	var loaded: Error = map_section.load_into(resumed.encounter)
-	if loaded == OK:
-		loaded = section.load_into(resumed.encounter)
+	var holding: bool = map_section.is_holding() and section.is_holding()
+	var loaded: int = service.call(
+			&"resume_battle", _request(resumed, {0: ["Drengr", "Archer"]})
+	)
+	var after_point: int = saves.get(&"resume_point")
 	var again: CombatSession = resumed.encounter.get_session(0)
 	_check("service combat map: a continued run loads the map into its rebuilt battle", (
 			holding
 			and loaded == OK
+			and after_point == CombatData.ResumePoint.BATTLE
 			and not map_section.is_holding()
 			and again.state_hash() == saved_hash
 			and JSON.stringify(again.snapshot()["map"]) == saved_map
@@ -2194,6 +2200,286 @@ func _test_service_combat_map() -> bool:
 	saves.call(&"close_save_file")
 	SaveFile.delete_folder("user://saves/")
 	return true
+
+
+# Battle resume through the real SaveService (combat core plan, CC10): the M1 battle played by one
+# script twice, uninterrupted and with Save & Quit then Continue mid turn 1 and mid turn 2 (after
+# an enemy phase), records the same facts, mints the same ids and writes the same values back.
+# The army is kept across the quits, as the run's saved roster will be (P08).
+func _test_service_resume_battle() -> bool:
+	if not _has_test_user_dir():
+		_skips += 1
+		print("SKIP  service resume: needs a test user folder (see the class doc)")
+		return true
+	var saves: Node = root.get_node(^"SaveService")
+	var service: Node = root.get_node(^"CampaignService")
+	var straight: ResumeRun = _play_resume_script(saves, service, false)
+	var resumed: ResumeRun = _play_resume_script(saves, service, true)
+	var battle_point: int = CombatData.ResumePoint.BATTLE
+
+	_check("service resume: each Continue resumes the saved battle, at its saved state", (
+			straight.errors.is_empty()
+			and resumed.errors.is_empty()
+			and resumed.resumes == [OK, OK]
+			and resumed.resume_points == [battle_point, battle_point]
+			and resumed.saved_hashes == resumed.loaded_hashes
+			and resumed.saved_seqs == resumed.loaded_seqs
+			and resumed.saved_hashes == straight.saved_hashes
+	), "%s; resumes %s at %s; hashes %s, loaded %s" % [
+		resumed.errors, resumed.resumes, resumed.resume_points,
+		resumed.saved_hashes, resumed.loaded_hashes,
+	])
+	_check("service resume: one save mid turn 1, one mid turn 2 after an enemy phase", (
+			resumed.saved_turns == [1, 2] and straight.saved_turns == [1, 2]
+	), str(resumed.saved_turns))
+	_check("service resume: the same fact log as the uninterrupted battle", (
+			not straight.facts.is_empty()
+			and JSON.stringify(resumed.facts) == JSON.stringify(straight.facts)
+	), "%d and %d facts" % [resumed.facts.size(), straight.facts.size()])
+	_check("service resume: the id counter is the checkpoint's after each load", (
+			resumed.loaded_next == resumed.saved_next and resumed.saved_next == straight.saved_next
+	), "loaded %s, saved %s" % [resumed.loaded_next, resumed.saved_next])
+	_check("service resume: ids go on as uninterrupted, none reused", (
+			resumed.minted == straight.minted
+			and resumed.next_after == straight.next_after
+			and not resumed.known_at_last_save.has(resumed.minted)
+	), "%s and %s" % [resumed.minted, straight.minted])
+	_check("service resume: the darkness is rebuilt as Begin set it, not yet arrived", (
+			resumed.darkness == straight.darkness
+			and not resumed.darkness.is_empty()
+			and not resumed.has_arrived
+			and not straight.has_arrived
+	), "%s and %s" % [resumed.darkness, straight.darkness])
+	_check("service resume: write-back after it matches the uninterrupted battle's", (
+			straight.counted.size() >= 2
+			and _written_count(straight.written) == straight.counted.size()
+			and JSON.stringify(resumed.written) == JSON.stringify(straight.written)
+	), "counted %s; %s and %s" % [straight.counted, resumed.written, straight.written])
+	return true
+
+
+# How many values the resume script set (7) a write-back brought back: in a unit or item instance's
+# counters, or a carrier's campaign lane.
+func _written_count(written: Dictionary) -> int:
+	var found: int = 0
+	# Untyped: an instance's entry is [counters, charges], a carrier's its count.
+	for key: Variant in written:
+		var entry: Variant = written[key]
+		if entry is int and entry == 7:
+			found += 1
+		elif entry is Array:
+			for count: Variant in ((entry as Array)[0] as Dictionary).values():
+				if count is int and count == 7:
+					found += 1
+	return found
+
+
+# A saved battle that can't be resumed restarts from Begin: a combat file without the combat state
+# pair (not holding), then one whose map id isn't the rebuilt battle's (load_into refuses).
+func _test_service_resume_falls_back() -> bool:
+	if not _has_test_user_dir():
+		_skips += 1
+		print("SKIP  service resume fallback: needs a test user folder (see the class doc)")
+		return true
+	var saves: Node = root.get_node(^"SaveService")
+	var service: Node = root.get_node(^"CampaignService")
+	SaveFile.delete_folder("user://saves/")
+	saves.call(&"open_save_file", 1)
+	saves.call(&"start_new_solo_run", RUN_SEED)
+	var no_battle: int = service.call(&"resume_battle", _m1_request(
+			service.get(&"session") as CampaignSession, null
+	))
+	_check("service resume fallback: nothing to resume outside a saved battle", (
+			no_battle == ERR_UNCONFIGURED
+	), error_string(no_battle))
+	saves.call(&"abandon_run", CampaignData.Mode.SOLO)
+	saves.call(&"close_save_file")
+	var combat_path: String = (
+			(saves.call(&"get_save_file_dir", 1) as String)
+			+ CombatData.get_file_name(CampaignData.Mode.SOLO)
+	)
+
+	var cases: Dictionary[String, Callable] = {
+		# Both: effects alone refuses to load without combat_state, which is BATTLE_RETRY at once.
+		"without combat_state and effects": func(sections: Dictionary) -> void:
+			sections.erase("combat_state")
+			sections.erase("effects"),
+		"for another map": func(sections: Dictionary) -> void:
+			var data: Dictionary = (sections["combat_map"] as Dictionary)["data"]
+			((data["sessions"] as Array)[0] as Dictionary)["map_id"] = "another_map",
+	}
+	for label: String in cases:
+		# A run of its own each time: a restart's save moves the campaign past the old combat file.
+		SaveFile.delete_folder("user://saves/")
+		saves.call(&"open_save_file", 1)
+		saves.call(&"start_new_solo_run", RUN_SEED)
+		var run: CampaignSession = service.get(&"session")
+		var begun: int = service.call(&"begin_battle", _m1_request(run, null))
+		run.encounter.submit(StartCommand.new(0), 0)
+		run.encounter.resolve_queued()
+		saves.call(&"save_checkpoint")
+		saves.call(&"close_save_file")
+		var broken: Dictionary = SaveFile.read(combat_path).envelope
+		cases[label].call(broken[SaveFile.KEY_SECTIONS] as Dictionary)
+		SaveFile.write(combat_path, broken)
+		saves.call(&"open_save_file", 1)
+		saves.call(&"continue_solo_run")
+		var continued: CampaignSession = service.get(&"session")
+		var point: int = saves.get(&"resume_point")
+		print("    (a warning or error about a battle that restarts from Begin follows)")
+		var err: int = service.call(&"resume_battle", _m1_request(continued, null))
+		var session: CombatSession = (
+				null if continued.encounter == null else continued.encounter.get_session(0)
+		)
+		var after: int = saves.get(&"resume_point")
+		_check("service resume fallback: a file %s restarts the battle from Begin" % [label], (
+				begun == OK
+				and point == CombatData.ResumePoint.BATTLE
+				and err == OK
+				and after == CombatData.ResumePoint.BATTLE_RETRY
+				and saves.get(&"combat") != null
+				and SaveFile.exists(combat_path)
+				and session != null
+				and session.state.map.opening_swap_open
+		), "%s, point %d then %d" % [error_string(err), point, after])
+		saves.call(&"abandon_run", CampaignData.Mode.SOLO)
+		saves.call(&"close_save_file")
+	SaveFile.delete_folder("user://saves/")
+	return true
+
+
+# Plays the resume script on a new solo run's M1 battle: Start; a campaign-lane count on a loaded
+# unit effect and on the heirloom's copy; then a unit's move and Wait (a checkpoint), End Turn,
+# another unit's move and Wait (a checkpoint), End Turn and one more Wait; then the battle's end.
+# With [param quits], each checkpoint is followed by a quit and a Continue, and the battle is
+# resumed from a request holding the army kept from Begin.
+func _play_resume_script(saves: Node, service: Node, quits: bool) -> ResumeRun:
+	var result: ResumeRun = ResumeRun.new()
+	SaveFile.delete_folder("user://saves/")
+	saves.call(&"open_save_file", 1)
+	saves.call(&"start_new_solo_run", RUN_SEED)
+	var run: CampaignSession = service.get(&"session")
+	var built: StartingArmy = StartingArmy.build(EffectCatalog.index(), "mercenary", run.ids)
+	if service.call(&"begin_battle", _m1_request(run, built)) != OK:
+		result.errors.append("begin")
+		return result
+	_resume_step(result, run, StartCommand.new(0))
+	var session: CombatSession = run.encounter.get_session(0)
+	for instance: EffectInstance in session.engine.get_instances():
+		var owner_id: String = instance.owner.owner_id
+		var is_loaded: bool = not instance.definition.resource_path.is_empty()
+		if (
+				instance.owner.kind == EffectOwner.Kind.ARMY
+				or (is_loaded and owner_id == built.units[0].instance_id)
+		):
+			instance.set_counter(EffectTerms.Lane.CAMPAIGN, 7)
+			result.counted.append(instance.instance_id)
+
+	for turn: int in [1, 2]:
+		_resume_step(result, run, _wait_step(run, 0))
+		session = run.encounter.get_session(0)
+		result.saved_turns.append(session.state.turn)
+		result.saved_hashes.append(session.state_hash())
+		result.saved_seqs.append(session.last_seq())
+		result.saved_next.append(run.ids.get_next_value())
+		result.known_at_last_save = run.ids.capture()["labels"]
+		result.has_arrived = result.has_arrived or session.state.map.has_darkness_arrived
+		if saves.call(&"save_checkpoint") != OK:
+			result.errors.append("save %d" % [turn])
+		if quits:
+			saves.call(&"close_save_file")
+			saves.call(&"open_save_file", 1)
+			saves.call(&"continue_solo_run")
+			run = service.get(&"session")
+			result.resume_points.append(saves.get(&"resume_point"))
+			result.resumes.append(service.call(&"resume_battle", _m1_request(run, built)))
+			if run.encounter == null:
+				result.errors.append("resume %d" % [turn])
+				return result
+			session = run.encounter.get_session(0)
+			result.loaded_hashes.append(session.state_hash())
+			result.loaded_seqs.append(session.last_seq())
+			result.loaded_next.append(run.ids.get_next_value())
+		var turn_before: int = session.state.turn
+		_resume_step(result, run, EndTurnCommand.new(0))
+		if run.encounter.get_session(0).state.turn != turn_before + 1:
+			result.errors.append("end turn %d" % [turn])
+	_resume_step(result, run, _wait_step(run, 1))
+	session = run.encounter.get_session(0)
+	var darkness: DarknessState = session.state.map.darkness
+	result.darkness = "%d sources, drain %s, first release %d" % [
+		darkness.sources.size(), darkness.drain, darkness.first_release,
+	]
+	result.has_arrived = result.has_arrived or session.state.map.has_darkness_arrived
+	result.minted = run.ids.next_effect_id()
+	result.next_after = run.ids.get_next_value()
+
+	if service.call(&"end_battle") == null:
+		result.errors.append("end battle")
+	for unit: UnitInstance in built.units:
+		result.written[unit.instance_id] = [unit.counters.duplicate(), unit.charges.duplicate()]
+	for item_id: String in built.items:
+		var item: ItemInstance = built.items[item_id]
+		result.written[item_id] = [item.counters.duplicate(), item.charges.duplicate()]
+	for instance_id: String in result.counted:
+		var carrier: EffectInstance = run.get_carrier(instance_id)
+		if carrier != null:
+			result.written[instance_id] = carrier.get_counter(EffectTerms.Lane.CAMPAIGN)
+	saves.call(&"abandon_run", CampaignData.Mode.SOLO)
+	saves.call(&"close_save_file")
+	SaveFile.delete_folder("user://saves/")
+	return result
+
+
+# Resolves command on the run's battle and adds every fact recorded since the last one added, by
+# seq, so a resumed session's log, which starts empty, follows on.
+func _resume_step(result: ResumeRun, run: CampaignSession, command: Command) -> void:
+	run.encounter.submit(command, 0)
+	for batch: CombatSession.FactBatch in run.encounter.resolve_queued():
+		if batch.is_rejected():
+			result.errors.append("%s: %s" % [batch.label, batch.rejected_reason])
+	for fact: CombatFact in run.encounter.get_session(0).engine.fact_log:
+		if fact.seq > result.last_seq:
+			result.facts.append(fact.to_wire())
+			result.last_seq = fact.seq
+
+
+# The index-th unit of seat 0 that can act, its commander left out (a walk toward the enemies could
+# lose the battle): a Wait one tile away, the first such move tile in move_tiles order.
+func _wait_step(run: CampaignSession, index: int) -> UnitTurnCommand:
+	var session: CombatSession = run.encounter.get_session(0)
+	var acting: PackedStringArray = TurnInputModel.acting_units(session, 0)
+	var commander_id: String = session.commander_ids.get(0, "")
+	acting.erase(commander_id)
+	var unit_id: String = acting[index]
+	var origin: Vector2i = session.state.tile_of(unit_id)
+	var goal: Vector2i = origin
+	for tile: Vector2i in TurnInputModel.move_tiles(session, unit_id):
+		if session.state.grid.distance(tile, origin) == 1:
+			goal = tile
+			break
+	var walk: Array[Vector2i] = TurnInputModel.path_to(session, unit_id, goal)
+	return UnitTurnCommand.new(0, unit_id, UnitTurnCommand.Action.WAIT, "", walk)
+
+
+# The gameplay screen's request for the M1 battle (gameplay.tscn: M1, floor 1, node 1), with
+# built's army; a new mercenary army when built is null.
+func _m1_request(run: CampaignSession, built: StartingArmy) -> CampaignSession.BattleRequest:
+	var catalog: EffectCatalog.Index = EffectCatalog.index()
+	var army_of: StartingArmy = (
+			built if built != null else StartingArmy.build(catalog, "mercenary", run.ids)
+	)
+	var army: CampaignSession.Army = CampaignSession.Army.new()
+	army.unit_instances = army_of.units
+	army.item_instances = army_of.items
+	army.heirloom_ids = army_of.heirloom_ids
+	var request: CampaignSession.BattleRequest = CampaignSession.BattleRequest.new()
+	request.floor_number = M1_FLOOR
+	request.node = M1_NODE
+	request.pool = [load(M1_DEFINITION) as CombatMapDefinition]
+	request.catalog = catalog
+	request.armies[0] = army
+	return request
 
 
 # Data SaveService restored but no session took yet (a multiplayer campaign waiting in its lobby)
@@ -2936,3 +3222,36 @@ class DefeatFixture:
 
 	func resolve(session: CombatSession) -> void:
 		session.state.defeat(session.engine, unit_id, "")
+
+
+# What one play of the resume script recorded (_play_resume_script).
+class ResumeRun:
+	extends RefCounted
+
+	var errors: PackedStringArray = []
+	# Every fact of the battle's map as wire arrays, in seq order, and the last seq added.
+	var facts: Array = []
+	var last_seq: int = 0
+	# Per Continue: resume_point, then resume_battle()'s error.
+	var resume_points: Array[int] = []
+	var resumes: Array[int] = []
+	# Per checkpoint, as saved and (with quits) as loaded.
+	var saved_turns: Array[int] = []
+	var saved_hashes: Array[int] = []
+	var loaded_hashes: Array[int] = []
+	var saved_seqs: Array[int] = []
+	var loaded_seqs: Array[int] = []
+	var saved_next: Array[int] = []
+	var loaded_next: Array[int] = []
+	# The allocator's labels at the last checkpoint: every id minted until then.
+	var known_at_last_save: Dictionary = {}
+	# The effect instances given a campaign-lane count of 7.
+	var counted: PackedStringArray = []
+	var darkness: String = ""
+	var has_arrived: bool = false
+	# The id minted after the last command, and the counter after it.
+	var minted: String = ""
+	var next_after: int = 0
+	# After the battle's end: [counters, charges] by unit or item id, and each counted carrier's
+	# campaign lane by id.
+	var written: Dictionary = {}

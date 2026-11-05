@@ -6,7 +6,7 @@
 # File:     campaign_session.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 4, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 class_name CampaignSession
@@ -22,7 +22,9 @@ extends RefCounted
 ## opens one [CombatSession] per seat, places the enemies setup drew ([EnemySetup]), registers
 ## copies of the run's effect carriers (in the encounter for cross-map scopes) with their
 ## campaign-lane counters, gives each map the darkness setup drew ([DarknessSetup]), loads each
-## army's unit instances ([Loadout]) and deploys each army.
+## army's unit instances ([Loadout]) and deploys each army. [method resume_battle] rebuilds a saved
+## battle the same way, without the loadout, deployment or opening, has the save loaded into it and
+## re-links the write-back copies to what it loaded.
 ## [method write_back] copies campaign-lane counters and charges back before
 ## [code]SaveService.end_battle()[/code]; [method end_battle] then drops the battle and its combat
 ## lanes. Observers find each battle through [signal combat_encounter_opened].[br]
@@ -148,63 +150,18 @@ func add_setup_step(step: CombatEncounter.SetupStep, run: Callable) -> void:
 ## then per map its objects, enemies, darkness step, reinforcement points, darkness damage, AI and
 ## intents ([method MapObjects.place], [method EnemySetup.place], [method Darkness.register],
 ## [method Reinforcements.register], [method Darkness.register_damage], [method EnemyAI.register],
-## [method Intents.register]),
-## carrier copies, its darkness
-## ([method DarknessSetup.place], so Short Wick counts), each army deployed, and
-## [method CombatSession.open_battle] as [member BattleRequest.opening_swap] says.
+## [method Intents.register]), carrier copies, its darkness ([method DarknessSetup.place], so Short
+## Wick counts), each army deployed, and [method CombatSession.open_battle] as
+## [member BattleRequest.opening_swap] says.
 ## Returns the encounter; null, with nothing begun, when a battle is already on, the run is closed,
 ## or setup fails.
 func begin_battle(request: BattleRequest) -> CombatEncounter:
-	if is_closed or encounter != null or request == null:
-		push_error("CampaignSession: can't begin a battle now")
+	if not _can_open_battle(request):
 		return null
-	var battle: CombatEncounter = CombatEncounter.new(
-			request.floor_number, request.node, seats, ids
-	)
-	battle.run_seed = rng.run_seed
-	var catalog: EffectCatalog.Index = (
-			request.catalog if request.catalog != null else EffectCatalog.index()
-	)
-	# Bound per battle: the draw reads this battle's catalog and floor.
-	# TODO(TOD-004): Pass the enemy level modifiers (the difficulty ladder's, run modifiers') once
-	# they exist; none until then.
-	battle.add_setup_step(
-			CombatEncounter.SetupStep.ENEMY_SLOTS,
-			EnemySetup.draw.bind(catalog, request.floor_number, 0)
-	)
-	for entry: Array in _setup_steps:
-		var step: CombatEncounter.SetupStep = entry[0]
-		var run: Callable = entry[1]
-		battle.add_setup_step(step, run)
-	var streams: CombatEncounter.SetupStreams = CombatEncounter.SetupStreams.new(
-			rng.run_seed, request.floor_number, request.node
-	)
-	var err: Error = battle.run_setup(request.pool, streams)
-	if err != OK:
-		push_error("CampaignSession: battle setup failed - %s" % [error_string(err)])
+	var catalog: EffectCatalog.Index = _catalog_of(request)
+	var battle: CombatEncounter = _set_up_battle(request, catalog)
+	if battle == null:
 		return null
-
-	encounter = battle
-	_battle_grants.clear()
-	combat_encounter_opened.emit(battle)
-	var rolls: Dictionary[int, RngStream] = {}
-	for seat: int in seats:
-		rolls[seat] = _combat_rolls(request.floor_number, request.node, seat)
-	battle.open_sessions(rolls)
-	for session: CombatSession in battle.get_sessions():
-		session.is_tracing_draws = is_tracing_draws
-		session.grant_received.connect(receive_grant)
-		# Before deployment, so no unit takes a breakable's tile.
-		MapObjects.place(session)
-		# Before deployment too, which ranks its tiles by the enemies' tiles.
-		EnemySetup.place(session, catalog)
-		# First on AFTER_ENEMY_PHASE, before the reinforcement arrivals (the-darkness.md, The
-		# darkness step); its damage after the point closing on PHASE_END_EFFECTS.
-		Darkness.register(session)
-		Reinforcements.register(session, _wave_groups)
-		Darkness.register_damage(session)
-		EnemyAI.register(session, catalog)
-		Intents.register(session, catalog)
 	for seat: int in request.armies:
 		_add_heirlooms(catalog, seat, request.armies[seat].heirloom_ids)
 	_register_carriers(battle, request)
@@ -239,16 +196,41 @@ func begin_battle(request: BattleRequest) -> CombatEncounter:
 			if request.opening_swap.get(seat, true):
 				swap_seats.append(seat)
 		session.open_battle(swap_seats)
+	_log_battle("BATTLE START", request, battle)
+	return battle
 
-	var net: NetLogScript = CombatSession.logger(
-			NetLogScript.Level.INFO, NetLogScript.Category.CAMPAIGN
-	)
-	if net != null:
-		net.info(
-				NetLogScript.Category.CAMPAIGN,
-				"BATTLE START floor %d node %d map %s seats %s"
-				% [request.floor_number, request.node, battle.setup.map.id, seats]
-		)
+
+## Rebuilds the saved battle [param request] describes (the request Begin had) as
+## [method begin_battle] set it up, without the loadout, the deployment and the opening, which the
+## save replaces; then [code]load_saved.call(battle) -> Error[/code] loads the save into it, before
+## anything draws from a [code]COMBAT_ROLLS[/code] stream. The write-back copies are then re-linked
+## to the loaded battle by instance id (each carrier's copy, each of the request's unit instances
+## the battle holds), so [method write_back] writes what an uninterrupted battle would, and each
+## map's intents are computed, recording nothing.
+## Returns the encounter; null, with nothing begun, when a battle is already on, the run is closed,
+## setup fails or [param load_saved] returns an error.
+func resume_battle(request: BattleRequest, load_saved: Callable) -> CombatEncounter:
+	if not _can_open_battle(request) or not load_saved.is_valid():
+		return null
+	var catalog: EffectCatalog.Index = _catalog_of(request)
+	var battle: CombatEncounter = _set_up_battle(request, catalog)
+	if battle == null:
+		return null
+	for seat: int in request.armies:
+		_place_heirloom_stand_ins(battle, catalog, seat, request.armies[seat].heirloom_ids)
+	_register_carriers(battle, request)
+	# With the army's effects registered as at Begin, so the darkness arrives as it did.
+	for session: CombatSession in battle.get_sessions():
+		DarknessSetup.place(session)
+	var err: Error = load_saved.call(battle)
+	if err != OK:
+		push_error("CampaignSession: the saved battle didn't load - %s" % [error_string(err)])
+		abandon_battle()
+		return null
+	_relink_battle(battle, request, catalog)
+	for session: CombatSession in battle.get_sessions():
+		Intents.refresh(session, catalog)
+	_log_battle("BATTLE RESUMED", request, battle)
 	return battle
 
 
@@ -352,6 +334,180 @@ func close() -> void:
 ## [param id] in log text: from the battle in progress when it knows it, else the allocator.
 func describe(id: String) -> String:
 	return ids.describe(id) if encounter == null else encounter.describe(id)
+
+
+func _can_open_battle(request: BattleRequest) -> bool:
+	if is_closed or encounter != null or request == null:
+		push_error("CampaignSession: can't begin a battle now")
+		return false
+	return true
+
+
+func _catalog_of(request: BattleRequest) -> EffectCatalog.Index:
+	return request.catalog if request.catalog != null else EffectCatalog.index()
+
+
+# The part of a battle's start Begin and a resume share: the encounter and its setup,
+# combat_encounter_opened, the sessions on their COMBAT_ROLLS streams and each map's objects,
+# enemies and hooks. Null, with nothing begun, when setup fails.
+func _set_up_battle(request: BattleRequest, catalog: EffectCatalog.Index) -> CombatEncounter:
+	var battle: CombatEncounter = CombatEncounter.new(
+			request.floor_number, request.node, seats, ids
+	)
+	battle.run_seed = rng.run_seed
+	# Bound per battle: the draw reads this battle's catalog and floor.
+	# TODO(TOD-004): Pass the enemy level modifiers (the difficulty ladder's, run modifiers') once
+	# they exist; none until then.
+	battle.add_setup_step(
+			CombatEncounter.SetupStep.ENEMY_SLOTS,
+			EnemySetup.draw.bind(catalog, request.floor_number, 0)
+	)
+	for entry: Array in _setup_steps:
+		var step: CombatEncounter.SetupStep = entry[0]
+		var run: Callable = entry[1]
+		battle.add_setup_step(step, run)
+	var streams: CombatEncounter.SetupStreams = CombatEncounter.SetupStreams.new(
+			rng.run_seed, request.floor_number, request.node
+	)
+	var err: Error = battle.run_setup(request.pool, streams)
+	if err != OK:
+		push_error("CampaignSession: battle setup failed - %s" % [error_string(err)])
+		return null
+
+	encounter = battle
+	_battle_grants.clear()
+	combat_encounter_opened.emit(battle)
+	var rolls: Dictionary[int, RngStream] = {}
+	for seat: int in seats:
+		rolls[seat] = _combat_rolls(request.floor_number, request.node, seat)
+	battle.open_sessions(rolls)
+	for session: CombatSession in battle.get_sessions():
+		session.is_tracing_draws = is_tracing_draws
+		session.grant_received.connect(receive_grant)
+		# Before deployment, so no unit takes a breakable's tile.
+		MapObjects.place(session)
+		# Before deployment too, which ranks its tiles by the enemies' tiles.
+		EnemySetup.place(session, catalog)
+		# First on AFTER_ENEMY_PHASE, before the reinforcement arrivals (the-darkness.md, The
+		# darkness step); its damage after the point closing on PHASE_END_EFFECTS.
+		Darkness.register(session)
+		Reinforcements.register(session, _wave_groups)
+		Darkness.register_damage(session)
+		EnemyAI.register(session, catalog)
+		Intents.register(session, catalog)
+	return battle
+
+
+# A resume's stand-ins for the seat's heirlooms the run holds no carrier of: registered as Begin
+# registers their copies, so DarknessSetup.place reads the same army, and replaced by the save.
+# NOTE: Never add them as carriers. Their ids are minted before the saved counter is set again, so
+# the resumed battle mints the same ids later; the saved copies become the carriers instead
+# (_adopt_heirlooms).
+func _place_heirloom_stand_ins(
+		battle: CombatEncounter,
+		catalog: EffectCatalog.Index,
+		seat: int,
+		heirloom_ids: PackedStringArray
+) -> void:
+	var session: CombatSession = battle.session_of_seat(seat)
+	if session == null:
+		return
+	for heirloom_id: String in heirloom_ids:
+		if _heirloom_carriers.has("%d:%s" % [seat, heirloom_id]):
+			continue
+		for stand_in: EffectInstance in Loadout.heirloom_effects(catalog, heirloom_id, seat, ids):
+			if not battle.add_cross_map(stand_in):
+				session.engine.register(stand_in)
+
+
+# Points the write-back at the loaded battle's instances, which replaced the rebuilt ones: each
+# carrier's copy by its id (dropped when the battle holds none), the seat's heirlooms' saved
+# copies as their carriers, and each unit instance the battle holds through a loadout on a
+# throwaway allocator, whose homes are matched to the loaded effects (Loadout.LoadedUnit.relink).
+func _relink_battle(
+		battle: CombatEncounter, request: BattleRequest, catalog: EffectCatalog.Index
+) -> void:
+	var relinked: Dictionary[String, EffectInstance] = {}
+	for instance_id: String in _battle_copies:
+		var loaded: EffectInstance = _battle_instance(battle, instance_id)
+		if loaded != null:
+			relinked[instance_id] = loaded
+	_battle_copies = relinked
+	var scratch: InstanceIdAllocator = InstanceIdAllocator.new()
+	for seat: int in request.armies:
+		var army: Army = request.armies[seat]
+		_adopt_heirlooms(battle, catalog, seat, army.heirloom_ids)
+		for unit: UnitInstance in army.unit_instances:
+			var holder: CombatSession = battle.session_of_unit(unit.instance_id)
+			if holder == null:
+				continue
+			var loaded: Loadout.LoadedUnit = Loadout.load_unit(
+					catalog, unit, army.item_instances, CombatFact.CombatSide.PLAYER, seat, scratch
+			)
+			if not loaded.is_loaded():
+				continue
+			var restored: Array[EffectInstance] = holder.engine.get_instances()
+			loaded.relink(restored)
+			_loaded.append(loaded)
+
+
+# ASSUMPTION: a resumed run holds no carrier of its heirlooms (carriers aren't saved until P08), so
+# each heirloom's saved copy becomes its carrier under the copy's id, made as Begin made it, and the
+# heirloom counts as a carrier of the run from then on, as after Begin.
+func _adopt_heirlooms(
+		battle: CombatEncounter,
+		catalog: EffectCatalog.Index,
+		seat: int,
+		heirloom_ids: PackedStringArray
+) -> void:
+	var session: CombatSession = battle.session_of_seat(seat)
+	if session == null:
+		return
+	var taken: Dictionary[String, bool] = {}
+	for heirloom_id: String in heirloom_ids:
+		var key: String = "%d:%s" % [seat, heirloom_id]
+		if _heirloom_carriers.has(key) or catalog.heirloom(heirloom_id) == null:
+			continue
+		var scratch: InstanceIdAllocator = InstanceIdAllocator.new()
+		for made: EffectInstance in Loadout.heirloom_effects(catalog, heirloom_id, seat, scratch):
+			for loaded: EffectInstance in session.engine.get_instances():
+				if (
+						taken.has(loaded.instance_id)
+						or _carriers.has(loaded.instance_id)
+						or loaded.owner.kind != EffectOwner.Kind.ARMY
+						or loaded.owner.seat != seat
+						or loaded.source_kind != made.source_kind
+						or loaded.definition.id != made.definition.id
+				):
+					continue
+				taken[loaded.instance_id] = true
+				add_carrier(EffectInstance.new(
+						loaded.instance_id, made.definition, made.owner, made.source_kind, made.label
+				))
+				_battle_copies[loaded.instance_id] = loaded
+				_heirloom_carriers[key] = true
+				break
+
+
+# The battle's instance with instance_id, on whichever map holds it; null when none does.
+func _battle_instance(battle: CombatEncounter, instance_id: String) -> EffectInstance:
+	for session: CombatSession in battle.get_sessions():
+		var found: EffectInstance = session.engine.get_instance(instance_id)
+		if found != null:
+			return found
+	return null
+
+
+func _log_battle(what: String, request: BattleRequest, battle: CombatEncounter) -> void:
+	var net: NetLogScript = CombatSession.logger(
+			NetLogScript.Level.INFO, NetLogScript.Category.CAMPAIGN
+	)
+	if net != null:
+		net.info(
+				NetLogScript.Category.CAMPAIGN,
+				"%s floor %d node %d map %s seats %s"
+				% [what, request.floor_number, request.node, battle.setup.map.id, seats]
+		)
 
 
 # Registers a copy of each carrier whose owner is in the battle: a unit's or item's on its

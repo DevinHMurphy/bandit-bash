@@ -19,7 +19,8 @@ extends SceneTree
 ## danger zone and the previewed intents ([code]intent_cases.gd[/code]); the HUD: tile info, the
 ## unit panel, the turn counter and par colour, phase banners, the objective, the darkness counter,
 ## the fact log, target labels by name, the panel area and Use ([code]hud_cases.gd[/code]); then
-## the gameplay screen itself: its save debug panel (hidden when the battle opens, toggled by F3
+## the gameplay screen itself: a run saved mid-battle and continued opens on the board at its
+## saved state; its save debug panel (hidden when the battle opens, toggled by F3
 ## and read afresh each time it shows, clear of the M1 map at the 1152×648 base size, and
 ## untouched by clicks on the deployment tiles), the HUD clear of the map at the base size and
 ## wider, the run seed on the pause screen; the pause menu, opened by Esc and closed by Esc or
@@ -37,9 +38,10 @@ extends SceneTree
 ## script never names an autoload, or the gameplay screen's class (whose script does), since it
 ## compiles before autoloads are registered; it reaches them as nodes and loads the screen at run
 ## time.[br]
-## [b]The panel, pause and routing cases[/b] drive the real [code]SaveService[/code], which writes
-## save files, so they run only with a test user folder ([code]tools/run_tests.sh[/code] makes
-## one; see [code]tests/sessions/run_all.gd[/code]) and are skipped otherwise.
+## [b]The continue, panel, pause and routing cases[/b] drive the real
+## [code]SaveService[/code], which writes save files, so they run only with a test user folder
+## ([code]tools/run_tests.sh[/code] makes one; see [code]tests/sessions/run_all.gd[/code]) and
+## are skipped otherwise.
 
 const BattleViewCases = preload("res://tests/ui/battle_view_cases.gd")
 const TurnInputCases = preload("res://tests/ui/turn_input_cases.gd")
@@ -127,6 +129,7 @@ func _process(_delta: float) -> bool:
 		ForecastCases.new(_check, root).run()
 		IntentCases.new(_check, root).run()
 		HudCases.new(_check, root).run()
+		_run_continue_case()
 		if _start_panel_case():
 			_panel_frame = _frame
 			return false
@@ -180,6 +183,93 @@ func _begin_route() -> void:
 		_route_frame = _frame
 		return
 	_finish()
+
+
+# A new solo run's gameplay screen past Start, one unit's move and Wait, Save & Quit's checkpoint
+# and a quit; then Continue and the gameplay screen again: it opens the battle on the board at its
+# saved state (CampaignService.resume_battle), not the placeholder, ready for input.
+func _run_continue_case() -> void:
+	if not _has_test_user_dir():
+		_skips += 1
+		print("SKIP  continue: the gameplay screen needs a test user folder (see the class doc)")
+		return
+	var saves: Node = root.get_node(^"SaveService")
+	var service: Node = root.get_node(^"CampaignService")
+	SaveFile.delete_folder("user://saves/")
+	saves.call(&"open_save_file", SAVE_NUMBER)
+	saves.call(&"start_new_solo_run", RUN_SEED)
+	var screen: Node = (load(GAMEPLAY_SCENE) as PackedScene).instantiate()
+	root.add_child(screen)
+	var view: BattleView = screen.call(&"get_view")
+	var session: CombatSession = view.get_session()
+	var run: CampaignSession = service.get(&"session")
+	if session == null or run == null:
+		_check("continue: a new solo run's battle opens", false)
+		screen.free()
+		_end_continue_case()
+		return
+	var controller: BattleController = screen.call(&"get_controller")
+	if controller.swap_window.visible:
+		controller.swap_window.get_start_button().pressed.emit()
+		BattleViewCases.settle(view)
+	var unit_id: String = TurnInputModel.acting_units(session, 0)[0]
+	var goal: Vector2i = TurnInputModel.move_tiles(session, unit_id)[0]
+	var walk: Array[Vector2i] = TurnInputModel.path_to(session, unit_id, goal)
+	run.encounter.submit(
+			UnitTurnCommand.new(0, unit_id, UnitTurnCommand.Action.WAIT, "", walk),
+			session.session_id
+	)
+	run.encounter.resolve_queued()
+	BattleViewCases.settle(view)
+	var saved: Error = saves.call(&"save_checkpoint")
+	var saved_hash: int = session.state_hash()
+	var saved_tile: Vector2i = session.state.tile_of(unit_id)
+	var saved_turn: int = session.state.turn
+	screen.free()
+	saves.call(&"close_save_file")
+
+	saves.call(&"open_save_file", SAVE_NUMBER)
+	saves.call(&"continue_solo_run")
+	var point: int = saves.get(&"resume_point")
+	screen = (load(GAMEPLAY_SCENE) as PackedScene).instantiate()
+	root.add_child(screen)
+	view = screen.call(&"get_view")
+	controller = screen.call(&"get_controller")
+	var again: CombatSession = view.get_session()
+	var placeholder: Control = screen.get_node(^"%CoopPlaceholder")
+	var sorted_ids: PackedStringArray = [] if again == null else again.state.unit_ids()
+	sorted_ids.sort()
+	_check("continue: a run saved mid-battle opens on the board at its saved state", (
+			saved == OK
+			and point == CombatData.ResumePoint.BATTLE
+			and again != null
+			and not placeholder.visible
+			and again.state_hash() == saved_hash
+			and again.state.turn == saved_turn
+			and again.state.tile_of(unit_id) == saved_tile
+			and again.state.unit(unit_id).has_acted
+			and view.token_ids() == sorted_ids
+			and view.mismatches().is_empty()
+	), "saved %s, point %d, placeholder %s; %s" % [
+		error_string(saved), point, placeholder.visible,
+		"no battle" if again == null else str(view.mismatches()),
+	])
+	_check("continue: the resumed battle takes input, with its intents shown", (
+			again != null
+			and controller.is_accepting_input()
+			and not controller.swap_window.visible
+			and again.intents != null
+			and not TurnInputModel.can_act(again, unit_id)
+	))
+	screen.free()
+	_end_continue_case()
+
+
+func _end_continue_case() -> void:
+	var saves: Node = root.get_node(^"SaveService")
+	saves.call(&"abandon_run", CampaignData.Mode.SOLO)
+	saves.call(&"close_save_file")
+	SaveFile.delete_folder("user://saves/")
 
 
 # A new solo run's gameplay screen at the base size: the save debug panel is hidden as the battle

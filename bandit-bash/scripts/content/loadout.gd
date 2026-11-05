@@ -6,7 +6,7 @@
 # File:     loadout.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 30, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 class_name Loadout
@@ -514,6 +514,36 @@ class LoadedUnit:
 	func write_back() -> void:
 		for home: Loadout.CounterHome in _homes:
 			home.write_back()
+
+	## Points each write-back home at its effect in [param restored], the instances of a battle
+	## loaded from a save, which replaced the ones this unit was loaded with: the first not yet
+	## taken with the same owner and definition id (unique within a carrier, as the content test
+	## requires), in [method EffectEngine.get_instances] order. The match also replaces the
+	## instance in [member effects]. A home with no match is dropped, so it writes nothing back.
+	## Returns how many homes found their effect.
+	func relink(restored: Array[EffectInstance]) -> int:
+		var taken: Dictionary[String, bool] = {}
+		var kept: Array[Loadout.CounterHome] = []
+		for home: Loadout.CounterHome in _homes:
+			var found: EffectInstance = null
+			for candidate: EffectInstance in restored:
+				if (
+						not taken.has(candidate.instance_id)
+						and candidate.owner.owner_id == home.instance.owner.owner_id
+						and candidate.definition.id == home.instance.definition.id
+				):
+					found = candidate
+					break
+			if found == null:
+				continue
+			taken[found.instance_id] = true
+			var index: int = effects.find(home.instance)
+			if index >= 0:
+				effects[index] = found
+			home.instance = found
+			kept.append(home)
+		_homes = kept
+		return kept.size()
 
 
 ## Where one effect's campaign-lane state lives between battles: the counters and charges of the

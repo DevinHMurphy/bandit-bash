@@ -6,13 +6,14 @@
 # File:     turn_cases.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 29, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 extends RefCounted
 ## Turn loop and command cases for tests/combat/run_all.gd: Phase Start and Phase End order, the
 ## full hook order, terrain healing, the enemy phase as one command, the unit-turn, end-turn and
-## rune commands with their rejections, the second move, a range-0 staff, a scripted two-side fight
+## rune commands with their rejections, the second move and a move that goes nowhere, a range-0
+## staff, a scripted two-side fight
 ## that runs to a defeat and repeats exactly, and battle start: the opening swap window, its swaps
 ## and Start commands, and the setting off.
 ##
@@ -55,6 +56,7 @@ func run() -> void:
 	_test_unit_turn_rejections()
 	_test_ended_seat_and_two_seats()
 	_test_second_move()
+	_test_move_nowhere_refused()
 	_test_range_zero_staff()
 	_test_rune_command()
 	_test_enemy_command_rejected()
@@ -395,6 +397,90 @@ func _test_second_move() -> void:
 			"p1 has no move left after acting"
 	)
 	_quiet(world)
+
+
+# Question 21: a move that goes nowhere (no path, the unit's own tile, or a walk back to it) is
+# refused for every move command, a player's and the AI's, with its reason, recording nothing and
+# leaving the move pending; a Wait after acting ends the move instead, with UNIT_WAITED, and a
+# mirror applying the host's batches ends with the same state.
+func _test_move_nowhere_refused() -> void:
+	var host: TurnWorld = _skirmish_world()
+	var mirror: TurnWorld = _skirmish_world()
+	var batches: Array[CombatSession.FactBatch] = []
+	var here: Vector2i = Vector2i(1, 0)
+	var walk: Array[Vector2i] = [Vector2i(0, 0), here]
+	batches.append(host.send(UnitTurnCommand.new(0, "p1", WAIT, "", walk)))
+	var start: int = host.log_size()
+	var nowhere: Array[Array] = [[], [here], [here, Vector2i(2, 0), here]]
+	var reasons: PackedStringArray = []
+	for steps: Array in nowhere:
+		var path: Array[Vector2i] = []
+		path.assign(steps)
+		var batch: CombatSession.FactBatch = host.send(
+				UnitTurnCommand.new(0, "p1", UnitTurnCommand.Action.MOVE, "", path)
+		)
+		reasons.append(batch.rejected_reason)
+		batches.append(batch)
+	var refused: PackedStringArray = []
+	refused.resize(nowhere.size())
+	refused.fill("p1's move goes nowhere")
+	_same("move nowhere: refused, by no path, the own tile or a walk back to it", reasons, refused)
+	_ok("move nowhere: nothing recorded, and the move stays pending", (
+			host.log_size() == start and host.state().unit("p1").is_second_move_pending
+	))
+
+	# The AI's commands go through the same check: an enemy with a move pending, in its phase.
+	var enemy: CombatUnitState = host.state().unit("e1")
+	enemy.has_acted = true
+	enemy.is_second_move_pending = true
+	host.state().phase_side = ENEMY
+	var ai_reason: String = UnitTurnCommand.new(
+			-1, "e1", UnitTurnCommand.Action.MOVE, "", [Vector2i(5, 3)]
+	).validate(host.session)
+	host.state().phase_side = PLAYER
+	enemy.has_acted = false
+	enemy.is_second_move_pending = false
+	_same("move nowhere: refused for the AI too", ai_reason, "e1's move goes nowhere")
+
+	var waited: CombatSession.FactBatch = host.send(UnitTurnCommand.new(0, "p1", WAIT))
+	batches.append(waited)
+	_ok("move nowhere: a Wait after acting ends the move, with UNIT_WAITED", (
+			not waited.is_rejected()
+			and host.kinds(start) == "UNIT_WAITED"
+			and not host.state().unit("p1").is_second_move_pending
+			and host.state().tile_of("p1") == here
+	), "%s %s" % [waited.rejected_reason, host.kinds(start)])
+	_same(
+			"move nowhere: and no second Wait follows",
+			host.send(UnitTurnCommand.new(0, "p1", WAIT)).rejected_reason,
+			"p1 has acted"
+	)
+	var applied: Array[Error] = []
+	for batch: CombatSession.FactBatch in batches:
+		applied.append(mirror.session.apply_batch(batch))
+	_ok("move nowhere: a mirror follows the Wait, hash for hash", (
+			not applied.has(ERR_INVALID_DATA)
+			and not applied.has(ERR_PARAMETER_RANGE_ERROR)
+			and not mirror.state().unit("p1").is_second_move_pending
+			and mirror.state().unit("p1").has_acted
+			and mirror.session.state_hash() == host.session.state_hash()
+	), str(applied))
+	_quiet(host)
+
+
+# A world with p1 (seat 0, at (0, 0)) allowed to move after acting, and e1 (at (5, 3)), opened.
+func _skirmish_world() -> TurnWorld:
+	var world: TurnWorld = TurnWorld.new()
+	world.add_unit("p1", PLAYER, 0, Vector2i(0, 0))
+	world.add_unit("e1", ENEMY, -1, Vector2i(5, 3))
+	var skirmisher: SetPermission = SetPermission.new()
+	skirmisher.permission = CombatValue.Permission.MAY_MOVE_AFTER_ACTING
+	skirmisher.allow = true
+	world.add_effect("effect:skirmisher", "p1", _definition(
+			EffectTerms.Trigger.ALWAYS, [skirmisher]
+	))
+	world.session.open_battle()
+	return world
 
 
 # Everwall at range 0 (question 14): the command names no target and the user is filled in;

@@ -6,7 +6,7 @@
 # File:     combat_state.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: November 4, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 class_name CombatState
@@ -270,13 +270,17 @@ func defeat(engine: EffectEngine, id: String, by_id: String, source_effect_id: S
 	MapObjects.drop_carried(self, id, by_id)
 
 
-## The Wait action: [param id] ends its turn without acting and records
-## [constant CombatFact.Kind.UNIT_WAITED]. Returns false, recording nothing, when it is off the
-## map or has already acted.
+## The Wait action: [param id] ends its turn without acting, or ends the second move it has pending
+## after acting, and records [constant CombatFact.Kind.UNIT_WAITED]. Returns false, recording
+## nothing, when it is off the map or has acted with no second move pending.
 func wait(engine: EffectEngine, id: String) -> bool:
-	if not has_unit(id) or _units[id].has_acted:
+	if not has_unit(id):
 		return false
-	_units[id].has_acted = true
+	var unit: CombatUnitState = _units[id]
+	if unit.has_acted and not unit.is_second_move_pending:
+		return false
+	unit.has_acted = true
+	unit.is_second_move_pending = false
 	engine.record(CombatFact.new(CombatFact.Kind.UNIT_WAITED, id))
 	return true
 
@@ -403,7 +407,7 @@ func restore(data: Dictionary) -> Error:
 ## the host read. Map objects follow their changes (doors, loot, braziers, breakables, a key's last
 ## use, a Cutthroat's dropped loot), and points their closing and waves sent. Draws no roll and
 ## fires nothing. Not followed: a point's waiting units, which no fact carries; a non-final End Turn
-## or Start on a map several seats share; a second move that goes nowhere.
+## or Start on a map several seats share.
 ## [param spawned]: units this state doesn't know, by id, each placed at its
 ## [constant CombatFact.Kind.UNIT_SPAWNED] ([member CombatSession.FactBatch.spawned]); add their
 ## weapons, bases and effects to [param engine] first.
@@ -451,6 +455,10 @@ func follow(
 					actor.movement_spent += fact.key
 					if actor.has_acted:
 						actor.is_second_move_pending = false
+			CombatFact.Kind.UNIT_WAITED:
+				# Unflagged, it is a Wait after acting, which ends the second move.
+				if actor != null and (fact.flags & CombatFact.Flag.SECOND_MOVE_PENDING) == 0:
+					actor.is_second_move_pending = false
 			CombatFact.Kind.UNIT_SPAWNED:
 				if not _units.has(fact.actor_id) and spawned.has(fact.actor_id):
 					place_unit(engine, spawned[fact.actor_id])
