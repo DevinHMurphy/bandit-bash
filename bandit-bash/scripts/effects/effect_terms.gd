@@ -6,7 +6,7 @@
 # File:     effect_terms.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 29, 2026
+# Modified: November 4, 2026
 # ==============================================================================
 
 @tool
@@ -172,6 +172,16 @@ const LANE_TEXT: Dictionary[int, String] = {
 	Lane.CAMPAIGN: "this campaign",
 }
 
+## Effect-text names of the damage stage keys, as players read a change to them ("+2 Attack for
+## that hit", "×0.5 damage taken"); [method key_name] keeps the stage names for the inspector.
+const STAGE_TEXT: Dictionary[int, String] = {
+	DamageStage.Key.ATTACK: "Attack",
+	DamageStage.Key.MITIGATION: "Mitigation",
+	DamageStage.Key.CRITICAL: "crit damage",
+	DamageStage.Key.MULTIPLIERS: "damage",
+	DamageStage.Key.INCOMING_MULTIPLIERS: "damage taken",
+}
+
 
 ## Display name of a value or permission key, such as "Combat Gold", "Attack stage" or "SPD" (base
 ## stats keep their abbreviations).
@@ -223,13 +233,13 @@ static func stat_hint() -> String:
 	return ",".join(entries)
 
 
-## Effect text for one modifier, such as "+8 Combat Gold", "×0.5 Multipliers stage",
-## "Range Max 2 instead of its base", "deny Can Counter" or, for a per-stat key with
-## [param stat], "deny Stat Can Grow (SPD)".
+## Effect text for one modifier, such as "+8 Combat Gold", "×0.5 damage" (a damage stage, named
+## by [constant STAGE_TEXT]), "Range Max 2 instead of its base", "deny Can Counter" or, for a
+## per-stat key with [param stat], "deny Stat Can Grow (SPD)".
 static func describe_modifier(
 		key: int, mode: Modifier.Mode, value: float, stat: int = Modifier.NO_STAT
 ) -> String:
-	var name: String = key_name(key)
+	var name: String = STAGE_TEXT.get(key, key_name(key))
 	var stat_name: Variant = CombatValue.Stat.find_key(stat)
 	if stat_name != null:
 		name = "%s (%s)" % [name, stat_name]

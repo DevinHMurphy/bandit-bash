@@ -1,0 +1,91 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/battle/forecast_panel.gd" id="1_panel"]
+[ext_resource type="Theme" path="res://scenes/ui/battle/battle_theme.tres" id="2_theme"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/forecast_row.tscn" id="3_row"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/forecast_breakdown.tscn" id="4_breakdown"]
+
+[node name="ForecastPanel" type="PanelContainer"]
+theme = ExtResource("2_theme")
+script = ExtResource("1_panel")
+row_scene = ExtResource("3_row")
+
+[node name="Column" type="VBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"ForecastHeading"
+text = "Attack"
+
+[node name="Headings" type="HBoxContainer" parent="Column"]
+layout_mode = 2
+
+[node name="ActorHeading" type="Label" parent="Column/Headings"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(128, 0)
+layout_mode = 2
+theme_type_variation = &"ForecastCell"
+text = "You"
+horizontal_alignment = 2
+autowrap_mode = 3
+
+[node name="Gap" type="Control" parent="Column/Headings"]
+custom_minimum_size = Vector2(72, 0)
+layout_mode = 2
+
+[node name="TargetHeading" type="Label" parent="Column/Headings"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(128, 0)
+layout_mode = 2
+theme_type_variation = &"ForecastCell"
+text = "Target"
+autowrap_mode = 3
+
+[node name="Rows" type="VBoxContainer" parent="Column"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Notes" type="Label" parent="Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(328, 0)
+layout_mode = 2
+theme_type_variation = &"ForecastNote"
+autowrap_mode = 3
+
+[node name="Breakdown" parent="Column" instance=ExtResource("4_breakdown")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
+[node name="Toggles" type="HBoxContainer" parent="Column"]
+layout_mode = 2
+
+[node name="BreakdownButton" type="Button" parent="Column/Toggles"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = "Breakdown"
+
+[node name="CycleButton" type="Button" parent="Column/Toggles"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Next weapon (C)"
+
+[node name="Buttons" type="HBoxContainer" parent="Column"]
+layout_mode = 2
+
+[node name="ConfirmButton" type="Button" parent="Column/Buttons"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Confirm"
+
+[node name="BackButton" type="Button" parent="Column/Buttons"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Back"

@@ -6,7 +6,7 @@
 # File:     engine_cases.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 31, 2026
+# Modified: November 4, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -140,7 +140,7 @@ func _test_command_target_and_mend() -> void:
 			[],
 			[_gain(GainResource.Pool.HP, CommandTarget.new(), _constant(10.0))]
 	)
-	_same("f4: Mend text", mend.describe(), "Always: heal the target for 10")
+	_same("f4: Mend text", mend.describe(), "Heal the target for 10")
 
 	var rune: EffectInstance = _instance(
 			"effect:mend", mend, EffectOwner.for_rune("rune:1", 0), Modifier.SourceKind.RUNE

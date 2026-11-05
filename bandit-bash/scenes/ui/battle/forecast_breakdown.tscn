@@ -1,0 +1,29 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/battle/forecast_breakdown.gd" id="1_breakdown"]
+[ext_resource type="Theme" path="res://scenes/ui/battle/battle_theme.tres" id="2_theme"]
+
+[node name="ForecastBreakdown" type="VBoxContainer"]
+theme = ExtResource("2_theme")
+script = ExtResource("1_breakdown")
+
+[node name="Heading" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"ForecastHeading"
+text = "Damage stages (first hit)"
+
+[node name="ActorStages" type="Label" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(328, 0)
+layout_mode = 2
+theme_type_variation = &"ForecastNote"
+text = "Attacker"
+autowrap_mode = 3
+
+[node name="TargetStages" type="Label" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(328, 0)
+layout_mode = 2
+theme_type_variation = &"ForecastNote"
+text = "Defender"
+autowrap_mode = 3

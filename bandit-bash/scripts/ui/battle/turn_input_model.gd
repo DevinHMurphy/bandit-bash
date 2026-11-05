@@ -206,13 +206,18 @@ static func actions_at(
 	if not unit.stowed_weapon_id.is_empty() and unit.stowed_weapon_id != unit.equipped_weapon_id:
 		weapons.append(unit.stowed_weapon_id)
 	for enemy_id: String in state.units_of(ENEMY):
+		var found: TargetOption = null
 		for weapon_id: String in weapons:
 			var command: UnitTurnCommand = _turn(
 					session, unit_id, UnitTurnCommand.Action.ATTACK, enemy_id, path, weapon_id
 			)
-			if command != null:
-				attack.targets.append(_target(session, enemy_id, command))
-				break
+			if command == null:
+				continue
+			if found == null:
+				found = _target(session, enemy_id, command)
+				attack.targets.append(found)
+			else:
+				found.commands.append(command)
 	_add_targeted(options, attack)
 
 	var staff: ActionOption = ActionOption.new(ActionKind.STAFF)
@@ -337,6 +342,7 @@ static func _target(session: CombatSession, target_id: String, command: Command)
 	option.tile = session.state.tile_of(target_id)
 	option.label = session.describe(target_id)
 	option.command = command
+	option.commands.append(command)
 	return option
 
 
@@ -391,5 +397,9 @@ class TargetOption:
 	var tile: Vector2i = CombatFact.NO_TILE
 	## Its label in the target picker ([method CombatSession.describe]).
 	var label: String = ""
-	## The command sent when this target is confirmed.
+	## The command sent when this target is confirmed: the first of [member commands].
 	var command: Command = null
+	## Every command that aims the action here: for an attack, one per weapon the session accepts
+	## (the one in hand first, then the stowed one through Sidearm's free swap), which the forecast
+	## cycles; otherwise only [member command].
+	var commands: Array[Command] = []

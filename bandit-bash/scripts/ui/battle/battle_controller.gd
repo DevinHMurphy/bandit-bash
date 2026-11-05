@@ -23,6 +23,10 @@ extends Node
 ## through one [PanelHost]: each stage that opens a panel pushes one, and cancel pops exactly one.
 ## Input waits while playback runs ([method BattleView.is_settled]), except fast-forward and the
 ## skip.[br]
+## [b]Forecast:[/b] an attack, a staff or a shove is confirmed on a [ForecastPanel]
+## ([ForecastViewModel]), which cycles the target's weapons ([method cycle_weapon]).
+## [b]Move preview:[/b] hovering a move tile requests a [MovePreview]; [method run_preview_frame]
+## runs at most one per frame, for the newest hover, and [MovePreviewMarks] draws it.[br]
 ## [BattleScreen] binds it to the seat's map ([method bind]); its widgets are the nodes set in its
 ## exports, which the gameplay scene points at.
 ##
@@ -61,7 +65,9 @@ extends Node
 #                                                behind a fade to black, BattleView.skip_playback.
 #                                                Harmless with nothing playing or during a skip)
 #   "toggle_danger_zone"    -> R              (bound for UI4; not read here)
-#   "cycle_weapon"          -> C              (bound for UI3; not read here)
+#   "cycle_weapon"          -> C              (CONFIRM with the forecast panel open: the forecast
+#                                                and the command move to the target's next weapon,
+#                                                wrapping. Harmless elsewhere, and with one weapon)
 #   "toggle_save_debug"     -> F3             (read by the save debug panel; not read here)
 # While a command's playback runs, the map's combat is over, or the seat has no turn, every input
 # but fast_forward and skip_playback is ignored: that guard is deliberate, not a missing check.
@@ -82,8 +88,10 @@ extends Node
 #              (Godot_FE toggle_selected_unit); elsewhere inert -- Godot_FE's game menu on an
 #              empty tile is not ported, End Turn has its own key and button.
 # MOVE:        a unit selected: its move and attack tiles drawn, and the path to the cursor while
-#              the cursor is on a move tile. Accept on a move tile (its own included) opens the
-#              action menu (ACTION); elsewhere inert. Cancel -> IDLE.
+#              the cursor is on a move tile, with that tile's move preview (requested on each
+#              hover, run by run_preview_frame, cleared off a move tile and on leaving MOVE).
+#              Accept on a move tile (its own included) opens the action menu (ACTION); elsewhere
+#              inert. Cancel -> IDLE.
 # ACTION:      the action menu on top of PanelHost; the cursor stays on the picked tile, and board
 #              clicks and hovers are inert. An action with targets opens the target picker
 #              (TARGET); Wait and Swap send their command at once, as Godot_FE's Wait does.
@@ -91,12 +99,17 @@ extends Node
 # TARGET:      the target picker; the cursor (target colour) shows the focused row's target or
 #              follows the mouse. A row, or accept on a target's tile, opens the confirm
 #              (CONFIRM). Cancel -> ACTION.
-# CONFIRM:     the confirm dialog: Confirm sends the command. Cancel or Back -> TARGET.
+# CONFIRM:     Attack, Staff, Shove: the forecast panel (with forecast_panel_scene set), whose
+#              Confirm sends the command of the weapon shown; cycle_weapon and Next weapon move to
+#              the target's next weapon. Item, Rune, or no forecast scene: the confirm dialog,
+#              whose Confirm sends the command. Cancel or Back -> TARGET, back to the first weapon.
 # END_CONFIRM: End Turn's question while units can still act: Confirm sends EndTurnCommand.
 #              Cancel or Back -> the stage it was asked from (IDLE or MOVE).
-# There is no forecast stage: UI3 opens the forecast between TARGET and CONFIRM, in
-# _open_confirm(). There is no walk before the action menu either: Godot_FE moved the unit first,
+# There is no separate forecast stage: the forecast is CONFIRM's panel, as Godot_FE's forecast
+# took the confirm. There is no walk before the action menu either: Godot_FE moved the unit first,
 # but here the move and the action are one command, so the token stays put until it plays.
+# Cycling changes no state: each weapon has its own command (TargetOption.commands), where
+# Godot_FE equipped the weapon on the unit at each step and left it equipped on Back.
 # Global: cancel pops exactly one stage (_history), and one panel with it. Sending a command
 # flushes every panel, stage and mark and waits in INACTIVE; when its playback settles the stage
 # is rebuilt from the session:
@@ -141,6 +154,10 @@ const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
 ## [b]Unset:[/b] no confirm opens and an error is reported.
 @export var confirm_dialog_scene: PackedScene = null
 
+## The forecast panel scene ([ForecastPanel]), the confirm of an attack, a staff or a shove.[br]
+## [b]Unset:[/b] those confirm on the confirm dialog, with no forecast.
+@export var forecast_panel_scene: PackedScene = null
+
 @export_group("Widgets")
 
 ## The board: its cursor, overlays and path, and the playback input waits on.[br]
@@ -162,6 +179,10 @@ const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
 ## Where rejection reasons show.[br]
 ## [b]Unset:[/b] rejections are only logged by the session.
 @export var message: BattleMessage = null
+
+## The move preview on the board, a child of [member view].[br]
+## [b]Unset:[/b] no move preview is requested or run.
+@export var move_preview_marks: MovePreviewMarks = null
 
 @export_group("")
 
@@ -185,6 +206,15 @@ var _end_tile: Vector2i = CombatFact.NO_TILE
 var _path: Array[Vector2i] = []
 var _action: TurnInputModel.ActionOption = null
 var _target: TurnInputModel.TargetOption = null
+
+# In CONFIRM, which of _target.commands is shown and sent.
+var _weapon_index: int = 0
+
+# The forecast panel open in CONFIRM; null with the confirm dialog or outside CONFIRM.
+var _forecast_panel: ForecastPanel = null
+
+# The newest hover's move preview, waiting for run_preview_frame.
+var _previews: MovePreview.Queue = MovePreview.Queue.new()
 
 # What accept on a tile picks in TARGET (the action's targets) and SWAP_PICKED (the partners).
 var _targets_by_tile: Dictionary[Vector2i, TurnInputModel.TargetOption] = {}
@@ -239,6 +269,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		confirm_tile(_cursor)
 	elif event.is_action_pressed(&"end_turn"):
 		request_end_turn()
+	elif event.is_action_pressed(&"cycle_weapon"):
+		cycle_weapon()
 	elif event.is_action_pressed(&"ui_up", true):
 		_step_cursor(Vector2i.UP)
 	elif event.is_action_pressed(&"ui_down", true):
@@ -247,6 +279,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		_step_cursor(Vector2i.LEFT)
 	elif event.is_action_pressed(&"ui_right", true):
 		_step_cursor(Vector2i.RIGHT)
+
+
+func _process(_delta: float) -> void:
+	run_preview_frame()
 
 
 ## Takes turn input for [param seat] on [param session], a map of [param encounter], and shows the
@@ -327,8 +363,8 @@ func is_accepting_input() -> bool:
 	)
 
 
-## Moves the cursor to [param tile] when it is on the map, redrawing the path in MOVE. Returns
-## whether it moved.
+## Moves the cursor to [param tile] when it is on the map, redrawing the path in MOVE and asking
+## for the tile's move preview there. Returns whether it moved.
 func move_cursor(tile: Vector2i) -> bool:
 	if _session == null or not _is_on_map(tile):
 		return false
@@ -337,7 +373,51 @@ func move_cursor(tile: Vector2i) -> bool:
 	if _stage == Stage.MOVE:
 		_path = TurnInputModel.path_to(_session, _unit_id, tile)
 		_draw_path()
+		_request_preview(tile)
 	return true
+
+
+## Weapon cycling in the forecast (cycle_weapon, Next weapon): shows the target's next weapon's
+## forecast, wrapping, and makes its command the one Confirm sends. Returns false, doing nothing,
+## outside CONFIRM's forecast panel or with one weapon.
+func cycle_weapon() -> bool:
+	if _stage != Stage.CONFIRM or _forecast_panel == null or _target == null:
+		return false
+	if _target.commands.size() < 2:
+		return false
+	_weapon_index = (_weapon_index + 1) % _target.commands.size()
+	_forecast_panel.show_forecast(_forecast_model())
+	return true
+
+
+## The command Confirm would send now: in CONFIRM, the weapon shown's; null elsewhere.
+func get_confirm_command() -> Command:
+	if _stage != Stage.CONFIRM or _target == null:
+		return null
+	if _weapon_index < _target.commands.size():
+		return _target.commands[_weapon_index]
+	return _target.command
+
+
+## Runs the newest hover's move preview, if one waits, and draws it: at most one per call.
+## [method Node._process] calls it once a frame; tests call it to stand for a frame. Returns
+## whether a preview ran.
+func run_preview_frame() -> bool:
+	if _session == null or move_preview_marks == null or _stage != Stage.MOVE:
+		return false
+	var preview: MovePreview = _previews.run_pending(_session)
+	if preview == null:
+		return false
+	var enemy_positions: Array[Vector2] = []
+	for enemy_id: String in preview.changed_enemies:
+		enemy_positions.append(view.tile_to_position(_session.state.tile_of(enemy_id)))
+	move_preview_marks.show_preview(preview, view.tile_to_position(preview.tile), enemy_positions)
+	return true
+
+
+## The move preview queue, for tests and benchmarks that count the previews run.
+func get_preview_queue() -> MovePreview.Queue:
+	return _previews
 
 
 ## Accept on [param tile]: what it does depends on the stage (see the state block). Ignored while
@@ -395,6 +475,8 @@ func step_back() -> bool:
 		Stage.CONFIRM:
 			move_cursor(_target.tile)
 			_target = null
+			_weapon_index = 0
+			_forecast_panel = null
 	_redraw()
 	return true
 
@@ -513,8 +595,26 @@ func _pick_swap_unit(unit_id: String) -> void:
 	_redraw()
 
 
-# The forecast's seam: UI3 opens the forecast panel here, between the target and the confirm.
+# The step between the target and the command: the forecast panel for an attack, a staff or a
+# shove, the confirm dialog for the rest (see the state block).
 func _open_confirm() -> void:
+	_weapon_index = 0
+	_forecast_panel = null
+	var turn: UnitTurnCommand = _target.command as UnitTurnCommand
+	# ASSUMPTION: the forecast takes the confirm dialog's place (Confirm on it sends), as Godot_FE's
+	# forecast took ui_confirm; a second question after the forecast would ask twice.
+	if forecast_panel_scene != null and turn != null and turn.needs_fresh_forecast():
+		var panel: ForecastPanel = (
+				_open_panel(Stage.CONFIRM, forecast_panel_scene, _forecast_model()) as ForecastPanel
+		)
+		if panel == null:
+			return
+		_forecast_panel = panel
+		panel.confirmed.connect(_on_confirm_dialog_confirmed)
+		panel.cancelled.connect(_on_panel_cancelled)
+		panel.weapon_cycle_requested.connect(_on_forecast_panel_weapon_cycle_requested)
+		_redraw()
+		return
 	var dialog: BattlePanel = _open_panel(Stage.CONFIRM, confirm_dialog_scene, (
 			"%s %s?" % [_action.label, _target.label]
 	))
@@ -523,6 +623,30 @@ func _open_confirm() -> void:
 	dialog.confirmed.connect(_on_confirm_dialog_confirmed)
 	dialog.cancelled.connect(_on_panel_cancelled)
 	_redraw()
+
+
+# The forecast of the weapon shown against _target.
+func _forecast_model() -> ForecastViewModel:
+	var index: int = mini(_weapon_index, _target.commands.size() - 1)
+	var command: UnitTurnCommand = _target.commands[maxi(index, 0)] as UnitTurnCommand
+	return ForecastViewModel.build(_session, command, index, _target.commands.size())
+
+
+# Asks for tile's move preview while it is one of the selected unit's move tiles, else clears it.
+func _request_preview(tile: Vector2i) -> void:
+	if move_preview_marks == null:
+		return
+	if _is_move_tile.has(tile):
+		_previews.request(_unit_id, tile)
+		return
+	_clear_preview()
+
+
+func _clear_preview() -> void:
+	_previews.clear()
+	# The marks can be freed first when the screen is torn down; unbind() still calls this.
+	if is_instance_valid(move_preview_marks):
+		move_preview_marks.clear()
 
 
 func _toggle_enemy_range(enemy_id: String) -> void:
@@ -549,6 +673,10 @@ func _advance(stage: Stage) -> void:
 
 func _set_stage(stage: Stage) -> void:
 	_stage = stage
+	if stage != Stage.MOVE:
+		# ASSUMPTION: the preview shows only while picking a tile; the menu, target and forecast
+		# that follow show no preview of the picked tile.
+		_clear_preview()
 	if view != null and view.get_cursor() != null:
 		view.get_cursor().is_targeting = stage == Stage.TARGET or stage == Stage.CONFIRM
 	_refresh_widgets()
@@ -563,6 +691,8 @@ func _clear_selection() -> void:
 	_path.clear()
 	_action = null
 	_target = null
+	_weapon_index = 0
+	_forecast_panel = null
 	_targets_by_tile.clear()
 
 
@@ -765,8 +895,13 @@ func _on_target_picker_highlighted(result: Variant) -> void:
 
 
 func _on_confirm_dialog_confirmed(_result: Variant) -> void:
-	if _stage == Stage.CONFIRM and _target != null:
-		_send(_target.command)
+	var command: Command = get_confirm_command()
+	if command != null:
+		_send(command)
+
+
+func _on_forecast_panel_weapon_cycle_requested() -> void:
+	cycle_weapon()
 
 
 func _on_end_turn_dialog_confirmed(_result: Variant) -> void:

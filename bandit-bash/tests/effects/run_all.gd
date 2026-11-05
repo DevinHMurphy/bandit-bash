@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 29, 2026
+# Modified: November 4, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -1150,7 +1150,7 @@ func _test_describe_operations() -> void:
 	_snapshot(
 			"modify that: value, named by trigger",
 			halve.describe_for_trigger(EffectTerms.Trigger.HIT_TAKEN),
-			"×0.5 Multipliers stage for that hit"
+			"×0.5 damage for that hit"
 	)
 	_check("modify that: inline", halve.is_inline())
 	var lifesteal: ModifyThat = ModifyThat.new()
@@ -1190,7 +1190,7 @@ func _test_describe_operations() -> void:
 	_snapshot(
 			"timed: area until the end of the next phase",
 			horn.describe(),
-			"give units within 2 tiles, friend or foe +2 Attack stage until the end of the next"
+			"give units within 2 tiles, friend or foe +2 Attack until the end of the next"
 			+ " phase"
 	)
 	var may_move: int = CombatValue.Permission.MAY_MOVE_AFTER_ACTING
@@ -1437,7 +1437,7 @@ func _test_describe_coverage_fixtures() -> void:
 			"fixture: War Horn",
 			_definition(EffectTerms.Trigger.PHASE_START, [second], [horn]).describe(),
 			"Every 2nd Phase Start this combat: give this unit and units within 2 tiles, friend or"
-			+ " foe +2 Attack stage until the end of the next phase"
+			+ " foe +2 Attack until the end of the next phase"
 	)
 
 	var cup_gain: GainResource = _gain(
@@ -1462,7 +1462,7 @@ func _test_describe_coverage_fixtures() -> void:
 	_snapshot(
 			"fixture: Lantern Oil",
 			lantern.describe(),
-			"Darkness damage taken by Your Unit: ×0.5 Multipliers stage for that darkness damage"
+			"Darkness damage taken by Your Unit: ×0.5 damage for that darkness damage"
 	)
 
 	var gold: ModifyValue = _modify_value(CampaignValue.Key.COMBAT_GOLD, ADD, 8.0)
@@ -1525,7 +1525,7 @@ func _test_describe_definition_shapes() -> void:
 	_snapshot(
 			"definition: counter, then other conditions",
 			_definition(EffectTerms.Trigger.HIT_TAKEN, [chance, tenth], [halve]).describe(),
-			"Every 10th Hit taken this combat, 25% chance: ×0.5 Multipliers stage for that hit"
+			"Every 10th Hit taken this combat, 25% chance: ×0.5 damage for that hit"
 	)
 
 	var exposed: WhileStateCondition = WhileStateCondition.new()
