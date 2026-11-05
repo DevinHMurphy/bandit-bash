@@ -6,7 +6,7 @@
 # File:     enemy_ai.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 4, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 class_name EnemyAI
@@ -31,8 +31,9 @@ extends RefCounted
 ## and gives the best plan, so each sees what the ones before it did. An enemy whose unit type is
 ## no enemy class Waits.[br]
 ## Rules code: pure, static and deterministic, with no RNG and no logging; it reports through
-## [member EffectEngine.diagnostics]. Main thread only: every preview creates sandboxes
-## (question 17).
+## [member EffectEngine.diagnostics]. Main thread on a session's engine; [method decide] and
+## [method next_plan] on a sandbox's engine no other thread touches may run on a worker
+## ([method Intents.PreviewJob.run]), since each preview copies only that engine (question 17).
 ##
 ## @tutorial(Enemies and AI plan): docs/plans/2026-10-30-enemies-and-ai.md
 ## @tutorial(Enemy roster): docs/design/enemy-roster.md
