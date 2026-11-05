@@ -41,7 +41,7 @@ enum ActionKind {
 	## A rune from the seat's slots ([CastRuneCommand]); acts for no unit.
 	RUNE = 5,
 	## Ends the unit's turn where it stands; with a second move pending, ends that move
-	## ([constant UnitTurnCommand.Action.MOVE]).
+	## ([constant UnitTurnCommand.Action.MOVE] to another tile, a Wait where it stands).
 	WAIT = 6,
 	## A map object at the tile picked: visit a house, open a chest or door, pull a lever, take a
 	## passage, light a brazier ([constant UnitTurnCommand.Action.USE_OBJECT]).
@@ -335,7 +335,8 @@ static func path_to(session: CombatSession, unit_id: String, tile: Vector2i) -> 
 
 ## Every action [param unit_id] can take after walking [param path] ([method path_to]; empty to
 ## stay), in [constant MENU_ORDER], each with at least one legal command. A unit with a second
-## move pending gets only Wait, which ends that move ([constant UnitTurnCommand.Action.MOVE]).
+## move pending gets only Wait, which ends that move: the move to the path's end
+## ([constant UnitTurnCommand.Action.MOVE]), or a Wait where it stands.
 ## Use lists each map object whose use the session accepts from the path's end, with no item or
 ## else the unit's Pouch item (a key or lockpick). Empty when it can't act.
 static func actions_at(
@@ -347,8 +348,14 @@ static func actions_at(
 	var state: CombatState = session.state
 	var seat: int = state.seat_of(unit_id)
 	if is_second_move(session, unit_id):
+		# The session refuses a move that ends where the unit stands (combat core plan, question 21).
+		var stays: bool = path.is_empty() or path[path.size() - 1] == state.tile_of(unit_id)
 		_add_untargeted(options, ActionKind.WAIT, _turn(
-				session, unit_id, UnitTurnCommand.Action.MOVE, "", path
+				session,
+				unit_id,
+				UnitTurnCommand.Action.WAIT if stays else UnitTurnCommand.Action.MOVE,
+				"",
+				path
 		))
 		return options
 	var unit: CombatUnitState = state.unit(unit_id)

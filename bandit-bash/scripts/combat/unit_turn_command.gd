@@ -6,7 +6,7 @@
 # File:     unit_turn_command.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 31, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 class_name UnitTurnCommand
@@ -20,8 +20,9 @@ extends Command
 ## included; [member weapon_id] may name the stowed weapon when Sidearm makes the swap free), use a
 ## Block or heal staff, Shove, use a Pouch item, swap weapons (the action), use a map object, and
 ## [constant Action.MOVE]: the second move after acting that
-## [constant CombatValue.Permission.MAY_MOVE_AFTER_ACTING] allows, with the movement left.
-## A staff of range 0 targets its user:
+## [constant CombatValue.Permission.MAY_MOVE_AFTER_ACTING] allows, with the movement left; a move
+## that ends where the unit stands is refused, and a Wait (with or without that move) ends the
+## pending move instead. A staff of range 0 targets its user:
 ## the command names no target and the user is filled in (question 14). An attack always needs a
 ## target at range 1 or more. The action ends the unit's turn; it fires no Unit Turn End. When the
 ## unit may still move, its action's facts carry
@@ -34,7 +35,8 @@ extends Command
 ## What the unit does after moving. Sent over the network as an int: [b]append only[/b], with
 ## explicit values.
 enum Action {
-	## Ends the turn without acting ([constant CombatFact.Kind.UNIT_WAITED]).
+	## Ends the turn without acting, or ends the second move pending after acting
+	## ([constant CombatFact.Kind.UNIT_WAITED]).
 	WAIT = 0,
 	## Starts an exchange with [member target_id] ([ExchangeResolver]).
 	ATTACK = 1,
@@ -141,7 +143,11 @@ func validate(session: CombatSession) -> String:
 	if action == Action.MOVE:
 		if not unit.is_second_move_pending:
 			return "%s has no move left after acting" % [actor_id]
-	elif unit.has_acted:
+		# A move that goes nowhere does nothing, so it is refused like a Shove that moves no one
+		# (combat core plan, questions 1 and 21); the move stays pending, and Wait ends it.
+		if path.is_empty() or path[path.size() - 1] == unit.tile:
+			return "%s's move goes nowhere" % [actor_id]
+	elif unit.has_acted and not (action == Action.WAIT and unit.is_second_move_pending):
 		return "%s has acted" % [actor_id]
 	# The path and the action are checked on a copy, so nothing real moves.
 	var trial: EffectEngine = session.engine.copy_for_sandbox(ForcedRolls.new())
@@ -162,8 +168,16 @@ func resolve(session: CombatSession) -> void:
 			moved.tile = state.tile_of(unit_id)
 			engine.record(moved)
 		return
+	# Read before the walk: a Wait after acting ends the second move, and no second one follows it.
+	var is_second_move: bool = state.unit(actor_id).has_acted
 	walk_path(engine, state, actor_id, path)
 	var acted_from: int = engine.fact_log.size()
+	if is_second_move:
+		if action == Action.WAIT:
+			state.wait(engine, actor_id)
+		else:
+			state.unit(actor_id).is_second_move_pending = false
+		return
 	match action:
 		Action.WAIT:
 			state.wait(engine, actor_id)
@@ -181,9 +195,6 @@ func resolve(session: CombatSession) -> void:
 			WeaponSwap.resolve(engine, state, actor_id, false)
 		Action.USE_OBJECT:
 			MapObjects.use(engine, state, actor_id, target_id, item_id)
-		Action.MOVE:
-			state.unit(actor_id).is_second_move_pending = false
-			return
 	if (
 			state.has_unit(actor_id)
 			and engine.stats(actor_id).is_allowed(CombatValue.Permission.MAY_MOVE_AFTER_ACTING)

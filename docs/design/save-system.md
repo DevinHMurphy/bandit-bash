@@ -108,8 +108,9 @@ func reset() -> void:
    the same key takes the slot over and reads whatever was saved there at version 1. A section
    that takes a reserved slot over keeps that slot's place in the restore order, ahead of every
    section registered later, so never rely on restoring after one. Reserved now: profile
-   `unlocks`, `achievements`, `statistics`, `hall_of_heroes`; combat `enemy_units`.
-   `CampaignService` has taken over the campaign and combat `rng` keys
+   `unlocks`, `achievements`, `statistics`, `hall_of_heroes`. The combat key `enemy_units` is no
+   longer reserved: enemies are saved in `combat_state`, and a file that holds the key keeps it as
+   an unknown section. `CampaignService` has taken over the campaign and combat `rng` keys
    ([RNG streams](#rng-streams)) and the combat `entities` key ([Combat map](#combat-map)). The
    archive copies the per-player section named `roster`.
 5. In your class doc, add `@tutorial(Save system design): docs/design/save-system.md` and say which
@@ -277,9 +278,8 @@ Save Impact):
 - **Load order.** Both sections only check and hold their data while the file loads; `effects`
   refuses data without `combat_state`, since effects need the battle's units. The held battle
   loads into a battle rebuilt the way Begin set it up (`CombatStateSection.load_into()`), units and
-  turn before effects, after the maps ([Combat map](#combat-map)). **Not wired yet:** nothing
-  rebuilds the battle on a `BATTLE` resume (`campaign_service.gd:TOD-001`); that is P02 CC10
-  (battle resume).
+  turn before effects, after the maps. `CampaignService.resume_battle()` does it on a `BATTLE`
+  resume ([Combat map](#combat-map) has the order).
 - **Missing or old data.** A combat file without these sections (from before them) holds no battle,
   so `load_into()` returns `ERR_UNCONFIGURED` and the battle restarts from Begin. Version 0 is
   malformed and a newer version is refused, like any section; either stops the load and gives
@@ -315,14 +315,29 @@ Each map's objects and reinforcement points are two more `COMBAT` sections, one
   loaded battle starts without.
 - **Load order.** Both sections only check and hold their data while the file loads, in either
   order (`entities` takes over a reserved slot, which restores first); `is_holding()` pairs them.
-  On a `BATTLE` resume (P02 CC10), with the battle rebuilt the way Begin set it up:
+  On a `BATTLE` resume, `CampaignService.resume_battle(request)` takes the request Begin had (the
+  gameplay screen builds it as for Begin), and `CampaignSession.resume_battle()` rebuilds the
+  battle the way Begin set it up, without the loadout, the deployment and the opening, drawing
+  nothing from a combat roll stream:
   1. If `CombatStateSection.is_holding()` or `CombatMapSection.is_holding()` is false, restart
      from Begin (`BATTLE_RETRY`).
   2. `CombatMapSection.load_into(battle)`: each map's `MapState` is replaced.
   3. `CombatStateSection.load_into(battle)`: its reload carries those maps and refuses a map that
      disagrees with its units (the swap window, a breakable).
-  4. Set the run's id counter from the combat `instance_ids` section.
-  Any error: drop the battle and restart from Begin.
+  4. Set the run's id counter from the combat `instance_ids` section, as the session was given it
+     when built: the rebuild minted throwaway ids, which the resumed battle mints again.
+  Then the write-back copies are re-linked by instance id: each carrier's copy, the request's unit
+  and item instances the battle holds, and each heirloom's saved copy, which becomes its carrier
+  (a resumed run holds none, since carriers aren't saved). Any error: `SaveService.drop_battle()`
+  deletes the combat file and sets `BATTLE_RETRY`, and the battle begins again from Begin, minting
+  on from the run's counter.
+- **The darkness isn't saved yet** (P06 DK5). A battle resumed before the darkness arrives is
+  exact: its sources, drain and first release are setup results, rebuilt with the battle. One
+  resumed after arrival keeps `has_darkness_arrived` (so no wave is sent again) and the release
+  turns, but loses its layers, waves and contacts: the map is dry until the next release, which
+  starts again from the sources and is recorded as the arrival again (`DARKNESS_ARRIVED`, since
+  `DarknessState.has_arrived()` reads the waves); no unit takes darkness damage until then, and
+  erosion counts start over.
 - **Missing or old data.** A combat file without these sections, or with one only, holds no maps,
   so `load_into()` returns `ERR_UNCONFIGURED`. Version 0 is malformed and a newer version is
   refused, like any section; either stops the load and gives `BATTLE_RETRY`.

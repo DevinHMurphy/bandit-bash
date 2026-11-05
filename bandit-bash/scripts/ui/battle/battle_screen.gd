@@ -16,7 +16,9 @@ extends Node2D
 ## On entry with a solo run and no battle on, it begins one through
 ## [code]CampaignService.begin_battle()[/code] (combat UI plan, question 2): the faction's starting
 ## army ([method StartingArmy.build]) on [member map_definition] at [member floor_number] and
-## [member combat_node], from the run's seed. A battle already on is shown as it stands. The
+## [member combat_node], from the run's seed. A battle a continued run saved mid-fight is resumed
+## from the same request, at its saved state ([code]CampaignService.resume_battle()[/code]); a
+## battle already on is shown as it stands. The
 ## [BattleView] draws the player's map; when that map's combat has ended and its playback has
 ## settled, input stops, the [BattleHud]'s banner shows Victory or Defeat for
 ## [member end_banner_time], then [code]CampaignService.end_battle()[/code] saves the result and
@@ -76,11 +78,6 @@ func _ready() -> void:
 		_show_placeholder("")
 		return
 	if run.encounter == null:
-		# ASSUMPTION: a battle saved mid-fight can't be rebuilt yet (campaign_service.gd:TOD-001,
-		# P02 CC10), so the placeholder shows instead of beginning it again over its save.
-		if SaveService.combat != null:
-			_show_placeholder("This battle was saved mid-fight; resuming it isn't built yet.")
-			return
 		var err: Error = _begin_battle(run)
 		if err != OK:
 			_show_placeholder("Couldn't begin the battle (%s)." % [error_string(err)])
@@ -103,7 +100,8 @@ func get_hud() -> BattleHud:
 	return _hud
 
 
-# The battle request for the solo run, then Begin. Returns the error the run flow reports.
+# The battle request for the solo run, then Begin, or the resume of the battle a continued run
+# saved mid-fight, from the same request. Returns the error the run flow reports.
 func _begin_battle(run: CampaignSession) -> Error:
 	if map_definition == null:
 		push_error("BattleScreen: no map definition set")
@@ -122,6 +120,8 @@ func _begin_battle(run: CampaignSession) -> Error:
 	request.pool = [map_definition]
 	request.catalog = catalog
 	request.armies[run.seats[0]] = army
+	if SaveService.combat != null:
+		return CampaignService.resume_battle(request)
 	return CampaignService.begin_battle(request)
 
 

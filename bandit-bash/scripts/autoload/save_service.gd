@@ -6,7 +6,7 @@
 # File:     save_service.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: October 28, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 extends Node
@@ -87,7 +87,9 @@ const _RESERVED_PROFILE_SECTIONS: Array[String] = [
 	"hall_of_heroes",
 ]
 const _RESERVED_CAMPAIGN_SECTIONS: Array[String] = ["rng"]
-const _RESERVED_COMBAT_SECTIONS: Array[String] = ["enemy_units", "entities", "rng"]
+# Enemies are saved in combat_state, so no system takes enemy_units; a file that holds it keeps it
+# as an unknown section (save-system.md).
+const _RESERVED_COMBAT_SECTIONS: Array[String] = ["entities", "rng"]
 
 ## The open save file, 1 to [constant SAVE_FILE_COUNT], or [constant NO_SAVE_FILE].
 var current_save_number: int = NO_SAVE_FILE
@@ -515,6 +517,24 @@ func begin_battle() -> Error:
 		campaign.combat_in_progress = was_in_progress
 		_sections.reset(SaveSection.Block.COMBAT)
 	return err
+
+
+## Drops the battle a continued run loaded ([constant CombatData.ResumePoint.BATTLE]) when it can't
+## be resumed after all, as an unusable combat file is dropped on load: deletes the combat file,
+## empties the combat sections and sets [member resume_point] to
+## [constant CombatData.ResumePoint.BATTLE_RETRY], so [method begin_battle] can restart the battle
+## from Begin. The campaign stays in battle. Call it before anything resumes the battle.
+## Returns [constant OK], [constant ERR_UNCONFIGURED] when no battle was loaded, or the
+## delete error.
+func drop_battle() -> Error:
+	if campaign == null or combat == null or not has_open_save_file():
+		push_error("SaveService: no loaded battle to drop.")
+		return ERR_UNCONFIGURED
+	var path: String = _get_combat_path(current_save_number, campaign.mode)
+	push_warning("SaveService: the battle in %s can't be resumed; it restarts from Begin." % [path])
+	_end_battle_state()
+	resume_point = CombatData.ResumePoint.BATTLE_RETRY
+	return SaveFile.delete(path)
 
 
 ## Ends the battle in progress (plan, "Combat crash protection", step 3): writes the campaign with

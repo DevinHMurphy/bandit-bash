@@ -458,21 +458,48 @@ func _test_second_move() -> void:
 	var second: UnitTurnCommand = null
 	if options.size() == 1:
 		second = options[0].command as UnitTurnCommand
-	_check.call("second move: only Wait, which sends the second move", (
+	# The session refuses a move that ends where the unit stands (combat core plan, question 21).
+	_check.call("second move: only Wait, a Wait where it stands", (
 			options.size() == 1
 			and options[0].kind == WAIT_ACTION
 			and second != null
-			and second.action == UnitTurnCommand.Action.MOVE
+			and second.action == UnitTurnCommand.Action.WAIT
 	))
+	var away: Vector2i = CombatFact.NO_TILE
+	for tile: Vector2i in TurnInputModel.move_tiles(h.session, unit_id):
+		if tile != step:
+			away = tile
+			break
+	var moving: Array[TurnInputModel.ActionOption] = TurnInputModel.actions_at(
+			h.session, unit_id, TurnInputModel.path_to(h.session, unit_id, away)
+	)
+	var move: UnitTurnCommand = null
+	if moving.size() == 1:
+		move = moving[0].command as UnitTurnCommand
+	_check.call("second move: Wait on another tile sends the second move there", (
+			moving.size() == 1
+			and moving[0].kind == WAIT_ACTION
+			and move != null
+			and move.action == UnitTurnCommand.Action.MOVE
+			and move.path[move.path.size() - 1] == away
+	), str(away))
 	_press(&"ui_accept")
 	_choose_kind(h, WAIT_ACTION, steps)
 	BattleViewCases.settle(h.view)
+	var waited: bool = false
+	if h.last_batch() != null:
+		for fact: CombatFact in h.last_batch().facts:
+			waited = waited or (
+					fact.kind == CombatFact.Kind.UNIT_WAITED and fact.actor_id == unit_id
+			)
 	_check.call("second move: Wait spends it, and the unit is done", (
 			steps.is_empty()
 			and not state.unit(unit_id).is_second_move_pending
 			and not TurnInputModel.can_act(h.session, unit_id)
 			and c.get_stage() == IDLE
 			and h.last_batch() != null and not h.last_batch().is_rejected()
+			and waited
+			and state.tile_of(unit_id) == step
 	), "%s %s" % [steps, h.batch_labels()])
 	h.close()
 
