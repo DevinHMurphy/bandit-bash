@@ -18,8 +18,9 @@ extends Node2D
 ## army ([method StartingArmy.build]) on [member map_definition] at [member floor_number] and
 ## [member combat_node], from the run's seed. A battle already on is shown as it stands. The
 ## [BattleView] draws the player's map; when that map's combat has ended and its playback has
-## settled, [code]CampaignService.end_battle()[/code] saves the result and every player goes to
-## Results.[br]
+## settled, input stops, the [BattleHud]'s banner shows Victory or Defeat for
+## [member end_banner_time], then [code]CampaignService.end_battle()[/code] saves the result and
+## every player goes to Results.[br]
 ## [b]Commands only:[/b] the screen changes no combat state; its [BattleController] turns the run
 ## seat's input into commands on that map, and its [BattleHud] draws the turn, the objective, the
 ## darkness, the tile and unit under the cursor, the phase banners and the fact log.[br]
@@ -44,6 +45,14 @@ extends Node2D
 
 ## The combat node on [member floor_number], which keys the battle's random streams.
 @export_range(1, 99, 1) var combat_node: int = 1
+
+## How long the Victory or Defeat banner shows before the route to Results, counted from when it
+## appears; it pauses with the pause menu. Shorter than the banner's fade-in
+## ([member PhaseBanner.fade_in_time]) routes before it is fully shown.[br]
+## [b]Units:[/b] seconds. [b]0.0:[/b] routes at once, so the banner is never seen.
+# ASSUMPTION: Godot_FE has no end banner; 2.0 s is its turn transition's length, as the phase
+# banner's 1.0 s fade-in and 1.0 s fade-out.
+@export_range(0.0, 10.0, 0.1) var end_banner_time: float = 2.0
 
 # The player's map in the battle shown; null when the placeholder shows.
 var _session: CombatSession = null
@@ -141,10 +150,23 @@ func _show_placeholder(note: String) -> void:
 		_placeholder_note.text = note
 
 
-func _end_battle() -> void:
+# Stops input and shows the end banner, then ends the battle after end_banner_time. Runs once.
+func _show_end() -> void:
 	if _is_ending:
 		return
 	_is_ending = true
+	_controller.unbind()
+	_hud.show_result(_session.is_won)
+	if end_banner_time <= 0.0:
+		_end_battle()
+		return
+	# Not processed while paused, so the pause menu holds the route too.
+	var hold: SceneTreeTimer = get_tree().create_timer(end_banner_time, false)
+	hold.timeout.connect(_end_battle)
+
+
+# Saves the battle's end and routes everyone to Results. Called once, by _show_end().
+func _end_battle() -> void:
 	_controller.unbind()
 	_hud.unbind()
 	_view.unbind()
@@ -156,4 +178,4 @@ func _end_battle() -> void:
 
 func _on_battle_view_settled() -> void:
 	if _session.is_finished and _view.is_settled():
-		_end_battle()
+		_show_end()

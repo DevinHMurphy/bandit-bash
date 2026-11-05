@@ -6,7 +6,7 @@
 # File:     board_view_model.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 class_name BoardViewModel
@@ -60,12 +60,14 @@ static func darkness_of(state: CombatState) -> Dictionary[Vector2i, int]:
 	return layers
 
 
-## The class letter a token shows for [param unit_type]: its first letter, upper case;
-## [code]?[/code] for none.
-static func letter_of(unit_type: String) -> String:
-	# ASSUMPTION: content has no display names yet, so the letter is the type id's first letter
-	# (Battle Medic and Brute share B; their side colours tell them apart).
-	return "?" if unit_type.is_empty() else unit_type.left(1).to_upper()
+## The letters a token shows for [param unit_type] by default: the first [param count] letters of
+## the type id, underscores skipped, upper case; [code]?[/code] for none. [UnitToken] picks the
+## count and any override ([member UnitToken.letter_count], [member UnitToken.letter_overrides]).
+static func letter_of(unit_type: String, count: int = 2) -> String:
+	# ASSUMPTION: content has no display names yet, so the letters are the type id's (Hakkapel HA,
+	# Hedge Healer HE, Brute BR, Battle Medic BA), upper case like the single letter they replace.
+	var letters: String = unit_type.replace("_", "")
+	return "?" if letters.is_empty() else letters.left(maxi(count, 1)).to_upper()
 
 
 ## One unit as a token draws it.
@@ -80,7 +82,8 @@ class UnitView:
 	var seat: int = -1
 	## Its unit type's content id.
 	var unit_type: String = ""
-	## The letter on its token ([method BoardViewModel.letter_of]).
+	## The letters on its token by default ([method BoardViewModel.letter_of]); the token may
+	## override them.
 	var letter: String = ""
 	## Its HP now.
 	var hp: int = 0

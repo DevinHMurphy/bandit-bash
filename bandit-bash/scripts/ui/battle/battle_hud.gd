@@ -24,6 +24,7 @@ extends Control
 ## cursor, else the selected one. While playback runs nothing redraws from state, which already
 ## holds the command's outcome, so the panels never show a result before the board plays it;[br]
 ## - each Phase Start fact as it plays: the banner, and the turn counter's turn;[br]
+## - [method show_result], called by the screen once the battle has ended: the end banner;[br]
 ## - each batch the session sends ([signal CombatSession.batch_resolved]): a fact log line.[br]
 ## [b]Layout:[/b] the columns and the map area are set in the scene; at the 1152×648 base size and
 ## wider nothing here covers the map, because the camera frames it inside the map area. The panel
@@ -108,6 +109,12 @@ func refresh() -> void:
 	_turn_counter.show_turn(HudViewModel.turn_view(_session))
 	_darkness.show_darkness(HudViewModel.darkness_view(_session))
 	_draw_cursor()
+
+
+## Shows the battle's end on the banner ([method PhaseBanner.show_result]): victory when
+## [param is_won], else defeat. [BattleScreen] calls it before the route to Results.
+func show_result(is_won: bool) -> void:
+	_banner.show_result(is_won)
 
 
 ## The empty area the map is framed in, for [member BattleView.map_area].

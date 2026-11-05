@@ -23,8 +23,8 @@ extends RefCounted
 ## [BattleHud] on that layer and the board framed in its map area, as in the gameplay scene. The
 ## HUD redraws on the board's settles; where a case moves the cursor itself it calls
 ## [method BattleHud.refresh] to stand for the frame that would redraw it. Use runs on the map
-## suite's object fixture ([code]tests/map/object_cases.gd[/code]), since the M1 map has no map
-## objects.
+## suite's object fixture ([code]tests/map/object_cases.gd[/code]), which has every usable kind,
+## and on M1's one house through the menu.
 
 const BattleViewCases = preload("res://tests/ui/battle_view_cases.gd")
 const TurnInputCases = preload("res://tests/ui/turn_input_cases.gd")
@@ -92,7 +92,7 @@ func run() -> void:
 
 
 # Every tile of the M1 map under the cursor: the tile info shows its terrain's name and bonuses and
-# its occupant by name; off the map it hides.
+# its occupant and map objects by name (M1's house on its tile); off the map it hides.
 func _test_tile_info() -> void:
 	var rig: Rig = _rig(true)
 	if rig == null:
@@ -101,6 +101,7 @@ func _test_tile_info() -> void:
 	var info: TileInfo = rig.hud.get_tile_info()
 	var wrong: PackedStringArray = []
 	var occupied: int = 0
+	var with_objects: int = 0
 	var rect: Rect2i = session.layout.get_rect()
 	for y: int in range(rect.position.y, rect.end.y):
 		for x: int in range(rect.position.x, rect.end.x):
@@ -133,15 +134,26 @@ func _test_tile_info() -> void:
 			if texts[0] != view.terrain_name or texts[1] != bonuses:
 				wrong.append("%s: shows %s" % [tile, texts])
 			if occupant.is_empty():
-				if texts[2] != info.empty_text:
-					wrong.append("%s: empty tile shows '%s'" % [tile, texts[2]])
+				var objects: PackedStringArray = []
+				for placed: MapState.ObjectState in session.state.map.objects_at(tile):
+					if not placed.is_destroyed:
+						objects.append(BattleText.name_of(session, placed.id))
+				if not objects.is_empty():
+					with_objects += 1
+				var line: String = info.empty_text if objects.is_empty() else " · ".join(objects)
+				if texts[2] != line:
+					wrong.append("%s: shows '%s', not '%s'" % [tile, texts[2], line])
 			else:
 				occupied += 1
 				if not texts[2].begins_with(expected_name) or texts[2].contains(occupant):
 					wrong.append("%s: occupant shows '%s'" % [tile, texts[2]])
-	_check.call("tile info: every M1 tile shows its terrain, bonuses and occupant by name", (
-			wrong.is_empty() and occupied == session.state.unit_ids().size()
-	), "%d occupied; %s" % [occupied, "; ".join(wrong.slice(0, 3))])
+	_check.call("tile info: every M1 tile shows its terrain, bonuses, occupant and objects", (
+			wrong.is_empty()
+			and occupied == session.state.unit_ids().size()
+			and with_objects == session.state.map.objects.size()
+	), "%d occupied, %d with objects; %s" % [
+		occupied, with_objects, "; ".join(wrong.slice(0, 3)),
+	])
 
 	info.show_tile(HudViewModel.tile_view(session, rect.end + Vector2i.ONE))
 	_check.call("tile info: hides off the map", not info.visible)
@@ -392,8 +404,8 @@ func _test_panel_area() -> void:
 
 
 # Use on the object fixture: from every tile the unit can end on, the menu's Use lists exactly the
-# objects whose use the validator accepts (with no item or the Pouch's key), in menu order; Use is
-# never offered on M1, which has no objects; the house's command, sent, resolves to Object used.
+# objects whose use the validator accepts (with no item or the Pouch's key), in menu order; the
+# house's command, sent, resolves to Object used. Then M1's own house (_test_use_on_m1).
 func _test_use() -> void:
 	var world: ObjectCases.ObjectWorld = ObjectCases.ObjectWorld.new([
 		"plain plain plain plain plain",
@@ -472,22 +484,112 @@ func _test_use() -> void:
 				resolved = true
 	_check.call("use: the house's listed command resolves to Object used", resolved)
 
+	_test_use_on_m1()
+
+
+# M1's one house, on turn 1: some unit reaches its tile, whose menu offers Use on it with the
+# command the validator accepts; the menu, the target picker and the confirm dialog send exactly
+# that command, which resolves to Object used on the house.
+func _test_use_on_m1() -> void:
 	var rig: Rig = _rig(true)
 	if rig == null:
 		return
-	var offered: int = 0
-	for unit_id: String in TurnInputModel.acting_units(rig.h.session, 0):
-		for tile: Vector2i in _sample_tiles(rig.h.session, unit_id):
-			var path: Array[Vector2i] = TurnInputModel.path_to(rig.h.session, unit_id, tile)
-			for option: TurnInputModel.ActionOption in TurnInputModel.actions_at(
-					rig.h.session, unit_id, path
-			):
-				if option.kind == USE:
-					offered += 1
-	_check.call("use: never offered on M1, which has no map objects", (
-			rig.h.session.state.map.objects.is_empty() and offered == 0
-	), "%d offered" % [offered])
+	var h: TurnInputCases.Harness = rig.h
+	var session: CombatSession = h.session
+	var houses: PackedStringArray = []
+	for object_id: String in session.state.map.objects:
+		if session.state.map.object(object_id).kind == MapLayout.ObjectKind.HOUSE:
+			houses.append(object_id)
+	if houses.size() != 1:
+		_check.call("use on M1: the map has one house", false, "%s" % [houses])
+		rig.close()
+		return
+	var house_id: String = houses[0]
+	var house_tile: Vector2i = session.state.map.object(house_id).tile
+	var pick: Array = []
+	for unit_id: String in TurnInputModel.acting_units(session, 0):
+		if not TurnInputModel.move_tiles(session, unit_id).has(house_tile):
+			continue
+		var path: Array[Vector2i] = TurnInputModel.path_to(session, unit_id, house_tile)
+		for option: TurnInputModel.ActionOption in TurnInputModel.actions_at(
+				session, unit_id, path
+		):
+			if option.kind != USE:
+				continue
+			for target: TurnInputModel.TargetOption in option.targets:
+				if target.target_id == house_id:
+					pick = [unit_id, path, option, target]
+		if not pick.is_empty():
+			break
+	if pick.is_empty():
+		_check.call("use on M1: a unit reaches the house on turn 1 and is offered Use", false, (
+				"house %s at %s" % [house_id, house_tile]
+		))
+		rig.close()
+		return
+	var unit_id: String = pick[0]
+	var path: Array[Vector2i] = pick[1]
+	var offered: TurnInputModel.TargetOption = pick[3]
+	var expected: UnitTurnCommand = UnitTurnCommand.new(0, unit_id, USE_OBJECT, house_id, path)
+	var turn: UnitTurnCommand = offered.command as UnitTurnCommand
+	_check.call("use on M1: Use is offered on the house with the validator's command", (
+			expected.validate(session).is_empty()
+			and turn != null
+			and turn.validate(session).is_empty()
+			and _wire(turn) == _wire(expected)
+	), "%s against %s" % [_wire(turn), _wire(expected)])
+
+	var steps: PackedStringArray = []
+	h.controller.confirm_tile(session.state.tile_of(unit_id))
+	h.controller.confirm_tile(house_tile)
+	var menu: ActionMenu = h.host.top() as ActionMenu
+	if menu == null:
+		steps.append("no action menu")
+	else:
+		var options: Array[TurnInputModel.ActionOption] = menu.get_options()
+		for i: int in options.size():
+			if options[i].kind == USE:
+				menu.get_rows()[i].pressed.emit()
+				break
+	var picker: TargetPicker = h.host.top() as TargetPicker
+	if picker == null:
+		steps.append("no target picker")
+	else:
+		var targets: Array[TurnInputModel.TargetOption] = picker.get_options()
+		for i: int in targets.size():
+			if targets[i].target_id == house_id:
+				picker.get_rows()[i].pressed.emit()
+				break
+	var dialog: ConfirmDialog = h.host.top() as ConfirmDialog
+	if dialog == null:
+		steps.append("no confirm dialog")
+	else:
+		dialog.get_confirm_button().pressed.emit()
+		BattleViewCases.settle(h.view)
+	var batch: CombatSession.FactBatch = h.last_batch()
+	var used: bool = false
+	if batch != null:
+		for fact: CombatFact in batch.facts:
+			if fact.kind == CombatFact.Kind.OBJECT_USED and fact.target_id == house_id:
+				used = true
+	_check.call("use on M1: the menu sends that command, which resolves to Object used", (
+			steps.is_empty()
+			and batch != null
+			and not batch.is_rejected()
+			and batch.actor_id == unit_id
+			and batch.target_id == house_id
+			and used
+	), "%s; %s" % ["; ".join(steps), h.batch_labels()])
 	rig.close()
+
+
+# What a unit-turn command would send: its action, target, item and path.
+static func _wire(command: UnitTurnCommand) -> String:
+	if command == null:
+		return "none"
+	return "%s %s %s '%s' %s" % [
+		command.actor_id, command.action, command.target_id, command.item_id, command.path,
+	]
 
 
 # --- Checks ----------------------------------------------------------------------------------

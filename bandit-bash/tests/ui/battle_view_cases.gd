@@ -6,7 +6,7 @@
 # File:     battle_view_cases.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -121,7 +121,7 @@ func _test_view_model(map: CombatMapDefinition) -> void:
 			state.get_hp(view.id),
 			session.stats(view.id).get_int(CombatValue.Key.HP),
 			state.tile_of(view.id),
-			state.unit_type_of(view.id).left(1).to_upper(),
+			state.unit_type_of(view.id).replace("_", "").left(2).to_upper(),
 		]
 		var shown: Array = [view.side, view.seat, view.hp, view.max_hp, view.tile, view.letter]
 		if shown != expected:
@@ -140,6 +140,21 @@ func _test_view_model(map: CombatMapDefinition) -> void:
 			players == 4
 	), str(players))
 	_check.call("view-model: an empty unit type shows ?", BoardViewModel.letter_of("") == "?")
+	var pairs: Array[PackedStringArray] = [
+		PackedStringArray(["hakkapel", "hedge_healer"]),
+		PackedStringArray(["brute", "battle_medic"]),
+	]
+	var same: PackedStringArray = []
+	for pair: PackedStringArray in pairs:
+		var left: String = BoardViewModel.letter_of(pair[0])
+		var right: String = BoardViewModel.letter_of(pair[1])
+		if left == right or left.length() != 2 or right.length() != 2:
+			same.append("%s %s / %s %s" % [pair[0], left, pair[1], right])
+	_check.call("view-model: two letters; Hakkapel, Hedge Healer and Brute, Battle Medic differ", (
+			same.is_empty()
+			and BoardViewModel.letter_of("hakkapel") == "HA"
+			and BoardViewModel.letter_of("battle_medic") == "BA"
+	), "; ".join(same))
 	run.close()
 
 
@@ -170,6 +185,7 @@ func _test_board_and_playback(map: CombatMapDefinition) -> void:
 	_check.call("board: every token on its unit's tile, at full HP", (
 			view.mismatches().is_empty()
 	), "; ".join(view.mismatches()))
+	_check_token_letters(session, view)
 
 	var played: Dictionary[int, int] = {}
 	var on_played: Callable = func(fact: CombatFact) -> void:
@@ -218,6 +234,39 @@ func _test_board_and_playback(map: CombatMapDefinition) -> void:
 	), "never played: %s" % [missing])
 	view.free()
 	run.close()
+
+
+# Each token on the M1 board shows its type's two letters, no two types alike; an override in
+# [member UnitToken.letter_overrides] replaces them.
+func _check_token_letters(session: CombatSession, view: BattleView) -> void:
+	var wrong: PackedStringArray = []
+	var by_letters: Dictionary[String, String] = {}
+	for unit_id: String in session.state.unit_ids():
+		var token: UnitToken = view.token_of(unit_id)
+		var unit_type: String = session.state.unit_type_of(unit_id)
+		if token == null:
+			wrong.append("%s: no token" % [unit_id])
+			continue
+		var shown: String = token.get_letters()
+		if shown != BoardViewModel.letter_of(unit_type) or shown.length() != 2:
+			wrong.append("%s (%s): %s" % [unit_id, unit_type, shown])
+		if by_letters.get(shown, unit_type) != unit_type:
+			wrong.append("%s and %s both show %s" % [by_letters[shown], unit_type, shown])
+		by_letters[shown] = unit_type
+	_check.call("board: each token shows its type's two letters, no two types alike", (
+			wrong.is_empty() and by_letters.size() > 1
+	), "; ".join(wrong))
+
+	var first: String = session.state.unit_ids()[0]
+	var sample: UnitToken = view.token_of(first)
+	var overridden: bool = false
+	if sample != null:
+		sample.letter_overrides = {session.state.unit_type_of(first): "Zz"}
+		sample.show_unit(BoardViewModel.unit_view(session, first))
+		overridden = sample.get_letters() == "Zz"
+		sample.letter_overrides = {}
+		sample.show_unit(BoardViewModel.unit_view(session, first))
+	_check.call("board: a token's letter override replaces its letters", overridden)
 
 
 func _test_darkness_overlay(map: CombatMapDefinition) -> void:

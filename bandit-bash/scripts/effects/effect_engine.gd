@@ -6,7 +6,7 @@
 # File:     effect_engine.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 31, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 class_name EffectEngine
@@ -517,7 +517,9 @@ func tile_distance(from_id: String, to_id: String) -> int:
 ## [method SandboxState.copy_for_sandbox], copies of every instance (counters and charges), timed
 ## modifiers, base values, deltas, waiting reactions and the phase and attack counts, so facts
 ## continue from this engine's [member CombatFact.seq]. Its fact log and diagnostics start empty
-## and it has no observers of either kind. Nothing it does reaches this engine. Main thread only.
+## and it has no observers of either kind. Nothing it does reaches this engine. Call it on the
+## thread that owns this engine: the main thread for a session's, or the worker resolving a
+## sandbox for that sandbox's (event bus plan, Threading).
 func copy_for_sandbox(roll_source: RollSource) -> EffectEngine:
 	var run: RunState = _run.copy()
 	var copy: EffectEngine = EffectEngine.new(

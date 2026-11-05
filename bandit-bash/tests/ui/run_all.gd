@@ -23,7 +23,7 @@ extends SceneTree
 ## and read afresh each time it shows, clear of the M1 map at the 1152×648 base size, and
 ## untouched by clicks on the deployment tiles), the HUD clear of the map at the base size and
 ## wider, the run seed on the pause screen, then a new solo run's M1 battle played to its end from
-## Start and End Turn, and the route to Results.
+## Start and End Turn, its Victory or Defeat banner, and the route to Results after it.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/ui/run_all.gd[/code][br]
@@ -68,6 +68,13 @@ const PANEL_FRAMES: int = 3
 # Frames left for the scene change to Results before the last checks.
 const ROUTE_FRAMES: int = 3
 
+# The routing case's end banner time (the screen's end_banner_time): long enough to be seen on
+# a frame of its own, short enough not to slow the suite.
+const ROUTE_BANNER_TIME: float = 0.2
+
+# How long the routing case waits for the route to Results after the banner shows.
+const ROUTE_TIMEOUT_MSEC: int = 5000
+
 # The screen size the panel case lays the screen out at: the project sets no window size, so this
 # is Godot's default window and the base size of the canvas_items stretch.
 const BASE_SCREEN_SIZE: Vector2i = Vector2i(1152, 648)
@@ -83,11 +90,17 @@ var _frame: int = 0
 var _panel_frame: int = -1
 var _wide_frame: int = -1
 var _route_frame: int = -1
+var _routed_frame: int = -1
 var _before: Dictionary[String, String] = {}
 
 # The panel case's gameplay screen, and the root's size before the case set it.
 var _panel_screen: Node = null
 var _old_root_size: Vector2i = Vector2i.ZERO
+
+# The routing case's screen and run, held while its end banner shows, and when the banner showed.
+var _route_screen: Node = null
+var _route_run: CampaignSession = null
+var _route_started_msec: int = 0
 
 
 func _process(_delta: float) -> bool:
@@ -120,7 +133,12 @@ func _process(_delta: float) -> bool:
 		_finish_wide_case()
 		_begin_route()
 		return false
-	if _frame < _route_frame + ROUTE_FRAMES:
+	if _routed_frame < 0:
+		if not _poll_route():
+			return false
+		_routed_frame = _frame
+		return false
+	if _frame < _routed_frame + ROUTE_FRAMES:
 		return false
 	_finish_route_case()
 	_finish()
@@ -305,13 +323,16 @@ func _end_panel_case() -> void:
 
 # A new solo run enters the gameplay screen, which begins the M1 battle; the swap window's Start
 # and the turn bar's End Turn (confirming its question) play it until it ends, and the screen ends
-# it and routes to Results. Returns true when the scene change is under way, so the remaining
-# checks wait a few frames.
+# it, shows its end banner and, after end_banner_time, routes to Results. Returns true once the
+# banner shows, so _poll_route() waits for the route and the remaining checks a few frames more.
 func _start_route_case() -> bool:
 	if not _has_test_user_dir():
 		_skips += 1
 		print("SKIP  screen: routing to Results needs a test user folder (see the class doc)")
 		return false
+	# NOTE: the panel case's pause menu leaves the tree paused (pause_menu.gd's close() doesn't
+	# unpause), and the end banner's timer pauses with the tree, so the route would never come.
+	paused = false
 	var saves: Node = root.get_node(^"SaveService")
 	var service: Node = root.get_node(^"CampaignService")
 	var router: Node = root.get_node(^"SceneRouter")
@@ -325,6 +346,7 @@ func _start_route_case() -> bool:
 
 	var scene: PackedScene = load(GAMEPLAY_SCENE)
 	var screen: Node = scene.instantiate()
+	screen.set(&"end_banner_time", ROUTE_BANNER_TIME)
 	root.add_child(screen)
 	var view: BattleView = screen.call(&"get_view")
 	var controller: BattleController = screen.call(&"get_controller")
@@ -370,11 +392,39 @@ func _start_route_case() -> bool:
 			"turn %d" % [session.state.turn]
 	))
 	var screen_now: int = router.get(&"current_screen")
-	var combat_left: Object = saves.get(&"combat")
-	_check("screen: a finished battle is ended and goes to Results", (
-			screen_now == SCREEN_RESULTS and run.encounter == null and combat_left == null
-	), "screen %d, encounter %s" % [screen_now, run.encounter])
-	screen.queue_free()
+	var hud: BattleHud = screen.call(&"get_hud")
+	var banner: PhaseBanner = hud.get_phase_banner()
+	var expected: String = banner.victory_text if session.is_won else banner.defeat_text
+	_check("screen: a finished battle shows its end banner before the route to Results", (
+			session.is_finished
+			and banner.visible
+			and banner.get_texts()[0] == expected
+			and screen_now != SCREEN_RESULTS
+			and run.encounter != null
+			and not controller.is_accepting_input()
+	), "banner '%s' shown %s, expected '%s'; screen %d" % [
+		banner.get_texts()[0], banner.visible, expected, screen_now,
+	])
+	_route_screen = screen
+	_route_run = run
+	_route_started_msec = Time.get_ticks_msec()
+	return true
+
+
+# Each frame after the end banner showed: true once the screen has routed to Results, or the wait
+# has timed out, with the routing checked; the screen is then freed.
+func _poll_route() -> bool:
+	var router: Node = root.get_node(^"SceneRouter")
+	var screen_now: int = router.get(&"current_screen")
+	var waited: int = Time.get_ticks_msec() - _route_started_msec
+	if screen_now != SCREEN_RESULTS and waited < ROUTE_TIMEOUT_MSEC:
+		return false
+	var combat_left: Object = root.get_node(^"SaveService").get(&"combat")
+	_check("screen: after the banner the battle is ended and goes to Results", (
+			screen_now == SCREEN_RESULTS and _route_run.encounter == null and combat_left == null
+	), "screen %d after %d ms, encounter %s" % [screen_now, waited, _route_run.encounter])
+	_route_screen.queue_free()
+	_route_screen = null
 	return true
 
 

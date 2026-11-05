@@ -20,8 +20,12 @@ extends RefCounted
 ## rows are what the command resolves to with every hit landing (FR-MATH-12). Each [Row] has one
 ## cell per column: the actor's on the left, the target's on the right. An exchange also keeps each
 ## side's first landed hit's stages ([member breakdowns], explain's [CombatForecast.HitBreakdown]),
-## which the panel shows on its toggle. Reading only: previews run on sandboxes. [ForecastPanel]
-## draws it; tests compare it with the forecast without rendering (question 13).
+## which the panel shows on its toggle.[br]
+## [b]Never certain:[/b] a defeat in an exchange reads as a chance ([constant DEFEAT_ON_HIT]), and
+## when the all-hits line defeats a defender that could counter, its counter comes from
+## [member counter], the same exchange with the actor's strikes before it missing ([CounterRolls]).
+## Reading only: previews run on sandboxes. [ForecastPanel] draws it; tests compare it with the
+## forecast without rendering (question 13).
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
@@ -53,6 +57,15 @@ const STOP_TEXT: Array[String] = [
 	"hits a spiked wall: takes %d damage",
 ]
 
+## An exchange's HP cell for a unit defeated by one hit: [code]%d[/code] the chance, in percent.
+const DEFEAT_ON_HIT: String = " (defeated on hit, %d%%)"
+
+## As [constant DEFEAT_ON_HIT] for a defeat that takes several hits: the hits, then the chance.
+const DEFEAT_ON_HITS: String = " (defeated on %d hits, %d%%)"
+
+## The note naming [member counter]: the actor, the target, then the actor's HP cell.
+const COUNTER_NOTE: String = "If %s misses, %s counters: %s HP %s."
+
 # What separates [method CombatForecast.HitBreakdown.to_text]'s stages, one per line here.
 const HIT_BREAKDOWN_SEPARATOR: String = "; "
 
@@ -67,6 +80,11 @@ var command: UnitTurnCommand = null
 
 ## The preview itself, for readers that need more than the rows.
 var forecast: CombatForecast.Forecast = null
+
+## For an exchange whose all-hits line defeats a defender that could counter: the same exchange
+## with the actor's strikes before the counter missing, which the target's Damage cell, its
+## breakdown and [constant COUNTER_NOTE] read. Null otherwise.
+var counter: CombatForecast.ExchangeForecast = null
 
 ## The left column's heading: the acting unit.
 var actor_label: String = ""
@@ -143,11 +161,17 @@ func can_cycle() -> bool:
 
 
 # An exchange's rows: both sides' weapon, triangle, effectiveness, Hit, damage, crit, strikes, and
-# HP, Block and Stance before and after.
+# HP, Block and Stance before and after. The target's damage, effectiveness and breakdown come from
+# the counter line when the all-hits line defeats it first.
 func _fill_exchange(session: CombatSession, found: CombatForecast.ExchangeForecast) -> void:
 	forecast = found
 	var state: CombatState = session.state
+	if found.is_legal and found.defender.turns > 0 and found.defender.damage < 0:
+		counter = _counter_line(session, found)
 	var sides: Array[CombatForecast.SideForecast] = [found.attacker, found.defender]
+	var landed: Array[CombatForecast.SideForecast] = [
+		found.attacker, found.defender if counter == null else counter.defender,
+	]
 	var actor_weapon: CombatState.WeaponStats = state.weapon(found.attacker.weapon_id)
 	var target_weapon: CombatState.WeaponStats = state.weapon(found.defender.weapon_id)
 	_add_row("Weapon", _weapon_text(actor_weapon), _weapon_text(target_weapon))
@@ -163,30 +187,37 @@ func _fill_exchange(session: CombatSession, found: CombatForecast.ExchangeForeca
 	else:
 		_add_row("Triangle", NONE_TEXT, NONE_TEXT)
 	var cells: Array[PackedStringArray] = []
-	for side: CombatForecast.SideForecast in sides:
+	for i: int in sides.size():
+		var side: CombatForecast.SideForecast = sides[i]
+		var hit_side: CombatForecast.SideForecast = landed[i]
 		var attacks: bool = side.turns > 0
 		var effective: String = NONE_TEXT
-		if side.breakdown != null:
-			effective = "Yes" if side.breakdown.stages.is_effective else "No"
+		if hit_side.breakdown != null:
+			effective = "Yes" if hit_side.breakdown.stages.is_effective else "No"
 		cells.append(PackedStringArray([
 			"%d%%" % [side.hit] if attacks and side.hit >= 0 else NONE_TEXT,
-			"%d" % [side.damage] if side.damage >= 0 else NONE_TEXT,
+			"%d" % [hit_side.damage] if hit_side.damage >= 0 else NONE_TEXT,
 			"%d%%" % [side.crit_chance] if attacks and side.crit_chance >= 0 else NONE_TEXT,
 			"%d × %d" % [side.attacks_per_turn, side.turns] if attacks else NONE_TEXT,
 			effective,
 		]))
-		if side.breakdown != null:
+		if hit_side.breakdown != null:
 			var stages: Breakdown = Breakdown.new()
-			stages.unit_id = side.unit_id
-			stages.label = BattleText.name_of(session, side.unit_id)
-			stages.lines = side.breakdown.to_text().split(HIT_BREAKDOWN_SEPARATOR)
+			stages.unit_id = hit_side.unit_id
+			stages.label = BattleText.name_of(session, hit_side.unit_id)
+			stages.lines = hit_side.breakdown.to_text().split(HIT_BREAKDOWN_SEPARATOR)
 			breakdowns.append(stages)
 	var labels: PackedStringArray = ["Hit", "Damage", "Crit", "Strikes", "Effective"]
 	for i: int in labels.size():
 		_add_row(labels[i], cells[0][i], cells[1][i])
-	_add_outcome_rows(found.attacker.outcome, found.defender.outcome)
+	_add_outcome_rows(found.attacker.outcome, found.defender.outcome, found)
 	if not found.can_counter and found.is_legal:
 		notes.append("%s can't counter." % [target_label])
+	if counter != null and counter.attacker.outcome != null:
+		notes.append(COUNTER_NOTE % [
+			actor_label, target_label, actor_label,
+			exchange_hp(counter, counter.attacker.outcome),
+		])
 	for chance: CombatForecast.ChanceLine in found.chances:
 		notes.append("Chance %s" % [chance.to_text()])
 	_note_others(session, found)
@@ -245,11 +276,17 @@ func _fill_shove(session: CombatSession, found: CombatForecast.ShoveForecast) ->
 	_note_others(session, found)
 
 
-# HP, Block and Stance rows, before and after, for the left and right units.
+# HP, Block and Stance rows, before and after, for the left and right units; an exchange's HP
+# cells give a defeat's chance ([method exchange_hp]).
 func _add_outcome_rows(
-		left: CombatForecast.UnitOutcome, right: CombatForecast.UnitOutcome
+		left: CombatForecast.UnitOutcome,
+		right: CombatForecast.UnitOutcome,
+		exchange: CombatForecast.ExchangeForecast = null
 ) -> void:
-	_add_row("HP", _hp_change(left), _hp_change(right))
+	if exchange == null:
+		_add_row("HP", _hp_change(left), _hp_change(right))
+	else:
+		_add_row("HP", exchange_hp(exchange, left), exchange_hp(exchange, right))
 	_add_row("Block", _change(left, &"block"), _change(right, &"block"))
 	_add_row("Stance", _change(left, &"stance"), _change(right, &"stance"))
 
@@ -263,6 +300,26 @@ func _note_others(session: CombatSession, found: CombatForecast.Forecast) -> voi
 		if not text.is_empty():
 			var shown_name: String = BattleText.name_of(session, outcome.unit_id)
 			notes.append(text.replace(outcome.unit_id, shown_name))
+
+
+# The exchange with the actor's strikes before the target's first turn missing, so the target
+# counters; null when the target has no turn, or lands no hit even so.
+func _counter_line(
+		session: CombatSession, found: CombatForecast.ExchangeForecast
+) -> CombatForecast.ExchangeForecast:
+	var first_turn: int = found.turn_order.find(found.target_id)
+	if first_turn < 0:
+		return null
+	var misses: int = 0
+	for i: int in first_turn:
+		if found.turn_order[i] == found.actor_id:
+			misses += found.attacker.attacks_per_turn
+	var line: CombatForecast.ExchangeForecast = CombatForecast.exchange(
+			session.engine, command, CounterRolls.new(misses)
+	)
+	if not line.is_legal or line.defender.damage < 0:
+		return null
+	return line
 
 
 func _add_row(label: String, left: String, right: String) -> void:
@@ -285,9 +342,64 @@ static func build(
 	return ForecastViewModel.new(session, previewed, index, count)
 
 
+## The HP cell of [param outcome] in [param exchange]: before and after, and for a defeat by the
+## other side's hits, how many it takes and their chance ([constant DEFEAT_ON_HIT],
+## [method defeat_chance]); a defeat by anything else reads "(defeated)".
+static func exchange_hp(
+		exchange: CombatForecast.ExchangeForecast, outcome: CombatForecast.UnitOutcome
+) -> String:
+	if outcome == null or not outcome.is_defeated:
+		return _hp_change(outcome)
+	var hits: int = 0
+	for attack: CombatForecast.AttackForecast in exchange.attacks:
+		if attack.defender_id != outcome.unit_id or not attack.is_hit:
+			continue
+		hits += 1
+		if not attack.defeated:
+			continue
+		var killer: CombatForecast.SideForecast = (
+				exchange.attacker if attack.attacker_id == exchange.actor_id else exchange.defender
+		)
+		var strikes: int = maxi(killer.attacks_per_turn * killer.turns, hits)
+		var percent: int = roundi(defeat_chance(killer.hit, hits, strikes) * 100.0)
+		var text: String = "%d → %d" % [outcome.hp_before, outcome.hp_after]
+		if hits == 1:
+			return text + DEFEAT_ON_HIT % [percent]
+		return text + DEFEAT_ON_HITS % [hits, percent]
+	return _hp_change(outcome)
+
+
+## The chance that at least [param hits] of [param strikes] strikes land at [param hit] percent
+## each, from 0.0 to 1.0. Reads the displayed Hit, as the Hit row shows it, and assumes every
+## strike is made.
+static func defeat_chance(hit: int, hits: int, strikes: int) -> float:
+	# ASSUMPTION: the displayed Hit, not its true 2RN probability, so "60%" matches the Hit row's
+	# 60% (question 18 (b)'s example); strikes are independent and all made.
+	var p: float = clampf(hit / 100.0, 0.0, 1.0)
+	var chance: float = 0.0
+	for landed: int in range(maxi(hits, 0), strikes + 1):
+		chance += (
+				_choose(strikes, landed)
+				* pow(p, float(landed))
+				* pow(1.0 - p, float(strikes - landed))
+		)
+	return clampf(chance, 0.0, 1.0)
+
+
+# Ways to choose k of n.
+static func _choose(n: int, k: int) -> float:
+	var ways: float = 1.0
+	for i: int in k:
+		ways = ways * float(n - i) / float(i + 1)
+	return ways
+
+
+# A weapon's label and its triangle profile; a weapon outside the triangle (a staff) shows none.
 static func _weapon_text(weapon: CombatState.WeaponStats) -> String:
 	if weapon == null:
 		return NONE_TEXT
+	if weapon.profile == WeaponTriangle.Profile.NONE:
+		return weapon.label
 	var profile: String = (WeaponTriangle.Profile.find_key(weapon.profile) as String).capitalize()
 	return "%s (%s)" % [weapon.label, profile]
 
@@ -339,3 +451,21 @@ class Breakdown:
 	var label: String = ""
 	## One line per stage, as [method CombatForecast.HitBreakdown.to_text] lists them.
 	var lines: PackedStringArray = []
+
+
+## The counter line's rolls ([member ForecastViewModel.counter]): the first hit rolls miss, as
+## many as it is made with, then as [ForecastRolls] decides (hits land, chances fail, the first
+## candidate). Draws nothing, so it shifts no stream.
+class CounterRolls:
+	extends ForecastRolls
+
+	var _misses: int = 0
+	var _hit_rolls: int = 0
+
+	## [param misses]: how many hit rolls miss before every later one lands.
+	func _init(misses: int) -> void:
+		_misses = misses
+
+	func _draw_hit_2rn(_hit_percent: int, _odds: float) -> bool:
+		_hit_rolls += 1
+		return _hit_rolls > _misses
