@@ -63,7 +63,7 @@ into `dev`; plan and orchestrator commits go to `dev`; `main` holds released sta
   complete (P01 EB1–EB7 implemented and verified headless, October 30, 2026).
 - **Current focus:** P02's, P03's, P04's and P05's parts of M1 are built; a headless M1 battle runs to the end.
   M1's part of P06 is built (DK1–DK4 merged); M1's critical path is now
-  **P07 UI4–UI5** (UI1–UI3 merged: an M1 battle can be played by hand, with the forecast), which owns the battle scene.
+  **P07 UI3F and UI5** (UI1–UI4 merged: an M1 battle can be played by hand, with the forecast, intents and the danger zone), which owns the battle scene.
 
 ## Milestones
 
@@ -252,8 +252,9 @@ flowchart LR
   EN4 --> EN4F[EN4F intents fix-up]
   subgraph P07[P07 Combat UI]
     UI1[UI1 battle scene, board] --> UI2[UI2 turn input] --> UI2F[UI2F debug panel, fast-forward]
-    UI2 --> UI3[UI3 forecast, move preview]
+    UI2 --> UI3[UI3 forecast, move preview] --> UI3F[UI3F preview speed]
     UI2 --> UI4[UI4 intents, danger zone]
+    UI4 --> UI3F
     UI2 --> UI5[UI5 HUD, M1 build]
   end
   DK4 --> UI3
@@ -263,8 +264,8 @@ flowchart LR
   classDef active fill:#bbdefb,stroke:#1565c0,color:#1b1b1b
   classDef ready fill:#fff3c4,stroke:#b8860b,color:#1b1b1b
   classDef waiting fill:#e0e0e0,stroke:#757575,color:#1b1b1b
-  class R1,R2,R3,R4,R5,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,CT2,EB5,EB7,EBF,EN1,CT3,EN2,EN3,CC8,CT3F,EN3F,EN4,EN5,MP8,DK1,EN4F,DK2,DK3,UI1,DK4,UI2,UI2F,UI3 done
-  class CT6,CT13,CC10,DK5,UI4,UI5 ready
+  class R1,R2,R3,R4,R5,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,CT2,EB5,EB7,EBF,EN1,CT3,EN2,EN3,CC8,CT3F,EN3F,EN4,EN5,MP8,DK1,EN4F,DK2,DK3,UI1,DK4,UI2,UI2F,UI3,UI4 done
+  class CT6,CT13,CC10,DK5,UI3F,UI5 ready
   class CT7,DK6 waiting
 ```
 
@@ -340,7 +341,7 @@ from starting; each is asked inside its plan's Open Questions.
 | P05 | Reinforcement groups (P05 EN10): fill `Reinforcements.GroupSource` (one group per arrival turn, drawn at setup step 5) and hand it to the waves in `CampaignSession` (`campaign_session.gd:TOD-002`, `reinforcements.gd:TOD-002`); until then the real game sends no waves | P04 MP7 |
 | P07 | `Godot_FE`'s ranged multi-tile forecast defect (FR-GRID-6) to investigate | P01 contracts |
 | P07 | A pass on generated effect text before the UI shows it (CT3 found "Always: heal the target for 8 (1 use this combat)" and "+2 Attack stage for that hit"); the content suite's text snapshots change with it | P03 question 21 |
-| P05 / P07 | **Re-architect the move preview** (user, November 5, 2026; P07 question 16 (a)): a design document (`docs/design/`) for a faster `Intents.preview`, with a cached data structure or another process. 66 ms median, 214–232 ms p95 per hover in debug against 50 ms. Start from `Godot_FE`'s approach: re-plan only the enemies that could reach the hovered tile with their absolute range (movement plus attack range). Built as is until then | P07 question 16 |
+| P05 / P07 | **Re-architect the move preview** (user, November 5, 2026; P07 question 16 (a); UI3F optimizes and threads the current one meanwhile, with a TODO): a design document (`docs/design/`) for a faster `Intents.preview`, with a cached data structure or another process. 66 ms median, 214–232 ms p95 per hover in debug against 50 ms. Start from `Godot_FE`'s approach: re-plan only the enemies that could reach the hovered tile with their absolute range (movement plus attack range). | P07 question 16 |
 | P11 | Light links beyond runes on a teammate's map | multiplayer-combat-options.md |
 | P11 | Shared battles (post-MVP): MP4 loses a map shared by several seats when any commander falls; confirm or change it when shared battles are planned | P04 question 21 |
 | P11 | A unit sent to a partner's map loses its timed modifiers (Momentum and the like); carry them with the unit | P01 question 49 |
@@ -376,10 +377,11 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 
 ## Next actions
 
-1. **M1's critical path:** P07 **UI4** (intents and the danger zone; prompt issued November 4, 2026), then
-   **UI5** (HUD, Use in the menu, layout fixes, target names, the debug panel refresh, the M1 build
-   and release timings). Then M1's playtest and first tuning pass.
-2. **Open questions for the user:** none. **Design doc to write:** the move preview re-architecture (Design items, P05 / P07).
+1. **M1's critical path:** P07 **UI3F** (the move preview on a worker thread, optimized, marked for
+   re-architecture) and **UI5** (HUD, Use in the menu, layout fixes, target names, the debug panel
+   refresh, the M1 build and release timings), both prompts issued November 5, 2026. Then M1's
+   playtest and first tuning pass.
+2. **Open questions for the user:** P07 question 17 (UI4). **Design doc to write:** the move preview re-architecture (Design items, P05 / P07).
 3. **Off M1's path:** P02 **CC10** (battle resume: today a run continued mid-battle sits on the
    placeholder; releases the reserved `enemy_units` key, P04 question 25; rejects a move that goes
    nowhere, P02 question 21); P06 DK5 (the darkness save and mirrors) after CC10's pattern; the
@@ -469,3 +471,4 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 | November 4, 2026 | P06 question 14 and P07 question 15 answered (as recommended). UI2F and UI3 building. |
 | November 4, 2026 | **P07 UI2F and UI3 merged into `dev`** (b40cce3, d9cb2ea; conflicts in the controller's docs and the UI suite's runner resolved by keeping both; verified together: ui 88, every other suite unchanged, launch clean): the save debug panel off the map behind F3, hold-F 4× and X skip; the forecast panel with breakdowns and weapon cycling, the generated-text pass, the move preview (66 ms median per hover, debug). P07 question 16 raised; UI4 prompt issued. |
 | November 5, 2026 | P07 question 16 answered: as recommended, except (a): the move preview stays as built, and a design document re-architects it (caching, or re-planning only enemies whose absolute range reaches the tile, as `Godot_FE` did). Design item added. |
+| November 5, 2026 | P07 question 16 (a) amended by the user: optimize the current preview and run it on a worker thread (new step UI3F), with a TODO that it underperforms and needs re-architecting; the design document still follows. **P07 UI4 merged into `dev`** (1348c5d; 17 untracked copies of UI4's files in the main checkout, byte-identical to the branch, removed first; verified: ui 103, every other suite unchanged, launch clean): intent icons, rule tooltips, numbered lines, the danger zone on R and in the swap window, previewed intents. P07 question 17 raised; UI3F and UI5 prompts issued. |
