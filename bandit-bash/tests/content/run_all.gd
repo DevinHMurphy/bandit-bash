@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 3, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -228,7 +228,7 @@ func _test_weapon_fixtures() -> void:
 				and weapon.scaling_stat == CombatValue.Stat.MGT
 				and is_equal_approx(weapon.scaling_modifier, 1.0)
 				and weapon.damage_type == CombatFact.DamageType.PHYSICAL
-				and weapon.effective_against == PackedStringArray(["flier"])
+				and weapon.effective_against == PackedStringArray([ContentIds.TAG_FLIER])
 		))
 
 	var staff: StaffDefinition = _load("staff") as StaffDefinition

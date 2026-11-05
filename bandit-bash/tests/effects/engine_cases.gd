@@ -6,7 +6,7 @@
 # File:     engine_cases.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 4, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -207,7 +207,7 @@ func _test_while_attack() -> void:
 	ctx.subject_id = "e1"
 	_ok("attack: only from the attacking side", not beasts.test(ctx))
 	ctx.subject_id = "p1"
-	beasts.type_name = "Flier"
+	beasts.type_name = ContentIds.TAG_FLIER
 	_ok("attack: not against a Flier", not beasts.test(ctx))
 	var wolves: WhileAttackCondition = _attack(
 			ATTACKING, WhileAttackCondition.Kind.OPPONENT_UNIT_TYPE

@@ -6,7 +6,7 @@
 # File:     exchange_cases.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 29, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -488,7 +488,7 @@ func _test_triangle_advantage() -> void:
 
 func _test_effectiveness() -> void:
 	var world: CombatWorld = _duel("bow", "sword", 2)
-	world.state.unit("e1").tags = PackedStringArray(["Flier"])
+	world.state.unit("e1").tags = PackedStringArray([ContentIds.TAG_FLIER])
 	var hit: DamagePipeline.HitDamage = _hit(world, "p1", "e1")
 	_ok("effective: a bow against a flier", hit.is_effective)
 	_ok("effective: weapon damage counts 3 times", hit.damage == 3 * 6 + 3 - 2)

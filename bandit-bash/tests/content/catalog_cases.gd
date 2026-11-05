@@ -6,7 +6,7 @@
 # File:     catalog_cases.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 31, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -485,7 +485,7 @@ func _test_fingerprint_detects_changes() -> void:
 	bow.damage -= 1
 	var original: PackedStringArray = bow.effective_against
 	var longer: PackedStringArray = original.duplicate()
-	longer.append("armored")
+	longer.append(ContentIds.TAG_ARMORED)
 	bow.effective_against = longer
 	var changed_list: bool = fingerprint(bow) != bow_hash
 	bow.effective_against = original

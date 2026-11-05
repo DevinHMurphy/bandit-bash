@@ -6,7 +6,7 @@
 # File:     save_cases.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 3, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -64,7 +64,7 @@ func _test_unit_state_round_trip() -> void:
 	unit.side = ENEMY
 	unit.tile = Vector2i(3, 1)
 	unit.movement_type = CombatGrid.MovementType.FLIER
-	unit.tags = PackedStringArray(["flier", "beast"])
+	unit.tags = PackedStringArray([ContentIds.TAG_FLIER, "beast"])
 	unit.unit_type = "harpy"
 	unit.hp = 11
 	unit.block = 2

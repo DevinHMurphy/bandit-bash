@@ -6,7 +6,7 @@
 # File:     m1_content_cases.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 4, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -78,7 +78,7 @@ const SIMPLE_WEAPONS: Dictionary[String, Array] = {
 	"simple_sword": ["sword", NIMBLE, 5, 1, PHYSICAL, 1, 1, 80, 0, 3.0, 8, []],
 	"simple_axe": ["axe", POWER, 10, 1, PHYSICAL, 1, 1, 65, 0, 3.0, 15, []],
 	"simple_lance": ["lance", BALANCE, 7, 1, PHYSICAL, 1, 1, 80, 0, 3.0, 12, []],
-	"simple_bow": ["bow", NO_PROFILE, 6, 1, PHYSICAL, 2, 3, 100, 0, 3.0, 5, ["flier"]],
+	"simple_bow": ["bow", NO_PROFILE, 6, 1, PHYSICAL, 2, 3, 100, 0, 3.0, 5, [ContentIds.TAG_FLIER]],
 	"simple_gauntlets": ["gauntlets", NO_PROFILE, 2, 2, PHYSICAL, 1, 1, 100, 0, 2.0, 1, []],
 	"simple_dagger": ["dagger", NIMBLE, 2, 1, PHYSICAL, 1, 2, 100, 0, 5.0, 3, []],
 	"simple_anima": ["anima", BALANCE, 5, 1, MAGIC, 1, 2, 80, 0, 3.0, 1, []],
