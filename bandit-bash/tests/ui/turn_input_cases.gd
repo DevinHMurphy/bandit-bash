@@ -6,7 +6,7 @@
 # File:     turn_input_cases.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -819,9 +819,10 @@ static func _menu_mismatch(
 	var listed: Dictionary[int, bool] = {}
 	var last: int = -1
 	for option: TurnInputModel.ActionOption in options:
-		if option.kind <= last:
+		var rank: int = TurnInputModel.MENU_ORDER.find(option.kind)
+		if rank <= last:
 			return "out of order"
-		last = option.kind
+		last = rank
 		listed[option.kind] = true
 		var commands: Array[Command] = []
 		if option.has_targets():

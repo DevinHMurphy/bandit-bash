@@ -29,7 +29,9 @@ extends Node2D
 ## camera; the board only sizes them to the map, and [BattleController] says what they show.[br]
 ## [b]Faster playback:[/b] held fast-forward ([method set_fast_forward]) runs waits and animations
 ## [member fast_forward_speed] times faster, in order; [method skip_playback] plays everything
-## queued at once behind the [SkipFade].
+## queued at once behind the [SkipFade].[br]
+## [b]Framing:[/b] the camera fits the map into [member map_area], the space the HUD leaves free,
+## so no HUD widget covers it.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
@@ -50,6 +52,22 @@ signal settled()
 ## Whether the map scene's marker layers and marker nodes (deployment tiles, enemy slots) show.
 ## Off for play; on to check a map's authoring.
 @export var show_markers: bool = false
+
+@export_group("Framing")
+
+## The HUD's free space the camera fits the map into ([member CameraRig.screen_area]): a
+## [Control] on a [CanvasLayer] with no offset or scale, whose rect is in screen pixels. The map
+## is framed again whenever it resizes. Edit its offsets in the HUD scene to move the map.[br]
+## [b]Unset:[/b] the map fits the whole screen less [member CameraRig.frame_margin].
+@export var map_area: Control = null:
+	set(value):
+		if is_instance_valid(map_area) and map_area.resized.is_connected(_on_map_area_resized):
+			map_area.resized.disconnect(_on_map_area_resized)
+		map_area = value
+		if is_instance_valid(map_area):
+			map_area.resized.connect(_on_map_area_resized)
+		if _session != null:
+			_frame_map()
 
 @export_group("Pacing")
 
@@ -174,7 +192,7 @@ func bind(session: CombatSession) -> void:
 	for view: BoardViewModel.UnitView in model.units:
 		_place_token(view)
 	_darkness.show_layers(model.darkness)
-	_camera.frame(map_rect())
+	_frame_map()
 	_session.playback.speed = playback_speed
 	_session.playback.duration_hook = _duration_of
 	_connect_bus(_session.bus)
@@ -408,6 +426,14 @@ func _build_map(definition: CombatMapDefinition) -> void:
 		overlay.tile_size = _tile_size()
 		overlay.origin = origin
 	_cursor.tile_size = _tile_size()
+
+
+# Frames the map in map_area's screen rect (empty while it is unset or has no size yet).
+func _frame_map() -> void:
+	_camera.screen_area = Rect2()
+	if is_instance_valid(map_area):
+		_camera.screen_area = map_area.get_global_rect()
+	_camera.frame(map_rect())
 
 
 func _tile_size() -> Vector2:
@@ -695,3 +721,8 @@ func _on_world_darkness_advanced(fact: CombatFact) -> void:
 	if layer <= WhileLayerCondition.Layer.DRY:
 		layer = _session.state.map.darkness.layer_at(fact.tile)
 	_darkness.show_layer(fact.tile, layer)
+
+
+func _on_map_area_resized() -> void:
+	if _session != null:
+		_frame_map()

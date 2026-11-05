@@ -1,0 +1,89 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/battle/battle_hud.gd" id="1_hud"]
+[ext_resource type="Theme" path="res://scenes/ui/battle/battle_theme.tres" id="2_theme"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/turn_counter.tscn" id="3_turn"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/objective_panel.tscn" id="4_objective"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/darkness_counter.tscn" id="5_darkness"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/tile_info.tscn" id="6_tile"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/unit_panel.tscn" id="7_unit"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/fact_log.tscn" id="8_log"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/phase_banner.tscn" id="9_banner"]
+
+[node name="BattleHud" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_hud")
+
+[node name="LeftColumn" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = 240.0
+offset_bottom = -56.0
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="TurnCounter" parent="LeftColumn" instance=ExtResource("3_turn")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ObjectivePanel" parent="LeftColumn" instance=ExtResource("4_objective")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="DarknessCounter" parent="LeftColumn" instance=ExtResource("5_darkness")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="TileInfo" parent="LeftColumn" instance=ExtResource("6_tile")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="UnitPanel" parent="LeftColumn" instance=ExtResource("7_unit")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Spacer" type="Control" parent="LeftColumn"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+
+[node name="FactLog" parent="LeftColumn" instance=ExtResource("8_log")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="MapArea" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 248.0
+offset_top = 64.0
+offset_right = -316.0
+offset_bottom = -56.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="PhaseBanner" parent="." instance=ExtResource("9_banner")]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -170.0
+offset_top = 4.0
+offset_right = 170.0
+offset_bottom = 52.0
+grow_horizontal = 2

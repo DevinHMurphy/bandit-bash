@@ -6,7 +6,7 @@
 # File:     save_debug_panel.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: November 4, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 extends PanelContainer
@@ -26,14 +26,16 @@ extends PanelContainer
 ## button is disabled, since clients never save a campaign; it shows the host's replica
 ## instead.[br]
 ## [b]Shown and hidden[/b] by toggle_save_debug, wherever it appears; [BattleScreen] hides it when
-## a battle opens. Its scene keeps it 192 px wide at font size 14, so at the 1152×648 base size it
-## sits left of the M1 map and above the battle's turn bar: a wider or taller panel covers tiles.
+## a battle opens. Each time it shows it reads the game state again, so in a battle begun since the
+## screen loaded it shows that battle and disables Begin Battle. Its scene keeps it 192 px wide at
+## font size 14, so on the battle screen it covers only the HUD's left column, never the map
+## ([BattleHud]): a panel wider than that column covers tiles.
 
 # ============================================================
 # INPUT MAP SETUP (Project Settings -> Input Map):
-#   "toggle_save_debug"  -> F3   (shows the panel, or hides it; in every state, even while its
-#                                 buttons are disabled. A hidden panel's buttons take no clicks
-#                                 and give up keyboard focus)
+#   "toggle_save_debug"  -> F3   (shows the panel, read afresh, or hides it; in every state, even
+#                                 while its buttons are disabled. A hidden panel's buttons take no
+#                                 clicks and give up keyboard focus)
 # Nothing else is read here: the buttons and the seed field are mouse/focus driven.
 # ============================================================
 
@@ -70,6 +72,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	get_viewport().set_input_as_handled()
 	visible = not visible
+	# The state it showed was read when it last refreshed; a battle may have begun since.
+	if visible:
+		_refresh("")
 
 
 func _refresh(message: String) -> void:

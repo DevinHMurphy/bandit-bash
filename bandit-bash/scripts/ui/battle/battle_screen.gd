@@ -6,7 +6,7 @@
 # File:     battle_screen.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 class_name BattleScreen
@@ -21,7 +21,8 @@ extends Node2D
 ## settled, [code]CampaignService.end_battle()[/code] saves the result and every player goes to
 ## Results.[br]
 ## [b]Commands only:[/b] the screen changes no combat state; its [BattleController] turns the run
-## seat's input into commands on that map.[br]
+## seat's input into commands on that map, and its [BattleHud] draws the turn, the objective, the
+## darkness, the tile and unit under the cursor, the phase banners and the fact log.[br]
 ## [b]Co-op[/b] (any run that isn't solo, and a multiplayer client, which holds no run) keeps the
 ## placeholder: its label and the End Round button to Results (plan, question 2).[br]
 ## [b]The save debug panel[/b] (debug builds) is hidden when a battle opens, as it would take
@@ -51,6 +52,7 @@ var _is_ending: bool = false
 
 @onready var _view: BattleView = %BattleView
 @onready var _controller: BattleController = %BattleController
+@onready var _hud: BattleHud = %BattleHud
 @onready var _placeholder: Control = %CoopPlaceholder
 @onready var _placeholder_note: Label = %PlaceholderNote
 
@@ -87,6 +89,11 @@ func get_controller() -> BattleController:
 	return _controller
 
 
+## The HUD, for tests that read it.
+func get_hud() -> BattleHud:
+	return _hud
+
+
 # The battle request for the solo run, then Begin. Returns the error the run flow reports.
 func _begin_battle(run: CampaignSession) -> Error:
 	if map_definition == null:
@@ -119,12 +126,14 @@ func _open(encounter: CombatEncounter, seat: int) -> void:
 	_view.settled.connect(_on_battle_view_settled)
 	_view.bind(_session)
 	_controller.bind(encounter, _session, seat)
+	_hud.bind(_session, _controller, _view)
 	_on_battle_view_settled()
 
 
 # Hides the battle and shows the co-op placeholder; a non-empty note replaces its text.
 func _show_placeholder(note: String) -> void:
 	_controller.unbind()
+	_hud.unbind()
 	_view.visible = false
 	_view.process_mode = Node.PROCESS_MODE_DISABLED
 	_placeholder.visible = true
@@ -137,6 +146,7 @@ func _end_battle() -> void:
 		return
 	_is_ending = true
 	_controller.unbind()
+	_hud.unbind()
 	_view.unbind()
 	if CampaignService.end_battle() == null:
 		_show_placeholder("Couldn't save the battle's end; see the log.")

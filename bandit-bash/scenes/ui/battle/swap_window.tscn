@@ -7,10 +7,10 @@
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -180.0
+offset_left = -290.0
 offset_top = 8.0
-offset_right = 180.0
-offset_bottom = 56.0
+offset_right = 290.0
+offset_bottom = 48.0
 grow_horizontal = 2
 theme = ExtResource("2_theme")
 script = ExtResource("1_swap")
@@ -19,19 +19,18 @@ script = ExtResource("1_swap")
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="Column" type="VBoxContainer" parent="Row"]
+[node name="Title" type="Label" parent="Row"]
 layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="Title" type="Label" parent="Row/Column"]
-layout_mode = 2
+theme_type_variation = &"HudHeading"
 text = "Opening swap"
 
-[node name="Hint" type="Label" parent="Row/Column"]
+[node name="Hint" type="Label" parent="Row"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"HudText"
 text = "Pick two of your units to trade tiles, then Start."
-autowrap_mode = 3
+vertical_alignment = 1
 
 [node name="StartButton" type="Button" parent="Row"]
 unique_name_in_owner = true

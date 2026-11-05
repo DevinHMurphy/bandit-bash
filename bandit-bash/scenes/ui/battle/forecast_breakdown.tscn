@@ -14,7 +14,7 @@ text = "Damage stages (first hit)"
 
 [node name="ActorStages" type="Label" parent="."]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(328, 0)
+custom_minimum_size = Vector2(260, 0)
 layout_mode = 2
 theme_type_variation = &"ForecastNote"
 text = "Attacker"
@@ -22,7 +22,7 @@ autowrap_mode = 3
 
 [node name="TargetStages" type="Label" parent="."]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(328, 0)
+custom_minimum_size = Vector2(260, 0)
 layout_mode = 2
 theme_type_variation = &"ForecastNote"
 text = "Defender"
