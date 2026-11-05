@@ -59,7 +59,7 @@ into `dev`; plan and orchestrator commits go to `dev`; `main` holds released sta
   waves and close (no real waves until P05 draws the groups). The M1 greybox map loads and passes
   its check, and the forecast (`CombatForecast`) equals execution. The content catalog
   (`EffectCatalog`) loads `res://data/`, though no content is written yet.
-- **Current milestone:** [M1 First playable fight](#milestones): built and playtested November 5, 2026; its tuning pass is next. [M0 Foundations](#milestones) is
+- **Current milestone:** [M2 Combat complete](#milestones). [M1 First playable fight](#milestones) closed November 5, 2026 on a successful playtest; its tuning pass is deferred (P07 question 26: units have no identity until traits exist; enemy strength settles with several levels). [M0 Foundations](#milestones) is
   complete (P01 EB1–EB7 implemented and verified headless, October 30, 2026).
 - **Current focus:** P02's, P03's, P04's and P05's parts of M1 are built; a headless M1 battle runs to the end.
   M1's part of P06 is built (DK1–DK4 merged); M1's critical path is now
@@ -256,6 +256,11 @@ flowchart LR
     UI2 --> UI4[UI4 intents, danger zone]
     UI4 --> UI3F
     UI2 --> UI5[UI5 HUD, M1 build] --> UI5F[UI5F playtest fix-up]
+    UI5F --> UI6[UI6 targeting model] --> UI7[UI7 unit display, art]
+    UI6 --> UI8[UI8 control hints]
+    UI7 --> UI9[UI9 controller]
+    UI8 --> UI9
+    UI9 --> UI10[UI10 rest of M2 UI]
   end
   DK4 --> UI3
   EN4F --> UI4
@@ -265,8 +270,8 @@ flowchart LR
   classDef ready fill:#fff3c4,stroke:#b8860b,color:#1b1b1b
   classDef waiting fill:#e0e0e0,stroke:#757575,color:#1b1b1b
   class R1,R2,R3,R4,R5,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,CT2,EB5,EB7,EBF,EN1,CT3,EN2,EN3,CC8,CT3F,EN3F,EN4,EN5,MP8,DK1,EN4F,DK2,DK3,UI1,DK4,UI2,UI2F,UI3,UI4,UI3F,UI5,UI5F done
-  class CT6,CT13,CC10,DK5 ready
-  class CT7,DK6 waiting
+  class CT6,CT13,CC10,DK5,UI6 ready
+  class CT7,DK6,UI7,UI8,UI9,UI10 waiting
 ```
 
 `CC6 --- MP4`: built together; MP4's objective checks run on CC6's `AFTER_STEP` hook.
@@ -377,15 +382,15 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 
 ## Next actions
 
-1. **M1's tuning pass:** the user playtested M1 on November 5, 2026 (successful) and wants major UI
-   work and tune-ups before the MVP. Waiting on the user's tuning notes (Block, Stance, darkness,
-   weight, turn par; UI5 found M1 very lethal) and the scope of P07's M2 part (UI6+), to be
-   broken down. Then M1's exit review and M2.
+1. **M2's UI (P07 UI6–UI10, functional only; the user designs screens later):** P07 questions 20–25
+   open; UI6 (the targeting model, controller-ready) first, then unit art with Stance and Block and
+   a grayscale "has acted" look (UI7), control hints (UI8), controller support (UI9), the rest
+   (UI10).
 2. **Builds needing no decisions:** P02 **CC10** (battle resume) and the P03 **tag cleanup** (prompts
    issued November 5, 2026), in parallel; P06 **DK5** after CC10 (its resume test needs it).
-3. **Open questions for the user:** the tuning notes and the UI scope (above). **Design doc to write:** the move preview re-architecture (Design items, P05 / P07).
-4. **Later:** one public `Pathing.path_to` (P07 question 15 d); P03 CT6 and CT13 (no longer held
-   once M1 exits); P05 EN6–EN12, P03's breadth, P06 DK6, P02 CC9 and P04 MP9 docs for M2.
+3. **Open questions for the user:** P07 questions 20–25 (the M2 UI). **Design doc to write:** the move preview re-architecture (Design items, P05 / P07).
+4. **Later:** one public `Pathing.path_to` (P07 question 15 d); P03 CT6 and CT13 (no longer held:
+   M1 has closed); P05 EN6–EN12, P03's breadth, P06 DK6, P02 CC9 and P04 MP9 docs for M2.
 5. Vision updates pending for the ideation thread (Design items by plan).
 
 ## Change log
@@ -475,3 +480,4 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 | November 5, 2026 | P07 question 18 answered (as recommended); UI5F prompt reissued on the recorded base. |
 | November 5, 2026 | **P07 UI5F merged into `dev`** (7a8b40d; verified: ui 145, every other suite unchanged, launch clean): the forecast shows the counter and a kill chance, M1's house object, two-letter tokens, the end banner, doc fixes, and the pause menu's unpause (broken by UI5, fixed with a test). **Every M1 build step is merged; M1 waits on the user's playtest.** P07 question 19 raised. |
 | November 5, 2026 | P07 question 19 answered (as recommended). **M1 playtested by the user: successful.** The user wants major UI work and tune-ups before the MVP; tuning notes and P07's M2 scope requested. CC10 and tag cleanup prompts issued. |
+| November 5, 2026 | **M1 closed** (user): the playtest was successful; the tuning pass is deferred (no traits yet; enemy strength settles with several levels). Current milestone M2. User UI direction: targeting UI with outlines (as `Godot_FE`), unit art from `Godot_FE` through a `CombatUnitDisplay`-like token with a Stance bar and a Block count, grayscale once acted, visible control hints, targeting built so controller support stays small, functional screens only (the user designs them later). P07 broken down as UI6–UI10; questions 20–25 raised. |
