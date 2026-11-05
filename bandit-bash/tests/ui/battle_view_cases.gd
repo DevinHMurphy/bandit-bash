@@ -12,7 +12,8 @@
 extends RefCounted
 ## The battle board's cases for tests/ui/run_all.gd (combat UI plan, UI1 row): the view-model,
 ## the board built on the M1 map, a whole M1 battle's facts played through the session's
-## playback, and the darkness overlay. No autoload is named or needed.
+## playback, the darkness overlay, held fast-forward and the faded skip. No autoload is named or
+## needed.
 ##
 ## [b]The battle:[/b] the Mercenary army ([method StartingArmy.build]) against the M1 pack on the
 ## greybox map, begun through [method CampaignSession.begin_battle] on the real catalog, as in
@@ -20,7 +21,9 @@ extends RefCounted
 ## swap window it sends Start; each player unit attacks the first enemy it can hit from the first
 ## reachable tile (row-major), else walks to the reachable tile nearest an enemy and waits; then
 ## the seat ends its turn. After every command the board is stepped frame by frame until it
-## settles, and it must then agree with the state.
+## settles, and it must then agree with the state.[br]
+## [b]Twins:[/b] the fast-forward and skip cases begin the same battle more than once from the
+## same seed, so the same command gives each board the same facts to compare their timing on.
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
 const VIEW_SCENE: PackedScene = preload("res://scenes/ui/battle/battle_view.tscn")
@@ -66,6 +69,9 @@ func run() -> void:
 	_test_view_model(map)
 	_test_board_and_playback(map)
 	_test_darkness_overlay(map)
+	_test_fast_forward(map)
+	_test_skip(map)
+	_test_skip_stops(map)
 
 
 ## Begins the M1 battle for a new solo run; null, with the problem reported, when it can't.
@@ -274,6 +280,205 @@ func _test_darkness_overlay(map: CombatMapDefinition) -> void:
 	run.close()
 
 
+# One unit's longest walk, sent to twin boards: the one with fast-forward held settles in about a
+# fast_forward_speed-th of the frames, and both end where the state says.
+func _test_fast_forward(map: CombatMapDefinition) -> void:
+	var case_name: String = "fast-forward: held, a walk takes a fast_forward_speed-th of the time"
+	var normal: Board = _started_board(map, case_name)
+	var fast: Board = _started_board(map, case_name)
+	if normal == null or fast == null:
+		for board: Board in [normal, fast]:
+			if board != null:
+				board.close()
+		return
+	var unit_id: String = normal.session.state.units_of(PLAYER)[0]
+	var walk: Array[Vector2i] = _longest_walk(normal.session, unit_id)
+	var wait: UnitTurnCommand = UnitTurnCommand.new(
+			0, unit_id, UnitTurnCommand.Action.WAIT, "", walk
+	)
+	var problem: String = wait.validate(normal.session)
+	_submit(normal, wait)
+	_submit(fast, UnitTurnCommand.new(0, unit_id, UnitTurnCommand.Action.WAIT, "", walk))
+	fast.view.set_fast_forward(true)
+	var normal_frames: int = _frames_to_settle(normal.view)
+	var fast_frames: int = _frames_to_settle(fast.view)
+	var speed: float = fast.view.fast_forward_speed
+	_check.call(case_name, (
+			problem.is_empty()
+			and walk.size() >= 3
+			and normal_frames >= 4
+			and fast_frames > 0
+			and fast_frames < normal_frames
+			and fast_frames <= ceili(float(normal_frames) / speed) + 1
+	), "%d tiles: %d frames, %d held at %sx; %s" % [
+		walk.size(), normal_frames, fast_frames, speed, problem,
+	])
+	_check.call("fast-forward: both boards end as the state says, the game speed unchanged", (
+			normal.view.mismatches().is_empty()
+			and fast.view.mismatches().is_empty()
+			and is_equal_approx(fast.session.playback.speed, fast.view.playback_speed)
+			and not fast.session.playback.is_fast_forward
+	), "; ".join(normal.view.mismatches() + fast.view.mismatches()))
+	fast.view.set_fast_forward(false)
+	_check.call("fast-forward: released, it is off", not fast.view.is_fast_forward())
+	normal.close()
+	fast.close()
+
+
+# The first enemy phase, skipped on one board and played out on its twin: the skip starts only
+# while playback runs, everything queued has played once the screen is black, and the board
+# settles as the fade clears, long before the twin.
+func _test_skip(map: CombatMapDefinition) -> void:
+	var skipped: Board = _started_board(map, "skip: the M1 battle begins")
+	var twin: Board = _started_board(map, "skip: the twin M1 battle begins")
+	if skipped == null or twin == null:
+		for board: Board in [skipped, twin]:
+			if board != null:
+				board.close()
+		return
+	var idle_skip: bool = skipped.view.skip_playback()
+	_submit(skipped, EndTurnCommand.new(0))
+	_submit(twin, EndTurnCommand.new(0))
+	var playback: FactPlayback = skipped.session.playback
+	var queued: int = playback.pending()
+	var started: bool = skipped.view.skip_playback()
+	var again: bool = skipped.view.skip_playback()
+	var watch: SkipWatch = _watch_skip(skipped)
+	var twin_frames: int = _frames_to_settle(twin.view)
+	var fade: SkipFade = skipped.view.get_skip_fade()
+	var fade_frames: int = ceili((fade.fade_out_time + fade.fade_in_time) / FRAME)
+
+	_check.call("skip: it starts only while playback runs, and once at a time", (
+			not idle_skip and queued > 0 and started and not again
+	), "idle %s, %d queued, started %s, again %s" % [idle_skip, queued, started, again])
+	_check.call("skip: once the screen is black, everything queued has played", (
+			watch.black_frame > 0 and watch.pending_at_black == 0
+	), "black at frame %d, %d left" % [watch.black_frame, watch.pending_at_black])
+	_check.call("skip: the board settles as the fade clears, long before the unskipped twin", (
+			watch.settle_frame > 0
+			and watch.settle_frame == watch.end_frame
+			and watch.settle_frame <= fade_frames + 2
+			and twin_frames > watch.settle_frame
+			and fade.get_opacity() == 0.0
+			and not playback.is_fast_forward
+			and not playback.is_paused
+	), "settled at frame %d (fades %d), twin %d" % [
+		watch.settle_frame, fade_frames, twin_frames,
+	])
+	_check.call("skip: afterwards the board agrees with the state", (
+			skipped.view.mismatches().is_empty() and twin.view.mismatches().is_empty()
+	), "; ".join(skipped.view.mismatches()))
+	skipped.close()
+	twin.close()
+
+
+# A skip with the pause hook marking every move: at black it has stopped before the first move
+# still queued; when the fade clears, playback resumes and plays the rest at normal speed.
+func _test_skip_stops(map: CombatMapDefinition) -> void:
+	var board: Board = _started_board(map, "skip: the M1 battle begins for the pause hook")
+	if board == null:
+		return
+	var playback: FactPlayback = board.session.playback
+	var stops: Array[CombatFact] = []
+	var on_paused: Callable = func(fact: CombatFact) -> void:
+		stops.append(fact)
+	playback.paused_before.connect(on_paused)
+	playback.pause_hook = func(fact: CombatFact) -> bool:
+		return fact.kind == CombatFact.Kind.UNIT_MOVED
+	_submit(board, EndTurnCommand.new(0))
+	var started: bool = board.view.skip_playback()
+	var watch: SkipWatch = _watch_skip(board)
+	playback.paused_before.disconnect(on_paused)
+	_check.call("skip: a fact the pause hook marks stops it, and plays after the fade clears", (
+			started
+			and stops.size() == 1
+			and watch.black_frame > 0
+			and watch.paused_at_black
+			and watch.pending_at_black > 0
+			and watch.end_frame > 0
+			and not watch.paused_at_end
+			and watch.pending_at_end > 0
+			and watch.settle_frame > watch.end_frame
+			and board.view.mismatches().is_empty()
+	), "%d stops; black %d (paused %s, %d left); ended %d (paused %s, %d left); settled %d" % [
+		stops.size(), watch.black_frame, watch.paused_at_black, watch.pending_at_black,
+		watch.end_frame, watch.paused_at_end, watch.pending_at_end, watch.settle_frame,
+	])
+	board.close()
+
+
+# A new M1 battle drawn on a board, past its opening Start; null, with the problem reported as
+# case_name, when it can't begin.
+func _started_board(map: CombatMapDefinition, case_name: String) -> Board:
+	var run: CampaignSession = _new_run()
+	var battle: CombatEncounter = begin_m1(_catalog, map, run)
+	if battle == null:
+		_check.call(case_name, false, "begin_battle gave no battle")
+		run.close()
+		return null
+	var board: Board = Board.new()
+	board.run = run
+	board.battle = battle
+	board.session = battle.get_session(0)
+	board.view = VIEW_SCENE.instantiate()
+	_root.add_child(board.view)
+	board.view.bind(board.session)
+	if board.session.state.map.opening_swap_open:
+		_submit(board, StartCommand.new(0))
+		settle(board.view)
+	return board
+
+
+func _submit(board: Board, command: Command) -> void:
+	board.battle.submit(command, board.session.session_id)
+	board.battle.resolve_queued()
+
+
+# The frames view takes to settle, stepped as the game steps it; -1 when it never does.
+static func _frames_to_settle(view: BattleView) -> int:
+	for frame: int in MAX_SETTLE_FRAMES:
+		if view.is_settled():
+			return frame
+		view.advance(FRAME)
+	return MAX_SETTLE_FRAMES if view.is_settled() else -1
+
+
+# Steps the board until it settles, noting the frame the skip's fade turned black and the frame
+# the skip ended, and what playback held at each.
+func _watch_skip(board: Board) -> SkipWatch:
+	var watch: SkipWatch = SkipWatch.new()
+	var fade: SkipFade = board.view.get_skip_fade()
+	var playback: FactPlayback = board.session.playback
+	for frame: int in range(1, MAX_SETTLE_FRAMES + 1):
+		board.view.advance(FRAME)
+		if watch.black_frame < 0 and fade.get_opacity() >= 1.0:
+			watch.black_frame = frame
+			watch.pending_at_black = playback.pending()
+			watch.paused_at_black = playback.is_paused
+		if watch.end_frame < 0 and not board.view.is_skipping():
+			watch.end_frame = frame
+			watch.pending_at_end = playback.pending()
+			watch.paused_at_end = playback.is_paused
+		if board.view.is_settled():
+			watch.settle_frame = frame
+			break
+	return watch
+
+
+# The longest of unit_id's walks to the tiles it can reach, the first found in row-major order.
+func _longest_walk(session: CombatSession, unit_id: String) -> Array[Vector2i]:
+	var reach: Dictionary[Vector2i, int] = Pathing.reach(session.engine, session.state, unit_id)
+	var ends: Array[Vector2i] = []
+	ends.assign(reach.keys())
+	ends.sort_custom(MapLayout.is_before)
+	var longest: Array[Vector2i] = []
+	for tile: Vector2i in ends:
+		var walk: Array[Vector2i] = _walk_to(session, unit_id, tile)
+		if walk.size() > longest.size():
+			longest = walk
+	return longest
+
+
 func _new_run() -> CampaignSession:
 	return CampaignSession.new(CampaignData.Mode.SOLO, SEED, PackedInt32Array([0]))
 
@@ -388,3 +593,43 @@ class Played:
 	var stalls: PackedStringArray = []
 	## Each settle at which the board disagreed with the state.
 	var disagreements: PackedStringArray = []
+
+
+## One M1 battle and the board drawing its map.
+class Board:
+	extends RefCounted
+
+	## The run the battle belongs to.
+	var run: CampaignSession = null
+	## The battle.
+	var battle: CombatEncounter = null
+	## Its one map's session.
+	var session: CombatSession = null
+	## The board drawing it, in the tree.
+	var view: BattleView = null
+
+	## Frees the board and closes the run.
+	func close() -> void:
+		view.free()
+		run.close()
+
+
+## When a watched skip turned black, ended and settled, and what playback held then. Frames count
+## from 1; -1 for a moment that never came.
+class SkipWatch:
+	extends RefCounted
+
+	## The frame the fade turned fully black.
+	var black_frame: int = -1
+	## Facts still queued at that frame.
+	var pending_at_black: int = -1
+	## Whether playback was paused at that frame.
+	var paused_at_black: bool = false
+	## The frame the skip ended (its fade cleared).
+	var end_frame: int = -1
+	## Facts still queued at that frame.
+	var pending_at_end: int = -1
+	## Whether playback was paused at that frame.
+	var paused_at_end: bool = false
+	## The frame the board settled.
+	var settle_frame: int = -1

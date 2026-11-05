@@ -26,7 +26,10 @@ extends Node2D
 ## built from the state they led to.[br]
 ## [b]Turn input's pieces[/b] (the move, attack and enemy range [TileOverlay]s, the [PathPreview]
 ## and the [TileCursor]) are children here so they share the board's space and camera; the board
-## only sizes them to the map, and [BattleController] says what they show.
+## only sizes them to the map, and [BattleController] says what they show.[br]
+## [b]Faster playback:[/b] held fast-forward ([method set_fast_forward]) runs waits and animations
+## [member fast_forward_speed] times faster, in order; [method skip_playback] plays everything
+## queued at once behind the [SkipFade].
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
@@ -71,14 +74,20 @@ signal settled()
 # ASSUMPTION: no basis in Godot_FE or the vision; for M1's tuning pass (plan, question 5).
 @export_range(0.0, 3.0, 0.01) var defeat_time: float = 0.4
 
-## Game speed: every wait and animation is divided by it ([member FactPlayback.speed]). Holding
-## fast-forward is separate ([member FactPlayback.is_fast_forward]).[br]
+## Game speed: every wait and animation is divided by it ([member FactPlayback.speed]). Held
+## fast-forward multiplies it by [member fast_forward_speed] without changing it.[br]
 ## [b]1.0:[/b] normal speed. [b]2.0:[/b] twice as fast.
 @export_range(0.1, 8.0, 0.1) var playback_speed: float = 1.0:
 	set(value):
 		playback_speed = value
 		if _session != null:
 			_session.playback.speed = playback_speed
+
+## How many times faster every wait and animation runs while fast-forward is held
+## ([method set_fast_forward]), on top of [member playback_speed]. The skip's fade isn't sped up.
+## An options-menu setting later (combat UI plan, UI6).[br]
+## [b]1.0:[/b] holding changes nothing. [b]4.0:[/b] a 0.4 s walk takes 0.1 s.
+@export_range(1.0, 16.0, 0.5) var fast_forward_speed: float = 4.0
 
 @export_group("")
 
@@ -105,6 +114,27 @@ var _last_duration: float = 0.0
 
 var _is_settled: bool = true
 
+var _is_fast_forward: bool = false
+
+# --- The skip (meaningful while bound; skip_playback() starts it, advance() steps it) ----------
+# None:       _skip_tween is null. Playback runs as usual.
+# Fading out: _skip_tween darkens the SkipFade. Playback and animations run on as usual
+#             underneath; is_settled() is false, so turn input waits.
+# Black:      not a step of its own. In the advance() the fade out ends, every queued fact plays
+#             at once (FactPlayback.is_fast_forward, its waits skipped) and every animation is
+#             finished, then the fade in starts in the same call.
+# Fading in:  _is_skip_clearing; nothing is left to play unless the flush stopped early.
+# A fact the pause hook marks (FactPlayback.pause_hook: a boss combat, a player unit's death)
+# stops the flush with playback paused before it (_skip_stopped); when the fade in ends,
+# playback resumes and that fact plays at normal speed. Holding fast-forward doesn't speed the
+# fades, and skip_playback() during a skip or with nothing to play does nothing.
+var _skip_tween: Tween = null
+var _is_skip_clearing: bool = false
+var _skip_stopped: bool = false
+
+# Seconds left of the fade _skip_tween plays.
+var _skip_left: float = 0.0
+
 @onready var _map_holder: Node2D = %MapHolder
 @onready var _darkness: DarknessOverlay = %DarknessOverlay
 @onready var _token_layer: Node2D = %Tokens
@@ -115,6 +145,7 @@ var _is_settled: bool = true
 @onready var _enemy_range_overlay: TileOverlay = %EnemyRangeOverlay
 @onready var _path_preview: PathPreview = %PathPreview
 @onready var _cursor: TileCursor = %TileCursor
+@onready var _skip_fade: SkipFade = %SkipFade
 
 
 func _exit_tree() -> void:
@@ -150,19 +181,23 @@ func bind(session: CombatSession) -> void:
 
 
 ## Stops drawing the session: its bus is let go and its playback keeps no hook of the board's.
-## The board's nodes stay as they are. Does nothing when nothing is bound.
+## A skip under way ends with the screen cleared, and fast-forward is let go; the board's other
+## nodes stay as they are. Does nothing when nothing is bound.
 func unbind() -> void:
 	if _session == null:
 		return
+	_end_skip()
+	_is_fast_forward = false
 	_disconnect_bus(_session.bus)
 	if _session.playback.duration_hook == _duration_of:
 		_session.playback.duration_hook = Callable()
 	_session = null
 
 
-## Steps playback and every animation by [param delta] seconds of real time, and emits
-## [signal settled] when both have run out. Called each frame by [method _process]; tests call it
-## directly.
+## Steps playback and every animation by [param delta] seconds of real time
+## ([member fast_forward_speed] times that while fast-forward is held), steps a skip's fade by
+## [param delta] itself, and emits [signal settled] when all have run out. Called each frame by
+## [method _process]; tests call it directly.
 func advance(delta: float) -> void:
 	if _session == null:
 		return
@@ -170,18 +205,61 @@ func advance(delta: float) -> void:
 	# still ends with settled.
 	if not is_settled():
 		_is_settled = false
-	_session.playback.advance(delta)
-	var step: float = maxf(delta, 0.0) * _session.playback.speed
+	var real: float = maxf(delta, 0.0)
+	# Scaling the time given to playback, not FactPlayback.speed, leaves the game speed (a lobby
+	# setting, the same for every peer) untouched.
+	var scaled: float = real * (fast_forward_speed if _is_fast_forward else 1.0)
+	_session.playback.advance(scaled)
+	var step: float = scaled * _session.playback.speed
 	_step_tweens(_holding, step)
 	_step_tweens(_cosmetic, step)
+	_step_skip(real)
 	if is_settled() and not _is_settled:
 		_is_settled = true
 		settled.emit()
 
 
-## Whether playback has no fact queued and no animation holds it.
+## Whether playback has no fact queued, no animation holds it and no skip is under way.
 func is_settled() -> bool:
-	return _session == null or (_session.playback.pending() == 0 and _holding.is_empty())
+	return _session == null or (
+			_session.playback.pending() == 0 and _holding.is_empty() and _skip_tween == null
+	)
+
+
+## Holds fast-forward while [param is_held]: playback's waits and every animation run
+## [member fast_forward_speed] times faster, in their order. [member playback_speed] is unchanged.
+func set_fast_forward(is_held: bool) -> void:
+	_is_fast_forward = is_held
+
+
+## Whether fast-forward is held ([method set_fast_forward]).
+func is_fast_forward() -> bool:
+	return _is_fast_forward
+
+
+## Skips the playback running: the screen fades to black ([SkipFade]), every queued fact then
+## plays at once with its animation finished, and the screen fades back in. A fact
+## [member FactPlayback.pause_hook] marks stops the skip early; the fade in shows it, then it plays
+## at normal speed. Returns whether a skip started: not while one is under way or nothing plays.
+func skip_playback() -> bool:
+	if _skip_tween != null or is_settled():
+		return false
+	_skip_tween = _skip_fade.fade_out()
+	_skip_left = _skip_fade.fade_out_time
+	_is_skip_clearing = false
+	_skip_stopped = false
+	return true
+
+
+## Whether a skip is under way ([method skip_playback]), from its fade out to the end of its
+## fade in.
+func is_skipping() -> bool:
+	return _skip_tween != null
+
+
+## The skip's fade, for reading how dark it is.
+func get_skip_fade() -> SkipFade:
+	return _skip_fade
 
 
 ## The session drawn; null when none is.
@@ -386,6 +464,56 @@ func _step_tweens(tweens: Array[Tween], step: float) -> void:
 			index += 1
 		else:
 			tweens.remove_at(index)
+
+
+# Steps the skip's fade by delta seconds of real time; see the skip block above.
+func _step_skip(delta: float) -> void:
+	if _skip_tween == null:
+		return
+	# Tween.custom_step() reports a tween finished only on the step after the one that ends it, so
+	# the fade's own time decides when it is done.
+	if _skip_tween.is_valid():
+		_skip_tween.custom_step(delta)
+	_skip_left -= delta
+	if _skip_left > 0.0:
+		return
+	if not _is_skip_clearing:
+		_flush_playback()
+		_skip_tween = _skip_fade.fade_in()
+		_skip_left = _skip_fade.fade_in_time
+		_is_skip_clearing = true
+		return
+	_skip_tween = null
+	_is_skip_clearing = false
+	_skip_fade.clear()
+	if _skip_stopped:
+		_skip_stopped = false
+		_session.playback.resume()
+
+
+# Plays every queued fact now with its wait skipped, stopping before a fact the pause hook marks,
+# then finishes every animation those facts started.
+func _flush_playback() -> void:
+	var playback: FactPlayback = _session.playback
+	var was_paused: bool = playback.is_paused
+	playback.is_fast_forward = true
+	playback.play_all()
+	playback.is_fast_forward = false
+	_skip_stopped = playback.is_paused and not was_paused
+	_step_tweens(_holding, INF)
+	_step_tweens(_cosmetic, INF)
+
+
+# Ends a skip under way at once: the screen clears, and playback resumes if the skip paused it.
+func _end_skip() -> void:
+	if _skip_tween != null and _skip_tween.is_valid():
+		_skip_tween.kill()
+	_skip_tween = null
+	_is_skip_clearing = false
+	_skip_fade.clear()
+	if _skip_stopped and _session != null:
+		_session.playback.resume()
+	_skip_stopped = false
 
 
 # The shortest walk from `from` to `to` over the grid's move costs for the mover's movement type,

@@ -21,7 +21,8 @@ extends Node
 ## submits that command to the encounter for the seat and resolves it. A rejection
 ## ([signal CombatSession.command_rejected]) shows its reason in the [BattleMessage]. Panels go
 ## through one [PanelHost]: each stage that opens a panel pushes one, and cancel pops exactly one.
-## Input waits while playback runs ([method BattleView.is_settled]), except fast-forward.[br]
+## Input waits while playback runs ([method BattleView.is_settled]), except fast-forward and the
+## skip.[br]
 ## [BattleScreen] binds it to the seat's map ([method bind]); its widgets are the nodes set in its
 ## exports, which the gameplay scene points at.
 ##
@@ -44,19 +45,26 @@ extends Node
 #   "ui_cancel"             -> Escape         (step back one stage. Read in _input, before the
 #                                                pause menu's _unhandled_input, and only consumed
 #                                                when there is a stage to step back from: in IDLE
-#                                                and SWAP it is left to open the pause menu --
-#                                                deliberate reuse of one key by stage)
+#                                                and SWAP, and while input is ignored (below), it
+#                                                is left to open the pause menu -- deliberate
+#                                                reuse of one key by stage)
 #   (Right Mouse Button)                      (step back one stage, as ui_cancel; nothing in IDLE
 #                                                and SWAP)
 #   "end_turn"              -> T              (IDLE, MOVE: End Turn, asking first while units can
 #                                                act. SWAP, SWAP_PICKED: Start -- deliberate reuse,
 #                                                the keyboard's way to Start. Harmless elsewhere)
-#   "fast_forward"          -> F (hold)       (any stage, even during playback: pressed sets
-#                                                FactPlayback.is_fast_forward, released clears it)
+#   "fast_forward"          -> F (hold)       (any stage, even during playback: while held, the
+#                                                board plays its waits and animations
+#                                                BattleView.fast_forward_speed times faster, in
+#                                                order; released, normal speed)
+#   "skip_playback"         -> X              (any stage, while playback runs: the board skips it
+#                                                behind a fade to black, BattleView.skip_playback.
+#                                                Harmless with nothing playing or during a skip)
 #   "toggle_danger_zone"    -> R              (bound for UI4; not read here)
 #   "cycle_weapon"          -> C              (bound for UI3; not read here)
+#   "toggle_save_debug"     -> F3             (read by the save debug panel; not read here)
 # While a command's playback runs, the map's combat is over, or the seat has no turn, every input
-# but fast_forward is ignored: that guard is deliberate, not a missing check.
+# but fast_forward and skip_playback is ignored: that guard is deliberate, not a missing check.
 # ============================================================
 
 # --- Turn input stage (meaningful once bind() has a session) -------------------------------
@@ -217,7 +225,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _session == null:
 		return
 	if event.is_action(&"fast_forward") and not event.is_echo():
-		_session.playback.is_fast_forward = event.is_pressed()
+		view.set_fast_forward(event.is_pressed())
+		return
+	if event.is_action_pressed(&"skip_playback"):
+		view.skip_playback()
 		return
 	if not is_accepting_input():
 		return
@@ -268,7 +279,8 @@ func unbind() -> void:
 		_session.command_rejected.disconnect(_on_session_command_rejected)
 	if view != null and view.settled.is_connected(_on_view_settled):
 		view.settled.disconnect(_on_view_settled)
-	_session.playback.is_fast_forward = false
+	if view != null:
+		view.set_fast_forward(false)
 	if panel_host != null:
 		panel_host.flush()
 	_session = null

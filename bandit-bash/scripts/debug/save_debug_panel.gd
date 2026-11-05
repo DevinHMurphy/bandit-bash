@@ -6,7 +6,7 @@
 # File:     save_debug_panel.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: October 27, 2026
+# Modified: November 4, 2026
 # ==============================================================================
 
 extends PanelContainer
@@ -23,7 +23,19 @@ extends PanelContainer
 ## "New Solo Run From Seed" starts a solo run from the seed typed in the field above it
 ## ([method RunSeed.parse]'s form), abandoning any solo run first, and stays on this screen.[br]
 ## Works the same for a multiplayer host, whose saves also reach the clients. On a client every
-## button is disabled, since clients never save a campaign; it shows the host's replica instead.
+## button is disabled, since clients never save a campaign; it shows the host's replica
+## instead.[br]
+## [b]Shown and hidden[/b] by toggle_save_debug, wherever it appears; [BattleScreen] hides it when
+## a battle opens. Its scene keeps it 192 px wide at font size 14, so at the 1152×648 base size it
+## sits left of the M1 map and above the battle's turn bar: a wider or taller panel covers tiles.
+
+# ============================================================
+# INPUT MAP SETUP (Project Settings -> Input Map):
+#   "toggle_save_debug"  -> F3   (shows the panel, or hides it; in every state, even while its
+#                                 buttons are disabled. A hidden panel's buttons take no clicks
+#                                 and give up keyboard focus)
+# Nothing else is read here: the buttons and the seed field are mouse/focus driven.
+# ============================================================
 
 @onready var _info_label: Label = %Info
 @onready var _room_button: Button = %RoomButton
@@ -51,6 +63,13 @@ func _ready() -> void:
 	_lose_button.pressed.connect(_on_lose_button_pressed)
 	_seed_run_button.pressed.connect(_on_seed_run_button_pressed)
 	_refresh(_describe_resume())
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not event.is_action_pressed(&"toggle_save_debug"):
+		return
+	get_viewport().set_input_as_handled()
+	visible = not visible
 
 
 func _refresh(message: String) -> void:

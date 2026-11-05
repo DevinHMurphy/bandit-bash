@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/battle/battle_view.gd" id="1_view"]
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/unit_token.tscn" id="2_token"]
@@ -10,6 +10,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/attack_overlay.tscn" id="8_attack"]
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/path_preview.tscn" id="9_path"]
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/tile_cursor.tscn" id="10_cursor"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/skip_fade.tscn" id="11_skip_fade"]
 
 [node name="BattleView" type="Node2D"]
 script = ExtResource("1_view")
@@ -44,4 +45,7 @@ unique_name_in_owner = true
 unique_name_in_owner = true
 
 [node name="CameraRig" parent="." instance=ExtResource("5_rig")]
+unique_name_in_owner = true
+
+[node name="SkipFade" parent="." instance=ExtResource("11_skip_fade")]
 unique_name_in_owner = true

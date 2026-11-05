@@ -368,7 +368,7 @@ func _test_rejection() -> void:
 
 
 # While a command's playback runs, accept, end_turn, clicks and the arrows do nothing; holding
-# fast_forward sets FactPlayback.is_fast_forward and releasing it clears it.
+# fast_forward speeds the board up and releasing it stops, and skip_playback starts a skip.
 func _test_playback_blocks_input() -> void:
 	var h: Harness = _harness()
 	if h == null:
@@ -393,11 +393,13 @@ func _test_playback_blocks_input() -> void:
 			and h.host.depth() == 0
 	), "playing %s, stage %d, batches %d" % [is_playing, c.get_stage(), h.batches.size()])
 	_hold(&"fast_forward", true)
-	var is_fast: bool = h.session.playback.is_fast_forward
+	var is_fast: bool = h.view.is_fast_forward()
 	_hold(&"fast_forward", false)
-	_check.call("playback: holding fast_forward sets is_fast_forward, releasing clears it", (
-			is_fast and not h.session.playback.is_fast_forward
+	_check.call("playback: holding fast_forward speeds the board up, releasing it stops", (
+			is_fast and not h.view.is_fast_forward() and not h.session.playback.is_fast_forward
 	))
+	_press(&"skip_playback")
+	_check.call("playback: skip_playback skips the playback running", h.view.is_skipping())
 	BattleViewCases.settle(h.view)
 	_check.call("playback: input is taken again once it settles", (
 			c.is_accepting_input() and c.get_stage() == IDLE

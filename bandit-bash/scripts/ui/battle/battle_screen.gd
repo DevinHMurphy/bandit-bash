@@ -23,7 +23,10 @@ extends Node2D
 ## [b]Commands only:[/b] the screen changes no combat state; its [BattleController] turns the run
 ## seat's input into commands on that map.[br]
 ## [b]Co-op[/b] (any run that isn't solo, and a multiplayer client, which holds no run) keeps the
-## placeholder: its label and the End Round button to Results (plan, question 2).
+## placeholder: its label and the End Round button to Results (plan, question 2).[br]
+## [b]The save debug panel[/b] (debug builds) is hidden when a battle opens, as it would take
+## clicks meant for the map; toggle_save_debug shows it beside the map. With the placeholder it
+## stays shown.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
@@ -50,6 +53,9 @@ var _is_ending: bool = false
 @onready var _controller: BattleController = %BattleController
 @onready var _placeholder: Control = %CoopPlaceholder
 @onready var _placeholder_note: Label = %PlaceholderNote
+
+# Outside debug builds the panel frees itself, so it is checked before each use.
+@onready var _save_debug_panel: Control = %SaveDebugPanel
 
 
 func _ready() -> void:
@@ -108,6 +114,8 @@ func _open(encounter: CombatEncounter, seat: int) -> void:
 	if _session == null:
 		_show_placeholder("The battle has no map for seat %d." % [seat])
 		return
+	if is_instance_valid(_save_debug_panel):
+		_save_debug_panel.visible = false
 	_view.settled.connect(_on_battle_view_settled)
 	_view.bind(_session)
 	_controller.bind(encounter, _session, seat)
