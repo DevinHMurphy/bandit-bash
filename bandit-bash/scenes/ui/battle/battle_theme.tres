@@ -1,4 +1,4 @@
-[gd_resource type="Theme" load_steps=4 format=3]
+[gd_resource type="Theme" load_steps=6 format=3]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hp_back"]
 bg_color = Color(0.1, 0.1, 0.1, 0.85)
@@ -16,6 +16,22 @@ corner_radius_top_left = 4
 corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_target_mark"]
+draw_center = false
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 1, 1, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_target_mark_current"]
+draw_center = false
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 1, 1, 1)
 
 [resource]
 default_font_size = 16
@@ -80,3 +96,7 @@ PhaseBannerLabel/font_sizes/font_size = 26
 PanelContainer/styles/panel = SubResource("StyleBoxFlat_panel")
 ProgressBar/styles/background = SubResource("StyleBoxFlat_hp_back")
 ProgressBar/styles/fill = SubResource("StyleBoxFlat_hp_fill")
+TargetMark/base_type = &"Panel"
+TargetMark/styles/panel = SubResource("StyleBoxFlat_target_mark")
+TargetMarkCurrent/base_type = &"Panel"
+TargetMarkCurrent/styles/panel = SubResource("StyleBoxFlat_target_mark_current")

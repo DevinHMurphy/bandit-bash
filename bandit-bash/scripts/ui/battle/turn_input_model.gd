@@ -11,8 +11,9 @@
 
 class_name TurnInputModel
 extends RefCounted
-## What turn input offers a seat, as plain data read from a [CombatSession]: which units can act,
-## each one's move and attack tiles, the walk to a tile, the legal actions and targets there, the
+## What turn input offers a seat, as plain data read from a [CombatSession]: which units can act
+## (and the cycle through them), each one's move, attack and support tiles, an enemy's range and
+## the danger zone's support tiles, the walk to a tile, the legal actions and targets there, the
 ## opening swap's partners and End Turn.
 ##
 ## Every action and target holds a built command that its own [method Command.validate] accepted
@@ -136,31 +137,161 @@ static func attack_tiles(session: CombatSession, unit_id: String) -> Array[Vecto
 
 ## Every tile [param enemy_id] could move to or attack next phase, in row-major order: the free
 ## tiles its full movement reaches and its [method DangerZone.tiles_for] (Godot_FE's selected
-## unit range, [code]CombatUnitRangeManager.gd[/code]).
+## unit range, [code]CombatUnitRangeManager.gd[/code]), drawn red. Empty for a unit that holds
+## nothing that attacks ([method DangerZone.attack_ranges]), such as a healer: its reach is
+## support, in [method enemy_support_tiles].
 static func enemy_range_tiles(session: CombatSession, enemy_id: String) -> Array[Vector2i]:
 	var tiles: Array[Vector2i] = []
 	var state: CombatState = session.state
 	if not state.has_unit(enemy_id):
 		return tiles
-	var mover: CombatUnitState = state.unit(enemy_id)
-	# Next phase's full movement, as DangerZone.tiles_for reads it.
-	var walked: Dictionary[Vector2i, int] = Pathing.flood(
-			state,
-			mover.tile,
-			session.stats(enemy_id).get_int(CombatValue.Key.MOVEMENT),
-			mover.movement_type,
-			mover.side
-	)
+	if DangerZone.attack_ranges(session.engine, enemy_id).is_empty():
+		return tiles
 	var covered: Dictionary[Vector2i, bool] = {}
-	for end: Vector2i in walked:
-		var occupant: String = state.occupant_at(end)
-		if occupant.is_empty() or occupant == enemy_id:
-			covered[end] = true
+	for end: Vector2i in _next_phase_ends(session, enemy_id):
+		covered[end] = true
 	for tile: Vector2i in DangerZone.tiles_for(session.engine, enemy_id):
 		covered[tile] = true
 	tiles.assign(covered.keys())
 	tiles.sort_custom(MapLayout.is_before)
 	return tiles
+
+
+# ASSUMPTION: support is a Block or heal staff in hand. Pouch items on allies (one tile) and runes
+# aren't drawn as support ranges, and no staff kind buffs yet (the vision's "buff").
+## Each range [param unit_id] could support at, as (shortest, longest): the Block or heal staff
+## in its Weapon slot, the only one the Staff action uses ([method StaffResolver.check]). Empty
+## when it holds none.
+static func support_ranges(session: CombatSession, unit_id: String) -> Array[Vector2i]:
+	var spans: Array[Vector2i] = []
+	var state: CombatState = session.state
+	if not state.has_unit(unit_id):
+		return spans
+	var held: CombatState.WeaponStats = state.equipped_weapon(unit_id)
+	if held == null or not held.is_staff() or held.staff == CombatState.WeaponStats.Staff.ATTACK:
+		return spans
+	var sheet: StatSheet = session.stats(unit_id)
+	spans.append(Vector2i(
+			sheet.get_int(CombatValue.Key.RANGE_MIN), sheet.get_int(CombatValue.Key.RANGE_MAX)
+	))
+	return spans
+
+
+## Every map tile [param unit_id] could support from some tile of [method move_tiles]
+## ([method support_ranges]), less its move tiles and its [method attack_tiles], in row-major
+## order: the selection's purple tiles. Empty for a unit that has acted.
+static func support_tiles(session: CombatSession, unit_id: String) -> Array[Vector2i]:
+	var tiles: Array[Vector2i] = []
+	var state: CombatState = session.state
+	if not state.has_unit(unit_id) or state.unit(unit_id).has_acted:
+		return tiles
+	var spans: Array[Vector2i] = support_ranges(session, unit_id)
+	if spans.is_empty():
+		return tiles
+	var ends: Dictionary[Vector2i, int] = Pathing.reach(session.engine, state, unit_id)
+	var red: Dictionary[Vector2i, bool] = {}
+	for tile: Vector2i in attack_tiles(session, unit_id):
+		red[tile] = true
+	var covered: Dictionary[Vector2i, bool] = {}
+	for end: Vector2i in ends:
+		for span: Vector2i in spans:
+			for tile: Vector2i in DangerZone.tiles_within(end, span):
+				if not ends.has(tile) and not red.has(tile) and _is_on_map(state, tile):
+					covered[tile] = true
+	tiles.assign(covered.keys())
+	tiles.sort_custom(MapLayout.is_before)
+	return tiles
+
+
+## Every tile [param enemy_id] could support next phase ([method support_reach]), with the free
+## tiles its movement reaches when it can't attack, less its [method enemy_range_tiles], in
+## row-major order: its purple tiles when its range is toggled on.
+static func enemy_support_tiles(session: CombatSession, enemy_id: String) -> Array[Vector2i]:
+	var tiles: Array[Vector2i] = []
+	var reach: Array[Vector2i] = support_reach(session, enemy_id)
+	if reach.is_empty():
+		return tiles
+	var covered: Dictionary[Vector2i, bool] = {}
+	for tile: Vector2i in reach:
+		covered[tile] = true
+	if DangerZone.attack_ranges(session.engine, enemy_id).is_empty():
+		for end: Vector2i in _next_phase_ends(session, enemy_id):
+			covered[end] = true
+	for tile: Vector2i in enemy_range_tiles(session, enemy_id):
+		covered.erase(tile)
+	tiles.assign(covered.keys())
+	tiles.sort_custom(MapLayout.is_before)
+	return tiles
+
+
+## Every tile some enemy in [param zone] could support next phase that none could attack
+## ([member DangerZone.combined]), in row-major order: the danger zone's purple tiles.
+static func danger_support_tiles(session: CombatSession, zone: DangerZone) -> Array[Vector2i]:
+	var tiles: Array[Vector2i] = []
+	var covered: Dictionary[Vector2i, bool] = {}
+	for enemy_id: String in zone.enemy_ids:
+		if not session.state.has_unit(enemy_id):
+			continue
+		for tile: Vector2i in support_reach(session, enemy_id):
+			if not zone.is_threatened(tile):
+				covered[tile] = true
+	tiles.assign(covered.keys())
+	tiles.sort_custom(MapLayout.is_before)
+	return tiles
+
+
+## The tiles [param unit_id] could support next phase, in row-major order: each
+## [method support_ranges] span from every free tile its full movement reaches, as
+## [method DangerZone.tiles_for] reads attacks. Empty for a unit with no support.
+static func support_reach(session: CombatSession, unit_id: String) -> Array[Vector2i]:
+	var tiles: Array[Vector2i] = []
+	var state: CombatState = session.state
+	var spans: Array[Vector2i] = support_ranges(session, unit_id)
+	if spans.is_empty():
+		return tiles
+	var covered: Dictionary[Vector2i, bool] = {}
+	for end: Vector2i in _next_phase_ends(session, unit_id):
+		for span: Vector2i in spans:
+			for tile: Vector2i in DangerZone.tiles_within(end, span):
+				if _is_on_map(state, tile):
+					covered[tile] = true
+	tiles.assign(covered.keys())
+	tiles.sort_custom(MapLayout.is_before)
+	return tiles
+
+
+# ASSUMPTION: a Shove, a Rune and a Use show red whatever their target; only Staff and Item are
+# support by kind.
+## Whether [param kind] is a support action, whose targets show on the purple support overlay:
+## Staff and Item. Every other targeted action's show on the red attack overlay.
+static func is_support_action(kind: ActionKind) -> bool:
+	return kind == ActionKind.STAFF or kind == ActionKind.ITEM
+
+
+## The seat's unit [param from_unit] cycles to among its [method acting_units], in state order,
+## wrapping: the next ([param forward]) or the previous one that can act, counted from
+## [param from_unit]'s place among the seat's units. From a unit that isn't the seat's (or none),
+## the first that can act, as Godot_FE's [code]get_first_available_unit[/code]. Empty when none
+## can act.
+static func cycle_unit(
+		session: CombatSession, seat: int, from_unit: String, forward: bool
+) -> String:
+	var acting: PackedStringArray = acting_units(session, seat)
+	if acting.is_empty():
+		return ""
+	var own: PackedStringArray = []
+	for unit_id: String in session.state.units_of(PLAYER):
+		if session.state.seat_of(unit_id) == seat:
+			own.append(unit_id)
+	var at: int = own.find(from_unit)
+	if at < 0:
+		return acting[0]
+	var step: int = 1 if forward else -1
+	for i: int in range(1, own.size() + 1):
+		var candidate: String = own[posmod(at + step * i, own.size())]
+		if acting.has(candidate):
+			return candidate
+	return acting[0]
 
 
 ## The walk [param unit_id] takes to [param tile], one of its [method move_tiles], starting on its
@@ -417,6 +548,28 @@ static func _add_untargeted(
 
 static func _is_on_map(state: CombatState, tile: Vector2i) -> bool:
 	return state.grid.step(tile, Vector2i.ZERO) != CombatFact.NO_TILE
+
+
+# The free tiles unit_id could end on next phase with its full movement from where it stands, its
+# own included, as DangerZone.tiles_for floods them.
+static func _next_phase_ends(session: CombatSession, unit_id: String) -> Array[Vector2i]:
+	var ends: Array[Vector2i] = []
+	var state: CombatState = session.state
+	if not state.has_unit(unit_id):
+		return ends
+	var mover: CombatUnitState = state.unit(unit_id)
+	var walked: Dictionary[Vector2i, int] = Pathing.flood(
+			state,
+			mover.tile,
+			session.stats(unit_id).get_int(CombatValue.Key.MOVEMENT),
+			mover.movement_type,
+			mover.side
+	)
+	for end: Vector2i in walked:
+		var occupant: String = state.occupant_at(end)
+		if occupant.is_empty() or occupant == unit_id:
+			ends.append(end)
+	return ends
 
 
 ## One action a unit's menu lists.

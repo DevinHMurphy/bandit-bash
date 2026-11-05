@@ -6,7 +6,7 @@
 # File:     target_picker.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 class_name TargetPicker
@@ -17,7 +17,8 @@ extends BattlePanel
 ## [code]Array[TurnInputModel.TargetOption][/code], each target's command already legal. Focusing
 ## a row emits [signal BattlePanel.highlighted] with its option, so the board cursor follows the
 ## keyboard; choosing one emits [signal BattlePanel.confirmed]. Rows are [member row_scene]
-## instances, one per target. The controller also picks a target clicked on the board.
+## instances, one per target, in the [TargetList]'s order; the controller keeps the focus on the
+## list's current target ([method focus_row]) and also picks a target clicked on the board.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
@@ -54,6 +55,14 @@ func open_with(payload: Variant) -> void:
 func focus_first() -> void:
 	if not _rows.is_empty():
 		_rows[0].grab_focus()
+
+
+## Focuses row [param index], so accept presses it: the controller keeps the focused row on the
+## current target of its [TargetList] as Q / E and the mouse move it. Focusing emits
+## [signal BattlePanel.highlighted] as the keyboard does. Does nothing out of range.
+func focus_row(index: int) -> void:
+	if index >= 0 and index < _rows.size() and not _rows[index].has_focus():
+		_rows[index].grab_focus()
 
 
 ## The targets listed, in row order.

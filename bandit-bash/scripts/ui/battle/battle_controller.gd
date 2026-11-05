@@ -23,15 +23,17 @@ extends Node
 ## through one [PanelHost]: each stage that opens a panel pushes one, and cancel pops exactly one.
 ## Input waits while playback runs ([method BattleView.is_settled]), except fast-forward and the
 ## skip.[br]
-## [b]Forecast:[/b] an attack, a staff or a shove is confirmed on a [ForecastPanel]
-## ([ForecastViewModel]), which cycles the target's weapons ([method cycle_weapon]).
-## [b]Move preview:[/b] hovering a move tile requests a [MovePreview]; [method run_preview_frame]
-## starts the newest hover's on a worker thread ([MovePreview.Queue]) and draws it on the frame it
-## finishes: [MovePreviewMarks] its damage and the [IntentDisplay] its re-planned intents, until
-## the hover clears.[br]
-## [b]Enemy information[/b] (question 10): the [IntentDisplay] draws the session's intents once the
-## board settles, and the cursor on an enemy shows its rule; [method toggle_danger_zone] draws
-## [DangerZone] on the danger overlay, shown in the opening swap window and off after it.[br]
+## [b]Targeting[/b] (question 21): a chosen action's targets are one [TargetList]; the picker's
+## rows, Q / E, the mouse and accept all move or pick its current target, which the cursor shows,
+## so each sends the same command. Every target is outlined ([TargetMark]), the current one more
+## strongly. An attack, a staff or a shove confirms on a [ForecastPanel] ([ForecastViewModel]),
+## which cycles the target's weapons ([method cycle_weapon]).[br]
+## [b]Move preview:[/b] hovering a move tile runs a [MovePreview] on a worker thread
+## ([method run_preview_frame]); [MovePreviewMarks] draws its damage and the [IntentDisplay] its
+## re-planned intents.[br]
+## [b]Enemy information[/b] (question 10): the [IntentDisplay] draws the intents once the board
+## settles; [method toggle_danger_zone] draws [DangerZone] red, with the enemies' support tiles
+## purple (question 23), as an enemy's toggled range and a selected unit's tiles are.[br]
 ## [BattleScreen] binds it to the seat's map ([method bind]); its widgets are the nodes set in its
 ## exports, which the gameplay scene points at.
 ##
@@ -43,11 +45,21 @@ extends Node
 #   "ui_left" / "ui_right"                       tile. In a panel the focused row takes them first
 #                                                and moves focus instead)
 #   (mouse motion)                            (IDLE, MOVE, TARGET, SWAP, SWAP_PICKED: the cursor
-#                                                follows the mouse over the board)
+#                                                follows the mouse over the board. In TARGET, over
+#                                                a listed target it makes that target current)
 #   "ui_accept"             -> Enter, Space   (on the board: confirm the cursor's tile. In a panel
-#                                                the focused row takes it first and is pressed)
+#                                                the focused row takes it first and is pressed; in
+#                                                TARGET that row is the current target's)
 #   (Left Mouse Button)                       (confirm the tile under the mouse; on a panel row the
-#                                                row takes the click)
+#                                                row takes the click. In TARGET a click on any
+#                                                listed target picks it, as its row would)
+#   "target_next"           -> E              (TARGET, CONFIRM: the next target, wrapping, keeping
+#                                                the weapon where it can; in CONFIRM the forecast
+#                                                or question follows. IDLE: the cursor and camera
+#                                                go to the next of the seat's units that can act.
+#                                                Deliberate reuse by stage, as Godot_FE's bumpers.
+#                                                Harmless elsewhere and with one target)
+#   "target_prev"           -> Q              (as target_next, backwards)
 #   "ui_cancel"             -> Escape         (step back one stage. Read in _input, before the
 #                                                pause menu's _unhandled_input, and only consumed
 #                                                when there is a stage to step back from: in IDLE
@@ -71,7 +83,8 @@ extends Node
 #                                                zone. It changes no state, so it isn't held back)
 #   "cycle_weapon"          -> C              (CONFIRM with the forecast panel open: the forecast
 #                                                and the command move to the target's next weapon,
-#                                                wrapping. Harmless elsewhere, and with one weapon)
+#                                                wrapping. Harmless elsewhere, and with one weapon;
+#                                                Q / E are targets, not weapons, unlike Godot_FE)
 #   "toggle_save_debug"     -> F3             (read by the save debug panel; not read here)
 # While a command's playback runs, the map's combat is over, or the seat has no turn, every input
 # but fast_forward, skip_playback and toggle_danger_zone is ignored: that guard is deliberate, not
@@ -90,11 +103,15 @@ extends Node
 #              partner sends the swap (UnitTurnCommand OPENING_SWAP) with no confirm; accept
 #              elsewhere is inert. Cancel -> SWAP.
 # IDLE:        the seat's player phase, nothing selected. Cursor free. Accept on a unit that can
-#              act selects it (MOVE); on an enemy toggles its range on the enemy range overlay
-#              (Godot_FE toggle_selected_unit); elsewhere inert -- Godot_FE's game menu on an
-#              empty tile is not ported, End Turn has its own key and button. In every stage the
-#              cursor on an enemy shows its target rule and narrows the intent lines to its own.
-# MOVE:        a unit selected: its move and attack tiles drawn, and the path to the cursor while
+#              act selects it (MOVE); on an enemy toggles its range on the enemy range overlays,
+#              red for what it could attack and purple for what it could support (Godot_FE
+#              toggle_selected_unit); elsewhere inert -- Godot_FE's game menu on an empty tile is
+#              not ported, End Turn has its own key and button. Q / E move the cursor and camera
+#              to the next or previous of the seat's units that can act (cycle_unit), selecting
+#              nothing. In every stage the cursor on an enemy shows its target rule and narrows
+#              the intent lines to its own.
+# MOVE:        a unit selected: its move, attack (red) and support (purple) tiles drawn, and the
+#              path to the cursor while
 #              the cursor is on a move tile, with that tile's move preview (requested on each
 #              hover, started on a worker thread by run_preview_frame and drawn when it finishes,
 #              cleared off a move tile and on leaving MOVE, which drops one still running); the
@@ -106,20 +123,28 @@ extends Node
 #              clicks and hovers are inert. An action with targets opens the target picker
 #              (TARGET); Wait and Swap send their command at once, as Godot_FE's Wait does.
 #              Cancel -> MOVE.
-# TARGET:      the target picker; the cursor (target colour) shows the focused row's target or
-#              follows the mouse. A row, or accept on a target's tile, opens the confirm
-#              (CONFIRM). Cancel -> ACTION.
+# TARGET:      the action's TargetList, built once when it was chosen, and the target picker
+#              listing it. Every target is outlined (TargetMark) and its tile drawn, purple for
+#              Staff and Item, red for the rest; the current target's outline is stronger, its
+#              row focused and the cursor (target colour) on it. Q / E, a focused row and the
+#              mouse over a target move the current target; the cursor follows the mouse
+#              elsewhere. A row, accept, or a click on a target's tile opens the confirm for that
+#              target (CONFIRM). Cancel -> ACTION.
 # CONFIRM:     Attack, Staff, Shove: the forecast panel (with forecast_panel_scene set), whose
 #              Confirm sends the command of the weapon shown; cycle_weapon and Next weapon move to
 #              the target's next weapon. Item, Rune, or no forecast scene: the confirm dialog,
-#              whose Confirm sends the command. Cancel or Back -> TARGET, back to the first weapon.
+#              whose Confirm sends the command. Q / E move to the next target and the panel
+#              follows; the outlines stay. Cancel or Back -> TARGET, on the target shown, back to
+#              its first weapon.
 # END_CONFIRM: End Turn's question while units can still act: Confirm sends EndTurnCommand.
 #              Cancel or Back -> the stage it was asked from (IDLE or MOVE).
 # There is no separate forecast stage: the forecast is CONFIRM's panel, as Godot_FE's forecast
 # took the confirm. There is no walk before the action menu either: Godot_FE moved the unit first,
 # but here the move and the action are one command, so the token stays put until it plays.
 # Cycling changes no state: each weapon has its own command (TargetOption.commands), where
-# Godot_FE equipped the weapon on the unit at each step and left it equipped on Back.
+# Godot_FE equipped the weapon on the unit at each step and left it equipped on Back. Q / E are
+# inert in SWAP, SWAP_PICKED, MOVE, ACTION and END_CONFIRM: cycling units there would drop the
+# selection or the panel under way.
 # Global: cancel pops exactly one stage (_history), and one panel with it. Sending a command
 # flushes every panel, stage and mark, hides the intents, and waits in INACTIVE; when its playback
 # settles the stage, the danger zone and the intents are rebuilt from the session:
@@ -225,22 +250,27 @@ var _cursor: Vector2i = CombatFact.NO_TILE
 var _unit_id: String = ""
 var _move_tiles: Array[Vector2i] = []
 var _attack_tiles: Array[Vector2i] = []
+var _support_tiles: Array[Vector2i] = []
 var _is_move_tile: Dictionary[Vector2i, bool] = {}
 var _end_tile: Vector2i = CombatFact.NO_TILE
 var _path: Array[Vector2i] = []
 var _action: TurnInputModel.ActionOption = null
-var _target: TurnInputModel.TargetOption = null
 
-# In CONFIRM, which of _target.commands is shown and sent.
-var _weapon_index: int = 0
+# In TARGET and CONFIRM, the action's targets; its current target and weapon are what CONFIRM
+# shows and sends. Null elsewhere.
+var _targets: TargetList = null
 
-# The forecast panel open in CONFIRM; null with the confirm dialog or outside CONFIRM.
+# The panel open in CONFIRM: the forecast panel, or the confirm dialog; null outside CONFIRM.
 var _forecast_panel: ForecastPanel = null
+var _confirm_dialog: ConfirmDialog = null
+
+# The target picker open in TARGET and under CONFIRM; null elsewhere.
+var _picker: TargetPicker = null
 
 # The newest hover's move preview, waiting for run_preview_frame, and the one on a worker thread.
 var _previews: MovePreview.Queue = MovePreview.Queue.new()
 
-# What accept on a tile picks in TARGET (the action's targets) and SWAP_PICKED (the partners).
+# What accept on a tile picks in SWAP_PICKED: the partners.
 var _targets_by_tile: Dictionary[Vector2i, TurnInputModel.TargetOption] = {}
 
 # The enemies whose range is toggled on, in the order they were toggled.
@@ -255,9 +285,11 @@ var _sent_unit_id: String = ""
 # The rejection of the command last sent; empty when it resolved.
 var _rejection: String = ""
 
-# Whether the danger zone is toggled on, and the zone drawn (the board at the last settle).
+# Whether the danger zone is toggled on, and the zone drawn (the board at the last settle) with
+# its support tiles.
 var _is_danger_shown: bool = false
 var _danger: DangerZone = null
+var _danger_support: Array[Vector2i] = []
 
 # Whether the stage was last rebuilt in the swap window, so leaving it turns the danger zone off.
 var _was_swapping: bool = false
@@ -307,6 +339,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		request_end_turn()
 	elif event.is_action_pressed(&"cycle_weapon"):
 		cycle_weapon()
+	elif event.is_action_pressed(&"target_next"):
+		_cycle(true)
+	elif event.is_action_pressed(&"target_prev"):
+		_cycle(false)
 	elif event.is_action_pressed(&"ui_up", true):
 		_step_cursor(Vector2i.UP)
 	elif event.is_action_pressed(&"ui_down", true):
@@ -365,6 +401,7 @@ func unbind() -> void:
 	_encounter = null
 	_danger = null
 	_set_stage(Stage.INACTIVE)
+	_draw_target_marks()
 	_draw_danger_zone()
 	_show_intents()
 	_show_widgets(false)
@@ -444,22 +481,57 @@ func is_danger_zone_shown() -> bool:
 ## forecast, wrapping, and makes its command the one Confirm sends. Returns false, doing nothing,
 ## outside CONFIRM's forecast panel or with one weapon.
 func cycle_weapon() -> bool:
-	if _stage != Stage.CONFIRM or _forecast_panel == null or _target == null:
+	if _stage != Stage.CONFIRM or _forecast_panel == null or _targets == null:
 		return false
-	if _target.commands.size() < 2:
+	if not _targets.next_weapon():
 		return false
-	_weapon_index = (_weapon_index + 1) % _target.commands.size()
 	_forecast_panel.show_forecast(_forecast_model())
 	return true
 
 
-## The command Confirm would send now: in CONFIRM, the weapon shown's; null elsewhere.
+## The command Confirm would send now: in CONFIRM, the current target's with the weapon shown;
+## null elsewhere.
 func get_confirm_command() -> Command:
-	if _stage != Stage.CONFIRM or _target == null:
+	if _stage != Stage.CONFIRM or _targets == null:
 		return null
-	if _weapon_index < _target.commands.size():
-		return _target.commands[_weapon_index]
-	return _target.command
+	return _targets.command()
+
+
+## The chosen action's targets, in TARGET and CONFIRM; null elsewhere.
+func get_target_list() -> TargetList:
+	return _targets
+
+
+## target_next / target_prev while targeting: makes the next ([param forward]) or previous target
+## current, wrapping, with the cursor, outlines and focused row on it; in CONFIRM the panel shows
+## it. Returns false, doing nothing, outside TARGET and CONFIRM or with one target.
+func cycle_target(forward: bool) -> bool:
+	if not is_accepting_input() or _targets == null:
+		return false
+	if _stage != Stage.TARGET and _stage != Stage.CONFIRM:
+		return false
+	var moved: bool = _targets.next_target() if forward else _targets.previous_target()
+	if moved:
+		_show_current_target()
+	return moved
+
+
+## target_next / target_prev in IDLE: moves the cursor and the camera to the next
+## ([param forward]) or previous of the seat's units that can act, from the unit under the cursor
+## ([method TurnInputModel.cycle_unit]). Returns that unit; empty, doing nothing, outside IDLE or
+## when none can act.
+func cycle_unit(forward: bool) -> String:
+	if not is_accepting_input() or _stage != Stage.IDLE:
+		return ""
+	var unit_id: String = TurnInputModel.cycle_unit(
+			_session, _seat, _session.state.occupant_at(_cursor), forward
+	)
+	if unit_id.is_empty():
+		return ""
+	var tile: Vector2i = _session.state.tile_of(unit_id)
+	move_cursor(tile)
+	view.focus_tile(tile)
+	return unit_id
 
 
 ## Draws the move preview that finished on its worker thread, if one did: its damage, and its
@@ -511,8 +583,9 @@ func confirm_tile(tile: Vector2i) -> void:
 			if _is_move_tile.has(tile):
 				_pick_tile(tile)
 		Stage.TARGET:
-			if _targets_by_tile.has(tile):
-				_on_target_picker_confirmed(_targets_by_tile[tile])
+			var index: int = _targets.index_at(tile)
+			if index >= 0:
+				_pick_target(index)
 
 
 ## Cancel: steps back exactly one stage, closing the panel that stage opened. Returns false, doing
@@ -534,13 +607,14 @@ func step_back() -> bool:
 			_end_tile = CombatFact.NO_TILE
 			move_cursor(_cursor)
 		Stage.TARGET:
-			_targets_by_tile.clear()
+			_targets = null
+			_picker = null
 			move_cursor(_end_tile)
 		Stage.CONFIRM:
-			move_cursor(_target.tile)
-			_target = null
-			_weapon_index = 0
+			_targets.reset_weapon()
 			_forecast_panel = null
+			_confirm_dialog = null
+			_show_current_target()
 	_redraw()
 	return true
 
@@ -599,10 +673,20 @@ func _read_mouse(mouse: InputEventMouse) -> void:
 		return
 	if _follows_mouse() and tile != _cursor:
 		move_cursor(tile)
+		if _stage == Stage.TARGET and _targets.select(_targets.index_at(tile)):
+			_show_current_target()
 
 
 func _follows_mouse() -> bool:
 	return _stage in [Stage.SWAP, Stage.SWAP_PICKED, Stage.IDLE, Stage.MOVE, Stage.TARGET]
+
+
+# target_next / target_prev: units in IDLE, targets in TARGET and CONFIRM (see the input block).
+func _cycle(forward: bool) -> void:
+	if _stage == Stage.IDLE:
+		cycle_unit(forward)
+	else:
+		cycle_target(forward)
 
 
 func _step_cursor(direction: Vector2i) -> void:
@@ -621,6 +705,7 @@ func _select(unit_id: String) -> void:
 	_unit_id = unit_id
 	_move_tiles = TurnInputModel.move_tiles(_session, unit_id)
 	_attack_tiles = TurnInputModel.attack_tiles(_session, unit_id)
+	_support_tiles = TurnInputModel.support_tiles(_session, unit_id)
 	_is_move_tile.clear()
 	for tile: Vector2i in _move_tiles:
 		_is_move_tile[tile] = true
@@ -662,9 +747,9 @@ func _pick_swap_unit(unit_id: String) -> void:
 # The step between the target and the command: the forecast panel for an attack, a staff or a
 # shove, the confirm dialog for the rest (see the state block).
 func _open_confirm() -> void:
-	_weapon_index = 0
 	_forecast_panel = null
-	var turn: UnitTurnCommand = _target.command as UnitTurnCommand
+	_confirm_dialog = null
+	var turn: UnitTurnCommand = _targets.current().command as UnitTurnCommand
 	# ASSUMPTION: the forecast takes the confirm dialog's place (Confirm on it sends), as Godot_FE's
 	# forecast took ui_confirm; a second question after the forecast would ask twice.
 	if forecast_panel_scene != null and turn != null and turn.needs_fresh_forecast():
@@ -679,21 +764,69 @@ func _open_confirm() -> void:
 		panel.weapon_cycle_requested.connect(_on_forecast_panel_weapon_cycle_requested)
 		_redraw()
 		return
-	var dialog: BattlePanel = _open_panel(Stage.CONFIRM, confirm_dialog_scene, (
-			"%s %s?" % [_action.label, _target.label]
-	))
+	var dialog: BattlePanel = _open_panel(Stage.CONFIRM, confirm_dialog_scene, _confirm_question())
 	if dialog == null:
 		return
+	_confirm_dialog = dialog as ConfirmDialog
 	dialog.confirmed.connect(_on_confirm_dialog_confirmed)
 	dialog.cancelled.connect(_on_panel_cancelled)
 	_redraw()
 
 
-# The forecast of the weapon shown against _target.
+# The confirm dialog's question for the current target.
+func _confirm_question() -> String:
+	return "%s %s?" % [_action.label, _targets.current().label]
+
+
+# The forecast of the current target with the weapon shown.
 func _forecast_model() -> ForecastViewModel:
-	var index: int = mini(_weapon_index, _target.commands.size() - 1)
-	var command: UnitTurnCommand = _target.commands[maxi(index, 0)] as UnitTurnCommand
-	return ForecastViewModel.build(_session, command, index, _target.commands.size())
+	var command: UnitTurnCommand = _targets.command() as UnitTurnCommand
+	return ForecastViewModel.build(
+			_session, command, _targets.weapon_index(), _targets.weapon_count()
+	)
+
+
+# Puts the cursor, the outlines and the picker's focus on the target list's current target, and
+# in CONFIRM shows it on the open panel.
+func _show_current_target() -> void:
+	if _targets == null or _targets.is_empty():
+		return
+	move_cursor(_targets.current().tile)
+	_draw_target_marks()
+	if is_instance_valid(_picker) and _stage == Stage.TARGET:
+		_picker.focus_row(_targets.current_index())
+	if _stage != Stage.CONFIRM:
+		return
+	if is_instance_valid(_forecast_panel):
+		_forecast_panel.show_forecast(_forecast_model())
+	elif is_instance_valid(_confirm_dialog):
+		_confirm_dialog.open_with(_confirm_question())
+
+
+# Opens the confirm for target index of the list.
+func _pick_target(index: int) -> void:
+	if _stage != Stage.TARGET or _targets == null:
+		return
+	_targets.select(index)
+	_show_current_target()
+	_open_confirm()
+
+
+# Outlines every target of the list, the current one strongly, by its side; none outside TARGET
+# and CONFIRM.
+func _draw_target_marks() -> void:
+	if not is_instance_valid(view):
+		return
+	var marks: Array[TargetMark.Spec] = []
+	if _targets != null and (_stage == Stage.TARGET or _stage == Stage.CONFIRM):
+		var options: Array[TurnInputModel.TargetOption] = _targets.targets()
+		for i: int in options.size():
+			var spec: TargetMark.Spec = TargetMark.Spec.new()
+			spec.tile = options[i].tile
+			spec.side = _session.state.side_of(options[i].target_id)
+			spec.is_current = i == _targets.current_index()
+			marks.append(spec)
+	view.show_target_marks(marks)
 
 
 # Asks for tile's move preview while it is one of the selected unit's move tiles, else clears it.
@@ -757,22 +890,26 @@ func _hovered_enemy() -> String:
 	return occupant
 
 
-# Draws the danger zone while it is toggled on, computing it on the board as it stands when none
-# is kept; clears it otherwise.
+# Draws the danger zone (red) and its support tiles (purple) while it is toggled on, computing
+# them on the board as it stands when none is kept; clears both otherwise.
 func _draw_danger_zone() -> void:
 	# The board can be freed first when the screen is torn down; unbind() still calls this.
 	if not is_instance_valid(view) or view.get_danger_overlay() == null:
 		return
 	var overlay: TileOverlay = view.get_danger_overlay()
+	var support: TileOverlay = view.get_danger_support_overlay()
 	if not _is_danger_shown or _session == null or _session.is_finished:
 		overlay.clear()
+		support.clear()
 		return
 	if _danger == null:
 		_danger = DangerZone.compute(_session.engine)
+		_danger_support = TurnInputModel.danger_support_tiles(_session, _danger)
 	var tiles: Array[Vector2i] = []
 	tiles.assign(_danger.combined.keys())
 	tiles.sort_custom(MapLayout.is_before)
 	overlay.show_tiles(tiles)
+	support.show_tiles(_danger_support)
 
 
 # Recomputes the danger zone from the board that just settled and redraws it, turning it off when
@@ -824,13 +961,15 @@ func _clear_selection() -> void:
 	_unit_id = ""
 	_move_tiles.clear()
 	_attack_tiles.clear()
+	_support_tiles.clear()
 	_is_move_tile.clear()
 	_end_tile = CombatFact.NO_TILE
 	_path.clear()
 	_action = null
-	_target = null
-	_weapon_index = 0
+	_targets = null
 	_forecast_panel = null
+	_confirm_dialog = null
+	_picker = null
 	_targets_by_tile.clear()
 
 
@@ -907,8 +1046,10 @@ func _redraw() -> void:
 		return
 	var move: TileOverlay = view.get_move_overlay()
 	var attack: TileOverlay = view.get_attack_overlay()
+	var support: TileOverlay = view.get_support_overlay()
 	move.clear()
 	attack.clear()
+	support.clear()
 	match _stage:
 		Stage.SWAP_PICKED:
 			var partners: Array[Vector2i] = []
@@ -917,18 +1058,24 @@ func _redraw() -> void:
 		Stage.MOVE:
 			move.show_tiles(_move_tiles)
 			attack.show_tiles(_attack_tiles)
+			support.show_tiles(_support_tiles)
 		Stage.TARGET, Stage.CONFIRM:
 			var tiles: Array[Vector2i] = []
-			for option: TurnInputModel.TargetOption in _action.targets:
+			for option: TurnInputModel.TargetOption in _targets.targets():
 				tiles.append(option.tile)
-			attack.show_tiles(tiles)
+			if TurnInputModel.is_support_action(_action.kind):
+				support.show_tiles(tiles)
+			else:
+				attack.show_tiles(tiles)
 		Stage.END_CONFIRM:
 			if not _unit_id.is_empty():
 				move.show_tiles(_move_tiles)
 				attack.show_tiles(_attack_tiles)
+				support.show_tiles(_support_tiles)
 	if (_stage == Stage.MOVE or _stage == Stage.END_CONFIRM) and not _unit_id.is_empty():
 		_path = TurnInputModel.path_to(_session, _unit_id, _cursor)
 	_draw_path()
+	_draw_target_marks()
 	_draw_enemy_ranges()
 
 
@@ -939,15 +1086,25 @@ func _draw_path() -> void:
 	view.get_path_preview().show_path(_path, points)
 
 
+# The toggled enemies' ranges: red where one could attack, purple where one could only support.
 func _draw_enemy_ranges() -> void:
 	var covered: Dictionary[Vector2i, bool] = {}
+	var supported: Dictionary[Vector2i, bool] = {}
 	for enemy_id: String in _shown_enemies:
 		for tile: Vector2i in TurnInputModel.enemy_range_tiles(_session, enemy_id):
 			covered[tile] = true
+		for tile: Vector2i in TurnInputModel.enemy_support_tiles(_session, enemy_id):
+			supported[tile] = true
+	for tile: Vector2i in covered:
+		supported.erase(tile)
 	var tiles: Array[Vector2i] = []
 	tiles.assign(covered.keys())
 	tiles.sort_custom(MapLayout.is_before)
 	view.get_enemy_range_overlay().show_tiles(tiles)
+	var support_tiles: Array[Vector2i] = []
+	support_tiles.assign(supported.keys())
+	support_tiles.sort_custom(MapLayout.is_before)
+	view.get_enemy_support_overlay().show_tiles(support_tiles)
 
 
 func _show_widgets(is_shown: bool) -> void:
@@ -1003,34 +1160,36 @@ func _on_action_menu_confirmed(result: Variant) -> void:
 		_send(option.command)
 		return
 	_action = option
+	_targets = TargetList.build(option)
 	var request: TargetPicker.Request = TargetPicker.Request.new()
 	request.title = option.label
-	request.targets = option.targets
+	request.targets = _targets.targets()
 	var picker: BattlePanel = _open_panel(Stage.TARGET, target_picker_scene, request)
 	if picker == null:
 		_action = null
+		_targets = null
 		return
-	_targets_by_tile.clear()
-	for target: TurnInputModel.TargetOption in option.targets:
-		_targets_by_tile[target.tile] = target
+	_picker = picker as TargetPicker
 	picker.confirmed.connect(_on_target_picker_confirmed)
 	picker.highlighted.connect(_on_target_picker_highlighted)
 	picker.cancelled.connect(_on_panel_cancelled)
-	move_cursor(option.targets[0].tile)
 	_redraw()
+	_show_current_target()
 
 
 func _on_target_picker_confirmed(result: Variant) -> void:
-	if _stage != Stage.TARGET:
-		return
-	_target = result
-	move_cursor(_target.tile)
-	_open_confirm()
+	var option: TurnInputModel.TargetOption = result
+	if _targets != null:
+		_pick_target(_targets.targets().find(option))
 
 
 func _on_target_picker_highlighted(result: Variant) -> void:
 	var option: TurnInputModel.TargetOption = result
-	if _stage == Stage.TARGET:
+	if _stage != Stage.TARGET or _targets == null:
+		return
+	if _targets.select(_targets.targets().find(option)):
+		_show_current_target()
+	else:
 		move_cursor(option.tile)
 
 

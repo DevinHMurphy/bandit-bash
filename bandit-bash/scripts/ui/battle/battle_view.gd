@@ -24,9 +24,10 @@ extends Node2D
 ## [b]Reading only:[/b] it never changes combat state and submits no command; turn input does
 ## ([BattleController]). Facts already queued at [method bind] are skipped, since the board is
 ## built from the state they led to.[br]
-## [b]Turn input's pieces[/b] (the move, attack, enemy range and danger zone [TileOverlay]s, the
-## [PathPreview] and the [TileCursor]) are children here so they share the board's space and
-## camera; the board only sizes them to the map, and [BattleController] says what they show.[br]
+## [b]Turn input's pieces[/b] (the move, attack, enemy range and danger zone [TileOverlay]s, each
+## red one with a purple support twin, the [PathPreview], the [TargetMark]s and the [TileCursor])
+## are children here so they share the board's space and camera; the board only sizes them to the
+## map, and [BattleController] says what they show.[br]
 ## [b]Faster playback:[/b] held fast-forward ([method set_fast_forward]) runs waits and animations
 ## [member fast_forward_speed] times faster, in order; [method skip_playback] plays everything
 ## queued at once behind the [SkipFade].[br]
@@ -48,6 +49,10 @@ signal settled()
 ## The number shown for each damage or heal.[br]
 ## [b]Unset:[/b] no numbers are shown.
 @export var damage_number_scene: PackedScene = null
+
+## The outline placed around each valid target while an action is aimed ([TargetMark]).[br]
+## [b]Unset:[/b] no target is outlined; the cursor still shows the current one.
+@export var target_mark_scene: PackedScene = null
 
 ## Whether the map scene's marker layers and marker nodes (deployment tiles, enemy slots) show.
 ## Off for play; on to check a map's authoring.
@@ -162,6 +167,10 @@ var _skip_left: float = 0.0
 @onready var _attack_overlay: TileOverlay = %AttackOverlay
 @onready var _enemy_range_overlay: TileOverlay = %EnemyRangeOverlay
 @onready var _danger_overlay: TileOverlay = %DangerOverlay
+@onready var _support_overlay: TileOverlay = %SupportOverlay
+@onready var _enemy_support_overlay: TileOverlay = %EnemySupportOverlay
+@onready var _danger_support_overlay: TileOverlay = %DangerSupportOverlay
+@onready var _target_mark_layer: Node2D = %TargetMarks
 @onready var _path_preview: PathPreview = %PathPreview
 @onready var _cursor: TileCursor = %TileCursor
 @onready var _skip_fade: SkipFade = %SkipFade
@@ -308,7 +317,8 @@ func get_move_overlay() -> TileOverlay:
 	return _move_overlay
 
 
-## The overlay of the selected unit's attack tiles, and of an action's targets.
+## The overlay of the selected unit's attack tiles, and of the targets of an action that isn't
+## support (Attack, Shove, Use, Rune).
 func get_attack_overlay() -> TileOverlay:
 	return _attack_overlay
 
@@ -321,6 +331,64 @@ func get_enemy_range_overlay() -> TileOverlay:
 ## The overlay of the danger zone: every tile an enemy could attack next turn.
 func get_danger_overlay() -> TileOverlay:
 	return _danger_overlay
+
+
+## The purple overlay of the selected unit's support tiles (Block and heal staves), and of a
+## support action's targets.
+func get_support_overlay() -> TileOverlay:
+	return _support_overlay
+
+
+## The purple overlay of the support tiles of the enemies whose range is toggled on.
+func get_enemy_support_overlay() -> TileOverlay:
+	return _enemy_support_overlay
+
+
+## The purple overlay of the danger zone's support tiles: every tile an enemy could heal or
+## Block next turn that none could attack.
+func get_danger_support_overlay() -> TileOverlay:
+	return _danger_support_overlay
+
+
+## Outlines each target [param marks] lists, in place of those outlined
+## ([member target_mark_scene] instances, one per mark).
+func show_target_marks(marks: Array[TargetMark.Spec]) -> void:
+	clear_target_marks()
+	if target_mark_scene == null:
+		return
+	for spec: TargetMark.Spec in marks:
+		var mark: TargetMark = target_mark_scene.instantiate()
+		_target_mark_layer.add_child(mark)
+		mark.show_mark(spec)
+		mark.position = tile_to_position(spec.tile)
+
+
+## Outlines no target.
+func clear_target_marks() -> void:
+	for child: Node in _target_mark_layer.get_children():
+		_target_mark_layer.remove_child(child)
+		child.queue_free()
+
+
+## The target outlines shown, in the order given.
+func get_target_marks() -> Array[TargetMark]:
+	var marks: Array[TargetMark] = []
+	for child: Node in _target_mark_layer.get_children():
+		var mark: TargetMark = child as TargetMark
+		if mark != null:
+			marks.append(mark)
+	return marks
+
+
+## Pans the camera to [param tile], kept inside the map ([method CameraRig.pan_to]). The pan is
+## cosmetic: playback doesn't wait for it, so input isn't held back. Does nothing before
+## [method bind].
+func focus_tile(tile: Vector2i) -> void:
+	if _session == null:
+		return
+	var pan: Tween = _camera.pan_to(tile_to_position(tile))
+	if pan != null:
+		_cosmetic.append(pan)
 
 
 ## The walk drawn to the hovered tile.
@@ -390,6 +458,7 @@ func _clear_board() -> void:
 	_cosmetic.clear()
 	_walks.clear()
 	_tokens.clear()
+	clear_target_marks()
 	for layer: Node2D in [_token_layer, _number_layer]:
 		for child: Node in layer.get_children():
 			layer.remove_child(child)
@@ -420,7 +489,8 @@ func _build_map(definition: CombatMapDefinition) -> void:
 	_darkness.tile_size = _tile_size()
 	_darkness.origin = origin
 	var overlays: Array[TileOverlay] = [
-		_danger_overlay, _enemy_range_overlay, _move_overlay, _attack_overlay,
+		_danger_overlay, _danger_support_overlay, _enemy_range_overlay, _enemy_support_overlay,
+		_move_overlay, _attack_overlay, _support_overlay,
 	]
 	for overlay: TileOverlay in overlays:
 		overlay.tile_size = _tile_size()
