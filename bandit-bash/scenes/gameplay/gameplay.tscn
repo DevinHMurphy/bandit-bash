@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=18 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/nav_button.gd" id="1_nav"]
 [ext_resource type="PackedScene" path="res://scenes/debug/save_debug_panel.tscn" id="2_save_debug"]
@@ -15,12 +15,17 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/action_menu.tscn" id="13_action_menu"]
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/target_picker.tscn" id="14_target_picker"]
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/confirm_dialog.tscn" id="15_confirm_dialog"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/forecast_panel.tscn" id="16_forecast_panel"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/move_preview_marks.tscn" id="17_preview_marks"]
 
 [node name="Gameplay" type="Node2D"]
 script = ExtResource("5_screen")
 map_definition = ExtResource("6_m1")
 
 [node name="BattleView" parent="." instance=ExtResource("7_view")]
+unique_name_in_owner = true
+
+[node name="MovePreviewMarks" parent="BattleView" instance=ExtResource("17_preview_marks")]
 unique_name_in_owner = true
 
 [node name="SpawnPoints" type="Node2D" parent="."]
@@ -84,16 +89,18 @@ target_screen = 4
 
 [node name="SaveIndicator" parent="Hud" instance=ExtResource("4_save_indicator")]
 
-[node name="BattleController" type="Node" parent="." node_paths=PackedStringArray("view", "panel_host", "turn_bar", "swap_window", "message")]
+[node name="BattleController" type="Node" parent="." node_paths=PackedStringArray("view", "panel_host", "turn_bar", "swap_window", "message", "move_preview_marks")]
 unique_name_in_owner = true
 script = ExtResource("12_controller")
 action_menu_scene = ExtResource("13_action_menu")
 target_picker_scene = ExtResource("14_target_picker")
 confirm_dialog_scene = ExtResource("15_confirm_dialog")
+forecast_panel_scene = ExtResource("16_forecast_panel")
 view = NodePath("../BattleView")
 panel_host = NodePath("../Hud/PanelHost")
 turn_bar = NodePath("../Hud/TurnBar")
 swap_window = NodePath("../Hud/SwapWindow")
 message = NodePath("../Hud/BattleMessage")
+move_preview_marks = NodePath("../BattleView/MovePreviewMarks")
 
 [node name="PauseMenu" parent="." instance=ExtResource("3_pause_menu")]

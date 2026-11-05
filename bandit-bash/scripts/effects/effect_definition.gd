@@ -6,7 +6,7 @@
 # File:     effect_definition.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 29, 2026
+# Modified: November 4, 2026
 # ==============================================================================
 
 @tool
@@ -68,6 +68,9 @@ enum Tag {
 
 ## The effect text, generated from the data, such as
 ## [code]Every 7th Attack made by Your Unit this combat: that attack gains lifesteal[/code].
+## An effect that runs when used on a target (a Pouch item, a rune: every operation gives to the
+## command's target) reads as the action alone, [code]Heal the target for 8[/code]: "Always"
+## would call it always-on.
 func describe() -> String:
 	var counter: CounterCondition = null
 	var clauses: PackedStringArray = []
@@ -87,7 +90,7 @@ func describe() -> String:
 	if counter != null:
 		head = ("%s %s" % [counter.describe_count(), head]).strip_edges()
 		head += " %s" % [EffectTerms.LANE_TEXT[counter.lane]]
-	if head.is_empty() and clauses.is_empty():
+	if head.is_empty() and clauses.is_empty() and not _is_used_on_target():
 		head = EffectTerms.TRIGGER_TEXT[EffectTerms.Trigger.ALWAYS]
 
 	var opening: PackedStringArray = []
@@ -99,7 +102,9 @@ func describe() -> String:
 		if operation != null:
 			actions.append(operation.describe_for_trigger(trigger))
 
-	var text: String = "%s: %s" % [", ".join(opening), ", ".join(actions)]
+	var text: String = ", ".join(actions)
+	if not opening.is_empty():
+		text = "%s: %s" % [", ".join(opening), text]
 	if charges > 0:
 		var uses: String = "use" if charges == 1 else "uses"
 		text += " (%d %s %s)" % [charges, uses, EffectTerms.LANE_TEXT[charge_lane]]
@@ -109,4 +114,16 @@ func describe() -> String:
 ## Whether [member tags] includes [param tag].
 func has_tag(tag: Tag) -> bool:
 	return tags & tag != 0
+
+
+# Whether the effect is an Always effect whose every operation gives to the command's target (a
+# used Pouch item's heal or Block, a rune's), so it runs when used, not always.
+func _is_used_on_target() -> bool:
+	if trigger != EffectTerms.Trigger.ALWAYS or operations.is_empty():
+		return false
+	for operation: EffectOperation in operations:
+		var gain: GainResource = operation as GainResource
+		if gain == null or not gain.target is CommandTarget:
+			return false
+	return true
 

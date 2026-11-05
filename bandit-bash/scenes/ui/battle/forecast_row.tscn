@@ -1,0 +1,33 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/battle/forecast_row.gd" id="1_row"]
+[ext_resource type="Theme" path="res://scenes/ui/battle/battle_theme.tres" id="2_theme"]
+
+[node name="ForecastRow" type="HBoxContainer"]
+theme = ExtResource("2_theme")
+script = ExtResource("1_row")
+
+[node name="ActorCell" type="Label" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(128, 0)
+layout_mode = 2
+theme_type_variation = &"ForecastCell"
+text = "0"
+horizontal_alignment = 2
+autowrap_mode = 3
+
+[node name="RowLabel" type="Label" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(72, 0)
+layout_mode = 2
+theme_type_variation = &"ForecastRowLabel"
+text = "Row"
+horizontal_alignment = 1
+
+[node name="TargetCell" type="Label" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(128, 0)
+layout_mode = 2
+theme_type_variation = &"ForecastCell"
+text = "0"
+autowrap_mode = 3

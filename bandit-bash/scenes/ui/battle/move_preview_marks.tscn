@@ -1,0 +1,26 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/battle/move_preview_marks.gd" id="1_marks"]
+[ext_resource type="Theme" path="res://scenes/ui/battle/battle_theme.tres" id="2_theme"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/intent_change_mark.tscn" id="3_mark"]
+
+[node name="MovePreviewMarks" type="Node2D"]
+z_index = 20
+script = ExtResource("1_marks")
+mark_scene = ExtResource("3_mark")
+
+[node name="TileMark" type="Node2D" parent="."]
+unique_name_in_owner = true
+
+[node name="DamageLabel" type="Label" parent="TileMark"]
+unique_name_in_owner = true
+offset_left = -24.0
+offset_top = -11.0
+offset_right = 24.0
+offset_bottom = 11.0
+mouse_filter = 2
+theme = ExtResource("2_theme")
+theme_type_variation = &"PreviewDamageLabel"
+text = "0"
+horizontal_alignment = 1
+vertical_alignment = 1

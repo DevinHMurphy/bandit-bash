@@ -14,7 +14,8 @@ extends SceneTree
 ## an M1 battle's facts played through the board, and the darkness overlay
 ## ([code]battle_view_cases.gd[/code]); turn input: the action menu, the overlays and path, cancel,
 ## End Turn and Start, rejections, playback, a second move, and player turns played by input
-## events ([code]turn_input_cases.gd[/code]); then the gameplay screen itself, which begins a new
+## events ([code]turn_input_cases.gd[/code]); the forecast, weapon cycling and the move preview
+## ([code]forecast_cases.gd[/code]); then the gameplay screen itself, which begins a new
 ## solo run's M1 battle, plays it to its end from Start and End Turn and routes to Results.
 ##
 ## Run from the repo root:[br]
@@ -31,6 +32,7 @@ extends SceneTree
 
 const BattleViewCases = preload("res://tests/ui/battle_view_cases.gd")
 const TurnInputCases = preload("res://tests/ui/turn_input_cases.gd")
+const ForecastCases = preload("res://tests/ui/forecast_cases.gd")
 const CatalogCases = preload("res://tests/content/catalog_cases.gd")
 
 const GAMEPLAY_SCENE: String = "res://scenes/gameplay/gameplay.tscn"
@@ -71,6 +73,7 @@ func _process(_delta: float) -> bool:
 		_before = CatalogCases.hash_definitions(PackedStringArray())
 		BattleViewCases.new(_check, root).run()
 		TurnInputCases.new(_check, root).run()
+		ForecastCases.new(_check, root).run()
 		if _start_route_case():
 			_route_frame = _frame
 			return false
