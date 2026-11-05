@@ -18,7 +18,10 @@ extends SceneTree
 ## preview ([code]forecast_cases.gd[/code]); the intent icons, target rules, numbered lines, the
 ## danger zone and the previewed intents ([code]intent_cases.gd[/code]); the HUD: tile info, the
 ## unit panel, the turn counter and par colour, phase banners, the objective, the darkness counter,
-## the fact log, target labels by name, the panel area and Use ([code]hud_cases.gd[/code]); then
+## the fact log, target labels by name, the panel area and Use ([code]hud_cases.gd[/code]);
+## targeting: the target list against the validator, its wrapping, keys and the mouse sending one
+## command, the target outlines, Q / E unit cycling, the purple support overlays and the healers'
+## missing attack tiles ([code]targeting_cases.gd[/code]); then
 ## the gameplay screen itself: its save debug panel (hidden when the battle opens, toggled by F3
 ## and read afresh each time it shows, clear of the M1 map at the 1152×648 base size, and
 ## untouched by clicks on the deployment tiles), the HUD clear of the map at the base size and
@@ -46,6 +49,7 @@ const TurnInputCases = preload("res://tests/ui/turn_input_cases.gd")
 const ForecastCases = preload("res://tests/ui/forecast_cases.gd")
 const IntentCases = preload("res://tests/ui/intent_cases.gd")
 const HudCases = preload("res://tests/ui/hud_cases.gd")
+const TargetingCases = preload("res://tests/ui/targeting_cases.gd")
 const CatalogCases = preload("res://tests/content/catalog_cases.gd")
 
 const GAMEPLAY_SCENE: String = "res://scenes/gameplay/gameplay.tscn"
@@ -127,6 +131,7 @@ func _process(_delta: float) -> bool:
 		ForecastCases.new(_check, root).run()
 		IntentCases.new(_check, root).run()
 		HudCases.new(_check, root).run()
+		TargetingCases.new(_check, root).run()
 		if _start_panel_case():
 			_panel_frame = _frame
 			return false

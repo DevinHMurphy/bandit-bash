@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/battle/battle_view.gd" id="1_view"]
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/unit_token.tscn" id="2_token"]
@@ -12,11 +12,16 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/tile_cursor.tscn" id="10_cursor"]
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/skip_fade.tscn" id="11_skip_fade"]
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/danger_overlay.tscn" id="12_danger"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/support_overlay.tscn" id="13_support"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/enemy_support_overlay.tscn" id="14_enemy_support"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/danger_support_overlay.tscn" id="15_danger_support"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/target_mark.tscn" id="16_target_mark"]
 
 [node name="BattleView" type="Node2D"]
 script = ExtResource("1_view")
 token_scene = ExtResource("2_token")
 damage_number_scene = ExtResource("3_number")
+target_mark_scene = ExtResource("16_target_mark")
 
 [node name="MapHolder" type="Node2D" parent="."]
 unique_name_in_owner = true
@@ -27,7 +32,13 @@ unique_name_in_owner = true
 [node name="DangerOverlay" parent="." instance=ExtResource("12_danger")]
 unique_name_in_owner = true
 
+[node name="DangerSupportOverlay" parent="." instance=ExtResource("15_danger_support")]
+unique_name_in_owner = true
+
 [node name="EnemyRangeOverlay" parent="." instance=ExtResource("6_enemy_range")]
+unique_name_in_owner = true
+
+[node name="EnemySupportOverlay" parent="." instance=ExtResource("14_enemy_support")]
 unique_name_in_owner = true
 
 [node name="MoveOverlay" parent="." instance=ExtResource("7_move")]
@@ -36,10 +47,16 @@ unique_name_in_owner = true
 [node name="AttackOverlay" parent="." instance=ExtResource("8_attack")]
 unique_name_in_owner = true
 
+[node name="SupportOverlay" parent="." instance=ExtResource("13_support")]
+unique_name_in_owner = true
+
 [node name="PathPreview" parent="." instance=ExtResource("9_path")]
 unique_name_in_owner = true
 
 [node name="Tokens" type="Node2D" parent="."]
+unique_name_in_owner = true
+
+[node name="TargetMarks" type="Node2D" parent="."]
 unique_name_in_owner = true
 
 [node name="TileCursor" parent="." instance=ExtResource("10_cursor")]
