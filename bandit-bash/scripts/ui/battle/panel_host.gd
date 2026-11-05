@@ -6,7 +6,7 @@
 # File:     panel_host.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 class_name PanelHost
@@ -17,14 +17,18 @@ extends Control
 ##
 ## Panels below the top are hidden and disabled, so neither the mouse nor focus reaches them; the
 ## one uncovered by [method back] shows again with focus on its first choice. Panels go in the
-## [code]%Slot[/code] node, whose place on screen is set in the scene. The host itself lets the
-## mouse through, so clicks off a panel reach the board.
+## [code]%Slot[/code] node, inside the [code]%Scroll[/code] area whose place on screen is set in
+## the scene: the right-hand column between the HUD's top strip and the turn bar, beside the map
+## area ([BattleHud]). A panel taller than the area (the forecast with its breakdown open) scrolls,
+## following focus, instead of growing over the turn bar. The host and the area let the mouse
+## through, so clicks off a panel reach the board.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
 var _stack: Array[BattlePanel] = []
 
 @onready var _slot: Control = %Slot
+@onready var _scroll: ScrollContainer = %Scroll
 
 
 ## Opens an instance of [param scene] (a [BattlePanel] scene) on top with [param payload], and
@@ -70,6 +74,11 @@ func top() -> BattlePanel:
 ## How many panels are open.
 func depth() -> int:
 	return _stack.size()
+
+
+## The area panels show in, on screen; a panel's part outside it is clipped and scrolls into view.
+func get_area_rect() -> Rect2:
+	return _scroll.get_global_rect()
 
 
 func _show_top() -> void:

@@ -24,7 +24,7 @@ layout_mode = 2
 
 [node name="ActorHeading" type="Label" parent="Column/Headings"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(128, 0)
+custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 theme_type_variation = &"ForecastCell"
 text = "You"
@@ -32,12 +32,12 @@ horizontal_alignment = 2
 autowrap_mode = 3
 
 [node name="Gap" type="Control" parent="Column/Headings"]
-custom_minimum_size = Vector2(72, 0)
+custom_minimum_size = Vector2(52, 0)
 layout_mode = 2
 
 [node name="TargetHeading" type="Label" parent="Column/Headings"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(128, 0)
+custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 theme_type_variation = &"ForecastCell"
 text = "Target"
@@ -49,7 +49,7 @@ layout_mode = 2
 
 [node name="Notes" type="Label" parent="Column"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(328, 0)
+custom_minimum_size = Vector2(260, 0)
 layout_mode = 2
 theme_type_variation = &"ForecastNote"
 autowrap_mode = 3

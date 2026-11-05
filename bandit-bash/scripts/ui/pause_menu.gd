@@ -6,16 +6,19 @@
 # File:     pause_menu.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: November 4, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 extends CanvasLayer
-## In-game pause menu: Resume, Save & Quit, or Leave.
+## In-game pause menu: Resume, Save & Quit, or Leave, under the run's seed.
 ##
 ## Save & Quit saves through [code]SaveService.save_checkpoint()[/code], which is also the battle
 ## save mid-battle, and only leaves for the Main Menu once the save succeeded; on failure it says
 ## so and stays. With nothing to save (no active run) it offers Quit to Menu instead. A
 ## multiplayer client gets Leave Match: clients never save a campaign.[br]
+## The seed line shows the run's seed as [method RunSeed.format] writes it, so a player can quote
+## it in a bug report (RNG streams plan, R4): the campaign's, or on a client the host's replica.
+## With no run it hides.[br]
 ## Pauses the scene tree only in solo play. In a multiplayer session the host keeps simulating for
 ## everyone, so the menu opens without pausing.[br]
 ## Also asks "Save & Quit and join?" when a Steam invite arrives during a solo run
@@ -35,6 +38,7 @@ extends CanvasLayer
 
 @onready var _root: Control = %Root
 @onready var _status_label: Label = %Status
+@onready var _seed_label: Label = %Seed
 @onready var _resume_button: Button = %ResumeButton
 @onready var _save_quit_button: Button = %SaveQuitButton
 @onready var _leave_button: Button = %LeaveButton
@@ -77,6 +81,10 @@ func open() -> void:
 	_save_quit_button.visible = has_run and not is_client
 	_leave_button.visible = not _save_quit_button.visible
 	_leave_button.text = "Leave Match" if is_client else "Quit to Menu"
+	var run: CampaignData = SaveService.multiplayer_replica if is_client else SaveService.campaign
+	_seed_label.visible = run != null
+	if run != null:
+		_seed_label.text = "Seed %s" % [RunSeed.format(run.run_seed)]
 
 	_root.visible = true
 	if not SteamNetwork.has_active_session():
@@ -88,6 +96,11 @@ func open() -> void:
 ## Hides the menu and unpauses.
 func close() -> void:
 	_root.visible = false
+
+
+## The seed line's text, for tests; empty while it is hidden.
+func get_seed_text() -> String:
+	return _seed_label.text if _seed_label.visible else ""
 	get_tree().paused = false
 
 

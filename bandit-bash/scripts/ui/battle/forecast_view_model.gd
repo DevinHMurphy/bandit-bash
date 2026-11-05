@@ -6,7 +6,7 @@
 # File:     forecast_view_model.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 class_name ForecastViewModel
@@ -59,7 +59,7 @@ const HIT_BREAKDOWN_SEPARATOR: String = "; "
 ## Which preview this is.
 var kind: Kind = Kind.EXCHANGE
 
-## The heading, such as "Attack unit:5 (Brute)".
+## The heading, such as "Attack Brute".
 var title: String = ""
 
 ## The command previewed: the one Confirm sends.
@@ -106,8 +106,8 @@ func _init(
 	command = previewed
 	weapon_index = index
 	weapon_count = maxi(count, 1)
-	actor_label = session.describe(command.actor_id)
-	target_label = session.describe(command.get_target_id())
+	actor_label = BattleText.name_of(session, command.actor_id)
+	target_label = BattleText.name_of(session, command.get_target_id())
 	match command.action:
 		UnitTurnCommand.Action.ATTACK:
 			kind = Kind.EXCHANGE
@@ -178,7 +178,7 @@ func _fill_exchange(session: CombatSession, found: CombatForecast.ExchangeForeca
 		if side.breakdown != null:
 			var stages: Breakdown = Breakdown.new()
 			stages.unit_id = side.unit_id
-			stages.label = session.describe(side.unit_id)
+			stages.label = BattleText.name_of(session, side.unit_id)
 			stages.lines = side.breakdown.to_text().split(HIT_BREAKDOWN_SEPARATOR)
 			breakdowns.append(stages)
 	var labels: PackedStringArray = ["Hit", "Damage", "Crit", "Strikes", "Effective"]
@@ -197,7 +197,7 @@ func _fill_staff(session: CombatSession, found: CombatForecast.StaffForecast) ->
 	forecast = found
 	# A range-0 staff names no target: the forecast fills in the user.
 	if not found.target_id.is_empty():
-		target_label = session.describe(found.target_id)
+		target_label = BattleText.name_of(session, found.target_id)
 	var held: CombatState.WeaponStats = session.state.equipped_weapon(found.actor_id)
 	var staff_text: String = NONE_TEXT
 	if held != null:
@@ -217,7 +217,7 @@ func _fill_staff(session: CombatSession, found: CombatForecast.StaffForecast) ->
 	for recipient: CombatForecast.Recipient in found.recipients:
 		if recipient.overheal() > 0:
 			notes.append("%s: %d healing lost to its maximum HP." % [
-				session.describe(recipient.unit_id), recipient.overheal(),
+				BattleText.name_of(session, recipient.unit_id), recipient.overheal(),
 			])
 	_note_others(session, found)
 
@@ -233,7 +233,9 @@ func _fill_shove(session: CombatSession, found: CombatForecast.ShoveForecast) ->
 		var stop: String = STOP_TEXT[found.path.stop]
 		match found.path.stop:
 			ShoveResolver.Stop.BUMP:
-				stop = stop % [session.describe(found.path.bumped_id), ShoveResolver.BUMP_DAMAGE]
+				stop = stop % [
+					BattleText.name_of(session, found.path.bumped_id), ShoveResolver.BUMP_DAMAGE,
+				]
 			ShoveResolver.Stop.SPIKE:
 				stop = stop % [ShoveResolver.SPIKE_DAMAGE]
 		var slide: String = ", sliding on oil" if found.path.slid else ""
@@ -259,7 +261,8 @@ func _note_others(session: CombatSession, found: CombatForecast.Forecast) -> voi
 			continue
 		var text: String = outcome.describe_change()
 		if not text.is_empty():
-			notes.append(text.replace(outcome.unit_id, session.describe(outcome.unit_id)))
+			var shown_name: String = BattleText.name_of(session, outcome.unit_id)
+			notes.append(text.replace(outcome.unit_id, shown_name))
 
 
 func _add_row(label: String, left: String, right: String) -> void:
@@ -332,7 +335,7 @@ class Breakdown:
 
 	## The unit whose hit it is.
 	var unit_id: String = ""
-	## Its heading ([method CombatSession.describe]).
+	## Its heading: the unit's name ([method BattleText.name_of]).
 	var label: String = ""
 	## One line per stage, as [method CombatForecast.HitBreakdown.to_text] lists them.
 	var lines: PackedStringArray = []

@@ -6,7 +6,7 @@
 # File:     turn_input_model.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 class_name TurnInputModel
@@ -20,11 +20,12 @@ extends RefCounted
 ## [CommandValidator] phase checks run inside those. So a menu lists only what the session would
 ## accept, and nothing here re-derives a rule. Reading only: validation runs on sandbox copies and
 ## nothing changes the session. [BattleController] draws it; tests check it without rendering
-## (combat UI plan, question 13).
+## (combat UI plan, question 13). Targets are labelled by name ([method BattleText.name_of]).
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
-## The actions a unit's menu can list, in menu order (combat UI plan, question 6).
+## The actions a unit's menu can list (combat UI plan, questions 6 and 15 f). The menu lists them
+## in [constant MENU_ORDER], not by value: values are only appended.
 enum ActionKind {
 	## An exchange with an enemy ([constant UnitTurnCommand.Action.ATTACK]).
 	ATTACK = 0,
@@ -41,6 +42,9 @@ enum ActionKind {
 	## Ends the unit's turn where it stands; with a second move pending, ends that move
 	## ([constant UnitTurnCommand.Action.MOVE]).
 	WAIT = 6,
+	## A map object at the tile picked: visit a house, open a chest or door, pull a lever, take a
+	## passage, light a brazier ([constant UnitTurnCommand.Action.USE_OBJECT]).
+	USE = 7,
 }
 
 ## The menu label of each [enum ActionKind], by value.
@@ -52,6 +56,21 @@ const ACTION_LABELS: Array[String] = [
 	"Swap",
 	"Rune",
 	"Wait",
+	"Use",
+]
+
+# ASSUMPTION: Use goes after Shove, as game-vision.md's action table lists map objects after Shove;
+# the plan's question 6 order names no Use.
+## The order the menu lists actions in.
+const MENU_ORDER: Array[ActionKind] = [
+	ActionKind.ATTACK,
+	ActionKind.STAFF,
+	ActionKind.ITEM,
+	ActionKind.SHOVE,
+	ActionKind.USE,
+	ActionKind.SWAP,
+	ActionKind.RUNE,
+	ActionKind.WAIT,
 ]
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
@@ -184,9 +203,10 @@ static func path_to(session: CombatSession, unit_id: String, tile: Vector2i) -> 
 
 
 ## Every action [param unit_id] can take after walking [param path] ([method path_to]; empty to
-## stay), in [enum ActionKind] order, each with at least one legal command. A unit with a second
+## stay), in [constant MENU_ORDER], each with at least one legal command. A unit with a second
 ## move pending gets only Wait, which ends that move ([constant UnitTurnCommand.Action.MOVE]).
-## Empty when it can't act.
+## Use lists each map object whose use the session accepts from the path's end, with no item or
+## else the unit's Pouch item (a key or lockpick). Empty when it can't act.
 static func actions_at(
 		session: CombatSession, unit_id: String, path: Array[Vector2i]
 ) -> Array[ActionOption]:
@@ -255,6 +275,22 @@ static func actions_at(
 			shove.targets.append(_target(session, target_id, command))
 	_add_targeted(options, shove)
 
+	var use: ActionOption = ActionOption.new(ActionKind.USE)
+	for placed: MapState.ObjectState in _standing_objects(state):
+		var command: UnitTurnCommand = _turn(
+				session, unit_id, UnitTurnCommand.Action.USE_OBJECT, placed.id, path
+		)
+		if command == null and not unit.pouch_item_id.is_empty():
+			command = _turn(
+					session, unit_id, UnitTurnCommand.Action.USE_OBJECT, placed.id, path, "",
+					unit.pouch_item_id
+			)
+		if command != null:
+			var option: TargetOption = _target(session, placed.id, command)
+			option.tile = placed.tile
+			use.targets.append(option)
+	_add_targeted(options, use)
+
 	_add_untargeted(options, ActionKind.SWAP, _turn(
 			session, unit_id, UnitTurnCommand.Action.SWAP_WEAPON, "", path
 	))
@@ -270,7 +306,9 @@ static func actions_at(
 				var cast: CastRuneCommand = CastRuneCommand.new(seat, rune_id, target_id)
 				if cast.validate(session).is_empty():
 					var option: TargetOption = _target(session, target_id, cast)
-					option.label = "%s on %s" % [session.describe(rune_id), option.label]
+					option.label = "%s on %s" % [
+						BattleText.name_of(session, rune_id), option.label,
+					]
 					rune.targets.append(option)
 		_add_targeted(options, rune)
 
@@ -318,29 +356,45 @@ static func start_command(session: CombatSession, seat: int) -> StartCommand:
 	return command if command.validate(session).is_empty() else null
 
 
-# A unit-turn command for unit_id when its validate() accepts it on session; null otherwise.
+# A unit-turn command for unit_id when its validate() accepts it on session; null otherwise. An
+# Item always uses the Pouch item; any other action uses item_id (a key or lockpick for a use).
 static func _turn(
 		session: CombatSession,
 		unit_id: String,
 		action: UnitTurnCommand.Action,
 		target_id: String,
 		path: Array[Vector2i],
-		weapon_id: String = ""
+		weapon_id: String = "",
+		item_id: String = ""
 ) -> UnitTurnCommand:
 	var command: UnitTurnCommand = UnitTurnCommand.new(
 			session.state.seat_of(unit_id), unit_id, action, target_id, path
 	)
 	command.weapon_id = weapon_id
+	command.item_id = item_id
 	if action == UnitTurnCommand.Action.ITEM:
 		command.item_id = session.state.unit(unit_id).pouch_item_id
 	return command if command.validate(session).is_empty() else null
+
+
+# The map's objects not broken off it, in spot order: what a Use is tried on. The validator says
+# which of them the unit can use.
+static func _standing_objects(state: CombatState) -> Array[MapState.ObjectState]:
+	var standing: Array[MapState.ObjectState] = []
+	for placed: MapState.ObjectState in state.map.objects.values():
+		if not placed.is_destroyed:
+			standing.append(placed)
+	standing.sort_custom(func(a: MapState.ObjectState, b: MapState.ObjectState) -> bool:
+		return a.index < b.index
+	)
+	return standing
 
 
 static func _target(session: CombatSession, target_id: String, command: Command) -> TargetOption:
 	var option: TargetOption = TargetOption.new()
 	option.target_id = target_id
 	option.tile = session.state.tile_of(target_id)
-	option.label = session.describe(target_id)
+	option.label = BattleText.name_of(session, target_id)
 	option.command = command
 	option.commands.append(command)
 	return option
@@ -391,11 +445,11 @@ class ActionOption:
 class TargetOption:
 	extends RefCounted
 
-	## The target's instance id.
+	## The target's instance id: a unit's, or a map object's for Use.
 	var target_id: String = ""
 	## Its tile, where the cursor shows it.
 	var tile: Vector2i = CombatFact.NO_TILE
-	## Its label in the target picker ([method CombatSession.describe]).
+	## Its label in the target picker: its name ([method BattleText.name_of]).
 	var label: String = ""
 	## The command sent when this target is confirmed: the first of [member commands].
 	var command: Command = null
