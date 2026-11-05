@@ -6,7 +6,7 @@
 # File:     state_cases.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 31, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -207,7 +207,7 @@ func _test_sandbox_copy() -> void:
 	copy.defeat(world.engine, "e1", "p1")
 	copy.rune_slots[0].clear()
 	copy.ended_seats.append(0)
-	copy.unit("p1").tags.append("Flier")
+	copy.unit("p1").tags.append(ContentIds.TAG_FLIER)
 	copy.add_growth("p1", CombatValue.Stat.RES, 5)
 	_ok("copy: hp is its own", state.get_hp("p1") == 20)
 	_ok("copy: occupancy is its own", state.tile_of("p2") == Vector2i(1, 2))

@@ -6,7 +6,7 @@
 # File:     combat_world.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 27, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -103,7 +103,7 @@ func add_weapon(weapon_id: String, preset: String) -> CombatState.WeaponStats:
 	stats.weight = columns[8]
 	match preset:
 		"bow":
-			stats.effective_against = PackedStringArray(["Flier"])
+			stats.effective_against = PackedStringArray([ContentIds.TAG_FLIER])
 		"fire":
 			stats.damage_type = CombatFact.DamageType.MAGIC
 		"shelter":

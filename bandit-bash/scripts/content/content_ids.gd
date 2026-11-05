@@ -6,7 +6,7 @@
 # File:     content_ids.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 30, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 @tool
@@ -17,7 +17,9 @@ extends RefCounted
 ## Saves and the wire carry these as plain strings, so a list can grow without breaking old data
 ## (content catalog plan, question 3). Every string id a definition holds must be in its list; the
 ## content test checks it. Ids are lowercase snake_case and never shown to players. Values that
-## code branches on have a named constant, and their list is built from those constants.[br]
+## code branches on have a named constant, and their list is built from those constants.
+## Every tag and content id used in code or tests comes from here, through its named constant,
+## never as a string literal; an id without a constant gets one first.[br]
 ## [method apply_hint] turns a list into an inspector dropdown for the definitions' exports.
 ## Pure and static; never instantiated.
 ##
@@ -69,6 +71,13 @@ const SHAPE_CROSS: String = "cross"
 ## Unit tag: heavily armored. Auto-deployment puts Armored units in front.
 const TAG_ARMORED: String = "armored"
 
+## Unit tag: rides a mount, a horse or a flying one (the Hakkapel, the Freewing). A ground unit
+## with it uses Mounted movement (unit-roster.md, Movement and tags).
+const TAG_MOUNTED: String = "mounted"
+
+## Unit tag: flies (the Freewing). The Simple Bow is effective against it.
+const TAG_FLIER: String = "flier"
+
 ## Unit role: the shove specialist (the Ward). Auto-deployment puts it in front.
 const ROLE_SHOVER: String = "shover"
 
@@ -110,7 +119,7 @@ const WEAPON_TYPES: PackedStringArray = [
 ]
 
 ## Unit tags: what a unit is (unit-roster.md, Movement and tags). Terror is for enemies only.
-const TAGS: PackedStringArray = [TAG_ARMORED, "mounted", "flier", "terror"]
+const TAGS: PackedStringArray = [TAG_ARMORED, TAG_MOUNTED, TAG_FLIER, "terror"]
 
 ## Unit roles: what a unit type is for (unit-roster.md, the MVP roster's Role column).
 ## Auto-deployment looks for [code]shover[/code].
