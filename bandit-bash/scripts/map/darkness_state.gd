@@ -47,8 +47,10 @@ const BRAZIER_RADIUS: int = 2
 const BRAZIER_CAP: WhileLayerCondition.Layer = WhileLayerCondition.Layer.DUSK
 
 ## [member first_release] on a map whose darkness never comes: before setup, and on a map with no
-## darkness ([method DarknessSetup.has_darkness]).
-const NO_RELEASE: int = -1
+## darkness ([method DarknessSetup.has_darkness]). The lowest int, which no first release takes
+## (turn par is at least 1 and an arrival offset is a few turns), so it is never mistaken for one;
+## a JSON number holds it exactly.
+const NO_RELEASE: int = -9223372036854775807 - 1
 
 ## The active sources; a wave's [member Wave.source] indexes this. Empty before setup chooses
 ## them, and on a map with no darkness.

@@ -145,9 +145,10 @@ func add_setup_step(step: CombatEncounter.SetupStep, run: Callable) -> void:
 ## Begins the battle [param request] describes: the encounter with its enemy draw
 ## ([method EnemySetup.draw]) and setup from fresh streams (a restart from Begin rolls the same),
 ## [signal combat_encounter_opened], one session per seat on its [code]COMBAT_ROLLS[/code] stream,
-## then per map its objects, enemies, darkness step, reinforcement points, AI and intents
-## ([method MapObjects.place], [method EnemySetup.place], [method Darkness.register],
-## [method Reinforcements.register], [method EnemyAI.register], [method Intents.register]),
+## then per map its objects, enemies, darkness step, reinforcement points, darkness damage, AI and
+## intents ([method MapObjects.place], [method EnemySetup.place], [method Darkness.register],
+## [method Reinforcements.register], [method Darkness.register_damage], [method EnemyAI.register],
+## [method Intents.register]),
 ## carrier copies, its darkness
 ## ([method DarknessSetup.place], so Short Wick counts), each army deployed, and
 ## [method CombatSession.open_battle] as [member BattleRequest.opening_swap] says.
@@ -198,9 +199,10 @@ func begin_battle(request: BattleRequest) -> CombatEncounter:
 		# Before deployment too, which ranks its tiles by the enemies' tiles.
 		EnemySetup.place(session, catalog)
 		# First on AFTER_ENEMY_PHASE, before the reinforcement arrivals (the-darkness.md, The
-		# darkness step).
+		# darkness step); its damage after the point closing on PHASE_END_EFFECTS.
 		Darkness.register(session)
 		Reinforcements.register(session, _wave_groups)
+		Darkness.register_damage(session)
 		EnemyAI.register(session, catalog)
 		Intents.register(session, catalog)
 	for seat: int in request.armies:

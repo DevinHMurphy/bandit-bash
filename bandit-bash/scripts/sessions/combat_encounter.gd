@@ -6,7 +6,7 @@
 # File:     combat_encounter.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 30, 2026
+# Modified: November 4, 2026
 # ==============================================================================
 
 class_name CombatEncounter
@@ -375,8 +375,9 @@ func send_unit(
 ## Places every unit on its way to [param session_id], at the receiving map's player Phase Start
 ## (each session's [constant CombatHooks.Hook.ARRIVALS], before the Block and Stance refresh): its
 ## effects join the map with their counters and charges, then it is placed with Block 0 and full
-## Stance, recording [constant CombatFact.Kind.UNIT_SPAWNED]. Returns the ids placed; a unit with
-## no free tile stays on its way.
+## Stance, recording [constant CombatFact.Kind.UNIT_SPAWNED]. It lands on its arrival tile when
+## that is free and dry, else on [method Pathing.nearest_free_tile]'s, dry first (darkness plan
+## question 9). Returns the ids placed; a unit with no free tile stays on its way.
 func deliver_arrivals(session_id: int) -> PackedStringArray:
 	var delivered: PackedStringArray = []
 	var target: CombatSession = get_session(session_id)
@@ -610,6 +611,7 @@ func _arrive(target: CombatSession, transfer: Transfer) -> bool:
 	if (
 			not target.state.occupant_at(tile).is_empty()
 			or not target.state.can_stand(tile, unit.movement_type)
+			or target.state.map.darkness.layer_at(tile) != WhileLayerCondition.Layer.DRY
 	):
 		tile = Pathing.nearest_free_tile(target.state, tile, unit.movement_type)
 	if tile == CombatFact.NO_TILE:

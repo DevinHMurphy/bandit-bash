@@ -6,7 +6,7 @@
 # File:     pathing.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 28, 2026
+# Modified: November 4, 2026
 # ==============================================================================
 
 class_name Pathing
@@ -15,7 +15,8 @@ extends RefCounted
 ## reach and nearest free tile built on it.
 ##
 ## Rules code: pure and static, reading a [CombatState] (terrain through its grid, objects through
-## its [member CombatState.map], units through occupancy), so a sandbox runs it unchanged. A
+## its [member CombatState.map], units through occupancy, darkness layers for arrivals), so a
+## sandbox runs it unchanged. A
 ## mover pays its terrain cost per tile entered; units of its own side are passable, other units
 ## and object tiles that block it are solid, and it can't end on a taken tile (Godot_FE's
 ## FR-GRID-2). Nothing is cached: maps are small enough to flood per query (unmeasured).[br]
@@ -93,10 +94,12 @@ static func reach(
 	return ends
 
 
-## The free tile nearest [param origin] that [param movement_type] can stand on, by that
-## movement type's terrain cost, ties in [constant CombatGrid.DIRECTIONS] order; [param origin]
-## itself when free. For arrivals on a taken tile (reinforcements, allies sent from another map).
-## Returns [constant CombatFact.NO_TILE] when no tile is reachable.
+## The free tile nearest [param origin] that [param movement_type] can stand on, dry first: the
+## nearest dry one by that movement type's terrain cost, ties in [constant CombatGrid.DIRECTIONS]
+## order; with none, the nearest on the lowest darkness layer (the-darkness.md, Co-op; darkness
+## plan question 9). [param origin] itself when free and dry; before the darkness arrives every
+## tile is dry. For arrivals (reinforcements, allies sent from another map). Returns
+## [constant CombatFact.NO_TILE] when no tile is reachable.
 static func nearest_free_tile(
 		state: CombatState, origin: Vector2i, movement_type: CombatGrid.MovementType
 ) -> Vector2i:
@@ -106,10 +109,18 @@ static func nearest_free_tile(
 	var reached: Dictionary[Vector2i, int] = flood(
 			state, origin, -1, movement_type, CombatFact.CombatSide.NONE
 	)
+	var shallowest: Vector2i = CombatFact.NO_TILE
+	var shallowest_layer: int = WhileLayerCondition.Layer.DRY
 	for tile: Vector2i in reached:
-		if state.occupant_at(tile).is_empty() and state.can_stand(tile, movement_type):
+		if not state.occupant_at(tile).is_empty() or not state.can_stand(tile, movement_type):
+			continue
+		var layer: int = state.map.darkness.layer_at(tile)
+		if layer == WhileLayerCondition.Layer.DRY:
 			return tile
-	return CombatFact.NO_TILE
+		if shallowest == CombatFact.NO_TILE or layer < shallowest_layer:
+			shallowest = tile
+			shallowest_layer = layer
+	return shallowest
 
 
 ## The cost of reaching every tile [param movement_type] can enter from [param origin] within

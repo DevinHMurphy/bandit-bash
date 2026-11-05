@@ -11,29 +11,45 @@
 
 class_name Darkness
 extends RefCounted
-## The darkness step at the end of every turn, arrival, and the facts every change to the
-## darkness records (the-darkness.md, The darkness step; darkness plan, DK3).
+## The darkness step at the end of every turn, arrival, darkness damage, and the queries the board
+## reads (the-darkness.md, The darkness step, Layers and damage; darkness plan, DK3 and DK4).
 ##
 ## [method register] puts [method step] first on [constant CombatHooks.Hook.AFTER_ENEMY_PHASE],
-## before [method Reinforcements.arrive]. [method advance], in order: [b]creep[/b] (every wave's
-## reach grows), [b]release[/b] when a wave is due ([method is_release_due]), then
-## [b]erosion[/b]: each standing breakable 4-adjacent to a flooded tile gains a turn of contact,
-## and at [constant CONTACT_LIMIT] breaks through [method MapObjects.erode]. The first release is
-## arrival: it sets [member MapState.has_darkness_arrived], which stops reinforcement points and
-## turns the AI aggressive.[br]
-## Any break or door change lets the darkness flow anew through [method recalculate], which
-## [MapObjects] calls. Nothing here deals damage.[br]
+## before [method Reinforcements.arrive], and stops terrain healing on a flooded tile.
+## [method advance], in order: [b]creep[/b], [b]release[/b] when a wave is due
+## ([method is_release_due]), then [b]erosion[/b]: each standing breakable 4-adjacent to a flooded
+## tile gains a turn of contact, and at [constant CONTACT_LIMIT] breaks through
+## [method MapObjects.erode]. The first release is arrival ([member MapState.has_darkness_arrived]).
+## A break or door change lets the darkness flow anew through [method recalculate].[br]
+## [b]Damage[/b] ([method register_damage]): at each side's Phase End, each of its units on a
+## flooded tile takes [constant LAYER_DAMAGE_PERCENT] of its max HP, rounded down, at least
+## [constant MINIMUM_DAMAGE]. Not an attack: no damage stages, Block or Stance loss; only the
+## Darkness damage taken window, whose "that darkness damage" changes apply.[br]
 ## [b]Facts[/b], in order: one [constant CombatFact.Kind.DARKNESS_ADVANCED] per tile deepened;
 ## per released wave, one with [constant CombatFact.Flag.DARKNESS_RELEASED] (and
 ## [constant CombatFact.Flag.DARKNESS_ARRIVED] at the first release) before its own tiles;
-## erosion as [constant CombatFact.Kind.OBJECT_STATE_CHANGED] with
-## [constant MapObjects.Change.CONTACTED] or [constant MapObjects.Change.ERODED]. Payloads are on
-## [constant CombatFact.Kind.DARKNESS_ADVANCED].[br]
-## Pure, static rules code: it reads and changes only the engine and state it is handed, so it
-## runs unchanged on a sandbox or a stand-in session, and never awaits.
+## erosion as [constant CombatFact.Kind.OBJECT_STATE_CHANGED]
+## ([constant MapObjects.Change.CONTACTED] or [constant MapObjects.Change.ERODED]); one
+## [constant CombatFact.Kind.DARKNESS_DAMAGE_TAKEN] per unit hurt, then its defeat at 0 HP.
+## Payloads are on the kinds.[br]
+## [b]Queries[/b] for the board: [method damage_at], [method next_deepening],
+## [method source_counters]. Pure, static rules code: it reads and changes only the engine and
+## state it is handed, so it runs unchanged on a sandbox or a stand-in session, and never awaits.
 ##
 ## @tutorial(The darkness): docs/design/the-darkness.md
 ## @tutorial(The darkness plan): docs/plans/2026-11-03-the-darkness.md
+
+## Darkness damage by layer, in percent of max HP (the-darkness.md, Values: Dusk 10%, Gloom 25%,
+## Abyss 50%; the damage model itself is a first pass, to playtest).
+const LAYER_DAMAGE_PERCENT: Dictionary[WhileLayerCondition.Layer, int] = {
+	WhileLayerCondition.Layer.DUSK: 10,
+	WhileLayerCondition.Layer.GLOOM: 25,
+	WhileLayerCondition.Layer.ABYSS: 50,
+}
+
+## The least darkness damage a unit on a flooded tile takes, after rounding down (the-darkness.md,
+## Values: all damage is rounded down, with a minimum of 1).
+const MINIMUM_DAMAGE: int = 1
 
 ## Turns between one wave and the next (the-darkness.md, Values: every 2 turns).
 const WAVE_INTERVAL: int = 2
@@ -46,10 +62,22 @@ const CONTACT_LIMIT: int = 3
 const EARLIEST_RELEASE: int = 1
 
 
-## Puts [method step] on [param session]'s [constant CombatHooks.Hook.AFTER_ENEMY_PHASE]. Call
-## once per session, before [method Reinforcements.register], so the darkness step runs first.
+## Puts [method step] on [param session]'s [constant CombatHooks.Hook.AFTER_ENEMY_PHASE], and a
+## [constant CombatHooks.Hook.TERRAIN_HEALING_ALLOWED] check that stops terrain healing on a
+## flooded tile (the-darkness.md, Terrain). Call once per session, before
+## [method Reinforcements.register], so the darkness step runs first.
 static func register(session: CombatSession) -> void:
 	session.hooks.add(CombatHooks.Hook.AFTER_ENEMY_PHASE, Darkness.step)
+	session.hooks.add(CombatHooks.Hook.TERRAIN_HEALING_ALLOWED, _allows_terrain_healing)
+
+
+## Puts darkness damage on [param session]'s [constant CombatHooks.Hook.PHASE_END_EFFECTS]: at each
+## side's Phase End, after its Phase End and Unit Turn End effects, each of its units on a flooded
+## tile takes its darkness damage, in placement order. Call once per session, after
+## [method Reinforcements.register], so a unit ending its turn on an open point closes it before
+## the darkness hurts it (darkness plan question 5).
+static func register_damage(session: CombatSession) -> void:
+	session.hooks.add(CombatHooks.Hook.PHASE_END_EFFECTS, _hurt_side)
 
 
 ## [constant CombatHooks.Hook.AFTER_ENEMY_PHASE]: the darkness step on [param session]
@@ -73,12 +101,10 @@ static func advance(engine: EffectEngine, state: CombatState) -> void:
 
 ## The turn whose darkness step releases the first wave: [member DarknessState.first_release],
 ## and never before [constant EARLIEST_RELEASE]. [constant DarknessState.NO_RELEASE] when the map
-## has no active source.
+## has no active source or no first release.
 static func release_turn(darkness: DarknessState) -> int:
-	if darkness.sources.is_empty():
+	if darkness.sources.is_empty() or darkness.first_release == DarknessState.NO_RELEASE:
 		return DarknessState.NO_RELEASE
-	# NOTE: tests sources, not first_release == NO_RELEASE: turn par 1 with Short Wick sets
-	# first_release to -1, the same number, on a map whose darkness does come.
 	return maxi(darkness.first_release, EARLIEST_RELEASE)
 
 
@@ -99,6 +125,73 @@ static func is_release_due(darkness: DarknessState, turn: int) -> bool:
 static func recalculate(engine: EffectEngine, state: CombatState) -> void:
 	_record(engine, state.map.darkness.recalculate(state))
 
+
+## The HP [param unit_id] would lose to the darkness by ending its side's phase on [param tile]
+## now: its darkness damage for that tile's layer, with every "that darkness damage" effect that
+## would answer it, at most its HP, as its [constant CombatFact.Kind.DARKNESS_DAMAGE_TAKEN] would
+## record. 0 on a dry tile or for a unit off [param engine]'s map. Changes nothing: with no
+## effect answering darkness damage it reads the stat sheet only, else it deals the damage on a
+## sandbox with the unit moved there. Phase End effects that would land first (a heal) aren't
+## foreseen; the intents preview runs them.
+## [param tile]: a tile the unit could end its move on, free or its own.
+static func damage_at(engine: EffectEngine, unit_id: String, tile: Vector2i) -> int:
+	var state: CombatState = engine.state as CombatState
+	if state == null or not state.has_unit(unit_id):
+		return 0
+	var layer: WhileLayerCondition.Layer = state.map.darkness.layer_at(tile)
+	if layer == WhileLayerCondition.Layer.DRY:
+		return 0
+	if not _is_answered(engine, unit_id):
+		return mini(_amount(engine, unit_id, layer, EffectContext.new()), state.get_hp(unit_id))
+	var sandbox: Sandbox = Sandbox.new(engine, ForecastRolls.new())
+	var copy: CombatState = sandbox.engine.state as CombatState
+	if copy.tile_of(unit_id) != tile:
+		copy.move_unit(unit_id, tile)
+	return _deal(sandbox.engine, copy, unit_id, layer)
+
+
+## The tiles the darkness step at the end of this turn would deepen on [param engine]'s map, each
+## to the layer it would reach, if nothing else changed first: [method advance] on a sandbox,
+## erosion's breaks included. Before turn 1's Phase Start, turn 1's step. Empty with no active
+## source. Changes nothing.
+static func next_deepening(engine: EffectEngine) -> Dictionary[Vector2i, WhileLayerCondition.Layer]:
+	var deepening: Dictionary[Vector2i, WhileLayerCondition.Layer] = {}
+	var state: CombatState = engine.state as CombatState
+	if state == null or state.map.darkness.sources.is_empty():
+		return deepening
+	var sandbox: Sandbox = Sandbox.new(engine, ForecastRolls.new())
+	var copy: CombatState = sandbox.engine.state as CombatState
+	copy.turn = maxi(copy.turn, 1)
+	var facts: Array[CombatFact] = sandbox.engine.fact_log
+	var from: int = facts.size()
+	sandbox.engine.begin_step()
+	advance(sandbox.engine, copy)
+	sandbox.engine.drain()
+	for i: int in range(from, facts.size()):
+		var fact: CombatFact = facts[i]
+		if fact.kind == CombatFact.Kind.DARKNESS_ADVANCED and fact.tile != CombatFact.NO_TILE:
+			deepening[fact.tile] = fact.amount as WhileLayerCondition.Layer
+	return deepening
+
+
+## Each active source's counter on [param state]'s map, by source index: the turns until its next
+## wave, this turn included (1: at the end of this turn), counted as
+## [constant CombatFact.Kind.REINFORCEMENT_INCOMING] counts. Before arrival it counts to arrival,
+## then to the next wave. Every source releases together, so the counters are equal. Before turn
+## 1's Phase Start, counted from turn 1. Empty when the darkness never comes.
+static func source_counters(state: CombatState) -> PackedInt32Array:
+	var counters: PackedInt32Array = []
+	var darkness: DarknessState = state.map.darkness
+	var first: int = release_turn(darkness)
+	if first == DarknessState.NO_RELEASE:
+		return counters
+	var turn: int = maxi(state.turn, 1)
+	var next: int = first
+	if turn > first:
+		next = turn + posmod(first - turn, WAVE_INTERVAL)
+	for _source: int in darkness.sources.size():
+		counters.append(next - turn + 1)
+	return counters
 
 # One DARKNESS_ADVANCED per entry of deepened, in order.
 static func _record(engine: EffectEngine, deepened: Array[DarknessState.Deepening]) -> void:
@@ -180,5 +273,78 @@ static func _breakables(state: CombatState) -> Array[MapState.ObjectState]:
 static func _is_touching(state: CombatState, tile: Vector2i) -> bool:
 	for next: Vector2i in state.grid.neighbors(tile):
 		if state.map.darkness.layer_at(next) != WhileLayerCondition.Layer.DRY:
+			return true
+	return false
+
+
+# PHASE_END_EFFECTS: each unit of side on a flooded tile, in placement order, takes its darkness
+# damage at its tile's layer now. A unit that only passed through darkness is on a dry tile here.
+static func _hurt_side(session: CombatSession, side: CombatFact.CombatSide) -> void:
+	var state: CombatState = session.state
+	for unit_id: String in state.units_of(side):
+		if not state.has_unit(unit_id):
+			continue
+		var layer: WhileLayerCondition.Layer = state.map.darkness.layer_at(state.tile_of(unit_id))
+		if layer != WhileLayerCondition.Layer.DRY:
+			_deal(session.engine, state, unit_id, layer)
+
+
+# TERRAIN_HEALING_ALLOWED: no terrain heal for a unit on a flooded tile.
+static func _allows_terrain_healing(session: CombatSession, unit_id: String) -> bool:
+	return session.state.darkness_layer(unit_id) == WhileLayerCondition.Layer.DRY
+
+
+# Deals unit_id its darkness damage for layer through engine: the Darkness damage taken window,
+# the HP lost, its fact, then its defeat at 0 HP, by no unit. Returns the HP lost.
+static func _deal(
+		engine: EffectEngine, state: CombatState, unit_id: String, layer: WhileLayerCondition.Layer
+) -> int:
+	var fact: CombatFact = CombatFact.new(CombatFact.Kind.DARKNESS_DAMAGE_TAKEN, unit_id)
+	fact.source = CombatFact.Source.DARKNESS
+	var ctx: EffectContext = EffectContext.new()
+	engine.open_window(fact, ctx)
+	var hp: int = state.get_hp(unit_id)
+	var lost: int = mini(_amount(engine, unit_id, layer, ctx), hp)
+	state.set_hp(unit_id, hp - lost)
+	# ASSUMPTION: amount is the HP lost, overkill dropped, as DAMAGE_TAKEN's amount is what got
+	# through and as the board reads it (combat UI plan question 14 g).
+	fact.amount = lost
+	fact.hp_amount = lost
+	engine.record(fact, ctx)
+	if state.get_hp(unit_id) == 0:
+		state.defeat(engine, unit_id, "")
+	return lost
+
+
+# unit_id's darkness damage for layer before HP caps it: the layer's share of max HP, exact through
+# ctx's window (its "that darkness damage" amount changes, then its Multipliers changes, as Lantern
+# Oil's ×0.5), rounded down once, at least MINIMUM_DAMAGE.
+static func _amount(
+		engine: EffectEngine,
+		unit_id: String,
+		layer: WhileLayerCondition.Layer,
+		ctx: EffectContext
+) -> int:
+	var max_hp: int = engine.stats(unit_id).get_int(CombatValue.Key.HP)
+	var percent: int = LAYER_DAMAGE_PERCENT.get(layer, 0)
+	var shaped: float = ctx.shaped_amount(max_hp * percent / 100.0).total
+	var multipliers: float = ValueBreakdown.compute(
+			DamageStage.Key.MULTIPLIERS, 1.0, "", ctx.that_modifiers(DamageStage.Key.MULTIPLIERS)
+	).total
+	var rounded: int = ValueBreakdown.round_to_int(
+			shaped * multipliers, ValueBreakdown.Rounding.FLOOR
+	)
+	return maxi(rounded, MINIMUM_DAMAGE)
+
+
+# Whether an effect on engine would answer darkness damage to unit_id: a waking Darkness damage
+# taken effect whose scope holds it. Without one, damage_at needs no sandbox.
+static func _is_answered(engine: EffectEngine, unit_id: String) -> bool:
+	for instance: EffectInstance in engine.get_instances():
+		var definition: EffectDefinition = instance.definition
+		if definition == null or definition.trigger != EffectTerms.Trigger.DARKNESS_DAMAGE_TAKEN:
+			continue
+		var holds: bool = engine.in_scope(instance.owner, unit_id, definition.scope)
+		if holds and not engine.is_dormant(instance):
 			return true
 	return false

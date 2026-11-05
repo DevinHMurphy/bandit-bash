@@ -17,7 +17,8 @@ extends SceneTree
 ## candidates, active sources, drains, Short Wick and battles on the M1 map (setup_cases.gd);
 ## [Darkness]'s step: golden fact logs of release, creep, erosion and doors, arrival stopping
 ## reinforcements and turning the AI aggressive, stand-in safety and a timed step on M1
-## (step_cases.gd).
+## (step_cases.gd); darkness damage and its readers: the AI, dry-first arrivals, terrain healing,
+## the intents preview and the board's queries, timed on M1 (damage_cases.gd).
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/darkness/run_all.gd[/code][br]
@@ -30,6 +31,7 @@ const FlowCases = preload("res://tests/darkness/flow_cases.gd")
 const StateCases = preload("res://tests/darkness/state_cases.gd")
 const SetupCases = preload("res://tests/darkness/setup_cases.gd")
 const StepCases = preload("res://tests/darkness/step_cases.gd")
+const DamageCases = preload("res://tests/darkness/damage_cases.gd")
 
 var _failures: int = 0
 var _passes: int = 0
@@ -41,6 +43,7 @@ func _init() -> void:
 	StateCases.new(_check).run()
 	SetupCases.new(_check).run()
 	StepCases.new(_check).run()
+	DamageCases.new(_check).run()
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)
 

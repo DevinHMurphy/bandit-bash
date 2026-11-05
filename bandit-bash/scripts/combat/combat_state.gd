@@ -454,7 +454,7 @@ func follow(
 			CombatFact.Kind.UNIT_SPAWNED:
 				if not _units.has(fact.actor_id) and spawned.has(fact.actor_id):
 					place_unit(engine, spawned[fact.actor_id])
-			CombatFact.Kind.DAMAGE_TAKEN:
+			CombatFact.Kind.DAMAGE_TAKEN, CombatFact.Kind.DARKNESS_DAMAGE_TAKEN:
 				if actor != null:
 					actor.hp = maxi(0, actor.hp - fact.hp_amount)
 					actor.block = maxi(0, actor.block - fact.block_amount)
