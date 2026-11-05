@@ -1,10 +1,15 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/battle/battle_view.gd" id="1_view"]
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/unit_token.tscn" id="2_token"]
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/damage_number.tscn" id="3_number"]
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/darkness_overlay.tscn" id="4_overlay"]
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/camera_rig.tscn" id="5_rig"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/enemy_range_overlay.tscn" id="6_enemy_range"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/move_overlay.tscn" id="7_move"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/attack_overlay.tscn" id="8_attack"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/path_preview.tscn" id="9_path"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/tile_cursor.tscn" id="10_cursor"]
 
 [node name="BattleView" type="Node2D"]
 script = ExtResource("1_view")
@@ -17,7 +22,22 @@ unique_name_in_owner = true
 [node name="DarknessOverlay" parent="." instance=ExtResource("4_overlay")]
 unique_name_in_owner = true
 
+[node name="EnemyRangeOverlay" parent="." instance=ExtResource("6_enemy_range")]
+unique_name_in_owner = true
+
+[node name="MoveOverlay" parent="." instance=ExtResource("7_move")]
+unique_name_in_owner = true
+
+[node name="AttackOverlay" parent="." instance=ExtResource("8_attack")]
+unique_name_in_owner = true
+
+[node name="PathPreview" parent="." instance=ExtResource("9_path")]
+unique_name_in_owner = true
+
 [node name="Tokens" type="Node2D" parent="."]
+unique_name_in_owner = true
+
+[node name="TileCursor" parent="." instance=ExtResource("10_cursor")]
 unique_name_in_owner = true
 
 [node name="Numbers" type="Node2D" parent="."]

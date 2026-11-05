@@ -1,0 +1,14 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/battle/action_menu.gd" id="1_menu"]
+[ext_resource type="Theme" path="res://scenes/ui/battle/battle_theme.tres" id="2_theme"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/menu_row.tscn" id="3_row"]
+
+[node name="ActionMenu" type="PanelContainer"]
+theme = ExtResource("2_theme")
+script = ExtResource("1_menu")
+row_scene = ExtResource("3_row")
+
+[node name="Rows" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2

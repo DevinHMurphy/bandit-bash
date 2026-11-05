@@ -12,8 +12,10 @@
 extends SceneTree
 ## Combat UI suite (combat UI plan, P07): the battle board's view-model, the board on the M1 map,
 ## an M1 battle's facts played through the board, and the darkness overlay
-## ([code]battle_view_cases.gd[/code]); then the gameplay screen itself, which begins a new solo
-## run's M1 battle, plays it to its end from the debug bar and routes to Results.
+## ([code]battle_view_cases.gd[/code]); turn input: the action menu, the overlays and path, cancel,
+## End Turn and Start, rejections, playback, a second move, and player turns played by input
+## events ([code]turn_input_cases.gd[/code]); then the gameplay screen itself, which begins a new
+## solo run's M1 battle, plays it to its end from Start and End Turn and routes to Results.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/ui/run_all.gd[/code][br]
@@ -28,6 +30,7 @@ extends SceneTree
 ## [code]tests/sessions/run_all.gd[/code]) and is skipped otherwise.
 
 const BattleViewCases = preload("res://tests/ui/battle_view_cases.gd")
+const TurnInputCases = preload("res://tests/ui/turn_input_cases.gd")
 const CatalogCases = preload("res://tests/content/catalog_cases.gd")
 
 const GAMEPLAY_SCENE: String = "res://scenes/gameplay/gameplay.tscn"
@@ -67,6 +70,7 @@ func _process(_delta: float) -> bool:
 		# definition.
 		_before = CatalogCases.hash_definitions(PackedStringArray())
 		BattleViewCases.new(_check, root).run()
+		TurnInputCases.new(_check, root).run()
 		if _start_route_case():
 			_route_frame = _frame
 			return false
@@ -89,9 +93,10 @@ func _finish() -> void:
 	quit(1 if _failures > 0 else 0)
 
 
-# A new solo run enters the gameplay screen, which begins the M1 battle; the debug bar's Start
-# and End Turn play it until it ends, and the screen ends it and routes to Results. Returns true
-# when the scene change is under way, so the remaining checks wait a few frames.
+# A new solo run enters the gameplay screen, which begins the M1 battle; the swap window's Start
+# and the turn bar's End Turn (confirming its question) play it until it ends, and the screen ends
+# it and routes to Results. Returns true when the scene change is under way, so the remaining
+# checks wait a few frames.
 func _start_route_case() -> bool:
 	if not _has_test_user_dir():
 		_skips += 1
@@ -112,7 +117,7 @@ func _start_route_case() -> bool:
 	var screen: Node = scene.instantiate()
 	root.add_child(screen)
 	var view: BattleView = screen.call(&"get_view")
-	var bar: BattleDebugBar = screen.call(&"get_debug_bar")
+	var controller: BattleController = screen.call(&"get_controller")
 	var session: CombatSession = view.get_session()
 	_check("screen: entering it begins the M1 battle", (
 			run.encounter != null
@@ -131,14 +136,14 @@ func _start_route_case() -> bool:
 			and view.mismatches().is_empty()
 	), "%s; %s" % [view.token_ids(), view.mismatches()])
 
-	var start: Button = bar.get_start_button()
-	_check("screen: Start shows in the opening swap window", (
-			start.visible == session.state.map.opening_swap_open
+	var swap_window: SwapWindow = controller.swap_window
+	_check("screen: the swap window and its Start show before turn 1", (
+			swap_window.visible == session.state.map.opening_swap_open
 	))
-	if start.visible:
-		start.pressed.emit()
+	if swap_window.visible:
+		swap_window.get_start_button().pressed.emit()
 		BattleViewCases.settle(view)
-	var end_turn: Button = bar.get_end_turn_button()
+	var end_turn: Button = controller.turn_bar.get_end_turn_button()
 	for _phase: int in MAX_PHASES:
 		if session.is_finished:
 			break
@@ -147,6 +152,9 @@ func _start_route_case() -> bool:
 			if end_turn.disabled:
 				break
 		end_turn.pressed.emit()
+		var question: ConfirmDialog = controller.panel_host.top() as ConfirmDialog
+		if question != null:
+			question.get_confirm_button().pressed.emit()
 		BattleViewCases.settle(view)
 	_check("screen: End Turn alone plays the battle to its end", session.is_finished, (
 			"turn %d" % [session.state.turn]
