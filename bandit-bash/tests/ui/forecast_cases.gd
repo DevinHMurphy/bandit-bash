@@ -6,7 +6,7 @@
 # File:     forecast_cases.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -19,7 +19,7 @@ extends RefCounted
 ##
 ## [b]The harness[/b] is turn_input_cases.gd's (the board, the HUD widgets and a
 ## [BattleController] on the M1 battle) with the forecast panel scene set and [MovePreviewMarks]
-## on the board, as in the gameplay scene. Cases drive the controller through its public methods
+## and the [IntentDisplay] on the board, as in the gameplay scene. Cases drive the controller through its public methods
 ## and the panels' own buttons; cycle_weapon goes through the root viewport as an input action.
 
 const BattleViewCases = preload("res://tests/ui/battle_view_cases.gd")
@@ -36,6 +36,7 @@ const TARGET_PICKER_SCENE: PackedScene = preload("res://scenes/ui/battle/target_
 const CONFIRM_SCENE: PackedScene = preload("res://scenes/ui/battle/confirm_dialog.tscn")
 const FORECAST_SCENE: PackedScene = preload("res://scenes/ui/battle/forecast_panel.tscn")
 const MARKS_SCENE: PackedScene = preload("res://scenes/ui/battle/move_preview_marks.tscn")
+const DISPLAY_SCENE: PackedScene = preload("res://scenes/ui/battle/intent_display.tscn")
 
 # turn_input_cases.gd's seed: no case compares golden numbers.
 const SEED: int = 0x0C0FFEE
@@ -353,13 +354,23 @@ func _test_move_preview() -> void:
 				h.session.intents.intent_of(enemy_id), replanned.intent_of(enemy_id)
 		):
 			changed.append(enemy_id)
-	_check.call("preview: the intents are Intents.preview's, each changed enemy marked", (
+	var display: IntentDisplay = h.controller.intent_display
+	var model: IntentViewModel = display.get_model()
+	var tinted: PackedStringArray = []
+	if model != null:
+		for entry: IntentViewModel.Entry in model.entries:
+			if entry.is_changed:
+				tinted.append(entry.enemy_id)
+	_check.call("preview: the intents are Intents.preview's, each changed enemy tinted", (
 			shown != null
 			and shown.intents != null
 			and _intent_lines(shown.intents) == _intent_lines(replanned)
-			and marks.get_marked_enemies() == changed
 			and shown.changed_enemies == changed
-	), "marked %s, changed %s" % [marks.get_marked_enemies(), changed])
+			and model != null
+			and model.is_preview
+			and model.entries.size() == replanned.enemies.size()
+			and _sorted(tinted) == _sorted(changed)
+	), "tinted %s, changed %s" % [tinted, changed])
 
 	var changed_somewhere: int = 0
 	for tile: Vector2i in tiles:
@@ -380,24 +391,18 @@ func _test_move_preview() -> void:
 	h.close()
 
 
-# The marks widget alone: a number for damage, none for 0, and one mark per changed enemy.
+# The marks widget alone: a number for damage, none for 0.
 func _test_preview_marks_widget() -> void:
 	var marks: MovePreviewMarks = MARKS_SCENE.instantiate()
 	_root.add_child(marks)
 	var preview: MovePreview = MovePreview.new()
 	preview.darkness_damage = 5
-	preview.changed_enemies = PackedStringArray(["e1", "e2"])
-	var positions: Array[Vector2] = [Vector2(32.0, 0.0), Vector2(64.0, 0.0)]
-	marks.show_preview(preview, Vector2.ZERO, positions)
-	var with_damage: bool = (
-			marks.get_damage_text() == "-5"
-			and marks.get_marked_enemies() == preview.changed_enemies
-	)
+	marks.show_preview(preview, Vector2.ZERO)
+	var with_damage: bool = marks.get_damage_text() == "-5"
 	var dry: MovePreview = MovePreview.new()
-	var no_positions: Array[Vector2] = []
-	marks.show_preview(dry, Vector2.ZERO, no_positions)
-	var without: bool = marks.get_damage_text().is_empty() and marks.get_marked_enemies().is_empty()
-	_check.call("preview marks: a number for darkness damage, none on a dry tile, marks reused", (
+	marks.show_preview(dry, Vector2.ZERO)
+	var without: bool = marks.get_damage_text().is_empty()
+	_check.call("preview marks: a number for darkness damage, none on a dry tile", (
 			with_damage and without
 	))
 	marks.free()
@@ -468,8 +473,8 @@ func _test_ranged_origins() -> void:
 # --- Fixtures --------------------------------------------------------------------------------
 
 
-# turn_input_cases.gd's harness, with the forecast panel scene and the move preview marks set, past
-# the opening swap window's Start.
+# turn_input_cases.gd's harness, with the forecast panel scene, the move preview marks and the
+# intent display set, past the opening swap window's Start.
 func _harness() -> TurnInputCases.Harness:
 	var h: TurnInputCases.Harness = TurnInputCases.Harness.new()
 	h.run = CampaignSession.new(CampaignData.Mode.SOLO, SEED, PackedInt32Array([0]))
@@ -481,6 +486,8 @@ func _harness() -> TurnInputCases.Harness:
 	h.session = h.battle.get_session(0)
 	h.view = VIEW_SCENE.instantiate()
 	_root.add_child(h.view)
+	var display: IntentDisplay = DISPLAY_SCENE.instantiate()
+	h.view.add_child(display)
 	var marks: MovePreviewMarks = MARKS_SCENE.instantiate()
 	h.view.add_child(marks)
 	h.hud = CanvasLayer.new()
@@ -502,6 +509,7 @@ func _harness() -> TurnInputCases.Harness:
 	h.controller.swap_window = h.swap
 	h.controller.message = h.message
 	h.controller.move_preview_marks = marks
+	h.controller.intent_display = display
 	_root.add_child(h.controller)
 	h.view.bind(h.session)
 	h.controller.bind(h.battle, h.session, 0)
@@ -761,6 +769,12 @@ static func _intent_lines(intents: Intents) -> PackedStringArray:
 	for intent: EnemyIntent in intents.enemies:
 		lines.append(intent.describe())
 	return lines
+
+
+static func _sorted(ids: PackedStringArray) -> PackedStringArray:
+	var copy: PackedStringArray = ids.duplicate()
+	copy.sort()
+	return copy
 
 
 static func _rows_of(model: ForecastViewModel) -> PackedStringArray:

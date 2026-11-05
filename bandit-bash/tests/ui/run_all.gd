@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -15,7 +15,9 @@ extends SceneTree
 ## faded skip ([code]battle_view_cases.gd[/code]); turn input: the action menu, the overlays and
 ## path, cancel, End Turn and Start, rejections, playback, a second move, and player turns played
 ## by input events ([code]turn_input_cases.gd[/code]); the forecast, weapon cycling and the move
-## preview ([code]forecast_cases.gd[/code]); then the gameplay screen itself: its save debug panel
+## preview ([code]forecast_cases.gd[/code]); the intent icons, target rules, numbered lines, the
+## danger zone and the previewed intents ([code]intent_cases.gd[/code]); then the gameplay screen
+## itself: its save debug panel
 ## (hidden when the battle opens, toggled by F3, clear of the M1 map at the 1152×648 base size,
 ## and untouched by clicks on the deployment tiles), then a new solo run's M1 battle played to its
 ## end from Start and End Turn, and the route to Results.
@@ -36,6 +38,7 @@ extends SceneTree
 const BattleViewCases = preload("res://tests/ui/battle_view_cases.gd")
 const TurnInputCases = preload("res://tests/ui/turn_input_cases.gd")
 const ForecastCases = preload("res://tests/ui/forecast_cases.gd")
+const IntentCases = preload("res://tests/ui/intent_cases.gd")
 const CatalogCases = preload("res://tests/content/catalog_cases.gd")
 
 const GAMEPLAY_SCENE: String = "res://scenes/gameplay/gameplay.tscn"
@@ -89,6 +92,7 @@ func _process(_delta: float) -> bool:
 		BattleViewCases.new(_check, root).run()
 		TurnInputCases.new(_check, root).run()
 		ForecastCases.new(_check, root).run()
+		IntentCases.new(_check, root).run()
 		if _start_panel_case():
 			_panel_frame = _frame
 			return false
