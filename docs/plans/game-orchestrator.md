@@ -59,7 +59,7 @@ into `dev`; plan and orchestrator commits go to `dev`; `main` holds released sta
   waves and close (no real waves until P05 draws the groups). The M1 greybox map loads and passes
   its check, and the forecast (`CombatForecast`) equals execution. The content catalog
   (`EffectCatalog`) loads `res://data/`, though no content is written yet.
-- **Current milestone:** [M1 First playable fight](#milestones). [M0 Foundations](#milestones) is
+- **Current milestone:** [M1 First playable fight](#milestones): built and playtested November 5, 2026; its tuning pass is next. [M0 Foundations](#milestones) is
   complete (P01 EB1–EB7 implemented and verified headless, October 30, 2026).
 - **Current focus:** P02's, P03's, P04's and P05's parts of M1 are built; a headless M1 battle runs to the end.
   M1's part of P06 is built (DK1–DK4 merged); M1's critical path is now
@@ -377,16 +377,16 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 
 ## Next actions
 
-1. **M1's playtest (the user):** a new solo run opens the M1 battle. Notes drive the first tuning pass
-   (Block, Stance, darkness, weight, turn par; UI5 found M1 very lethal: lost on turn 2 played
-   naively, turn 4 carefully; the Archer dies in one enemy phase). Then M1's exit review.
-2. **Open questions for the user:** P07 question 19 (UI5F). **Design doc to write:** the move preview re-architecture (Design items, P05 / P07).
-3. **Off M1's path:** P02 **CC10** (battle resume: today a run continued mid-battle sits on the
-   placeholder; releases the reserved `enemy_units` key, P04 question 25; rejects a move that goes
-   nowhere, P02 question 21); P06 DK5 (the darkness save and mirrors) after CC10's pattern; the
-   Trivial tag cleanup (P03 question 22; drops the pack-name `; ASSUMPTION` in `m1_pack.tres`);
-   after M1, one public `Pathing.path_to` (P07 question 15 d). P03 CT6 and CT13 held.
-4. Vision updates pending for the ideation thread (Design items by plan).
+1. **M1's tuning pass:** the user playtested M1 on November 5, 2026 (successful) and wants major UI
+   work and tune-ups before the MVP. Waiting on the user's tuning notes (Block, Stance, darkness,
+   weight, turn par; UI5 found M1 very lethal) and the scope of P07's M2 part (UI6+), to be
+   broken down. Then M1's exit review and M2.
+2. **Builds needing no decisions:** P02 **CC10** (battle resume) and the P03 **tag cleanup** (prompts
+   issued November 5, 2026), in parallel; P06 **DK5** after CC10 (its resume test needs it).
+3. **Open questions for the user:** the tuning notes and the UI scope (above). **Design doc to write:** the move preview re-architecture (Design items, P05 / P07).
+4. **Later:** one public `Pathing.path_to` (P07 question 15 d); P03 CT6 and CT13 (no longer held
+   once M1 exits); P05 EN6–EN12, P03's breadth, P06 DK6, P02 CC9 and P04 MP9 docs for M2.
+5. Vision updates pending for the ideation thread (Design items by plan).
 
 ## Change log
 
@@ -474,3 +474,4 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 | November 5, 2026 | P07 question 17 answered (as recommended). **P07 UI3F and UI5 merged into `dev`** (4b44afc, 44caecd; verified together: ui 131, every other suite unchanged, launch clean): the move preview on a worker thread (17 ms median, debug); the HUD, Use, layout fixes, target names, the debug panel refresh, a release export (preview 14 ms median before UI3F). **M1's part of P07 is built; every M1 build step is merged.** UI5's playtest found a misleading kill forecast and a very lethal M1. P07 question 18 raised; UI5F prompt issued. |
 | November 5, 2026 | P07 question 18 answered (as recommended); UI5F prompt reissued on the recorded base. |
 | November 5, 2026 | **P07 UI5F merged into `dev`** (7a8b40d; verified: ui 145, every other suite unchanged, launch clean): the forecast shows the counter and a kill chance, M1's house object, two-letter tokens, the end banner, doc fixes, and the pause menu's unpause (broken by UI5, fixed with a test). **Every M1 build step is merged; M1 waits on the user's playtest.** P07 question 19 raised. |
+| November 5, 2026 | P07 question 19 answered (as recommended). **M1 playtested by the user: successful.** The user wants major UI work and tune-ups before the MVP; tuning notes and P07's M2 scope requested. CC10 and tag cleanup prompts issued. |
