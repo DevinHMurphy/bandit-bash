@@ -1,6 +1,6 @@
 # Plan: The Darkness
 **Date:** November 3, 2026
-**Status:** **Approved** November 3, 2026 (questions 1–10 answered as recommended). **In progress:** DK1 merged November 4, 2026 (e4ac466; question 11); DK2 merged November 4, 2026 (f98eb0d; question 12); DK3 merged November 4, 2026 (f8f4ed7; question 13); DK4 merged November 4, 2026 (ec47252; question 14): M1's part of P06 is built. DK5 next. Orchestrator ID **P06**
+**Status:** **Approved** November 3, 2026 (questions 1–10 answered as recommended). **In progress:** DK1 merged November 4, 2026 (e4ac466; question 11); DK2 merged November 4, 2026 (f98eb0d; question 12); DK3 merged November 4, 2026 (f8f4ed7; question 13); DK4 merged November 4, 2026 (ec47252; question 14): M1's part of P06 is built. DK5 next (its gate opened November 5, 2026, when P02 CC10 merged). Orchestrator ID **P06**
 ([game-orchestrator.md](game-orchestrator.md)).
 
 The turn-par pressure system: from turn par on, darkness flows from authored sources toward a drain
