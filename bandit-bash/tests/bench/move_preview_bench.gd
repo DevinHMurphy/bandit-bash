@@ -6,16 +6,17 @@
 # File:     move_preview_bench.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 extends Node
 ## Move preview and tile pick benchmark (combat UI plan, UI3 row; questions 9 and 15 (h); enemies
 ## and AI plan, question 10's 50 ms per hovered tile): on the M1 battle,
 ## [method MovePreview.compute] and its two parts ([method Darkness.damage_at],
-## [method Intents.preview]) for every tile each player unit can end its move on, and a tile pick's
-## [method TurnInputModel.actions_at], with the [method Command.validate] calls it makes and one
-## validation's cost.
+## [method Intents.preview]) for every tile each player unit can end its move on; the same through
+## the threaded [MovePreview.Queue] (UI3F): the main thread's work in each frame and the latency
+## per hover; and a tile pick's [method TurnInputModel.actions_at], with the
+## [method Command.validate] calls it makes and one validation's cost.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash res://tests/bench/move_preview_bench.tscn[/code][br]
@@ -39,6 +40,10 @@ const SEED: int = 0x0C0FFEE
 
 # Question 10's target for one hovered tile.
 const TARGET_USEC: float = 50000.0
+
+# The threaded section's wait between polls: finer than a 60 Hz frame, so the latency it reports
+# is the worker's own to within a millisecond, without a busy loop taking a core from the worker.
+const POLL_USEC: int = 1000
 
 # Runs of one validation, after as many warm-ups.
 const VALIDATE_REPEATS: int = 200
@@ -64,6 +69,7 @@ func _ready() -> void:
 		session.playback.play_all()
 		if _check_fixture(session):
 			_bench_preview(session)
+			_bench_threaded(session)
 			_bench_pick(session)
 	run.close()
 	if _failures.is_empty():
@@ -79,7 +85,7 @@ func _print_header() -> void:
 	print("Godot %s, %s build (the editor binary): rules code runs slower than an export" % [
 		version.get("string", "?"), "debug" if OS.is_debug_build() else "release",
 	])
-	print("CPU: %s, %d logical cores; main thread only" % [
+	print("CPU: %s, %d logical cores; one worker thread in the threaded section" % [
 		OS.get_processor_name(), OS.get_processor_count(),
 	])
 	print("Times in microseconds; one sample per move tile, each warmed once.")
@@ -122,6 +128,40 @@ func _bench_preview(session: CombatSession) -> void:
 		"met" if _median(whole) <= TARGET_USEC else "missed",
 		"met" if _p95(whole) <= TARGET_USEC else "missed",
 	])
+
+
+# The threaded queue (MovePreview.Queue, as BattleController runs it): for each move tile, the
+# main thread's work in the frame that starts the preview, in each frame while the worker runs
+# (a poll every POLL_USEC, standing for frames), and in the frame that draws it, and the latency
+# from the request to the preview returned.
+func _bench_threaded(session: CombatSession) -> void:
+	print("\n-- Threaded move preview (main-thread work per frame; latency per hover) --")
+	var starts: PackedInt64Array = []
+	var polls: PackedInt64Array = []
+	var collects: PackedInt64Array = []
+	var latencies: PackedInt64Array = []
+	for unit_id: String in TurnInputModel.acting_units(session, 0):
+		for tile: Vector2i in TurnInputModel.move_tiles(session, unit_id):
+			var queue: MovePreview.Queue = MovePreview.Queue.new()
+			var requested: int = Time.get_ticks_usec()
+			queue.request(unit_id, tile)
+			queue.run_pending(session)
+			starts.append(Time.get_ticks_usec() - requested)
+			var ready: MovePreview = null
+			while ready == null:
+				OS.delay_usec(POLL_USEC)
+				var polled: int = Time.get_ticks_usec()
+				ready = queue.run_pending(session)
+				var spent: int = Time.get_ticks_usec() - polled
+				if ready == null:
+					polls.append(spent)
+				else:
+					collects.append(spent)
+			latencies.append(Time.get_ticks_usec() - requested)
+	_report("frame that starts it (main thread)", starts)
+	_report("frame while it runs (main thread)", polls)
+	_report("frame that draws it (main thread)", collects)
+	_report("hover to preview (latency)", latencies)
 
 
 func _bench_pick(session: CombatSession) -> void:

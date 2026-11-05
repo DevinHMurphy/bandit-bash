@@ -26,8 +26,9 @@ extends Node
 ## [b]Forecast:[/b] an attack, a staff or a shove is confirmed on a [ForecastPanel]
 ## ([ForecastViewModel]), which cycles the target's weapons ([method cycle_weapon]).
 ## [b]Move preview:[/b] hovering a move tile requests a [MovePreview]; [method run_preview_frame]
-## runs at most one per frame, for the newest hover; [MovePreviewMarks] draws its damage and the
-## [IntentDisplay] its re-planned intents, until the hover clears.[br]
+## starts the newest hover's on a worker thread ([MovePreview.Queue]) and draws it on the frame it
+## finishes: [MovePreviewMarks] its damage and the [IntentDisplay] its re-planned intents, until
+## the hover clears.[br]
 ## [b]Enemy information[/b] (question 10): the [IntentDisplay] draws the session's intents once the
 ## board settles, and the cursor on an enemy shows its rule; [method toggle_danger_zone] draws
 ## [DangerZone] on the danger overlay, shown in the opening swap window and off after it.[br]
@@ -95,9 +96,10 @@ extends Node
 #              cursor on an enemy shows its target rule and narrows the intent lines to its own.
 # MOVE:        a unit selected: its move and attack tiles drawn, and the path to the cursor while
 #              the cursor is on a move tile, with that tile's move preview (requested on each
-#              hover, run by run_preview_frame, cleared off a move tile and on leaving MOVE); the
-#              intent display shows the preview's intents, previewed, and the live ones once
-#              it clears.
+#              hover, started on a worker thread by run_preview_frame and drawn when it finishes,
+#              cleared off a move tile and on leaving MOVE, which drops one still running); the
+#              intent display shows the preview's intents, previewed, and the live ones until
+#              one is drawn and once it clears.
 #              Accept on a move tile (its own included) opens the action menu (ACTION); elsewhere
 #              inert. Cancel -> IDLE.
 # ACTION:      the action menu on top of PanelHost; the cursor stays on the picked tile, and board
@@ -235,7 +237,7 @@ var _weapon_index: int = 0
 # The forecast panel open in CONFIRM; null with the confirm dialog or outside CONFIRM.
 var _forecast_panel: ForecastPanel = null
 
-# The newest hover's move preview, waiting for run_preview_frame.
+# The newest hover's move preview, waiting for run_preview_frame, and the one on a worker thread.
 var _previews: MovePreview.Queue = MovePreview.Queue.new()
 
 # What accept on a tile picks in TARGET (the action's targets) and SWAP_PICKED (the partners).
@@ -271,6 +273,8 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	unbind()
+	# Every WorkerThreadPool task must be waited for; unbind dropped its result already.
+	_previews.wait()
 
 
 func _input(event: InputEvent) -> void:
@@ -458,9 +462,11 @@ func get_confirm_command() -> Command:
 	return _target.command
 
 
-## Runs the newest hover's move preview, if one waits, and draws it: its damage, and its intents
-## as previewed. At most one per call. [method Node._process] calls it once a frame; tests call it
-## to stand for a frame. Returns whether a preview ran.
+## Draws the move preview that finished on its worker thread, if one did: its damage, and its
+## intents as previewed; then starts the newest hover's when none runs
+## ([method MovePreview.Queue.run_pending]). [method Node._process] calls it once a frame; tests
+## call it to stand for a frame, and [method MovePreview.Queue.wait] for the worker. Returns
+## whether a preview was drawn.
 func run_preview_frame() -> bool:
 	if _session == null or not _has_preview_widgets() or _stage != Stage.MOVE:
 		return false

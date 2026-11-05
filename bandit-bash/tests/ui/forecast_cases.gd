@@ -24,8 +24,35 @@ extends RefCounted
 
 const BattleViewCases = preload("res://tests/ui/battle_view_cases.gd")
 const TurnInputCases = preload("res://tests/ui/turn_input_cases.gd")
+const AiWorld = preload("res://tests/enemies/ai_world.gd")
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
+
+# The enemies suite's fixture catalog and classes, for the threaded preview's fixture boards.
+const FIXTURE_TREE: String = "res://tests/content/fixtures/loadout/"
+const BRUTE: String = "loadout_brute"
+const CROSSBOWMAN: String = "loadout_crossbowman"
+const HEALER: String = "loadout_hedge_healer"
+const PLAIN_8X8: Array[String] = [
+	"plain plain plain plain plain plain plain plain",
+	"plain plain plain plain plain plain plain plain",
+	"plain plain plain plain plain plain plain plain",
+	"plain plain plain plain plain plain plain plain",
+	"plain plain plain plain plain plain plain plain",
+	"plain plain plain plain plain plain plain plain",
+	"plain plain plain plain plain plain plain plain",
+	"plain plain plain plain plain plain plain plain",
+]
+const PLAIN_12X8: Array[String] = [
+	"plain plain plain plain plain plain plain plain plain plain plain plain",
+	"plain plain plain plain plain plain plain plain plain plain plain plain",
+	"plain plain plain plain plain plain plain plain plain plain plain plain",
+	"plain plain plain plain plain plain plain plain plain plain plain plain",
+	"plain plain plain plain plain plain plain plain plain plain plain plain",
+	"plain plain plain plain plain plain plain plain plain plain plain plain",
+	"plain plain plain plain plain plain plain plain plain plain plain plain",
+	"plain plain plain plain plain plain plain plain plain plain plain plain",
+]
 const VIEW_SCENE: PackedScene = preload("res://scenes/ui/battle/battle_view.tscn")
 const PANEL_HOST_SCENE: PackedScene = preload("res://scenes/ui/battle/panel_host.tscn")
 const TURN_BAR_SCENE: PackedScene = preload("res://scenes/ui/battle/turn_bar.tscn")
@@ -84,6 +111,11 @@ func run() -> void:
 	_test_weapon_cycle()
 	_test_move_preview()
 	_test_preview_marks_widget()
+	_test_threaded_matches_fixtures()
+	_test_threaded_matches_m1()
+	_test_threaded_burst()
+	_test_threaded_dropped_leaving_move()
+	_test_threaded_beside_a_command()
 	_test_ranged_origins()
 
 
@@ -316,6 +348,8 @@ func _test_move_preview() -> void:
 	h.controller.confirm_tile(h.session.state.tile_of(unit_id))
 	var queue: MovePreview.Queue = h.controller.get_preview_queue()
 	h.controller.run_preview_frame()
+	queue.wait()
+	h.controller.run_preview_frame()
 	var computed: int = queue.computed
 	var tiles: Array[Vector2i] = TurnInputModel.move_tiles(h.session, unit_id)
 	tiles.reverse()
@@ -324,13 +358,16 @@ func _test_move_preview() -> void:
 		last = tiles[i]
 		h.controller.move_cursor(last)
 	var hovered_only: bool = queue.computed == computed and queue.has_pending()
+	var started: bool = not h.controller.run_preview_frame() and not queue.has_pending()
+	queue.wait()
 	var ran: bool = h.controller.run_preview_frame()
 	var again: bool = h.controller.run_preview_frame()
 	var shown_tile: String = "none" if marks.get_shown() == null else str(marks.get_shown().tile)
-	_check.call("preview: a burst of %d hovers runs one preview in a frame, the last hover's" % [
+	_check.call("preview: a burst of %d hovers starts one preview, drawn when it finishes" % [
 		BURST,
 	], (
 			hovered_only
+			and started
 			and ran
 			and not again
 			and queue.computed == computed + 1
@@ -406,6 +443,203 @@ func _test_preview_marks_widget() -> void:
 			with_damage and without
 	))
 	marks.free()
+
+
+# On the enemies suite's three intent boards (a Brute, Crossbowman and Healer close in; a unit far
+# from every enemy; a 1-HP unit stepping into the Brute's reach), the threaded queue's preview of
+# every tile each player unit can end on equals MovePreview.compute's on the main thread.
+func _test_threaded_matches_fixtures() -> void:
+	var catalog: EffectCatalog.Index = EffectCatalog.load_tree(FIXTURE_TREE)
+	var worlds: Array[AiWorld] = []
+	var close_in: AiWorld = AiWorld.new(catalog, PLAIN_8X8)
+	close_in.add_enemy("e1", BRUTE, Vector2i(4, 2))
+	close_in.add_enemy("e2", CROSSBOWMAN, Vector2i(6, 4))
+	close_in.add_enemy("e3", HEALER, Vector2i(6, 2))
+	close_in.add_player("p1", Vector2i(1, 2))
+	close_in.add_player("p2", Vector2i(2, 4), "bow")
+	close_in.add_player("p3", Vector2i(3, 6), "sword", {CombatValue.Key.DEF: 4.0})
+	close_in.wound("e1", 12)
+	worlds.append(close_in)
+	var far: AiWorld = AiWorld.new(catalog, PLAIN_12X8)
+	far.add_enemy("e1", BRUTE, Vector2i(1, 1))
+	far.add_enemy("e2", CROSSBOWMAN, Vector2i(1, 5))
+	far.add_player("p1", Vector2i(3, 1))
+	far.add_player("p2", Vector2i(4, 5), "bow")
+	far.add_player("p_far", Vector2i(11, 7))
+	worlds.append(far)
+	var kill_up: AiWorld = AiWorld.new(catalog, PLAIN_12X8)
+	kill_up.add_enemy("e1", BRUTE, Vector2i(11, 7))
+	kill_up.add_enemy("e2", CROSSBOWMAN, Vector2i(1, 5))
+	kill_up.add_player("p1", Vector2i(4, 5), "bow")
+	kill_up.add_player("p_weak", Vector2i(10, 0), "bow")
+	kill_up.wound("p_weak", 1)
+	worlds.append(kill_up)
+	var problems: PackedStringArray = []
+	var tiles: int = 0
+	var changing: int = 0
+	for world: AiWorld in worlds:
+		EnemyAI.register(world.session, catalog)
+		Intents.register(world.session, catalog)
+		world.session.open_battle()
+		for unit_id: String in world.state().units_of(PLAYER):
+			for tile: Vector2i in Pathing.reach(world.engine(), world.state(), unit_id):
+				tiles += 1
+				var main: MovePreview = MovePreview.compute(world.session, unit_id, tile)
+				var threaded: MovePreview = _threaded(world.session, unit_id, tile)
+				if not main.changed_enemies.is_empty():
+					changing += 1
+				if _preview_text(threaded) != _preview_text(main):
+					problems.append("%s %s: %s / %s" % [
+						unit_id, tile, _preview_text(threaded), _preview_text(main),
+					])
+	_check.call("threaded preview: equals the main thread's on 3 fixture boards (%d tiles)" % [
+		tiles,
+	], problems.is_empty() and tiles > 0 and changing > 0, "%d differ, %d change an intent: %s" % [
+		problems.size(), changing, "; ".join(problems.slice(0, 2)),
+	])
+
+
+# On M1, for every move tile of every acting unit: the threaded preview equals the main thread's
+# (icons, targets, tiles, order, darkness damage, the changed enemies), and the session's state,
+# facts and seq are what they were before all of them.
+func _test_threaded_matches_m1() -> void:
+	var h: TurnInputCases.Harness = _harness()
+	if h == null:
+		return
+	var hash_before: int = h.session.state_hash()
+	var seq_before: int = h.session.last_seq()
+	var facts_before: int = h.session.engine.fact_log.size()
+	var problems: PackedStringArray = []
+	var tiles: int = 0
+	for unit_id: String in TurnInputModel.acting_units(h.session, 0):
+		for tile: Vector2i in TurnInputModel.move_tiles(h.session, unit_id):
+			tiles += 1
+			var threaded: MovePreview = _threaded(h.session, unit_id, tile)
+			var main: MovePreview = MovePreview.compute(h.session, unit_id, tile)
+			if _preview_text(threaded) != _preview_text(main):
+				problems.append("%s %s" % [unit_id, tile])
+	_check.call("threaded preview: equals the main thread's on every M1 move tile (%d)" % [
+		tiles,
+	], problems.is_empty() and tiles > 0, "%d differ: %s" % [
+		problems.size(), ", ".join(problems.slice(0, 4)),
+	])
+	_check.call("threaded preview: the session's state hash, facts and seq are unchanged", (
+			h.session.state_hash() == hash_before
+			and h.session.last_seq() == seq_before
+			and h.session.engine.fact_log.size() == facts_before
+	), "hash %d -> %d" % [hash_before, h.session.state_hash()])
+	h.close()
+
+
+# Hovers arriving while one preview runs: when it finishes it is dropped, the last hover's starts,
+# and only that one is ever returned.
+func _test_threaded_burst() -> void:
+	var h: TurnInputCases.Harness = _harness()
+	if h == null:
+		return
+	var unit_id: String = TurnInputModel.acting_units(h.session, 0)[0]
+	var tiles: Array[Vector2i] = TurnInputModel.move_tiles(h.session, unit_id)
+	var queue: MovePreview.Queue = MovePreview.Queue.new()
+	queue.request(unit_id, tiles[0])
+	var at_start: MovePreview = queue.run_pending(h.session)
+	var count: int = mini(BURST, tiles.size())
+	for i: int in range(1, count):
+		queue.request(unit_id, tiles[i])
+		queue.run_pending(h.session)
+	queue.wait()
+	var first: MovePreview = queue.run_pending(h.session)
+	queue.wait()
+	var last: MovePreview = queue.run_pending(h.session)
+	var last_tile: Vector2i = tiles[count - 1]
+	_check.call("threaded preview: hovers while one runs drop it; only the last is returned", (
+			at_start == null
+			and first == null
+			and last != null
+			and last.tile == last_tile
+			and queue.shown() == last
+			and queue.computed == 1
+	), "first %s, last %s (expected %s), computed %d" % [
+		first != null, "none" if last == null else str(last.tile), last_tile, queue.computed,
+	])
+	h.close()
+
+
+# A preview running when the move step ends is dropped: it is never drawn, and on the next move
+# step the new hover's preview is the one shown.
+func _test_threaded_dropped_leaving_move() -> void:
+	var h: TurnInputCases.Harness = _harness()
+	if h == null:
+		return
+	var marks: MovePreviewMarks = h.controller.move_preview_marks
+	var queue: MovePreview.Queue = h.controller.get_preview_queue()
+	var unit_id: String = TurnInputModel.acting_units(h.session, 0)[0]
+	var origin: Vector2i = h.session.state.tile_of(unit_id)
+	var hovered: Vector2i = CombatFact.NO_TILE
+	for tile: Vector2i in TurnInputModel.move_tiles(h.session, unit_id):
+		if tile != origin:
+			hovered = tile
+			break
+	h.controller.confirm_tile(origin)
+	h.controller.move_cursor(hovered)
+	var started: bool = not h.controller.run_preview_frame() and not queue.has_pending()
+	h.controller.step_back()
+	var computed: int = queue.computed
+	queue.wait()
+	h.controller.confirm_tile(origin)
+	var drawn_old: bool = h.controller.run_preview_frame()
+	var none_shown: bool = marks.get_shown() == null and queue.computed == computed
+	queue.wait()
+	var drawn_new: bool = h.controller.run_preview_frame()
+	var shown: MovePreview = marks.get_shown()
+	_check.call("threaded preview: one running when the move step ends is dropped", (
+			started
+			and not drawn_old
+			and none_shown
+			and drawn_new
+			and shown != null
+			and shown.tile == origin
+	), "shown %s, hovered %s, origin %s" % [
+		"none" if shown == null else str(shown.tile), hovered, origin,
+	])
+	h.close()
+
+
+# A real command resolving on the main thread while a preview runs on a worker: the preview is
+# dropped as stale and asked again, and the session ends where a twin battle with no preview does.
+func _test_threaded_beside_a_command() -> void:
+	var h: TurnInputCases.Harness = _harness()
+	var twin: TurnInputCases.Harness = _harness()
+	if h == null or twin == null:
+		if h != null:
+			h.close()
+		if twin != null:
+			twin.close()
+		return
+	var units: PackedStringArray = TurnInputModel.acting_units(h.session, 0)
+	var tiles: Array[Vector2i] = TurnInputModel.move_tiles(h.session, units[0])
+	var queue: MovePreview.Queue = MovePreview.Queue.new()
+	queue.request(units[0], tiles[tiles.size() - 1])
+	queue.run_pending(h.session)
+	var waiting: Command = UnitTurnCommand.new(0, units[1], UnitTurnCommand.Action.WAIT)
+	_send(h, waiting)
+	_send(twin, UnitTurnCommand.new(0, units[1], UnitTurnCommand.Action.WAIT))
+	queue.wait()
+	var stale: MovePreview = queue.run_pending(h.session)
+	queue.wait()
+	var fresh: MovePreview = queue.run_pending(h.session)
+	_check.call("threaded preview: a command resolving meanwhile makes it stale; asked again", (
+			stale == null
+			and fresh != null
+			and fresh.tile == tiles[tiles.size() - 1]
+			and fresh.based_on_seq == h.session.last_seq()
+			and queue.computed == 1
+	), "stale %s, fresh %s" % [stale != null, fresh != null])
+	_check.call("threaded preview: the session matches a twin battle with no preview", (
+			h.session.state_hash() == twin.session.state_hash()
+			and h.session.last_seq() == twin.session.last_seq()
+	), "hash %d against %d" % [h.session.state_hash(), twin.session.state_hash()])
+	h.close()
+	twin.close()
 
 
 # FR-GRID-6: a target a ranged unit can hit from several tiles is forecast from each tile's own
@@ -517,6 +751,33 @@ func _harness() -> TurnInputCases.Harness:
 	h.controller.request_start()
 	BattleViewCases.settle(h.view)
 	return h
+
+
+# The preview of unit_id on tile through a threaded queue of its own: started, waited for on its
+# worker, then returned.
+func _threaded(session: CombatSession, unit_id: String, tile: Vector2i) -> MovePreview:
+	var queue: MovePreview.Queue = MovePreview.Queue.new()
+	queue.request(unit_id, tile)
+	queue.run_pending(session)
+	queue.wait()
+	return queue.run_pending(session)
+
+
+# What a move preview shows: the darkness damage, the changed enemies, and each intent's enemy,
+# icon, target, tile and place in the order; "none" for no preview, "no intents" without intents.
+static func _preview_text(preview: MovePreview) -> String:
+	if preview == null:
+		return "none"
+	var parts: PackedStringArray = ["damage %d" % [preview.darkness_damage]]
+	parts.append("changed %s" % [", ".join(preview.changed_enemies)])
+	if preview.intents == null:
+		parts.append("no intents")
+		return "; ".join(parts)
+	for intent: EnemyIntent in preview.intents.enemies:
+		parts.append("%s %d %s %s #%d" % [
+			intent.unit_id, intent.kind, intent.target_id, intent.tile, intent.order,
+		])
+	return "; ".join(parts)
 
 
 # Every acting unit waits where it stands, then End Turn; the enemies close in meanwhile.

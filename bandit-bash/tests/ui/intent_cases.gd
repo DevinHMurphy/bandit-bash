@@ -342,6 +342,8 @@ func _test_preview() -> void:
 	var live: PackedStringArray = _entry_texts(h.session, h.session.intents, "", CombatFact.NO_TILE)
 	h.controller.confirm_tile(state.tile_of(unit_id))
 	h.controller.move_cursor(tile)
+	h.controller.run_preview_frame()
+	h.controller.get_preview_queue().wait()
 	var ran: bool = h.controller.run_preview_frame()
 	var replanned: Intents = Intents.preview(h.session, unit_id, tile)
 	var expected: PackedStringArray = _entry_texts(h.session, replanned, unit_id, tile)
@@ -382,6 +384,8 @@ func _test_preview() -> void:
 			and _model_texts(display.get_model()) == live
 	)
 	h.controller.move_cursor(tile)
+	h.controller.run_preview_frame()
+	h.controller.get_preview_queue().wait()
 	h.controller.run_preview_frame()
 	var back_in: bool = display.get_model().is_preview
 	h.controller.step_back()

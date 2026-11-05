@@ -6,7 +6,7 @@
 # File:     intents.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 4, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 class_name Intents
@@ -24,15 +24,21 @@ extends RefCounted
 ## [b]Preview[/b] ([method preview]): the same with one player unit moved to a hovered tile, built
 ## on the latest intents. An enemy whose options the unit's old and new tiles don't touch keeps
 ## its decision from them; the rest decide again, so a move that hands a later enemy a kill moves
-## it up the order. Once a different plan acts, every later step decides afresh (question 10).[br]
+## it up the order. Once a different plan acts, every later step decides afresh (question 10).
+## [method prepare_preview] reads the session; [method PreviewJob.run] re-plans, on any thread.[br]
 ## [b]When[/b] ([method register]): after every player Phase Start and every step of the player
 ## phase that recorded a fact, into [member CombatSession.intents], announced by
 ## [signal CombatSession.intents_changed]; P07 draws it. Not saved: derived from the battle state.
 ## [br]
 ## Rules code: pure and deterministic, no logging ([member diagnostics] carries the sandbox's).
-## Main thread only: every decision creates sandboxes (question 17).
+## Main thread only, except [method PreviewJob.run]: everything else reads the session.
 ##
 ## @tutorial(Enemies and AI plan): docs/plans/2026-10-30-enemies-and-ai.md
+##
+## @todo: TOD-001 [MEDIUM] - The move preview underperforms its 50 ms target (P05 question 10;
+## debug, M1 turn 1, per hover: 56 ms median and 181 ms p95 as UI3 built it, 17 ms and 33-40 ms
+## after UI3F, on a worker thread; every enemy is re-planned, 6 decisions for 3 enemies) and needs
+## re-architecting: see the orchestrator's design item 'Re-architect the move preview'.
 
 ## Every enemy that would act, in order ([member EnemyIntent.order]).
 var enemies: Array[EnemyIntent] = []
@@ -61,6 +67,15 @@ var _catalog: EffectCatalog.Index = null
 
 # One per step of the phase: every enemy yet to act, decided, and the one that acted.
 var _rounds: Array[Round] = []
+
+# For previews built on these intents, which share their board: each moved player unit's flood
+# (Pathing.flood with its budget) and end tiles (Pathing.reach), by unit id. Main thread only.
+var _walked_of: Dictionary[String, Dictionary] = {}
+var _ends_of: Dictionary[String, Dictionary] = {}
+
+# Each effect definition's positional reach (_reach_in), filled as margins are taken: definitions
+# are read-only at runtime, so a reach never changes. Main thread only.
+var _reaches: Dictionary[EffectDefinition, int] = {}
 
 
 ## The intent of [param unit_id]; null for an enemy that doesn't act (one defeated first).
@@ -110,41 +125,59 @@ static func compute(session: CombatSession, catalog: EffectCatalog.Index) -> Int
 	found.danger = DangerZone.compute(sandbox.engine)
 	PhaseRunner.cross_to_enemy_phase(session, sandbox.engine)
 	var no_move: Array[Vector2i] = []
-	_play(found, sandbox.engine, EnemyAI.flooded_tiles(session.state), null, no_move)
+	var margin: int = _effect_margin(sandbox.engine, found._reaches)
+	_play(found, sandbox.engine, EnemyAI.flooded_tiles(session.state), null, no_move, margin)
 	found.diagnostics = sandbox.engine.diagnostics
 	return found
 
 
+# TODO(TOD-001): [MEDIUM] The move preview underperforms its 50 ms target (P05 question 10;
+# debug, M1 turn 1, per hover: 56 ms median and 181 ms p95 as UI3 built it, 17 ms and 33-40 ms
+# after UI3F, on a worker thread; every enemy is re-planned, 6 decisions for 3 enemies) and needs
+# re-architecting: see the orchestrator's design item 'Re-architect the move preview'.
 ## The intents if player unit [param unit_id] moved to [param tile] now, before any action, built
 ## on [member CombatSession.intents] (computed afresh first when stale, not stored). The latest
 ## intents for the unit's own tile; null when nothing keeps intents on [param session], or the unit
-## can't end its move there.
+## can't end its move there. [method prepare_preview], then [method PreviewJob.run], here.
 static func preview(session: CombatSession, unit_id: String, tile: Vector2i) -> Intents:
+	return prepare_preview(session, unit_id, tile).run()
+
+
+## The part of [method preview] that reads [param session], for [method PreviewJob.run] to finish:
+## the checks, a [Sandbox] of the session with the unit walked to [param tile], its danger zone,
+## and the phase boundary crossed there, which runs the session's registrations. Main thread only.
+## [br]Returns a job whose [method PreviewJob.run] gives what [method preview] would.
+static func prepare_preview(session: CombatSession, unit_id: String, tile: Vector2i) -> PreviewJob:
+	var job: PreviewJob = PreviewJob.new()
 	var base: Intents = session.intents
 	if base == null:
-		return null
+		return job
 	if base.based_on_seq != session.last_seq():
 		base = compute(session, base._catalog)
 	var state: CombatState = session.state
 	if not state.has_unit(unit_id) or state.side_of(unit_id) != CombatFact.CombatSide.PLAYER:
-		return null
+		return job
 	if state.unit(unit_id).has_acted:
-		return null
+		return job
 	var origin: Vector2i = state.tile_of(unit_id)
 	if tile == origin:
-		return base
-	var path: Array[Vector2i] = _path_to(session.engine, unit_id, tile)
+		job._result = base
+		return job
+	var path: Array[Vector2i] = base._path_to(session.engine, unit_id, tile)
 	if path.is_empty():
-		return null
+		return job
 
 	var sandbox: Sandbox = Sandbox.new(session.engine, ForecastRolls.new())
 	var engine: EffectEngine = sandbox.engine
+	# Verify mode rebuilds every cached sheet read to check it, a debug-only check that took most
+	# of a preview's time; it changes no result, and the session's own reads keep it.
+	engine.verify = false
 	var moved_state: CombatState = engine.state
 	engine.begin_step()
 	var check: CombatGrid.PathCheck = UnitTurnCommand.walk_path(engine, moved_state, unit_id, path)
 	engine.drain()
 	if not check.is_legal:
-		return null
+		return job
 	var found: Intents = Intents.new()
 	found._catalog = base._catalog
 	found.based_on_seq = base.based_on_seq
@@ -152,24 +185,28 @@ static func preview(session: CombatSession, unit_id: String, tile: Vector2i) -> 
 	found.moved_to = tile
 	found.danger = DangerZone.compute(engine)
 	PhaseRunner.cross_to_enemy_phase(session, engine)
-	var touched: Array[Vector2i] = [origin, tile]
-	_play(found, engine, EnemyAI.flooded_tiles(session.state), base, touched)
-	found.diagnostics = engine.diagnostics
-	return found
+	job._found = found
+	job._engine = engine
+	job._flooded = EnemyAI.flooded_tiles(session.state)
+	job._base = base
+	job._touched = [origin, tile]
+	job._margin = _effect_margin(engine, base._reaches)
+	return job
 
 
 # The phase on engine, one step per enemy: every enemy yet to act decided, as EnemyAI.next_plan
 # decides them, then the best carried out. With base, each enemy decision base made at that step
-# is kept while none of touched lies in its options, until a plan other than base's acts.
+# is kept while none of touched lies in its options, until a plan other than base's acts. margin:
+# _effect_margin of engine as it starts. Pure on engine: PreviewJob.run calls it on a worker.
 static func _play(
 		found: Intents,
 		engine: EffectEngine,
 		flooded: Dictionary[Vector2i, bool],
 		base: Intents,
-		touched: Array[Vector2i]
+		touched: Array[Vector2i],
+		margin: int
 ) -> void:
 	var state: CombatState = engine.state
-	var margin: int = _effect_margin(engine)
 	var is_reusing: bool = base != null and margin >= 0
 	for step: int in state.units_of(CombatFact.CombatSide.ENEMY).size():
 		var known: Round = null
@@ -259,15 +296,17 @@ static func _zone_of(
 
 # How far any effect on engine's map reaches from a unit by position: the largest Area radius and
 # "within N tiles" or adjacency test in any effect's definition; -1 when one reads the whole map
-# (no ally closer to the enemy), so every decision counts as touched by any move.
-static func _effect_margin(engine: EffectEngine) -> int:
+# (no ally closer to the enemy), so every decision counts as touched by any move. reaches: each
+# definition's _reach_in, read and filled here.
+static func _effect_margin(engine: EffectEngine, reaches: Dictionary[EffectDefinition, int]) -> int:
 	var margin: int = 0
-	var seen: Dictionary[EffectDefinition, bool] = {}
 	for instance: EffectInstance in engine.get_instances():
-		if instance.definition == null or seen.has(instance.definition):
+		var definition: EffectDefinition = instance.definition
+		if definition == null:
 			continue
-		seen[instance.definition] = true
-		var reach: int = _reach_in(instance.definition)
+		if not reaches.has(definition):
+			reaches[definition] = _reach_in(definition)
+		var reach: int = reaches[definition]
 		if reach < 0:
 			return -1
 		margin = maxi(margin, reach)
@@ -327,21 +366,28 @@ static func _carry_out(engine: EffectEngine, plan: EnemyPlan) -> void:
 	engine.drain()
 
 
-# A cheapest walk for unit_id from its tile to tile, as EnemyAI walks: each step back to the first
-# neighbor, in CombatGrid.DIRECTIONS order, whose cost leads to it. Empty when it can't end there.
-static func _path_to(engine: EffectEngine, unit_id: String, tile: Vector2i) -> Array[Vector2i]:
+# A cheapest walk for unit_id from its tile to tile on engine, the board these intents read, as
+# EnemyAI walks: each step back to the first neighbor, in CombatGrid.DIRECTIONS order, whose cost
+# leads to it. Empty when it can't end there. The unit's flood and end tiles are kept for the next
+# hover: the board can't change without a fact, which makes these intents stale.
+func _path_to(engine: EffectEngine, unit_id: String, tile: Vector2i) -> Array[Vector2i]:
 	var state: CombatState = engine.state
 	var path: Array[Vector2i] = []
-	if not Pathing.reach(engine, state, unit_id).has(tile):
+	if not _ends_of.has(unit_id):
+		_ends_of[unit_id] = Pathing.reach(engine, state, unit_id)
+	var ends: Dictionary[Vector2i, int] = _ends_of[unit_id]
+	if not ends.has(tile):
 		return path
 	var mover: CombatUnitState = state.unit(unit_id)
-	var walked: Dictionary[Vector2i, int] = Pathing.flood(
-			state,
-			mover.tile,
-			Pathing.budget_of(engine, state, unit_id),
-			mover.movement_type,
-			mover.side
-	)
+	if not _walked_of.has(unit_id):
+		_walked_of[unit_id] = Pathing.flood(
+				state,
+				mover.tile,
+				Pathing.budget_of(engine, state, unit_id),
+				mover.movement_type,
+				mover.side
+		)
+	var walked: Dictionary[Vector2i, int] = _walked_of[unit_id]
 	path.append(tile)
 	var at: Vector2i = tile
 	while at != mover.tile:
@@ -379,6 +425,38 @@ class Decision:
 			if zone.has(tile):
 				return true
 		return false
+
+
+## A move preview between [method Intents.prepare_preview], on the main thread, and [method run],
+## on any thread: the sandbox it re-plans on and the intents it builds on. It shares nothing
+## mutable with the session, so the session may resolve commands while it runs.
+class PreviewJob:
+	extends RefCounted
+
+	# The answer prepare_preview found without re-planning (null, or the base intents), then run's.
+	var _result: Intents = null
+	# What run re-plans, all set together by prepare_preview; cleared once it has run.
+	var _found: Intents = null
+	var _engine: EffectEngine = null
+	var _flooded: Dictionary[Vector2i, bool] = {}
+	var _base: Intents = null
+	var _touched: Array[Vector2i] = []
+	var _margin: int = 0
+
+	## The previewed intents, re-planning the enemies on the first call; later calls return the
+	## same. Pure rules code on the job's own sandbox, reading only the base intents and content
+	## definitions: no session, node, autoload or log, so it may run on a worker thread, one call
+	## at a time. The sandbox's diagnostics are in [member Intents.diagnostics].
+	func run() -> Intents:
+		if _found == null:
+			return _result
+		Intents._play(_found, _engine, _flooded, _base, _touched, _margin)
+		_found.diagnostics = _engine.diagnostics
+		_result = _found
+		_found = null
+		_engine = null
+		_base = null
+		return _result
 
 
 ## One step of the phase: every enemy yet to act, decided, and the decision that acted.
