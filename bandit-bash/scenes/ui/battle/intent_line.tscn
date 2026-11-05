@@ -1,0 +1,18 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/battle/intent_line.gd" id="1_line"]
+[ext_resource type="Theme" path="res://scenes/ui/battle/battle_theme.tres" id="2_theme"]
+
+[node name="IntentLine" type="Node2D"]
+script = ExtResource("1_line")
+
+[node name="OrderLabel" type="Label" parent="."]
+unique_name_in_owner = true
+offset_right = 20.0
+offset_bottom = 20.0
+mouse_filter = 2
+theme = ExtResource("2_theme")
+theme_type_variation = &"IntentOrderLabel"
+text = "1"
+horizontal_alignment = 1
+vertical_alignment = 1

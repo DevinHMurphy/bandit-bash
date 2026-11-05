@@ -6,7 +6,7 @@
 # File:     move_preview.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 class_name MovePreview
@@ -20,7 +20,7 @@ extends RefCounted
 ## so it runs off the input path: hovering only [method Queue.request]s one, and
 ## [BattleController] runs at most one per frame ([method Queue.run_pending]), on the main thread,
 ## for the newest hover. Hovers in between are dropped. Reading only: both queries run on
-## sandboxes. [MovePreviewMarks] draws it.
+## sandboxes. [MovePreviewMarks] draws the damage and [IntentDisplay] the intents, as previewed.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
@@ -69,7 +69,7 @@ static func intent_differs(before: EnemyIntent, after: EnemyIntent) -> bool:
 	if before == null or after == null:
 		return before != after
 	# ASSUMPTION: these four fields are what "changed" means; a different path to the same tile, or
-	# a changed forecast against the same target, isn't marked (UI4 draws the full intent).
+	# a changed forecast against the same target, isn't tinted as changed ([IntentIcon]).
 	return (
 			before.kind != after.kind
 			or before.target_id != after.target_id

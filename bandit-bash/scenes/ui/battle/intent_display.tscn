@@ -1,0 +1,21 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/battle/intent_display.gd" id="1_display"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/intent_icon.tscn" id="2_icon"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/intent_line.tscn" id="3_line"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/intent_rule_tooltip.tscn" id="4_tooltip"]
+
+[node name="IntentDisplay" type="Node2D"]
+z_index = 15
+script = ExtResource("1_display")
+icon_scene = ExtResource("2_icon")
+line_scene = ExtResource("3_line")
+
+[node name="Lines" type="Node2D" parent="."]
+unique_name_in_owner = true
+
+[node name="Icons" type="Node2D" parent="."]
+unique_name_in_owner = true
+
+[node name="RuleTooltip" parent="." instance=ExtResource("4_tooltip")]
+unique_name_in_owner = true

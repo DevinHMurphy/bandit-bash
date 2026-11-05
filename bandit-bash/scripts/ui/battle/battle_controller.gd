@@ -6,7 +6,7 @@
 # File:     battle_controller.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 class_name BattleController
@@ -26,14 +26,15 @@ extends Node
 ## [b]Forecast:[/b] an attack, a staff or a shove is confirmed on a [ForecastPanel]
 ## ([ForecastViewModel]), which cycles the target's weapons ([method cycle_weapon]).
 ## [b]Move preview:[/b] hovering a move tile requests a [MovePreview]; [method run_preview_frame]
-## runs at most one per frame, for the newest hover, and [MovePreviewMarks] draws it.[br]
+## runs at most one per frame, for the newest hover; [MovePreviewMarks] draws its damage and the
+## [IntentDisplay] its re-planned intents, until the hover clears.[br]
+## [b]Enemy information[/b] (question 10): the [IntentDisplay] draws the session's intents once the
+## board settles, and the cursor on an enemy shows its rule; [method toggle_danger_zone] draws
+## [DangerZone] on the danger overlay, shown in the opening swap window and off after it.[br]
 ## [BattleScreen] binds it to the seat's map ([method bind]); its widgets are the nodes set in its
 ## exports, which the gameplay scene points at.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
-##
-## @todo: TOD-001 - Show the danger zone in the swap window (question 12) and on
-## toggle_danger_zone; both are UI4's (DangerZone, intents).
 
 # ============================================================
 # INPUT MAP SETUP (Project Settings -> Input Map; ui_* are Godot's built-in actions):
@@ -64,13 +65,16 @@ extends Node
 #   "skip_playback"         -> X              (any stage, while playback runs: the board skips it
 #                                                behind a fade to black, BattleView.skip_playback.
 #                                                Harmless with nothing playing or during a skip)
-#   "toggle_danger_zone"    -> R              (bound for UI4; not read here)
+#   "toggle_danger_zone"    -> R              (any stage, even during playback, while a session is
+#                                                bound and still fought: shows or hides the danger
+#                                                zone. It changes no state, so it isn't held back)
 #   "cycle_weapon"          -> C              (CONFIRM with the forecast panel open: the forecast
 #                                                and the command move to the target's next weapon,
 #                                                wrapping. Harmless elsewhere, and with one weapon)
 #   "toggle_save_debug"     -> F3             (read by the save debug panel; not read here)
 # While a command's playback runs, the map's combat is over, or the seat has no turn, every input
-# but fast_forward and skip_playback is ignored: that guard is deliberate, not a missing check.
+# but fast_forward, skip_playback and toggle_danger_zone is ignored: that guard is deliberate, not
+# a missing check.
 # ============================================================
 
 # --- Turn input stage (meaningful once bind() has a session) -------------------------------
@@ -79,17 +83,21 @@ extends Node
 #              and the board shows no selection.
 # SWAP:        the opening swap window, before the seat's Start. Cursor free. Accept on one of
 #              the seat's units that has a swap partner picks it (SWAP_PICKED). end_turn or the
-#              window's Start sends StartCommand. Cancel is left to the pause menu.
+#              window's Start sends StartCommand. Cancel is left to the pause menu. No intents
+#              exist yet; the danger zone shows unless toggled off, and goes off at Start.
 # SWAP_PICKED: a unit picked to swap; its partners' tiles show on the move overlay. Accept on a
 #              partner sends the swap (UnitTurnCommand OPENING_SWAP) with no confirm; accept
 #              elsewhere is inert. Cancel -> SWAP.
 # IDLE:        the seat's player phase, nothing selected. Cursor free. Accept on a unit that can
 #              act selects it (MOVE); on an enemy toggles its range on the enemy range overlay
 #              (Godot_FE toggle_selected_unit); elsewhere inert -- Godot_FE's game menu on an
-#              empty tile is not ported, End Turn has its own key and button.
+#              empty tile is not ported, End Turn has its own key and button. In every stage the
+#              cursor on an enemy shows its target rule and narrows the intent lines to its own.
 # MOVE:        a unit selected: its move and attack tiles drawn, and the path to the cursor while
 #              the cursor is on a move tile, with that tile's move preview (requested on each
-#              hover, run by run_preview_frame, cleared off a move tile and on leaving MOVE).
+#              hover, run by run_preview_frame, cleared off a move tile and on leaving MOVE); the
+#              intent display shows the preview's intents, previewed, and the live ones once
+#              it clears.
 #              Accept on a move tile (its own included) opens the action menu (ACTION); elsewhere
 #              inert. Cancel -> IDLE.
 # ACTION:      the action menu on top of PanelHost; the cursor stays on the picked tile, and board
@@ -111,8 +119,8 @@ extends Node
 # Cycling changes no state: each weapon has its own command (TargetOption.commands), where
 # Godot_FE equipped the weapon on the unit at each step and left it equipped on Back.
 # Global: cancel pops exactly one stage (_history), and one panel with it. Sending a command
-# flushes every panel, stage and mark and waits in INACTIVE; when its playback settles the stage
-# is rebuilt from the session:
+# flushes every panel, stage and mark, hides the intents, and waits in INACTIVE; when its playback
+# settles the stage, the danger zone and the intents are rebuilt from the session:
 # a rejection's reason shows and the flow returns to IDLE, a unit with a second move pending
 # reopens MOVE on its new tile, and otherwise IDLE, SWAP or INACTIVE as the session stands.
 ## The steps of turn input; see the block above.
@@ -181,8 +189,22 @@ const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
 @export var message: BattleMessage = null
 
 ## The move preview on the board, a child of [member view].[br]
-## [b]Unset:[/b] no move preview is requested or run.
+## [b]Unset:[/b] no move preview's damage shows; with [member intent_display] also unset, no
+## preview is requested or run.
 @export var move_preview_marks: MovePreviewMarks = null
+
+## The enemies' intents on the board, a child of [member view].[br]
+## [b]Unset:[/b] no intents, lines or target rules show.
+@export var intent_display: IntentDisplay = null
+
+@export_group("Danger zone")
+
+# ASSUMPTION: question 12's "the window shows the danger zone" read as on by default in the window,
+# R still toggling it, and back off at Start (question 10's default for the player phase).
+## Whether the danger zone shows when the opening swap window opens (plan, question 12). It goes
+## off at Start whatever its state, as toggle_danger_zone's default is off.[br]
+## [b]Off:[/b] the swap window follows toggle_danger_zone too, starting hidden.
+@export var shows_danger_in_swap_window: bool = true
 
 @export_group("")
 
@@ -231,6 +253,13 @@ var _sent_unit_id: String = ""
 # The rejection of the command last sent; empty when it resolved.
 var _rejection: String = ""
 
+# Whether the danger zone is toggled on, and the zone drawn (the board at the last settle).
+var _is_danger_shown: bool = false
+var _danger: DangerZone = null
+
+# Whether the stage was last rebuilt in the swap window, so leaving it turns the danger zone off.
+var _was_swapping: bool = false
+
 
 func _ready() -> void:
 	_show_widgets(false)
@@ -259,6 +288,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed(&"skip_playback"):
 		view.skip_playback()
+		return
+	if event.is_action_pressed(&"toggle_danger_zone"):
+		toggle_danger_zone()
 		return
 	if not is_accepting_input():
 		return
@@ -296,8 +328,12 @@ func bind(encounter: CombatEncounter, session: CombatSession, seat: int) -> void
 	_session = session
 	_seat = seat
 	_session.command_rejected.connect(_on_session_command_rejected)
+	_session.intents_changed.connect(_on_session_intents_changed)
 	view.settled.connect(_on_view_settled)
 	_show_widgets(true)
+	_was_swapping = TurnInputModel.is_swapping(session, seat)
+	_is_danger_shown = _was_swapping and shows_danger_in_swap_window
+	_danger = null
 	var units: PackedStringArray = TurnInputModel.acting_units(session, seat)
 	if units.is_empty():
 		for unit_id: String in session.state.units_of(PLAYER):
@@ -313,6 +349,8 @@ func unbind() -> void:
 		return
 	if _session.command_rejected.is_connected(_on_session_command_rejected):
 		_session.command_rejected.disconnect(_on_session_command_rejected)
+	if _session.intents_changed.is_connected(_on_session_intents_changed):
+		_session.intents_changed.disconnect(_on_session_intents_changed)
 	if view != null and view.settled.is_connected(_on_view_settled):
 		view.settled.disconnect(_on_view_settled)
 	if view != null:
@@ -321,7 +359,10 @@ func unbind() -> void:
 		panel_host.flush()
 	_session = null
 	_encounter = null
+	_danger = null
 	_set_stage(Stage.INACTIVE)
+	_draw_danger_zone()
+	_show_intents()
 	_show_widgets(false)
 
 
@@ -374,7 +415,25 @@ func move_cursor(tile: Vector2i) -> bool:
 		_path = TurnInputModel.path_to(_session, _unit_id, tile)
 		_draw_path()
 		_request_preview(tile)
+	if is_instance_valid(intent_display):
+		intent_display.set_hovered(_hovered_enemy())
 	return true
+
+
+## toggle_danger_zone: shows or hides every tile an enemy could attack next turn
+## ([method DangerZone.compute], on the board as it last settled). Returns whether it now shows;
+## false, doing nothing, while nothing is bound or the combat is over.
+func toggle_danger_zone() -> bool:
+	if _session == null or _session.is_finished:
+		return false
+	_is_danger_shown = not _is_danger_shown
+	_draw_danger_zone()
+	return _is_danger_shown
+
+
+## Whether the danger zone is toggled on.
+func is_danger_zone_shown() -> bool:
+	return _is_danger_shown
 
 
 ## Weapon cycling in the forecast (cycle_weapon, Next weapon): shows the target's next weapon's
@@ -399,19 +458,18 @@ func get_confirm_command() -> Command:
 	return _target.command
 
 
-## Runs the newest hover's move preview, if one waits, and draws it: at most one per call.
-## [method Node._process] calls it once a frame; tests call it to stand for a frame. Returns
-## whether a preview ran.
+## Runs the newest hover's move preview, if one waits, and draws it: its damage, and its intents
+## as previewed. At most one per call. [method Node._process] calls it once a frame; tests call it
+## to stand for a frame. Returns whether a preview ran.
 func run_preview_frame() -> bool:
-	if _session == null or move_preview_marks == null or _stage != Stage.MOVE:
+	if _session == null or not _has_preview_widgets() or _stage != Stage.MOVE:
 		return false
 	var preview: MovePreview = _previews.run_pending(_session)
 	if preview == null:
 		return false
-	var enemy_positions: Array[Vector2] = []
-	for enemy_id: String in preview.changed_enemies:
-		enemy_positions.append(view.tile_to_position(_session.state.tile_of(enemy_id)))
-	move_preview_marks.show_preview(preview, view.tile_to_position(preview.tile), enemy_positions)
+	if move_preview_marks != null:
+		move_preview_marks.show_preview(preview, view.tile_to_position(preview.tile))
+	_show_intents()
 	return true
 
 
@@ -634,7 +692,7 @@ func _forecast_model() -> ForecastViewModel:
 
 # Asks for tile's move preview while it is one of the selected unit's move tiles, else clears it.
 func _request_preview(tile: Vector2i) -> void:
-	if move_preview_marks == null:
+	if not _has_preview_widgets():
 		return
 	if _is_move_tile.has(tile):
 		_previews.request(_unit_id, tile)
@@ -642,11 +700,85 @@ func _request_preview(tile: Vector2i) -> void:
 	_clear_preview()
 
 
+# Drops the preview, its damage and its intents; the display falls back to the live intents.
 func _clear_preview() -> void:
+	var had_preview: bool = _previews.shown() != null
 	_previews.clear()
-	# The marks can be freed first when the screen is torn down; unbind() still calls this.
+	# The widgets can be freed first when the screen is torn down; unbind() still calls this.
 	if is_instance_valid(move_preview_marks):
 		move_preview_marks.clear()
+	if had_preview:
+		_show_intents()
+
+
+func _has_preview_widgets() -> bool:
+	return move_preview_marks != null or intent_display != null
+
+
+# Draws the intents that apply now on the intent display: the shown move preview's in MOVE, else
+# the session's, while they are current (no newer fact), the board is settled and no command is
+# waited on; otherwise none, so no icon stands where a token is still walking.
+func _show_intents() -> void:
+	if not is_instance_valid(intent_display):
+		return
+	var shown: Intents = null
+	var is_preview: bool = false
+	var changed: PackedStringArray = []
+	if _session != null and not _session.is_finished and not _is_waiting and view.is_settled():
+		var seq: int = _session.last_seq()
+		var preview: MovePreview = _previews.shown() if _stage == Stage.MOVE else null
+		if preview != null and preview.intents != null and preview.based_on_seq == seq:
+			shown = preview.intents
+			is_preview = true
+			changed = preview.changed_enemies
+		elif _session.intents != null and _session.intents.based_on_seq == seq:
+			shown = _session.intents
+	if shown == null:
+		intent_display.clear()
+		return
+	var model: IntentViewModel = IntentViewModel.build(_session, shown, is_preview, changed)
+	intent_display.show_intents(model, view.tile_to_position)
+	intent_display.set_hovered(_hovered_enemy())
+
+
+# The enemy under the cursor; empty for none.
+func _hovered_enemy() -> String:
+	if _session == null or _cursor == CombatFact.NO_TILE:
+		return ""
+	var occupant: String = _session.state.occupant_at(_cursor)
+	if occupant.is_empty() or _session.state.side_of(occupant) != ENEMY:
+		return ""
+	return occupant
+
+
+# Draws the danger zone while it is toggled on, computing it on the board as it stands when none
+# is kept; clears it otherwise.
+func _draw_danger_zone() -> void:
+	# The board can be freed first when the screen is torn down; unbind() still calls this.
+	if not is_instance_valid(view) or view.get_danger_overlay() == null:
+		return
+	var overlay: TileOverlay = view.get_danger_overlay()
+	if not _is_danger_shown or _session == null or _session.is_finished:
+		overlay.clear()
+		return
+	if _danger == null:
+		_danger = DangerZone.compute(_session.engine)
+	var tiles: Array[Vector2i] = []
+	tiles.assign(_danger.combined.keys())
+	tiles.sort_custom(MapLayout.is_before)
+	overlay.show_tiles(tiles)
+
+
+# Recomputes the danger zone from the board that just settled and redraws it, turning it off when
+# the swap window has closed since the last rebuild.
+func _refresh_danger_zone() -> void:
+	_danger = null
+	if _session != null:
+		var is_swapping: bool = TurnInputModel.is_swapping(_session, _seat)
+		if _was_swapping and not is_swapping:
+			_is_danger_shown = false
+		_was_swapping = is_swapping
+	_draw_danger_zone()
 
 
 func _toggle_enemy_range(enemy_id: String) -> void:
@@ -707,6 +839,7 @@ func _send(command: Command) -> void:
 	_is_waiting = true
 	_set_stage(Stage.INACTIVE)
 	_redraw()
+	_show_intents()
 	_encounter.submit(command, _session.session_id)
 	_encounter.resolve_queued()
 	if view.is_settled():
@@ -746,6 +879,8 @@ func _rebuild() -> void:
 	if _session != null:
 		move_cursor(_cursor)
 	_redraw()
+	_refresh_danger_zone()
+	_show_intents()
 
 
 # The stage the session allows with nothing selected: SWAP in the seat's swap window, IDLE in its
@@ -826,7 +961,6 @@ func _refresh_widgets() -> void:
 		return
 	var state: CombatState = _session.state
 	var is_swapping: bool = TurnInputModel.is_swapping(_session, _seat)
-	# TODO(TOD-001): the swap window shows the danger zone (question 12); UI4 draws it.
 	if swap_window != null:
 		swap_window.visible = is_swapping and not _session.is_finished
 		if _stage == Stage.SWAP_PICKED:
@@ -935,6 +1069,13 @@ func _on_view_settled() -> void:
 		_rebuild()
 		return
 	_refresh_widgets()
+	_refresh_danger_zone()
+	_show_intents()
+
+
+# New intents reach the display only once the board has settled (see _show_intents()).
+func _on_session_intents_changed(_intents: Intents) -> void:
+	_show_intents()
 
 
 func _on_turn_bar_end_turn_pressed() -> void:

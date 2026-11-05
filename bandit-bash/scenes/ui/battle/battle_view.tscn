@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/battle/battle_view.gd" id="1_view"]
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/unit_token.tscn" id="2_token"]
@@ -11,6 +11,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/path_preview.tscn" id="9_path"]
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/tile_cursor.tscn" id="10_cursor"]
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/skip_fade.tscn" id="11_skip_fade"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/danger_overlay.tscn" id="12_danger"]
 
 [node name="BattleView" type="Node2D"]
 script = ExtResource("1_view")
@@ -21,6 +22,9 @@ damage_number_scene = ExtResource("3_number")
 unique_name_in_owner = true
 
 [node name="DarknessOverlay" parent="." instance=ExtResource("4_overlay")]
+unique_name_in_owner = true
+
+[node name="DangerOverlay" parent="." instance=ExtResource("12_danger")]
 unique_name_in_owner = true
 
 [node name="EnemyRangeOverlay" parent="." instance=ExtResource("6_enemy_range")]

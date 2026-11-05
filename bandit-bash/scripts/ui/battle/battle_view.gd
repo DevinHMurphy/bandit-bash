@@ -6,7 +6,7 @@
 # File:     battle_view.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 class_name BattleView
@@ -24,9 +24,9 @@ extends Node2D
 ## [b]Reading only:[/b] it never changes combat state and submits no command; turn input does
 ## ([BattleController]). Facts already queued at [method bind] are skipped, since the board is
 ## built from the state they led to.[br]
-## [b]Turn input's pieces[/b] (the move, attack and enemy range [TileOverlay]s, the [PathPreview]
-## and the [TileCursor]) are children here so they share the board's space and camera; the board
-## only sizes them to the map, and [BattleController] says what they show.[br]
+## [b]Turn input's pieces[/b] (the move, attack, enemy range and danger zone [TileOverlay]s, the
+## [PathPreview] and the [TileCursor]) are children here so they share the board's space and
+## camera; the board only sizes them to the map, and [BattleController] says what they show.[br]
 ## [b]Faster playback:[/b] held fast-forward ([method set_fast_forward]) runs waits and animations
 ## [member fast_forward_speed] times faster, in order; [method skip_playback] plays everything
 ## queued at once behind the [SkipFade].
@@ -143,6 +143,7 @@ var _skip_left: float = 0.0
 @onready var _move_overlay: TileOverlay = %MoveOverlay
 @onready var _attack_overlay: TileOverlay = %AttackOverlay
 @onready var _enemy_range_overlay: TileOverlay = %EnemyRangeOverlay
+@onready var _danger_overlay: TileOverlay = %DangerOverlay
 @onready var _path_preview: PathPreview = %PathPreview
 @onready var _cursor: TileCursor = %TileCursor
 @onready var _skip_fade: SkipFade = %SkipFade
@@ -299,6 +300,11 @@ func get_enemy_range_overlay() -> TileOverlay:
 	return _enemy_range_overlay
 
 
+## The overlay of the danger zone: every tile an enemy could attack next turn.
+func get_danger_overlay() -> TileOverlay:
+	return _danger_overlay
+
+
 ## The walk drawn to the hovered tile.
 func get_path_preview() -> PathPreview:
 	return _path_preview
@@ -395,7 +401,10 @@ func _build_map(definition: CombatMapDefinition) -> void:
 	var origin: Vector2 = tile_to_position(Vector2i.ZERO) - _tile_size() * 0.5
 	_darkness.tile_size = _tile_size()
 	_darkness.origin = origin
-	for overlay: TileOverlay in [_move_overlay, _attack_overlay, _enemy_range_overlay]:
+	var overlays: Array[TileOverlay] = [
+		_danger_overlay, _enemy_range_overlay, _move_overlay, _attack_overlay,
+	]
+	for overlay: TileOverlay in overlays:
 		overlay.tile_size = _tile_size()
 		overlay.origin = origin
 	_cursor.tile_size = _tile_size()
