@@ -6,7 +6,7 @@
 # File:     forecast_bench.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 29, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 extends Node
@@ -199,7 +199,7 @@ func _build_world(rolls: RollSource, tracked: bool) -> CombatWorld:
 	for row: Array in ENEMY_UNITS:
 		_place(world, row, ENEMY, -1)
 	var e3: CombatUnitState = world.state.unit("e3")
-	e3.tags = PackedStringArray(["Beast"])
+	e3.tags = PackedStringArray([ContentIds.TAG_ARMORED])
 
 	var vanguard: EffectDefinition = _vanguard()
 	var momentum: EffectDefinition = _momentum()
@@ -211,7 +211,7 @@ func _build_world(rolls: RollSource, tracked: bool) -> CombatWorld:
 	world.add_effect("effect:momentum_p3", momentum, "p3")
 	world.add_effect("effect:phalanx_p4", phalanx, "p4")
 	world.add_effect("effect:phalanx_p6", phalanx, "p6")
-	world.add_effect("effect:bane_p3", _beast_bane(), "p3")
+	world.add_effect("effect:bane_p3", _armored_bane(), "p3")
 	world.add_effect("effect:cleave_e1", _cleave(), "e1")
 	world.add_effect("effect:frailty_e3", _magic_frailty(), "e3")
 	world.add_effect("effect:war_horn_e4", _war_horn(), "e4")
@@ -332,7 +332,7 @@ func _bench_queries() -> void:
 	_section("2. Value queries: %d units x %d keys = %d queries per batch" % [
 		_state.unit_ids().size(), QUERY_KEYS.size(), _state.unit_ids().size() * QUERY_KEYS.size(),
 	])
-	# Units in a pair query with their attack context, so conditional modifiers (the Beast bane,
+	# Units in a pair query with their attack context, so conditional modifiers (the Armored bane,
 	# the magic frailty, the triangle) are tested live; the rest query without one.
 	var ids: PackedStringArray = _state.unit_ids()
 	var contexts: Array[EffectContext] = []
@@ -648,7 +648,7 @@ func _fail(detail: String) -> void:
 # --- Fixture effects -----------------------------------------------------------------------------
 # Rebuilt from the effect and combat tests' fixtures (their builders are private to those files):
 # golden_cases.gd for Vanguard, Phalanx, War Horn, Iron Heart and Brittle Guard, exchange_cases.gd
-# for Momentum, Cleave, the Beast bane and the magic frailty.
+# for Momentum, Cleave, the Armored bane and the magic frailty.
 
 
 # Vanguard: Phase Start, no ally closer to the nearest enemy: gain 3 Block.
@@ -732,12 +732,12 @@ func _brittle_guard() -> EffectDefinition:
 	return guard
 
 
-# The attacker's side of the two-sided damage stages: deals x2 damage to Beasts.
-func _beast_bane() -> EffectDefinition:
+# The attacker's side of the two-sided damage stages: deals x2 damage to Armored units.
+func _armored_bane() -> EffectDefinition:
 	var against: WhileAttackCondition = WhileAttackCondition.new()
 	against.role = WhileAttackCondition.Role.ATTACKING
 	against.kind = WhileAttackCondition.Kind.OPPONENT_TAG
-	against.type_name = "Beast"
+	against.type_name = ContentIds.TAG_ARMORED
 	return _definition(
 			EffectTerms.Trigger.ALWAYS, [against],
 			[_times(DamageStage.Key.MULTIPLIERS, 2.0)]

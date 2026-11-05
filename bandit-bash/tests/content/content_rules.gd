@@ -6,7 +6,7 @@
 # File:     content_rules.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 31, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -19,9 +19,10 @@ extends RefCounted
 ## This unit, no inline operation sits on a trigger with no inline window, and a warning for a
 ## heirloom scoped Any Ally Unit or wider without the unique tag. P03's rules (content catalog
 ## plan, Data layout): the folder matches the data, weapons and staves have a range and attacks
-## start at 1, string ids are in their [ContentIds] list, every sellable item has a price, no
-## Basic, Legendary or Unique item has one, and an item with uses has no charged use effect of its
-## own (enemies and AI plan, question 18 (d)); and (event bus plan, question 50) no effect lacks
+## start at 1, string ids are in their [ContentIds] list (a while-attack condition's id too; a
+## unit type it names is a unit type or enemy class in the tree), every sellable item has a price,
+## no Basic, Legendary or Unique item has one, and an item with uses has no charged use effect of
+## its own (enemies and AI plan, question 18 (d)); and (event bus plan, question 50) no effect lacks
 ## operations, no faction lists its commander among its starting units, and starting gear fits
 ## its slots. P05's rules (enemies and AI plan, EN1): enemy classes live in enemies/ and packs in
 ## enemies/packs/, a pack names only enemy classes, each at least once, and an enemy class has
@@ -447,6 +448,9 @@ func _check_block(path: String, where: String, block: Resource) -> void:
 		return
 	if _block_text(block).strip_edges().is_empty():
 		_fail(EMPTY_TEXT, path, "%s (%s) has no text" % [where, _script_name(block)])
+	if block is WhileAttackCondition:
+		var condition: WhileAttackCondition = block
+		_check_attack_condition(path, where, condition)
 	for property: Dictionary in block.get_property_list():
 		var usage: int = property["usage"]
 		if usage & PROPERTY_USAGE_STORAGE == 0:
@@ -455,6 +459,29 @@ func _check_block(path: String, where: String, block: Resource) -> void:
 		var value: Variant = block.get(property_name)
 		if value is Resource and _is_block(value as Resource):
 			_check_block(path, "%s %s" % [where, property_name], value as Resource)
+
+
+# The condition matches its id exactly against what the loadout puts in combat, so an id the data
+# doesn't use never matches. The damage type and crit kinds ignore the id.
+func _check_attack_condition(
+		path: String, where: String, condition: WhileAttackCondition
+) -> void:
+	var field: String = "%s type_name" % [where]
+	var id: String = condition.type_name
+	match condition.kind:
+		WhileAttackCondition.Kind.OPPONENT_TAG:
+			_known(path, field, id, ContentIds.TAGS)
+		WhileAttackCondition.Kind.WEAPON_TYPE:
+			_known(path, field, id, ContentIds.WEAPON_TYPES)
+		WhileAttackCondition.Kind.OPPONENT_UNIT_TYPE:
+			if (
+					_index.is_of(id, EffectCatalog.Kind.UNIT_TYPE)
+					or _index.is_of(id, EffectCatalog.Kind.ENEMY_CLASS)
+			):
+				return
+			_fail(DANGLING_REFERENCE, path, "%s \"%s\" is no unit type or enemy class" % [
+				field, id,
+			])
 
 
 func _check_heirloom_scope(path: String, where: String, effect: EffectDefinition) -> void:

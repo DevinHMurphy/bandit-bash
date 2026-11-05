@@ -6,7 +6,7 @@
 # File:     loadout_cases.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 30, 2026
+# Modified: November 5, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -17,7 +17,8 @@ extends RefCounted
 ## lock-picking permission; campaign-lane write-back; bad data reported, not guessed at; and the
 ## enemy side: an enemy class is no unit type, its stats by level with the level named, and its
 ## weapons' and staves' uses unlimited while a player's run out; and a consumable's total uses
-## kept on its item across battles. Reports each case through the check callable it is given.
+## kept on its item across battles; and a [WhileAttackCondition] matching the ids the loadout puts
+## in combat. Reports each case through the check callable it is given.
 ##
 ## The fixture tree [constant TREE] is a data root with the roster's numbers for the Archer, the
 ## Thief (with [constant CombatValue.Permission.CAN_PICK_LOCKS] in its innate effects; no real
@@ -67,6 +68,7 @@ func run() -> void:
 	_test_staff_uses_by_side()
 	_test_enemy_weapon_effects_unlimited()
 	_test_total_uses_across_battles()
+	_test_attack_condition_matches_ids()
 	_test_definitions_unchanged()
 
 
@@ -663,6 +665,54 @@ func _test_total_uses_across_battles() -> void:
 
 
 # Every case above loaded the same shared definitions; none may have changed.
+# The Archer with the Simple Bow attacks a Brute that carries a tag from ContentIds. Seen from the
+# attacker, the tag and the bow's weapon type match; seen from the Brute when attacked, the
+# Archer's unit type id does. Another id of each kind matches nothing.
+func _test_attack_condition_matches_ids() -> void:
+	var ids: InstanceIdAllocator = InstanceIdAllocator.new()
+	var items: Dictionary[String, ItemInstance] = {"item:1": _item("item:1", "loadout_simple_bow")}
+	var archer: Loadout.LoadedUnit = Loadout.load_unit(
+			_index, _unit("unit:1", "loadout_archer", "item:1"), items, PLAYER, 0, ids
+	)
+	var no_items: Dictionary[String, ItemInstance] = {}
+	var brute: Loadout.LoadedUnit = Loadout.load_unit(
+			_index, _unit("unit:2", "loadout_brute"), no_items, ENEMY, -1, ids
+	)
+	var problems: PackedStringArray = archer.problems + brute.problems
+	_check.call("attack condition: the Archer and the Brute load cleanly", (
+			problems.is_empty()
+	), str(problems))
+	var world: World = World.new(archer)
+	world.add(brute, Vector2i(1, 3))
+	world.state.unit("unit:2").tags = PackedStringArray([ContentIds.TAG_ARMORED])
+	var ctx: EffectContext = EffectContext.new()
+	ctx.engine = world.engine
+	ctx.attacker_id = "unit:1"
+	ctx.defender_id = "unit:2"
+	ctx.initiator_id = "unit:1"
+	ctx.weapon_id = "item:1"
+	ctx.attack_index = 0
+	ctx.subject_id = "unit:1"
+	var attacking: WhileAttackCondition.Role = WhileAttackCondition.Role.ATTACKING
+	var tag: WhileAttackCondition.Kind = WhileAttackCondition.Kind.OPPONENT_TAG
+	var weapon: WhileAttackCondition.Kind = WhileAttackCondition.Kind.WEAPON_TYPE
+	_check.call("attack condition: a tag from ContentIds matches the unit carrying it", (
+			_attack_condition(attacking, tag, ContentIds.TAG_ARMORED).test(ctx)
+			and not _attack_condition(attacking, tag, ContentIds.TAG_FLIER).test(ctx)
+	), "")
+	_check.call("attack condition: the weapon type id matches the bow", (
+			_attack_condition(attacking, weapon, "bow").test(ctx)
+			and not _attack_condition(attacking, weapon, "sword").test(ctx)
+	), "")
+	ctx.subject_id = "unit:2"
+	var attacked: WhileAttackCondition.Role = WhileAttackCondition.Role.ATTACKED
+	var unit_type: WhileAttackCondition.Kind = WhileAttackCondition.Kind.OPPONENT_UNIT_TYPE
+	_check.call("attack condition: the unit type id matches the Archer", (
+			_attack_condition(attacked, unit_type, "loadout_archer").test(ctx)
+			and not _attack_condition(attacked, unit_type, "loadout_thief").test(ctx)
+	), "")
+
+
 func _test_definitions_unchanged() -> void:
 	var fresh: EffectCatalog.Index = EffectCatalog.load_tree(TREE)
 	var changed: PackedStringArray = []
@@ -682,6 +732,16 @@ func _unit(id: String, unit_type: String, weapon_id: String = "") -> UnitInstanc
 
 func _item(id: String, definition_id: String) -> ItemInstance:
 	return ItemInstance.new(id, definition_id)
+
+
+func _attack_condition(
+		role: WhileAttackCondition.Role, kind: WhileAttackCondition.Kind, id: String
+) -> WhileAttackCondition:
+	var condition: WhileAttackCondition = WhileAttackCondition.new()
+	condition.role = role
+	condition.kind = kind
+	condition.type_name = id
+	return condition
 
 
 func _load(

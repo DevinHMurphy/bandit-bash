@@ -64,7 +64,7 @@ func _test_unit_state_round_trip() -> void:
 	unit.side = ENEMY
 	unit.tile = Vector2i(3, 1)
 	unit.movement_type = CombatGrid.MovementType.FLIER
-	unit.tags = PackedStringArray([ContentIds.TAG_FLIER, "beast"])
+	unit.tags = PackedStringArray([ContentIds.TAG_FLIER, ContentIds.TAG_MOUNTED])
 	unit.unit_type = "harpy"
 	unit.hp = 11
 	unit.block = 2

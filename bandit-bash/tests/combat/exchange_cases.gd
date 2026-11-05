@@ -766,19 +766,20 @@ func _test_magic_and_terrain() -> void:
 	_quiet(world)
 
 
-# "Deals ×2 damage to Beasts": the attacker's Multipliers, only against a Beast, only while it
-# attacks; its own counter target isn't a Beast here, and outside an attack nothing changes.
+# "Deals ×2 damage to Armored units": the attacker's Multipliers, only against an Armored unit,
+# only while it attacks; its own counter target isn't Armored here, and outside an attack nothing
+# changes.
 func _test_multiplier_against_tag() -> void:
 	var world: CombatWorld = _duel("sword", "gauntlets")
-	world.add_effect("effect:bane", _beast_bane(), "p1")
-	_ok("beasts: 1 outside an attack", _multipliers(world, "p1") == 1.0)
-	_ok("beasts: not a Beast, 6", _hit(world, "p1", "e1").damage == 6)
-	world.state.unit("e1").tags = PackedStringArray(["Beast"])
+	world.add_effect("effect:bane", _armored_bane(), "p1")
+	_ok("armored: 1 outside an attack", _multipliers(world, "p1") == 1.0)
+	_ok("armored: not Armored, 6", _hit(world, "p1", "e1").damage == 6)
+	world.state.unit("e1").tags = PackedStringArray([ContentIds.TAG_ARMORED])
 	var hit: DamagePipeline.HitDamage = _hit(world, "p1", "e1")
-	_ok("beasts: ×2 against a Beast, 12", hit.damage == 12 and hit.multipliers == 2.0)
-	_same("beasts: its source", hit.outgoing.to_text(), "1 rule ×2 effect:bane = 2")
-	_ok("beasts: not when attacked", _hit(world, "e1", "p1").multipliers == 1.0)
-	_ok("beasts: still 1 outside an attack", _multipliers(world, "p1") == 1.0)
+	_ok("armored: ×2 against an Armored unit, 12", hit.damage == 12 and hit.multipliers == 2.0)
+	_same("armored: its source", hit.outgoing.to_text(), "1 rule ×2 effect:bane = 2")
+	_ok("armored: not when attacked", _hit(world, "e1", "p1").multipliers == 1.0)
+	_ok("armored: still 1 outside an attack", _multipliers(world, "p1") == 1.0)
 	_quiet(world)
 
 
@@ -818,11 +819,11 @@ func _test_incoming_while_adjacent() -> void:
 # "Takes 2 more damage from bows": Mitigation -2, which goes below 0 when DEF can't cover it.
 func _test_more_damage_from_bows() -> void:
 	var world: CombatWorld = _duel("bow", "gauntlets", 2)
-	world.state.weapon("w:p1").weapon_type = "Bow"
+	world.state.weapon("w:p1").weapon_type = "bow"
 	var more: ModifyValue = _times(DamageStage.Key.MITIGATION, -2.0)
 	more.mode = ADD
 	var bows: WhileAttackCondition = _attack_condition(
-			WhileAttackCondition.Role.ATTACKED, WhileAttackCondition.Kind.WEAPON_TYPE, "Bow"
+			WhileAttackCondition.Role.ATTACKED, WhileAttackCondition.Kind.WEAPON_TYPE, "bow"
 	)
 	world.add_effect(
 			"effect:soft", _triggered(EffectTerms.Trigger.ALWAYS, [bows], [more]), "e1"
@@ -832,20 +833,20 @@ func _test_more_damage_from_bows() -> void:
 	world.engine.set_base("e1", CombatValue.Key.DEF, 0.0)
 	hit = _hit(world, "p1", "e1")
 	_ok("bows: Mitigation -2 adds 2, 11", hit.mitigation == -2.0 and hit.damage == 11)
-	world.state.weapon("w:p1").weapon_type = "Sword"
+	world.state.weapon("w:p1").weapon_type = "sword"
 	_ok("bows: not from another weapon type, 9", _hit(world, "p1", "e1").damage == 9)
 	_quiet(world)
 
 
-# The attacker's ×2 against Beasts, the defender's ×2 from magic and a ×1.5 "that hit" modifier
-# multiply on one hit, each in its breakdown; then the exchange's log, with verify mode on.
+# The attacker's ×2 against Armored units, the defender's ×2 from magic and a ×1.5 "that hit"
+# modifier multiply on one hit, each in its breakdown; then the exchange's log, with verify mode on.
 func _test_two_sided_multipliers() -> void:
 	var world: CombatWorld = _duel("fire", "gauntlets", 1, {}, {CombatValue.Key.HP: 40.0})
 	world.state.weapon("w:p1").hit = 100
 	world.arm("p1", "w:p1")
-	world.state.unit("e1").tags = PackedStringArray(["Beast"])
+	world.state.unit("e1").tags = PackedStringArray([ContentIds.TAG_ARMORED])
 	world.state.set_hp("e1", 40)
-	world.add_effect("effect:bane", _beast_bane(), "p1")
+	world.add_effect("effect:bane", _armored_bane(), "p1")
 	world.add_effect("effect:frail", _magic_frailty(), "e1")
 	var ctx: EffectContext = _context(world, "p1", "e1", "p1", 0)
 	var hit: DamagePipeline.HitDamage = DamagePipeline.compute(world.engine, world.state, ctx)
@@ -1166,10 +1167,12 @@ func _attack_condition(
 	return condition
 
 
-# Deals ×2 damage to Beasts.
-func _beast_bane() -> EffectDefinition:
+# Deals ×2 damage to Armored units.
+func _armored_bane() -> EffectDefinition:
 	var against: WhileAttackCondition = _attack_condition(
-			WhileAttackCondition.Role.ATTACKING, WhileAttackCondition.Kind.OPPONENT_TAG, "Beast"
+			WhileAttackCondition.Role.ATTACKING,
+			WhileAttackCondition.Kind.OPPONENT_TAG,
+			ContentIds.TAG_ARMORED
 	)
 	var times: ModifyValue = _times(DamageStage.Key.MULTIPLIERS, 2.0)
 	return _triggered(EffectTerms.Trigger.ALWAYS, [against], [times])
