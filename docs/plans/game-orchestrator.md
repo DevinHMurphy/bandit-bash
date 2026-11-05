@@ -376,10 +376,10 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 ## Next actions
 
 1. **M1's critical path:** P07 **UI2F** (Low: the save debug panel off the map and behind a
-   toggle, animations scaled by playback speed; prompt issued November 4, 2026) and **UI3**
-   (forecast and move preview; prompt issued November 4, 2026), then UI4 (intents, danger zone)
+   toggle, animations scaled by playback speed; building since November 4, 2026) and **UI3**
+   (forecast and move preview; building since November 4, 2026), then UI4 (intents, danger zone)
    and UI5 (HUD, Use in the menu, the M1 build). Then M1's playtest and first tuning pass.
-2. **Open questions for the user:** P06 question 14 (DK4); P07 question 15 (UI2).
+2. **Open questions for the user:** none.
 3. **Off M1's path:** P02 **CC10** (battle resume: today a run continued mid-battle sits on the
    placeholder; releases the reserved `enemy_units` key, P04 question 25; rejects a move that goes
    nowhere, P02 question 21); P06 DK5 (the darkness save and mirrors) after CC10's pattern; the
@@ -466,3 +466,4 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 | November 4, 2026 | **P07 UI1 merged into `dev`** (5bcf23c; verified merged with DK2: ui 24, darkness 108, map 490, every other suite unchanged, launch clean): a new solo run opens the M1 battle on screen, the board (terrain, tokens, darkness overlay, camera) plays facts through `FactPlayback`, the end goes to Results; debug Start and End Turn buttons. P07 question 14 raised; UI2 prompt issued. User: every build prompt carries an expected-effort label. |
 | November 4, 2026 | P07 question 14 answered (as recommended, for now). **P06 DK3 merged into `dev`** (f8f4ed7; verified merged with UI1: darkness 143, enemies 102, ui 24, every other suite unchanged, launch clean): the darkness step (creep, release, erosion; arrival sets `MapState.has_darkness_arrived`), the fact contract, door and break recalculation. P06 question 13 raised; DK4 prompt issued. |
 | November 4, 2026 | P06 questions 12 and 13 answered (as recommended). **P06 DK4 and P07 UI2 merged into `dev`** (ec47252, 34b27d5; verified together: darkness 191, ui 53, every other suite unchanged, launch clean): darkness damage, the AI's flooded tiles, dry-first arrivals, P07's queries; turn input (cursor, ranges, path, action menu, targets, End Turn, the swap window, four input actions). M1's part of P06 is built; an M1 battle can be played by hand. P06 question 14 and P07 question 15 raised; P07 subgraph drawn; UI2F and UI3 prompts issued. |
+| November 4, 2026 | P06 question 14 and P07 question 15 answered (as recommended). UI2F and UI3 building. |
