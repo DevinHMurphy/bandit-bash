@@ -81,6 +81,7 @@ action = 3
 target_screen = 4
 
 [node name="SaveDebugPanel" parent="Hud" instance=ExtResource("2_save_debug")]
+unique_name_in_owner = true
 
 [node name="SaveIndicator" parent="Hud" instance=ExtResource("4_save_indicator")]
 

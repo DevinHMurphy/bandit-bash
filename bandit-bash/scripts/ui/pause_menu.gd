@@ -6,7 +6,7 @@
 # File:     pause_menu.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: October 14, 2026
+# Modified: November 4, 2026
 # ==============================================================================
 
 extends CanvasLayer
@@ -22,8 +22,14 @@ extends CanvasLayer
 ## ([signal SceneRouter.invite_confirmation_requested]); declining drops the invite.
 
 # ============================================================
-# INPUT MAP SETUP (no [input] section in project.godot; built-in action):
+# INPUT MAP SETUP (built-in action; project.godot's [input] section adds none for this menu):
 #   "ui_cancel"  -> Escape key, gamepad B   (opens the menu; closes it again while open)
+# On the battle screen, Esc is shared with turn input by stage (deliberate reuse of one key):
+# BattleController reads ui_cancel in _input, before this _unhandled_input, and takes it while
+# there is a stage to step back from (a unit selected, a menu, picker or dialog open, a swap
+# pick): there Esc steps back one stage and this menu doesn't open. It opens from idle (nothing
+# selected) or the opening swap window, and while turn input is off (playback running, no turn).
+# Right-click steps back the same way but never opens this menu.
 # Nothing else is read here: the buttons are mouse/focus driven.
 # ============================================================
 
