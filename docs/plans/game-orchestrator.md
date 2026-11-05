@@ -381,7 +381,7 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
    object on M1, two-letter tokens, small label and doc fixes; prompt issued November 5, 2026), then
    **M1's playtest and first tuning pass** (UI5 found M1 very lethal: lost on turn 2 naively, turn 4
    carefully).
-2. **Open questions for the user:** P07 question 18 (UI3F and UI5). **Design doc to write:** the move preview re-architecture (Design items, P05 / P07).
+2. **Open questions for the user:** none. **Design doc to write:** the move preview re-architecture (Design items, P05 / P07).
 3. **Off M1's path:** P02 **CC10** (battle resume: today a run continued mid-battle sits on the
    placeholder; releases the reserved `enemy_units` key, P04 question 25; rejects a move that goes
    nowhere, P02 question 21); P06 DK5 (the darkness save and mirrors) after CC10's pattern; the
@@ -473,3 +473,4 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
 | November 5, 2026 | P07 question 16 answered: as recommended, except (a): the move preview stays as built, and a design document re-architects it (caching, or re-planning only enemies whose absolute range reaches the tile, as `Godot_FE` did). Design item added. |
 | November 5, 2026 | P07 question 16 (a) amended by the user: optimize the current preview and run it on a worker thread (new step UI3F), with a TODO that it underperforms and needs re-architecting; the design document still follows. **P07 UI4 merged into `dev`** (1348c5d; 17 untracked copies of UI4's files in the main checkout, byte-identical to the branch, removed first; verified: ui 103, every other suite unchanged, launch clean): intent icons, rule tooltips, numbered lines, the danger zone on R and in the swap window, previewed intents. P07 question 17 raised; UI3F and UI5 prompts issued. |
 | November 5, 2026 | P07 question 17 answered (as recommended). **P07 UI3F and UI5 merged into `dev`** (4b44afc, 44caecd; verified together: ui 131, every other suite unchanged, launch clean): the move preview on a worker thread (17 ms median, debug); the HUD, Use, layout fixes, target names, the debug panel refresh, a release export (preview 14 ms median before UI3F). **M1's part of P07 is built; every M1 build step is merged.** UI5's playtest found a misleading kill forecast and a very lethal M1. P07 question 18 raised; UI5F prompt issued. |
+| November 5, 2026 | P07 question 18 answered (as recommended); UI5F prompt reissued on the recorded base. |
