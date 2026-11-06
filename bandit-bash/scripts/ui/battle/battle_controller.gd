@@ -6,7 +6,7 @@
 # File:     battle_controller.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 5, 2026
+# Modified: November 6, 2026
 # ==============================================================================
 
 class_name BattleController
@@ -486,6 +486,7 @@ func cycle_weapon() -> bool:
 	if not _targets.next_weapon():
 		return false
 	_forecast_panel.show_forecast(_forecast_model())
+	_draw_stance_preview()
 	return true
 
 
@@ -799,6 +800,7 @@ func _show_current_target() -> void:
 		return
 	if is_instance_valid(_forecast_panel):
 		_forecast_panel.show_forecast(_forecast_model())
+		_draw_stance_preview()
 	elif is_instance_valid(_confirm_dialog):
 		_confirm_dialog.open_with(_confirm_question())
 
@@ -1077,6 +1079,7 @@ func _redraw() -> void:
 	_draw_path()
 	_draw_target_marks()
 	_draw_enemy_ranges()
+	_draw_stance_preview()
 
 
 func _draw_path() -> void:
@@ -1107,6 +1110,19 @@ func _draw_enemy_ranges() -> void:
 	support_tiles.sort_custom(MapLayout.is_before)
 	view.get_enemy_support_overlay().show_tiles(support_tiles)
 	view.show_range_tracked(_shown_enemies)
+
+
+# The Stance pips the forecast panel's action would break, dimmed while it is open in CONFIRM;
+# none otherwise (question 29 (3)).
+func _draw_stance_preview() -> void:
+	if not is_instance_valid(view):
+		return
+	var forecast: CombatForecast.Forecast = null
+	if _stage == Stage.CONFIRM and is_instance_valid(_forecast_panel):
+		var model: ForecastViewModel = _forecast_panel.get_model()
+		if model != null:
+			forecast = model.forecast
+	view.show_stance_preview(forecast)
 
 
 func _show_widgets(is_shown: bool) -> void:

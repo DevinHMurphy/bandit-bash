@@ -29,6 +29,22 @@ bg_color = Color(0.1, 0.1, 0.1, 0.85)
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hp_fill"]
 bg_color = Color(0.3, 0.85, 0.35, 1)
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hp_bar_back"]
+bg_color = Color(0.201527, 0.201527, 0.201527, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0, 0, 0, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hp_bar_fill"]
+bg_color = Color(4.52429e-06, 0.700928, 0.572457, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0, 0.776471, 0.882353, 0)
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_range_tracked"]
 bg_color = Color(1, 0.52549, 0.458824, 1)
 border_width_left = 1
@@ -40,9 +56,6 @@ corner_radius_top_left = 4
 corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_stance_fill"]
-bg_color = Color(0.95, 0.75, 0.2, 1)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_target_mark"]
 draw_center = false
@@ -66,7 +79,10 @@ BlockBadge/base_type = &"Panel"
 BlockBadge/styles/panel = SubResource("StyleBoxFlat_block_badge")
 BlockBadgeLabel/base_type = &"Label"
 BlockBadgeLabel/constants/outline_size = 2
-BlockBadgeLabel/font_sizes/font_size = 8
+BlockBadgeLabel/font_sizes/font_size = 11
+DamageNumberCriticalLabel/base_type = &"Label"
+DamageNumberCriticalLabel/constants/outline_size = 6
+DamageNumberCriticalLabel/font_sizes/font_size = 24
 DamageNumberLabel/base_type = &"Label"
 DamageNumberLabel/constants/outline_size = 5
 DamageNumberLabel/font_sizes/font_size = 18
@@ -83,6 +99,12 @@ ForecastNote/font_sizes/font_size = 12
 ForecastRowLabel/base_type = &"Label"
 ForecastRowLabel/colors/font_color = Color(0.7, 0.7, 0.75, 1)
 ForecastRowLabel/font_sizes/font_size = 13
+HpBar/base_type = &"ProgressBar"
+HpBar/styles/background = SubResource("StyleBoxFlat_hp_bar_back")
+HpBar/styles/fill = SubResource("StyleBoxFlat_hp_bar_fill")
+HpBarLabel/base_type = &"Label"
+HpBarLabel/constants/outline_size = 3
+HpBarLabel/font_sizes/font_size = 10
 HudHeading/base_type = &"Label"
 HudHeading/colors/font_color = Color(1, 0.9, 0.55, 1)
 HudHeading/font_sizes/font_size = 15
@@ -128,8 +150,17 @@ ProgressBar/styles/background = SubResource("StyleBoxFlat_hp_back")
 ProgressBar/styles/fill = SubResource("StyleBoxFlat_hp_fill")
 RangeTrackedIcon/base_type = &"Panel"
 RangeTrackedIcon/styles/panel = SubResource("StyleBoxFlat_range_tracked")
-StanceBar/base_type = &"ProgressBar"
-StanceBar/styles/fill = SubResource("StyleBoxFlat_stance_fill")
+StancePips/base_type = &"Control"
+StancePips/colors/change_color = Color(0.913725, 0.85098, 0.870588, 1)
+StancePips/colors/empty_color = Color(0.12, 0.12, 0.12, 0.9)
+StancePips/colors/exposed_color = Color(0.85, 0.2, 0.2, 1)
+StancePips/colors/fill_color = Color(0.95, 0.75, 0.2, 1)
+StancePips/colors/flash_color = Color(1, 1, 1, 1)
+StancePips/colors/overflow_color = Color(0.6, 0.95, 1, 1)
+StancePips/colors/preview_color = Color(0.45, 0.36, 0.12, 1)
+StancePips/colors/tick_color = Color(0, 0, 0, 0.85)
+StancePips/constants/pip_width = 8
+StancePips/constants/separation = 1
 TargetMark/base_type = &"Panel"
 TargetMark/styles/panel = SubResource("StyleBoxFlat_target_mark")
 TargetMarkCurrent/base_type = &"Panel"

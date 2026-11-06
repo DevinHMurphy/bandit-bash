@@ -6,12 +6,13 @@
 // File:     unit_sprite.gdshader
 // Author:
 // Created:  November 5, 2026
-// Modified: November 5, 2026
+// Modified: November 6, 2026
 // ==============================================================================
 //
 // A unit's sprite on the battle board (UnitToken): an outline in its side's colour, gray while
-// the unit can't act, and a tint. Godot_FE's StrokeShader behaviour, rewritten: line_color,
-// line_thickness, color_factor (here gray_amount) and modulate_color.
+// the unit can't act, a tint, and a flash when it takes a critical hit. Godot_FE's StrokeShader
+// behaviour, rewritten: line_color, line_thickness, color_factor (here gray_amount) and
+// modulate_color; flash_color and flash_amount are new.
 //
 // The quad grows by line_thickness texels on every side, so the outline of a sprite that touches
 // its image's edge isn't cut off; samples outside the image read as transparent. The node's own
@@ -28,6 +29,10 @@ uniform float line_thickness : hint_range(0.0, 4.0, 0.5) = 1.0;
 uniform float gray_amount : hint_range(0.0, 1.0) = 0.0;
 // Multiplies the sprite's colours, not its outline. White leaves it as drawn.
 uniform vec4 modulate_color : source_color = vec4(1.0);
+// The colour a flash draws the sprite toward, not its outline.
+uniform vec4 flash_color : source_color = vec4(1.0);
+// How far the sprite is drawn toward flash_color: 0 not at all, 1 entirely.
+uniform float flash_amount : hint_range(0.0, 1.0) = 0.0;
 
 varying vec4 node_color;
 
@@ -68,10 +73,10 @@ void fragment() {
 	outline += texture(TEXTURE, down_left).a * inside(down_left);
 	outline += texture(TEXTURE, down_right).a * inside(down_right);
 	float edge_alpha = line_thickness > 0.0 ? min(outline, 1.0) * line_color.a : 0.0;
-	// ASSUMPTION: Godot_FE weighed red as r * r, read as a typo for 0.21 beside the 0.71 and 0.07
-	// it gave green and blue (Rec. 709's weights, rounded).
+	// Rec. 709's weights, rounded; Godot_FE weighed red as r * r, a typo for 0.21.
 	float gray = dot(base.rgb, vec3(0.21, 0.71, 0.07));
 	vec3 sprite = mix(base.rgb * modulate_color.rgb, vec3(gray), gray_amount);
+	sprite = mix(sprite, flash_color.rgb, flash_amount);
 	// The sprite drawn over its outline.
 	float alpha = base.a + edge_alpha * (1.0 - base.a);
 	vec3 rgb = sprite * base.a + line_color.rgb * edge_alpha * (1.0 - base.a);

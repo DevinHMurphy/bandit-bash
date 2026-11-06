@@ -6,24 +6,25 @@
 # File:     unit_token.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 5, 2026
+# Modified: November 6, 2026
 # ==============================================================================
 
 class_name UnitToken
 extends Node2D
-## One unit on the battle board: its sprite, or its type's letters when it has none; an HP bar, a
-## Stance bar below it and a [BlockBadge] beside them; and an icon while the enemy range toggle
-## tracks it (combat UI plan, questions 22 and 23).
+## One unit on the battle board: its sprite, or its type's letters when it has none, in the world;
+## its HP, Stance, Block and range-tracked icon on its [UnitInfo] (combat UI plan, questions 22,
+## 23 and 29).
 ##
 ## [BattleView] places one per unit, moves it and gives it each value as the facts play
 ## ([method show_unit], [method show_hp], [method show_stance], [method show_block],
-## [method show_turn], [method show_range_tracked]); the token only draws what it is given and
-## holds no rules. Its origin is the tile's centre; the layout is authored in the scene for 32 px
-## tiles.[br]
+## [method show_turn], [method show_range_tracked]); the token keeps the values shown and passes
+## them to [member info], which the [UnitInfoLayer] keeps over it on screen. It holds no rules.
+## Its origin is the tile's centre; the layout is authored in the scene for 32 px tiles.[br]
 ## [b]The sprite[/b] is [member sprites]'s texture for the unit's type, drawn by
 ## [code]unit_sprite.gdshader[/code] (Godot_FE's [code]StrokeShader[/code], rewritten): outlined
-## in its side's colour, gray while [method is_spent], tinted while its range is tracked. A type
-## with no sprite shows its letters on a square of its side's colour, gray while spent.[br]
+## in its side's colour, gray while [method is_spent], tinted while its range is tracked, and
+## flashed by a critical hit ([method flash]). A type with no sprite shows its letters on a square
+## of its side's colour, gray while spent.[br]
 ## [b]Target outlines[/b] stay [TargetMark]s, which also mark map objects and lettered units.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
@@ -39,6 +40,12 @@ const GRAY_PARAM: StringName = &"gray_amount"
 
 ## The sprite shader's tint parameter.
 const TINT_PARAM: StringName = &"modulate_color"
+
+## The sprite shader's flash colour parameter.
+const FLASH_COLOR_PARAM: StringName = &"flash_color"
+
+## The sprite shader's parameter for how far the sprite is drawn toward the flash colour.
+const FLASH_AMOUNT_PARAM: StringName = &"flash_amount"
 
 @export_group("Sprite")
 
@@ -113,7 +120,7 @@ var max_hp: int = 0
 ## The Stance the token shows; follows the facts as they play.
 var stance: int = 0
 
-## The Stance maximum the bar is drawn against.
+## The Stance maximum the pips are drawn against.
 var stance_max: int = 0
 
 ## The Block the badge shows; follows the facts as they play.
@@ -128,13 +135,21 @@ var is_second_move_pending: bool = false
 ## Whether the enemy range toggle tracks the unit.
 var is_range_tracked: bool = false
 
+## Its bars, numbers and icons on the [UnitInfoLayer], which sets this; null draws none of them.
+var info: UnitInfo = null
+
+## How far the token is drawn toward a flash's colour ([method flash]): 0.0 not at all.
+var flash_amount: float = 0.0:
+	set(value):
+		flash_amount = value
+		if is_node_ready():
+			_apply_flash()
+
+var _flash_color: Color = Color.WHITE
+
 @onready var _sprite: Sprite2D = %Sprite
 @onready var _body: ColorRect = %Body
 @onready var _letter: Label = %Letter
-@onready var _hp_bar: ProgressBar = %HpBar
-@onready var _stance_bar: ProgressBar = %StanceBar
-@onready var _block_badge: BlockBadge = %BlockBadge
-@onready var _range_icon: Control = %RangeTrackedIcon
 
 
 ## Draws [param view]: its sprite or letters, its side's outline or colour, its HP, Stance, Block
@@ -157,28 +172,42 @@ func show_unit(view: BoardViewModel.UnitView) -> void:
 	show_turn(view.has_acted, view.is_second_move_pending)
 
 
-## Shows [param current] HP of [param maximum] on the bar; HP is never shown below 0.
+## Shows [param current] HP of [param maximum]; HP is never shown below 0.
 func show_hp(current: int, maximum: int) -> void:
 	hp = maxi(current, 0)
 	max_hp = maxi(maximum, 1)
-	_hp_bar.max_value = max_hp
-	_hp_bar.value = hp
+	if is_instance_valid(info):
+		info.show_hp(hp, max_hp)
 
 
-## Shows [param current] Stance of [param maximum] on the Stance bar. Stance is never shown below
-## 0, and the bar is full while Stance is over its maximum (Triage can raise it past).
-func show_stance(current: int, maximum: int) -> void:
+## Shows [param current] Stance of [param maximum] on the pips; Stance is never shown below 0, and
+## Triage can raise it past its maximum. Returns the pips' change tween on a drop, paused for the
+## caller to step, else null ([method StancePips.show_stance]).
+func show_stance(current: int, maximum: int) -> Tween:
 	stance = maxi(current, 0)
 	stance_max = maxi(maximum, 0)
-	var bar_max: int = maxi(stance_max, 1)
-	_stance_bar.max_value = bar_max
-	_stance_bar.value = mini(stance, bar_max)
+	if not is_instance_valid(info):
+		return null
+	return info.show_stance(stance, stance_max)
+
+
+## Dims the pips a forecast's exchange would break, down to [param after] Stance.
+func show_stance_preview(after: int) -> void:
+	if is_instance_valid(info):
+		info.show_stance_preview(after)
+
+
+## Dims no pip.
+func clear_stance_preview() -> void:
+	if is_instance_valid(info):
+		info.clear_stance_preview()
 
 
 ## Shows [param amount] Block on the badge; Block is never shown below 0.
 func show_block(amount: int) -> void:
 	block = maxi(amount, 0)
-	_block_badge.show_block(block)
+	if is_instance_valid(info):
+		info.show_block(block)
 
 
 ## Shows whether the unit [param acted] and whether its [param second_move_pending]: it is drawn
@@ -186,22 +215,34 @@ func show_block(amount: int) -> void:
 func show_turn(acted: bool, second_move_pending: bool) -> void:
 	has_acted = acted
 	is_second_move_pending = second_move_pending
-	var gray: float = spent_gray if is_spent() else 0.0
-	_set_param(GRAY_PARAM, gray)
-	var body: Color = color_of(side)
-	var luminance: float = body.get_luminance()
-	_body.color = body.lerp(Color(luminance, luminance, luminance, body.a), gray)
+	_set_param(GRAY_PARAM, spent_gray if is_spent() else 0.0)
+	_apply_flash()
 
 
-## Shows whether the enemy range toggle [param is_tracked] the unit: its icon, and
+## Shows whether the enemy range toggle [param is_tracked] the unit: the icon on its info, and
 ## [member range_tracked_tint] on its sprite.
 func show_range_tracked(is_tracked: bool) -> void:
 	is_range_tracked = is_tracked
-	_range_icon.visible = is_tracked
+	if is_instance_valid(info):
+		info.show_range_tracked(is_tracked)
 	_set_param(TINT_PARAM, range_tracked_tint if is_tracked else Color.WHITE)
 
 
-# ASSUMPTION: a unit with a second move pending isn't gray, since it can still move.
+## Starts a flash toward [param color] that fades over [param seconds] (a critical hit), on the
+## sprite or the letters' body, and returns it, paused for the caller to step; null when
+## [param seconds] is 0.
+func flash(color: Color, seconds: float) -> Tween:
+	if seconds <= 0.0:
+		return null
+	_flash_color = color
+	_set_param(FLASH_COLOR_PARAM, color)
+	flash_amount = 1.0
+	var tween: Tween = create_tween()
+	tween.pause()
+	tween.tween_property(self, ^"flash_amount", 0.0, seconds)
+	return tween
+
+
 ## Whether the unit can't act again before its side's next phase: it acted and has no second
 ## move pending, as [method TurnInputModel.can_act] reads a unit.
 func is_spent() -> bool:
@@ -253,19 +294,22 @@ func get_outline() -> Color:
 	return outline
 
 
-## Whether the range-tracked icon shows.
+## Whether the range-tracked icon shows on its info.
 func is_range_icon_shown() -> bool:
-	return _range_icon.visible
+	return is_instance_valid(info) and info.is_range_icon_shown()
 
 
-## The Block badge.
+## The Block badge on its info; null with no info.
 func get_block_badge() -> BlockBadge:
-	return _block_badge
+	return info.get_block_badge() if is_instance_valid(info) else null
 
 
-## The Stance bar as drawn, for tests: x its value, y its maximum.
+## The Stance pips as drawn, for tests: x the Stance, y its maximum; (-1, -1) with no info.
 func get_stance_bar() -> Vector2i:
-	return Vector2i(roundi(_stance_bar.value), roundi(_stance_bar.max_value))
+	if not is_instance_valid(info):
+		return Vector2i(-1, -1)
+	var pips: StancePips = info.get_stance_pips()
+	return Vector2i(pips.stance, pips.stance_max)
 
 
 ## The letters' body colour for [param of_side].
@@ -286,6 +330,16 @@ func outline_of(of_side: CombatFact.CombatSide) -> Color:
 		CombatFact.CombatSide.ENEMY:
 			return enemy_outline
 	return other_outline
+
+
+# The flash on the sprite's shader, and on the letters' body over its gray.
+func _apply_flash() -> void:
+	_set_param(FLASH_AMOUNT_PARAM, flash_amount)
+	var body: Color = color_of(side)
+	var luminance: float = body.get_luminance()
+	var gray: float = spent_gray if is_spent() else 0.0
+	body = body.lerp(Color(luminance, luminance, luminance, body.a), gray)
+	_body.color = body.lerp(Color(_flash_color, body.a), flash_amount)
 
 
 # value: a float or a Color, whichever the parameter takes.

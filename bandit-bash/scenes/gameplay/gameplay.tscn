@@ -47,6 +47,7 @@ unique_name_in_owner = true
 [node name="Players" type="Node2D" parent="."]
 
 [node name="Hud" type="CanvasLayer" parent="."]
+layer = 2
 
 [node name="BattleHud" parent="Hud" instance=ExtResource("19_hud")]
 unique_name_in_owner = true

@@ -6,14 +6,15 @@
 # File:     block_badge.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 5, 2026
+# Modified: November 6, 2026
 # ==============================================================================
 
 class_name BlockBadge
 extends Panel
-## A unit's Block as a small numbered badge beside its token's bars (combat UI plan, question 23).
+## A unit's Block as a small numbered badge beside its bars on its [UnitInfo] (combat UI plan,
+## question 23).
 ##
-## [UnitToken] says how much ([method show_block]); the badge holds no rules. Its look is the
+## [UnitInfo] says how much ([method show_block]); the badge holds no rules. Its look is the
 ## theme's [code]BlockBadge[/code] panel and [code]BlockBadgeLabel[/code] label styles
 ## ([code]battle_theme.tres[/code]).
 ##

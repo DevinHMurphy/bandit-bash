@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3]
+[gd_scene load_steps=18 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/battle/battle_view.gd" id="1_view"]
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/unit_token.tscn" id="2_token"]
@@ -16,6 +16,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/enemy_support_overlay.tscn" id="14_enemy_support"]
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/danger_support_overlay.tscn" id="15_danger_support"]
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/target_mark.tscn" id="16_target_mark"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/unit_info_layer.tscn" id="17_info_layer"]
 
 [node name="BattleView" type="Node2D"]
 script = ExtResource("1_view")
@@ -63,6 +64,9 @@ unique_name_in_owner = true
 unique_name_in_owner = true
 
 [node name="Numbers" type="Node2D" parent="."]
+unique_name_in_owner = true
+
+[node name="UnitInfoLayer" parent="." instance=ExtResource("17_info_layer")]
 unique_name_in_owner = true
 
 [node name="CameraRig" parent="." instance=ExtResource("5_rig")]
