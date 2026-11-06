@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="UnitSpriteTable" load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/battle/unit_sprite_table.gd" id="1_table"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/archer.png" id="2_archer"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/field_medic.png" id="3_field_medic"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/vandal.png" id="4_vandal"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/crossbowman.png" id="5_crossbowman"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/drengr.png" id="6_drengr"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/hakkapel.png" id="7_hakkapel"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/healer.png" id="8_healer"]
+
+[resource]
+script = ExtResource("1_table")
+sprites = Dictionary[String, Texture2D]({
+"archer": ExtResource("2_archer"),
+"battle_medic": ExtResource("3_field_medic"),
+"brute": ExtResource("4_vandal"),
+"crossbowman": ExtResource("5_crossbowman"),
+"drengr": ExtResource("6_drengr"),
+"hakkapel": ExtResource("7_hakkapel"),
+"hedge_healer": ExtResource("8_healer")
+})

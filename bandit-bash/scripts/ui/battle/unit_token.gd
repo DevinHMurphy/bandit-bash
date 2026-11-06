@@ -11,25 +11,76 @@
 
 class_name UnitToken
 extends Node2D
-## One unit on the battle board, greybox: a side-coloured square with its type's letters and an HP
-## bar (combat UI plan, questions 4 and 18 (e)).
+## One unit on the battle board: its sprite, or its type's letters when it has none; an HP bar, a
+## Stance bar below it and a [BlockBadge] beside them; and an icon while the enemy range toggle
+## tracks it (combat UI plan, questions 22 and 23).
 ##
-## [BattleView] places one per unit and moves it; the token only draws what it is given
-## ([method show_unit], [method show_hp]) and holds no rules. Its origin is the tile's centre; the
-## layout is authored in the scene for 32 px tiles.
+## [BattleView] places one per unit, moves it and gives it each value as the facts play
+## ([method show_unit], [method show_hp], [method show_stance], [method show_block],
+## [method show_turn], [method show_range_tracked]); the token only draws what it is given and
+## holds no rules. Its origin is the tile's centre; the layout is authored in the scene for 32 px
+## tiles.[br]
+## [b]The sprite[/b] is [member sprites]'s texture for the unit's type, drawn by
+## [code]unit_sprite.gdshader[/code] (Godot_FE's [code]StrokeShader[/code], rewritten): outlined
+## in its side's colour, gray while [method is_spent], tinted while its range is tracked. A type
+## with no sprite shows its letters on a square of its side's colour, gray while spent.[br]
+## [b]Target outlines[/b] stay [TargetMark]s, which also mark map objects and lettered units.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
-## Body colour of a player-side unit.
+## The sprite shader's outline colour parameter.
+const OUTLINE_COLOR_PARAM: StringName = &"line_color"
+
+## The sprite shader's outline width parameter.
+const OUTLINE_WIDTH_PARAM: StringName = &"line_thickness"
+
+## The sprite shader's parameter for how gray the sprite is.
+const GRAY_PARAM: StringName = &"gray_amount"
+
+## The sprite shader's tint parameter.
+const TINT_PARAM: StringName = &"modulate_color"
+
+@export_group("Sprite")
+
+## The sprite drawn for each unit type and enemy class; a type it doesn't list shows its letters.
+## Edit [code]assets/sprites/units/unit_sprites.tres[/code] to add or change one.[br]
+## [b]Unset:[/b] every unit shows its letters.
+@export var sprites: UnitSpriteTable = null
+
+## The sprite's outline for a player-side unit (Godot_FE's [code]Color.NAVY_BLUE[/code]).
+@export var player_outline: Color = Color(0.0, 0.0, 0.501961, 1.0)
+
+## The sprite's outline for an enemy-side unit (Godot_FE's [code]Color.DARK_RED[/code]).
+@export var enemy_outline: Color = Color(0.545098, 0.0, 0.0, 1.0)
+
+## The sprite's outline for a unit on neither side (Godot_FE's white).
+@export var other_outline: Color = Color(1.0, 1.0, 1.0, 1.0)
+
+## The outline's width, in the sprite's own pixels (Godot_FE's [code]line_thickness[/code]).[br]
+## [b]Units:[/b] texels. [b]0.0:[/b] no outline.
+@export_range(0.0, 4.0, 0.5) var outline_width: float = 1.0
+
+## How gray a spent unit is ([method is_spent]); Godot_FE's [code]color_factor[/code] was 1.[br]
+## [b]0.0:[/b] spent units keep their colour. [b]1.0:[/b] fully gray.
+@export_range(0.0, 1.0, 0.01) var spent_gray: float = 1.0
+
+## The tint on the sprite while its range is tracked, as Godot_FE tinted an enemy whose range
+## showed ([code]combat_unit_display.gd[/code]'s [code]RED[/code]).[br]
+## [b]White:[/b] no tint; the icon alone shows it.
+@export var range_tracked_tint: Color = Color(1.0, 0.52549, 0.458824, 1.0)
+
+@export_group("Letters")
+
 # ASSUMPTION: greybox colour; the combat UI plan sets no palette (Design Basis, Gaps).
+## Body colour of a lettered player-side unit.
 @export var player_color: Color = Color(0.25, 0.45, 0.9, 1.0)
 
-## Body colour of an enemy-side unit.
 # ASSUMPTION: greybox colour, as above.
+## Body colour of a lettered enemy-side unit.
 @export var enemy_color: Color = Color(0.85, 0.25, 0.25, 1.0)
 
-## Body colour of a unit on neither side (a map object standing as a unit).
 # ASSUMPTION: greybox colour, as above.
+## Body colour of a lettered unit on neither side (a map object standing as a unit).
 @export var other_color: Color = Color(0.6, 0.6, 0.6, 1.0)
 
 ## How many letters of the unit type id the token shows, underscores skipped, upper case
@@ -41,6 +92,8 @@ extends Node2D
 ## [b]Empty:[/b] every type shows its first [member letter_count] letters.
 @export var letter_overrides: Dictionary[String, String] = {}
 
+@export_group("")
+
 ## The unit this token stands for; empty until [method show_unit].
 var unit_id: String = ""
 
@@ -48,24 +101,60 @@ var unit_id: String = ""
 ## the unit is going while the move plays.
 var tile: Vector2i = CombatFact.NO_TILE
 
+## The side it is drawn for.
+var side: CombatFact.CombatSide = CombatFact.CombatSide.NONE
+
 ## The HP the token shows; follows the facts as they play.
 var hp: int = 0
 
 ## The maximum HP the bar is drawn against.
 var max_hp: int = 0
 
+## The Stance the token shows; follows the facts as they play.
+var stance: int = 0
+
+## The Stance maximum the bar is drawn against.
+var stance_max: int = 0
+
+## The Block the badge shows; follows the facts as they play.
+var block: int = 0
+
+## Whether the unit has taken its action, as shown.
+var has_acted: bool = false
+
+## Whether the unit may still move after its action, as shown.
+var is_second_move_pending: bool = false
+
+## Whether the enemy range toggle tracks the unit.
+var is_range_tracked: bool = false
+
+@onready var _sprite: Sprite2D = %Sprite
 @onready var _body: ColorRect = %Body
 @onready var _letter: Label = %Letter
 @onready var _hp_bar: ProgressBar = %HpBar
+@onready var _stance_bar: ProgressBar = %StanceBar
+@onready var _block_badge: BlockBadge = %BlockBadge
+@onready var _range_icon: Control = %RangeTrackedIcon
 
 
-## Draws [param view]: its side's colour, its type's letters ([method letters_for]) and its HP.
+## Draws [param view]: its sprite or letters, its side's outline or colour, its HP, Stance, Block
+## and turn. Whether its range is tracked is left as it is.
 func show_unit(view: BoardViewModel.UnitView) -> void:
 	unit_id = view.id
 	tile = view.tile
-	_body.color = color_of(view.side)
+	side = view.side
 	_letter.text = letters_for(view.unit_type)
+	var texture: Texture2D = sprite_for(view.unit_type)
+	_sprite.texture = texture
+	_sprite.visible = texture != null
+	_body.visible = texture == null
+	_letter.visible = texture == null
+	_set_param(OUTLINE_COLOR_PARAM, outline_of(side))
+	_set_param(OUTLINE_WIDTH_PARAM, outline_width)
 	show_hp(view.hp, view.max_hp)
+	show_stance(view.stance, view.stance_max)
+	show_block(view.block)
+	show_turn(view.has_acted, view.is_second_move_pending)
 
 
 ## Shows [param current] HP of [param maximum] on the bar; HP is never shown below 0.
@@ -76,6 +165,64 @@ func show_hp(current: int, maximum: int) -> void:
 	_hp_bar.value = hp
 
 
+## Shows [param current] Stance of [param maximum] on the Stance bar. Stance is never shown below
+## 0, and the bar is full while Stance is over its maximum (Triage can raise it past).
+func show_stance(current: int, maximum: int) -> void:
+	stance = maxi(current, 0)
+	stance_max = maxi(maximum, 0)
+	var bar_max: int = maxi(stance_max, 1)
+	_stance_bar.max_value = bar_max
+	_stance_bar.value = mini(stance, bar_max)
+
+
+## Shows [param amount] Block on the badge; Block is never shown below 0.
+func show_block(amount: int) -> void:
+	block = maxi(amount, 0)
+	_block_badge.show_block(block)
+
+
+## Shows whether the unit [param acted] and whether its [param second_move_pending]: it is drawn
+## gray while [method is_spent].
+func show_turn(acted: bool, second_move_pending: bool) -> void:
+	has_acted = acted
+	is_second_move_pending = second_move_pending
+	var gray: float = spent_gray if is_spent() else 0.0
+	_set_param(GRAY_PARAM, gray)
+	var body: Color = color_of(side)
+	var luminance: float = body.get_luminance()
+	_body.color = body.lerp(Color(luminance, luminance, luminance, body.a), gray)
+
+
+## Shows whether the enemy range toggle [param is_tracked] the unit: its icon, and
+## [member range_tracked_tint] on its sprite.
+func show_range_tracked(is_tracked: bool) -> void:
+	is_range_tracked = is_tracked
+	_range_icon.visible = is_tracked
+	_set_param(TINT_PARAM, range_tracked_tint if is_tracked else Color.WHITE)
+
+
+# ASSUMPTION: a unit with a second move pending isn't gray, since it can still move.
+## Whether the unit can't act again before its side's next phase: it acted and has no second
+## move pending, as [method TurnInputModel.can_act] reads a unit.
+func is_spent() -> bool:
+	return has_acted and not is_second_move_pending
+
+
+## The sprite for [param unit_type]; null when [member sprites] has none.
+func sprite_for(unit_type: String) -> Texture2D:
+	return null if sprites == null else sprites.sprite_for(unit_type)
+
+
+## Whether the token draws a sprite, not letters.
+func has_sprite() -> bool:
+	return _sprite.visible and _sprite.texture != null
+
+
+## The sprite drawn; null while the token shows letters.
+func get_sprite() -> Texture2D:
+	return _sprite.texture if has_sprite() else null
+
+
 ## The letters shown for [param unit_type]: its [member letter_overrides] entry, else its first
 ## [member letter_count] letters.
 func letters_for(unit_type: String) -> String:
@@ -84,16 +231,74 @@ func letters_for(unit_type: String) -> String:
 	return BoardViewModel.letter_of(unit_type, letter_count)
 
 
-## The letters the token shows now, for tests.
+## The token's letters, for tests: set whether they show or the sprite hides them.
 func get_letters() -> String:
 	return _letter.text
 
 
-## The body colour for [param side].
-func color_of(side: CombatFact.CombatSide) -> Color:
-	match side:
+## Whether the letters show, for a type with no sprite.
+func is_showing_letters() -> bool:
+	return _letter.visible
+
+
+## How gray the token is drawn now, for tests: 0.0 in colour, [member spent_gray] while spent.
+func get_gray() -> float:
+	var gray: float = _get_param(GRAY_PARAM, 0.0)
+	return gray
+
+
+## The sprite's outline colour now, for tests.
+func get_outline() -> Color:
+	var outline: Color = _get_param(OUTLINE_COLOR_PARAM, Color.TRANSPARENT)
+	return outline
+
+
+## Whether the range-tracked icon shows.
+func is_range_icon_shown() -> bool:
+	return _range_icon.visible
+
+
+## The Block badge.
+func get_block_badge() -> BlockBadge:
+	return _block_badge
+
+
+## The Stance bar as drawn, for tests: x its value, y its maximum.
+func get_stance_bar() -> Vector2i:
+	return Vector2i(roundi(_stance_bar.value), roundi(_stance_bar.max_value))
+
+
+## The letters' body colour for [param of_side].
+func color_of(of_side: CombatFact.CombatSide) -> Color:
+	match of_side:
 		CombatFact.CombatSide.PLAYER:
 			return player_color
 		CombatFact.CombatSide.ENEMY:
 			return enemy_color
 	return other_color
+
+
+## The sprite's outline colour for [param of_side].
+func outline_of(of_side: CombatFact.CombatSide) -> Color:
+	match of_side:
+		CombatFact.CombatSide.PLAYER:
+			return player_outline
+		CombatFact.CombatSide.ENEMY:
+			return enemy_outline
+	return other_outline
+
+
+# value: a float or a Color, whichever the parameter takes.
+func _set_param(param: StringName, value: Variant) -> void:
+	var shader: ShaderMaterial = _sprite.material as ShaderMaterial
+	if shader != null:
+		shader.set_shader_parameter(param, value)
+
+
+# Returns a float or a Color, as fallback is; fallback when the sprite has no shader material.
+func _get_param(param: StringName, fallback: Variant) -> Variant:
+	var shader: ShaderMaterial = _sprite.material as ShaderMaterial
+	if shader == null:
+		return fallback
+	var value: Variant = shader.get_shader_parameter(param)
+	return fallback if value == null else value
