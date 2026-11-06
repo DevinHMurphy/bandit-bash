@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 5, 2026
+# Modified: November 6, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -22,9 +22,11 @@ extends SceneTree
 ## targeting: the target list against the validator, its wrapping, keys and the mouse sending one
 ## command, the target outlines, Q / E unit cycling, the purple support overlays and the healers'
 ## missing attack tiles ([code]targeting_cases.gd[/code]); the unit display: each M1 unit's
-## sprite or letters and side outline, the HP and Stance bars and Block badge following facts
+## sprite or letters and side outline, the HP, Stance and Block following facts
 ## and the session, grayscale while a unit can't act, and the range-tracked icon
-## ([code]unit_display_cases.gd[/code]); then
+## ([code]unit_display_cases.gd[/code]); the unit info: the HP number, the Stance pips and their
+## forecast dimming, the info layer through camera moves, Miss and Critical pop-ups in every
+## playback mode ([code]unit_info_cases.gd[/code]); then
 ## the gameplay screen itself: a run saved mid-battle and continued opens on the board at its
 ## saved state; its save debug panel (hidden when the battle opens, toggled by F3
 ## and read afresh each time it shows, clear of the M1 map at the 1152×648 base size, and
@@ -56,6 +58,7 @@ const IntentCases = preload("res://tests/ui/intent_cases.gd")
 const HudCases = preload("res://tests/ui/hud_cases.gd")
 const TargetingCases = preload("res://tests/ui/targeting_cases.gd")
 const UnitDisplayCases = preload("res://tests/ui/unit_display_cases.gd")
+const UnitInfoCases = preload("res://tests/ui/unit_info_cases.gd")
 const CatalogCases = preload("res://tests/content/catalog_cases.gd")
 
 const GAMEPLAY_SCENE: String = "res://scenes/gameplay/gameplay.tscn"
@@ -139,6 +142,7 @@ func _process(_delta: float) -> bool:
 		HudCases.new(_check, root).run()
 		TargetingCases.new(_check, root).run()
 		UnitDisplayCases.new(_check, root).run()
+		UnitInfoCases.new(_check, root).run()
 		_run_continue_case()
 		if _start_panel_case():
 			_panel_frame = _frame

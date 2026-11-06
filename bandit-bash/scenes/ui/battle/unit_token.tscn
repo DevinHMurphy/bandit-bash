@@ -4,7 +4,6 @@
 [ext_resource type="Theme" uid="uid://bi25fbqd4wl3o" path="res://scenes/ui/battle/battle_theme.tres" id="2_theme"]
 [ext_resource type="Shader" uid="uid://dpwfbxfur8fb0" path="res://scenes/ui/battle/unit_sprite.gdshader" id="3_shader"]
 [ext_resource type="Resource" path="res://assets/sprites/units/unit_sprites.tres" id="4_sprites"]
-[ext_resource type="PackedScene" uid="uid://bgmxqllrpuh84" path="res://scenes/ui/battle/block_badge.tscn" id="5_badge"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sprite"]
 resource_local_to_scene = true
@@ -13,6 +12,8 @@ shader_parameter/line_color = Color(1, 1, 1, 1)
 shader_parameter/line_thickness = 1.0
 shader_parameter/gray_amount = 0.0
 shader_parameter/modulate_color = Color(1, 1, 1, 1)
+shader_parameter/flash_color = Color(1, 1, 1, 1)
+shader_parameter/flash_amount = 0.0
 
 [node name="UnitToken" type="Node2D" unique_id=1061878670]
 script = ExtResource("1_token")
@@ -55,56 +56,3 @@ theme_type_variation = &"TokenLetter"
 text = "?"
 horizontal_alignment = 1
 vertical_alignment = 1
-
-[node name="RangeTrackedIcon" type="Panel" parent="Frame" unique_id=1910092169]
-unique_name_in_owner = true
-visible = false
-layout_mode = 0
-offset_left = 1.0
-offset_top = 1.0
-offset_right = 8.0
-offset_bottom = 8.0
-mouse_filter = 2
-theme_type_variation = &"RangeTrackedIcon"
-
-[node name="HpBar" type="ProgressBar" parent="Frame" unique_id=1088094313]
-unique_name_in_owner = true
-layout_mode = 0
-offset_left = 3.0
-offset_top = 25.0
-offset_right = 29.0
-offset_bottom = 28.0
-mouse_filter = 2
-max_value = 1.0
-step = 1.0
-value = 1.0
-show_percentage = false
-
-[node name="StanceBar" type="ProgressBar" parent="Frame" unique_id=1739686005]
-unique_name_in_owner = true
-layout_mode = 0
-offset_left = 3.0
-offset_top = 28.0
-offset_right = 29.0
-offset_bottom = 31.0
-mouse_filter = 2
-theme_type_variation = &"StanceBar"
-max_value = 1.0
-step = 1.0
-value = 1.0
-show_percentage = false
-
-[node name="BlockBadge" parent="Frame" unique_id=183393983 instance=ExtResource("5_badge")]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 7
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -13.0
-offset_top = -16.0
-offset_right = -4.0
-offset_bottom = -7.0
-grow_horizontal = 2
-grow_vertical = 0
