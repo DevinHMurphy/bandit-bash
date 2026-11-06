@@ -34,12 +34,12 @@ enum Style {
 	CRITICAL = 3,
 }
 
-## Colour of a damage number.
 # ASSUMPTION: greybox colour; no palette is set (combat UI plan, Design Basis, Gaps).
+## Colour of a damage number.
 @export var damage_color: Color = Color(1.0, 0.85, 0.3, 1.0)
 
-## Colour of a heal number.
 # ASSUMPTION: greybox colour, as above.
+## Colour of a heal number.
 @export var heal_color: Color = Color(0.45, 1.0, 0.5, 1.0)
 
 ## Colour of a "Miss" (Godot_FE's [code]DamageNumbers.miss[/code], white).
@@ -51,19 +51,19 @@ enum Style {
 ## The text of a missed strike's pop-up (Godot_FE's [code]"Miss"[/code]).
 @export var miss_text: String = "Miss"
 
-## The text of a critical hit's pop-up; [code]%d[/code] is the crit's damage.
 # ASSUMPTION: Godot_FE showed only the number and a "!"; question 29 (5) asks for "Critical"
 # with the damage.
+## The text of a critical hit's pop-up; [code]%d[/code] is the crit's damage.
 @export var critical_format: String = "Critical %d"
 
+# ASSUMPTION: no basis in Godot_FE or the vision; for M1's tuning pass (plan, question 5).
 ## How far the pop-up rises while it fades.[br]
 ## [b]Units:[/b] pixels.
-# ASSUMPTION: no basis in Godot_FE or the vision; for M1's tuning pass (plan, question 5).
 @export_range(0.0, 128.0, 1.0) var rise_distance: float = 16.0
 
+# ASSUMPTION: no basis in Godot_FE or the vision; for M1's tuning pass (plan, question 5).
 ## How long the pop-up stays on screen at playback speed 1.0.[br]
 ## [b]Units:[/b] seconds.
-# ASSUMPTION: no basis in Godot_FE or the vision; for M1's tuning pass (plan, question 5).
 @export_range(0.05, 5.0, 0.05) var lifetime: float = 0.8
 
 ## The style shown, for tests; set by [method show_style].
