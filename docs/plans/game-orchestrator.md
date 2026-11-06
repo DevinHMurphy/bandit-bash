@@ -404,9 +404,11 @@ M2 work, in the order to send it. Steps on one line can run in parallel.
    zoom, Stance pips, Miss and Critical pop-ups) once question 29 is answered.
 3. **Then:** P07 **UI9** (controller support, with question 28 (e) and (f)) after UI7F and UI8,
    then **UI10** (the swap setting and its save, every objective's HUD, unit detail).
-4. **Bugs** ([bug tracker](bug-tracker.md)): open S2s BUG-001 (no Block at combat start; needs a
-   decision) and BUG-002 (the forecast's crit ignores Stance). The user is adding the engine bugs
-   found in play; once triaged they go out as fix step **BF1**.
+4. **Bugs** ([bug tracker](bug-tracker.md)): open S2s BUG-004 (an enemy with an attack intent
+   moves and doesn't attack; details asked of the user), BUG-001 (no Block at combat start; needs a
+   decision), BUG-002 (the forecast's crit ignores Stance) and BUG-004 (an enemy with an attack
+   intent moves and doesn't attack; the next enemy hits its target). The user is adding the
+   engine bugs found in play; once triaged they go out as fix step **BF1**.
 5. **M2's content, alongside the UI:** P03 CT4–CT13 (CT6 and CT13 first; the rest per the plan)
    and P05 EN6–EN12 (the roster, elites and bosses, mini-bosses, map-object AI, reinforcement
    groups, the Powder Baron), with the maps they need (P04). To be sequenced when the UI queue
@@ -514,3 +516,4 @@ M2 work, in the order to send it. Steps on one line can run in parallel.
 | November 6, 2026 | **P07 UI7 merged into `dev`** (634b135; verified: ui 188, every other suite unchanged, launch clean; run with the Godot 4.7.1 stable binary unpacked from Downloads, since the OneDrive Desktop path in CLAUDE.md no longer exists): seven `Godot_FE` unit sprites with a sprite table, a sprite shader (side outline, grayscale once acted), HP and Stance bars, a Block badge, the range-tracked icon and tint, a lavender edge on the purple support overlays. Raised P07 question 28 (UI7 review). |
 | November 6, 2026 | P07 questions 27 and 28 answered (as recommended; 28 (e) and (f) go into UI9). **Bug tracker created** ([bug-tracker.md](bug-tracker.md)), working under this file: BUG-001 (no Block at combat start; needs a decision, since the vision sets base Block to 0), BUG-002 (the forecast's crit ignores Stance), BUG-003 (save-system.md's retry ids, for CC9). From the user's playtest: P07 question 29 raised for a new step **UI7F** (the `Godot_FE` HP bar with numbers, a unit info layer ready for zoom, Stance pips, Miss pop-ups). The Godot binary moved to `C:\Users\demur\Documents\Godot\`; CLAUDE.md and the runner's default updated. |
 | November 6, 2026 | User added critical indicators to UI7F (P07 question 29 (5)): a Critical pop-up from `CRIT_DEALT` / `CRIT_TAKEN` and a flash on the struck unit. |
+| November 6, 2026 | The user suggested the `godot-segmented-bar` addon for the Stance segments; reviewed and recorded as P07 question 29 (6): recommended as a reference for UI7F's own segmented bar, not as a vendored dependency. BUG-004 (an enemy with an attack intent moves and doesn't attack) logged in the tracker. |
