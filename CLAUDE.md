@@ -12,9 +12,10 @@ the code standards. If it is missing, stop and say so.
   file headers stays blank.
 - Engine: Godot 4.7.1. If `config/features` in `project.godot` disagrees, stop and ask.
 - Godot binary: `godot` is not on PATH. Use
-  `"C:\Users\demur\OneDrive\Desktop\Godot_v4.7.1-stable_win64.exe"` (Bash:
-  `"/c/Users/demur/OneDrive/Desktop/Godot_v4.7.1-stable_win64.exe"`) wherever these rules say
-  `godot`.
+  `"C:\Users\demur\Documents\Godot\Godot_v4.7.1-stable_win64.exe"` (Bash:
+  `"/c/Users/demur/Documents/Godot/Godot_v4.7.1-stable_win64.exe"`) wherever these rules say
+  `godot`. For headless runs whose output you read, prefer the console build beside it,
+  `Godot_v4.7.1-stable_win64_console.exe` (the test runner uses it by default).
 - Dates: never from memory. Run `date "+%B %-d, %Y"`.
 
 ### Repository layout

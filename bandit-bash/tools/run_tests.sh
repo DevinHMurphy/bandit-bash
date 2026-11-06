@@ -7,7 +7,7 @@
 # File:     run_tests.sh
 # Author:
 # Created:  October 29, 2026
-# Modified: October 30, 2026
+# Modified: November 6, 2026
 # ==============================================================================
 # Runs the headless test suites, parse checks and a launch check, and prints one verdict line per
 # run, so a result reads in a few lines instead of the full Godot output. Works from any folder.
@@ -32,7 +32,7 @@
 # ==============================================================================
 
 PROJECT="$(cd "$(dirname "$0")/.." && pwd)"
-WINDOWS_GODOT="/c/Users/demur/OneDrive/Desktop/Godot_v4.7.1-stable_win64.exe"
+WINDOWS_GODOT="/c/Users/demur/Documents/Godot/Godot_v4.7.1-stable_win64_console.exe"
 OVERRIDE="$PROJECT/override.cfg"
 LOGS="$(mktemp -d "${TMPDIR:-/tmp}/bandit_tests.XXXXXX")"
 failed=0
