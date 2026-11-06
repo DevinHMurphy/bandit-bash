@@ -159,7 +159,6 @@ StancePips/colors/flash_color = Color(1, 1, 1, 1)
 StancePips/colors/overflow_color = Color(0.6, 0.95, 1, 1)
 StancePips/colors/preview_color = Color(0.45, 0.36, 0.12, 1)
 StancePips/colors/tick_color = Color(0, 0, 0, 0.85)
-StancePips/constants/pip_width = 8
 StancePips/constants/separation = 1
 TargetMark/base_type = &"Panel"
 TargetMark/styles/panel = SubResource("StyleBoxFlat_target_mark")

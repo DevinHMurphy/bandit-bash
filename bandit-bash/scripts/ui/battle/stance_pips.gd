@@ -19,8 +19,9 @@ extends Control
 ## forecast is open, [method show_preview] dims the segments the exchange would break.[br]
 ## [b]Look,[/b] modelled on the godot-segmented-bar addon (question 29 (6); its code isn't used):
 ## [member segment_texture], the theme's [code]separation[/code], a lagging change colour on the
-## segments a drop took and a short flash. Colours and sizes are the theme's
-## [code]StancePips[/code] items ([code]battle_theme.tres[/code]).[br]
+## segments a drop took and a short flash. The segments stretch to share the pips' width, which
+## [UnitInfo] anchors to the [HpBar]'s, so they always span the bar. Colours and the separation
+## are the theme's [code]StancePips[/code] items ([code]battle_theme.tres[/code]).[br]
 ## [b]Event driven:[/b] it redraws only when [method show_stance] or [method show_preview] change
 ## it, or the change tween [method show_stance] returns is stepped; nothing runs per frame. It holds
 ## no rules: the values come from [UnitInfo].
@@ -96,22 +97,19 @@ func _draw() -> void:
 	var count: int = pip_count()
 	if count == 0:
 		return
-	var is_bar: bool = is_bar_mode()
-	var gap: float = 0.0 if is_bar else float(get_theme_constant(&"separation"))
-	var width: float = size.x / count if is_bar else float(get_theme_constant(&"pip_width"))
 	var flash_color: Color = get_theme_color(&"flash_color")
 	for i: int in count:
-		var rect: Rect2 = Rect2(i * (width + gap), 0.0, width, size.y)
+		var rect: Rect2 = segment_rect(i)
 		var color: Color = color_of(pip_at(i)).lerp(flash_color, _flash)
 		if segment_texture != null:
 			draw_texture_rect(segment_texture, rect, false, color)
 		else:
 			draw_rect(rect, color)
-	if not is_bar:
+	if not is_bar_mode():
 		return
 	var tick_color: Color = get_theme_color(&"tick_color")
 	for i: int in range(1, count):
-		var x: float = i * width
+		var x: float = segment_rect(i).position.x
 		draw_line(Vector2(x, 0.0), Vector2(x, size.y), tick_color, 1.0)
 
 
@@ -181,6 +179,18 @@ func tick_count() -> int:
 ## Whether the Exposed look shows: Stance 0 with a maximum above 0.
 func is_exposed() -> bool:
 	return stance == 0 and stance_max > 0
+
+
+## Where segment [param index] (0 is the leftmost) is drawn: the segments share the pips' whole
+## width, the theme's [code]separation[/code] apart (none in bar mode), so they always span it.
+## An empty rect while no segment is drawn.
+func segment_rect(index: int) -> Rect2:
+	var count: int = pip_count()
+	if count == 0:
+		return Rect2()
+	var gap: float = 0.0 if is_bar_mode() else float(get_theme_constant(&"separation"))
+	var width: float = maxf((size.x - gap * (count - 1)) / count, 0.0)
+	return Rect2(index * (width + gap), 0.0, width, size.y)
 
 
 ## How segment [param index] (0 is the leftmost) is drawn now.

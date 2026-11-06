@@ -18,7 +18,9 @@ extends Control
 ## Its origin is the unit's centre on screen; the layout is authored in screen pixels, around a
 ## tile drawn about 59 px wide (M1 framed in the default 1152 × 648 window). [UnitToken] gives it
 ## each value as the facts play and holds the values; this only draws them and holds no rules.
-## [UnitInfoLayer] places it over its token whenever the camera or the token moves.
+## [UnitInfoLayer] places it over its token whenever the camera or the token moves.[br]
+## [b]The pips[/b] are a child of the HP bar, anchored along its bottom edge, so they span the
+## bar's width however the bar is sized or moved; set their height in the scene.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 

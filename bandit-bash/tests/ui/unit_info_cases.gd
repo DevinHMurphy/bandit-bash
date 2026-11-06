@@ -147,6 +147,19 @@ func _test_pips() -> void:
 	_check.call("pips: every unit shows one filled pip per point of Stance", (
 			wrong.is_empty()
 	), "; ".join(wrong))
+	var unaligned: PackedStringArray = []
+	for unit_id: String in state.unit_ids():
+		var info: UnitInfo = board.view.token_of(unit_id).info
+		var bar: Rect2 = info.get_hp_bar().get_global_rect()
+		var pips_rect: Rect2 = info.get_stance_pips().get_global_rect()
+		if (
+				not is_equal_approx(pips_rect.position.x, bar.position.x)
+				or not is_equal_approx(pips_rect.size.x, bar.size.x)
+		):
+			unaligned.append("%s: pips %s, bar %s" % [unit_id, pips_rect, bar])
+	_check.call("pips: every unit's pips span its HP bar's width", (
+			unaligned.is_empty()
+	), "; ".join(unaligned))
 
 	var unit_id: String = state.units_of(PLAYER)[0]
 	var token: UnitToken = board.view.token_of(unit_id)
@@ -204,6 +217,22 @@ func _test_tick_fallback() -> void:
 	_check.call("pips: past the export count (default 6) they fall back to a bar with ticks", (
 			default_count == 6 and at_six and over and long_bar and raised
 	), "six %s, seven %s, eight %s, raised %s" % [at_six, over, long_bar, raised])
+
+	# From 1 to 9 points, as segments and as a bar, the first starts at the left edge and the last
+	# ends at the right, at two widths.
+	pips.tick_fallback_count = 6
+	var gaps: PackedStringArray = []
+	for width: float in [44.0, 71.0]:
+		pips.size = Vector2(width, 5.0)
+		for points: int in range(1, 10):
+			pips.show_stance(points, points)
+			var first: Rect2 = pips.segment_rect(0)
+			var last: Rect2 = pips.segment_rect(points - 1)
+			if not is_zero_approx(first.position.x) or not is_equal_approx(last.end.x, width):
+				gaps.append("%d at %d px: %s to %s" % [points, width, first.position.x, last.end.x])
+	_check.call("pips: the segments stretch to span the whole width, however many", (
+			gaps.is_empty()
+	), "; ".join(gaps))
 	pips.free()
 
 
