@@ -1,4 +1,4 @@
-[gd_resource type="TileSet" format=3]
+[gd_resource type="TileSet" format=3 uid="uid://d0aimsi5d1nlc"]
 
 [sub_resource type="Gradient" id="Gradient_i0hu4"]
 interpolation_mode = 1

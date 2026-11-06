@@ -1,4 +1,27 @@
-[gd_resource type="Theme" load_steps=9 format=3]
+[gd_resource type="Theme" format=3 uid="uid://bi25fbqd4wl3o"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_block_badge"]
+bg_color = Color(0.22, 0.36, 0.58, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.05, 0.08, 0.15, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+content_margin_left = 8.0
+content_margin_top = 6.0
+content_margin_right = 8.0
+content_margin_bottom = 6.0
+bg_color = Color(0.08, 0.08, 0.1, 0.85)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hp_back"]
 bg_color = Color(0.1, 0.1, 0.1, 0.85)
@@ -6,16 +29,20 @@ bg_color = Color(0.1, 0.1, 0.1, 0.85)
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hp_fill"]
 bg_color = Color(0.3, 0.85, 0.35, 1)
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
-bg_color = Color(0.08, 0.08, 0.1, 0.85)
-content_margin_left = 8.0
-content_margin_top = 6.0
-content_margin_right = 8.0
-content_margin_bottom = 6.0
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_range_tracked"]
+bg_color = Color(1, 0.52549, 0.458824, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.3, 0, 0, 1)
 corner_radius_top_left = 4
 corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_stance_fill"]
+bg_color = Color(0.95, 0.75, 0.2, 1)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_target_mark"]
 draw_center = false
@@ -33,106 +60,79 @@ border_width_right = 2
 border_width_bottom = 2
 border_color = Color(1, 1, 1, 1)
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_stance_fill"]
-bg_color = Color(0.95, 0.75, 0.2, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_block_badge"]
-bg_color = Color(0.22, 0.36, 0.58, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.05, 0.08, 0.15, 1)
-corner_radius_top_left = 2
-corner_radius_top_right = 2
-corner_radius_bottom_right = 2
-corner_radius_bottom_left = 2
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_range_tracked"]
-bg_color = Color(1, 0.52549, 0.458824, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.3, 0, 0, 1)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-
 [resource]
 default_font_size = 16
-Label/colors/font_color = Color(1, 1, 1, 1)
-Label/colors/font_outline_color = Color(0, 0, 0, 1)
-Label/constants/outline_size = 4
-TokenLetter/base_type = &"Label"
-TokenLetter/font_sizes/font_size = 14
+BlockBadge/base_type = &"Panel"
+BlockBadge/styles/panel = SubResource("StyleBoxFlat_block_badge")
+BlockBadgeLabel/base_type = &"Label"
+BlockBadgeLabel/constants/outline_size = 2
+BlockBadgeLabel/font_sizes/font_size = 8
 DamageNumberLabel/base_type = &"Label"
 DamageNumberLabel/constants/outline_size = 5
 DamageNumberLabel/font_sizes/font_size = 18
+FactLogText/base_type = &"RichTextLabel"
+FactLogText/font_sizes/normal_font_size = 11
+ForecastCell/base_type = &"Label"
+ForecastCell/font_sizes/font_size = 13
 ForecastHeading/base_type = &"Label"
 ForecastHeading/colors/font_color = Color(1, 0.9, 0.55, 1)
 ForecastHeading/font_sizes/font_size = 15
-ForecastCell/base_type = &"Label"
-ForecastCell/font_sizes/font_size = 13
-ForecastRowLabel/base_type = &"Label"
-ForecastRowLabel/colors/font_color = Color(0.7, 0.7, 0.75, 1)
-ForecastRowLabel/font_sizes/font_size = 13
 ForecastNote/base_type = &"Label"
 ForecastNote/colors/font_color = Color(0.82, 0.82, 0.86, 1)
 ForecastNote/font_sizes/font_size = 12
-PreviewDamageLabel/base_type = &"Label"
-PreviewDamageLabel/colors/font_color = Color(0.85, 0.45, 1, 1)
-PreviewDamageLabel/constants/outline_size = 5
-PreviewDamageLabel/font_sizes/font_size = 16
-IntentAttackGlyph/base_type = &"Label"
-IntentAttackGlyph/colors/font_color = Color(1, 0.4, 0.35, 1)
-IntentAttackGlyph/constants/outline_size = 5
-IntentAttackGlyph/font_sizes/font_size = 18
-IntentHealGlyph/base_type = &"Label"
-IntentHealGlyph/colors/font_color = Color(0.45, 1, 0.5, 1)
-IntentHealGlyph/constants/outline_size = 5
-IntentHealGlyph/font_sizes/font_size = 18
-IntentGuardGlyph/base_type = &"Label"
-IntentGuardGlyph/colors/font_color = Color(0.7, 0.8, 1, 1)
-IntentGuardGlyph/constants/outline_size = 5
-IntentGuardGlyph/font_sizes/font_size = 18
+ForecastRowLabel/base_type = &"Label"
+ForecastRowLabel/colors/font_color = Color(0.7, 0.7, 0.75, 1)
+ForecastRowLabel/font_sizes/font_size = 13
+HudHeading/base_type = &"Label"
+HudHeading/colors/font_color = Color(1, 0.9, 0.55, 1)
+HudHeading/font_sizes/font_size = 15
+HudNote/base_type = &"Label"
+HudNote/colors/font_color = Color(0.7, 0.7, 0.75, 1)
+HudNote/font_sizes/font_size = 12
+HudText/base_type = &"Label"
+HudText/font_sizes/font_size = 13
 IntentAdvanceGlyph/base_type = &"Label"
 IntentAdvanceGlyph/colors/font_color = Color(1, 0.85, 0.35, 1)
 IntentAdvanceGlyph/constants/outline_size = 5
 IntentAdvanceGlyph/font_sizes/font_size = 18
+IntentAttackGlyph/base_type = &"Label"
+IntentAttackGlyph/colors/font_color = Color(1, 0.4, 0.35, 1)
+IntentAttackGlyph/constants/outline_size = 5
+IntentAttackGlyph/font_sizes/font_size = 18
+IntentGuardGlyph/base_type = &"Label"
+IntentGuardGlyph/colors/font_color = Color(0.7, 0.8, 1, 1)
+IntentGuardGlyph/constants/outline_size = 5
+IntentGuardGlyph/font_sizes/font_size = 18
+IntentHealGlyph/base_type = &"Label"
+IntentHealGlyph/colors/font_color = Color(0.45, 1, 0.5, 1)
+IntentHealGlyph/constants/outline_size = 5
+IntentHealGlyph/font_sizes/font_size = 18
 IntentOrderLabel/base_type = &"Label"
 IntentOrderLabel/colors/font_color = Color(1, 0.9, 0.55, 1)
 IntentOrderLabel/constants/outline_size = 4
 IntentOrderLabel/font_sizes/font_size = 13
 IntentRuleLabel/base_type = &"Label"
 IntentRuleLabel/font_sizes/font_size = 13
-HudHeading/base_type = &"Label"
-HudHeading/colors/font_color = Color(1, 0.9, 0.55, 1)
-HudHeading/font_sizes/font_size = 15
-HudText/base_type = &"Label"
-HudText/font_sizes/font_size = 13
-HudNote/base_type = &"Label"
-HudNote/colors/font_color = Color(0.7, 0.7, 0.75, 1)
-HudNote/font_sizes/font_size = 12
-FactLogText/base_type = &"RichTextLabel"
-FactLogText/font_sizes/normal_font_size = 11
+Label/colors/font_color = Color(1, 1, 1, 1)
+Label/colors/font_outline_color = Color(0, 0, 0, 1)
+Label/constants/outline_size = 4
+PanelContainer/styles/panel = SubResource("StyleBoxFlat_panel")
 PhaseBannerLabel/base_type = &"Label"
 PhaseBannerLabel/constants/outline_size = 6
 PhaseBannerLabel/font_sizes/font_size = 26
-PanelContainer/styles/panel = SubResource("StyleBoxFlat_panel")
+PreviewDamageLabel/base_type = &"Label"
+PreviewDamageLabel/colors/font_color = Color(0.85, 0.45, 1, 1)
+PreviewDamageLabel/constants/outline_size = 5
+PreviewDamageLabel/font_sizes/font_size = 16
 ProgressBar/styles/background = SubResource("StyleBoxFlat_hp_back")
 ProgressBar/styles/fill = SubResource("StyleBoxFlat_hp_fill")
+RangeTrackedIcon/base_type = &"Panel"
+RangeTrackedIcon/styles/panel = SubResource("StyleBoxFlat_range_tracked")
+StanceBar/base_type = &"ProgressBar"
+StanceBar/styles/fill = SubResource("StyleBoxFlat_stance_fill")
 TargetMark/base_type = &"Panel"
 TargetMark/styles/panel = SubResource("StyleBoxFlat_target_mark")
 TargetMarkCurrent/base_type = &"Panel"
 TargetMarkCurrent/styles/panel = SubResource("StyleBoxFlat_target_mark_current")
-StanceBar/base_type = &"ProgressBar"
-StanceBar/styles/fill = SubResource("StyleBoxFlat_stance_fill")
-BlockBadge/base_type = &"Panel"
-BlockBadge/styles/panel = SubResource("StyleBoxFlat_block_badge")
-BlockBadgeLabel/base_type = &"Label"
-BlockBadgeLabel/constants/outline_size = 2
-BlockBadgeLabel/font_sizes/font_size = 8
-RangeTrackedIcon/base_type = &"Panel"
-RangeTrackedIcon/styles/panel = SubResource("StyleBoxFlat_range_tracked")
+TokenLetter/base_type = &"Label"
+TokenLetter/font_sizes/font_size = 14
