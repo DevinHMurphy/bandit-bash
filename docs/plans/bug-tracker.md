@@ -42,6 +42,7 @@ Not a bug.
 | [BUG-001](#bug-001-no-block-at-the-start-of-combat) | No unit has Block at the start of combat | P01 / P02 / P03 | S2 | Needs decision | November 6, 2026, user playtest | — |
 | [BUG-002](#bug-002-the-forecasts-crit-chance-ignores-current-stance) | The forecast's crit chance ignores current Stance | P02 / P07 | S2 | New | November 6, 2026, user playtest | — |
 | [BUG-003](#bug-003-save-systemmd-says-a-battle-retry-repeats-ids) | save-system.md says a battle retry repeats ids | P00 / P02 | S4 | Assigned (CC9, if P02 question 22 is accepted) | November 5, 2026, CC10 report | CC9 |
+| [BUG-004](#bug-004-an-enemy-with-an-attack-intent-moves-and-doesnt-attack) | An enemy with an attack intent moves and doesn't attack; the next enemy hits its target | P05 / P07 | S2 | New | November 6, 2026, user playtest | — |
 
 ### BUG-001 No Block at the start of combat
 
@@ -75,6 +76,34 @@ Not a bug.
   because the campaign file keeps the counter after Begin minted the army and setup. Nothing
   reads ids for meaning.
 - **Recommended fix** (P02 question 22): correct the doc in CC9.
+
+### BUG-004 An enemy with an attack intent moves and doesn't attack
+
+- **Reported:** the intents showed two enemy attacks. In the enemy phase the first enemy moved but
+  didn't attack, and the second enemy attacked the first enemy's intended target.
+- **Run:** solo, seed `52FC-D7F9-0BD5-D`, `m1_greybox`, resumed battle (floor 1, node 1); most
+  likely the turn 2 enemy phase (`s0#56`–`s0#95`, the only enemy phase with a long run of steps).
+- **Log gap:** the log has no line per enemy action, so it shows neither the plans nor a rejection.
+  `EnemyAI.next_command` turns a plan that fails `UnitTurnCommand.validate` into a Wait and
+  records the diagnostic "*X*'s *kind* plan rejected - *reason*; it waits"; that line isn't in the
+  log, so either the plan wasn't rejected or the diagnostic isn't reaching the log.
+- **Expected** (game-vision.md, Enemy intentions; `intents.gd` class doc): intents aren't
+  committed tiles, and the real phase decides again after each action, so a *miss* can change
+  what *later* enemies do. The first enemy to act has had nothing change since the intents were
+  computed, so it should carry out the attack its intent showed (a move and attack, hit or miss).
+  A move with no attack from the first actor is a bug unless something on its board differed.
+- **To check:**
+  - whether the first enemy's real plan was rejected and became a Wait (the move then belongs to
+    a path the validator refused partway, or the walk and the attack disagree on the end tile or
+    range); `EnemyAI.next_command`, `UnitTurnCommand.validate`, `Intents._carry_out`
+  - whether the real phase picks the same first actor as `Intents._play` (the NOTE there: same
+    enemies, order and tie rule as `EnemyAI.next_plan`); a different first actor with stale
+    intents on screen would look like this report
+  - whether the board `Intents.compute` reads matches the real enemy phase start (player Phase
+    End, darkness, enemy Phase Start effects crossed the same way)
+  - why the diagnostic, if raised, isn't in the playtest log
+- **Asked the user:** each enemy's class, the second enemy's own intent target, and where the
+  first enemy ended (in range of its target or not).
 
 ## Fixed bugs
 
