@@ -5,4 +5,5 @@
 [node name="SupportOverlay" type="Node2D"]
 script = ExtResource("1_overlay")
 fill_color = Color(0.627451, 0.12549, 0.941176, 0.5)
-edge_color = Color(0.627451, 0.12549, 0.941176, 0.8)
+edge_color = Color(0.86, 0.66, 1, 1)
+edge_width = 2.0

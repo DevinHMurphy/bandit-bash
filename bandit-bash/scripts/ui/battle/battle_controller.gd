@@ -1086,7 +1086,8 @@ func _draw_path() -> void:
 	view.get_path_preview().show_path(_path, points)
 
 
-# The toggled enemies' ranges: red where one could attack, purple where one could only support.
+# The toggled enemies' ranges, red where one could attack and purple where one could only
+# support, and the range-tracked icon on their tokens.
 func _draw_enemy_ranges() -> void:
 	var covered: Dictionary[Vector2i, bool] = {}
 	var supported: Dictionary[Vector2i, bool] = {}
@@ -1105,6 +1106,7 @@ func _draw_enemy_ranges() -> void:
 	support_tiles.assign(supported.keys())
 	support_tiles.sort_custom(MapLayout.is_before)
 	view.get_enemy_support_overlay().show_tiles(support_tiles)
+	view.show_range_tracked(_shown_enemies)
 
 
 func _show_widgets(is_shown: bool) -> void:

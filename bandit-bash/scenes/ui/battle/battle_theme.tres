@@ -1,4 +1,4 @@
-[gd_resource type="Theme" load_steps=6 format=3]
+[gd_resource type="Theme" load_steps=9 format=3]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hp_back"]
 bg_color = Color(0.1, 0.1, 0.1, 0.85)
@@ -32,6 +32,33 @@ border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
 border_color = Color(1, 1, 1, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_stance_fill"]
+bg_color = Color(0.95, 0.75, 0.2, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_block_badge"]
+bg_color = Color(0.22, 0.36, 0.58, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.05, 0.08, 0.15, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_range_tracked"]
+bg_color = Color(1, 0.52549, 0.458824, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.3, 0, 0, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
 
 [resource]
 default_font_size = 16
@@ -100,3 +127,12 @@ TargetMark/base_type = &"Panel"
 TargetMark/styles/panel = SubResource("StyleBoxFlat_target_mark")
 TargetMarkCurrent/base_type = &"Panel"
 TargetMarkCurrent/styles/panel = SubResource("StyleBoxFlat_target_mark_current")
+StanceBar/base_type = &"ProgressBar"
+StanceBar/styles/fill = SubResource("StyleBoxFlat_stance_fill")
+BlockBadge/base_type = &"Panel"
+BlockBadge/styles/panel = SubResource("StyleBoxFlat_block_badge")
+BlockBadgeLabel/base_type = &"Label"
+BlockBadgeLabel/constants/outline_size = 2
+BlockBadgeLabel/font_sizes/font_size = 8
+RangeTrackedIcon/base_type = &"Panel"
+RangeTrackedIcon/styles/panel = SubResource("StyleBoxFlat_range_tracked")

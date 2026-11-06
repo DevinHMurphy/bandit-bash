@@ -11,8 +11,8 @@
 
 class_name BoardViewModel
 extends RefCounted
-## What the battle board draws, as plain data read from a [CombatSession]: each unit on the map
-## and each flooded tile's darkness layer.
+## What the battle board draws, as plain data read from a [CombatSession]: each unit on the map,
+## with its HP, Stance, Block and turn, and each flooded tile's darkness layer.
 ##
 ## Built by [method build] and read by [BattleView]; widgets draw it and hold no rules. Reading
 ## only: nothing here changes the session. Tests check it without rendering (combat UI plan,
@@ -36,10 +36,11 @@ static func build(session: CombatSession) -> BoardViewModel:
 	return model
 
 
-## The unit [param unit_id] of [param session] as a token draws it; its max HP is read through
-## [method CombatSession.stats].
+## The unit [param unit_id] of [param session] as a token draws it; its max HP and Stance
+## maximum are read through [method CombatSession.stats].
 static func unit_view(session: CombatSession, unit_id: String) -> UnitView:
 	var state: CombatState = session.state
+	var sheet: StatSheet = session.stats(unit_id)
 	var view: UnitView = UnitView.new()
 	view.id = unit_id
 	view.side = state.side_of(unit_id)
@@ -47,8 +48,15 @@ static func unit_view(session: CombatSession, unit_id: String) -> UnitView:
 	view.unit_type = state.unit_type_of(unit_id)
 	view.letter = letter_of(view.unit_type)
 	view.hp = state.get_hp(unit_id)
-	view.max_hp = session.stats(unit_id).get_int(CombatValue.Key.HP)
+	view.max_hp = sheet.get_int(CombatValue.Key.HP)
 	view.tile = state.tile_of(unit_id)
+	view.stance_max = sheet.get_int(CombatValue.Key.STANCE_MAX)
+	var unit: CombatUnitState = state.unit(unit_id)
+	if unit != null:
+		view.block = unit.block
+		view.stance = unit.stance
+		view.has_acted = unit.has_acted
+		view.is_second_move_pending = unit.is_second_move_pending
 	return view
 
 
@@ -91,3 +99,13 @@ class UnitView:
 	var max_hp: int = 0
 	## Its tile; [constant CombatFact.NO_TILE] when it isn't on the map.
 	var tile: Vector2i = CombatFact.NO_TILE
+	## Its Block now.
+	var block: int = 0
+	## Its Stance now; Triage can raise it past [member stance_max].
+	var stance: int = 0
+	## Its Stance maximum, which its side's Phase Start refills it to.
+	var stance_max: int = 0
+	## Whether it has taken its action.
+	var has_acted: bool = false
+	## Whether it may still move after its action.
+	var is_second_move_pending: bool = false

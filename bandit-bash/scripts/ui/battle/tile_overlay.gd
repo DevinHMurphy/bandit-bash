@@ -24,8 +24,6 @@ extends Node2D
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
-# ASSUMPTION: the support scenes' purple is Godot's Color.PURPLE, at their red twins' alphas; the
-# plan's question 23 says purple and Godot_FE drew no support range.
 ## The fill of each tile. Its alpha is how strongly the terrain is covered. Each scene sets
 ## Godot_FE's [code]CController.gd[/code] value: move BLUE at 0.5, attack CRIMSON at 0.5
 ## ([code]draw_hover_movement_ranges[/code]), enemy range CRIMSON at 0.35
@@ -36,17 +34,20 @@ extends Node2D
 		fill_color = value
 		queue_redraw()
 
-## The outline of each tile, drawn inside it.[br]
-## [b]Alpha 0.0:[/b] no outline.
 # ASSUMPTION: greybox outline; Godot_FE's tile textures carried their own edge.
+# ASSUMPTION: the support twins' opaque lavender 2 px edge, for readability (plan, question 27).
+## The outline of each tile, drawn inside it. The purple support twins draw an opaque lavender
+## one, which red ranges lack, so purple over grass isn't read as gray, nor red over water as
+## purple.[br]
+## [b]Alpha 0.0:[/b] no outline.
 @export var edge_color: Color = Color(0.0, 0.0, 1.0, 0.8):
 	set(value):
 		edge_color = value
 		queue_redraw()
 
+# ASSUMPTION: greybox value, as above.
 ## The outline's width.[br]
 ## [b]Units:[/b] pixels. [b]0.0:[/b] no outline.
-# ASSUMPTION: greybox value, as above.
 @export_range(0.0, 8.0, 0.5) var edge_width: float = 1.0:
 	set(value):
 		edge_width = value

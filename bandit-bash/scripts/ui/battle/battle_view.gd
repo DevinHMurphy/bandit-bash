@@ -17,9 +17,9 @@ extends Node2D
 ##
 ## [method bind] builds the board from state ([BoardViewModel]); after that, facts reach it only
 ## through the session's [member CombatSession.playback], which [method advance] steps each frame:
-## moves walk their path, damage and heal numbers rise, defeated units fade out, and a tile the
-## darkness deepens is redrawn. Each fact's wait is the time its animation takes, so the next fact
-## starts when it ends. The board steps its own tweens with the same time, so a test can drive it
+## moves walk their path, damage and heal numbers rise, defeated units fade out, tokens' HP,
+## Stance, Block and turn follow their facts, and a tile the darkness deepens is redrawn. Each
+## fact's wait is the time its animation takes, so the next fact starts when it ends. The board steps its own tweens with the same time, so a test can drive it
 ## frame by frame without a running tree.[br]
 ## [b]Reading only:[/b] it never changes combat state and submits no command; turn input does
 ## ([BattleController]). Facts already queued at [method bind] are skipped, since the board is
@@ -39,6 +39,18 @@ extends Node2D
 ## Playback ran out of facts and every animation that holds it has ended. Emitted once per stretch
 ## of playback, after the last fact's animation.
 signal settled()
+
+# Facts whose actor took its action, which ends its turn; an attack's is the attacker's
+# BEFORE_COMBAT and a swap's WEAPON_SWAPPED (see _on_fact_played). Mirrors CombatState.follow()'s
+# _ACTION_KINDS in combat_state.gd: change both together, or tokens gray at the wrong time.
+const _ACTION_KINDS: Array[CombatFact.Kind] = [
+	CombatFact.Kind.ITEM_USED,
+	CombatFact.Kind.SHOVED_A_UNIT,
+	CombatFact.Kind.USED_STAFF_ON_ALLY,
+	CombatFact.Kind.UNIT_WAITED,
+	CombatFact.Kind.OBJECT_USED,
+	CombatFact.Kind.WEAPON_SWAPPED,
+]
 
 @export_group("Scenes")
 
@@ -139,6 +151,10 @@ var _is_settled: bool = true
 
 var _is_fast_forward: bool = false
 
+# The exchange whose two BEFORE_COMBAT facts are open, "attacker>defender", which tells the
+# attacker's from the defender's as CombatState.follow() does; empty between exchanges.
+var _open_exchange: String = ""
+
 # --- The skip (meaningful while bound; skip_playback() starts it, advance() steps it) ----------
 # None:       _skip_tween is null. Playback runs as usual.
 # Fading out: _skip_tween darkens the SkipFade. Playback and animations run on as usual
@@ -206,6 +222,7 @@ func bind(session: CombatSession) -> void:
 	_session.playback.duration_hook = _duration_of
 	_connect_bus(_session.bus)
 	_is_settled = true
+	_open_exchange = ""
 
 
 ## Stops drawing the session: its bus is let go and its playback keeps no hook of the board's.
@@ -363,6 +380,13 @@ func show_target_marks(marks: Array[TargetMark.Spec]) -> void:
 		mark.position = tile_to_position(spec.tile)
 
 
+## Shows the range-tracked icon on the tokens of [param unit_ids], the units the enemy range
+## toggle tracks, and on no other token.
+func show_range_tracked(unit_ids: PackedStringArray) -> void:
+	for unit_id: String in _tokens:
+		_tokens[unit_id].show_range_tracked(unit_ids.has(unit_id))
+
+
 ## Outlines no target.
 func clear_target_marks() -> void:
 	for child: Node in _target_mark_layer.get_children():
@@ -426,8 +450,9 @@ func map_rect() -> Rect2:
 
 
 ## How the board differs from the session's state, one line per difference: a unit with no token
-## or a token with no unit, a token on the wrong tile or position, or showing the wrong HP. Empty
-## when they agree. For tests and debugging; meaningful once [method is_settled].
+## or a token with no unit, a token on the wrong tile or position, or showing the wrong HP, Stance,
+## Block or turn. Empty when they agree. For tests and debugging; meaningful once
+## [method is_settled].
 func mismatches() -> PackedStringArray:
 	var found: PackedStringArray = []
 	if _session == null:
@@ -443,6 +468,19 @@ func mismatches() -> PackedStringArray:
 			found.append("%s shown at %s, is at %s" % [unit_id, token.tile, tile])
 		if token.hp != state.get_hp(unit_id):
 			found.append("%s shows %d HP, has %d" % [unit_id, token.hp, state.get_hp(unit_id)])
+		var unit: CombatUnitState = state.unit(unit_id)
+		if token.stance != unit.stance:
+			found.append("%s shows %d Stance, has %d" % [unit_id, token.stance, unit.stance])
+		if token.block != unit.block:
+			found.append("%s shows %d Block, has %d" % [unit_id, token.block, unit.block])
+		if (
+				token.has_acted != unit.has_acted
+				or token.is_second_move_pending != unit.is_second_move_pending
+		):
+			found.append("%s shows acted %s (second move %s), is %s (%s)" % [
+				unit_id, token.has_acted, token.is_second_move_pending, unit.has_acted,
+				unit.is_second_move_pending,
+			])
 	for unit_id: String in _tokens:
 		if not state.has_unit(unit_id):
 			found.append("%s has a token but is not on the map" % [unit_id])
@@ -524,30 +562,38 @@ func _place_token(view: BoardViewModel.UnitView) -> void:
 
 
 func _connect_bus(bus: CombatBus) -> void:
-	bus.unit.moved.connect(_on_unit_moved)
-	bus.unit.spawned.connect(_on_unit_spawned)
-	bus.unit.defeated.connect(_on_unit_defeated)
-	bus.unit.healed.connect(_on_unit_healed)
-	bus.unit.darkness_damage_taken.connect(_on_unit_darkness_damage_taken)
-	bus.action.damage_taken.connect(_on_action_damage_taken)
-	bus.world.darkness_advanced.connect(_on_world_darkness_advanced)
+	for link: Array in _bus_links(bus):
+		var played: Signal = link[0]
+		var handler: Callable = link[1]
+		played.connect(handler)
 
 
 func _disconnect_bus(bus: CombatBus) -> void:
+	for link: Array in _bus_links(bus):
+		var played: Signal = link[0]
+		var handler: Callable = link[1]
+		if played.is_connected(handler):
+			played.disconnect(handler)
+
+
+# Each bus signal the board plays, with its handler. fact_played comes after a fact's own signal,
+# so a token's turn follows the fact's other effects on it.
+func _bus_links(bus: CombatBus) -> Array[Array]:
 	var links: Array[Array] = [
 		[bus.unit.moved, _on_unit_moved],
 		[bus.unit.spawned, _on_unit_spawned],
 		[bus.unit.defeated, _on_unit_defeated],
 		[bus.unit.healed, _on_unit_healed],
 		[bus.unit.darkness_damage_taken, _on_unit_darkness_damage_taken],
+		[bus.unit.block_gained, _on_unit_block_gained],
+		[bus.unit.block_lost, _on_unit_block_lost],
+		[bus.unit.stance_changed, _on_unit_stance_changed],
+		[bus.unit.block_stance_refreshed, _on_unit_block_stance_refreshed],
 		[bus.action.damage_taken, _on_action_damage_taken],
 		[bus.world.darkness_advanced, _on_world_darkness_advanced],
+		[bus.fact_played, _on_fact_played],
 	]
-	for link: Array in links:
-		var played: Signal = link[0]
-		var handler: Callable = link[1]
-		if played.is_connected(handler):
-			played.disconnect(handler)
+	return links
 
 
 # FactPlayback's duration hook. The bus plays a fact before playback asks for its wait, so the
@@ -778,8 +824,81 @@ func _on_action_damage_taken(fact: CombatFact) -> void:
 	if token == null:
 		return
 	token.show_hp(token.hp - fact.hp_amount, _max_hp_of(fact.actor_id, token.max_hp))
+	token.show_block(token.block - fact.block_amount)
 	_show_number(token, fact.amount, false)
 	_hold_for(fact, number_hold)
+
+
+func _on_unit_block_gained(fact: CombatFact) -> void:
+	var token: UnitToken = token_of(fact.actor_id)
+	if token != null:
+		token.show_block(token.block + fact.amount)
+
+
+func _on_unit_block_lost(fact: CombatFact) -> void:
+	var token: UnitToken = token_of(fact.actor_id)
+	if token != null:
+		token.show_block(token.block - fact.amount)
+
+
+# Its amount is the change, never taking Stance below 0.
+func _on_unit_stance_changed(fact: CombatFact) -> void:
+	var token: UnitToken = token_of(fact.actor_id)
+	if token == null:
+		return
+	var stance_max: int = _stance_max_of(fact.actor_id, token.stance_max)
+	token.show_stance(token.stance + fact.amount, stance_max)
+
+
+# Block to 0 and Stance to its maximum, at the unit's side's Phase Start; _on_fact_played clears
+# its turn.
+func _on_unit_block_stance_refreshed(fact: CombatFact) -> void:
+	var token: UnitToken = token_of(fact.actor_id)
+	if token == null:
+		return
+	var stance_max: int = _stance_max_of(fact.actor_id, token.stance_max)
+	token.show_block(0)
+	token.show_stance(stance_max, stance_max)
+
+
+# Every fact, after its own signal: whether its actor has acted and may still move, by the same
+# rules as CombatState.follow() (see _ACTION_KINDS). The exchange is tracked whoever has a token.
+func _on_fact_played(fact: CombatFact) -> void:
+	var is_attack: bool = false
+	if fact.kind == CombatFact.Kind.BEFORE_COMBAT:
+		if _open_exchange == "%s>%s" % [fact.target_id, fact.actor_id]:
+			_open_exchange = ""
+		else:
+			_open_exchange = "%s>%s" % [fact.actor_id, fact.target_id]
+			is_attack = true
+	var token: UnitToken = token_of(fact.actor_id)
+	if token == null:
+		return
+	var acted: bool = token.has_acted or is_attack or _ACTION_KINDS.has(fact.kind)
+	var pending: bool = (
+			token.is_second_move_pending
+			or (fact.flags & CombatFact.Flag.SECOND_MOVE_PENDING) != 0
+	)
+	match fact.kind:
+		CombatFact.Kind.BLOCK_STANCE_REFRESHED:
+			acted = false
+			pending = false
+		CombatFact.Kind.UNIT_MOVED:
+			# Only a unit's own walk counts; after its action, that walk is its second move.
+			if fact.amount > 0 and acted:
+				pending = false
+		CombatFact.Kind.UNIT_WAITED:
+			# Unflagged, it is a Wait after acting, which ends the second move.
+			if (fact.flags & CombatFact.Flag.SECOND_MOVE_PENDING) == 0:
+				pending = false
+	if acted != token.has_acted or pending != token.is_second_move_pending:
+		token.show_turn(acted, pending)
+
+
+func _stance_max_of(unit_id: String, fallback: int) -> int:
+	if not _session.state.has_unit(unit_id):
+		return fallback
+	return _session.stats(unit_id).get_int(CombatValue.Key.STANCE_MAX)
 
 
 # One fact per tile that deepens, its amount the new layer (darkness plan, question 4); a wave's

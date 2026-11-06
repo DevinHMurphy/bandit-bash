@@ -19,8 +19,9 @@ extends Node2D
 ## neither). The outline's shape and widths are the theme's [code]TargetMark[/code] and
 ## [code]TargetMarkCurrent[/code] panel styles ([code]battle_theme.tres[/code]), drawn white and
 ## tinted here. [BattleView] places one per target on the target's tile, over the tokens; its
-## origin is the tile's centre. While tokens are letters it stands around the token; a sprite's
-## own outline shader can take its place later (UI7). It holds no rules.
+## origin is the tile's centre. It stays apart from a sprite's own side outline
+## ([UnitToken]) because targets also include map objects and lettered units, which have no
+## sprite to outline. It holds no rules.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
@@ -42,7 +43,6 @@ const CURRENT_STYLE: StringName = &"TargetMarkCurrent"
 ## How opaque a target's outline is while another target is current; the current one is fully
 ## opaque.[br]
 ## [b]0.0:[/b] only the current target shows. [b]1.0:[/b] they differ by width alone.
-# ASSUMPTION: greybox value; Godot_FE outlined units with one stroke whatever was targeted.
 @export_range(0.0, 1.0, 0.01) var other_alpha: float = 0.75
 
 ## The tile the mark stands on; [constant CombatFact.NO_TILE] until [method show_mark].
