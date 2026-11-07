@@ -352,7 +352,7 @@ from starting; each is asked inside its plan's Open Questions.
 | P08 | Re-gearing at Camps (user, October 27, 2026: no combat has a prep screen; the map before the boss has a Camp); decide whether army management stays available anywhere else on the campaign map, given the goal of less menuing | P04 question 4 |
 | P04 / P06 | Turn par and reinforcement timers per map are set when maps are authored; darkness values on small maps need M1 playtesting. The M1 greybox map's par is 5, provisional (P04 MP5); its `# ASSUMPTION` is a `;` comment in the `.tres`, which an editor re-save drops | game-vision.md, the-darkness.md |
 | P07 / P08 | Show the run seed on the pause screen (P07) and the results screen (P08), formatted by `RunSeed.format()` (P13 R4 follow-up) | P13 |
-| P07 | The opening-swap setting (P02 question 17): an options-menu toggle, per player, saved with the player's settings (state the `PlayerSaveSection` impact); its default (assumed **on** until decided, for casual players); what the swap window shows before turn 1 (danger zone; intents only exist after Start, unless P05 previews them) | P02 question 17 |
+| P07 | The opening-swap setting (P02 question 17): an options-menu toggle, per player, saved in the save file's `settings.json` (`SettingsData`, per save-system.md; settings are not a `PlayerSaveSection`; UI11); its default (assumed **on** until decided, for casual players); what the swap window shows before turn 1 (danger zone; intents only exist after Start, unless P05 previews them) | P02 question 17 |
 | P12 | Whether runs abandoned by the save debug panel's "New Solo Run From Seed" count as lost runs in statistics | P13 R4 |
 | P04 | Tile coordinates are never negative (P01 question 37, `CombatFact.NO_TILE`); `MapCheck` enforces it (MP5). ("Within N movable tiles" was cut October 27, 2026.) | P01 |
 | P05 | The Brigands' real name and theme (flavor only) | enemy-roster.md |
@@ -413,7 +413,7 @@ M2 work, in the order to send it. Steps on one line can run in parallel.
 3. **Next to send:** P07 **UI10** (exchange feedback: the forecast's white flash of predicted HP
    and Stance loss, outlined pips, the move-then-act walk, question 33 (2); prompt issued
    November 7, 2026), then **UI11** (the swap setting and its save, every objective's HUD, unit
-   detail), the last of P07's M2 part, broken down before its prompt.
+   detail; prompt written November 7, 2026, to send once UI10 merges), the last of P07's M2 part.
 4. **Bugs** ([bug tracker](bug-tracker.md)): open S2s BUG-002 (the forecast's crit ignores
    Stance) and BUG-004 (an enemy with an attack intent moves and doesn't attack; the next enemy
    hits its target). BUG-001 closed November 7, 2026 (can't reproduce; no base Block). The user is adding the
@@ -531,3 +531,4 @@ M2 work, in the order to send it. Steps on one line can run in parallel.
 | November 7, 2026 | Standing rules added to the Focus rules (user): every new UI and feature works on keyboard and mouse and on a controller from the start, and every UI element is its own `.tscn`. P07 question 34 answered: **UI10 split** into UI10 (exchange feedback: the forecast flashes predicted HP and Stance loss white on both units, outlined pips, the move-then-act walk) and UI11 (the swap setting and its save, objective HUDs, unit detail). UI10 prompt issued. |
 | November 7, 2026 | P02 question 22 answered (as recommended: CC9 corrects save-system.md, closing BUG-003; (e) stays DK5's) and P03 question 24 answered (as recommended; enemy factions recorded as a design item). DK5 had never started (no branch); its prompt reissued from dev, alongside UI10. |
 | November 7, 2026 | P07 question 33 answered (as recommended; finding the missing controller glyphs in `Godot_FE` is the user's own to-do, and the splash overkill a P02 / P03 design item). **BUG-001 closed** (can't reproduce; the user: no base Block, Vanguard fires at the first Phase Start when it applies). No questions open for the user. |
+| November 7, 2026 | P07 UI11 broken down and its prompt written (the Options swap toggle in `settings.json` via `SettingsData`, not a `PlayerSaveSection`, per save-system.md; every objective's HUD; a unit detail panel); sent after UI10 merges. |
