@@ -110,7 +110,8 @@ const FLASH_AMOUNT_PARAM: StringName = &"flash_amount"
 var unit_id: String = ""
 
 ## The tile the token shows the unit on. [BattleView] sets it when a move starts, so it is where
-## the unit is going while the move plays.
+## the unit is going while the move plays. A walk turn input stages before its command
+## ([method BattleView.stage_walk]) moves the token but leaves this the unit's tile.
 var tile: Vector2i = CombatFact.NO_TILE
 
 ## The side it is drawn for.
@@ -199,13 +200,25 @@ func show_stance(current: int, maximum: int) -> Tween:
 	return info.show_stance(stance, stance_max)
 
 
-## Dims the pips a forecast's exchange would break, down to [param after] Stance.
+## Flashes the HP bar from the HP shown to [param after] HP, an open forecast's prediction.
+func show_hp_preview(after: int) -> void:
+	if is_instance_valid(info):
+		info.show_hp_preview(after)
+
+
+## Flashes no HP.
+func clear_hp_preview() -> void:
+	if is_instance_valid(info):
+		info.clear_hp_preview()
+
+
+## Dims and flashes the pips a forecast's action would break, down to [param after] Stance.
 func show_stance_preview(after: int) -> void:
 	if is_instance_valid(info):
 		info.show_stance_preview(after)
 
 
-## Dims no pip.
+## Dims and flashes no pip.
 func clear_stance_preview() -> void:
 	if is_instance_valid(info):
 		info.clear_stance_preview()

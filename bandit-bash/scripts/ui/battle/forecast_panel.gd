@@ -35,8 +35,9 @@ signal weapon_cycle_requested()
 @export var row_scene: PackedScene = null
 
 ## Next weapon's text; [code]%d[/code] and [code]%d[/code] are the weapon shown and how many there
-## are, such as "Next weapon (C) 1/2".
-@export var cycle_text: String = "Next weapon (C) %d/%d"
+## are, such as "Next weapon 1/2". It names no key: the hint bar shows the device's (question
+## 33 (2)).
+@export var cycle_text: String = "Next weapon %d/%d"
 
 ## Whether the breakdown is open when the panel opens.
 @export var is_breakdown_open: bool = false

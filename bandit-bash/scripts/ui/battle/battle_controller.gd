@@ -26,7 +26,10 @@ extends Node
 ## [b]Targeting[/b] (question 21): a chosen action's targets are one [TargetList]; its rows, Q / E,
 ## the mouse and accept all move or pick its current target, so each sends the same command.
 ## Targets are outlined ([TargetMark]); an attack, a staff or a shove confirms on a
-## [ForecastPanel], which cycles the target's weapons ([method cycle_weapon]).[br]
+## [ForecastPanel], which cycles the target's weapons ([method cycle_weapon]) while the board
+## flashes the HP and Stance it predicts ([method BattleView.show_forecast_preview]).[br]
+## [b]Move then act[/b] (question 34 (3)): picking another tile walks the token there first
+## ([method BattleView.stage_walk]), locally; the action menu opens on arrival.[br]
 ## [b]Move preview:[/b] hovering a move tile runs a [MovePreview] on a worker thread
 ## ([method run_preview_frame]), drawn by [MovePreviewMarks] and the [IntentDisplay].[br]
 ## [b]Enemy information[/b] (question 10): the [IntentDisplay] shows the intents once the board
@@ -50,9 +53,11 @@ extends Node
 #   (mouse motion)                            (IDLE, MOVE, TARGET, SWAP, SWAP_PICKED: the cursor
 #                                                follows the mouse over the board. In TARGET, over
 #                                                a listed target it makes that target current)
-#   "ui_accept"             -> Enter, Space;  (on the board: confirm the cursor's tile. In a panel
-#                              A [Cross]         the focused row takes it first and is pressed; in
-#                                                TARGET that row is the current target's)
+#   "ui_accept"             -> Enter, Space;  (on the board: confirm the cursor's tile; in MOVE on
+#                              A [Cross]         another move tile that starts the walk there
+#                                                (WALK). In a panel the focused row takes it first
+#                                                and is pressed; in TARGET that row is the current
+#                                                target's)
 #   (Left Mouse Button)                       (confirm the tile under the mouse; on a panel row the
 #                                                row takes the click. In TARGET a click on any
 #                                                listed target picks it, as its row would)
@@ -66,21 +71,22 @@ extends Node
 #   "ui_cancel"             -> Escape;        (step back one stage. Read in _input, before the
 #                              B [Circle],       pause menu's _unhandled_input, and only consumed
 #                              Menu [Options]    when there is a stage to step back from: in IDLE
-#                                                and SWAP, and while input is ignored (below), it
-#                                                is left to open the pause menu -- deliberate
-#                                                reuse of one key by stage. B is Godot_FE's back
-#                                                and Menu its pause; both act as Escape does)
-#   (Right Mouse Button)                      (step back one stage, as ui_cancel; nothing in IDLE
-#                                                and SWAP)
+#                                                and SWAP, and while input is ignored (below, WALK
+#                                                included), it is left to open the pause menu --
+#                                                deliberate reuse of one key by stage. From ACTION
+#                                                it snaps the walked token back. B is Godot_FE's
+#                                                back and Menu its pause; both act as Escape does)
+#   (Right Mouse Button)                      (step back one stage, as ui_cancel; nothing in IDLE,
+#                                                SWAP and WALK)
 #   "end_turn"              -> T; Y           (IDLE, MOVE: End Turn, asking first while units can
 #                              [Triangle]        act. SWAP, SWAP_PICKED: Start -- deliberate reuse,
 #                                                the keyboard's and pad's way to Start. Harmless
 #                                                elsewhere)
 #   "fast_forward"          -> F (hold);      (any stage, even during playback: while held, the
-#                              RT [R2] (hold)    board plays its waits and animations
-#                                                BattleView.fast_forward_speed times faster, in
-#                                                order; released, normal speed. The trigger counts
-#                                                as held past halfway)
+#                              RT [R2] (hold)    board plays its waits and animations, WALK's walk
+#                                                included, BattleView.fast_forward_speed times
+#                                                faster, in order; released, normal speed. The
+#                                                trigger counts as held past halfway)
 #   "skip_playback"         -> X; LT [L2]     (any stage, while playback runs: the board skips it
 #                                                behind a fade to black, BattleView.skip_playback.
 #                                                Harmless with nothing playing or during a skip,
@@ -98,10 +104,12 @@ extends Node
 # skip_playback or toggle_save_debug to a pad; their pad buttons above have no basis. Every pad
 # input is bound to one action only, as this file reads them in one chain and the first match
 # wins.
-# While a command's playback runs, the map's combat is over, or the seat has no turn, every input
-# but fast_forward, skip_playback and toggle_danger_zone is ignored: that guard is deliberate, not
-# a missing check. pad_repeat still sees the d-pad and stick then, so a direction released during
-# playback stops repeating.
+# While a command's playback runs, the token walks to its picked tile (WALK), the map's combat is
+# over, or the seat has no turn, every input but fast_forward, skip_playback and
+# toggle_danger_zone is ignored: that guard is deliberate, not a missing check (Godot_FE took no
+# input until a walk arrived either). skip_playback does nothing in WALK, as no fact plays.
+# pad_repeat still sees the d-pad and stick then, so a direction released during playback stops
+# repeating.
 # Control hints: LIVE_ACTIONS (below the state block) lists, per stage, the actions above that act
 # there, with the panels' focus moves, the pause menu's Esc and the save debug panel's F3; the
 # hint bar shows them with their keys or glyphs. A binding whose meaning or stage changes here
@@ -138,12 +146,18 @@ signal live_actions_changed()
 #              cleared off a move tile and on leaving MOVE, which drops one still running); the
 #              intent display shows the preview's intents, previewed, and the live ones until
 #              one is drawn and once it clears.
-#              Accept on a move tile (its own included) opens the action menu (ACTION); elsewhere
-#              inert. Cancel -> IDLE.
-# ACTION:      the action menu on top of PanelHost; the cursor stays on the picked tile, and board
-#              clicks and hovers are inert. An action with targets opens the target picker
-#              (TARGET); Wait and Swap send their command at once, as Godot_FE's Wait does.
-#              Cancel -> MOVE.
+#              Accept on another move tile walks the token there (WALK); on its own tile it opens
+#              the action menu at once (ACTION); elsewhere inert. Cancel -> IDLE.
+# WALK:        the token walks the path to the picked tile at the playback walk speed
+#              (BattleView.stage_walk), locally: the session is untouched. No overlay; the path
+#              and cursor stay. Every input is ignored, as in playback, but is_settled() holds, so
+#              the hint context is WALK, not PLAYBACK. On arrival (staged_walk_finished) the action
+#              menu opens: ACTION, with MOVE, not WALK, as the stage Cancel returns to.
+# ACTION:      the action menu on top of PanelHost; the token stands on the picked tile and the
+#              cursor on it, and board clicks and hovers are inert. An action with targets opens
+#              the target picker (TARGET); Wait and Swap send their command at once, as Godot_FE's
+#              Wait does. Cancel -> MOVE, the token snapped back to its tile at once (Godot_FE
+#              walked it back; question 34 (3) snaps).
 # TARGET:      the action's TargetList, built once when it was chosen, and the target picker
 #              listing it. Every target is outlined (TargetMark) and its tile drawn, purple for
 #              Staff and Item, red for the rest; the current target's outline is stronger, its
@@ -153,24 +167,31 @@ signal live_actions_changed()
 #              target (CONFIRM). Cancel -> ACTION.
 # CONFIRM:     Attack, Staff, Shove: the forecast panel (with forecast_panel_scene set), whose
 #              Confirm sends the command of the weapon shown; cycle_weapon and Next weapon move to
-#              the target's next weapon. Item, Rune, or no forecast scene: the confirm dialog,
+#              the target's next weapon. While it is open the board flashes the HP and Stance its
+#              forecast predicts on every unit it changes, following each target and weapon
+#              change, cleared when it closes. Item, Rune, or no forecast scene: the confirm dialog,
 #              whose Confirm sends the command. Q / E move to the next target and the panel
 #              follows; the outlines stay. Cancel or Back -> TARGET, on the target shown, back to
 #              its first weapon.
 # END_CONFIRM: End Turn's question while units can still act: Confirm sends EndTurnCommand.
 #              Cancel or Back -> the stage it was asked from (IDLE or MOVE).
 # There is no separate forecast stage: the forecast is CONFIRM's panel, as Godot_FE's forecast
-# took the confirm. There is no walk before the action menu either: Godot_FE moved the unit first,
-# but here the move and the action are one command, so the token stays put until it plays.
-# Cycling changes no state: each weapon has its own command (TargetOption.commands), where
-# Godot_FE equipped the weapon on the unit at each step and left it equipped on Back. Q / E are
-# inert in SWAP, SWAP_PICKED, MOVE, ACTION and END_CONFIRM: cycling units there would drop the
-# selection or the panel under way.
-# Global: cancel pops exactly one stage (_history), and one panel with it. Sending a command
-# flushes every panel, stage and mark, hides the intents, and waits in INACTIVE; when its playback
-# settles the stage, the danger zone and the intents are rebuilt from the session:
-# a rejection's reason shows and the flow returns to IDLE, a unit with a second move pending
-# reopens MOVE on its new tile, and otherwise IDLE, SWAP or INACTIVE as the session stands.
+# took the confirm. The walk before the action menu is the board's alone: the move and the action
+# are still one command, so the session changes only on Confirm, and its playback finds the token
+# already on its tile and doesn't walk it again (BattleView._on_unit_moved). Another seat's screen
+# never staged it, so a co-op partner sees the walk in that playback. The danger zone, intents
+# and forecast read the session, where the unit hasn't moved; the forecast walks the command's
+# path itself. Cycling changes no state: each weapon has its own command (TargetOption.commands),
+# where Godot_FE equipped the weapon on the unit at each step and left it equipped on Back. Q / E
+# are inert in SWAP, SWAP_PICKED, MOVE, WALK, ACTION and END_CONFIRM: cycling units there would
+# drop the selection or the panel under way.
+# Global: cancel pops exactly one stage (_history), and one panel with it; WALK is never on
+# _history. Sending a command flushes every panel, stage and mark but leaves a staged token where
+# it stands, hides the intents, and waits in INACTIVE; when its playback settles the stage, the
+# danger zone and the intents are rebuilt from the session, a staged walk still standing (the
+# command rejected) snapping back: a rejection's reason shows and the flow returns to IDLE, a unit
+# with a second move pending reopens MOVE on its new tile, and otherwise IDLE, SWAP or INACTIVE as
+# the session stands.
 # Hint contexts (LIVE_ACTIONS, get_hint_context()) are these stages' names and three more:
 # FORECAST is CONFIRM on the forecast panel; PLAYBACK is any stage while a command's playback runs
 # (only fast_forward, skip_playback, toggle_danger_zone and the pause menu's Esc act), the final
@@ -198,6 +219,8 @@ enum Stage {
 	CONFIRM = 7,
 	## End Turn's question while units can still act.
 	END_CONFIRM = 8,
+	## The token walking to the picked tile before the action menu opens.
+	WALK = 9,
 }
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
@@ -258,6 +281,7 @@ const LIVE_ACTIONS: Dictionary[StringName, Array] = {
 		&"ui_left", &"ui_right", &"ui_accept", &"ui_cancel", &"toggle_danger_zone",
 		&"fast_forward", &"toggle_save_debug",
 	],
+	&"WALK": [&"toggle_danger_zone", &"fast_forward", &"ui_cancel", &"toggle_save_debug"],
 	&"PLAYBACK": [
 		&"fast_forward", &"skip_playback", &"toggle_danger_zone", &"ui_cancel",
 		&"toggle_save_debug",
@@ -362,6 +386,9 @@ var _confirm_dialog: ConfirmDialog = null
 
 # The target picker open in TARGET and under CONFIRM; null elsewhere.
 var _picker: TargetPicker = null
+
+# In WALK, the action menu's rows for the picked tile, opened on arrival; empty elsewhere.
+var _walk_options: Array[TurnInputModel.ActionOption] = []
 
 # The newest hover's move preview, waiting for run_preview_frame, and the one on a worker thread.
 var _previews: MovePreview.Queue = MovePreview.Queue.new()
@@ -470,6 +497,7 @@ func bind(encounter: CombatEncounter, session: CombatSession, seat: int) -> void
 	_session.command_rejected.connect(_on_session_command_rejected)
 	_session.intents_changed.connect(_on_session_intents_changed)
 	view.settled.connect(_on_view_settled)
+	view.staged_walk_finished.connect(_on_view_staged_walk_finished)
 	_show_widgets(true)
 	_was_swapping = TurnInputModel.is_swapping(session, seat)
 	_is_danger_shown = _was_swapping and shows_danger_in_swap_window
@@ -493,8 +521,14 @@ func unbind() -> void:
 		_session.intents_changed.disconnect(_on_session_intents_changed)
 	if view != null and view.settled.is_connected(_on_view_settled):
 		view.settled.disconnect(_on_view_settled)
-	if view != null:
+	if (
+			is_instance_valid(view)
+			and view.staged_walk_finished.is_connected(_on_view_staged_walk_finished)
+	):
+		view.staged_walk_finished.disconnect(_on_view_staged_walk_finished)
+	if is_instance_valid(view):
 		view.set_fast_forward(false)
+		view.unstage_walk()
 	if panel_host != null:
 		panel_host.flush()
 	if is_instance_valid(pad_repeat):
@@ -525,7 +559,7 @@ func get_cursor_tile() -> Vector2i:
 
 
 ## The walk the selected unit would be sent with: to the hovered tile in MOVE, to the picked tile
-## after; empty for none or its own tile.
+## after (the walk WALK shows); empty for none or its own tile.
 func get_walk() -> Array[Vector2i]:
 	return _path.duplicate()
 
@@ -571,7 +605,8 @@ func get_live_actions() -> Array[StringName]:
 
 
 ## Whether input is taken now: a session is bound and still fought, no command's playback is
-## running, and the seat has something to do ([enum Stage] isn't INACTIVE).
+## running, no token walks to its picked tile (WALK), and the seat has something to do
+## ([enum Stage] isn't INACTIVE).
 func is_accepting_input() -> bool:
 	return (
 			_session != null
@@ -579,6 +614,7 @@ func is_accepting_input() -> bool:
 			and not _is_waiting
 			and view.is_settled()
 			and _stage != Stage.INACTIVE
+			and _stage != Stage.WALK
 	)
 
 
@@ -623,7 +659,7 @@ func cycle_weapon() -> bool:
 	if not _targets.next_weapon():
 		return false
 	_forecast_panel.show_forecast(_forecast_model())
-	_draw_stance_preview()
+	_draw_forecast_preview()
 	return true
 
 
@@ -726,8 +762,9 @@ func confirm_tile(tile: Vector2i) -> void:
 				_pick_target(index)
 
 
-## Cancel: steps back exactly one stage, closing the panel that stage opened. Returns false, doing
-## nothing, where there is nothing to step back from (INACTIVE, SWAP, IDLE).
+## Cancel: steps back exactly one stage, closing the panel that stage opened; out of ACTION, or of
+## WALK (which input never steps back from, but a caller may), the token snaps back to its tile.
+## Returns false, doing nothing, where there is nothing to step back from (INACTIVE, SWAP, IDLE).
 func step_back() -> bool:
 	if _history.is_empty():
 		return false
@@ -740,7 +777,9 @@ func step_back() -> bool:
 	match leaving:
 		Stage.SWAP_PICKED, Stage.MOVE:
 			_clear_selection()
-		Stage.ACTION:
+		Stage.ACTION, Stage.WALK:
+			view.unstage_walk()
+			_walk_options.clear()
 			_action = null
 			_end_tile = CombatFact.NO_TILE
 			move_cursor(_cursor)
@@ -868,6 +907,7 @@ func _select(unit_id: String) -> void:
 	_redraw()
 
 
+# Accept on a move tile: another tile walks the token there first (WALK), its own opens the menu.
 func _pick_tile(tile: Vector2i) -> void:
 	_end_tile = tile
 	_path = TurnInputModel.path_to(_session, _unit_id, tile)
@@ -876,6 +916,16 @@ func _pick_tile(tile: Vector2i) -> void:
 	)
 	if options.is_empty():
 		return
+	if not view.stage_walk(_unit_id, _path):
+		_open_action_menu(options)
+		return
+	_walk_options = options
+	_advance(Stage.WALK)
+	_redraw()
+
+
+# Opens the action menu on options, stepping forward into ACTION.
+func _open_action_menu(options: Array[TurnInputModel.ActionOption]) -> void:
 	var menu: BattlePanel = _open_panel(Stage.ACTION, action_menu_scene, options)
 	if menu == null:
 		return
@@ -954,7 +1004,7 @@ func _show_current_target() -> void:
 		return
 	if is_instance_valid(_forecast_panel):
 		_forecast_panel.show_forecast(_forecast_model())
-		_draw_stance_preview()
+		_draw_forecast_preview()
 	elif is_instance_valid(_confirm_dialog):
 		_confirm_dialog.open_with(_confirm_question())
 
@@ -1127,11 +1177,12 @@ func _clear_selection() -> void:
 	_forecast_panel = null
 	_confirm_dialog = null
 	_picker = null
+	_walk_options.clear()
 	_targets_by_tile.clear()
 
 
 # Sends command for the seat and resolves it; input waits, with the board's marks cleared, until
-# its playback settles.
+# its playback settles. A staged token stays where it walked: the command's move plays from there.
 func _send(command: Command) -> void:
 	panel_host.flush()
 	_history.clear()
@@ -1166,8 +1217,10 @@ func _after_playback() -> void:
 		_select(acted_id)
 
 
-# The stage the session allows with nothing selected, with every panel and selection dropped.
+# The stage the session allows with nothing selected, with every panel and selection dropped and a
+# staged walk its command didn't play (a rejection) snapped back.
 func _rebuild() -> void:
+	view.unstage_walk()
 	panel_host.flush()
 	_history.clear()
 	_clear_selection()
@@ -1234,7 +1287,7 @@ func _redraw() -> void:
 	_draw_path()
 	_draw_target_marks()
 	_draw_enemy_ranges()
-	_draw_stance_preview()
+	_draw_forecast_preview()
 	# Again here, as a stage's panel is kept only after _set_stage() runs (see get_hint_context()).
 	live_actions_changed.emit()
 
@@ -1269,17 +1322,15 @@ func _draw_enemy_ranges() -> void:
 	view.show_range_tracked(_shown_enemies)
 
 
-# The Stance pips the forecast panel's action would break, dimmed while it is open in CONFIRM;
-# none otherwise (question 29 (3)).
-func _draw_stance_preview() -> void:
+# The HP and Stance the forecast panel's action would change, flashed on the board while it is
+# open in CONFIRM; nothing otherwise (questions 29 (3) and 34 (1)).
+func _draw_forecast_preview() -> void:
 	if not is_instance_valid(view):
 		return
-	var forecast: CombatForecast.Forecast = null
+	var model: ForecastViewModel = null
 	if _stage == Stage.CONFIRM and is_instance_valid(_forecast_panel):
-		var model: ForecastViewModel = _forecast_panel.get_model()
-		if model != null:
-			forecast = model.forecast
-	view.show_stance_preview(forecast)
+		model = _forecast_panel.get_model()
+	view.show_forecast_preview(model)
 
 
 func _show_widgets(is_shown: bool) -> void:
@@ -1411,6 +1462,22 @@ func _on_view_settled() -> void:
 	_refresh_widgets()
 	_refresh_danger_zone()
 	_show_intents()
+
+
+# WALK's walk arrived: the action menu opens with MOVE, not WALK, as the stage Cancel returns to.
+# A menu that fails to open leaves MOVE, the token snapped back.
+func _on_view_staged_walk_finished(unit_id: String) -> void:
+	if _stage != Stage.WALK or unit_id != _unit_id:
+		return
+	var options: Array[TurnInputModel.ActionOption] = _walk_options.duplicate()
+	_walk_options.clear()
+	var previous: Stage = _history.pop_back()
+	_set_stage(previous)
+	_open_action_menu(options)
+	if _stage != Stage.ACTION:
+		view.unstage_walk()
+		_end_tile = CombatFact.NO_TILE
+		_redraw()
 
 
 # New intents reach the display only once the board has settled (see _show_intents()).

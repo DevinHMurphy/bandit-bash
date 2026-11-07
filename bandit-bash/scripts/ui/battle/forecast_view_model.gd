@@ -6,7 +6,7 @@
 # File:     forecast_view_model.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 5, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 class_name ForecastViewModel
@@ -24,6 +24,7 @@ extends RefCounted
 ## [b]Never certain:[/b] a defeat in an exchange reads as a chance ([constant DEFEAT_ON_HIT]), and
 ## when the all-hits line defeats a defender that could counter, its counter comes from
 ## [member counter], the same exchange with the actor's strikes before it missing ([CounterRolls]).
+## [member flashes] gives the board each unit's predicted HP and Stance to flash (question 34 (1)).
 ## Reading only: previews run on sandboxes. [ForecastPanel] draws it; tests compare it with the
 ## forecast without rendering (question 13).
 ##
@@ -110,6 +111,11 @@ var weapon_index: int = 0
 ## staff or a shove.
 var weapon_count: int = 1
 
+## Each unit whose HP or Stance the forecast changes, which the board flashes while the panel is
+## open (question 34 (1)): the forecast's outcomes, the actor's from [member counter] when there
+## is one. Empty for an illegal forecast.
+var flashes: Array[Flash] = []
+
 
 ## Builds the rows; see [method build], which is how callers make one. Unset arguments build an
 ## empty model.
@@ -145,6 +151,8 @@ func _init(
 	title = "%s %s" % [action_name, target_label]
 	if not forecast.is_legal:
 		notes.append("Not legal: %s" % [forecast.reason])
+		return
+	_fill_flashes()
 
 
 ## The row labelled [param label]; null when there is none.
@@ -158,6 +166,45 @@ func row(label: String) -> Row:
 ## Whether the target can be attacked with another weapon ([member weapon_count] above 1).
 func can_cycle() -> bool:
 	return weapon_count > 1
+
+
+## [param unit_id]'s entry in [member flashes]; null when the forecast leaves it as it is.
+func flash_of(unit_id: String) -> Flash:
+	for found: Flash in flashes:
+		if found.unit_id == unit_id:
+			return found
+	return null
+
+
+# One Flash per unit the forecast changes, read from its outcomes: every hit landing, no crit, Block
+# applied, HP after clipped at 0 and Stance after one lower per hit that got damage through (the
+# forecast's rolls). An exchange's actor reads the counter line when there is one, as its Damage
+# cell and COUNTER_NOTE do (question 18 (b)).
+func _fill_flashes() -> void:
+	for outcome: CombatForecast.UnitOutcome in forecast.units:
+		var shown: CombatForecast.UnitOutcome = outcome
+		# ASSUMPTION: "the attacker's bars the counter's" read as the counter line's actor outcome
+		# whenever the all-hits line defeats the target first, so a predicted kill still shows
+		# what the counter would take.
+		if (
+				counter != null
+				and outcome.unit_id == forecast.actor_id
+				and counter.attacker.outcome != null
+		):
+			shown = counter.attacker.outcome
+		# ASSUMPTION: every unit the forecast changes flashes (splash, a shove's bump), not only the
+		# two named ones, as the Stance preview dimmed every unit's pips.
+		var hp_changed: bool = shown.hp_after != shown.hp_before
+		var stance_dropped: bool = shown.stance_after < shown.stance_before
+		if not hp_changed and not stance_dropped:
+			continue
+		var added: Flash = Flash.new()
+		added.unit_id = shown.unit_id
+		added.hp_before = shown.hp_before
+		added.hp_after = maxi(shown.hp_after, 0)
+		added.stance_before = shown.stance_before
+		added.stance_after = mini(shown.stance_after, shown.stance_before)
+		flashes.append(added)
 
 
 # An exchange's rows: both sides' weapon, triangle, effectiveness, Hit, damage, crit, strikes, and
@@ -439,6 +486,30 @@ class Row:
 	var actor: String = ""
 	## The target's cell.
 	var target: String = ""
+
+
+## One unit's predicted HP and Stance, which its [HpBar] and [StancePips] flash between.
+class Flash:
+	extends RefCounted
+
+	## The unit.
+	var unit_id: String = ""
+	## Its HP now.
+	var hp_before: int = 0
+	## Its HP after the action, never below 0; above [member hp_before] for a heal.
+	var hp_after: int = 0
+	## Its Stance now.
+	var stance_before: int = 0
+	## Its Stance after the action, never above [member stance_before].
+	var stance_after: int = 0
+
+	## Whether the action changes its HP.
+	func changes_hp() -> bool:
+		return hp_after != hp_before
+
+	## Whether the action breaks any of its Stance.
+	func breaks_stance() -> bool:
+		return stance_after < stance_before
 
 
 ## One side's hit stages for the breakdown toggle.

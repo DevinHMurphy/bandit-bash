@@ -245,10 +245,12 @@ func _test_cancel_steps() -> void:
 	_press(&"ui_accept")
 	_key_to(h, tile)
 	_press(&"ui_accept")
+	BattleViewCases.arrive(h.view)
 	_expect(steps, "MOVE -> ACTION", c.get_stage() == ACTION and h.host.depth() == 1)
 	_press(&"ui_cancel")
 	_expect(steps, "ACTION cancel -> MOVE", c.get_stage() == MOVE and h.host.depth() == 0)
 	_press(&"ui_accept")
+	BattleViewCases.arrive(h.view)
 	_choose_kind(h, kind, steps)
 	_expect(steps, "ACTION -> TARGET", c.get_stage() == TARGET and h.host.depth() == 2)
 	_press(&"ui_cancel")
@@ -438,6 +440,7 @@ func _test_second_move() -> void:
 	_press(&"ui_accept")
 	_key_to(h, step)
 	_press(&"ui_accept")
+	BattleViewCases.arrive(h.view)
 	var steps: PackedStringArray = []
 	_choose_kind(h, WAIT_ACTION, steps)
 	BattleViewCases.settle(h.view)
@@ -975,7 +978,8 @@ func _go_to(h: Harness, tile: Vector2i) -> void:
 		_key_picks += 1
 
 
-# Confirms tile: a left click where nothing covers it, else the arrows and ui_accept.
+# Confirms tile: a left click where nothing covers it, else the arrows and ui_accept; then lets a
+# walk to it arrive, so the action menu is open.
 func _pick(h: Harness, tile: Vector2i) -> void:
 	if _is_clear(h, tile):
 		_click_tile(h, tile)
@@ -984,6 +988,7 @@ func _pick(h: Harness, tile: Vector2i) -> void:
 		_key_to(h, tile)
 		_press(&"ui_accept")
 		_key_picks += 1
+	BattleViewCases.arrive(h.view)
 
 
 # Presses the open action menu's row for kind with ui_down and ui_accept.

@@ -12,7 +12,8 @@
 extends "res://tests/ui/ui_suite.gd"
 ## Combat UI display suite (combat UI plan, P07): the forecast, the HUD, the unit display and the
 ## display fixes of UI9 (pop-ups on the info layer, a hit's number past Block and its Block number,
-## gray only in a unit's own phase, the HP bar's maximum), a cases file each in
+## gray only in a unit's own phase, the HP bar's maximum) and UI10's exchange feedback (the
+## forecast's flash, outlined pips, move then act), a cases file each in
 ## [code]tests/ui/[/code] (preloaded below; each one's class doc lists its checks); then the
 ## gameplay screen's layout: its save debug panel (hidden when the battle opens, toggled by F3 and
 ## read afresh, clear of the M1 map at the 1152×648 base size, untouched by clicks on the
@@ -30,6 +31,7 @@ const ForecastCases = preload("res://tests/ui/forecast_cases.gd")
 const HudCases = preload("res://tests/ui/hud_cases.gd")
 const UnitDisplayCases = preload("res://tests/ui/unit_display_cases.gd")
 const DisplayFixCases = preload("res://tests/ui/display_fix_cases.gd")
+const ExchangeFeedbackCases = preload("res://tests/ui/exchange_feedback_cases.gd")
 
 # Frames left for the save debug panel's layout and the camera to settle before its checks.
 const PANEL_FRAMES: int = 3
@@ -55,6 +57,7 @@ func _process(_delta: float) -> bool:
 		HudCases.new(_check, root).run()
 		UnitDisplayCases.new(_check, root).run()
 		DisplayFixCases.new(_check, root).run()
+		ExchangeFeedbackCases.new(_check, root).run()
 		if _start_panel_case():
 			_panel_frame = _frame
 			return false
