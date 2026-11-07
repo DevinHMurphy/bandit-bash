@@ -6,11 +6,11 @@
 # File:     unit_info_cases.gd
 # Author:
 # Created:  November 6, 2026
-# Modified: November 6, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 extends RefCounted
-## The unit display's second round for tests/ui/run_all.gd (combat UI plan, UI7F row; question
+## The unit display's second round for the ui/board suite (combat UI plan, UI7F row; question
 ## 29): the HP number and bar after hits and heals; Stance pips equal to Stance, with the overflow
 ## colour above the maximum, the Exposed look at 0, a drop's lag and the tick fallback; the
 ## forecast dimming the pips its exchange would break; each unit's info staying on its token as the
@@ -94,8 +94,8 @@ func run() -> void:
 	_test_popups_by_mode()
 
 
-# Every unit's HP bar and number match the session at the start; a hit and a heal played to one
-# token move both by their amounts.
+# Every unit's HP bar and number match the session at the start ("HP/max", the bar's default);
+# a hit and a heal played to one token move both by their amounts.
 func _test_hp_number() -> void:
 	var board: BattleViewCases.Board = _board("hp: the M1 battle begins")
 	if board == null:
@@ -103,9 +103,11 @@ func _test_hp_number() -> void:
 	var state: CombatState = board.session.state
 	var wrong: PackedStringArray = []
 	for unit_id: String in state.unit_ids():
-		var bar: HpBar = board.view.token_of(unit_id).info.get_hp_bar()
+		var token: UnitToken = board.view.token_of(unit_id)
+		var bar: HpBar = token.info.get_hp_bar()
 		var hp: int = state.get_hp(unit_id)
-		if bar.get_text() != str(hp) or roundi(bar.value) != hp:
+		var expected: String = "%d/%d" % [hp, token.max_hp]
+		if bar.get_text() != expected or roundi(bar.value) != hp:
 			wrong.append("%s: %s (%d), has %d" % [unit_id, bar.get_text(), roundi(bar.value), hp])
 	_check.call("hp: every unit's bar and number show its HP", wrong.is_empty(), "; ".join(wrong))
 
@@ -121,8 +123,8 @@ func _test_hp_number() -> void:
 	healed.hp_amount = 3
 	_play(board, [healed])
 	_check.call("hp: a hit and a heal move the bar and the number inside it", (
-			after_hit == str(hp_before - 5)
-			and bar.get_text() == str(hp_before - 2)
+			after_hit == "%d/%d" % [hp_before - 5, token.max_hp]
+			and bar.get_text() == "%d/%d" % [hp_before - 2, token.max_hp]
 			and roundi(bar.value) == hp_before - 2
 			and roundi(bar.max_value) == token.max_hp
 	), "%d, hit %s, healed %s" % [hp_before, after_hit, bar.get_text()])
@@ -747,12 +749,12 @@ static func _pips_of(pips: StancePips) -> Array[StancePips.Pip]:
 	return drawn
 
 
-# The pop-up added last to the board's numbers layer; null with none.
+# The pop-up added last to the unit info layer, Block numbers aside; null with none.
 static func _last_number(view: BattleView) -> DamageNumber:
-	var numbers: Node = view.get_node(^"%Numbers")
-	for i: int in range(numbers.get_child_count() - 1, -1, -1):
-		var number: DamageNumber = numbers.get_child(i) as DamageNumber
-		if number != null and not number.is_queued_for_deletion():
+	var popups: Array[Node2D] = view.get_info_layer().get_popups()
+	for i: int in range(popups.size() - 1, -1, -1):
+		var number: DamageNumber = popups[i] as DamageNumber
+		if number != null and number.style != DamageNumber.Style.BLOCK:
 			return number
 	return null
 

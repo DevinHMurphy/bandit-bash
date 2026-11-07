@@ -6,7 +6,7 @@
 # File:     battle_controller.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 6, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 class_name BattleController
@@ -31,68 +31,86 @@ extends Node
 ## ([method run_preview_frame]), drawn by [MovePreviewMarks] and the [IntentDisplay].[br]
 ## [b]Enemy information[/b] (question 10): the [IntentDisplay] shows the intents once the board
 ## settles; [method toggle_danger_zone] draws [DangerZone], support tiles purple (question 23).[br]
-## [b]Control hints[/b] (question 24): [constant LIVE_ACTIONS] lists the actions live in each hint
-## context ([method get_hint_context]); the [ControlHintBar] shows [method get_live_actions].[br]
+## [b]Hints and pads[/b] (questions 24, 25, 31): [constant LIVE_ACTIONS] lists each hint context's
+## actions, which [method get_live_actions] gives the [ControlHintBar] less what can do nothing
+## now; every action has a pad binding, held directions repeating through [member pad_repeat].[br]
 ## [BattleScreen] binds it to the seat's map ([method bind]); its widgets are its exports' nodes.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
 # ============================================================
-# INPUT MAP SETUP (Project Settings -> Input Map; ui_* are Godot's built-in actions):
-#   "ui_up" / "ui_down" /   -> arrow keys     (IDLE, MOVE, SWAP, SWAP_PICKED: move the cursor one
-#   "ui_left" / "ui_right"                       tile. In a panel the focused row takes them first
-#                                                and moves focus instead)
+# INPUT MAP SETUP (Project Settings -> Input Map; ui_* are Godot's built-in actions). Each action
+# lists its key, then its joypad binding in Xbox names (PlayStation in brackets); joypad buttons
+# act on press exactly as the key does, except where noted:
+#   "ui_up" / "ui_down" /   -> arrow keys;    (IDLE, MOVE, SWAP, SWAP_PICKED: move the cursor one
+#   "ui_left" / "ui_right"     d-pad, left       tile. In a panel the focused row takes them first
+#                              stick (built-in   and moves focus instead. A held d-pad direction or
+#                              defaults, as      stick push repeats through pad_repeat, the keys
+#                              Godot_FE's)       through the system's key echo)
 #   (mouse motion)                            (IDLE, MOVE, TARGET, SWAP, SWAP_PICKED: the cursor
 #                                                follows the mouse over the board. In TARGET, over
 #                                                a listed target it makes that target current)
-#   "ui_accept"             -> Enter, Space   (on the board: confirm the cursor's tile. In a panel
-#                                                the focused row takes it first and is pressed; in
+#   "ui_accept"             -> Enter, Space;  (on the board: confirm the cursor's tile. In a panel
+#                              A [Cross]         the focused row takes it first and is pressed; in
 #                                                TARGET that row is the current target's)
 #   (Left Mouse Button)                       (confirm the tile under the mouse; on a panel row the
 #                                                row takes the click. In TARGET a click on any
 #                                                listed target picks it, as its row would)
-#   "target_next"           -> E              (TARGET, CONFIRM: the next target, wrapping, keeping
+#   "target_next"           -> E; RB [R1]     (TARGET, CONFIRM: the next target, wrapping, keeping
 #                                                the weapon where it can; in CONFIRM the forecast
 #                                                or question follows. IDLE: the cursor and camera
 #                                                go to the next of the seat's units that can act.
 #                                                Deliberate reuse by stage, as Godot_FE's bumpers.
 #                                                Harmless elsewhere and with one target)
-#   "target_prev"           -> Q              (as target_next, backwards)
-#   "ui_cancel"             -> Escape         (step back one stage. Read in _input, before the
-#                                                pause menu's _unhandled_input, and only consumed
-#                                                when there is a stage to step back from: in IDLE
+#   "target_prev"           -> Q; LB [L1]     (as target_next, backwards)
+#   "ui_cancel"             -> Escape;        (step back one stage. Read in _input, before the
+#                              B [Circle],       pause menu's _unhandled_input, and only consumed
+#                              Menu [Options]    when there is a stage to step back from: in IDLE
 #                                                and SWAP, and while input is ignored (below), it
 #                                                is left to open the pause menu -- deliberate
-#                                                reuse of one key by stage)
+#                                                reuse of one key by stage. B is Godot_FE's back
+#                                                and Menu its pause; both act as Escape does)
 #   (Right Mouse Button)                      (step back one stage, as ui_cancel; nothing in IDLE
 #                                                and SWAP)
-#   "end_turn"              -> T              (IDLE, MOVE: End Turn, asking first while units can
-#                                                act. SWAP, SWAP_PICKED: Start -- deliberate reuse,
-#                                                the keyboard's way to Start. Harmless elsewhere)
-#   "fast_forward"          -> F (hold)       (any stage, even during playback: while held, the
-#                                                board plays its waits and animations
+#   "end_turn"              -> T; Y           (IDLE, MOVE: End Turn, asking first while units can
+#                              [Triangle]        act. SWAP, SWAP_PICKED: Start -- deliberate reuse,
+#                                                the keyboard's and pad's way to Start. Harmless
+#                                                elsewhere)
+#   "fast_forward"          -> F (hold);      (any stage, even during playback: while held, the
+#                              RT [R2] (hold)    board plays its waits and animations
 #                                                BattleView.fast_forward_speed times faster, in
-#                                                order; released, normal speed)
-#   "skip_playback"         -> X              (any stage, while playback runs: the board skips it
+#                                                order; released, normal speed. The trigger counts
+#                                                as held past halfway)
+#   "skip_playback"         -> X; LT [L2]     (any stage, while playback runs: the board skips it
 #                                                behind a fade to black, BattleView.skip_playback.
-#                                                Harmless with nothing playing or during a skip)
-#   "toggle_danger_zone"    -> R              (any stage, even during playback, while a session is
-#                                                bound and still fought: shows or hides the danger
+#                                                Harmless with nothing playing or during a skip,
+#                                                so a trigger's stream of motion events is too)
+#   "toggle_danger_zone"    -> R; View        (any stage, even during playback, while a session is
+#                              [Create]          bound and still fought: shows or hides the danger
 #                                                zone. It changes no state, so it isn't held back)
-#   "cycle_weapon"          -> C              (CONFIRM with the forecast panel open: the forecast
+#   "cycle_weapon"          -> C; X [Square]  (CONFIRM with the forecast panel open: the forecast
 #                                                and the command move to the target's next weapon,
 #                                                wrapping. Harmless elsewhere, and with one weapon;
 #                                                Q / E are targets, not weapons, unlike Godot_FE)
-#   "toggle_save_debug"     -> F3             (read by the save debug panel, in debug builds; not
+#   "toggle_save_debug"     -> F3; RS [R3]    (read by the save debug panel, in debug builds; not
 #                                                read here)
+# ASSUMPTION: Godot_FE bound none of end_turn, toggle_danger_zone, cycle_weapon, fast_forward,
+# skip_playback or toggle_save_debug to a pad; their pad buttons above have no basis. Every pad
+# input is bound to one action only, as this file reads them in one chain and the first match
+# wins.
 # While a command's playback runs, the map's combat is over, or the seat has no turn, every input
 # but fast_forward, skip_playback and toggle_danger_zone is ignored: that guard is deliberate, not
-# a missing check.
+# a missing check. pad_repeat still sees the d-pad and stick then, so a direction released during
+# playback stops repeating.
 # Control hints: LIVE_ACTIONS (below the state block) lists, per stage, the actions above that act
 # there, with the panels' focus moves, the pause menu's Esc and the save debug panel's F3; the
-# hint bar shows them with their keys. A binding whose meaning or stage changes here changes that
-# table in the same edit.
+# hint bar shows them with their keys or glyphs. A binding whose meaning or stage changes here
+# changes that table in the same edit.
 # ============================================================
+
+## What [method get_live_actions] returns may have changed without a change of hint context: a
+## stage was entered, or the current target or weapon changed.
+signal live_actions_changed()
 
 # --- Turn input stage (meaningful once bind() has a session) -------------------------------
 # INACTIVE:    nothing to do: unbound, the combat is over, the seat has no turn (another phase,
@@ -155,10 +173,11 @@ extends Node
 # reopens MOVE on its new tile, and otherwise IDLE, SWAP or INACTIVE as the session stands.
 # Hint contexts (LIVE_ACTIONS, get_hint_context()) are these stages' names and three more:
 # FORECAST is CONFIRM on the forecast panel; PLAYBACK is any stage while a command's playback runs
-# (only fast_forward, skip_playback, toggle_danger_zone and the pause menu's Esc act); PAUSED is
-# the pause menu open over any stage, where this node is paused and the menu takes the arrows,
-# accept and Esc. In multiplayer the menu doesn't pause, so PAUSED never comes. With nothing bound
-# or the combat over there is no context.
+# (only fast_forward, skip_playback, toggle_danger_zone and the pause menu's Esc act), the final
+# playback after the battle is decided included, until it settles and the end banner shows;
+# PAUSED is the pause menu open over any stage, where this node is paused and the menu takes the
+# arrows, accept and Esc. In multiplayer the menu doesn't pause, so PAUSED never comes. With
+# nothing bound, or the combat over and its playback settled, there is no context.
 ## The steps of turn input; see the block above.
 enum Stage {
 	## Nothing to do; input is ignored.
@@ -191,8 +210,11 @@ const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
 # CONFIRM, accept wherever it picks, presses or confirms, cycle_weapon on the forecast only.
 # ui_cancel is the pause menu's in SWAP, IDLE, PLAYBACK and INACTIVE (this node leaves Esc to it
 # there), and toggle_save_debug is the save debug panel's. Order is the bar's display order.
-# tests/ui/hint_bar_cases.gd presses every action in every context it reaches and fails when one
-# acts outside its row or a listed one does nothing; change a row with the blocks above.
+# get_live_actions() leaves out what a row lists but can do nothing now (question 31 (a)): Q / E
+# with one target and C with one weapon in TARGET, CONFIRM and FORECAST, and the danger zone in
+# the final playback. tests/ui/hint_bar_cases.gd presses every action in every context it
+# reaches, by key and by pad, and fails when one acts outside its row or a listed one does
+# nothing; change a row with the blocks above.
 # ASSUMPTION: fast_forward is listed in every unpaused context, since holding it before a command
 # speeds that command's playback; skip_playback only in PLAYBACK, as it is harmless otherwise.
 ## The actions live in each hint context ([method get_hint_context]), as [StringName]s in the
@@ -293,6 +315,11 @@ const LIVE_ACTIONS: Dictionary[StringName, Array] = {
 ## [b]Unset:[/b] no intents, lines or target rules show.
 @export var intent_display: IntentDisplay = null
 
+## Repeats a held d-pad direction or stick push as cursor steps.[br]
+## [b]Unset:[/b] each joypad direction event is read as a press, so a held d-pad steps once and a
+## stick push steps once per motion event past the deadzone.
+@export var pad_repeat: PadRepeat = null
+
 @export_group("Danger zone")
 
 # ASSUMPTION: question 12's "the window shows the danger zone" read as on by default in the window,
@@ -370,6 +397,8 @@ func _ready() -> void:
 		turn_bar.end_turn_pressed.connect(_on_turn_bar_end_turn_pressed)
 	if swap_window != null:
 		swap_window.start_pressed.connect(_on_swap_window_start_pressed)
+	if pad_repeat != null:
+		pad_repeat.stepped.connect(_on_pad_repeat_stepped)
 
 
 func _exit_tree() -> void:
@@ -396,6 +425,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed(&"toggle_danger_zone"):
 		toggle_danger_zone()
+		return
+	if is_instance_valid(pad_repeat) and pad_repeat.take(event):
 		return
 	if not is_accepting_input():
 		return
@@ -466,6 +497,8 @@ func unbind() -> void:
 		view.set_fast_forward(false)
 	if panel_host != null:
 		panel_host.flush()
+	if is_instance_valid(pad_repeat):
+		pad_repeat.release_all()
 	_session = null
 	_encounter = null
 	_danger = null
@@ -503,32 +536,37 @@ func get_shown_enemies() -> PackedStringArray:
 
 
 ## The hint context the screen is in, a key of [constant LIVE_ACTIONS]: PAUSED while the tree is
-## paused, PLAYBACK while a command plays, FORECAST in CONFIRM on the forecast panel, else the
-## stage's name; empty while nothing is bound or the combat is over. Cheap enough to poll.
+## paused, PLAYBACK while a command plays (the battle's final playback included), FORECAST in
+## CONFIRM on the forecast panel, else the stage's name; empty while nothing is bound, or once the
+## combat is over and its playback has settled. Cheap enough to poll.
 func get_hint_context() -> StringName:
-	if _session == null or _session.is_finished:
+	if _session == null:
+		return &""
+	var is_playing: bool = _is_waiting or not view.is_settled()
+	if _session.is_finished and not is_playing:
 		return &""
 	if is_inside_tree() and get_tree().paused:
 		return &"PAUSED"
-	if _is_waiting or not view.is_settled():
+	if is_playing:
 		return &"PLAYBACK"
 	if _stage == Stage.CONFIRM and is_instance_valid(_forecast_panel):
 		return &"FORECAST"
 	return StringName(Stage.find_key(_stage) as String)
 
 
-## The actions live now: [constant LIVE_ACTIONS]' row for [method get_hint_context], without
+## The actions live now: [constant LIVE_ACTIONS]' row for [method get_hint_context], less what
+## can do nothing now (question 31 (a)): target_prev and target_next with one target and
+## cycle_weapon with one weapon while targeting, toggle_danger_zone once the combat is over, and
 ## toggle_save_debug outside debug builds, where the save debug panel removes itself. Empty while
-## nothing is bound or the combat is over.
+## there is no context.
 func get_live_actions() -> Array[StringName]:
 	var actions: Array[StringName] = []
 	var context: StringName = get_hint_context()
 	if context.is_empty():
 		return actions
 	for action: StringName in LIVE_ACTIONS.get(context, []):
-		if action == &"toggle_save_debug" and not OS.is_debug_build():
-			continue
-		actions.append(action)
+		if _can_act_now(context, action):
+			actions.append(action)
 	return actions
 
 
@@ -777,6 +815,22 @@ func _read_mouse(mouse: InputEventMouse) -> void:
 			_show_current_target()
 
 
+# Whether action, listed in context's row, can do anything now (see get_live_actions()).
+func _can_act_now(context: StringName, action: StringName) -> bool:
+	match action:
+		&"toggle_save_debug":
+			return OS.is_debug_build()
+		&"toggle_danger_zone":
+			return not _session.is_finished
+		&"cycle_weapon":
+			return _targets != null and _targets.weapon_count() > 1
+		&"target_prev", &"target_next":
+			if context == &"IDLE":
+				return true
+			return _targets != null and _targets.targets().size() > 1
+	return true
+
+
 func _follows_mouse() -> bool:
 	return _stage in [Stage.SWAP, Stage.SWAP_PICKED, Stage.IDLE, Stage.MOVE, Stage.TARGET]
 
@@ -893,6 +947,7 @@ func _show_current_target() -> void:
 		return
 	move_cursor(_targets.current().tile)
 	_draw_target_marks()
+	live_actions_changed.emit()
 	if is_instance_valid(_picker) and _stage == Stage.TARGET:
 		_picker.focus_row(_targets.current_index())
 	if _stage != Stage.CONFIRM:
@@ -1056,6 +1111,7 @@ func _set_stage(stage: Stage) -> void:
 	if view != null and view.get_cursor() != null:
 		view.get_cursor().is_targeting = stage == Stage.TARGET or stage == Stage.CONFIRM
 	_refresh_widgets()
+	live_actions_changed.emit()
 
 
 func _clear_selection() -> void:
@@ -1179,6 +1235,8 @@ func _redraw() -> void:
 	_draw_target_marks()
 	_draw_enemy_ranges()
 	_draw_stance_preview()
+	# Again here, as a stage's panel is kept only after _set_stage() runs (see get_hint_context()).
+	live_actions_changed.emit()
 
 
 func _draw_path() -> void:
@@ -1366,3 +1424,10 @@ func _on_turn_bar_end_turn_pressed() -> void:
 
 func _on_swap_window_start_pressed() -> void:
 	request_start()
+
+
+# A held d-pad direction or stick push stepped, or repeated: moves the cursor as an arrow key
+# would, while input is taken.
+func _on_pad_repeat_stepped(direction: Vector2i) -> void:
+	if is_accepting_input():
+		_step_cursor(direction)

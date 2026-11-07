@@ -6,11 +6,11 @@
 # File:     unit_display_cases.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 5, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 extends RefCounted
-## The unit display's cases for tests/ui/run_all.gd (combat UI plan, UI7 row): each M1 unit's
+## The unit display's cases for the ui/display suite (combat UI plan, UI7 row): each M1 unit's
 ## sprite or letters and its side's outline; the HP and Stance bars and the Block badge following
 ## played facts, and agreeing with the session through an M1 battle; grayscale once a unit can't
 ## act, and colour again at its side's next phase; the range-tracked icon following the enemy
@@ -295,8 +295,9 @@ func _test_spent() -> void:
 	board.close()
 
 
-# Accept on an enemy in IDLE shows its token's range-tracked icon and tint, on that token only;
-# a second enemy adds its own; accept again on the first hides its icon alone.
+# Accept on an enemy in IDLE shows its token's range-tracked icon, on that token only, with the
+# sprite untinted (question 28 (e): the tint defaults to white); a second enemy adds its own;
+# accept again on the first hides its icon alone.
 func _test_range_tracked() -> void:
 	var h: TurnInputCases.Harness = _harness()
 	if h == null:
@@ -308,7 +309,7 @@ func _test_range_tracked() -> void:
 	_press(&"ui_accept")
 	var one: PackedStringArray = _tracked_icons(h)
 	var tint: Color = h.view.token_of(first).range_tracked_tint
-	var tinted: bool = h.view.token_of(first).is_range_tracked and tint != Color.WHITE
+	var is_untinted: bool = h.view.token_of(first).is_range_tracked and tint == Color.WHITE
 	_key_to(h, h.session.state.tile_of(second))
 	_press(&"ui_accept")
 	var both: PackedStringArray = _tracked_icons(h)
@@ -319,7 +320,7 @@ func _test_range_tracked() -> void:
 	expected_both.sort()
 	_check.call("range icon: it follows the enemy range toggle, token by token", (
 			one == PackedStringArray([first])
-			and tinted
+			and is_untinted
 			and both == expected_both
 			and after == PackedStringArray([second])
 			and h.controller.get_shown_enemies() == PackedStringArray([second])

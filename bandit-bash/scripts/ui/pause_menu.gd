@@ -6,7 +6,7 @@
 # File:     pause_menu.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: November 5, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 extends CanvasLayer
@@ -22,18 +22,24 @@ extends CanvasLayer
 ## Pauses the scene tree only in solo play. In a multiplayer session the host keeps simulating for
 ## everyone, so the menu opens without pausing.[br]
 ## Also asks "Save & Quit and join?" when a Steam invite arrives during a solo run
-## ([signal SceneRouter.invite_confirmation_requested]); declining drops the invite.
+## ([signal SceneRouter.invite_confirmation_requested]); declining drops the invite.[br]
+## [b]Focus:[/b] while open, one of its buttons always has focus, so a pad can always move: up and
+## down stay within its column, and focus a click took elsewhere comes back the next frame.
 
 # ============================================================
-# INPUT MAP SETUP (built-in action; project.godot's [input] section adds none for this menu):
-#   "ui_cancel"  -> Escape key, gamepad B   (opens the menu; closes it again while open)
+# INPUT MAP SETUP (built-in action, overridden in project.godot's [input] to add its pad buttons):
+#   "ui_cancel"  -> Escape; pad B [Circle],   (opens the menu; closes it again while open)
+#                   Menu [Options]
+#   "ui_up" / "ui_down" / "ui_accept"         (not read here: the GUI moves focus between the
+#                                              buttons and presses the focused one, by key, d-pad,
+#                                              stick or A [Cross])
 # On the battle screen, Esc is shared with turn input by stage (deliberate reuse of one key):
 # BattleController reads ui_cancel in _input, before this _unhandled_input, and takes it while
 # there is a stage to step back from (a unit selected, a menu, picker or dialog open, a swap
 # pick): there Esc steps back one stage and this menu doesn't open. It opens from idle (nothing
 # selected) or the opening swap window, and while turn input is off (playback running, no turn).
 # Right-click steps back the same way but never opens this menu.
-# Nothing else is read here: the buttons are mouse/focus driven.
+# Nothing else is read here: the buttons are mouse and focus driven.
 # ============================================================
 
 @onready var _root: Control = %Root
@@ -63,6 +69,10 @@ func _exit_tree() -> void:
 		get_tree().paused = false
 
 
+func _process(_delta: float) -> void:
+	keep_focus()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not event.is_action_pressed(&"ui_cancel"):
 		return
@@ -89,14 +99,51 @@ func open() -> void:
 	_root.visible = true
 	if not SteamNetwork.has_active_session():
 		get_tree().paused = true
-	var first_button: Button = _save_quit_button if _save_quit_button.visible else _resume_button
-	first_button.grab_focus.call_deferred()
+	_link_focus()
+	_first_button().grab_focus.call_deferred()
 
 
 ## Hides the menu and unpauses.
 func close() -> void:
 	_root.visible = false
 	get_tree().paused = false
+
+
+## While the menu is open and its invite question isn't, gives its first button focus when none of
+## its buttons has it. [method Node._process] calls it each frame; tests call it to stand for one.
+## Returns whether it moved focus.
+func keep_focus() -> bool:
+	if not _root.visible or _invite_dialog.visible:
+		return false
+	var focused: Control = _root.get_viewport().gui_get_focus_owner()
+	if focused != null and _root.is_ancestor_of(focused):
+		return false
+	_first_button().grab_focus()
+	return true
+
+
+# The button focused when the menu opens: Save & Quit when shown, else Resume.
+func _first_button() -> Button:
+	return _save_quit_button if _save_quit_button.visible else _resume_button
+
+
+# Links the visible buttons as one column, so up and down stop at its ends and never reach a
+# widget under the menu; left and right stay put.
+func _link_focus() -> void:
+	var column: Array[Button] = []
+	for button: Button in [_resume_button, _save_quit_button, _leave_button]:
+		if button.visible:
+			column.append(button)
+	for i: int in column.size():
+		var button: Button = column[i]
+		var above: Button = column[maxi(i - 1, 0)]
+		var below: Button = column[mini(i + 1, column.size() - 1)]
+		button.focus_neighbor_top = button.get_path_to(above)
+		button.focus_neighbor_bottom = button.get_path_to(below)
+		button.focus_neighbor_left = button.get_path_to(button)
+		button.focus_neighbor_right = button.get_path_to(button)
+		button.focus_previous = button.focus_neighbor_top
+		button.focus_next = button.focus_neighbor_bottom
 
 
 ## The seed line's text, for tests; empty while it is hidden.

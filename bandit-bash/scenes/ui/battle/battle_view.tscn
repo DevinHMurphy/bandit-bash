@@ -63,9 +63,6 @@ unique_name_in_owner = true
 [node name="TileCursor" parent="." instance=ExtResource("10_cursor")]
 unique_name_in_owner = true
 
-[node name="Numbers" type="Node2D" parent="."]
-unique_name_in_owner = true
-
 [node name="UnitInfoLayer" parent="." instance=ExtResource("17_info_layer")]
 unique_name_in_owner = true
 

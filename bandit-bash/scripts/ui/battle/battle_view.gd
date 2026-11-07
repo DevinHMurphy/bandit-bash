@@ -6,7 +6,7 @@
 # File:     battle_view.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 6, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 class_name BattleView
@@ -17,11 +17,14 @@ extends Node2D
 ##
 ## [method bind] builds the board from state ([BoardViewModel]); after that, facts reach it only
 ## through the session's [member CombatSession.playback], which [method advance] steps each frame:
-## moves walk their path, damage, heal, Miss and Critical pop-ups rise, a crit flashes its unit,
-## defeated units fade out, tokens' HP, Stance, Block and turn follow their facts, and a tile the
-## darkness deepens is redrawn. Each fact's wait is the time its animation takes. The board steps
-## its own tweens with the same time, so a test can drive it frame by frame without a tree, and
-## keeps each unit's info on its token whenever the camera or a token moves.[br]
+## moves walk their path, damage, heal, Miss and Critical pop-ups rise on the info layer, a crit
+## flashes its unit, defeated units fade out, tokens' HP, Stance, Block and turn follow their
+## facts, spent units gray only in their side's phase, and a tile the darkness deepens is redrawn.
+## A hit's number is its damage past Block, overkill included, with a small Block number beside
+## it for what Block absorbed (question 30 (c)). Each fact's wait is the time its animation
+## takes. The board steps its own tweens with the same time, so a test can drive it frame by frame
+## without a tree, and keeps each unit's info on its token whenever the camera or a token
+## moves.[br]
 ## [b]Reading only:[/b] it never changes combat state and submits no command; turn input does
 ## ([BattleController]), and tells it which forecast to preview ([method show_stance_preview]).
 ## Facts already queued at [method bind] are skipped: the board is built from where they led.[br]
@@ -61,7 +64,8 @@ const _ACTION_KINDS: Array[CombatFact.Kind] = [
 ## [b]Unset:[/b] no token is drawn and an error is reported at [method bind].
 @export var token_scene: PackedScene = null
 
-## The number shown for each damage or heal.[br]
+## The pop-up shown for each damage, heal, Miss, Critical and Block absorbed ([DamageNumber]), on
+## the [UnitInfoLayer].[br]
 ## [b]Unset:[/b] no numbers are shown.
 @export var damage_number_scene: PackedScene = null
 
@@ -175,9 +179,17 @@ var _is_fast_forward: bool = false
 # attacker's from the defender's as CombatState.follow() does; empty between exchanges.
 var _open_exchange: String = ""
 
-# Units whose crit already showed its damage in a Critical pop-up, so the Damage taken fact that
-# follows it in the same strike shows no second number; cleared at every Attack made.
+# Units struck by a crit whose Damage taken is still to come, which then shows as the Critical
+# pop-up; cleared at every Attack made.
 var _crit_shown: Dictionary[String, bool] = {}
+
+# Each struck unit's hit damage from its Hit taken, before Block and before HP runs out, which its
+# Damage taken (that carries only what Block took and what HP lost) reads to show the overkill;
+# cleared at every Attack made.
+var _hit_damage: Dictionary[String, int] = {}
+
+# The side whose phase it is, as played: spent units gray only on this side.
+var _phase_side: CombatFact.CombatSide = CombatFact.CombatSide.NONE
 
 # Whether the unit infos must be put over their tokens again at the next advance(), with no tween
 # moving anything: a token placed or the map framed.
@@ -205,7 +217,6 @@ var _skip_left: float = 0.0
 @onready var _map_holder: Node2D = %MapHolder
 @onready var _darkness: DarknessOverlay = %DarknessOverlay
 @onready var _token_layer: Node2D = %Tokens
-@onready var _number_layer: Node2D = %Numbers
 @onready var _camera: CameraRig = %CameraRig
 @onready var _move_overlay: TileOverlay = %MoveOverlay
 @onready var _attack_overlay: TileOverlay = %AttackOverlay
@@ -245,6 +256,7 @@ func bind(session: CombatSession) -> void:
 	# The board is built from the state the queued facts led to, so they are played to no one.
 	_session.playback.play_all()
 	_clear_board()
+	_phase_side = session.state.phase_side
 	_build_map(session.setup.map)
 	var model: BoardViewModel = BoardViewModel.build(session)
 	for view: BoardViewModel.UnitView in model.units:
@@ -257,6 +269,7 @@ func bind(session: CombatSession) -> void:
 	_is_settled = true
 	_open_exchange = ""
 	_crit_shown.clear()
+	_hit_damage.clear()
 	_follow_info()
 
 
@@ -522,8 +535,8 @@ func map_rect() -> Rect2:
 
 ## How the board differs from the session's state, one line per difference: a unit with no token
 ## or a token with no unit, a token on the wrong tile or position, or showing the wrong HP, Stance,
-## Block or turn, or its info drawing other HP or Stance than the token holds. Empty when they
-## agree. For tests and debugging; meaningful once [method is_settled].
+## Block, turn or phase, or its info drawing other HP or Stance than the token holds. Empty when
+## they agree. For tests and debugging; meaningful once [method is_settled].
 func mismatches() -> PackedStringArray:
 	var found: PackedStringArray = []
 	if _session == null:
@@ -552,6 +565,10 @@ func mismatches() -> PackedStringArray:
 				unit_id, token.has_acted, token.is_second_move_pending, unit.has_acted,
 				unit.is_second_move_pending,
 			])
+		if token.is_phase_side != (token.side == state.phase_side):
+			found.append("%s shows its side's phase %s, phase is %s's" % [
+				unit_id, token.is_phase_side, CombatFact.CombatSide.find_key(state.phase_side),
+			])
 		found.append_array(_info_mismatches(token))
 	for unit_id: String in _tokens:
 		if not state.has_unit(unit_id):
@@ -570,10 +587,9 @@ func _clear_board() -> void:
 	_tokens.clear()
 	_info_layer.clear()
 	clear_target_marks()
-	for layer: Node2D in [_token_layer, _number_layer]:
-		for child: Node in layer.get_children():
-			layer.remove_child(child)
-			child.queue_free()
+	for child: Node in _token_layer.get_children():
+		_token_layer.remove_child(child)
+		child.queue_free()
 
 
 # The map scene for terrain, under MapHolder; only its terrain layer shows unless show_markers.
@@ -631,6 +647,7 @@ func _place_token(view: BoardViewModel.UnitView) -> void:
 	_token_layer.add_child(token)
 	_info_layer.add_info(view.id, token)
 	token.show_unit(view)
+	token.show_phase(view.side == _phase_side)
 	token.position = tile_to_position(view.tile)
 	_tokens[view.id] = token
 	_is_info_dirty = true
@@ -664,9 +681,11 @@ func _bus_links(bus: CombatBus) -> Array[Array]:
 		[bus.unit.block_lost, _on_unit_block_lost],
 		[bus.unit.stance_changed, _on_unit_stance_changed],
 		[bus.unit.block_stance_refreshed, _on_unit_block_stance_refreshed],
+		[bus.action.hit_taken, _on_action_hit_taken],
 		[bus.action.damage_taken, _on_action_damage_taken],
 		[bus.action.missed, _on_action_missed],
 		[bus.action.crit_taken, _on_action_crit_taken],
+		[bus.flow.phase_started, _on_flow_phase_started],
 		[bus.world.darkness_advanced, _on_world_darkness_advanced],
 		[bus.fact_played, _on_fact_played],
 	]
@@ -820,14 +839,16 @@ func _animate_move(token: UnitToken, path: Array[Vector2i], is_enemy: bool) -> f
 	return seconds
 
 
-# A pop-up of style over token; a damage or heal number only when amount is above 0.
+# A pop-up of style over token on the info layer; a damage, heal or Block number only when
+# amount is above 0.
 func _show_number(token: UnitToken, amount: int, style: DamageNumber.Style) -> void:
-	var is_amount: bool = style == DamageNumber.Style.DAMAGE or style == DamageNumber.Style.HEAL
+	var is_amount: bool = style in [
+		DamageNumber.Style.DAMAGE, DamageNumber.Style.HEAL, DamageNumber.Style.BLOCK,
+	]
 	if damage_number_scene == null or (is_amount and amount <= 0):
 		return
 	var number: DamageNumber = damage_number_scene.instantiate()
-	_number_layer.add_child(number)
-	number.position = token.position
+	_info_layer.add_popup(number, token.global_position)
 	_cosmetic.append(number.show_style(style, amount))
 	number_shown.emit(token.unit_id, style)
 
@@ -851,9 +872,9 @@ func _info_mismatches(token: UnitToken) -> PackedStringArray:
 		found.append("%s has no info" % [token.unit_id])
 		return found
 	var bar: HpBar = token.info.get_hp_bar()
-	if roundi(bar.value) != token.hp or bar.get_text() != str(token.hp):
-		found.append("%s's HP bar shows %d (%s), token %d" % [
-			token.unit_id, roundi(bar.value), bar.get_text(), token.hp,
+	if roundi(bar.value) != token.hp or bar.get_text() != bar.text_of(token.hp, token.max_hp):
+		found.append("%s's HP bar shows %d (%s), token %d of %d" % [
+			token.unit_id, roundi(bar.value), bar.get_text(), token.hp, token.max_hp,
 		])
 	var pips: StancePips = token.info.get_stance_pips()
 	if pips.stance != token.stance or pips.stance_max != token.stance_max:
@@ -930,16 +951,36 @@ func _on_unit_darkness_damage_taken(fact: CombatFact) -> void:
 	_hold_for(fact, number_hold)
 
 
-# A strike's damage after its Critical pop-up shows no number of its own: the pop-up carries it.
+# A struck unit's Hit taken: its amount is the hit's damage before Block and before HP runs out,
+# which the Damage taken that follows lacks (see _on_action_damage_taken()).
+func _on_action_hit_taken(fact: CombatFact) -> void:
+	_hit_damage[fact.actor_id] = fact.amount
+
+
+# One rule for every hit's numbers (question 30 (c)): the number is the damage past Block,
+# overkill included (the Hit taken's damage less what Block absorbed), as a Critical pop-up after
+# a crit and a plain number otherwise; then a small Block number when Block absorbed any. Damage
+# with no Hit taken before it (splash) shows what reached HP.
 func _on_action_damage_taken(fact: CombatFact) -> void:
 	var token: UnitToken = token_of(fact.actor_id)
 	if token == null:
 		return
 	token.show_hp(token.hp - fact.hp_amount, _max_hp_of(fact.actor_id, token.max_hp))
 	token.show_block(token.block - fact.block_amount)
-	if not _crit_shown.has(fact.actor_id):
-		_show_number(token, fact.amount, DamageNumber.Style.DAMAGE)
+	# ASSUMPTION: splash facts carry no damage before HP runs out (SplashResolver records only
+	# what Block took and HP lost), so a splash's overkill can't show; HP's loss stands for it.
+	var past_block: int = fact.hp_amount
+	if _hit_damage.has(fact.actor_id):
+		past_block = maxi(_hit_damage[fact.actor_id] - fact.block_amount, 0)
+	if _crit_shown.has(fact.actor_id):
+		# ASSUMPTION: a crit Block took whole still shows "Critical 0", as a crit is news even
+		# when Block takes it; a plain hit Block took whole shows only the Block number.
+		_show_number(token, past_block, DamageNumber.Style.CRITICAL)
+	else:
+		_show_number(token, past_block, DamageNumber.Style.DAMAGE)
+	_show_number(token, fact.block_amount, DamageNumber.Style.BLOCK)
 	_crit_shown.erase(fact.actor_id)
+	_hit_damage.erase(fact.actor_id)
 	_hold_for(fact, number_hold)
 
 
@@ -953,20 +994,28 @@ func _on_action_missed(fact: CombatFact) -> void:
 	_hold_for(fact, number_hold)
 
 
-# One fact per critical hit: the struck unit's Crit taken (Crit dealt is the same strike). Its
-# amount is the hit's damage before Block; the Damage taken that follows at once moves the bars and
-# holds playback, unless the crit was fully countered and none follows.
+# One fact per critical hit: the struck unit's Crit taken (Crit dealt is the same strike). It
+# flashes the unit; its Critical pop-up waits for the Damage taken that follows at once, which
+# knows what Block absorbed. A crit fully countered (0 damage) has no Damage taken, so it shows
+# "Critical 0" and holds playback itself.
 func _on_action_crit_taken(fact: CombatFact) -> void:
 	var token: UnitToken = token_of(fact.actor_id)
 	if token == null:
 		return
-	_show_number(token, fact.amount, DamageNumber.Style.CRITICAL)
 	_add_cosmetic(token.flash(crit_flash_color, crit_flash_time))
 	_add_cosmetic(_camera.shake(crit_shake_strength, crit_shake_time))
 	if fact.amount > 0:
 		_crit_shown[fact.actor_id] = true
-	else:
-		_hold_for(fact, number_hold)
+		return
+	_show_number(token, 0, DamageNumber.Style.CRITICAL)
+	_hold_for(fact, number_hold)
+
+
+# A side's Phase Start: its spent units gray from now on, the other side's show in colour.
+func _on_flow_phase_started(fact: CombatFact) -> void:
+	_phase_side = fact.side
+	for token: UnitToken in _tokens.values():
+		token.show_phase(token.side == _phase_side)
 
 
 func _on_unit_block_gained(fact: CombatFact) -> void:
@@ -1006,6 +1055,7 @@ func _on_unit_block_stance_refreshed(fact: CombatFact) -> void:
 func _on_fact_played(fact: CombatFact) -> void:
 	if fact.kind == CombatFact.Kind.ATTACK_MADE:
 		_crit_shown.clear()
+		_hit_damage.clear()
 	var is_attack: bool = false
 	if fact.kind == CombatFact.Kind.BEFORE_COMBAT:
 		if _open_exchange == "%s>%s" % [fact.target_id, fact.actor_id]:

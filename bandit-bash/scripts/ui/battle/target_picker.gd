@@ -6,7 +6,7 @@
 # File:     target_picker.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 5, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 class_name TargetPicker
@@ -28,6 +28,9 @@ extends BattlePanel
 
 var _options: Array[TurnInputModel.TargetOption] = []
 var _rows: Array[Button] = []
+
+# The row that last had focus, which restore_focus() returns to.
+var _last_focused: int = 0
 
 @onready var _title: Label = %Title
 @onready var _row_box: VBoxContainer = %Rows
@@ -57,6 +60,12 @@ func focus_first() -> void:
 		_rows[0].grab_focus()
 
 
+## Focuses the row that last had focus, so a lost focus comes back on the current target rather
+## than making the first target current.
+func restore_focus() -> void:
+	focus_row(clampi(_last_focused, 0, _rows.size() - 1))
+
+
 ## Focuses row [param index], so accept presses it: the controller keeps the focused row on the
 ## current target of its [TargetList] as Q / E and the mouse move it. Focusing emits
 ## [signal BattlePanel.highlighted] as the keyboard does. Does nothing out of range.
@@ -80,6 +89,7 @@ func _on_row_pressed(index: int) -> void:
 
 
 func _on_row_focus_entered(index: int) -> void:
+	_last_focused = index
 	highlighted.emit(_options[index])
 
 

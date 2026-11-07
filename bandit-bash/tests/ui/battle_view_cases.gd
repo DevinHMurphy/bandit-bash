@@ -6,11 +6,11 @@
 # File:     battle_view_cases.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 5, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 extends RefCounted
-## The battle board's cases for tests/ui/run_all.gd (combat UI plan, UI1 row): the view-model,
+## The battle board's cases for the ui/board suite (combat UI plan, UI1 row): the view-model,
 ## the board built on the M1 map, a whole M1 battle's facts played through the session's
 ## playback, the darkness overlay, held fast-forward and the faded skip. No autoload is named or
 ## needed.

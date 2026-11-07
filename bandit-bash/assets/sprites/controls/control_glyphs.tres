@@ -1,0 +1,181 @@
+[gd_resource type="Resource" script_class="ControlGlyphTable" format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/battle/control_glyph_table.gd" id="1_table"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/keyboard/q.png" id="2_keyboard_q"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/keyboard/e.png" id="3_keyboard_e"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/keyboard/x.png" id="4_keyboard_x"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/keyboard/escape.png" id="5_keyboard_escape"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/keyboard/enteralt.png" id="6_keyboard_enteralt"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/keyboard/w.png" id="7_keyboard_w"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/keyboard/a.png" id="8_keyboard_a"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/keyboard/s.png" id="9_keyboard_s"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/keyboard/d.png" id="10_keyboard_d"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/keyboard/z.png" id="11_keyboard_z"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/keyboard/shift.png" id="12_keyboard_shift"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/keyboard/alttext.png" id="13_keyboard_alttext"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/keyboard/controltext.png" id="14_keyboard_controltext"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/keyboard/backspace.png" id="15_keyboard_backspace"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/xbox_controller/a_button.png" id="16_xbox_controller_a_button"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/xbox_controller/b.png" id="17_xbox_controller_b"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/xbox_controller/x.png" id="18_xbox_controller_x"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/xbox_controller/y.png" id="19_xbox_controller_y"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/xbox_controller/view.png" id="20_xbox_controller_view"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/xbox_controller/start.png" id="21_xbox_controller_start"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/xbox_controller/lb_1.png" id="22_xbox_controller_lb_1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/xbox_controller/rb_1.png" id="23_xbox_controller_rb_1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/xbox_controller/w.png" id="24_xbox_controller_w"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/xbox_controller/s.png" id="25_xbox_controller_s"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/xbox_controller/a.png" id="26_xbox_controller_a"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/xbox_controller/d.png" id="27_xbox_controller_d"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/ps_controller/x_button.png" id="28_ps_controller_x_button"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/ps_controller/circle.png" id="29_ps_controller_circle"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/ps_controller/square.png" id="30_ps_controller_square"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/ps_controller/triangle.png" id="31_ps_controller_triangle"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/ps_controller/select.png" id="32_ps_controller_select"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/ps_controller/start.png" id="33_ps_controller_start"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/ps_controller/r_stick_press.png" id="34_ps_controller_r_stick_press"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/ps_controller/l1.png" id="35_ps_controller_l1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/ps_controller/r1.png" id="36_ps_controller_r1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/ps_controller/w.png" id="37_ps_controller_w"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/ps_controller/s.png" id="38_ps_controller_s"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/ps_controller/a.png" id="39_ps_controller_a"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/ps_controller/d.png" id="40_ps_controller_d"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/ps_controller/l_stick.png" id="41_ps_controller_l_stick"]
+[ext_resource type="Texture2D" path="res://assets/sprites/controls/ps_controller/r_stick.png" id="42_ps_controller_r_stick"]
+
+[resource]
+script = ExtResource("1_table")
+keyboard_glyphs = Dictionary[String, Texture2D]({
+"key:Q": ExtResource("2_keyboard_q"),
+"key:E": ExtResource("3_keyboard_e"),
+"key:X": ExtResource("4_keyboard_x"),
+"key:Escape": ExtResource("5_keyboard_escape"),
+"key:Enter": ExtResource("6_keyboard_enteralt"),
+"key:W": ExtResource("7_keyboard_w"),
+"key:A": ExtResource("8_keyboard_a"),
+"key:S": ExtResource("9_keyboard_s"),
+"key:D": ExtResource("10_keyboard_d"),
+"key:Z": ExtResource("11_keyboard_z"),
+"key:Shift": ExtResource("12_keyboard_shift"),
+"key:Alt": ExtResource("13_keyboard_alttext"),
+"key:Ctrl": ExtResource("14_keyboard_controltext"),
+"key:Backspace": ExtResource("15_keyboard_backspace")
+})
+xbox_glyphs = Dictionary[String, Texture2D]({
+"button:0": ExtResource("16_xbox_controller_a_button"),
+"button:1": ExtResource("17_xbox_controller_b"),
+"button:2": ExtResource("18_xbox_controller_x"),
+"button:3": ExtResource("19_xbox_controller_y"),
+"button:4": ExtResource("20_xbox_controller_view"),
+"button:6": ExtResource("21_xbox_controller_start"),
+"button:9": ExtResource("22_xbox_controller_lb_1"),
+"button:10": ExtResource("23_xbox_controller_rb_1"),
+"button:11": ExtResource("24_xbox_controller_w"),
+"button:12": ExtResource("25_xbox_controller_s"),
+"button:13": ExtResource("26_xbox_controller_a"),
+"button:14": ExtResource("27_xbox_controller_d")
+})
+playstation_glyphs = Dictionary[String, Texture2D]({
+"button:0": ExtResource("28_ps_controller_x_button"),
+"button:1": ExtResource("29_ps_controller_circle"),
+"button:2": ExtResource("30_ps_controller_square"),
+"button:3": ExtResource("31_ps_controller_triangle"),
+"button:4": ExtResource("32_ps_controller_select"),
+"button:6": ExtResource("33_ps_controller_start"),
+"button:8": ExtResource("34_ps_controller_r_stick_press"),
+"button:9": ExtResource("35_ps_controller_l1"),
+"button:10": ExtResource("36_ps_controller_r1"),
+"button:11": ExtResource("37_ps_controller_w"),
+"button:12": ExtResource("38_ps_controller_s"),
+"button:13": ExtResource("39_ps_controller_a"),
+"button:14": ExtResource("40_ps_controller_d"),
+"axis:0-": ExtResource("41_ps_controller_l_stick"),
+"axis:0+": ExtResource("41_ps_controller_l_stick"),
+"axis:1-": ExtResource("41_ps_controller_l_stick"),
+"axis:1+": ExtResource("41_ps_controller_l_stick"),
+"axis:2-": ExtResource("42_ps_controller_r_stick"),
+"axis:2+": ExtResource("42_ps_controller_r_stick"),
+"axis:3-": ExtResource("42_ps_controller_r_stick"),
+"axis:3+": ExtResource("42_ps_controller_r_stick")
+})
+xbox_labels = Dictionary[String, String]({
+"button:0": "A",
+"button:1": "B",
+"button:2": "X",
+"button:3": "Y",
+"button:4": "View",
+"button:5": "Guide",
+"button:6": "Menu",
+"button:7": "LS",
+"button:8": "RS",
+"button:9": "LB",
+"button:10": "RB",
+"button:11": "D-pad up",
+"button:12": "D-pad down",
+"button:13": "D-pad left",
+"button:14": "D-pad right",
+"axis:0-": "LS",
+"axis:0+": "LS",
+"axis:1-": "LS",
+"axis:1+": "LS",
+"axis:2-": "RS",
+"axis:2+": "RS",
+"axis:3-": "RS",
+"axis:3+": "RS",
+"axis:4+": "LT",
+"axis:5+": "RT"
+})
+playstation_labels = Dictionary[String, String]({
+"button:0": "Cross",
+"button:1": "Circle",
+"button:2": "Square",
+"button:3": "Triangle",
+"button:4": "Create",
+"button:5": "PS",
+"button:6": "Options",
+"button:7": "L3",
+"button:8": "R3",
+"button:9": "L1",
+"button:10": "R1",
+"button:11": "D-pad up",
+"button:12": "D-pad down",
+"button:13": "D-pad left",
+"button:14": "D-pad right",
+"axis:0-": "L stick",
+"axis:0+": "L stick",
+"axis:1-": "L stick",
+"axis:1+": "L stick",
+"axis:2-": "R stick",
+"axis:2+": "R stick",
+"axis:3-": "R stick",
+"axis:3+": "R stick",
+"axis:4+": "L2",
+"axis:5+": "R2"
+})
+other_pad_labels = Dictionary[String, String]({
+"button:0": "A",
+"button:1": "B",
+"button:2": "X",
+"button:3": "Y",
+"button:4": "View",
+"button:5": "Guide",
+"button:6": "Menu",
+"button:7": "LS",
+"button:8": "RS",
+"button:9": "LB",
+"button:10": "RB",
+"button:11": "D-pad up",
+"button:12": "D-pad down",
+"button:13": "D-pad left",
+"button:14": "D-pad right",
+"axis:0-": "LS",
+"axis:0+": "LS",
+"axis:1-": "LS",
+"axis:1+": "LS",
+"axis:2-": "RS",
+"axis:2+": "RS",
+"axis:3-": "RS",
+"axis:3+": "RS",
+"axis:4+": "LT",
+"axis:5+": "RT"
+})

@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/battle/control_hint_bar.gd" id="1_bar"]
 [ext_resource type="Theme" path="res://scenes/ui/battle/battle_theme.tres" id="2_theme"]
+[ext_resource type="Resource" path="res://assets/sprites/controls/control_glyphs.tres" id="3_glyphs"]
 
 [node name="ControlHintBar" type="PanelContainer"]
 process_mode = 3
@@ -19,6 +20,7 @@ mouse_filter = 2
 theme = ExtResource("2_theme")
 theme_type_variation = &"ControlHintBar"
 script = ExtResource("1_bar")
+glyphs = ExtResource("3_glyphs")
 
 [node name="Text" type="RichTextLabel" parent="."]
 unique_name_in_owner = true

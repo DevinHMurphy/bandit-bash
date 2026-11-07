@@ -6,7 +6,7 @@
 # File:     confirm_dialog.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 class_name ConfirmDialog
@@ -16,7 +16,8 @@ extends BattlePanel
 ##
 ## Opened by [BattleController] through [PanelHost] with the question's text. Confirm emits
 ## [signal BattlePanel.confirmed] with [code]true[/code]; Back emits
-## [signal BattlePanel.cancelled], as cancel does. Both buttons are authored in the scene.
+## [signal BattlePanel.cancelled], as cancel does. Both buttons are authored in the scene; left and
+## right move between them and focus never leaves the two ([method BattlePanel.chain_grid]).
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
@@ -28,6 +29,8 @@ extends BattlePanel
 func _ready() -> void:
 	_confirm_button.pressed.connect(_on_confirm_button_pressed)
 	_back_button.pressed.connect(_on_back_button_pressed)
+	var buttons: Array[Button] = [_confirm_button, _back_button]
+	BattlePanel.chain_grid([buttons])
 
 
 ## [param payload]: the question, a [String].

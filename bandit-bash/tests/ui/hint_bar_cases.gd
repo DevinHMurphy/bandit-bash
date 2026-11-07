@@ -6,14 +6,20 @@
 # File:     hint_bar_cases.gd
 # Author:
 # Created:  November 6, 2026
-# Modified: November 6, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 extends RefCounted
-## Control hints' cases for tests/ui/run_all.gd (combat UI plan, UI8 row; question 24): the
-## [ControlHintBar] against [constant BattleController.LIVE_ACTIONS]; its layout from its exports,
-## clear of the HUD's map area at the 1152×648 base size; a rebound key changing its label; and
-## two M1 battles walked by input through every hint context a solo battle reaches.[br]
+## Control hints' cases for tests/ui/input/run_all.gd (combat UI plan, UI8 and UI9 rows; questions
+## 24, 25, 31 and 32): the [ControlHintBar] against [constant BattleController.LIVE_ACTIONS]; its
+## layout from its exports, clear of the HUD's map area at the 1152×648 base size; a rebound key
+## changing its label; two M1 battles walked by input through every hint context a solo battle
+## reaches, by the actions' keys, then again by their joypad bindings with the bar drawing the Xbox
+## family; and the hints left out while they can do nothing (one target, one weapon).[br]
+## [b]The pad walk[/b] presses each action's first joypad event (a button, or an axis pushed and
+## let back) where the key walk sends the action, through a [PadRepeat] on the controller; and in
+## every context with a panel or the pause menu open it presses the d-pad every way, checking
+## after each press that a control inside it still has focus.[br]
 ## [b]The walk[/b] checks, in each context: the bar shows exactly
 ## [method BattleController.get_live_actions], each with its key and label, on one unclipped line;
 ## every candidate action outside that list, pressed, changes nothing; every listed action acts:
@@ -46,6 +52,16 @@ const CONFIRM_SCENE: PackedScene = preload("res://scenes/ui/battle/confirm_dialo
 const FORECAST_SCENE: PackedScene = preload("res://scenes/ui/battle/forecast_panel.tscn")
 const HINT_BAR_SCENE: PackedScene = preload("res://scenes/ui/battle/control_hint_bar.tscn")
 const HUD_SCENE: PackedScene = preload("res://scenes/ui/battle/battle_hud.tscn")
+const PAD_REPEAT_SCENE: PackedScene = preload("res://scenes/ui/battle/pad_repeat.tscn")
+const ADAPTER_SCENE: PackedScene = preload("res://scenes/ui/battle/input_device_adapter.tscn")
+
+# The Input Helper addon's autoload, which the pad walk's adapter listens to.
+const HELPER_PATH: NodePath = ^"/root/InputHelper"
+
+# The d-pad presses the pad walk makes in each open panel, checking focus after each.
+const FOCUS_MOVES: Array[StringName] = [
+	&"ui_down", &"ui_down", &"ui_right", &"ui_right", &"ui_up", &"ui_up", &"ui_left", &"ui_left",
+]
 
 # Loaded at run time: their scripts name autoloads (see the class doc).
 const PAUSE_MENU_SCENE: String = "res://scenes/ui/pause_menu.tscn"
@@ -98,6 +114,12 @@ var _candidates: Array[StringName] = []
 var _reached: Dictionary[StringName, bool] = {}
 var _acted: Dictionary[String, bool] = {}
 
+# Whether the walk presses each action's joypad binding instead of sending the action.
+var _pad: bool = false
+
+# The pad walk's device adapter, set to the Xbox family; null in the key walk.
+var _adapter: InputDeviceAdapter = null
+
 
 ## [param check]: called as check(case_name: String, passed: bool, detail: String).
 ## [param root]: the root viewport, where the harness is added and input is pushed.
@@ -111,7 +133,7 @@ func _init(check: Callable, root: Node) -> void:
 func run() -> void:
 	_map = load(M1_DEFINITION) as CombatMapDefinition
 	if _map == null:
-		_check.call("hints: the M1 map definition loads", false, M1_DEFINITION)
+		_check.call(_tag() + ": the M1 map definition loads", false, M1_DEFINITION)
 		return
 	_candidates = _input_actions()
 	var window: Window = _root as Window
@@ -119,10 +141,49 @@ func run() -> void:
 	window.size = BASE_SCREEN_SIZE
 	_test_table()
 	_test_layout()
+	_test_hidden_hints()
 	_test_swap_window()
 	_test_turn()
 	_test_coverage()
+	_start_pad_walk()
+	_test_swap_window()
+	_test_turn()
+	_test_coverage()
+	_end_pad_walk()
 	window.size = old_size
+
+
+# The pad walk's setup: presses by joypad binding, a fresh coverage record, and an adapter the
+# addon has told an Xbox pad is in use, which the walk's bars draw for.
+func _start_pad_walk() -> void:
+	_pad = true
+	_reached.clear()
+	_acted.clear()
+	_adapter = ADAPTER_SCENE.instantiate()
+	_root.add_child(_adapter)
+	var helper: Node = _root.get_node_or_null(HELPER_PATH)
+	if helper == null:
+		_check.call("hints (pad): the Input Helper autoload is loaded", false)
+		return
+	helper.emit_signal(&"device_changed", "xbox", 0)
+	_check.call("hints (pad): the walk's adapter reports the Xbox family", (
+			_adapter.get_family() == InputDeviceAdapter.Family.XBOX
+	), str(_adapter.get_family()))
+
+
+# Back to keys and keyboard and mouse.
+func _end_pad_walk() -> void:
+	var helper: Node = _root.get_node_or_null(HELPER_PATH)
+	if helper != null:
+		helper.emit_signal(&"device_changed", "keyboard", -1)
+	_adapter.free()
+	_adapter = null
+	_pad = false
+
+
+# The checks' name prefix: which walk is running.
+func _tag() -> String:
+	return "hints (pad)" if _pad else "hints"
 
 
 # The table itself: a row for every stage and nothing else; every action in it exists and has a
@@ -154,7 +215,9 @@ func _test_table() -> void:
 		if not row.has(StringName(parts[1])):
 			problems.append("label %s names no action of a row" % [key])
 	bar.free()
-	_check.call("hints: LIVE_ACTIONS has a row per context, each action exists and has a label", (
+	_check.call(_tag() + (
+			": LIVE_ACTIONS has a row per context, each action exists and has a label"
+	), (
 			problems.is_empty()
 	), "; ".join(problems))
 
@@ -164,12 +227,12 @@ func _test_table() -> void:
 		var shown: String = ControlHintBar.key_name(action)
 		if shown != ControlHintBar.SHORT_KEY_NAMES.get(expected, expected):
 			wrong.append("%s: %s, InputMap %s" % [action, shown, expected])
-	_check.call("hints: each key is named from the InputMap's first key event", (
+	_check.call(_tag() + ": each key is named from the InputMap's first key event", (
 			wrong.is_empty()
 	), "; ".join(wrong))
 
 	var unbound: BattleController = BattleController.new()
-	_check.call("hints: an unbound controller has no context and no live actions", (
+	_check.call(_tag() + ": an unbound controller has no context and no live actions", (
 			unbound.get_hint_context().is_empty() and unbound.get_live_actions().is_empty()
 	))
 	unbound.free()
@@ -193,19 +256,19 @@ func _test_layout() -> void:
 	)
 	var at: Rect2 = bar.get_global_rect()
 	var map_area: Rect2 = hud.get_map_area().get_global_rect()
-	_check.call("hints: at 1152×648 the bar is the strip its exports set, off the map area", (
+	_check.call(_tag() + ": at 1152×648 the bar is the strip its exports set, off the map area", (
 			at.is_equal_approx(expected)
 			and map_area.has_area()
 			and not at.intersects(map_area)
 	), "bar %s, expected %s, map area %s" % [at, expected, map_area])
 	bar.edge = ControlHintBar.Edge.TOP
 	at = bar.get_global_rect()
-	_check.call("hints: edge TOP puts it edge_margin below the top", (
+	_check.call(_tag() + ": edge TOP puts it edge_margin below the top", (
 			is_equal_approx(at.position.y, bar.edge_margin)
 			and is_equal_approx(at.size.y, bar.height)
 	), str(at))
 	bar.refresh()
-	_check.call("hints: with no controller the bar stays hidden", not bar.visible)
+	_check.call(_tag() + ": with no controller the bar stays hidden", not bar.visible)
 	layer.free()
 
 
@@ -216,11 +279,12 @@ func _test_swap_window() -> void:
 	if rig == null:
 		return
 	var h: TurnInputCases.Harness = rig.h
-	_test_rebind(rig)
+	if not _pad:
+		_test_rebind(rig)
 	_expect_context(rig, &"SWAP")
 	var swapper: String = _swapper(h.session)
 	if swapper.is_empty():
-		_check.call("hints: the M1 swap window has a unit with a partner", false)
+		_check.call(_tag() + ": the M1 swap window has a unit with a partner", false)
 		rig.close()
 		return
 	h.controller.move_cursor(h.session.state.tile_of(swapper))
@@ -242,16 +306,19 @@ func _test_swap_window() -> void:
 	BattleViewCases.settle(h.view)
 	_expect_acts(rig, &"end_turn", &"")
 	BattleViewCases.settle(h.view)
-	_check.call("hints: Start from the swap window reaches the first player phase", (
+	_check.call(_tag() + ": Start from the swap window reaches the first player phase", (
 			h.controller.get_hint_context() == &"IDLE"
 	), str(h.controller.get_hint_context()))
 	rig.close()
 
 
 # end_turn rebound from its key to Y, and ui_cancel (a keycode binding) to Backspace: after a
-# refresh each shows its new key, and its old key again once restored.
+# refresh each shows its new key, and its old key again once restored. Checked as text, so with
+# the bar's glyphs off (Backspace has one).
 func _test_rebind(rig: Rig) -> void:
 	var bar: ControlHintBar = rig.bar
+	var glyphs: ControlGlyphTable = bar.glyphs
+	bar.glyphs = null
 	var old_end_turn: Array[InputEvent] = InputMap.action_get_events(&"end_turn")
 	var old_cancel: Array[InputEvent] = InputMap.action_get_events(&"ui_cancel")
 	var before: String = _shown_text(rig)
@@ -275,7 +342,7 @@ func _test_rebind(rig: Rig) -> void:
 	var restored: String = _shown_text(rig)
 	var start: String = bar.label_for(&"SWAP", &"end_turn")
 	var pause: String = bar.label_for(&"SWAP", &"ui_cancel")
-	_check.call("hints: a rebound key changes its label, and back", (
+	_check.call(_tag() + ": a rebound key changes its label, and back", (
 			before.contains("%s %s" % [end_key, start])
 			and before.contains("%s %s" % [cancel_key, pause])
 			and rebound.contains("Y %s" % [start])
@@ -283,6 +350,102 @@ func _test_rebind(rig: Rig) -> void:
 			and not rebound.contains("%s %s" % [end_key, start])
 			and restored == before
 	), "before '%s', rebound '%s', restored '%s'" % [before, rebound, restored])
+	bar.glyphs = glyphs
+	bar.refresh()
+
+
+# Hints that can do nothing are left out (question 31 (a)), and the bar redraws as soon as that
+# changes, with no frame between: Q / E with one target in TARGET and CONFIRM, and in FORECAST C
+# exactly while the target shown has more than one weapon, through every target Q / E reach.
+func _test_hidden_hints() -> void:
+	var rig: Rig = _rig()
+	if rig == null:
+		return
+	var h: TurnInputCases.Harness = rig.h
+	var swapper: String = _swapper(h.session)
+	h.controller.move_cursor(h.session.state.tile_of(swapper))
+	h.controller.request_start()
+	BattleViewCases.settle(h.view)
+	var hakkapel: String = _unit_of_type(h.session, "Hakkapel")
+	if not hakkapel.is_empty():
+		_give_sidearm(h.session, hakkapel)
+	var single: Array = []
+	var several: Array = []
+	# Both picks from the same phase: the board a pick was found on is gone after a wait.
+	for _phase: int in MAX_PHASES:
+		if h.session.is_finished:
+			break
+		single = []
+		for unit_id: String in TurnInputModel.acting_units(h.session, 0):
+			if single.is_empty():
+				single = _find_attack_with(h.session, unit_id, 1)
+		several = _find_attack(h.session, hakkapel, 2, 2)
+		if not single.is_empty() and not several.is_empty():
+			break
+		_wait_phase(h)
+	if single.is_empty() or several.is_empty():
+		_check.call("hints: attacks with one target and with two (one with two weapons)", false, (
+				"one target %s, two %s" % [single, several]
+		))
+		rig.close()
+		return
+
+	var shown: PackedStringArray = []
+	var single_unit: String = single[0]
+	var single_end: Vector2i = single[1]
+	_open_attack(rig, single_unit, single_end)
+	shown.append("TARGET %s" % [_hides_targets(rig)])
+	_expect_acts(rig, &"ui_accept", &"")
+	shown.append("%s %s" % [h.controller.get_hint_context(), _hides_targets(rig)])
+	h.controller.step_back()
+	h.controller.step_back()
+	h.controller.step_back()
+	h.controller.step_back()
+	_check.call("hints: one target leaves Q / E out of TARGET and its forecast", (
+			shown == PackedStringArray(["TARGET true", "FORECAST true"])
+	), " | ".join(shown))
+
+	var seen: PackedStringArray = []
+	var several_unit: String = several[0]
+	var several_end: Vector2i = several[1]
+	_open_attack(rig, several_unit, several_end)
+	_expect_acts(rig, &"ui_accept", &"FORECAST")
+	var list: TargetList = h.controller.get_target_list()
+	for _i: int in list.targets().size():
+		var shows_c: bool = rig.bar.get_shown_actions().has(&"cycle_weapon")
+		var lists_c: bool = h.controller.get_live_actions().has(&"cycle_weapon")
+		seen.append("%d weapons, C shown %s, live %s" % [list.weapon_count(), shows_c, lists_c])
+		h.controller.cycle_target(true)
+	var wrong: PackedStringArray = []
+	for line: String in seen:
+		var many: bool = not line.begins_with("1 ")
+		if line != "%s weapons, C shown %s, live %s" % [line.get_slice(" ", 0), many, many]:
+			wrong.append(line)
+	_check.call("hints: C shows in the forecast exactly while the target has two weapons", (
+			wrong.is_empty() and seen.size() >= 2 and not rig.bar.get_shown_actions().is_empty()
+	), " | ".join(seen))
+	rig.close()
+
+
+# Opens the attack of unit_id moving to end, up to its target picker.
+func _open_attack(rig: Rig, unit_id: String, end: Vector2i) -> void:
+	var h: TurnInputCases.Harness = rig.h
+	h.controller.confirm_tile(h.session.state.tile_of(unit_id))
+	h.controller.confirm_tile(end)
+	_focus_action(rig, ATTACK)
+	_expect_acts(rig, &"ui_accept", &"TARGET")
+
+
+# Whether the bar, as drawn now with no refresh, leaves out both Q and E while the controller
+# leaves them out too.
+func _hides_targets(rig: Rig) -> bool:
+	var shown: Array[StringName] = rig.bar.get_shown_actions()
+	var live: Array[StringName] = rig.h.controller.get_live_actions()
+	return (
+			not shown.is_empty()
+			and not shown.has(&"target_next") and not shown.has(&"target_prev")
+			and not live.has(&"target_next") and not live.has(&"target_prev")
+	)
 
 
 # A player turn walked: Start from SWAP_PICKED; IDLE with the pause menu (PAUSED) and End Turn's
@@ -310,7 +473,7 @@ func _test_turn() -> void:
 			break
 		_wait_phase(h)
 	if pick.is_empty():
-		_check.call("hints: a Hakkapel with Sidearm reaches two targets, one with both weapons", (
+		_check.call(_tag() + ": a Hakkapel with Sidearm reaches two targets, one with both weapons", (
 				false
 		), "within %d phases" % [MAX_PHASES])
 		rig.close()
@@ -381,14 +544,14 @@ func _test_coverage() -> void:
 				continue
 			if not _acted.has("%s/%s" % [context, action]):
 				missing.append("%s/%s" % [context, action])
-	_check.call("hints: every listed action acted in every context reached", (
+	_check.call(_tag() + ": every listed action acted in every context reached", (
 			missing.is_empty()
 	), "never acted: " + ", ".join(missing))
 	var unreached: PackedStringArray = []
 	for context: StringName in BattleController.LIVE_ACTIONS:
 		if context != &"INACTIVE" and not _reached.has(context):
 			unreached.append(context)
-	_check.call("hints: the walks reached every context but INACTIVE", (
+	_check.call(_tag() + ": the walks reached every context but INACTIVE", (
 			unreached.is_empty()
 	), ", ".join(unreached))
 
@@ -402,7 +565,7 @@ func _end_turn_by_dialog(rig: Rig) -> void:
 	if h.controller.get_stage() == BattleController.Stage.MOVE:
 		_expect_acts(rig, &"ui_cancel", &"IDLE")
 	if TurnInputModel.acting_units(h.session, 0).is_empty():
-		_check.call("hints: a unit is left to act for End Turn's question", false)
+		_check.call(_tag() + ": a unit is left to act for End Turn's question", false)
 		return
 	_expect_acts(rig, &"end_turn", &"END_CONFIRM")
 	(h.host.top() as BattlePanel).focus_first()
@@ -425,7 +588,7 @@ func _confirm_attack_on_dialog(rig: Rig) -> void:
 			break
 		_wait_phase(h)
 	if pick.is_empty():
-		_check.call("hints: a second attack for the confirm dialog", false)
+		_check.call(_tag() + ": a second attack for the confirm dialog", false)
 		return
 	var unit_id: String = pick[0]
 	var end: Vector2i = pick[1]
@@ -461,9 +624,14 @@ func _expect_context(rig: Rig, expected: StringName) -> void:
 	if rig.bar.get_shown_actions() != live:
 		problems.append("shows %s, live %s" % [rig.bar.get_shown_actions(), live])
 	problems.append_array(_text_problems(rig.bar, context, live))
-	_check.call("hints %s: the bar shows exactly the controller's live actions, keyed" % [
+	_check.call(_tag() + " %s: the bar shows exactly the controller's live actions, keyed" % [
 		expected,
 	], problems.is_empty(), "; ".join(problems))
+	if _pad and _focus_root(rig) != null:
+		var lost: PackedStringArray = _focus_problems(rig)
+		_check.call(_tag() + " %s: navigated by the d-pad, a control inside keeps focus" % [
+			expected,
+		], lost.is_empty(), "; ".join(lost))
 
 	var acting: PackedStringArray = []
 	for action: StringName in _candidates:
@@ -473,7 +641,7 @@ func _expect_context(rig: Rig, expected: StringName) -> void:
 		var after: PackedStringArray = _probe(rig, action)
 		if after[0] != before or after[1] != before:
 			acting.append("%s: %s -> %s" % [action, before, after[1]])
-	_check.call("hints %s: no action outside its row acts" % [expected], acting.is_empty(), (
+	_check.call(_tag() + " %s: no action outside its row acts" % [expected], acting.is_empty(), (
 			" | ".join(acting)
 	))
 
@@ -486,9 +654,56 @@ func _expect_context(rig: Rig, expected: StringName) -> void:
 			_acted["%s/%s" % [context, action]] = true
 		else:
 			failed.append("%s: %s" % [action, problem])
-	_check.call("hints %s: each listed action that can be undone acts, and is undone" % [
+	_check.call(_tag() + " %s: each listed action that can be undone acts, and is undone" % [
 		expected,
 	], failed.is_empty(), " | ".join(failed))
+
+
+# What must keep focus now: the pause menu while the tree is paused, else the top panel; null
+# with neither.
+func _focus_root(rig: Rig) -> Control:
+	if _root.get_tree().paused:
+		return rig.pause.get_node(^"%Root") as Control
+	return rig.h.host.top()
+
+
+# Why focus left the open panel or pause menu as the d-pad moved it every way (FOCUS_MOVES), or
+# didn't come back to it when a click elsewhere released it (PanelHost.keep_focus,
+# keep_focus() on the pause menu), in the target picker on the current target's row; empty when
+# it never left. Focus ends where it began, so the walk's target and row are as they were.
+func _focus_problems(rig: Rig) -> PackedStringArray:
+	var problems: PackedStringArray = []
+	var holder: Control = _focus_root(rig)
+	var viewport: Viewport = _root.get_viewport()
+	var start: Control = viewport.gui_get_focus_owner()
+	if start == null or not holder.is_ancestor_of(start):
+		problems.append("no focus inside before moving: %s" % [start])
+		return problems
+	for move: StringName in FOCUS_MOVES:
+		_hold(move, true)
+		_hold(move, false)
+		var focused: Control = viewport.gui_get_focus_owner()
+		if focused == null or not holder.is_ancestor_of(focused):
+			problems.append("%s left it for %s" % [move, focused])
+			start.grab_focus()
+	viewport.gui_release_focus()
+	var restored: bool = false
+	if _root.get_tree().paused:
+		restored = rig.pause.call(&"keep_focus")
+	else:
+		restored = rig.h.host.keep_focus()
+	var back: Control = viewport.gui_get_focus_owner()
+	if not restored or back == null or not holder.is_ancestor_of(back):
+		problems.append("a released focus didn't come back: %s" % [back])
+	elif rig.h.host.top() is TargetPicker and not _root.get_tree().paused:
+		var picker: TargetPicker = rig.h.host.top() as TargetPicker
+		var current: Button = picker.get_rows()[rig.h.controller.get_target_list().current_index()]
+		if back != current:
+			problems.append("the picker's focus came back on %s, not the current target's %s" % [
+				back.name, current.name,
+			])
+	start.grab_focus()
+	return problems
 
 
 # Presses action, which must act and leave the walk in expected (any, when empty).
@@ -505,7 +720,7 @@ func _expect_acts(rig: Rig, action: StringName, expected: StringName) -> void:
 	var is_listed: bool = _live_in(context, action)
 	if acted and is_listed:
 		_acted["%s/%s" % [context, action]] = true
-	_check.call("hints %s: %s is listed and acts%s" % [
+	_check.call(_tag() + " %s: %s is listed and acts%s" % [
 		context, action, "" if expected.is_empty() else ", to %s" % [expected],
 	], acted and is_listed and (expected.is_empty() or now == expected), (
 			"listed %s, now %s; %s -> %s" % [is_listed, now, before, after[1]]
@@ -557,15 +772,20 @@ static func _live_in(context: StringName, action: StringName) -> bool:
 	return row.has(action)
 
 
-# Why the bar's line isn't live's hints: a key or label missing, or the line clipped.
+# Why the bar's line isn't live's hints: a key, glyph or label missing, or the line clipped. A
+# binding with a glyph in the bar's family must draw that glyph; one without, its text.
 func _text_problems(
 		bar: ControlHintBar, context: StringName, live: Array[StringName]
 ) -> PackedStringArray:
 	var problems: PackedStringArray = []
 	var text: String = bar.get_text()
+	var markup: String = bar.get_markup()
 	for action: StringName in live:
-		var key: String = ControlHintBar.key_name(action)
-		if not text.contains(key):
+		var glyph: Texture2D = bar.glyph_of(action)
+		var key: String = bar.key_text(action)
+		if glyph != null and not markup.contains(glyph.resource_path):
+			problems.append("no glyph %s for %s" % [glyph.resource_path, action])
+		elif glyph == null and (key == ControlHintBar.UNBOUND_KEY or not text.contains(key)):
 			problems.append("no key %s for %s" % [key, action])
 		if not text.contains(bar.label_for(context, action)):
 			problems.append("no label for %s" % [action])
@@ -626,11 +846,30 @@ func _probe(rig: Rig, action: StringName) -> PackedStringArray:
 	return [down, _snapshot(rig)]
 
 
+# Sends action down or up: as the action itself in the key walk, as its first joypad event in the
+# pad walk (a button pressed or let go, an axis pushed fully or let back to 0).
 func _hold(action: StringName, is_down: bool) -> void:
-	var event: InputEventAction = InputEventAction.new()
-	event.action = action
-	event.pressed = is_down
-	_root.get_viewport().push_input(event, true)
+	if not _pad:
+		var event: InputEventAction = InputEventAction.new()
+		event.action = action
+		event.pressed = is_down
+		_root.get_viewport().push_input(event, true)
+		return
+	var source: InputEvent = ControlHintBar.pad_event(action)
+	var button: InputEventJoypadButton = source as InputEventJoypadButton
+	var motion: InputEventJoypadMotion = source as InputEventJoypadMotion
+	if button != null:
+		var press: InputEventJoypadButton = InputEventJoypadButton.new()
+		press.button_index = button.button_index
+		press.pressed = is_down
+		_root.get_viewport().push_input(press, true)
+	elif motion != null:
+		var push: InputEventJoypadMotion = InputEventJoypadMotion.new()
+		push.axis = motion.axis
+		push.axis_value = motion.axis_value if is_down else 0.0
+		_root.get_viewport().push_input(push, true)
+	else:
+		_check.call("hints (pad): %s has a joypad binding" % [action], false)
 
 
 # The bar's line, redrawn now.
@@ -675,7 +914,7 @@ func _rig() -> Rig:
 	h.run = CampaignSession.new(CampaignData.Mode.SOLO, SEED, PackedInt32Array([0]))
 	h.battle = BattleViewCases.begin_m1(_catalog, _map, h.run)
 	if h.battle == null:
-		_check.call("hints: the M1 battle begins", false, "begin_battle gave no battle")
+		_check.call(_tag() + ": the M1 battle begins", false, "begin_battle gave no battle")
 		h.run.close()
 		return null
 	h.session = h.battle.get_session(0)
@@ -699,9 +938,13 @@ func _rig() -> Rig:
 	h.controller.turn_bar = h.bar
 	h.controller.swap_window = h.swap
 	h.controller.message = h.message
+	var repeat: PadRepeat = PAD_REPEAT_SCENE.instantiate()
+	h.controller.add_child(repeat)
+	h.controller.pad_repeat = repeat
 	_root.add_child(h.controller)
 	rig.bar = HINT_BAR_SCENE.instantiate()
 	rig.bar.controller = h.controller
+	rig.bar.device = _adapter
 	h.hud.add_child(rig.bar)
 	rig.debug = (load(SAVE_DEBUG_SCENE) as PackedScene).instantiate()
 	h.hud.add_child(rig.debug)
@@ -721,6 +964,20 @@ static func _swapper(session: CombatSession) -> String:
 		if not TurnInputModel.swap_partners(session, unit_id).is_empty():
 			return unit_id
 	return ""
+
+
+# [unit_id, end tile] for unit_id's attack with exactly targets targets; empty for none.
+static func _find_attack_with(session: CombatSession, unit_id: String, targets: int) -> Array:
+	if not TurnInputModel.can_act(session, unit_id):
+		return []
+	for tile: Vector2i in TurnInputModel.move_tiles(session, unit_id):
+		var path: Array[Vector2i] = TurnInputModel.path_to(session, unit_id, tile)
+		for option: TurnInputModel.ActionOption in TurnInputModel.actions_at(
+				session, unit_id, path
+		):
+			if option.kind == ATTACK and option.targets.size() == targets:
+				return [unit_id, tile]
+	return []
 
 
 # [unit_id, end tile, target id] for unit_id's attack with at least min_targets targets, from a

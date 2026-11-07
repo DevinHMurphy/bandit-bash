@@ -6,7 +6,7 @@
 # File:     forecast_panel.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 class_name ForecastPanel
@@ -21,7 +21,9 @@ extends BattlePanel
 ## and the cycle_weapon key the controller reads, ask for the next weapon
 ## ([signal weapon_cycle_requested]); the controller builds that weapon's model and calls
 ## [method show_forecast]. The panel holds no rules. Rows are [member row_scene] instances, reused
-## when the forecast changes; everything else is authored in the scene.
+## when the forecast changes; everything else is authored in the scene. Its buttons form a grid,
+## Breakdown and Next weapon over Confirm and Back, that focus never leaves
+## ([method BattlePanel.chain_grid], relinked as buttons show and hide).
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
@@ -88,6 +90,7 @@ func show_forecast(model: ForecastViewModel) -> void:
 	_cycle_button.visible = model.can_cycle()
 	_cycle_button.text = cycle_text % [model.weapon_index + 1, model.weapon_count]
 	_confirm_button.disabled = model.forecast == null or not model.forecast.is_legal
+	_link_focus()
 
 
 ## Opens or closes the per-stage breakdown.
@@ -143,6 +146,17 @@ func _show_rows(rows: Array[ForecastViewModel.Row]) -> void:
 		_rows[i].visible = is_used
 		if is_used:
 			_rows[i].show_row(rows[i])
+
+
+# Links the visible buttons as a grid: the toggles' row over Confirm and Back.
+func _link_focus() -> void:
+	var toggles: Array[Button] = []
+	for button: Button in [_breakdown_button, _cycle_button]:
+		if button.visible:
+			toggles.append(button)
+	var answers: Array[Button] = [_confirm_button, _back_button]
+	var rows: Array = [answers] if toggles.is_empty() else [toggles, answers]
+	BattlePanel.chain_grid(rows)
 
 
 func _on_confirm_button_pressed() -> void:

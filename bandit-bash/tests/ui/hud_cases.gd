@@ -6,11 +6,11 @@
 # File:     hud_cases.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 5, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 extends RefCounted
-## The HUD's cases for tests/ui/run_all.gd (combat UI plan, UI5 row): the tile info and the unit
+## The HUD's cases for the ui/display suite (combat UI plan, UI5 row): the tile info and the unit
 ## panel against state and [method CombatSession.stats]; the turn counter and its colour past par;
 ## a banner per phase change; the objective's text; the darkness counter against
 ## [method Darkness.source_counters] before and after arrival; the fact log against

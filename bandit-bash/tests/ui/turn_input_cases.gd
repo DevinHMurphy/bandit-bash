@@ -6,11 +6,11 @@
 # File:     turn_input_cases.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 5, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 extends RefCounted
-## Turn input's cases for tests/ui/run_all.gd (combat UI plan, UI2 row): what the action menu
+## Turn input's cases for the ui/input suite (combat UI plan, UI2 row): what the action menu
 ## lists, the move and attack overlays against pathing and the validator, the drawn path against
 ## [method UnitTurnCommand.walk_path], cancel from every stage, End Turn and Start, a rejection,
 ## input during playback, a second move, and a smoke test that plays the M1 battle's player turns

@@ -6,7 +6,7 @@
 # File:     unit_token.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 6, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 class_name UnitToken
@@ -22,9 +22,12 @@ extends Node2D
 ## Its origin is the tile's centre; the layout is authored in the scene for 32 px tiles.[br]
 ## [b]The sprite[/b] is [member sprites]'s texture for the unit's type, drawn by
 ## [code]unit_sprite.gdshader[/code] (Godot_FE's [code]StrokeShader[/code], rewritten): outlined
-## in its side's colour, gray while [method is_spent], tinted while its range is tracked, and
-## flashed by a critical hit ([method flash]). A type with no sprite shows its letters on a square
-## of its side's colour, gray while spent.[br]
+## in its side's colour, gray while [method is_grayed], tinted by [member range_tracked_tint] while
+## its range is tracked (white by default: the icon on its info shows it), and flashed by a
+## critical hit ([method flash]). A type with no sprite shows its letters on a square of its
+## side's colour, gray while grayed.[br]
+## [b]Gray only in its own phase[/b] (question 28 (f)): a spent unit grays only while it is its
+## side's phase ([method show_phase]), so in your turn an enemy never looks disabled.[br]
 ## [b]Target outlines[/b] stay [TargetMark]s, which also mark map objects and lettered units.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
@@ -67,14 +70,16 @@ const FLASH_AMOUNT_PARAM: StringName = &"flash_amount"
 ## [b]Units:[/b] texels. [b]0.0:[/b] no outline.
 @export_range(0.0, 4.0, 0.5) var outline_width: float = 1.0
 
-## How gray a spent unit is ([method is_spent]); Godot_FE's [code]color_factor[/code] was 1.[br]
+## How gray a spent unit is in its side's phase ([method is_grayed]); Godot_FE's
+## [code]color_factor[/code] was 1.[br]
 ## [b]0.0:[/b] spent units keep their colour. [b]1.0:[/b] fully gray.
 @export_range(0.0, 1.0, 0.01) var spent_gray: float = 1.0
 
-## The tint on the sprite while its range is tracked, as Godot_FE tinted an enemy whose range
-## showed ([code]combat_unit_display.gd[/code]'s [code]RED[/code]).[br]
+## The tint on the sprite while its range is tracked. Godot_FE tinted an enemy whose range showed
+## red ([code]combat_unit_display.gd[/code]'s [code]RED[/code], about (1.0, 0.53, 0.46)); here
+## the range-tracked icon carries it (question 28 (e)).[br]
 ## [b]White:[/b] no tint; the icon alone shows it.
-@export var range_tracked_tint: Color = Color(1.0, 0.52549, 0.458824, 1.0)
+@export var range_tracked_tint: Color = Color(1.0, 1.0, 1.0, 1.0)
 
 @export_group("Letters")
 
@@ -134,6 +139,9 @@ var is_second_move_pending: bool = false
 
 ## Whether the enemy range toggle tracks the unit.
 var is_range_tracked: bool = false
+
+## Whether it is the unit's side's phase, as shown; only then is a spent unit gray.
+var is_phase_side: bool = true
 
 ## Its bars, numbers and icons on the [UnitInfoLayer], which sets this; null draws none of them.
 var info: UnitInfo = null
@@ -211,12 +219,18 @@ func show_block(amount: int) -> void:
 
 
 ## Shows whether the unit [param acted] and whether its [param second_move_pending]: it is drawn
-## gray while [method is_spent].
+## gray while [method is_grayed].
 func show_turn(acted: bool, second_move_pending: bool) -> void:
 	has_acted = acted
 	is_second_move_pending = second_move_pending
-	_set_param(GRAY_PARAM, spent_gray if is_spent() else 0.0)
-	_apply_flash()
+	_apply_gray()
+
+
+## Shows whether it is the unit's side's phase ([param is_own_phase]): a spent unit is gray only
+## then, and in colour during the other side's phase.
+func show_phase(is_own_phase: bool) -> void:
+	is_phase_side = is_own_phase
+	_apply_gray()
 
 
 ## Shows whether the enemy range toggle [param is_tracked] the unit: the icon on its info, and
@@ -247,6 +261,11 @@ func flash(color: Color, seconds: float) -> Tween:
 ## move pending, as [method TurnInputModel.can_act] reads a unit.
 func is_spent() -> bool:
 	return has_acted and not is_second_move_pending
+
+
+## Whether the token is drawn gray: it is spent ([method is_spent]) and it is its side's phase.
+func is_grayed() -> bool:
+	return is_spent() and is_phase_side
 
 
 ## The sprite for [param unit_type]; null when [member sprites] has none.
@@ -282,7 +301,7 @@ func is_showing_letters() -> bool:
 	return _letter.visible
 
 
-## How gray the token is drawn now, for tests: 0.0 in colour, [member spent_gray] while spent.
+## How gray the token is drawn now, for tests: 0.0 in colour, [member spent_gray] while grayed.
 func get_gray() -> float:
 	var gray: float = _get_param(GRAY_PARAM, 0.0)
 	return gray
@@ -332,12 +351,18 @@ func outline_of(of_side: CombatFact.CombatSide) -> Color:
 	return other_outline
 
 
+# The gray on the sprite's shader, then the letters' body through _apply_flash().
+func _apply_gray() -> void:
+	_set_param(GRAY_PARAM, spent_gray if is_grayed() else 0.0)
+	_apply_flash()
+
+
 # The flash on the sprite's shader, and on the letters' body over its gray.
 func _apply_flash() -> void:
 	_set_param(FLASH_AMOUNT_PARAM, flash_amount)
 	var body: Color = color_of(side)
 	var luminance: float = body.get_luminance()
-	var gray: float = spent_gray if is_spent() else 0.0
+	var gray: float = spent_gray if is_grayed() else 0.0
 	body = body.lerp(Color(luminance, luminance, luminance, body.a), gray)
 	_body.color = body.lerp(Color(_flash_color, body.a), flash_amount)
 
