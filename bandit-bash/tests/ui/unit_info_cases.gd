@@ -590,6 +590,7 @@ func _open_confirm(h: TurnInputCases.Harness, pick: Array) -> bool:
 	var end: Vector2i = h.session.state.tile_of(unit_id) if path.is_empty() else path[-1]
 	h.controller.confirm_tile(h.session.state.tile_of(unit_id))
 	h.controller.confirm_tile(end)
+	BattleViewCases.arrive(h.view)
 	var menu: ActionMenu = h.host.top() as ActionMenu
 	if menu == null:
 		return false

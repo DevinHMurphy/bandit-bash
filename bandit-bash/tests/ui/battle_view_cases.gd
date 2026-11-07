@@ -101,6 +101,17 @@ static func settle(view: BattleView) -> bool:
 	return view.is_settled()
 
 
+## Steps [param view] a frame at a time until a walk turn input staged before the action menu
+## ([method BattleView.stage_walk]) arrives, so the menu opens. Returns whether none still walks;
+## true at once when none was staged.
+static func arrive(view: BattleView) -> bool:
+	for _frame: int in MAX_SETTLE_FRAMES:
+		if not view.is_staged_walking():
+			return true
+		view.advance(FRAME)
+	return not view.is_staged_walking()
+
+
 func _test_view_model(map: CombatMapDefinition) -> void:
 	var run: CampaignSession = _new_run()
 	var battle: CombatEncounter = begin_m1(_catalog, map, run)

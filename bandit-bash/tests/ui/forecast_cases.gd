@@ -955,6 +955,7 @@ func _open_forecast(
 	var target: TurnInputModel.TargetOption = pick[3]
 	h.controller.confirm_tile(h.session.state.tile_of(unit_id))
 	h.controller.confirm_tile(tile)
+	BattleViewCases.arrive(h.view)
 	var menu: ActionMenu = h.host.top() as ActionMenu
 	if menu == null:
 		steps.append("no action menu for %s at %s" % [unit_id, tile])

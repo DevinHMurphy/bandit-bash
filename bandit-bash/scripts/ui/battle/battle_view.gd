@@ -26,7 +26,9 @@ extends Node2D
 ## without a tree, and keeps each unit's info on its token whenever the camera or a token
 ## moves.[br]
 ## [b]Reading only:[/b] it never changes combat state and submits no command; turn input does
-## ([BattleController]), and tells it which forecast to preview ([method show_stance_preview]).
+## ([BattleController]), and tells it which forecast to flash ([method show_forecast_preview])
+## and which walk to stage before its command ([method stage_walk]: the token walks ahead, and its
+## move's fact later plays without a second walk; question 34 (3)).
 ## Facts already queued at [method bind] are skipped: the board is built from where they led.[br]
 ## [b]Turn input's pieces[/b] (the move, attack, enemy range and danger zone [TileOverlay]s, each
 ## red one with a purple support twin, the [PathPreview], the [TargetMark]s and the [TileCursor])
@@ -45,6 +47,10 @@ signal settled()
 ## A pop-up was placed on [param unit_id]'s token: a damage or heal number, a Miss or a Critical
 ## ([param style]), once per fact it shows, in every playback mode (a skip finishes it at once).
 signal number_shown(unit_id: String, style: DamageNumber.Style)
+
+## The walk [method stage_walk] started reached its last tile: [param unit_id]'s token stands
+## there. Not emitted for a walk [method unstage_walk] or a bind cut short.
+signal staged_walk_finished(unit_id: String)
 
 # Facts whose actor took its action, which ends its turn; an attack's is the attacker's
 # BEFORE_COMBAT and a swap's WEAPON_SWAPPED (see _on_fact_played). Mirrors CombatState.follow()'s
@@ -195,6 +201,22 @@ var _phase_side: CombatFact.CombatSide = CombatFact.CombatSide.NONE
 # moving anything: a token placed or the map framed.
 var _is_info_dirty: bool = false
 
+# --- The staged walk (stage_walk(); local, never in the session) ----------------------------
+# None:     _staged_id is empty. Every token stands on its tile.
+# Walking:  _staged_walk walks _staged_id's token from its tile to _staged_tile, stepped by
+#           advance() as playback's walks are, but outside _holding: is_settled() stays true and
+#           settled isn't emitted, as no fact plays. Ends with staged_walk_finished.
+# Standing: _staged_walk is null; the token stands on _staged_tile while its tile is the unit's.
+# unstage_walk() snaps it back at once from either. The unit's own UNIT_MOVED to _staged_tile
+# ends it with no second walk (_on_unit_moved); any other move of it snaps it back first.
+var _staged_id: String = ""
+var _staged_tile: Vector2i = CombatFact.NO_TILE
+var _staged_walk: Tween = null
+
+# Seconds left of _staged_walk at speed 1.0: Tween.custom_step() reports a tween finished only on
+# the step after the one that ends it (see _step_skip()).
+var _staged_left: float = 0.0
+
 # --- The skip (meaningful while bound; skip_playback() starts it, advance() steps it) ----------
 # None:       _skip_tween is null. Playback runs as usual.
 # Fading out: _skip_tween darkens the SkipFade. Playback and animations run on as usual
@@ -280,6 +302,7 @@ func unbind() -> void:
 	if _session == null:
 		return
 	_end_skip()
+	unstage_walk()
 	_is_fast_forward = false
 	_disconnect_bus(_session.bus)
 	if _session.playback.duration_hook == _duration_of:
@@ -287,8 +310,8 @@ func unbind() -> void:
 	_session = null
 
 
-## Steps playback and every animation by [param delta] seconds of real time
-## ([member fast_forward_speed] times that while fast-forward is held), steps a skip's fade by
+## Steps playback and every animation, a staged walk included, by [param delta] seconds of real
+## time ([member fast_forward_speed] times that while fast-forward is held), steps a skip's fade by
 ## [param delta] itself, puts the unit infos over their tokens if anything can have moved, and
 ## emits [signal settled] when all have run out. Called each frame by [method _process]; tests
 ## call it directly.
@@ -302,7 +325,7 @@ func advance(delta: float) -> void:
 	# Only a tween (a walk, a pan, a shake, a fade) or a skip's flush moves a token or the camera.
 	var can_move: bool = (
 			not _holding.is_empty() or not _cosmetic.is_empty() or _skip_tween != null
-			or _session.playback.pending() > 0
+			or _staged_walk != null or _session.playback.pending() > 0
 	)
 	var real: float = maxf(delta, 0.0)
 	# Scaling the time given to playback, not FactPlayback.speed, leaves the game speed (a lobby
@@ -312,9 +335,12 @@ func advance(delta: float) -> void:
 	var step: float = scaled * _session.playback.speed
 	_step_tweens(_holding, step)
 	_step_tweens(_cosmetic, step)
+	var arrived: String = _step_staged_walk(step)
 	_step_skip(real)
 	if can_move or _is_info_dirty:
 		_follow_info()
+	if not arrived.is_empty():
+		staged_walk_finished.emit(arrived)
 	if is_settled() and not _is_settled:
 		_is_settled = true
 		settled.emit()
@@ -443,22 +469,79 @@ func show_range_tracked(unit_ids: PackedStringArray) -> void:
 		_tokens[unit_id].show_range_tracked(unit_ids.has(unit_id))
 
 
-## While [param forecast] is open, dims on each unit's Stance pips the points it says the action
-## would break: from a unit's Stance before to its Stance after
-## ([member CombatForecast.UnitOutcome.stance_after], every strike hitting). Units it leaves at
-## their Stance or above, and every unit when [param forecast] is null, dim none. Reads the
-## forecast only.
-func show_stance_preview(forecast: CombatForecast.Forecast) -> void:
-	var after: Dictionary[String, int] = {}
-	if forecast != null:
-		for outcome: CombatForecast.UnitOutcome in forecast.units:
-			if outcome.stance_after < outcome.stance_before:
-				after[outcome.unit_id] = outcome.stance_after
+## While [param model]'s forecast is open, flashes each unit it changes
+## ([member ForecastViewModel.flashes]): its HP bar from its HP to its HP after, and its Stance
+## pips from its Stance down to its Stance after (question 34 (1)). Every flash restarts, so the
+## bars shown pulse together. Units it leaves as they are, and every unit when [param model] is
+## null, flash nothing. Reads the model only.
+func show_forecast_preview(model: ForecastViewModel) -> void:
 	for unit_id: String in _tokens:
-		if after.has(unit_id):
-			_tokens[unit_id].show_stance_preview(after[unit_id])
+		var token: UnitToken = _tokens[unit_id]
+		var flash: ForecastViewModel.Flash = null if model == null else model.flash_of(unit_id)
+		if flash != null and flash.changes_hp():
+			token.show_hp_preview(flash.hp_after)
 		else:
-			_tokens[unit_id].clear_stance_preview()
+			token.clear_hp_preview()
+		if flash != null and flash.breaks_stance():
+			token.show_stance_preview(flash.stance_after)
+		else:
+			token.clear_stance_preview()
+
+
+## Walks [param unit_id]'s token along [param path] (its tiles in order from the unit's own, as
+## [method TurnInputModel.path_to] gives the command's) at [member move_speed], fast-forward and
+## [member playback_speed] applying, then leaves it standing on the last tile, emitting
+## [signal staged_walk_finished] on arrival (question 34 (3)). Local only: no state changes, and
+## [member UnitToken.tile] stays the unit's tile. A walk already staged is snapped back first.
+## Returns false, staging nothing, with no token or a path of fewer than two tiles.
+func stage_walk(unit_id: String, path: Array[Vector2i]) -> bool:
+	unstage_walk()
+	var token: UnitToken = token_of(unit_id)
+	if token == null or path.size() < 2:
+		return false
+	var walk: Tween = token.create_tween()
+	walk.pause()
+	var at: Vector2 = token.position
+	var seconds: float = 0.0
+	for i: int in range(1, path.size()):
+		var next: Vector2 = tile_to_position(path[i])
+		var step_time: float = at.distance_to(next) / move_speed
+		walk.tween_property(token, ^"position", next, step_time)
+		seconds += step_time
+		at = next
+	_staged_id = unit_id
+	_staged_tile = path[path.size() - 1]
+	_staged_walk = walk
+	_staged_left = seconds
+	return true
+
+
+## Ends a staged walk at once, walking or standing: the token snaps back to its unit's tile. Does
+## nothing when none is staged.
+func unstage_walk() -> void:
+	if _staged_id.is_empty():
+		return
+	var token: UnitToken = token_of(_staged_id)
+	_end_staged_walk()
+	if token != null:
+		token.position = tile_to_position(token.tile)
+	if _session != null:
+		_follow_info()
+
+
+## The unit whose walk is staged, walking or standing; empty for none.
+func get_staged_unit() -> String:
+	return _staged_id
+
+
+## The tile the staged walk ends on; [constant CombatFact.NO_TILE] with none.
+func get_staged_tile() -> Vector2i:
+	return _staged_tile
+
+
+## Whether a staged walk is still walking (not yet at its tile).
+func is_staged_walking() -> bool:
+	return _staged_walk != null
 
 
 ## The layer of the units' bars, numbers and icons.
@@ -536,7 +619,9 @@ func map_rect() -> Rect2:
 ## How the board differs from the session's state, one line per difference: a unit with no token
 ## or a token with no unit, a token on the wrong tile or position, or showing the wrong HP, Stance,
 ## Block, turn or phase, or its info drawing other HP or Stance than the token holds. Empty when
-## they agree. For tests and debugging; meaningful once [method is_settled].
+## they agree. A staged walk's token ([method stage_walk]) is placed right on its staged tile once
+## it stands there, and anywhere while it walks; its tile must still be the unit's. For tests and
+## debugging; meaningful once [method is_settled].
 func mismatches() -> PackedStringArray:
 	var found: PackedStringArray = []
 	if _session == null:
@@ -548,8 +633,16 @@ func mismatches() -> PackedStringArray:
 			found.append("%s has no token" % [unit_id])
 			continue
 		var tile: Vector2i = state.tile_of(unit_id)
-		if token.tile != tile or not token.position.is_equal_approx(tile_to_position(tile)):
-			found.append("%s shown at %s, is at %s" % [unit_id, token.tile, tile])
+		var shown_at: Vector2i = tile
+		if unit_id == _staged_id:
+			shown_at = _staged_tile
+		var is_placed: bool = token.position.is_equal_approx(tile_to_position(shown_at))
+		if unit_id == _staged_id and _staged_walk != null:
+			is_placed = true
+		if token.tile != tile or not is_placed:
+			found.append("%s shown at %s (%s), is at %s" % [
+				unit_id, token.tile, token.position, tile,
+			])
 		if token.hp != state.get_hp(unit_id):
 			found.append("%s shows %d HP, has %d" % [unit_id, token.hp, state.get_hp(unit_id)])
 		var unit: CombatUnitState = state.unit(unit_id)
@@ -584,6 +677,7 @@ func _clear_board() -> void:
 	_holding.clear()
 	_cosmetic.clear()
 	_walks.clear()
+	_end_staged_walk()
 	_tokens.clear()
 	_info_layer.clear()
 	clear_target_marks()
@@ -839,6 +933,36 @@ func _animate_move(token: UnitToken, path: Array[Vector2i], is_enemy: bool) -> f
 	return seconds
 
 
+# Steps the staged walk by step seconds at speed 1.0; returns its unit when it arrives in this
+# step, else empty.
+func _step_staged_walk(step: float) -> String:
+	if _staged_walk == null:
+		return ""
+	if _staged_walk.is_valid():
+		_staged_walk.custom_step(step)
+	_staged_left -= step
+	if _staged_left > 0.0:
+		return ""
+	if _staged_walk.is_valid():
+		_staged_walk.custom_step(INF)
+		_staged_walk.kill()
+	_staged_walk = null
+	var token: UnitToken = token_of(_staged_id)
+	if token != null:
+		token.position = tile_to_position(_staged_tile)
+	return _staged_id
+
+
+# Drops the staged walk, leaving its token where it is.
+func _end_staged_walk() -> void:
+	if _staged_walk != null and _staged_walk.is_valid():
+		_staged_walk.kill()
+	_staged_walk = null
+	_staged_id = ""
+	_staged_tile = CombatFact.NO_TILE
+	_staged_left = 0.0
+
+
 # A pop-up of style over token on the info layer; a damage, heal or Block number only when
 # amount is above 0.
 func _show_number(token: UnitToken, amount: int, style: DamageNumber.Style) -> void:
@@ -890,10 +1014,25 @@ func _max_hp_of(unit_id: String, fallback: int) -> int:
 	return _session.stats(unit_id).get_int(CombatValue.Key.HP)
 
 
+# A staged walk to the move's tile already walked it (question 34 (3)): the token takes its new tile
+# where it stands, with no second walk and no wait. Any other move of a staged unit snaps it back
+# first, so the walk starts from its tile.
 func _on_unit_moved(fact: CombatFact) -> void:
 	var token: UnitToken = token_of(fact.actor_id)
 	if token == null or fact.tile == CombatFact.NO_TILE:
 		return
+	if fact.actor_id == _staged_id:
+		var is_walked: bool = fact.amount > 0 and fact.tile == _staged_tile
+		if not is_walked:
+			unstage_walk()
+		else:
+			_step_staged_walk(INF)
+			_end_staged_walk()
+			token.tile = fact.tile
+			token.position = tile_to_position(fact.tile)
+			_is_info_dirty = true
+			_hold_for(fact, 0.0)
+			return
 	var from: Vector2i = token.tile
 	token.tile = fact.tile
 	# A forced move (shove, slide, swap, passage) has no walk of its own: it slides straight.
@@ -921,6 +1060,8 @@ func _on_unit_defeated(fact: CombatFact) -> void:
 		return
 	_tokens.erase(fact.actor_id)
 	_walks.erase(fact.actor_id)
+	if fact.actor_id == _staged_id:
+		_end_staged_walk()
 	if defeat_time <= 0.0:
 		token.queue_free()
 		return

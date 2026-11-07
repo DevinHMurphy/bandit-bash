@@ -432,6 +432,7 @@ func _open_attack(rig: Rig, unit_id: String, end: Vector2i) -> void:
 	var h: TurnInputCases.Harness = rig.h
 	h.controller.confirm_tile(h.session.state.tile_of(unit_id))
 	h.controller.confirm_tile(end)
+	BattleViewCases.arrive(h.view)
 	_focus_action(rig, ATTACK)
 	_expect_acts(rig, &"ui_accept", &"TARGET")
 
@@ -449,9 +450,9 @@ func _hides_targets(rig: Rig) -> bool:
 
 
 # A player turn walked: Start from SWAP_PICKED; IDLE with the pause menu (PAUSED) and End Turn's
-# question (END_CONFIRM); MOVE; ACTION; TARGET; CONFIRM on the dialog; FORECAST, two weapons and
-# two targets, whose Confirm attacks; then End Turn confirmed, and a second attack confirmed on the
-# dialog.
+# question (END_CONFIRM); MOVE; WALK to another tile, with the pause menu over it, its menu and
+# back; ACTION; TARGET; CONFIRM on the dialog; FORECAST, two weapons and two targets, whose Confirm
+# attacks; then End Turn confirmed, and a second attack confirmed on the dialog.
 func _test_turn() -> void:
 	var rig: Rig = _rig()
 	if rig == null:
@@ -499,12 +500,25 @@ func _test_turn() -> void:
 	_expect_acts(rig, &"ui_accept", &"MOVE")
 	_expect_acts(rig, &"end_turn", &"END_CONFIRM")
 	_expect_acts(rig, &"ui_cancel", &"MOVE")
+	# The attack's tile may be the unit's own, which opens the menu with no walk: WALK is walked
+	# on another tile first, then back to MOVE from its menu.
+	h.controller.move_cursor(_other_move_tile(h.session, unit_id))
+	_expect_acts(rig, &"ui_accept", &"WALK")
+
+	_expect_context(rig, &"WALK")
+	_expect_acts(rig, &"ui_cancel", &"PAUSED")
+	_expect_acts(rig, &"ui_cancel", &"WALK")
+	BattleViewCases.arrive(h.view)
+	_expect_context(rig, &"ACTION")
+	_expect_acts(rig, &"ui_cancel", &"MOVE")
 	h.controller.move_cursor(end)
-	_expect_acts(rig, &"ui_accept", &"ACTION")
+	_expect_acts(rig, &"ui_accept", &"")
+	BattleViewCases.arrive(h.view)
 
 	_expect_context(rig, &"ACTION")
 	_expect_acts(rig, &"ui_cancel", &"MOVE")
-	_expect_acts(rig, &"ui_accept", &"ACTION")
+	_expect_acts(rig, &"ui_accept", &"")
+	BattleViewCases.arrive(h.view)
 	_focus_action(rig, ATTACK)
 	_expect_acts(rig, &"ui_accept", &"TARGET")
 	_current_target(rig, target_id)
@@ -595,6 +609,7 @@ func _confirm_attack_on_dialog(rig: Rig) -> void:
 	h.controller.forecast_panel_scene = null
 	h.controller.confirm_tile(h.session.state.tile_of(unit_id))
 	h.controller.confirm_tile(end)
+	BattleViewCases.arrive(h.view)
 	_focus_action(rig, ATTACK)
 	_expect_acts(rig, &"ui_accept", &"TARGET")
 	_expect_acts(rig, &"ui_accept", &"CONFIRM")
@@ -998,6 +1013,15 @@ static func _find_attack(
 				if target.commands.size() >= min_weapons:
 					return [unit_id, tile, target.target_id]
 	return []
+
+
+# The first of unit_id's move tiles that isn't its own, row-major; its own tile when it has none.
+static func _other_move_tile(session: CombatSession, unit_id: String) -> Vector2i:
+	var own: Vector2i = session.state.tile_of(unit_id)
+	for tile: Vector2i in TurnInputModel.move_tiles(session, unit_id):
+		if tile != own:
+			return tile
+	return own
 
 
 # Every acting unit waits where it stands, then End Turn, sent straight to the encounter.

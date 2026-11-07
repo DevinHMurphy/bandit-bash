@@ -189,6 +189,7 @@ const UNBOUND_KEY: String = "(unbound)"
 	"END_CONFIRM/ui_accept": "Confirm",
 	"PLAYBACK/ui_cancel": "Pause",
 	"INACTIVE/ui_cancel": "Pause",
+	"WALK/ui_cancel": "Pause",
 	"PAUSED/ui_up": "Choose",
 	"PAUSED/ui_down": "Choose",
 	"PAUSED/ui_cancel": "Resume",

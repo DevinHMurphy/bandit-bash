@@ -6,7 +6,7 @@
 # File:     unit_info.gd
 # Author:
 # Created:  November 6, 2026
-# Modified: November 6, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 class_name UnitInfo
@@ -41,12 +41,23 @@ func show_stance(current: int, maximum: int) -> Tween:
 	return _stance_pips.show_stance(current, maximum)
 
 
-## Dims the pips the open forecast would break, down to [param after] Stance.
+## Flashes the HP bar from the HP shown to [param after] HP, the open forecast's
+## ([method HpBar.show_preview]).
+func show_hp_preview(after: int) -> void:
+	_hp_bar.show_preview(after)
+
+
+## Flashes no HP.
+func clear_hp_preview() -> void:
+	_hp_bar.clear_preview()
+
+
+## Dims and flashes the pips the open forecast would break, down to [param after] Stance.
 func show_stance_preview(after: int) -> void:
 	_stance_pips.show_preview(after)
 
 
-## Dims no pip.
+## Dims and flashes no pip.
 func clear_stance_preview() -> void:
 	_stance_pips.clear_preview()
 

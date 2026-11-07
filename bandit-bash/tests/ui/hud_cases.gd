@@ -542,6 +542,7 @@ func _test_use_on_m1() -> void:
 	var steps: PackedStringArray = []
 	h.controller.confirm_tile(session.state.tile_of(unit_id))
 	h.controller.confirm_tile(house_tile)
+	BattleViewCases.arrive(h.view)
 	var menu: ActionMenu = h.host.top() as ActionMenu
 	if menu == null:
 		steps.append("no action menu")
@@ -774,6 +775,7 @@ func _open_forecast(rig: Rig, pick: Array, steps: PackedStringArray) -> Forecast
 	var target: TurnInputModel.TargetOption = pick[3]
 	h.controller.confirm_tile(h.session.state.tile_of(pick[0] as String))
 	h.controller.confirm_tile(pick[1] as Vector2i)
+	BattleViewCases.arrive(h.view)
 	var menu: ActionMenu = h.host.top() as ActionMenu
 	if menu == null:
 		steps.append("no action menu")
