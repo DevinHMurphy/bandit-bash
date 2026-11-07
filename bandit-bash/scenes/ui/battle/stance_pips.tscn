@@ -1,9 +1,9 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3 uid="uid://c0kyudrh31nqd"]
 
-[ext_resource type="Script" path="res://scripts/ui/battle/stance_pips.gd" id="1_pips"]
+[ext_resource type="Script" uid="uid://bkpb4nd53rg6y" path="res://scripts/ui/battle/stance_pips.gd" id="1_pips"]
 [ext_resource type="Theme" uid="uid://bi25fbqd4wl3o" path="res://scenes/ui/battle/battle_theme.tres" id="2_theme"]
 
-[node name="StancePips" type="Control"]
+[node name="StancePips" type="Control" unique_id=949821625]
 layout_mode = 3
 anchors_preset = 0
 offset_right = 44.0

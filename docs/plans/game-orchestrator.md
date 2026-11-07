@@ -420,7 +420,7 @@ M2 work, in the order to send it. Steps on one line can run in parallel.
    above is moving.
 6. **Docs before M2 closes:** P01 EB8, P02 CC9, P04 MP9, P06 DK6, P03 CT11, P05 EN12.
 7. **Open questions for the user:** P02 question 22 (CC10 review), P03 question 24 (TAGF
-   review), P07 question 33 (UI9 review), BUG-001 (base Block or Vanguard). **Design docs to write:** the move preview re-architecture (Design items, P05 /
+   review), P07 questions 33 (UI9 review) and 34 (UI10's additions and split), BUG-001 (base Block or Vanguard). **Design docs to write:** the move preview re-architecture (Design items, P05 /
    P07).
 8. **Later:** one public `Pathing.path_to` (P07 question 15 d); the M1 tuning pass once traits
    and several levels exist (P07 question 26); vision updates for the ideation thread (Design

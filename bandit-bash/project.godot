@@ -24,7 +24,7 @@ SteamNetwork="*res://scripts/autoload/steam_network.gd"
 SaveService="*res://scripts/autoload/save_service.gd"
 CampaignService="*res://scripts/autoload/campaign_service.gd"
 SceneRouter="*res://scripts/autoload/scene_router.gd"
-InputHelper="*res://addons/input_helper/input_helper.gd"
+InputHelper="*uid://cholww48njaeh"
 
 [debug]
 
