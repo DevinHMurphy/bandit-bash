@@ -356,6 +356,7 @@ from starting; each is asked inside its plan's Open Questions.
 | P12 | Whether runs abandoned by the save debug panel's "New Solo Run From Seed" count as lost runs in statistics | P13 R4 |
 | P04 | Tile coordinates are never negative (P01 question 37, `CombatFact.NO_TILE`); `MapCheck` enforces it (MP5). ("Within N movable tiles" was cut October 27, 2026.) | P01 |
 | P05 | The Brigands' real name and theme (flavor only) | enemy-roster.md |
+| P03 / P05 | Enemy factions as a tag or field on enemy classes, so relics and heirlooms can name a faction ("against Brigands"); MVP has one enemy faction, so it waits for a second faction or a relic that needs it | P03 question 24 (user, November 7, 2026) |
 | P05 | Mark bosses and mini-bosses in enemy data (P05 EN7); until then MP4's objectives treat the enemy on a leader slot as the boss | P04 question 21 |
 | P05 | Reinforcement groups (P05 EN10): fill `Reinforcements.GroupSource` (one group per arrival turn, drawn at setup step 5) and hand it to the waves in `CampaignSession` (`campaign_session.gd:TOD-002`, `reinforcements.gd:TOD-002`); until then the real game sends no waves | P04 MP7 |
 | P07 | `Godot_FE`'s ranged multi-tile forecast defect (FR-GRID-6) to investigate | P01 contracts |
@@ -403,8 +404,8 @@ M2 work, in the order to send it. Steps on one line can run in parallel.
 
 1. **Done November 5, 2026:** P07 UI6 (targeting), P02 CC10 (battle resume), the P03 tag
    cleanup and TAGF.
-2. **Now (prompt issued November 5, 2026):** P06 **DK5** (the darkness save section and
-   mirrors). P07 UI7 and UI7F (unit display, HP numbers, Stance pips,
+2. **Now:** P06 **DK5** (the darkness save section and mirrors; prompt first issued November 5,
+   2026, never started; reissued November 7, 2026) alongside P07 **UI10**. P07 UI7 and UI7F (unit display, HP numbers, Stance pips,
    the info layer, Miss and Critical pop-ups) and UI8 (control hints) merged November 6, 2026;
    UI9 (controller support on the Input Helper addon) merged November 7, 2026.
 3. **Next to send:** P07 **UI10** (exchange feedback: the forecast's white flash of predicted HP
@@ -420,8 +421,7 @@ M2 work, in the order to send it. Steps on one line can run in parallel.
    groups, the Powder Baron), with the maps they need (P04). To be sequenced when the UI queue
    above is moving.
 6. **Docs before M2 closes:** P01 EB8, P02 CC9, P04 MP9, P06 DK6, P03 CT11, P05 EN12.
-7. **Open questions for the user:** P02 question 22 (CC10 review), P03 question 24 (TAGF
-   review), P07 question 33 (UI9 review), BUG-001 (base Block or Vanguard). **Design docs to write:** the move preview re-architecture (Design items, P05 /
+7. **Open questions for the user:** P07 question 33 (UI9 review), BUG-001 (base Block or Vanguard). **Design docs to write:** the move preview re-architecture (Design items, P05 /
    P07).
 8. **Later:** one public `Pathing.path_to` (P07 question 15 d); the M1 tuning pass once traits
    and several levels exist (P07 question 26); vision updates for the ideation thread (Design
@@ -527,3 +527,4 @@ M2 work, in the order to send it. Steps on one line can run in parallel.
 | November 6, 2026 | P07 questions 30–32 answered: question 30 (a), (c) as recommended, (b) the Critical size stays 24, (d) changed: the HP bar shows "14/22" by default ("14" only as the option), (e) and (f) accepted; question 31 as recommended (the multiplayer PAUSED hints became a P11 design item); question 32 (1) changed: UI9 builds on the Input Helper addon, vendored unmodified (its own autoload; third-party code exempt from `gdscript.md`), (2) and (3) as recommended. |
 | November 7, 2026 | **P07 UI9 merged into `dev`** (c1da2dd; verified: every suite passes, the ui suite split into board 79, input 246 and display 82, launch clean): the Input Helper addon v4.7.0 vendored unmodified (from `Godot_FE`'s copy, which matches the official latest release), an input device adapter as its only caller, joypad bindings on the existing actions, glyphs with text fallbacks, pad focus in every panel and the pause menu, held-direction repeat, hints hidden when useless and kept through the final playback, the tracked tint white, grey only for the acting side, pop-ups on the info layer, damage past Block with a blue Block number, "14/22" HP by default. No controller was connected for the windowed run (injected pad events). Raised P07 question 33 (UI9 review). UI10 is next and needs breaking down. |
 | November 7, 2026 | Standing rules added to the Focus rules (user): every new UI and feature works on keyboard and mouse and on a controller from the start, and every UI element is its own `.tscn`. P07 question 34 answered: **UI10 split** into UI10 (exchange feedback: the forecast flashes predicted HP and Stance loss white on both units, outlined pips, the move-then-act walk) and UI11 (the swap setting and its save, objective HUDs, unit detail). UI10 prompt issued. |
+| November 7, 2026 | P02 question 22 answered (as recommended: CC9 corrects save-system.md, closing BUG-003; (e) stays DK5's) and P03 question 24 answered (as recommended; enemy factions recorded as a design item). DK5 had never started (no branch); its prompt reissued from dev, alongside UI10. |

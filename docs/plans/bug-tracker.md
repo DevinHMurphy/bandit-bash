@@ -1,6 +1,6 @@
 # Bug Tracker
 
-**Created:** November 6, 2026. **Last updated:** November 6, 2026.
+**Created:** November 6, 2026. **Last updated:** November 7, 2026.
 
 Every known defect in `bandit-bash/`, from playtests, build reports and reviews. It works under the
 [orchestrator](game-orchestrator.md): the orchestrator session triages new rows, batches them into
@@ -41,7 +41,7 @@ Not a bug.
 |----|-------|------|-----|--------|-------|----------|
 | [BUG-001](#bug-001-no-block-at-the-start-of-combat) | No unit has Block at the start of combat | P01 / P02 / P03 | S2 | Needs decision | November 6, 2026, user playtest | — |
 | [BUG-002](#bug-002-the-forecasts-crit-chance-ignores-current-stance) | The forecast's crit chance ignores current Stance | P02 / P07 | S2 | New | November 6, 2026, user playtest | — |
-| [BUG-003](#bug-003-save-systemmd-says-a-battle-retry-repeats-ids) | save-system.md says a battle retry repeats ids | P00 / P02 | S4 | Assigned (CC9, if P02 question 22 is accepted) | November 5, 2026, CC10 report | CC9 |
+| [BUG-003](#bug-003-save-systemmd-says-a-battle-retry-repeats-ids) | save-system.md says a battle retry repeats ids | P00 / P02 | S4 | Assigned (CC9; P02 question 22 accepted November 7, 2026) | November 5, 2026, CC10 report | CC9 |
 | [BUG-004](#bug-004-an-enemy-with-an-attack-intent-moves-and-doesnt-attack) | An enemy with an attack intent moves and doesn't attack; the next enemy hits its target | P05 / P07 | S2 | New | November 6, 2026, user playtest | — |
 
 ### BUG-001 No Block at the start of combat
