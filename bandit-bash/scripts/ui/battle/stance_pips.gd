@@ -74,8 +74,7 @@ enum Pip {
 
 @export_group("Outline")
 
-# ASSUMPTION: question 34 (2) asks for a dark outline with no value; near-black at the tick
-# marks' alpha, one pixel, so 5 px pips keep 3 px of colour.
+# Near-black at the tick marks' alpha, one pixel, so 5 px pips keep 3 px of colour.
 ## The outline drawn inside each segment's edge, so neighbouring segments read apart at any count,
 ## overflow and Exposed included; in bar mode it frames the whole bar.[br]
 ## [b]Transparent:[/b] no outline.
@@ -94,10 +93,10 @@ enum Pip {
 @export_group("Forecast flash")
 
 ## The colour the segments a forecast would break pulse toward, from the dimmed
-## [code]preview_color[/code] (question 34 (1): white). Match [member HpBar.preview_flash_color].
-@export var preview_flash_color: Color = Color(1.0, 1.0, 1.0, 1.0)
+## [code]preview_color[/code] (question 34 (1): white, at 0.8 alpha as question 35 (2) sets the
+## HP bar's). Match [member HpBar.preview_flash_color].
+@export var preview_flash_color: Color = Color(1.0, 1.0, 1.0, 0.8)
 
-# ASSUMPTION: as HpBar.preview_flash_rate, which has no basis either.
 ## How many times a second those segments pulse to [member preview_flash_color] and back. Keep it
 ## equal to [member HpBar.preview_flash_rate], so a unit's bars pulse together.[br]
 ## [b]Units:[/b] pulses per second. [b]0.0:[/b] no pulse; they stay lit.

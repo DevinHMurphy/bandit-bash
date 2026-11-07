@@ -12,13 +12,15 @@
 extends "res://tests/ui/ui_suite.gd"
 ## Combat UI display suite (combat UI plan, P07): the forecast, the HUD, the unit display and the
 ## display fixes of UI9 (pop-ups on the info layer, a hit's number past Block and its Block number,
-## gray only in a unit's own phase, the HP bar's maximum) and UI10's exchange feedback (the
-## forecast's flash, outlined pips, move then act), a cases file each in
-## [code]tests/ui/[/code] (preloaded below; each one's class doc lists its checks); then the
-## gameplay screen's layout: its save debug panel (hidden when the battle opens, toggled by F3 and
-## read afresh, clear of the M1 map at the 1152×648 base size, untouched by clicks on the
-## deployment tiles); the HUD and the hint bar clear of the map at the base size and wider; the run
-## seed on the pause screen. The shared helpers are [code]tests/ui/ui_suite.gd[/code]'s.
+## gray only in a unit's own phase, the HP bar's maximum), UI10's exchange feedback (the
+## forecast's flash, outlined pips, move then act), and UI11's objective HUDs and the opening-swap
+## setting (Options, settings.json and the solo battle; with a test user folder only), a cases
+## file each in [code]tests/ui/[/code] (preloaded below; each one's class doc lists its checks);
+## then the gameplay screen's layout: its save debug panel (hidden when the battle opens,
+## toggled by F3 and read afresh, clear of the M1 map at the 1152×648 base size, untouched by
+## clicks on the deployment tiles); the HUD and the hint bar clear of the map at the base size and
+## wider; the run seed on the pause screen; a real click on the unit panel's Details opening unit
+## detail. The shared helpers are [code]tests/ui/ui_suite.gd[/code]'s.
 ##
 ## Run from the repo root:
 ## [code]godot --headless --path bandit-bash --script res://tests/ui/display/run_all.gd[/code].
@@ -32,6 +34,8 @@ const HudCases = preload("res://tests/ui/hud_cases.gd")
 const UnitDisplayCases = preload("res://tests/ui/unit_display_cases.gd")
 const DisplayFixCases = preload("res://tests/ui/display_fix_cases.gd")
 const ExchangeFeedbackCases = preload("res://tests/ui/exchange_feedback_cases.gd")
+const ObjectiveHudCases = preload("res://tests/ui/objective_hud_cases.gd")
+const OpeningSwapCases = preload("res://tests/ui/opening_swap_cases.gd")
 
 # Frames left for the save debug panel's layout and the camera to settle before its checks.
 const PANEL_FRAMES: int = 3
@@ -43,6 +47,7 @@ const WIDE_SCREEN_SIZE: Vector2i = Vector2i(1512, 648)
 var _frame: int = 0
 var _panel_frame: int = -1
 var _wide_frame: int = -1
+var _detail_frame: int = -1
 
 # The panel case's gameplay screen, and the root's size before the case set it.
 var _panel_screen: Node = null
@@ -58,6 +63,11 @@ func _process(_delta: float) -> bool:
 		UnitDisplayCases.new(_check, root).run()
 		DisplayFixCases.new(_check, root).run()
 		ExchangeFeedbackCases.new(_check, root).run()
+		ObjectiveHudCases.new(_check, root).run()
+		if _has_test_user_dir():
+			OpeningSwapCases.new(_check, root).run()
+		else:
+			_skip("opening swap", "the settings and gameplay screens need a test user folder")
 		if _start_panel_case():
 			_panel_frame = _frame
 			return false
@@ -71,9 +81,20 @@ func _process(_delta: float) -> bool:
 		_finish_panel_case()
 		_wide_frame = _frame
 		return false
-	if _frame < _wide_frame + PANEL_FRAMES:
+	if _detail_frame < 0:
+		if _frame < _wide_frame + PANEL_FRAMES:
+			return false
+		_finish_wide_case()
+		if not _start_detail_click_case():
+			_end_panel_case()
+			_finish()
+			return false
+		_detail_frame = _frame
 		return false
-	_finish_wide_case()
+	if _frame < _detail_frame + PANEL_FRAMES:
+		return false
+	_finish_detail_click_case()
+	_end_panel_case()
 	_finish()
 	return false
 
@@ -189,7 +210,63 @@ func _finish_wide_case() -> void:
 			and covering.size() == 1
 			and covering[0].begins_with("map ")
 	), "visible %s; %s" % [root.get_visible_rect().size, "; ".join(covering)])
-	_end_panel_case()
+
+
+# Back at the base size, Start pressed and played, the cursor on the first player unit: frames
+# lay the HUD out before _finish_detail_click_case() clicks its unit panel's Details. Returns
+# whether the battle reached the player phase.
+func _start_detail_click_case() -> bool:
+	root.size = BASE_SCREEN_SIZE
+	var controller: BattleController = _panel_screen.call(&"get_controller")
+	var view: BattleView = _panel_screen.call(&"get_view")
+	# The panel case's clicks on the deployment tiles may have sent swaps still playing.
+	_settle(view)
+	controller.step_back()
+	controller.request_start()
+	_settle(view)
+	var session: CombatSession = view.get_session()
+	var first: String = session.state.units_of(CombatFact.CombatSide.PLAYER)[0]
+	controller.move_cursor(session.state.tile_of(first))
+	var is_idle: bool = controller.get_stage() == BattleController.Stage.IDLE
+	_check("unit detail (click): the battle reaches the player phase for the click", is_idle, (
+			"stage %d, turn %d" % [controller.get_stage(), session.state.turn]
+	))
+	return is_idle
+
+
+# Steps view a frame at a time, at most 10 s of play, until its playback settles.
+func _settle(view: BattleView) -> void:
+	for _step: int in 600:
+		if view.is_settled():
+			return
+		view.advance(1.0 / 60.0)
+
+
+# A real left click on the laid-out unit panel's Details opens the detail of the unit under the
+# cursor; a right click closes it.
+func _finish_detail_click_case() -> void:
+	var controller: BattleController = _panel_screen.call(&"get_controller")
+	var hud: BattleHud = _panel_screen.call(&"get_hud")
+	var button: Button = hud.get_unit_panel().get_details_button()
+	var shown: String = controller.detail_unit()
+	var rect: Rect2 = button.get_global_rect()
+	_click(rect.get_center())
+	var panel: UnitDetailPanel = controller.get_detail_panel()
+	var opened: bool = (
+			controller.get_stage() == BattleController.Stage.DETAIL
+			and panel != null
+			and panel.get_view().unit_id == shown
+	)
+	var right: InputEventMouseButton = InputEventMouseButton.new()
+	right.button_index = MOUSE_BUTTON_RIGHT
+	right.pressed = true
+	root.push_input(right, true)
+	_check("unit detail (click): a click on Details opens it; a right click closes it", (
+			button.is_visible_in_tree()
+			and root.get_visible_rect().encloses(rect)
+			and opened
+			and controller.get_stage() == BattleController.Stage.IDLE
+	), "button %s, opened %s, stage %d" % [rect, opened, controller.get_stage()])
 
 
 # The map's screen rect first, as "map <rect>", then each HUD widget, panel area or bar of the

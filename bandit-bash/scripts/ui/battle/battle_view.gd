@@ -33,6 +33,9 @@ extends Node2D
 ## [b]Turn input's pieces[/b] (the move, attack, enemy range and danger zone [TileOverlay]s, each
 ## red one with a purple support twin, the [PathPreview], the [TargetMark]s and the [TileCursor])
 ## share the board's space and camera; [BattleController] says what they show.[br]
+## [b]The objective on the board[/b] ([method show_objective], from the [BattleHud] on each settle):
+## the seize and defend tiles and the open reinforcement points as overlays under turn input's,
+## and a [LeaderMark] on each marked enemy's token, so it moves and fades with it.[br]
 ## [b]Faster playback:[/b] held fast-forward ([method set_fast_forward]) runs waits and animations
 ## [member fast_forward_speed] times faster, in order; [method skip_playback] plays everything
 ## queued at once behind the [SkipFade].[br]
@@ -78,6 +81,11 @@ const _ACTION_KINDS: Array[CombatFact.Kind] = [
 ## The outline placed around each valid target while an action is aimed ([TargetMark]).[br]
 ## [b]Unset:[/b] no target is outlined; the cursor still shows the current one.
 @export var target_mark_scene: PackedScene = null
+
+## The outline placed on each enemy the objective marks, Defeat the Leader's or the Boss's
+## ([LeaderMark]), as a child of its token.[br]
+## [b]Unset:[/b] no enemy is outlined; the objective panel still names them.
+@export var leader_mark_scene: PackedScene = null
 
 ## Whether the map scene's marker layers and marker nodes (deployment tiles, enemy slots) show.
 ## Off for play; on to check a map's authoring.
@@ -236,8 +244,14 @@ var _skip_stopped: bool = false
 # Seconds left of the fade _skip_tween plays.
 var _skip_left: float = 0.0
 
+# The leader marks shown, by the marked enemy's id; each is a child of that enemy's token.
+var _leader_marks: Dictionary[String, LeaderMark] = {}
+
 @onready var _map_holder: Node2D = %MapHolder
 @onready var _darkness: DarknessOverlay = %DarknessOverlay
+@onready var _seize_overlay: TileOverlay = %SeizeOverlay
+@onready var _defend_overlay: TileOverlay = %DefendOverlay
+@onready var _point_overlay: TileOverlay = %ReinforcementOverlay
 @onready var _token_layer: Node2D = %Tokens
 @onready var _camera: CameraRig = %CameraRig
 @onready var _move_overlay: TileOverlay = %MoveOverlay
@@ -462,6 +476,60 @@ func show_target_marks(marks: Array[TargetMark.Spec]) -> void:
 		mark.position = tile_to_position(spec.tile)
 
 
+## Draws [param view]'s objective on the board: its seize and defend tiles, its open
+## reinforcement points, and a [LeaderMark] on each marked enemy still on the map, removing the
+## marks of enemies no longer marked. Every objective's tiles are drawn whatever the objective, as
+## a map only authors the markers its objective uses. Null clears them all. Reads the view only.
+func show_objective(view: HudViewModel.ObjectiveView) -> void:
+	var empty: Array[Vector2i] = []
+	_seize_overlay.show_tiles(empty if view == null else view.seize_tiles)
+	_defend_overlay.show_tiles(empty if view == null else view.defend_tiles)
+	_point_overlay.show_tiles(empty if view == null else view.open_point_tiles())
+	var marked: PackedStringArray = [] if view == null else view.marked_left_ids
+	for unit_id: String in _leader_marks.keys():
+		var shown: LeaderMark = _leader_marks[unit_id]
+		var token: UnitToken = token_of(unit_id)
+		# A token that faded out took its mark with it, so only a live one keeps its mark.
+		if marked.has(unit_id) and is_instance_valid(shown) and shown.get_parent() == token:
+			continue
+		_leader_marks.erase(unit_id)
+		if is_instance_valid(shown):
+			shown.queue_free()
+	if leader_mark_scene == null:
+		return
+	for unit_id: String in marked:
+		var token: UnitToken = token_of(unit_id)
+		if token == null or _leader_marks.has(unit_id):
+			continue
+		var mark: LeaderMark = leader_mark_scene.instantiate()
+		token.add_child(mark)
+		_leader_marks[unit_id] = mark
+
+
+## The units outlined as marked enemies now, for tests.
+func get_leader_marked() -> PackedStringArray:
+	var shown: PackedStringArray = []
+	for unit_id: String in _leader_marks:
+		if is_instance_valid(_leader_marks[unit_id]):
+			shown.append(unit_id)
+	return shown
+
+
+## The seize tiles' overlay.
+func get_seize_overlay() -> TileOverlay:
+	return _seize_overlay
+
+
+## The defend tiles' overlay.
+func get_defend_overlay() -> TileOverlay:
+	return _defend_overlay
+
+
+## The open reinforcement points' overlay.
+func get_point_overlay() -> TileOverlay:
+	return _point_overlay
+
+
 ## Shows the range-tracked icon on the tokens of [param unit_ids], the units the enemy range
 ## toggle tracks, and on no other token.
 func show_range_tracked(unit_ids: PackedStringArray) -> void:
@@ -679,8 +747,11 @@ func _clear_board() -> void:
 	_walks.clear()
 	_end_staged_walk()
 	_tokens.clear()
+	_leader_marks.clear()
 	_info_layer.clear()
 	clear_target_marks()
+	for overlay: TileOverlay in [_seize_overlay, _defend_overlay, _point_overlay]:
+		overlay.clear()
 	for child: Node in _token_layer.get_children():
 		_token_layer.remove_child(child)
 		child.queue_free()
@@ -710,6 +781,7 @@ func _build_map(definition: CombatMapDefinition) -> void:
 	_darkness.tile_size = _tile_size()
 	_darkness.origin = origin
 	var overlays: Array[TileOverlay] = [
+		_seize_overlay, _defend_overlay, _point_overlay,
 		_danger_overlay, _danger_support_overlay, _enemy_range_overlay, _enemy_support_overlay,
 		_move_overlay, _attack_overlay, _support_overlay,
 	]

@@ -6,7 +6,7 @@
 # File:     unit_panel.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 5, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 class_name UnitPanel
@@ -15,9 +15,16 @@ extends PanelContainer
 ## question 11; Godot_FE FR-UI-3's unit footer, without XP, which is P08's).
 ##
 ## Draws a [HudViewModel.UnitView]; [BattleHud] picks the unit (the one under the cursor, else the
-## selected one) and builds the view. Holds no rules. With no unit it hides.
+## selected one) and builds the view. Holds no rules. With no unit it hides.[br]
+## Its Details button is the mouse's way to the unit's [UnitDetailPanel]
+## ([signal details_pressed]; [BattleScreen] hands it to
+## [method BattleController.request_unit_detail]). It never takes focus, so a click leaves accept
+## with the board.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
+
+## The Details button was clicked. [param unit_id]: the unit shown.
+signal details_pressed(unit_id: String)
 
 ## The HP line: [code]%d[/code] HP now, then its maximum.
 @export var hp_format: String = "HP %d / %d"
@@ -53,6 +60,13 @@ var _view: HudViewModel.UnitView = null
 @onready var _stats: Label = %Stats
 @onready var _weapon: Label = %Weapon
 @onready var _gear: Label = %Gear
+@onready var _details: Button = %DetailsButton
+
+
+func _ready() -> void:
+	# ASSUMPTION: Godot_FE had no mouse way to its details screen; a Details button on this panel
+	# (the hovered unit's) is the mouse's.
+	_details.pressed.connect(_on_details_button_pressed)
 
 
 ## Shows [param view]; hides for null.
@@ -91,6 +105,11 @@ func show_unit(view: HudViewModel.UnitView) -> void:
 	_gear.visible = not gear.is_empty()
 
 
+## The Details button, for tests and the mouse.
+func get_details_button() -> Button:
+	return _details
+
+
 ## The view shown; null when none is.
 func get_view() -> HudViewModel.UnitView:
 	return _view
@@ -112,3 +131,8 @@ func _weapon_text(view: HudViewModel.UnitView) -> String:
 	if view.is_staff:
 		return staff_format % [view.weapon_name, reach]
 	return weapon_format % [view.weapon_name, view.weapon_damage, view.weapon_hit, reach]
+
+
+func _on_details_button_pressed() -> void:
+	if _view != null:
+		details_pressed.emit(_view.unit_id)

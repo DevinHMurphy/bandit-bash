@@ -29,6 +29,11 @@ const BattleViewCases = preload("res://tests/ui/battle_view_cases.gd")
 const TurnInputCases = preload("res://tests/ui/turn_input_cases.gd")
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
+
+# The bars' default flash: white at 0.8 alpha, so the white HP number reads at the peak
+# (question 35 (2)).
+const FLASH_COLOR: Color = Color(1.0, 1.0, 1.0, 0.8)
+
 const VIEW_SCENE: PackedScene = preload("res://scenes/ui/battle/battle_view.tscn")
 const PANEL_HOST_SCENE: PackedScene = preload("res://scenes/ui/battle/panel_host.tscn")
 const TURN_BAR_SCENE: PackedScene = preload("res://scenes/ui/battle/turn_bar.tscn")
@@ -140,8 +145,9 @@ func _test_pip_outlines() -> void:
 	pips.free()
 
 
-# The HP bar's and the pips' flash: white by default; lit at once; one pulse each 1 / rate s; the
-# HP flash spans the fill between the HP and its after, both ways; cleared, nothing is lit.
+# The HP bar's and the pips' flash: FLASH_COLOR by default; lit at once; one pulse each
+# 1 / rate s; the HP flash spans the fill between the HP and its after, both ways; cleared,
+# nothing is lit.
 func _test_flash_widgets() -> void:
 	var bar: HpBar = HP_BAR_SCENE.instantiate()
 	_root.add_child(bar)
@@ -170,7 +176,7 @@ func _test_flash_widgets() -> void:
 	bar.clear_preview()
 	var cleared: bool = not bar.is_previewing() and bar.get_flash_level() == 0.0
 	_check.call("hp bar: the flash is white, lit at once, and pulses at its rate", (
-			bar.preview_flash_color == Color.WHITE
+			bar.preview_flash_color == FLASH_COLOR
 			and lit
 			and tween != null
 			and dimmed < 0.05
@@ -210,7 +216,7 @@ func _test_flash_widgets() -> void:
 			breaking
 			and pip_lit
 			and pip_dimmed < 0.05
-			and pips.preview_flash_color == Color.WHITE
+			and pips.preview_flash_color == FLASH_COLOR
 			and is_equal_approx(pips.preview_flash_rate, bar_rate)
 			and pips.get_preview_level() == 0.0
 			and pips.preview_after == -1
@@ -440,7 +446,7 @@ func _test_heal_flash() -> void:
 			and flash.hp_after == flash.hp_before + restored
 			and bar.preview_after == flash.hp_after
 			and rect.has_area()
-			and bar.preview_flash_color == Color.WHITE
+			and bar.preview_flash_color == FLASH_COLOR
 			and model.flash_of(medic) == null
 			and not _is_flashing(h.view.token_of(medic))
 			and problems.is_empty()

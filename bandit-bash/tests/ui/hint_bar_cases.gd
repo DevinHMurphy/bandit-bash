@@ -11,9 +11,10 @@
 
 extends RefCounted
 ## Control hints' cases for tests/ui/input/run_all.gd (combat UI plan, UI8 and UI9 rows; questions
-## 24, 25, 31 and 32): the [ControlHintBar] against [constant BattleController.LIVE_ACTIONS]; its
-## layout from its exports, clear of the HUD's map area at the 1152×648 base size; a rebound key
-## changing its label; two M1 battles walked by input through every hint context a solo battle
+## 24, 25, 31 and 32; UI11's unit detail): the [ControlHintBar] against
+## [constant BattleController.LIVE_ACTIONS]; its layout from its exports, clear of the HUD's map
+## area at the 1152×648 base size; a rebound key changing its label; two M1 battles walked by
+## input through every hint context a solo battle (unit detail's DETAIL included)
 ## reaches, by the actions' keys, then again by their joypad bindings with the bar drawing the Xbox
 ## family; and the hints left out while they can do nothing (one target, one weapon).[br]
 ## [b]The pad walk[/b] presses each action's first joypad event (a button, or an axis pushed and
@@ -54,6 +55,7 @@ const HINT_BAR_SCENE: PackedScene = preload("res://scenes/ui/battle/control_hint
 const HUD_SCENE: PackedScene = preload("res://scenes/ui/battle/battle_hud.tscn")
 const PAD_REPEAT_SCENE: PackedScene = preload("res://scenes/ui/battle/pad_repeat.tscn")
 const ADAPTER_SCENE: PackedScene = preload("res://scenes/ui/battle/input_device_adapter.tscn")
+const DETAIL_SCENE: PackedScene = preload("res://scenes/ui/battle/unit_detail_panel.tscn")
 
 # The Input Helper addon's autoload, which the pad walk's adapter listens to.
 const HELPER_PATH: NodePath = ^"/root/InputHelper"
@@ -493,9 +495,21 @@ func _test_turn() -> void:
 	_expect_acts(rig, &"end_turn", &"END_CONFIRM")
 	_expect_context(rig, &"END_CONFIRM")
 	_expect_acts(rig, &"ui_cancel", &"IDLE")
+	# Unit detail: opened by unit_detail on the unit, closed by Back, by unit_detail and by accept
+	# on its Close.
+	_expect_acts(rig, &"unit_detail", &"DETAIL")
+	_expect_context(rig, &"DETAIL")
+	_expect_acts(rig, &"ui_cancel", &"IDLE")
+	_expect_acts(rig, &"unit_detail", &"DETAIL")
+	_expect_acts(rig, &"unit_detail", &"IDLE")
+	_expect_acts(rig, &"unit_detail", &"DETAIL")
+	(h.host.top() as BattlePanel).focus_first()
+	_expect_acts(rig, &"ui_accept", &"IDLE")
 	_expect_acts(rig, &"ui_accept", &"MOVE")
 
 	_expect_context(rig, &"MOVE")
+	_expect_acts(rig, &"unit_detail", &"DETAIL")
+	_expect_acts(rig, &"ui_cancel", &"MOVE")
 	_expect_acts(rig, &"ui_cancel", &"IDLE")
 	_expect_acts(rig, &"ui_accept", &"MOVE")
 	_expect_acts(rig, &"end_turn", &"END_CONFIRM")
@@ -821,7 +835,9 @@ func _snapshot(rig: Rig) -> String:
 	var c: BattleController = h.controller
 	var list: TargetList = c.get_target_list()
 	var focus: Control = _root.get_viewport().gui_get_focus_owner()
+	var detail: UnitDetailPanel = c.get_detail_panel()
 	var parts: PackedStringArray = [
+		"detail scroll %s" % ["-" if detail == null else str(detail.get_scroll())],
 		"context %s" % [c.get_hint_context()],
 		"stage %d" % [c.get_stage()],
 		"cursor %s" % [c.get_cursor_tile()],
@@ -948,6 +964,7 @@ func _rig() -> Rig:
 	h.controller.target_picker_scene = TARGET_PICKER_SCENE
 	h.controller.confirm_dialog_scene = CONFIRM_SCENE
 	h.controller.forecast_panel_scene = FORECAST_SCENE
+	h.controller.unit_detail_scene = DETAIL_SCENE
 	h.controller.view = h.view
 	h.controller.panel_host = h.host
 	h.controller.turn_bar = h.bar

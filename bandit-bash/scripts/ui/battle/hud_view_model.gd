@@ -6,19 +6,21 @@
 # File:     hud_view_model.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 5, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 class_name HudViewModel
 extends RefCounted
 ## What the battle HUD shows, as plain data read from a [CombatSession]: a tile's terrain and what
-## stands on it, a unit's panel, the turn against par, the darkness's counter and the objective
-## (combat UI plan, question 11: Godot_FE FR-UI-3 minus XP).
+## stands on it, a unit's panel, the turn against par, the darkness's counter, the objective and
+## its progress (combat UI plan, question 11: Godot_FE FR-UI-3 minus XP; UI11: every objective's
+## HUD).
 ##
 ## Each builder reads state and [method CombatSession.stats] only, never changes either, and holds
-## no rule of its own: the numbers are the session's, the names [method BattleText.name_of]'s. The
-## widgets ([TileInfo], [UnitPanel], [TurnCounter], [DarknessCounter], [ObjectivePanel]) format
-## them; tests check the views without rendering.
+## no rule of its own: the numbers are the session's ([Objectives], [Reinforcements]), the names
+## [method BattleText.name_of]'s. The widgets ([TileInfo], [UnitPanel], [TurnCounter],
+## [DarknessCounter], [ObjectivePanel] and its objective scenes) format them; tests check the views
+## without rendering.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
@@ -136,6 +138,42 @@ static func objective_text(session: CombatSession) -> String:
 	return text % [definition.survive_turns] if text.contains("%d") else text
 
 
+## The objective's progress on [param session] (game-vision.md, Combat maps: Objectives; combat
+## map plan, Objectives): the enemies left (Rout), the marked enemies left
+## ([method Objectives.marked_ids]; Defeat the Leader and the Boss), the seize and defend tiles
+## (the layout's markers), whether an enemy stands on a defend tile, the turns left of
+## [member CombatMapDefinition.survive_turns] ([method Objectives.turns_early]; Survive and
+## Defend), and every reinforcement point. Every field is filled whatever the objective; the
+## panel shows the objective's own. Null with no map.
+static func objective_view(session: CombatSession) -> ObjectiveView:
+	if session.setup == null or session.setup.map == null:
+		return null
+	var state: CombatState = session.state
+	var definition: CombatMapDefinition = session.setup.map
+	var view: ObjectiveView = ObjectiveView.new()
+	view.objective = definition.objective
+	view.text = objective_text(session)
+	view.enemies_left = state.units_of(CombatFact.CombatSide.ENEMY).size()
+	view.marked_ids = Objectives.marked_ids(session)
+	for marked_id: String in view.marked_ids:
+		if state.has_unit(marked_id):
+			view.marked_left_ids.append(marked_id)
+			view.marked_left_names.append(BattleText.name_of(session, marked_id))
+	view.seize_tiles = session.layout.tiles_of(MapLayout.MarkerKind.SEIZE)
+	view.defend_tiles = session.layout.tiles_of(MapLayout.MarkerKind.DEFEND)
+	for tile: Vector2i in view.defend_tiles:
+		if state.side_of(state.occupant_at(tile)) == CombatFact.CombatSide.ENEMY:
+			view.is_defend_tile_taken = true
+	view.survive_turns = definition.survive_turns
+	# turns_early counts the turns not finished; before turn 1 it would count the window as one.
+	view.turns_left = mini(Objectives.turns_early(session), definition.survive_turns)
+	for marker: MapLayout.Marker in session.layout.markers_of(
+			MapLayout.MarkerKind.REINFORCEMENT_POINT
+	):
+		view.points.append(_point_view(state, marker))
+	return view
+
+
 ## The display name of terrain [param terrain_id] ([member TerrainDefinition.display_name]); the id
 ## made readable when its definition has none.
 static func terrain_name(terrain_id: String) -> String:
@@ -147,6 +185,28 @@ static func terrain_name(terrain_id: String) -> String:
 		shown = definition.display_name
 	_terrain_names[terrain_id] = shown
 	return shown
+
+
+# One reinforcement point's view: open while it has a wave or waiting units to come
+# (Reinforcements.waves_left). Its next arrival follows Reinforcements.warn: waiting units arrive
+# after this turn's enemy phase, else its next wave on that wave's turn.
+static func _point_view(state: CombatState, marker: MapLayout.Marker) -> PointView:
+	var point: PointView = PointView.new()
+	point.index = marker.index
+	point.tile = marker.tile
+	point.waves_left = Reinforcements.waves_left(state, marker.index)
+	if point.waves_left <= 0:
+		return point
+	var held: MapState.PointState = state.map.points.get(marker.index, null)
+	if held == null:
+		return point
+	if not held.waiting.is_empty():
+		point.next_turn = state.turn
+	elif held.sent < held.waves.size():
+		var wave: Dictionary = held.waves[held.sent]
+		var turn: float = wave.get(Reinforcements.TURN_KEY, -1.0)
+		point.next_turn = roundi(turn)
+	return point
 
 
 ## One tile's terrain and what stands on it.
@@ -244,3 +304,68 @@ class DarknessView:
 	## Turns until it arrives, or after arrival until the next wave, this turn included: 1 means
 	## at the end of this turn.
 	var turns: int = 0
+
+
+## The objective and its progress; [ObjectivePanel] shows the parts its objective uses.
+class ObjectiveView:
+	extends RefCounted
+
+	## The map's objective.
+	var objective: CombatMapDefinition.Objective = CombatMapDefinition.Objective.ROUT
+	## Its text ([method HudViewModel.objective_text]).
+	var text: String = ""
+	## Enemies on the map now.
+	var enemies_left: int = 0
+	## Every enemy marked as a leader or boss, in the order they appeared, defeated ones included.
+	var marked_ids: PackedStringArray = []
+	## The marked enemies still on the map, in [member marked_ids] order; outlined on the board.
+	var marked_left_ids: PackedStringArray = []
+	## Their names, in the same order.
+	var marked_left_names: PackedStringArray = []
+	## The seize tiles, in marker order; drawn on the board.
+	var seize_tiles: Array[Vector2i] = []
+	## The defend tiles, in marker order; drawn on the board.
+	var defend_tiles: Array[Vector2i] = []
+	## Whether an enemy stands on a defend tile now: ending its turn there loses the map.
+	var is_defend_tile_taken: bool = false
+	## [member CombatMapDefinition.survive_turns]; 0 when unset.
+	var survive_turns: int = 0
+	## Turns left to survive, this one included until its enemy phase ends; 0 for other
+	## objectives and once the last has ended.
+	var turns_left: int = 0
+	## Every reinforcement point on the map, in marker order, open or closed.
+	var points: Array[PointView] = []
+
+	## The tiles of the points still open, in marker order; drawn on the board.
+	func open_point_tiles() -> Array[Vector2i]:
+		var tiles: Array[Vector2i] = []
+		for point: PointView in points:
+			if point.is_open():
+				tiles.append(point.tile)
+		return tiles
+
+	## The soonest turn an open point sends on; -1 when none is open.
+	func next_arrival_turn() -> int:
+		var soonest: int = -1
+		for point: PointView in points:
+			if point.next_turn >= 0 and (soonest < 0 or point.next_turn < soonest):
+				soonest = point.next_turn
+		return soonest
+
+
+## One reinforcement point.
+class PointView:
+	extends RefCounted
+
+	## Its [member MapLayout.Marker.index].
+	var index: int = -1
+	## Its tile.
+	var tile: Vector2i = CombatFact.NO_TILE
+	## Waves still to come, waiting units counting as one ([method Reinforcements.waves_left]).
+	var waves_left: int = 0
+	## The turn it next sends on, after that turn's enemy phase; -1 when closed.
+	var next_turn: int = -1
+
+	## Whether it can still send.
+	func is_open() -> bool:
+		return waves_left > 0

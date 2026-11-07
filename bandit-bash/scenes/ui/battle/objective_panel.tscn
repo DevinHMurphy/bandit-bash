@@ -1,7 +1,13 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/battle/objective_panel.gd" id="1_panel"]
 [ext_resource type="Theme" path="res://scenes/ui/battle/battle_theme.tres" id="2_theme"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/rout_objective.tscn" id="3_rout"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/leader_objective.tscn" id="4_leader"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/seize_objective.tscn" id="5_seize"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/survive_objective.tscn" id="6_survive"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/defend_objective.tscn" id="7_defend"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/reinforcement_status.tscn" id="8_points"]
 
 [node name="ObjectivePanel" type="PanelContainer"]
 mouse_filter = 2
@@ -25,3 +31,27 @@ layout_mode = 2
 theme_type_variation = &"HudText"
 text = "Rout: defeat every enemy"
 autowrap_mode = 3
+
+[node name="Details" type="VBoxContainer" parent="Column"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 2
+
+[node name="RoutObjective" parent="Column/Details" instance=ExtResource("3_rout")]
+layout_mode = 2
+
+[node name="LeaderObjective" parent="Column/Details" instance=ExtResource("4_leader")]
+layout_mode = 2
+
+[node name="SeizeObjective" parent="Column/Details" instance=ExtResource("5_seize")]
+layout_mode = 2
+
+[node name="SurviveObjective" parent="Column/Details" instance=ExtResource("6_survive")]
+layout_mode = 2
+
+[node name="DefendObjective" parent="Column/Details" instance=ExtResource("7_defend")]
+layout_mode = 2
+
+[node name="ReinforcementStatus" parent="Column/Details" instance=ExtResource("8_points")]
+layout_mode = 2
