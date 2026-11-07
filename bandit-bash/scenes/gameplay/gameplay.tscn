@@ -1,4 +1,4 @@
-[gd_scene load_steps=21 format=3]
+[gd_scene load_steps=23 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/nav_button.gd" id="1_nav"]
 [ext_resource type="PackedScene" path="res://scenes/debug/save_debug_panel.tscn" id="2_save_debug"]
@@ -20,10 +20,15 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/intent_display.tscn" id="18_intents"]
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/battle_hud.tscn" id="19_hud"]
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/control_hint_bar.tscn" id="20_hints"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/input_device_adapter.tscn" id="21_device"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/pad_repeat.tscn" id="22_pad_repeat"]
 
 [node name="Gameplay" type="Node2D"]
 script = ExtResource("5_screen")
 map_definition = ExtResource("6_m1")
+
+[node name="InputDeviceAdapter" parent="." instance=ExtResource("21_device")]
+unique_name_in_owner = true
 
 [node name="BattleView" parent="." node_paths=PackedStringArray("map_area") instance=ExtResource("7_view")]
 unique_name_in_owner = true
@@ -58,9 +63,10 @@ unique_name_in_owner = true
 anchor_left = 1.0
 offset_left = -308.0
 
-[node name="ControlHintBar" parent="Hud" node_paths=PackedStringArray("controller") instance=ExtResource("20_hints")]
+[node name="ControlHintBar" parent="Hud" node_paths=PackedStringArray("controller", "device") instance=ExtResource("20_hints")]
 unique_name_in_owner = true
 controller = NodePath("../../BattleController")
+device = NodePath("../../InputDeviceAdapter")
 
 [node name="SwapWindow" parent="Hud" instance=ExtResource("10_swap_window")]
 unique_name_in_owner = true
@@ -107,7 +113,7 @@ unique_name_in_owner = true
 
 [node name="SaveIndicator" parent="Hud" instance=ExtResource("4_save_indicator")]
 
-[node name="BattleController" type="Node" parent="." node_paths=PackedStringArray("view", "panel_host", "turn_bar", "swap_window", "message", "move_preview_marks", "intent_display")]
+[node name="BattleController" type="Node" parent="." node_paths=PackedStringArray("view", "panel_host", "turn_bar", "swap_window", "message", "move_preview_marks", "intent_display", "pad_repeat")]
 unique_name_in_owner = true
 script = ExtResource("12_controller")
 action_menu_scene = ExtResource("13_action_menu")
@@ -121,5 +127,9 @@ swap_window = NodePath("../Hud/SwapWindow")
 message = NodePath("../Hud/BattleMessage")
 move_preview_marks = NodePath("../BattleView/MovePreviewMarks")
 intent_display = NodePath("../BattleView/IntentDisplay")
+pad_repeat = NodePath("PadRepeat")
+
+[node name="PadRepeat" parent="BattleController" instance=ExtResource("22_pad_repeat")]
+unique_name_in_owner = true
 
 [node name="PauseMenu" parent="." instance=ExtResource("3_pause_menu")]

@@ -6,11 +6,11 @@
 # File:     intent_cases.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 5, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 extends RefCounted
-## Enemy information's cases for tests/ui/run_all.gd (combat UI plan, UI4 row, question 10): each
+## Enemy information's cases for the ui/board suite (combat UI plan, UI4 row, question 10): each
 ## enemy's intent icon, its target rule on hover (the class's first clause, and the darkness's
 ## after arrival), the numbered lines in [EnemyPlan] order to each target, the danger overlay
 ## against [DangerZone] (off by default, toggled by R, shown in the opening swap window with no

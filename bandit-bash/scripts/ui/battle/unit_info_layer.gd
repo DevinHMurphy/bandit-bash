@@ -6,7 +6,7 @@
 # File:     unit_info_layer.gd
 # Author:
 # Created:  November 6, 2026
-# Modified: November 6, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 class_name UnitInfoLayer
@@ -18,6 +18,10 @@ extends CanvasLayer
 ## and grayscale stay in the world. [BattleView] adds an info per token ([method add_info]) and
 ## calls [method follow] with the camera's transform whenever the camera or a token can have moved;
 ## nothing runs per frame by itself. An info follows its token's fade and is freed with it.[br]
+## [b]Pop-ups[/b] (the [DamageNumber]s, question 30 (a)) live here too ([method add_popup]), kept
+## on the board point they rose from as the camera moves and drawn above every info by their
+## [member CanvasItem.z_index], so a neighbour's panel never covers one. A pop-up outlives its
+## unit's info: a killing blow's number keeps rising while the unit fades.[br]
 ## [b]Layer order:[/b] [member CanvasLayer.layer] 1, above the board and below the HUD (layer 2 in
 ## [code]gameplay.tscn[/code]); two canvas layers on one number draw in no set order.
 ##
@@ -46,6 +50,10 @@ var _tokens: Dictionary[String, UnitToken] = {}
 
 # The board-to-screen transform of the last follow().
 var _to_screen: Transform2D = Transform2D.IDENTITY
+
+# Each live pop-up and, at the same index, the board point it rose from.
+var _popups: Array[Node2D] = []
+var _popup_points: PackedVector2Array = []
 
 
 ## Places an info for [param token], the token of [param unit_id], links it as the token's
@@ -76,20 +84,55 @@ func remove_info(unit_id: String) -> void:
 		info.queue_free()
 
 
-## Frees every info.
+## Frees every info and pop-up.
 func clear() -> void:
 	for unit_id: String in _infos.keys():
 		remove_info(unit_id)
+	for popup: Node2D in _popups:
+		if is_instance_valid(popup):
+			popup.queue_free()
+	_popups.clear()
+	_popup_points.clear()
+
+
+## Adds [param popup], a pop-up such as a [DamageNumber], over [param board_point] (a point on the
+## board in its global coordinates, such as a token's [member Node2D.global_position]), scaled as
+## the infos are, and keeps it there through each [method follow] until it frees itself. Its
+## scene's [member CanvasItem.z_index] must be above the infos' 0.
+func add_popup(popup: Node2D, board_point: Vector2) -> void:
+	add_child(popup)
+	_popups.append(popup)
+	_popup_points.append(board_point)
+	_place_popup(popup, board_point, info_scale())
+
+
+## The pop-ups still on the layer, oldest first.
+func get_popups() -> Array[Node2D]:
+	var live: Array[Node2D] = []
+	for popup: Node2D in _popups:
+		if is_instance_valid(popup) and not popup.is_queued_for_deletion():
+			live.append(popup)
+	return live
 
 
 ## Puts every info over its token, as [param to_screen] (the camera's board-to-screen transform,
 ## [method CameraRig.board_to_screen]) draws the token, scaled as [method info_scale] says,
-## with its token's fade. Writes only what changed.
+## with its token's fade; and every pop-up over its board point, dropping those that freed
+## themselves. Writes only what changed.
 func follow(to_screen: Transform2D) -> void:
 	_to_screen = to_screen
 	var scale_now: float = info_scale()
 	for unit_id: String in _infos:
 		_place(unit_id, scale_now)
+	var index: int = 0
+	while index < _popups.size():
+		var popup: Node2D = _popups[index]
+		if not is_instance_valid(popup) or popup.is_queued_for_deletion():
+			_popups.remove_at(index)
+			_popup_points.remove_at(index)
+			continue
+		_place_popup(popup, _popup_points[index], scale_now)
+		index += 1
 
 
 ## The scale infos are drawn at now: the camera's zoom clamped to [member min_scale] and
@@ -132,6 +175,15 @@ func _place(unit_id: String, scale_now: float) -> void:
 		info.modulate = token.modulate
 	if info.visible != token.visible:
 		info.visible = token.visible
+
+
+func _place_popup(popup: Node2D, board_point: Vector2, scale_now: float) -> void:
+	var at: Vector2 = _to_screen * board_point
+	if popup.position != at:
+		popup.position = at
+	var size_now: Vector2 = Vector2(scale_now, scale_now)
+	if popup.scale != size_now:
+		popup.scale = size_now
 
 
 func _on_token_tree_exiting(unit_id: String, token: UnitToken) -> void:

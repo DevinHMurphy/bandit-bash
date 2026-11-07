@@ -6,11 +6,11 @@
 # File:     forecast_cases.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 5, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 extends RefCounted
-## The forecast's and move preview's cases for tests/ui/run_all.gd (combat UI plan, UI3 and UI5F
+## The forecast's and move preview's cases for the ui/display suite (combat UI plan, UI3 and UI5F
 ## rows): forecast rows against [CombatForecast] for an attack, a staff and a shove; the counter
 ## and the defeat's chance when the all-hits line defeats the target; the staff's label; the
 ## forecast panel as the confirm, its breakdown toggle against explain's stages; weapon cycling

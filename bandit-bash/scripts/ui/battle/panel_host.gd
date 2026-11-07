@@ -6,7 +6,7 @@
 # File:     panel_host.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 5, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 class_name PanelHost
@@ -21,7 +21,11 @@ extends Control
 ## the scene: the right-hand column between the HUD's top strip and the turn bar, beside the map
 ## area ([BattleHud]). A panel taller than the area (the forecast with its breakdown open) scrolls,
 ## following focus, instead of growing over the turn bar. The host and the area let the mouse
-## through, so clicks off a panel reach the board.
+## through, so clicks off a panel reach the board.[br]
+## [b]Focus:[/b] while a panel is open some control inside it always has focus, so a pad or the
+## keyboard can always move: each frame ([method keep_focus]) a top panel that lost focus to a
+## click elsewhere gets it back ([method BattlePanel.restore_focus]). The host pauses with the
+## tree, so the pause menu keeps its own focus.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
@@ -29,6 +33,10 @@ var _stack: Array[BattlePanel] = []
 
 @onready var _slot: Control = %Slot
 @onready var _scroll: ScrollContainer = %Scroll
+
+
+func _process(_delta: float) -> void:
+	keep_focus()
 
 
 ## Opens an instance of [param scene] (a [BattlePanel] scene) on top with [param payload], and
@@ -74,6 +82,19 @@ func top() -> BattlePanel:
 ## How many panels are open.
 func depth() -> int:
 	return _stack.size()
+
+
+## Gives the top panel focus back when no control inside it has focus. [method Node._process]
+## calls it each frame; tests call it to stand for one. Returns whether it moved focus.
+func keep_focus() -> bool:
+	var panel: BattlePanel = top()
+	if panel == null or not panel.is_visible_in_tree():
+		return false
+	var focused: Control = get_viewport().gui_get_focus_owner()
+	if focused != null and panel.is_ancestor_of(focused):
+		return false
+	panel.restore_focus()
+	return true
 
 
 ## The area panels show in, on screen; a panel's part outside it is clipped and scrolls into view.

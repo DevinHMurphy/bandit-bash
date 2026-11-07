@@ -7,19 +7,21 @@
 # File:     run_tests.sh
 # Author:
 # Created:  October 29, 2026
-# Modified: November 6, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 # Runs the headless test suites, parse checks and a launch check, and prints one verdict line per
 # run, so a result reads in a few lines instead of the full Godot output. Works from any folder.
 #
 #   tools/run_tests.sh                       every suite, then a headless launch
-#   tools/run_tests.sh map combat            only these suites (no launch)
+#   tools/run_tests.sh map combat ui/input   only these suites (no launch)
 #   tools/run_tests.sh --check <git ref>     parse-check every .gd changed since <git ref>
 #   tools/run_tests.sh --check-file res://scripts/a.gd ...
 #
-# Suites are found, not listed: every tests/<name>/run_all.gd is a suite, and must print a summary
-# line "--- N passed, M failed ---" (", K skipped" may follow). A tests/ folder without
-# run_all.gd is named in a note and not run.
+# Suites are found, not listed: every tests/<name>/run_all.gd is a suite named <name>, and a
+# folder without one may hold suites a level down, tests/<name>/<part>/run_all.gd, named
+# <name>/<part> (tests/ui keeps the combat UI's cases shared by its board, input and display
+# suites). Each must print a summary line "--- N passed, M failed ---" (", K skipped" may follow).
+# A tests/ folder with no suite at either level is named in a note and not run.
 #
 # Verdicts: PASS; FAIL (a failed test, a script or parse error, a leak, or no summary line);
 # EXIT-CRASH (every test passed but the engine crashed at exit, Godot issue #117975: the results
@@ -134,6 +136,16 @@ else
 		name=$(basename "$folder")
 		if [ -f "$folder/run_all.gd" ]; then
 			suites="$suites $name"
+			continue
+		fi
+		found=""
+		for part in "$folder"*/; do
+			if [ -f "$part/run_all.gd" ]; then
+				found="$found $name/$(basename "$part")"
+			fi
+		done
+		if [ -n "$found" ]; then
+			suites="$suites$found"
 		else
 			echo "note: tests/$name has no run_all.gd, so it is not a suite and was not run"
 		fi
@@ -150,7 +162,8 @@ printf '[application]\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_n
 trap 'rm -f "$OVERRIDE"' EXIT INT TERM
 
 for suite in $suites; do
-	log="$LOGS/$suite.log"
+	# A nested suite's name has a slash; its log is named with an underscore instead.
+	log="$LOGS/$(echo "$suite" | tr '/' '_').log"
 	$LIMIT "$GODOT" --headless --path "$PROJECT" --script "res://tests/$suite/run_all.gd" >"$log" 2>&1
 	verdict "$suite" $? "$log"
 done

@@ -6,19 +6,23 @@
 # File:     damage_number.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 6, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 class_name DamageNumber
 extends Node2D
 ## A pop-up that rises from a unit and fades out, then frees itself: a damage or heal number, a
-## "Miss", or a "Critical" with its damage (combat UI plan, question 29 (4) and (5)).
+## "Miss", a "Critical" with its damage, or the small number of a hit's damage Block absorbed
+## (combat UI plan, questions 29 (4), 29 (5) and 30 (c)).
 ##
-## [BattleView] places one per damage, heal, missed strike and critical hit, and steps its tween
-## with the board's animations, so held fast-forward speeds it and a skip finishes it. Cosmetic:
+## [BattleView] places one per damage, heal, missed strike, critical hit and Block absorbed on
+## the [UnitInfoLayer], above the units' info panels ([method UnitInfoLayer.add_popup]), which
+## keeps it over its unit through the camera; the label rises within it. The board steps its
+## tween with its animations, so held fast-forward speeds it and a skip finishes it. Cosmetic:
 ## playback never waits for it ([member BattleView.number_hold] is the wait). Each [enum Style]
-## has its colour here and its label style in the theme ([code]DamageNumberLabel[/code], or
-## [code]DamageNumberCriticalLabel[/code] for the larger Critical).
+## has its colour here and its label style in the theme ([code]DamageNumberLabel[/code],
+## [code]DamageNumberCriticalLabel[/code] for the larger Critical,
+## [code]DamageNumberBlockLabel[/code] for the smaller Block number).
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
@@ -32,6 +36,8 @@ enum Style {
 	MISS = 2,
 	## A critical hit: [member critical_format] with its damage, larger, on the unit it struck.
 	CRITICAL = 3,
+	## The part of a hit's damage that Block absorbed, small, beside the hit's own number.
+	BLOCK = 4,
 }
 
 # ASSUMPTION: greybox colour; no palette is set (combat UI plan, Design Basis, Gaps).
@@ -47,6 +53,16 @@ enum Style {
 
 ## Colour of a "Critical" (Godot_FE's crit number, [code]#B22[/code]).
 @export var critical_color: Color = Color(0.733333, 0.133333, 0.133333, 1.0)
+
+# ASSUMPTION: question 30 (c) asks for a blue number; the shade is a greybox choice.
+## Colour of the Block-absorbed number.
+@export var block_color: Color = Color(0.45, 0.7, 1.0, 1.0)
+
+# ASSUMPTION: no basis; set beside and below the hit's number so the two never overlap.
+## Where the Block-absorbed number's label sits from where the other styles' label sits, so it
+## shows beside the hit's own number.[br]
+## [b]Units:[/b] screen pixels at info scale 1.0.
+@export var block_offset: Vector2 = Vector2(22.0, 10.0)
 
 ## The text of a missed strike's pop-up (Godot_FE's [code]"Miss"[/code]).
 @export var miss_text: String = "Miss"
@@ -78,19 +94,20 @@ func play(amount: int, is_heal: bool) -> Tween:
 
 
 ## Shows [param amount] in [param shown_style] ([param amount] is unused by a Miss), and returns
-## the rise and fade, paused for the caller to step ([method Tween.custom_step]). The node frees
-## itself when it ends.
+## the rise and fade, paused for the caller to step ([method Tween.custom_step]). The label rises,
+## not the node, so whoever places the node may move it meanwhile. The node frees itself when it
+## ends.
 func show_style(shown_style: Style, amount: int) -> Tween:
 	style = shown_style
 	_label.text = text_of(shown_style, amount)
 	_label.modulate = color_of(shown_style)
-	_label.theme_type_variation = (
-			&"DamageNumberCriticalLabel" if shown_style == Style.CRITICAL else &"DamageNumberLabel"
-	)
+	_label.theme_type_variation = label_style_of(shown_style)
+	if shown_style == Style.BLOCK:
+		_label.position += block_offset
 	var tween: Tween = create_tween()
 	tween.pause()
 	tween.set_parallel(true)
-	tween.tween_property(self, ^"position:y", position.y - rise_distance, lifetime)
+	tween.tween_property(_label, ^"position:y", _label.position.y - rise_distance, lifetime)
 	tween.tween_property(self, ^"modulate:a", 0.0, lifetime)
 	tween.chain().tween_callback(queue_free)
 	return tween
@@ -108,6 +125,18 @@ func text_of(shown_style: Style, amount: int) -> String:
 	return str(amount)
 
 
+# ASSUMPTION: DamageNumberBlockLabel's 12 px size in battle_theme.tres is a greybox choice under
+# DamageNumberLabel's 18, for "a small blue number".
+## The theme type variation [param shown_style]'s label is drawn with.
+func label_style_of(shown_style: Style) -> StringName:
+	match shown_style:
+		Style.CRITICAL:
+			return &"DamageNumberCriticalLabel"
+		Style.BLOCK:
+			return &"DamageNumberBlockLabel"
+	return &"DamageNumberLabel"
+
+
 ## The colour [param shown_style] is drawn in.
 func color_of(shown_style: Style) -> Color:
 	match shown_style:
@@ -117,6 +146,8 @@ func color_of(shown_style: Style) -> Color:
 			return miss_color
 		Style.CRITICAL:
 			return critical_color
+		Style.BLOCK:
+			return block_color
 	return damage_color
 
 

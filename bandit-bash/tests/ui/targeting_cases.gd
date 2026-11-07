@@ -6,11 +6,11 @@
 # File:     targeting_cases.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 5, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 extends RefCounted
-## Targeting's cases for tests/ui/run_all.gd (combat UI plan, UI6 row; questions 21 and 23):
+## Targeting's cases for the ui/input suite (combat UI plan, UI6 row; questions 21 and 23):
 ## [TargetList] cycling and wrapping; each action's target list (attack, staff, item on an ally,
 ## shove, rune) against what the validator accepts on the M1 board; keys and the mouse sending the
 ## same command; the target outlines; Q / E cycling the units that can act in IDLE; the purple

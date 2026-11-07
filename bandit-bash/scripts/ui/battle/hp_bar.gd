@@ -6,7 +6,7 @@
 # File:     hp_bar.gd
 # Author:
 # Created:  November 6, 2026
-# Modified: November 6, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 class_name HpBar
@@ -23,10 +23,9 @@ extends ProgressBar
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
-# ASSUMPTION: the number is the current HP alone; question 29 (1) says "the numbers inside it".
-## Whether the number also shows the maximum, as [code]14/22[/code].[br]
+## Whether the number also shows the maximum, as [code]14/22[/code] (question 30 (d)).[br]
 ## [b]Off:[/b] only the current HP, as [code]14[/code].
-@export var is_maximum_shown: bool = false:
+@export var is_maximum_shown: bool = true:
 	set(is_shown):
 		is_maximum_shown = is_shown
 		if not is_node_ready():
@@ -45,10 +44,16 @@ func _ready() -> void:
 func show_hp(current: int, maximum: int) -> void:
 	max_value = maxi(maximum, 1)
 	value = maxi(current, 0)
-	var shown: int = maxi(current, 0)
-	_number.text = "%d/%d" % [shown, maxi(maximum, 1)] if is_maximum_shown else str(shown)
+	_number.text = text_of(current, maximum)
 
 
 ## The number drawn inside the bar.
 func get_text() -> String:
 	return _number.text
+
+
+## The number the bar draws for [param current] HP of [param maximum], as [method show_hp] clamps
+## them: [code]14/22[/code], or [code]14[/code] with [member is_maximum_shown] off.
+func text_of(current: int, maximum: int) -> String:
+	var shown: int = maxi(current, 0)
+	return "%d/%d" % [shown, maxi(maximum, 1)] if is_maximum_shown else str(shown)
