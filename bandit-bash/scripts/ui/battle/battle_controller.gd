@@ -13,7 +13,7 @@ class_name BattleController
 extends Node
 ## Turns the player's input on the battle screen into commands: the tile cursor, selecting a
 ## unit, its move and attack tiles and path, the action menu, the target picker, confirm, End
-## Turn, the opening swap window and Start (combat UI plan, UI2; question 6's flow, ported from
+## Turn, the opening swap window and Start (combat UI plan, question 6's flow, ported from
 ## Godot_FE's player FSM).
 ##
 ## [b]Commands only:[/b] it never changes combat state. What it offers comes from
@@ -23,19 +23,17 @@ extends Node
 ## through one [PanelHost]: each stage that opens a panel pushes one, and cancel pops exactly one.
 ## Input waits while playback runs ([method BattleView.is_settled]), except fast-forward and the
 ## skip.[br]
-## [b]Targeting[/b] (question 21): a chosen action's targets are one [TargetList]; the picker's
-## rows, Q / E, the mouse and accept all move or pick its current target, which the cursor shows,
-## so each sends the same command. Every target is outlined ([TargetMark]), the current one more
-## strongly. An attack, a staff or a shove confirms on a [ForecastPanel] ([ForecastViewModel]),
-## which cycles the target's weapons ([method cycle_weapon]).[br]
+## [b]Targeting[/b] (question 21): a chosen action's targets are one [TargetList]; its rows, Q / E,
+## the mouse and accept all move or pick its current target, so each sends the same command.
+## Targets are outlined ([TargetMark]); an attack, a staff or a shove confirms on a
+## [ForecastPanel], which cycles the target's weapons ([method cycle_weapon]).[br]
 ## [b]Move preview:[/b] hovering a move tile runs a [MovePreview] on a worker thread
-## ([method run_preview_frame]); [MovePreviewMarks] draws its damage and the [IntentDisplay] its
-## re-planned intents.[br]
-## [b]Enemy information[/b] (question 10): the [IntentDisplay] draws the intents once the board
-## settles; [method toggle_danger_zone] draws [DangerZone] red, with the enemies' support tiles
-## purple (question 23), as an enemy's toggled range and a selected unit's tiles are.[br]
-## [BattleScreen] binds it to the seat's map ([method bind]); its widgets are the nodes set in its
-## exports, which the gameplay scene points at.
+## ([method run_preview_frame]), drawn by [MovePreviewMarks] and the [IntentDisplay].[br]
+## [b]Enemy information[/b] (question 10): the [IntentDisplay] shows the intents once the board
+## settles; [method toggle_danger_zone] draws [DangerZone], support tiles purple (question 23).[br]
+## [b]Control hints[/b] (question 24): [constant LIVE_ACTIONS] lists the actions live in each hint
+## context ([method get_hint_context]); the [ControlHintBar] shows [method get_live_actions].[br]
+## [BattleScreen] binds it to the seat's map ([method bind]); its widgets are its exports' nodes.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
@@ -85,10 +83,15 @@ extends Node
 #                                                and the command move to the target's next weapon,
 #                                                wrapping. Harmless elsewhere, and with one weapon;
 #                                                Q / E are targets, not weapons, unlike Godot_FE)
-#   "toggle_save_debug"     -> F3             (read by the save debug panel; not read here)
+#   "toggle_save_debug"     -> F3             (read by the save debug panel, in debug builds; not
+#                                                read here)
 # While a command's playback runs, the map's combat is over, or the seat has no turn, every input
 # but fast_forward, skip_playback and toggle_danger_zone is ignored: that guard is deliberate, not
 # a missing check.
+# Control hints: LIVE_ACTIONS (below the state block) lists, per stage, the actions above that act
+# there, with the panels' focus moves, the pause menu's Esc and the save debug panel's F3; the
+# hint bar shows them with their keys. A binding whose meaning or stage changes here changes that
+# table in the same edit.
 # ============================================================
 
 # --- Turn input stage (meaningful once bind() has a session) -------------------------------
@@ -150,6 +153,12 @@ extends Node
 # settles the stage, the danger zone and the intents are rebuilt from the session:
 # a rejection's reason shows and the flow returns to IDLE, a unit with a second move pending
 # reopens MOVE on its new tile, and otherwise IDLE, SWAP or INACTIVE as the session stands.
+# Hint contexts (LIVE_ACTIONS, get_hint_context()) are these stages' names and three more:
+# FORECAST is CONFIRM on the forecast panel; PLAYBACK is any stage while a command's playback runs
+# (only fast_forward, skip_playback, toggle_danger_zone and the pause menu's Esc act); PAUSED is
+# the pause menu open over any stage, where this node is paused and the menu takes the arrows,
+# accept and Esc. In multiplayer the menu doesn't pause, so PAUSED never comes. With nothing bound
+# or the combat over there is no context.
 ## The steps of turn input; see the block above.
 enum Stage {
 	## Nothing to do; input is ignored.
@@ -174,6 +183,66 @@ enum Stage {
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
+
+# --- Live actions by hint context: the hint bar's one source ---------------------------------
+# Each row is what acts in that context, read from the state and input blocks above: the arrows
+# where they move the cursor or a panel's focus (a menu's and the picker's rows go up and down
+# only; the forecast's and the dialogs' buttons sit side by side), Q / E in IDLE, TARGET and
+# CONFIRM, accept wherever it picks, presses or confirms, cycle_weapon on the forecast only.
+# ui_cancel is the pause menu's in SWAP, IDLE, PLAYBACK and INACTIVE (this node leaves Esc to it
+# there), and toggle_save_debug is the save debug panel's. Order is the bar's display order.
+# tests/ui/hint_bar_cases.gd presses every action in every context it reaches and fails when one
+# acts outside its row or a listed one does nothing; change a row with the blocks above.
+# ASSUMPTION: fast_forward is listed in every unpaused context, since holding it before a command
+# speeds that command's playback; skip_playback only in PLAYBACK, as it is harmless otherwise.
+## The actions live in each hint context ([method get_hint_context]), as [StringName]s in the
+## order the [ControlHintBar] shows them; see [method get_live_actions].
+const LIVE_ACTIONS: Dictionary[StringName, Array] = {
+	&"SWAP": [
+		&"ui_up", &"ui_down", &"ui_left", &"ui_right", &"ui_accept", &"end_turn",
+		&"toggle_danger_zone", &"fast_forward", &"ui_cancel", &"toggle_save_debug",
+	],
+	&"SWAP_PICKED": [
+		&"ui_up", &"ui_down", &"ui_left", &"ui_right", &"ui_accept", &"ui_cancel", &"end_turn",
+		&"toggle_danger_zone", &"fast_forward", &"toggle_save_debug",
+	],
+	&"IDLE": [
+		&"ui_up", &"ui_down", &"ui_left", &"ui_right", &"ui_accept", &"target_prev",
+		&"target_next", &"end_turn", &"toggle_danger_zone", &"fast_forward", &"ui_cancel",
+		&"toggle_save_debug",
+	],
+	&"MOVE": [
+		&"ui_up", &"ui_down", &"ui_left", &"ui_right", &"ui_accept", &"ui_cancel", &"end_turn",
+		&"toggle_danger_zone", &"fast_forward", &"toggle_save_debug",
+	],
+	&"ACTION": [
+		&"ui_up", &"ui_down", &"ui_accept", &"ui_cancel", &"toggle_danger_zone", &"fast_forward",
+		&"toggle_save_debug",
+	],
+	&"TARGET": [
+		&"ui_up", &"ui_down", &"target_prev", &"target_next", &"ui_accept", &"ui_cancel",
+		&"toggle_danger_zone", &"fast_forward", &"toggle_save_debug",
+	],
+	&"FORECAST": [
+		&"ui_up", &"ui_down", &"ui_left", &"ui_right", &"ui_accept", &"target_prev",
+		&"target_next", &"cycle_weapon", &"ui_cancel", &"toggle_danger_zone", &"fast_forward",
+		&"toggle_save_debug",
+	],
+	&"CONFIRM": [
+		&"ui_left", &"ui_right", &"ui_accept", &"target_prev", &"target_next", &"ui_cancel",
+		&"toggle_danger_zone", &"fast_forward", &"toggle_save_debug",
+	],
+	&"END_CONFIRM": [
+		&"ui_left", &"ui_right", &"ui_accept", &"ui_cancel", &"toggle_danger_zone",
+		&"fast_forward", &"toggle_save_debug",
+	],
+	&"PLAYBACK": [
+		&"fast_forward", &"skip_playback", &"toggle_danger_zone", &"ui_cancel",
+		&"toggle_save_debug",
+	],
+	&"INACTIVE": [&"toggle_danger_zone", &"fast_forward", &"ui_cancel", &"toggle_save_debug"],
+	&"PAUSED": [&"ui_up", &"ui_down", &"ui_accept", &"ui_cancel"],
+}
 
 @export_group("Panels")
 
@@ -431,6 +500,36 @@ func get_walk() -> Array[Vector2i]:
 ## The enemies whose range is toggled on.
 func get_shown_enemies() -> PackedStringArray:
 	return _shown_enemies.duplicate()
+
+
+## The hint context the screen is in, a key of [constant LIVE_ACTIONS]: PAUSED while the tree is
+## paused, PLAYBACK while a command plays, FORECAST in CONFIRM on the forecast panel, else the
+## stage's name; empty while nothing is bound or the combat is over. Cheap enough to poll.
+func get_hint_context() -> StringName:
+	if _session == null or _session.is_finished:
+		return &""
+	if is_inside_tree() and get_tree().paused:
+		return &"PAUSED"
+	if _is_waiting or not view.is_settled():
+		return &"PLAYBACK"
+	if _stage == Stage.CONFIRM and is_instance_valid(_forecast_panel):
+		return &"FORECAST"
+	return StringName(Stage.find_key(_stage) as String)
+
+
+## The actions live now: [constant LIVE_ACTIONS]' row for [method get_hint_context], without
+## toggle_save_debug outside debug builds, where the save debug panel removes itself. Empty while
+## nothing is bound or the combat is over.
+func get_live_actions() -> Array[StringName]:
+	var actions: Array[StringName] = []
+	var context: StringName = get_hint_context()
+	if context.is_empty():
+		return actions
+	for action: StringName in LIVE_ACTIONS.get(context, []):
+		if action == &"toggle_save_debug" and not OS.is_debug_build():
+			continue
+		actions.append(action)
+	return actions
 
 
 ## Whether input is taken now: a session is bound and still fought, no command's playback is
