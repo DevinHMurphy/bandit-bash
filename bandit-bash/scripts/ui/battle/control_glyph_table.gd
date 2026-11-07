@@ -48,6 +48,8 @@ extends Resource
 ## [b]Missing:[/b] the id itself.
 @export var playstation_labels: Dictionary[String, String] = {}
 
+# ASSUMPTION: Godot_FE drew a Switch pad with its Xbox icons and other pads with none; the table
+# gives other pads Xbox names as text (Godot reports every pad in the Xbox layout).
 ## What an input of any other pad without a glyph shows, by its id.[br]
 ## [b]Missing:[/b] the id itself.
 @export var other_pad_labels: Dictionary[String, String] = {}
