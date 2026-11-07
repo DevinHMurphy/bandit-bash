@@ -394,6 +394,8 @@ rune prefixes (P03 reserves `data/prefixes/runes/`), directional target shapes (
   implementation choice: it goes back to the design docs first (CLAUDE.md §1).
 - M1 comes before breadth: content beyond the M1 subset waits until the first playable fight has
   been tuned once.
+- **Every new UI and feature works on keyboard and mouse and on a controller from the start** (user, November 7, 2026): pad bindings, focus navigation and glyph hints are built in the same step, never left for a later pass.
+- **Every UI element is its own `.tscn`** with its script beside it and documented `@export`s (user, November 4 and 7, 2026; P07's Approach), so it can be edited by hand; every prompt says so.
 
 ## Next actions
 
