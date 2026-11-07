@@ -10,42 +10,26 @@
 # ==============================================================================
 
 extends SceneTree
-## Combat UI suite (combat UI plan, P07): the battle board's view-model, the board on the M1 map,
-## an M1 battle's facts played through the board, the darkness overlay, held fast-forward and the
-## faded skip ([code]battle_view_cases.gd[/code]); turn input: the action menu, the overlays and
-## path, cancel, End Turn and Start, rejections, playback, a second move, and player turns played
-## by input events ([code]turn_input_cases.gd[/code]); the forecast, weapon cycling and the move
-## preview ([code]forecast_cases.gd[/code]); the intent icons, target rules, numbered lines, the
-## danger zone and the previewed intents ([code]intent_cases.gd[/code]); the HUD: tile info, the
-## unit panel, the turn counter and par colour, phase banners, the objective, the darkness counter,
-## the fact log, target labels by name, the panel area and Use ([code]hud_cases.gd[/code]);
-## targeting: the target list against the validator, its wrapping, keys and the mouse sending one
-## command, the target outlines, Q / E unit cycling, the purple support overlays and the healers'
-## missing attack tiles ([code]targeting_cases.gd[/code]); the unit display: each M1 unit's
-## sprite or letters and side outline, the HP, Stance and Block following facts
-## and the session, grayscale while a unit can't act, and the range-tracked icon
-## ([code]unit_display_cases.gd[/code]); the unit info: the HP number, the Stance pips and their
-## forecast dimming, the info layer through camera moves, Miss and Critical pop-ups in every
-## playback mode ([code]unit_info_cases.gd[/code]); then
-## the gameplay screen itself: a run saved mid-battle and continued opens on the board at its
-## saved state; its save debug panel (hidden when the battle opens, toggled by F3
-## and read afresh each time it shows, clear of the M1 map at the 1152×648 base size, and
-## untouched by clicks on the deployment tiles), the HUD clear of the map at the base size and
-## wider, the run seed on the pause screen; the pause menu, opened by Esc and closed by Esc or
-## Resume, pausing the tree and the board's playback and unpausing both; then a new solo run's M1
-## battle played to its end from Start and End Turn, its Victory or Defeat banner, and the route
-## to Results after it.
+## Combat UI suite (combat UI plan, P07): the board, turn input, the forecast and move preview,
+## enemy information, the HUD, targeting, the unit display and info, and the control hints, a
+## cases file each (preloaded below; each one's class doc lists its checks); then the gameplay
+## screen itself: a run saved mid-battle and continued opens on the board at its saved state; its
+## save debug panel (hidden when the battle opens, toggled by F3 and read afresh, clear of the M1
+## map at the 1152×648 base size, untouched by clicks on the deployment tiles); the HUD and the
+## hint bar clear of the map at the base size and wider; the run seed on the pause screen; the
+## pause menu, opened by Esc and closed by Esc or Resume, pausing the tree and the board's playback
+## and unpausing both, with the hint bar following over real frames; then a new solo run's M1
+## battle played to its end, its Victory or Defeat banner, and the route to Results.
 ##
-## Run from the repo root:[br]
-## [code]godot --headless --path bandit-bash --script res://tests/ui/run_all.gd[/code][br]
-## Prints one PASS, FAIL or SKIP line per check and the summary line
-## [code]--- N passed, M failed, K skipped ---[/code]; exits with code 1 on any failure.[br]
+## Run from the repo root:
+## [code]godot --headless --path bandit-bash --script res://tests/ui/run_all.gd[/code]. Prints one
+## PASS, FAIL or SKIP line per check and [code]--- N passed, M failed, K skipped ---[/code]; exits
+## with code 1 on any failure.[br]
 ## The cases run from the first frame, when autoloads exist; the panel case runs over a few more
-## frames so the panel's layout and the camera settle, the pause case over real frames while the
-## board plays, and the routing case over a few after that so the scene change happens. This
-## script never names an autoload, or the gameplay screen's class (whose script does), since it
-## compiles before autoloads are registered; it reaches them as nodes and loads the screen at run
-## time.[br]
+## frames so the layout and the camera settle, the pause case over real frames while the board
+## plays, and the routing case over a few after that for the scene change. This script never
+## names an autoload, or the gameplay screen's class (whose script does), since it compiles before
+## autoloads are registered; it reaches them as nodes and loads the screen at run time.[br]
 ## [b]The continue, panel, pause and routing cases[/b] drive the real
 ## [code]SaveService[/code], which writes save files, so they run only with a test user folder
 ## ([code]tools/run_tests.sh[/code] makes one; see [code]tests/sessions/run_all.gd[/code]) and
@@ -59,6 +43,7 @@ const HudCases = preload("res://tests/ui/hud_cases.gd")
 const TargetingCases = preload("res://tests/ui/targeting_cases.gd")
 const UnitDisplayCases = preload("res://tests/ui/unit_display_cases.gd")
 const UnitInfoCases = preload("res://tests/ui/unit_info_cases.gd")
+const HintBarCases = preload("res://tests/ui/hint_bar_cases.gd")
 const CatalogCases = preload("res://tests/content/catalog_cases.gd")
 
 const GAMEPLAY_SCENE: String = "res://scenes/gameplay/gameplay.tscn"
@@ -143,6 +128,7 @@ func _process(_delta: float) -> bool:
 		TargetingCases.new(_check, root).run()
 		UnitDisplayCases.new(_check, root).run()
 		UnitInfoCases.new(_check, root).run()
+		HintBarCases.new(_check, root).run()
 		_run_continue_case()
 		if _start_panel_case():
 			_panel_frame = _frame
@@ -420,6 +406,7 @@ func _hud_over_map() -> PackedStringArray:
 		hud.get_turn_counter(), hud.get_objective(), hud.get_darkness_counter(),
 		hud.get_tile_info(), hud.get_unit_panel(), hud.get_fact_log(), hud.get_phase_banner(),
 		_panel_screen.get_node(^"%TurnBar") as Control,
+		_panel_screen.get_node(^"%ControlHintBar") as Control,
 		_panel_screen.get_node(^"%SwapWindow") as Control,
 		_panel_screen.get_node(^"%BattleMessage") as Control,
 		_panel_screen.get_node(^"%SaveDebugPanel") as Control,
@@ -470,8 +457,11 @@ func _run_pause_case() -> void:
 			BattleViewCases.settle(view)
 		var units: PackedStringArray = TurnInputModel.acting_units(session, 0)
 		var pause: Node = screen.get_node(^"PauseMenu")
+		var hints: ControlHintBar = screen.get_node(^"%ControlHintBar")
 		for round: int in mini(units.size(), 2):
-			await _pause_round(run.encounter, session, view, pause, units[round], round == 1)
+			await _pause_round(
+					run.encounter, session, view, pause, hints, units[round], round == 1
+			)
 	if screen != null:
 		screen.free()
 	saves.call(&"close_save_file")
@@ -483,12 +473,14 @@ func _run_pause_case() -> void:
 
 # One round of the pause case for unit_id: its walk to its farthest move tile starts, Esc opens the
 # menu, the walk holds while the tree is paused, then Esc (or a click on Resume, when by_resume)
-# closes it and the walk plays to its end.
+# closes it and the walk plays to its end. The hint bar, redrawn only by its own frames, shows
+# PLAYBACK, then PAUSED, then PLAYBACK again.
 func _pause_round(
 		encounter: CombatEncounter,
 		session: CombatSession,
 		view: BattleView,
 		pause: Node,
+		hints: ControlHintBar,
 		unit_id: String,
 		by_resume: bool
 ) -> void:
@@ -507,10 +499,16 @@ func _pause_round(
 	await process_frame
 	var token: UnitToken = view.token_of(unit_id)
 	var playing: bool = not view.is_settled() and token != null
+	# process_frame comes before the nodes' own _process, so the bar draws a frame later.
+	await process_frame
+	var hinted: Array[StringName] = [hints.get_context()]
 	_press_key(KEY_ESCAPE)
 	await process_frame
 	var menu: Control = pause.get_node(^"%Root")
 	var opened: bool = paused and menu.visible
+	hinted.append(hints.get_context())
+	var paused_actions: Array[StringName] = hints.get_shown_actions()
+	var paused_live: Array[StringName] = hints.controller.get_live_actions()
 	var held_at: Vector2 = token.position if token != null else Vector2.ZERO
 	var hold_start: int = Time.get_ticks_msec()
 	while Time.get_ticks_msec() - hold_start < PAUSE_HOLD_MSEC:
@@ -529,6 +527,15 @@ func _pause_round(
 		_press_key(KEY_ESCAPE)
 	await process_frame
 	var closed: bool = not paused and not menu.visible
+	hinted.append(hints.get_context())
+	_check("pause (%s round): over real frames the hint bar shows playback, paused, playback" % [
+		how,
+	], (
+			hinted == [&"PLAYBACK", &"PAUSED", &"PLAYBACK"]
+			and hints.visible
+			and not paused_actions.is_empty()
+			and paused_actions == paused_live
+	), "contexts %s; paused shows %s, live %s" % [hinted, paused_actions, paused_live])
 	var settle_start: int = Time.get_ticks_msec()
 	while not view.is_settled():
 		if Time.get_ticks_msec() - settle_start > PAUSE_SETTLE_TIMEOUT_MSEC:

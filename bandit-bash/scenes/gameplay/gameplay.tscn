@@ -1,4 +1,4 @@
-[gd_scene load_steps=20 format=3]
+[gd_scene load_steps=21 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/nav_button.gd" id="1_nav"]
 [ext_resource type="PackedScene" path="res://scenes/debug/save_debug_panel.tscn" id="2_save_debug"]
@@ -19,6 +19,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/move_preview_marks.tscn" id="17_preview_marks"]
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/intent_display.tscn" id="18_intents"]
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/battle_hud.tscn" id="19_hud"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/control_hint_bar.tscn" id="20_hints"]
 
 [node name="Gameplay" type="Node2D"]
 script = ExtResource("5_screen")
@@ -54,6 +55,12 @@ unique_name_in_owner = true
 
 [node name="TurnBar" parent="Hud" instance=ExtResource("8_turn_bar")]
 unique_name_in_owner = true
+anchor_left = 1.0
+offset_left = -308.0
+
+[node name="ControlHintBar" parent="Hud" node_paths=PackedStringArray("controller") instance=ExtResource("20_hints")]
+unique_name_in_owner = true
+controller = NodePath("../../BattleController")
 
 [node name="SwapWindow" parent="Hud" instance=ExtResource("10_swap_window")]
 unique_name_in_owner = true
