@@ -20,7 +20,7 @@ the plans and the orchestrator's Design items, not here.
   a regression test that fails before the fix. A build agent that finds a bug outside its step
   reports it ("found, not fixed"); the orchestrator adds the row.
 - **Closing:** on merge the orchestrator sets **Fixed** with the merge commit and moves the row to
-  [Fixed bugs](#fixed-bugs). The user may mark a fixed bug **Verified** after a playtest, or reopen
+  [Closed bugs](#closed-bugs). The user may mark a fixed bug **Verified** after a playtest, or reopen
   it.
 
 **Severity**
@@ -32,14 +32,13 @@ the plans and the orchestrator's Design items, not here.
 | S3 | Wrong or missing feedback; a workaround exists |
 | S4 | Cosmetic, docs or text |
 
-**Status:** New · Needs decision · Assigned (step) · Fixed (commit) · Verified · Won't fix ·
+**Status:** New · Needs decision · Assigned (step) · Fixed (commit) · Verified · Won't fix · Can't reproduce ·
 Not a bug.
 
 ## Open bugs
 
 | ID | Title | Area | Sev | Status | Found | Fix step |
 |----|-------|------|-----|--------|-------|----------|
-| [BUG-001](#bug-001-no-block-at-the-start-of-combat) | No unit has Block at the start of combat | P01 / P02 / P03 | S2 | Needs decision | November 6, 2026, user playtest | — |
 | [BUG-002](#bug-002-the-forecasts-crit-chance-ignores-current-stance) | The forecast's crit chance ignores current Stance | P02 / P07 | S2 | New | November 6, 2026, user playtest | — |
 | [BUG-003](#bug-003-save-systemmd-says-a-battle-retry-repeats-ids) | save-system.md says a battle retry repeats ids | P00 / P02 | S4 | Assigned (CC9; P02 question 22 accepted November 7, 2026) | November 5, 2026, CC10 report | CC9 |
 | [BUG-004](#bug-004-an-enemy-with-an-attack-intent-moves-and-doesnt-attack) | An enemy with an attack intent moves and doesn't attack; the next enemy hits its target | P05 / P07 | S2 | New | November 6, 2026, user playtest | — |
@@ -56,8 +55,9 @@ Not a bug.
 - **To check:** whether the first player Phase Start (after the opening swap window and Start)
   applies Phase Start effects at all. UI7's windowed run showed the Drengr's 3 Block only at the
   turn 2 player phase.
-- **Needs decision:** is the report (a) Vanguard not firing on turn 1, a bug, or (b) a wish for
-  base Block, a vision change (`Godot_FE` had weapon "block data", which the vision replaced)?
+- **Decided** (user, November 7, 2026): no base Block. Vanguard fires at the first player Phase
+  Start when its condition holds, as at every other. The current playtest doesn't reproduce the
+  report, so it is closed as **Can't reproduce**; reopen it if a turn 1 Vanguard is seen missing.
 
 ### BUG-002 The forecast's crit chance ignores current Stance
 
@@ -105,7 +105,8 @@ Not a bug.
 - **Asked the user:** each enemy's class, the second enemy's own intent target, and where the
   first enemy ended (in range of its target or not).
 
-## Fixed bugs
+## Closed bugs
 
-| ID | Title | Area | Sev | Fixed in | Verified |
+| ID | Title | Area | Sev | Closed as | Verified |
 |----|-------|------|-----|----------|----------|
+| [BUG-001](#bug-001-no-block-at-the-start-of-combat) | No unit has Block at the start of combat | P01 / P02 / P03 | S2 | Can't reproduce (November 7, 2026; no base Block, Vanguard fires on turn 1) | — |
