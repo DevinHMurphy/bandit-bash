@@ -6,14 +6,16 @@
 # File:     map_save_cases.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 3, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 extends RefCounted
 ## Cases for the map save (combat map plan MP8): [MapState] capture and restore, the
 ## [CombatMapSection] pair through a [SaveSectionRegistry], Save & Quit mid-phase then resume with
 ## broken, opened, lit and exploded objects, a closed point, waves left and waiting wave units, a
-## mirror following object and reinforcement facts hash for hash, and a dump replayed through them.
+## mirror following object and reinforcement facts hash for hash, and a dump replayed through them;
+## and the [DarknessSaveSection]'s versions, refusals and checks against the rebuilt battle
+## (darkness plan, DK5).
 ##
 ## Run by [code]tests/sessions/run_all.gd[/code] on its first frame, after the save cases, whose
 ## [code]Registry[/code] it reuses. Every save goes through JSON, as a file would. Several cases
@@ -51,6 +53,7 @@ func run() -> void:
 	_test_mirror_follows_objects_and_points()
 	_test_dump_replays_objects_and_points()
 	_test_section_versions_and_pairing()
+	_test_darkness_section()
 
 
 func _test_map_state_round_trip() -> void:
@@ -332,6 +335,110 @@ func _test_section_versions_and_pairing() -> void:
 	), "%s, %s" % [error_string(map_loaded), error_string(units_kept)])
 
 
+# The darkness section (darkness plan, DK5) on a map with none: one entry per map at version 1,
+# without the first release (the rebuild places it). A newer version, version 0, malformed data
+# and a saved first release are refused; a file without the section holds no darkness, which
+# restarts the battle from Begin; sources other than the rebuilt battle's, or a contact with an
+# object the map doesn't have, are refused, holding on.
+func _test_darkness_section() -> void:
+	var host: Outpost = Outpost.new()
+	host.play_first_turn()
+	var saved: Dictionary = host.save()
+	var entry: Dictionary = saved.get("darkness", {})
+	var maps: Array = (entry.get("data", {}) as Dictionary).get("sessions", [])
+	var first: Dictionary = maps[0] if maps.size() == 1 else {}
+	_check.call("darkness section: version 1, one map, no first release", (
+			WireCases.Kit.as_int(entry.get("version", 0)) == 1
+			and maps.size() == 1
+			and not first.has("first_release")
+			and first.get("arrived", true) == false
+			and (first.get("sources", [0]) as Array).is_empty()
+			and first.get("drain", "?") == ""
+	), JSON.stringify(entry))
+
+	var refused: Dictionary[String, Callable] = {
+		"a newer version": func(sections: Dictionary) -> void:
+			(sections["darkness"] as Dictionary)["version"] = 2,
+		"version 0": func(sections: Dictionary) -> void:
+			(sections["darkness"] as Dictionary)["version"] = 0,
+		"malformed maps": func(sections: Dictionary) -> void:
+			((sections["darkness"] as Dictionary)["data"] as Dictionary)["sessions"] = "none",
+		"a saved first release": func(sections: Dictionary) -> void:
+			_darkness_part(sections)["first_release"] = 4,
+		"a wave of no source": func(sections: Dictionary) -> void:
+			_darkness_part(sections)["waves"] = [{"source": 0, "reach": 0, "entered": []}]
+			_darkness_part(sections)["arrived"] = true,
+	}
+	print("    (errors about refused darkness sections follow)")
+	var results: Array[Error] = []
+	var holding: Array[bool] = []
+	for label: String in refused:
+		var sections: Dictionary = saved.duplicate(true)
+		refused[label].call(sections)
+		var registry: SaveCases.Registry = SaveCases.Registry.new()
+		results.append(registry.sections.restore(COMBAT, sections))
+		holding.append(registry.darkness.is_holding())
+	_check.call("darkness section: a newer version, version 0 and malformed data refused", (
+			results == [
+				ERR_FILE_UNRECOGNIZED, ERR_INVALID_DATA, ERR_INVALID_DATA, ERR_INVALID_DATA,
+				ERR_INVALID_DATA,
+			]
+			and not holding.has(true)
+	), str(results))
+
+	var without: Dictionary = saved.duplicate(true)
+	without.erase("darkness")
+	var older: SaveCases.Registry = SaveCases.Registry.new()
+	var older_restored: Error = older.sections.restore(COMBAT, without)
+	_check.call("darkness section: a file without it holds no darkness, so Begin again", (
+			older_restored == OK
+			and older.combat_map.is_holding()
+			and not older.darkness.is_holding()
+			and older.darkness.load_into(Outpost.new().battle) == ERR_UNCONFIGURED
+	), error_string(older_restored))
+
+	var full: SaveCases.Registry = SaveCases.Registry.new()
+	full.sections.restore(COMBAT, saved)
+	var recaptured: Dictionary = WireCases.Kit.through_json(
+			full.sections.capture(COMBAT, {})
+	) as Dictionary
+	_check.call("darkness section: held data is saved again unchanged before it is loaded", (
+			full.darkness.is_holding()
+			and JSON.stringify(recaptured["darkness"]) == JSON.stringify(saved["darkness"])
+	))
+
+	var mismatched: Dictionary[String, Callable] = {
+		"other sources": func(sections: Dictionary) -> void:
+			_darkness_part(sections)["sources"] = [["0,0"]],
+		"a contact with no such object": func(sections: Dictionary) -> void:
+			(_darkness_part(sections)["contacts"] as Dictionary)["object:999"] = 1,
+	}
+	print("    (errors about a darkness that disagrees with the rebuilt battle follow)")
+	var loads: Array[Error] = []
+	var kept: Array[bool] = []
+	for label: String in mismatched:
+		var sections: Dictionary = saved.duplicate(true)
+		mismatched[label].call(sections)
+		var registry: SaveCases.Registry = SaveCases.Registry.new()
+		registry.sections.restore(COMBAT, sections)
+		var rebuilt: Outpost = Outpost.new()
+		var before: String = JSON.stringify(rebuilt.session.state.map.darkness.capture())
+		loads.append(registry.darkness.load_into(rebuilt.battle))
+		kept.append(
+				registry.darkness.is_holding()
+				and JSON.stringify(rebuilt.session.state.map.darkness.capture()) == before
+		)
+	_check.call("darkness section: other sources or an unknown contact refused, holding on", (
+			loads == [ERR_INVALID_DATA, ERR_INVALID_DATA] and not kept.has(false)
+	), str(loads))
+
+
+# The first map's darkness part in a COMBAT block's sections.
+static func _darkness_part(sections: Dictionary) -> Dictionary:
+	var data: Dictionary = (sections["darkness"] as Dictionary)["data"]
+	return (data["sessions"] as Array)[0]
+
+
 # One map with every object kind MP8 saves, built in code and run through a real encounter: setup
 # draws the waves and rolls the chest, objects and points are placed, then six player units (Begin
 # places them by hand, as no prep screen or army is needed) and turn 1 opens. Survive for
@@ -389,6 +496,7 @@ class Outpost:
 			_sections.rng.attach(run)
 			_sections.combat_state.attach(run)
 			_sections.combat_map.attach(run)
+			_sections.darkness.attach(run)
 		var source: Groups = Groups.new()
 		var definition: CombatMapDefinition = CombatMapDefinition.new()
 		definition.id = map_id
@@ -427,9 +535,12 @@ class Outpost:
 		session.open_battle()
 		if saved.is_empty():
 			return
-		# The maps first, then the battle, whose reload carries them (CombatMapSection).
+		# The maps first, then their darkness, then the battle, whose reload carries them
+		# (CombatMapSection, DarknessSaveSection).
 		if load_error == OK:
 			load_error = _sections.combat_map.load_into(battle)
+		if load_error == OK:
+			load_error = _sections.darkness.load_into(battle)
 		if load_error == OK:
 			load_error = _sections.combat_state.load_into(battle)
 		# The resume flow sets the battle's id counter again once the battle is rebuilt.

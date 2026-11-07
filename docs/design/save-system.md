@@ -319,30 +319,67 @@ Each map's objects and reinforcement points are two more `COMBAT` sections, one
   gameplay screen builds it as for Begin), and `CampaignSession.resume_battle()` rebuilds the
   battle the way Begin set it up, without the loadout, the deployment and the opening, drawing
   nothing from a combat roll stream:
-  1. If `CombatStateSection.is_holding()` or `CombatMapSection.is_holding()` is false, restart
-     from Begin (`BATTLE_RETRY`).
-  2. `CombatMapSection.load_into(battle)`: each map's `MapState` is replaced.
-  3. `CombatStateSection.load_into(battle)`: its reload carries those maps and refuses a map that
-     disagrees with its units (the swap window, a breakable).
-  4. Set the run's id counter from the combat `instance_ids` section, as the session was given it
+  1. If `CombatStateSection.is_holding()`, `CombatMapSection.is_holding()` or
+     `DarknessSaveSection.is_holding()` is false, restart from Begin (`BATTLE_RETRY`).
+  2. `CombatMapSection.load_into(battle)`: each map's `MapState` is replaced, its darkness left as
+     the rebuild placed it.
+  3. `DarknessSaveSection.load_into(battle)`: each map's darkness is replaced
+     ([Darkness](#darkness)).
+  4. `CombatStateSection.load_into(battle)`: its reload carries those maps and their darkness, and
+     refuses a map that disagrees with its units (the swap window, a breakable).
+  5. Set the run's id counter from the combat `instance_ids` section, as the session was given it
      when built: the rebuild minted throwaway ids, which the resumed battle mints again.
   Then the write-back copies are re-linked by instance id: each carrier's copy, the request's unit
   and item instances the battle holds, and each heirloom's saved copy, which becomes its carrier
   (a resumed run holds none, since carriers aren't saved). Any error: `SaveService.drop_battle()`
   deletes the combat file and sets `BATTLE_RETRY`, and the battle begins again from Begin, minting
   on from the run's counter.
-- **The darkness isn't saved yet** (P06 DK5). A battle resumed before the darkness arrives is
-  exact: its sources, drain and first release are setup results, rebuilt with the battle. One
-  resumed after arrival keeps `has_darkness_arrived` (so no wave is sent again) and the release
-  turns, but loses its layers, waves and contacts: the map is dry until the next release, which
-  starts again from the sources and is recorded as the arrival again (`DARKNESS_ARRIVED`, since
-  `DarknessState.has_arrived()` reads the waves); no unit takes darkness damage until then, and
-  erosion counts start over.
 - **Missing or old data.** A combat file without these sections, or with one only, holds no maps,
   so `load_into()` returns `ERR_UNCONFIGURED`. Version 0 is malformed and a newer version is
   refused, like any section; either stops the load and gives `BATTLE_RETRY`.
 - **Mirrors** follow the objects and the points' closing and waves sent; the units waiting for
   room are in no fact, so a mirror's points are left out of `CombatSession.state_hash()`.
+
+## Darkness
+
+Each map's darkness is one more `COMBAT` section, `DarknessSaveSection`, which `CampaignService`
+registers after the combat map pair ([darkness plan](../plans/2026-11-03-the-darkness.md), Save
+Impact):
+
+| Block | Key | Version | Holds |
+|-------|-----|---------|-------|
+| `COMBAT` | `darkness` | 1 | Each map's active sources, drain, waves (source index, reach, the tiles each has entered), each flooded tile's layer, each breakable's turns of contact, and whether the darkness has arrived |
+
+```json
+"darkness": { "version": 1, "data": { "sessions": [ { "sources": [["0,2", "0,3"]], "drain": "7,7", "waves": [ { "source": 0, "reach": 2, "entered": ["0,2", "0,3", "1,2"] } ], "layers": { "0,2": "DUSK" }, "contacts": { "object:4": 2 }, "arrived": true } ] } }
+```
+
+- **Built from snapshots.** Each capture keeps the `darkness` part of each map's `map`
+  (`MapState.capture()`, from `DarknessState.capture()`), the part a rejoining client's snapshot
+  carries, without its first release.
+- **Tiles as `"x,y"` strings**, layers by name (`DUSK`, `GLOOM`, `ABYSS`; a dry tile is absent),
+  contacts by object id, `drain` `""` for none. Tiles are written row-major and ids in order, so
+  equal states write equal text.
+- **Never saved:** heights and flow costs (derived from the map each time), and the first
+  release. The sources, drain and first release are setup results the rebuilt battle places again
+  (`DarknessSetup.place()`, Short Wick included); the saved sources and drain are checked against
+  them, and `arrived` against `combat_map`'s `has_darkness_arrived`.
+- **Entered tiles are saved:** a wave enters each tile once, ever, so a wave restored without them
+  would deepen tiles again once a door that closed on them opens (darkness plan, question 11 c).
+- **Load order.** The section only checks and holds its data while the file loads. On a `BATTLE`
+  resume it loads after the maps and before the units ([Combat map](#combat-map), step 3), so a
+  battle resumed after arrival has the saved layers, waves and contacts and goes on as if never
+  quit.
+- **Missing or old data.** A combat file without the section (from before it) holds no darkness,
+  so the battle restarts from Begin (`BATTLE_RETRY`), as for any missing combat section. Version 0
+  is malformed and a newer version is refused; so are other sources or drain, an arrival
+  `combat_map` disagrees with, and a contact with an object the map doesn't have. Each stops the
+  load and gives `BATTLE_RETRY`.
+- **Mirrors** follow the darkness's facts (`CombatState.follow()`): each release adds a wave from
+  its source and the first sets `has_darkness_arrived`, each tile deepened takes its layer, each
+  contact and erosion its count. A wave's reach and entered tiles are in no fact, so a mirror's
+  stay 0 and empty, and `CombatSession.state_hash()` covers the darkness's arrival, wave sources,
+  layers and contacts only.
 
 ## Multiplayer
 

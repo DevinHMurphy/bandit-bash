@@ -6,7 +6,7 @@
 # File:     step_cases.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -14,8 +14,10 @@ extends RefCounted
 ## fixture maps (the first release at the end of turn par − 1 and every 2 turns after, creep 2 per
 ## turn; a par 1 map released at the end of turn 1; erosion breaking debris after 3 contacts and
 ## the next creep using the lane; a door closing holding its layer and reopening resuming the
-## flow; no reinforcement after arrival), the AI turning aggressive, the intents preview and a
-## sandbox step changing nothing on the real session, and the step timed on the M1 map (NOTE).
+## flow; no reinforcement after arrival), saved waves' entries surviving a door closing (darkness
+## plan, DK5), a client's mirror following the darkness hash for hash, the AI turning aggressive,
+## the intents preview and a sandbox step changing nothing on the real session, and the step timed
+## on the M1 map (NOTE).
 ##
 ## Golden logs are worked by hand from the flow rules (heights from the drain; steps downhill 1,
 ## level 2, uphill 3) and written as [method DarknessWorld.lines] gives them. Each map's turn par
@@ -79,6 +81,8 @@ func run() -> void:
 	_test_no_darkness()
 	_test_erosion()
 	_test_door()
+	_test_door_entries_saved()
+	_test_mirror_follows()
 	_test_reinforcements()
 	_test_ai_turns_aggressive()
 	_test_stand_in()
@@ -273,6 +277,129 @@ func _test_door() -> void:
 			closed_layer == WhileLayerCondition.Layer.DUSK and closing.is_empty()
 	), "layer %d; %s" % [closed_layer, closing])
 	_quiet(world)
+
+
+# The door case three ways from the door closing on turn 4, when wave 0 has entered the corridor
+# up to the door's far side: played on, with the darkness saved and restored through JSON, and
+# restored with every wave's entries dropped. Saved entries keep the restored waves from entering
+# a tile twice, so the reopening plays as uninterrupted (plan question 11 c); without them the
+# corridor deepens again.
+func _test_door_entries_saved() -> void:
+	var logs: PackedStringArray = []
+	var states: PackedStringArray = []
+	var restores: Array[Error] = []
+	for variant: String in ["played on", "restored", "restored without entries"]:
+		var world: DarknessWorld = DarknessWorld.new(
+				CORRIDOR_7, [[Vector2i(3, 0), DOOR], [Vector2i(1, 0), LEVER]]
+		)
+		var door: MapState.ObjectState = world.object_at(Vector2i(3, 0))
+		var lever: MapState.ObjectState = world.object_at(Vector2i(1, 0))
+		door.group_id = 0
+		lever.group_id = 0
+		world.set_up([[Vector2i(0, 0)]], Vector2i(6, 0))
+		world.darkness().first_release = 1
+		world.register()
+		world.add_unit("p1", PLAYER, Vector2i(1, 0))
+		world.session.open_battle()
+		var pull: UnitTurnCommand = UnitTurnCommand.new(
+				0, "p1", UnitTurnCommand.Action.USE_OBJECT, lever.id
+		)
+		var problems: PackedStringArray = []
+		_pull(world, pull, problems)
+		world.end_turns(3)
+		_pull(world, pull, problems)
+		var from: int = world.session.engine.fact_log.size()
+		if variant != "played on":
+			var saved: Dictionary = JSON.parse_string(JSON.stringify(world.darkness().capture()))
+			if variant == "restored without entries":
+				for wave: Variant in saved["waves"]:
+					(wave as Dictionary)["entered"] = []
+			var restored: DarknessState = DarknessState.new()
+			restores.append(restored.restore(saved))
+			world.state().map.darkness = restored
+		world.end_turns(1)
+		_pull(world, pull, problems)
+		world.end_turns(1)
+		logs.append("\n      ".join(world.lines([ADVANCED, CHANGED], from)) + " " + str(problems))
+		states.append(DarknessWorld.describe_state(world.state()))
+	_ok("door saved: restored waves enter only the tiles they hadn't, as played on", (
+			restores == [OK, OK]
+			and logs[1] == logs[0]
+			and states[1] == states[0]
+	), "%s\n      played on: %s\n      restored:  %s" % [restores, logs[0], logs[1]])
+	_ok("door saved: waves without their entries would deepen the corridor again", (
+			logs[2] != logs[0]
+	), logs[2])
+
+
+# A client's mirror, loaded from the host's snapshot before the battle opens, follows every batch
+# of the erosion map's turns 1-6 through JSON: the arrival, each release, the tiles deepened, the
+# debris's contacts, its erosion and break, and the flow through the lane. Its state hash, which
+# covers what it follows of the darkness, matches the host's after every batch.
+func _test_mirror_follows() -> void:
+	var world: DarknessWorld = DarknessWorld.new(SIDE_ROOM, [[Vector2i(2, 1), DEBRIS]])
+	world.set_up([[Vector2i(0, 0)]], Vector2i(4, 0))
+	world.darkness().first_release = 1
+	world.register()
+	world.add_unit("p1", PLAYER, Vector2i(0, 2))
+	var debris: String = world.object_at(Vector2i(2, 1)).id
+	# The host's grid, shared read-only as an encounter shares it.
+	var grid: MapGrid = world.state().grid
+	var mirror: CombatSession = CombatSession.new(
+			0,
+			PackedInt32Array([0]),
+			grid,
+			ForcedRolls.new(PackedInt32Array()),
+			InstanceIdAllocator.new()
+	)
+	var loaded: Error = mirror.load_snapshot(
+			JSON.parse_string(JSON.stringify(world.session.snapshot())) as Dictionary
+	)
+	var batches: Array[CombatSession.FactBatch] = []
+	world.session.batch_resolved.connect(func(batch: CombatSession.FactBatch) -> void:
+		batches.append(batch)
+	)
+	world.session.open_battle()
+	world.end_turns(6)
+	var results: Array[Error] = []
+	for batch: CombatSession.FactBatch in batches:
+		var wire: Array = JSON.parse_string(JSON.stringify(batch.to_wire()))
+		results.append(mirror.apply_batch(CombatSession.FactBatch.from_wire(wire)))
+	var host_darkness: DarknessState = world.darkness()
+	var followed: DarknessState = mirror.state.map.darkness
+	var host_sources: Array[int] = []
+	var mirror_sources: Array[int] = []
+	for wave: DarknessState.Wave in host_darkness.waves:
+		host_sources.append(wave.source)
+	for wave: DarknessState.Wave in followed.waves:
+		mirror_sources.append(wave.source)
+	_ok("mirror: every batch applies, hash for hash", (
+			loaded == OK
+			and results.size() >= 6
+			and results.count(OK) == results.size()
+			and mirror.state_hash() == world.session.state_hash()
+	), "%s, %s" % [error_string(loaded), results])
+	var same_layers: bool = (
+			JSON.stringify(followed.capture()["layers"])
+			== JSON.stringify(host_darkness.capture()["layers"])
+	)
+	var debris_contacts: int = followed.contacts.get(debris, 0)
+	_ok("mirror: the host's layers, contacts, waves and arrival", (
+			same_layers
+			and followed.contacts == host_darkness.contacts
+			and debris_contacts == Darkness.CONTACT_LIMIT
+			and mirror_sources == host_sources
+			and host_sources.size() == 3
+			and mirror.state.map.has_darkness_arrived
+			and followed.has_arrived()
+			and mirror.state.map.object(debris).is_destroyed
+			and not mirror.state.has_unit(debris)
+	), "%s\n      host: %s" % [
+		DarknessWorld.describe_state(mirror.state), DarknessWorld.describe_state(world.state()),
+	])
+	followed.layers[Vector2i(4, 2)] = WhileLayerCondition.Layer.DUSK
+	_ok("mirror: the hash covers the darkness's layers",
+			mirror.state_hash() != world.session.state_hash())
 
 
 # Par 3 with a point sending at turns 1, 2 and 3: turn 1's wave arrives; at the end of turn 2 the

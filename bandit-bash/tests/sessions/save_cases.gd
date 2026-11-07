@@ -6,7 +6,7 @@
 # File:     save_cases.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 5, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -614,6 +614,7 @@ class Skirmish:
 			_sections.rng.attach(run)
 			_sections.combat_state.attach(run)
 			_sections.combat_map.attach(run)
+			_sections.darkness.attach(run)
 		var request: CampaignSession.BattleRequest = CampaignSession.BattleRequest.new()
 		request.floor_number = FLOOR
 		request.node = NODE
@@ -654,9 +655,12 @@ class Skirmish:
 		session = battle.get_session(0)
 		session.batch_resolved.connect(_on_batch_resolved)
 		if not saved.is_empty():
-			# The maps first, then the battle, whose reload carries them (CombatMapSection).
+			# The maps first, then their darkness, then the battle, whose reload carries them
+			# (CombatMapSection, DarknessSaveSection).
 			if load_error == OK:
 				load_error = _sections.combat_map.load_into(battle)
+			if load_error == OK:
+				load_error = _sections.darkness.load_into(battle)
 			if load_error == OK:
 				load_error = _sections.combat_state.load_into(battle)
 			# The resume flow sets the battle's id counter again once the battle is rebuilt.
@@ -823,8 +827,8 @@ class Skirmish:
 
 
 # The COMBAT block's sections registered as CampaignService registers them: rng, instance ids,
-# combat_state and effects, then combat_map and entities. SaveService reserves entities first, so
-# its slot comes before every other section here, as it does in a real save.
+# combat_state and effects, then combat_map and entities, then darkness. SaveService reserves
+# entities first, so its slot comes before every other section here, as it does in a real save.
 class Registry:
 	extends RefCounted
 
@@ -833,6 +837,7 @@ class Registry:
 	var ids: InstanceIdSaveSection = InstanceIdSaveSection.new(COMBAT)
 	var combat_state: CombatStateSection = CombatStateSection.new()
 	var combat_map: CombatMapSection = CombatMapSection.new()
+	var darkness: DarknessSaveSection = DarknessSaveSection.new()
 
 	func _init() -> void:
 		combat_state.resolve = Registry.find_definition
@@ -843,12 +848,14 @@ class Registry:
 		sections.register(COMBAT, combat_state.effects)
 		sections.register(COMBAT, combat_map)
 		sections.register(COMBAT, combat_map.entities)
+		sections.register(COMBAT, darkness)
 
 	func attach(run: CampaignSession) -> void:
 		rng.attach(run)
 		ids.attach(run)
 		combat_state.attach(run)
 		combat_map.attach(run)
+		darkness.attach(run)
 
 	## A saved effect's definition as CampaignService finds it: a map object's reaction, else the
 	## catalog's.

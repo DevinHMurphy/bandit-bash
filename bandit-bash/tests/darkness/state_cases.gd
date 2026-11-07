@@ -6,7 +6,7 @@
 # File:     state_cases.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -14,7 +14,9 @@ extends RefCounted
 ## from two, each wave entering a tile once, Abyss staying Abyss, the Brazier's cap and a later
 ## douse (plan question 3), a door closing and opening (question 2), a breakable breaking,
 ## [method CombatState.darkness_layer] and [WhileLayerCondition] in a forecast equal to execution,
-## and a timed full recalculation on the 10 × 8 M1 map, printed as NOTE lines.
+## [method DarknessState.capture] and [method DarknessState.restore] through JSON and their
+## refusals (darkness plan, DK5), and a timed full recalculation on the 10 × 8 M1 map, printed as
+## NOTE lines.
 ##
 ## Layers are written as one digit per tile of row 0, west to east (0 dry, 1 Dusk, 2 Gloom,
 ## 3 Abyss); golden values are worked by hand from the flow costs in flow_cases.gd.
@@ -55,11 +57,110 @@ func run() -> void:
 	_test_door()
 	_test_breakable()
 	_test_forecast()
+	_test_capture_round_trip()
+	_test_capture_refusals()
 	_test_m1_timing()
 
 
 func _ok(case_name: String, passed: bool, detail: String = "") -> void:
 	_check.call(case_name, passed, detail)
+
+
+# Two sources, four waves with reaches and entries, layers, a contact and arrival survive a trip
+# through JSON as the same text; so does a map with no darkness, its first release NO_RELEASE
+# beyond 2^53 included.
+func _test_capture_round_trip() -> void:
+	var world: DarknessWorld = DarknessWorld.new(LONG_CORRIDOR)
+	world.set_up([[WEST], [FAR_EAST]], Vector2i(3, 0))
+	var darkness: DarknessState = world.darkness()
+	darkness.first_release = 4
+	darkness.release(world.state())
+	darkness.creep(world.state())
+	darkness.release(world.state())
+	darkness.contacts["object:9"] = 2
+	var text: String = JSON.stringify(darkness.capture(), "", false)
+	var back: DarknessState = DarknessState.new()
+	var restored: Error = back.restore(_through_json(darkness.capture()))
+	_ok("capture: sources, drain, waves, layers, contacts and arrival survive JSON", (
+			restored == OK
+			and JSON.stringify(back.capture(), "", false) == text
+			and back.waves.size() == 4
+			and back.waves[0].reach == DarknessState.CREEP_SPEED
+			and back.waves[0].entered.has(Vector2i(2, 0))
+			and back.has_arrived()
+			and back.first_release == 4
+			and back.drain == Vector2i(3, 0)
+	), "%s; %s" % [error_string(restored), JSON.stringify(back.capture(), "", false)])
+	_ok("capture: tiles as \"x,y\" strings, layers by name", (
+			text.contains("\"sources\":[[\"0,0\"],[\"6,0\"]]")
+			and text.contains("\"layers\":{\"0,0\":\"GLOOM\",\"1,0\":\"DUSK\",\"2,0\":\"DUSK\"")
+			and text.contains("\"drain\":\"3,0\"")
+	), text)
+	var none: DarknessState = DarknessState.new()
+	var none_back: DarknessState = DarknessState.new()
+	none_back.first_release = 1
+	var none_restored: Error = none_back.restore(_through_json(none.capture()))
+	_ok("capture: a map with no darkness round-trips, its first release still NO_RELEASE", (
+			none_restored == OK
+			and none_back.first_release == DarknessState.NO_RELEASE
+			and none_back.drain == CombatFact.NO_TILE
+			and none_back.sources.is_empty()
+			and not none_back.has_arrived()
+	), "%s, first release %d" % [error_string(none_restored), none_back.first_release])
+
+
+# Each malformed capture is refused, changing nothing.
+func _test_capture_refusals() -> void:
+	var world: DarknessWorld = DarknessWorld.new(CORRIDOR)
+	world.set_up([[WEST]], EAST)
+	world.darkness().first_release = 2
+	world.darkness().release(world.state())
+	world.darkness().creep(world.state())
+	world.darkness().contacts["object:3"] = 1
+	var good: Dictionary = _through_json(world.darkness().capture())
+	var edits: Dictionary[String, Callable] = {
+		"no waves": func(data: Dictionary) -> void: data.erase("waves"),
+		"a wave of no source": func(data: Dictionary) -> void:
+			((data["waves"] as Array)[0] as Dictionary)["source"] = 1,
+		"a negative reach": func(data: Dictionary) -> void:
+			((data["waves"] as Array)[0] as Dictionary)["reach"] = -2,
+		"a tile entered twice": func(data: Dictionary) -> void:
+			var entered: Array = ((data["waves"] as Array)[0] as Dictionary)["entered"]
+			entered.append(entered[0]),
+		"a DRY layer": func(data: Dictionary) -> void:
+			(data["layers"] as Dictionary)["4,0"] = "DRY",
+		"an unknown layer": func(data: Dictionary) -> void:
+			(data["layers"] as Dictionary)["4,0"] = "MURK",
+		"a tile that isn't one": func(data: Dictionary) -> void:
+			(data["layers"] as Dictionary)["1.5,0"] = "DUSK",
+		"a contact count of 0": func(data: Dictionary) -> void:
+			(data["contacts"] as Dictionary)["object:3"] = 0,
+		"arrived without a wave": func(data: Dictionary) -> void:
+			data["waves"] = [],
+		"waves without arrival": func(data: Dictionary) -> void:
+			data["arrived"] = false,
+		"a fractional first release": func(data: Dictionary) -> void:
+			data["first_release"] = 1.5,
+		"a drain that isn't a tile": func(data: Dictionary) -> void:
+			data["drain"] = "east",
+	}
+	var target: DarknessState = world.darkness().copy()
+	var before: String = JSON.stringify(target.capture())
+	var accepted: PackedStringArray = []
+	for label: String in edits:
+		var data: Dictionary = good.duplicate(true)
+		edits[label].call(data)
+		if target.restore(data) != ERR_INVALID_DATA:
+			accepted.append(label)
+	_ok("capture: malformed data is refused, changing nothing", (
+			accepted.is_empty()
+			and JSON.stringify(target.capture()) == before
+			and target.restore(good.duplicate(true)) == OK
+	), "accepted: %s" % [", ".join(accepted)])
+
+
+static func _through_json(value: Dictionary) -> Dictionary:
+	return JSON.parse_string(JSON.stringify(value))
 
 
 func _test_one_source() -> void:

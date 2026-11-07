@@ -6,7 +6,7 @@
 # File:     combat_map_section.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 3, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 class_name CombatMapSection
@@ -146,10 +146,11 @@ func is_holding() -> bool:
 
 
 ## Replaces each map's [member CombatState.map] in [param battle], rebuilt the way it was set up
-## (same node, seats and setup, sessions open, nothing loaded yet), with the held one, and drops
-## the held data. Call it before [method CombatStateSection.load_into]. Returns [constant OK];
-## [constant ERR_UNCONFIGURED] when [method is_holding] is false (a file from before these
-## sections, or with one of them only: restart the battle from Begin);
+## (same node, seats and setup, sessions open, nothing loaded yet), with the held one, its
+## [member MapState.darkness] left as rebuilt, and drops the held data. Call it before
+## [method DarknessSaveSection.load_into] and [method CombatStateSection.load_into]. Returns
+## [constant OK]; [constant ERR_UNCONFIGURED] when [method is_holding] is false (a file from
+## before these sections, or with one of them only: restart the battle from Begin);
 ## [constant ERR_INVALID_PARAMETER] for null; [constant ERR_INVALID_DATA], changing nothing, for
 ## another number of maps, another map or other object spots.
 func load_into(battle: CombatEncounter) -> Error:
@@ -178,10 +179,13 @@ func load_into(battle: CombatEncounter) -> Error:
 		):
 			return _refuse("map %d's object spots differ from the battle's" % [index])
 	for index: int in sessions.size():
-		# Checked by restore() on both sections, so it can't fail here.
-		sessions[index].state.map.restore({
+		var map: MapState = sessions[index].state.map
+		# Checked by restore() on both sections, so it can't fail here. The darkness stays as the
+		# rebuild placed it until DarknessSaveSection.load_into().
+		map.restore({
 			"entities": held_entities[index],
 			"combat_map": held_maps[index],
+			"darkness": map.darkness.capture(),
 		})
 	reset()
 	entities.reset()
