@@ -59,7 +59,9 @@ into `dev`; plan and orchestrator commits go to `dev`; `main` holds released sta
   Miss and Critical pop-ups. The forecast flashes the HP and Stance it predicts on both units,
   and a unit walks to its picked tile before its action menu (Cancel snaps it back). Save & Quit mid-battle, then Continue, resumes the battle on the
   board; after the darkness arrives its layers are lost on resume until P06 DK5. A hint bar
-  lists the actions live in each stage with their keys.
+  lists the actions live in each stage with their keys. Options holds the opening-swap toggle
+  (`settings.json`); the HUD shows each objective's state, and any unit's detail opens from the
+  board on keyboard, mouse and pad.
 - **Built and merged on `dev`, by plan:**
   - P00 save system and P13 RNG streams: complete.
   - P01 event bus and effects: EB1–EB7 and EB9 (EB8, the docs, left).
@@ -70,10 +72,11 @@ into `dev`; plan and orchestrator commits go to `dev`; `main` holds released sta
   - P05 enemies and AI: EN1–EN5 with EN3F and EN4F, M1's part (EN6–EN12 left).
   - P06 the darkness: DK1–DK4, M1's part (DK5 save and mirrors, DK6 docs left).
   - P07 combat UI: UI1–UI5F (M1's part), UI6 targeting, UI7 and UI7F unit display, UI8 control
-    hints, UI9 controller support, UI10 exchange feedback (UI11 left, functional only).
+    hints, UI9 controller support, UI10 exchange feedback, UI11 the rest (M2's part built,
+    functional only).
 - **Tests** (`sh bandit-bash/tools/run_tests.sh`, all passing): combat 625, content 605,
-  darkness 191, effects 527, enemies 102, map 490, rng 186, save 204, sessions 292, and the ui
-  suite split in UI9 into board 79, input 267 and display 104 (UI10), and a clean headless launch.
+  darkness 191, effects 527, enemies 102, map 490, rng 186, save 211, sessions 292, and the ui
+  suite split in UI9 into board 81, input 299 and display 121 (UI11), and a clean headless launch.
 - **Not started:** P08–P12 (campaign, events, net, co-op, statistics), which M3–M5 need.
 - **Design:** ideation is closed for the MVP; open items are listed in
   [Design items by plan](#design-items-by-plan), and vision edits wait for the ideation thread.
@@ -87,7 +90,7 @@ The MVP is **one full run working, from the start screen to the boss, solo and c
 |-----------|------|-------|---------------|--------|
 | **M0 Foundations** | The engine every gameplay system plugs into | P00, P01 | P00 implemented ✅; P01 EB1–EB7 implemented and verified headless ✅ | **Complete** October 30, 2026 |
 | **M1 First playable fight** | One greybox standard combat, played start to finish, to test the core numbers | P02, P03 (starting army subset), P04 (one map), P05 (2–3 classes), P06, P07 (minimal) | A solo standard combat (Rout) with the Mercenary starting army vs a small Brigand pack, darkness included, playable with debug-grade UI ✅; first tuning pass of Block, Stance, darkness, weight and turn par (deferred by the user: no traits yet, and enemy strength settles with several levels) | **Complete** November 5, 2026 (playtest successful) |
-| **M2 Combat complete** | Every MVP combat feature and piece of combat content | P02–P07 complete | All objectives, map objects, the 10 enemy classes, 4 mini-bosses, the scripted Powder Baron map; all MVP units, weapons, staves, items, heirlooms and runes as data; the battle UI functional (P07 UI6–UI11, controller included) | **In progress.** Built: every objective and map object (P04), M1's content and enemies. Built for M2 so far: P02 CC10 (battle resume), P07 UI6 (targeting), UI7 and UI7F (unit display), UI8 (control hints), UI9 (controller), UI10 (exchange feedback). Left: P07 UI11; P02 CC9; P03 CT4–CT13; P05 EN6–EN12; P06 DK5, DK6; P04 MP9 and M2's maps; P01 EB8 |
+| **M2 Combat complete** | Every MVP combat feature and piece of combat content | P02–P07 complete | All objectives, map objects, the 10 enemy classes, 4 mini-bosses, the scripted Powder Baron map; all MVP units, weapons, staves, items, heirlooms and runes as data; the battle UI functional (P07 UI6–UI11, controller included) | **In progress.** Built: every objective and map object (P04), M1's content and enemies. Built for M2 so far: P02 CC10 (battle resume), P07 UI6 (targeting), UI7 and UI7F (unit display), UI8 (control hints), UI9 (controller), UI10 (exchange feedback), UI11 (the rest). Left: P02 CC9; P03 CT4–CT13; P05 EN6–EN12; P06 DK5, DK6; P04 MP9 and M2's maps; P01 EB8 |
 | **M3 Solo run** | A full solo run | P08, P09 | Start screen → campaign map → nodes → boss, solo, on Normal, saved and resumable; run length measured against 60–80 minutes | Not started (P08 is a stub) |
 | **M4 Co-op run** | The same run in co-op | P10, P11 | 2–4 players, parallel maps, reinforcements, disconnect and forfeit, per-map battle saves; tested live on two machines | Not started |
 | **M5 MVP** | MVP complete | P12, polish | Statistics recording on; Waystation war table; MVP checklist in [Scope guardrails](#scope-guardrails) met | Not started |
@@ -107,7 +110,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P04 | Combat map: grid, terrain, pathing, deployment, objectives, reinforcement points, map objects, map authoring and its checks | [2026-10-27-combat-map.md](2026-10-27-combat-map.md) | **In progress** (approved October 27, 2026): MP1–MP8 built and merged (MP8, the map save sections, November 3, 2026); **left: MP9 docs**; M2's maps are authored as content needs them. No open questions | P01, P02 | P05, P06, P07 | game-vision.md Combat maps, map-objects.md |
 | P05 | Enemies and AI: classes, intents, danger zone, ruthless AI, signature moves, elites, mini-bosses, the Powder Baron | [2026-10-30-enemies-and-ai.md](2026-10-30-enemies-and-ai.md) | **In progress** (approved October 30, 2026): EN1–EN5 with EN3F and EN4F built and merged (M1's part, November 4, 2026); **left for M2: EN6–EN12** (the roster, elites and bosses, mini-bosses, map-object AI, reinforcement groups, the Powder Baron, docs). No open questions | P02, P04 | M1, M2 | enemy-roster.md |
 | P06 | The darkness | [2026-11-03-the-darkness.md](2026-11-03-the-darkness.md) | **In progress** (approved November 3, 2026): DK1–DK4 built and merged (M1's part, November 4, 2026); **DK5 built November 7, 2026** (the save section and mirrors; `feature/DK5`, ffd71d4), **merges once question 15 is answered** (its snapshot format and state hash); **DK6 docs left** | P02, P04 | M1, M2 | the-darkness.md |
-| P07 | Combat UI and forecast: the battle scene, turn input, forecast panel, move preview (darkness damage), danger zone and intent display, HUD; for M2, targeting, unit art, control hints, controller support | [2026-11-04-combat-ui.md](2026-11-04-combat-ui.md) | **In progress** (approved November 4, 2026; the user: nothing permanent, every component an editable `.tscn`, functional screens only): UI1–UI5F built and merged (M1's part, November 5, 2026); UI6 targeting merged November 5, 2026 (fd43651), UI7 and UI7F unit display and UI8 control hints November 6, 2026 (634b135, b0019d8, ade59ca); UI9 controller support (the Input Helper addon) and UI10 exchange feedback November 7, 2026 (c1da2dd, 6ed82d3); questions 27–34 answered; **question 35 open (UI10 review); left for M2: UI11, next** | P02, P04, P05, P06 | M1, M2 | game-vision.md Combat, Enemy intentions |
+| P07 | Combat UI and forecast: the battle scene, turn input, forecast panel, move preview (darkness damage), danger zone and intent display, HUD; for M2, targeting, unit art, control hints, controller support | [2026-11-04-combat-ui.md](2026-11-04-combat-ui.md) | **In progress** (approved November 4, 2026; the user: nothing permanent, every component an editable `.tscn`, functional screens only): UI1–UI5F built and merged (M1's part, November 5, 2026); UI6 targeting merged November 5, 2026 (fd43651), UI7 and UI7F unit display and UI8 control hints November 6, 2026 (634b135, b0019d8, ade59ca); UI9 controller support (the Input Helper addon) and UI10 exchange feedback November 7, 2026 (c1da2dd, 6ed82d3); UI11 the rest of M2's UI November 7, 2026 (9a27289); questions 27–35 answered; **M2's part built; question 36 open (UI11 review)** | P02, P04, P05, P06 | M1, M2 | game-vision.md Combat, Enemy intentions |
 | P08 | Campaign and run flow: `CampaignSession` ownership, campaign map generation, nodes, rewards, Armory, Guildhall, Camp, Treasure, gold, XP and level-ups, recruiting, run end | [2026-10-24-campaign-run-flow.md](2026-10-24-campaign-run-flow.md) | **Stub** (question 1 answered: `CampaignService`, built in EB6; question 2 answered by P13). Applies the grants `CampaignSession` records (P01 question 43) | P01, P03 | M3, P09, P12 | game-vision.md Run structure, Army, Units |
 | P09 | Narrative events and curses | — | **Not started** | P01, P03, P08 | M3 | events.md |
 | P10 | Net transport: `Net` autoload, RPCs, command validation, Steam lobby integration | — | **Not started** | P00, P01 | P11 | multiplayer-combat-options.md, `steam_multiplayer_kit/` (read first) |
@@ -282,8 +285,8 @@ flowchart LR
   classDef active fill:#bbdefb,stroke:#1565c0,color:#1b1b1b
   classDef ready fill:#fff3c4,stroke:#b8860b,color:#1b1b1b
   classDef waiting fill:#e0e0e0,stroke:#757575,color:#1b1b1b
-  class R1,R2,R3,R4,R5,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,CT2,EB5,EB7,EBF,EN1,CT3,EN2,EN3,CC8,CT3F,EN3F,EN4,EN5,MP8,DK1,EN4F,DK2,DK3,UI1,DK4,UI2,UI2F,UI3,UI4,UI3F,UI5,UI5F,CC10,UI6,UI7,UI7F,UI8,UI9,UI10 done
-  class CT6,CT13,DK5,UI11 ready
+  class R1,R2,R3,R4,R5,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,CT2,EB5,EB7,EBF,EN1,CT3,EN2,EN3,CC8,CT3F,EN3F,EN4,EN5,MP8,DK1,EN4F,DK2,DK3,UI1,DK4,UI2,UI2F,UI3,UI4,UI3F,UI5,UI5F,CC10,UI6,UI7,UI7F,UI8,UI9,UI10,UI11 done
+  class CT6,CT13,DK5 ready
   class CT7,DK6 waiting
 ```
 
@@ -313,7 +316,7 @@ mark it **Open** here.
 | P06 DK1–DK4 | P06 approved ✅ (November 3, 2026); P02 and P04 implemented for M1 ✅ | The darkness plugs into P02's hooks and P04's map | **Open** November 3, 2026 |
 | P06 DK5 Save section | P06 DK4 ✅ (November 4, 2026); P04 MP8 ✅ (November 3, 2026); P02 CC10 ✅ (November 5, 2026) | Built on MP8's section pattern | **Open** November 5, 2026 |
 | P07 UI1–UI5 | P07 approved ✅ (November 4, 2026); P02, P04 and P05 implemented for M1 ✅; DK4 for UI3's darkness preview | The UI reads the session and issues commands | **Open** November 4, 2026; UI1–UI5F built ✅ (November 5, 2026) |
-| P07 UI6–UI11 (M2) | P07 M1 part built ✅ (November 5, 2026); questions 20–26 answered ✅ (November 5, 2026) | Built in order: UI6's target list first, so controller support (UI9) stays small | **Open** November 5, 2026; UI6 built ✅ (November 5, 2026); UI7, UI7F and UI8 built ✅ (November 6, 2026); UI9 and UI10 built ✅ (November 7, 2026) |
+| P07 UI6–UI11 (M2) | P07 M1 part built ✅ (November 5, 2026); questions 20–26 answered ✅ (November 5, 2026) | Built in order: UI6's target list first, so controller support (UI9) stays small | **Open** November 5, 2026; UI6 built ✅ (November 5, 2026); UI7, UI7F and UI8 built ✅ (November 6, 2026); UI9, UI10 and UI11 built ✅ (November 7, 2026): M2's part done |
 | P02 CC10 Battle resume | P02 CC8 ✅; P04 MP8 ✅ | Restores the saved sections into a rebuilt battle | **Open** November 3, 2026; built ✅ (November 5, 2026) |
 | P04 MP1–MP3, MP6 | P04 approved ✅ (October 27, 2026) | — | **Open** October 27, 2026; MP1–MP3 built October 28, 2026; MP6 built October 29, 2026, so MP7 may start; MP7 built October 29, 2026 |
 | P04 MP4 Objectives | P02 CC6 (the `AFTER_STEP` hook) | The checks run on the turn loop's hook; built with CC6 | **Open** October 28, 2026 (EB6 implemented, so CC6 may start); implemented with CC6 October 28, 2026, so MP5 may start |
@@ -358,7 +361,7 @@ from starting; each is asked inside its plan's Open Questions.
 | P04 | Tile coordinates are never negative (P01 question 37, `CombatFact.NO_TILE`); `MapCheck` enforces it (MP5). ("Within N movable tiles" was cut October 27, 2026.) | P01 |
 | P05 | The Brigands' real name and theme (flavor only) | enemy-roster.md |
 | P03 / P05 | Enemy factions as a tag or field on enemy classes, so relics and heirlooms can name a faction ("against Brigands"); MVP has one enemy faction, so it waits for a second faction or a relic that needs it | P03 question 24 (user, November 7, 2026) |
-| P05 | Mark bosses and mini-bosses in enemy data (P05 EN7); until then MP4's objectives treat the enemy on a leader slot as the boss | P04 question 21 |
+| P05 | Mark bosses and mini-bosses in enemy data (P05 EN7); until then MP4's objectives treat the enemy on a leader slot as the boss, and enemy setup never fills that slot, so the Leader and Boss HUDs (P07 UI11) mark nobody in real play | P04 question 21 |
 | P05 | Reinforcement groups (P05 EN10): fill `Reinforcements.GroupSource` (one group per arrival turn, drawn at setup step 5) and hand it to the waves in `CampaignSession` (`campaign_session.gd:TOD-002`, `reinforcements.gd:TOD-002`); until then the real game sends no waves | P04 MP7 |
 | P07 | `Godot_FE`'s ranged multi-tile forecast defect (FR-GRID-6) to investigate | P01 contracts |
 | P07 | A pass on generated effect text before the UI shows it (CT3 found "Always: heal the target for 8 (1 use this combat)" and "+2 Attack stage for that hit"); the content suite's text snapshots change with it | P03 question 21 |
@@ -408,24 +411,24 @@ M2 work, in the order to send it. Steps on one line can run in parallel.
 
 1. **Done November 5, 2026:** P07 UI6 (targeting), P02 CC10 (battle resume), the P03 tag
    cleanup and TAGF.
-2. **Now:** P07 **UI11** (the move preview kept through the action, the swap setting in
-   `settings.json`, every objective's HUD, unit detail; prompt written November 7, 2026, plus
-   question 35's addendum), the last of P07's M2 part. P06 **DK5** is built (November 7, 2026,
-   `feature/DK5`) and merges once P06 question 15 is answered. P07 UI10 (exchange feedback)
-   merged November 7, 2026 (6ed82d3). P07 UI7 and UI7F (unit display, HP numbers, Stance pips,
-   the info layer, Miss and Critical pop-ups) and UI8 (control hints) merged November 6, 2026;
-   UI9 (controller support on the Input Helper addon) merged November 7, 2026.
-3. **Next to send:** after UI11, the M2 content queue (item 5), starting with P03 CT6 and CT13.
+2. **Now:** merge P06 **DK5** (built November 7, 2026, `feature/DK5`, ffd71d4) once P06
+   question 15 is answered; it merges dev in first (UI11 added a Settings section to
+   save-system.md). **P07's M2 part is built:** UI10 (exchange feedback, 6ed82d3) and UI11 (the
+   kept move preview, the swap setting in `settings.json`, every objective's HUD, unit detail)
+   merged November 7, 2026.
+3. **Next to send:** the M2 content queue (item 5), starting with P03 CT6 and CT13; then BF1.
 4. **Bugs** ([bug tracker](bug-tracker.md)): open S2s BUG-002 (the forecast's crit ignores
    Stance) and BUG-004 (an enemy with an attack intent moves and doesn't attack; the next enemy
-   hits its target). BUG-001 closed November 7, 2026 (can't reproduce; no base Block). The user is adding the
-   engine bugs found in play; once triaged they go out as fix step **BF1**.
-5. **M2's content, alongside the UI:** P03 CT4–CT13 (CT6 and CT13 first; the rest per the plan)
-   and P05 EN6–EN12 (the roster, elites and bosses, mini-bosses, map-object AI, reinforcement
-   groups, the Powder Baron), with the maps they need (P04). To be sequenced when the UI queue
-   above is moving.
+   hits its target), and S4 BUG-005 (unit detail shows the type id). BUG-001 closed November 7,
+   2026 (can't reproduce; no base Block). The user is adding the engine bugs found in play; once
+   triaged they go out as fix step **BF1**, which also removes UI11's confirmed markers (P07
+   question 36).
+5. **M2's content:** P03 CT4–CT13 (CT6 and CT13 first; the rest per the plan) and P05 EN6–EN12
+   (the roster, elites and bosses, mini-bosses, map-object AI, reinforcement groups, the Powder
+   Baron), with the maps they need (P04). EN7 also gives the Leader and Boss HUDs their marks,
+   EN10 the reinforcement HUD its waves. To be sequenced next.
 6. **Docs before M2 closes:** P01 EB8, P02 CC9, P04 MP9, P06 DK6, P03 CT11, P05 EN12.
-7. **Open questions for the user:** P06 question 15 (DK5 review) and P07 question 35 (UI10
+7. **Open questions for the user:** P06 question 15 (DK5 review) and P07 question 36 (UI11
    review). **Design docs to write:** the move preview re-architecture (Design items, P05 /
    P07).
 8. **Later:** one public `Pathing.path_to` (P07 question 15 d); the M1 tuning pass once traits
@@ -536,3 +539,4 @@ M2 work, in the order to send it. Steps on one line can run in parallel.
 | November 7, 2026 | P07 question 33 answered (as recommended; finding the missing controller glyphs in `Godot_FE` is the user's own to-do, and the splash overkill a P02 / P03 design item). **BUG-001 closed** (can't reproduce; the user: no base Block, Vanguard fires at the first Phase Start when it applies). No questions open for the user. |
 | November 7, 2026 | P07 UI11 broken down and its prompt written (the Options swap toggle in `settings.json` via `SettingsData`, not a `PlayerSaveSection`, per save-system.md; every objective's HUD; a unit detail panel); sent after UI10 merges. |
 | November 7, 2026 | **P07 UI10 merged into `dev`** (6ed82d3; verified: every suite passes, ui display 104 and input 267, launch clean): the forecast flashes predicted HP and Stance loss white on every unit it changes, outlined pips, the move-then-act walk (a `WALK` stage; Cancel snaps back; no second walk on Confirm), "Next weapon 1/2". Raised P07 question 35 (UI10 review; its answers reach UI11 as an addendum). **P06 DK5 built** (ffd71d4, not merged): the `darkness` COMBAT section v1 and client mirrors that follow the darkness; it changed the session snapshot format 3 → 4 and the state hash past its pre-approved list, so P06 question 15 is raised and the merge waits on it. P11 design item added (a mirror's waves stay at reach 0). |
+| November 7, 2026 | P07 question 35 answered (as recommended; sent as the UI11 addendum). **P07 UI11 merged into `dev`** (9a27289; verified: every suite passes, save 211, ui board 81, input 299, display 121, launch clean): the picked tile's move preview kept to Confirm, the opening-swap toggle in Options (`settings.json` `core.opening_swap`, schema 1 → 2), a HUD scene per objective with board overlays, unit detail (Ctrl / L3 / the Details button). **P07's M2 part is built.** P07 plan's Save Impact corrected to `settings.json`. Raised P07 question 36 (UI11 review); logged BUG-005 (the detail shows the type id though every definition has `display_name`), assigned to BF1. |

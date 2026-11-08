@@ -42,6 +42,7 @@ Not a bug.
 | [BUG-002](#bug-002-the-forecasts-crit-chance-ignores-current-stance) | The forecast's crit chance ignores current Stance | P02 / P07 | S2 | New | November 6, 2026, user playtest | — |
 | [BUG-003](#bug-003-save-systemmd-says-a-battle-retry-repeats-ids) | save-system.md says a battle retry repeats ids | P00 / P02 | S4 | Assigned (CC9; P02 question 22 accepted November 7, 2026) | November 5, 2026, CC10 report | CC9 |
 | [BUG-004](#bug-004-an-enemy-with-an-attack-intent-moves-and-doesnt-attack) | An enemy with an attack intent moves and doesn't attack; the next enemy hits its target | P05 / P07 | S2 | New | November 6, 2026, user playtest | — |
+| [BUG-005](#bug-005-unit-detail-shows-the-type-id-not-its-name) | Unit detail shows the type id, not its name | P07 | S4 | Assigned (BF1) | November 7, 2026, UI11 report | BF1 |
 
 ### BUG-001 No Block at the start of combat
 
@@ -104,6 +105,17 @@ Not a bug.
   - why the diagnostic, if raised, isn't in the playtest log
 - **Asked the user:** each enemy's class, the second enemy's own intent target, and where the
   first enemy ended (in range of its target or not).
+
+### BUG-005 Unit detail shows the type id, not its name
+
+- **Found:** UI11's report. The unit detail panel shows the type as the id capitalised
+  (`unit_detail_view_model.gd`: `unit.unit_type.capitalize()`), on the reading that content has
+  no display names.
+- **Expected:** every definition carries `display_name` (P01's `EffectCarrierDefinition`), and
+  the M1 data fills it ("Battle Medic", "Brute"). The detail looks the type up in the content
+  catalog and shows that; the capitalised id is only a fallback for a missing definition.
+- **Also check:** the weapon type line (`held.weapon_type.capitalize()`) and any other id shown
+  as text in the battle UI.
 
 ## Closed bugs
 
