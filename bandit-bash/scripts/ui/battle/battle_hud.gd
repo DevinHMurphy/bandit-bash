@@ -6,7 +6,7 @@
 # File:     battle_hud.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 5, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 class_name BattleHud
@@ -18,7 +18,9 @@ extends Control
 ##
 ## [b]Reading only:[/b] it draws [HudViewModel] views of the session and never changes combat
 ## state or turn input. What it reads, and when:[br]
-## - the board settling ([signal BattleView.settled]): every widget, from state;[br]
+## - the board settling ([signal BattleView.settled]): every widget, from state, the objective's
+## progress included, which it also hands the board to draw ([method BattleView.show_objective]:
+## seize and defend tiles, open reinforcement points, marked enemies);[br]
 ## - the cursor's tile and the selected unit changing ([BattleController]'s getters, compared each
 ## frame while the board is settled): the tile info and the unit panel, for the unit under the
 ## cursor, else the selected one. While playback runs nothing redraws from state, which already
@@ -80,7 +82,6 @@ func bind(session: CombatSession, controller: BattleController, view: BattleView
 	if is_instance_valid(_view):
 		_view.settled.connect(_on_view_settled)
 	_fact_log.clear()
-	_objective.show_objective(HudViewModel.objective_text(session))
 	_show_widgets(true)
 	refresh()
 
@@ -95,6 +96,8 @@ func unbind() -> void:
 		_session.bus.flow.phase_started.disconnect(_on_flow_phase_started)
 	if is_instance_valid(_view) and _view.settled.is_connected(_on_view_settled):
 		_view.settled.disconnect(_on_view_settled)
+	if is_instance_valid(_view):
+		_view.show_objective(null)
 	_session = null
 	_controller = null
 	_view = null
@@ -108,6 +111,10 @@ func refresh() -> void:
 		return
 	_turn_counter.show_turn(HudViewModel.turn_view(_session))
 	_darkness.show_darkness(HudViewModel.darkness_view(_session))
+	var objective: HudViewModel.ObjectiveView = HudViewModel.objective_view(_session)
+	_objective.show_view(objective)
+	if is_instance_valid(_view):
+		_view.show_objective(objective)
 	_draw_cursor()
 
 

@@ -15,7 +15,8 @@ extends RefCounted
 ## after arrival), the numbered lines in [EnemyPlan] order to each target, the danger overlay
 ## against [DangerZone] (off by default, toggled by R, shown in the opening swap window with no
 ## intents there, beside an enemy's own range), and the move preview's re-planned intents against
-## [method Intents.preview], reverting when the hover clears. No autoload is named or needed.
+## [method Intents.preview], reverting when the hover clears, and the picked tile's kept through
+## the action until Cancel (question 35 (1)). No autoload is named or needed.
 ##
 ## [b]The harness[/b] is turn_input_cases.gd's (the board, the HUD widgets and a
 ## [BattleController] on the M1 battle) with the [IntentDisplay] and [MovePreviewMarks] on the
@@ -50,6 +51,7 @@ const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
 const IDLE: BattleController.Stage = BattleController.Stage.IDLE
 const SWAP: BattleController.Stage = BattleController.Stage.SWAP
 const MOVE: BattleController.Stage = BattleController.Stage.MOVE
+const CONFIRM: BattleController.Stage = BattleController.Stage.CONFIRM
 
 var _check: Callable
 var _root: Node = null
@@ -77,6 +79,133 @@ func run() -> void:
 	_test_lines()
 	_test_danger_toggle()
 	_test_preview()
+	_test_preview_kept_after_walk()
+
+
+# Question 35 (1): the picked tile's move preview stays from WALK through ACTION, TARGET and
+# CONFIRM, its danger zone with it, so no intent line points at the tile the unit left; Cancel's
+# snap back to MOVE clears it, the session's intents and zone return, and no frame brings the
+# preview back while the cursor stays.
+func _test_preview_kept_after_walk() -> void:
+	var h: TurnInputCases.Harness = _harness(true)
+	if h == null:
+		return
+	var state: CombatState = h.session.state
+	var display: IntentDisplay = h.controller.intent_display
+	# A unit some enemy targets, so a live line points at its tile; else the first that can act.
+	var unit_id: String = ""
+	for intent: EnemyIntent in h.session.intents.enemies:
+		if not intent.target_id.is_empty() and TurnInputModel.can_act(h.session, intent.target_id):
+			unit_id = intent.target_id
+			break
+	var acting: PackedStringArray = TurnInputModel.acting_units(h.session, 0)
+	if unit_id.is_empty() and not acting.is_empty():
+		unit_id = acting[0]
+	var origin: Vector2i = state.tile_of(unit_id)
+	# A move tile from which the unit has a targeted action, so TARGET and CONFIRM are reached.
+	var tile: Vector2i = CombatFact.NO_TILE
+	var targeted: TurnInputModel.ActionKind = TurnInputModel.ActionKind.WAIT
+	for option_tile: Vector2i in TurnInputModel.move_tiles(h.session, unit_id):
+		if option_tile == origin:
+			continue
+		var path: Array[Vector2i] = TurnInputModel.path_to(h.session, unit_id, option_tile)
+		for option: TurnInputModel.ActionOption in TurnInputModel.actions_at(
+				h.session, unit_id, path
+		):
+			if option.has_targets():
+				tile = option_tile
+				targeted = option.kind
+				break
+		if tile != CombatFact.NO_TILE:
+			break
+	if unit_id.is_empty() or tile == CombatFact.NO_TILE:
+		_check.call("kept preview: a unit with a targeted action off its own tile", false)
+		h.close()
+		return
+	var live: PackedStringArray = _model_texts(display.get_model())
+	h.controller.toggle_danger_zone()
+	h.controller.confirm_tile(origin)
+	h.controller.move_cursor(tile)
+	h.controller.run_preview_frame()
+	h.controller.get_preview_queue().wait()
+	h.controller.run_preview_frame()
+	h.controller.confirm_tile(tile)
+	var replanned: Intents = Intents.preview(h.session, unit_id, tile)
+	var expected: PackedStringArray = _entry_texts(h.session, replanned, unit_id, tile)
+	var zone: Array[Vector2i] = []
+	zone.assign(replanned.danger.combined.keys())
+	zone.sort_custom(MapLayout.is_before)
+	var problems: PackedStringArray = []
+	_kept_problems(h, "WALK", origin, unit_id, expected, zone, problems)
+	BattleViewCases.arrive(h.view)
+	_kept_problems(h, "ACTION", origin, unit_id, expected, zone, problems)
+	var menu: ActionMenu = h.host.top() as ActionMenu
+	var options: Array[TurnInputModel.ActionOption] = []
+	if menu != null:
+		options = menu.get_options()
+	for i: int in options.size():
+		if options[i].kind == targeted:
+			menu.get_rows()[i].pressed.emit()
+			break
+	_kept_problems(h, "TARGET", origin, unit_id, expected, zone, problems)
+	var picker: TargetPicker = h.host.top() as TargetPicker
+	if picker != null:
+		picker.get_rows()[0].pressed.emit()
+	_kept_problems(h, "CONFIRM", origin, unit_id, expected, zone, problems)
+	print("      (kept preview: %s from %s to %s, %s)" % [
+		unit_id, origin, tile, TurnInputModel.ActionKind.find_key(targeted),
+	])
+	_check.call("kept preview: WALK to CONFIRM show the picked tile's intents and zone", (
+			problems.is_empty() and h.controller.get_stage() == CONFIRM
+	), "; ".join(problems))
+
+	while h.controller.get_stage() != MOVE and h.controller.step_back():
+		pass
+	for _frame: int in 3:
+		h.controller.run_preview_frame()
+		h.controller.get_preview_queue().wait()
+	var model: IntentViewModel = display.get_model()
+	var shown: Array[Vector2i] = h.view.get_danger_overlay().shown_tiles()
+	_check.call("kept preview: Cancel's snap back restores the session's intents and zone", (
+			h.controller.get_stage() == MOVE
+			and model != null
+			and not model.is_preview
+			and _model_texts(model) == live
+			and shown == _zone_tiles(h.session)
+			and h.controller.move_preview_marks.get_shown() == null
+	), "stage %d, preview %s, zone %d tiles (session %d)" % [
+		h.controller.get_stage(), model != null and model.is_preview, shown.size(),
+		_zone_tiles(h.session).size(),
+	])
+	h.close()
+
+
+# Why stage's board isn't the picked tile's preview: another stage, other intents, a line at the
+# moved unit still at origin, or another danger zone; appended to problems.
+func _kept_problems(
+		h: TurnInputCases.Harness,
+		stage: String,
+		origin: Vector2i,
+		unit_id: String,
+		expected: PackedStringArray,
+		zone: Array[Vector2i],
+		problems: PackedStringArray,
+) -> void:
+	var display: IntentDisplay = h.controller.intent_display
+	var model: IntentViewModel = display.get_model()
+	var at_stage: String = BattleController.Stage.find_key(h.controller.get_stage())
+	if at_stage != stage:
+		problems.append("%s: at %s" % [stage, at_stage])
+	if model == null or not model.is_preview or _model_texts(model) != expected:
+		problems.append("%s: intents %s, expected %s" % [stage, _model_texts(model), expected])
+	if model != null:
+		for entry: IntentViewModel.Entry in model.entries:
+			if entry.target_id == unit_id and entry.target_tile == origin:
+				problems.append("%s: %s's line points at the vacated tile" % [
+					stage, entry.enemy_id,
+				])
+	if h.view.get_danger_overlay().shown_tiles() != zone:
+		problems.append("%s: the danger zone isn't the preview's" % [stage])
 
 
 # The opening swap window shows the danger zone and no intents; R hides and shows it; Start turns

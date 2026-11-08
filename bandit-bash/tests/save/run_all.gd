@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: October 28, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -62,6 +62,8 @@ func _init() -> void:
 	_test_profile_defaults_and_newer_schema()
 	_test_settings_round_trip_and_copy()
 	_test_settings_repairs_hand_edits()
+	_test_settings_opening_swap_round_trip()
+	_test_settings_opening_swap_repairs()
 	_test_settings_volume_db()
 	_test_campaign_solo_round_trip()
 	_test_campaign_run_seed_exact_in_json()
@@ -427,6 +429,77 @@ func _test_settings_repairs_hand_edits() -> void:
 	negative.load_envelope(SaveFile.make_envelope(1, {"master_volume": -3}))
 	_check("settings hand edits: negative clamped", negative.master_volume == 0)
 	_check("settings hand edits: missing is default", negative.sfx_volume == 5)
+
+
+# The opening-swap setting: on by default, saved off and read back off through a file, copied, and
+# a version 1 file (from before it) migrated to version 2 with the setting on.
+func _test_settings_opening_swap_round_trip() -> void:
+	_clear_test_dir()
+	var defaults: SettingsData = SettingsData.new()
+	_check("settings opening swap: on by default", defaults.is_opening_swap_on)
+
+	var settings: SettingsData = SettingsData.new()
+	settings.is_opening_swap_on = false
+	var envelope: Dictionary = settings.to_envelope()
+	var written: Dictionary = envelope[SaveFile.KEY_CORE]
+	var written_version: int = envelope[SaveFile.KEY_SCHEMA_VERSION]
+	_check(
+			"settings opening swap: written at schema 2 under its key",
+			written_version == 2 and is_same(written.get(SettingsData.OPENING_SWAP_KEY), false)
+	)
+	SaveFile.write(TEST_PATH, envelope)
+	var loaded: SettingsData = SettingsData.new()
+	var err: Error = loaded.load_envelope(SaveFile.read(TEST_PATH).envelope)
+	_check(
+			"settings opening swap: off survives the file",
+			err == OK and not loaded.is_opening_swap_on,
+			error_string(err)
+	)
+	var copied: SettingsData = loaded.copy()
+	copied.is_opening_swap_on = true
+	_check(
+			"settings opening swap: copied, and the copy is independent",
+			not loaded.is_opening_swap_on and loaded.copy().is_opening_swap_on == false
+	)
+
+	var old: Dictionary = SaveFile.make_envelope(1, {"master_volume": 4})
+	var migrated: SettingsData = SettingsData.new()
+	migrated.is_opening_swap_on = false
+	var migrate_err: Error = migrated.load_envelope(old)
+	var old_core: Dictionary = old[SaveFile.KEY_CORE]
+	var old_version: int = old[SaveFile.KEY_SCHEMA_VERSION]
+	_check(
+			"settings opening swap: a version 1 file migrates to 2 with it on",
+			migrate_err == OK
+			and migrated.is_opening_swap_on
+			and migrated.master_volume == 4
+			and old_version == 2
+			and is_same(old_core.get(SettingsData.OPENING_SWAP_KEY), true),
+			error_string(migrate_err)
+	)
+
+
+# A hand-edited opening swap that isn't a JSON bool is repaired to on, the file still loading.
+func _test_settings_opening_swap_repairs() -> void:
+	var bad_values: Array = [0, 1, "false", null, [], {}, 0.0]
+	var wrong: PackedStringArray = []
+	for bad: Variant in bad_values:
+		var settings: SettingsData = SettingsData.new()
+		settings.is_opening_swap_on = false
+		var core: Dictionary = {SettingsData.OPENING_SWAP_KEY: bad, "music_volume": 2}
+		var err: Error = settings.load_envelope(SaveFile.make_envelope(2, core))
+		if err != OK or not settings.is_opening_swap_on or settings.music_volume != 2:
+			wrong.append("%s: %s, swap %s" % [var_to_str(bad), error_string(err), str(
+					settings.is_opening_swap_on
+			)])
+	_check("settings opening swap: a bad value is repaired to on", wrong.is_empty(), ", ".join(wrong))
+	var newer: SettingsData = SettingsData.new()
+	newer.is_opening_swap_on = false
+	var newer_err: Error = newer.load_envelope(SaveFile.make_envelope(3, {}))
+	_check(
+			"settings opening swap: a newer schema is refused, unchanged",
+			newer_err == ERR_FILE_UNRECOGNIZED and not newer.is_opening_swap_on
+	)
 
 
 func _test_settings_volume_db() -> void:

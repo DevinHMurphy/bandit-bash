@@ -144,7 +144,7 @@ const UNBOUND_KEY: String = "(unbound)"
 
 # ASSUMPTION: the labels beyond the plan's examples (Danger zone, End turn, Target, Weapon, Fast,
 # Skip, Debug) have no basis: Move, Select, Back, Pause, Resume, Start, Units, Choose, Confirm,
-# Pick, Swap, Pick tile.
+# Pick, Swap, Pick tile, Info, Scroll, Close.
 ## What each action does, by action name, or by [code]CONTEXT/action[/code] where a context
 ## ([method BattleController.get_hint_context]) gives it another meaning; the context's key wins.
 ## [b]Missing:[/b] the action's own name shows.
@@ -161,6 +161,7 @@ const UNBOUND_KEY: String = "(unbound)"
 	"fast_forward": "Fast",
 	"skip_playback": "Skip",
 	"toggle_save_debug": "Debug",
+	"unit_detail": "Info",
 	"target_prev": "Target",
 	"target_next": "Target",
 	"SWAP/ui_accept": "Pick",
@@ -193,6 +194,11 @@ const UNBOUND_KEY: String = "(unbound)"
 	"PAUSED/ui_up": "Choose",
 	"PAUSED/ui_down": "Choose",
 	"PAUSED/ui_cancel": "Resume",
+	"DETAIL/ui_up": "Scroll",
+	"DETAIL/ui_down": "Scroll",
+	"DETAIL/ui_accept": "Close",
+	"DETAIL/ui_cancel": "Close",
+	"DETAIL/unit_detail": "Close",
 }
 
 @export_group("")

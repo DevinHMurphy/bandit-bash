@@ -1,0 +1,113 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/battle/unit_detail_panel.gd" id="1_panel"]
+[ext_resource type="Theme" path="res://scenes/ui/battle/battle_theme.tres" id="2_theme"]
+
+[node name="UnitDetailPanel" type="PanelContainer"]
+theme = ExtResource("2_theme")
+script = ExtResource("1_panel")
+
+[node name="Column" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="CloseButton" type="Button" parent="Column"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 0
+text = "Close"
+
+[node name="Body" type="ScrollContainer" parent="Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(272, 380)
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="Lines" type="VBoxContainer" parent="Column/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="UnitName" type="Label" parent="Column/Body/Lines"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(260, 0)
+layout_mode = 2
+theme_type_variation = &"HudHeading"
+autowrap_mode = 3
+
+[node name="Summary" type="Label" parent="Column/Body/Lines"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(260, 0)
+layout_mode = 2
+theme_type_variation = &"HudNote"
+autowrap_mode = 3
+
+[node name="Vitals" type="Label" parent="Column/Body/Lines"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(260, 0)
+layout_mode = 2
+theme_type_variation = &"HudText"
+autowrap_mode = 3
+
+[node name="Stats" type="Label" parent="Column/Body/Lines"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(260, 0)
+layout_mode = 2
+theme_type_variation = &"HudText"
+autowrap_mode = 3
+
+[node name="Combat" type="Label" parent="Column/Body/Lines"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(260, 0)
+layout_mode = 2
+theme_type_variation = &"HudText"
+autowrap_mode = 3
+
+[node name="Weapon" type="Label" parent="Column/Body/Lines"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(260, 0)
+layout_mode = 2
+theme_type_variation = &"HudText"
+autowrap_mode = 3
+
+[node name="Stowed" type="Label" parent="Column/Body/Lines"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(260, 0)
+layout_mode = 2
+theme_type_variation = &"HudText"
+autowrap_mode = 3
+
+[node name="Equipment" type="Label" parent="Column/Body/Lines"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(260, 0)
+layout_mode = 2
+theme_type_variation = &"HudText"
+autowrap_mode = 3
+
+[node name="Pouch" type="Label" parent="Column/Body/Lines"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(260, 0)
+layout_mode = 2
+theme_type_variation = &"HudText"
+autowrap_mode = 3
+
+[node name="Traits" type="Label" parent="Column/Body/Lines"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(260, 0)
+layout_mode = 2
+theme_type_variation = &"HudText"
+autowrap_mode = 3
+
+[node name="Heirlooms" type="Label" parent="Column/Body/Lines"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(260, 0)
+layout_mode = 2
+theme_type_variation = &"HudText"
+autowrap_mode = 3
+
+[node name="Tags" type="Label" parent="Column/Body/Lines"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(260, 0)
+layout_mode = 2
+theme_type_variation = &"HudNote"
+autowrap_mode = 3

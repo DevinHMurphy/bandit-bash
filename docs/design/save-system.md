@@ -162,6 +162,22 @@ Saves happen at checkpoints only, never on a timer:
 
 Apply your system's changes to its section state **before** the call; the call captures it.
 
+## Settings
+
+`settings.json` is `SettingsData`'s block, with no sections. Players can edit it, so a bad value
+is repaired to its default on load and the file never fails for one; a file from a newer build is
+refused and the defaults apply (with a warning). Options edits a copy; only Apply writes it.
+
+| `core` key | Type | Default | Read by |
+|------------|------|---------|---------|
+| `master_volume`, `music_volume`, `sfx_volume` | int 0–10, clamped | 5 | `SettingsData.apply()` (a stub until audio exists) |
+| `opening_swap` | bool (anything else is repaired) | `true` | The battle screen, as a solo battle begins (`BattleRequest.opening_swap`) |
+
+- **Schema version 2.** Step 1 → 2 adds `opening_swap: true`, keeping a hand-written value for
+  the load to read or repair.
+- **Co-op:** the opening swap is read for the solo seat only. A co-op seat's setting would have to
+  reach the host; until P11 sends it, every co-op seat opens in the swap window.
+
 ## Battles
 
 `begin_battle()` captures the campaign's sections, marks the campaign `combat_in_progress`, then

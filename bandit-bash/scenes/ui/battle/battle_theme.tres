@@ -73,6 +73,18 @@ border_width_right = 2
 border_width_bottom = 2
 border_color = Color(1, 1, 1, 1)
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_leader_mark"]
+draw_center = false
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 1, 1, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
 [resource]
 default_font_size = 16
 BlockBadge/base_type = &"Panel"
@@ -123,6 +135,11 @@ HudNote/colors/font_color = Color(0.7, 0.7, 0.75, 1)
 HudNote/font_sizes/font_size = 12
 HudText/base_type = &"Label"
 HudText/font_sizes/font_size = 13
+HudWarning/base_type = &"Label"
+HudWarning/colors/font_color = Color(1, 0.45, 0.4, 1)
+HudWarning/font_sizes/font_size = 13
+LeaderMark/base_type = &"Panel"
+LeaderMark/styles/panel = SubResource("StyleBoxFlat_leader_mark")
 IntentAdvanceGlyph/base_type = &"Label"
 IntentAdvanceGlyph/colors/font_color = Color(1, 0.85, 0.35, 1)
 IntentAdvanceGlyph/constants/outline_size = 5

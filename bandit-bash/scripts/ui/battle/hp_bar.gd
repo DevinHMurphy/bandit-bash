@@ -40,11 +40,10 @@ extends ProgressBar
 @export_group("Forecast flash")
 
 ## The colour the predicted loss or gain pulses toward while a forecast is open (question 34 (1):
-## white for damage and heal alike). Its alpha is the pulse's peak opacity over the bar.
-@export var preview_flash_color: Color = Color(1.0, 1.0, 1.0, 1.0)
+## white for damage and heal alike). Its alpha is the pulse's peak opacity over the bar; below 1.0
+## the white HP number stays legible at the peak (question 35 (2)).
+@export var preview_flash_color: Color = Color(1.0, 1.0, 1.0, 0.8)
 
-# ASSUMPTION: no basis in the vision or Godot_FE (its forecast bar didn't flash); the tactics games
-# surveyed for UI10 pulse the predicted loss about once or twice a second.
 ## How many times a second the predicted part pulses: from [member preview_flash_color] to the bar
 ## beneath and back. Tune with [member StancePips.preview_flash_rate], so a unit's bars pulse
 ## together.[br]

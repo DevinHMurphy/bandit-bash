@@ -6,7 +6,7 @@
 # File:     battle_screen.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 5, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 class_name BattleScreen
@@ -16,7 +16,9 @@ extends Node2D
 ## On entry with a solo run and no battle on, it begins one through
 ## [code]CampaignService.begin_battle()[/code] (combat UI plan, question 2): the faction's starting
 ## army ([method StartingArmy.build]) on [member map_definition] at [member floor_number] and
-## [member combat_node], from the run's seed. A battle a continued run saved mid-fight is resumed
+## [member combat_node], from the run's seed, opening in the swap window only while the player's
+## opening-swap setting is on ([member SettingsData.is_opening_swap_on], in Options). A battle a
+## continued run saved mid-fight is resumed
 ## from the same request, at its saved state ([code]CampaignService.resume_battle()[/code]); a
 ## battle already on is shown as it stands. The
 ## [BattleView] draws the player's map; when that map's combat has ended and its playback has
@@ -120,6 +122,9 @@ func _begin_battle(run: CampaignSession) -> Error:
 	request.pool = [map_definition]
 	request.catalog = catalog
 	request.armies[run.seats[0]] = army
+	# The player's opening-swap setting, read as the battle begins. A resumed battle keeps the
+	# window's saved state; a resume that falls back to Begin reads the setting again.
+	request.opening_swap[run.seats[0]] = SaveService.settings.is_opening_swap_on
 	if SaveService.combat != null:
 		return CampaignService.resume_battle(request)
 	return CampaignService.begin_battle(request)
@@ -136,6 +141,8 @@ func _open(encounter: CombatEncounter, seat: int) -> void:
 	_view.bind(_session)
 	_controller.bind(encounter, _session, seat)
 	_hud.bind(_session, _controller, _view)
+	# The unit panel's Details button is the mouse's way to unit detail; the controller decides.
+	_hud.get_unit_panel().details_pressed.connect(_on_unit_panel_details_pressed)
 	_on_battle_view_settled()
 
 
@@ -179,3 +186,7 @@ func _end_battle() -> void:
 func _on_battle_view_settled() -> void:
 	if _session.is_finished and _view.is_settled():
 		_show_end()
+
+
+func _on_unit_panel_details_pressed(unit_id: String) -> void:
+	_controller.request_unit_detail(unit_id)

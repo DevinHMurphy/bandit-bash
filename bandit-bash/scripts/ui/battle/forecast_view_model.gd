@@ -183,17 +183,16 @@ func flash_of(unit_id: String) -> Flash:
 func _fill_flashes() -> void:
 	for outcome: CombatForecast.UnitOutcome in forecast.units:
 		var shown: CombatForecast.UnitOutcome = outcome
-		# ASSUMPTION: "the attacker's bars the counter's" read as the counter line's actor outcome
-		# whenever the all-hits line defeats the target first, so a predicted kill still shows
-		# what the counter would take.
+		# The counter line's actor outcome even when the all-hits line defeats the target first,
+		# so a predicted kill still shows what the counter would take (question 35 (5)).
 		if (
 				counter != null
 				and outcome.unit_id == forecast.actor_id
 				and counter.attacker.outcome != null
 		):
 			shown = counter.attacker.outcome
-		# ASSUMPTION: every unit the forecast changes flashes (splash, a shove's bump), not only the
-		# two named ones, as the Stance preview dimmed every unit's pips.
+		# Every unit the forecast changes flashes (splash, a shove's bump), not only the two named
+		# ones (question 35 (5)).
 		var hp_changed: bool = shown.hp_after != shown.hp_before
 		var stance_dropped: bool = shown.stance_after < shown.stance_before
 		if not hp_changed and not stance_dropped:

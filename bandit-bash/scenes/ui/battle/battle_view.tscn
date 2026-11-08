@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3]
+[gd_scene load_steps=22 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/battle/battle_view.gd" id="1_view"]
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/unit_token.tscn" id="2_token"]
@@ -17,17 +17,31 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/danger_support_overlay.tscn" id="15_danger_support"]
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/target_mark.tscn" id="16_target_mark"]
 [ext_resource type="PackedScene" path="res://scenes/ui/battle/unit_info_layer.tscn" id="17_info_layer"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/seize_overlay.tscn" id="18_seize"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/defend_overlay.tscn" id="19_defend"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/reinforcement_overlay.tscn" id="20_points"]
+[ext_resource type="PackedScene" path="res://scenes/ui/battle/leader_mark.tscn" id="21_leader_mark"]
 
 [node name="BattleView" type="Node2D"]
 script = ExtResource("1_view")
 token_scene = ExtResource("2_token")
 damage_number_scene = ExtResource("3_number")
 target_mark_scene = ExtResource("16_target_mark")
+leader_mark_scene = ExtResource("21_leader_mark")
 
 [node name="MapHolder" type="Node2D" parent="."]
 unique_name_in_owner = true
 
 [node name="DarknessOverlay" parent="." instance=ExtResource("4_overlay")]
+unique_name_in_owner = true
+
+[node name="SeizeOverlay" parent="." instance=ExtResource("18_seize")]
+unique_name_in_owner = true
+
+[node name="DefendOverlay" parent="." instance=ExtResource("19_defend")]
+unique_name_in_owner = true
+
+[node name="ReinforcementOverlay" parent="." instance=ExtResource("20_points")]
 unique_name_in_owner = true
 
 [node name="DangerOverlay" parent="." instance=ExtResource("12_danger")]

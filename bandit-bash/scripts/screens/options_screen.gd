@@ -6,7 +6,7 @@
 # File:     options_screen.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: October 14, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 extends Control
@@ -16,7 +16,11 @@ extends Control
 ## settings file ([code]SaveService.save_settings()[/code]); Back discards anything not applied.
 ## [br]
 ## One slider row per [enum SettingsData.Channel] is built in code. Volumes are saved but not yet
-## heard: [method SettingsData.apply] is a stub until an audio system exists.
+## heard: [method SettingsData.apply] is a stub until an audio system exists. The opening-swap
+## toggle ([code]%OpeningSwapToggle[/code], a [SettingToggle] scene) edits
+## [member SettingsData.is_opening_swap_on], which the next battle to begin reads.[br]
+## Every control takes focus, so the arrows and a pad's d-pad move between them and accept or A
+## presses or flips the focused one.
 
 const _CHANNEL_NAMES: Dictionary[SettingsData.Channel, String] = {
 	SettingsData.Channel.MASTER: "Master",
@@ -40,6 +44,7 @@ var _first_slider: HSlider = null
 @onready var _status_label: Label = %Status
 @onready var _rows: VBoxContainer = %Rows
 @onready var _apply_button: Button = %ApplyButton
+@onready var _opening_swap: SettingToggle = %OpeningSwapToggle
 
 
 func _ready() -> void:
@@ -48,6 +53,8 @@ func _ready() -> void:
 
 	for channel: SettingsData.Channel in _CHANNEL_NAMES:
 		_rows.add_child(_build_row(channel))
+	_opening_swap.set_on(_edited.is_opening_swap_on)
+	_opening_swap.toggled_on.connect(_on_opening_swap_toggled_on)
 
 	_status_label.text = _IDLE_TEXT
 	# Every route here passes Save Select, so this only guards against a future route that doesn't.
@@ -89,6 +96,11 @@ func _build_row(channel: SettingsData.Channel) -> Control:
 func _on_slider_value_changed(value: float, channel: SettingsData.Channel) -> void:
 	_edited.set_volume(channel, roundi(value))
 	_value_labels[channel].text = str(_edited.get_volume(channel))
+	_status_label.text = "Unapplied changes. Press Apply to keep them."
+
+
+func _on_opening_swap_toggled_on(is_on: bool) -> void:
+	_edited.is_opening_swap_on = is_on
 	_status_label.text = "Unapplied changes. Press Apply to keep them."
 
 

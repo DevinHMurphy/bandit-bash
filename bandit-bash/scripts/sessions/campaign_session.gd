@@ -6,7 +6,7 @@
 # File:     campaign_session.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 5, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 class_name CampaignSession
@@ -36,7 +36,8 @@ extends RefCounted
 ##
 ## @todo: TOD-001 - Apply recorded grants: gold, heirlooms, recruits and runes (P08).
 ## @todo: TOD-002 - Hand the reinforcement waves P05's group source; the base draws no group.
-## @todo: TOD-003 - Read each seat's opening-swap setting from its owner (P07); no entry means on.
+## @todo: TOD-003 - Send each co-op seat's opening-swap setting to the host (P11); no entry means
+## on. Solo's comes from the battle screen's request (the player's settings).
 ## @todo: TOD-004 - Pass the enemy level modifiers (difficulty ladder, run modifiers) to the draw.
 
 ## A battle began: its setup ran and its sessions are about to open, so a listener can connect to
@@ -192,7 +193,8 @@ func begin_battle(request: BattleRequest) -> CombatEncounter:
 	for session: CombatSession in battle.get_sessions():
 		var swap_seats: PackedInt32Array = []
 		for seat: int in session.seats:
-			# TODO(TOD-003): P07 owns the setting and its default; until then no entry means on.
+			# TODO(TOD-003): co-op seats' settings don't reach the host yet (P11); no entry means on,
+			# the setting's default (SettingsData.DEFAULT_OPENING_SWAP).
 			if request.opening_swap.get(seat, true):
 				swap_seats.append(seat)
 		session.open_battle(swap_seats)

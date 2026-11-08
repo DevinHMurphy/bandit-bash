@@ -31,7 +31,10 @@ extends Node
 ## [b]Move then act[/b] (question 34 (3)): picking another tile walks the token there first
 ## ([method BattleView.stage_walk]), locally; the action menu opens on arrival.[br]
 ## [b]Move preview:[/b] hovering a move tile runs a [MovePreview] on a worker thread
-## ([method run_preview_frame]), drawn by [MovePreviewMarks] and the [IntentDisplay].[br]
+## ([method run_preview_frame]), drawn by [MovePreviewMarks] and the [IntentDisplay]; the picked
+## tile's, with its danger zone, stays through the action until Cancel (question 35 (1)).[br]
+## [b]Unit detail[/b] (UI11): unit_detail or the unit panel's Details opens any unit's
+## [UnitDetailPanel] from IDLE or MOVE ([method request_unit_detail]); Back closes it.[br]
 ## [b]Enemy information[/b] (question 10): the [IntentDisplay] shows the intents once the board
 ## settles; [method toggle_danger_zone] draws [DangerZone], support tiles purple (question 23).[br]
 ## [b]Hints and pads[/b] (questions 24, 25, 31): [constant LIVE_ACTIONS] lists each hint context's
@@ -100,10 +103,19 @@ extends Node
 #                                                Q / E are targets, not weapons, unlike Godot_FE)
 #   "toggle_save_debug"     -> F3; RS [R3]    (read by the save debug panel, in debug builds; not
 #                                                read here)
+#   "unit_detail"           -> Ctrl; LS [L3]  (IDLE, MOVE: opens the detail of the unit under the
+#                                                cursor, else of the selected one (DETAIL); with
+#                                                neither, harmless. DETAIL: closes it, as Back
+#                                                does. Godot_FE's "details" key; its Square went
+#                                                to cycle_weapon. The unit panel's Details button
+#                                                is the mouse's way in, Right Mouse Button its way
+#                                                out, as everywhere)
+#   ui_up / ui_down in DETAIL                 (scroll the detail's body while it overflows; the
+#                                                Close button keeps focus. Harmless otherwise)
 # ASSUMPTION: Godot_FE bound none of end_turn, toggle_danger_zone, cycle_weapon, fast_forward,
-# skip_playback or toggle_save_debug to a pad; their pad buttons above have no basis. Every pad
-# input is bound to one action only, as this file reads them in one chain and the first match
-# wins.
+# skip_playback, toggle_save_debug or unit_detail to a pad; their pad buttons above have no basis
+# (unit_detail's L3 is the one pad button left free). Every pad input is bound to one action only,
+# as this file reads them in one chain and the first match wins.
 # While a command's playback runs, the token walks to its picked tile (WALK), the map's combat is
 # over, or the seat has no turn, every input but fast_forward, skip_playback and
 # toggle_danger_zone is ignored: that guard is deliberate, not a missing check (Godot_FE took no
@@ -143,11 +155,13 @@ signal live_actions_changed()
 #              path to the cursor while
 #              the cursor is on a move tile, with that tile's move preview (requested on each
 #              hover, started on a worker thread by run_preview_frame and drawn when it finishes,
-#              cleared off a move tile and on leaving MOVE, which drops one still running); the
-#              intent display shows the preview's intents, previewed, and the live ones until
-#              one is drawn and once it clears.
+#              cleared off a move tile and on leaving for any stage but WALK to CONFIRM, which
+#              drops one still running); the intent display shows the preview's intents,
+#              previewed, and the live ones until one is drawn and once it clears. The danger
+#              zone stays the board's here.
 #              Accept on another move tile walks the token there (WALK); on its own tile it opens
-#              the action menu at once (ACTION); elsewhere inert. Cancel -> IDLE.
+#              the action menu at once (ACTION); elsewhere inert. Either way the picked tile's
+#              preview is kept (below). Cancel -> IDLE.
 # WALK:        the token walks the path to the picked tile at the playback walk speed
 #              (BattleView.stage_walk), locally: the session is untouched. No overlay; the path
 #              and cursor stay. Every input is ignored, as in playback, but is_settled() holds, so
@@ -175,16 +189,27 @@ signal live_actions_changed()
 #              its first weapon.
 # END_CONFIRM: End Turn's question while units can still act: Confirm sends EndTurnCommand.
 #              Cancel or Back -> the stage it was asked from (IDLE or MOVE).
+# DETAIL:      a unit's detail panel (UnitDetailPanel) over IDLE or MOVE, for the unit under the
+#              cursor, else the selected one, either side. The board is inert: no cursor, no
+#              clicks; MOVE's overlays and path stay drawn, its hover preview is dropped and asked
+#              again on return. Up and down scroll the panel; accept presses its Close. Cancel,
+#              Close or unit_detail -> the stage it was opened from, with its selection and cursor
+#              as they were. Opened through _history like any panel, so it is never left open by
+#              a command (none can be sent from it).
 # There is no separate forecast stage: the forecast is CONFIRM's panel, as Godot_FE's forecast
 # took the confirm. The walk before the action menu is the board's alone: the move and the action
 # are still one command, so the session changes only on Confirm, and its playback finds the token
 # already on its tile and doesn't walk it again (BattleView._on_unit_moved). Another seat's screen
-# never staged it, so a co-op partner sees the walk in that playback. The danger zone, intents
-# and forecast read the session, where the unit hasn't moved; the forecast walks the command's
-# path itself. Cycling changes no state: each weapon has its own command (TargetOption.commands),
+# never staged it, so a co-op partner sees the walk in that playback. From WALK to CONFIRM the
+# intents, the danger zone and the darkness number are the picked tile's move preview's
+# (question 35 (1)), still running on its worker when the pick comes before it finished, so no
+# intent line points at the tile the unit left; the board's show until it is drawn. Cancel's snap
+# back to MOVE clears it, and the session's return. The forecast walks the command's path itself.
+# Cycling changes no state: each weapon has its own command (TargetOption.commands),
 # where Godot_FE equipped the weapon on the unit at each step and left it equipped on Back. Q / E
-# are inert in SWAP, SWAP_PICKED, MOVE, WALK, ACTION and END_CONFIRM: cycling units there would
-# drop the selection or the panel under way.
+# are inert in SWAP, SWAP_PICKED, MOVE, WALK, ACTION, END_CONFIRM and DETAIL: cycling units there
+# would drop the selection or the panel under way (Godot_FE's details screen cycled units on its
+# bumpers; not ported).
 # Global: cancel pops exactly one stage (_history), and one panel with it; WALK is never on
 # _history. Sending a command flushes every panel, stage and mark but leaves a staged token where
 # it stands, hides the intents, and waits in INACTIVE; when its playback settles the stage, the
@@ -221,6 +246,8 @@ enum Stage {
 	END_CONFIRM = 8,
 	## The token walking to the picked tile before the action menu opens.
 	WALK = 9,
+	## A unit's detail panel, opened from IDLE or MOVE.
+	DETAIL = 10,
 }
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
@@ -234,8 +261,9 @@ const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
 # ui_cancel is the pause menu's in SWAP, IDLE, PLAYBACK and INACTIVE (this node leaves Esc to it
 # there), and toggle_save_debug is the save debug panel's. Order is the bar's display order.
 # get_live_actions() leaves out what a row lists but can do nothing now (question 31 (a)): Q / E
-# with one target and C with one weapon in TARGET, CONFIRM and FORECAST, and the danger zone in
-# the final playback. tests/ui/hint_bar_cases.gd presses every action in every context it
+# with one target and C with one weapon in TARGET, CONFIRM and FORECAST, the danger zone in
+# the final playback, unit_detail in IDLE and MOVE with no unit to show, and DETAIL's up and down
+# while its body fits. tests/ui/hint_bar_cases.gd presses every action in every context it
 # reaches, by key and by pad, and fails when one acts outside its row or a listed one does
 # nothing; change a row with the blocks above.
 # ASSUMPTION: fast_forward is listed in every unpaused context, since holding it before a command
@@ -253,12 +281,16 @@ const LIVE_ACTIONS: Dictionary[StringName, Array] = {
 	],
 	&"IDLE": [
 		&"ui_up", &"ui_down", &"ui_left", &"ui_right", &"ui_accept", &"target_prev",
-		&"target_next", &"end_turn", &"toggle_danger_zone", &"fast_forward", &"ui_cancel",
-		&"toggle_save_debug",
+		&"target_next", &"unit_detail", &"end_turn", &"toggle_danger_zone", &"fast_forward",
+		&"ui_cancel", &"toggle_save_debug",
 	],
 	&"MOVE": [
-		&"ui_up", &"ui_down", &"ui_left", &"ui_right", &"ui_accept", &"ui_cancel", &"end_turn",
-		&"toggle_danger_zone", &"fast_forward", &"toggle_save_debug",
+		&"ui_up", &"ui_down", &"ui_left", &"ui_right", &"ui_accept", &"ui_cancel", &"unit_detail",
+		&"end_turn", &"toggle_danger_zone", &"fast_forward", &"toggle_save_debug",
+	],
+	&"DETAIL": [
+		&"ui_up", &"ui_down", &"ui_accept", &"ui_cancel", &"unit_detail", &"toggle_danger_zone",
+		&"fast_forward", &"toggle_save_debug",
 	],
 	&"ACTION": [
 		&"ui_up", &"ui_down", &"ui_accept", &"ui_cancel", &"toggle_danger_zone", &"fast_forward",
@@ -307,6 +339,11 @@ const LIVE_ACTIONS: Dictionary[StringName, Array] = {
 ## The forecast panel scene ([ForecastPanel]), the confirm of an attack, a staff or a shove.[br]
 ## [b]Unset:[/b] those confirm on the confirm dialog, with no forecast.
 @export var forecast_panel_scene: PackedScene = null
+
+## The unit detail panel scene ([UnitDetailPanel]), opened by unit_detail or the unit panel's
+## Details button.[br]
+## [b]Unset:[/b] unit_detail opens nothing and an error is reported.
+@export var unit_detail_scene: PackedScene = null
 
 @export_group("Widgets")
 
@@ -387,6 +424,13 @@ var _confirm_dialog: ConfirmDialog = null
 # The target picker open in TARGET and under CONFIRM; null elsewhere.
 var _picker: TargetPicker = null
 
+# The unit detail panel open in DETAIL; null elsewhere.
+var _detail_panel: UnitDetailPanel = null
+
+# Whether unit_detail had a unit to show when the hints were last told, so a cursor move that
+# changes it tells them again.
+var _has_detail_unit: bool = false
+
 # In WALK, the action menu's rows for the picked tile, opened on arrival; empty elsewhere.
 var _walk_options: Array[TurnInputModel.ActionOption] = []
 
@@ -464,6 +508,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		confirm_tile(_cursor)
 	elif event.is_action_pressed(&"end_turn"):
 		request_end_turn()
+	elif event.is_action_pressed(&"unit_detail"):
+		if _stage == Stage.DETAIL:
+			step_back()
+		else:
+			request_unit_detail()
 	elif event.is_action_pressed(&"cycle_weapon"):
 		cycle_weapon()
 	elif event.is_action_pressed(&"target_next"):
@@ -631,7 +680,49 @@ func move_cursor(tile: Vector2i) -> bool:
 		_request_preview(tile)
 	if is_instance_valid(intent_display):
 		intent_display.set_hovered(_hovered_enemy())
+	var has_detail_unit: bool = not detail_unit().is_empty()
+	if has_detail_unit != _has_detail_unit:
+		_has_detail_unit = has_detail_unit
+		live_actions_changed.emit()
 	return true
+
+
+## The unit unit_detail would show now: the one under the cursor, else the selected one; empty
+## for none, or outside IDLE and MOVE.
+func detail_unit() -> String:
+	if _session == null or (_stage != Stage.IDLE and _stage != Stage.MOVE):
+		return ""
+	var occupant: String = _session.state.occupant_at(_cursor)
+	# A standing breakable occupies its tile too, but it is on neither side and has no detail.
+	if not occupant.is_empty() and _session.state.side_of(occupant) != CombatFact.CombatSide.NONE:
+		return occupant
+	return _unit_id
+
+
+## unit_detail, or the unit panel's Details button: opens [param unit_id]'s [UnitDetailPanel]
+## (DETAIL) over IDLE or MOVE; with none given, [method detail_unit]'s. Returns false, opening
+## nothing, outside IDLE and MOVE, while input isn't taken, or for a unit not on the map.
+func request_unit_detail(unit_id: String = "") -> bool:
+	if not is_accepting_input() or (_stage != Stage.IDLE and _stage != Stage.MOVE):
+		return false
+	var shown: String = unit_id if not unit_id.is_empty() else detail_unit()
+	var detail: UnitDetailViewModel = UnitDetailViewModel.build(_session, shown)
+	if detail == null:
+		return false
+	var panel: BattlePanel = _open_panel(Stage.DETAIL, unit_detail_scene, detail)
+	if panel == null:
+		return false
+	_detail_panel = panel as UnitDetailPanel
+	panel.cancelled.connect(_on_panel_cancelled)
+	if _detail_panel != null:
+		_detail_panel.scroll_range_changed.connect(_on_detail_panel_scroll_range_changed)
+	_redraw()
+	return true
+
+
+## The unit detail panel open in DETAIL; null elsewhere.
+func get_detail_panel() -> UnitDetailPanel:
+	return _detail_panel if _stage == Stage.DETAIL else null
 
 
 ## toggle_danger_zone: shows or hides every tile an enemy could attack next turn
@@ -709,12 +800,13 @@ func cycle_unit(forward: bool) -> String:
 
 
 ## Draws the move preview that finished on its worker thread, if one did: its damage, and its
-## intents as previewed; then starts the newest hover's when none runs
-## ([method MovePreview.Queue.run_pending]). [method Node._process] calls it once a frame; tests
-## call it to stand for a frame, and [method MovePreview.Queue.wait] for the worker. Returns
+## intents as previewed (from WALK to CONFIRM, its danger zone too); then starts the newest
+## hover's when none runs ([method MovePreview.Queue.run_pending]). Runs in MOVE and from WALK to
+## CONFIRM, where the picked tile's preview is kept. [method Node._process] calls it once a frame;
+## tests call it to stand for a frame, and [method MovePreview.Queue.wait] for the worker. Returns
 ## whether a preview was drawn.
 func run_preview_frame() -> bool:
-	if _session == null or not _has_preview_widgets() or _stage != Stage.MOVE:
+	if _session == null or not _has_preview_widgets() or not _keeps_preview(_stage):
 		return false
 	var preview: MovePreview = _previews.run_pending(_session)
 	if preview == null:
@@ -722,6 +814,8 @@ func run_preview_frame() -> bool:
 	if move_preview_marks != null:
 		move_preview_marks.show_preview(preview, view.tile_to_position(preview.tile))
 	_show_intents()
+	if _stage != Stage.MOVE:
+		_draw_danger_zone()
 	return true
 
 
@@ -769,7 +863,7 @@ func step_back() -> bool:
 	if _history.is_empty():
 		return false
 	match _stage:
-		Stage.ACTION, Stage.TARGET, Stage.CONFIRM, Stage.END_CONFIRM:
+		Stage.ACTION, Stage.TARGET, Stage.CONFIRM, Stage.END_CONFIRM, Stage.DETAIL:
 			panel_host.back()
 	var leaving: Stage = _stage
 	var previous: Stage = _history.pop_back()
@@ -783,6 +877,11 @@ func step_back() -> bool:
 			_action = null
 			_end_tile = CombatFact.NO_TILE
 			move_cursor(_cursor)
+			# The snap back clears the picked tile's preview, so the session's intents and zone
+			# return (question 35 (1)).
+			# ASSUMPTION: the cursor stays on the picked tile and its hover preview isn't asked
+			# again until the cursor moves, so the session's intents stay shown after Cancel.
+			_clear_preview()
 		Stage.TARGET:
 			_targets = null
 			_picker = null
@@ -792,6 +891,10 @@ func step_back() -> bool:
 			_forecast_panel = null
 			_confirm_dialog = null
 			_show_current_target()
+		Stage.DETAIL:
+			_detail_panel = null
+			# Asks MOVE's hover preview again, which DETAIL dropped.
+			move_cursor(_cursor)
 	_redraw()
 	return true
 
@@ -867,6 +970,13 @@ func _can_act_now(context: StringName, action: StringName) -> bool:
 			if context == &"IDLE":
 				return true
 			return _targets != null and _targets.targets().size() > 1
+		&"unit_detail":
+			if context == &"DETAIL":
+				return true
+			return unit_detail_scene != null and not detail_unit().is_empty()
+		&"ui_up", &"ui_down":
+			if context == &"DETAIL":
+				return is_instance_valid(_detail_panel) and _detail_panel.can_scroll()
 	return true
 
 
@@ -916,12 +1026,17 @@ func _pick_tile(tile: Vector2i) -> void:
 	)
 	if options.is_empty():
 		return
+	# Kept from here to CONFIRM; a request already shown or running for the tile is reused.
+	if _has_preview_widgets():
+		_previews.request(_unit_id, tile)
 	if not view.stage_walk(_unit_id, _path):
 		_open_action_menu(options)
-		return
-	_walk_options = options
-	_advance(Stage.WALK)
-	_redraw()
+	else:
+		_walk_options = options
+		_advance(Stage.WALK)
+		_redraw()
+	_show_intents()
+	_draw_danger_zone()
 
 
 # Opens the action menu on options, stepping forward into ACTION.
@@ -1045,7 +1160,8 @@ func _request_preview(tile: Vector2i) -> void:
 	_clear_preview()
 
 
-# Drops the preview, its damage and its intents; the display falls back to the live intents.
+# Drops the preview, its damage, its intents and its danger zone; the display and the zone fall
+# back to the session's.
 func _clear_preview() -> void:
 	var had_preview: bool = _previews.shown() != null
 	_previews.clear()
@@ -1054,15 +1170,34 @@ func _clear_preview() -> void:
 		move_preview_marks.clear()
 	if had_preview:
 		_show_intents()
+		_draw_danger_zone()
 
 
 func _has_preview_widgets() -> bool:
 	return move_preview_marks != null or intent_display != null
 
 
-# Draws the intents that apply now on the intent display: the shown move preview's in MOVE, else
-# the session's, while they are current (no newer fact), the board is settled and no command is
-# waited on; otherwise none, so no icon stands where a token is still walking.
+# Whether stage shows a move preview: MOVE the hovered tile's, and WALK to CONFIRM the picked
+# tile's, kept from the pick until Cancel snaps the token back (question 35 (1)).
+func _keeps_preview(stage: Stage) -> bool:
+	return stage in [Stage.MOVE, Stage.WALK, Stage.ACTION, Stage.TARGET, Stage.CONFIRM]
+
+
+# The move preview the board shows now: the queue's in MOVE; from WALK to CONFIRM only the picked
+# tile's; null elsewhere, or while it is still on its worker thread.
+func _shown_preview() -> MovePreview:
+	if not _keeps_preview(_stage):
+		return null
+	var preview: MovePreview = _previews.shown()
+	if preview == null or _stage == Stage.MOVE:
+		return preview
+	return preview if preview.unit_id == _unit_id and preview.tile == _end_tile else null
+
+
+# Draws the intents that apply now on the intent display: the shown move preview's
+# (_shown_preview()), else the session's, while they are current (no newer fact), the board is
+# settled and no command is waited on; otherwise none, so no icon stands where a token is still
+# walking.
 func _show_intents() -> void:
 	if not is_instance_valid(intent_display):
 		return
@@ -1071,7 +1206,7 @@ func _show_intents() -> void:
 	var changed: PackedStringArray = []
 	if _session != null and not _session.is_finished and not _is_waiting and view.is_settled():
 		var seq: int = _session.last_seq()
-		var preview: MovePreview = _previews.shown() if _stage == Stage.MOVE else null
+		var preview: MovePreview = _shown_preview()
 		if preview != null and preview.intents != null and preview.based_on_seq == seq:
 			shown = preview.intents
 			is_preview = true
@@ -1096,8 +1231,10 @@ func _hovered_enemy() -> String:
 	return occupant
 
 
-# Draws the danger zone (red) and its support tiles (purple) while it is toggled on, computing
-# them on the board as it stands when none is kept; clears both otherwise.
+# Draws the danger zone (red) and its support tiles (purple) while it is toggled on: from WALK to
+# CONFIRM the picked tile's move preview's zone once it is drawn, else the board's as it stands,
+# computed when none is kept; clears both otherwise. The preview's support tiles are the board's
+# reach less what its zone threatens: support reach isn't re-planned for the move.
 func _draw_danger_zone() -> void:
 	# The board can be freed first when the screen is torn down; unbind() still calls this.
 	if not is_instance_valid(view) or view.get_danger_overlay() == null:
@@ -1108,14 +1245,38 @@ func _draw_danger_zone() -> void:
 		overlay.clear()
 		support.clear()
 		return
-	if _danger == null:
-		_danger = DangerZone.compute(_session.engine)
-		_danger_support = TurnInputModel.danger_support_tiles(_session, _danger)
+	var zone: DangerZone = _picked_danger()
+	var support_tiles: Array[Vector2i] = []
+	# A kept preview with no zone of its own falls back to the board's, as before it was drawn.
+	if zone != null:
+		support_tiles = TurnInputModel.danger_support_tiles(_session, zone)
+	else:
+		if _danger == null:
+			_danger = DangerZone.compute(_session.engine)
+			_danger_support = TurnInputModel.danger_support_tiles(_session, _danger)
+		zone = _danger
+		support_tiles = _danger_support
 	var tiles: Array[Vector2i] = []
-	tiles.assign(_danger.combined.keys())
+	tiles.assign(zone.combined.keys())
 	tiles.sort_custom(MapLayout.is_before)
 	overlay.show_tiles(tiles)
-	support.show_tiles(_danger_support)
+	support.show_tiles(support_tiles)
+
+
+# The danger zone of the picked tile's move preview, from WALK to CONFIRM while it is current; null
+# in MOVE (whose zone stays the board's) and elsewhere.
+func _picked_danger() -> DangerZone:
+	if _stage == Stage.MOVE:
+		return null
+	var preview: MovePreview = _shown_preview()
+	if (
+			preview == null
+			or preview.intents == null
+			or preview.based_on_seq != _session.last_seq()
+	):
+		return null
+	# Null when the preview kept the session's own intents (the unit's own tile) and they hold none.
+	return preview.intents.danger
 
 
 # Recomputes the danger zone from the board that just settled and redraws it, turning it off when
@@ -1154,9 +1315,7 @@ func _advance(stage: Stage) -> void:
 
 func _set_stage(stage: Stage) -> void:
 	_stage = stage
-	if stage != Stage.MOVE:
-		# ASSUMPTION: the preview shows only while picking a tile; the menu, target and forecast
-		# that follow show no preview of the picked tile.
+	if not _keeps_preview(stage):
 		_clear_preview()
 	if view != null and view.get_cursor() != null:
 		view.get_cursor().is_targeting = stage == Stage.TARGET or stage == Stage.CONFIRM
@@ -1177,6 +1336,7 @@ func _clear_selection() -> void:
 	_forecast_panel = null
 	_confirm_dialog = null
 	_picker = null
+	_detail_panel = null
 	_walk_options.clear()
 	_targets_by_tile.clear()
 
@@ -1277,12 +1437,12 @@ func _redraw() -> void:
 				support.show_tiles(tiles)
 			else:
 				attack.show_tiles(tiles)
-		Stage.END_CONFIRM:
+		Stage.END_CONFIRM, Stage.DETAIL:
 			if not _unit_id.is_empty():
 				move.show_tiles(_move_tiles)
 				attack.show_tiles(_attack_tiles)
 				support.show_tiles(_support_tiles)
-	if (_stage == Stage.MOVE or _stage == Stage.END_CONFIRM) and not _unit_id.is_empty():
+	if _stage in [Stage.MOVE, Stage.END_CONFIRM, Stage.DETAIL] and not _unit_id.is_empty():
 		_path = TurnInputModel.path_to(_session, _unit_id, _cursor)
 	_draw_path()
 	_draw_target_marks()
@@ -1439,6 +1599,11 @@ func _on_end_turn_dialog_confirmed(_result: Variant) -> void:
 
 func _on_panel_cancelled() -> void:
 	step_back()
+
+
+# The detail's body grew or shrank past the panel: whether up and down scroll it may have changed.
+func _on_detail_panel_scroll_range_changed() -> void:
+	live_actions_changed.emit()
 
 
 func _on_session_command_rejected(seat: int, _arrival: int, reason: String) -> void:

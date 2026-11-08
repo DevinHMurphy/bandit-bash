@@ -12,7 +12,8 @@
 extends "res://tests/ui/ui_suite.gd"
 ## Combat UI input suite (combat UI plan, P07): turn input, targeting, the control hints and pads
 ## (joypad bindings, the device adapter, glyphs, focus navigation, the cursor's repeat, hints that
-## hide when they can do nothing), a cases file each in [code]tests/ui/[/code] (preloaded below;
+## hide when they can do nothing), unit detail (opened and closed by keys, mouse and pad), a cases
+## file each in [code]tests/ui/[/code] (preloaded below;
 ## each one's class doc lists its checks); then the gameplay screen's pause menu, opened by Esc and
 ## closed by Esc or Resume, pausing the tree and the board's playback and unpausing both, with the
 ## hint bar following over real frames. The shared helpers are [code]tests/ui/ui_suite.gd[/code]'s.
@@ -29,6 +30,7 @@ const TurnInputCases = preload("res://tests/ui/turn_input_cases.gd")
 const TargetingCases = preload("res://tests/ui/targeting_cases.gd")
 const HintBarCases = preload("res://tests/ui/hint_bar_cases.gd")
 const PadCases = preload("res://tests/ui/pad_cases.gd")
+const UnitDetailCases = preload("res://tests/ui/unit_detail_cases.gd")
 
 # How long the pause case holds the menu open, checking the board doesn't move meanwhile.
 const PAUSE_HOLD_MSEC: int = 300
@@ -49,6 +51,7 @@ func _process(_delta: float) -> bool:
 		TargetingCases.new(_check, root).run()
 		HintBarCases.new(_check, root).run()
 		PadCases.new(_check, root).run()
+		UnitDetailCases.new(_check, root).run()
 		return false
 	if not _is_pause_started:
 		_is_pause_started = true
