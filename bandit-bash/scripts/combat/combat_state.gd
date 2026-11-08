@@ -6,7 +6,7 @@
 # File:     combat_state.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: November 5, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 class_name CombatState
@@ -32,7 +32,7 @@ extends SandboxState
 ## [b]Saves and mirrors:[/b] [method capture] and [method restore] carry everything but
 ## [member grid] and [member map] (P04's, [method MapState.capture]) as plain JSON, for snapshots
 ## and the [code]combat_state[/code] save section; a client mirror applies the host's facts, map
-## objects' and reinforcement points' included, with [method follow].
+## objects', reinforcement points' and the darkness's included, with [method follow].
 ##
 ## @tutorial(Combat core plan): docs/plans/2026-10-26-combat-core.md
 ## @tutorial(Save system design): docs/design/save-system.md
@@ -403,11 +403,11 @@ func restore(data: Dictionary) -> Error:
 ## Applies [param facts], one batch the host recorded, to this state and to [param engine], as a
 ## client mirror does: the combat core's facts change the units, the turn and the phase as the
 ## host's rules did, and the engine follows the effects' state ([method EffectEngine.follow]) in
-## step, so a value read mid-batch (the Stance a refresh sets, a Pouch item's last use) is the one
-## the host read. Map objects follow their changes (doors, loot, braziers, breakables, a key's last
-## use, a Cutthroat's dropped loot), and points their closing and waves sent. Draws no roll and
-## fires nothing. Not followed: a point's waiting units, which no fact carries; a non-final End Turn
-## or Start on a map several seats share.
+## step, so a value read mid-batch (a refresh's Stance, a Pouch item's last use) is the host's.
+## Map objects, points (closing, waves sent) and the darkness (released waves, layers, contacts,
+## arrival) follow their facts. Draws no roll and fires nothing. Not followed: what no fact
+## carries (a point's waiting units, a wave's reach and tiles entered); a non-final End Turn or
+## Start on a map several seats share.
 ## [param spawned]: units this state doesn't know, by id, each placed at its
 ## [constant CombatFact.Kind.UNIT_SPAWNED] ([member CombatSession.FactBatch.spawned]); add their
 ## weapons, bases and effects to [param engine] first.
@@ -489,6 +489,8 @@ func follow(
 					load_bases(engine, fact.actor_id)
 			CombatFact.Kind.OBJECT_STATE_CHANGED:
 				_follow_object_change(fact)
+			CombatFact.Kind.DARKNESS_ADVANCED:
+				_follow_darkness(fact)
 			CombatFact.Kind.REINFORCEMENT_ARRIVED:
 				var sender: MapState.PointState = map.point(fact.actor_id)
 				if sender != null:
@@ -706,6 +708,23 @@ func _follow_object_change(fact: CombatFact) -> void:
 			if has_unit(changed.id):
 				_units[changed.id].is_defeated = true
 				_occupancy.erase(changed.tile)
+		MapObjects.Change.CONTACTED, MapObjects.Change.ERODED:
+			map.darkness.contacts[changed.id] = fact.amount
+
+
+# A DARKNESS_ADVANCED as Darkness recorded it: a release adds its source's wave, at reach 0 with no
+# tile entered (no fact carries either), and the first release sets the arrival flag; a deepened
+# tile takes its new layer.
+func _follow_darkness(fact: CombatFact) -> void:
+	if (fact.flags & CombatFact.Flag.DARKNESS_RELEASED) != 0:
+		var wave: DarknessState.Wave = DarknessState.Wave.new()
+		wave.source = fact.key
+		map.darkness.waves.append(wave)
+		if (fact.flags & CombatFact.Flag.DARKNESS_ARRIVED) != 0:
+			map.has_darkness_arrived = true
+		return
+	if fact.tile != CombatFact.NO_TILE:
+		map.darkness.layers[fact.tile] = fact.amount as WhileLayerCondition.Layer
 
 
 # The seats with player units on the map, ascending: the seats that have ended at a player Phase

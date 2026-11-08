@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 5, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -14,8 +14,9 @@ extends SceneTree
 ## [CombatSession], [FactPlayback] and [PresentationRequest]; [CombatEncounter]'s setup steps,
 ## stream injection, cross-map effects, routing, transfers and each map's end; [CampaignSession]'s
 ## battle bridge and grants, with armies loaded through [Loadout]; and the
-## [code]CampaignService[/code] autoload's lifecycle and its [RngSaveSection]s and
-## [InstanceIdSaveSection]s. Serialization, snapshots, mirrors and repro dumps are in
+## [code]CampaignService[/code] autoload's lifecycle, its [RngSaveSection]s and
+## [InstanceIdSaveSection]s, and battle resume, after the darkness's arrival too. Serialization,
+## snapshots, mirrors and repro dumps are in
 ## wire_cases.gd; the battle save ([CombatStateSection], resuming mid-phase, mirrors after a swap
 ## or a spawn, units on their way) in save_cases.gd; the map save ([CombatMapSection], objects,
 ## points and waiting units through a resume, a mirror and a dump) in map_save_cases.gd. Every
@@ -84,6 +85,10 @@ const OTHER_SEED: int = 0x123456789ABCD
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
 const M1_FLOOR: int = 1
 const M1_NODE: int = 1
+# The turn the arrival resume case saves on: M1's turn par is 5, so the darkness arrives at the
+# end of turn 4, turn 5's step creeps it onto the commander's tile, and turn 6's releases the next
+# wave. On this seed a battle of End Turns only lasts into turn 8.
+const ARRIVAL_SAVE_TURN: int = 6
 
 var _failures: int = 0
 var _passes: int = 0
@@ -145,6 +150,7 @@ func _process(_delta: float) -> bool:
 	_run(_test_service_combat_state)
 	_run(_test_service_combat_map)
 	_run(_test_service_resume_battle)
+	_run(_test_service_resume_after_arrival)
 	_run(_test_service_resume_falls_back)
 
 	_run(_test_logger_gating)
@@ -2258,6 +2264,123 @@ func _test_service_resume_battle() -> bool:
 	return true
 
 
+# Battle resume after the darkness arrived (darkness plan, DK5): the M1 battle played to turn 6
+# (arrival at the end of turn 4, par 5, then a creep), saved, then played on through darkness
+# damage at the player Phase End (the commander's tile is flooded) and turn 6's release;
+# uninterrupted, and with Save & Quit then Continue at the save. The resumed battle has the saved
+# layers, waves (reach and tiles entered), contacts and arrival, then the same facts and darkness
+# as the uninterrupted one.
+func _test_service_resume_after_arrival() -> bool:
+	if not _has_test_user_dir():
+		_skips += 1
+		print("SKIP  service resume after arrival: needs a test user folder (see the class doc)")
+		return true
+	var saves: Node = root.get_node(^"SaveService")
+	var service: Node = root.get_node(^"CampaignService")
+	var straight: ResumeRun = _play_arrival_script(saves, service, false)
+	var resumed: ResumeRun = _play_arrival_script(saves, service, true)
+
+	_check("service resume after arrival: saved on turn 6, the wave crept and entered tiles", (
+			straight.errors.is_empty()
+			and resumed.errors.is_empty()
+			and resumed.saved_turns == [ARRIVAL_SAVE_TURN]
+			and straight.saved_turns == [ARRIVAL_SAVE_TURN]
+			and resumed.has_arrived
+			and resumed.saved_darkness.size() == 1
+			and resumed.saved_darkness[0].contains("\"reach\":2")
+			and resumed.saved_darkness[0].contains("\"DUSK\"")
+	), "%s; %s; turns %s; %s" % [
+		straight.errors, resumed.errors, resumed.saved_turns, resumed.saved_darkness,
+	])
+	_check("service resume after arrival: Continue loads the darkness, reach and entries too", (
+			resumed.resumes == [OK]
+			and resumed.resume_points == [CombatData.ResumePoint.BATTLE]
+			and resumed.loaded_darkness == resumed.saved_darkness
+			and resumed.saved_darkness == straight.saved_darkness
+			and resumed.loaded_hashes == resumed.saved_hashes
+			and resumed.saved_hashes == straight.saved_hashes
+	), "resumes %s at %s;\n      loaded %s\n      saved  %s" % [
+		resumed.resumes, resumed.resume_points, resumed.loaded_darkness, resumed.saved_darkness,
+	])
+	var after_save: Array = []
+	for wire: Variant in straight.facts:
+		var fact: CombatFact = CombatFact.from_wire(wire as Array)
+		if fact != null and fact.seq > straight.saved_seqs[0]:
+			after_save.append(fact)
+	var releases: int = 0
+	var hurt: int = 0
+	for fact: CombatFact in after_save:
+		var is_release: bool = (fact.flags & CombatFact.Flag.DARKNESS_RELEASED) != 0
+		if fact.kind == CombatFact.Kind.DARKNESS_ADVANCED and is_release:
+			releases += 1
+		if fact.kind == CombatFact.Kind.DARKNESS_DAMAGE_TAKEN:
+			hurt += 1
+	_check("service resume after arrival: a release and darkness damage after the save", (
+			releases >= 1 and hurt >= 1
+	), "%d releases, %d hurt" % [releases, hurt])
+	_check("service resume after arrival: the same fact log and darkness as uninterrupted", (
+			not straight.facts.is_empty()
+			and JSON.stringify(resumed.facts) == JSON.stringify(straight.facts)
+			and resumed.darkness == straight.darkness
+			and resumed.next_after == straight.next_after
+	), "%d and %d facts;\n      %s\n      %s" % [
+		resumed.facts.size(), straight.facts.size(), resumed.darkness, straight.darkness,
+	])
+	return true
+
+
+# Plays the arrival script on a new solo run's M1 battle: Start, then End Turn until turn
+# ARRIVAL_SAVE_TURN; a checkpoint; then End Turn twice (turn 6's darkness damage and release, then
+# turn 7). With [param quits], the checkpoint is followed by a quit and a Continue.
+# [member ResumeRun.darkness] is the darkness at the end, as captured.
+func _play_arrival_script(saves: Node, service: Node, quits: bool) -> ResumeRun:
+	var result: ResumeRun = ResumeRun.new()
+	SaveFile.delete_folder("user://saves/")
+	saves.call(&"open_save_file", 1)
+	saves.call(&"start_new_solo_run", RUN_SEED)
+	var run: CampaignSession = service.get(&"session")
+	var built: StartingArmy = StartingArmy.build(EffectCatalog.index(), "mercenary", run.ids)
+	if service.call(&"begin_battle", _m1_request(run, built)) != OK:
+		result.errors.append("begin")
+		return result
+	_resume_step(result, run, StartCommand.new(0))
+	var session: CombatSession = run.encounter.get_session(0)
+	while session.state.turn < ARRIVAL_SAVE_TURN and result.errors.is_empty():
+		_resume_step(result, run, EndTurnCommand.new(0))
+		session = run.encounter.get_session(0)
+
+	result.saved_turns.append(session.state.turn)
+	result.saved_hashes.append(session.state_hash())
+	result.saved_seqs.append(session.last_seq())
+	result.saved_darkness.append(JSON.stringify(session.state.map.darkness.capture()))
+	result.has_arrived = session.state.map.has_darkness_arrived
+	if saves.call(&"save_checkpoint") != OK:
+		result.errors.append("save")
+	if quits:
+		saves.call(&"close_save_file")
+		saves.call(&"open_save_file", 1)
+		saves.call(&"continue_solo_run")
+		run = service.get(&"session")
+		result.resume_points.append(saves.get(&"resume_point"))
+		result.resumes.append(service.call(&"resume_battle", _m1_request(run, built)))
+		if run.encounter == null:
+			result.errors.append("resume")
+			return result
+		session = run.encounter.get_session(0)
+		result.loaded_hashes.append(session.state_hash())
+		result.loaded_darkness.append(JSON.stringify(session.state.map.darkness.capture()))
+
+	_resume_step(result, run, EndTurnCommand.new(0))
+	_resume_step(result, run, EndTurnCommand.new(0))
+	session = run.encounter.get_session(0)
+	result.darkness = JSON.stringify(session.state.map.darkness.capture())
+	result.next_after = run.ids.get_next_value()
+	saves.call(&"abandon_run", CampaignData.Mode.SOLO)
+	saves.call(&"close_save_file")
+	SaveFile.delete_folder("user://saves/")
+	return result
+
+
 # How many values the resume script set (7) a write-back brought back: in a unit or item instance's
 # counters, or a carrier's campaign lane.
 func _written_count(written: Dictionary) -> int:
@@ -3249,6 +3372,9 @@ class ResumeRun:
 	var counted: PackedStringArray = []
 	var darkness: String = ""
 	var has_arrived: bool = false
+	# Per checkpoint, the darkness captured as saved and (with quits) as loaded.
+	var saved_darkness: PackedStringArray = []
+	var loaded_darkness: PackedStringArray = []
 	# The id minted after the last command, and the counter after it.
 	var minted: String = ""
 	var next_after: int = 0

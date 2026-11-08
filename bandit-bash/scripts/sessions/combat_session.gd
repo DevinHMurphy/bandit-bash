@@ -6,7 +6,7 @@
 # File:     combat_session.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 3, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 class_name CombatSession
@@ -27,9 +27,10 @@ extends RefCounted
 ## Main thread only. It depends on no scene or autoload except [code]NetLog[/code] (through
 ## [method logger]), and builds no log text unless the line prints.[br]
 ## [b]Snapshots and mirrors:[/b] [method snapshot] and [method load_snapshot] carry the map between
-## commands as plain JSON (its units and turn, the effects, the map objects and reinforcement
-## points, the run seed, the build version and the roll stream's state), and are what saving
-## ([CombatStateSection], [CombatMapSection]) and rejoining both build on. A client's mirror is a
+## commands as plain JSON (its units and turn, the effects, the map objects, reinforcement points
+## and darkness, the run seed, the build version and the roll stream's state), and are what saving
+## ([CombatStateSection], [CombatMapSection], [DarknessSaveSection]) and rejoining both build on.
+## A client's mirror is a
 ## session that only ever receives the host's batches through
 ## [method apply_batch]: applied once each by seq ([method CombatState.follow]), then checked
 ## against the host's [member FactBatch.state_hash] in debug builds. [method debug_dump] writes a
@@ -75,7 +76,7 @@ const DUMP_DIR: String = "user://logs"
 
 # The shape of snapshot() and debug_dump() output; raised when either changes. Snapshots are never
 # saved as they are (CombatStateSection saves their parts), so an older format is refused.
-const _SNAPSHOT_FORMAT: int = 3
+const _SNAPSHOT_FORMAT: int = 4
 
 # The NetLog autoload's script, used as a type and for its enums. The autoload is reached by node
 # path, never by name: the sessions also compile in a headless --script run, before autoload names
@@ -369,8 +370,8 @@ func snapshot(reference: Callable = Callable()) -> Dictionary:
 
 ## Replaces this map's state with [param data] from [method snapshot], also after a trip through
 ## JSON: the units and turn first, then the effect engine's state (which needs the units back),
-## the map objects and reinforcement points, the roll stream's position (left as it is when
-## [code]rolls[/code] is empty) and the session's own fields. The fact log, catch-up facts and
+## the map objects, reinforcement points and darkness, the roll stream's position (left as it is
+## when [code]rolls[/code] is empty) and the session's own fields. The fact log, catch-up facts and
 ## queue start empty, and seqs go on from the snapshot's. Load it into a session on the same map;
 ## a mirror needs no objects placed first. [param resolve] and [param shared]: see
 ## [method EffectEngine.restore]; a map object's reactions are found first
@@ -449,16 +450,19 @@ func load_snapshot(
 
 ## A number standing for this map's state, compared between the host and a mirror after each batch
 ## (event bus plan, Logging and debugging): the [code]session[/code], [code]combat_state[/code] and
-## [code]effects[/code] parts of [method snapshot], map objects' units included, and the
-## [code]entities[/code] part of its map (objects, contents and loot). The roll stream is left out,
-## since only the host draws, and so are the reinforcement points: a mirror can't follow their
-## waiting units, which no fact carries.
+## [code]effects[/code] parts of [method snapshot], map objects' units included, the
+## [code]entities[/code] part of its map (objects, contents and loot), and what a mirror follows of
+## its darkness: the arrival flag, each wave's source, the layers and the contacts. Left out, since
+## no fact carries them: the roll stream (only the host draws), the reinforcement points' waiting
+## units, a wave's reach and tiles entered, and the setup's sources and drain.
 func state_hash() -> int:
+	var map_part: Dictionary = state.map.capture()
 	var parts: Dictionary = {
 		"session": _capture_session(),
 		"combat_state": state.capture(),
 		"effects": engine.capture(_name_definition),
-		"map": state.map.capture()["entities"],
+		"map": map_part["entities"],
+		"darkness": _followed_darkness(map_part["darkness"] as Dictionary),
 	}
 	return JSON.stringify(parts, "", true).hash()
 
@@ -1163,6 +1167,23 @@ static func _counter_target(instance: EffectInstance, lane: int) -> int:
 
 
 # The build's version (application/config/version), which snapshots and dumps name.
+# The parts of a map's darkness (DarknessState.capture()) a mirror follows (CombatState.follow),
+# for state_hash(): the map's arrival flag, each wave's source, the layers and the contacts.
+# ASSUMPTION: the hash covers only what a mirror can follow, as it leaves out the points' waiting
+# units; the sources, drain and first release come with the snapshot, never a fact.
+func _followed_darkness(darkness: Dictionary) -> Dictionary:
+	var wave_sources: Array = []
+	# Untyped: a capture's waves are plain data.
+	for wave: Variant in darkness["waves"]:
+		wave_sources.append((wave as Dictionary)["source"])
+	return {
+		"arrived": state.map.has_darkness_arrived,
+		"wave_sources": wave_sources,
+		"layers": darkness["layers"],
+		"contacts": darkness["contacts"],
+	}
+
+
 static func _game_version() -> String:
 	return str(ProjectSettings.get_setting("application/config/version", ""))
 

@@ -6,7 +6,7 @@
 # File:     darkness_state.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 class_name DarknessState
@@ -26,10 +26,15 @@ extends RefCounted
 ## a tile that stops being floodable keeps its layer. Layers never fall.[br]
 ## [DarknessSetup] chooses the sources, the drain and [member first_release]. Scheduling waves,
 ## erosion, damage and facts belong to the callers; each operation returns what deepened, in
-## order, for them to record.
+## order, for them to record.[br]
+## [b]Saves and mirrors:[/b] [method capture] and [method restore] carry it as plain JSON, the
+## [code]darkness[/code] part of [method MapState.capture] and of the [DarknessSaveSection]. A
+## mirror follows its layers, contacts and released waves ([method CombatState.follow]), never a
+## wave's reach or entered tiles, which no fact carries.
 ##
 ## @tutorial(The darkness): docs/design/the-darkness.md
 ## @tutorial(The darkness plan): docs/plans/2026-11-03-the-darkness.md
+## @tutorial(Save system design): docs/design/save-system.md
 
 ## How far every wave's reach grows per [method creep], in flow cost (the-darkness.md, Values:
 ## creep speed 2: two tiles downhill, one level, under one uphill).
@@ -127,6 +132,122 @@ func copy() -> DarknessState:
 	return state_copy
 
 
+## This state as plain JSON values: [code]sources[/code] (each its tiles), [code]drain[/code]
+## ([code]""[/code] for none), [code]first_release[/code], [code]waves[/code] (source index, reach,
+## tiles entered), [code]layers[/code] by tile, [code]contacts[/code] by object id and
+## [code]arrived[/code] ([method has_arrived]). Tiles are [code]"x,y"[/code] strings, layers their
+## [enum WhileLayerCondition.Layer] names. Entered tiles and layers are written row-major and
+## contacts by id, so equal states write equal text; nothing reads them in order.
+func capture() -> Dictionary:
+	var source_list: Array = []
+	for source: Source in sources:
+		source_list.append(_tile_texts(source.tiles))
+	var wave_list: Array = []
+	for wave: Wave in waves:
+		var entered: Array[Vector2i] = []
+		entered.assign(wave.entered.keys())
+		entered.sort_custom(MapLayout.is_before)
+		wave_list.append({
+			"source": wave.source,
+			"reach": wave.reach,
+			"entered": _tile_texts(entered),
+		})
+	var flooded: Array[Vector2i] = []
+	flooded.assign(layers.keys())
+	flooded.sort_custom(MapLayout.is_before)
+	var by_tile: Dictionary = {}
+	for tile: Vector2i in flooded:
+		by_tile[_tile_text(tile)] = WhileLayerCondition.Layer.find_key(layers[tile]) as String
+	var object_ids: Array[String] = []
+	object_ids.assign(contacts.keys())
+	object_ids.sort()
+	var by_object: Dictionary = {}
+	for object_id: String in object_ids:
+		by_object[object_id] = contacts[object_id]
+	return {
+		"sources": source_list,
+		"drain": "" if drain == CombatFact.NO_TILE else _tile_text(drain),
+		"first_release": first_release,
+		"waves": wave_list,
+		"layers": by_tile,
+		"contacts": by_object,
+		"arrived": has_arrived(),
+	}
+
+
+## Replaces everything [method capture] holds with [param data], also after a trip through JSON.
+## Returns [constant OK], or [constant ERR_INVALID_DATA], changing nothing, when a key is missing
+## or malformed, a wave names no source or enters a tile twice, a layer is DRY or unknown, a
+## contact count is below 1, or [code]arrived[/code] disagrees with the waves.
+func restore(data: Dictionary) -> Error:
+	var source_data: Variant = data.get("sources", null)
+	var drain_data: Variant = data.get("drain", null)
+	var release: Variant = _release_from(data.get("first_release", null))
+	var wave_data: Variant = data.get("waves", null)
+	var layer_data: Variant = data.get("layers", null)
+	var contact_data: Variant = data.get("contacts", null)
+	var arrived: Variant = data.get("arrived", null)
+	if (
+			not source_data is Array
+			or not drain_data is String
+			or release == null
+			or not wave_data is Array
+			or not layer_data is Dictionary
+			or not contact_data is Dictionary
+			or not arrived is bool
+	):
+		return ERR_INVALID_DATA
+	# Untyped: the parts come from JSON and are checked entry by entry.
+	var restored_sources: Array[Source] = []
+	for entry: Variant in source_data:
+		var tiles: Array[Vector2i] = _tiles_from(entry)
+		if not entry is Array or tiles.size() != (entry as Array).size():
+			return ERR_INVALID_DATA
+		var source: Source = Source.new()
+		source.tiles = tiles
+		restored_sources.append(source)
+	var restored_drain: Vector2i = CombatFact.NO_TILE
+	if not (drain_data as String).is_empty():
+		restored_drain = _tile_from(drain_data)
+		if restored_drain == CombatFact.NO_TILE:
+			return ERR_INVALID_DATA
+	var restored_waves: Array[Wave] = []
+	for entry: Variant in wave_data:
+		var wave: Wave = _wave_from(entry, restored_sources.size())
+		if wave == null:
+			return ERR_INVALID_DATA
+		restored_waves.append(wave)
+	if (arrived as bool) == restored_waves.is_empty():
+		return ERR_INVALID_DATA
+	var restored_layers: Dictionary[Vector2i, WhileLayerCondition.Layer] = {}
+	for key: Variant in layer_data:
+		var tile: Vector2i = _tile_from(key)
+		var layer_name: Variant = (layer_data as Dictionary)[key]
+		if (
+				tile == CombatFact.NO_TILE
+				or not layer_name is String
+				or not WhileLayerCondition.Layer.has(layer_name)
+				or layer_name == "DRY"
+		):
+			return ERR_INVALID_DATA
+		var layer_value: int = WhileLayerCondition.Layer[layer_name]
+		restored_layers[tile] = layer_value as WhileLayerCondition.Layer
+	var restored_contacts: Dictionary[String, int] = {}
+	for key: Variant in contact_data:
+		var count: Variant = _whole((contact_data as Dictionary)[key])
+		if not key is String or (key as String).is_empty() or count == null or (count as int) < 1:
+			return ERR_INVALID_DATA
+		restored_contacts[key as String] = count
+
+	sources = restored_sources
+	drain = restored_drain
+	first_release = release
+	waves = restored_waves
+	layers = restored_layers
+	contacts = restored_contacts
+	return OK
+
+
 # Lets each of entering, in order, enter its unentered tiles within reach, in flow order (by flow
 # cost, then row-major).
 func _enter(state: CombatState, entering: Array[Wave]) -> Array[Deepening]:
@@ -198,6 +319,92 @@ static func _flow_order(costs: Dictionary[Vector2i, int]) -> Array[Vector2i]:
 		return MapLayout.is_before(a, b)
 	)
 	return order
+
+
+# A tile as capture() writes it: "x,y".
+static func _tile_text(tile: Vector2i) -> String:
+	return "%d,%d" % [tile.x, tile.y]
+
+
+static func _tile_texts(tiles: Array[Vector2i]) -> Array:
+	var texts: Array = []
+	for tile: Vector2i in tiles:
+		texts.append(_tile_text(tile))
+	return texts
+
+
+# A tile from _tile_text(); NO_TILE when value isn't one.
+static func _tile_from(value: Variant) -> Vector2i:
+	if not value is String:
+		return CombatFact.NO_TILE
+	var parts: PackedStringArray = (value as String).split(",")
+	if parts.size() != 2 or not parts[0].is_valid_int() or not parts[1].is_valid_int():
+		return CombatFact.NO_TILE
+	return Vector2i(parts[0].to_int(), parts[1].to_int())
+
+
+# The tiles of value, an Array of _tile_text() strings; those that aren't tiles are left out, so
+# a caller compares sizes to refuse them.
+static func _tiles_from(value: Variant) -> Array[Vector2i]:
+	var tiles: Array[Vector2i] = []
+	if not value is Array:
+		return tiles
+	for entry: Variant in value:
+		var tile: Vector2i = _tile_from(entry)
+		if tile != CombatFact.NO_TILE:
+			tiles.append(tile)
+	return tiles
+
+
+# A wave from capture(); null when malformed, when its source isn't below source_count, or when it
+# enters a tile twice.
+static func _wave_from(value: Variant, source_count: int) -> Wave:
+	if not value is Dictionary:
+		return null
+	var data: Dictionary = value
+	var source: Variant = _whole(data.get("source", null))
+	var reach: Variant = _whole(data.get("reach", null))
+	var entered_data: Variant = data.get("entered", null)
+	var entered: Array[Vector2i] = _tiles_from(entered_data)
+	if (
+			source == null
+			or (source as int) < 0
+			or (source as int) >= source_count
+			or reach == null
+			or (reach as int) < 0
+			or not entered_data is Array
+			or entered.size() != (entered_data as Array).size()
+	):
+		return null
+	var wave: Wave = Wave.new()
+	wave.source = source
+	wave.reach = reach
+	for tile: Vector2i in entered:
+		if wave.entered.has(tile):
+			return null
+		wave.entered[tile] = true
+	return wave
+
+
+# first_release from capture(), also after JSON: a whole number, or NO_RELEASE, which JSON holds
+# exactly though it is beyond 2^53. Null when it is neither.
+static func _release_from(value: Variant) -> Variant:
+	if value is float and (value as float) == float(NO_RELEASE):
+		return NO_RELEASE
+	return _whole(value)
+
+
+# value as an int when it is one, or a whole float within JSON's exact range; null otherwise.
+# NOTE: The same rule as MapState._whole and CombatState._whole; keep them in step.
+static func _whole(value: Variant) -> Variant:
+	if value is int:
+		return value
+	if not value is float:
+		return null
+	var number: float = value
+	if number != floorf(number) or absf(number) > CombatFact.MAX_EXACT_JSON_INT:
+		return null
+	return int(number)
 
 
 ## One active source: the tiles of one source candidate.

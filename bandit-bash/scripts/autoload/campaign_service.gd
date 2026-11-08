@@ -6,7 +6,7 @@
 # File:     campaign_service.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 5, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 extends Node
@@ -28,7 +28,8 @@ extends Node
 ## ([InstanceIdSaveSection]) sections, one of each in the campaign and the combat block, and the
 ## combat block's [code]combat_state[/code] and [code]effects[/code] ([CombatStateSection]), which
 ## also keep the combat block's core turn and phase equal to the battle's, then its
-## [code]combat_map[/code] and [code]entities[/code] ([CombatMapSection]). Each new session is
+## [code]combat_map[/code] and [code]entities[/code] ([CombatMapSection]), then its
+## [code]darkness[/code] ([DarknessSaveSection]). Each new session is
 ## handed to all of them before [signal session_started], campaign before combat, so a continued
 ## run's streams and id counter are restored before anything draws or mints. A continued run's
 ## saved battle is rebuilt and loaded by [method resume_battle].
@@ -52,6 +53,7 @@ var _campaign_ids: InstanceIdSaveSection = InstanceIdSaveSection.new(SaveSection
 var _combat_ids: InstanceIdSaveSection = InstanceIdSaveSection.new(SaveSection.Block.COMBAT)
 var _combat_state: CombatStateSection = null
 var _combat_map: CombatMapSection = CombatMapSection.new()
+var _darkness: DarknessSaveSection = DarknessSaveSection.new()
 
 # The id counter the combat instance_ids section gave a session built to resume a battle, set
 # again once the saved battle has loaded (the rebuild mints throwaway ids first); empty otherwise.
@@ -76,6 +78,7 @@ func _ready() -> void:
 	# combat_map, which it needs (CombatMapSection).
 	SaveService.register_section(SaveSection.Block.COMBAT, _combat_map)
 	SaveService.register_section(SaveSection.Block.COMBAT, _combat_map.entities)
+	SaveService.register_section(SaveSection.Block.COMBAT, _darkness)
 	SaveService.campaign_activated.connect(_on_save_service_campaign_activated)
 	SaveService.run_ended.connect(_on_save_service_run_ended)
 	SaveService.save_file_closed.connect(_on_save_service_save_file_closed)
@@ -101,10 +104,11 @@ func begin_battle(request: CampaignSession.BattleRequest) -> Error:
 
 ## Resumes the battle a continued run loaded ([constant CombatData.ResumePoint.BATTLE]) from
 ## [param request], the request Begin had, in save-system.md's order (Combat map): with the
-## combat state and map sections both holding, the battle is rebuilt as Begin set it up
+## combat state, map and darkness sections all holding, the battle is rebuilt as Begin set it up
 ## ([method CampaignSession.resume_battle]), its maps loaded ([method CombatMapSection.load_into]),
-## then its units, turn and effects ([method CombatStateSection.load_into]), and the run's id
-## counter set back to the combat checkpoint's. On any failure the saved battle is dropped
+## then their darkness ([method DarknessSaveSection.load_into]), then its units, turn and effects
+## ([method CombatStateSection.load_into]), and the run's id counter set back to the combat
+## checkpoint's. On any failure the saved battle is dropped
 ## ([method SaveService.drop_battle]) and begun again from Begin ([method begin_battle]), minting
 ## on from the run's counter. Returns [constant OK], resumed or restarted;
 ## [constant ERR_INVALID_PARAMETER] for null; [constant ERR_UNCONFIGURED] with no session or no
@@ -121,7 +125,14 @@ func resume_battle(request: CampaignSession.BattleRequest) -> Error:
 	if SaveService.combat == null or SaveService.resume_point != CombatData.ResumePoint.BATTLE:
 		push_error("CampaignService: no saved battle to resume.")
 		return ERR_UNCONFIGURED
-	if not _combat_state.is_holding() or not _combat_map.is_holding():
+	# ASSUMPTION: a combat file from before the darkness section holds no darkness, so its battle
+	# restarts from Begin, as one missing any other combat section does, rather than resuming with
+	# the darkness as setup placed it.
+	if (
+			not _combat_state.is_holding()
+			or not _combat_map.is_holding()
+			or not _darkness.is_holding()
+	):
 		push_warning("CampaignService: the combat file holds no whole battle to resume.")
 	elif session.resume_battle(request, _load_saved_battle) != null:
 		return OK
@@ -158,6 +169,7 @@ func _replace_session(replacement: CampaignSession) -> void:
 	_combat_ids.detach()
 	_combat_state.detach()
 	_combat_map.detach()
+	_darkness.detach()
 	_battle_ids = {}
 	if replacement != null:
 		_attach_rng_sections(replacement)
@@ -165,6 +177,7 @@ func _replace_session(replacement: CampaignSession) -> void:
 		# A saved battle stays held until resume_battle() loads it.
 		_combat_state.attach(replacement)
 		_combat_map.attach(replacement)
+		_darkness.attach(replacement)
 	if previous != null:
 		previous.close()
 		session_ended.emit(previous)
@@ -201,9 +214,12 @@ func _attach_id_sections(built: CampaignSession) -> void:
 
 
 # Loads the held battle into battle, rebuilt as Begin set it up (save-system.md, Combat map, steps
-# 2 to 4): its maps, then its units, turn and effects, then the combat checkpoint's id counter.
+# 2 to 5): its maps, then their darkness, then its units, turn and effects (whose reload carries
+# the maps and darkness), then the combat checkpoint's id counter.
 func _load_saved_battle(battle: CombatEncounter) -> Error:
 	var err: Error = _combat_map.load_into(battle)
+	if err == OK:
+		err = _darkness.load_into(battle)
 	if err == OK:
 		err = _combat_state.load_into(battle)
 	if err == OK and not _battle_ids.is_empty():

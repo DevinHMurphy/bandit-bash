@@ -6,7 +6,7 @@
 # File:     map_state.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: November 4, 2026
+# Modified: November 7, 2026
 # ==============================================================================
 
 class_name MapState
@@ -20,17 +20,15 @@ extends RefCounted
 ## terrain-only and shared. Movement asks this state whether an object stops a unit; standing on an
 ## object's tile is decided by occupancy, as for units. [MapObjects] and [Reinforcements] change it
 ## and record the facts. Plain data with ids only.[br]
-## [b]Saves and mirrors:[/b] [method capture] and [method restore] carry it as plain JSON in two
-## parts, [code]entities[/code] (the objects, contents and loot) and [code]combat_map[/code] (the
-## points, flags and leader marks), for [method CombatSession.snapshot] and the [CombatMapSection]
-## pair. A breakable's HP is its unit's, in [method CombatState.capture]. A mirror follows the
-## objects and points through [method CombatState.follow]. [member darkness] is in neither.
+## [b]Saves and mirrors:[/b] [method capture] and [method restore] carry it as plain JSON in three
+## parts, [code]entities[/code] (the objects, contents and loot), [code]combat_map[/code] (the
+## points, flags and leader marks) and [code]darkness[/code] ([method DarknessState.capture]), for
+## [method CombatSession.snapshot], the [CombatMapSection] pair and the [DarknessSaveSection]. A
+## breakable's HP is its unit's, in [method CombatState.capture]. A mirror follows the objects,
+## points and darkness through [method CombatState.follow].
 ##
 ## @tutorial(Combat map plan): docs/plans/2026-10-27-combat-map.md
 ## @tutorial(Save system design): docs/design/save-system.md
-##
-## @todo: TOD-001 - Save and restore [member darkness] in its own COMBAT section, version 1
-## (darkness plan question 6); a snapshot or Save & Quit loses it until then.
 
 ## Which units an object on a tile stops (map-objects.md). Saved as an int: [b]append only[/b].
 enum Blocking {
@@ -74,7 +72,6 @@ var are_waves_cancelled: bool = false
 ## ([method Darkness.advance]).
 var has_darkness_arrived: bool = false
 
-# TODO(TOD-001): Carry it in saves and snapshots (darkness plan question 6).
 ## The darkness on this map: sources, drain, waves, layers and contacts. Copied for a sandbox, so
 ## [method CombatState.darkness_layer] answers the same in a forecast. Never null.
 var darkness: DarknessState = DarknessState.new()
@@ -156,11 +153,12 @@ func copy() -> MapState:
 	return map_copy
 
 
-## This state as plain JSON values in two parts: [code]entities[/code] (every object by spot index
-## with its state, kind by name and tile as [code][x, y][/code]; contents by container index; the
-## loot found, by seat; the loot carried, by unit id) and [code]combat_map[/code] (every point by
-## index with its waves, how many arrived and its waiting units; the flags; [member leader_ids]).
-## Keys are written in order, so equal states write equal text. [method restore] reverses it.
+## This state as plain JSON values in three parts: [code]entities[/code] (every object by spot
+## index with its state, kind by name and tile as [code][x, y][/code]; contents by container index;
+## the loot found, by seat; the loot carried, by unit id), [code]combat_map[/code] (every point by
+## index with its waves, how many arrived and its waiting units; the flags; [member leader_ids])
+## and [code]darkness[/code] ([method DarknessState.capture]). Keys are written in order, so equal
+## states write equal text. [method restore] reverses it.
 func capture() -> Dictionary:
 	var object_list: Array = []
 	for object_id: String in _sorted_ids():
@@ -199,6 +197,7 @@ func capture() -> Dictionary:
 			"opening_swap_open": opening_swap_open,
 			"leader_ids": Array(leader_ids),
 		},
+		"darkness": darkness.capture(),
 	}
 
 
@@ -210,7 +209,11 @@ func capture() -> Dictionary:
 func restore(data: Dictionary) -> Error:
 	var entities: Variant = data.get("entities", null)
 	var map_part: Variant = data.get("combat_map", null)
-	if not entities is Dictionary or not map_part is Dictionary:
+	var darkness_part: Variant = data.get("darkness", null)
+	if not entities is Dictionary or not map_part is Dictionary or not darkness_part is Dictionary:
+		return ERR_INVALID_DATA
+	var restored_darkness: DarknessState = DarknessState.new()
+	if restored_darkness.restore(darkness_part as Dictionary) != OK:
 		return ERR_INVALID_DATA
 	var object_data: Variant = (entities as Dictionary).get("objects", null)
 	var content_data: Variant = (entities as Dictionary).get("contents", null)
@@ -284,6 +287,7 @@ func restore(data: Dictionary) -> Error:
 	has_darkness_arrived = flags[1]
 	opening_swap_open = flags[2]
 	leader_ids = leaders
+	darkness = restored_darkness
 	_blocking.clear()
 	for object_id: String in objects:
 		var placed: ObjectState = objects[object_id]
