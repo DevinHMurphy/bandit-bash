@@ -7,7 +7,7 @@
 # File:     run_tests.sh
 # Author:
 # Created:  October 29, 2026
-# Modified: November 7, 2026
+# Modified: November 9, 2026
 # ==============================================================================
 # Runs the headless test suites, parse checks and a launch check, and prints one verdict line per
 # run, so a result reads in a few lines instead of the full Godot output. Works from any folder.
@@ -22,6 +22,12 @@
 # <name>/<part> (tests/ui keeps the combat UI's cases shared by its board, input and display
 # suites). Each must print a summary line "--- N passed, M failed ---" (", K skipped" may follow).
 # A tests/ folder with no suite at either level is named in a note and not run.
+#
+# Suites run in parallel, at most JOBS Godot processes at once (default: the machine's core count;
+# JOBS=1 runs them one after another, in the order found). All suites share one test user folder,
+# so any suite whose code mentions user://, SaveFile or SaveService runs one at a time, as a group
+# beside the others. A nested suite counts its whole top folder, where shared cases live. Verdicts
+# print once every suite has finished, always in the order found.
 #
 # Verdicts: PASS; FAIL (a failed test, a script or parse error, a leak, or no summary line);
 # EXIT-CRASH (every test passed but the engine crashed at exit, Godot issue #117975: the results
@@ -58,6 +64,14 @@ if [ "$SUITE_TIMEOUT" -gt 0 ]; then
 	fi
 fi
 
+JOBS="${JOBS:-$(nproc 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)}"
+case "$JOBS" in
+'' | *[!0-9]* | 0)
+	echo "JOBS must be a whole number of at least 1, not '$JOBS'."
+	exit 2
+	;;
+esac
+
 # Output lines that mean a run is broken, whatever its exit code says.
 BROKEN='SCRIPT ERROR|Parse Error|Compile Error|Failed to load script|leaked at exit|resources still in use'
 
@@ -80,6 +94,54 @@ verdict() {
 		failed=1
 		grep -E "^FAIL|$BROKEN" "$3" | head -15 | sed 's/^/    /'
 	fi
+}
+
+# A suite's log file, named with an underscore for a nested suite's slash.
+suite_log() {
+	echo "$LOGS/$(echo "$1" | tr '/' '_').log"
+}
+
+# True when a suite's code can reach the shared test user folder. Comment lines don't count.
+uses_user_folder() {
+	grep -rh --include='*.gd' -v '^[[:space:]]*#' "$PROJECT/tests/${1%%/*}" 2>/dev/null |
+		grep -qE 'user://|SaveFile\.|SaveService'
+}
+
+# Runs one suite, leaving its exit code beside its log and its process id for cancel_run.
+run_suite() {
+	suite_file=$(suite_log "$1")
+	$LIMIT "$GODOT" --headless --path "$PROJECT" --script "res://tests/$1/run_all.gd" >"$suite_file" 2>&1 &
+	echo $! >"$suite_file.pid"
+	wait $!
+	echo $? >"$suite_file.code"
+}
+
+# Runs, in order, each suite given that no other worker has taken. mkdir either creates the claim
+# or fails, even when two workers try at once, so every suite runs exactly once.
+run_unclaimed() {
+	for unclaimed in "$@"; do
+		if mkdir "$(suite_log "$unclaimed").claim" 2>/dev/null; then
+			run_suite "$unclaimed"
+		fi
+	done
+}
+
+# Starts a background worker over the suites given.
+start_worker() {
+	run_unclaimed "$@" &
+	workers="$workers $!"
+}
+
+# On Ctrl+C or kill: stops the workers, so nothing new starts, then the running suites, and removes
+# the override only once they are told to stop.
+cancel_run() {
+	# shellcheck disable=SC2086
+	kill $workers 2>/dev/null
+	for pid_file in "$LOGS"/*.pid; do
+		[ -f "$pid_file" ] && kill "$(cat "$pid_file")" 2>/dev/null
+	done
+	rm -f "$OVERRIDE"
+	exit 130
 }
 
 # Parse-checks each res:// script given. The output decides: a crash at exit returns 139 even
@@ -153,19 +215,49 @@ else
 	run_launch=1
 fi
 
-# The sessions lifecycle tests need a test user folder. Never touch an override.cfg we didn't make.
+# Every suite needs the test user folder, or it would write to the player's real one. Never touch
+# an override.cfg we didn't make.
 if [ -e "$OVERRIDE" ]; then
 	echo "bandit-bash/override.cfg already exists; remove it (it must never be committed) and rerun."
 	exit 2
 fi
 printf '[application]\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="bandit_bash_tests"\n' >"$OVERRIDE"
-trap 'rm -f "$OVERRIDE"' EXIT INT TERM
+workers=""
+trap 'rm -f "$OVERRIDE"' EXIT
+trap cancel_run INT TERM
 
+user_folder_suites=""
+other_suites=""
 for suite in $suites; do
-	# A nested suite's name has a slash; its log is named with an underscore instead.
-	log="$LOGS/$(echo "$suite" | tr '/' '_').log"
-	$LIMIT "$GODOT" --headless --path "$PROJECT" --script "res://tests/$suite/run_all.gd" >"$log" 2>&1
-	verdict "$suite" $? "$log"
+	if uses_user_folder "$suite"; then
+		user_folder_suites="$user_folder_suites $suite"
+	else
+		other_suites="$other_suites $suite"
+	fi
+done
+
+# Word splitting is wanted: suite names have no spaces.
+# shellcheck disable=SC2086
+if [ "$JOBS" -eq 1 ]; then
+	start_worker $suites
+else
+	# The user folder group is a single worker, and takes one of the JOBS slots.
+	slots=$JOBS
+	if [ -n "$user_folder_suites" ]; then
+		start_worker $user_folder_suites
+		slots=$((JOBS - 1))
+	fi
+	while [ "$slots" -gt 0 ]; do
+		start_worker $other_suites
+		slots=$((slots - 1))
+	done
+fi
+wait
+
+# Judged here, not in the workers: verdict() sets $failed, which a background job can't.
+for suite in $suites; do
+	log=$(suite_log "$suite")
+	verdict "$suite" "$(cat "$log.code" 2>/dev/null || echo 1)" "$log"
 done
 rm -f "$OVERRIDE"
 
