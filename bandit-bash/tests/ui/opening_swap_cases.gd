@@ -20,8 +20,8 @@ extends RefCounted
 ## deletes [code]user://saves/[/code] before and after. It never names an autoload: a suite
 ## compiles before they exist, so they are reached as nodes.
 
-const OPTIONS_SCENE: String = "res://scenes/screens/options_screen.tscn"
-const GAMEPLAY_SCENE: String = "res://scenes/gameplay/gameplay.tscn"
+const OPTIONS_SCENE: String = "res://ui/screens/options_screen.tscn"
+const GAMEPLAY_SCENE: String = "res://ui/battle/gameplay.tscn"
 
 # The save file the cases write, in the test user folder only.
 const SAVE_NUMBER: int = 1

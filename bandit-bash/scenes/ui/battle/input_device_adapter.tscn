@@ -1,7 +1,0 @@
-[gd_scene load_steps=2 format=3]
-
-[ext_resource type="Script" path="res://scripts/ui/battle/input_device_adapter.gd" id="1_adapter"]
-
-[node name="InputDeviceAdapter" type="Node"]
-process_mode = 3
-script = ExtResource("1_adapter")

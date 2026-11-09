@@ -30,7 +30,7 @@ extends Node
 const BattleViewCases = preload("res://tests/ui/battle_view_cases.gd")
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
-const VIEW_SCENE: PackedScene = preload("res://scenes/ui/battle/battle_view.tscn")
+const VIEW_SCENE: PackedScene = preload("res://ui/battle/board/battle_view.tscn")
 
 # tests/ui's seed, so the board is the one the UI cases play.
 const SEED: int = 0x0C0FFEE

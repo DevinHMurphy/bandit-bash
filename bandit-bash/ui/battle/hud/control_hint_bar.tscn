@@ -1,0 +1,35 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://ui/battle/hud/control_hint_bar.gd" id="1_bar"]
+[ext_resource type="Theme" path="res://ui/theme/battle_theme.tres" id="2_theme"]
+[ext_resource type="Resource" path="res://assets/sprites/controls/control_glyphs.tres" id="3_glyphs"]
+
+[node name="ControlHintBar" type="PanelContainer"]
+process_mode = 3
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = -48.0
+offset_right = -316.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme = ExtResource("2_theme")
+theme_type_variation = &"ControlHintBar"
+script = ExtResource("1_bar")
+glyphs = ExtResource("3_glyphs")
+
+[node name="Text" type="RichTextLabel" parent="."]
+unique_name_in_owner = true
+clip_contents = true
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"ControlHintText"
+bbcode_enabled = true
+text = "T End turn  ·  R Danger zone"
+scroll_active = false
+autowrap_mode = 0
+vertical_alignment = 1

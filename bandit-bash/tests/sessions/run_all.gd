@@ -1741,7 +1741,7 @@ func _test_service_lifecycle() -> bool:
 			and third.rng.run_seed == RUN_SEED
 			and activations[activations.size() - 1] == "SOLO true"
 	), str(activations))
-	var panel_scene: PackedScene = load("res://scenes/debug/save_debug_panel.tscn")
+	var panel_scene: PackedScene = load("res://ui/debug/save_debug_panel.tscn")
 	var panel: Node = panel_scene.instantiate()
 	root.add_child(panel)
 	var field: LineEdit = panel.get_node(^"%SeedField")

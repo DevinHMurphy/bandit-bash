@@ -31,17 +31,17 @@ const TurnInputCases = preload("res://tests/ui/turn_input_cases.gd")
 const ObjectCases = preload("res://tests/map/object_cases.gd")
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
-const VIEW_SCENE: PackedScene = preload("res://scenes/ui/battle/battle_view.tscn")
-const PANEL_HOST_SCENE: PackedScene = preload("res://scenes/ui/battle/panel_host.tscn")
-const TURN_BAR_SCENE: PackedScene = preload("res://scenes/ui/battle/turn_bar.tscn")
-const SWAP_WINDOW_SCENE: PackedScene = preload("res://scenes/ui/battle/swap_window.tscn")
-const MESSAGE_SCENE: PackedScene = preload("res://scenes/ui/battle/battle_message.tscn")
-const ACTION_MENU_SCENE: PackedScene = preload("res://scenes/ui/battle/action_menu.tscn")
-const TARGET_PICKER_SCENE: PackedScene = preload("res://scenes/ui/battle/target_picker.tscn")
-const CONFIRM_SCENE: PackedScene = preload("res://scenes/ui/battle/confirm_dialog.tscn")
-const FORECAST_SCENE: PackedScene = preload("res://scenes/ui/battle/forecast_panel.tscn")
-const HUD_SCENE: PackedScene = preload("res://scenes/ui/battle/battle_hud.tscn")
-const TURN_COUNTER_SCENE: PackedScene = preload("res://scenes/ui/battle/turn_counter.tscn")
+const VIEW_SCENE: PackedScene = preload("res://ui/battle/board/battle_view.tscn")
+const PANEL_HOST_SCENE: PackedScene = preload("res://ui/battle/menus/panel_host.tscn")
+const TURN_BAR_SCENE: PackedScene = preload("res://ui/battle/hud/turn_bar.tscn")
+const SWAP_WINDOW_SCENE: PackedScene = preload("res://ui/battle/menus/swap_window.tscn")
+const MESSAGE_SCENE: PackedScene = preload("res://ui/battle/hud/battle_message.tscn")
+const ACTION_MENU_SCENE: PackedScene = preload("res://ui/battle/menus/action_menu.tscn")
+const TARGET_PICKER_SCENE: PackedScene = preload("res://ui/battle/input/target_picker.tscn")
+const CONFIRM_SCENE: PackedScene = preload("res://ui/battle/menus/confirm_dialog.tscn")
+const FORECAST_SCENE: PackedScene = preload("res://ui/battle/forecast/forecast_panel.tscn")
+const HUD_SCENE: PackedScene = preload("res://ui/battle/hud/battle_hud.tscn")
+const TURN_COUNTER_SCENE: PackedScene = preload("res://ui/battle/hud/turn_counter.tscn")
 
 # turn_input_cases.gd's seed: no case compares golden numbers.
 const SEED: int = 0x0C0FFEE

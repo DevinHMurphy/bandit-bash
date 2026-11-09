@@ -1,0 +1,58 @@
+[gd_scene format=3 uid="uid://cxhbmafnxdg61"]
+
+[ext_resource type="Script" uid="uid://dhj04d03vu0xh" path="res://ui/battle/unit/unit_token.gd" id="1_token"]
+[ext_resource type="Theme" uid="uid://bi25fbqd4wl3o" path="res://ui/theme/battle_theme.tres" id="2_theme"]
+[ext_resource type="Shader" uid="uid://dpwfbxfur8fb0" path="res://ui/battle/unit/unit_sprite.gdshader" id="3_shader"]
+[ext_resource type="Resource" path="res://assets/sprites/units/unit_sprites.tres" id="4_sprites"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_sprite"]
+resource_local_to_scene = true
+shader = ExtResource("3_shader")
+shader_parameter/line_color = Color(1, 1, 1, 1)
+shader_parameter/line_thickness = 1.0
+shader_parameter/gray_amount = 0.0
+shader_parameter/modulate_color = Color(1, 1, 1, 1)
+shader_parameter/flash_color = Color(1, 1, 1, 1)
+shader_parameter/flash_amount = 0.0
+
+[node name="UnitToken" type="Node2D" unique_id=1061878670]
+script = ExtResource("1_token")
+sprites = ExtResource("4_sprites")
+
+[node name="Sprite" type="Sprite2D" parent="." unique_id=1039154059]
+unique_name_in_owner = true
+visible = false
+texture_filter = 1
+material = SubResource("ShaderMaterial_sprite")
+
+[node name="Frame" type="Control" parent="." unique_id=757461192]
+layout_mode = 3
+anchors_preset = 0
+offset_left = -16.0
+offset_top = -16.0
+offset_right = 16.0
+offset_bottom = 16.0
+mouse_filter = 2
+theme = ExtResource("2_theme")
+
+[node name="Body" type="ColorRect" parent="Frame" unique_id=1020899688]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 3.0
+offset_top = 3.0
+offset_right = 29.0
+offset_bottom = 25.0
+mouse_filter = 2
+color = Color(0.6, 0.6, 0.6, 1)
+
+[node name="Letter" type="Label" parent="Frame" unique_id=803173928]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 3.0
+offset_top = 3.0
+offset_right = 29.0
+offset_bottom = 25.0
+theme_type_variation = &"TokenLetter"
+text = "?"
+horizontal_alignment = 1
+vertical_alignment = 1

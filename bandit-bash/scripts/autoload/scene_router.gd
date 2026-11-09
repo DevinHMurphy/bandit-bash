@@ -68,15 +68,15 @@ enum Screen {
 
 ## [enum Screen] -> scene path. Every [enum Screen] value needs an entry.
 const SCREEN_PATHS: Dictionary[Screen, String] = {
-	Screen.START: "res://scenes/screens/start_screen.tscn",
-	Screen.LOBBY: "res://scenes/screens/lobby_screen.tscn",
-	Screen.LOADING: "res://scenes/screens/loading_gate.tscn",
-	Screen.GAMEPLAY: "res://scenes/gameplay/gameplay.tscn",
-	Screen.RESULTS: "res://scenes/screens/results_screen.tscn",
-	Screen.MAIN_MENU: "res://scenes/screens/main_menu.tscn",
-	Screen.OPTIONS: "res://scenes/screens/options_screen.tscn",
-	Screen.SAVE_SELECT: "res://scenes/screens/save_select_screen.tscn",
-	Screen.NEW_RUN: "res://scenes/screens/new_run_screen.tscn",
+	Screen.START: "res://ui/screens/start_screen.tscn",
+	Screen.LOBBY: "res://ui/screens/lobby_screen.tscn",
+	Screen.LOADING: "res://ui/screens/loading_gate.tscn",
+	Screen.GAMEPLAY: "res://ui/battle/gameplay.tscn",
+	Screen.RESULTS: "res://ui/screens/results_screen.tscn",
+	Screen.MAIN_MENU: "res://ui/screens/main_menu.tscn",
+	Screen.OPTIONS: "res://ui/screens/options_screen.tscn",
+	Screen.SAVE_SELECT: "res://ui/screens/save_select_screen.tscn",
+	Screen.NEW_RUN: "res://ui/screens/new_run_screen.tscn",
 }
 
 ## Screen this machine is showing. [constant Screen.START] until the first [method goto_screen].

@@ -28,15 +28,15 @@ const TurnInputCases = preload("res://tests/ui/turn_input_cases.gd")
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
 const SPRITE_TABLE: String = "res://assets/sprites/units/unit_sprites.tres"
-const VIEW_SCENE: PackedScene = preload("res://scenes/ui/battle/battle_view.tscn")
-const PANEL_HOST_SCENE: PackedScene = preload("res://scenes/ui/battle/panel_host.tscn")
-const TURN_BAR_SCENE: PackedScene = preload("res://scenes/ui/battle/turn_bar.tscn")
-const SWAP_WINDOW_SCENE: PackedScene = preload("res://scenes/ui/battle/swap_window.tscn")
-const MESSAGE_SCENE: PackedScene = preload("res://scenes/ui/battle/battle_message.tscn")
-const ACTION_MENU_SCENE: PackedScene = preload("res://scenes/ui/battle/action_menu.tscn")
-const TARGET_PICKER_SCENE: PackedScene = preload("res://scenes/ui/battle/target_picker.tscn")
-const CONFIRM_SCENE: PackedScene = preload("res://scenes/ui/battle/confirm_dialog.tscn")
-const FORECAST_SCENE: PackedScene = preload("res://scenes/ui/battle/forecast_panel.tscn")
+const VIEW_SCENE: PackedScene = preload("res://ui/battle/board/battle_view.tscn")
+const PANEL_HOST_SCENE: PackedScene = preload("res://ui/battle/menus/panel_host.tscn")
+const TURN_BAR_SCENE: PackedScene = preload("res://ui/battle/hud/turn_bar.tscn")
+const SWAP_WINDOW_SCENE: PackedScene = preload("res://ui/battle/menus/swap_window.tscn")
+const MESSAGE_SCENE: PackedScene = preload("res://ui/battle/hud/battle_message.tscn")
+const ACTION_MENU_SCENE: PackedScene = preload("res://ui/battle/menus/action_menu.tscn")
+const TARGET_PICKER_SCENE: PackedScene = preload("res://ui/battle/input/target_picker.tscn")
+const CONFIRM_SCENE: PackedScene = preload("res://ui/battle/menus/confirm_dialog.tscn")
+const FORECAST_SCENE: PackedScene = preload("res://ui/battle/forecast/forecast_panel.tscn")
 
 # The unit types and enemy classes of M1's battle: the Mercenary army and the M1 pack.
 const M1_TYPES: Array[String] = [

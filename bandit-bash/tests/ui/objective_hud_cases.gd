@@ -26,8 +26,8 @@ const ObjectiveCases = preload("res://tests/map/objective_cases.gd")
 const BattleViewCases = preload("res://tests/ui/battle_view_cases.gd")
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
-const VIEW_SCENE: PackedScene = preload("res://scenes/ui/battle/battle_view.tscn")
-const HUD_SCENE: PackedScene = preload("res://scenes/ui/battle/battle_hud.tscn")
+const VIEW_SCENE: PackedScene = preload("res://ui/battle/board/battle_view.tscn")
+const HUD_SCENE: PackedScene = preload("res://ui/battle/hud/battle_hud.tscn")
 
 # Any fixed seed: no case compares golden numbers.
 const SEED: int = 0x0B7EC7
