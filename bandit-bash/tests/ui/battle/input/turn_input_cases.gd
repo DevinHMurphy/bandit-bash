@@ -6,7 +6,7 @@
 # File:     turn_input_cases.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 7, 2026
+# Modified: November 9, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -27,7 +27,7 @@ extends RefCounted
 ## waits); after every command made by input, both sessions' [method CombatSession.state_hash]
 ## must agree, so input sent exactly the driver's command.
 
-const BattleViewCases = preload("res://tests/ui/battle_view_cases.gd")
+const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
 const VIEW_SCENE: PackedScene = preload("res://ui/battle/board/battle_view.tscn")

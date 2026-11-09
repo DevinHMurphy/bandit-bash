@@ -6,7 +6,7 @@
 # File:     ui_suite.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 7, 2026
+# Modified: November 9, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -15,7 +15,8 @@ extends SceneTree
 ## and the display's ([code]tests/ui/display/run_all.gd[/code]). Each extends this script: the
 ## check counters and the summary line the runner reads, the definitions hash every suite checks
 ## at its end, the test user folder guard, and pressing keys and clicking on the root viewport.
-## The cases themselves stay in [code]tests/ui/[/code], one file each, shared by the suites.[br]
+## The cases themselves stay in [code]tests/ui/battle/[/code], one file each, shared by the
+## suites.[br]
 ## Never names an autoload, or the gameplay screen's class (whose script does): a suite compiles
 ## before autoloads are registered, so it reaches them as nodes and loads the screen at run
 ## time.[br]

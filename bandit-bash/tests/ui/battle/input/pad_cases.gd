@@ -6,7 +6,7 @@
 # File:     pad_cases.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 7, 2026
+# Modified: November 9, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -22,8 +22,8 @@ extends RefCounted
 ## real pads, whose names Godot reports as empty, so a pad event names the other-pad family; the
 ## Xbox and PlayStation families are reached by the addon's own signal with their names.
 
-const BattleViewCases = preload("res://tests/ui/battle_view_cases.gd")
-const TurnInputCases = preload("res://tests/ui/turn_input_cases.gd")
+const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
+const TurnInputCases = preload("res://tests/ui/battle/input/turn_input_cases.gd")
 
 const ADAPTER_SCENE: PackedScene = preload("res://ui/battle/input/input_device_adapter.tscn")
 const HINT_BAR_SCENE: PackedScene = preload("res://ui/battle/hud/control_hint_bar.tscn")

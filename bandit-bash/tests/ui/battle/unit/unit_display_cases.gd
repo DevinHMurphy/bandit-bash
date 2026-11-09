@@ -6,7 +6,7 @@
 # File:     unit_display_cases.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 7, 2026
+# Modified: November 9, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -23,8 +23,8 @@ extends RefCounted
 ## must then agree with the state ([method BattleView.mismatches]), Block, Stance and turn
 ## included.
 
-const BattleViewCases = preload("res://tests/ui/battle_view_cases.gd")
-const TurnInputCases = preload("res://tests/ui/turn_input_cases.gd")
+const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
+const TurnInputCases = preload("res://tests/ui/battle/input/turn_input_cases.gd")
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
 const SPRITE_TABLE: String = "res://assets/sprites/units/unit_sprites.tres"
