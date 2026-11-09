@@ -48,7 +48,7 @@ The MVP is **one full run, start screen to boss, solo and co-op, on Normal** (ga
 | **M0 Foundations** | The engine every system plugs into | P00, P01 | **Complete** October 30, 2026 |
 | **M1 First playable fight** | One greybox combat, start to finish | P02–P07 (subsets) | **Complete** November 5, 2026; its tuning pass is deferred |
 | **M2 Combat complete** | Every MVP combat feature and piece of content, with a functional UI | P02–P07 | **In progress.** Left: P03 CT4–CT13, P05 EN6–EN12, M2's maps, BF1, and the docs (EB8, CC9, MP9, DK6, CT11, EN12) |
-| **M3 Solo run** | Start screen → campaign → boss, saved and resumable; 60–80 minutes | P08, P09 | Not started; P08 is a stub |
+| **M3 Solo run** | Start screen → campaign → boss, saved and resumable; 60–80 minutes | P08, P09 | Not started; P08 is in draft |
 | **M4 Co-op run** | The same run for 2–4 players, tested live on two machines | P10, P11 | Not started |
 | **M5 MVP** | Statistics, the Waystation war table, the MVP checklist | P12, polish | Not started |
 | Post-MVP | Meta progression and beyond | P20–P24 | Not planned |
@@ -69,7 +69,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P05 | [Enemies and AI](2026-10-30-enemies-and-ai.md) | **In progress** | EN6–EN12 | P02, P04 |
 | P06 | [The darkness](2026-11-03-the-darkness.md) | **In progress** | DK6 docs | P02, P04 |
 | P07 | [Combat UI](2026-11-04-combat-ui.md) | **In progress** | Nothing for M2 | P02, P04, P05, P06 |
-| P08 | [Campaign and run flow](2026-10-24-campaign-run-flow.md) | **Stub** | To draft next | P01, P03 |
+| P08 | [Campaign and run flow](2026-10-24-campaign-run-flow.md) | **Draft** | Questions 4–12 with the user | P01, P03 |
 | P09 | Narrative events and curses (events.md) | **Not started** | To draft | P01, P03, P08 |
 | P10 | Net transport (multiplayer-combat-options.md; read `steam_multiplayer_kit/` first) | **Not started** | — | P00, P01 |
 | P11 | Co-op combat (game-vision.md Multiplayer maps) | **Not started** | — | P01, P02, P04, P08, P10 |
@@ -83,7 +83,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 **Planning focus (user, November 9, 2026):** build prompts are on hold while planning comes first.
 
 1. **P14:** O1, O2 and O3 done (O3 merged in eb380c8). Next, O4 (tests), a single build agent.
-2. **Plans:** draft P08 campaign and run flow, then P09 events and curses. M3 can't start without them. Write the move-preview re-architecture design doc.
+2. **Plans:** P08 campaign and run flow is drafted, awaiting its questions; then P09 events and curses. M3 can't start without them. Write the move-preview re-architecture design doc.
 3. **Then M2's content, two prompts at a time:**
    - **Wave A (ready):** CT6 target shapes with EN6 enemy roster; then CT13 unit roster with CT5 equipment and consumables.
    - **Wave B:** CT4 weapons and staves, CT9 heirlooms and curses, EN10 reinforcement groups, EN9 map-object AI.
@@ -99,7 +99,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 5. **M2's exit:** playtest a full M2 map set, folding in the deferred M1 tuning pass.
 6. **Later:** one public `Pathing.path_to` (P07 question 15 d); vision updates for the ideation thread.
 
-**Open questions for the user:** none.
+**Open questions for the user:** P08 questions 4–12.
 
 ## Scope guardrails
 
