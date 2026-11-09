@@ -1,6 +1,6 @@
 # Plan: Project organization
 
-**Status:** **Approved** November 9, 2026 (user). **In progress:** O1 and O2 done; O3 and O4 go to build agents. Orchestrator ID **P14**
+**Status:** **Approved** November 9, 2026 (user). **In progress:** O1, O2 and O3 done; O4 goes to a build agent. Orchestrator ID **P14**
 
 ## Problem
 
@@ -70,13 +70,13 @@ Not saved. O3 confirms no save holds a `res://` path to a moved file before movi
 
 **O3's rules:** one commit, no behaviour change. Move with `git mv` and take each `.uid` along. Don't touch `Modified:` headers, so git keeps seeing renames and history follows.
 
-**O4's caution:** the sessions suite writes a temporary `override.cfg` into the project, so it can't share a project folder with another suite.
+**O4's caution:** the runner writes one temporary `override.cfg` for the whole run, and every suite needs it: without it, a suite would use the player's real user folder. All suites therefore share one test user folder, so any that use `user://` can't overlap unless their paths are shown not to collide.
 
 ## Breaking Changes
 
 | Change | Kind | Current | Proposed | Status | Places to check | Risk |
 |---|---|---|---|---|---|---|
-| UI scene and script paths | Paths | `scenes/**`, `scripts/ui/**`, `scripts/screens/**` | `ui/**` | Proposed (O3) | Scenes, resources, tests, `scene_router.gd`, `project.godot` | 🟡 |
+| UI scene and script paths | Paths | `scenes/**`, `scripts/ui/**`, `scripts/screens/**` | `ui/**` | Applied (O3) | Scenes, resources, tests, `scene_router.gd`, `project.godot` | 🟡 |
 | Orchestrator sections | Doc locations | One file | `orchestrator/` | Applied (O1) | Links | 🟢 |
 
 ## Verification

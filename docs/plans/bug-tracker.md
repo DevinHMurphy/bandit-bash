@@ -1,6 +1,6 @@
 # Bug Tracker
 
-**Created:** November 6, 2026. **Last updated:** November 7, 2026.
+**Created:** November 6, 2026. **Last updated:** November 9, 2026.
 
 Every known defect in `bandit-bash/`, from playtests, build reports and reviews. It works under the
 [orchestrator](game-orchestrator.md): the orchestrator session triages new rows, batches them into
@@ -43,6 +43,7 @@ Not a bug.
 | [BUG-003](#bug-003-save-systemmd-says-a-battle-retry-repeats-ids) | save-system.md says a battle retry repeats ids | P00 / P02 | S4 | Assigned (CC9; P02 question 22 accepted November 7, 2026) | November 5, 2026, CC10 report | CC9 |
 | [BUG-004](#bug-004-an-enemy-with-an-attack-intent-moves-and-doesnt-attack) | An enemy with an attack intent moves and doesn't attack; the next enemy hits its target | P05 / P07 | S2 | New | November 6, 2026, user playtest | — |
 | [BUG-005](#bug-005-unit-detail-shows-the-type-id-not-its-name) | Unit detail shows the type id, not its name | P07 | S4 | Assigned (BF1) | November 7, 2026, UI11 report | BF1 |
+| [BUG-006](#bug-006-netlog-raises-an-engine-error-once-the-peer-is-cleared) | NetLog raises an engine error once the peer is cleared | P00 / P10 | S3 | Assigned (BF1) | November 9, 2026, O3 report | BF1 |
 
 ### BUG-001 No Block at the start of combat
 
@@ -116,6 +117,19 @@ Not a bug.
   catalog and shows that; the capitalised id is only a fallback for a missing definition.
 - **Also check:** the weapon type line (`held.weapon_type.capitalize()`) and any other id shown
   as text in the battle UI.
+
+### BUG-006 NetLog raises an engine error once the peer is cleared
+
+- **Found:** O3's windowed run logs "No multiplayer peer is assigned" from `net_log.gd` on most
+  logged events once the menus start. O3 didn't touch that file.
+- **Likely cause** (read, not run): `SteamNetwork.leave_lobby()` sets
+  `multiplayer.multiplayer_peer = null`, and `NetLog._log` calls `multiplayer.get_unique_id()` on
+  every line. Its comment says that returns 1 with no peer, which holds only for the default
+  offline peer. `SceneRouter` calls `leave_lobby()` on entering the start, save select and main
+  menu screens, so every solo session reaches this.
+- **Expected:** logging is silent with no peer and shows peer 1, as in solo play.
+- **To check:** whether `leave_lobby()` should restore an offline peer rather than null, or NetLog
+  should guard the call. `steam_network.gd` guards on `multiplayer_peer != null` elsewhere.
 
 ## Closed bugs
 

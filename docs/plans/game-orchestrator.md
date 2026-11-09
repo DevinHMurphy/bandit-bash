@@ -75,14 +75,14 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P11 | Co-op combat (game-vision.md Multiplayer maps) | **Not started** | — | P01, P02, P04, P08, P10 |
 | P12 | Statistics and the Waystation war table (meta-progression.md) | **Not started** | — | P01, P08 |
 | P13 | [RNG streams](2026-10-26-rng-streams.md) | **Implemented** | — | P00 |
-| P14 | [Project organization](2026-11-09-project-organization.md) | **In progress** | O3, O4 (O5 deferred) | — |
+| P14 | [Project organization](2026-11-09-project-organization.md) | **In progress** | O4 (O5 deferred) | — |
 | P20–P24 | Meta progression, tutorials, dev console, status effects, shared co-op battles | Post-MVP | — | — |
 
 ## Next actions
 
 **Planning focus (user, November 9, 2026):** build prompts are on hold while planning comes first.
 
-1. **P14:** O1 and O2 done. Next, O3 (UI layout), then O4 (tests), each a single build agent.
+1. **P14:** O1, O2 and O3 done (O3 merged in eb380c8). Next, O4 (tests), a single build agent.
 2. **Plans:** draft P08 campaign and run flow, then P09 events and curses. M3 can't start without them. Write the move-preview re-architecture design doc.
 3. **Then M2's content, two prompts at a time:**
    - **Wave A (ready):** CT6 target shapes with EN6 enemy roster; then CT13 unit roster with CT5 equipment and consumables.
@@ -94,6 +94,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
    - BUG-002 (S2): the forecast's crit ignores Stance.
    - BUG-004 (S2): an enemy with an attack intent moves and doesn't attack; details still asked of the user.
    - BUG-005 (S4): unit detail shows the type id.
+   - BUG-006 (S3): NetLog raises an engine error once the peer is cleared.
    - BF1 also removes UI11's confirmed `# ASSUMPTION` markers (P07 question 36).
 5. **M2's exit:** playtest a full M2 map set, folding in the deferred M1 tuning pass.
 6. **Later:** one public `Pathing.path_to` (P07 question 15 d); vision updates for the ideation thread.
