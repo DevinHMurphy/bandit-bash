@@ -25,7 +25,7 @@ extends SceneTree
 
 const CatalogCases = preload("res://tests/content/catalog_cases.gd")
 
-const GAMEPLAY_SCENE: String = "res://scenes/gameplay/gameplay.tscn"
+const GAMEPLAY_SCENE: String = "res://ui/battle/gameplay.tscn"
 
 # NetLog.Level.WARN: a suite can't name the autoload (see the class doc).
 const LOG_WARN: int = 1

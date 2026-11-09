@@ -24,9 +24,9 @@ extends RefCounted
 const BattleViewCases = preload("res://tests/ui/battle_view_cases.gd")
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
-const VIEW_SCENE: PackedScene = preload("res://scenes/ui/battle/battle_view.tscn")
-const HP_BAR_SCENE: PackedScene = preload("res://scenes/ui/battle/hp_bar.tscn")
-const TOKEN_SCENE: PackedScene = preload("res://scenes/ui/battle/unit_token.tscn")
+const VIEW_SCENE: PackedScene = preload("res://ui/battle/board/battle_view.tscn")
+const HP_BAR_SCENE: PackedScene = preload("res://ui/battle/unit/hp_bar.tscn")
+const TOKEN_SCENE: PackedScene = preload("res://ui/battle/unit/unit_token.tscn")
 
 # Any fixed seed; the other UI cases use the same one.
 const SEED: int = 0x0C0FFEE

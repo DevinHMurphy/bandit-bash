@@ -1,0 +1,8 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ui/battle/unit/unit_info_layer.gd" id="1_layer"]
+[ext_resource type="PackedScene" path="res://ui/battle/unit/unit_info.tscn" id="2_info"]
+
+[node name="UnitInfoLayer" type="CanvasLayer"]
+script = ExtResource("1_layer")
+info_scene = ExtResource("2_info")

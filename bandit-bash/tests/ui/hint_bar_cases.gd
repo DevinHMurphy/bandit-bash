@@ -42,20 +42,20 @@ const BattleViewCases = preload("res://tests/ui/battle_view_cases.gd")
 const TurnInputCases = preload("res://tests/ui/turn_input_cases.gd")
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
-const VIEW_SCENE: PackedScene = preload("res://scenes/ui/battle/battle_view.tscn")
-const PANEL_HOST_SCENE: PackedScene = preload("res://scenes/ui/battle/panel_host.tscn")
-const TURN_BAR_SCENE: PackedScene = preload("res://scenes/ui/battle/turn_bar.tscn")
-const SWAP_WINDOW_SCENE: PackedScene = preload("res://scenes/ui/battle/swap_window.tscn")
-const MESSAGE_SCENE: PackedScene = preload("res://scenes/ui/battle/battle_message.tscn")
-const ACTION_MENU_SCENE: PackedScene = preload("res://scenes/ui/battle/action_menu.tscn")
-const TARGET_PICKER_SCENE: PackedScene = preload("res://scenes/ui/battle/target_picker.tscn")
-const CONFIRM_SCENE: PackedScene = preload("res://scenes/ui/battle/confirm_dialog.tscn")
-const FORECAST_SCENE: PackedScene = preload("res://scenes/ui/battle/forecast_panel.tscn")
-const HINT_BAR_SCENE: PackedScene = preload("res://scenes/ui/battle/control_hint_bar.tscn")
-const HUD_SCENE: PackedScene = preload("res://scenes/ui/battle/battle_hud.tscn")
-const PAD_REPEAT_SCENE: PackedScene = preload("res://scenes/ui/battle/pad_repeat.tscn")
-const ADAPTER_SCENE: PackedScene = preload("res://scenes/ui/battle/input_device_adapter.tscn")
-const DETAIL_SCENE: PackedScene = preload("res://scenes/ui/battle/unit_detail_panel.tscn")
+const VIEW_SCENE: PackedScene = preload("res://ui/battle/board/battle_view.tscn")
+const PANEL_HOST_SCENE: PackedScene = preload("res://ui/battle/menus/panel_host.tscn")
+const TURN_BAR_SCENE: PackedScene = preload("res://ui/battle/hud/turn_bar.tscn")
+const SWAP_WINDOW_SCENE: PackedScene = preload("res://ui/battle/menus/swap_window.tscn")
+const MESSAGE_SCENE: PackedScene = preload("res://ui/battle/hud/battle_message.tscn")
+const ACTION_MENU_SCENE: PackedScene = preload("res://ui/battle/menus/action_menu.tscn")
+const TARGET_PICKER_SCENE: PackedScene = preload("res://ui/battle/input/target_picker.tscn")
+const CONFIRM_SCENE: PackedScene = preload("res://ui/battle/menus/confirm_dialog.tscn")
+const FORECAST_SCENE: PackedScene = preload("res://ui/battle/forecast/forecast_panel.tscn")
+const HINT_BAR_SCENE: PackedScene = preload("res://ui/battle/hud/control_hint_bar.tscn")
+const HUD_SCENE: PackedScene = preload("res://ui/battle/hud/battle_hud.tscn")
+const PAD_REPEAT_SCENE: PackedScene = preload("res://ui/battle/input/pad_repeat.tscn")
+const ADAPTER_SCENE: PackedScene = preload("res://ui/battle/input/input_device_adapter.tscn")
+const DETAIL_SCENE: PackedScene = preload("res://ui/battle/unit/unit_detail_panel.tscn")
 
 # The Input Helper addon's autoload, which the pad walk's adapter listens to.
 const HELPER_PATH: NodePath = ^"/root/InputHelper"
@@ -66,8 +66,8 @@ const FOCUS_MOVES: Array[StringName] = [
 ]
 
 # Loaded at run time: their scripts name autoloads (see the class doc).
-const PAUSE_MENU_SCENE: String = "res://scenes/ui/pause_menu.tscn"
-const SAVE_DEBUG_SCENE: String = "res://scenes/debug/save_debug_panel.tscn"
+const PAUSE_MENU_SCENE: String = "res://ui/common/pause_menu.tscn"
+const SAVE_DEBUG_SCENE: String = "res://ui/debug/save_debug_panel.tscn"
 
 # Any fixed seed; the other UI cases use the same one.
 const SEED: int = 0x0C0FFEE

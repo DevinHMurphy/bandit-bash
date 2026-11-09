@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="ControlGlyphTable" format=3]
 
-[ext_resource type="Script" path="res://scripts/ui/battle/control_glyph_table.gd" id="1_table"]
+[ext_resource type="Script" path="res://ui/battle/hud/control_glyph_table.gd" id="1_table"]
 [ext_resource type="Texture2D" path="res://assets/sprites/controls/keyboard/q.png" id="2_keyboard_q"]
 [ext_resource type="Texture2D" path="res://assets/sprites/controls/keyboard/e.png" id="3_keyboard_e"]
 [ext_resource type="Texture2D" path="res://assets/sprites/controls/keyboard/x.png" id="4_keyboard_x"]

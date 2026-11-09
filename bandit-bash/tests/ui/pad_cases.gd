@@ -25,9 +25,9 @@ extends RefCounted
 const BattleViewCases = preload("res://tests/ui/battle_view_cases.gd")
 const TurnInputCases = preload("res://tests/ui/turn_input_cases.gd")
 
-const ADAPTER_SCENE: PackedScene = preload("res://scenes/ui/battle/input_device_adapter.tscn")
-const HINT_BAR_SCENE: PackedScene = preload("res://scenes/ui/battle/control_hint_bar.tscn")
-const PAD_REPEAT_SCENE: PackedScene = preload("res://scenes/ui/battle/pad_repeat.tscn")
+const ADAPTER_SCENE: PackedScene = preload("res://ui/battle/input/input_device_adapter.tscn")
+const HINT_BAR_SCENE: PackedScene = preload("res://ui/battle/hud/control_hint_bar.tscn")
+const PAD_REPEAT_SCENE: PackedScene = preload("res://ui/battle/input/pad_repeat.tscn")
 
 # The Input Helper addon's autoload.
 const HELPER_PATH: NodePath = ^"/root/InputHelper"
@@ -278,11 +278,11 @@ func _bar_on_battle(h: TurnInputCases.Harness, bar: ControlHintBar) -> bool:
 		h.run.close()
 		return false
 	h.session = h.battle.get_session(0)
-	h.view = (load("res://scenes/ui/battle/battle_view.tscn") as PackedScene).instantiate()
+	h.view = (load("res://ui/battle/board/battle_view.tscn") as PackedScene).instantiate()
 	_root.add_child(h.view)
 	h.hud = CanvasLayer.new()
 	_root.add_child(h.hud)
-	h.host = (load("res://scenes/ui/battle/panel_host.tscn") as PackedScene).instantiate()
+	h.host = (load("res://ui/battle/menus/panel_host.tscn") as PackedScene).instantiate()
 	h.hud.add_child(h.host)
 	h.controller = BattleController.new()
 	h.controller.view = h.view

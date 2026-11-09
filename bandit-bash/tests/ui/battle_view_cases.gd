@@ -26,7 +26,7 @@ extends RefCounted
 ## same seed, so the same command gives each board the same facts to compare their timing on.
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
-const VIEW_SCENE: PackedScene = preload("res://scenes/ui/battle/battle_view.tscn")
+const VIEW_SCENE: PackedScene = preload("res://ui/battle/board/battle_view.tscn")
 
 # Any fixed seed: no case compares golden numbers.
 const SEED: int = 0x0C0FFEE

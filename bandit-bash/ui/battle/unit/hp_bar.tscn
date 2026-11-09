@@ -1,0 +1,30 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ui/battle/unit/hp_bar.gd" id="1_hp_bar"]
+[ext_resource type="Theme" uid="uid://bi25fbqd4wl3o" path="res://ui/theme/battle_theme.tres" id="2_theme"]
+
+[node name="HpBar" type="ProgressBar"]
+offset_right = 44.0
+offset_bottom = 10.0
+mouse_filter = 2
+theme = ExtResource("2_theme")
+theme_type_variation = &"HpBar"
+max_value = 1.0
+step = 1.0
+value = 1.0
+show_percentage = false
+script = ExtResource("1_hp_bar")
+
+[node name="Number" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"HpBarLabel"
+text = "0"
+horizontal_alignment = 1
+vertical_alignment = 1

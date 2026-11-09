@@ -1,0 +1,25 @@
+[gd_scene format=3 uid="uid://bgmxqllrpuh84"]
+
+[ext_resource type="Script" uid="uid://dwcndky64vjxv" path="res://ui/battle/unit/block_badge.gd" id="1_badge"]
+[ext_resource type="Theme" uid="uid://bi25fbqd4wl3o" path="res://ui/theme/battle_theme.tres" id="2_theme"]
+
+[node name="BlockBadge" type="Panel" unique_id=1793160274]
+offset_right = 9.0
+offset_bottom = 9.0
+mouse_filter = 2
+theme = ExtResource("2_theme")
+theme_type_variation = &"BlockBadge"
+script = ExtResource("1_badge")
+
+[node name="Count" type="Label" parent="." unique_id=1171998072]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"BlockBadgeLabel"
+text = "0"
+horizontal_alignment = 1
+vertical_alignment = 1

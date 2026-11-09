@@ -34,17 +34,17 @@ const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
 # (question 35 (2)).
 const FLASH_COLOR: Color = Color(1.0, 1.0, 1.0, 0.8)
 
-const VIEW_SCENE: PackedScene = preload("res://scenes/ui/battle/battle_view.tscn")
-const PANEL_HOST_SCENE: PackedScene = preload("res://scenes/ui/battle/panel_host.tscn")
-const TURN_BAR_SCENE: PackedScene = preload("res://scenes/ui/battle/turn_bar.tscn")
-const SWAP_WINDOW_SCENE: PackedScene = preload("res://scenes/ui/battle/swap_window.tscn")
-const MESSAGE_SCENE: PackedScene = preload("res://scenes/ui/battle/battle_message.tscn")
-const ACTION_MENU_SCENE: PackedScene = preload("res://scenes/ui/battle/action_menu.tscn")
-const TARGET_PICKER_SCENE: PackedScene = preload("res://scenes/ui/battle/target_picker.tscn")
-const CONFIRM_SCENE: PackedScene = preload("res://scenes/ui/battle/confirm_dialog.tscn")
-const FORECAST_SCENE: PackedScene = preload("res://scenes/ui/battle/forecast_panel.tscn")
-const PIPS_SCENE: PackedScene = preload("res://scenes/ui/battle/stance_pips.tscn")
-const HP_BAR_SCENE: PackedScene = preload("res://scenes/ui/battle/hp_bar.tscn")
+const VIEW_SCENE: PackedScene = preload("res://ui/battle/board/battle_view.tscn")
+const PANEL_HOST_SCENE: PackedScene = preload("res://ui/battle/menus/panel_host.tscn")
+const TURN_BAR_SCENE: PackedScene = preload("res://ui/battle/hud/turn_bar.tscn")
+const SWAP_WINDOW_SCENE: PackedScene = preload("res://ui/battle/menus/swap_window.tscn")
+const MESSAGE_SCENE: PackedScene = preload("res://ui/battle/hud/battle_message.tscn")
+const ACTION_MENU_SCENE: PackedScene = preload("res://ui/battle/menus/action_menu.tscn")
+const TARGET_PICKER_SCENE: PackedScene = preload("res://ui/battle/input/target_picker.tscn")
+const CONFIRM_SCENE: PackedScene = preload("res://ui/battle/menus/confirm_dialog.tscn")
+const FORECAST_SCENE: PackedScene = preload("res://ui/battle/forecast/forecast_panel.tscn")
+const PIPS_SCENE: PackedScene = preload("res://ui/battle/unit/stance_pips.tscn")
+const HP_BAR_SCENE: PackedScene = preload("res://ui/battle/unit/hp_bar.tscn")
 
 # The other UI cases' seed: no case compares golden numbers.
 const SEED: int = 0x0C0FFEE
