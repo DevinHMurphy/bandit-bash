@@ -3,7 +3,8 @@
 These rules govern every task that creates or changes a `.gd`, `.tscn`, `.tres` or `project.godot`
 file. They live in `CLAUDE.md` so they apply from the first message, before any file is opened.
 
-**Before writing or editing any of those files, read `.claude/rules/gdscript.md` in full.** It holds
+**Before writing or editing any of those files, read `.claude/rules/gdscript.md` in full,** and the
+topic files it points to in `docs/standards/gdscript/` when the task needs them. It holds
 the code standards. If it is missing, stop and say so.
 
 ### Project facts
@@ -27,7 +28,7 @@ Claude Code runs from the repo root (`Bandit_Bash/`). Every path in these rules 
 | `bandit-bash/` | The new Godot 4.7.1 project. All game code, scenes and resources go here. | Yes |
 | `Godot_FE/` | The old, outdated build being rebuilt. Reference for behavior, values and intent. | **Never** |
 | `steam_multiplayer_kit/` | Reference for Steam and multiplayer integration. | **Never** |
-| `docs/` | Plans (`docs/plans/`), design notes (`docs/design/`), standards (`docs/standards/`). The game vision is `docs/design/game-vision.md`. | Yes |
+| `docs/` | Start at `docs/README.md`. Plans (`docs/plans/`), design notes (`docs/design/`), standards (`docs/standards/`). The game vision is `docs/design/game-vision.md`. | Yes |
 | `.claude/` | Claude Code rules. | Only when asked |
 
 - "`project.godot`" in these rules always means `bandit-bash/project.godot`.

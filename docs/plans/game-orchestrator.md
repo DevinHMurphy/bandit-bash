@@ -75,14 +75,14 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P11 | Co-op combat (game-vision.md Multiplayer maps) | **Not started** | — | P01, P02, P04, P08, P10 |
 | P12 | Statistics and the Waystation war table (meta-progression.md) | **Not started** | — | P01, P08 |
 | P13 | [RNG streams](2026-10-26-rng-streams.md) | **Implemented** | — | P00 |
-| P14 | [Project organization](2026-11-09-project-organization.md) | **In progress** | O2, O3, O4 (O5 deferred) | — |
+| P14 | [Project organization](2026-11-09-project-organization.md) | **In progress** | O3, O4 (O5 deferred) | — |
 | P20–P24 | Meta progression, tutorials, dev console, status effects, shared co-op battles | Post-MVP | — | — |
 
 ## Next actions
 
 **Planning focus (user, November 9, 2026):** build prompts are on hold while planning comes first.
 
-1. **P14:** O1 done. O2 (standards), then O3 (UI layout) and O4 (tests), each a single build agent.
+1. **P14:** O1 and O2 done. Next, O3 (UI layout), then O4 (tests), each a single build agent.
 2. **Plans:** draft P08 campaign and run flow, then P09 events and curses. M3 can't start without them. Write the move-preview re-architecture design doc.
 3. **Then M2's content, two prompts at a time:**
    - **Wave A (ready):** CT6 target shapes with EN6 enemy roster; then CT13 unit roster with CT5 equipment and consumables.
