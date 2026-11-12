@@ -66,7 +66,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P02 | [Combat core](2026-10-26-combat-core.md) | **In progress** | CC9 docs | P01 |
 | P03 | [Content catalog](2026-10-29-content-catalog.md) | **In progress** | CT4–CT13 | P01 |
 | P04 | [Combat map](2026-10-27-combat-map.md) | **In progress** | MP9 docs; M2's maps | P01, P02 |
-| P05 | [Enemies and AI](2026-10-30-enemies-and-ai.md) | **In progress** | EN6–EN12 | P02, P04 |
+| P05 | [Enemies and AI](2026-10-30-enemies-and-ai.md) | **In progress** | EN6–EN16 | P02, P04 |
 | P06 | [The darkness](2026-11-03-the-darkness.md) | **In progress** | DK6 docs | P02, P04 |
 | P07 | [Combat UI](2026-11-04-combat-ui.md) | **In progress** | Nothing for M2 | P02, P04, P05, P06 |
 | P08 | [Campaign and run flow](2026-10-24-campaign-run-flow.md) | **Approved** | RN1–RN12 | P01, P03 |
@@ -83,9 +83,9 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 **Planning focus (user, November 9, 2026):** build prompts are on hold while planning comes first.
 
 1. **P14:** O1, O2 and O3 done (O3 merged in eb380c8). Next, O4 (tests), a single build agent.
-2. **Plans:** P08 approved November 12, 2026; RN1 (the map) is ready once prompts resume. P09 approved November 12, 2026; EV1 follows RN2. The move-preview re-architecture is drafted in [move-preview.md](../design/move-preview.md), awaiting its questions.
+2. **Plans:** P08 approved November 12, 2026; RN1 (the map) is ready once prompts resume. P09 approved November 12, 2026; EV1 follows RN2. The move-preview re-architecture is adopted ([move-preview.md](../design/move-preview.md)) as P05 EN13–EN16. **Planning is caught up.**
 3. **Then M2's content, two prompts at a time:**
-   - **Wave A (ready):** CT6 target shapes with EN6 enemy roster; then CT13 unit roster with CT5 equipment and consumables.
+   - **Wave A (ready):** CT6 target shapes with EN6 enemy roster; then CT13 unit roster with CT5 equipment and consumables. EN13 (preview benchmarks and equality suite) runs alongside; EN14–EN16 follow EN6.
    - **Wave B:** CT4 weapons and staves, CT9 heirlooms and curses, EN10 reinforcement groups, EN9 map-object AI.
    - **Wave C:** CT7 runes, CT8 unit prefixes and pools, CT10 modified prices (its formula goes to the user first).
    - **Wave D:** EN7 elites and bosses (marks leaders on the HUD), EN8 mini-bosses, EN11 the Powder Baron and its map, CT12 weapon prefixes (waits on the vision's weapon-prefix rules).
@@ -99,7 +99,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 5. **M2's exit:** playtest a full M2 map set, folding in the deferred M1 tuning pass.
 6. **Later:** one public `Pathing.path_to` (P07 question 15 d); vision updates for the ideation thread.
 
-**Open questions for the user:** move-preview.md questions 1–5.
+**Open questions for the user:** none.
 
 ## Scope guardrails
 

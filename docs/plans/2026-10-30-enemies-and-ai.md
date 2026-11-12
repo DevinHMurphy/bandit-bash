@@ -213,6 +213,10 @@ section, block and key decided in EN8 per save-system.md).
 | EN10 Reinforcement groups | `enemy_setup.gd`, `reinforcements.gd`, `campaign_session.gd` | Fill `GroupSource` (`reinforcements.gd:TOD-002`, `campaign_session.gd:TOD-002`) | 🟡 touches P04 | EN2 | A seeded Survive map sends the same waves twice |
 | EN11 The Powder Baron | `data/enemies/`, the boss map with P04 | The boss, Keg Barrage and its intent | 🟡 | EN7, EN9 | The barrage picks the tile catching the most player units; intent one phase ahead |
 | EN12 Docs | `docs/design/enemy-authoring.md` (or P03's `content-authoring.md`) | How to add an enemy class, a pack and an elite | 🟢 | EN6 | Review |
+| EN13 Preview: measure | `tests/bench/`, `tests/enemies/`; a checking mode in `intents.gd` | The move-preview benchmark boards, a per-phase profile, the equality suite and checking mode ([move-preview.md](../design/move-preview.md), step A) | 🟢 | — (alongside Wave A) | Baseline median and p95, debug and release; equality passes on today's preview |
+| EN14 Preview: diff and cache | `intents.gd`, `enemy_ai.gd` (internals) | Layers 1 and 2: the board diff, the option cache, the shared flood | 🟡 | EN13, EN6 | Equality passes; benchmark before and after |
+| EN15 Preview: zones | `intents.gd`, `danger_zone.gd` (internals) | Layers 3 and 4: bounded zones, the incremental danger zone | 🟡 | EN14 | Same |
+| EN16 Preview: sweep | `ui/battle/board/move_preview.gd`, the battle controller | Layer 5: precompute during playback, hover as a lookup | 🟡 threads | EN14 | A hover on a swept tile shows on the next frame; 50 ms p95 (debug) on an unswept tile at the benchmark size |
 
 M1 needs EN1–EN5. EN6 onward follows M1's first tuning pass (orchestrator focus rules), except
 EN10, which waits on a map that sends waves.

@@ -5,7 +5,7 @@ any action: the darkness damage the unit would take there, and every enemy's int
 the unit on that tile. The intents are what the enemies would do, not an estimate, so the preview
 must give exactly what a full re-plan gives.
 
-**Status:** draft, November 12, 2026, with questions for the user at the end. This doc covers the
+**Status:** adopted November 12, 2026 (decisions at the end). This doc covers the
 re-architecture of `Intents.preview` (`scripts/enemies/intents.gd`, `TOD-001`) and of the
 `MovePreview.Queue` around it (`ui/battle/board/move_preview.gd`). It changes no rule and no
 result. It responds to P07 question 16 (a): "a data structure with caching, or another process",
@@ -98,9 +98,15 @@ Cache each forecast an enemy's decision makes. The key holds:
 A decision then rebuilds its option list from the cache and forecasts only the misses. The cheap
 steps (rating, the dry-tile rule, the target rule) run on every option as they do now.
 
-- **Shared:** one cache per board, from the latest intents, filled by their computation, reused by
-  every preview and every step of the phase.
-- **Cleared:** when any fact makes the latest intents stale.
+The key also holds the darkness layers and map objects within the margin.
+
+- **Shared:** one cache per battle, filled by every intents computation and reused by every preview
+  and every step of the phase.
+- **Survives facts:** a fact changes the signatures it touches, so only the entries keyed on those
+  units stop matching. A forecast far from an action stays valid after it. This matters most when
+  several players act on one map (Scaling below).
+- **Cleared:** at each turn's end, so turn-dependent effects ("on the first turn") never match a
+  stale entry, and the cache stays small.
 
 The cache also covers the third miss. After a different enemy acts first, a later enemy far from
 both changes still finds its forecasts cached.
@@ -133,17 +139,43 @@ Keep the danger zone per enemy, with `Godot_FE`'s index from tiles to the enemie
 range covers them. A preview recomputes only the enemies indexed at the touched tiles and merges the
 result.
 
-### 5. Precompute the selected unit's tiles
+### 5. Precompute during playback, so a hover is a lookup
 
-When a unit is selected, queue a preview of every tile it can end on, nearest the cursor first. They
-run one at a time on the worker thread, as the queue already allows.
+The rules resolve before the presentation plays them. End Turn runs the whole enemy phase and the
+next player Phase Start in one call (`PhaseRunner`), and each player action resolves before its
+animation. So while the enemy phase or an attack plays back, the board the player will hover next is
+already final.
 
+- **When:** as soon as the latest intents are computed, the worker starts a sweep. It previews every
+  tile each unit that hasn't acted can end on. Enemy phase playback and each action's playback give
+  it seconds of idle time.
+- **Order:** the selected unit first, then the unit under the cursor, then the rest, nearest tiles
+  first. A hover on a tile not yet done jumps it to the front.
 - **Cache:** results are keyed by the board (`last_seq`), the unit and the tile.
-- **Dropped:** on any new fact, a deselect or a different unit.
-- **A hover on a done tile** shows on the next frame, with no work at all.
-- **A hover on a pending tile** jumps to the front of the queue.
+- **Dropped:** when a new fact makes them stale. The next sweep restarts at once, and layer 2's cache
+  makes it mostly lookups.
+- **A hover** on a done tile shows on the next frame, with no work at all. On-demand work happens
+  only when a player hovers before the sweep reaches the tile, and then it is one cached preview.
 
-Layers 2–4 make the whole sweep cheap, because neighbouring tiles share nearly every forecast.
+Layers 2–4 make the whole sweep cheap, because neighbouring tiles and units share nearly every
+forecast. The sweep runs one preview at a time on one worker thread, as the queue already allows.
+
+### Scaling to shared co-op maps
+
+Shared battles, where 2–4 players fight on one map at once, are post-MVP (P24). The design is meant
+to carry over to them:
+
+- **Each machine previews only its own player's units,** on its own mirror of the board. The work per
+  machine grows with the size of the map, not with the number of players.
+- **Other players' moves arrive as facts.** Each one restarts the sweep, but layer 2's cache survives
+  it: only forecasts near that move are redone. Layers 3 and 4 limit the re-planning to enemies whose
+  absolute range covers the move.
+- **Moves at the same time.** A preview shows the board with committed moves only. A teammate's unit
+  that is still being moved isn't part of it until its command resolves. Then the preview updates,
+  as it does after any fact.
+- **The boss-map benchmark decides.** A shared boss map could field 16–24 player units and many
+  enemies. When P24 is planned, it adds that benchmark. If GDScript can't meet the target there, the
+  rejected native-code option is reopened.
 
 ### Fixed-cost trims
 
@@ -171,7 +203,7 @@ The preview must equal a full re-plan, so every layer ships with checks that com
   The rules code stays pure, and the worker still never logs.
 - **Memory.** One forecast per enemy × end tile × target in range × weapon. A key combat with
   9 enemies, about 40 end tiles each and 2 targets in range, comes to about 1,500 forecasts. That is
-  small, and the cache clears on every fact. The figure is an estimate, not measured.
+  small, and the cache clears at each turn's end. The figure is an estimate, not measured.
 
 ## Rejected
 
@@ -189,24 +221,18 @@ The preview must equal a full re-plan, so every layer ships with checks that com
 | A Measure | Benchmark boards: M1 turn 1, M1 engaged, a 9-enemy, 6-unit key-combat board. A per-phase profile of a hover. The equality suite and checking mode, run against today's preview | Baseline median and p95, debug and release, per hover and per sweep; equality passes |
 | B Diff and cache | Layers 1 and 2, the shared flood | Equality passes; the benchmark is measured before and after |
 | C Zones | Layers 3 and 4 | Same |
-| D Precompute | Layer 5 in `MovePreview.Queue` | A hover on a done tile shows on the next frame; the sweep's time is reported |
+| D Precompute | Layer 5: the sweep during playback, in `MovePreview.Queue` | A hover on a done tile shows on the next frame; the sweep's time per turn is reported |
 
 Steps A–C change only the internals of `intents.gd`, `enemy_ai.gd` and `danger_zone.gd`. Step D
 changes the queue inside `move_preview.gd` and the controller's calls into it. No public signature
-changes. If layer B alone meets the target, C and D may wait.
+changes. Step D goes ahead whatever B and C measure, because the user wants hover work at a minimum.
 
-## Questions for the user
+## Decisions
 
-1. **Owner:** new steps in P05 (EN13–EN16), since the intents are P05's.
-   - *Recommended.* The alternative is a new plan row.
-2. **When:** after EN6, which adds the Guard and Skirmisher behaviors the zones must cover, and
-   before the M2 exit playtest on the larger maps.
-   - *Recommended:* build step A sooner, alongside Wave A, so later content gets checked against the
-     equality suite.
-3. **Benchmark size:** a key combat's upper bound, 9 enemies against 6 player units, engaged.
-   - *Recommended.* A boss-map case is added when the Powder Baron map exists (EN11).
-4. **The target:** 50 ms at p95 in a debug build, per hover on a tile not yet precomputed, at the
-   benchmark size.
-   - *Recommended:* p95 rather than the median, since the spikes are what a player feels.
-5. **Precompute:** may the preview keep one worker core busy while a unit is selected?
-   - *Recommended: yes,* one task at a time, dropped on any action.
+| # | Question | Answer (user, November 12, 2026) |
+|---|---|---|
+| 1 | Owner | Left to the orchestrator: **P05 steps EN13 (A), EN14 (B), EN15 (C) and EN16 (D)**, since the intents are P05's |
+| 2 | When | EN13 alongside Wave A, so later content is checked against the equality suite. EN14–EN16 after EN6 (Guard and Skirmisher) and before the M2 exit playtest |
+| 3 | Benchmark size | 9 enemies against 6 player units, engaged, for now. A boss-map case comes with EN11. Shared co-op maps get theirs when P24 is planned (Scaling) |
+| 4 | Target | 50 ms at p95 in a debug build, per hover on a tile the sweep hasn't reached, at the benchmark size |
+| 5 | Precompute | Compute and cache between turns and during playback, keeping hover work to a minimum (layer 5); one worker thread |
