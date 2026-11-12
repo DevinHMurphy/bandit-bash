@@ -2,7 +2,7 @@
 
 Where the project is, what's next and what's out of scope. Start here.
 
-**Last updated:** November 9, 2026.
+**Last updated:** November 12, 2026.
 
 | Need | File |
 |---|---|
@@ -70,7 +70,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P06 | [The darkness](2026-11-03-the-darkness.md) | **In progress** | DK6 docs | P02, P04 |
 | P07 | [Combat UI](2026-11-04-combat-ui.md) | **In progress** | Nothing for M2 | P02, P04, P05, P06 |
 | P08 | [Campaign and run flow](2026-10-24-campaign-run-flow.md) | **Approved** | RN1–RN12 | P01, P03 |
-| P09 | [Narrative events and curses](2026-11-12-events-and-curses.md) | **Draft** | Questions 1–6 with the user | P01, P03, P08 |
+| P09 | [Narrative events and curses](2026-11-12-events-and-curses.md) | **Draft** | Questions answered; approval | P01, P03, P08 |
 | P10 | Net transport (multiplayer-combat-options.md; read `steam_multiplayer_kit/` first) | **Not started** | — | P00, P01 |
 | P11 | Co-op combat (game-vision.md Multiplayer maps) | **Not started** | — | P01, P02, P04, P08, P10 |
 | P12 | Statistics and the Waystation war table (meta-progression.md) | **Not started** | — | P01, P08 |
@@ -83,7 +83,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 **Planning focus (user, November 9, 2026):** build prompts are on hold while planning comes first.
 
 1. **P14:** O1, O2 and O3 done (O3 merged in eb380c8). Next, O4 (tests), a single build agent.
-2. **Plans:** P08 approved November 12, 2026; RN1 (the map) is ready once prompts resume. P09 events and curses is drafted, awaiting its questions. M3 can't start without them. Write the move-preview re-architecture design doc.
+2. **Plans:** P08 approved November 12, 2026; RN1 (the map) is ready once prompts resume. P09 events and curses has its questions answered and awaits approval. Write the move-preview re-architecture design doc.
 3. **Then M2's content, two prompts at a time:**
    - **Wave A (ready):** CT6 target shapes with EN6 enemy roster; then CT13 unit roster with CT5 equipment and consumables.
    - **Wave B:** CT4 weapons and staves, CT9 heirlooms and curses, EN10 reinforcement groups, EN9 map-object AI.
@@ -99,7 +99,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 5. **M2's exit:** playtest a full M2 map set, folding in the deferred M1 tuning pass.
 6. **Later:** one public `Pathing.path_to` (P07 question 15 d); vision updates for the ideation thread.
 
-**Open questions for the user:** P09 questions 1–6.
+**Open questions for the user:** approve P09.
 
 ## Scope guardrails
 

@@ -1,6 +1,6 @@
 # Plan: Narrative Events and Curses
 **Date:** November 12, 2026
-**Status:** Draft, awaiting the answers below. Orchestrator ID **P09**
+**Status:** Draft, questions answered; awaiting approval. Orchestrator ID **P09**
 
 ## Problem
 
@@ -10,42 +10,21 @@ Event outcomes act outside battle. P01 says they reuse the effect operation bloc
 
 ## Open Questions
 
-### 1. How event outcomes are applied
-
-- **A, a small outcome block set on the campaign layer (recommended):** `EventOutcome` resources in data, applied by a pure resolver to P08's `RunState`. Where an existing block fits, the outcome holds one and the resolver reads its fields: `CampaignGrant` for gold, a heirloom, a recruit or a rune; `ChangeBaseStat` for a stat change. Granted weapon effects ("Hit dealt: heal 2") go on the `ItemInstance` as it already allows. The engine and its rules stay untouched.
-- **B, run outcomes through a battle-less `EffectEngine`:** keeps P01's wording exactly. But the engine is built around a combat state and facts, and six outcome kinds would still need new operations.
-- A changes P01's contract wording, not its intent: outcomes are still data blocks, never scripts.
-
-### 2–6. Shorter questions
-
-| # | Question | Recommendation |
-|---|----------|----------------|
-| 2 | Can event damage kill a unit (Frozen Armory's 20% cold)? | **No:** event damage leaves at least 1 HP. Permadeath stays a combat outcome |
-| 3 | A cursed option whose tier has no curse left that the player doesn't hold | **Greyed out with the reason,** as the vision greys out an empty reward pool |
-| 4 | How random event items roll | **(a)** A rare weapon or tome uses P08's Weapon pick rule (from a type the army can use 75% of the time). **(b)** A random trinket rolls the Standard item odds without touching the Rare offset. **(c)** A random rune is even across the pool |
-| 5 | Small rule readings | **Accept all of (a)–(f)** below |
-| 6 | Every event seen this run | **The seen events become available again,** as maps do (P08 question 10) |
-
-**Question 5's readings:**
-
-- (a) Losing max HP (Drink Deep, Drink the Sap) lowers current HP only where it's above the new max.
-- (b) Gaining max HP (Be Merry) raises current HP by the same amount, as a level-up does.
-- (c) Cursed Blood halves event healing too ("healing received").
-- (d) Healing by percent of max HP rounds halves up, as a Feast's does.
-- (e) A revived unit returns with whatever items it still holds. If the army is full, reviving works like recruiting past the max.
-- (f) A surprise combat pays a Standard combat's full rewards: gold, grades, the item pick and XP.
+None open. Questions 1–6 are answered in [decisions](decisions/P09-events-and-curses.md).
 
 ## Scope
 
 **In:** event content as data; the outcome blocks and their resolver; option requirements; the event draw, eligibility and the never-repeat rule; naming each cursed option's curse when the event is generated; the event screen with unit and weapon choosers; surprise combats through P08's bridge; per-seat state; team-choice rules tested headless.
 
-**Out:** the curses' data and their combat effects (P03 CT9); the Unknown roll itself (P08); co-op event screens and voting transport (P11, as in P08 question 11); new events or curses beyond events.md (the vision's "Still open").
+**Out:** the curses' data and their combat effects, including how copies stack (P03 CT9); the Unknown roll itself (P08); co-op event screens and voting transport (P11, as in P08 question 11); new events or curses beyond events.md (the vision's "Still open").
 
 ## Design Basis
 
 events.md (all of it). game-vision.md: Run structure (Events, Empty offer pools), Army (revive shrine), Run-wide resources. heirlooms.md (Rare tier, curses outside the pool). items.md (Modified items, Emberglass Vial). unit-roster.md (Recruiting, Prefixes). P13's `EVENT_DRAW`, `TEAM_CHOICE` and `EVENT_OUTCOME` streams.
 
 "More team events, curses and events" is under "Still open", so this plan builds only the first-pass pool. Every value is first pass.
+
+**Vision updates for the ideation thread:** curses may repeat (question 3), replacing events.md's "among curses the player doesn't already hold". The readings of questions 2, 4, 5 and 6 belong in events.md.
 
 ## Legacy Behavior
 
@@ -66,12 +45,14 @@ No tuning values come from `Godot_FE/`; events.md sets them all.
 | Piece | Job |
 |---|---|
 | `EventDefinition` | Id, text, art, team-choice flag, eligibility, 2–3 options |
-| `EventOption` | Text, requirements, its outcome blocks, an optional curse tier |
+| `EventOption` | Text, requirements, its outcome blocks, an optional curse: a named curse or a tier |
 | `EventOutcome` blocks | Gold, heal or damage by percent, stat or max HP change, pending level-up gain, item grant or modification, heirloom, rune, recruit, upgrade, prefix re-roll, revive, max army size, surprise combat, curse |
 | `EventResolver` | Applies one option's blocks to one seat's `RunState`, emitting `CampaignFact`s |
 | `EventRequirements` | One pure check over the whole army: gold, a unit type, the commander, an item, a fallen unit, army size below 8 |
 
 **The draw.** On entering, `EVENT_DRAW` picks one eligible event this run hasn't seen. The shrine is eligible only with a fallen unit. Each option's random parts are then rolled per seat from `EVENT_OUTCOME`: named curses, random items, the heirloom. They are saved before anything shows, so a quit and resume shows the same event. Every curse is named and shown with its effect and tier before choosing.
+
+**Curses may repeat.** A named curse is given even if the player holds it. A tier draws evenly from the whole tier, held curses included. A repeat adds a copy, and copies stack (heirlooms.md). The 13 first-pass events all use tiers.
 
 **Choosing.** Picking an option that says "a chosen unit" or "a chosen weapon" opens a chooser. Fallen units can't be chosen, except by the shrine. Items gained are placed as P08 question 6 decided: straight onto a unit or into the convoy. Modified items show as "Infused <name>" with their changes (items.md).
 
@@ -89,7 +70,7 @@ No tuning values come from `Godot_FE/`; events.md sets them all.
 |---|---|---|---|
 | `events` | `CAMPAIGN` | No | Seen event ids; the current event; each seat's rolled outcomes, choice and chooser stage; team votes |
 
-The section is new, version 1, with no schema change. Outcomes land in P08's sections: curses in `heirlooms`, deltas and pending gains in `roster`, gold in `economy`.
+The section is new, version 1, with no schema change. Outcomes land in P08's sections: curses in `heirlooms` (which must hold copies), deltas and pending gains in `roster`, gold in `economy`.
 
 ## Work Breakdown
 
@@ -108,7 +89,7 @@ P08 RN10 wires the Unknown roll to EV2 once both exist.
 
 | Change | Kind | Current | Proposed | Status | Places to check | Risk |
 |---|---|---|---|---|---|---|
-| Event outcomes | P01 contract wording | Reuse the effect operation blocks | Their own blocks on the campaign layer, reading `CampaignGrant` and `ChangeBaseStat` data where they fit | Proposed (question 1) | P01's Events contract, `decisions/P08-campaign-run-flow.md` | 🟢 |
+| Event outcomes | P01 contract wording | Reuse the effect operation blocks | Their own blocks on the campaign layer, reading `CampaignGrant` and `ChangeBaseStat` data where they fit | Accepted (question 1) | P01's Events contract, `decisions/P08-campaign-run-flow.md` | 🟢 |
 
 ## Verification
 
