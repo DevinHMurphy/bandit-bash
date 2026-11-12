@@ -57,7 +57,8 @@ flowchart LR
   classDef waiting fill:#e0e0e0,stroke:#757575,color:#1b1b1b
   class P00,P13 done
   class P01,P02,P03,P04,P05,P06,P07 active
-  class P08,P09,P10,P11,P12 waiting
+  class P08,P09 ready
+  class P10,P11,P12 waiting
 ```
 
 ### Build steps in progress
@@ -212,6 +213,8 @@ mark it **Open** here.
 | P07 UI6–UI11 (M2) | P07 M1 part built ✅ (November 5, 2026); questions 20–26 answered ✅ (November 5, 2026) | Built in order: UI6's target list first, so controller support (UI9) stays small | **Open** November 5, 2026; UI6 built ✅ (November 5, 2026); UI7, UI7F and UI8 built ✅ (November 6, 2026); UI9, UI10 and UI11 built ✅ (November 7, 2026): M2's part done |
 | P14 O3 UI layout | P14 O2 done; no open feature branches or worktrees; a clean tree | About 165 files move, so any open branch would conflict | **Open** November 9, 2026; built ✅ (November 9, 2026) |
 | P14 O4 Tests | P14 O3 ✅ (November 9, 2026); no open branch touching `tests/` or `tools/run_tests.sh` | Test files move and the runner changes | **Open** November 9, 2026 |
+| P08 RN1–RN5 Run loop | P08 approved ✅ (November 12, 2026); built in order | Runs on M1's data; RN2 and RN3 change the save format | **Open** November 12, 2026 (build prompts on hold: planning focus) |
+| P08 RN6–RN11 Nodes and full run | RN5; the M2 content each row of P08's Work Breakdown names (CT4, CT5, CT7, CT8, CT9, CT13; RN11 also EN7, EN8, EN11 and M2's maps) | Offers need real pools | Waiting |
 | P02 CC10 Battle resume | P02 CC8 ✅; P04 MP8 ✅ | Restores the saved sections into a rebuilt battle | **Open** November 3, 2026; built ✅ (November 5, 2026) |
 | P04 MP1–MP3, MP6 | P04 approved ✅ (October 27, 2026) | — | **Open** October 27, 2026; MP1–MP3 built October 28, 2026; MP6 built October 29, 2026, so MP7 may start; MP7 built October 29, 2026 |
 | P04 MP4 Objectives | P02 CC6 (the `AFTER_STEP` hook) | The checks run on the turn loop's hook; built with CC6 | **Open** October 28, 2026 (EB6 implemented, so CC6 may start); implemented with CC6 October 28, 2026, so MP5 may start |

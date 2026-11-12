@@ -1,6 +1,6 @@
 # Plan: Campaign and Run Flow
 **Date:** October 24, 2026; drafted November 9, 2026
-**Status:** Draft; every question answered November 12, 2026, awaiting approval. Orchestrator ID **P08**
+**Status:** **Approved** November 12, 2026 (user). Orchestrator ID **P08**
 
 ## Problem
 
