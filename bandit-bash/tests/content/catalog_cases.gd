@@ -6,7 +6,7 @@
 # File:     catalog_cases.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 5, 2026
+# Modified: November 12, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -27,6 +27,10 @@ const ContentRules = preload("res://tests/content/content_rules.gd")
 
 ## The folder holding one data root per rule fixture.
 const RULES_DIR: String = "res://tests/content/fixtures/rules/"
+
+# Folders under res://data/ that EffectCatalog's walk skips (its _RULES_FOLDERS): they hold rules
+# data, not content definitions, so file counts leave them out too.
+const _NOT_CONTENT_FOLDERS: PackedStringArray = ["res://data/campaign/"]
 
 # Each bad tree and the one rule it breaks, checked against the real price table.
 const BAD_TREES: Dictionary[String, String] = {
@@ -577,7 +581,8 @@ func _files_under(folder: String) -> PackedStringArray:
 		if file.get_extension() in ["tres", "res"]:
 			found.append(folder + file)
 	for child: String in DirAccess.get_directories_at(folder):
-		found.append_array(_files_under(folder + child + "/"))
+		if not _NOT_CONTENT_FOLDERS.has(folder + child + "/"):
+			found.append_array(_files_under(folder + child + "/"))
 	found.sort()
 	return found
 
