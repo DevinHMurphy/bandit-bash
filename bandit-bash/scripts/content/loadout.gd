@@ -6,7 +6,7 @@
 # File:     loadout.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 5, 2026
+# Modified: November 12, 2026
 # ==============================================================================
 
 class_name Loadout
@@ -33,9 +33,6 @@ extends RefCounted
 ## [EffectCatalog.Index] it is given, and mints ids only from the allocator it is given.
 ##
 ## @tutorial(Content catalog plan): docs/plans/2026-10-29-content-catalog.md
-##
-## @todo: TOD-001 - Build an area staff's [Area] from its [member StaffDefinition.area_shape_id]
-## (P03 CT6); until then a staff covers its target only.
 
 ## A unit's three item slots (game-vision.md, Units: Inventory). Never saved.
 enum Slot {
@@ -143,6 +140,8 @@ static func heirloom_effects(
 
 ## The combat record of [param definition], a weapon or staff, for the item [param item_id]: its
 ## numbers as the definition gives them. A prefix and deltas never change it; they apply as effects.
+## [method load_unit] adds an area staff's [member CombatState.WeaponStats.area], which needs the
+## catalog.
 static func weapon_record(definition: WeaponDefinition, item_id: String) -> CombatState.WeaponStats:
 	var record: CombatState.WeaponStats = CombatState.WeaponStats.new()
 	record.id = item_id
@@ -164,7 +163,6 @@ static func weapon_record(definition: WeaponDefinition, item_id: String) -> Comb
 		var does: int = _STAFF_KINDS.get(staff.staff_kind, CombatState.WeaponStats.Staff.NONE)
 		record.staff = does as CombatState.WeaponStats.Staff
 		record.staff_amount = staff.base_amount
-		# TODO(TOD-001): Set record.area from staff.area_shape_id once Area reads a TargetShape.
 	return record
 
 
@@ -234,8 +232,37 @@ static func _load_slot(
 	if definition is WeaponDefinition:
 		var weapon: WeaponDefinition = definition
 		_check_weapon(loaded, item, weapon, weapon_types)
-		loaded.weapons.append(weapon_record(weapon, item_id))
+		var record: CombatState.WeaponStats = weapon_record(weapon, item_id)
+		record.area = _staff_area(loaded, catalog, item, weapon)
+		loaded.weapons.append(record)
 	_add_item_effects(loaded, catalog, ids, item, definition, kind)
+
+
+# The allies an area staff gives its amount to: its shape around the unit it is used on, which at
+# range 0 is its user (Everwall). Null for a weapon, a staff without a shape, or a shape the catalog
+# lacks (reported).
+static func _staff_area(
+		loaded: LoadedUnit,
+		catalog: EffectCatalog.Index,
+		item: ItemInstance,
+		weapon: WeaponDefinition
+) -> Area:
+	if not weapon is StaffDefinition:
+		return null
+	var staff: StaffDefinition = weapon
+	if staff.area_shape_id.is_empty():
+		return null
+	var shape: TargetShape = catalog.shape(staff.area_shape_id)
+	if shape == null:
+		loaded.problems.append("%s: %s (%s)'s area shape \"%s\" is not in the catalog" % [
+			loaded.state.id, item.instance_id, item.definition_id, staff.area_shape_id,
+		])
+		return null
+	var area: Area = Area.new()
+	area.center = Area.Center.COMMAND_TARGET
+	area.shape = shape
+	area.side = EffectTerms.UnitSide.ALLY
+	return area
 
 
 static func _check_weapon(

@@ -6,7 +6,7 @@
 # File:     catalog_cases.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 5, 2026
+# Modified: November 12, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -62,6 +62,8 @@ const BAD_TREES: Dictionary[String, String] = {
 	"carrier_effect_id_missing": ContentRules.CARRIER_EFFECT_ID,
 	"carrier_effect_id_repeated": ContentRules.CARRIER_EFFECT_ID,
 	"double_uses": ContentRules.DOUBLE_USES,
+	"area_shape_missing": ContentRules.AREA_SHAPE,
+	"area_shape_inline": ContentRules.AREA_SHAPE,
 }
 
 # The trees checked by their own cases rather than BAD_TREES.
@@ -70,6 +72,7 @@ const OTHER_TREES: PackedStringArray = [
 	"heirloom_not_unique",
 	"unpriced",
 	"unsellable_priced",
+	"area_shape_shared",
 ]
 
 # The valid tree's ids and their own kinds.
@@ -118,6 +121,7 @@ func run() -> void:
 	_test_bad_trees()
 	_test_double_uses_tree()
 	_test_warning_tree()
+	_test_area_shape_tree()
 	_test_price_trees()
 	_test_attack_condition_ids()
 	_test_every_rule_has_a_tree()
@@ -417,6 +421,21 @@ func _test_warning_tree() -> void:
 			and _rules(findings, true) == PackedStringArray([ContentRules.HEIRLOOM_NOT_UNIQUE])
 			and findings.size() == 1
 	), _describe(findings))
+
+
+# The tree's one effect splashes through an Area that reuses the tree's own shape file.
+func _test_area_shape_tree() -> void:
+	var index: EffectCatalog.Index = _tree("area_shape_shared")
+	var findings: Array[ContentRules.Finding] = ContentRules.new(index).check()
+	_check.call("tree area_shape_shared: an area reusing a shape file passes", (
+			findings.is_empty()
+	), _describe(findings))
+	var effect: EffectDefinition = index.effect("fixture_shared_shape")
+	var splash: DealSplash = null if effect == null else effect.operations[0] as DealSplash
+	var area: Area = null if splash == null else splash.target as Area
+	_check.call("tree area_shape_shared: the area's shape is the tree's file", (
+			area != null and area.shape == index.shape("fixture_ring")
+	), "")
 
 
 func _test_price_trees() -> void:

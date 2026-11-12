@@ -6,7 +6,7 @@
 # File:     area.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 29, 2026
+# Modified: November 12, 2026
 # ==============================================================================
 
 @tool
@@ -15,9 +15,11 @@ extends TargetSelector
 ## Selects units around a center: "adjacent units, friend or foe" (Cleave), "the target and adjacent
 ## allies of the target" (Sanctuary), "allies within 2 tiles".
 ##
-## Measured by grid distance, tiles up plus tiles across, ignoring walls and terrain; radius 1 is
-## the four orthogonal neighbors. Grid distance is the only effect distance (combat map plan,
-## question 12). Never reaches across parallel maps.
+## Which tiles count is a shared [TargetShape] from [code]res://data/shapes/[/code], so staves,
+## splash, keg blasts and runes describe areas one way; the content test rejects a shape that isn't
+## one of those files. Grid distance only, ignoring walls and terrain. The center unit counts when
+## the shape covers the center, whatever its side; no other unit on the center tile ever does.
+## Never reaches across parallel maps.
 ##
 ## @tutorial(Effect triggers): docs/design/effect-triggers.md
 
@@ -37,14 +39,12 @@ enum Center {
 ## The unit the area is centered on.
 @export var center: Center = Center.OWNER
 
-## How far the area reaches. [b]Units:[/b] tiles. [b]1:[/b] adjacent only.
-@export_range(1, 20) var radius: int = 1
+## The tiles covered around the center, and whether the center unit counts
+## ([member TargetShape.includes_center]). [b]Null:[/b] the area selects nothing.
+@export var shape: TargetShape = null
 
 ## Which units count, relative to the effect's owner.
 @export var side: EffectTerms.UnitSide = EffectTerms.UnitSide.ALLY
-
-## Whether the center unit itself is selected too. [b]Off:[/b] only the units around it.
-@export var include_center: bool = false
 
 
 func describe() -> String:
@@ -54,9 +54,9 @@ func describe() -> String:
 			noun = "allies"
 		EffectTerms.UnitSide.ENEMY:
 			noun = "enemies"
-	var place: String = "adjacent %s" % [noun]
-	if radius > 1:
-		place = "%s within %d tiles" % [noun, radius]
+	var place: String = _place(noun)
+	if place.is_empty():
+		return _center_name() if shape != null and shape.includes_center else "no units"
 	match center:
 		Center.FACT_ACTOR:
 			place += " of that unit"
@@ -66,26 +66,21 @@ func describe() -> String:
 			place += " of the target"
 	if side == EffectTerms.UnitSide.ANY:
 		place += ", friend or foe"
-	if include_center:
-		var center_name: String = "this unit"
-		if center == Center.FACT_ACTOR:
-			center_name = "that unit"
-		elif center == Center.FACT_TARGET:
-			center_name = "the other unit"
-		elif center == Center.COMMAND_TARGET:
-			center_name = "the target"
-		return "%s and %s" % [center_name, place]
+	if shape.includes_center:
+		return "%s and %s" % [_center_name(), place]
 	return place
 
 
 ## Units around the center, in the state's order, on [member side] relative to the owner's side,
-## within [member radius] by grid distance. An owner center that has left the map since the
-## reaction was queued (a Brute defeated by the counter, a keg that just broke) is measured from
-## the tile it stood on then.
+## on the tiles [member shape] covers. An owner center that has left the map since the reaction
+## was queued (a Brute defeated by the counter, a keg that just broke) is measured from the tile
+## it stood on then.
 func select(ctx: EffectContext) -> PackedStringArray:
+	var picked: PackedStringArray = []
+	if shape == null:
+		return picked
 	var engine: EffectEngine = ctx.engine
 	var center_id: String = _center_id(ctx)
-	var picked: PackedStringArray = []
 	var center_tile: Vector2i = engine.state.tile_of(center_id)
 	if not engine.state.has_unit(center_id) and center == Center.OWNER:
 		center_tile = ctx.owner_tile
@@ -93,14 +88,15 @@ func select(ctx: EffectContext) -> PackedStringArray:
 		return picked
 	for unit_id: String in engine.state.unit_ids():
 		if unit_id == center_id:
-			if include_center:
+			if shape.covers(center_tile, center_tile):
 				picked.append(unit_id)
 			continue
 		if not engine.matches_side(ctx.instance.owner.side, unit_id, side):
 			continue
-		var delta: Vector2i = engine.state.tile_of(unit_id) - center_tile
-		var steps: int = absi(delta.x) + absi(delta.y)
-		if steps >= 1 and steps <= radius:
+		var tile: Vector2i = engine.state.tile_of(unit_id)
+		if tile == CombatFact.NO_TILE or tile == center_tile:
+			continue
+		if shape.covers(center_tile, tile):
 			picked.append(unit_id)
 	return picked
 
@@ -114,3 +110,31 @@ func _center_id(ctx: EffectContext) -> String:
 	if center == Center.COMMAND_TARGET:
 		return ctx.command_target_id
 	return ctx.owner_unit_id() if center == Center.OWNER else ""
+
+
+# The tiles around the center as a phrase about noun, such as "adjacent allies"; empty when the
+# shape covers nothing around its center (no shape, a tile, size 0).
+func _place(noun: String) -> String:
+	if shape == null or shape.kind == ContentIds.SHAPE_TILE or shape.size <= 0:
+		return ""
+	var reach: String = (
+			"adjacent %s" % [noun] if shape.size == 1
+			else "%s within %d tiles" % [noun, shape.size]
+	)
+	match shape.kind:
+		ContentIds.SHAPE_SQUARE:
+			return "%s, diagonals included" % [reach]
+		ContentIds.SHAPE_CROSS:
+			return reach if shape.size == 1 else "%s in a straight line" % [reach]
+	return reach
+
+
+func _center_name() -> String:
+	match center:
+		Center.FACT_ACTOR:
+			return "that unit"
+		Center.FACT_TARGET:
+			return "the other unit"
+		Center.COMMAND_TARGET:
+			return "the target"
+	return "this unit"

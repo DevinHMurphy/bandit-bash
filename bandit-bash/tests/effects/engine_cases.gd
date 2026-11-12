@@ -6,7 +6,7 @@
 # File:     engine_cases.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 5, 2026
+# Modified: November 12, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -60,6 +60,7 @@ func run() -> void:
 	_test_while_conditions()
 	_test_position_conditions()
 	_test_selectors()
+	_test_area_shapes()
 	_test_value_sources()
 	_test_modify_that()
 	_test_gain_resource_paths()
@@ -594,6 +595,44 @@ func _test_position_conditions() -> void:
 	_ok("position: an enemy within 2 tiles", within.test(ctx))
 
 
+# The world's p1 stands in the map's corner (0, 0), p2 at (1, 0), q1 at (0, 1), e1 at (2, 0) and
+# e2 at (4, 0); the owner is p2. Each shape kind selects the units on its tiles, none off the map.
+func _test_area_shapes() -> void:
+	var engine: EffectEngine = _world()
+	var instance: EffectInstance = _instance(
+			"effect:a", _definition(EffectTerms.Trigger.HIT_TAKEN, [], []),
+			_owner("p2"), TRAIT
+	)
+	var ctx: EffectContext = _context(engine, instance)
+	ctx.fact = CombatFact.new(CombatFact.Kind.HIT_TAKEN, "p1", "e1")
+	var square: Area = _area(Area.Center.OWNER, 1, EffectTerms.UnitSide.ANY, false)
+	square.shape.kind = ContentIds.SHAPE_SQUARE
+	_same("area shapes: square 1 takes the diagonal", ",".join(square.select(ctx)), "p1,q1,e1")
+	var cross: Area = _area(Area.Center.OWNER, 2, EffectTerms.UnitSide.ANY, false)
+	cross.shape.kind = ContentIds.SHAPE_CROSS
+	_same("area shapes: cross 2 keeps to the row", ",".join(cross.select(ctx)), "p1,e1")
+	var corner: Area = _area(Area.Center.FACT_ACTOR, 1, EffectTerms.UnitSide.ANY, false)
+	corner.shape.kind = ContentIds.SHAPE_SQUARE
+	_same("area shapes: square 1 in the corner", ",".join(corner.select(ctx)), "p2,q1")
+	corner.shape.kind = ContentIds.SHAPE_RADIUS
+	corner.shape.size = 2
+	_same("area shapes: radius 2 in the corner", ",".join(corner.select(ctx)), "p2,q1,e1")
+	var tile: Area = _area(Area.Center.OWNER, 3, EffectTerms.UnitSide.ANY, true)
+	tile.shape.kind = ContentIds.SHAPE_TILE
+	_same("area shapes: a tile is its center unit", ",".join(tile.select(ctx)), "p2")
+	tile.shape.includes_center = false
+	_ok("area shapes: a tile without its center selects nothing", tile.select(ctx).is_empty())
+	var enemy_center: Area = _area(Area.Center.FACT_TARGET, 1, EffectTerms.UnitSide.ALLY, true)
+	_same(
+			"area shapes: the center counts whatever its side",
+			",".join(enemy_center.select(ctx)),
+			"p2,e1"
+	)
+	var unshaped: Area = Area.new()
+	unshaped.side = EffectTerms.UnitSide.ANY
+	_ok("area shapes: no shape selects nothing", unshaped.select(ctx).is_empty())
+
+
 func _test_selectors() -> void:
 	var engine: EffectEngine = _world(PackedInt32Array([1]))
 	var instance: EffectInstance = _instance(
@@ -624,7 +663,7 @@ func _test_selectors() -> void:
 			",".join(sanctuary.select(ctx)),
 			"p1,p2,q1"
 	)
-	sanctuary.include_center = false
+	sanctuary.shape.includes_center = false
 	ctx.command_target_id = "e1"
 	_same("select: allies adjacent to an enemy target", ",".join(sanctuary.select(ctx)), "p2")
 	ctx.command_target_id = ""
@@ -1099,9 +1138,11 @@ func _area(
 ) -> Area:
 	var area: Area = Area.new()
 	area.center = center
-	area.radius = radius
+	area.shape = TargetShape.new()
+	area.shape.kind = ContentIds.SHAPE_RADIUS
+	area.shape.size = radius
+	area.shape.includes_center = include_center
 	area.side = side
-	area.include_center = include_center
 	return area
 
 

@@ -6,7 +6,7 @@
 # File:     support_cases.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 29, 2026
+# Modified: November 12, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -622,9 +622,11 @@ func _area_staff(
 func _area(center: Area.Center, radius: int, include_center: bool) -> Area:
 	var area: Area = Area.new()
 	area.center = center
-	area.radius = radius
+	area.shape = TargetShape.new()
+	area.shape.kind = ContentIds.SHAPE_RADIUS
+	area.shape.size = radius
+	area.shape.includes_center = include_center
 	area.side = EffectTerms.UnitSide.ALLY
-	area.include_center = include_center
 	return area
 
 

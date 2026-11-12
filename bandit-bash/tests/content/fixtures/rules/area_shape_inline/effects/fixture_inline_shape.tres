@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="EffectDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="1_lbsrf"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="2_w4qy6"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="3_6euxq"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/deal_splash.gd" id="4_8cd1l"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/area.gd" id="5_oae76"]
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="6_3je5w"]
+[ext_resource type="Script" path="res://scripts/content/target_shape.gd" id="7_t4msa"]
+
+[sub_resource type="Resource" id="Resource_ythyv"]
+script = ExtResource("3_6euxq")
+value = 2.0
+
+[sub_resource type="Resource" id="Resource_lal0r"]
+script = ExtResource("7_t4msa")
+kind = "radius"
+size = 1
+includes_center = false
+id = "fixture_inline"
+
+[sub_resource type="Resource" id="Resource_pj8l7"]
+script = ExtResource("5_oae76")
+shape = SubResource("Resource_lal0r")
+side = 2
+
+[sub_resource type="Resource" id="Resource_wlm31"]
+script = ExtResource("4_8cd1l")
+target = SubResource("Resource_pj8l7")
+amount = SubResource("Resource_ythyv")
+
+[resource]
+script = ExtResource("6_3je5w")
+id = "fixture_inline_shape"
+trigger = 8
+operations = Array[ExtResource("2_w4qy6")]([SubResource("Resource_wlm31")])

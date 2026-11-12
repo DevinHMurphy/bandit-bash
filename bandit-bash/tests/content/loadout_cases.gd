@@ -6,7 +6,7 @@
 # File:     loadout_cases.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 5, 2026
+# Modified: November 12, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -69,6 +69,7 @@ func run() -> void:
 	_test_enemy_weapon_effects_unlimited()
 	_test_total_uses_across_battles()
 	_test_attack_condition_matches_ids()
+	_test_area_staff_shape()
 	_test_definitions_unchanged()
 
 
@@ -475,6 +476,62 @@ func _test_heirloom_effects() -> void:
 	_check.call("heirlooms: an unknown id gives nothing", (
 			Loadout.heirloom_effects(valid, "no_such_heirloom", 1, ids).is_empty()
 	), "")
+
+
+# The valid tree's Everwall names fixture_adjacent; the archer can't wield it, which is reported,
+# and it is still carried. A staff naming a shape no tree has gets no area, with a problem.
+func _test_area_staff_shape() -> void:
+	var valid: EffectCatalog.Index = EffectCatalog.load_tree(
+			"res://tests/content/fixtures/rules/valid/"
+	)
+	var everwall: Dictionary[String, ItemInstance] = {
+		"item:1": _item("item:1", "fixture_everwall"),
+	}
+	var held: Loadout.LoadedUnit = Loadout.load_unit(
+			valid,
+			_unit("unit:1", "fixture_archer", "item:1"),
+			everwall,
+			PLAYER,
+			0,
+			InstanceIdAllocator.new()
+	)
+	var area: Area = null if held.weapons.is_empty() else held.weapons[0].area
+	_check.call("area staff: its record's area reuses the catalog's shape", (
+			area != null and area.shape == valid.shape("fixture_adjacent")
+	), str(held.problems))
+	_check.call("area staff: allies around the unit it is used on", (
+			area != null
+			and area.center == Area.Center.COMMAND_TARGET
+			and area.side == EffectTerms.UnitSide.ALLY
+	), "")
+	var bow: CombatState.WeaponStats = Loadout.weapon_record(valid.weapon("fixture_bow"), "item:2")
+	_check.call("area staff: a weapon's record has no area", bow.area == null, "")
+
+	var unshaped: StaffDefinition = valid.staff("fixture_everwall").duplicate() as StaffDefinition
+	unshaped.id = "fixture_unshaped_staff"
+	unshaped.area_shape_id = "no_such_shape"
+	var memory: EffectCatalog.Index = EffectCatalog.Index.new()
+	memory.root = "res://memory/"
+	memory.add("res://memory/units/fixture_archer.tres", valid.unit_type("fixture_archer"))
+	memory.add("res://memory/items/weapons/staff/fixture_unshaped_staff.tres", unshaped)
+	memory.finish()
+	var unshaped_items: Dictionary[String, ItemInstance] = {
+		"item:3": _item("item:3", "fixture_unshaped_staff"),
+	}
+	var missing: Loadout.LoadedUnit = Loadout.load_unit(
+			memory,
+			_unit("unit:2", "fixture_archer", "item:3"),
+			unshaped_items,
+			PLAYER,
+			0,
+			InstanceIdAllocator.new()
+	)
+	var reported: bool = false
+	for problem: String in missing.problems:
+		reported = reported or problem.contains("area shape \"no_such_shape\"")
+	_check.call("area staff: a shape the catalog lacks is reported, and covers the target only", (
+			reported and missing.weapons.size() == 1 and missing.weapons[0].area == null
+	), str(missing.problems))
 
 
 func _test_enemy_class_is_no_unit_type() -> void:

@@ -6,7 +6,7 @@
 # File:     turn_cases.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 5, 2026
+# Modified: November 12, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -790,9 +790,11 @@ func _swap(sender: int, unit_id: String, other_id: String) -> UnitTurnCommand:
 func _phalanx() -> EffectDefinition:
 	var adjacent: Area = Area.new()
 	adjacent.center = Area.Center.OWNER
-	adjacent.radius = 1
+	adjacent.shape = TargetShape.new()
+	adjacent.shape.kind = ContentIds.SHAPE_RADIUS
+	adjacent.shape.size = 1
+	adjacent.shape.includes_center = false
 	adjacent.side = EffectTerms.UnitSide.ALLY
-	adjacent.include_center = false
 	var count: CountOf = CountOf.new()
 	count.selector = adjacent
 	return _definition(
@@ -956,8 +958,10 @@ class TurnWorld:
 		if preset == "everwall":
 			var area: Area = Area.new()
 			area.center = Area.Center.OWNER
-			area.radius = 3
+			area.shape = TargetShape.new()
+			area.shape.kind = ContentIds.SHAPE_RADIUS
+			area.shape.size = 3
+			area.shape.includes_center = true
 			area.side = EffectTerms.UnitSide.ALLY
-			area.include_center = true
 			stats.area = area
 		return stats

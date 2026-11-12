@@ -6,7 +6,7 @@
 # File:     intents.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 5, 2026
+# Modified: November 12, 2026
 # ==============================================================================
 
 class_name Intents
@@ -296,7 +296,7 @@ static func _zone_of(
 	return zone
 
 
-# How far any effect on engine's map reaches from a unit by position: the largest Area radius and
+# How far any effect on engine's map reaches from a unit by position: the largest Area shape and
 # "within N tiles" or adjacency test in any effect's definition; -1 when one reads the whole map
 # (no ally closer to the enemy), so every decision counts as touched by any move. reaches: each
 # definition's _reach_in, read and filled here.
@@ -318,8 +318,11 @@ static func _effect_margin(engine: EffectEngine, reaches: Dictionary[EffectDefin
 # The largest positional reach in block and every resource it stores; -1 for the whole map.
 static func _reach_in(block: Object) -> int:
 	var found: int = 0
-	if block is Area:
-		found = (block as Area).radius
+	if block is TargetShape:
+		# An Area's reach is its shape's farthest tile by grid distance: a square's corner is
+		# twice its size away.
+		for tile: Vector2i in (block as TargetShape).tiles(Vector2i.ZERO):
+			found = maxi(found, absi(tile.x) + absi(tile.y))
 	if block is WhilePositionCondition:
 		var position: WhilePositionCondition = block
 		match position.kind:

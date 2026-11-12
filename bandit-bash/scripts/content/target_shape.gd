@@ -6,7 +6,7 @@
 # File:     target_shape.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 29, 2026
+# Modified: November 12, 2026
 # ==============================================================================
 
 @tool
@@ -48,7 +48,7 @@ func tiles(center: Vector2i) -> Array[Vector2i]:
 	var covered: Array[Vector2i] = []
 	if not ContentIds.SHAPE_KINDS.has(kind):
 		return covered
-	var reach: int = 0 if kind == ContentIds.SHAPE_TILE else maxi(size, 0)
+	var reach: int = _reach()
 	for dy: int in range(-reach, reach + 1):
 		for dx: int in range(-reach, reach + 1):
 			if dx == 0 and dy == 0 and not includes_center:
@@ -56,6 +56,25 @@ func tiles(center: Vector2i) -> Array[Vector2i]:
 			if _covers(Vector2i(dx, dy), reach):
 				covered.append(center + Vector2i(dx, dy))
 	return covered
+
+
+## Whether [param tile] is among [method tiles] of [param center], without building the list:
+## what [Area] asks of every unit on the map.
+func covers(center: Vector2i, tile: Vector2i) -> bool:
+	if not ContentIds.SHAPE_KINDS.has(kind):
+		return false
+	var offset: Vector2i = tile - center
+	if offset == Vector2i.ZERO:
+		return includes_center
+	var reach: int = _reach()
+	if absi(offset.x) > reach or absi(offset.y) > reach:
+		return false
+	return _covers(offset, reach)
+
+
+# How far the shape reaches along each axis: the half-width of the square it fits in.
+func _reach() -> int:
+	return 0 if kind == ContentIds.SHAPE_TILE else maxi(size, 0)
 
 
 # Whether [param offset] from the center, inside the square [param reach] each way, is covered.

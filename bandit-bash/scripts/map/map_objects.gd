@@ -6,7 +6,7 @@
 # File:     map_objects.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 4, 2026
+# Modified: November 12, 2026
 # ==============================================================================
 
 class_name MapObjects
@@ -76,11 +76,12 @@ const BREAKABLE_STATS: Dictionary[MapLayout.ObjectKind, Array] = {
 ## definition: [code]attack_speed = 5[/code]).
 const ATTACK_SPEED: int = 5
 
-## Splash damage a powder keg deals to each unit within [constant KEG_RADIUS] (map-objects.md).
+## Splash damage a powder keg deals to each unit [constant KEG_BLAST] covers (map-objects.md).
 const KEG_SPLASH: int = 5
 
-## A keg's blast reach, in tiles of grid distance (map-objects.md).
-const KEG_RADIUS: int = 1
+## The tiles a keg's blast covers around the keg: within 1 tile by grid distance (map-objects.md).
+## A shared shape file, preloaded because the blast also runs in sandboxes off the main thread.
+const KEG_BLAST: TargetShape = preload("res://data/shapes/adjacent_with_center.tres")
 
 ## The [member EffectDefinition.id] of each of a powder keg's two reactions, by trigger: "any hit"
 ## and "any splash". Saves name the reactions by these ([method map_definition]): never change
@@ -338,14 +339,15 @@ static func broken(
 	Darkness.recalculate(engine, state)
 
 
-## Powder keg [param keg] explodes: [constant KEG_SPLASH] splash to every unit within
-## [constant KEG_RADIUS] tiles, friend or foe, in the state's unit order, then every breakable
-## within that reach breaks, in spot order; a keg among them explodes in turn.
+## Powder keg [param keg] explodes: [constant KEG_SPLASH] splash to every unit on the tiles
+## [constant KEG_BLAST] covers around it, friend or foe, in the state's unit order, then every
+## breakable there breaks, in spot order; a keg among them explodes in turn.
 static func explode(engine: EffectEngine, state: CombatState, keg: MapState.ObjectState) -> void:
 	var effect_id: String = _keg_effect_id(engine, keg.id)
 	var breakables: Array[String] = []
 	for unit_id: String in state.unit_ids():
-		if state.grid.distance(keg.tile, state.tile_of(unit_id)) > KEG_RADIUS:
+		var tile: Vector2i = state.tile_of(unit_id)
+		if tile == CombatFact.NO_TILE or not KEG_BLAST.covers(keg.tile, tile):
 			continue
 		if state.side_of(unit_id) == CombatFact.CombatSide.NONE:
 			breakables.append(unit_id)

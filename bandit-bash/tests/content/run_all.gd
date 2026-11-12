@@ -6,12 +6,13 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 5, 2026
+# Modified: November 12, 2026
 # ==============================================================================
 
 extends SceneTree
 ## Headless tests for the content definitions: one fixture per kind loads with its fields and
-## effect text, [method TargetShape.tiles] for every kind at sizes 0 to 3, the [Prices] tables,
+## effect text, [method TargetShape.tiles] and [method TargetShape.covers] for every kind at sizes
+## 0 to 3 (at the map's corners and edges too) and the shared shapes in data/, the [Prices] tables,
 ## the [ContentIds] lists and their inspector hints, and the [code]res://data/[/code] folders.
 ## [EffectCatalog] and the content test, its rules over all of [code]res://data/[/code] and the
 ## rule fixtures, live in catalog_cases.gd; unit and item instances and [Loadout] in
@@ -102,6 +103,9 @@ func _init() -> void:
 	_test_shape_counts()
 	_test_shape_exact_tiles()
 	_test_shape_edges()
+	_test_shape_covers()
+	_test_shape_map_edges()
+	_test_data_shapes()
 	_test_item_prices()
 	_test_unsold_rarities()
 	_test_rune_and_heirloom_prices()
@@ -419,6 +423,108 @@ func _test_shape_edges() -> void:
 	_check("shapes: no distance setting", fresh.get("distance") == null)
 
 
+# covers() answers for one tile what tiles() lists, over a window wider than any size here.
+func _test_shape_covers() -> void:
+	var center: Vector2i = Vector2i(1, -3)
+	for kind: String in ContentIds.SHAPE_KINDS:
+		for size: int in 4:
+			for with_center: bool in [true, false]:
+				var shape: TargetShape = _shape(kind, size, with_center)
+				var listed: Array[Vector2i] = shape.tiles(center)
+				var agrees: bool = true
+				for dy: int in range(-5, 6):
+					for dx: int in range(-5, 6):
+						var tile: Vector2i = center + Vector2i(dx, dy)
+						agrees = agrees and shape.covers(center, tile) == listed.has(tile)
+				_check("shapes: %s size %d %s its center covers what it lists" % [
+					kind, size, "with" if with_center else "without",
+				], agrees, str(listed))
+	_check(
+			"shapes: an unknown kind covers no tile",
+			not _shape("line", 2, true).covers(Vector2i.ZERO, Vector2i.ZERO)
+	)
+
+
+# tiles() knows nothing of the map, so at a corner or edge it lists tiles off the map, and the
+# caller keeps the rest. Expected counts are hand-computed for a 10 x 8 map, center included:
+# a corner keeps one quarter of each shape, an edge one half, each with the shared row or column.
+func _test_shape_map_edges() -> void:
+	var map_size: Vector2i = Vector2i(10, 8)
+	var corner: Dictionary[String, PackedInt32Array] = {
+		ContentIds.SHAPE_TILE: PackedInt32Array([1, 1, 1, 1]),
+		ContentIds.SHAPE_RADIUS: PackedInt32Array([1, 3, 6, 10]),
+		ContentIds.SHAPE_SQUARE: PackedInt32Array([1, 4, 9, 16]),
+		ContentIds.SHAPE_CROSS: PackedInt32Array([1, 3, 5, 7]),
+	}
+	var edge: Dictionary[String, PackedInt32Array] = {
+		ContentIds.SHAPE_TILE: PackedInt32Array([1, 1, 1, 1]),
+		ContentIds.SHAPE_RADIUS: PackedInt32Array([1, 4, 9, 16]),
+		ContentIds.SHAPE_SQUARE: PackedInt32Array([1, 6, 15, 28]),
+		ContentIds.SHAPE_CROSS: PackedInt32Array([1, 4, 7, 10]),
+	}
+	var places: Dictionary[Vector2i, Dictionary] = {
+		Vector2i(0, 0): corner,
+		Vector2i(9, 7): corner,
+		Vector2i(0, 4): edge,
+		Vector2i(4, 0): edge,
+	}
+	for center: Vector2i in places:
+		var expected: Dictionary = places[center]
+		for kind: String in ContentIds.SHAPE_KINDS:
+			for size: int in 4:
+				var counts: PackedInt32Array = expected[kind]
+				var want: int = counts[size]
+				var with_center: Array[Vector2i] = _on_map(
+						_shape(kind, size, true).tiles(center), map_size
+				)
+				var without: Array[Vector2i] = _on_map(
+						_shape(kind, size, false).tiles(center), map_size
+				)
+				_check("shapes: %s size %d at %s keeps %d tiles on the map" % [
+					kind, size, center, want,
+				], with_center.size() == want, str(with_center))
+				_check("shapes: %s size %d at %s without its center" % [kind, size, center], (
+						without.size() == want - 1 and not without.has(center)
+				), str(without))
+	var raw: Array[Vector2i] = _shape(ContentIds.SHAPE_RADIUS, 1, true).tiles(Vector2i.ZERO)
+	_check("shapes: at a corner the off-map tiles are still listed", (
+			raw.size() == 5 and raw.has(Vector2i(-1, 0)) and raw.has(Vector2i(0, -1))
+	), str(raw))
+
+
+# The shapes in res://data/shapes/ that today's content reuses: Cleave's and the keg blast's.
+func _test_data_shapes() -> void:
+	var adjacent: TargetShape = EffectCatalog.shape("adjacent")
+	_check("data shapes: adjacent is radius 1 without its center", (
+			adjacent != null
+			and adjacent.kind == ContentIds.SHAPE_RADIUS
+			and adjacent.size == 1
+			and not adjacent.includes_center
+			and adjacent.tiles(Vector2i(3, 3)).size() == 4
+	))
+	var with_center: TargetShape = EffectCatalog.shape("adjacent_with_center")
+	_check("data shapes: adjacent_with_center is radius 1 with its center", (
+			with_center != null
+			and with_center.kind == ContentIds.SHAPE_RADIUS
+			and with_center.size == 1
+			and with_center.includes_center
+			and with_center.tiles(Vector2i(3, 3)).size() == 5
+	))
+	_check(
+			"data shapes: the keg blast reuses adjacent_with_center",
+			MapObjects.KEG_BLAST == with_center
+	)
+	var brute: EnemyClassDefinition = EffectCatalog.enemy_class("brute")
+	var splash: DealSplash = null
+	if brute != null and not brute.effects.is_empty():
+		splash = brute.effects[0].operations[0] as DealSplash
+	var area: Area = null if splash == null else splash.target as Area
+	_check(
+			"data shapes: the Brute's Cleave reuses adjacent",
+			area != null and area.shape == adjacent
+	)
+
+
 func _test_item_prices() -> void:
 	_check("prices: the table covers every item kind", (
 			PRICE_TABLE.size() == ContentIds.ITEM_KINDS.size()
@@ -691,6 +797,15 @@ func _shape(kind: String, size: int, includes_center: bool) -> TargetShape:
 	shape.size = size
 	shape.includes_center = includes_center
 	return shape
+
+
+# The tiles of tiles inside a map of map_size, in their order.
+func _on_map(tiles: Array[Vector2i], map_size: Vector2i) -> Array[Vector2i]:
+	var kept: Array[Vector2i] = []
+	for tile: Vector2i in tiles:
+		if tile.x >= 0 and tile.y >= 0 and tile.x < map_size.x and tile.y < map_size.y:
+			kept.append(tile)
+	return kept
 
 
 func _is_unique(tiles: Array[Vector2i]) -> bool:
