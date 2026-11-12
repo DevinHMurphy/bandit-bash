@@ -144,6 +144,7 @@ Not a bug.
   build agents never interfere.
 - **Workaround until fixed:** a `sessions` or `save` failure during another worktree's run is
   rerun once before it counts.
+- **Seen again:** RN1's report: `ui/board` failed 3 save cases ("Already exists") while CT6's worktree ran; it passed alone and on a rerun. So any suite that writes to `user://` is affected.
 
 ## Closed bugs
 

@@ -1,0 +1,49 @@
+[gd_resource type="Resource" script_class="CampaignMapRules" format=3]
+
+[ext_resource type="Script" path="res://scripts/campaign/campaign_map_rules.gd" id="1_f7i0t"]
+
+[resource]
+script = ExtResource("1_f7i0t")
+floor_count = 18
+column_count = 7
+path_count = 6
+weights = Dictionary[int, int]({
+0: 4,
+1: 1,
+3: 1,
+4: 1,
+5: 2,
+6: 2,
+7: 1
+})
+fixed_rows = Dictionary[int, int]({
+1: 0,
+6: 1,
+9: 7,
+12: 1,
+17: 6,
+18: 2
+})
+earliest_floor = Dictionary[int, int]({
+1: 6,
+3: 3,
+4: 3,
+6: 6
+})
+banned_floors = Dictionary[int, PackedInt32Array]({
+6: PackedInt32Array(16)
+})
+no_repeat_groups = Array[PackedInt32Array]([PackedInt32Array(1), PackedInt32Array(3, 4), PackedInt32Array(6)])
+path_caps = Dictionary[int, int]({
+1: 4,
+6: 5
+})
+path_targets = Dictionary[int, int]({
+3: 1,
+4: 1,
+6: 2,
+7: 2
+})
+; ASSUMPTION: boost 3 is RN1's measured proposal (tests/bench/campaign_map_bench.gd), awaiting the
+; user's approval. Fragile: a re-save drops this comment.
+target_boost = 3

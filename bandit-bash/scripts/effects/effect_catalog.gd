@@ -6,7 +6,7 @@
 # File:     effect_catalog.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 30, 2026
+# Modified: November 12, 2026
 # ==============================================================================
 
 class_name EffectCatalog
@@ -88,6 +88,12 @@ const PARENT_KINDS: Dictionary[Kind, Kind] = {
 	Kind.STAFF: Kind.WEAPON,
 	Kind.CURSE: Kind.HEIRLOOM,
 }
+
+# ASSUMPTION: rules data under res://data/ is skipped rather than kept out of data/; the campaign
+# plan puts the map rules in data/campaign/, and they have no id or kind.
+# Folders under DATA_ROOT that hold rules data, not content definitions, so the walk skips them.
+# tests/content/catalog_cases.gd skips the same folders when it counts files.
+const _RULES_FOLDERS: PackedStringArray = ["res://data/campaign/"]
 
 # The catalog of DATA_ROOT once loaded; null until then.
 static var _index: Index = null
@@ -325,13 +331,14 @@ static func _require() -> Index:
 
 
 # Adds every file under [param folder] to [param index], folders depth first, in name order, so
-# paths are added in path order.
+# paths are added in path order. Folders in _RULES_FOLDERS are left out.
 static func _walk(index: Index, folder: String) -> void:
 	var entries: PackedStringArray = ResourceLoader.list_directory(folder)
 	entries.sort()
 	for entry: String in entries:
 		if entry.ends_with("/"):
-			_walk(index, folder + entry)
+			if not _RULES_FOLDERS.has(folder + entry):
+				_walk(index, folder + entry)
 		else:
 			index.add(folder + entry, ResourceLoader.load(folder + entry))
 
