@@ -1,0 +1,52 @@
+[gd_resource type="Resource" script_class="ConsumableDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_ujocr"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_wiyp1"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_8yydf"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="4_s28bd"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="5_8k5id"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="6_uypsi"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/change_base_stat.gd" id="7_52xgy"]
+[ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="8_0m0j4"]
+
+[sub_resource type="Resource" id="Resource_8bwab"]
+script = ExtResource("4_s28bd")
+value = 5.0
+
+[sub_resource type="Resource" id="Resource_ufav3"]
+script = ExtResource("6_uypsi")
+
+[sub_resource type="Resource" id="Resource_lgr0i"]
+script = ExtResource("5_8k5id")
+pool = 0
+target = SubResource("Resource_ufav3")
+amount = SubResource("Resource_8bwab")
+
+[sub_resource type="Resource" id="Resource_dqega"]
+script = ExtResource("6_uypsi")
+
+[sub_resource type="Resource" id="Resource_n8no0"]
+script = ExtResource("7_52xgy")
+target = SubResource("Resource_dqega")
+key = 17
+mode = 1
+value = 5.0
+
+[sub_resource type="Resource" id="Resource_t5wx1"]
+script = ExtResource("1_ujocr")
+id = "eat"
+operations = Array[ExtResource("3_8yydf")]([SubResource("Resource_lgr0i"), SubResource("Resource_n8no0")])
+
+[resource]
+script = ExtResource("8_0m0j4")
+use_kind = "ingredient"
+amount = 5
+uses_lane = 1
+cooked_gains = Dictionary[int, int]({
+1: 1
+})
+rarity = 1
+tags = PackedStringArray()
+id = "runewart"
+display_name = "Runewart"
+effects = Array[ExtResource("1_ujocr")]([SubResource("Resource_t5wx1")])

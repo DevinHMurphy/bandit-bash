@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="TrinketDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_owe1j"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_6086v"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_hueh1"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_7ilgd"]
+[ext_resource type="Script" path="res://scripts/content/trinket_definition.gd" id="5_3yqt8"]
+
+[sub_resource type="Resource" id="Resource_8usho"]
+script = ExtResource("4_7ilgd")
+key = 20
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_0l1nn"]
+script = ExtResource("1_owe1j")
+id = "bonuses"
+operations = Array[ExtResource("3_hueh1")]([SubResource("Resource_8usho")])
+
+[resource]
+script = ExtResource("5_3yqt8")
+rarity = 1
+tags = PackedStringArray()
+id = "old_pendant"
+display_name = "Old Pendant"
+effects = Array[ExtResource("1_owe1j")]([SubResource("Resource_0l1nn")])

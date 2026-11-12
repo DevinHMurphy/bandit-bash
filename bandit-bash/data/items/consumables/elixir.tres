@@ -1,0 +1,41 @@
+[gd_resource type="Resource" script_class="ConsumableDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_oac7g"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_sq50w"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_hcbuv"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/stat_of.gd" id="4_7hlg3"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="5_gbirl"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="6_rur4x"]
+[ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="7_pip62"]
+
+[sub_resource type="Resource" id="Resource_bojna"]
+script = ExtResource("5_gbirl")
+
+[sub_resource type="Resource" id="Resource_fxiwr"]
+script = ExtResource("4_7hlg3")
+key = 16
+subject = SubResource("Resource_bojna")
+
+[sub_resource type="Resource" id="Resource_f5lj0"]
+script = ExtResource("5_gbirl")
+
+[sub_resource type="Resource" id="Resource_860n1"]
+script = ExtResource("6_rur4x")
+pool = 0
+target = SubResource("Resource_f5lj0")
+amount = SubResource("Resource_fxiwr")
+
+[sub_resource type="Resource" id="Resource_02p0h"]
+script = ExtResource("1_oac7g")
+id = "heal"
+operations = Array[ExtResource("3_hcbuv")]([SubResource("Resource_860n1")])
+
+[resource]
+script = ExtResource("7_pip62")
+use_kind = "full_heal"
+uses_lane = 1
+rarity = 3
+tags = PackedStringArray()
+id = "elixir"
+display_name = "Elixir"
+effects = Array[ExtResource("1_oac7g")]([SubResource("Resource_02p0h")])

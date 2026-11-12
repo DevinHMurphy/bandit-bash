@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="EquipmentDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_v1v6e"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_mwc13"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_gye6o"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_c62s6"]
+[ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="5_ew3lm"]
+
+[sub_resource type="Resource" id="Resource_72hsm"]
+script = ExtResource("4_c62s6")
+key = 16
+value = 6.0
+
+[sub_resource type="Resource" id="Resource_eo8se"]
+script = ExtResource("1_v1v6e")
+id = "bonuses"
+operations = Array[ExtResource("3_gye6o")]([SubResource("Resource_72hsm")])
+
+[resource]
+script = ExtResource("5_ew3lm")
+category = "cloak"
+rarity = 3
+weight = 1
+tags = PackedStringArray()
+id = "fancy_cloak"
+display_name = "Fancy Cloak"
+effects = Array[ExtResource("1_v1v6e")]([SubResource("Resource_eo8se")])

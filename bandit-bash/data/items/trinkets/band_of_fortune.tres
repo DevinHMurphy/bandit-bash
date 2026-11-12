@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="TrinketDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_f7hv1"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_q710r"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_v22vq"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_mpjgi"]
+[ext_resource type="Script" path="res://scripts/content/trinket_definition.gd" id="5_4wqoq"]
+
+[sub_resource type="Resource" id="Resource_q43ne"]
+script = ExtResource("4_mpjgi")
+key = 6
+value = 5.0
+
+[sub_resource type="Resource" id="Resource_rb716"]
+script = ExtResource("4_mpjgi")
+key = 4
+value = 5.0
+
+[sub_resource type="Resource" id="Resource_as781"]
+script = ExtResource("1_f7hv1")
+id = "bonuses"
+operations = Array[ExtResource("3_v22vq")]([SubResource("Resource_q43ne"), SubResource("Resource_rb716")])
+
+[resource]
+script = ExtResource("5_4wqoq")
+rarity = 2
+tags = PackedStringArray()
+id = "band_of_fortune"
+display_name = "Band of Fortune"
+effects = Array[ExtResource("1_f7hv1")]([SubResource("Resource_as781")])

@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="EquipmentDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_dfokq"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_a6rqn"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/while_state_condition.gd" id="3_ajmed"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="4_prlr5"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="5_x3mw0"]
+[ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="6_y6n8u"]
+
+[sub_resource type="Resource" id="Resource_x8fvp"]
+script = ExtResource("3_ajmed")
+subject = 1
+
+[sub_resource type="Resource" id="Resource_8kcyw"]
+script = ExtResource("5_x3mw0")
+key = 1000
+value = 2.0
+
+[sub_resource type="Resource" id="Resource_wmotp"]
+script = ExtResource("1_dfokq")
+id = "bonuses"
+conditions = Array[ExtResource("2_a6rqn")]([SubResource("Resource_x8fvp")])
+operations = Array[ExtResource("4_prlr5")]([SubResource("Resource_8kcyw")])
+
+[resource]
+script = ExtResource("6_y6n8u")
+category = "coating"
+rarity = 1
+tags = PackedStringArray()
+id = "simple_coating"
+display_name = "Simple Coating"
+effects = Array[ExtResource("1_dfokq")]([SubResource("Resource_wmotp")])

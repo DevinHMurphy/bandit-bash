@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="TrinketDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_2mtp4"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_c6b8d"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_1p7wg"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_hrms7"]
+[ext_resource type="Script" path="res://scripts/content/trinket_definition.gd" id="5_tb58a"]
+
+[sub_resource type="Resource" id="Resource_glnwx"]
+script = ExtResource("4_hrms7")
+key = 6
+value = 30.0
+
+[sub_resource type="Resource" id="Resource_5d5w1"]
+script = ExtResource("4_hrms7")
+key = 7
+value = -1.0
+
+[sub_resource type="Resource" id="Resource_p5few"]
+script = ExtResource("1_2mtp4")
+id = "bonuses"
+operations = Array[ExtResource("3_1p7wg")]([SubResource("Resource_glnwx"), SubResource("Resource_5d5w1")])
+
+[resource]
+script = ExtResource("5_tb58a")
+rarity = 3
+tags = PackedStringArray()
+id = "loaded_die"
+display_name = "Loaded Die"
+effects = Array[ExtResource("1_2mtp4")]([SubResource("Resource_p5few")])

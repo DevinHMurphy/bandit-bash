@@ -1,0 +1,43 @@
+[gd_resource type="Resource" script_class="EquipmentDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_plbdy"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_3ux1a"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_qq7ii"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_i8ojr"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="5_5tina"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="6_6ar1h"]
+[ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="7_bbmtj"]
+
+[sub_resource type="Resource" id="Resource_4vtkr"]
+script = ExtResource("4_i8ojr")
+key = 19
+value = 2.0
+
+[sub_resource type="Resource" id="Resource_imhje"]
+script = ExtResource("1_plbdy")
+id = "bonuses"
+operations = Array[ExtResource("3_qq7ii")]([SubResource("Resource_4vtkr")])
+
+[sub_resource type="Resource" id="Resource_i0kp2"]
+script = ExtResource("5_5tina")
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_2y14f"]
+script = ExtResource("6_6ar1h")
+amount = SubResource("Resource_i0kp2")
+
+[sub_resource type="Resource" id="Resource_6s025"]
+script = ExtResource("1_plbdy")
+id = "before_combat_block"
+trigger = 3
+operations = Array[ExtResource("3_qq7ii")]([SubResource("Resource_2y14f")])
+
+[resource]
+script = ExtResource("7_bbmtj")
+category = "shield"
+rarity = 1
+weight = 4
+tags = PackedStringArray()
+id = "iron_shield"
+display_name = "Iron Shield"
+effects = Array[ExtResource("1_plbdy")]([SubResource("Resource_imhje"), SubResource("Resource_6s025")])

@@ -1,0 +1,52 @@
+[gd_resource type="Resource" script_class="ConsumableDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_dhy3i"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_d0y2x"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_m5ah0"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="4_jb6ox"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="5_dgayv"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="6_8d1jb"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/change_base_stat.gd" id="7_gmfwt"]
+[ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="8_0bfs8"]
+
+[sub_resource type="Resource" id="Resource_6cbxa"]
+script = ExtResource("4_jb6ox")
+value = 10.0
+
+[sub_resource type="Resource" id="Resource_l3jd7"]
+script = ExtResource("6_8d1jb")
+
+[sub_resource type="Resource" id="Resource_covix"]
+script = ExtResource("5_dgayv")
+pool = 0
+target = SubResource("Resource_l3jd7")
+amount = SubResource("Resource_6cbxa")
+
+[sub_resource type="Resource" id="Resource_cwgaj"]
+script = ExtResource("6_8d1jb")
+
+[sub_resource type="Resource" id="Resource_pf00d"]
+script = ExtResource("7_gmfwt")
+target = SubResource("Resource_cwgaj")
+key = 18
+mode = 1
+value = 10.0
+
+[sub_resource type="Resource" id="Resource_bsa67"]
+script = ExtResource("1_dhy3i")
+id = "eat"
+operations = Array[ExtResource("3_m5ah0")]([SubResource("Resource_covix"), SubResource("Resource_pf00d")])
+
+[resource]
+script = ExtResource("8_0bfs8")
+use_kind = "ingredient"
+amount = 10
+uses_lane = 1
+cooked_gains = Dictionary[int, int]({
+2: 2
+})
+rarity = 3
+tags = PackedStringArray()
+id = "hastehawk_feather"
+display_name = "Hastehawk Feather"
+effects = Array[ExtResource("1_dhy3i")]([SubResource("Resource_bsa67")])

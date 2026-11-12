@@ -1,0 +1,44 @@
+[gd_resource type="Resource" script_class="EquipmentDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_7rmhp"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_dkdqr"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_qmrtk"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_yp653"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="5_2aqn8"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="6_r7a8q"]
+[ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="7_42jge"]
+
+[sub_resource type="Resource" id="Resource_wa5ck"]
+script = ExtResource("4_yp653")
+key = 16
+value = 4.0
+
+[sub_resource type="Resource" id="Resource_41pcv"]
+script = ExtResource("1_7rmhp")
+id = "bonuses"
+operations = Array[ExtResource("3_qmrtk")]([SubResource("Resource_wa5ck")])
+
+[sub_resource type="Resource" id="Resource_gytyv"]
+script = ExtResource("5_2aqn8")
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_3kjeu"]
+script = ExtResource("6_r7a8q")
+pool = 0
+amount = SubResource("Resource_gytyv")
+
+[sub_resource type="Resource" id="Resource_yxrb8"]
+script = ExtResource("1_7rmhp")
+id = "phase_start_heal"
+trigger = 1
+operations = Array[ExtResource("3_qmrtk")]([SubResource("Resource_3kjeu")])
+
+[resource]
+script = ExtResource("7_42jge")
+category = "cloak"
+rarity = 1
+weight = 1
+tags = PackedStringArray()
+id = "vitality_cloak"
+display_name = "Vitality Cloak"
+effects = Array[ExtResource("1_7rmhp")]([SubResource("Resource_41pcv"), SubResource("Resource_yxrb8")])

@@ -1,0 +1,52 @@
+[gd_resource type="Resource" script_class="ConsumableDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_jik6a"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_bybsc"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_nb3dg"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="4_2pv0y"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="5_gy6rl"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="6_mkqo1"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/change_base_stat.gd" id="7_7rmkn"]
+[ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="8_r81wr"]
+
+[sub_resource type="Resource" id="Resource_0bh8l"]
+script = ExtResource("4_2pv0y")
+value = 10.0
+
+[sub_resource type="Resource" id="Resource_yi45c"]
+script = ExtResource("6_mkqo1")
+
+[sub_resource type="Resource" id="Resource_jibo2"]
+script = ExtResource("5_gy6rl")
+pool = 0
+target = SubResource("Resource_yi45c")
+amount = SubResource("Resource_0bh8l")
+
+[sub_resource type="Resource" id="Resource_ynrme"]
+script = ExtResource("6_mkqo1")
+
+[sub_resource type="Resource" id="Resource_lj63s"]
+script = ExtResource("7_7rmkn")
+target = SubResource("Resource_ynrme")
+key = 20
+mode = 1
+value = 10.0
+
+[sub_resource type="Resource" id="Resource_q6tc1"]
+script = ExtResource("1_jik6a")
+id = "eat"
+operations = Array[ExtResource("3_nb3dg")]([SubResource("Resource_jibo2"), SubResource("Resource_lj63s")])
+
+[resource]
+script = ExtResource("8_r81wr")
+use_kind = "ingredient"
+amount = 10
+uses_lane = 1
+cooked_gains = Dictionary[int, int]({
+4: 2
+})
+rarity = 3
+tags = PackedStringArray()
+id = "sanctree_branch"
+display_name = "Sanctree Branch"
+effects = Array[ExtResource("1_jik6a")]([SubResource("Resource_q6tc1")])

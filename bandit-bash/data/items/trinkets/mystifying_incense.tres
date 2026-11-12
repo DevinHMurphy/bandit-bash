@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="TrinketDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_f20kx"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_44m6c"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_juclx"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_fhx72"]
+[ext_resource type="Script" path="res://scripts/content/trinket_definition.gd" id="5_rdgg5"]
+
+[sub_resource type="Resource" id="Resource_3vxiq"]
+script = ExtResource("4_fhx72")
+key = 5
+value = 5.0
+
+[sub_resource type="Resource" id="Resource_362d1"]
+script = ExtResource("1_f20kx")
+id = "bonuses"
+operations = Array[ExtResource("3_juclx")]([SubResource("Resource_3vxiq")])
+
+[resource]
+script = ExtResource("5_rdgg5")
+rarity = 1
+tags = PackedStringArray()
+id = "mystifying_incense"
+display_name = "Mystifying Incense"
+effects = Array[ExtResource("1_f20kx")]([SubResource("Resource_362d1")])

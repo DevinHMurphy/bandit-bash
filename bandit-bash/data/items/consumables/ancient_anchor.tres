@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="ConsumableDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_n3sh4"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_yr07t"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_86by7"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/change_base_stat.gd" id="4_agy4c"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="5_lc2ff"]
+[ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="6_rymka"]
+
+[sub_resource type="Resource" id="Resource_c7wat"]
+script = ExtResource("5_lc2ff")
+
+[sub_resource type="Resource" id="Resource_vcury"]
+script = ExtResource("4_agy4c")
+target = SubResource("Resource_c7wat")
+key = 20
+value = 2.0
+
+[sub_resource type="Resource" id="Resource_qoh2i"]
+script = ExtResource("1_n3sh4")
+id = "boost"
+operations = Array[ExtResource("3_86by7")]([SubResource("Resource_vcury")])
+
+[resource]
+script = ExtResource("6_rymka")
+use_kind = "stat_booster"
+uses_lane = 1
+rarity = 3
+tags = PackedStringArray()
+id = "ancient_anchor"
+display_name = "Ancient Anchor"
+effects = Array[ExtResource("1_n3sh4")]([SubResource("Resource_qoh2i")])

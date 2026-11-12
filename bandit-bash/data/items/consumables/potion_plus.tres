@@ -1,0 +1,37 @@
+[gd_resource type="Resource" script_class="ConsumableDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_pplbc"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_lvpeu"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_vrv12"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="4_70lyc"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="5_d4p1e"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="6_s8xju"]
+[ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="7_katro"]
+
+[sub_resource type="Resource" id="Resource_y72g0"]
+script = ExtResource("4_70lyc")
+value = 12.0
+
+[sub_resource type="Resource" id="Resource_ysn80"]
+script = ExtResource("6_s8xju")
+
+[sub_resource type="Resource" id="Resource_qh672"]
+script = ExtResource("5_d4p1e")
+pool = 0
+target = SubResource("Resource_ysn80")
+amount = SubResource("Resource_y72g0")
+
+[sub_resource type="Resource" id="Resource_45tyw"]
+script = ExtResource("1_pplbc")
+id = "heal"
+operations = Array[ExtResource("3_vrv12")]([SubResource("Resource_qh672")])
+
+[resource]
+script = ExtResource("7_katro")
+use_kind = "heal"
+amount = 12
+rarity = 2
+tags = PackedStringArray()
+id = "potion_plus"
+display_name = "Potion+"
+effects = Array[ExtResource("1_pplbc")]([SubResource("Resource_45tyw")])

@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="TrinketDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_ngu5g"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_0k5uo"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_gvrp2"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_canw4"]
+[ext_resource type="Script" path="res://scripts/content/trinket_definition.gd" id="5_54e3i"]
+
+[sub_resource type="Resource" id="Resource_54bif"]
+script = ExtResource("4_canw4")
+key = 2003
+value = 25.0
+
+[sub_resource type="Resource" id="Resource_pa6u3"]
+script = ExtResource("1_ngu5g")
+id = "bonuses"
+operations = Array[ExtResource("3_gvrp2")]([SubResource("Resource_54bif")])
+
+[resource]
+script = ExtResource("5_54e3i")
+rarity = 1
+tags = PackedStringArray()
+id = "family_ring"
+display_name = "Family Ring"
+effects = Array[ExtResource("1_ngu5g")]([SubResource("Resource_pa6u3")])

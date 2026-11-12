@@ -1,0 +1,52 @@
+[gd_resource type="Resource" script_class="ConsumableDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_c6oyv"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_66y6o"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_o2ri5"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="4_keqfy"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="5_adto0"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="6_02xdp"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/change_base_stat.gd" id="7_ijn2t"]
+[ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="8_m6vyv"]
+
+[sub_resource type="Resource" id="Resource_sfpu0"]
+script = ExtResource("4_keqfy")
+value = 5.0
+
+[sub_resource type="Resource" id="Resource_n28sa"]
+script = ExtResource("6_02xdp")
+
+[sub_resource type="Resource" id="Resource_i0miw"]
+script = ExtResource("5_adto0")
+pool = 0
+target = SubResource("Resource_n28sa")
+amount = SubResource("Resource_sfpu0")
+
+[sub_resource type="Resource" id="Resource_usgla"]
+script = ExtResource("6_02xdp")
+
+[sub_resource type="Resource" id="Resource_cpo4h"]
+script = ExtResource("7_ijn2t")
+target = SubResource("Resource_usgla")
+key = 19
+mode = 1
+value = 5.0
+
+[sub_resource type="Resource" id="Resource_s0ivd"]
+script = ExtResource("1_c6oyv")
+id = "eat"
+operations = Array[ExtResource("3_o2ri5")]([SubResource("Resource_i0miw"), SubResource("Resource_cpo4h")])
+
+[resource]
+script = ExtResource("8_m6vyv")
+use_kind = "ingredient"
+amount = 5
+uses_lane = 1
+cooked_gains = Dictionary[int, int]({
+3: 1
+})
+rarity = 1
+tags = PackedStringArray()
+id = "stonebark_blossom"
+display_name = "Stonebark Blossom"
+effects = Array[ExtResource("1_c6oyv")]([SubResource("Resource_s0ivd")])

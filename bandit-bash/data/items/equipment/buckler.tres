@@ -1,0 +1,48 @@
+[gd_resource type="Resource" script_class="EquipmentDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_un1ru"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_eqq7u"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_tt0y4"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_dbxai"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="5_ogt5m"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="6_ncvui"]
+[ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="7_a4gnv"]
+
+[sub_resource type="Resource" id="Resource_sgafm"]
+script = ExtResource("4_dbxai")
+key = 19
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_4fdtu"]
+script = ExtResource("4_dbxai")
+key = 20
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_7cyls"]
+script = ExtResource("1_un1ru")
+id = "bonuses"
+operations = Array[ExtResource("3_tt0y4")]([SubResource("Resource_sgafm"), SubResource("Resource_4fdtu")])
+
+[sub_resource type="Resource" id="Resource_j4nvb"]
+script = ExtResource("5_ogt5m")
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_lfchd"]
+script = ExtResource("6_ncvui")
+amount = SubResource("Resource_j4nvb")
+
+[sub_resource type="Resource" id="Resource_wmgw7"]
+script = ExtResource("1_un1ru")
+id = "before_combat_block"
+trigger = 3
+operations = Array[ExtResource("3_tt0y4")]([SubResource("Resource_lfchd")])
+
+[resource]
+script = ExtResource("7_a4gnv")
+category = "shield"
+rarity = 2
+weight = 4
+tags = PackedStringArray()
+id = "buckler"
+display_name = "Buckler"
+effects = Array[ExtResource("1_un1ru")]([SubResource("Resource_7cyls"), SubResource("Resource_wmgw7")])

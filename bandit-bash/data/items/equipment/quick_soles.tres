@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="EquipmentDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_n7epu"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_1cocl"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_81r86"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_pnaip"]
+[ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="5_p2bdt"]
+
+[sub_resource type="Resource" id="Resource_f6p1w"]
+script = ExtResource("4_pnaip")
+key = 15
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_emr3f"]
+script = ExtResource("1_n7epu")
+id = "bonuses"
+operations = Array[ExtResource("3_81r86")]([SubResource("Resource_f6p1w")])
+
+[resource]
+script = ExtResource("5_p2bdt")
+category = "band"
+rarity = 3
+tags = PackedStringArray()
+id = "quick_soles"
+display_name = "Quick Soles"
+effects = Array[ExtResource("1_n7epu")]([SubResource("Resource_emr3f")])

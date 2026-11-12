@@ -1,0 +1,52 @@
+[gd_resource type="Resource" script_class="ConsumableDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_oghxi"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_nvfdm"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_6bgb3"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="4_3a00c"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="5_kpb7f"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="6_47crg"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/change_base_stat.gd" id="7_ai07v"]
+[ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="8_h7apf"]
+
+[sub_resource type="Resource" id="Resource_4tr6q"]
+script = ExtResource("4_3a00c")
+value = 5.0
+
+[sub_resource type="Resource" id="Resource_71nsf"]
+script = ExtResource("6_47crg")
+
+[sub_resource type="Resource" id="Resource_phtky"]
+script = ExtResource("5_kpb7f")
+pool = 0
+target = SubResource("Resource_71nsf")
+amount = SubResource("Resource_4tr6q")
+
+[sub_resource type="Resource" id="Resource_wsc3t"]
+script = ExtResource("6_47crg")
+
+[sub_resource type="Resource" id="Resource_ov4a1"]
+script = ExtResource("7_ai07v")
+target = SubResource("Resource_wsc3t")
+key = 17
+mode = 1
+value = 5.0
+
+[sub_resource type="Resource" id="Resource_t8f4w"]
+script = ExtResource("1_oghxi")
+id = "eat"
+operations = Array[ExtResource("3_6bgb3")]([SubResource("Resource_phtky"), SubResource("Resource_ov4a1")])
+
+[resource]
+script = ExtResource("8_h7apf")
+use_kind = "ingredient"
+amount = 5
+uses_lane = 1
+cooked_gains = Dictionary[int, int]({
+1: 1
+})
+rarity = 2
+tags = PackedStringArray()
+id = "wisdom_wine"
+display_name = "Wisdom Wine"
+effects = Array[ExtResource("1_oghxi")]([SubResource("Resource_t8f4w")])

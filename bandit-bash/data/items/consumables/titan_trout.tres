@@ -1,0 +1,52 @@
+[gd_resource type="Resource" script_class="ConsumableDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_qy2u3"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_0lfh5"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_wpj8f"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="4_wwiew"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="5_jj11j"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="6_ypxp0"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/change_base_stat.gd" id="7_j1l35"]
+[ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="8_ai0uk"]
+
+[sub_resource type="Resource" id="Resource_pou57"]
+script = ExtResource("4_wwiew")
+value = 10.0
+
+[sub_resource type="Resource" id="Resource_wsjmg"]
+script = ExtResource("6_ypxp0")
+
+[sub_resource type="Resource" id="Resource_vgg0n"]
+script = ExtResource("5_jj11j")
+pool = 0
+target = SubResource("Resource_wsjmg")
+amount = SubResource("Resource_pou57")
+
+[sub_resource type="Resource" id="Resource_g0wa4"]
+script = ExtResource("6_ypxp0")
+
+[sub_resource type="Resource" id="Resource_p4c81"]
+script = ExtResource("7_j1l35")
+target = SubResource("Resource_g0wa4")
+key = 16
+mode = 1
+value = 10.0
+
+[sub_resource type="Resource" id="Resource_vxfj4"]
+script = ExtResource("1_qy2u3")
+id = "eat"
+operations = Array[ExtResource("3_wpj8f")]([SubResource("Resource_vgg0n"), SubResource("Resource_p4c81")])
+
+[resource]
+script = ExtResource("8_ai0uk")
+use_kind = "ingredient"
+amount = 10
+uses_lane = 1
+cooked_gains = Dictionary[int, int]({
+0: 4
+})
+rarity = 2
+tags = PackedStringArray()
+id = "titan_trout"
+display_name = "Titan Trout"
+effects = Array[ExtResource("1_qy2u3")]([SubResource("Resource_vxfj4")])

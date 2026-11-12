@@ -1,0 +1,52 @@
+[gd_resource type="Resource" script_class="ConsumableDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_o82v2"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_w4xyb"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ihu0c"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="4_6ibvf"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="5_lgc5u"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="6_iggp4"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/change_base_stat.gd" id="7_apptm"]
+[ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="8_uhsl5"]
+
+[sub_resource type="Resource" id="Resource_5t0a5"]
+script = ExtResource("4_6ibvf")
+value = 5.0
+
+[sub_resource type="Resource" id="Resource_3u80f"]
+script = ExtResource("6_iggp4")
+
+[sub_resource type="Resource" id="Resource_854mn"]
+script = ExtResource("5_lgc5u")
+pool = 0
+target = SubResource("Resource_3u80f")
+amount = SubResource("Resource_5t0a5")
+
+[sub_resource type="Resource" id="Resource_0rs5y"]
+script = ExtResource("6_iggp4")
+
+[sub_resource type="Resource" id="Resource_iqfi5"]
+script = ExtResource("7_apptm")
+target = SubResource("Resource_0rs5y")
+key = 17
+mode = 1
+value = 5.0
+
+[sub_resource type="Resource" id="Resource_eb343"]
+script = ExtResource("1_o82v2")
+id = "eat"
+operations = Array[ExtResource("3_ihu0c")]([SubResource("Resource_854mn"), SubResource("Resource_iqfi5")])
+
+[resource]
+script = ExtResource("8_uhsl5")
+use_kind = "ingredient"
+amount = 5
+uses_lane = 1
+cooked_gains = Dictionary[int, int]({
+1: 1
+})
+rarity = 1
+tags = PackedStringArray()
+id = "brutvine_sap"
+display_name = "Brutvine Sap"
+effects = Array[ExtResource("1_o82v2")]([SubResource("Resource_eb343")])

@@ -1,0 +1,37 @@
+[gd_resource type="Resource" script_class="EquipmentDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_te0jt"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_51v0x"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_5cuv4"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_tjnmm"]
+[ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="5_mwx1v"]
+
+[sub_resource type="Resource" id="Resource_cpocw"]
+script = ExtResource("4_tjnmm")
+key = 19
+value = 4.0
+
+[sub_resource type="Resource" id="Resource_78ur8"]
+script = ExtResource("4_tjnmm")
+key = 20
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_olfil"]
+script = ExtResource("4_tjnmm")
+key = 8
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_khsri"]
+script = ExtResource("1_te0jt")
+id = "bonuses"
+operations = Array[ExtResource("3_5cuv4")]([SubResource("Resource_cpocw"), SubResource("Resource_78ur8"), SubResource("Resource_olfil")])
+
+[resource]
+script = ExtResource("5_mwx1v")
+category = "shield"
+rarity = 3
+weight = 8
+tags = PackedStringArray()
+id = "silver_greatshield"
+display_name = "Silver Greatshield"
+effects = Array[ExtResource("1_te0jt")]([SubResource("Resource_khsri")])

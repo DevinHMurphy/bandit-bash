@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="TrinketDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_nxf1p"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_6uib0"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_8r0up"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_dn8c3"]
+[ext_resource type="Script" path="res://scripts/content/trinket_definition.gd" id="5_3bmad"]
+
+[sub_resource type="Resource" id="Resource_xtoyx"]
+script = ExtResource("4_dn8c3")
+key = 6
+value = 10.0
+
+[sub_resource type="Resource" id="Resource_1hobs"]
+script = ExtResource("1_nxf1p")
+id = "bonuses"
+operations = Array[ExtResource("3_8r0up")]([SubResource("Resource_xtoyx")])
+
+[resource]
+script = ExtResource("5_3bmad")
+rarity = 1
+tags = PackedStringArray()
+id = "lucky_coin"
+display_name = "Lucky Coin"
+effects = Array[ExtResource("1_nxf1p")]([SubResource("Resource_1hobs")])

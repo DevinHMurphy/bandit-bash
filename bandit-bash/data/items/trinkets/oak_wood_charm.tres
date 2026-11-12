@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="TrinketDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_2n01m"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_abtcd"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_0ahph"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_x05bv"]
+[ext_resource type="Script" path="res://scripts/content/trinket_definition.gd" id="5_l1r88"]
+
+[sub_resource type="Resource" id="Resource_xivu2"]
+script = ExtResource("4_x05bv")
+key = 5
+value = 10.0
+
+[sub_resource type="Resource" id="Resource_wqt2x"]
+script = ExtResource("1_2n01m")
+id = "bonuses"
+operations = Array[ExtResource("3_0ahph")]([SubResource("Resource_xivu2")])
+
+[resource]
+script = ExtResource("5_l1r88")
+rarity = 5
+tags = PackedStringArray()
+id = "oak_wood_charm"
+display_name = "Oak Wood Charm"
+effects = Array[ExtResource("1_2n01m")]([SubResource("Resource_wqt2x")])

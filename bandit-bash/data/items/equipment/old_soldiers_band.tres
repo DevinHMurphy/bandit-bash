@@ -1,0 +1,37 @@
+[gd_resource type="Resource" script_class="EquipmentDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_uiv28"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_e0uub"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_6vu1j"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_0qskn"]
+[ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="5_dklxo"]
+
+[sub_resource type="Resource" id="Resource_1em4t"]
+script = ExtResource("4_0qskn")
+key = 17
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_iivgy"]
+script = ExtResource("4_0qskn")
+key = 19
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_j1ub7"]
+script = ExtResource("4_0qskn")
+key = 4
+value = 10.0
+
+[sub_resource type="Resource" id="Resource_a8wat"]
+script = ExtResource("1_uiv28")
+id = "bonuses"
+operations = Array[ExtResource("3_6vu1j")]([SubResource("Resource_1em4t"), SubResource("Resource_iivgy"), SubResource("Resource_j1ub7")])
+
+[resource]
+script = ExtResource("5_dklxo")
+category = "band"
+rarity = 1
+weight = 1
+tags = PackedStringArray()
+id = "old_soldiers_band"
+display_name = "Old Soldier's Band"
+effects = Array[ExtResource("1_uiv28")]([SubResource("Resource_a8wat")])

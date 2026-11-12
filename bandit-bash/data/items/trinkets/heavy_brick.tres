@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="TrinketDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_6yj6e"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_ty8sn"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_id8v5"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_gqsvc"]
+[ext_resource type="Script" path="res://scripts/content/trinket_definition.gd" id="5_r5w1t"]
+
+[sub_resource type="Resource" id="Resource_5sbvd"]
+script = ExtResource("4_gqsvc")
+key = 21
+value = 2.0
+
+[sub_resource type="Resource" id="Resource_jnubo"]
+script = ExtResource("1_6yj6e")
+id = "bonuses"
+operations = Array[ExtResource("3_id8v5")]([SubResource("Resource_5sbvd")])
+
+[resource]
+script = ExtResource("5_r5w1t")
+rarity = 5
+tags = PackedStringArray()
+id = "heavy_brick"
+display_name = "Heavy Brick"
+effects = Array[ExtResource("1_6yj6e")]([SubResource("Resource_jnubo")])

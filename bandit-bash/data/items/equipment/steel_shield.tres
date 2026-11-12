@@ -1,0 +1,43 @@
+[gd_resource type="Resource" script_class="EquipmentDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_4f6ic"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_35ud4"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_5rxg6"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_7dx0b"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="5_ugia1"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="6_saw4f"]
+[ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="7_8ctll"]
+
+[sub_resource type="Resource" id="Resource_2mvr6"]
+script = ExtResource("4_7dx0b")
+key = 19
+value = 3.0
+
+[sub_resource type="Resource" id="Resource_51v1u"]
+script = ExtResource("1_4f6ic")
+id = "bonuses"
+operations = Array[ExtResource("3_5rxg6")]([SubResource("Resource_2mvr6")])
+
+[sub_resource type="Resource" id="Resource_a8obr"]
+script = ExtResource("5_ugia1")
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_8rlxe"]
+script = ExtResource("6_saw4f")
+amount = SubResource("Resource_a8obr")
+
+[sub_resource type="Resource" id="Resource_s0fjh"]
+script = ExtResource("1_4f6ic")
+id = "before_combat_block"
+trigger = 3
+operations = Array[ExtResource("3_5rxg6")]([SubResource("Resource_8rlxe")])
+
+[resource]
+script = ExtResource("7_8ctll")
+category = "shield"
+rarity = 2
+weight = 5
+tags = PackedStringArray()
+id = "steel_shield"
+display_name = "Steel Shield"
+effects = Array[ExtResource("1_4f6ic")]([SubResource("Resource_51v1u"), SubResource("Resource_s0fjh")])

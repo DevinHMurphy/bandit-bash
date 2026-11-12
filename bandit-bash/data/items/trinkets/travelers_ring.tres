@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="TrinketDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_y34j2"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_pasfc"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_q3vjl"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_fv0lb"]
+[ext_resource type="Script" path="res://scripts/content/trinket_definition.gd" id="5_iotdb"]
+
+[sub_resource type="Resource" id="Resource_8yc02"]
+script = ExtResource("4_fv0lb")
+key = 18
+value = 2.0
+
+[sub_resource type="Resource" id="Resource_6vkik"]
+script = ExtResource("4_fv0lb")
+key = 19
+value = -1.0
+
+[sub_resource type="Resource" id="Resource_lcxwv"]
+script = ExtResource("1_y34j2")
+id = "bonuses"
+operations = Array[ExtResource("3_q3vjl")]([SubResource("Resource_8yc02"), SubResource("Resource_6vkik")])
+
+[resource]
+script = ExtResource("5_iotdb")
+rarity = 1
+tags = PackedStringArray()
+id = "travelers_ring"
+display_name = "Traveler's Ring"
+effects = Array[ExtResource("1_y34j2")]([SubResource("Resource_lcxwv")])
