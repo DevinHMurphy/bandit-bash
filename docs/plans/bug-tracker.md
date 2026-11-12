@@ -1,6 +1,6 @@
 # Bug Tracker
 
-**Created:** November 6, 2026. **Last updated:** November 9, 2026.
+**Created:** November 6, 2026. **Last updated:** November 12, 2026.
 
 Every known defect in `bandit-bash/`, from playtests, build reports and reviews. It works under the
 [orchestrator](game-orchestrator.md): the orchestrator session triages new rows, batches them into
@@ -44,6 +44,7 @@ Not a bug.
 | [BUG-004](#bug-004-an-enemy-with-an-attack-intent-moves-and-doesnt-attack) | An enemy with an attack intent moves and doesn't attack; the next enemy hits its target | P05 / P07 | S2 | New | November 6, 2026, user playtest | — |
 | [BUG-005](#bug-005-unit-detail-shows-the-type-id-not-its-name) | Unit detail shows the type id, not its name | P07 | S4 | Assigned (BF1) | November 7, 2026, UI11 report | BF1 |
 | [BUG-006](#bug-006-netlog-raises-an-engine-error-once-the-peer-is-cleared) | NetLog raises an engine error once the peer is cleared | P00 / P10 | S3 | Assigned (BF1) | November 9, 2026, O3 report | BF1 |
+| [BUG-007](#bug-007-test-runs-in-two-worktrees-share-one-user-folder) | Test runs in two worktrees share one user folder | P14 (runner) | S3 | Assigned (BF1) | November 12, 2026, CT6 report | BF1 |
 
 ### BUG-001 No Block at the start of combat
 
@@ -130,6 +131,19 @@ Not a bug.
 - **Expected:** logging is silent with no peer and shows peer 1, as in solo play.
 - **To check:** whether `leave_lobby()` should restore an offline peer rather than null, or NetLog
   should guard the call. `steam_network.gd` guards on `multiplayer_peer != null` elsewhere.
+
+### BUG-007 Test runs in two worktrees share one user folder
+
+- **Found:** CT6's report. On a clean `dev`, `sessions` failed `_test_service_rng_campaign_streams`
+  once while RN1's worktree was also running tests; it passed on a rerun.
+- **Cause** (read, not run): `tools/run_tests.sh` writes an `override.cfg` with
+  `config/custom_user_dir_name="bandit_bash_tests"`, a fixed name, so every worktree's run uses
+  the same `user://` folder. O4 serialised the suites that use it within one run, but two runs at
+  once still collide.
+- **Expected:** each run gets its own test user folder, removed when the run ends, so parallel
+  build agents never interfere.
+- **Workaround until fixed:** a `sessions` or `save` failure during another worktree's run is
+  rerun once before it counts.
 
 ## Closed bugs
 

@@ -6,7 +6,7 @@
 # File:     combat_state.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: November 7, 2026
+# Modified: November 12, 2026
 # ==============================================================================
 
 class_name CombatState
@@ -37,8 +37,9 @@ extends SandboxState
 ## @tutorial(Combat core plan): docs/plans/2026-10-26-combat-core.md
 ## @tutorial(Save system design): docs/design/save-system.md
 ##
-## @todo: TOD-002 - Save an area staff's shape by its content id once P03 CT6 gives records one
-## (loadout.gd:TOD-001); [method WeaponStats.capture] leaves [member WeaponStats.area] out.
+## @todo: TOD-002 - Save an area staff's shape by its content id (P03 CT4, the first staff data
+## with a shape); [method WeaponStats.capture] leaves [member WeaponStats.area] out, so a restored
+## record covers its target only.
 
 # Facts follow() applies only once the engine has followed every fact before them: a refresh and a
 # placement read the unit's Stance maximum, a Pouch item's use and a key's read its charges.
@@ -832,8 +833,8 @@ class WeaponStats:
 	var staff: Staff = Staff.NONE
 	## A Block or heal staff's amount before Might.
 	var staff_amount: int = 0
-	# ASSUMPTION: an area staff carries its shape as an Area selector until P03's staff data does.
-	## An area staff's shape around its target or user (Sanctuary, Everwall); null: the target only.
+	## The allies an area staff gives its amount to (Sanctuary, Everwall), built by [Loadout] from
+	## [member StaffDefinition.area_shape_id]; null: the target only.
 	var area: Area = null
 
 	## Whether it is a staff of any kind; its holder never counters.
@@ -841,7 +842,7 @@ class WeaponStats:
 		return staff != Staff.NONE
 
 	## Its numbers as plain JSON values, enums by name. [member area] is left out
-	## ([code]combat_state.gd:TOD-002[/code]); no loaded record has one yet.
+	## ([code]combat_state.gd:TOD-002[/code]); no staff in the content has one yet.
 	## [method from_capture] reverses it.
 	func capture() -> Dictionary:
 		return {

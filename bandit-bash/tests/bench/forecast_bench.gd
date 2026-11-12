@@ -6,7 +6,7 @@
 # File:     forecast_bench.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: November 5, 2026
+# Modified: November 12, 2026
 # ==============================================================================
 
 extends Node
@@ -782,9 +782,11 @@ func _constant(value: float) -> Constant:
 func _area(radius: int, side: EffectTerms.UnitSide, include_center: bool) -> Area:
 	var area: Area = Area.new()
 	area.center = Area.Center.OWNER
-	area.radius = radius
+	area.shape = TargetShape.new()
+	area.shape.kind = ContentIds.SHAPE_RADIUS
+	area.shape.size = radius
+	area.shape.includes_center = include_center
 	area.side = side
-	area.include_center = include_center
 	return area
 
 

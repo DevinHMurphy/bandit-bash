@@ -6,7 +6,7 @@
 # File:     exchange_cases.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: November 5, 2026
+# Modified: November 12, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -1202,7 +1202,10 @@ func _momentum() -> EffectDefinition:
 func _cleave() -> EffectDefinition:
 	var area: Area = Area.new()
 	area.center = Area.Center.OWNER
-	area.radius = 1
+	area.shape = TargetShape.new()
+	area.shape.kind = ContentIds.SHAPE_RADIUS
+	area.shape.size = 1
+	area.shape.includes_center = false
 	area.side = EffectTerms.UnitSide.ANY
 	var amount: Constant = Constant.new()
 	amount.value = 2.0

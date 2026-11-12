@@ -6,7 +6,7 @@
 # File:     ai_world.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: October 31, 2026
+# Modified: November 12, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -128,7 +128,10 @@ func add_player(
 func add_cleave(unit_id: String) -> void:
 	var area: Area = Area.new()
 	area.center = Area.Center.OWNER
-	area.radius = 1
+	area.shape = TargetShape.new()
+	area.shape.kind = ContentIds.SHAPE_RADIUS
+	area.shape.size = 1
+	area.shape.includes_center = false
 	area.side = EffectTerms.UnitSide.ANY
 	var amount: Constant = Constant.new()
 	amount.value = 2.0

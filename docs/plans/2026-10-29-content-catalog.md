@@ -276,7 +276,7 @@ Rune prefixes are post-MVP: `prefixes/runes/` exists and nothing reads it.
 | Unit types, tags and weapon types checked against fixed id lists | Behavior | Any string | Ids from the lists | Proposed (CT2) | `combat_unit_state.gd`, every test fixture | 🟡 |
 | `CombatValue.Permission.CAN_PICK_LOCKS` appended | Enum (P01) | — | New value, default denied | Proposed (CT2) | `combat_value.gd`, `map_objects.gd` | 🟡 |
 | Auto-deployment reads `role` | Behavior (P04) | Ward's type name | `role == "shover"` | Proposed (CT2) | `auto_deploy.gd`, deploy tests | 🟢 |
-| `Area` selector reads a `TargetShape` | P01 block (amendment F17) | Its own center and radius | Center plus a shape | Proposed (CT6) | `blocks/selectors/area.gd`, every area in content and tests, `combat_state.gd`, `map_objects.gd` | 🔴 |
+| `Area` selector reads a `TargetShape` | P01 block (amendment F17) | Its own center and radius | Center plus a shape | Applied (CT6) | `blocks/selectors/area.gd`, every area in content and tests, `combat_state.gd`, `map_objects.gd` | 🔴 |
 | Rune target kinds and `CastRuneCommand` carrying a tile | Command and wire contract (P02) | Unit ids, Recall inferred from a second unit | A tile (area), nothing (random) or two units (pair), read from the rune | Proposed (CT7) | `cast_rune_command.gd`, `rune_resolver.gd`, `map_objects.gd`, P07's rune UI, P11 | 🔴 |
 | `ItemInstance.prefix_id` | P01 contract addition (F16) | — | New field | Proposed (CT2) | `item_instance.gd`, P08's `roster` | 🟢 |
 | `res://data/` layout | Content layout | `terrain/` only | The folders above | Proposed (CT1) | EB5's catalog | 🟢 |

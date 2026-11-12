@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="EffectDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="1_rprkj"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="2_kx4m6"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="3_neinv"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/deal_splash.gd" id="4_bq76o"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/area.gd" id="5_v8nqt"]
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="6_vo50y"]
+
+[sub_resource type="Resource" id="Resource_04wef"]
+script = ExtResource("3_neinv")
+value = 2.0
+
+[sub_resource type="Resource" id="Resource_okupn"]
+script = ExtResource("5_v8nqt")
+side = 2
+
+[sub_resource type="Resource" id="Resource_xjh1e"]
+script = ExtResource("4_bq76o")
+target = SubResource("Resource_okupn")
+amount = SubResource("Resource_04wef")
+
+[resource]
+script = ExtResource("6_vo50y")
+id = "fixture_unshaped"
+trigger = 8
+operations = Array[ExtResource("2_kx4m6")]([SubResource("Resource_xjh1e")])

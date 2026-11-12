@@ -6,7 +6,7 @@
 # File:     content_rules.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 5, 2026
+# Modified: November 12, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -22,7 +22,8 @@ extends RefCounted
 ## start at 1, string ids are in their [ContentIds] list (a while-attack condition's id too; a
 ## unit type it names is a unit type or enemy class in the tree), every sellable item has a price,
 ## no Basic, Legendary or Unique item has one, and an item with uses has no charged use effect of
-## its own (enemies and AI plan, question 18 (d)); and (event bus plan, question 50) no effect lacks
+## its own (enemies and AI plan, question 18 (d)), every [Area] reuses a shape file from
+## [code]shapes/[/code] (question 17); and (event bus plan, question 50) no effect lacks
 ## operations, no faction lists its commander among its starting units, and starting gear fits
 ## its slots. P05's rules (enemies and AI plan, EN1): enemy classes live in enemies/ and packs in
 ## enemies/packs/, a pack names only enemy classes, each at least once, and an enemy class has
@@ -78,6 +79,9 @@ const CARRIER_EFFECT_ID: String = "carrier_effect_id"
 ## A staff or consumable with uses and its own charged use effect: combat would count its uses
 ## twice.
 const DOUBLE_USES: String = "double_uses"
+## An [Area] with no shape, or whose shape isn't the tree's file of that id in
+## [code]shapes/[/code]: areas reuse the shared shapes, never a copy of their own.
+const AREA_SHAPE: String = "area_shape"
 
 ## Every rule that fails the test.
 const FAILURE_RULES: PackedStringArray = [
@@ -100,6 +104,7 @@ const FAILURE_RULES: PackedStringArray = [
 	ENEMY_CLASS,
 	CARRIER_EFFECT_ID,
 	DOUBLE_USES,
+	AREA_SHAPE,
 ]
 
 # A faction's starting gear slots in order (FactionDefinition.starting_gear).
@@ -451,6 +456,9 @@ func _check_block(path: String, where: String, block: Resource) -> void:
 	if block is WhileAttackCondition:
 		var condition: WhileAttackCondition = block
 		_check_attack_condition(path, where, condition)
+	if block is Area:
+		var area: Area = block
+		_check_area_shape(path, where, area)
 	for property: Dictionary in block.get_property_list():
 		var usage: int = property["usage"]
 		if usage & PROPERTY_USAGE_STORAGE == 0:
@@ -482,6 +490,23 @@ func _check_attack_condition(
 			_fail(DANGLING_REFERENCE, path, "%s \"%s\" is no unit type or enemy class" % [
 				field, id,
 			])
+
+
+# The shape must be the very file the tree lists under its id, so an inline copy or a file from
+# another tree fails even when its id matches a shared shape.
+func _check_area_shape(path: String, where: String, area: Area) -> void:
+	if area.shape == null:
+		_fail(AREA_SHAPE, path, "%s has no shape" % [where])
+		return
+	var shape_id: String = area.shape.id
+	var shape_path: String = area.shape.resource_path
+	if (
+			not _index.is_of(shape_id, EffectCatalog.Kind.SHAPE)
+			or _index.path_of(shape_id) != shape_path
+	):
+		_fail(AREA_SHAPE, path, "%s's shape \"%s\" (%s) is not a file in shapes/" % [
+			where, shape_id, "inline" if shape_path.contains("::") else shape_path,
+		])
 
 
 func _check_heirloom_scope(path: String, where: String, effect: EffectDefinition) -> void:

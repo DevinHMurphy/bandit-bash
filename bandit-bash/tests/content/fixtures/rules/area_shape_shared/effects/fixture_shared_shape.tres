@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="EffectDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="1_0u1xh"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="2_2v2bl"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="3_300lw"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/deal_splash.gd" id="4_yl0lt"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/area.gd" id="5_gvxvb"]
+[ext_resource type="Resource" path="res://tests/content/fixtures/rules/area_shape_shared/shapes/fixture_ring.tres" id="6_nkm1e"]
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="7_lffji"]
+
+[sub_resource type="Resource" id="Resource_8s0i0"]
+script = ExtResource("3_300lw")
+value = 2.0
+
+[sub_resource type="Resource" id="Resource_q0vx1"]
+script = ExtResource("5_gvxvb")
+shape = ExtResource("6_nkm1e")
+side = 2
+
+[sub_resource type="Resource" id="Resource_p25f3"]
+script = ExtResource("4_yl0lt")
+target = SubResource("Resource_q0vx1")
+amount = SubResource("Resource_8s0i0")
+
+[resource]
+script = ExtResource("7_lffji")
+id = "fixture_shared_shape"
+trigger = 8
+operations = Array[ExtResource("2_2v2bl")]([SubResource("Resource_p25f3")])

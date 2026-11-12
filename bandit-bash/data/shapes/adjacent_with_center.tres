@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="TargetShape" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_ly7jx"]
+[ext_resource type="Script" path="res://scripts/content/target_shape.gd" id="2_2xtf6"]
+
+[resource]
+script = ExtResource("2_2xtf6")
+kind = "radius"
+size = 1
+id = "adjacent_with_center"
+display_name = "Adjacent and Center"

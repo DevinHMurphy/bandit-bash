@@ -6,7 +6,7 @@
 # File:     enemy_intent.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 4, 2026
+# Modified: November 12, 2026
 # ==============================================================================
 
 class_name EnemyIntent
@@ -193,12 +193,13 @@ static func _splash_area(engine: EffectEngine, chosen: EnemyPlan) -> Array[Vecto
 			var splash: DealSplash = operation as DealSplash
 			if splash == null or not splash.target is Area:
 				continue
-			var shape: Area = splash.target
+			var area: Area = splash.target
+			if area.shape == null:
+				continue
 			var center: Vector2i = chosen.tile
-			if shape.center != Area.Center.OWNER and shape.center != Area.Center.FACT_ACTOR:
+			if area.center != Area.Center.OWNER and area.center != Area.Center.FACT_ACTOR:
 				center = state.tile_of(chosen.target_id)
-			var span: Vector2i = Vector2i(0 if shape.include_center else 1, shape.radius)
-			for tile: Vector2i in DangerZone.tiles_within(center, span):
+			for tile: Vector2i in area.shape.tiles(center):
 				if state.grid.step(tile, Vector2i.ZERO) != CombatFact.NO_TILE:
 					covered[tile] = true
 	var tiles: Array[Vector2i] = []

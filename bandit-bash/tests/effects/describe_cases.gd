@@ -6,7 +6,7 @@
 # File:     describe_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 9, 2026
+# Modified: November 12, 2026
 # ==============================================================================
 
 extends "res://tests/effects/effects_case_base.gd"
@@ -19,6 +19,7 @@ func run() -> void:
 	_test_describe_conditions()
 	_test_describe_operations()
 	_test_describe_selectors()
+	_test_describe_area_shapes()
 	_test_describe_values()
 	_test_describe_coverage_fixtures()
 	_test_describe_definition_shapes()
@@ -359,6 +360,31 @@ func _test_describe_selectors() -> void:
 	_snapshot("random of", _random_of_army().describe(), "a random one of your units")
 
 
+# The text of each shape kind an Area can read; radius keeps the wording above.
+func _test_describe_area_shapes() -> void:
+	var square: Area = _area(Area.Center.OWNER, 1, EffectTerms.UnitSide.ALLY, false)
+	square.shape.kind = ContentIds.SHAPE_SQUARE
+	_snapshot("area: square 1", square.describe(), "adjacent allies, diagonals included")
+	square.shape.size = 2
+	_snapshot("area: square 2", square.describe(), "allies within 2 tiles, diagonals included")
+	var cross: Area = _area(Area.Center.FACT_ACTOR, 3, EffectTerms.UnitSide.ENEMY, true)
+	cross.shape.kind = ContentIds.SHAPE_CROSS
+	_snapshot(
+			"area: cross 3 with the center",
+			cross.describe(),
+			"that unit and enemies within 3 tiles in a straight line of that unit"
+	)
+	var tile: Area = _area(Area.Center.COMMAND_TARGET, 2, EffectTerms.UnitSide.ALLY, true)
+	tile.shape.kind = ContentIds.SHAPE_TILE
+	_snapshot("area: the center tile only", tile.describe(), "the target")
+	tile.shape.includes_center = false
+	_snapshot("area: a tile without its center", tile.describe(), "no units")
+	var radius_zero: Area = _area(Area.Center.OWNER, 0, EffectTerms.UnitSide.ANY, true)
+	_snapshot("area: radius 0 is the center", radius_zero.describe(), "this unit")
+	var unshaped: Area = Area.new()
+	_snapshot("area: no shape", unshaped.describe(), "no units")
+
+
 func _test_describe_values() -> void:
 	_snapshot("constant", _constant(3.0).describe(), "3")
 	_snapshot("constant: fraction", _constant(2.5).describe(), "2.5")
@@ -642,9 +668,11 @@ func _area(
 ) -> Area:
 	var area: Area = Area.new()
 	area.center = center
-	area.radius = radius
+	area.shape = TargetShape.new()
+	area.shape.kind = ContentIds.SHAPE_RADIUS
+	area.shape.size = radius
+	area.shape.includes_center = with_center
 	area.side = side
-	area.include_center = with_center
 	return area
 
 
