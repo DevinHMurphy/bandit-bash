@@ -6,7 +6,7 @@
 # File:     exchange_feedback_cases.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 7, 2026
+# Modified: November 9, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -25,8 +25,8 @@ extends RefCounted
 ## stowed Minor Heal with the Hakkapel wounded (the heal); each also sets the token, so the board
 ## still matches the state.
 
-const BattleViewCases = preload("res://tests/ui/battle_view_cases.gd")
-const TurnInputCases = preload("res://tests/ui/turn_input_cases.gd")
+const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
+const TurnInputCases = preload("res://tests/ui/battle/input/turn_input_cases.gd")
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
 

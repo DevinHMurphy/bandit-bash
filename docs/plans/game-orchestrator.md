@@ -75,14 +75,14 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P11 | Co-op combat (game-vision.md Multiplayer maps) | **Not started** | — | P01, P02, P04, P08, P10 |
 | P12 | Statistics and the Waystation war table (meta-progression.md) | **Not started** | — | P01, P08 |
 | P13 | [RNG streams](2026-10-26-rng-streams.md) | **Implemented** | — | P00 |
-| P14 | [Project organization](2026-11-09-project-organization.md) | **In progress** | O4 (O5 deferred) | — |
+| P14 | [Project organization](2026-11-09-project-organization.md) | **In progress** | O5 (deferred) | — |
 | P20–P24 | Meta progression, tutorials, dev console, status effects, shared co-op battles | Post-MVP | — | — |
 
 ## Next actions
 
-**Planning focus (user, November 9, 2026):** build prompts are on hold while planning comes first.
+**Build prompts resumed** November 12, 2026 (user), two at a time, once planning caught up.
 
-1. **P14:** O1, O2 and O3 done (O3 merged in eb380c8). Next, O4 (tests), a single build agent.
+1. **P14:** O1–O4 done (O4 merged November 12, 2026: suites split and run in parallel, a full run in 262 s). O5 waits until a step needs those files.
 2. **Plans:** P08 approved November 12, 2026; RN1 (the map) is ready once prompts resume. P09 approved November 12, 2026; EV1 follows RN2. The move-preview re-architecture is adopted ([move-preview.md](../design/move-preview.md)) as P05 EN13–EN16. **Planning is caught up.**
 3. **Then M2's content, two prompts at a time:**
    - **Wave A (ready):** CT6 target shapes with EN6 enemy roster; then CT13 unit roster with CT5 equipment and consumables. EN13 (preview benchmarks and equality suite) runs alongside; EN14–EN16 follow EN6.

@@ -6,7 +6,7 @@
 # File:     intent_cases.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 7, 2026
+# Modified: November 9, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -22,8 +22,8 @@ extends RefCounted
 ## [BattleController] on the M1 battle) with the [IntentDisplay] and [MovePreviewMarks] on the
 ## board, as in the gameplay scene. R goes through the root viewport as a key press.
 
-const BattleViewCases = preload("res://tests/ui/battle_view_cases.gd")
-const TurnInputCases = preload("res://tests/ui/turn_input_cases.gd")
+const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
+const TurnInputCases = preload("res://tests/ui/battle/input/turn_input_cases.gd")
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
 const VIEW_SCENE: PackedScene = preload("res://ui/battle/board/battle_view.tscn")

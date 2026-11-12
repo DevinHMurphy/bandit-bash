@@ -6,7 +6,7 @@
 # File:     hud_cases.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 7, 2026
+# Modified: November 9, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -26,8 +26,8 @@ extends RefCounted
 ## suite's object fixture ([code]tests/map/object_cases.gd[/code]), which has every usable kind,
 ## and on M1's one house through the menu.
 
-const BattleViewCases = preload("res://tests/ui/battle_view_cases.gd")
-const TurnInputCases = preload("res://tests/ui/turn_input_cases.gd")
+const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
+const TurnInputCases = preload("res://tests/ui/battle/input/turn_input_cases.gd")
 const ObjectCases = preload("res://tests/map/object_cases.gd")
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"

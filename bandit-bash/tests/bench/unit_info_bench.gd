@@ -6,7 +6,7 @@
 # File:     unit_info_bench.gd
 # Author:
 # Created:  November 6, 2026
-# Modified: November 6, 2026
+# Modified: November 9, 2026
 # ==============================================================================
 
 extends Node
@@ -27,7 +27,7 @@ extends Node
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
 # Preloaded script used as a type (gdscript.md, Naming): the test helper has no class name.
-const BattleViewCases = preload("res://tests/ui/battle_view_cases.gd")
+const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
 const VIEW_SCENE: PackedScene = preload("res://ui/battle/board/battle_view.tscn")

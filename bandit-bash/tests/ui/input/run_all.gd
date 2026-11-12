@@ -6,14 +6,14 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 7, 2026
+# Modified: November 9, 2026
 # ==============================================================================
 
 extends "res://tests/ui/ui_suite.gd"
 ## Combat UI input suite (combat UI plan, P07): turn input, targeting, the control hints and pads
 ## (joypad bindings, the device adapter, glyphs, focus navigation, the cursor's repeat, hints that
 ## hide when they can do nothing), unit detail (opened and closed by keys, mouse and pad), a cases
-## file each in [code]tests/ui/[/code] (preloaded below;
+## file each in [code]tests/ui/battle/[/code] (preloaded below;
 ## each one's class doc lists its checks); then the gameplay screen's pause menu, opened by Esc and
 ## closed by Esc or Resume, pausing the tree and the board's playback and unpausing both, with the
 ## hint bar following over real frames. The shared helpers are [code]tests/ui/ui_suite.gd[/code]'s.
@@ -25,12 +25,12 @@ extends "res://tests/ui/ui_suite.gd"
 ## The cases run from the first frame, when autoloads exist; the pause case over real frames while
 ## the board plays. It needs a test user folder (see the base).
 
-const BattleViewCases = preload("res://tests/ui/battle_view_cases.gd")
-const TurnInputCases = preload("res://tests/ui/turn_input_cases.gd")
-const TargetingCases = preload("res://tests/ui/targeting_cases.gd")
-const HintBarCases = preload("res://tests/ui/hint_bar_cases.gd")
-const PadCases = preload("res://tests/ui/pad_cases.gd")
-const UnitDetailCases = preload("res://tests/ui/unit_detail_cases.gd")
+const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
+const TurnInputCases = preload("res://tests/ui/battle/input/turn_input_cases.gd")
+const TargetingCases = preload("res://tests/ui/battle/input/targeting_cases.gd")
+const HintBarCases = preload("res://tests/ui/battle/hud/hint_bar_cases.gd")
+const PadCases = preload("res://tests/ui/battle/input/pad_cases.gd")
+const UnitDetailCases = preload("res://tests/ui/battle/unit/unit_detail_cases.gd")
 
 # How long the pause case holds the menu open, checking the board doesn't move meanwhile.
 const PAUSE_HOLD_MSEC: int = 300

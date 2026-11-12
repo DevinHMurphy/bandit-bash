@@ -6,16 +6,17 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 7, 2026
+# Modified: November 9, 2026
 # ==============================================================================
 
 extends "res://tests/ui/ui_suite.gd"
 ## Combat UI board suite (combat UI plan, P07): the board, enemy information and the unit info
-## layer, a cases file each in [code]tests/ui/[/code] (preloaded below; each one's class doc lists
-## its checks); then the gameplay screen itself: a run saved mid-battle and continued opens on the
-## board at its saved state; a new solo run's M1 battle played to its end, the control hints
-## showing PLAYBACK through its final playback until the end banner, its Victory or Defeat banner,
-## and the route to Results. The shared helpers are [code]tests/ui/ui_suite.gd[/code]'s.
+## layer, a cases file each in [code]tests/ui/battle/[/code] (preloaded below; each one's class
+## doc lists its checks); then the gameplay screen itself: a run saved mid-battle and continued
+## opens on the board at its saved state; a new solo run's M1 battle played to its end, the
+## control hints showing PLAYBACK through its final playback until the end banner, its Victory or
+## Defeat banner, and the route to Results. The shared helpers are
+## [code]tests/ui/ui_suite.gd[/code]'s.
 ##
 ## Run from the repo root:
 ## [code]godot --headless --path bandit-bash --script res://tests/ui/board/run_all.gd[/code].
@@ -24,9 +25,9 @@ extends "res://tests/ui/ui_suite.gd"
 ## The cases run from the first frame, when autoloads exist; the routing case over a few more for
 ## the scene change. The continue and routing cases need a test user folder (see the base).
 
-const BattleViewCases = preload("res://tests/ui/battle_view_cases.gd")
-const IntentCases = preload("res://tests/ui/intent_cases.gd")
-const UnitInfoCases = preload("res://tests/ui/unit_info_cases.gd")
+const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
+const IntentCases = preload("res://tests/ui/battle/intents/intent_cases.gd")
+const UnitInfoCases = preload("res://tests/ui/battle/unit/unit_info_cases.gd")
 
 # SceneRouter.Screen.RESULTS: this script can't name the autoload (see the base's class doc).
 const SCREEN_RESULTS: int = 4

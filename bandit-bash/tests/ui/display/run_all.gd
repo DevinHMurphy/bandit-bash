@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 7, 2026
+# Modified: November 9, 2026
 # ==============================================================================
 
 extends "res://tests/ui/ui_suite.gd"
@@ -15,8 +15,8 @@ extends "res://tests/ui/ui_suite.gd"
 ## gray only in a unit's own phase, the HP bar's maximum), UI10's exchange feedback (the
 ## forecast's flash, outlined pips, move then act), and UI11's objective HUDs and the opening-swap
 ## setting (Options, settings.json and the solo battle; with a test user folder only), a cases
-## file each in [code]tests/ui/[/code] (preloaded below; each one's class doc lists its checks);
-## then the gameplay screen's layout: its save debug panel (hidden when the battle opens,
+## file each in [code]tests/ui/battle/[/code] (preloaded below; each one's class doc lists its
+## checks); then the gameplay screen's layout: its save debug panel (hidden when the battle opens,
 ## toggled by F3 and read afresh, clear of the M1 map at the 1152×648 base size, untouched by
 ## clicks on the deployment tiles); the HUD and the hint bar clear of the map at the base size and
 ## wider; the run seed on the pause screen; a real click on the unit panel's Details opening unit
@@ -29,13 +29,13 @@ extends "res://tests/ui/ui_suite.gd"
 ## The cases run from the first frame, when autoloads exist; the panel case over a few more frames
 ## so the layout and the camera settle. It needs a test user folder (see the base).
 
-const ForecastCases = preload("res://tests/ui/forecast_cases.gd")
-const HudCases = preload("res://tests/ui/hud_cases.gd")
-const UnitDisplayCases = preload("res://tests/ui/unit_display_cases.gd")
-const DisplayFixCases = preload("res://tests/ui/display_fix_cases.gd")
-const ExchangeFeedbackCases = preload("res://tests/ui/exchange_feedback_cases.gd")
-const ObjectiveHudCases = preload("res://tests/ui/objective_hud_cases.gd")
-const OpeningSwapCases = preload("res://tests/ui/opening_swap_cases.gd")
+const ForecastCases = preload("res://tests/ui/battle/forecast/forecast_cases.gd")
+const HudCases = preload("res://tests/ui/battle/hud/hud_cases.gd")
+const UnitDisplayCases = preload("res://tests/ui/battle/unit/unit_display_cases.gd")
+const DisplayFixCases = preload("res://tests/ui/battle/display_fix_cases.gd")
+const ExchangeFeedbackCases = preload("res://tests/ui/battle/exchange_feedback_cases.gd")
+const ObjectiveHudCases = preload("res://tests/ui/battle/objectives/objective_hud_cases.gd")
+const OpeningSwapCases = preload("res://tests/ui/battle/menus/opening_swap_cases.gd")
 
 # Frames left for the save debug panel's layout and the camera to settle before its checks.
 const PANEL_FRAMES: int = 3

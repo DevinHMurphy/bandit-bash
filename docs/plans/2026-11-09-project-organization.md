@@ -1,6 +1,6 @@
 # Plan: Project organization
 
-**Status:** **Approved** November 9, 2026 (user). **In progress:** O1, O2 and O3 done; O4 goes to a build agent. Orchestrator ID **P14**
+**Status:** **Approved** November 9, 2026 (user). **In progress:** O1–O4 done; O5 deferred. Orchestrator ID **P14**
 
 ## Problem
 

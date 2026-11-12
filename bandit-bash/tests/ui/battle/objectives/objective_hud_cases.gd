@@ -6,7 +6,7 @@
 # File:     objective_hud_cases.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 7, 2026
+# Modified: November 9, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -23,7 +23,7 @@ extends RefCounted
 ## controller there, as only its objective is read. No autoload is named or needed.
 
 const ObjectiveCases = preload("res://tests/map/objective_cases.gd")
-const BattleViewCases = preload("res://tests/ui/battle_view_cases.gd")
+const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
 const VIEW_SCENE: PackedScene = preload("res://ui/battle/board/battle_view.tscn")
