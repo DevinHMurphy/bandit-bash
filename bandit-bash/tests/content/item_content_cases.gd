@@ -161,13 +161,16 @@ const TEXT: Dictionary[String, Array] = {
 	"fancy_cloak": ["Always: +6 HP"],
 	"magi_robes": ["Always: +2 MGT, +1 RES"],
 	"old_soldiers_band": ["Always: +1 MGT, +1 DEF, +10 Hit"],
+	# ASSUMPTION: "+2 damage" is +2 at the Attack stage, as the Archer's Volley reads it.
 	"power_band": ["Always: +2 Attack"],
 	"training_weights": [
 		"Always: -2 SPD, deny Stat Can Grow (SPD), +1 Level Up Guaranteed Gains (MGT)",
 	],
 	"quick_soles": ["Always: +1 Movement"],
 	"simple_coating": ["While the opponent is Exposed: +2 Attack"],
+	# ASSUMPTION: it replaces the damage type's base, so a fixed damage type still wins.
 	"spirit_coating": ["Always: Damage Type Magic instead of its base"],
+	# ASSUMPTION: a shield's Before Combat Block comes in every exchange, attacking or defending.
 	"iron_shield": ["Always: +2 DEF", "Before Combat: gain 1 Block"],
 	"iron_greatshield": ["Always: +2 DEF, +1 Stance Max"],
 	"buckler": ["Always: +1 DEF, +1 RES", "Before Combat: gain 1 Block"],
@@ -182,11 +185,14 @@ const TEXT: Dictionary[String, Array] = {
 	"old_pendant": ["Always: +1 RES"],
 	"travelers_ring": ["Always: +2 SPD, -1 DEF"],
 	"scholars_optics": ["Always: +10 Hit"],
+	# ASSUMPTION: "+25% XP" and "+20% healing received" add points to their 100% bases.
 	"family_ring": ["Always: +25 Unit Xp Percent"],
 	"band_of_fortune": ["Always: +5 Crit Chance, +5 Hit"],
 	"knights_token": ["Always: +1 MGT, +1 DEF, -1 SPD"],
 	"loaded_die": ["Always: +30 Crit Chance, -1 Crit X"],
 	"null_sigil": ["Always: +1 Stance Max"],
+	# ASSUMPTION: "crits ignore the target's Defense" is Kukri's permission, which skips the whole
+	# Mitigation stage (Resistance against magic too).
 	"jester_mask": ["Always: allow Skip Mitigation On Crit"],
 	"royal_crest": ["Always: Level Up Min Stats at least 3"],
 	"ring_of_favor": ["Always: +2 HP, +1 DEF, +1 RES"],
@@ -196,6 +202,8 @@ const TEXT: Dictionary[String, Array] = {
 	"large_potion": ["Heal the target for 8"],
 	"potion_plus": ["Heal the target for 12"],
 	"large_potion_plus": ["Heal the target for 12"],
+	# ASSUMPTION: "heal to full" heals the target's maximum HP, so healing received below 100%
+	# (Cursed Blood) leaves it short of full.
 	"elixir": ["Heal the target for HP equal to the target's HP"],
 	"guard_tonic_plus": ["Give the target 10 Block"],
 	"emberglass_vial": ["Heal the target for 12"],
