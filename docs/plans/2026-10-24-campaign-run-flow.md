@@ -1,6 +1,6 @@
 # Plan: Campaign and Run Flow
 **Date:** October 24, 2026; drafted November 9, 2026
-**Status:** Draft, awaiting the answers below. Orchestrator ID **P08**
+**Status:** Draft; question 7 open, the rest answered November 12, 2026. Orchestrator ID **P08**
 
 ## Problem
 
@@ -8,55 +8,15 @@ A run today is one battle. `battle_screen.gd` builds the faction's starting army
 
 ## Open Questions
 
-Questions 1–3 are answered in [decisions/P08-campaign-run-flow.md](decisions/P08-campaign-run-flow.md).
-
-### 4. What "never directly connected" covers on the campaign map
-
-The vision says "Key combat, Shops (Armory or Guildhall) and Camp are never directly connected by a path."
-
-- **A, same kind only (recommended):** two Key combats, two Shops or two Camps can't be neighbours; a Shop may follow a Camp. This is Slay the Spire's rule, and the vision's generator is modelled on it.
-- **B, all as one group:** none of the three may follow any other. A path could then hold at most 7 of them, but the vision's typical path has 8, so B can't produce it.
-
-### 5. How the every-path minimums are met
-
-"A roll that breaks one is rerolled" works for rules about one node. It can't guarantee rules about every path (an Armory, a Guildhall, 2 Treasures, 2 Camps). Simulated with a throwaway script, full-map rerolls met them in 0 of 4,000 tries.
-
-- **A, roll, repair, retry (recommended):** roll as the vision says, convert Standard or Unknown nodes on any path short of a minimum, then validate and start again if it still fails. Each attempt succeeded about 30% of the time, so a few attempts are enough, and the same seed still gives the same map.
-- **B, loosen the minimums:** for example, require only one Shop of either kind per path.
-- **What A costs:** the same simulation averaged Armory 1.7, Guildhall 1.7 and Treasure 3.1 on a path (vision target 1, 1 and 2), and about 7.5 combats against the target 9, so less XP and gold. Raising Standard's weight from 4 to 7 moved that by under one node. The vision files all of this under "tune in playtesting", so the recommendation is to build A with weights in a data file and tune after real runs.
-
-### 6. Where gear can change
-
-There is no battle prep (user, October 27, 2026), and the vision's other references assume there is. A weapon won on floor 2 would wait for a Camp on floor 8 or later unless it can be equipped when won.
-
-- **A (recommended):** a new item can go straight onto a unit where it's gained (combat pick, Treasure), with the Armory's before/after comparison. All gear rearranges freely at **Camps**, on top of Feast or Train rather than replacing them. Elsewhere the army can be viewed and convoy items scrapped, nothing more. This keeps each decision where the player already is.
-- **B:** full army management any time on the campaign map. Simplest, but it invites re-gearing before every node, which works against less menuing.
-- **C:** Camps only, with new items going to the convoy until then.
+Questions 1–6 and 8–12 are answered in [decisions/P08-campaign-run-flow.md](decisions/P08-campaign-run-flow.md).
 
 ### 7. What a combat's item pick offers
 
-The vision gives the rarity odds and says weapons are "weighted to the army's weapon types", with no number and no split between item kinds.
+Picks are typed: weapon, pouch item and so on (user, November 12, 2026). Still to settle:
 
-- **Recommended, first pass:** each of the 3 offers rolls its kind in the Armory's ratio (weapon 3, equipment 2, trinket 1, consumable 2). A weapon offer is from a type the army can use 75% of the time, any type otherwise.
-- **Alternative:** weapons only from usable types, as the Armory does. Safer offers, but no reason to change a unit's role.
-
-### 8–11. Shorter questions
-
-| # | Question | Recommendation |
-|---|----------|----------------|
-| 8 | Boss win: award XP and level-ups first? | **No.** The run ends, so go straight to Results. Units then reach 4.1–5.7 levels, inside the 4–6 target |
-| 9 | Small rule readings | **Accept all of (a)–(e)** below |
-| 10 | May a run repeat a map? | **Not until its pool is used up,** then the pool refills |
-| 11 | Who builds co-op's campaign layer? | **Split:** P08 keeps state per seat and tests the vote and shared-stock rules headless; P11 adds the screens and transport |
-| 12 | Who builds the run-start screens? | **P08,** functional, with the Mercenary preselected; P12's war table later becomes the way in |
-
-**Question 9's readings:**
-
-- (a) A killing blow earns both Hit dealt and Defeated (+7), and counts as two actions for the Standout.
-- (b) A Feast heals 35% of **max** HP, rounded to the nearest whole number, halves up, as gold does.
-- (c) The speed bonus is the flat +25% grade. A turn under par has no separate value. Survive and Defend earn it by ending early.
-- (d) A level-up's HP gain raises current HP as well as max.
-- (e) Recruit offers draw evenly from the faction's recruitable types, with no type twice in one visit.
+- **(a) One kind per pick:** all three offers share a slot kind: Weapon, Equipment or Pouch (a trinket or a consumable, ingredients included). Is that the meaning?
+- **(b) How the kind is chosen.** Recommended: rolled per combat in the Armory's ratio (Weapon 3, Equipment 2, Pouch 3) and shown on the Results screen. The alternative shows it on the map node, so players can route for it, at the cost of a reward icon on every combat node.
+- **(c) A Weapon pick:** each weapon is from a type the army can use 75% of the time, any type otherwise (first pass). The alternative is usable types only, as the Armory does.
 
 ## Scope
 
@@ -70,7 +30,12 @@ game-vision.md: Run structure, Army, Units (Experience, Upgrades, Inventory), Ru
 
 Nothing this plan needs is under "Still open". The economy, map weights and XP amounts are under "Tune in playtesting" and safe to build as written.
 
-**For the vision, once answered (ideation thread):** "army management and battle prep" (Army, Inventory, No trading in combat); Camp's "choose one" against free re-gearing; the map's reroll wording and typical mix.
+**For the vision (ideation thread):**
+
+- "Army management and battle prep" (Army, Inventory, No trading in combat) becomes placement when an item is gained, plus re-gearing at Camps (question 6).
+- Camp's "choose one" no longer covers re-gearing.
+- The map's every-path minimums become targets that guide generation rather than guarantees (question 5).
+- "Never directly connected" means the same kind (question 4).
 
 ## Legacy Behavior
 
@@ -99,7 +64,11 @@ Tuning values carried over: 7 columns and 6 paths (`map_generator.gd`), 100 XP p
 | `Offers` | Rolled and saved stock for rewards, Armory, Guildhall and Treasure |
 | Campaign commands | Validated, first arrival wins, a rejection costs nothing (P01), emitting `CampaignFact`s |
 
-**Map.** Follows the vision's shape, fixed rows and rules, reading questions 4 and 5. Fixed rows are exempt from "a node's children differ". Weights, rows and minimums live in `data/campaign/`. Every attempt draws from the one `MAP_GENERATION` stream, up to 200 attempts.
+**Map.** Follows the vision's shape and fixed rows, rolled floor by floor from the `MAP_GENERATION` stream.
+
+- **Hard rules,** never broken: the fixed rows; the floor limits (no Camp or extra Key before floor 6, no Shop before 3, no Camp on 16); no two of the same kind in a row, with Armory and Guildhall as one kind; a node's children differ, except on fixed rows; at most 4 Key combats and 5 Camps on any path. A roll that breaks one is rolled again. The caps can be checked as each node is rolled, because its parents are already set.
+- **Soft targets,** which guide rather than guarantee: on every path an Armory, a Guildhall, 2 Treasures and 2 Camps. While some path through a node is still short of a target, that type's weight rises for the node, so most paths meet the targets and none is forced.
+- **Data:** weights, fixed rows, targets and the boost size live in `data/campaign/`. RN1 measures how often a path misses each target across 10,000 seeds, then proposes the boost's first value for the user to approve.
 
 **The loop.** Choosing a node locks its floor and saves. Then:
 
@@ -107,9 +76,12 @@ Tuning values carried over: 7 columns and 6 paths (`map_generator.gd`), 100 XP p
 - **Loss:** in solo, the run ends at once through `end_run(false)`.
 - **Treasure, Camp, Armory, Guildhall:** as the vision and question 6 say. Hand-over screens follow unit-roster.md.
 - **Unknown:** rolled on entry with the vision's rising odds, kept in `RunState`. An event hands off to P09; until P09 lands, a placeholder continues to the map.
-- **Boss:** a win ends the run, and Results shows the seed.
+- **Boss:** a win pays the boss's shared XP and personal bonuses, with level-ups shown as after any combat, then the run ends, and Results shows the seed.
+- **Maps:** no map repeats in a run until every map in its pool has been used; then the pool refills. With few maps in the MVP, repeats will come sooner.
 
 **A finished battle's order changes.** `CampaignService.end_battle()` saves first and collects the result afterwards, but save-system.md requires results to be applied **before** the save. RN3 collects, applies, then saves, so a crash can't lose or repeat a reward.
+
+**Rule readings** (question 9): a killing blow earns both Hit dealt and Defeated (+7) and counts as two Standout actions. A Feast heals 35% of max HP, halves rounding up. The speed bonus is the flat +25%; Survive and Defend earn it by ending early. A level-up's HP gain raises current HP too. Recruit offers draw evenly from the faction's types, with no type twice in one visit.
 
 **XP tally.** A host-side observer counts each unit's XP actions from combat facts. A battle can be quit and resumed, so the tally is saved in the combat block rather than rebuilt. Closing a reinforcement point and looting are the +5 non-combat action. Block given ignores zero-amount facts.
 
@@ -143,12 +115,12 @@ Steps through RN5 give a playable loop on M1's data. Later steps need content fr
 
 | Step | Work | Risk | After | Needs from M2 | Done when |
 |---|---|---|---|---|---|
-| RN1 Map | Generator, graph, rules data | 🟢 | Questions 4, 5 | — | 10,000 seeds pass every rule; same seed, same map |
+| RN1 Map | Generator, graph, rules data | 🟢 | Approval | — | 10,000 seeds pass every hard rule; target misses reported; same seed, same map |
 | RN2 Run state | `RunState`, `RunFlow`, commands, the campaign sections, the army from the faction | 🔴 save format | RN1 | — | A new run saves and reloads identically |
 | RN3 Bridge | Real `BattleRequest`, the changed end-of-battle order, HP and fallen units, grants, `battle_tally` | 🔴 save order | RN2 | — | Quit at any point loses and repeats nothing |
-| RN4 Rewards | Grades, gold, XP, Standout, level-ups, item pick | 🟡 | RN3, questions 7–9 | — (full pools later) | Vision's tables reproduced; rolls per seat and seeded |
-| RN5 Loop screens | Campaign map, Results with rewards and level-ups, new-item placement, loss and win | 🟡 | RN4, question 6 | — | A multi-node run plays on all three input devices |
-| RN6 Run start | Starting heirloom offer and each one's effect | 🟡 | RN5, question 12 | CT9, CT13 | All seven work |
+| RN4 Rewards | Grades, gold, XP, Standout, level-ups, item pick | 🟡 | RN3, question 7 | — (full pools later) | Vision's tables reproduced; rolls per seat and seeded |
+| RN5 Loop screens | Campaign map, Results with rewards and level-ups, new-item placement, loss and win | 🟡 | RN4 | — | A multi-node run plays on all three input devices |
+| RN6 Run start | Starting heirloom offer and each one's effect | 🟡 | RN5 | CT9, CT13 | All seven work |
 | RN7 Treasure and Camp | Chests, Feast with cooking, Train, re-gear, army view, scrapping | 🟡 | RN5 | CT5, CT9, CT13 | The vision's odds and rules hold |
 | RN8 Armory | Stock, buying onto a unit, trade-in | 🟡 | RN5 | CT4, CT5, CT9 | Stock and prices match the vision |
 | RN9 Guildhall | Recruits, hand-over, runes, prefix re-rolls | 🟡 | RN5 | CT7, CT8, CT13 | Recruits match the preview |
@@ -167,7 +139,7 @@ Steps through RN5 give a playable loop on M1's data. Later steps need content fr
 
 ## Verification
 
-Each step's Done when column, in `tests/campaign/`, and the full runner. RN1 validates every map rule across 10,000 seeds. RN11 runs a seeded whole run headless and compares a mid-run resume with an uninterrupted one. M3's exit is a played solo run inside the 60–80 minute target.
+Each step's Done when column, in `tests/campaign/`, and the full runner. RN1 validates every hard map rule across 10,000 seeds and reports how often each soft target is missed. RN11 runs a seeded whole run headless and compares a mid-run resume with an uninterrupted one. M3's exit is a played solo run inside the 60–80 minute target.
 
 ## Rollback
 
