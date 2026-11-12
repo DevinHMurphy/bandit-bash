@@ -1,6 +1,6 @@
 # Plan: Narrative Events and Curses
 **Date:** November 12, 2026
-**Status:** Draft, questions answered; awaiting approval. Orchestrator ID **P09**
+**Status:** Approved November 12, 2026. Orchestrator ID **P09**
 
 ## Problem
 
