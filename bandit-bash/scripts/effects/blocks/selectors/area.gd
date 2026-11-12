@@ -121,6 +121,7 @@ func _place(noun: String) -> String:
 			"adjacent %s" % [noun] if shape.size == 1
 			else "%s within %d tiles" % [noun, shape.size]
 	)
+	# ASSUMPTION: square and cross wording; no content uses either kind yet.
 	match shape.kind:
 		ContentIds.SHAPE_SQUARE:
 			return "%s, diagonals included" % [reach]
