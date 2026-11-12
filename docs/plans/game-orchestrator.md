@@ -83,7 +83,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 **Planning focus (user, November 9, 2026):** build prompts are on hold while planning comes first.
 
 1. **P14:** O1, O2 and O3 done (O3 merged in eb380c8). Next, O4 (tests), a single build agent.
-2. **Plans:** P08 approved November 12, 2026; RN1 (the map) is ready once prompts resume. P09 approved November 12, 2026; EV1 follows RN2. Write the move-preview re-architecture design doc.
+2. **Plans:** P08 approved November 12, 2026; RN1 (the map) is ready once prompts resume. P09 approved November 12, 2026; EV1 follows RN2. The move-preview re-architecture is drafted in [move-preview.md](../design/move-preview.md), awaiting its questions.
 3. **Then M2's content, two prompts at a time:**
    - **Wave A (ready):** CT6 target shapes with EN6 enemy roster; then CT13 unit roster with CT5 equipment and consumables.
    - **Wave B:** CT4 weapons and staves, CT9 heirlooms and curses, EN10 reinforcement groups, EN9 map-object AI.
@@ -99,7 +99,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 5. **M2's exit:** playtest a full M2 map set, folding in the deferred M1 tuning pass.
 6. **Later:** one public `Pathing.path_to` (P07 question 15 d); vision updates for the ideation thread.
 
-**Open questions for the user:** none.
+**Open questions for the user:** move-preview.md questions 1–5.
 
 ## Scope guardrails
 
