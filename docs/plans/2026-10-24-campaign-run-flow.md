@@ -8,7 +8,7 @@ A run today is one battle. `battle_screen.gd` builds the faction's starting army
 
 ## Open Questions
 
-None open. Questions 1–12 are answered in [decisions/P08-campaign-run-flow.md](decisions/P08-campaign-run-flow.md).
+None open. Questions 1–13 are answered in [decisions/P08-campaign-run-flow.md](decisions/P08-campaign-run-flow.md).
 
 ## Scope
 
@@ -28,6 +28,7 @@ Nothing this plan needs is under "Still open". The economy, map weights and XP a
 - Camp's "choose one" no longer covers re-gearing.
 - The map's every-path minimums become targets that guide generation rather than guarantees (question 5).
 - "Never directly connected" means the same kind (question 4).
+- Item picks are one slot kind each (question 7). Key combats roll better item odds than Standard, and picks carry a rising Rare chance (question 13); the vision gives both the Standard odds.
 
 ## Legacy Behavior
 
@@ -75,6 +76,16 @@ Tuning values carried over: 7 columns and 6 paths (`map_generator.gd`), 100 XP p
 
 **Item picks** (question 7): each pick is one slot kind, so its three offers are all weapons, all equipment or all Pouch items (trinkets or consumables, ingredients included). The kind is rolled per combat in the Armory's ratio (Weapon 3, Equipment 2, Pouch 3) and shown on Results. In a Weapon pick, each weapon is from a type the army can use 75% of the time, any type otherwise (first pass, to tune).
 
+**Item pick rarity** (question 13; adapted from Slay the Spire's card rewards; first pass, to tune):
+
+| Combat | Common | Uncommon | Rare |
+|---|---|---|---|
+| Standard | 60% | 30% | 10% |
+| Key | 50% | 33% | 17% |
+
+- **Rare offset:** each seat carries an offset added to the Rare chance, taken from Common. It starts at −5%, rises by 1% for every Common offer shown, and returns to −5% when a Rare is shown, capped at +40%. Standard and Key picks share it. Once Common is used up, the offset takes from Uncommon.
+- The Armory and Treasure don't read or move the offset.
+
 **Rule readings** (question 9): a killing blow earns both Hit dealt and Defeated (+7) and counts as two Standout actions. A Feast heals 35% of max HP, halves rounding up. The speed bonus is the flat +25%; Survive and Defend earn it by ending early. A level-up's HP gain raises current HP too. Recruit offers draw evenly from the faction's types, with no type twice in one visit.
 
 **XP tally.** A host-side observer counts each unit's XP actions from combat facts. A battle can be quit and resumed, so the tally is saved in the combat block rather than rebuilt. Closing a reinforcement point and looting are the +5 non-combat action. Block given ignores zero-amount facts.
@@ -98,7 +109,7 @@ All new sections sit in existing blocks, so no schema version changes; each sect
 | `roster` | `CAMPAIGN` | Yes | Unit and item instances: army, convoy, fallen units' items |
 | `heirlooms` | `CAMPAIGN` | Yes | Owned heirlooms and curses with campaign-lane counters |
 | `runes` | `CAMPAIGN` | Yes | The 3 rune slots |
-| `economy` | `CAMPAIGN` | Yes | Gold; this seat's pending offers (item pick, starting heirloom, Treasure) |
+| `economy` | `CAMPAIGN` | Yes | Gold, the rare offset; this seat's pending offers (item pick, starting heirloom, Treasure) |
 | `battle_tally` | `COMBAT` | No | Each unit's XP actions so far in this battle |
 
 Quitting mid-node resumes at the same stage with the same offers. Purchases are saved as they happen.

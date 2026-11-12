@@ -18,6 +18,7 @@ The answered questions of [the plan](../2026-10-24-campaign-run-flow.md), moved 
 | 10 | May a run repeat a map? | Never / not until its pool is used up / freely | Not until its pool is used up, then it refills | **Answered November 12, 2026 (user):** as recommended; no repeats is the ideal, though a small MVP pool will repeat sooner. |
 | 11 | Who builds co-op's campaign layer? | P08 / P11 / split | Split: P08 per-seat state and headless-tested rules; P11 screens and transport | **Answered November 12, 2026 (user):** as recommended. |
 | 12 | Who builds the run-start screens? | P08 / P12 | P08, functional, Mercenary preselected; P12's war table later becomes the way in | **Answered November 12, 2026 (user):** as recommended. |
+| 13 | Borrow Slay the Spire's reward rules for item picks? (raised by the user, November 12, 2026) | Rising Rare chance; better Key combat odds; gold ranges; mixed-tier chests | Adopt the first two; keep fixed gold and one-tier chests | **Answered November 12, 2026 (user):** as recommended. First pass, to tune: Key picks roll Common 50 / Uncommon 33 / Rare 17 (the vision's heirloom odds), Standard keeps 60 / 30 / 10. A per-seat offset on the Rare chance starts at −5%, rises 1% per Common offer shown, resets to −5% on a Rare, and caps at +40% (Slay the Spire's values). Standard and Key picks share it; the Armory and Treasure don't use it. |
 
 ## Contracts inherited from the event bus plan (P01)
 
