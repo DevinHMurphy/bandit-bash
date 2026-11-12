@@ -69,7 +69,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P05 | [Enemies and AI](2026-10-30-enemies-and-ai.md) | **In progress** | EN6–EN12 | P02, P04 |
 | P06 | [The darkness](2026-11-03-the-darkness.md) | **In progress** | DK6 docs | P02, P04 |
 | P07 | [Combat UI](2026-11-04-combat-ui.md) | **In progress** | Nothing for M2 | P02, P04, P05, P06 |
-| P08 | [Campaign and run flow](2026-10-24-campaign-run-flow.md) | **Draft** | Question 7 with the user | P01, P03 |
+| P08 | [Campaign and run flow](2026-10-24-campaign-run-flow.md) | **Draft** | Questions answered; awaiting approval | P01, P03 |
 | P09 | Narrative events and curses (events.md) | **Not started** | To draft | P01, P03, P08 |
 | P10 | Net transport (multiplayer-combat-options.md; read `steam_multiplayer_kit/` first) | **Not started** | — | P00, P01 |
 | P11 | Co-op combat (game-vision.md Multiplayer maps) | **Not started** | — | P01, P02, P04, P08, P10 |
@@ -99,7 +99,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 5. **M2's exit:** playtest a full M2 map set, folding in the deferred M1 tuning pass.
 6. **Later:** one public `Pathing.path_to` (P07 question 15 d); vision updates for the ideation thread.
 
-**Open questions for the user:** P08 question 7 (typed item picks).
+**Open questions for the user:** approve P08.
 
 ## Scope guardrails
 

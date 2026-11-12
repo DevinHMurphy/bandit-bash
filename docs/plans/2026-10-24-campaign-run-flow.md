@@ -1,6 +1,6 @@
 # Plan: Campaign and Run Flow
 **Date:** October 24, 2026; drafted November 9, 2026
-**Status:** Draft; question 7 open, the rest answered November 12, 2026. Orchestrator ID **P08**
+**Status:** Draft; every question answered November 12, 2026, awaiting approval. Orchestrator ID **P08**
 
 ## Problem
 
@@ -8,15 +8,7 @@ A run today is one battle. `battle_screen.gd` builds the faction's starting army
 
 ## Open Questions
 
-Questions 1–6 and 8–12 are answered in [decisions/P08-campaign-run-flow.md](decisions/P08-campaign-run-flow.md).
-
-### 7. What a combat's item pick offers
-
-Picks are typed: weapon, pouch item and so on (user, November 12, 2026). Still to settle:
-
-- **(a) One kind per pick:** all three offers share a slot kind: Weapon, Equipment or Pouch (a trinket or a consumable, ingredients included). Is that the meaning?
-- **(b) How the kind is chosen.** Recommended: rolled per combat in the Armory's ratio (Weapon 3, Equipment 2, Pouch 3) and shown on the Results screen. The alternative shows it on the map node, so players can route for it, at the cost of a reward icon on every combat node.
-- **(c) A Weapon pick:** each weapon is from a type the army can use 75% of the time, any type otherwise (first pass). The alternative is usable types only, as the Armory does.
+None open. Questions 1–12 are answered in [decisions/P08-campaign-run-flow.md](decisions/P08-campaign-run-flow.md).
 
 ## Scope
 
@@ -81,6 +73,8 @@ Tuning values carried over: 7 columns and 6 paths (`map_generator.gd`), 100 XP p
 
 **A finished battle's order changes.** `CampaignService.end_battle()` saves first and collects the result afterwards, but save-system.md requires results to be applied **before** the save. RN3 collects, applies, then saves, so a crash can't lose or repeat a reward.
 
+**Item picks** (question 7): each pick is one slot kind, so its three offers are all weapons, all equipment or all Pouch items (trinkets or consumables, ingredients included). The kind is rolled per combat in the Armory's ratio (Weapon 3, Equipment 2, Pouch 3) and shown on Results. In a Weapon pick, each weapon is from a type the army can use 75% of the time, any type otherwise (first pass, to tune).
+
 **Rule readings** (question 9): a killing blow earns both Hit dealt and Defeated (+7) and counts as two Standout actions. A Feast heals 35% of max HP, halves rounding up. The speed bonus is the flat +25%; Survive and Defend earn it by ending early. A level-up's HP gain raises current HP too. Recruit offers draw evenly from the faction's types, with no type twice in one visit.
 
 **XP tally.** A host-side observer counts each unit's XP actions from combat facts. A battle can be quit and resumed, so the tally is saved in the combat block rather than rebuilt. Closing a reinforcement point and looting are the +5 non-combat action. Block given ignores zero-amount facts.
@@ -118,7 +112,7 @@ Steps through RN5 give a playable loop on M1's data. Later steps need content fr
 | RN1 Map | Generator, graph, rules data | 🟢 | Approval | — | 10,000 seeds pass every hard rule; target misses reported; same seed, same map |
 | RN2 Run state | `RunState`, `RunFlow`, commands, the campaign sections, the army from the faction | 🔴 save format | RN1 | — | A new run saves and reloads identically |
 | RN3 Bridge | Real `BattleRequest`, the changed end-of-battle order, HP and fallen units, grants, `battle_tally` | 🔴 save order | RN2 | — | Quit at any point loses and repeats nothing |
-| RN4 Rewards | Grades, gold, XP, Standout, level-ups, item pick | 🟡 | RN3, question 7 | — (full pools later) | Vision's tables reproduced; rolls per seat and seeded |
+| RN4 Rewards | Grades, gold, XP, Standout, level-ups, item pick | 🟡 | RN3 | — (full pools later) | Vision's tables reproduced; rolls per seat and seeded |
 | RN5 Loop screens | Campaign map, Results with rewards and level-ups, new-item placement, loss and win | 🟡 | RN4 | — | A multi-node run plays on all three input devices |
 | RN6 Run start | Starting heirloom offer and each one's effect | 🟡 | RN5 | CT9, CT13 | All seven work |
 | RN7 Treasure and Camp | Chests, Feast with cooking, Train, re-gear, army view, scrapping | 🟡 | RN5 | CT5, CT9, CT13 | The vision's odds and rules hold |
