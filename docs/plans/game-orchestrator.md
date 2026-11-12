@@ -95,8 +95,8 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
    - BUG-004 (S2): an enemy with an attack intent moves and doesn't attack; details still asked of the user.
    - BUG-005 (S4): unit detail shows the type id.
    - BUG-006 (S3): NetLog raises an engine error once the peer is cleared.
-   - BUG-007 (S3): test runs in two worktrees at once share one test user folder.
-   - BF1 also removes UI11's confirmed `# ASSUMPTION` markers (P07 question 36).
+   - BUG-007 (S3): test runs in two worktrees at once share one test user folder. **Fix step BF2,** prompt issued November 12, 2026.
+   - BF1 also removes the confirmed `# ASSUMPTION` markers of UI11 (P07 question 36) and RN1 (P08 questions 14 and 15: `effect_catalog.gd`, `campaign_map_rules.gd`, the `;` comment in `campaign_map_rules.tres`).
 5. **M2's exit:** playtest a full M2 map set, folding in the deferred M1 tuning pass.
 6. **Later:** one public `Pathing.path_to` (P07 question 15 d); vision updates for the ideation thread.
 
