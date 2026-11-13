@@ -121,9 +121,9 @@ Steps through RN5 give a playable loop on M1's data. Later steps need content fr
 | Step | Work | Risk | After | Needs from M2 | Done when |
 |---|---|---|---|---|---|
 | RN1 Map | Generator, graph, rules data | 🟢 | Approval | — | 10,000 seeds pass every hard rule; target misses reported; same seed, same map |
-| RN2 Run state | `RunState`, `RunFlow`, commands, the campaign sections, the army from the faction | 🔴 save format | RN1 | — | A new run saves and reloads identically |
+| RN2 Run state | `RunState`, `RunFlow`, commands, the campaign sections, the army from the faction; permanent deltas include Hit (P03 question 25) | 🔴 save format | RN1 | — | A new run saves and reloads identically |
 | RN3 Bridge | Real `BattleRequest`, the changed end-of-battle order, HP and fallen units, grants, `battle_tally` | 🔴 save order | RN2 | — | Quit at any point loses and repeats nothing |
-| RN4 Rewards | Grades, gold, XP, Standout, level-ups, item pick | 🟡 | RN3 | — (full pools later) | Vision's tables reproduced; rolls per seat and seeded |
+| RN4 Rewards | Grades, gold, XP, Standout, level-ups (with the Resonant Ore, P03 question 25), item pick | 🟡 | RN3 | — (full pools later) | Vision's tables reproduced; rolls per seat and seeded |
 | RN5 Loop screens | Campaign map, Results with rewards and level-ups, new-item placement, loss and win | 🟡 | RN4 | — | A multi-node run plays on all three input devices |
 | RN6 Run start | Starting heirloom offer and each one's effect | 🟡 | RN5 | CT9, CT13 | All seven work |
 | RN7 Treasure and Camp | Chests, Feast with cooking, Train, re-gear, army view, scrapping | 🟡 | RN5 | CT5, CT9, CT13 | The vision's odds and rules hold |
