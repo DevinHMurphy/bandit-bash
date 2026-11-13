@@ -83,9 +83,9 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 **Build prompts resumed** November 12, 2026 (user), two at a time, once planning caught up.
 
 1. **P14:** O1–O4 done (O4 merged November 12, 2026: suites split and run in parallel, a full run in 262 s). O5 waits until a step needs those files.
-2. **Plans:** P08 approved November 12, 2026; RN1 (the map) merged November 12, 2026; RN2 (run state, 🔴 save format) next. P09 approved November 12, 2026; EV1 follows RN2. The move-preview re-architecture is adopted ([move-preview.md](../design/move-preview.md)) as P05 EN13–EN16. **Planning is caught up.**
+2. **Plans:** P08 approved November 12, 2026; RN1 (the map) merged November 12, 2026; RN2 (run state, 🔴 save format): prompt issued November 13, 2026. P09 approved November 12, 2026; EV1 follows RN2. The move-preview re-architecture is adopted ([move-preview.md](../design/move-preview.md)) as P05 EN13–EN16. **Planning is caught up.**
 3. **Then M2's content, two prompts at a time:**
-   - **Wave A (ready):** CT6 target shapes (merged November 12, 2026) with EN6 enemy roster; then CT13 unit roster with CT5 equipment and consumables (merged November 13, 2026; the Short Quiver moved to CT4 and the Resonant Ore to RN4). EN13 (preview benchmarks and equality suite) runs alongside; EN14–EN16 follow EN6.
+   - **Wave A (ready):** CT6 target shapes (merged November 12, 2026) with EN6 enemy roster (prompt issued November 13, 2026, with P05 questions 24–28); then CT13 unit roster with CT5 equipment and consumables (merged November 13, 2026; the Short Quiver moved to CT4 and the Resonant Ore to RN4). EN13 (preview benchmarks and equality suite) runs alongside; EN14–EN16 follow EN6.
    - **Wave B:** CT4 weapons and staves, CT9 heirlooms and curses, EN10 reinforcement groups, EN9 map-object AI.
    - **Wave C:** CT7 runes, CT8 unit prefixes and pools, CT10 modified prices (its formula goes to the user first).
    - **Wave D:** EN7 elites and bosses (marks leaders on the HUD), EN8 mini-bosses, EN11 the Powder Baron and its map, CT12 weapon prefixes (waits on the vision's weapon-prefix rules).
