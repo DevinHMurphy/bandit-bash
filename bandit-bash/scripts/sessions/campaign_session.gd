@@ -6,7 +6,7 @@
 # File:     campaign_session.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 7, 2026
+# Modified: November 13, 2026
 # ==============================================================================
 
 class_name CampaignSession
@@ -50,6 +50,13 @@ signal combat_encounter_closed(encounter: CombatEncounter)
 ## A grant was received and recorded.
 signal grant_recorded(grant: Grant)
 
+## A campaign command resolved or was rejected ([method submit]); presentation plays its facts.
+signal campaign_batch_resolved(batch: CampaignBatch)
+
+## The campaign command [param seat] sent, stamped [param arrival], was rejected and changed
+## nothing. Tells only that seat.
+signal command_rejected(seat: int, arrival: int, reason: String)
+
 # The NetLog autoload's script, for its type and enums; see CombatSession.logger().
 const NetLogScript = preload("res://scripts/autoload/net_log.gd")
 
@@ -70,6 +77,10 @@ var bus: CampaignBus = CampaignBus.new()
 
 ## The battle in progress; null outside one.
 var encounter: CombatEncounter = null
+
+## The run's campaign state: map, route, flow and each seat's part. Null until
+## [code]CampaignService[/code] builds a new run or loads the saved one into it.
+var run: CampaignRunState = null
 
 ## Every grant received this run, in order.
 var grants: Array[Grant] = []
@@ -99,6 +110,9 @@ var _setup_steps: Array[Array] = []
 
 # Grants received since the battle began.
 var _battle_grants: Array[Grant] = []
+
+# The arrival stamp the next campaign command takes.
+var _next_arrival: int = 1
 
 # Where reinforcement waves' groups come from, for setup step 5 and their arrivals.
 # TODO(TOD-002): P05's enemy groups; this base draws none, so no point sends a wave yet.
@@ -277,6 +291,35 @@ func end_battle() -> BattleResult:
 	if net != null:
 		net.info(NetLogScript.Category.CAMPAIGN, "BATTLE END map %s" % [map_id])
 	return result
+
+
+## Stamps [param command] on arrival and resolves it on [member run] at once
+## ([method CampaignRunState.resolve]), so the first arrival wins. Rejected, changing nothing,
+## with no run, a closed run or a battle in progress. Emits [signal campaign_batch_resolved], and
+## [signal command_rejected] for a rejection; logs it at INFO. Returns the batch; null for null.
+## Saving is the caller's ([code]CampaignService.submit_command()[/code]).
+func submit(command: CampaignCommand) -> CampaignBatch:
+	if command == null:
+		push_error("CampaignSession: submit needs a command")
+		return null
+	command.arrival = _next_arrival
+	_next_arrival += 1
+	var batch: CampaignBatch = null
+	if run == null or is_closed or encounter != null:
+		batch = CampaignBatch.new()
+		batch.seat = command.seat
+		batch.arrival = command.arrival
+		batch.label = command.get_label()
+		batch.rejected_reason = (
+				"a battle is in progress" if encounter != null else "no run is in progress"
+		)
+	else:
+		batch = run.resolve(command)
+	if batch.is_rejected():
+		command_rejected.emit(batch.seat, batch.arrival, batch.rejected_reason)
+	_log_campaign_batch(batch)
+	campaign_batch_resolved.emit(batch)
+	return batch
 
 
 ## Records a grant from an effect that fired in battle and reports it at INFO.
@@ -498,6 +541,25 @@ func _battle_instance(battle: CombatEncounter, instance_id: String) -> EffectIns
 		if found != null:
 			return found
 	return null
+
+
+# One INFO line per campaign command, then one per fact it recorded.
+func _log_campaign_batch(batch: CampaignBatch) -> void:
+	var net: NetLogScript = CombatSession.logger(
+			NetLogScript.Level.INFO, NetLogScript.Category.CAMPAIGN
+	)
+	if net == null:
+		return
+	var outcome: String = (
+			"rejected: %s" % [batch.rejected_reason] if batch.is_rejected()
+			else "%d facts" % [batch.facts.size()]
+	)
+	net.info(
+			NetLogScript.Category.CAMPAIGN,
+			"COMMAND seat %d #%d %s, %s" % [batch.seat, batch.arrival, batch.label, outcome]
+	)
+	for fact: CampaignFact in batch.facts:
+		net.info(NetLogScript.Category.CAMPAIGN, fact.to_log_line(describe))
 
 
 func _log_battle(what: String, request: BattleRequest, battle: CombatEncounter) -> void:

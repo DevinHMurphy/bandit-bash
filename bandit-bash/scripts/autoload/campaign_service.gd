@@ -6,33 +6,23 @@
 # File:     campaign_service.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 7, 2026
+# Modified: November 13, 2026
 # ==============================================================================
 
 extends Node
-## Holds the live [CampaignSession] of the run in progress, and wraps its battle bridge in the save
-## checkpoints.
+## Holds the live [CampaignSession] of the run in progress, wraps its battle bridge and campaign
+## commands in the save checkpoints, and loads the content catalog in [code]_ready()[/code].
 ##
-## Registered as autoload [code]CampaignService[/code], after [code]SaveService[/code] (its
-## [code]_ready()[/code] connects to it) and before [code]SceneRouter[/code]; its
-## [code]_ready()[/code] also loads the content catalog ([method EffectCatalog.load_catalog]).
-## [b]Why an autoload:[/b] the session must outlive every screen change, and the save sections it
-## owns must register before any save file opens (campaign and run flow plan, question 1).[br]
-## A session is built on [signal SaveService.campaign_activated] and closed on
-## [signal SaveService.run_ended], [signal SaveService.save_file_closed] and
-## [signal SaveService.campaign_cleared], so every way a run starts (new, continued, resumed, the
-## debug panel's seed restart) leaves exactly one, and none outlives its campaign. On a
-## multiplayer client there is none until transport (P10) delivers the host's snapshots (event
-## bus plan, question 41).[br]
-## [b]Save sections:[/b] the [code]rng[/code] ([RngSaveSection]) and [code]instance_ids[/code]
-## ([InstanceIdSaveSection]) sections, one of each in the campaign and the combat block, and the
-## combat block's [code]combat_state[/code] and [code]effects[/code] ([CombatStateSection]), which
-## also keep the combat block's core turn and phase equal to the battle's, then its
-## [code]combat_map[/code] and [code]entities[/code] ([CombatMapSection]), then its
-## [code]darkness[/code] ([DarknessSaveSection]). Each new session is
-## handed to all of them before [signal session_started], campaign before combat, so a continued
-## run's streams and id counter are restored before anything draws or mints. A continued run's
-## saved battle is rebuilt and loaded by [method resume_battle].
+## Autoload [code]CampaignService[/code], after [code]SaveService[/code] and before
+## [code]SceneRouter[/code]: the session outlives every screen, and its sections register before
+## any save file opens. A session is built on [signal SaveService.campaign_activated] and closed
+## on run end, save file close and campaign clear, so exactly one exists per run; a multiplayer
+## client has none until transport (P10).[br]
+## [b]Save sections,[/b] each handed the new session before [signal session_started], campaign
+## before combat: [code]rng[/code] and [code]instance_ids[/code] in both blocks, the campaign's
+## run sections ([RunSaveSections]), and the combat block's ([CombatStateSection],
+## [CombatMapSection], [DarknessSaveSection]). A run whose save holds no run sections, a new one
+## included, is built by [RunStart] and saved at once.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
@@ -44,6 +34,13 @@ signal session_started(session: CampaignSession)
 ## A run's session was closed: its run ended, its save file closed, or another run replaced it.
 signal session_ended(session: CampaignSession)
 
+## The campaign map's rules data, read when a new run is built.
+const MAP_RULES_PATH: String = "res://data/campaign/campaign_map_rules.tres"
+
+## Every seat's faction in a new run. The Mercenary is the MVP's only faction and is preselected
+## until the run-start screens offer a choice.
+const DEFAULT_FACTION_ID: String = "mercenary"
+
 ## The run in progress on this machine; null outside a run and on a multiplayer client.
 var session: CampaignSession = null
 
@@ -54,6 +51,7 @@ var _combat_ids: InstanceIdSaveSection = InstanceIdSaveSection.new(SaveSection.B
 var _combat_state: CombatStateSection = null
 var _combat_map: CombatMapSection = CombatMapSection.new()
 var _darkness: DarknessSaveSection = DarknessSaveSection.new()
+var _run_sections: RunSaveSections = RunSaveSections.new()
 
 # The id counter the combat instance_ids section gave a session built to resume a battle, set
 # again once the saved battle has loaded (the rebuild mints throwaway ids first); empty otherwise.
@@ -69,6 +67,11 @@ func _ready() -> void:
 	SaveService.register_section(SaveSection.Block.COMBAT, _combat_rng)
 	SaveService.register_section(SaveSection.Block.CAMPAIGN, _campaign_ids)
 	SaveService.register_section(SaveSection.Block.COMBAT, _combat_ids)
+	# The map before the flow, which is checked against it (RunSaveSections).
+	SaveService.register_section(SaveSection.Block.CAMPAIGN, _run_sections.map)
+	SaveService.register_section(SaveSection.Block.CAMPAIGN, _run_sections.flow)
+	for seat_section: RunSaveSections.SeatSection in _run_sections.seat_sections:
+		SaveService.register_player_section(seat_section)
 	_combat_state = CombatStateSection.new(_combat_core)
 	_combat_state.resolve = _find_definition
 	# The effects section restores after combat_state, which it needs (CombatStateSection).
@@ -158,6 +161,25 @@ func end_battle() -> CampaignSession.BattleResult:
 	return session.end_battle()
 
 
+## Resolves [param command] on the run ([method CampaignSession.submit]) and, when it resolved,
+## saves with [method SaveService.save_checkpoint], so a chosen node or a purchase survives a
+## quit. Returns the batch; null with no session. A failed save is reported and the change kept
+## in memory, for the next checkpoint to write.
+func submit_command(command: CampaignCommand) -> CampaignBatch:
+	if session == null:
+		push_error("CampaignService: no run in progress to command.")
+		return null
+	var batch: CampaignBatch = session.submit(command)
+	if batch != null and not batch.is_rejected():
+		var err: Error = SaveService.save_checkpoint()
+		if err != OK:
+			push_error(
+					"CampaignService: saving after \"%s\" failed - %s"
+					% [batch.label, error_string(err)]
+			)
+	return batch
+
+
 # The rng sections let go of the previous session first, so a section that refuses the
 # replacement never keeps reading a closed run.
 func _replace_session(replacement: CampaignSession) -> void:
@@ -170,10 +192,12 @@ func _replace_session(replacement: CampaignSession) -> void:
 	_combat_state.detach()
 	_combat_map.detach()
 	_darkness.detach()
+	_run_sections.detach()
 	_battle_ids = {}
 	if replacement != null:
 		_attach_rng_sections(replacement)
 		_attach_id_sections(replacement)
+		_attach_run_sections(replacement)
 		# A saved battle stays held until resume_battle() loads it.
 		_combat_state.attach(replacement)
 		_combat_map.attach(replacement)
@@ -211,6 +235,43 @@ func _attach_id_sections(built: CampaignSession) -> void:
 			)
 	if SaveService.resume_point == CombatData.ResumePoint.BATTLE:
 		_battle_ids = built.ids.capture()
+
+
+# Builds the session's run from the saved run sections, after the streams and the id counter.
+# A save holding none (a new run, whose first save comes before its session; a crash between that
+# save and this one; a save from before the run sections) gets a new run from the seed, which is
+# the same run, saved at once unless a battle is in progress (campaign writes keep Begin's
+# sections then, and the battle's end saves it).
+func _attach_run_sections(built: CampaignSession) -> void:
+	var err: Error = _run_sections.attach(built)
+	if err == ERR_DOES_NOT_EXIST:
+		built.run = _build_new_run(built)
+		var campaign: CampaignData = SaveService.campaign
+		if built.run != null and campaign != null and not campaign.combat_in_progress:
+			var saved: Error = SaveService.save_checkpoint()
+			if saved != OK:
+				push_error("CampaignService: the new run wasn't saved - %s" % [error_string(saved)])
+	elif err != OK:
+		push_error("CampaignService: the saved run can't load - %s" % [error_string(err)])
+
+
+# A new run for every seat of the session, each with DEFAULT_FACTION_ID: the map from the run's
+# MAP_GENERATION stream, the armies minted from its allocator. Null, reported, without map rules.
+func _build_new_run(built: CampaignSession) -> CampaignRunState:
+	var rules: CampaignMapRules = load(MAP_RULES_PATH) as CampaignMapRules
+	if rules == null:
+		push_error("CampaignService: no campaign map rules at %s" % [MAP_RULES_PATH])
+		return null
+	var factions: Dictionary[int, String] = {}
+	for seat: int in built.seats:
+		factions[seat] = DEFAULT_FACTION_ID
+	var map_stream: RngStream = built.rng.stream(RngKey.new(RngKey.RngPurpose.MAP_GENERATION))
+	var start: RunStart = RunStart.build(
+			rules, map_stream, EffectCatalog.index(), factions, built.ids
+	)
+	for problem: String in start.problems:
+		push_error("CampaignService: new run - %s" % [problem])
+	return start.run
 
 
 # Loads the held battle into battle, rebuilt as Begin set it up (save-system.md, Combat map, steps

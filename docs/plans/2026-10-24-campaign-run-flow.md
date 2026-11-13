@@ -46,12 +46,12 @@ Tuning values carried over: 7 columns and 6 paths (`map_generator.gd`), 100 XP p
 
 ## Approach
 
-**Shape.** Pure rules in `scripts/campaign/`, with one functional screen per node in `ui/campaign/`. `CampaignSession` gains a `RunState`; screens read it and issue commands.
+**Shape.** Pure rules in `scripts/campaign/`, with one functional screen per node in `ui/campaign/`. `CampaignSession` gains a `CampaignRunState`; screens read it and issue commands.
 
 | Piece | Job |
 |---|---|
 | `CampaignGraph`, `CampaignMapGenerator` | The saved node graph and how it's made |
-| `RunState`, `SeatRun` | Floor and node; each seat's gold, roster, fallen units, convoy, heirlooms and runes |
+| `CampaignRunState`, `SeatRun` | Floor and node; each seat's gold, roster, fallen units, convoy, heirlooms and runes |
 | `RunFlow` | Where the run is: on the map, or which stage of which node |
 | `CombatGrades`, `XpAward`, `LevelUp` | What a finished combat pays |
 | `Offers` | Rolled and saved stock for rewards, Armory, Guildhall and Treasure |
@@ -65,10 +65,10 @@ Tuning values carried over: 7 columns and 6 paths (`map_generator.gd`), 100 XP p
 
 **The loop.** Choosing a node locks its floor and saves. Then:
 
-- **Combat:** `RunState` builds the real `BattleRequest`, with the army from the roster and the map drawn from the pool for the node's combat type and step. On a win, Results shows grades and gold, the item pick (and a Key combat's heirloom), XP, the Standout and level-ups together, then returns to the map.
+- **Combat:** `CampaignRunState` builds the real `BattleRequest`, with the army from the roster and the map drawn from the pool for the node's combat type and step. On a win, Results shows grades and gold, the item pick (and a Key combat's heirloom), XP, the Standout and level-ups together, then returns to the map.
 - **Loss:** in solo, the run ends at once through `end_run(false)`.
 - **Treasure, Camp, Armory, Guildhall:** as the vision and question 6 say. Hand-over screens follow unit-roster.md.
-- **Unknown:** rolled on entry with the vision's rising odds, kept in `RunState`. An event hands off to P09; until P09 lands, a placeholder continues to the map.
+- **Unknown:** rolled on entry with the vision's rising odds, kept in `CampaignRunState`. An event hands off to P09; until P09 lands, a placeholder continues to the map.
 - **Boss:** a win pays the boss's shared XP and personal bonuses, with level-ups shown as after any combat, then the run ends, and Results shows the seed.
 - **Maps:** no map repeats in a run until every map in its pool has been used; then the pool refills. With few maps in the MVP, repeats will come sooner.
 
@@ -90,11 +90,11 @@ Tuning values carried over: 7 columns and 6 paths (`map_generator.gd`), 100 XP p
 
 **XP tally.** A host-side observer counts each unit's XP actions from combat facts. A battle can be quit and resumed, so the tally is saved in the combat block rather than rebuilt. Closing a reinforcement point and looting are the +5 non-combat action. Block given ignores zero-amount facts.
 
-**Grants.** `receive_grant` feeds `RunState`, closing TOD-001.
+**Grants.** `receive_grant` feeds `CampaignRunState`, closing TOD-001.
 
 **Co-op hooks kept now.** Everything is per seat except the map, floor, Unknown odds and shop stock, whose size takes the extra-player count. A map that received sent units earns no speed bonus, as a per-seat flag for P11 to set.
 
-**Rejected:** a `RunState` living in the screens (`Godot_FE`'s defect: rules scattered across UI); rebuilding the XP tally from a resumed battle's log (the log isn't saved).
+**Rejected:** a `CampaignRunState` living in the screens (`Godot_FE`'s defect: rules scattered across UI); rebuilding the XP tally from a resumed battle's log (the log isn't saved).
 
 **UI.** Every screen is its own `.tscn` with documented `@export`s and works on keyboard, mouse and controller from the step that adds it, with glyph hints. SceneRouter gains screens appended to its enum.
 
@@ -121,7 +121,7 @@ Steps through RN5 give a playable loop on M1's data. Later steps need content fr
 | Step | Work | Risk | After | Needs from M2 | Done when |
 |---|---|---|---|---|---|
 | RN1 Map | Generator, graph, rules data | 🟢 | Approval | — | 10,000 seeds pass every hard rule; target misses reported; same seed, same map |
-| RN2 Run state | `RunState`, `RunFlow`, commands, the campaign sections, the army from the faction; permanent deltas include Hit (P03 question 25) | 🔴 save format | RN1 | — | A new run saves and reloads identically |
+| RN2 Run state | `CampaignRunState`, `RunFlow`, commands, the campaign sections, the army from the faction; permanent deltas include Hit (P03 question 25) | 🔴 save format | RN1 | — | A new run saves and reloads identically |
 | RN3 Bridge | Real `BattleRequest`, the changed end-of-battle order, HP and fallen units, grants, `battle_tally` | 🔴 save order | RN2 | — | Quit at any point loses and repeats nothing |
 | RN4 Rewards | Grades, gold, XP, Standout, level-ups (with the Resonant Ore, P03 question 25), item pick | 🟡 | RN3 | — (full pools later) | Vision's tables reproduced; rolls per seat and seeded |
 | RN5 Loop screens | Campaign map, Results with rewards and level-ups, new-item placement, loss and win | 🟡 | RN4 | — | A multi-node run plays on all three input devices |
@@ -138,7 +138,7 @@ Steps through RN5 give a playable loop on M1's data. Later steps need content fr
 | Change | Kind | Current | Proposed | Status | Places to check | Risk |
 |---|---|---|---|---|---|---|
 | `CampaignService.end_battle()` order | Behaviour | Saves, then collects | Collects, applies, saves | Proposed (RN3) | Sessions tests | 🔴 |
-| `battle_screen.gd` army and map | Behaviour | Built on the screen | From `RunState` | Proposed (RN3) | Screen `@export`s, UI tests | 🟡 |
+| `battle_screen.gd` army and map | Behaviour | Built on the screen | From `CampaignRunState` | Proposed (RN3) | Screen `@export`s, UI tests | 🟡 |
 | `SceneRouter.Screen` | Enum, appended | 9 screens | New campaign screens | Proposed (RN5) | `SCREEN_PATHS` | 🟢 |
 | `Results` after a battle | Flow | The end of the run | A run's end only | Proposed (RN5) | `battle_screen.gd`, `results_screen.gd` | 🟡 |
 

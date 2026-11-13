@@ -6,7 +6,7 @@
 # File:     campaign_fact.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 27, 2026
+# Modified: November 13, 2026
 # ==============================================================================
 
 class_name CampaignFact
@@ -33,6 +33,13 @@ enum Kind {
 	EFFECT_ACTIVATED = 3,
 	## A counter of the effect named by [member source_effect_id] changed.
 	COUNTER_CHANGED = 4,
+	## A run began for the seat, with the faction named by [member definition_id].
+	RUN_STARTED = 5,
+	## The seat chose node [member amount] (a [CampaignGraph] id): its floor is locked and the run
+	## is inside it.
+	NODE_CHOSEN = 6,
+	## The run left node [member amount] for the map, at the seat's command.
+	NODE_LEFT = 7,
 }
 
 ## [member seat] when a fact belongs to no single player.

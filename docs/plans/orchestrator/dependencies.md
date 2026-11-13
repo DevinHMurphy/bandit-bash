@@ -213,11 +213,11 @@ mark it **Open** here.
 | P07 UI6–UI11 (M2) | P07 M1 part built ✅ (November 5, 2026); questions 20–26 answered ✅ (November 5, 2026) | Built in order: UI6's target list first, so controller support (UI9) stays small | **Open** November 5, 2026; UI6 built ✅ (November 5, 2026); UI7, UI7F and UI8 built ✅ (November 6, 2026); UI9, UI10 and UI11 built ✅ (November 7, 2026): M2's part done |
 | P14 O3 UI layout | P14 O2 done; no open feature branches or worktrees; a clean tree | About 165 files move, so any open branch would conflict | **Open** November 9, 2026; built ✅ (November 9, 2026) |
 | P14 O4 Tests | P14 O3 ✅ (November 9, 2026); no open branch touching `tests/` or `tools/run_tests.sh` | Test files move and the runner changes | **Open** November 9, 2026; built ✅ (November 12, 2026) |
-| P08 RN1–RN5 Run loop | P08 approved ✅ (November 12, 2026); built in order | Runs on M1's data; RN2 and RN3 change the save format | **Open** November 12, 2026; RN1 built ✅ (November 12, 2026) |
+| P08 RN1–RN5 Run loop | P08 approved ✅ (November 12, 2026); built in order | Runs on M1's data; RN2 and RN3 change the save format | **Open** November 12, 2026; RN1 built ✅ (November 12, 2026); RN2 built ✅ (November 13, 2026) |
 | P08 RN6–RN11 Nodes and full run | RN5; the M2 content each row of P08's Work Breakdown names (CT4, CT5, CT7, CT8, CT9, CT13; RN11 also EN7, EN8, EN11 and M2's maps) | Offers need real pools | Waiting |
 | P05 EN13 Preview: measure | move-preview.md adopted ✅ (November 12, 2026) | Benchmarks and the equality suite only; no behavior change | **Open** November 12, 2026, alongside Wave A |
 | P05 EN14–EN16 Preview re-architecture | EN13; EN6 (Guard and Skirmisher, which the zones must cover); in order, EN15 and EN16 after EN14 | The cache and zones must cover every behavior | Waiting |
-| P09 EV1 Outcomes | P09 approved ✅ (November 12, 2026); P08 RN2 | Outcomes apply to `RunState` | Waiting on RN2 |
+| P09 EV1 Outcomes | P09 approved ✅ (November 12, 2026); P08 RN2 | Outcomes apply to `CampaignRunState` | **Open** November 13, 2026 (RN2 merged) |
 | P09 EV2, EV3, EV5 | EV1; P08 RN5 (EV2 uses the battle bridge and the loop) | EV2 adds the `events` save section | Waiting |
 | P09 EV4 Content, EV6 Docs | EV3; P03 CT4, CT5, CT8, CT9 (curse copies must stack), CT13 | The events name real items, prefixes, curses and units | Waiting |
 | P02 CC10 Battle resume | P02 CC8 ✅; P04 MP8 ✅ | Restores the saved sections into a rebuilt battle | **Open** November 3, 2026; built ✅ (November 5, 2026) |

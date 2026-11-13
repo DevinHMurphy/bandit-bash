@@ -47,7 +47,7 @@ No tuning values come from `Godot_FE/`; events.md sets them all.
 | `EventDefinition` | Id, text, art, team-choice flag, eligibility, 2–3 options |
 | `EventOption` | Text, requirements, its outcome blocks, an optional curse: a named curse or a tier |
 | `EventOutcome` blocks | Gold, heal or damage by percent, stat or max HP change, pending level-up gain, item grant or modification, heirloom, rune, recruit, upgrade, prefix re-roll, revive, max army size, surprise combat, curse |
-| `EventResolver` | Applies one option's blocks to one seat's `RunState`, emitting `CampaignFact`s |
+| `EventResolver` | Applies one option's blocks to one seat's part of `CampaignRunState` (`SeatRun`), emitting `CampaignFact`s |
 | `EventRequirements` | One pure check over the whole army: gold, a unit type, the commander, an item, a fallen unit, army size below 8 |
 
 **The draw.** On entering, `EVENT_DRAW` picks one eligible event this run hasn't seen. The shrine is eligible only with a fallen unit. Each option's random parts are then rolled per seat from `EVENT_OUTCOME`: named curses, random items, the heirloom. They are saved before anything shows, so a quit and resume shows the same event. Every curse is named and shown with its effect and tier before choosing.

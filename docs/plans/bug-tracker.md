@@ -45,6 +45,8 @@ Not a bug.
 | [BUG-005](#bug-005-unit-detail-shows-the-type-id-not-its-name) | Unit detail shows the type id, not its name | P07 | S4 | Assigned (BF1) | November 7, 2026, UI11 report | BF1 |
 | [BUG-006](#bug-006-netlog-raises-an-engine-error-once-the-peer-is-cleared) | NetLog raises an engine error once the peer is cleared | P00 / P10 | S3 | Assigned (BF1) | November 9, 2026, O3 report | BF1 |
 | [BUG-008](#bug-008-a-mirror-keeps-a-used-up-consumable) | A mirror keeps a used-up consumable, so its hash differs from the host's | P02 / P11 | S2 | Assigned (BF1) | November 13, 2026, CT5 report | BF1 |
+| [BUG-009](#bug-009-a-second-copy-of-a-heirloom-never-reaches-the-battle) | A second copy of a heirloom or curse never reaches the battle | P08 / P09 | S2 | Assigned (RN3) | November 13, 2026, RN2 report | RN3 |
+| [BUG-010](#bug-010-save-select-shows-a-stale-floor) | Save Select's floor doesn't follow the run's floor | P08 | S4 | Assigned (RN3) | November 13, 2026, RN2 report | RN3 |
 
 ### BUG-001 No Block at the start of combat
 
@@ -142,6 +144,22 @@ Not a bug.
 - **Expected:** host and mirror drop the item at the same use, and the hashes match.
 - **Fix:** `return false` becomes `continue`, with a regression test comparing the mirror's hash
   after an Elixir's last use (CT5's Hit-booster test compares only Hit).
+
+### BUG-009 A second copy of a heirloom never reaches the battle
+
+- **Found:** RN2's report (read, not run). `CampaignSession._add_heirlooms` dedups carriers by
+  `"seat:content id"`, so a seat holding a curse twice brings only one copy into battle.
+- **Expected:** curses may repeat and copies stack (P09 question 3); `SeatRun.heirlooms` already
+  saves copies. Each copy becomes its own carrier; how copies stack is CT9's.
+- **Fix in RN3,** which rebuilds the battle bridge, with a regression test bringing a curse held
+  twice into a battle.
+
+### BUG-010 Save Select shows a stale floor
+
+- **Found:** RN2's report. `CampaignData.floors_climbed`, shown on Save Select, doesn't follow
+  `CampaignRunState.floor_number`.
+- **Expected:** Save Select shows the run's current floor.
+- **Fix in RN3,** with a test that choosing a node updates what Save Select reads.
 
 ### BUG-007 Test runs in two worktrees share one user folder
 

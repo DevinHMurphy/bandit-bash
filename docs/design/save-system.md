@@ -266,6 +266,36 @@ counter is saved; a resumed enemy phase then mints the ids the first run minted.
 - A save from before these sections resumes with a fresh counter. Nothing saved before them holds
   an instance id, so nothing can collide.
 
+## Run state
+
+The run's campaign state (`CampaignRunState`: the map, the route, the run flow and each seat's
+`SeatRun`) is six `CAMPAIGN` sections, all `RunSaveSections`, which `CampaignService` registers
+after `instance_ids`, the map before the flow
+([campaign and run flow plan](../plans/2026-10-24-campaign-run-flow.md), Save Impact):
+
+| Key | Per player | Version | Holds |
+|-----|------------|---------|-------|
+| `campaign_map` | No | 1 | `graph` (`CampaignGraph.to_dict()`), `visited` node ids from floor 1, `floor` (0 before the first node), `node` (-1 before it) |
+| `run_flow` | No | 1 | `stage` (`"map"` or `"node"`), `unknown_odds` (percent by outcome id), `used_maps`, `shop_stock`; empty means base odds, none used, nothing rolled |
+| `roster` | Yes | 1 | `faction_id`, `commander_id`, `army` and `fallen` (units, `UnitInstance.capture()`), `convoy` (item ids), `items` (every item the seat holds, by id) |
+| `heirlooms` | Yes | 1 | `entries` in gain order: `heirloom_id`, `counters`, `charges`; a second copy (a repeated curse) is a second entry |
+| `runes` | Yes | 1 | `slots`: exactly 3, each `{}` or `{instance_id, definition_id}` |
+| `economy` | Yes | 1 | `gold` (0 or more), `rare_offset` (whole percentage points, -5 to +40, starting at -5), `pending_offers` |
+
+- **A part with no run is `{}`.** A new run's first save comes before its session exists, so it
+  writes `{}` everywhere; `CampaignService` then builds the run (`RunStart`: the map from the
+  `MAP_GENERATION` stream, each seat's army, gold and Commander Heirloom from its faction) and saves
+  again. A continued save that holds no run (a crash between those writes, or a save from before
+  these sections) gets the same new run built from its seed.
+- **Load order.** Like the `rng` sections, each section only checks and holds its data while the
+  file loads (the flow against the held map); `RunSaveSections.attach()` builds the session's run
+  from it. A file holding only some parts loads no run and is written back unchanged.
+- **Validated:** a route that skips a floor or leaves the graph's edges, a stage inside a node
+  before any node, an item in two places or in none, a commander outside the army, a repeated unit
+  or rune, and out-of-range gold or offset each refuse the section and stop the load.
+- **Saved when:** every resolved campaign command (`CampaignService.submit_command()`) saves at
+  once; a rejected one saves nothing.
+
 ## Combat state
 
 The battle itself is two `COMBAT` sections, one `CombatStateSection` and its partner, which
