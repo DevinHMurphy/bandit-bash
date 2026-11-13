@@ -6,7 +6,7 @@
 # File:     enemy_ai.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 5, 2026
+# Modified: November 13, 2026
 # ==============================================================================
 
 class_name EnemyAI
@@ -14,33 +14,25 @@ extends RefCounted
 ## The enemy side's AI: rates every option an enemy has with the forecast the player sees, and
 ## plays the enemies one at a time, highest-rated first (enemies and AI plan, The AI).
 ##
-## [b]Options[/b] ([method decide]): every end tile from [method Pathing.reach], each action the
-## behavior allows, each legal target. Each attack and staff is previewed fresh from its own end
-## tile with [ForecastRolls] (hits land, chances fail), so terrain, Block, Stance and every effect
-## count (question 6). [b]Rating:[/b] [EnemyPlan]'s ordered steps (question 7); a kill is any
-## player unit the forecast defeats, the target or another by splash (question 21).[br]
-## [b]Behaviors[/b] (question 11): Aggressive takes its best attack, else advances on the nearest
-## foe by path cost; Hold takes a kill in reach first, else attacks from where it stands while a
-## foe is in range, else as Aggressive; Support heals the ally missing the most HP within reach,
-## else regroups near its allies, ending where the fewest player units can attack it. Every
-## behavior drops a flooded end tile when a dry one serves the same action on the same target, kill
-## or not (question 15).
-## Once the darkness has arrived ([method Reinforcements.has_darkness_arrived]), every enemy plays
-## Aggressive on the nearest foe, except a boss holding a fixed tile.[br]
-## [b]Order[/b] ([method next_command], question 8): each call re-decides every enemy yet to act
-## and gives the best plan, so each sees what the ones before it did. An enemy whose unit type is
-## no enemy class Waits.[br]
-## Rules code: pure, static and deterministic, with no RNG and no logging; it reports through
-## [member EffectEngine.diagnostics]. Main thread on a session's engine; [method decide] and
-## [method next_plan] on a sandbox's engine no other thread touches may run on a worker
-## ([method Intents.PreviewJob.run]), since each preview copies only that engine (question 17).
+## [method decide] lists every (end tile, action, target) its behavior allows, each attack and
+## staff previewed fresh from its tile with [ForecastRolls], and rates them in [EnemyPlan]'s order:
+## a kill (target or splash) first for every behavior, then the class's target rule. Each
+## behavior's rules are in [method decide]. A flooded end tile is dropped when a dry one serves the
+## same goal; after the darkness every enemy plays Aggressive on the nearest foe.
+## [method next_command] re-decides every enemy yet to act and gives the best plan, so each sees
+## what the ones before it did. Rules code: pure, static, deterministic, no RNG or logging
+## ([member EffectEngine.diagnostics]); on a sandbox no other thread touches it may run on a
+## worker ([method Intents.PreviewJob.run]).
 ##
 ## @tutorial(Enemies and AI plan): docs/plans/2026-10-30-enemies-and-ai.md
 ## @tutorial(Enemy roster): docs/design/enemy-roster.md
 ##
-## @todo: TOD-001 - Guard, Skirmisher, Block staves and a second move after acting (EN6); an enemy
-## playing Guard or Skirmisher Waits.
+## @todo: TOD-001 - Block staves and a second move after acting; no class uses either before
+## EN8's Bloodhound, and an enemy holding a Block staff regroups.
 ## @todo: TOD-002 - A boss holding a fixed tile keeps its behavior after the darkness (EN7's mark).
+## @todo: TOD-003 - The Warcaller's War Horn, its signature move (EN7); until then it only rallies.
+## @todo: TOD-004 - Cutthroat looting: with no attack worth taking, it opens a chest or searches a
+## searchable to deny it (EN9; map_objects.gd:TOD-002).
 
 ## (c)'s weight on the damage share: Godot_FE's damage bonus ([code]aiAction.gd[/code],
 ## [code]generate_attack_action_rating[/code]).
@@ -53,6 +45,20 @@ const NO_DAMAGE_BONUS: float = 50.0
 ## (d)'s avoid divisor: Godot_FE's [code]calculate_terrain_rating[/code]
 ## ([code]aiAction.gd[/code]).
 const AVOID_DIVISOR: float = 50.0
+
+## The range a weapon reaches to count as ranged: a bow, a tome, the Javelin. A Shieldbearer
+## guards an ally holding one, and a Raider goes for foes that carry nothing else or staves.[br]
+## [b]Units:[/b] tiles, the weapon's longest range.
+const RANGED_REACH: int = 2
+
+## How near an ally counts for the Warcaller's rule, "stays within 2 tiles of the most allies"
+## (enemy-roster.md, the Warcaller), by grid distance.[br]
+## [b]Units:[/b] tiles.
+const RALLY_TILES: int = 2
+
+# Added to a foe's HP under the Cutthroat's rule unless it is Exposed: larger than any HP, so every
+# Exposed foe ranks first, then the lowest HP.
+const _UNEXPOSED_RANK: float = 1000000.0
 
 
 ## Registers the AI on [param session]'s [constant CombatHooks.Hook.ENEMY_COMMANDS], reading each
@@ -98,11 +104,13 @@ static func next_plan(
 	return best
 
 
-## [param unit_id]'s best plan on [param engine]'s map, its class read from [param catalog]:
-## the options its behavior allows, flooded end tiles dropped where a dry one serves, rated in
-## [EnemyPlan]'s order. A Wait when it has no option or no enemy class. Changes nothing: every
-## preview runs in a sandbox.
-## [param flooded]: the tiles the darkness has flooded ([method flooded_tiles]).
+## [param unit_id]'s best plan on [param engine]'s map, its class read from [param catalog]: the
+## options its behavior allows, rated in [EnemyPlan]'s order; a Wait with no option or no class.
+## Aggressive and Skirmisher: the best attack in reach, else advance on the nearest foe (a Hound,
+## on the foe nearest its pack). Hold: a kill, else from its own tile, else as Aggressive. Guard:
+## any attack in reach, else stay; a Shieldbearer first takes its place beside its back-line ally.
+## Support: heal the most wounded ally, else regroup; a Warcaller attacks only from where most
+## allies stay near. Changes nothing. [param flooded]: the darkness's ([method flooded_tiles]).
 static func decide(
 		engine: EffectEngine,
 		catalog: EffectCatalog.Index,
@@ -116,6 +124,7 @@ static func decide(
 	if definition == null:
 		return _wait_plan(state, unit_id, EnemyClassDefinition.Behavior.AGGRESSIVE, "")
 	var board: Board = Board.new(engine, unit_id, flooded)
+	board.catalog = catalog
 	board.behavior = definition.behavior
 	board.rule = definition.target_rule_id
 	if Reinforcements.has_darkness_arrived(state) and not _holds_fixed_tile(state, unit_id):
@@ -126,21 +135,28 @@ static func decide(
 
 	var options: Array[EnemyPlan] = []
 	match board.behavior:
-		EnemyClassDefinition.Behavior.AGGRESSIVE:
+		EnemyClassDefinition.Behavior.AGGRESSIVE, EnemyClassDefinition.Behavior.SKIRMISHER:
+			# A Skirmisher moves as Aggressive with its own rule, and never moves after attacking.
 			options = _prefer_dry(board, _attacks(board))
 		EnemyClassDefinition.Behavior.HOLD:
 			options = _from_own_tile(board, _prefer_dry(board, _attacks(board)))
+		EnemyClassDefinition.Behavior.GUARD:
+			options = _prefer_dry(board, _guards(board))
 		EnemyClassDefinition.Behavior.SUPPORT:
 			options = _prefer_dry(board, _heals(board))
-			if options.is_empty():
+			if options.is_empty() and board.rule == ContentIds.TARGET_MOST_ALLIES_NEAR:
+				# TODO(TOD-003): the War Horn, with EN7's signature moves.
+				options = _prefer_dry(board, _rallies(board))
+			elif options.is_empty():
 				options = _prefer_dry(board, _regroups(board))
-		_:
-			# TODO(TOD-001): Guard and Skirmisher (EN6).
-			pass
+	# A Guard never advances: with nobody in reach it stays where it stands.
 	var advances: bool = (
 			board.behavior == EnemyClassDefinition.Behavior.AGGRESSIVE
 			or board.behavior == EnemyClassDefinition.Behavior.HOLD
+			or board.behavior == EnemyClassDefinition.Behavior.SKIRMISHER
 	)
+	# TODO(TOD-004): a Cutthroat with no attack loots a chest or a searchable before it advances
+	# (EN9).
 	if options.is_empty() and advances:
 		options = _prefer_dry(board, _advances(board))
 	if options.is_empty():
@@ -257,6 +273,7 @@ static func _heals(board: Board) -> Array[EnemyPlan]:
 	var options: Array[EnemyPlan] = []
 	var state: CombatState = board.state
 	var held: CombatState.WeaponStats = state.equipped_weapon(board.unit_id)
+	# TODO(TOD-001): a Block staff (Shelter) on an ally; no enemy class holds one yet.
 	if held == null or held.staff != CombatState.WeaponStats.Staff.HEAL:
 		return options
 	var span: Vector2i = _range_of(board.engine, board.unit_id)
@@ -291,10 +308,7 @@ static func _heals(board: Board) -> Array[EnemyPlan]:
 static func _regroups(board: Board) -> Array[EnemyPlan]:
 	var options: Array[EnemyPlan] = []
 	var state: CombatState = board.state
-	var allies: Array[Vector2i] = []
-	for ally: String in state.units_of(CombatFact.CombatSide.ENEMY):
-		if ally != board.unit_id:
-			allies.append(state.tile_of(ally))
+	var allies: Array[Vector2i] = _ally_tiles(board)
 	for tile: Vector2i in board.reach:
 		var plan: EnemyPlan = _new_plan(board, EnemyPlan.Kind.REGROUP, tile)
 		plan.safety = _safety_of(board, tile)
@@ -306,8 +320,176 @@ static func _regroups(board: Board) -> Array[EnemyPlan]:
 	return options
 
 
+# The Warcaller with nobody to heal: every kill in reach, the attacks from an end tile with the
+# most allies within RALLY_TILES, and every regroup; the target rule then rates each end tile by
+# those allies, before Support's safety and summed distance.
+static func _rallies(board: Board) -> Array[EnemyPlan]:
+	var most: int = 0
+	for tile: Vector2i in board.reach:
+		most = maxi(most, _allies_near(board, tile))
+	var options: Array[EnemyPlan] = []
+	for plan: EnemyPlan in _attacks(board):
+		if plan.is_kill or _allies_near(board, plan.tile) == most:
+			options.append(plan)
+	options.append_array(_regroups(board))
+	return options
+
+
+# Guard: every attack it can reach this turn, moving if it must; with none it stays (it never
+# advances). A Shieldbearer with a back-line ally left takes its place beside it first (_beside).
+static func _guards(board: Board) -> Array[EnemyPlan]:
+	if board.rule == ContentIds.TARGET_BACK_LINE_ALLY:
+		var ally: String = _back_line_ally(board)
+		if not ally.is_empty():
+			var beside: Array[EnemyPlan] = _beside(board, ally)
+			if not beside.is_empty():
+				return beside
+	return _attacks(board)
+
+
+# The Shieldbearer beside ally: its end tiles next to ally, or with none in reach the tiles
+# leaving the least movement to one; a wait on each, the attacks from them, and every kill in
+# reach (kills first). Empty when it can't walk toward ally at all, so it plays Guard.
+static func _beside(board: Board, ally: String) -> Array[EnemyPlan]:
+	var options: Array[EnemyPlan] = []
+	var state: CombatState = board.state
+	var ally_tile: Vector2i = state.tile_of(ally)
+	var posts: Dictionary[Vector2i, int] = {}
+	for tile: Vector2i in board.reach:
+		if state.grid.distance(tile, ally_tile) == 1:
+			posts[tile] = 0
+	if posts.is_empty():
+		# ASSUMPTION: short of a tile beside its ally, it ends where the least movement is left
+		# to one, attacking from there if it can.
+		var left: Dictionary[Vector2i, int] = _cost_to(
+				state, _stand_tiles(board, ally_tile, Vector2i(1, 1)),
+				board.movement_type, board.side
+		)
+		var least: int = -1
+		for tile: Vector2i in board.reach:
+			if left.has(tile) and (least < 0 or left[tile] < least):
+				least = left[tile]
+		if least < 0:
+			return options
+		for tile: Vector2i in board.reach:
+			if left.get(tile, -1) == least:
+				posts[tile] = least
+	for plan: EnemyPlan in _attacks(board):
+		if plan.is_kill or posts.has(plan.tile):
+			options.append(plan)
+	for tile: Vector2i in posts:
+		# ASSUMPTION: among its posts it takes the best terrain, then the least path cost (the
+		# fixed order); nothing else ranks them.
+		var plan: EnemyPlan = _new_plan(board, EnemyPlan.Kind.REGROUP, tile)
+		plan.progress = posts[tile]
+		options.append(plan)
+	return options
+
+
+# The Shieldbearer's back-line ally: the nearest other enemy whose class plays Support or that
+# carries a ranged weapon (RANGED_REACH); empty when none is left.
+static func _back_line_ally(board: Board) -> String:
+	var state: CombatState = board.state
+	var found: String = ""
+	var found_distance: int = -1
+	for ally: String in state.units_of(CombatFact.CombatSide.ENEMY):
+		if ally == board.unit_id:
+			continue
+		var definition: EnemyClassDefinition = null
+		if board.catalog != null:
+			definition = board.catalog.enemy_class(state.unit_type_of(ally))
+		var is_support: bool = (
+				definition != null
+				and definition.behavior == EnemyClassDefinition.Behavior.SUPPORT
+		)
+		if not is_support and not _carries_ranged(state, ally):
+			continue
+		# ASSUMPTION: nearest by tile distance, then id; the rule names no measure.
+		var distance: int = state.grid.distance(board.origin, state.tile_of(ally))
+		var is_nearer: bool = (
+				found_distance < 0
+				or distance < found_distance
+				or (distance == found_distance and ally < found)
+		)
+		if is_nearer:
+			found = ally
+			found_distance = distance
+	return found
+
+
+# Whether unit_id carries a weapon that attacks and reaches RANGED_REACH tiles, in hand or stowed.
+static func _carries_ranged(state: CombatState, unit_id: String) -> bool:
+	for held: CombatState.WeaponStats in _carried(state, unit_id):
+		if _attacks_with(held) and held.range_max >= RANGED_REACH:
+			return true
+	return false
+
+
+# The Raider's back-line foe: a unit carrying a weapon, every one ranged (RANGED_REACH) or a
+# staff.
+static func _is_back_line_foe(state: CombatState, unit_id: String) -> bool:
+	var carried: Array[CombatState.WeaponStats] = _carried(state, unit_id)
+	if carried.is_empty():
+		return false
+	for held: CombatState.WeaponStats in carried:
+		if not held.is_staff() and held.range_max < RANGED_REACH:
+			return false
+	return true
+
+
+# The weapons unit_id carries: the one in hand, then the stowed one, each when it has one.
+static func _carried(state: CombatState, unit_id: String) -> Array[CombatState.WeaponStats]:
+	var carried: Array[CombatState.WeaponStats] = []
+	var unit: CombatUnitState = state.unit(unit_id)
+	for weapon_id: String in [unit.equipped_weapon_id, unit.stowed_weapon_id]:
+		var held: CombatState.WeaponStats = state.weapon(weapon_id)
+		if held != null:
+			carried.append(held)
+	return carried
+
+
+# The Hexer's rule: the player units its Curse would catch hitting target_id, the target and
+# every unit beside it (enemy-roster.md, Curse); its own side caught too never counts against.
+static func _cursed_foes(state: CombatState, target_id: String) -> int:
+	var center: Vector2i = state.tile_of(target_id)
+	var caught: int = 0
+	for foe: String in state.units_of(CombatFact.CombatSide.PLAYER):
+		if state.grid.distance(center, state.tile_of(foe)) <= 1:
+			caught += 1
+	return caught
+
+
+# Other enemies within RALLY_TILES of tile, by grid distance, where they stand now.
+static func _allies_near(board: Board, tile: Vector2i) -> int:
+	var near: int = 0
+	for ally_tile: Vector2i in _ally_tiles(board):
+		if board.state.grid.distance(tile, ally_tile) <= RALLY_TILES:
+			near += 1
+	return near
+
+
+# The tiles of every other enemy on the map.
+static func _ally_tiles(board: Board) -> Array[Vector2i]:
+	var tiles: Array[Vector2i] = []
+	for ally: String in board.state.units_of(CombatFact.CombatSide.ENEMY):
+		if ally != board.unit_id:
+			tiles.append(board.state.tile_of(ally))
+	return tiles
+
+
+# The least grid distance from unit_id to any of tiles; 0 with no tiles, so nothing is preferred.
+static func _nearest_distance(state: CombatState, unit_id: String, tiles: Array[Vector2i]) -> int:
+	var least: int = -1
+	for tile: Vector2i in tiles:
+		var distance: int = state.grid.distance(state.tile_of(unit_id), tile)
+		if least < 0 or distance < least:
+			least = distance
+	return maxi(least, 0)
+
+
 # With no attack: the nearest foe by path cost to a tile the enemy could attack it from
 # (Godot_FE's move search), then every end tile still able to walk there, rated by the cost left.
+# A Hound goes for the foe nearest its pack instead, and rates each tile by the allies beside it.
 static func _advances(board: Board) -> Array[EnemyPlan]:
 	var options: Array[EnemyPlan] = []
 	var state: CombatState = board.state
@@ -315,8 +497,12 @@ static func _advances(board: Board) -> Array[EnemyPlan]:
 	var walked: Dictionary[Vector2i, int] = Pathing.flood(
 			state, board.origin, -1, board.movement_type, board.side
 	)
+	var with_pack: bool = board.rule == ContentIds.TARGET_PACK_LOWEST_HP
+	var pack_tiles: Array[Vector2i] = []
+	if with_pack:
+		pack_tiles = _ally_tiles(board)
 	var nearest_id: String = ""
-	var nearest_cost: int = -1
+	var nearest_key: Vector2i = Vector2i(-1, -1)
 	var nearest_goals: Array[Vector2i] = []
 	for foe: String in state.units_of(CombatFact.CombatSide.PLAYER):
 		var goals: Array[Vector2i] = _stand_tiles(board, state.tile_of(foe), span)
@@ -326,9 +512,18 @@ static func _advances(board: Board) -> Array[EnemyPlan]:
 				cost = walked[goal]
 		if cost < 0:
 			continue
-		if nearest_cost < 0 or cost < nearest_cost or (cost == nearest_cost and foe < nearest_id):
+		# ASSUMPTION: the foe nearest a Hound's pack is the one with the least tile distance to
+		# any other enemy, then its own path cost (first pass); alone, its own nearest foe.
+		var key: Vector2i = Vector2i(_nearest_distance(state, foe, pack_tiles), cost)
+		var is_nearer: bool = (
+				nearest_id.is_empty()
+				or key.x < nearest_key.x
+				or (key.x == nearest_key.x and key.y < nearest_key.y)
+				or (key == nearest_key and foe < nearest_id)
+		)
+		if is_nearer:
 			nearest_id = foe
-			nearest_cost = cost
+			nearest_key = key
 			nearest_goals = goals
 	if nearest_id.is_empty():
 		return options
@@ -341,6 +536,11 @@ static func _advances(board: Board) -> Array[EnemyPlan]:
 		var plan: EnemyPlan = _new_plan(board, EnemyPlan.Kind.ADVANCE, tile)
 		plan.target_id = nearest_id
 		plan.progress = left[tile]
+		if with_pack:
+			# ASSUMPTION: among tiles equally far along, the most allies beside it (first pass).
+			for ally_tile: Vector2i in pack_tiles:
+				if state.grid.distance(tile, ally_tile) == 1:
+					plan.allies_beside += 1
 		options.append(plan)
 	return options
 
@@ -380,8 +580,13 @@ static func _prefer_dry(board: Board, options: Array[EnemyPlan]) -> Array[EnemyP
 	return kept
 
 
-# Step (b) on every option of one enemy: lower is better.
+# Step (b) on every option of one enemy: lower is better. The Warcaller's rule rates every end
+# tile, target or not; the others rate each option's target.
 static func _rate_target_rule(board: Board, options: Array[EnemyPlan]) -> void:
+	if board.rule == ContentIds.TARGET_MOST_ALLIES_NEAR:
+		for plan: EnemyPlan in options:
+			plan.target_rule_key = -_allies_near(board, plan.tile)
+		return
 	var nearest: Dictionary[String, int] = {}
 	for plan: EnemyPlan in options:
 		if plan.target_id.is_empty():
@@ -391,9 +596,23 @@ static func _rate_target_rule(board: Board, options: Array[EnemyPlan]) -> void:
 	for plan: EnemyPlan in options:
 		if plan.target_id.is_empty():
 			continue
+		var hp: int = board.state.get_hp(plan.target_id)
 		match board.rule:
-			ContentIds.TARGET_NEAREST_FOE:
+			# Holding its ground, the Duelist and the Shieldbearer take the foe they reach with
+			# the least movement, as the nearest foe.
+			ContentIds.TARGET_NEAREST_FOE, ContentIds.TARGET_HOLDS_GROUND, \
+					ContentIds.TARGET_BACK_LINE_ALLY:
 				plan.target_rule_key = nearest[plan.target_id]
+			ContentIds.TARGET_EXPOSED_THEN_LOWEST_HP:
+				var is_exposed: bool = board.state.get_stance(plan.target_id) == 0
+				plan.target_rule_key = hp + (0.0 if is_exposed else _UNEXPOSED_RANK)
+			ContentIds.TARGET_PACK_LOWEST_HP:
+				plan.target_rule_key = hp
+			ContentIds.TARGET_MOST_CURSED:
+				plan.target_rule_key = -_cursed_foes(board.state, plan.target_id)
+			ContentIds.TARGET_BACK_LINE_FOES:
+				var is_back_line: bool = _is_back_line_foe(board.state, plan.target_id)
+				plan.target_rule_key = 0.0 if is_back_line else 1.0
 			ContentIds.TARGET_LOWEST_DEFENSE:
 				# The target's DEF stat as its unit panel shows it, without its terrain.
 				plan.target_rule_key = board.engine.stats(plan.target_id).get_int(
@@ -600,6 +819,8 @@ class Board:
 
 	## The engine the decision reads; a sandbox's works unchanged.
 	var engine: EffectEngine = null
+	## The catalog every enemy's class is read from: the Shieldbearer reads its allies' behaviors.
+	var catalog: EffectCatalog.Index = null
 	## Its state.
 	var state: CombatState = null
 	## The enemy deciding.

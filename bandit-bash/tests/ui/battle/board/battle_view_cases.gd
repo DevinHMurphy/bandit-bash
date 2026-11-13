@@ -6,7 +6,7 @@
 # File:     battle_view_cases.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 7, 2026
+# Modified: November 13, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -16,7 +16,8 @@ extends RefCounted
 ## needed.
 ##
 ## [b]The battle:[/b] the Mercenary army ([method StartingArmy.build]) against the M1 pack on the
-## greybox map, begun through [method CampaignSession.begin_battle] on the real catalog, as in
+## greybox map, begun through [method CampaignSession.begin_battle] on the real catalog with the M1
+## pack its only pack ([code]tests/enemies/pack_catalog.gd[/code]), as in
 ## [code]tests/enemies/m1_battle_cases.gd[/code], with a driver of the same shape: in the opening
 ## swap window it sends Start; each player unit attacks the first enemy it can hit from the first
 ## reachable tile (row-major), else walks to the reachable tile nearest an enemy and waits; then
@@ -24,6 +25,9 @@ extends RefCounted
 ## settles, and it must then agree with the state.[br]
 ## [b]Twins:[/b] the fast-forward and skip cases begin the same battle more than once from the
 ## same seed, so the same command gives each board the same facts to compare their timing on.
+
+# A preloaded script used as a type (gdscript.md, Naming): the helper has no class name.
+const PackCatalog = preload("res://tests/enemies/pack_catalog.gd")
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
 const VIEW_SCENE: PackedScene = preload("res://ui/battle/board/battle_view.tscn")
@@ -74,7 +78,8 @@ func run() -> void:
 	_test_skip_stops(map)
 
 
-## Begins the M1 battle for a new solo run; null, with the problem reported, when it can't.
+## Begins the M1 battle for a new solo run, on [param catalog] with the M1 pack its only pack;
+## null, with the problem reported, when it can't.
 static func begin_m1(
 		catalog: EffectCatalog.Index, map: CombatMapDefinition, run: CampaignSession
 ) -> CombatEncounter:
@@ -87,7 +92,7 @@ static func begin_m1(
 	request.floor_number = FLOOR
 	request.node = NODE
 	request.pool = [map]
-	request.catalog = catalog
+	request.catalog = PackCatalog.with_only(catalog, "m1_pack")
 	request.armies[0] = army
 	return run.begin_battle(request)
 

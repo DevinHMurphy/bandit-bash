@@ -6,7 +6,7 @@
 # File:     ai_world.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 12, 2026
+# Modified: November 13, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -14,10 +14,11 @@ extends RefCounted
 ## enemies of the loadout fixture tree's classes loaded through [Loadout], and hand-built player
 ## units with chosen stats.
 ##
-## Test-only. Enemies are [code]loadout_brute[/code] (Aggressive, Simple Axe),
+## Test-only. The M1 cases' enemies are [code]loadout_brute[/code] (Aggressive, Simple Axe),
 ## [code]loadout_crossbowman[/code] (Hold, Simple Bow) and [code]loadout_hedge_healer[/code]
-## (Support, Minor Heal) at level 1, with enemy-roster.md's base stats. Player units default to
-## HP 20, Stance 2, movement 5, Might 3, Speed 5, DEF 2, RES 1 and Constitution 20.
+## (Support, Minor Heal) at level 1, with enemy-roster.md's base stats; the roster cases load the
+## real catalog's classes, traits and gear. Player units default to HP 20, Stance 2, movement 5,
+## Might 3, Speed 5, DEF 2, RES 1 and Constitution 20.
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
@@ -83,8 +84,8 @@ func engine() -> EffectEngine:
 	return session.engine
 
 
-## Loads an enemy of [param class_id] holding its class's starting weapon and places it on
-## [param tile].
+## Loads an enemy of [param class_id] holding its class's starting weapon and equipment, and
+## places it on [param tile].
 func add_enemy(unit_id: String, class_id: String, tile: Vector2i) -> void:
 	var definition: EnemyClassDefinition = catalog.enemy_class(class_id)
 	var item_id: String = "item:%s" % [unit_id]
@@ -93,6 +94,10 @@ func add_enemy(unit_id: String, class_id: String, tile: Vector2i) -> void:
 	var items: Dictionary[String, ItemInstance] = {
 		item_id: ItemInstance.new(item_id, definition.starting_weapon_id),
 	}
+	if not definition.starting_equipment_id.is_empty():
+		var gear_id: String = "gear:%s" % [unit_id]
+		items[gear_id] = ItemInstance.new(gear_id, definition.starting_equipment_id)
+		unit.equipment_id = gear_id
 	var loaded: Loadout.LoadedUnit = Loadout.load_unit(catalog, unit, items, ENEMY, -1, _ids)
 	problems.append_array(loaded.problems)
 	for weapon: CombatState.WeaponStats in loaded.weapons:

@@ -1,0 +1,51 @@
+[gd_resource type="Resource" script_class="EnemyClassDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_cond"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/while_role_condition.gd" id="4_role"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="5_gain"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="6_con"]
+[ext_resource type="Script" path="res://scripts/content/enemy_class_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_defender"]
+script = ExtResource("4_role")
+role = 1
+
+[sub_resource type="Resource" id="Resource_amount"]
+script = ExtResource("6_con")
+value = 3.0
+
+[sub_resource type="Resource" id="Resource_block"]
+script = ExtResource("5_gain")
+amount = SubResource("Resource_amount")
+
+[sub_resource type="Resource" id="Resource_riposte"]
+script = ExtResource("1_eff")
+id = "riposte"
+trigger = 3
+conditions = Array[ExtResource("2_cond")]([SubResource("Resource_defender")])
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_block")])
+
+[resource]
+script = ExtResource("9_def")
+behavior = 1
+target_rule_id = "holds_ground"
+target_rule_text = "Holds its ground"
+trait_name = "Riposte"
+weapon_types = PackedStringArray("sword")
+movement_type = 2
+tags = PackedStringArray()
+stance = 2
+starting_weapon_id = "simple_sword"
+innate_effects = Array[ExtResource("1_eff")]([])
+base_stats = Dictionary[int, int]({0: 16, 1: 4, 2: 9, 3: 3, 4: 1, 5: 5, 6: 5})
+growths = Dictionary[int, int]({0: 75, 1: 30, 2: 50, 3: 15, 4: 20})
+upgraded_effects = Array[ExtResource("1_eff")]([])
+upgrade_stat_gains = Dictionary[int, int]({})
+upgrade_weapon_types = PackedStringArray()
+upgrade_tags = PackedStringArray()
+is_commander = false
+id = "duelist"
+display_name = "Duelist"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_riposte")])

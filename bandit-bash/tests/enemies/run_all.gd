@@ -6,14 +6,15 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 4, 2026
+# Modified: November 13, 2026
 # ==============================================================================
 
 extends SceneTree
 ## Enemies suite (enemies and AI plan, P05): setup step 4 ([EnemySetup],
 ## [code]enemy_setup_cases.gd[/code]), the enemy AI ([code]ai_cases.gd[/code]) and its intents
-## ([code]intent_cases.gd[/code]) on the loadout fixture tree's enemy classes, and a headless M1
-## battle on the real catalog ([code]m1_battle_cases.gd[/code]).
+## ([code]intent_cases.gd[/code]) on the loadout fixture tree's enemy classes, a headless M1
+## battle on the real catalog ([code]m1_battle_cases.gd[/code]), and the roster's behaviors, packs
+## and battles ([code]roster_ai_cases.gd[/code], [code]roster_battle_cases.gd[/code]).
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/enemies/run_all.gd[/code][br]
@@ -30,6 +31,8 @@ const EnemySetupCases = preload("res://tests/enemies/enemy_setup_cases.gd")
 const IntentCases = preload("res://tests/enemies/intent_cases.gd")
 const LoadoutCases = preload("res://tests/content/loadout_cases.gd")
 const M1BattleCases = preload("res://tests/enemies/m1_battle_cases.gd")
+const RosterAiCases = preload("res://tests/enemies/roster_ai_cases.gd")
+const RosterBattleCases = preload("res://tests/enemies/roster_battle_cases.gd")
 
 var _failures: int = 0
 var _passes: int = 0
@@ -44,6 +47,8 @@ func _init() -> void:
 	AiCases.new(_check, catalog).run()
 	IntentCases.new(_check, catalog).run()
 	M1BattleCases.new(_check).run()
+	RosterAiCases.new(_check).run()
+	RosterBattleCases.new(_check).run()
 	var changed: PackedStringArray = CatalogCases.changed_definitions(
 			before, CatalogCases.hash_definitions([LoadoutCases.TREE])
 	)

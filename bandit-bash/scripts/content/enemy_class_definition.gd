@@ -6,7 +6,7 @@
 # File:     enemy_class_definition.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: October 30, 2026
+# Modified: November 13, 2026
 # ==============================================================================
 
 @tool
@@ -50,6 +50,12 @@ enum Behavior {
 ## The target rule as players read it beside the intent, such as "Nearest foe it can hit". Every
 ## enemy class has one; the content test checks it.
 @export_multiline var target_rule_text: String = ""
+
+## The equipment every unit of the class carries in its Equipment slot, by content id, such as the
+## Shieldbearer's [code]iron_shield[/code]; setup builds it with the weapon ([EnemySetup]). The
+## content test checks it names equipment.[br]
+## [b]Empty:[/b] the Equipment slot stays empty, as for most classes.
+@export var starting_equipment_id: String = ""
 
 
 func _validate_property(property: Dictionary) -> void:

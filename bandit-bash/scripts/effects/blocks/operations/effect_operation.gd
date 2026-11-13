@@ -6,7 +6,7 @@
 # File:     effect_operation.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 29, 2026
+# Modified: November 13, 2026
 # ==============================================================================
 
 @tool
@@ -41,6 +41,20 @@ func is_inline() -> bool:
 ## gives none ([ModifyValue] and [SetPermission] give one). Read by value queries.
 func make_modifier(_instance: EffectInstance) -> Modifier:
 	return null
+
+
+## Whether the modifier this operation gives depends on the board, so the engine checks its
+## effect live on every query even without conditions ([ModifyValue] with a
+## [member ModifyValue.per] amount). Otherwise its sheet could cache a stale value.
+func is_live() -> bool:
+	return false
+
+
+## The [Modifier] this operation gives for one value query with [param _ctx]
+## ([method EffectEngine.live_modifiers]): [method make_modifier] unless its amount depends on the
+## board.
+func make_live_modifier(instance: EffectInstance, _ctx: EffectContext) -> Modifier:
+	return make_modifier(instance)
 
 
 ## Does the operation for [param ctx]'s effect and fact: an inline one changes [param ctx]; a

@@ -6,7 +6,7 @@
 # File:     enemy_intent.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 12, 2026
+# Modified: November 13, 2026
 # ==============================================================================
 
 class_name EnemyIntent
@@ -77,8 +77,8 @@ var path: Array[Vector2i] = []
 ## The weapon an attack names: empty for the one in hand, the stowed one for a Sidearm swap.
 var weapon_id: String = ""
 
-## The tiles its splash would hit (Cleave around [member tile]), in row-major order; empty when
-## no splash fires in its forecast.
+## The tiles its splash or curse would hit (Cleave around [member tile], Trample and Curse
+## around its target), in row-major order; empty when none fires in its forecast.
 var area: Array[Vector2i] = []
 
 ## Every player unit its forecast defeats, in state order.
@@ -174,8 +174,9 @@ static func _kind_of(state: CombatState, chosen: EnemyPlan) -> Kind:
 
 
 # The tiles of every splash area the plan's forecast fired: each of the enemy's activated effects
-# that deals splash to an Area, centered where the enemy acts from (the owner, or the fact's
-# actor on its Hit dealt) or on its target (the fact's target, the command's target).
+# that deals splash to an Area or takes Block or Stance across one (_area_hit_by), centered where
+# the enemy acts from (the owner, or the fact's actor on its Hit dealt) or on its target (the
+# fact's target, the command's target).
 static func _splash_area(engine: EffectEngine, chosen: EnemyPlan) -> Array[Vector2i]:
 	var state: CombatState = engine.state
 	var covered: Dictionary[Vector2i, bool] = {}
@@ -190,11 +191,8 @@ static func _splash_area(engine: EffectEngine, chosen: EnemyPlan) -> Array[Vecto
 		if instance == null:
 			continue
 		for operation: EffectOperation in instance.definition.operations:
-			var splash: DealSplash = operation as DealSplash
-			if splash == null or not splash.target is Area:
-				continue
-			var area: Area = splash.target
-			if area.shape == null:
+			var area: Area = _area_hit_by(operation)
+			if area == null or area.shape == null:
 				continue
 			var center: Vector2i = chosen.tile
 			if area.center != Area.Center.OWNER and area.center != Area.Center.FACT_ACTOR:
@@ -206,3 +204,18 @@ static func _splash_area(engine: EffectEngine, chosen: EnemyPlan) -> Array[Vecto
 	tiles.assign(covered.keys())
 	tiles.sort_custom(EnemyPlan.tile_precedes)
 	return tiles
+
+
+# The Area operation hurts: splash dealt to one (Cleave, Trample), or a loss of Block or Stance
+# across one (the Hexer's Curse); null for anything else.
+static func _area_hit_by(operation: EffectOperation) -> Area:
+	var splash: DealSplash = operation as DealSplash
+	if splash != null:
+		return splash.target as Area
+	var gain: GainResource = operation as GainResource
+	if gain == null or gain.pool == GainResource.Pool.HP:
+		return null
+	var amount: Constant = gain.amount as Constant
+	if amount == null or amount.value >= 0.0:
+		return null
+	return gain.target as Area

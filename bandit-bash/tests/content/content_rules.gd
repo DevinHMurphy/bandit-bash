@@ -6,7 +6,7 @@
 # File:     content_rules.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 12, 2026
+# Modified: November 13, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -69,7 +69,8 @@ const COMMANDER_STARTING: String = "commander_starting"
 ## A faction's starting gear in the wrong slot: a non-weapon in the Weapon slot, a non-equipment
 ## in the Equipment slot, equipment in the Pouch, or more than three slots.
 const GEAR_SLOT: String = "gear_slot"
-## A pack that lists no enemy class, or a class count below 1.
+## A pack that lists no enemy class, a class count below 1, or a most-count below its count or
+## for a class it doesn't list.
 const PACK_COUNT: String = "pack_count"
 ## An enemy class with no target rule text, a commander flag or a role.
 const ENEMY_CLASS: String = "enemy_class"
@@ -240,6 +241,12 @@ func _check_references(path: String, resource: Resource) -> void:
 				path, "commander_heirloom_id", unit.commander_heirloom_id,
 				EffectCatalog.Kind.HEIRLOOM
 		)
+		if resource is EnemyClassDefinition:
+			var enemy: EnemyClassDefinition = resource
+			_reference(
+					path, "starting_equipment_id", enemy.starting_equipment_id,
+					EffectCatalog.Kind.EQUIPMENT
+			)
 	elif resource is FactionDefinition:
 		var faction: FactionDefinition = resource
 		# ASSUMPTION: a faction must name a commander and unit types; empty ids there are dangling.
@@ -610,6 +617,13 @@ func _check_pack_counts(path: String, pack: PackDefinition) -> void:
 		if pack.class_counts[class_id] < 1:
 			_fail(PACK_COUNT, path, "\"%s\" has count %d; each class fields at least 1" % [
 				class_id, pack.class_counts[class_id],
+			])
+	for class_id: String in pack.max_counts:
+		if not pack.class_counts.has(class_id):
+			_fail(PACK_COUNT, path, "max_counts names \"%s\", not in class_counts" % [class_id])
+		elif pack.max_counts[class_id] < pack.class_counts[class_id]:
+			_fail(PACK_COUNT, path, "\"%s\" fields at most %d, below its count %d" % [
+				class_id, pack.max_counts[class_id], pack.class_counts[class_id],
 			])
 
 

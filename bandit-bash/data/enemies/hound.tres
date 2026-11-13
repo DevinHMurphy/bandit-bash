@@ -1,0 +1,51 @@
+[gd_resource type="Resource" script_class="EnemyClassDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="2_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="3_mod"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/count_of.gd" id="4_count"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/area.gd" id="5_area"]
+[ext_resource type="Script" path="res://scripts/content/enemy_class_definition.gd" id="9_def"]
+[ext_resource type="Resource" path="res://data/shapes/adjacent.tres" id="10_shape"]
+
+[sub_resource type="Resource" id="Resource_adjacent_allies"]
+script = ExtResource("5_area")
+shape = ExtResource("10_shape")
+
+[sub_resource type="Resource" id="Resource_count"]
+script = ExtResource("4_count")
+selector = SubResource("Resource_adjacent_allies")
+
+[sub_resource type="Resource" id="Resource_damage"]
+script = ExtResource("3_mod")
+key = 1000
+value = 2.0
+per = SubResource("Resource_count")
+
+[sub_resource type="Resource" id="Resource_pack"]
+script = ExtResource("1_eff")
+id = "pack"
+operations = Array[ExtResource("2_ops")]([SubResource("Resource_damage")])
+
+[resource]
+script = ExtResource("9_def")
+behavior = 0
+target_rule_id = "pack_lowest_hp"
+target_rule_text = "Lowest HP"
+trait_name = "Pack"
+weapon_types = PackedStringArray("gauntlets")
+movement_type = 2
+tags = PackedStringArray()
+stance = 1
+starting_weapon_id = "fangs"
+innate_effects = Array[ExtResource("1_eff")]([])
+base_stats = Dictionary[int, int]({0: 20, 1: 4, 2: 6, 3: 1, 4: 0, 5: 10, 6: 7})
+growths = Dictionary[int, int]({0: 70, 1: 30, 2: 45, 3: 5, 4: 8})
+upgraded_effects = Array[ExtResource("1_eff")]([])
+upgrade_stat_gains = Dictionary[int, int]({})
+upgrade_weapon_types = PackedStringArray()
+upgrade_tags = PackedStringArray()
+is_commander = false
+id = "hound"
+display_name = "Hound"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_pack")])

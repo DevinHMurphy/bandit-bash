@@ -6,7 +6,7 @@
 # File:     effect_engine.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 12, 2026
+# Modified: November 13, 2026
 # ==============================================================================
 
 class_name EffectEngine
@@ -132,10 +132,12 @@ var _instances: Dictionary[String, EffectInstance] = {}
 # Triggered instances per trigger, each an Array[EffectInstance] in registration order.
 var _by_trigger: Dictionary[int, Array] = {}
 
-# Always-on instances without conditions: part of every stat sheet they apply to.
+# Always-on instances without conditions or a live operation: part of every stat sheet they apply
+# to.
 var _unconditional: Array[EffectInstance] = []
 
-# Always-on instances with conditions, per key they modify: checked live on every query.
+# Always-on instances with conditions or a live operation (EffectOperation.is_live), per key they
+# modify: checked live on every query.
 var _conditional_by_key: Dictionary[int, Array] = {}
 
 # Inline windows opened but not yet recorded, by fact.
@@ -1231,8 +1233,12 @@ func _conditional_modifiers(
 		query.subject_id = _this_unit(instance, subject_id)
 		if not _passes(instance, query):
 			continue
-		for modifier: Modifier in _modifiers_of(instance):
-			if modifier.key == key and modifier.stat == stat:
+		for operation: EffectOperation in instance.definition.operations:
+			if operation == null:
+				continue
+			# Built with the query, so an amount that reads the board (Pack's count) is current.
+			var modifier: Modifier = operation.make_live_modifier(instance, query)
+			if modifier != null and modifier.key == key and modifier.stat == stat:
 				found.append(modifier)
 	query.instance = saved_instance
 	query.subject_id = saved_subject
@@ -1260,7 +1266,7 @@ func _index(instance: EffectInstance) -> void:
 		return
 	if _modifiers_of(instance).is_empty():
 		return
-	if instance.definition.conditions.is_empty():
+	if instance.definition.conditions.is_empty() and not _has_live_operation(instance):
 		_unconditional.append(instance)
 		return
 	for modifier: Modifier in _modifiers_of(instance):
@@ -1269,6 +1275,15 @@ func _index(instance: EffectInstance) -> void:
 			_conditional_by_key[modifier.key] = keyed
 		if not _conditional_by_key[modifier.key].has(instance):
 			_conditional_by_key[modifier.key].append(instance)
+
+
+# Whether an always-on instance gives a modifier read from the board (EffectOperation.is_live):
+# it is checked live like a conditional one, never cached in a sheet.
+static func _has_live_operation(instance: EffectInstance) -> bool:
+	for operation: EffectOperation in instance.definition.operations:
+		if operation != null and operation.is_live():
+			return true
+	return false
 
 
 func _unindex(instance: EffectInstance) -> void:

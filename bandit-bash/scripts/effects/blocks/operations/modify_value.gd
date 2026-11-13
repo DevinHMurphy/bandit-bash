@@ -6,7 +6,7 @@
 # File:     modify_value.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 29, 2026
+# Modified: November 13, 2026
 # ==============================================================================
 
 @tool
@@ -15,9 +15,10 @@ extends EffectOperation
 ## An always-on modifier on a value key: "+8 Combat Gold", "-2 SPD", "Range Max 2 instead of its
 ## base".
 ##
-## Used by effects with trigger Always. Without conditions it is part of the owner's cached stat
-## sheet; with While conditions it is checked live on every query. Becomes a [Modifier] sourced
-## to the carrier at runtime ([method make_modifier]).
+## Used by effects with trigger Always. Without conditions or [member per] it is part of the
+## owner's cached stat sheet; with While conditions or [member per] it is checked live on every
+## query. Becomes a [Modifier] sourced to the carrier at runtime ([method make_modifier];
+## [method make_live_modifier] scales it by [member per]).
 ##
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
 
@@ -36,6 +37,11 @@ extends EffectOperation
 ## [b]None:[/b] the key isn't per stat. Ignored by every other key.
 @export var stat: int = Modifier.NO_STAT
 
+## Scales [member value] by an amount read on every query: "+2 damage per adjacent ally" (the
+## Hound's Pack) is [member value] 2 per a [CountOf] of adjacent allies. Meant for Add.[br]
+## [b]Null:[/b] [member value] as it is, cached with the sheet when the effect has no conditions.
+@export var per: ValueSource = null
+
 
 func _validate_property(property: Dictionary) -> void:
 	if property["name"] == "key":
@@ -47,7 +53,10 @@ func _validate_property(property: Dictionary) -> void:
 
 
 func describe() -> String:
-	return EffectTerms.describe_modifier(key, mode, value, stat)
+	var change: String = EffectTerms.describe_modifier(key, mode, value, stat)
+	if per == null:
+		return change
+	return "%s × %s" % [change, per.describe()]
 
 
 ## Always-on modifiers are read by value queries, not applied: this only reports a content error.
@@ -63,4 +72,18 @@ func make_modifier(instance: EffectInstance) -> Modifier:
 			key, mode, value, instance.source_kind, instance.instance_id, instance.label
 	)
 	modifier.stat = stat
+	return modifier
+
+
+## Live while [member per] is set: its amount changes with the board.
+func is_live() -> bool:
+	return per != null
+
+
+## [method make_modifier] with [member value] times [member per]'s amount for [param ctx], whose
+## instance and subject the engine sets to this effect and its unit.
+func make_live_modifier(instance: EffectInstance, ctx: EffectContext) -> Modifier:
+	var modifier: Modifier = make_modifier(instance)
+	if per != null:
+		modifier.value = value * per.evaluate(ctx)
 	return modifier

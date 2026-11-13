@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 12, 2026
+# Modified: November 13, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -33,6 +33,7 @@ const CatalogCases = preload("res://tests/content/catalog_cases.gd")
 const LoadoutCases = preload("res://tests/content/loadout_cases.gd")
 const M1ContentCases = preload("res://tests/content/m1_content_cases.gd")
 const M1EnemyCases = preload("res://tests/content/m1_enemy_cases.gd")
+const RosterEnemyCases = preload("res://tests/content/roster_enemy_cases.gd")
 const ItemContentCases = preload("res://tests/content/item_content_cases.gd")
 
 # Fixture trees whose definitions are hashed with the catalog's.
@@ -120,6 +121,7 @@ func _init() -> void:
 	LoadoutCases.new(_check).run()
 	M1ContentCases.new(_check).run()
 	M1EnemyCases.new(_check).run()
+	RosterEnemyCases.new(_check).run()
 	ItemContentCases.new(_check).run()
 	_test_definitions_unchanged(before)
 
@@ -669,8 +671,10 @@ func _test_id_lists_contents() -> void:
 	_check("ids: shape kinds", ContentIds.SHAPE_KINDS == PackedStringArray([
 		"tile", "radius", "square", "cross",
 	]))
-	_check("ids: the M1 enemy classes' target rules", ContentIds.TARGET_RULES == PackedStringArray([
-		"nearest_foe", "lowest_defense", "most_wounded_ally",
+	_check("ids: the enemy classes' target rules", ContentIds.TARGET_RULES == PackedStringArray([
+		"nearest_foe", "lowest_defense", "most_wounded_ally", "exposed_then_lowest_hp",
+		"holds_ground", "back_line_ally", "most_cursed", "most_allies_near", "back_line_foes",
+		"pack_lowest_hp",
 	]))
 	var item_kinds: PackedStringArray = [
 		WeaponDefinition.new().kind,
