@@ -11,8 +11,9 @@
 
 extends SceneTree
 ## Headless tests for the campaign layer, a case file per topic (each one's class doc lists its
-## checks): the map graph, its generator and its rules data (map_cases.gd), and the run state,
-## its commands and its save sections (run_state_cases.gd). Touches no save files.
+## checks): the map graph, its generator and its rules data (map_cases.gd), the run state, its
+## commands and its save sections (run_state_cases.gd), and the battle bridge, the XP tally and
+## their sections (battle_bridge_cases.gd). Touches no save files.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/campaign/run_all.gd[/code][br]
@@ -22,6 +23,7 @@ extends SceneTree
 # Preloaded scripts used as types (gdscript.md, Naming): the case scripts have no class name.
 const MapCases = preload("res://tests/campaign/map_cases.gd")
 const RunStateCases = preload("res://tests/campaign/run_state_cases.gd")
+const BattleBridgeCases = preload("res://tests/campaign/battle_bridge_cases.gd")
 
 var _failures: int = 0
 var _passes: int = 0
@@ -32,6 +34,7 @@ func _init() -> void:
 
 	MapCases.new(_check).run()
 	RunStateCases.new(_check).run()
+	BattleBridgeCases.new(_check).run()
 
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)

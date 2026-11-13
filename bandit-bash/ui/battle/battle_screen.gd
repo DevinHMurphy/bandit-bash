@@ -6,49 +6,27 @@
 # File:     battle_screen.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 7, 2026
+# Modified: November 13, 2026
 # ==============================================================================
 
 class_name BattleScreen
 extends Node2D
 ## The gameplay screen: a solo run's battle, from Begin to Results.
 ##
-## On entry with a solo run and no battle on, it begins one through
-## [code]CampaignService.begin_battle()[/code] (combat UI plan, question 2): the faction's starting
-## army ([method StartingArmy.build]) on [member map_definition] at [member floor_number] and
-## [member combat_node], from the run's seed, opening in the swap window only while the player's
-## opening-swap setting is on ([member SettingsData.is_opening_swap_on], in Options). A battle a
-## continued run saved mid-fight is resumed
-## from the same request, at its saved state ([code]CampaignService.resume_battle()[/code]); a
-## battle already on is shown as it stands. The
-## [BattleView] draws the player's map; when that map's combat has ended and its playback has
-## settled, input stops, the [BattleHud]'s banner shows Victory or Defeat for
-## [member end_banner_time], then [code]CampaignService.end_battle()[/code] saves the result and
-## every player goes to Results.[br]
-## [b]Commands only:[/b] the screen changes no combat state; its [BattleController] turns the run
-## seat's input into commands on that map, and its [BattleHud] draws the turn, the objective, the
-## darkness, the tile and unit under the cursor, the phase banners and the fact log.[br]
-## [b]Co-op[/b] (any run that isn't solo, and a multiplayer client, which holds no run) keeps the
-## placeholder: its label and the End Round button to Results (plan, question 2).[br]
-## [b]The save debug panel[/b] (debug builds) is hidden when a battle opens, as it would take
-## clicks meant for the map; toggle_save_debug shows it beside the map. With the placeholder it
-## stays shown.
+## With a solo run and no battle on, it begins the run's combat node's battle from the run's request
+## (army from the roster, map from the node's pool: [method CampaignRunState.battle_request]),
+## opening in the swap window only while [member SettingsData.is_opening_swap_on]; a battle saved
+## mid-fight resumes from the same request, and one already on shows as it stands. Once the
+## player's map has ended and settled, input stops, the banner shows for [member end_banner_time],
+## then [code]CampaignService.end_battle()[/code] applies and saves the result and all go to
+## Results. [b]Commands only:[/b] its [BattleController] turns input into commands. Co-op and a
+## multiplayer client keep the placeholder. The save debug panel hides while a battle shows, as it
+## would take the map's clicks; toggle_save_debug shows it.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
-
-## The map a solo battle is fought on.[br]
-## [b]Unset:[/b] no battle begins; the screen says so.
-@export var map_definition: CombatMapDefinition = null
-
-## The faction whose starting army fights ([member FactionDefinition], by content id).
-@export var faction_id: String = "mercenary"
-
-## The campaign floor the battle is on; floor 1's enemies are level 1 (game-vision.md, Run
-## structure).
-@export_range(1, 99, 1) var floor_number: int = 1
-
-## The combat node on [member floor_number], which keys the battle's random streams.
-@export_range(1, 99, 1) var combat_node: int = 1
+## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
+##
+## @todo: TOD-001 - Drop the node pick on entry once the campaign map screen chooses nodes (RN5).
 
 ## How long the Victory or Defeat banner shows before the route to Results, counted from when it
 ## appears; it pauses with the pause menu. Shorter than the banner's fade-in
@@ -102,32 +80,53 @@ func get_hud() -> BattleHud:
 	return _hud
 
 
-# The battle request for the solo run, then Begin, or the resume of the battle a continued run
-# saved mid-fight, from the same request. Returns the error the run flow reports.
+# The run's battle request for its combat node, then Begin, or the resume of the battle a
+# continued run saved mid-fight, from the same request (the run is as Begin saved it). Returns the
+# error the screen reports.
 func _begin_battle(run: CampaignSession) -> Error:
-	if map_definition == null:
-		push_error("BattleScreen: no map definition set")
+	if run.run == null:
+		push_error("BattleScreen: the run has no campaign state")
 		return ERR_UNCONFIGURED
-	var catalog: EffectCatalog.Index = EffectCatalog.index()
-	var built: StartingArmy = StartingArmy.build(catalog, faction_id, run.ids)
-	for problem: String in built.problems:
-		push_error("BattleScreen: %s" % [problem])
-	var army: CampaignSession.Army = CampaignSession.Army.new()
-	army.unit_instances = built.units
-	army.item_instances = built.items
-	army.heirloom_ids = built.heirloom_ids
-	var request: CampaignSession.BattleRequest = CampaignSession.BattleRequest.new()
-	request.floor_number = floor_number
-	request.node = combat_node
-	request.pool = [map_definition]
-	request.catalog = catalog
-	request.armies[run.seats[0]] = army
+	if run.run.is_on_map():
+		var chosen: Error = _choose_next_combat(run)
+		if chosen != OK:
+			return chosen
+	var request: CampaignSession.BattleRequest = run.run.battle_request(
+			CombatMapPools.load_default(), EffectCatalog.index()
+	)
+	if request == null:
+		return ERR_CANT_CREATE
 	# The player's opening-swap setting, read as the battle begins. A resumed battle keeps the
 	# window's saved state; a resume that falls back to Begin reads the setting again.
 	request.opening_swap[run.seats[0]] = SaveService.settings.is_opening_swap_on
 	if SaveService.combat != null:
 		return CampaignService.resume_battle(request)
 	return CampaignService.begin_battle(request)
+
+
+# TODO(TOD-001): The campaign map screen chooses nodes (RN5). Until then, entering with the run on
+# the map chooses the leftmost combat node it can reach next (floor 1 is all Standard combats).
+# Returns ERR_UNAVAILABLE when no reachable node is a combat, ERR_CANT_RESOLVE when it's rejected.
+func _choose_next_combat(run: CampaignSession) -> Error:
+	var state: CampaignRunState = run.run
+	var reachable: PackedInt32Array = (
+			state.graph.nodes_on_floor(1) if state.node == CampaignGraph.NO_NODE
+			else state.graph.children_of(state.node)
+	)
+	for node_id: int in reachable:
+		var type: CampaignGraph.NodeType = state.graph.type_of(node_id)
+		if (
+				type != CampaignGraph.NodeType.STANDARD
+				and type != CampaignGraph.NodeType.KEY
+				and type != CampaignGraph.NodeType.BOSS
+		):
+			continue
+		var batch: CampaignBatch = CampaignService.submit_command(
+				ChooseNodeCommand.new(run.seats[0], node_id)
+		)
+		return ERR_CANT_RESOLVE if batch == null or batch.is_rejected() else OK
+	push_warning("BattleScreen: no combat node is reachable from the map")
+	return ERR_UNAVAILABLE
 
 
 func _open(encounter: CombatEncounter, seat: int) -> void:

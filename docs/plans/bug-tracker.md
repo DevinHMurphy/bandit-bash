@@ -45,8 +45,6 @@ Not a bug.
 | [BUG-005](#bug-005-unit-detail-shows-the-type-id-not-its-name) | Unit detail shows the type id, not its name | P07 | S4 | Assigned (BF1) | November 7, 2026, UI11 report | BF1 |
 | [BUG-006](#bug-006-netlog-raises-an-engine-error-once-the-peer-is-cleared) | NetLog raises an engine error once the peer is cleared | P00 / P10 | S3 | Assigned (BF1) | November 9, 2026, O3 report | BF1 |
 | [BUG-008](#bug-008-a-mirror-keeps-a-used-up-consumable) | A mirror keeps a used-up consumable, so its hash differs from the host's | P02 / P11 | S2 | Assigned (BF1) | November 13, 2026, CT5 report | BF1 |
-| [BUG-009](#bug-009-a-second-copy-of-a-heirloom-never-reaches-the-battle) | A second copy of a heirloom or curse never reaches the battle | P08 / P09 | S2 | Assigned (RN3) | November 13, 2026, RN2 report | RN3 |
-| [BUG-010](#bug-010-save-select-shows-a-stale-floor) | Save Select's floor doesn't follow the run's floor | P08 | S4 | Assigned (RN3) | November 13, 2026, RN2 report | RN3 |
 
 ### BUG-001 No Block at the start of combat
 
@@ -153,6 +151,10 @@ Not a bug.
   saves copies. Each copy becomes its own carrier; how copies stack is CT9's.
 - **Fix in RN3,** which rebuilds the battle bridge, with a regression test bringing a curse held
   twice into a battle.
+- **Fixed** in RN3 (9e34098, merged November 13, 2026). Each copy becomes its own carrier
+  (`seat:id:copy index`), and each copy's campaign-lane counters write back to its own saved
+  entry. Regression: "curse twice: two carriers in battle…" and "…each copy's lane is written back
+  to its own entry".
 
 ### BUG-010 Save Select shows a stale floor
 
@@ -160,6 +162,9 @@ Not a bug.
   `CampaignRunState.floor_number`.
 - **Expected:** Save Select shows the run's current floor.
 - **Fix in RN3,** with a test that choosing a node updates what Save Select reads.
+- **Fixed** in RN3 (9e34098, merged November 13, 2026): every save `CampaignService` makes sets
+  `floors_climbed` to the run's floor. Regression: "choosing a node moves Save Select's floor to
+  the run's (BUG-010)".
 
 ### BUG-007 Test runs in two worktrees share one user folder
 
@@ -187,3 +192,5 @@ Not a bug.
 |----|-------|------|-----|----------|----------|
 | [BUG-001](#bug-001-no-block-at-the-start-of-combat) | No unit has Block at the start of combat | P01 / P02 / P03 | S2 | Can't reproduce (November 7, 2026; no base Block, Vanguard fires on turn 1) | — |
 | [BUG-007](#bug-007-test-runs-in-two-worktrees-share-one-user-folder) | Test runs in two worktrees share one user folder | P14 (runner) | S3 | Fixed (BF2, 76774d4, November 12, 2026) | — |
+| [BUG-009](#bug-009-a-second-copy-of-a-heirloom-never-reaches-the-battle) | A second copy of a heirloom or curse never reaches the battle | P08 / P09 | S2 | Fixed (RN3, 9e34098, November 13, 2026) | — |
+| [BUG-010](#bug-010-save-select-shows-a-stale-floor) | Save Select's floor doesn't follow the run's floor | P08 | S4 | Fixed (RN3, 9e34098, November 13, 2026) | — |

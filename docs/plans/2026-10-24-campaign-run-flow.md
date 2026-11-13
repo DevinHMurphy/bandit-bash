@@ -137,8 +137,10 @@ Steps through RN5 give a playable loop on M1's data. Later steps need content fr
 
 | Change | Kind | Current | Proposed | Status | Places to check | Risk |
 |---|---|---|---|---|---|---|
-| `CampaignService.end_battle()` order | Behaviour | Saves, then collects | Collects, applies, saves | Proposed (RN3) | Sessions tests | 🔴 |
-| `battle_screen.gd` army and map | Behaviour | Built on the screen | From `CampaignRunState` | Proposed (RN3) | Screen `@export`s, UI tests | 🟡 |
+| `CampaignService.end_battle()` order | Behaviour | Saves, then collects | Collects, applies to a copy, saves, drops | Applied (RN3) | Sessions tests | 🔴 |
+| `battle_screen.gd` army and map | Behaviour / `@export` | Built on the screen; four map exports | From `CampaignRunState.battle_request()`; the exports removed | Applied (RN3) | `gameplay.tscn`, UI tests | 🟡 |
+| `CampaignSession`, `CampaignRunState` additions | Public API | — | `collect_battle()`, `tally`, `battle_grants`, `BattleResult` fields, `battle_request()`, `apply_battle(result, ids)` | Applied (RN3) | Sessions, campaign tests | 🔴 |
+| COMBAT save sections | Save format | — | `battle_tally`, `battle_grants` (version 1) | Applied (RN3) | save-system.md | 🔴 |
 | `SceneRouter.Screen` | Enum, appended | 9 screens | New campaign screens | Proposed (RN5) | `SCREEN_PATHS` | 🟢 |
 | `Results` after a battle | Flow | The end of the run | A run's end only | Proposed (RN5) | `battle_screen.gd`, `results_screen.gd` | 🟡 |
 

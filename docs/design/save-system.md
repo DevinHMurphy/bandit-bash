@@ -197,6 +197,25 @@ A combat system must therefore keep battle-changed state (unit HP, items used, d
 `COMBAT` section, and apply the results to `CAMPAIGN`/player sections only before `end_battle()`.
 A resumed battle's rolls continue where they were saved (next section).
 
+**The end of a battle** (`CampaignService.end_battle()`) runs in this order, so a crash at any
+point loses and repeats nothing:
+
+1. **Collect.** `CampaignSession.collect_battle()` writes campaign-lane values back and gathers the
+   result: each unit's HP, falls, permanent deltas (Hit included) and growth changes, each heirloom
+   copy's campaign lane, the grants received ([Battle tally](#battle-tally)), the map, won or lost.
+   The battle stays in progress.
+2. **Apply.** `CampaignRunState.apply_battle()` applies it to a *copy* of the run, which replaces
+   the session's run. The old run is kept in memory.
+3. **Save.** `SaveService.end_battle()` writes the campaign with the copy's sections and deletes the
+   combat file. If the write fails, the old run comes back and the battle stays in progress, so
+   trying again applies the result once. A solo battle lost calls `end_run(false)` here instead.
+4. **Drop.** `CampaignSession.end_battle()` closes the encounter.
+
+A crash before step 3's write leaves the campaign in battle, so Continue resumes the battle from its
+last save (or restarts it from Begin) and plays to the same end; nothing applied in memory was
+saved. A crash after it leaves a campaign out of battle and a stale combat file, which the next load
+deletes.
+
 ## RNG streams
 
 Every gameplay random result comes from a stream in the run's `RngStreams`, which the
@@ -294,7 +313,11 @@ after `instance_ids`, the map before the flow
   before any node, an item in two places or in none, a commander outside the army, a repeated unit
   or rune, and out-of-range gold or offset each refuse the section and stop the load.
 - **Saved when:** every resolved campaign command (`CampaignService.submit_command()`) saves at
-  once; a rejected one saves nothing.
+  once; a rejected one saves nothing. A battle's end saves its result applied
+  ([Battles](#battles)): HP, fallen units in `fallen` with their items, deltas, heirloom counters,
+  grants, the map in `used_maps` and, after a win, the stage back to `"map"`.
+- **The core follows:** every save `CampaignService` makes sets `CampaignData.floors_climbed`, which
+  Save Select and the archive show, to the run's `floor`.
 
 ## Combat state
 
@@ -426,6 +449,34 @@ Impact):
   contact and erosion its count. A wave's reach and entered tiles are in no fact, so a mirror's
   stay 0 and empty, and `CombatSession.state_hash()` covers the darkness's arrival, wave sources,
   layers and contacts only.
+
+## Battle tally
+
+The battle's XP actions and the grants it has received are two more `COMBAT` sections, one
+`BattleTallySection` and its partner, which `CampaignService` registers after the darkness
+([campaign and run flow plan](../plans/2026-10-24-campaign-run-flow.md), Save Impact):
+
+| Block | Key | Per player | Version | Holds |
+|-------|-----|------------|---------|-------|
+| `COMBAT` | `battle_tally` | No | 1 | Each player unit's XP actions so far (`BattleTally`), counted from the battle's facts |
+| `COMBAT` | `battle_grants` | No | 1 | The grants the battle has received, in order, for the run to apply at its end |
+
+```json
+"battle_tally": { "version": 1, "data": { "units": { "unit:57": { "hit": 3, "defeat": 1, "heal": 0, "block": 1, "non_combat": 1 } } } },
+"battle_grants": { "version": 1, "data": { "grants": [ { "seat": 0, "grant": "gold", "amount": 50, "definition_id": "", "source_effect_id": "effect:12" } ] } }
+```
+
+- **Saved, not rebuilt:** a resumed battle's fact log starts empty, so neither could be rebuilt
+  from it. A unit with no action is left out; a listed unit names all five actions.
+- **Actions** by name: `hit`, `defeat` (against enemy-side units only; breakables don't count),
+  `heal`, `block` (given to another player unit, above 0), `non_combat` (closing a reinforcement
+  point, searching, opening a chest). Grants by name: `gold`, `heirloom`, `recruit`, `rune`.
+- **Load order.** Both only check and hold their data while the file loads. On a `BATTLE` resume
+  they load into the session last, after the combat checkpoint's id counter. A combat file without
+  them (from before them) resumes with an empty tally and no grants. Begin, the battle's end and
+  `BATTLE_RETRY` reset them, so a battle restarted from Begin counts from nothing.
+- **Refused:** an unknown action or grant, a count below 0, or a number that isn't whole. Like any
+  combat section, that stops the load and gives `BATTLE_RETRY`.
 
 ## Multiplayer
 

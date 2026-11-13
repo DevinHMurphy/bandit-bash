@@ -21,8 +21,9 @@ extends Node
 ## [b]Save sections,[/b] each handed the new session before [signal session_started], campaign
 ## before combat: [code]rng[/code] and [code]instance_ids[/code] in both blocks, the campaign's
 ## run sections ([RunSaveSections]), and the combat block's ([CombatStateSection],
-## [CombatMapSection], [DarknessSaveSection]). A run whose save holds no run sections, a new one
-## included, is built by [RunStart] and saved at once.
+## [CombatMapSection], [DarknessSaveSection], [BattleTallySection]). A run whose save holds no run
+## sections, a new one included, is built by [RunStart] and saved at once. Every save made here
+## first sets [member CampaignData.floors_climbed] to the run's floor, for Save Select.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
@@ -51,6 +52,7 @@ var _combat_ids: InstanceIdSaveSection = InstanceIdSaveSection.new(SaveSection.B
 var _combat_state: CombatStateSection = null
 var _combat_map: CombatMapSection = CombatMapSection.new()
 var _darkness: DarknessSaveSection = DarknessSaveSection.new()
+var _battle_tally: BattleTallySection = BattleTallySection.new()
 var _run_sections: RunSaveSections = RunSaveSections.new()
 
 # The id counter the combat instance_ids section gave a session built to resume a battle, set
@@ -82,6 +84,8 @@ func _ready() -> void:
 	SaveService.register_section(SaveSection.Block.COMBAT, _combat_map)
 	SaveService.register_section(SaveSection.Block.COMBAT, _combat_map.entities)
 	SaveService.register_section(SaveSection.Block.COMBAT, _darkness)
+	SaveService.register_section(SaveSection.Block.COMBAT, _battle_tally)
+	SaveService.register_section(SaveSection.Block.COMBAT, _battle_tally.grants)
 	SaveService.campaign_activated.connect(_on_save_service_campaign_activated)
 	SaveService.run_ended.connect(_on_save_service_run_ended)
 	SaveService.save_file_closed.connect(_on_save_service_save_file_closed)
@@ -147,16 +151,34 @@ func resume_battle(request: CampaignSession.BattleRequest) -> Error:
 	return begin_battle(request)
 
 
-## Ends the battle in progress: writes campaign-lane values back
-## ([method CampaignSession.write_back]), saves with [method SaveService.end_battle], then drops
-## the battle ([method CampaignSession.end_battle]). Returns the result for the run flow; null with
-## no battle, or when the save failed, in which case the battle stays in progress.
+## Ends the battle in progress in save-system.md's order, so a crash at any point loses and repeats
+## nothing: collects the result ([method CampaignSession.collect_battle]), swaps in the run with it
+## applied ([method CampaignRunState.apply_battle]), saves with [method SaveService.end_battle],
+## then drops the battle. A solo battle lost ends the run instead ([method SaveService.end_run]).
+## Returns the result; null with no battle, or when the save failed, which puts the run back as it
+## was and leaves the battle in progress.
 func end_battle() -> CampaignSession.BattleResult:
 	if session == null or session.encounter == null:
 		push_error("CampaignService: no battle in progress to end.")
 		return null
-	session.write_back()
+	var result: CampaignSession.BattleResult = session.collect_battle()
+	var kept: CampaignRunState = session.run
+	if kept != null:
+		var applied: CampaignRunState = kept.apply_battle(result, session.ids)
+		if applied == null:
+			push_error("CampaignService: the battle's result couldn't be applied to the run.")
+			return null
+		session.run = applied
+	_sync_floor()
+	if session.mode == CampaignData.Mode.SOLO and result.is_finished and not result.is_won:
+		var lost: CampaignSession = session
+		lost.end_battle()
+		var ended: Error = SaveService.end_run(false)
+		if ended != OK:
+			push_warning("CampaignService: the lost run ended with %s" % [error_string(ended)])
+		return result
 	if SaveService.end_battle() != OK:
+		session.run = kept
 		return null
 	return session.end_battle()
 
@@ -171,6 +193,7 @@ func submit_command(command: CampaignCommand) -> CampaignBatch:
 		return null
 	var batch: CampaignBatch = session.submit(command)
 	if batch != null and not batch.is_rejected():
+		_sync_floor()
 		var err: Error = SaveService.save_checkpoint()
 		if err != OK:
 			push_error(
@@ -192,6 +215,7 @@ func _replace_session(replacement: CampaignSession) -> void:
 	_combat_state.detach()
 	_combat_map.detach()
 	_darkness.detach()
+	_battle_tally.detach()
 	_run_sections.detach()
 	_battle_ids = {}
 	if replacement != null:
@@ -202,6 +226,7 @@ func _replace_session(replacement: CampaignSession) -> void:
 		_combat_state.attach(replacement)
 		_combat_map.attach(replacement)
 		_darkness.attach(replacement)
+		_battle_tally.attach(replacement)
 	if previous != null:
 		previous.close()
 		session_ended.emit(previous)
@@ -248,6 +273,7 @@ func _attach_run_sections(built: CampaignSession) -> void:
 		built.run = _build_new_run(built)
 		var campaign: CampaignData = SaveService.campaign
 		if built.run != null and campaign != null and not campaign.combat_in_progress:
+			campaign.floors_climbed = built.run.floor_number
 			var saved: Error = SaveService.save_checkpoint()
 			if saved != OK:
 				push_error("CampaignService: the new run wasn't saved - %s" % [error_string(saved)])
@@ -276,7 +302,7 @@ func _build_new_run(built: CampaignSession) -> CampaignRunState:
 
 # Loads the held battle into battle, rebuilt as Begin set it up (save-system.md, Combat map, steps
 # 2 to 5): its maps, then their darkness, then its units, turn and effects (whose reload carries
-# the maps and darkness), then the combat checkpoint's id counter.
+# the maps and darkness), then the combat checkpoint's id counter, then the XP tally and grants.
 func _load_saved_battle(battle: CombatEncounter) -> Error:
 	var err: Error = _combat_map.load_into(battle)
 	if err == OK:
@@ -287,7 +313,16 @@ func _load_saved_battle(battle: CombatEncounter) -> Error:
 		# Captured from an allocator, so it can't be refused.
 		err = session.ids.restore(_battle_ids)
 		_battle_ids = {}
+	if err == OK:
+		err = _battle_tally.load_into(session)
 	return err
+
+
+# Sets the active campaign's floor, which Save Select shows, to the run's.
+func _sync_floor() -> void:
+	var campaign: CampaignData = SaveService.campaign
+	if campaign != null and session != null and session.run != null:
+		campaign.floors_climbed = session.run.floor_number
 
 
 # A saved effect's definition, for the combat sections: a map object's own reaction (a powder
