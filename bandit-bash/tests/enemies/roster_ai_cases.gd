@@ -11,17 +11,15 @@
 
 extends RefCounted
 ## The roster's AI cases for tests/enemies/run_all.gd, on the real catalog's classes ([EnemyAI]):
-## Guard attacking what it reaches and never advancing; the Shieldbearer beside its back-line
-## ally, attacking from there, and playing Guard with none; the Skirmishers' rules (the Hexer's
-## most cursed, the Raider's back line) and the Raider's Trample kill; the Hound's pack advance and
-## its allies-beside tie-break; the Warcaller's rally; the Cutthroat's Exposed foes; kills first
-## for every new class; each pack's phase playing as its intents showed; and move previews equal
-## to the real move on roster boards. Reports each case through the check callable it is given.
+## each behavior (Guard, the Shieldbearer, the Skirmishers, the Hound's pack, the Warcaller) and
+## target rule, Trample kills (a killing hit's included), kills first for every new class, each
+## pack's phase playing as its intents showed, and move previews equal to the real move. Reports
+## each case through the check callable it is given.
 ##
-## Boards are plain. Level 1 numbers: the Duelist's Simple Sword hits for 5 + 4, the Shieldbearer's
-## Simple Lance for 7 + 2, the Warcaller's for 7 + 6, the Cutthroat's Simple Dagger for 2 + 5
-## (Backstab +2), the Raider's Javelin for 5 + 6, the Hexer's Shade for 7 + 8 magic, less DEF or
-## RES; player units have 20 HP, DEF 2, RES 1.
+## Boards are plain. Level 1 hits: the Duelist's Simple Sword 5 + 4, the Shieldbearer's Simple
+## Lance 7 + 2, the Warcaller's 7 + 6, the Cutthroat's Simple Dagger 2 + 5 (Backstab +2), the
+## Raider's Javelin 5 + 6, the Hexer's Shade 7 + 8 magic, less DEF or RES; player units have
+## 20 HP, DEF 2, RES 1.
 
 # Preloaded scripts used as types (gdscript.md, Naming): the helpers have no class name.
 const AiWorld = preload("res://tests/enemies/ai_world.gd")
@@ -67,6 +65,7 @@ func run() -> void:
 	_test_hexer_most_cursed()
 	_test_raider_back_line()
 	_test_raider_trample_kill()
+	_test_raider_killing_trample()
 	_test_skirmisher_advances()
 	_test_hound_follows_its_pack()
 	_test_hound_beside_allies()
@@ -252,6 +251,33 @@ func _test_raider_trample_kill() -> void:
 			and intent.area.has(Vector2i(6, 0))
 			and intent.area.has(Vector2i(5, 1))
 	), "" if intent == null else intent.describe())
+
+
+# The Raider's hit defeats p_a (1 HP), and Trample still splashes p_b beside it from p_a's last
+# tile: the intent names both falling, and the real phase (every hit landing) defeats both.
+func _test_raider_killing_trample() -> void:
+	var world: AiWorld = _world(_plain(8, 3), ForecastRolls.new())
+	world.add_enemy("e1", "raider", Vector2i(0, 0))
+	world.add_player("p_a", Vector2i(5, 0))
+	world.add_player("p_b", Vector2i(6, 0), "sword", {CombatValue.Key.DEF: 20.0})
+	world.wound("p_a", 1)
+	world.wound("p_b", 3)
+	EnemyAI.register(world.session, _catalog)
+	Intents.register(world.session, _catalog)
+	world.session.open_battle()
+	var intent: EnemyIntent = (
+			null if world.session.intents == null else world.session.intents.intent_of("e1")
+	)
+	_check.call("raider: a killing hit's Trample shows both units falling", (
+			intent != null
+			and intent.target_id == "p_a"
+			and intent.defeats == PackedStringArray(["p_a", "p_b"])
+			and intent.area.has(Vector2i(6, 0))
+	), "" if intent == null else intent.describe())
+	_send(world, EndTurnCommand.new(0))
+	_check.call("raider: and the real phase defeats both", (
+			not world.state().has_unit("p_a") and not world.state().has_unit("p_b")
+	))
 
 
 # A Skirmisher with no foe in reach advances as Aggressive does.

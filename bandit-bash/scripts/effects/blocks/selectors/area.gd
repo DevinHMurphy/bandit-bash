@@ -6,7 +6,7 @@
 # File:     area.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 12, 2026
+# Modified: November 13, 2026
 # ==============================================================================
 
 @tool
@@ -72,9 +72,9 @@ func describe() -> String:
 
 
 ## Units around the center, in the state's order, on [member side] relative to the owner's side,
-## on the tiles [member shape] covers. An owner center that has left the map since the reaction
-## was queued (a Brute defeated by the counter, a keg that just broke) is measured from the tile
-## it stood on then.
+## on the tiles [member shape] covers. A center that has left the map since the reaction was
+## queued (a Brute defeated by the counter, the target a Trample hit defeated, a keg that just
+## broke) is measured from the tile it stood on then; a command target has no such tile.
 func select(ctx: EffectContext) -> PackedStringArray:
 	var picked: PackedStringArray = []
 	if shape == null:
@@ -82,8 +82,8 @@ func select(ctx: EffectContext) -> PackedStringArray:
 	var engine: EffectEngine = ctx.engine
 	var center_id: String = _center_id(ctx)
 	var center_tile: Vector2i = engine.state.tile_of(center_id)
-	if not engine.state.has_unit(center_id) and center == Center.OWNER:
-		center_tile = ctx.owner_tile
+	if not engine.state.has_unit(center_id):
+		center_tile = _tile_when_queued(ctx)
 	if center_tile == CombatFact.NO_TILE:
 		return picked
 	for unit_id: String in engine.state.unit_ids():
@@ -99,6 +99,19 @@ func select(ctx: EffectContext) -> PackedStringArray:
 		if shape.covers(center_tile, tile):
 			picked.append(unit_id)
 	return picked
+
+
+# Where the center stood when the reaction was queued ([member EffectContext.owner_tile] and the
+# fact's tiles); NO_TILE for a command target, or outside a reaction.
+func _tile_when_queued(ctx: EffectContext) -> Vector2i:
+	match center:
+		Center.OWNER:
+			return ctx.owner_tile
+		Center.FACT_ACTOR:
+			return ctx.fact_actor_tile
+		Center.FACT_TARGET:
+			return ctx.fact_target_tile
+	return CombatFact.NO_TILE
 
 
 func _center_id(ctx: EffectContext) -> String:

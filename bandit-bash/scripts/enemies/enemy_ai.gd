@@ -359,8 +359,8 @@ static func _beside(board: Board, ally: String) -> Array[EnemyPlan]:
 		if state.grid.distance(tile, ally_tile) == 1:
 			posts[tile] = 0
 	if posts.is_empty():
-		# ASSUMPTION: short of a tile beside its ally, it ends where the least movement is left
-		# to one, attacking from there if it can.
+		# Short of a tile beside its ally, it ends where the least movement is left to one,
+		# attacking from there if it can.
 		var left: Dictionary[Vector2i, int] = _cost_to(
 				state, _stand_tiles(board, ally_tile, Vector2i(1, 1)),
 				board.movement_type, board.side
@@ -378,8 +378,7 @@ static func _beside(board: Board, ally: String) -> Array[EnemyPlan]:
 		if plan.is_kill or posts.has(plan.tile):
 			options.append(plan)
 	for tile: Vector2i in posts:
-		# ASSUMPTION: among its posts it takes the best terrain, then the least path cost (the
-		# fixed order); nothing else ranks them.
+		# Among its posts the best terrain wins, then the least path cost (the fixed order).
 		var plan: EnemyPlan = _new_plan(board, EnemyPlan.Kind.REGROUP, tile)
 		plan.progress = posts[tile]
 		options.append(plan)
@@ -404,7 +403,7 @@ static func _back_line_ally(board: Board) -> String:
 		)
 		if not is_support and not _carries_ranged(state, ally):
 			continue
-		# ASSUMPTION: nearest by tile distance, then id; the rule names no measure.
+		# Nearest by tile distance, then id.
 		var distance: int = state.grid.distance(board.origin, state.tile_of(ally))
 		var is_nearer: bool = (
 				found_distance < 0
@@ -512,8 +511,8 @@ static func _advances(board: Board) -> Array[EnemyPlan]:
 				cost = walked[goal]
 		if cost < 0:
 			continue
-		# ASSUMPTION: the foe nearest a Hound's pack is the one with the least tile distance to
-		# any other enemy, then its own path cost (first pass); alone, its own nearest foe.
+		# The foe nearest a Hound's pack has the least tile distance to any other enemy, then the
+		# least path cost; a Hound alone takes its own nearest foe.
 		var key: Vector2i = Vector2i(_nearest_distance(state, foe, pack_tiles), cost)
 		var is_nearer: bool = (
 				nearest_id.is_empty()

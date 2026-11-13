@@ -974,6 +974,9 @@ func _fire(
 	reaction.ctx = ctx.copy_for_reaction()
 	reaction.ctx.engine = null
 	reaction.ctx.owner_tile = state.tile_of(instance.owner.holder_id)
+	if ctx.fact != null:
+		reaction.ctx.fact_actor_tile = state.tile_of(ctx.fact.actor_id)
+		reaction.ctx.fact_target_tile = state.tile_of(ctx.fact.target_id)
 	reaction.operations = queued
 	reaction.exempt = instance.owner.kind == EffectOwner.Kind.MAP_OBJECT
 	reaction.generation = _generation if reaction.exempt else _generation + 1

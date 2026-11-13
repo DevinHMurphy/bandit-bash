@@ -12,10 +12,11 @@
 extends RefCounted
 ## The roster's enemy cases for tests/content/run_all.gd, over the real [code]res://data/[/code]:
 ## the seven classes after M1 against enemy-roster.md (behavior, target rule, weapon, gear, stats
-## and growths), their traits' text, the enemy-only Javelin and Fangs (Basic, never carried by a
-## player unit), the five packs, every class loaded through the loadout, and each trait in a
-## battle: Backstab, Riposte, Shield Wall, Curse, Trample and Pack. Reports each case through the
-## check callable it is given.
+## and growths), their traits' text, the shared Javelin (Common) and the enemy-only Fangs (Basic,
+## never carried by a player unit), the five packs, every class loaded through the loadout, and
+## each trait in a battle: Backstab, Riposte, Shield Wall, Curse, Trample and Pack, and a killing
+## blow still splashing and cursing as its forecast showed. Reports each case through the check
+## callable it is given.
 ##
 ## The expected values are transcribed from the design docs, never read from the data, so a
 ## changed .tres fails here until the docs and this file agree. Battles roll with
@@ -77,12 +78,22 @@ const TEXT: Dictionary[String, Array] = {
 	"hound": ["Always: +2 Attack × the number of adjacent allies"],
 }
 
-# enemy-roster.md's Enemy-only weapons table. Columns: Dmg, AtkX, profile, range min, range max,
-# Hit, Crit, CritX, Weight, weapon type.
-const ENEMY_WEAPONS: Dictionary[String, Array] = {
-	"javelin": [5, 1, WeaponTriangle.Profile.BALANCE, 1, 2, 75, 0, 3.0, 10, "lance"],
-	"fangs": [3, 2, WeaponTriangle.Profile.NIMBLE, 1, 1, 90, 0, 2.0, 0, "gauntlets"],
+# The Raider's and the Hound's weapons. Columns: Dmg, AtkX, profile, range min, range max, Hit,
+# Crit, CritX, Weight, weapon type, rarity. The Javelin is weapons.md's Pilum, renamed and shared
+# (P05 question 24); the Fangs are enemy-roster.md's enemy-only natural weapon.
+const NEW_WEAPONS: Dictionary[String, Array] = {
+	"javelin": [
+		5, 1, WeaponTriangle.Profile.BALANCE, 1, 2, 80, 0, 3.0, 9, "lance",
+		ItemDefinition.Rarity.COMMON,
+	],
+	"fangs": [
+		3, 2, WeaponTriangle.Profile.NIMBLE, 1, 1, 90, 0, 2.0, 0, "gauntlets",
+		ItemDefinition.Rarity.BASIC,
+	],
 }
+
+# The enemy-only weapons: Basic, and carried by no player unit type or starting army.
+const ENEMY_ONLY: Array[String] = ["fangs"]
 
 # enemy-roster.md's Packs table, in setup order.
 const PACKS: Dictionary[String, String] = {
@@ -108,7 +119,7 @@ func run() -> void:
 	_test_classes()
 	_test_stats()
 	_test_text_snapshots()
-	_test_enemy_weapons()
+	_test_new_weapons()
 	_test_packs()
 	_test_classes_load()
 	_test_backstab()
@@ -117,10 +128,11 @@ func run() -> void:
 	_test_curse()
 	_test_trample()
 	_test_pack_trait()
+	_test_killing_blow_splash()
 
 
 # enemy-roster.md's Classes and Traits tables, with the player's simple weapons (P05 question 13),
-# the enemy-only Javelin and Fangs, and the first clause of each target rule.
+# the shared Javelin, the enemy-only Fangs, and the first clause of each target rule.
 func _test_classes() -> void:
 	var never_unit_types: bool = true
 	for class_id: String in ROSTER:
@@ -180,36 +192,38 @@ func _test_text_snapshots() -> void:
 		_same("text %s" % [class_id], " | ".join(enemy_class.describe()), " | ".join(expected))
 
 
-# The Javelin (a lance) and the Fangs (natural, like gauntlets) as enemy-roster.md lists them,
-# Basic so no pool, shop or reward ever offers them, and carried by no player unit type or
-# starting army (P05 question 24).
-func _test_enemy_weapons() -> void:
-	for weapon_id: String in ENEMY_WEAPONS:
+# The Javelin (a lance) and the Fangs (natural, like gauntlets) with their sources' numbers, both
+# physical. The Javelin is Common, so it is sold and found like any lance; the Fangs are Basic,
+# so no pool, shop or reward ever offers them, and no player unit type or starting army carries
+# them (P05 question 24).
+func _test_new_weapons() -> void:
+	for weapon_id: String in NEW_WEAPONS:
 		var weapon: WeaponDefinition = _catalog.weapon(weapon_id)
 		if weapon == null:
 			_ok("%s: in the catalog" % [weapon_id], false)
 			continue
-		var row: Array = ENEMY_WEAPONS[weapon_id]
+		var row: Array = NEW_WEAPONS[weapon_id]
 		var actual: Array = [
 			weapon.damage, weapon.atk_x, weapon.profile, weapon.range_min, weapon.range_max,
 			weapon.hit, weapon.crit, weapon.crit_x, weapon.weight, weapon.weapon_type,
+			weapon.rarity,
 		]
-		_same("%s: enemy-roster.md's numbers" % [weapon_id], str(actual), str(row))
-		_ok("%s: Basic, never sold, physical" % [weapon_id], (
-				weapon.rarity == ItemDefinition.Rarity.BASIC
-				and not Prices.is_sellable(weapon.rarity)
+		_same("%s: its source's numbers and rarity" % [weapon_id], str(actual), str(row))
+		var is_enemy_only: bool = ENEMY_ONLY.has(weapon_id)
+		_ok("%s: %s, physical" % [weapon_id, "never sold" if is_enemy_only else "sold"], (
+				Prices.is_sellable(weapon.rarity) != is_enemy_only
 				and weapon.damage_type == CombatFact.DamageType.PHYSICAL
 		))
 	var carriers: PackedStringArray = []
 	for resource: Resource in _catalog.all_of(EffectCatalog.Kind.UNIT_TYPE):
 		var unit_type: UnitTypeDefinition = resource
-		if ENEMY_WEAPONS.has(unit_type.starting_weapon_id):
+		if ENEMY_ONLY.has(unit_type.starting_weapon_id):
 			carriers.append(unit_type.id)
 	for resource: Resource in _catalog.all_of(EffectCatalog.Kind.FACTION):
 		var faction: FactionDefinition = resource
 		for gear: PackedStringArray in faction.starting_gear:
 			for item_id: String in gear:
-				if ENEMY_WEAPONS.has(item_id):
+				if ENEMY_ONLY.has(item_id):
 					carriers.append("%s %s" % [faction.id, item_id])
 	_ok("enemy-only weapons: no player unit type or starting army carries one", (
 			carriers.is_empty()
@@ -417,6 +431,93 @@ func _test_pack_trait() -> void:
 	board.state.move_unit(beside, Vector2i(3, 2))
 	attack.append(board.stats(leader).get_int(DamageStage.Key.ATTACK))
 	_same("pack: read live, the bonus leaves with the ally", str(attack[0] - attack[1]), "2")
+
+
+# A hit that defeats its target still splashes or curses around the tile it stood on, and the
+# forecast taken just before shows the same: the Raider's Trample on a 1 HP Hakkapel hits the Archer
+# and the Hound beside it for 3; the Hexer's Curse on it takes 1 Stance from the Archer and the
+# Cutthroat beside it.
+func _test_killing_blow_splash() -> void:
+	var raid: CombatSession = _battle(_plain(8, 3), InstanceIdAllocator.new())
+	var raider: String = _place(raid, "raider", ENEMY, -1, Vector2i(0, 0))
+	var fallen: String = _place(raid, "hakkapel", PLAYER, 0, Vector2i(5, 0))
+	var archer: String = _place(raid, "archer", PLAYER, 0, Vector2i(6, 0))
+	var hound: String = _place(raid, "hound", ENEMY, -1, Vector2i(5, 1))
+	raid.state.set_hp(fallen, 1)
+	var ride: Array[Vector2i] = [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0)]
+	var foreseen: Array[CombatForecast.ExchangeForecast] = []
+	var foresee_raid: Callable = func(at: CombatSession) -> void:
+		foreseen.append(_forecast(at, raider, fallen, ride))
+	var facts: Array[CombatFact] = _enemy_attack(raid, raider, fallen, ride, foresee_raid)
+	var splash: PackedStringArray = []
+	for fact: CombatFact in facts:
+		var is_splash: bool = (
+				fact.kind == CombatFact.Kind.DAMAGE_TAKEN
+				and fact.source == CombatFact.Source.SPLASH
+		)
+		if is_splash:
+			splash.append("%s %d" % [raid.state.unit_type_of(fact.actor_id), fact.amount])
+	splash.sort()
+	_same("killing blow: Trample still splashes around the defeated target", (
+			"%s; target on the map: %s" % [", ".join(splash), raid.state.has_unit(fallen)]
+	), "archer 3, hound 3; target on the map: false")
+	var hp_foreseen: bool = not foreseen.is_empty()
+	for unit_id: String in [archer, hound]:
+		var outcome: CombatForecast.UnitOutcome = _outcome(foreseen, unit_id)
+		hp_foreseen = (
+				hp_foreseen and outcome != null
+				and outcome.hp_after == raid.state.get_hp(unit_id)
+		)
+	var target_outcome: CombatForecast.UnitOutcome = _outcome(foreseen, fallen)
+	_ok("killing blow: the forecast showed the Trample and the kill", (
+			hp_foreseen and target_outcome != null and target_outcome.is_defeated
+	))
+
+	var hex: CombatSession = _battle(_plain(5, 4), InstanceIdAllocator.new())
+	var hexer: String = _place(hex, "hexer", ENEMY, -1, Vector2i(0, 1))
+	var cursed: String = _place(hex, "hakkapel", PLAYER, 0, Vector2i(2, 1))
+	var beside: String = _place(hex, "archer", PLAYER, 0, Vector2i(3, 1))
+	var ally: String = _place(hex, "cutthroat", ENEMY, -1, Vector2i(2, 0))
+	hex.state.set_hp(cursed, 1)
+	var no_walk: Array[Vector2i] = []
+	var hexed: Array[CombatForecast.ExchangeForecast] = []
+	var foresee_hex: Callable = func(at: CombatSession) -> void:
+		hexed.append(_forecast(at, hexer, cursed, no_walk))
+	var hex_facts: Array[CombatFact] = _enemy_attack(hex, hexer, cursed, no_walk, foresee_hex)
+	_same("killing blow: Curse still takes Stance around the defeated target", (
+			"%s; target on the map: %s" % [
+				_gained(hex, hex_facts, "curse", CombatFact.Kind.STANCE_CHANGED),
+				hex.state.has_unit(cursed),
+			]
+	), "archer -1, cutthroat -1; target on the map: false")
+	var stance_foreseen: bool = not hexed.is_empty()
+	for unit_id: String in [beside, ally]:
+		var outcome: CombatForecast.UnitOutcome = _outcome(hexed, unit_id)
+		stance_foreseen = (
+				stance_foreseen and outcome != null
+				and outcome.stance_after == outcome.stance_before - 1
+		)
+	_ok("killing blow: the forecast showed the Curse", stance_foreseen)
+
+
+# attacker's attack on target along path on session's board as the forecast panel previews it.
+static func _forecast(
+		session: CombatSession, attacker: String, target: String, path: Array[Vector2i]
+) -> CombatForecast.ExchangeForecast:
+	var command: UnitTurnCommand = UnitTurnCommand.new(-1, attacker, ATTACK, target, path)
+	return CombatForecast.exchange(session.engine, command, ForecastRolls.new(), false)
+
+
+# unit_id's outcome in the first forecast of foreseen; null when there is none.
+static func _outcome(
+		foreseen: Array[CombatForecast.ExchangeForecast], unit_id: String
+) -> CombatForecast.UnitOutcome:
+	if foreseen.is_empty() or foreseen[0] == null:
+		return null
+	for outcome: CombatForecast.UnitOutcome in foreseen[0].units:
+		if outcome.unit_id == unit_id:
+			return outcome
+	return null
 
 
 # The facts of the enemy phase in which attacker attacks target along path (its own tile first;

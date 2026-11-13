@@ -6,7 +6,7 @@
 # File:     effect_context.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: November 13, 2026
 # ==============================================================================
 
 class_name EffectContext
@@ -85,6 +85,14 @@ var command_target_id: String = ""
 ## Where the effect's own unit stood when its reaction was queued, so a queued splash lands from
 ## that tile even if the unit was defeated since; [constant CombatFact.NO_TILE] outside a reaction.
 var owner_tile: Vector2i = CombatFact.NO_TILE
+
+## Where the triggering fact's actor stood when the reaction was queued, as [member owner_tile];
+## [constant CombatFact.NO_TILE] outside a reaction or with no fact.
+var fact_actor_tile: Vector2i = CombatFact.NO_TILE
+
+## Where the triggering fact's other party stood when the reaction was queued, so a splash around
+## a unit the hit defeated (Trample, Curse) lands from its last tile; as [member owner_tile].
+var fact_target_tile: Vector2i = CombatFact.NO_TILE
 
 ## Bit set of [enum ModifyThat.Flag] turned on by inline operations.
 var flags: int = 0
@@ -196,4 +204,6 @@ func copy_for_reaction() -> EffectContext:
 	copy.matchup = matchup
 	copy.command_target_id = command_target_id
 	copy.owner_tile = owner_tile
+	copy.fact_actor_tile = fact_actor_tile
+	copy.fact_target_tile = fact_target_tile
 	return copy

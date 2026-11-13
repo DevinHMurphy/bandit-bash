@@ -26,8 +26,7 @@ extends EffectCarrierDefinition
 ## How rare an item is, which sets its price and where it can be found (items.md, Rarity and
 ## prices). Saved as an int: [b]append only[/b], with explicit values.
 enum Rarity {
-	## Starting gear, recruits' gear and enemy-only weapons (the Javelin, the Fangs): never loot,
-	## stock or sold.
+	## Starting gear, recruits' gear and enemy-only weapons (the Fangs): never loot, stock or sold.
 	BASIC = 0,
 	## Sold, and found in rewards and chests.
 	COMMON = 1,
