@@ -1,11 +1,10 @@
-[gd_scene load_steps=24 format=3]
+[gd_scene load_steps=23 format=3]
 
 [ext_resource type="Script" path="res://ui/common/nav_button.gd" id="1_nav"]
 [ext_resource type="PackedScene" path="res://ui/debug/save_debug_panel.tscn" id="2_save_debug"]
 [ext_resource type="PackedScene" path="res://ui/common/pause_menu.tscn" id="3_pause_menu"]
 [ext_resource type="PackedScene" path="res://ui/common/save_indicator.tscn" id="4_save_indicator"]
 [ext_resource type="Script" path="res://ui/battle/battle_screen.gd" id="5_screen"]
-[ext_resource type="Resource" path="res://maps/standard/m1_greybox.tres" id="6_m1"]
 [ext_resource type="PackedScene" path="res://ui/battle/board/battle_view.tscn" id="7_view"]
 [ext_resource type="PackedScene" path="res://ui/battle/hud/turn_bar.tscn" id="8_turn_bar"]
 [ext_resource type="PackedScene" path="res://ui/battle/menus/panel_host.tscn" id="9_panel_host"]
@@ -26,7 +25,6 @@
 
 [node name="Gameplay" type="Node2D"]
 script = ExtResource("5_screen")
-map_definition = ExtResource("6_m1")
 
 [node name="InputDeviceAdapter" parent="." instance=ExtResource("21_device")]
 unique_name_in_owner = true

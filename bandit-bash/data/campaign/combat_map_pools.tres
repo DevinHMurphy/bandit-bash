@@ -1,0 +1,55 @@
+[gd_resource type="Resource" script_class="CombatMapPools" load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://scripts/campaign/combat_map_pools.gd" id="1_pools"]
+[ext_resource type="Script" path="res://scripts/campaign/combat_map_pool.gd" id="2_pool"]
+[ext_resource type="Script" path="res://scripts/map/combat_map_definition.gd" id="3_map"]
+[ext_resource type="Resource" path="res://maps/standard/m1_greybox.tres" id="4_m1"]
+
+; Until RN11 builds the per-step pools, m1_greybox is every pool's only map. The steps are
+; game-vision.md's Run structure: floors 1-5, 6-11 and 12-17, the boss on 18. Key combats start on
+; floor 6 (campaign map rules: no extra Key before floor 6).
+[sub_resource type="Resource" id="Resource_standard_1"]
+script = ExtResource("2_pool")
+node_type = 0
+first_floor = 1
+last_floor = 5
+maps = Array[ExtResource("3_map")]([ExtResource("4_m1")])
+
+[sub_resource type="Resource" id="Resource_standard_2"]
+script = ExtResource("2_pool")
+node_type = 0
+first_floor = 6
+last_floor = 11
+maps = Array[ExtResource("3_map")]([ExtResource("4_m1")])
+
+[sub_resource type="Resource" id="Resource_standard_3"]
+script = ExtResource("2_pool")
+node_type = 0
+first_floor = 12
+last_floor = 17
+maps = Array[ExtResource("3_map")]([ExtResource("4_m1")])
+
+[sub_resource type="Resource" id="Resource_key_2"]
+script = ExtResource("2_pool")
+node_type = 1
+first_floor = 6
+last_floor = 11
+maps = Array[ExtResource("3_map")]([ExtResource("4_m1")])
+
+[sub_resource type="Resource" id="Resource_key_3"]
+script = ExtResource("2_pool")
+node_type = 1
+first_floor = 12
+last_floor = 17
+maps = Array[ExtResource("3_map")]([ExtResource("4_m1")])
+
+[sub_resource type="Resource" id="Resource_boss"]
+script = ExtResource("2_pool")
+node_type = 2
+first_floor = 18
+last_floor = 18
+maps = Array[ExtResource("3_map")]([ExtResource("4_m1")])
+
+[resource]
+script = ExtResource("1_pools")
+pools = Array[ExtResource("2_pool")]([SubResource("Resource_standard_1"), SubResource("Resource_standard_2"), SubResource("Resource_standard_3"), SubResource("Resource_key_2"), SubResource("Resource_key_3"), SubResource("Resource_boss")])

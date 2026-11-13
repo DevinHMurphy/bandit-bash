@@ -11,30 +11,21 @@
 
 class_name CampaignSession
 extends RefCounted
-## One run in progress on the host: its stream registry, its id allocator, its campaign bus, and
-## the bridge into each battle.
-##
-## Built by the [code]CampaignService[/code] autoload when a run becomes active and closed when it
-## ends. Host and solo only: a multiplayer client holds none until client mirrors (EB7) and
-## transport (P10) exist (event bus plan, question 41). Rules code never sees [member rng]: this
-## session hands each consumer the one stream it needs.[br]
-## [b]The battle bridge:[/b] [method begin_battle] builds the [CombatEncounter], runs its setup,
-## opens one [CombatSession] per seat, places the enemies setup drew ([EnemySetup]), registers
-## copies of the run's effect carriers (in the encounter for cross-map scopes) with their
-## campaign-lane counters, gives each map the darkness setup drew ([DarknessSetup]), loads each
-## army's unit instances ([Loadout]) and deploys each army. [method resume_battle] rebuilds a saved
-## battle the same way, without the loadout, deployment or opening, has the save loaded into it and
-## re-links the write-back copies to what it loaded.
-## [method write_back] copies campaign-lane counters and charges back before
-## [code]SaveService.end_battle()[/code]; [method end_battle] then drops the battle and its combat
-## lanes. Observers find each battle through [signal combat_encounter_opened].[br]
-## [b]Grants:[/b] [CampaignGrant]s that apply in battle reach [method receive_grant] after their
-## batch, which records and reports them; no save section is registered yet (question 42).
+## One run in progress on the host: its streams, its id allocator, its campaign bus, its
+## [member run] and the bridge into each battle. Built by [code]CampaignService[/code] when a run
+## becomes active and closed when it ends; host and solo only. Consumers get single streams.[br]
+## [b]The battle bridge:[/b] [method begin_battle] sets a [BattleRequest] up as a [CombatEncounter]
+## (the run's from [method CampaignRunState.battle_request]): one [CombatSession] per seat, its
+## objects, enemies and darkness, a copy of every run carrier (one per held copy of a heirloom or
+## curse, with its saved campaign lane) and each army loaded and deployed. [method resume_battle]
+## rebuilds a saved battle the same way and loads the save into it. [method collect_battle] writes
+## campaign lanes back and gathers the [BattleResult] with the battle still on;
+## [method end_battle] drops it. [member tally] and [member battle_grants] observe the battle and
+## are saved with it; the run applies both at its end ([method CampaignRunState.apply_battle]).
 ##
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 ##
-## @todo: TOD-001 - Apply recorded grants: gold, heirlooms, recruits and runes (P08).
 ## @todo: TOD-002 - Hand the reinforcement waves P05's group source; the base draws no group.
 ## @todo: TOD-003 - Send each co-op seat's opening-swap setting to the host (P11); no entry means
 ## on. Solo's comes from the battle screen's request (the player's settings).
@@ -85,6 +76,15 @@ var run: CampaignRunState = null
 ## Every grant received this run, in order.
 var grants: Array[Grant] = []
 
+## The grants received since the battle in progress began, in order, for
+## [method CampaignRunState.apply_battle]. Saved with the battle ([BattleTallySection]), so a
+## resumed battle still applies the grants it received before the quit.
+var battle_grants: Array[Grant] = []
+
+## The XP actions each player unit has taken in the battle in progress, counted from every fact
+## its maps record. Cleared at Begin, saved with the battle ([BattleTallySection]).
+var tally: BattleTally = BattleTally.new()
+
 ## Whether [method close] was called: the run ended or its save file closed.
 var is_closed: bool = false
 
@@ -102,14 +102,22 @@ var _battle_copies: Dictionary[String, EffectInstance] = {}
 # The units the battle in progress loaded from instances, for write_back().
 var _loaded: Array[Loadout.LoadedUnit] = []
 
-# Heirlooms already made carriers, as "seat:content id", so a second battle doesn't add them again.
-var _heirloom_carriers: Dictionary[String, bool] = {}
+# Each held heirloom or curse copy already made carriers, by _copy_key(), so a second battle
+# doesn't add them again. A seat's k-th copy of an id is its k-th SeatRun entry of that id.
+var _heirloom_carriers: Dictionary[String, HeirloomLane] = {}
 
 # Setup steps other plans registered, applied to every battle: [step, Callable] pairs.
 var _setup_steps: Array[Array] = []
 
-# Grants received since the battle began.
-var _battle_grants: Array[Grant] = []
+# Ids of the maps the battle in progress could draw (its request's pool), for the result.
+var _battle_pool_ids: PackedStringArray = []
+
+# Ids of every army unit the battle's request named, in seat and roster order: the result reads
+# each through its map, fallen ones included, which CombatState.units_of() leaves out.
+var _battle_unit_ids: PackedStringArray = []
+
+# The battle in progress's result once collect_battle() gathered it; null before.
+var _collected: BattleResult = null
 
 # The arrival stamp the next campaign command takes.
 var _next_arrival: int = 1
@@ -269,20 +277,47 @@ func write_back() -> void:
 			carrier.charges_left = copy.charges_left
 
 
-## Ends the battle in progress: [method write_back], then the result is collected, the encounter
-## closed and [signal combat_encounter_closed] emitted; every combat lane is dropped with it.
-## Returns what the run flow applies afterwards; null when no battle is on.
+## Gathers what the battle in progress leaves for the run, with the battle still on: first
+## [method write_back], then each player unit's HP, fall, permanent stat deltas and growth changes,
+## each heirloom copy's campaign lane, the grants received, the map and whether every map was won.
+## Calling it again returns the same result. Returns null when no battle is on.
+func collect_battle() -> BattleResult:
+	if encounter == null:
+		return null
+	if _collected != null:
+		return _collected
+	write_back()
+	var result: BattleResult = BattleResult.new()
+	result.floor_number = encounter.floor_number
+	result.node = encounter.node
+	result.map_id = encounter.setup.map.id
+	result.pool_ids = _battle_pool_ids.duplicate()
+	result.grants = battle_grants.duplicate()
+	var sessions: Array[CombatSession] = encounter.get_sessions()
+	result.is_finished = not sessions.is_empty()
+	result.is_won = not sessions.is_empty()
+	for session: CombatSession in sessions:
+		result.is_finished = result.is_finished and session.is_finished
+		result.is_won = result.is_won and session.is_finished and session.is_won
+	for unit_id: String in _battle_unit_ids:
+		var holder: CombatSession = encounter.session_of_unit(unit_id)
+		if holder != null:
+			_collect_growth(result, holder, unit_id)
+			_collect_unit(result, holder, unit_id)
+	_collect_heirlooms(result)
+	_collected = result
+	return result
+
+
+## Ends the battle in progress: its result is collected ([method collect_battle]) if it wasn't
+## yet, the encounter closed and [signal combat_encounter_closed] emitted; every combat lane is
+## dropped with it. Apply the result to the run and save it first
+## ([code]CampaignService.end_battle()[/code]). Returns the result; null when no battle is on.
 func end_battle() -> BattleResult:
 	if encounter == null:
 		return null
-	write_back()
-	var result: BattleResult = BattleResult.new()
-	result.grants = _battle_grants.duplicate()
-	for session: CombatSession in encounter.get_sessions():
-		for unit_id: String in session.state.units_of(CombatFact.CombatSide.PLAYER):
-			if encounter.session_of_unit(unit_id) == session:
-				_collect_growth(result, session, unit_id)
-	var map_id: String = encounter.setup.map.id
+	var result: BattleResult = collect_battle()
+	var map_id: String = result.map_id
 	abandon_battle()
 
 	var net: NetLogScript = CombatSession.logger(
@@ -322,7 +357,8 @@ func submit(command: CampaignCommand) -> CampaignBatch:
 	return batch
 
 
-## Records a grant from an effect that fired in battle and reports it at INFO.
+## Records a grant from an effect that fired in battle and reports it at INFO; the run applies it
+## when the battle ends ([method CampaignRunState.apply_battle]), through [member battle_grants].
 ## [param grant]: a [enum CampaignGrant.Grant]. Connected to every session's
 ## [signal CombatSession.grant_received].
 func receive_grant(
@@ -335,9 +371,8 @@ func receive_grant(
 	record.definition_id = definition_id
 	record.source_effect_id = source_effect_id
 	grants.append(record)
-	_battle_grants.append(record)
+	battle_grants.append(record)
 	grant_recorded.emit(record)
-	# TODO(TOD-001): Apply the grant to the seat's gold, heirlooms, roster or rune slots (P08).
 	var net: NetLogScript = CombatSession.logger(
 			NetLogScript.Level.INFO, NetLogScript.Category.CAMPAIGN
 	)
@@ -359,9 +394,12 @@ func abandon_battle() -> void:
 	encounter = null
 	_battle_copies.clear()
 	_loaded.clear()
+	_collected = null
 	for session: CombatSession in closed.get_sessions():
 		if session.grant_received.is_connected(receive_grant):
 			session.grant_received.disconnect(receive_grant)
+		if session.fact_recorded.is_connected(_on_session_fact_recorded):
+			session.fact_recorded.disconnect(_on_session_fact_recorded)
 	closed.close()
 	combat_encounter_closed.emit(closed)
 
@@ -420,7 +458,22 @@ func _set_up_battle(request: BattleRequest, catalog: EffectCatalog.Index) -> Com
 		return null
 
 	encounter = battle
-	_battle_grants.clear()
+	battle_grants.clear()
+	tally.clear()
+	_collected = null
+	_battle_pool_ids = []
+	for map: CombatMapDefinition in request.pool:
+		if map != null:
+			_battle_pool_ids.append(map.id)
+	_battle_unit_ids = []
+	var army_seats: Array[int] = []
+	army_seats.assign(request.armies.keys())
+	army_seats.sort()
+	for seat: int in army_seats:
+		for unit: CombatUnitState in request.armies[seat].units:
+			_battle_unit_ids.append(unit.id)
+		for unit: UnitInstance in request.armies[seat].unit_instances:
+			_battle_unit_ids.append(unit.instance_id)
 	combat_encounter_opened.emit(battle)
 	var rolls: Dictionary[int, RngStream] = {}
 	for seat: int in seats:
@@ -429,6 +482,7 @@ func _set_up_battle(request: BattleRequest, catalog: EffectCatalog.Index) -> Com
 	for session: CombatSession in battle.get_sessions():
 		session.is_tracing_draws = is_tracing_draws
 		session.grant_received.connect(receive_grant)
+		session.fact_recorded.connect(_on_session_fact_recorded)
 		# Before deployment, so no unit takes a breakable's tile.
 		MapObjects.place(session)
 		# Before deployment too, which ranks its tiles by the enemies' tiles.
@@ -457,8 +511,11 @@ func _place_heirloom_stand_ins(
 	var session: CombatSession = battle.session_of_seat(seat)
 	if session == null:
 		return
+	var copies: Dictionary[String, int] = {}
 	for heirloom_id: String in heirloom_ids:
-		if _heirloom_carriers.has("%d:%s" % [seat, heirloom_id]):
+		var copy: int = copies.get(heirloom_id, 0)
+		copies[heirloom_id] = copy + 1
+		if _heirloom_carriers.has(_copy_key(seat, heirloom_id, copy)):
 			continue
 		for stand_in: EffectInstance in Loadout.heirloom_effects(catalog, heirloom_id, seat, ids):
 			if not battle.add_cross_map(stand_in):
@@ -496,9 +553,10 @@ func _relink_battle(
 			_loaded.append(loaded)
 
 
-# ASSUMPTION: a resumed run holds no carrier of its heirlooms (carriers aren't saved until P08), so
-# each heirloom's saved copy becomes its carrier under the copy's id, made as Begin made it, and the
-# heirloom counts as a carrier of the run from then on, as after Begin.
+# A resumed run holds no carrier of its heirlooms (carriers live only in a session; the run saves
+# each copy's campaign lane in its heirlooms section), so each copy's saved battle copy becomes its
+# carrier under the battle copy's id, made as Begin made it, and counts as a carrier of the run from
+# then on, as after Begin. Copies of one id are matched in order: the k-th held to the k-th loaded.
 func _adopt_heirlooms(
 		battle: CombatEncounter,
 		catalog: EffectCatalog.Index,
@@ -509,10 +567,14 @@ func _adopt_heirlooms(
 	if session == null:
 		return
 	var taken: Dictionary[String, bool] = {}
+	var copies: Dictionary[String, int] = {}
 	for heirloom_id: String in heirloom_ids:
-		var key: String = "%d:%s" % [seat, heirloom_id]
+		var copy: int = copies.get(heirloom_id, 0)
+		copies[heirloom_id] = copy + 1
+		var key: String = _copy_key(seat, heirloom_id, copy)
 		if _heirloom_carriers.has(key) or catalog.heirloom(heirloom_id) == null:
 			continue
+		var lane: HeirloomLane = HeirloomLane.new(seat, heirloom_id, copy)
 		var scratch: InstanceIdAllocator = InstanceIdAllocator.new()
 		for made: EffectInstance in Loadout.heirloom_effects(catalog, heirloom_id, seat, scratch):
 			for loaded: EffectInstance in session.engine.get_instances():
@@ -530,8 +592,9 @@ func _adopt_heirlooms(
 						loaded.instance_id, made.definition, made.owner, made.source_kind, made.label
 				))
 				_battle_copies[loaded.instance_id] = loaded
-				_heirloom_carriers[key] = true
+				lane.carrier_ids.append(loaded.instance_id)
 				break
+		_heirloom_carriers[key] = lane
 
 
 # The battle's instance with instance_id, on whichever map holds it; null when none does.
@@ -622,20 +685,44 @@ func _load_army(catalog: EffectCatalog.Index, army: Army, seat: int) -> Array[Lo
 	return units
 
 
-# Makes each heirloom of [param heirloom_ids] a carrier of the run for [param seat], once.
+# Makes each copy in heirloom_ids (an id repeats once per copy held) carriers of the run for seat,
+# once per copy, each with the campaign lane its SeatRun entry saved.
 func _add_heirlooms(
 		catalog: EffectCatalog.Index, seat: int, heirloom_ids: PackedStringArray
 ) -> void:
+	var copies: Dictionary[String, int] = {}
 	for heirloom_id: String in heirloom_ids:
-		var key: String = "%d:%s" % [seat, heirloom_id]
+		var copy: int = copies.get(heirloom_id, 0)
+		copies[heirloom_id] = copy + 1
+		var key: String = _copy_key(seat, heirloom_id, copy)
 		if _heirloom_carriers.has(key):
 			continue
 		if catalog.heirloom(heirloom_id) == null:
 			push_error("CampaignSession: heirloom \"%s\" is not in the catalog" % [heirloom_id])
 			continue
+		var owned: SeatRun.OwnedHeirloom = _owned_copy(seat, heirloom_id, copy)
+		var lane: HeirloomLane = HeirloomLane.new(seat, heirloom_id, copy)
 		for instance: EffectInstance in Loadout.heirloom_effects(catalog, heirloom_id, seat, ids):
+			if owned != null:
+				_copy_lane_in(instance, owned)
 			add_carrier(instance)
-		_heirloom_carriers[key] = true
+			lane.carrier_ids.append(instance.instance_id)
+		_heirloom_carriers[key] = lane
+
+
+# The run's copy-th held copy of heirloom_id for seat; null when the run holds no such copy.
+func _owned_copy(seat: int, heirloom_id: String, copy: int) -> SeatRun.OwnedHeirloom:
+	var seat_run: SeatRun = null if run == null else run.seat_run(seat)
+	if seat_run == null:
+		return null
+	var seen: int = 0
+	for owned: SeatRun.OwnedHeirloom in seat_run.heirlooms:
+		if owned.heirloom_id != heirloom_id:
+			continue
+		if seen == copy:
+			return owned
+		seen += 1
+	return null
 
 
 func _collect_growth(result: BattleResult, session: CombatSession, unit_id: String) -> void:
@@ -643,6 +730,64 @@ func _collect_growth(result: BattleResult, session: CombatSession, unit_id: Stri
 	if changes.is_empty():
 		return
 	result.growth_changes[unit_id] = changes.duplicate()
+
+
+# A player unit's HP (UnitInstance.FULL_HP at its battle maximum), whether it fell, and the
+# permanent deltas its map gained (a stat booster's, a Hit booster's): Loadout registers the
+# deltas a unit already had as effects, so the engine's deltas are only the battle's own.
+func _collect_unit(result: BattleResult, session: CombatSession, unit_id: String) -> void:
+	var state: CombatUnitState = session.state.unit(unit_id)
+	var outcome: UnitOutcome = UnitOutcome.new()
+	outcome.seat = state.seat
+	outcome.is_fallen = state.is_defeated
+	outcome.hp = 0
+	if not state.is_defeated:
+		var max_hp: int = session.stats(unit_id).get_int(CombatValue.Key.HP)
+		outcome.hp = UnitInstance.FULL_HP if state.hp >= max_hp else maxi(state.hp, 0)
+	for key: int in CombatValue.PERMANENT_KEYS.values():
+		for delta: Modifier in session.engine.get_deltas(unit_id, key):
+			outcome.stat_deltas.append(ItemInstance.StatDelta.new(
+					delta.key, delta.value, delta.source_id, delta.label
+			))
+	result.units[unit_id] = outcome
+
+
+# Each held heirloom copy's campaign lane, from its carriers (write_back() has run): counters by
+# effect id (0 left out), and charges for the effects whose charges last the run.
+func _collect_heirlooms(result: BattleResult) -> void:
+	var keys: Array[String] = []
+	keys.assign(_heirloom_carriers.keys())
+	keys.sort()
+	for key: String in keys:
+		var held: HeirloomLane = _heirloom_carriers[key]
+		var lane: HeirloomLane = HeirloomLane.new(held.seat, held.heirloom_id, held.copy)
+		for carrier_id: String in held.carrier_ids:
+			var carrier: EffectInstance = _carriers.get(carrier_id, null)
+			if carrier == null:
+				continue
+			var effect_id: String = carrier.definition.id
+			var count: int = carrier.get_counter(EffectTerms.Lane.CAMPAIGN)
+			if count != 0:
+				lane.counters[effect_id] = count
+			if carrier.definition.charge_lane == EffectTerms.Lane.CAMPAIGN:
+				lane.charges[effect_id] = carrier.charges_left
+		result.heirlooms.append(lane)
+
+
+# The battle's XP tally hears every fact of every map, on the map that holds its unit.
+func _on_session_fact_recorded(fact: CombatFact) -> void:
+	if encounter == null:
+		return
+	# An object fact's unit is its target; every other counted fact's is its actor.
+	var unit_id: String = (
+			fact.target_id if fact.kind == CombatFact.Kind.OBJECT_STATE_CHANGED
+			or fact.kind == CombatFact.Kind.BLOCK_GAINED else fact.actor_id
+	)
+	if unit_id.is_empty():
+		return
+	var holder: CombatSession = encounter.session_of_unit(unit_id)
+	if holder != null:
+		tally.record(fact, holder.state)
 
 
 # The seat's COMBAT_ROLLS stream for the battle, logged at DEBUG with its key and seed.
@@ -660,6 +805,22 @@ func _combat_rolls(floor_number: int, node: int, seat: int) -> RngStream:
 				"stream COMBAT_ROLLS key %s seed %d" % [key.to_save_key(), stream_seed]
 		)
 	return rng.stream(key)
+
+
+# Sets a new carrier's campaign-lane counter, and its charges when they last the run, from the
+# copy's saved entry, by effect id; an effect with no entry keeps its fresh values.
+static func _copy_lane_in(instance: EffectInstance, owned: SeatRun.OwnedHeirloom) -> void:
+	var effect_id: String = instance.definition.id
+	if owned.counters.has(effect_id):
+		instance.set_counter(EffectTerms.Lane.CAMPAIGN, owned.counters[effect_id])
+	var lasts_run: bool = instance.definition.charge_lane == EffectTerms.Lane.CAMPAIGN
+	if lasts_run and owned.charges.has(effect_id):
+		instance.charges_left = owned.charges[effect_id]
+
+
+# A held copy's key: "seat:content id:copy", the copy counted from 0 in gain order.
+static func _copy_key(seat: int, heirloom_id: String, copy: int) -> String:
+	return "%d:%s:%d" % [seat, heirloom_id, copy]
 
 
 ## What a battle begins from: its node, its map pool and each seat's army, as unit and item
@@ -703,21 +864,76 @@ class Army:
 	var unit_instances: Array[UnitInstance] = []
 	## The item instances [member unit_instances] carry, by instance id.
 	var item_instances: Dictionary[String, ItemInstance] = {}
-	## Content ids of the seat's heirlooms and curses, its Commander Heirloom included. Each is
-	## made a carrier of the run the first time a battle names it, so its campaign lane lasts the
-	## run ([method Loadout.heirloom_effects]). [b]Empty:[/b] none.
+	## Content ids of the seat's heirlooms and curses in gain order, its Commander Heirloom
+	## included, an id repeated once per copy held. Each copy is made carriers of the run the first
+	## time a battle names it, so its campaign lane lasts the run
+	## ([method Loadout.heirloom_effects]). [b]Empty:[/b] none.
 	var heirloom_ids: PackedStringArray = []
 
 
-## What a battle leaves for the run flow to apply (P08).
+## What a battle leaves for the run to apply ([method CampaignRunState.apply_battle]).
 class BattleResult:
 	extends RefCounted
 
+	## The battle's campaign floor and node, as its request named them.
+	var floor_number: int = -1
+	## See [member floor_number].
+	var node: int = -1
+	## Content id of the map setup drew.
+	var map_id: String = ""
+	## Ids of the maps the battle could draw (its request's pool), in order: on a refill, the
+	## whole pool.
+	var pool_ids: PackedStringArray = []
+	## Whether every map's combat ended.
+	var is_finished: bool = false
+	## Whether every map's combat ended in a player win.
+	var is_won: bool = false
+	## Each player unit of the battle, by unit id.
+	var units: Dictionary[String, UnitOutcome] = {}
 	## Growth changes gained this battle, by unit id: stat ([enum CombatValue.Stat]) to percentage
 	## points (event bus plan, fix F11).
 	var growth_changes: Dictionary[String, Dictionary] = {}
+	## Each held heirloom or curse copy's campaign lane after the battle.
+	var heirlooms: Array[HeirloomLane] = []
 	## Grants received during the battle, in order.
 	var grants: Array[Grant] = []
+
+
+## One player unit at a battle's end.
+class UnitOutcome:
+	extends RefCounted
+
+	## The unit's seat.
+	var seat: int = -1
+	## Its HP; [constant UnitInstance.FULL_HP] at its maximum.
+	var hp: int = UnitInstance.FULL_HP
+	## Whether it fell.
+	var is_fallen: bool = false
+	## The permanent changes it gained in this battle, Hit included, each with its source.
+	var stat_deltas: Array[ItemInstance.StatDelta] = []
+
+
+## One held copy of a heirloom or curse: which, and its campaign lane by effect id.
+class HeirloomLane:
+	extends RefCounted
+
+	## The seat that holds it.
+	var seat: int = -1
+	## Content id of its [HeirloomDefinition] or [CurseDefinition].
+	var heirloom_id: String = ""
+	## Which copy of [member heirloom_id] the seat holds, from 0 in gain order.
+	var copy: int = 0
+	## Campaign-lane counters by effect id; an effect at 0 is left out.
+	var counters: Dictionary[String, int] = {}
+	## Charges left by effect id, for effects whose charges last the run.
+	var charges: Dictionary[String, int] = {}
+	## Instance ids of the copy's carriers in the session; empty in a [BattleResult].
+	var carrier_ids: PackedStringArray = []
+
+	func _init(holder_seat: int = -1, content_id: String = "", copy_index: int = 0) -> void:
+		seat = holder_seat
+		heirloom_id = content_id
+		copy = copy_index
 
 
 ## One grant received from an effect: who gets what, and from which effect.
