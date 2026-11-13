@@ -6,7 +6,7 @@
 # File:     service_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 9, 2026
+# Modified: November 13, 2026
 # ==============================================================================
 
 extends "res://tests/sessions/sessions_case_base.gd"
@@ -151,7 +151,8 @@ func _test_service_lifecycle() -> bool:
 
 # Through the real SaveService: a new run draws campaign streams, saves, closes and continues, and
 # its next draws match a run that was never interrupted. Events don't exist yet; REWARD stands in
-# for a stream drawn mid-event.
+# for a stream drawn mid-event, and ROUTE_DRAW for a run-level one (the run's start has already
+# drawn MAP_GENERATION for its map, so that stream isn't fresh).
 func _test_service_rng_campaign_streams() -> bool:
 	if not _has_test_user_dir():
 		_skips += 1
@@ -161,7 +162,7 @@ func _test_service_rng_campaign_streams() -> bool:
 	var service: Node = root.get_node(^"CampaignService")
 	SaveFile.delete_folder("user://saves/")
 	var keys: Array[RngKey] = [
-		RngKey.new(RngKey.RngPurpose.MAP_GENERATION),
+		RngKey.new(RngKey.RngPurpose.ROUTE_DRAW),
 		RngKey.new(RngKey.RngPurpose.REWARD, FLOOR, NODE, 0),
 	]
 	var uninterrupted: RngStreams = RngStreams.new(RUN_SEED)
@@ -176,11 +177,14 @@ func _test_service_rng_campaign_streams() -> bool:
 	var file: CampaignData = _read_campaign(saves)
 	var entry: Dictionary = file.sections.get("rng", {})
 	var data: Dictionary = entry.get("data", {})
+	var holds_keys: bool = true
+	for key: RngKey in keys:
+		holds_keys = holds_keys and data.has(key.to_save_key())
 	_check("service rng: the campaign file has an rng section at version 1", (
 			saved == OK
 			and entry.get("version", 0) as int == 1
 			and data == first.rng.capture_campaign()
-			and data.size() == keys.size()
+			and holds_keys
 	), str(entry))
 
 	saves.call(&"close_save_file")

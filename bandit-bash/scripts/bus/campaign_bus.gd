@@ -6,7 +6,7 @@
 # File:     campaign_bus.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: November 13, 2026
 # ==============================================================================
 
 class_name CampaignBus
@@ -24,7 +24,7 @@ extends RefCounted
 ## Emitted for every fact, after its domain signal. Used by [BusTracer].
 signal fact_played(fact: CampaignFact)
 
-## The run's progress: combats ending.
+## The run's progress: the run starting, nodes chosen and left, combats ending.
 var run: RunChannel = RunChannel.new()
 
 ## A player's army: heirlooms and items gained, level-ups.
@@ -57,15 +57,24 @@ func play(fact: CampaignFact) -> void:
 	fact_played.emit(fact)
 
 
-## The run's progress: combats ending.
+## The run's progress: the run starting, nodes chosen and left, combats ending.
 class RunChannel:
 	extends BusChannel
 
 	## [constant CampaignFact.COMBAT_ENDED].
 	signal combat_ended(fact: CampaignFact)
+	## [constant CampaignFact.RUN_STARTED].
+	signal run_started(fact: CampaignFact)
+	## [constant CampaignFact.NODE_CHOSEN].
+	signal node_chosen(fact: CampaignFact)
+	## [constant CampaignFact.NODE_LEFT].
+	signal node_left(fact: CampaignFact)
 
 	func _init() -> void:
 		_route(CampaignFact.Kind.COMBAT_ENDED, combat_ended)
+		_route(CampaignFact.Kind.RUN_STARTED, run_started)
+		_route(CampaignFact.Kind.NODE_CHOSEN, node_chosen)
+		_route(CampaignFact.Kind.NODE_LEFT, node_left)
 
 
 ## A player's army: heirlooms and items gained, level-ups.
