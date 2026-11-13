@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="TrinketDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_xnko4"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_7cstq"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_f74ht"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_qtb3k"]
+[ext_resource type="Script" path="res://scripts/content/trinket_definition.gd" id="5_chiow"]
+
+[sub_resource type="Resource" id="Resource_gcbpe"]
+script = ExtResource("4_qtb3k")
+key = 8
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_amp1k"]
+script = ExtResource("1_xnko4")
+id = "bonuses"
+operations = Array[ExtResource("3_f74ht")]([SubResource("Resource_gcbpe")])
+
+[resource]
+script = ExtResource("5_chiow")
+rarity = 3
+tags = PackedStringArray()
+id = "null_sigil"
+display_name = "Null Sigil"
+effects = Array[ExtResource("1_xnko4")]([SubResource("Resource_amp1k")])

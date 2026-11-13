@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="EquipmentDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_b8lhq"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_ygnu2"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_mlcgv"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_mma8n"]
+[ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="5_d8fg8"]
+
+[sub_resource type="Resource" id="Resource_qj4fm"]
+script = ExtResource("4_mma8n")
+key = 17
+value = 2.0
+
+[sub_resource type="Resource" id="Resource_bbp2q"]
+script = ExtResource("4_mma8n")
+key = 20
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_ad000"]
+script = ExtResource("1_b8lhq")
+id = "bonuses"
+operations = Array[ExtResource("3_mlcgv")]([SubResource("Resource_qj4fm"), SubResource("Resource_bbp2q")])
+
+[resource]
+script = ExtResource("5_d8fg8")
+category = "armor"
+rarity = 2
+weight = 2
+tags = PackedStringArray()
+id = "magi_robes"
+display_name = "Magi Robes"
+effects = Array[ExtResource("1_b8lhq")]([SubResource("Resource_ad000")])

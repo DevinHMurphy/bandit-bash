@@ -6,7 +6,7 @@
 # File:     item_use_resolver.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 30, 2026
+# Modified: November 12, 2026
 # ==============================================================================
 
 class_name ItemUseResolver
@@ -54,7 +54,8 @@ static func resolve(
 	return result
 
 
-## Why [param user_id] can't use [param item_id] on [param target_id] now; empty when it can.
+## Why [param user_id] can't use [param item_id] on [param target_id] now; empty when it can. A
+## key or lockpick is never used this way: it opens a lock ([method MapObjects.check_use]).
 static func check(
 		engine: EffectEngine,
 		state: CombatState,
@@ -75,6 +76,10 @@ static func check(
 	var effects: Array[EffectInstance] = use_effects(engine, item_id)
 	if effects.is_empty():
 		return "nothing to use"
+	for instance: EffectInstance in effects:
+		var effect_id: String = instance.definition.id
+		if effect_id == MapObjects.KEY_EFFECT_ID or effect_id == MapObjects.LOCKPICK_EFFECT_ID:
+			return "opens a lock, used on a chest or door"
 	if not has_uses(effects):
 		return "no uses left"
 	return ""

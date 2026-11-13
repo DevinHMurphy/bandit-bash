@@ -44,6 +44,7 @@ Not a bug.
 | [BUG-004](#bug-004-an-enemy-with-an-attack-intent-moves-and-doesnt-attack) | An enemy with an attack intent moves and doesn't attack; the next enemy hits its target | P05 / P07 | S2 | New | November 6, 2026, user playtest | — |
 | [BUG-005](#bug-005-unit-detail-shows-the-type-id-not-its-name) | Unit detail shows the type id, not its name | P07 | S4 | Assigned (BF1) | November 7, 2026, UI11 report | BF1 |
 | [BUG-006](#bug-006-netlog-raises-an-engine-error-once-the-peer-is-cleared) | NetLog raises an engine error once the peer is cleared | P00 / P10 | S3 | Assigned (BF1) | November 9, 2026, O3 report | BF1 |
+| [BUG-008](#bug-008-a-mirror-keeps-a-used-up-consumable) | A mirror keeps a used-up consumable, so its hash differs from the host's | P02 / P11 | S2 | Assigned (BF1) | November 13, 2026, CT5 report | BF1 |
 
 ### BUG-001 No Block at the start of combat
 
@@ -130,6 +131,17 @@ Not a bug.
 - **Expected:** logging is silent with no peer and shows peer 1, as in solo play.
 - **To check:** whether `leave_lobby()` should restore an offline peer rather than null, or NetLog
   should guard the call. `steam_network.gd` guards on `multiplayer_peer != null` elsewhere.
+
+### BUG-008 A mirror keeps a used-up consumable
+
+- **Found:** CT5's report (read, not run in multiplayer). On a client mirror, a consumable whose
+  last use is spent stays in the Pouch, so the mirror's state hash differs from the host's.
+- **Cause:** `CombatState._is_used_up` (`combat_state.gd:747`) returns false at the first effect
+  with no charges; the host's check skips such effects instead. It hits every consumable whose uses
+  the loadout counts: the Elixir, stat boosters, ingredients and the Key.
+- **Expected:** host and mirror drop the item at the same use, and the hashes match.
+- **Fix:** `return false` becomes `continue`, with a regression test comparing the mirror's hash
+  after an Elixir's last use (CT5's Hit-booster test compares only Hit).
 
 ### BUG-007 Test runs in two worktrees share one user folder
 

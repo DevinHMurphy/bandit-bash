@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="EquipmentDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_su0to"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_v37pw"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_5cuy7"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_ftuc2"]
+[ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="5_1lest"]
+
+[sub_resource type="Resource" id="Resource_ymh0w"]
+script = ExtResource("4_ftuc2")
+key = 19
+value = 3.0
+
+[sub_resource type="Resource" id="Resource_rcwlh"]
+script = ExtResource("4_ftuc2")
+key = 8
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_tpmgf"]
+script = ExtResource("1_su0to")
+id = "bonuses"
+operations = Array[ExtResource("3_5cuy7")]([SubResource("Resource_ymh0w"), SubResource("Resource_rcwlh")])
+
+[resource]
+script = ExtResource("5_1lest")
+category = "shield"
+rarity = 2
+weight = 9
+tags = PackedStringArray()
+id = "steel_greatshield"
+display_name = "Steel Greatshield"
+effects = Array[ExtResource("1_su0to")]([SubResource("Resource_tpmgf")])

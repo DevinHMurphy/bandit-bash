@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="TrinketDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_ffr0m"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_ct84w"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_jslip"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_8q2gv"]
+[ext_resource type="Script" path="res://scripts/content/trinket_definition.gd" id="5_yawvp"]
+
+[sub_resource type="Resource" id="Resource_jesvr"]
+script = ExtResource("4_8q2gv")
+key = 17
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_pfsmn"]
+script = ExtResource("4_8q2gv")
+key = 19
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_tyux2"]
+script = ExtResource("4_8q2gv")
+key = 18
+value = -1.0
+
+[sub_resource type="Resource" id="Resource_ibdwf"]
+script = ExtResource("1_ffr0m")
+id = "bonuses"
+operations = Array[ExtResource("3_jslip")]([SubResource("Resource_jesvr"), SubResource("Resource_pfsmn"), SubResource("Resource_tyux2")])
+
+[resource]
+script = ExtResource("5_yawvp")
+rarity = 2
+tags = PackedStringArray()
+id = "knights_token"
+display_name = "Knight's Token"
+effects = Array[ExtResource("1_ffr0m")]([SubResource("Resource_ibdwf")])

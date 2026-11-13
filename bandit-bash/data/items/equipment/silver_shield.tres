@@ -1,0 +1,43 @@
+[gd_resource type="Resource" script_class="EquipmentDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_616cd"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_oyes6"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ueltq"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_5y4ou"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="5_cjw0y"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="6_oyn1h"]
+[ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="7_ao35e"]
+
+[sub_resource type="Resource" id="Resource_nuqvm"]
+script = ExtResource("4_5y4ou")
+key = 19
+value = 4.0
+
+[sub_resource type="Resource" id="Resource_4m3ix"]
+script = ExtResource("1_616cd")
+id = "bonuses"
+operations = Array[ExtResource("3_ueltq")]([SubResource("Resource_nuqvm")])
+
+[sub_resource type="Resource" id="Resource_cq2sd"]
+script = ExtResource("5_cjw0y")
+value = 2.0
+
+[sub_resource type="Resource" id="Resource_jvn6u"]
+script = ExtResource("6_oyn1h")
+amount = SubResource("Resource_cq2sd")
+
+[sub_resource type="Resource" id="Resource_pelte"]
+script = ExtResource("1_616cd")
+id = "before_combat_block"
+trigger = 3
+operations = Array[ExtResource("3_ueltq")]([SubResource("Resource_jvn6u")])
+
+[resource]
+script = ExtResource("7_ao35e")
+category = "shield"
+rarity = 3
+weight = 10
+tags = PackedStringArray()
+id = "silver_shield"
+display_name = "Silver Shield"
+effects = Array[ExtResource("1_616cd")]([SubResource("Resource_4m3ix"), SubResource("Resource_pelte")])

@@ -6,7 +6,7 @@
 # File:     equipment_definition.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 29, 2026
+# Modified: November 12, 2026
 # ==============================================================================
 
 @tool
@@ -25,6 +25,11 @@ extends ItemDefinition
 ## The equipment category, from [constant ContentIds.EQUIPMENT_CATEGORIES], such as
 ## [code]shield[/code]. Traits and effects can test it.
 @export var category: String = ""
+
+## Unit tags the wearer gains, from [constant ContentIds.TAGS], such as Tungsten Ooze's
+## [constant ContentIds.TAG_ARMORED]. A tag changes no movement type. Equipment is never swapped
+## mid-combat, so the loadout adds them once. [b]Empty:[/b] none.
+@export var granted_tags: PackedStringArray = []
 
 
 func _validate_property(property: Dictionary) -> void:

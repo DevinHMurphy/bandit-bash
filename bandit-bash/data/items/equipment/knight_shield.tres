@@ -1,0 +1,48 @@
+[gd_resource type="Resource" script_class="EquipmentDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_r46ce"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_d4nwk"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_b0olw"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_lhxx6"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="5_op4hd"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="6_kul1g"]
+[ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="7_osb53"]
+
+[sub_resource type="Resource" id="Resource_wyqvr"]
+script = ExtResource("4_lhxx6")
+key = 19
+value = 2.0
+
+[sub_resource type="Resource" id="Resource_piyar"]
+script = ExtResource("4_lhxx6")
+key = 20
+value = 2.0
+
+[sub_resource type="Resource" id="Resource_krobq"]
+script = ExtResource("1_r46ce")
+id = "bonuses"
+operations = Array[ExtResource("3_b0olw")]([SubResource("Resource_wyqvr"), SubResource("Resource_piyar")])
+
+[sub_resource type="Resource" id="Resource_5dp5c"]
+script = ExtResource("5_op4hd")
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_ce8qn"]
+script = ExtResource("6_kul1g")
+amount = SubResource("Resource_5dp5c")
+
+[sub_resource type="Resource" id="Resource_ud37r"]
+script = ExtResource("1_r46ce")
+id = "before_combat_block"
+trigger = 3
+operations = Array[ExtResource("3_b0olw")]([SubResource("Resource_ce8qn")])
+
+[resource]
+script = ExtResource("7_osb53")
+category = "shield"
+rarity = 3
+weight = 7
+tags = PackedStringArray()
+id = "knight_shield"
+display_name = "Knight Shield"
+effects = Array[ExtResource("1_r46ce")]([SubResource("Resource_krobq"), SubResource("Resource_ud37r")])

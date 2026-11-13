@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="ConsumableDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_sew6t"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_cloi2"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_j5gaj"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/change_base_stat.gd" id="4_q2kd4"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="5_7dh6x"]
+[ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="6_i2nf4"]
+
+[sub_resource type="Resource" id="Resource_7h1j7"]
+script = ExtResource("5_7dh6x")
+
+[sub_resource type="Resource" id="Resource_8wmhw"]
+script = ExtResource("4_q2kd4")
+target = SubResource("Resource_7h1j7")
+key = 17
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_64j5r"]
+script = ExtResource("1_sew6t")
+id = "boost"
+operations = Array[ExtResource("3_j5gaj")]([SubResource("Resource_8wmhw")])
+
+[resource]
+script = ExtResource("6_i2nf4")
+use_kind = "stat_booster"
+uses_lane = 1
+rarity = 3
+tags = PackedStringArray()
+id = "spirit_ink"
+display_name = "Spirit Ink"
+effects = Array[ExtResource("1_sew6t")]([SubResource("Resource_64j5r")])

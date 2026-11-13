@@ -1,0 +1,38 @@
+[gd_resource type="Resource" script_class="ConsumableDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_7jxqh"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_732iy"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_r7scm"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="4_ggu0a"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="5_nwq7a"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="6_kj3rs"]
+[ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="7_iath0"]
+
+[sub_resource type="Resource" id="Resource_us48d"]
+script = ExtResource("4_ggu0a")
+value = 12.0
+
+[sub_resource type="Resource" id="Resource_as6g6"]
+script = ExtResource("6_kj3rs")
+
+[sub_resource type="Resource" id="Resource_k3iek"]
+script = ExtResource("5_nwq7a")
+pool = 0
+target = SubResource("Resource_as6g6")
+amount = SubResource("Resource_us48d")
+
+[sub_resource type="Resource" id="Resource_4ijp1"]
+script = ExtResource("1_7jxqh")
+id = "heal"
+operations = Array[ExtResource("3_r7scm")]([SubResource("Resource_k3iek")])
+
+[resource]
+script = ExtResource("7_iath0")
+use_kind = "heal"
+amount = 12
+uses = 2
+rarity = 5
+tags = PackedStringArray()
+id = "emberglass_vial"
+display_name = "Emberglass Vial"
+effects = Array[ExtResource("1_7jxqh")]([SubResource("Resource_4ijp1")])

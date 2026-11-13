@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="ConsumableDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_v4axd"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_huje1"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_8tvnf"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="4_75mh7"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="5_uo1qj"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="6_ftufl"]
+[ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="7_s13wo"]
+
+[sub_resource type="Resource" id="Resource_36yqv"]
+script = ExtResource("4_75mh7")
+value = 10.0
+
+[sub_resource type="Resource" id="Resource_2m02y"]
+script = ExtResource("6_ftufl")
+
+[sub_resource type="Resource" id="Resource_c27tq"]
+script = ExtResource("5_uo1qj")
+target = SubResource("Resource_2m02y")
+amount = SubResource("Resource_36yqv")
+
+[sub_resource type="Resource" id="Resource_6ay0o"]
+script = ExtResource("1_v4axd")
+id = "block"
+operations = Array[ExtResource("3_8tvnf")]([SubResource("Resource_c27tq")])
+
+[resource]
+script = ExtResource("7_s13wo")
+use_kind = "block"
+amount = 10
+rarity = 2
+tags = PackedStringArray()
+id = "guard_tonic_plus"
+display_name = "Guard Tonic+"
+effects = Array[ExtResource("1_v4axd")]([SubResource("Resource_6ay0o")])

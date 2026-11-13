@@ -1,0 +1,49 @@
+[gd_resource type="Resource" script_class="ConsumableDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_0qsbv"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_y45ek"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_v5wvi"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="4_620i0"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="5_bga26"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="6_ye4a1"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/change_base_stat.gd" id="7_qgu5j"]
+[ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="8_pk1xx"]
+
+[sub_resource type="Resource" id="Resource_ho3du"]
+script = ExtResource("4_620i0")
+value = 5.0
+
+[sub_resource type="Resource" id="Resource_4fni5"]
+script = ExtResource("6_ye4a1")
+
+[sub_resource type="Resource" id="Resource_e7bkj"]
+script = ExtResource("5_bga26")
+pool = 0
+target = SubResource("Resource_4fni5")
+amount = SubResource("Resource_ho3du")
+
+[sub_resource type="Resource" id="Resource_7w513"]
+script = ExtResource("6_ye4a1")
+
+[sub_resource type="Resource" id="Resource_i7tol"]
+script = ExtResource("7_qgu5j")
+target = SubResource("Resource_7w513")
+key = 4
+value = 3.0
+
+[sub_resource type="Resource" id="Resource_a04jm"]
+script = ExtResource("1_0qsbv")
+id = "eat"
+operations = Array[ExtResource("3_v5wvi")]([SubResource("Resource_e7bkj"), SubResource("Resource_i7tol")])
+
+[resource]
+script = ExtResource("8_pk1xx")
+use_kind = "ingredient"
+amount = 5
+uses_lane = 1
+cooked_hit = 5
+rarity = 2
+tags = PackedStringArray()
+id = "precise_pepper"
+display_name = "Precise Pepper"
+effects = Array[ExtResource("1_0qsbv")]([SubResource("Resource_a04jm")])

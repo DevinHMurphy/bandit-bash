@@ -1,0 +1,52 @@
+[gd_resource type="Resource" script_class="ConsumableDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_dea6y"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_vo6ho"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_lnkek"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="4_g3en2"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="5_1cjqt"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="6_8lugw"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/change_base_stat.gd" id="7_oxd4v"]
+[ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="8_swvh8"]
+
+[sub_resource type="Resource" id="Resource_libyi"]
+script = ExtResource("4_g3en2")
+value = 5.0
+
+[sub_resource type="Resource" id="Resource_s56nb"]
+script = ExtResource("6_8lugw")
+
+[sub_resource type="Resource" id="Resource_0k5ep"]
+script = ExtResource("5_1cjqt")
+pool = 0
+target = SubResource("Resource_s56nb")
+amount = SubResource("Resource_libyi")
+
+[sub_resource type="Resource" id="Resource_n7235"]
+script = ExtResource("6_8lugw")
+
+[sub_resource type="Resource" id="Resource_87an0"]
+script = ExtResource("7_oxd4v")
+target = SubResource("Resource_n7235")
+key = 20
+mode = 1
+value = 5.0
+
+[sub_resource type="Resource" id="Resource_xycaj"]
+script = ExtResource("1_dea6y")
+id = "eat"
+operations = Array[ExtResource("3_lnkek")]([SubResource("Resource_0k5ep"), SubResource("Resource_87an0")])
+
+[resource]
+script = ExtResource("8_swvh8")
+use_kind = "ingredient"
+amount = 5
+uses_lane = 1
+cooked_gains = Dictionary[int, int]({
+4: 1
+})
+rarity = 1
+tags = PackedStringArray()
+id = "cave_carrot"
+display_name = "Cave Carrot"
+effects = Array[ExtResource("1_dea6y")]([SubResource("Resource_xycaj")])

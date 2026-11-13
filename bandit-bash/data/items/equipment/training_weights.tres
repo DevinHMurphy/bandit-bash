@@ -1,0 +1,39 @@
+[gd_resource type="Resource" script_class="EquipmentDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_mlcyc"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_1rd2f"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ccsgr"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_5texx"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/set_permission.gd" id="5_ht748"]
+[ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="6_51h75"]
+
+[sub_resource type="Resource" id="Resource_1sm53"]
+script = ExtResource("4_5texx")
+key = 18
+value = -2.0
+
+[sub_resource type="Resource" id="Resource_dyys5"]
+script = ExtResource("5_ht748")
+permission = 4001
+allow = false
+stat = 2
+
+[sub_resource type="Resource" id="Resource_0gmkn"]
+script = ExtResource("4_5texx")
+key = 2012
+value = 1.0
+stat = 1
+
+[sub_resource type="Resource" id="Resource_h062m"]
+script = ExtResource("1_mlcyc")
+id = "bonuses"
+operations = Array[ExtResource("3_ccsgr")]([SubResource("Resource_1sm53"), SubResource("Resource_dyys5"), SubResource("Resource_0gmkn")])
+
+[resource]
+script = ExtResource("6_51h75")
+category = "band"
+rarity = 2
+tags = PackedStringArray()
+id = "training_weights"
+display_name = "Training Weights"
+effects = Array[ExtResource("1_mlcyc")]([SubResource("Resource_h062m")])

@@ -1,0 +1,52 @@
+[gd_resource type="Resource" script_class="ConsumableDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_0nvdw"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_fyudu"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_tobr7"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="4_ide0i"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="5_3wlc8"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="6_4aomd"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/change_base_stat.gd" id="7_a0bv3"]
+[ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="8_p12uo"]
+
+[sub_resource type="Resource" id="Resource_tw08b"]
+script = ExtResource("4_ide0i")
+value = 10.0
+
+[sub_resource type="Resource" id="Resource_jevy4"]
+script = ExtResource("6_4aomd")
+
+[sub_resource type="Resource" id="Resource_omo30"]
+script = ExtResource("5_3wlc8")
+pool = 0
+target = SubResource("Resource_jevy4")
+amount = SubResource("Resource_tw08b")
+
+[sub_resource type="Resource" id="Resource_05mx2"]
+script = ExtResource("6_4aomd")
+
+[sub_resource type="Resource" id="Resource_4of3x"]
+script = ExtResource("7_a0bv3")
+target = SubResource("Resource_05mx2")
+key = 19
+mode = 1
+value = 10.0
+
+[sub_resource type="Resource" id="Resource_lnwj0"]
+script = ExtResource("1_0nvdw")
+id = "eat"
+operations = Array[ExtResource("3_tobr7")]([SubResource("Resource_omo30"), SubResource("Resource_4of3x")])
+
+[resource]
+script = ExtResource("8_p12uo")
+use_kind = "ingredient"
+amount = 10
+uses_lane = 1
+cooked_gains = Dictionary[int, int]({
+3: 2
+})
+rarity = 3
+tags = PackedStringArray()
+id = "stonebark_essence"
+display_name = "Stonebark Essence"
+effects = Array[ExtResource("1_0nvdw")]([SubResource("Resource_lnwj0")])

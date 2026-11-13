@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="TrinketDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_t2ed0"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_cx630"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_4fw78"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_66c52"]
+[ext_resource type="Script" path="res://scripts/content/trinket_definition.gd" id="5_1ao70"]
+
+[sub_resource type="Resource" id="Resource_yw6bn"]
+script = ExtResource("4_66c52")
+key = 4
+value = 10.0
+
+[sub_resource type="Resource" id="Resource_c4spj"]
+script = ExtResource("1_t2ed0")
+id = "bonuses"
+operations = Array[ExtResource("3_4fw78")]([SubResource("Resource_yw6bn")])
+
+[resource]
+script = ExtResource("5_1ao70")
+rarity = 1
+tags = PackedStringArray()
+id = "scholars_optics"
+display_name = "Scholar's Optics"
+effects = Array[ExtResource("1_t2ed0")]([SubResource("Resource_c4spj")])

@@ -2,7 +2,7 @@
 
 Where the project is, what's next and what's out of scope. Start here.
 
-**Last updated:** November 12, 2026.
+**Last updated:** November 13, 2026.
 
 | Need | File |
 |---|---|
@@ -36,7 +36,7 @@ Where the project is, what's next and what's out of scope. Start here.
 - **Milestones:** M0 and M1 are complete. **Current: M2 Combat complete,** with M3 started alongside.
 - **What runs today:** a solo run opens the M1 battle: the Mercenary army against the Brigand pack on the greybox map. All of M2's battle systems and functional UI work on keyboard, mouse and controller: targeting, forecast, intents, the darkness, every objective's HUD, unit detail, and Save & Quit with resume.
 - **What M2 still needs:** content, enemy AI, docs and bug fixes. No new systems.
-- **Tests:** 3,968 cases, all passing, and a clean headless launch (`sh bandit-bash/tools/run_tests.sh`).
+- **Tests:** 4,244 cases, all passing, and a clean headless launch (`sh bandit-bash/tools/run_tests.sh`).
 - **Not started:** P09 (approved) and P10–P12. P08 is in progress (RN1 merged).
 
 ## Milestones
@@ -47,7 +47,7 @@ The MVP is **one full run, start screen to boss, solo and co-op, on Normal** (ga
 |---|---|---|---|
 | **M0 Foundations** | The engine every system plugs into | P00, P01 | **Complete** October 30, 2026 |
 | **M1 First playable fight** | One greybox combat, start to finish | P02–P07 (subsets) | **Complete** November 5, 2026; its tuning pass is deferred |
-| **M2 Combat complete** | Every MVP combat feature and piece of content, with a functional UI | P02–P07 | **In progress.** Left: P03 CT4, CT5, CT7–CT13, P05 EN6–EN12, M2's maps, BF1, and the docs (EB8, CC9, MP9, DK6, CT11, EN12) |
+| **M2 Combat complete** | Every MVP combat feature and piece of content, with a functional UI | P02–P07 | **In progress.** Left: P03 CT4, CT7–CT13, P05 EN6–EN12, M2's maps, BF1, and the docs (EB8, CC9, MP9, DK6, CT11, EN12) |
 | **M3 Solo run** | Start screen → campaign → boss, saved and resumable; 60–80 minutes | P08, P09 | **In progress.** RN1 merged; RN2 next |
 | **M4 Co-op run** | The same run for 2–4 players, tested live on two machines | P10, P11 | Not started |
 | **M5 MVP** | Statistics, the Waystation war table, the MVP checklist | P12, polish | Not started |
@@ -64,7 +64,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P00 | [Save system](2026-10-13-save-system.md) | **Implemented** | Multiplayer paths untested live | — |
 | P01 | [Event bus and effects](2026-10-23-event-bus-and-effects.md) | **In progress** | EB8 docs | P00 |
 | P02 | [Combat core](2026-10-26-combat-core.md) | **In progress** | CC9 docs | P01 |
-| P03 | [Content catalog](2026-10-29-content-catalog.md) | **In progress** | CT4, CT5, CT7–CT13 | P01 |
+| P03 | [Content catalog](2026-10-29-content-catalog.md) | **In progress** | CT4, CT7–CT13 | P01 |
 | P04 | [Combat map](2026-10-27-combat-map.md) | **In progress** | MP9 docs; M2's maps | P01, P02 |
 | P05 | [Enemies and AI](2026-10-30-enemies-and-ai.md) | **In progress** | EN6–EN16 | P02, P04 |
 | P06 | [The darkness](2026-11-03-the-darkness.md) | **In progress** | DK6 docs | P02, P04 |
@@ -83,9 +83,9 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 **Build prompts resumed** November 12, 2026 (user), two at a time, once planning caught up.
 
 1. **P14:** O1–O4 done (O4 merged November 12, 2026: suites split and run in parallel, a full run in 262 s). O5 waits until a step needs those files.
-2. **Plans:** P08 approved November 12, 2026; RN1 (the map) merged November 12, 2026; RN2 (run state, 🔴 save format) next, once CT5 merges. P09 approved November 12, 2026; EV1 follows RN2. The move-preview re-architecture is adopted ([move-preview.md](../design/move-preview.md)) as P05 EN13–EN16. **Planning is caught up.**
+2. **Plans:** P08 approved November 12, 2026; RN1 (the map) merged November 12, 2026; RN2 (run state, 🔴 save format) next. P09 approved November 12, 2026; EV1 follows RN2. The move-preview re-architecture is adopted ([move-preview.md](../design/move-preview.md)) as P05 EN13–EN16. **Planning is caught up.**
 3. **Then M2's content, two prompts at a time:**
-   - **Wave A (ready):** CT6 target shapes (merged November 12, 2026) with EN6 enemy roster; then CT13 unit roster with CT5 equipment and consumables. EN13 (preview benchmarks and equality suite) runs alongside; EN14–EN16 follow EN6.
+   - **Wave A (ready):** CT6 target shapes (merged November 12, 2026) with EN6 enemy roster; then CT13 unit roster with CT5 equipment and consumables (merged November 13, 2026; the Short Quiver moved to CT4 and the Resonant Ore to RN4). EN13 (preview benchmarks and equality suite) runs alongside; EN14–EN16 follow EN6.
    - **Wave B:** CT4 weapons and staves, CT9 heirlooms and curses, EN10 reinforcement groups, EN9 map-object AI.
    - **Wave C:** CT7 runes, CT8 unit prefixes and pools, CT10 modified prices (its formula goes to the user first).
    - **Wave D:** EN7 elites and bosses (marks leaders on the HUD), EN8 mini-bosses, EN11 the Powder Baron and its map, CT12 weapon prefixes (waits on the vision's weapon-prefix rules).
@@ -95,8 +95,9 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
    - BUG-004 (S2): an enemy with an attack intent moves and doesn't attack; details still asked of the user.
    - BUG-005 (S4): unit detail shows the type id.
    - BUG-006 (S3): NetLog raises an engine error once the peer is cleared.
+   - BUG-008 (S2): a client mirror keeps a used-up consumable, so its hash differs from the host's (a one-line fix).
    - BUG-007 (S3), shared test user folder: **fixed** in BF2, merged November 12, 2026. Each run now has its own folder.
-   - BF1 also removes the confirmed `# ASSUMPTION` markers of UI11 (P07 question 36) and RN1 (P08 questions 14 and 15: `effect_catalog.gd`, `campaign_map_rules.gd`, the `;` comment in `campaign_map_rules.tres`).
+   - BF1 also removes the confirmed `# ASSUMPTION` markers of UI11 (P07 question 36) and RN1 (P08 questions 14 and 15: `effect_catalog.gd`, `campaign_map_rules.gd`, the `;` comment in `campaign_map_rules.tres`), and settles CT5's `HIT_STAT = 100` marker in `combat_value.gd`.
 5. **M2's exit:** playtest a full M2 map set, folding in the deferred M1 tuning pass.
 6. **Later:** one public `Pathing.path_to` (P07 question 15 d); vision updates for the ideation thread.
 

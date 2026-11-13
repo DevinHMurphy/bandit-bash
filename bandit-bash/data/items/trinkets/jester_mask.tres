@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="TrinketDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_ayckg"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_x4tvu"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_nqgp2"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/set_permission.gd" id="4_bvg5u"]
+[ext_resource type="Script" path="res://scripts/content/trinket_definition.gd" id="5_a2f3v"]
+
+[sub_resource type="Resource" id="Resource_xgo8a"]
+script = ExtResource("4_bvg5u")
+permission = 3004
+
+[sub_resource type="Resource" id="Resource_aqwwx"]
+script = ExtResource("1_ayckg")
+id = "bonuses"
+operations = Array[ExtResource("3_nqgp2")]([SubResource("Resource_xgo8a")])
+
+[resource]
+script = ExtResource("5_a2f3v")
+rarity = 3
+tags = PackedStringArray()
+id = "jester_mask"
+display_name = "Jester Mask"
+effects = Array[ExtResource("1_ayckg")]([SubResource("Resource_aqwwx")])

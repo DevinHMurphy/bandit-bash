@@ -1,0 +1,52 @@
+[gd_resource type="Resource" script_class="ConsumableDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_2mfc2"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_l5sxq"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_hp53s"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="4_cppq4"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="5_adqwk"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="6_omfo2"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/change_base_stat.gd" id="7_r200f"]
+[ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="8_r84wr"]
+
+[sub_resource type="Resource" id="Resource_vyrqi"]
+script = ExtResource("4_cppq4")
+value = 10.0
+
+[sub_resource type="Resource" id="Resource_urp3s"]
+script = ExtResource("6_omfo2")
+
+[sub_resource type="Resource" id="Resource_5tgsv"]
+script = ExtResource("5_adqwk")
+pool = 0
+target = SubResource("Resource_urp3s")
+amount = SubResource("Resource_vyrqi")
+
+[sub_resource type="Resource" id="Resource_7hi3l"]
+script = ExtResource("6_omfo2")
+
+[sub_resource type="Resource" id="Resource_um7na"]
+script = ExtResource("7_r200f")
+target = SubResource("Resource_7hi3l")
+key = 18
+mode = 1
+value = 10.0
+
+[sub_resource type="Resource" id="Resource_vx70q"]
+script = ExtResource("1_2mfc2")
+id = "eat"
+operations = Array[ExtResource("3_hp53s")]([SubResource("Resource_5tgsv"), SubResource("Resource_um7na")])
+
+[resource]
+script = ExtResource("8_r84wr")
+use_kind = "ingredient"
+amount = 10
+uses_lane = 1
+cooked_gains = Dictionary[int, int]({
+2: 2
+})
+rarity = 2
+tags = PackedStringArray()
+id = "swift_shellfish"
+display_name = "Swift Shellfish"
+effects = Array[ExtResource("1_2mfc2")]([SubResource("Resource_vx70q")])
