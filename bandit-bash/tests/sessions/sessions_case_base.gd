@@ -6,7 +6,7 @@
 # File:     sessions_case_base.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 9, 2026
+# Modified: November 12, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -133,7 +133,8 @@ func _kinds_of(facts: Array[CombatFact]) -> String:
 	return " ".join(names)
 
 
-# Whether this run uses a test user folder, which the lifecycle cases need (see the class doc).
+# Whether this run uses a test user folder, which the lifecycle cases need (see run_all.gd's class
+# doc): a custom one whose name starts "bandit_bash_tests", as tools/run_tests.sh names each run's.
 func _has_test_user_dir() -> bool:
 	var custom_dir: bool = ProjectSettings.get_setting(
 			"application/config/use_custom_user_dir", false
@@ -141,7 +142,7 @@ func _has_test_user_dir() -> bool:
 	var dir_name: String = ProjectSettings.get_setting(
 			"application/config/custom_user_dir_name", ""
 	)
-	return custom_dir and dir_name.contains("test")
+	return custom_dir and dir_name.begins_with("bandit_bash_tests")
 
 
 # Runs one case. A script error aborts a case without failing a check, so each case returns true

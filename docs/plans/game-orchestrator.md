@@ -83,7 +83,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 **Build prompts resumed** November 12, 2026 (user), two at a time, once planning caught up.
 
 1. **P14:** O1–O4 done (O4 merged November 12, 2026: suites split and run in parallel, a full run in 262 s). O5 waits until a step needs those files.
-2. **Plans:** P08 approved November 12, 2026; RN1 (the map) merged November 12, 2026; RN2 (run state, 🔴 save format) next. P09 approved November 12, 2026; EV1 follows RN2. The move-preview re-architecture is adopted ([move-preview.md](../design/move-preview.md)) as P05 EN13–EN16. **Planning is caught up.**
+2. **Plans:** P08 approved November 12, 2026; RN1 (the map) merged November 12, 2026; RN2 (run state, 🔴 save format) next, once CT5 merges. P09 approved November 12, 2026; EV1 follows RN2. The move-preview re-architecture is adopted ([move-preview.md](../design/move-preview.md)) as P05 EN13–EN16. **Planning is caught up.**
 3. **Then M2's content, two prompts at a time:**
    - **Wave A (ready):** CT6 target shapes (merged November 12, 2026) with EN6 enemy roster; then CT13 unit roster with CT5 equipment and consumables. EN13 (preview benchmarks and equality suite) runs alongside; EN14–EN16 follow EN6.
    - **Wave B:** CT4 weapons and staves, CT9 heirlooms and curses, EN10 reinforcement groups, EN9 map-object AI.
@@ -95,7 +95,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
    - BUG-004 (S2): an enemy with an attack intent moves and doesn't attack; details still asked of the user.
    - BUG-005 (S4): unit detail shows the type id.
    - BUG-006 (S3): NetLog raises an engine error once the peer is cleared.
-   - BUG-007 (S3): test runs in two worktrees at once share one test user folder. **Fix step BF2,** prompt issued November 12, 2026.
+   - BUG-007 (S3), shared test user folder: **fixed** in BF2, merged November 12, 2026. Each run now has its own folder.
    - BF1 also removes the confirmed `# ASSUMPTION` markers of UI11 (P07 question 36) and RN1 (P08 questions 14 and 15: `effect_catalog.gd`, `campaign_map_rules.gd`, the `;` comment in `campaign_map_rules.tres`).
 5. **M2's exit:** playtest a full M2 map set, folding in the deferred M1 tuning pass.
 6. **Later:** one public `Pathing.path_to` (P07 question 15 d); vision updates for the ideation thread.

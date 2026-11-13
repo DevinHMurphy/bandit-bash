@@ -6,23 +6,22 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 9, 2026
+# Modified: November 12, 2026
 # ==============================================================================
 
 extends SceneTree
 ## Headless tests for the sessions layer, a case file per topic (each one's class doc lists its
 ## checks): queue_cases.gd, encounter_cases.gd, bridge_cases.gd, service_cases.gd, resume_cases.gd,
 ## logging_cases.gd, wire_cases.gd, save_cases.gd and map_save_cases.gd. Every catalog definition
-## and loadout fixture is hashed before the first case and after the last, and the run fails if
-## any changed.[br]
+## and loadout fixture is hashed before the first case and after the last; any change fails.[br]
 ## Run from the repo root:
 ## [code]godot --headless --path bandit-bash --script res://tests/sessions/run_all.gd[/code].
-## Prints PASS or FAIL per case and exits with code 1 if any fails; only FAIL lines mean a problem.
-## The cases run on the first frame, when autoloads exist. This script compiles before they are
-## registered, so it reaches them as nodes.[br]
-## [b]Lifecycle cases[/b] write save files, so they need an [code]override.cfg[/code] in
-## [code]bandit-bash/[/code] (never commit it) setting [code]config/use_custom_user_dir=true[/code]
-## and [code]config/custom_user_dir_name="bandit_bash_tests"[/code]; the test runner makes one.
+## Prints PASS or FAIL per case and exits with code 1 if any fails. The cases run on the first
+## frame, when autoloads exist; this script compiles before they are registered, so it reaches
+## them as nodes.[br]
+## [b]Lifecycle cases[/b] write save files, so they run only when an [code]override.cfg[/code]
+## (never committed) sets a custom user folder whose name starts [code]bandit_bash_tests[/code],
+## and are skipped otherwise; [code]tools/run_tests.sh[/code] writes one, unique to each run.
 
 # Preloaded scripts used as types (gdscript.md, Naming): the content suite's hashing, the loadout
 # fixture tree the definitions hash covers, and the case scripts (no class name).

@@ -6,7 +6,7 @@
 # File:     ui_suite.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 9, 2026
+# Modified: November 12, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -76,6 +76,8 @@ func _skip(case_name: String, reason: String) -> void:
 	print("SKIP  %s: %s" % [case_name, reason])
 
 
+# Whether this run uses a test user folder, which the screen cases need: a custom one whose name
+# starts "bandit_bash_tests", as tools/run_tests.sh names each run's, so a real one is never used.
 func _has_test_user_dir() -> bool:
 	var custom_dir: bool = ProjectSettings.get_setting(
 			"application/config/use_custom_user_dir", false
@@ -83,7 +85,7 @@ func _has_test_user_dir() -> bool:
 	var dir_name: String = ProjectSettings.get_setting(
 			"application/config/custom_user_dir_name", ""
 	)
-	return custom_dir and dir_name == "bandit_bash_tests"
+	return custom_dir and dir_name.begins_with("bandit_bash_tests")
 
 
 # A press and release of key, by its physical position, as the input map binds it, and by its

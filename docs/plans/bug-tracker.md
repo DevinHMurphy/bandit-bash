@@ -44,7 +44,6 @@ Not a bug.
 | [BUG-004](#bug-004-an-enemy-with-an-attack-intent-moves-and-doesnt-attack) | An enemy with an attack intent moves and doesn't attack; the next enemy hits its target | P05 / P07 | S2 | New | November 6, 2026, user playtest | — |
 | [BUG-005](#bug-005-unit-detail-shows-the-type-id-not-its-name) | Unit detail shows the type id, not its name | P07 | S4 | Assigned (BF1) | November 7, 2026, UI11 report | BF1 |
 | [BUG-006](#bug-006-netlog-raises-an-engine-error-once-the-peer-is-cleared) | NetLog raises an engine error once the peer is cleared | P00 / P10 | S3 | Assigned (BF1) | November 9, 2026, O3 report | BF1 |
-| [BUG-007](#bug-007-test-runs-in-two-worktrees-share-one-user-folder) | Test runs in two worktrees share one user folder | P14 (runner) | S3 | Assigned (BF2) | November 12, 2026, CT6 report | BF2 |
 
 ### BUG-001 No Block at the start of combat
 
@@ -145,9 +144,16 @@ Not a bug.
 - **Workaround until fixed:** a `sessions` or `save` failure during another worktree's run is
   rerun once before it counts.
 - **Seen again:** RN1's report: `ui/board` failed 3 save cases ("Already exists") while CT6's worktree ran; it passed alone and on a rerun. So any suite that writes to `user://` is affected.
+- **Fixed** in BF2 (76774d4, merged November 12, 2026). Each run names its folder
+  `bandit_bash_tests_<pid>_<random>` and prints it. It deletes only that folder, at the end and on
+  interrupt, after copying its `logs/` into the run's log folder. The ui and sessions guards accept
+  the `bandit_bash_tests` prefix. Regression: with the old runner, concurrent runs collided in 2 of 3
+  rounds; with the fix, none did. The old folders `%APPDATA%\bandit_bash_tests` and
+  `bandit_bash_tests_r5` are left for the user to delete.
 
 ## Closed bugs
 
 | ID | Title | Area | Sev | Closed as | Verified |
 |----|-------|------|-----|----------|----------|
 | [BUG-001](#bug-001-no-block-at-the-start-of-combat) | No unit has Block at the start of combat | P01 / P02 / P03 | S2 | Can't reproduce (November 7, 2026; no base Block, Vanguard fires on turn 1) | — |
+| [BUG-007](#bug-007-test-runs-in-two-worktrees-share-one-user-folder) | Test runs in two worktrees share one user folder | P14 (runner) | S3 | Fixed (BF2, 76774d4, November 12, 2026) | — |
