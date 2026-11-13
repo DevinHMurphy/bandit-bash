@@ -24,12 +24,12 @@ extends RefCounted
 ## no Basic, Legendary or Unique item has one, and an item with uses has no charged use effect of
 ## its own (enemies and AI plan, question 18 (d)), every [Area] reuses a shape file from
 ## [code]shapes/[/code] (question 17); and (event bus plan, question 50) no effect lacks
-## operations, no faction lists its commander among its starting units, and starting gear fits
-## its slots. P05's rules (enemies and AI plan, EN1): enemy classes live in enemies/ and packs in
-## enemies/packs/, a pack names only enemy classes, each at least once, and an enemy class has
-## target rule text and is never a commander or given a role. P02's rule (event bus plan,
-## question 60): every effect inside a carrier has an id unique within it, which saves name it
-## by. [constant LOAD] fails a file the catalog turned away.[br]
+## operations but a key's or lockpick's use effect (CT5), no faction lists its commander among its
+## starting units, and starting gear fits its slots. P05's rules (enemies and AI plan, EN1): enemy
+## classes live in enemies/ and packs in enemies/packs/, a pack names only enemy classes, each at
+## least once, and an enemy class has target rule text and is never a commander or given a role.
+## P02's rule (event bus plan, question 60): every effect inside a carrier has an id unique within
+## it, which saves name it by. [constant LOAD] fails a file the catalog turned away.[br]
 ## The price rules read the price through a callable, so their fixtures can run against a table
 ## with a row missing or a price for an unsold rarity, which [Prices] itself never has.
 ##
@@ -357,6 +357,7 @@ func _check_string_ids(path: String, resource: Resource) -> void:
 	elif resource is EquipmentDefinition:
 		var equipment: EquipmentDefinition = resource
 		_known(path, "category", equipment.category, ContentIds.EQUIPMENT_CATEGORIES)
+		_known_all(path, "granted_tags", equipment.granted_tags, ContentIds.TAGS)
 	elif resource is ConsumableDefinition:
 		var consumable: ConsumableDefinition = resource
 		_known(path, "use_kind", consumable.use_kind, ContentIds.CONSUMABLE_USE_KINDS)
@@ -408,7 +409,7 @@ func _check_effects(path: String, resource: Resource) -> void:
 			_fail(EMPTY_TEXT, path, "%s is empty" % [where])
 			continue
 		_check_effect_text(path, where, effect)
-		if effect.operations.is_empty():
+		if effect.operations.is_empty() and not _is_opener(resource, effect):
 			_fail(NO_OPERATIONS, path, "%s has no operations" % [where])
 		if is_heirloom:
 			_check_heirloom_scope(path, where, effect)
@@ -418,6 +419,17 @@ func _check_effects(path: String, resource: Resource) -> void:
 					_fail(INLINE_WITHOUT_WINDOW, path, "%s: \"%s\" is inline on %s" % [
 						where, operation.describe(), EffectTerms.TRIGGER_TEXT[effect.trigger],
 					])
+
+
+# Whether [param effect] is a key's or lockpick's use effect: its id is the one MapObjects finds it
+# by, and the consumable's use kind is the same word ("key" or "lockpick"). It needs no
+# operations: opening the lock is MapObjects'.
+func _is_opener(resource: Resource, effect: EffectDefinition) -> bool:
+	if not resource is ConsumableDefinition:
+		return false
+	var consumable: ConsumableDefinition = resource
+	var opener_ids: PackedStringArray = [MapObjects.KEY_EFFECT_ID, MapObjects.LOCKPICK_EFFECT_ID]
+	return opener_ids.has(effect.id) and consumable.use_kind == effect.id
 
 
 # An unset slot is the text rule's, so only the set effects are checked here.

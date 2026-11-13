@@ -6,7 +6,7 @@
 # File:     effect_engine.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 5, 2026
+# Modified: November 12, 2026
 # ==============================================================================
 
 class_name EffectEngine
@@ -1156,7 +1156,7 @@ func _follow_modifier_expired(fact: CombatFact) -> void:
 # rounded amount when the effect has none.
 func _follow_stat_changed(fact: CombatFact) -> void:
 	var instance: EffectInstance = get_instance(fact.source_effect_id)
-	var key: int = CombatValue.STAT_KEYS.get(fact.key, -1)
+	var key: int = CombatValue.PERMANENT_KEYS.get(fact.key, -1)
 	if instance == null or key < 0:
 		return
 	var value: float = fact.amount

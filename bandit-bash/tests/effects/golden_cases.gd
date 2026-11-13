@@ -6,7 +6,7 @@
 # File:     golden_cases.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 29, 2026
+# Modified: November 12, 2026
 # ==============================================================================
 
 extends "res://tests/effects/engine_cases.gd"
@@ -789,7 +789,7 @@ func _test_stat_changed() -> void:
 	_harness(engine).use_item("p1", "p1", item)
 	_golden("STAT_CHANGED from a stat booster", engine)
 	var wrong: ChangeBaseStat = ChangeBaseStat.new()
-	wrong.key = CombatValue.Key.HIT
+	wrong.key = CombatValue.Key.AVOID
 	wrong.value = 1.0
 	wrong.apply(_context(engine, item))
 	_ok("STAT_CHANGED: a key that isn't a base stat is reported", engine.diagnostics.size() == 1)

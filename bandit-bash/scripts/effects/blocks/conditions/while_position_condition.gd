@@ -6,14 +6,15 @@
 # File:     while_position_condition.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 29, 2026
+# Modified: November 12, 2026
 # ==============================================================================
 
 @tool
 class_name WhilePositionCondition
 extends EffectCondition
-## Passes while this unit's position or movement fits: at maximum range, moved N+ tiles, hasn't
-## moved, no ally closer to an enemy, adjacent to or within N tiles of a unit.
+## Passes while this unit's position or movement fits: at maximum range, at range N or more,
+## moved N+ tiles, hasn't moved, no ally closer to an enemy, adjacent to or within N tiles of a
+## unit.
 ##
 ## Terms follow effect-triggers.md, Position and movement: adjacent means the four orthogonal
 ## neighbors; "within N tiles" is grid distance, ignoring walls and terrain, the only effect
@@ -35,14 +36,19 @@ enum Kind {
 	ADJACENT_TO = 4,
 	## A unit of [member side] is within [member tiles] tiles by grid distance.
 	WITHIN = 5,
+	## The opponent is [member tiles] or more tiles away, by the attack's distance: "Hit dealt at
+	## range 2 or more" (the Simple Quiver). Fails outside an attack.
+	RANGE_AT_LEAST = 6,
 }
 
 ## The position test.
 @export var kind: Kind = Kind.AT_MAXIMUM_RANGE
 
-## Tiles for [constant MOVED_AT_LEAST] and [constant WITHIN]; ignored by the other kinds.
+## Tiles for [constant MOVED_AT_LEAST], [constant WITHIN] and [constant RANGE_AT_LEAST]; ignored
+## by the other kinds.
 ##
-## [b]Units:[/b] tiles. [b]1 with WITHIN:[/b] the same as adjacent.
+## [b]Units:[/b] tiles. [b]1 with WITHIN:[/b] the same as adjacent. [b]1 with RANGE_AT_LEAST:[/b]
+## any attack.
 @export_range(0, 99) var tiles: int = 1
 
 ## Which units count for [constant ADJACENT_TO] and [constant WITHIN]; ignored by the others.
@@ -64,6 +70,8 @@ func describe() -> String:
 		Kind.WITHIN:
 			var unit_word: String = "tile" if tiles == 1 else "tiles"
 			return "while within %d %s of %s" % [tiles, unit_word, _side_noun()]
+		Kind.RANGE_AT_LEAST:
+			return "while at range %d or more" % [tiles]
 	return "while in position"
 
 
@@ -87,6 +95,10 @@ func test(ctx: EffectContext) -> bool:
 			return _any_near(engine, unit_id, 1)
 		Kind.WITHIN:
 			return _any_near(engine, unit_id, tiles)
+		Kind.RANGE_AT_LEAST:
+			if ctx.opponent_of(unit_id).is_empty():
+				return false
+			return ctx.distance >= tiles
 	return false
 
 

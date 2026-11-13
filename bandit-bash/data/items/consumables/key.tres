@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ConsumableDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_uc8ps"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_30hse"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_cd65s"]
+[ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="4_fxlg2"]
+
+[sub_resource type="Resource" id="Resource_4iqly"]
+script = ExtResource("1_uc8ps")
+id = "key"
+
+[resource]
+script = ExtResource("4_fxlg2")
+use_kind = "key"
+uses = 2
+uses_lane = 1
+rarity = 1
+tags = PackedStringArray()
+id = "key"
+display_name = "Key"
+effects = Array[ExtResource("1_uc8ps")]([SubResource("Resource_4iqly")])

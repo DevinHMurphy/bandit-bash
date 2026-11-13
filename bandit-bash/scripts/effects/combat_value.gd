@@ -6,7 +6,7 @@
 # File:     combat_value.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 29, 2026
+# Modified: November 12, 2026
 # ==============================================================================
 
 class_name CombatValue
@@ -69,7 +69,7 @@ enum Key {
 
 ## A base stat, for modifiers of per-stat keys ([constant CampaignValue.STAT_CAN_GROW],
 ## [constant CampaignValue.LEVEL_UP_GUARANTEED_GAINS]) and for the units plan's growths. Saved as an
-## int: [b]append only[/b], with explicit values.
+## int: [b]append only[/b], with explicit values below [constant HIT_STAT].
 enum Stat {
 	## Maximum HP.
 	HP = 0,
@@ -114,6 +114,25 @@ const STAT_KEYS: Dictionary[int, int] = {
 	Stat.RES: Key.RES,
 	Stat.CON: Key.CON,
 	Stat.MOV: Key.MOVEMENT,
+}
+
+## The stat number a permanent Hit change records as its [constant CombatFact.Kind.STAT_CHANGED]
+## key (a Hit stat booster or ingredient; items.md, Stat boosters). Hit is no [enum Stat]: it has
+## no base and no growth, so per-stat keys never name it.
+# ASSUMPTION: a number apart from the Stat values, so an appended stat never collides with it.
+const HIT_STAT: int = 100
+
+## The value key of each stat number a permanent change can raise ([ChangeBaseStat] in its base
+## mode): every [enum Stat]'s, and Hit's ([constant HIT_STAT]).
+const PERMANENT_KEYS: Dictionary[int, int] = {
+	Stat.HP: Key.HP,
+	Stat.MGT: Key.MGT,
+	Stat.SPD: Key.SPD,
+	Stat.DEF: Key.DEF,
+	Stat.RES: Key.RES,
+	Stat.CON: Key.CON,
+	Stat.MOV: Key.MOVEMENT,
+	HIT_STAT: Key.HIT,
 }
 
 ## The base of each key a unit has without one being set; keys not listed start at 0.

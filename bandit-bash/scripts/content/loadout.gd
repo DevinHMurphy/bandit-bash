@@ -14,9 +14,10 @@ extends RefCounted
 ## The loadout step: turns a unit's and its items' instances, with their definitions, into what a
 ## battle places, for player and enemy units alike (content catalog plan, questions 4 and 14).
 ##
-## [method load_unit] builds the [CombatUnitState] (type, role, tags, movement type, HP, slots),
-## its base values (the type's seven stats and Stance), one weapon record per carried weapon from
-## its [WeaponDefinition], and its effect instances: the trait (the "+" trait once upgraded),
+## [method load_unit] builds the [CombatUnitState] (type, role, tags with its Equipment's
+## [member EquipmentDefinition.granted_tags], movement type, HP, slots), its base values (the
+## type's seven stats and Stance), one weapon record per carried weapon from its
+## [WeaponDefinition], and its effect instances: the trait (the "+" trait once upgraded),
 ## innate effects, each [method UnitInstance.stat_sources] change, and each carried item's
 ## effects, granted effects, weapon prefix and stat deltas. Every change on top of a base is an
 ## always-on effect sourced to what made it, so breakdowns name it; a stowed weapon's sleep with
@@ -217,6 +218,12 @@ static func _load_slot(
 			fits = definition is EquipmentDefinition
 			state.equipment_id = item_id if fits else ""
 			kind = Modifier.SourceKind.EQUIPMENT
+			if fits:
+				var equipment: EquipmentDefinition = definition
+				_check_listed(loaded, who, "tag", equipment.granted_tags, ContentIds.TAGS)
+				var tags: PackedStringArray = state.tags
+				_append_new(tags, equipment.granted_tags)
+				state.tags = tags
 		Slot.POUCH:
 			fits = not definition is EquipmentDefinition
 			if definition is WeaponDefinition:

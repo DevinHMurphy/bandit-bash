@@ -1,0 +1,46 @@
+[gd_resource type="Resource" script_class="EquipmentDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_8pwvl"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_mm54e"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_1xbtd"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_ymg88"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/stat_of.gd" id="5_jucpg"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="6_wnx42"]
+[ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="7_out3k"]
+
+[sub_resource type="Resource" id="Resource_0wxa7"]
+script = ExtResource("4_ymg88")
+key = 16
+value = 4.0
+
+[sub_resource type="Resource" id="Resource_vs5o6"]
+script = ExtResource("1_8pwvl")
+id = "bonuses"
+operations = Array[ExtResource("3_1xbtd")]([SubResource("Resource_0wxa7")])
+
+[sub_resource type="Resource" id="Resource_7wrfj"]
+script = ExtResource("5_jucpg")
+key = 16
+percent = 10
+
+[sub_resource type="Resource" id="Resource_hpr7v"]
+script = ExtResource("6_wnx42")
+pool = 0
+amount = SubResource("Resource_7wrfj")
+
+[sub_resource type="Resource" id="Resource_5lsuq"]
+script = ExtResource("1_8pwvl")
+id = "phase_end_heal"
+trigger = 6
+operations = Array[ExtResource("3_1xbtd")]([SubResource("Resource_hpr7v")])
+
+[resource]
+script = ExtResource("7_out3k")
+category = "band"
+granted_tags = PackedStringArray()
+rarity = 3
+weight = 1
+tags = PackedStringArray()
+id = "sunshard_band"
+display_name = "Sunshard Band"
+effects = Array[ExtResource("1_8pwvl")]([SubResource("Resource_vs5o6"), SubResource("Resource_5lsuq")])

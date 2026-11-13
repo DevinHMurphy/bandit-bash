@@ -1,0 +1,49 @@
+[gd_resource type="Resource" script_class="ConsumableDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_bx2ei"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_34i3d"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_hpqnk"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="4_5pnr5"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="5_1aq2y"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="6_wiplf"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/change_base_stat.gd" id="7_macwj"]
+[ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="8_s2xin"]
+
+[sub_resource type="Resource" id="Resource_5xj2e"]
+script = ExtResource("4_5pnr5")
+value = 10.0
+
+[sub_resource type="Resource" id="Resource_w1rie"]
+script = ExtResource("6_wiplf")
+
+[sub_resource type="Resource" id="Resource_ibf1a"]
+script = ExtResource("5_1aq2y")
+pool = 0
+target = SubResource("Resource_w1rie")
+amount = SubResource("Resource_5xj2e")
+
+[sub_resource type="Resource" id="Resource_2n034"]
+script = ExtResource("6_wiplf")
+
+[sub_resource type="Resource" id="Resource_cvduw"]
+script = ExtResource("7_macwj")
+target = SubResource("Resource_2n034")
+key = 4
+value = 5.0
+
+[sub_resource type="Resource" id="Resource_sq5lo"]
+script = ExtResource("1_bx2ei")
+id = "eat"
+operations = Array[ExtResource("3_hpqnk")]([SubResource("Resource_ibf1a"), SubResource("Resource_cvduw")])
+
+[resource]
+script = ExtResource("8_s2xin")
+use_kind = "ingredient"
+amount = 10
+uses_lane = 1
+cooked_hit = 10
+rarity = 3
+tags = PackedStringArray()
+id = "finesse_filet"
+display_name = "Finesse Filet"
+effects = Array[ExtResource("1_bx2ei")]([SubResource("Resource_sq5lo")])

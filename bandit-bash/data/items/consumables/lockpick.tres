@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ConsumableDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_04lr3"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_jgrfb"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_6pmwe"]
+[ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="4_rhvi7"]
+
+[sub_resource type="Resource" id="Resource_8dm4n"]
+script = ExtResource("1_04lr3")
+id = "lockpick"
+
+[resource]
+script = ExtResource("4_rhvi7")
+use_kind = "lockpick"
+uses = 0
+uses_lane = 1
+rarity = 1
+tags = PackedStringArray()
+id = "lockpick"
+display_name = "Lockpick"
+effects = Array[ExtResource("1_04lr3")]([SubResource("Resource_8dm4n")])
