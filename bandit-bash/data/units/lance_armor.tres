@@ -1,0 +1,49 @@
+[gd_resource type="Resource" script_class="UnitTypeDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_mod"]
+[ext_resource type="Script" path="res://scripts/content/unit_type_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_parry"]
+script = ExtResource("4_mod")
+key = 3
+mode = 1
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_bulwark"]
+script = ExtResource("1_eff")
+id = "bulwark"
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_parry")])
+
+[sub_resource type="Resource" id="Resource_stance_plus"]
+script = ExtResource("4_mod")
+key = 8
+mode = 1
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_bulwark_plus"]
+script = ExtResource("1_eff")
+id = "bulwark_plus"
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_parry"), SubResource("Resource_stance_plus")])
+
+[resource]
+script = ExtResource("9_def")
+trait_name = "Bulwark"
+role = "armored"
+weapon_types = PackedStringArray("lance")
+movement_type = 1
+tags = PackedStringArray("armored")
+stance = 3
+starting_weapon_id = "simple_lance"
+innate_effects = Array[ExtResource("1_eff")]([])
+base_stats = Dictionary[int, int]({0: 23, 1: 7, 2: 2, 3: 7, 4: 1, 5: 14, 6: 4})
+growths = Dictionary[int, int]({0: 75, 1: 47, 2: 15, 3: 48, 4: 20})
+upgraded_effects = Array[ExtResource("1_eff")]([SubResource("Resource_bulwark_plus")])
+upgrade_stat_gains = Dictionary[int, int]({0: 4, 3: 1})
+upgrade_weapon_types = PackedStringArray()
+upgrade_tags = PackedStringArray()
+is_commander = false
+id = "lance_armor"
+display_name = "Lance Armor"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_bulwark")])

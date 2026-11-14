@@ -1,0 +1,68 @@
+[gd_resource type="Resource" script_class="UnitTypeDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="4_gain"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/area.gd" id="5_area"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="6_con"]
+[ext_resource type="Resource" path="res://data/shapes/adjacent.tres" id="7_adj"]
+[ext_resource type="Script" path="res://scripts/content/unit_type_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_adjacent_allies"]
+script = ExtResource("5_area")
+center = 0
+shape = ExtResource("7_adj")
+side = 0
+
+[sub_resource type="Resource" id="Resource_amount"]
+script = ExtResource("6_con")
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_block"]
+script = ExtResource("4_gain")
+pool = 1
+target = SubResource("Resource_adjacent_allies")
+amount = SubResource("Resource_amount")
+
+[sub_resource type="Resource" id="Resource_radiance"]
+script = ExtResource("1_eff")
+id = "radiance"
+trigger = 5
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_block")])
+
+[sub_resource type="Resource" id="Resource_amount_plus"]
+script = ExtResource("6_con")
+value = 2.0
+
+[sub_resource type="Resource" id="Resource_block_plus"]
+script = ExtResource("4_gain")
+pool = 1
+target = SubResource("Resource_adjacent_allies")
+amount = SubResource("Resource_amount_plus")
+
+[sub_resource type="Resource" id="Resource_radiance_plus"]
+script = ExtResource("1_eff")
+id = "radiance_plus"
+trigger = 5
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_block_plus")])
+
+[resource]
+script = ExtResource("9_def")
+trait_name = "Radiance"
+role = "holy"
+weapon_types = PackedStringArray("holy")
+movement_type = 0
+tags = PackedStringArray()
+stance = 1
+starting_weapon_id = "simple_holy"
+innate_effects = Array[ExtResource("1_eff")]([])
+base_stats = Dictionary[int, int]({0: 18, 1: 1, 2: 7, 3: 1, 4: 4, 5: 6, 6: 5})
+growths = Dictionary[int, int]({0: 55, 1: 37, 2: 55, 3: 10, 4: 35})
+upgraded_effects = Array[ExtResource("1_eff")]([SubResource("Resource_radiance_plus")])
+upgrade_stat_gains = Dictionary[int, int]({1: 1, 2: 1, 4: 1})
+upgrade_weapon_types = PackedStringArray()
+upgrade_tags = PackedStringArray()
+is_commander = false
+id = "suncaster"
+display_name = "Suncaster"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_radiance")])

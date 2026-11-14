@@ -6,7 +6,7 @@
 # File:     loadout_cases.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 12, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -21,8 +21,8 @@ extends RefCounted
 ## in combat. Reports each case through the check callable it is given.
 ##
 ## The fixture tree [constant TREE] is a data root with the roster's numbers for the Archer, the
-## Thief (with [constant CombatValue.Permission.CAN_PICK_LOCKS] in its innate effects; no real
-## Thief exists until CT13) and the Drengr, enemy-roster.md's for the Brute and the Hedge Healer,
+## Thief (with [constant CombatValue.Permission.CAN_PICK_LOCKS] in its innate effects, apart from
+## the real Thief's data) and the Drengr, enemy-roster.md's for the Brute and the Hedge Healer,
 ## a Minor Heal with 3 uses per map, and a Medic to hold it on the player side. Bad-data messages
 ## are pushed as errors on purpose.
 

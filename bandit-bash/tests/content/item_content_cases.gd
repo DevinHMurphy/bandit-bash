@@ -6,7 +6,7 @@
 # File:     item_content_cases.gd
 # Author:
 # Created:  November 12, 2026
-# Modified: November 12, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -641,27 +641,34 @@ func _test_key() -> void:
 	), second.rejected_reason)
 
 
-# The real Lockpick: a unit that can't pick locks can't open the chest with it; a lock picker
-# opens it twice and keeps it.
+# The real Lockpick: a Hakkapel, which can't pick locks, can't open the chest with it; the real
+# Thief, whose innate effect grants lock picking, opens it twice and keeps it.
 func _test_lockpick() -> void:
-	var session: CombatSession = _chest_session()
-	var who: String = _place(session, "hakkapel", PLAYER, 0, CHEST_TILE, "", "lockpick")
-	if who.is_empty() or session.open_battle().is_rejected():
-		_ok("lockpick: the battle loads", false)
+	var refused: CombatSession = _chest_session()
+	var hakkapel: String = _place(refused, "hakkapel", PLAYER, 0, CHEST_TILE, "", "lockpick")
+	if hakkapel.is_empty() or refused.open_battle().is_rejected():
+		_ok("lockpick: the Hakkapel's battle loads", false)
 		return
-	var pick: String = session.state.unit(who).pouch_item_id
 	_same(
 			"lockpick: only a lock picker uses it",
-			MapObjects.check_use(session.engine, session.state, who, CHEST_ID, pick),
+			MapObjects.check_use(
+					refused.engine, refused.state, hakkapel, CHEST_ID,
+					refused.state.unit(hakkapel).pouch_item_id
+			),
 			"can't pick locks"
 	)
-	_grant_lock_picking(session, who)
+	var session: CombatSession = _chest_session()
+	var thief: String = _place(session, "thief", PLAYER, 0, CHEST_TILE, "", "lockpick")
+	if thief.is_empty() or session.open_battle().is_rejected():
+		_ok("lockpick: the Thief's battle loads", false)
+		return
+	var pick: String = session.state.unit(thief).pouch_item_id
 	var opened: PackedStringArray = []
 	for _attempt: int in 2:
-		var batch: CombatSession.FactBatch = _open_chest(session, who, pick)
+		var batch: CombatSession.FactBatch = _open_chest(session, thief, pick)
 		opened.append(batch.rejected_reason if batch.is_rejected() else "opened")
-	_same("lockpick: a lock picker opens it twice", " ".join(opened), "opened opened")
-	_ok("lockpick: never used up", session.state.unit(who).pouch_item_id == pick)
+	_same("lockpick: the Thief opens it twice", " ".join(opened), "opened opened")
+	_ok("lockpick: never used up", session.state.unit(thief).pouch_item_id == pick)
 
 
 func _session() -> CombatSession:
@@ -700,22 +707,6 @@ func _open_chest(
 	command.item_id = item_id
 	session.submit(command)
 	return session.resolve_next()
-
-
-# Stands in for the Thief's innate grant (P03 CT13): CAN_PICK_LOCKS for [param unit_id].
-func _grant_lock_picking(session: CombatSession, unit_id: String) -> void:
-	var grant: SetPermission = SetPermission.new()
-	grant.permission = CombatValue.Permission.CAN_PICK_LOCKS
-	grant.allow = true
-	var effect: EffectDefinition = EffectDefinition.new()
-	effect.id = "lock_picker"
-	effect.operations.assign([grant])
-	session.engine.register(EffectInstance.new(
-			"effect:lock_picker:%s" % [unit_id],
-			effect,
-			EffectOwner.for_unit(unit_id, session.state.seat_of(unit_id), PLAYER),
-			Modifier.SourceKind.UNIT_TRAIT
-	))
 
 
 # Loads a new unit of [param type_id] with its type's starting weapon, [param equipment_id] in its
