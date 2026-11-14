@@ -126,7 +126,7 @@ Steps through RN5 give a playable loop on M1's data. Later steps need content fr
 | RN4 Rewards | Grades, gold, XP, Standout, level-ups (with the Resonant Ore, P03 question 25), item pick | 🟡 | RN3 | — (full pools later) | Vision's tables reproduced; rolls per seat and seeded |
 | RN5 Loop screens | Campaign map, Results with rewards and level-ups, new-item placement, loss and win | 🟡 | RN4 | — | A multi-node run plays on all three input devices |
 | RN6 Run start | Starting heirloom offer and each one's effect | 🟡 | RN5 | CT9, CT13 | All seven work |
-| RN7 Treasure and Camp | Chests, Feast with cooking, Train, re-gear, army view, scrapping | 🟡 | RN5 | CT5, CT9, CT13 | The vision's odds and rules hold |
+| RN7 Treasure and Camp | Chests, Feast with cooking, Train, re-gear, army view, scrapping; the Key combat's heirloom, from the same draw (question 20) | 🟡 | RN5 | CT5, CT9, CT13 | The vision's odds and rules hold |
 | RN8 Armory | Stock, buying onto a unit, trade-in | 🟡 | RN5 | CT4, CT5, CT9 | Stock and prices match the vision |
 | RN9 Guildhall | Recruits, hand-over, runes, prefix re-rolls | 🟡 | RN5 | CT7, CT8, CT13 | Recruits match the preview |
 | RN10 Unknown | Resolution, rising odds, the P09 hand-off | 🟢 | RN7, RN8, RN9 | — | Odds match over many seeds |
