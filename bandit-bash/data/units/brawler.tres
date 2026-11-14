@@ -1,0 +1,60 @@
+[gd_resource type="Resource" script_class="UnitTypeDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_cond"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/counter_condition.gd" id="4_count"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_that.gd" id="5_that"]
+[ext_resource type="Script" path="res://scripts/content/unit_type_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_first_hit"]
+script = ExtResource("4_count")
+mode = 1
+lane = 0
+
+[sub_resource type="Resource" id="Resource_stance"]
+script = ExtResource("5_that")
+what = 3
+mode = 1
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_breaker"]
+script = ExtResource("1_eff")
+id = "breaker"
+trigger = 8
+conditions = Array[ExtResource("2_cond")]([SubResource("Resource_first_hit")])
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_stance")])
+
+[sub_resource type="Resource" id="Resource_stance_plus"]
+script = ExtResource("5_that")
+what = 3
+mode = 1
+value = 2.0
+
+[sub_resource type="Resource" id="Resource_breaker_plus"]
+script = ExtResource("1_eff")
+id = "breaker_plus"
+trigger = 8
+conditions = Array[ExtResource("2_cond")]([SubResource("Resource_first_hit")])
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_stance_plus")])
+
+[resource]
+script = ExtResource("9_def")
+trait_name = "Breaker"
+role = "fist"
+weapon_types = PackedStringArray("gauntlets")
+movement_type = 0
+tags = PackedStringArray()
+stance = 2
+starting_weapon_id = "simple_gauntlets"
+innate_effects = Array[ExtResource("1_eff")]([])
+base_stats = Dictionary[int, int]({0: 25, 1: 6, 2: 4, 3: 1, 4: 3, 5: 7, 6: 5})
+growths = Dictionary[int, int]({0: 65, 1: 50, 2: 22, 3: 22, 4: 15})
+upgraded_effects = Array[ExtResource("1_eff")]([SubResource("Resource_breaker_plus")])
+upgrade_stat_gains = Dictionary[int, int]({0: 4, 1: 1})
+upgrade_weapon_types = PackedStringArray()
+upgrade_tags = PackedStringArray()
+is_commander = false
+id = "brawler"
+display_name = "Brawler"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_breaker")])

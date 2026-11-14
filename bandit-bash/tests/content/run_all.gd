@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 13, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -34,6 +34,7 @@ const LoadoutCases = preload("res://tests/content/loadout_cases.gd")
 const M1ContentCases = preload("res://tests/content/m1_content_cases.gd")
 const M1EnemyCases = preload("res://tests/content/m1_enemy_cases.gd")
 const RosterEnemyCases = preload("res://tests/content/roster_enemy_cases.gd")
+const RosterUnitCases = preload("res://tests/content/roster_unit_cases.gd")
 const ItemContentCases = preload("res://tests/content/item_content_cases.gd")
 
 # Fixture trees whose definitions are hashed with the catalog's.
@@ -122,6 +123,7 @@ func _init() -> void:
 	M1ContentCases.new(_check).run()
 	M1EnemyCases.new(_check).run()
 	RosterEnemyCases.new(_check).run()
+	RosterUnitCases.new(_check).run()
 	ItemContentCases.new(_check).run()
 	_test_definitions_unchanged(before)
 

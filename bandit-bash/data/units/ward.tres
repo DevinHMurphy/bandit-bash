@@ -1,0 +1,60 @@
+[gd_resource type="Resource" script_class="UnitTypeDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_mod"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="5_gain"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="6_con"]
+[ext_resource type="Script" path="res://scripts/content/unit_type_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_shove"]
+script = ExtResource("4_mod")
+key = 9
+mode = 1
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_shield_bash"]
+script = ExtResource("1_eff")
+id = "shield_bash"
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_shove")])
+
+[sub_resource type="Resource" id="Resource_shield_bash_plus"]
+script = ExtResource("1_eff")
+id = "shield_bash_plus"
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_shove")])
+
+[sub_resource type="Resource" id="Resource_amount_plus"]
+script = ExtResource("6_con")
+value = 2.0
+
+[sub_resource type="Resource" id="Resource_block_plus"]
+script = ExtResource("5_gain")
+pool = 1
+amount = SubResource("Resource_amount_plus")
+
+[sub_resource type="Resource" id="Resource_shield_bash_plus_block"]
+script = ExtResource("1_eff")
+id = "shield_bash_plus_block"
+trigger = 24
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_block_plus")])
+
+[resource]
+script = ExtResource("9_def")
+trait_name = "Shield Bash"
+role = "shover"
+weapon_types = PackedStringArray("lance")
+movement_type = 1
+tags = PackedStringArray()
+stance = 3
+starting_weapon_id = "simple_lance"
+innate_effects = Array[ExtResource("1_eff")]([])
+base_stats = Dictionary[int, int]({0: 25, 1: 2, 2: 2, 3: 7, 4: 1, 5: 14, 6: 5})
+growths = Dictionary[int, int]({0: 70, 1: 25, 2: 28, 3: 45, 4: 10})
+upgraded_effects = Array[ExtResource("1_eff")]([SubResource("Resource_shield_bash_plus"), SubResource("Resource_shield_bash_plus_block")])
+upgrade_stat_gains = Dictionary[int, int]({0: 4, 3: 1})
+upgrade_weapon_types = PackedStringArray()
+upgrade_tags = PackedStringArray()
+is_commander = false
+id = "ward"
+display_name = "Ward"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_shield_bash")])

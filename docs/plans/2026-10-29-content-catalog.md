@@ -222,7 +222,9 @@ resolved by the step that delivers each piece.
 Entered as written, revisited in playtesting (question 7): the Ring of Favor (needs a
 Legendary-sized effect), Heavy Brick (Unique with no source), the Lancer's growths (a `Godot_FE`
 copy-paste), items possibly outside their rarity's budget, Brothers in Arms (needs a selector
-filter the engine lacks, P01 question 30).
+filter the engine lacks, P01 question 30), Freewing+ (Skirmisher+ lacks "and gains 2 Block if it
+moves"; CT13F adds the `MOVED_AFTER_ACTING` trigger and `SECOND_MOVE` fact flag, then the effect
+and its snapshot, `roster_unit_cases.gd:TOD-001`; question 27).
 
 ### Rejected alternatives
 

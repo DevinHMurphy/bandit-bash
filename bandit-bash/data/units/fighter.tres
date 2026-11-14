@@ -1,0 +1,63 @@
+[gd_resource type="Resource" script_class="UnitTypeDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/add_timed_modifier.gd" id="4_timed"]
+[ext_resource type="Script" path="res://scripts/content/unit_type_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_hit"]
+script = ExtResource("4_timed")
+key = 4
+mode = 1
+value = 15.0
+end = 3
+uses = 1
+
+[sub_resource type="Resource" id="Resource_momentum"]
+script = ExtResource("1_eff")
+id = "momentum"
+trigger = 10
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_hit")])
+
+[sub_resource type="Resource" id="Resource_hit_plus"]
+script = ExtResource("4_timed")
+key = 4
+mode = 1
+value = 25.0
+end = 3
+uses = 1
+
+[sub_resource type="Resource" id="Resource_damage_plus"]
+script = ExtResource("4_timed")
+key = 1000
+mode = 1
+value = 1.0
+end = 3
+uses = 0
+
+[sub_resource type="Resource" id="Resource_momentum_plus"]
+script = ExtResource("1_eff")
+id = "momentum_plus"
+trigger = 10
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_hit_plus"), SubResource("Resource_damage_plus")])
+
+[resource]
+script = ExtResource("9_def")
+trait_name = "Momentum"
+role = "axe"
+weapon_types = PackedStringArray("axe")
+movement_type = 0
+tags = PackedStringArray()
+stance = 3
+starting_weapon_id = "simple_axe"
+innate_effects = Array[ExtResource("1_eff")]([])
+base_stats = Dictionary[int, int]({0: 22, 1: 6, 2: 4, 3: 3, 4: 2, 5: 12, 6: 5})
+growths = Dictionary[int, int]({0: 85, 1: 55, 2: 35, 3: 32, 4: 15})
+upgraded_effects = Array[ExtResource("1_eff")]([SubResource("Resource_momentum_plus")])
+upgrade_stat_gains = Dictionary[int, int]({0: 2, 1: 2})
+upgrade_weapon_types = PackedStringArray()
+upgrade_tags = PackedStringArray()
+is_commander = false
+id = "fighter"
+display_name = "Fighter"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_momentum")])

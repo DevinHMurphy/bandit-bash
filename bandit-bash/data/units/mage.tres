@@ -1,0 +1,63 @@
+[gd_resource type="Resource" script_class="UnitTypeDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_cond"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/counter_condition.gd" id="4_count"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_that.gd" id="5_that"]
+[ext_resource type="Script" path="res://scripts/content/unit_type_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_every_third"]
+script = ExtResource("4_count")
+mode = 0
+count = 3
+lane = 0
+
+[sub_resource type="Resource" id="Resource_damage"]
+script = ExtResource("5_that")
+what = 0
+key = 1000
+mode = 1
+value = 3.0
+
+[sub_resource type="Resource" id="Resource_flow"]
+script = ExtResource("1_eff")
+id = "flow"
+trigger = 7
+conditions = Array[ExtResource("2_cond")]([SubResource("Resource_every_third")])
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_damage")])
+
+[sub_resource type="Resource" id="Resource_damage_plus"]
+script = ExtResource("5_that")
+what = 0
+key = 1000
+mode = 1
+value = 5.0
+
+[sub_resource type="Resource" id="Resource_flow_plus"]
+script = ExtResource("1_eff")
+id = "flow_plus"
+trigger = 7
+conditions = Array[ExtResource("2_cond")]([SubResource("Resource_every_third")])
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_damage_plus")])
+
+[resource]
+script = ExtResource("9_def")
+trait_name = "Flow"
+role = "anima"
+weapon_types = PackedStringArray("anima")
+movement_type = 0
+tags = PackedStringArray()
+stance = 2
+starting_weapon_id = "simple_anima"
+innate_effects = Array[ExtResource("1_eff")]([])
+base_stats = Dictionary[int, int]({0: 16, 1: 3, 2: 7, 3: 1, 4: 3, 5: 5, 6: 5})
+growths = Dictionary[int, int]({0: 55, 1: 45, 2: 45, 3: 8, 4: 30})
+upgraded_effects = Array[ExtResource("1_eff")]([SubResource("Resource_flow_plus")])
+upgrade_stat_gains = Dictionary[int, int]({1: 1})
+upgrade_weapon_types = PackedStringArray("dark")
+upgrade_tags = PackedStringArray()
+is_commander = false
+id = "mage"
+display_name = "Mage"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_flow")])

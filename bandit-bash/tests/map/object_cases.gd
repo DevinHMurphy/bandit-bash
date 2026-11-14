@@ -6,7 +6,7 @@
 # File:     object_cases.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 31, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -716,8 +716,8 @@ class ObjectWorld:
 		"sword": [5, 1, WeaponTriangle.Profile.NIMBLE, 80, 8],
 	}
 
-	# The loadout fixtures' Thief: its innate effects grant CAN_PICK_LOCKS (no real Thief until
-	# P03 CT13).
+	# The loadout fixtures' Thief: its innate effects grant CAN_PICK_LOCKS. A fixture, not the real
+	# Thief, so these cases test the map objects whatever the unit roster's data says.
 	const LOADOUT_TREE: String = "res://tests/content/fixtures/loadout/"
 	const LOCK_PICKER_TYPE: String = "loadout_thief"
 

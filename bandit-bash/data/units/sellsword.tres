@@ -1,0 +1,66 @@
+[gd_resource type="Resource" script_class="UnitTypeDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_cond"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/while_matchup_condition.gd" id="4_match"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="5_gain"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="6_con"]
+[ext_resource type="Script" path="res://scripts/content/unit_type_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_advantage"]
+script = ExtResource("4_match")
+matchup = 0
+
+[sub_resource type="Resource" id="Resource_amount"]
+script = ExtResource("6_con")
+value = 3.0
+
+[sub_resource type="Resource" id="Resource_block"]
+script = ExtResource("5_gain")
+pool = 1
+amount = SubResource("Resource_amount")
+
+[sub_resource type="Resource" id="Resource_professional"]
+script = ExtResource("1_eff")
+id = "professional"
+trigger = 3
+conditions = Array[ExtResource("2_cond")]([SubResource("Resource_advantage")])
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_block")])
+
+[sub_resource type="Resource" id="Resource_amount_plus"]
+script = ExtResource("6_con")
+value = 5.0
+
+[sub_resource type="Resource" id="Resource_block_plus"]
+script = ExtResource("5_gain")
+pool = 1
+amount = SubResource("Resource_amount_plus")
+
+[sub_resource type="Resource" id="Resource_professional_plus"]
+script = ExtResource("1_eff")
+id = "professional_plus"
+trigger = 3
+conditions = Array[ExtResource("2_cond")]([SubResource("Resource_advantage")])
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_block_plus")])
+
+[resource]
+script = ExtResource("9_def")
+trait_name = "Professional"
+role = "sword"
+weapon_types = PackedStringArray("sword")
+movement_type = 0
+tags = PackedStringArray()
+stance = 2
+starting_weapon_id = "simple_sword"
+innate_effects = Array[ExtResource("1_eff")]([])
+base_stats = Dictionary[int, int]({0: 22, 1: 5, 2: 7, 3: 4, 4: 1, 5: 11, 6: 5})
+growths = Dictionary[int, int]({0: 110, 1: 42, 2: 34, 3: 18, 4: 20})
+upgraded_effects = Array[ExtResource("1_eff")]([SubResource("Resource_professional_plus")])
+upgrade_stat_gains = Dictionary[int, int]({1: 1})
+upgrade_weapon_types = PackedStringArray("axe")
+upgrade_tags = PackedStringArray()
+is_commander = false
+id = "sellsword"
+display_name = "Sellsword"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_professional")])
