@@ -141,6 +141,9 @@ Steps through RN5 give a playable loop on M1's data. Later steps need content fr
 | `battle_screen.gd` army and map | Behaviour / `@export` | Built on the screen; four map exports | From `CampaignRunState.battle_request()`; the exports removed | Applied (RN3) | `gameplay.tscn`, UI tests | 🟡 |
 | `CampaignSession`, `CampaignRunState` additions | Public API | — | `collect_battle()`, `tally`, `battle_grants`, `BattleResult` fields, `battle_request()`, `apply_battle(result, ids)` | Applied (RN3) | Sessions, campaign tests | 🔴 |
 | COMBAT save sections | Save format | — | `battle_tally`, `battle_grants` (version 1) | Applied (RN3) | save-system.md | 🔴 |
+| `CampaignRunState.apply_battle()` | Signature | `(result, ids)` | `(result, ids, rolls, rules, catalog = null)` | Applied (RN4) | `CampaignService`, campaign and sessions tests | 🔴 |
+| A won battle's flow | Behaviour | Back to the map, `NODE_LEFT` | `results` stage; `LeaveNodeCommand` once every pick is resolved; the battle screen skips the pick until RN5 | Applied (RN4) | `battle_screen.gd:TOD-002` | 🟡 |
+| A fallen commander | Behaviour | Leaves the army | Stays at `max(1, 10% of max HP)` | Applied (RN4) | Campaign tests | 🟡 |
 | `SceneRouter.Screen` | Enum, appended | 9 screens | New campaign screens | Proposed (RN5) | `SCREEN_PATHS` | 🟢 |
 | `Results` after a battle | Flow | The end of the run | A run's end only | Proposed (RN5) | `battle_screen.gd`, `results_screen.gd` | 🟡 |
 

@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="CombatRewardRules" format=3]
+
+[ext_resource type="Script" path="res://scripts/campaign/combat_reward_rules.gd" id="1_r4wd5"]
+
+[resource]
+script = ExtResource("1_r4wd5")
+standard_gold = 30
+key_gold = 60
+boss_gold = 0
+standard_shared_xp = 40
+key_shared_xp = 70
+boss_shared_xp = 100
+hit_xp = 2
+defeat_xp = 5
+heal_xp = 3
+block_xp = 3
+non_combat_xp = 5
+personal_xp_cap = 15
+standout_xp = 5
+xp_per_level = 100
+fallen_commander_hp_percent = 10
+offer_count = 3
+weapon_pick_weight = 3
+equipment_pick_weight = 2
+pouch_pick_weight = 3
+usable_weapon_chance = 75
+standard_common = 60
+standard_uncommon = 30
+standard_rare = 10
+key_common = 50
+key_uncommon = 33
+key_rare = 17
+rare_offset_step = 1

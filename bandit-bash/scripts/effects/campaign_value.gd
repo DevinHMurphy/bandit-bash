@@ -6,7 +6,7 @@
 # File:     campaign_value.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 class_name CampaignValue
@@ -19,7 +19,7 @@ extends RefCounted
 ##
 ## [b]Per-stat keys[/b] ([constant LEVEL_UP_GUARANTEED_GAINS], [constant STAT_CAN_GROW]) are
 ## queried once per [enum CombatValue.Stat]; each of their modifiers names its stat in
-## [member Modifier.stat].
+## [member Modifier.stat]. The level-up keys are read on the unit as its battle ends ([LevelUp]).
 ##
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
 
@@ -58,6 +58,9 @@ enum Key {
 	DARKNESS_ARRIVAL_OFFSET = 2014,
 	## Weight of each Pouch item, read at battle start (Heavy Pack). 0 unless modified.
 	POUCH_ITEM_WEIGHT = 2015,
+	## Points a level-up adds, +1 each to a random stat other than Speed that may grow (Resonant
+	## Ore).
+	LEVEL_UP_RANDOM_GAINS = 2016,
 }
 
 ## A campaign permission: any denial beats any grant. Values live in this class's permission

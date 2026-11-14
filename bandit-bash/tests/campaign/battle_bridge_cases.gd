@@ -6,14 +6,15 @@
 # File:     battle_bridge_cases.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 13, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 extends RefCounted
 ## Battle bridge cases for tests/campaign/run_all.gd, on the real content and M1: the map pools
 ## and the no-repeat rule; the run's battle request (its node, pool and living army); a result
 ## applied to a copy (HP, a fall with its items, Hit and growth deltas, heirloom lanes, grants,
-## used maps, leaving the node; the run itself unchanged); a real battle whose fallen unit is gone
+## used maps, the node's results, a fallen commander kept at critical HP; the run itself
+## unchanged); a real battle whose fallen unit is gone
 ## from the next request, whose HP carries over and whose Hit delta is on the roster; a curse held
 ## twice bringing two carriers, each with its own campaign lane (BUG-009); and the XP tally, its
 ## counting rules and both save sections. Touches no save files.
@@ -167,7 +168,7 @@ func _test_apply() -> void:
 		_grant(CampaignGrant.Grant.RECRUIT, 0, "archer"),
 	])
 	print("    (a warning about a recruit grant that isn't applied yet follows)")
-	var next: CampaignRunState = run.apply_battle(result, session.ids)
+	var next: CampaignRunState = _apply(run, result, session)
 	_check("apply: the run itself is unchanged; the copy shares no unit", (
 			next != null
 			and _run_text(run) == before
@@ -216,19 +217,18 @@ func _test_apply() -> void:
 	var kinds: PackedStringArray = []
 	for fact: CampaignFact in next.fact_log.slice(run.fact_log.size()):
 		kinds.append("%s %d" % [CampaignFact.Kind.find_key(fact.kind), fact.amount])
-	_check("apply: a won node battle uses its map and leaves the node for the map", (
+	_check("apply: a won node battle uses its map and moves to the node's results", (
 			next.flow.used_maps == PackedStringArray([M1_ID])
-			and next.is_on_map()
+			and next.flow.stage == RunFlow.Stage.RESULTS
+			and not next.is_on_map()
 			and next.node == run.node
-			and kinds == PackedStringArray([
-				"GAINED 0", "GAINED 0", "COMBAT_ENDED 1", "NODE_LEFT %d" % [run.node],
-			])
+			and kinds == PackedStringArray(["GAINED 0", "GAINED 0", "COMBAT_ENDED 1"])
 	), str(kinds))
 
 	# The second battle on the one-map pool refills it: M1 is used once, not twice.
 	next.enter_node(next.graph.children_of(next.node)[0])
 	var again: CampaignSession.BattleResult = _won_result(next)
-	var refilled: CampaignRunState = next.apply_battle(again, session.ids)
+	var refilled: CampaignRunState = _apply(next, again, session)
 	_check("apply: a refilled pool forgets its used maps first", (
 			refilled.flow.used_maps == PackedStringArray([M1_ID])
 	), str(refilled.flow.used_maps))
@@ -242,23 +242,26 @@ func _test_apply_loss_and_commander() -> void:
 	var result: CampaignSession.BattleResult = _won_result(run)
 	result.is_won = false
 	result.units[commander_id] = _outcome(0, true)
-	var next: CampaignRunState = run.apply_battle(result, session.ids)
+	result.units[commander_id].max_hp = 20
+	var next: CampaignRunState = _apply(run, result, session)
 	var last: CampaignFact = next.fact_log[next.fact_log.size() - 1]
 	_check("apply: a loss stays in the node and records the loss", (
 			not next.is_on_map()
+			and next.flow.stage == RunFlow.Stage.NODE
 			and last.kind == CampaignFact.Kind.COMBAT_ENDED
 			and last.amount == 0
 	))
-	_check("apply: a fallen commander leaves the army and the roster stays valid", (
-			next.seat_run(0).commander_id.is_empty()
-			and next.seat_run(0).fallen.size() == 1
+	_check("apply: a fallen commander stays in the army at critical HP; the roster stays valid", (
+			next.seat_run(0).commander_id == commander_id
+			and next.seat_run(0).fallen.is_empty()
+			and next.seat_run(0).unit(commander_id).hp == 2
 			and SeatRun.new(0).restore_roster(next.seat_run(0).capture_roster()) == OK
 	))
 
 	var unfinished: CampaignSession.BattleResult = _won_result(run)
 	unfinished.is_finished = false
 	unfinished.is_won = false
-	var stays: CampaignRunState = run.apply_battle(unfinished, session.ids)
+	var stays: CampaignRunState = _apply(run, unfinished, session)
 	_check("apply: an unfinished battle uses its map and records no end", (
 			not stays.is_on_map()
 			and stays.fact_log.size() == run.fact_log.size()
@@ -316,7 +319,7 @@ func _test_real_battle_carries_over() -> void:
 			and result.units[hit_id].stat_deltas[0].key == CombatValue.Key.HIT
 			and session.collect_battle() == result
 	))
-	var next: CampaignRunState = run.apply_battle(result, session.ids)
+	var next: CampaignRunState = _apply(run, result, session)
 	session.end_battle()
 	session.run = next
 	var after: SeatRun = next.seat_run(0)
@@ -325,6 +328,8 @@ func _test_real_battle_carries_over() -> void:
 					== hit_before + int(HIT_GAIN)
 	))
 
+	session.submit(ItemPickCommand.new(0, ItemPickCommand.SKIP))
+	session.submit(LeaveNodeCommand.new(0))
 	var child: int = _combat_child(next)
 	next.enter_node(child)
 	var second: CampaignSession.BattleRequest = next.battle_request(_pools, _catalog)
@@ -375,7 +380,7 @@ func _test_curse_twice() -> void:
 		return
 	marks[0].set_counter(EffectTerms.Lane.CAMPAIGN, 2)
 	marks[1].set_counter(EffectTerms.Lane.CAMPAIGN, 9)
-	var next: CampaignRunState = run.apply_battle(session.collect_battle(), session.ids)
+	var next: CampaignRunState = _apply(run, session.collect_battle(), session)
 	session.end_battle()
 	var held: Array[SeatRun.OwnedHeirloom] = next.seat_run(0).heirlooms
 	_check("curse twice: each copy's lane is written back to its own entry", (
@@ -500,7 +505,18 @@ func _test_tally_sections() -> void:
 	section.detach()
 
 
-# A won result for the run's current node on M1.
+# run with result applied as CampaignService applies it: the session's reward streams, the
+# shipped reward rules and the loaded catalog.
+func _apply(
+		run: CampaignRunState, result: CampaignSession.BattleResult, session: CampaignSession
+) -> CampaignRunState:
+	return run.apply_battle(
+			result, session.ids, session.reward_rolls(result), CombatRewardRules.load_default(),
+			_catalog
+	)
+
+
+# A won result for the run's current node on M1. It names no seat's map, so it pays no reward.
 func _won_result(run: CampaignRunState) -> CampaignSession.BattleResult:
 	var result: CampaignSession.BattleResult = CampaignSession.BattleResult.new()
 	result.floor_number = run.floor_number

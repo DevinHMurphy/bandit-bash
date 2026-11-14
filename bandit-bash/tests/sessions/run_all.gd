@@ -6,13 +6,14 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 13, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 extends SceneTree
 ## Headless tests for the sessions layer, a case file per topic (each one's class doc lists its
 ## checks): queue_cases.gd, encounter_cases.gd, bridge_cases.gd, service_cases.gd,
-## run_service_cases.gd, run_battle_cases.gd, resume_cases.gd, logging_cases.gd, wire_cases.gd,
+## run_service_cases.gd, run_battle_cases.gd, run_reward_cases.gd, resume_cases.gd,
+## logging_cases.gd, wire_cases.gd,
 ## save_cases.gd and map_save_cases.gd. Every catalog definition
 ## and loadout fixture is hashed before the first case and after the last; any change fails.[br]
 ## Run from the repo root:
@@ -35,6 +36,7 @@ const BridgeCases = preload("res://tests/sessions/bridge_cases.gd")
 const ServiceCases = preload("res://tests/sessions/service_cases.gd")
 const RunServiceCases = preload("res://tests/sessions/run_service_cases.gd")
 const RunBattleCases = preload("res://tests/sessions/run_battle_cases.gd")
+const RunRewardCases = preload("res://tests/sessions/run_reward_cases.gd")
 const ResumeCases = preload("res://tests/sessions/resume_cases.gd")
 const LoggingCases = preload("res://tests/sessions/logging_cases.gd")
 const WireCases = preload("res://tests/sessions/wire_cases.gd")
@@ -62,6 +64,7 @@ func _process(_delta: float) -> bool:
 	_run_cases(ServiceCases.new(_check, root))
 	_run_cases(RunServiceCases.new(_check, root))
 	_run_cases(RunBattleCases.new(_check, root))
+	_run_cases(RunRewardCases.new(_check, root))
 	_run_cases(ResumeCases.new(_check, root))
 	_run_cases(LoggingCases.new(_check, root))
 

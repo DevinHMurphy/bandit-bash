@@ -6,14 +6,15 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 12, 2026
-# Modified: November 13, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 extends SceneTree
 ## Headless tests for the campaign layer, a case file per topic (each one's class doc lists its
 ## checks): the map graph, its generator and its rules data (map_cases.gd), the run state, its
-## commands and its save sections (run_state_cases.gd), and the battle bridge, the XP tally and
-## their sections (battle_bridge_cases.gd). Touches no save files.
+## commands and its save sections (run_state_cases.gd), the battle bridge, the XP tally and
+## their sections (battle_bridge_cases.gd), and a won combat's rewards (reward_cases.gd). Touches
+## no save files.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/campaign/run_all.gd[/code][br]
@@ -24,6 +25,7 @@ extends SceneTree
 const MapCases = preload("res://tests/campaign/map_cases.gd")
 const RunStateCases = preload("res://tests/campaign/run_state_cases.gd")
 const BattleBridgeCases = preload("res://tests/campaign/battle_bridge_cases.gd")
+const RewardCases = preload("res://tests/campaign/reward_cases.gd")
 
 var _failures: int = 0
 var _passes: int = 0
@@ -35,6 +37,7 @@ func _init() -> void:
 	MapCases.new(_check).run()
 	RunStateCases.new(_check).run()
 	BattleBridgeCases.new(_check).run()
+	RewardCases.new(_check).run()
 
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)

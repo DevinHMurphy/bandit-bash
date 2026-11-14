@@ -6,7 +6,7 @@
 # File:     campaign_session.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 13, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 class_name CampaignSession
@@ -278,9 +278,11 @@ func write_back() -> void:
 
 
 ## Gathers what the battle in progress leaves for the run, with the battle still on: first
-## [method write_back], then each player unit's HP, fall, permanent stat deltas and growth changes,
-## each heirloom copy's campaign lane, the grants received, the map and whether every map was won.
-## Calling it again returns the same result. Returns null when no battle is on.
+## [method write_back], then each player unit's HP, fall, permanent stat deltas, growth changes
+## and reward values, each heirloom copy's campaign lane, the grants received, a copy of the
+## tally, the map, whether every map was won, and each seat's [SeatOutcome]. Rewards read item
+## and heirloom values here, since they count only in battle. Calling it again returns the same
+## result. Returns null when no battle is on.
 func collect_battle() -> BattleResult:
 	if encounter == null:
 		return null
@@ -293,6 +295,7 @@ func collect_battle() -> BattleResult:
 	result.map_id = encounter.setup.map.id
 	result.pool_ids = _battle_pool_ids.duplicate()
 	result.grants = battle_grants.duplicate()
+	result.tally.restore(tally.capture())
 	var sessions: Array[CombatSession] = encounter.get_sessions()
 	result.is_finished = not sessions.is_empty()
 	result.is_won = not sessions.is_empty()
@@ -304,9 +307,31 @@ func collect_battle() -> BattleResult:
 		if holder != null:
 			_collect_growth(result, holder, unit_id)
 			_collect_unit(result, holder, unit_id)
+	for seat: int in seats:
+		var map: CombatSession = encounter.session_of_seat(seat)
+		if map != null:
+			result.seats[seat] = _collect_seat(result, map, seat)
 	_collect_heirlooms(result)
 	_collected = result
 	return result
+
+
+## The streams [method CampaignRunState.apply_battle] draws [param result]'s rewards from: each
+## seat's [code]REWARD[/code] and [code]LEVEL_UPS[/code] streams for the battle's node. They are
+## the run's live streams, saved with the campaign; a failed save restores them
+## ([code]CampaignService.end_battle()[/code]).
+func reward_rolls(result: BattleResult) -> RewardRolls:
+	var rolls: RewardRolls = RewardRolls.new()
+	if result == null:
+		return rolls
+	for seat: int in seats:
+		rolls.reward[seat] = rng.stream(RngKey.new(
+				RngKey.RngPurpose.REWARD, result.floor_number, result.node, seat
+		))
+		rolls.level_ups[seat] = rng.stream(RngKey.new(
+				RngKey.RngPurpose.LEVEL_UPS, result.floor_number, result.node, seat
+		))
+	return rolls
 
 
 ## Ends the battle in progress: its result is collected ([method collect_battle]) if it wasn't
@@ -732,24 +757,52 @@ func _collect_growth(result: BattleResult, session: CombatSession, unit_id: Stri
 	result.growth_changes[unit_id] = changes.duplicate()
 
 
-# A player unit's HP (UnitInstance.FULL_HP at its battle maximum), whether it fell, and the
-# permanent deltas its map gained (a stat booster's, a Hit booster's): Loadout registers the
-# deltas a unit already had as effects, so the engine's deltas are only the battle's own.
+# A player unit's HP (UnitInstance.FULL_HP at its battle maximum), max HP, whether it fell, the
+# permanent deltas its map gained (a stat booster's, a Hit booster's), its XP percent and its
+# level-up values: Loadout registers the deltas a unit already had as effects, so the engine's
+# deltas are only the battle's own.
 func _collect_unit(result: BattleResult, session: CombatSession, unit_id: String) -> void:
 	var state: CombatUnitState = session.state.unit(unit_id)
+	var sheet: StatSheet = session.stats(unit_id)
 	var outcome: UnitOutcome = UnitOutcome.new()
 	outcome.seat = state.seat
 	outcome.is_fallen = state.is_defeated
+	outcome.max_hp = sheet.get_int(CombatValue.Key.HP)
 	outcome.hp = 0
 	if not state.is_defeated:
-		var max_hp: int = session.stats(unit_id).get_int(CombatValue.Key.HP)
-		outcome.hp = UnitInstance.FULL_HP if state.hp >= max_hp else maxi(state.hp, 0)
+		outcome.hp = UnitInstance.FULL_HP if state.hp >= outcome.max_hp else maxi(state.hp, 0)
+	outcome.xp_percent = sheet.get_int(CampaignValue.Key.UNIT_XP_PERCENT)
+	outcome.level_up = LevelUp.Values.read(sheet)
 	for key: int in CombatValue.PERMANENT_KEYS.values():
 		for delta: Modifier in session.engine.get_deltas(unit_id, key):
 			outcome.stat_deltas.append(ItemInstance.StatDelta.new(
 					delta.key, delta.value, delta.source_id, delta.label
 			))
 	result.units[unit_id] = outcome
+
+
+# The seat's map at its end, after its units are collected: won or not, the turn, par and turns
+# early, objective and combat type, units lost, and the seat's reward values.
+func _collect_seat(result: BattleResult, map: CombatSession, seat: int) -> SeatOutcome:
+	var outcome: SeatOutcome = SeatOutcome.new()
+	outcome.seat = seat
+	outcome.is_won = map.is_finished and map.is_won
+	outcome.turn = map.state.turn
+	if map.setup != null and map.setup.map != null:
+		var definition: CombatMapDefinition = map.setup.map
+		outcome.turn_par = definition.turn_par
+		outcome.objective = definition.objective
+		outcome.combat_type = definition.combat_type
+		outcome.turns_early = Objectives.turns_early(map)
+	for unit_id: String in result.units:
+		var unit: UnitOutcome = result.units[unit_id]
+		if unit.seat == seat and unit.is_fallen:
+			outcome.units_lost += 1
+	var sheet: StatSheet = map.engine.stats(InstanceIdAllocator.seat_subject_id(seat))
+	outcome.combat_gold = sheet.get_int(CampaignValue.Key.COMBAT_GOLD)
+	outcome.grade_bonus_percent = sheet.get_int(CampaignValue.Key.GRADE_BONUS_PERCENT)
+	outcome.shared_xp_percent = sheet.get_int(CampaignValue.Key.SHARED_XP_PERCENT)
+	return outcome
 
 
 # Each held heirloom copy's campaign lane, from its carriers (write_back() has run): counters by
@@ -897,6 +950,54 @@ class BattleResult:
 	var heirlooms: Array[HeirloomLane] = []
 	## Grants received during the battle, in order.
 	var grants: Array[Grant] = []
+	## The XP actions each player unit took, a copy of [member CampaignSession.tally].
+	var tally: BattleTally = BattleTally.new()
+	## Each seat's map at the battle's end, by seat; a seat with no map has no entry.
+	var seats: Dictionary[int, SeatOutcome] = {}
+
+
+## One seat's map at a battle's end, and the reward values its heirlooms set, for the rewards.
+class SeatOutcome:
+	extends RefCounted
+
+	## The seat.
+	var seat: int = -1
+	## Whether its map ended in a player win.
+	var is_won: bool = false
+	## The turn its map ended on.
+	var turn: int = 0
+	## Its map's turn par; 0 when the map sets none.
+	var turn_par: int = 0
+	## The turns a Survive or Defend map ended early ([method Objectives.turns_early]); 0 otherwise.
+	var turns_early: int = 0
+	## Its map's objective.
+	var objective: CombatMapDefinition.Objective = CombatMapDefinition.Objective.ROUT
+	## Its map's combat type.
+	var combat_type: CombatMapDefinition.CombatType = CombatMapDefinition.CombatType.STANDARD
+	## How many of the seat's units fell, its commander included.
+	var units_lost: int = 0
+	## Whether its map received units another player sent; such a map earns no speed bonus. Always
+	## false until co-op sends units (P11).
+	var has_received_units: bool = false
+	## [constant CampaignValue.Key.COMBAT_GOLD] of the seat (Bounty Ledger).[br]
+	## [b]Units:[/b] gold.
+	var combat_gold: int = 0
+	## [constant CampaignValue.Key.GRADE_BONUS_PERCENT] of the seat (Gilded Purse).[br]
+	## [b]Units:[/b] percent.
+	var grade_bonus_percent: int = 0
+	## [constant CampaignValue.Key.SHARED_XP_PERCENT] of the seat (Veteran's Medal).[br]
+	## [b]Units:[/b] percent.
+	var shared_xp_percent: int = 100
+
+
+## The streams a battle's rewards draw from, by seat ([method CampaignSession.reward_rolls]).
+class RewardRolls:
+	extends RefCounted
+
+	## Each seat's [code]REWARD[/code] stream: its item pick.
+	var reward: Dictionary[int, RngStream] = {}
+	## Each seat's [code]LEVEL_UPS[/code] stream: its units' level-ups, in roster order.
+	var level_ups: Dictionary[int, RngStream] = {}
 
 
 ## One player unit at a battle's end.
@@ -907,10 +1008,17 @@ class UnitOutcome:
 	var seat: int = -1
 	## Its HP; [constant UnitInstance.FULL_HP] at its maximum.
 	var hp: int = UnitInstance.FULL_HP
+	## Its max HP in the battle, items included.
+	var max_hp: int = 0
 	## Whether it fell.
 	var is_fallen: bool = false
 	## The permanent changes it gained in this battle, Hit included, each with its source.
 	var stat_deltas: Array[ItemInstance.StatDelta] = []
+	## [constant CampaignValue.Key.UNIT_XP_PERCENT] of the unit (Family Ring).[br]
+	## [b]Units:[/b] percent.
+	var xp_percent: int = 100
+	## Its level-up values (Training Weights, Royal Crest, Resonant Ore); null: none read.
+	var level_up: LevelUp.Values = null
 
 
 ## One held copy of a heirloom or curse: which, and its campaign lane by effect id.

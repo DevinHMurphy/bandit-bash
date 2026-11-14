@@ -6,7 +6,7 @@
 # File:     run_flow.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 13, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 class_name RunFlow
@@ -23,13 +23,18 @@ extends RefCounted
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 
 # Meaningful while a run exists (a CampaignRunState holds it).
-# MAP   the run is on the campaign map between nodes. ChooseNodeCommand is the only command that
-#       resolves; it locks the next floor and moves to NODE.
-# NODE  the run is inside CampaignRunState.node. ChooseNodeCommand is rejected; LeaveNodeCommand
-#       goes back to MAP with the node still visited and its floor still locked.
-# There are no stages inside a node yet: each node's rules append theirs (a battle, its results,
-# a shop's stock) and leave through LeaveNodeCommand. A node is never left back onto its own floor:
-# the floor stays locked, as Godot_FE's campaign_map.gd locks it.
+# MAP      the run is on the campaign map between nodes. ChooseNodeCommand is the only command
+#          that resolves; it locks the next floor and moves to NODE.
+# NODE     the run is inside CampaignRunState.node; a combat node's battle begins and ends here.
+#          ChooseNodeCommand is rejected; LeaveNodeCommand goes back to MAP with the node still
+#          visited and its floor still locked. A won battle moves to RESULTS
+#          (CampaignRunState.apply_battle); a lost one stays.
+# RESULTS  a combat node's battle is won and paid: each seat's report and item pick wait in its
+#          pending offers. ItemPickCommand takes or skips a seat's pick; LeaveNodeCommand goes back
+#          to MAP once every pick is resolved, clearing both. No battle begins here.
+# Other nodes append their own stages (a shop's stock) and leave through LeaveNodeCommand. A node
+# is never left back onto its own floor: the floor stays locked, as Godot_FE's campaign_map.gd
+# locks it.
 ## Where the run is; see the block above. Saved by name ([method stage_id]), so values may be
 ## renumbered, never renamed without a migration.
 enum Stage {
@@ -37,12 +42,15 @@ enum Stage {
 	MAP,
 	## Inside the run's current node.
 	NODE,
+	## At the results of the current node's won combat.
+	RESULTS,
 }
 
 # Saved names of Stage. Never change one: saved runs are read by these names.
 const _STAGE_IDS: Dictionary[Stage, String] = {
 	Stage.MAP: "map",
 	Stage.NODE: "node",
+	Stage.RESULTS: "results",
 }
 
 # capture()'s keys. Never change them: saved runs are read by these names.

@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="TrinketDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_r0ore"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_r0ore"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_r0ore"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_r0ore"]
+[ext_resource type="Script" path="res://scripts/content/trinket_definition.gd" id="5_r0ore"]
+
+[sub_resource type="Resource" id="Resource_r0spd"]
+script = ExtResource("4_r0ore")
+key = 18
+value = -2.0
+
+[sub_resource type="Resource" id="Resource_r0gain"]
+script = ExtResource("4_r0ore")
+key = 2016
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_r0fx"]
+script = ExtResource("1_r0ore")
+id = "bonuses"
+operations = Array[ExtResource("3_r0ore")]([SubResource("Resource_r0spd"), SubResource("Resource_r0gain")])
+
+[resource]
+script = ExtResource("5_r0ore")
+rarity = 5
+tags = PackedStringArray()
+id = "resonant_ore"
+display_name = "Resonant Ore"
+effects = Array[ExtResource("1_r0ore")]([SubResource("Resource_r0fx")])
