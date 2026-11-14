@@ -6,7 +6,7 @@
 # File:     enemy_plan.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: October 31, 2026
+# Modified: November 13, 2026
 # ==============================================================================
 
 class_name EnemyPlan
@@ -32,14 +32,15 @@ enum Kind {
 	STAFF = 1,
 	## Walks toward [member target_id], the nearest foe by path cost, and waits.
 	ADVANCE = 2,
-	## Support with nobody to heal: walks to the tile fewest player units can attack, near its
-	## allies, and waits.
+	## Walks to a tile and waits: Support with nobody to heal, near its allies where the fewest
+	## player units can attack it; or a Shieldbearer taking its place beside its back-line ally.
 	REGROUP = 3,
 	## Waits where it stands: no option, or no enemy class to play.
 	WAIT = 4,
 }
 
-## The rating steps, in the order they are compared. Each names what the player sees decide it.
+## The rating steps, in the order they are compared, except [constant ALLIES_BESIDE]: appended,
+## it comes right after [constant PROGRESS]. Each names what the player sees decide it.
 enum Step {
 	## The plan had nothing to beat.
 	ONLY_OPTION = 0,
@@ -72,6 +73,8 @@ enum Step {
 	## The acting enemy's id first in string order; two enemies never end on one tile, so this
 	## only separates plans built on different boards.
 	ACTOR_ORDER = 14,
+	## A Hound advancing: more allies beside the end tile, its pack moving together.
+	ALLIES_BESIDE = 15,
 }
 
 ## The enemy whose turn it is.
@@ -115,8 +118,9 @@ var is_kill: bool = false
 ## (a) The chance every one of its attacks in that forecast lands; 0 for no kill.
 var kill_chance: float = 0.0
 
-## (b) The target rule's measure of [member target_id]; lower is better. Path cost to the
-## nearest tile it attacks the foe from, the foe's DEF, or minus the ally's missing HP.
+## (b) The target rule's measure of [member target_id], or of [member tile] for a rule about
+## where it stands (the Warcaller's allies within 2 tiles); lower is better. Each rule's number
+## is set in [method EnemyAI.decide], such as the path cost to the nearest tile it attacks from.
 var target_rule_key: float = 0.0
 
 ## (c) Expected damage ÷ the target's maximum HP, capped at 1, × 100, or × 150 when the enemy
@@ -129,8 +133,12 @@ var safety: int = 0
 ## Support regrouping: tile distance from [member tile] to every ally, summed; 0 otherwise.
 var pack: int = 0
 
-## Advancing: path cost left from [member tile] to a tile it could attack its foe from.
+## Advancing: path cost left from [member tile] to a tile it could attack its foe from. A
+## Shieldbearer short of its back-line ally: the cost left to a tile beside that ally.
 var progress: int = 0
+
+## A Hound advancing: allies on the four tiles beside [member tile]; 0 for every other plan.
+var allies_beside: int = 0
 
 ## (d) The terrain of [member tile]: avoid ÷ 50 + DEF + RES ([method EnemyAI.terrain_rating]).
 var terrain: float = 0.0
@@ -200,6 +208,11 @@ func _compare(other: EnemyPlan) -> int:
 		return Step.PACK if pack < other.pack else -Step.PACK
 	if progress != other.progress:
 		return Step.PROGRESS if progress < other.progress else -Step.PROGRESS
+	if allies_beside != other.allies_beside:
+		return (
+				Step.ALLIES_BESIDE if allies_beside > other.allies_beside
+				else -Step.ALLIES_BESIDE
+		)
 	if terrain != other.terrain:
 		return Step.TERRAIN if terrain > other.terrain else -Step.TERRAIN
 	if path_cost != other.path_cost:

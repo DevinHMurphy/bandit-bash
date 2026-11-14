@@ -6,7 +6,7 @@
 # File:     m1_battle_cases.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 13, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -27,6 +27,9 @@ extends RefCounted
 ## [b]Past par:[/b] a second pair of battles holds back (the seat ends its turn without acting)
 ## through [constant HOLD_UNTIL], so the darkness arrives at the end of turn 4 (par 5) and
 ## releases again; the same seed must still give the same fact log twice.
+
+# A preloaded script used as a type (gdscript.md, Naming): the helper has no class name.
+const PackCatalog = preload("res://tests/enemies/pack_catalog.gd")
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
 
@@ -58,9 +61,13 @@ var _catalog: EffectCatalog.Index = null
 
 
 ## [param check]: called as check(case_name: String, passed: bool, detail: String).
-func _init(check: Callable) -> void:
+## [param catalog]: the battles' catalog; null for the real one with the M1 pack its only pack,
+## since setup draws from every pack a catalog holds.
+func _init(check: Callable, catalog: EffectCatalog.Index = null) -> void:
 	_check = check
-	_catalog = EffectCatalog.index()
+	_catalog = catalog
+	if _catalog == null:
+		_catalog = PackCatalog.with_only(EffectCatalog.index(), "m1_pack")
 
 
 ## Runs every case.
@@ -69,8 +76,8 @@ func run() -> void:
 	if map == null:
 		_check.call("m1 battle: the M1 map definition loads", false, M1_DEFINITION)
 		return
-	var first: Battle = _play(map)
-	var second: Battle = _play(map)
+	var first: Battle = play(map)
+	var second: Battle = play(map)
 	_check.call("m1 battle: begins with the Mercenary army against the M1 pack", (
 			first.problems.is_empty() and first.players == 4 and first.enemies == 3
 	), "%s; %d player units, %d enemies" % [first.problems, first.players, first.enemies])
@@ -85,8 +92,8 @@ func run() -> void:
 		first.outcome, first.turns, first.facts.size(), first.enemy_actions,
 	])
 
-	var held: Battle = _play(map, HOLD_UNTIL)
-	var held_again: Battle = _play(map, HOLD_UNTIL)
+	var held: Battle = play(map, HOLD_UNTIL)
+	var held_again: Battle = play(map, HOLD_UNTIL)
 	_check.call("m1 battle past par: the turn par is 5", map.turn_par == M1_TURN_PAR,
 			str(map.turn_par))
 	_check.call("m1 battle past par: runs past turn par with no command rejected", (
@@ -108,7 +115,7 @@ func run() -> void:
 
 # One battle from Begin to its end, or to MAX_TURNS. Through turn [param hold_until], the seat
 # ends its turn without acting.
-func _play(map: CombatMapDefinition, hold_until: int = 0) -> Battle:
+func play(map: CombatMapDefinition, hold_until: int = 0) -> Battle:
 	var played: Battle = Battle.new()
 	var run: CampaignSession = CampaignSession.new(
 			CampaignData.Mode.SOLO, SEED, PackedInt32Array([0])
@@ -133,6 +140,9 @@ func _play(map: CombatMapDefinition, hold_until: int = 0) -> Battle:
 	var session: CombatSession = battle.get_session(0)
 	played.players = session.state.units_of(PLAYER).size()
 	played.enemies = session.state.units_of(ENEMY).size()
+	var drawn: Variant = battle.setup.shared.get(EnemySetup.ENEMIES_KEY, {})
+	if drawn is Dictionary:
+		played.pack_id = str((drawn as Dictionary).get(EnemySetup.PACK_KEY, ""))
 
 	# The opening swap setting is on by default: the seat starts at once, swapping nothing.
 	if session.state.map.opening_swap_open:
@@ -296,6 +306,8 @@ class Battle:
 	var players: int = 0
 	## Enemies on the map when it opened.
 	var enemies: int = 0
+	## The pack setup drew.
+	var pack_id: String = ""
 	## Commands the session rejected, one line each.
 	var rejected: PackedStringArray = []
 	## The turn it stopped on.

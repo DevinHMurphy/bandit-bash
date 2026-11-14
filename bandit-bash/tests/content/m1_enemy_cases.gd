@@ -6,7 +6,7 @@
 # File:     m1_enemy_cases.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 4, 2026
+# Modified: November 13, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -23,6 +23,9 @@ extends RefCounted
 ##
 ## @tutorial(Enemy roster): docs/design/enemy-roster.md
 ## @tutorial(Enemies and AI plan): docs/plans/2026-10-30-enemies-and-ai.md
+
+# A preloaded script used as a type (gdscript.md, Naming): the helper has no class name.
+const PackCatalog = preload("res://tests/enemies/pack_catalog.gd")
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
@@ -75,6 +78,8 @@ const TEXT: Dictionary[String, Array] = {
 
 var _check: Callable
 var _catalog: EffectCatalog.Index = null
+# The catalog with the M1 pack as its only pack, for the battles that draw it.
+var _m1_catalog: EffectCatalog.Index = null
 
 
 ## [param check]: called as check(case_name: String, passed: bool, detail: String).
@@ -85,6 +90,7 @@ func _init(check: Callable) -> void:
 ## Runs every case.
 func run() -> void:
 	_catalog = EffectCatalog.index()
+	_m1_catalog = PackCatalog.with_only(_catalog, "m1_pack")
 	_test_classes()
 	_test_stats()
 	_test_text_snapshots()
@@ -158,8 +164,8 @@ func _test_text_snapshots() -> void:
 # Question 12: one of each M1 class, in that order.
 func _test_pack() -> void:
 	var pack: PackDefinition = _catalog.pack("m1_pack")
-	_ok("m1 pack: in the catalog, the only pack", (
-			pack != null and _catalog.all_of(EffectCatalog.Kind.PACK).size() == 1
+	_ok("m1 pack: in the catalog, beside the roster's five packs", (
+			pack != null and _catalog.all_of(EffectCatalog.Kind.PACK).size() == 6
 	))
 	if pack == null:
 		return
@@ -432,13 +438,15 @@ func _run() -> CampaignSession:
 	return CampaignSession.new(CampaignData.Mode.SOLO, SEED, PackedInt32Array([0]))
 
 
-# A request on [param map] for floor 1 on the real catalog, whose seat 0 loads one Archer with its
-# Simple Bow, its ids minted by [param run]'s allocator so they never collide with the enemies'.
+# A request on [param map] for floor 1 on the real catalog with the M1 pack its only pack, whose
+# seat 0 loads one Archer with its Simple Bow, its ids minted by [param run]'s allocator so they
+# never collide with the enemies'.
 func _request(run: CampaignSession, map: CombatMapDefinition) -> CampaignSession.BattleRequest:
 	var request: CampaignSession.BattleRequest = CampaignSession.BattleRequest.new()
 	request.floor_number = FLOOR
 	request.node = NODE
 	request.pool = [map]
+	request.catalog = _m1_catalog
 	var archer: UnitInstance = UnitInstance.new(run.ids.next_unit_id("Archer"), "archer")
 	var bow_id: String = run.ids.next_item_id("Simple Bow")
 	archer.weapon_id = bow_id

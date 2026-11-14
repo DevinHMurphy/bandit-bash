@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="EnemyClassDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/content/enemy_class_definition.gd" id="9_def"]
+
+[resource]
+script = ExtResource("9_def")
+behavior = 3
+target_rule_id = "most_allies_near"
+target_rule_text = "Stays within 2 tiles of the most allies"
+trait_name = "War Horn"
+weapon_types = PackedStringArray("lance")
+movement_type = 0
+tags = PackedStringArray()
+stance = 2
+starting_weapon_id = "simple_lance"
+innate_effects = Array[ExtResource("1_eff")]([])
+base_stats = Dictionary[int, int]({0: 22, 1: 6, 2: 3, 3: 2, 4: 4, 5: 12, 6: 5})
+growths = Dictionary[int, int]({0: 65, 1: 45, 2: 29, 3: 18, 4: 22})
+upgraded_effects = Array[ExtResource("1_eff")]([])
+upgrade_stat_gains = Dictionary[int, int]({})
+upgrade_weapon_types = PackedStringArray()
+upgrade_tags = PackedStringArray()
+is_commander = false
+id = "warcaller"
+display_name = "Warcaller"
+effects = Array[ExtResource("1_eff")]([])

@@ -6,7 +6,7 @@
 # File:     enemy_setup.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: October 30, 2026
+# Modified: November 13, 2026
 # ==============================================================================
 
 class_name EnemySetup
@@ -21,11 +21,11 @@ extends RefCounted
 ## question 16); slots left over stay empty, and units beyond the last slot are listed as
 ## unplaced. The leader slot is never filled (question 12).[br]
 ## [method place] builds each drawn unit through [Loadout] (side enemy, seat -1, its class's
-## starting weapon) with ids from the session's allocator, and places it on its slot's tile. Each
-## map places its own copies, so co-op maps start identical. The setup result is never saved: a
-## battle restarted from Begin draws it again, and a resumed one restores its units from the
-## snapshot. Pure rules code: it draws only from the stream handed to it and reports problems in
-## the session's [member EffectEngine.diagnostics].
+## starting weapon and equipment) with ids from the session's allocator, and places it on its
+## slot's tile. Each map places its own copies, so co-op maps start identical. The setup result
+## is never saved: a battle restarted from Begin draws it again, and a resumed one restores its
+## units from the snapshot. Pure rules code: it draws only from the stream handed to it and
+## reports problems in the session's [member EffectEngine.diagnostics].
 ##
 ## @tutorial(Enemies and AI plan): docs/plans/2026-10-30-enemies-and-ai.md
 ## @tutorial(Run structure): docs/design/game-vision.md
@@ -65,7 +65,9 @@ const _STEP_LEVELS: Array[int] = [1, 3, 5]
 
 
 ## Setup step 4: draws one pack from every [PackDefinition] in [param catalog] (in id order) with
-## [param ctx]'s shared stream and assigns its units to the map's enemy slots, each at
+## [param ctx]'s shared stream, then, from the same stream, the count of each of its classes whose
+## count varies ([method PackDefinition.varying_classes], in order; a pack with none draws nothing
+## more), and assigns its units to the map's enemy slots, each at
 ## [method level_for] the floor [param floor_number], key when the drawn map is a key combat, plus
 ## [param level_modifier]. No pack in the catalog draws and writes nothing. Register it bound:
 ## [code]draw.bind(catalog, floor_number, level_modifier)[/code].
@@ -79,6 +81,12 @@ static func draw(
 	if packs.is_empty():
 		return
 	var pack: PackDefinition = packs[ctx.stream.pick_index(packs.size())]
+	var drawn: Dictionary[String, int] = {}
+	for class_id: String in pack.varying_classes():
+		var fewest: int = pack.class_counts[class_id]
+		# ASSUMPTION: every count from the fewest to the most is equally likely (the Hunting
+		# Party's 2 or 3 Hounds, first pass).
+		drawn[class_id] = fewest + ctx.stream.pick_index(pack.max_counts[class_id] - fewest + 1)
 	var is_key: bool = (
 			ctx.setup.map != null
 			and ctx.setup.map.combat_type == CombatMapDefinition.CombatType.KEY
@@ -87,7 +95,7 @@ static func draw(
 	var slots: Array[Vector2i] = ctx.setup.layout.tiles_of(MapLayout.MarkerKind.ENEMY_SLOT)
 	var units: Array[Dictionary] = []
 	var unplaced: Array[String] = []
-	for class_id: String in pack.units():
+	for class_id: String in pack.units(drawn):
 		if units.size() >= slots.size():
 			unplaced.append(class_id)
 			continue
@@ -186,6 +194,14 @@ static func _place_unit(
 		)
 		items[item_id] = ItemInstance.new(item_id, weapon_id)
 		unit.weapon_id = item_id
+	var equipment_id: String = enemy_class.starting_equipment_id
+	if not equipment_id.is_empty():
+		var equipment: ItemDefinition = catalog.item(equipment_id)
+		var gear_id: String = session.ids.next_item_id(
+				equipment_id if equipment == null else equipment.display_name
+		)
+		items[gear_id] = ItemInstance.new(gear_id, equipment_id)
+		unit.equipment_id = gear_id
 	var loaded: Loadout.LoadedUnit = Loadout.load_unit(
 			catalog, unit, items, CombatFact.CombatSide.ENEMY, -1, session.ids
 	)

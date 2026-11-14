@@ -6,7 +6,7 @@
 # File:     pack_definition.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: October 30, 2026
+# Modified: November 13, 2026
 # ==============================================================================
 
 @tool
@@ -27,12 +27,31 @@ extends EffectCarrierDefinition
 ## [b]Units:[/b] units; at least 1 each.
 @export var class_counts: Dictionary[String, int] = {}
 
+## The most units of a class it may field, by class id, for a class whose count varies: setup
+## draws each one's count evenly from its [member class_counts] count up to this, such as the
+## Hunting Party's 2 or 3 Hounds. The content test checks each names a listed class.[br]
+## [b]Units:[/b] units; never below the class's count. [b]Absent:[/b] exactly its count.
+@export var max_counts: Dictionary[String, int] = {}
+
 
 ## Every unit it fields as its class id, each class repeated by its count, in
 ## [member class_counts] order. A count below 1 adds nothing.
-func units() -> PackedStringArray:
+## [param drawn]: counts setup drew for the classes that vary ([method varying_classes]), by class
+## id, used in place of their [member class_counts] counts; classes absent keep theirs.
+func units(drawn: Dictionary[String, int] = {}) -> PackedStringArray:
 	var listed: PackedStringArray = []
 	for class_id: String in class_counts:
-		for _i: int in maxi(class_counts[class_id], 0):
+		var count: int = drawn.get(class_id, class_counts[class_id])
+		for _i: int in maxi(count, 0):
 			listed.append(class_id)
 	return listed
+
+
+## The classes whose count varies (a [member max_counts] above their count), in
+## [member class_counts] order: the order setup draws their counts in.
+func varying_classes() -> PackedStringArray:
+	var varying: PackedStringArray = []
+	for class_id: String in class_counts:
+		if max_counts.get(class_id, 0) > class_counts[class_id]:
+			varying.append(class_id)
+	return varying

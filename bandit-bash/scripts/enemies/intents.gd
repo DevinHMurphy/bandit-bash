@@ -6,7 +6,7 @@
 # File:     intents.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 12, 2026
+# Modified: November 13, 2026
 # ==============================================================================
 
 class_name Intents
@@ -259,10 +259,12 @@ static func _decide(
 		return decision
 	# Support rates every end tile by every player unit's reach, an advance follows the nearest foe
 	# anywhere on the map, and a Wait with a class had no foe in reach: any move can change them.
+	# A Shieldbearer's posts beside its ally can follow a path anywhere on the map too.
 	decision.is_global = (
 			margin < 0
 			or plan.behavior == EnemyClassDefinition.Behavior.SUPPORT
 			or plan.kind != EnemyPlan.Kind.ATTACK
+			or plan.target_rule_id == ContentIds.TARGET_BACK_LINE_ALLY
 	)
 	if not decision.is_global:
 		decision.zone = _zone_of(engine, unit_id, margin)

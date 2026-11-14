@@ -6,7 +6,7 @@
 # File:     resume_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 9, 2026
+# Modified: November 13, 2026
 # ==============================================================================
 
 extends "res://tests/sessions/sessions_case_base.gd"
@@ -15,6 +15,9 @@ extends "res://tests/sessions/sessions_case_base.gd"
 ## darkness's arrival too, and the fallback. Skipped without a test user folder.
 
 # The battle the gameplay screen begins (gameplay.tscn's BattleScreen): M1 on floor 1, node 1.
+# A preloaded script used as a type (gdscript.md, Naming): the helper has no class name.
+const PackCatalog = preload("res://tests/enemies/pack_catalog.gd")
+
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
 const M1_FLOOR: int = 1
 const M1_NODE: int = 1
@@ -593,9 +596,10 @@ func _wait_step(run: CampaignSession, index: int) -> UnitTurnCommand:
 
 
 # The gameplay screen's request for the M1 battle (gameplay.tscn: M1, floor 1, node 1), with
-# built's army; a new mercenary army when built is null.
+# built's army; a new mercenary army when built is null. On the real catalog with the M1 pack its
+# only pack, so the battle the script was written against is the one drawn.
 func _m1_request(run: CampaignSession, built: StartingArmy) -> CampaignSession.BattleRequest:
-	var catalog: EffectCatalog.Index = EffectCatalog.index()
+	var catalog: EffectCatalog.Index = PackCatalog.with_only(EffectCatalog.index(), "m1_pack")
 	var army_of: StartingArmy = (
 			built if built != null else StartingArmy.build(catalog, "mercenary", run.ids)
 	)

@@ -6,7 +6,7 @@
 # File:     content_ids.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 5, 2026
+# Modified: November 13, 2026
 # ==============================================================================
 
 @tool
@@ -101,6 +101,29 @@ const TARGET_LOWEST_DEFENSE: String = "lowest_defense"
 
 ## Enemy target rule: the ally missing the most HP (the Hedge Healer).
 const TARGET_MOST_WOUNDED_ALLY: String = "most_wounded_ally"
+
+## Enemy target rule: Exposed foes first, then the lowest HP (the Cutthroat).
+const TARGET_EXPOSED_THEN_LOWEST_HP: String = "exposed_then_lowest_hp"
+
+## Enemy target rule: holds its ground, attacking the foe it reaches with the least movement (the
+## Duelist).
+const TARGET_HOLDS_GROUND: String = "holds_ground"
+
+## Enemy target rule: stays next to its pack's back-line ally, attacking from there (the
+## Shieldbearer).
+const TARGET_BACK_LINE_ALLY: String = "back_line_ally"
+
+## Enemy target rule: the foe whose Curse catches the most player units (the Hexer).
+const TARGET_MOST_CURSED: String = "most_cursed"
+
+## Enemy target rule: stays within 2 tiles of the most allies (the Warcaller).
+const TARGET_MOST_ALLIES_NEAR: String = "most_allies_near"
+
+## Enemy target rule: back-line foes, whoever stands next to them (the Raider).
+const TARGET_BACK_LINE_FOES: String = "back_line_foes"
+
+## Enemy target rule: the lowest HP, advancing with its pack (the Hound).
+const TARGET_PACK_LOWEST_HP: String = "pack_lowest_hp"
 
 ## Weapon types (game-vision.md, Weapons and equipment). A staff is a weapon type, so the same
 ## list names the folders under [code]data/items/weapons/[/code] and
@@ -200,6 +223,13 @@ const TARGET_RULES: PackedStringArray = [
 	TARGET_NEAREST_FOE,
 	TARGET_LOWEST_DEFENSE,
 	TARGET_MOST_WOUNDED_ALLY,
+	TARGET_EXPOSED_THEN_LOWEST_HP,
+	TARGET_HOLDS_GROUND,
+	TARGET_BACK_LINE_ALLY,
+	TARGET_MOST_CURSED,
+	TARGET_MOST_ALLIES_NEAR,
+	TARGET_BACK_LINE_FOES,
+	TARGET_PACK_LOWEST_HP,
 ]
 
 
