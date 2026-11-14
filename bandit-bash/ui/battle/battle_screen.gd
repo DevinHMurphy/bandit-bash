@@ -6,7 +6,7 @@
 # File:     battle_screen.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 13, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 class_name BattleScreen
@@ -27,6 +27,7 @@ extends Node2D
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 ##
 ## @todo: TOD-001 - Drop the node pick on entry once the campaign map screen chooses nodes (RN5).
+## @todo: TOD-002 - Drop the skipped item pick on entry once the Results screen takes it (RN5).
 
 ## How long the Victory or Defeat banner shows before the route to Results, counted from when it
 ## appears; it pauses with the pause menu. Shorter than the banner's fade-in
@@ -87,6 +88,10 @@ func _begin_battle(run: CampaignSession) -> Error:
 	if run.run == null:
 		push_error("BattleScreen: the run has no campaign state")
 		return ERR_UNCONFIGURED
+	if run.run.flow.stage == RunFlow.Stage.RESULTS:
+		var left: Error = _leave_results(run)
+		if left != OK:
+			return left
 	if run.run.is_on_map():
 		var chosen: Error = _choose_next_combat(run)
 		if chosen != OK:
@@ -127,6 +132,22 @@ func _choose_next_combat(run: CampaignSession) -> Error:
 		return ERR_CANT_RESOLVE if batch == null or batch.is_rejected() else OK
 	push_warning("BattleScreen: no combat node is reachable from the map")
 	return ERR_UNAVAILABLE
+
+
+# TODO(TOD-002): The Results screen takes or skips the item pick (RN5). Until then, entering with
+# the run at a combat's results skips the seat's open pick and leaves the node for the map.
+# Returns ERR_CANT_RESOLVE when either command is rejected.
+func _leave_results(run: CampaignSession) -> Error:
+	var seat: int = run.seats[0]
+	var pick: ItemPick = ItemPick.pending(run.run.seat_run(seat))
+	if pick != null and not pick.is_resolved:
+		var skipped: CampaignBatch = CampaignService.submit_command(
+				ItemPickCommand.new(seat, ItemPickCommand.SKIP)
+		)
+		if skipped == null or skipped.is_rejected():
+			return ERR_CANT_RESOLVE
+	var left: CampaignBatch = CampaignService.submit_command(LeaveNodeCommand.new(seat))
+	return ERR_CANT_RESOLVE if left == null or left.is_rejected() else OK
 
 
 func _open(encounter: CombatEncounter, seat: int) -> void:

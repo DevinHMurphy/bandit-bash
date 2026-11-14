@@ -6,7 +6,7 @@
 # File:     item_content_cases.gd
 # Author:
 # Created:  November 12, 2026
-# Modified: November 12, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -91,6 +91,7 @@ const TRINKETS: Dictionary[String, ItemDefinition.Rarity] = {
 	"oak_wood_charm": UNIQUE,
 	"cleansed_goblet": UNIQUE,
 	"heavy_brick": UNIQUE,
+	"resonant_ore": UNIQUE,
 }
 
 # items.md's Consumables, Stat boosters and Ingredients tables, and the Key and Lockpick of P03

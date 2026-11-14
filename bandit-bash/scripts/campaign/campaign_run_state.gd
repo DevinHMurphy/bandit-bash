@@ -6,7 +6,7 @@
 # File:     campaign_run_state.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 13, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 class_name CampaignRunState
@@ -21,18 +21,33 @@ extends RefCounted
 ## [CampaignFact]s. [b]Route invariant:[/b] [member visited] holds one node per floor from floor 1
 ## to [member floor_number], each a child of the one before, [member node] its last
 ## ([constant CampaignGraph.NO_NODE] before the first). A combat node's battle comes from
-## [method battle_request]. Saved as [RunSaveSections]' six sections.
+## [method battle_request]; a won one pays each seat's rewards. Saved as [RunSaveSections]' six
+## sections.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 ##
 ## @todo: TOD-001 - Apply recruit grants, unnamed heirloom and rune grants, and a rune with every
 ## slot full (the discard choice); each is reported and dropped (RN9, P09).
+## @todo: TOD-002 - Roll a Key combat's heirloom from the seat's REWARD stream, after its item
+## pick (RN7, with Treasure's heirloom draw).
+
+## The key of a seat's combat report in [member SeatRun.pending_offers], from a won combat until
+## the run leaves its node: [code]{"grades": CombatGrades.capture(), "xp": [XpAward.capture()],
+## "level_ups": [LevelUp.capture()]}[/code], the units in roster order.
+const COMBAT_REPORT_KEY: String = "combat"
 
 # capture_map()'s keys. Never change them: saved runs are read by these names.
 const _KEY_GRAPH: String = "graph"
 const _KEY_VISITED: String = "visited"
 const _KEY_FLOOR: String = "floor"
 const _KEY_NODE: String = "node"
+
+# The combat report's keys. Never change them: saved runs are read by these names.
+const _KEY_GRADES: String = "grades"
+const _KEY_XP: String = "xp"
+const _KEY_LEVEL_UPS: String = "level_ups"
+
+const _PERCENT: float = 100.0
 
 ## The run's map. Null only in a state not yet built or restored.
 var graph: CampaignGraph = null
@@ -114,12 +129,13 @@ func enter_node(node_id: int) -> void:
 ## ([method CombatMapPools.available]), and each seat's living army with its current HP, items and
 ## heirlooms, a repeated heirloom once per copy. The army's unit and item instances are the run's
 ## own, so the battle's write-back reaches them. Content from [param catalog] (null: the loaded
-## one). Returns null, with an error, outside a node, or for a node with no pool or no map.
+## one). Returns null, with an error, outside a node or at its results, or for a node with no pool
+## or no map.
 func battle_request(
 		pools: CombatMapPools, catalog: EffectCatalog.Index = null
 ) -> CampaignSession.BattleRequest:
-	if is_on_map() or graph == null or not graph.has_node_id(node):
-		push_error("CampaignRunState: the run isn't inside a node, so no battle can begin")
+	if flow.stage != RunFlow.Stage.NODE or graph == null or not graph.has_node_id(node):
+		push_error("CampaignRunState: the run isn't inside a node's battle, so none can begin")
 		return null
 	var pool: CombatMapPool = (
 			null if pools == null else pools.pool_for(graph.type_of(node), floor_number)
@@ -147,26 +163,35 @@ func battle_request(
 
 ## A copy of this run with [param result] applied; this run is left unchanged, so the caller
 ## swaps the copy in, saves, and keeps this one if the save fails. Each unit's HP, permanent
-## deltas and growth changes; fallen units to [member SeatRun.fallen] with their items; each
-## heirloom copy's campaign lane; the grants (gold, a named heirloom, a named rune into an empty
-## slot, minted from [param ids]). For the node's own battle: the map counts as used and, once
-## won, the run leaves the node for the map. Returns null for a null result or a copy that failed.
+## deltas and growth changes; fallen units to [member SeatRun.fallen] with their items, but a
+## fallen commander stays in the army at critical HP; each heirloom copy's campaign lane; the
+## grants, minted from [param ids]. For the node's own finished battle: the map counts as used,
+## each seat whose map was won is paid by [param rules] from [param rolls] (see
+## [constant COMBAT_REPORT_KEY]), and a battle won on every map moves the run to its results.
+## Null for a null result, missing rules or rolls, or a failed copy. [param catalog] null: loaded.
 func apply_battle(
-		result: CampaignSession.BattleResult, ids: InstanceIdAllocator
+		result: CampaignSession.BattleResult,
+		ids: InstanceIdAllocator,
+		rolls: CampaignSession.RewardRolls,
+		rules: CombatRewardRules,
+		catalog: EffectCatalog.Index = null
 ) -> CampaignRunState:
+	if rolls == null or rules == null:
+		push_error("CampaignRunState: a battle's result needs reward rules and rolls")
+		return null
 	var next: CampaignRunState = _copy()
 	if next == null or result == null:
 		return null
 	for seat: int in next.seat_numbers():
 		var seat_run: SeatRun = next.seat_run(seat)
-		_apply_units(seat_run, result)
+		_apply_units(seat_run, result, rules)
 		_apply_heirlooms(seat_run, result)
 	for grant: CampaignSession.Grant in result.grants:
 		_apply_grant(next, grant, ids)
 	var is_node_battle: bool = (
 			result.floor_number == next.floor_number and result.node == next.node
 	)
-	if next.is_on_map() or not is_node_battle:
+	if next.flow.stage != RunFlow.Stage.NODE or not is_node_battle:
 		return next
 	_use_map(next.flow, result.map_id, result.pool_ids)
 	if not result.is_finished:
@@ -176,11 +201,11 @@ func apply_battle(
 		# ASSUMPTION: COMBAT_ENDED's amount is 1 for a win, 0 for a loss; the fact names no field.
 		ended.amount = 1 if result.is_won else 0
 		next.record(ended)
+	var contents: EffectCatalog.Index = catalog if catalog != null else EffectCatalog.index()
+	for seat: int in next.seat_numbers():
+		_reward_seat(next, seat, result, ids, rolls, rules, contents)
 	if result.is_won:
-		next.flow.stage = RunFlow.Stage.MAP
-		var left: CampaignFact = CampaignFact.new(CampaignFact.Kind.NODE_LEFT)
-		left.amount = next.node
-		next.record(left)
+		next.flow.stage = RunFlow.Stage.RESULTS
 	return next
 
 
@@ -333,15 +358,83 @@ static func _use_map(flow_state: RunFlow, map_id: String, pool_ids: PackedString
 	flow_state.used_maps.append(map_id)
 
 
+# The seat's rewards from a won map of result: grades and gold, XP for each unit still standing,
+# their level-ups in roster order (one LEVELED_UP each), the item pick (none after a Boss), and
+# the combat report under COMBAT_REPORT_KEY. A seat whose map was lost gets nothing.
+static func _reward_seat(
+		run: CampaignRunState,
+		seat: int,
+		result: CampaignSession.BattleResult,
+		ids: InstanceIdAllocator,
+		rolls: CampaignSession.RewardRolls,
+		rules: CombatRewardRules,
+		catalog: EffectCatalog.Index
+) -> void:
+	var outcome: CampaignSession.SeatOutcome = result.seats.get(seat, null)
+	var seat_run: SeatRun = run.seat_run(seat)
+	if outcome == null or seat_run == null or not outcome.is_won:
+		return
+	var reward_stream: RngStream = rolls.reward.get(seat, null)
+	var level_stream: RngStream = rolls.level_ups.get(seat, null)
+	if reward_stream == null or level_stream == null:
+		push_error("CampaignRunState: seat %d has no reward streams, so it isn't paid" % [seat])
+		return
+	var grades: CombatGrades = CombatGrades.grade(outcome, rules)
+	seat_run.gold = maxi(seat_run.gold + grades.gold, 0)
+	var standing: Array[UnitInstance] = []
+	var percents: Dictionary[String, int] = {}
+	for unit: UnitInstance in seat_run.army:
+		var unit_outcome: CampaignSession.UnitOutcome = result.units.get(unit.instance_id, null)
+		if unit_outcome != null and unit_outcome.seat == seat and not unit_outcome.is_fallen:
+			standing.append(unit)
+			percents[unit.instance_id] = unit_outcome.xp_percent
+	var awards: Array[XpAward] = XpAward.award(standing, result.tally, outcome, percents, rules)
+	var xp_data: Array = []
+	var level_data: Array = []
+	for award: XpAward in awards:
+		xp_data.append(award.capture())
+		var unit: UnitInstance = seat_run.unit(award.unit_id)
+		var unit_outcome: CampaignSession.UnitOutcome = result.units[award.unit_id]
+		for reached: LevelUp in LevelUp.gain_xp(
+				unit, award.total, unit_outcome.level_up, level_stream, catalog, rules
+		):
+			level_data.append(reached.capture())
+			var leveled: CampaignFact = CampaignFact.new(
+					CampaignFact.Kind.LEVELED_UP, seat, unit.instance_id
+			)
+			leveled.amount = reached.level
+			run.record(leveled)
+	var pick: ItemPick = ItemPick.roll(
+			reward_stream, outcome.combat_type, seat_run, rules, catalog, ids
+	)
+	if pick != null:
+		pick.store(seat_run)
+	# TODO(TOD-002): RN7 rolls a Key combat's heirloom here, from the same REWARD stream.
+	seat_run.pending_offers[COMBAT_REPORT_KEY] = {
+		_KEY_GRADES: grades.capture(),
+		_KEY_XP: xp_data,
+		_KEY_LEVEL_UPS: level_data,
+	}
+
+
 # Each of the seat's units in result, in roster order: its HP, the battle's permanent deltas and
-# growth changes, and a fall to the fallen list, its items kept (permadeath).
-static func _apply_units(seat_run: SeatRun, result: CampaignSession.BattleResult) -> void:
+# growth changes, and a fall to the fallen list, its items kept (permadeath). A fallen commander
+# instead stays in the army with rules' share of its battle max HP, halves up, at least 1.
+static func _apply_units(
+		seat_run: SeatRun, result: CampaignSession.BattleResult, rules: CombatRewardRules
+) -> void:
 	var fell: Array[UnitInstance] = []
 	for unit: UnitInstance in seat_run.army + seat_run.fallen:
 		var outcome: CampaignSession.UnitOutcome = result.units.get(unit.instance_id, null)
 		if outcome == null or outcome.seat != seat_run.seat:
 			continue
+		var is_commander: bool = seat_run.commander_id == unit.instance_id
 		unit.hp = 0 if outcome.is_fallen else outcome.hp
+		if outcome.is_fallen and is_commander:
+			unit.hp = maxi(1, ValueBreakdown.round_to_int(
+					outcome.max_hp * rules.fallen_commander_hp_percent / _PERCENT,
+					ValueBreakdown.Rounding.HALF_UP
+			))
 		for delta: ItemInstance.StatDelta in outcome.stat_deltas:
 			unit.stat_deltas.append(ItemInstance.StatDelta.new(
 					delta.key, delta.amount, delta.source_id, delta.label
@@ -352,17 +445,13 @@ static func _apply_units(seat_run: SeatRun, result: CampaignSession.BattleResult
 			unit.growth_deltas.append(ItemInstance.StatDelta.new(
 					stat as int, float(growth[stat] as int), "", ""
 			))
-		if outcome.is_fallen and seat_run.army.has(unit):
+		if outcome.is_fallen and not is_commander and seat_run.army.has(unit):
 			fell.append(unit)
 	# ASSUMPTION: units that fall in one battle join the fallen list in roster order; the battle's
 	# save keeps no fall order.
 	for unit: UnitInstance in fell:
 		seat_run.army.erase(unit)
 		seat_run.fallen.append(unit)
-		# ASSUMPTION: a fallen commander leaves the army like any unit, clearing the commander, so
-		# the roster stays valid; solo's run ends at once, and co-op's return is P11's.
-		if seat_run.commander_id == unit.instance_id:
-			seat_run.commander_id = ""
 
 
 # Each of the seat's heirloom copies in result gets its campaign lane: the k-th copy of an id is

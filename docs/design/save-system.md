@@ -295,11 +295,11 @@ after `instance_ids`, the map before the flow
 | Key | Per player | Version | Holds |
 |-----|------------|---------|-------|
 | `campaign_map` | No | 1 | `graph` (`CampaignGraph.to_dict()`), `visited` node ids from floor 1, `floor` (0 before the first node), `node` (-1 before it) |
-| `run_flow` | No | 1 | `stage` (`"map"` or `"node"`), `unknown_odds` (percent by outcome id), `used_maps`, `shop_stock`; empty means base odds, none used, nothing rolled |
+| `run_flow` | No | 1 | `stage` (`"map"`, `"node"` or `"results"`, a won combat's rewards waiting), `unknown_odds` (percent by outcome id), `used_maps`, `shop_stock`; empty means base odds, none used, nothing rolled |
 | `roster` | Yes | 1 | `faction_id`, `commander_id`, `army` and `fallen` (units, `UnitInstance.capture()`), `convoy` (item ids), `items` (every item the seat holds, by id) |
 | `heirlooms` | Yes | 1 | `entries` in gain order: `heirloom_id`, `counters`, `charges`; a second copy (a repeated curse) is a second entry |
 | `runes` | Yes | 1 | `slots`: exactly 3, each `{}` or `{instance_id, definition_id}` |
-| `economy` | Yes | 1 | `gold` (0 or more), `rare_offset` (whole percentage points, -5 to +40, starting at -5), `pending_offers` |
+| `economy` | Yes | 1 | `gold` (0 or more), `rare_offset` (whole percentage points, -5 to +40, starting at -5), `pending_offers`: at a combat's results, `combat` (the report: `grades`, `xp` per unit, `level_ups`) and `item_pick` (`slot`, `offers` of `{definition_id, instance_id}`, `is_resolved`, `taken`), both cleared when the node is left |
 
 - **A part with no run is `{}`.** A new run's first save comes before its session exists, so it
   writes `{}` everywhere; `CampaignService` then builds the run (`RunStart`: the map from the
@@ -314,8 +314,12 @@ after `instance_ids`, the map before the flow
   or rune, and out-of-range gold or offset each refuse the section and stop the load.
 - **Saved when:** every resolved campaign command (`CampaignService.submit_command()`) saves at
   once; a rejected one saves nothing. A battle's end saves its result applied
-  ([Battles](#battles)): HP, fallen units in `fallen` with their items, deltas, heirloom counters,
-  grants, the map in `used_maps` and, after a win, the stage back to `"map"`.
+  ([Battles](#battles)): HP, fallen units in `fallen` with their items (a fallen commander stays in
+  `army` at critical HP), deltas, heirloom counters, grants, the map in `used_maps` and, after a
+  win, the rewards (gold, XP, level-ups, the item pick, the moved `rare_offset`, the `REWARD` and
+  `LEVEL_UPS` streams' positions) with the stage at `"results"`. Rewards are rolled once, before
+  that save; a failed save puts the run, its campaign streams and its id counter back, so a retry
+  rolls the same. Taking or skipping the pick and leaving the node are commands, each saved.
 - **The core follows:** every save `CampaignService` makes sets `CampaignData.floors_climbed`, which
   Save Select and the archive show, to the run's `floor`.
 

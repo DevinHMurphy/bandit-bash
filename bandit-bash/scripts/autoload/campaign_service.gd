@@ -6,7 +6,7 @@
 # File:     campaign_service.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 13, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 extends Node
@@ -153,20 +153,31 @@ func resume_battle(request: CampaignSession.BattleRequest) -> Error:
 
 ## Ends the battle in progress in save-system.md's order, so a crash at any point loses and repeats
 ## nothing: collects the result ([method CampaignSession.collect_battle]), swaps in the run with it
-## applied ([method CampaignRunState.apply_battle]), saves with [method SaveService.end_battle],
-## then drops the battle. A solo battle lost ends the run instead ([method SaveService.end_run]).
-## Returns the result; null with no battle, or when the save failed, which puts the run back as it
-## was and leaves the battle in progress.
+## applied and its rewards rolled ([method CampaignRunState.apply_battle], rules from
+## [constant CombatRewardRules.DEFAULT_PATH]), saves with [method SaveService.end_battle], then
+## drops the battle. A solo battle lost ends the run instead ([method SaveService.end_run]).
+## Returns the result; null with no battle, or when applying or the save failed, which puts the
+## run, its campaign streams and its id counter back, leaving the battle in progress.
 func end_battle() -> CampaignSession.BattleResult:
 	if session == null or session.encounter == null:
 		push_error("CampaignService: no battle in progress to end.")
 		return null
 	var result: CampaignSession.BattleResult = session.collect_battle()
 	var kept: CampaignRunState = session.run
+	# The rewards draw from the live streams and mint ids, so a retry must start from here again.
+	var streams_before: Dictionary[String, String] = session.rng.capture_campaign()
+	var ids_before: Dictionary = session.ids.capture()
 	if kept != null:
-		var applied: CampaignRunState = kept.apply_battle(result, session.ids)
+		var applied: CampaignRunState = kept.apply_battle(
+				result,
+				session.ids,
+				session.reward_rolls(result),
+				CombatRewardRules.load_default(),
+				EffectCatalog.index()
+		)
 		if applied == null:
 			push_error("CampaignService: the battle's result couldn't be applied to the run.")
+			_put_back(kept, streams_before, ids_before)
 			return null
 		session.run = applied
 	_sync_floor()
@@ -178,7 +189,7 @@ func end_battle() -> CampaignSession.BattleResult:
 			push_warning("CampaignService: the lost run ended with %s" % [error_string(ended)])
 		return result
 	if SaveService.end_battle() != OK:
-		session.run = kept
+		_put_back(kept, streams_before, ids_before)
 		return null
 	return session.end_battle()
 
@@ -316,6 +327,18 @@ func _load_saved_battle(battle: CombatEncounter) -> Error:
 	if err == OK:
 		err = _battle_tally.load_into(session)
 	return err
+
+
+# A battle's end that didn't save: the run, its campaign streams and its id counter as they were
+# before it, so ending it again rolls and mints the same.
+func _put_back(
+		run: CampaignRunState, streams: Dictionary[String, String], counter: Dictionary
+) -> void:
+	session.run = run
+	_sync_floor()
+	# Captured from the same registry and allocator, so neither can be refused.
+	session.rng.restore_campaign(streams)
+	session.ids.restore(counter)
 
 
 # Sets the active campaign's floor, which Save Select shows, to the run's.

@@ -6,7 +6,7 @@
 # File:     run_battle_cases.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 13, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 extends "res://tests/sessions/sessions_case_base.gd"
@@ -14,8 +14,9 @@ extends "res://tests/sessions/sessions_case_base.gd"
 ## tests/sessions/run_all.gd: one script plays a node's M1 battle (a unit hurt, one fallen, a Hit
 ## delta, two hits, a grant, a checkpoint, the win, the end) without a quit, and with a quit and
 ## Continue before the result is collected, after it is applied but not saved, and after the save;
-## every play ends in the same run, the XP tally and the grant survive the quit, and nothing is
-## applied twice. A solo loss ends the run; choosing a node moves Save Select's floor (BUG-010).
+## every play ends in the same run at the node's results, rewards and item pick included, the XP
+## tally and the grant survive the quit, and nothing is applied or rolled twice. A solo loss ends
+## the run; choosing a node moves Save Select's floor (BUG-010).
 ## Skipped without a test user folder.
 
 # The campaign suite's run_text(), which turns a run into comparable text.
@@ -35,6 +36,8 @@ enum Quit {
 const HIT_GAIN: float = 5.0
 const GRANT_GOLD: int = 40
 const HURT_HP: int = 4
+# A won Standard combat on M1 (par 5) by turn 1, with a unit fallen: 30, +8 for under par.
+const STANDARD_GOLD: int = 38
 
 
 func run() -> void:
@@ -52,14 +55,14 @@ func _test_quit_at_each_step() -> bool:
 	_check("run battle: the battle plays to its end without a quit", (
 			straight.errors.is_empty() and not straight.text.is_empty()
 	), str(straight.errors))
-	_check("run battle: its result is on the run once, and the run is back on the map", (
-			straight.gold == straight.start_gold + GRANT_GOLD
+	_check("run battle: its result is on the run once, paid, and the run is at its results", (
+			straight.gold == straight.start_gold + GRANT_GOLD + STANDARD_GOLD
 			and straight.army_size == 3
 			and straight.fallen_size == 1
 			and straight.hurt_hp == HURT_HP
 			and straight.hit_deltas == 1
 			and straight.used_maps == PackedStringArray(["m1_greybox"])
-			and straight.is_on_map
+			and straight.is_at_results
 	), "%d gold, army %d, fallen %d, hp %d, %d Hit deltas, %s" % [
 		straight.gold, straight.army_size, straight.fallen_size, straight.hurt_hp,
 		straight.hit_deltas, straight.used_maps,
@@ -80,9 +83,9 @@ func _test_quit_at_each_step() -> bool:
 				played.resume_points, played.tally_saved, played.tally_resumed,
 			])
 		else:
-			_check("run battle: a quit after the save continues on the map, no battle", (
+			_check("run battle: a quit after the save continues at the results, no battle", (
 					played.resume_points == [CombatData.ResumePoint.CAMPAIGN]
-					and played.is_on_map
+					and played.is_at_results
 					and not played.had_combat_file
 			), str(played.resume_points))
 	return true
@@ -182,7 +185,11 @@ func _play(saves: Node, service: Node, quit: Quit) -> Play:
 	_end_map(run, PLAYER)
 	if quit == Quit.AFTER_APPLY:
 		# CampaignService.end_battle()'s first two steps, then a crash before its save.
-		run.run = run.run.apply_battle(run.collect_battle(), run.ids)
+		var result: CampaignSession.BattleResult = run.collect_battle()
+		run.run = run.run.apply_battle(
+				result, run.ids, run.reward_rolls(result), CombatRewardRules.load_default(),
+				EffectCatalog.index()
+		)
 		run = _continue(saves, service, played, true)
 		if run == null:
 			return played
@@ -196,14 +203,15 @@ func _play(saves: Node, service: Node, quit: Quit) -> Play:
 			return played
 
 	var seat_run: SeatRun = run.run.seat_run(0)
-	played.text = RunStateCases.run_text(run.run)
+	# Through JSON as on disk, so a continued run's whole floats (its pending offers) compare equal.
+	played.text = JSON.stringify(JSON.parse_string(RunStateCases.run_text(run.run)))
 	played.gold = seat_run.gold
 	played.army_size = seat_run.army.size()
 	played.fallen_size = seat_run.fallen.size()
 	played.hurt_hp = seat_run.unit(played.hurt_id).hp
 	played.hit_deltas = seat_run.unit(played.hit_id).stat_deltas.size()
 	played.used_maps = run.run.flow.used_maps
-	played.is_on_map = run.run.is_on_map()
+	played.is_at_results = run.run.flow.stage == RunFlow.Stage.RESULTS
 	saves.call(&"abandon_run", CampaignData.Mode.SOLO)
 	saves.call(&"close_save_file")
 	SaveFile.delete_folder("user://saves/")
@@ -293,7 +301,7 @@ class Play:
 	var hurt_hp: int = 0
 	var hit_deltas: int = 0
 	var used_maps: PackedStringArray = []
-	var is_on_map: bool = false
+	var is_at_results: bool = false
 	var hit_id: String = ""
 	var hurt_id: String = ""
 	# Per Continue: resume_point; whether a combat file was on disk at the quit.
