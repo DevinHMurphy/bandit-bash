@@ -48,7 +48,7 @@ The MVP is **one full run, start screen to boss, solo and co-op, on Normal** (ga
 | **M0 Foundations** | The engine every system plugs into | P00, P01 | **Complete** October 30, 2026 |
 | **M1 First playable fight** | One greybox combat, start to finish | P02–P07 (subsets) | **Complete** November 5, 2026; its tuning pass is deferred |
 | **M2 Combat complete** | Every MVP combat feature and piece of content, with a functional UI | P02–P07 | **In progress.** Left: P03 CT4, CT7–CT12, CT13F, P05 EN7–EN12, M2's maps, BF1, and the docs (EB8, CC9, MP9, DK6, CT11, EN12) |
-| **M3 Solo run** | Start screen → campaign → boss, saved and resumable; 60–80 minutes | P08, P09 | **In progress.** RN1–RN4 merged; RN5 next |
+| **M3 Solo run** | Start screen → campaign → boss, saved and resumable; 60–80 minutes | P08, P09 | **In progress.** RN1–RN4 merged; RN5 building |
 | **M4 Co-op run** | The same run for 2–4 players, tested live on two machines | P10, P11 | Not started |
 | **M5 MVP** | Statistics, the Waystation war table, the MVP checklist | P12, polish | Not started |
 | Post-MVP | Meta progression and beyond | P20–P24 | Not planned |
@@ -83,10 +83,10 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 **Build prompts resumed** November 12, 2026 (user), two at a time, once planning caught up.
 
 1. **P14:** O1–O4 done (O4 merged November 12, 2026: suites split and run in parallel, a full run in 262 s). O5 waits until a step needs those files.
-2. **Plans:** P08 approved November 12, 2026; RN1 (the map) merged November 12, 2026; RN2 (run state as `CampaignRunState`) merged November 13, 2026; RN3 (the battle bridge, with BUG-009 and BUG-010) merged November 13, 2026; RN4 (rewards, plus a fallen commander kept at critical health, P08 question 19) merged November 14, 2026 (P08 question 20); RN5 (the loop screens) is next. P09 approved November 12, 2026; EV1 is open now that RN2 is in. The move-preview re-architecture is adopted ([move-preview.md](../design/move-preview.md)) as P05 EN13–EN16. **Planning is caught up.**
+2. **Plans:** P08 approved November 12, 2026; RN1 (the map) merged November 12, 2026; RN2 (run state as `CampaignRunState`) merged November 13, 2026; RN3 (the battle bridge, with BUG-009 and BUG-010) merged November 13, 2026; RN4 (rewards, plus a fallen commander kept at critical health, P08 question 19) merged November 14, 2026 (P08 question 20); RN5 (the loop screens): prompt issued November 14, 2026. P09 approved November 12, 2026; EV1 is open now that RN2 is in. The move-preview re-architecture is adopted ([move-preview.md](../design/move-preview.md)) as P05 EN13–EN16. **Planning is caught up.**
 3. **Then M2's content, two prompts at a time:**
    - **Wave A (ready):** CT6 target shapes (merged November 12, 2026) with EN6 enemy roster (merged November 14, 2026: 10 classes, the shared Javelin, killing blows splash; P05 question 39); then CT13 unit roster (merged November 14, 2026: 11 types; P03 question 27; its Skirmisher+ Block half is CT13F, before RN7) with CT5 equipment and consumables (merged November 13, 2026; the Short Quiver moved to CT4 and the Resonant Ore to RN4). EN13 (preview benchmarks and equality suite) is ready, after splitting the enemies suite (design items, P14 / P05); EN14–EN16 follow EN13.
-   - **Wave B:** CT4 weapons and staves, CT9 heirlooms and curses, EN10 reinforcement groups, EN9 map-object AI.
+   - **Wave B:** CT4 weapons and staves, CT9 heirlooms and curses (prompt issued November 14, 2026), EN10 reinforcement groups, EN9 map-object AI.
    - **Wave C:** CT7 runes, CT8 unit prefixes and pools, CT10 modified prices (its formula goes to the user first).
    - **Wave D:** EN7 elites and bosses (marks leaders on the HUD), EN8 mini-bosses, EN11 the Powder Baron and its map, CT12 weapon prefixes (waits on the vision's weapon-prefix rules).
    - **Docs:** EB8, CC9, MP9, DK6, CT11 and EN12 as one batched step at the end of M2.
@@ -97,6 +97,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
    - BUG-006 (S3): NetLog raises an engine error once the peer is cleared.
    - BUG-008 (S2): a client mirror keeps a used-up consumable, so its hash differs from the host's (a one-line fix).
    - BUG-009 (S2) and BUG-010 (S4): **fixed** in RN3, merged November 13, 2026.
+   - BUG-011 (S3, **low priority**, user): a run's cleanup deletes another run's `override.cfg` in the same checkout; no step until a free slot.
    - BUG-007 (S3), shared test user folder: **fixed** in BF2, merged November 12, 2026. Each run now has its own folder.
    - BF1 also removes the confirmed `# ASSUMPTION` markers of UI11 (P07 question 36) and RN1 (P08 questions 14 and 15: `effect_catalog.gd`, `campaign_map_rules.gd`, the `;` comment in `campaign_map_rules.tres`) and RN3 and RN4 (P08 questions 19 (2) and 20: `campaign_run_state.gd`'s `COMBAT_ENDED` amount and fallen-list order; `item_pick_command.gd`'s skipped pick with no fact), and settles CT5's `HIT_STAT = 100` marker in `combat_value.gd`.
 5. **M2's exit:** playtest a full M2 map set, folding in the deferred M1 tuning pass.

@@ -1,6 +1,6 @@
 # Bug Tracker
 
-**Created:** November 6, 2026. **Last updated:** November 12, 2026.
+**Created:** November 6, 2026. **Last updated:** November 14, 2026.
 
 Every known defect in `bandit-bash/`, from playtests, build reports and reviews. It works under the
 [orchestrator](game-orchestrator.md): the orchestrator session triages new rows, batches them into
@@ -45,6 +45,7 @@ Not a bug.
 | [BUG-005](#bug-005-unit-detail-shows-the-type-id-not-its-name) | Unit detail shows the type id, not its name | P07 | S4 | Assigned (BF1) | November 7, 2026, UI11 report | BF1 |
 | [BUG-006](#bug-006-netlog-raises-an-engine-error-once-the-peer-is-cleared) | NetLog raises an engine error once the peer is cleared | P00 / P10 | S3 | Assigned (BF1) | November 9, 2026, O3 report | BF1 |
 | [BUG-008](#bug-008-a-mirror-keeps-a-used-up-consumable) | A mirror keeps a used-up consumable, so its hash differs from the host's | P02 / P11 | S2 | Assigned (BF1) | November 13, 2026, CT5 report | BF1 |
+| [BUG-011](#bug-011-a-test-run-deletes-another-runs-override) | A test run's cleanup deletes another run's `override.cfg` in the same checkout | P14 (runner) | S3 | New, **low priority** (user, November 14, 2026) | November 14, 2026, RN4 merge | — (no step until a free slot) |
 
 ### BUG-001 No Block at the start of combat
 
@@ -165,6 +166,23 @@ Not a bug.
 - **Fixed** in RN3 (9e34098, merged November 13, 2026): every save `CampaignService` makes sets
   `floors_climbed` to the run's floor. Regression: "choosing a node moves Save Select's floor to
   the run's (BUG-010)".
+
+### BUG-011 A test run deletes another run's override
+
+- **Found:** merging RN4 in the main checkout. A run cut off at 16:02 left `bandit-bash/override.cfg`
+  behind (the next run refused to start, as designed). Once removed, a new run started, and the cut-off
+  run, still alive in the background, finished and ran its `end_run()`, which deleted the new run's
+  override. The later user-folder suites then had no test folder: ui/display and ui/input skipped 3
+  screen cases ("needs a test user folder") and still reported PASS. Rerun alone, both were clean.
+- **Cause** (read): `tools/run_tests.sh` `end_run()` does `rm -f "$OVERRIDE"` without checking the
+  file names this run's folder (`custom_user_dir_name="$TEST_DIR_NAME"`).
+- **Harm seen:** only Godot log files reached the real user folder; saves were untouched. The guards in
+  the UI and sessions suites did their job, so this is lost coverage, not lost data.
+- **Expected:** a run removes `override.cfg` only when it still names this run's folder; a suite that
+  skips because the folder went missing makes the run fail, not pass.
+- **Workaround:** one runner per checkout at a time; after an interrupted run, wait for its Godot
+  processes to exit before starting another.
+- **Priority:** low (user, November 14, 2026): fix when a runner step or a free slot comes up.
 
 ### BUG-007 Test runs in two worktrees share one user folder
 
