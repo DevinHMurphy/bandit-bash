@@ -221,10 +221,14 @@ resolved by the step that delivers each piece.
 
 Entered as written, revisited in playtesting (question 7): the Ring of Favor (needs a
 Legendary-sized effect), Heavy Brick (Unique with no source), the Lancer's growths (a `Godot_FE`
-copy-paste), items possibly outside their rarity's budget, Brothers in Arms (needs a selector
-filter the engine lacks, P01 question 30), Freewing+ (Skirmisher+ lacks "and gains 2 Block if it
-moves"; CT13F adds the `MOVED_AFTER_ACTING` trigger and `SECOND_MOVE` fact flag, then the effect
-and its snapshot, `roster_unit_cases.gd:TOD-001`; question 27).
+copy-paste), items possibly outside their rarity's budget, Freewing+ (Skirmisher+ lacks "and gains
+2 Block if it moves"; CT13F adds the `MOVED_AFTER_ACTING` trigger and `SECOND_MOVE` fact flag, then
+the effect and its snapshot, `roster_unit_cases.gd:TOD-001`; question 27). From CT9 (question
+28): Commander's Standard's area counts allies, so on a map several seats share (P11) partners'
+units near the commander gain its Block too; Haunted fires at Phase Start right after the
+refresh, so alone it finds no Block to take; Hunted's `EXTRA_ENEMIES` and Clouded Sight's
+`INTENTS_HIDDEN` have no reading step yet; "<trigger> by Your Unit" reads oddly for a unit's own
+facts and phase facts (P07's generated text).
 
 ### Rejected alternatives
 
@@ -259,7 +263,7 @@ needs a migration in P08's section.
 | CT6 Target shapes | `scripts/content/target_shape.gd`, `data/shapes/`; changes in P01's `blocks/selectors/area.gd`, `combat_state.gd` (staff area), `map_objects.gd` (keg blast) | `TargetShape` and its kinds (question 17); P01's `Area` reads a shape (amendment F17); the area staves, Cleave's splash and the keg blast move onto shapes; retires `combat_state.gd:421` | 🔴 changes a P01 block every area uses | CT2 | Each kind's tiles at sizes 0–3 (grid distance only, question 18); every existing area test (Cleave, Sanctuary, Everwall, kegs) passes unchanged |
 | CT7 Runes | `data/runes/`, changes in `cast_rune_command.gd`, `rune_resolver.gd`, `combat_forecast.gd`, `map_objects.gd` | The seven runes with their target kinds (questions 12 and 16); `CastRuneCommand` carries a tile; the rune preview (area tiles and every unit hit) through the forecast's sandbox run; area runes cover the chosen tile until the vision sets each shape; retires both rune stopgaps | 🔴 command and wire contract | CT6 | Each rune's golden fact log; the preview equals the result; Recall as a pair, Spark detonating the kegs in its area |
 | CT8 Unit prefixes and pools | `data/prefixes/units/`, `scripts/content/item_pools.gd`; change in `map_objects.gd` | The 12 unit prefixes and the tier odds; loot and offer pools by kind and rarity; MP6's chest and house items (`map_objects.gd:TOD-001`) | 🟡 | CT4, CT5 | Prefix budgets match unit-roster.md's table; a seeded pool draw is stable; a Basic or Legendary item never appears in a sellable pool |
-| CT9 Heirlooms and curses | `data/heirlooms/`, `data/curses/` | heirlooms.md and events.md | 🟢 | CT2 | Content test (scopes, unique tags); a golden log per heirloom kind |
+| CT9 Heirlooms and curses | `data/heirlooms/`, `data/curses/`, `data/shapes/within_2_with_center.tres`; changes in P01's `while_state_condition.gd`, `while_position_condition.gd`, `area.gd`, `all_of_scope.gd`, `sandbox_state.gd`, `effect_definition.gd`; `combat_state.gd`, `combat_session.gd` (deploy), `map_objects.gd` | heirlooms.md's 35 pool heirlooms and events.md's 10 curses; the held-weapon profile and commander states, the commander area center, the scope selector's `where` filter (P01 question 30), Burglar's Roll as a third opener, Heavy Pack read at deployment (question 28) | 🔴 P01 blocks and `SandboxState` (additions only) | CT2 | Content test (tiers, scopes, unique and co-op marks); text snapshots; a battle case per combat-side effect; stacking; a golden log per heirloom kind and a curse |
 | CT10 Modified-item prices | `scripts/content/prices.gd` | The price and scrap formula from deltas, brought to the user first (question 8) | 🟢 | CT5 | Price examples for *Infuse* and *Forge Resonance* |
 | CT11 Docs | `docs/design/content-authoring.md` (new) | How to add a unit, item, heirloom or shape: folders, ids, fields, the content test | 🟢 | CT3 | Review |
 | CT12 Weapon prefixes | `data/prefixes/weapons/**`, `scripts/content/item_pools.gd` | The weapon prefix lists, odds and sources (question 15) | 🟡 | CT4, CT8, the vision's weapon prefix rules | Content test (folder rule, applicable types); a prefixed weapon's forecast shows the prefix in its breakdown |

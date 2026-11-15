@@ -6,7 +6,7 @@
 # File:     while_position_condition.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 12, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 @tool
@@ -14,7 +14,7 @@ class_name WhilePositionCondition
 extends EffectCondition
 ## Passes while this unit's position or movement fits: at maximum range, at range N or more,
 ## moved N+ tiles, hasn't moved, no ally closer to an enemy, adjacent to or within N tiles of a
-## unit.
+## unit, adjacent to another player's unit.
 ##
 ## Terms follow effect-triggers.md, Position and movement: adjacent means the four orthogonal
 ## neighbors; "within N tiles" is grid distance, ignoring walls and terrain, the only effect
@@ -39,6 +39,9 @@ enum Kind {
 	## The opponent is [member tiles] or more tiles away, by the attack's distance: "Hit dealt at
 	## range 2 or more" (the Simple Quiver). Fails outside an attack.
 	RANGE_AT_LEAST = 6,
+	## A friendly unit controlled by another seat is on an orthogonally neighboring tile: "adjacent
+	## to a unit of another player" (Brothers in Arms). Never passes in solo.
+	ADJACENT_TO_OTHER_PLAYER = 7,
 }
 
 ## The position test.
@@ -72,6 +75,8 @@ func describe() -> String:
 			return "while within %d %s of %s" % [tiles, unit_word, _side_noun()]
 		Kind.RANGE_AT_LEAST:
 			return "while at range %d or more" % [tiles]
+		Kind.ADJACENT_TO_OTHER_PLAYER:
+			return "while adjacent to a unit of another player"
 	return "while in position"
 
 
@@ -99,6 +104,8 @@ func test(ctx: EffectContext) -> bool:
 			if ctx.opponent_of(unit_id).is_empty():
 				return false
 			return ctx.distance >= tiles
+		Kind.ADJACENT_TO_OTHER_PLAYER:
+			return _next_to_other_seat(engine, unit_id)
 	return false
 
 
@@ -119,6 +126,22 @@ func _any_near(engine: EffectEngine, unit_id: String, reach: int) -> bool:
 			continue
 		var steps: int = engine.tile_distance(unit_id, other)
 		if steps >= 1 and steps <= reach:
+			return true
+	return false
+
+
+# Whether a friendly unit of a seat other than unit_id's stands next to it. Enemies and objects have
+# no seat, so only player units count.
+func _next_to_other_seat(engine: EffectEngine, unit_id: String) -> bool:
+	var own_side: CombatFact.CombatSide = engine.state.side_of(unit_id)
+	var own_seat: int = engine.state.seat_of(unit_id)
+	for other: String in engine.state.unit_ids():
+		var seat: int = engine.state.seat_of(other)
+		if seat < 0 or seat == own_seat:
+			continue
+		if not engine.matches_side(own_side, other, EffectTerms.UnitSide.ALLY):
+			continue
+		if engine.tile_distance(unit_id, other) == 1:
 			return true
 	return false
 

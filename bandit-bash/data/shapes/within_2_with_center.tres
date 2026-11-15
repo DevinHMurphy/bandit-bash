@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="TargetShape" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/target_shape.gd" id="1_shape"]
+
+[resource]
+script = ExtResource("1_shape")
+kind = "radius"
+size = 2
+id = "within_2_with_center"
+display_name = "Within 2 and Center"

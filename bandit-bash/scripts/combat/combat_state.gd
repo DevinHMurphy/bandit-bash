@@ -6,7 +6,7 @@
 # File:     combat_state.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: November 12, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 class_name CombatState
@@ -91,6 +91,11 @@ var seats_to_start: PackedInt32Array = []
 ## Rune instance ids in each seat's slots, copied in at battle start by the campaign bridge. A cast
 ## rune leaves its slot.
 var rune_slots: Dictionary[int, PackedStringArray] = {}
+
+## Each seat's commander on this map, by seat: a copy of [member CombatSession.commander_ids], which
+## the session refreshes whenever it changes, so effects can test "your commander". Not in
+## [method capture]: the session saves it.
+var commander_ids: Dictionary[int, String] = {}
 
 var _units: Dictionary[String, CombatUnitState] = {}
 
@@ -542,6 +547,7 @@ func copy_for_sandbox() -> SandboxState:
 	copy.seats_to_start = seats_to_start.duplicate()
 	for seat: int in rune_slots:
 		copy.rune_slots[seat] = rune_slots[seat].duplicate()
+	copy.commander_ids = commander_ids.duplicate()
 	for id: String in _order:
 		copy._units[id] = _units[id].copy()
 	copy._order = _order.duplicate()
@@ -611,6 +617,15 @@ func unit_type_of(id: String) -> String:
 func weapon_type_of(weapon_id: String) -> String:
 	var held: WeaponStats = weapon(weapon_id)
 	return "" if held == null else held.weapon_type
+
+
+func weapon_profile_of(weapon_id: String) -> WeaponTriangle.Profile:
+	var held: WeaponStats = weapon(weapon_id)
+	return WeaponTriangle.Profile.NONE if held == null else held.profile
+
+
+func commander_of(seat: int) -> String:
+	return commander_ids.get(seat, "")
 
 
 func set_hp(id: String, value: int) -> void:

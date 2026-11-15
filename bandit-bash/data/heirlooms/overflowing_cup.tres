@@ -1,0 +1,37 @@
+[gd_resource type="Resource" script_class="HeirloomDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="4_gain"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/fact_actor.gd" id="5_actor"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/percent_of_fact.gd" id="6_percent"]
+[ext_resource type="Script" path="res://scripts/content/heirloom_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_healed"]
+script = ExtResource("5_actor")
+
+[sub_resource type="Resource" id="Resource_overheal"]
+script = ExtResource("6_percent")
+field = 2
+percent = 100.0
+
+[sub_resource type="Resource" id="Resource_block"]
+script = ExtResource("4_gain")
+pool = 1
+target = SubResource("Resource_healed")
+amount = SubResource("Resource_overheal")
+
+[sub_resource type="Resource" id="Resource_effect"]
+script = ExtResource("1_eff")
+id = "overheal_block"
+trigger = 20
+scope = 1
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_block")])
+
+[resource]
+script = ExtResource("9_def")
+tier = "uncommon"
+kind = "behavior"
+id = "overflowing_cup"
+display_name = "Overflowing Cup"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])

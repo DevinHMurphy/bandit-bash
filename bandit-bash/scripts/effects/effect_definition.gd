@@ -6,7 +6,7 @@
 # File:     effect_definition.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 4, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 @tool
@@ -107,7 +107,10 @@ func describe() -> String:
 		text = "%s: %s" % [", ".join(opening), text]
 	if charges > 0:
 		var uses: String = "use" if charges == 1 else "uses"
-		text += " (%d %s %s)" % [charges, uses, EffectTerms.LANE_TEXT[charge_lane]]
+		# Trimmed first: an opener with no operations (Burglar's Roll) reads "Always: (1 use ...)".
+		text = "%s (%d %s %s)" % [
+			text.strip_edges(false, true), charges, uses, EffectTerms.LANE_TEXT[charge_lane],
+		]
 	return text.left(1).to_upper() + text.substr(1)
 
 

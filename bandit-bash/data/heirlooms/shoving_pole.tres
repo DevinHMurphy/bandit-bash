@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="HeirloomDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="4_gain"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/fact_actor.gd" id="5_actor"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="6_const"]
+[ext_resource type="Script" path="res://scripts/content/heirloom_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_shover"]
+script = ExtResource("5_actor")
+
+[sub_resource type="Resource" id="Resource_two"]
+script = ExtResource("6_const")
+value = 2.0
+
+[sub_resource type="Resource" id="Resource_block"]
+script = ExtResource("4_gain")
+pool = 1
+target = SubResource("Resource_shover")
+amount = SubResource("Resource_two")
+
+[sub_resource type="Resource" id="Resource_effect"]
+script = ExtResource("1_eff")
+id = "shove_block"
+trigger = 24
+scope = 1
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_block")])
+
+[resource]
+script = ExtResource("9_def")
+tier = "common"
+kind = "behavior"
+id = "shoving_pole"
+display_name = "Shoving Pole"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])

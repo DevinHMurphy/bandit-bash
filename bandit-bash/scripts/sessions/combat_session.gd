@@ -6,7 +6,7 @@
 # File:     combat_session.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 7, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 class_name CombatSession
@@ -119,7 +119,8 @@ var setup: CombatEncounter.EncounterSetup = null
 var seat_setup: CombatEncounter.SeatSetup = null
 
 ## Each seat's commander on this map, by seat, as [method deploy] placed it; a seat whose army
-## has no commander here has no entry. [Objectives] loses the map when one is defeated.
+## has no commander here has no entry. [Objectives] loses the map when one is defeated. Copied to
+## [member CombatState.commander_ids] whenever it changes, for effects.
 var commander_ids: Dictionary[int, String] = {}
 
 ## Whether this map's combat has ended ([constant CombatFact.Kind.COMBAT_ENDED] was recorded).
@@ -432,6 +433,7 @@ func load_snapshot(
 	is_finished = fields.is_finished
 	is_won = fields.is_won
 	commander_ids = fields.commander_ids
+	state.commander_ids = commander_ids.duplicate()
 	_bases = fields.bases
 	_base_seq = fields.last_seq
 	_checkpoint_seq = fields.last_seq
@@ -584,7 +586,9 @@ func debug_dump() -> String:
 ## [constant CombatFact.Kind.UNIT_SPAWNED] for each one placed. Their weapons must already be in
 ## [member state]. [param bases]: each unit's base values (value key to number) by unit id.
 ## [param commander_id]: empty when the army has none here; once placed, it is the commander of its
-## seat in [member commander_ids]. Returns where each unit went.
+## seat in [member commander_ids]. Each unit's Pouch item weight is its army's
+## [constant CampaignValue.Key.POUCH_ITEM_WEIGHT], so the army's effects must be registered first.
+## Returns where each unit went.
 func deploy(
 		units: Array[CombatUnitState],
 		bases: Dictionary[String, Dictionary],
@@ -593,6 +597,13 @@ func deploy(
 	for unit: CombatUnitState in units:
 		var unit_bases: Dictionary = bases.get(unit.id, {})
 		_set_bases(unit.id, unit_bases)
+		unit.pouch_item_weight = engine.stats(
+				InstanceIdAllocator.seat_subject_id(unit.seat)
+		).get_int(CampaignValue.Key.POUCH_ITEM_WEIGHT)
+		# Before placement, so the commander's Stance at placement already counts "your commander"
+		# effects (Ill Omen).
+		if unit.id == commander_id:
+			state.commander_ids[unit.seat] = commander_id
 	var placement: AutoDeploy.Placement = AutoDeploy.deploy(
 			engine,
 			state,
@@ -607,6 +618,7 @@ func deploy(
 			add_unit(unit)
 	if not commander_id.is_empty() and state.has_unit(commander_id):
 		commander_ids[state.seat_of(commander_id)] = commander_id
+	state.commander_ids = commander_ids.duplicate()
 	return placement
 
 

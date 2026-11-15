@@ -1,0 +1,38 @@
+[gd_resource type="Resource" script_class="HeirloomDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_cond"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/while_state_condition.gd" id="4_state"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="5_value"]
+[ext_resource type="Script" path="res://scripts/content/heirloom_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_balance"]
+script = ExtResource("4_state")
+state = 2
+profile = 1
+
+[sub_resource type="Resource" id="Resource_damage"]
+script = ExtResource("5_value")
+key = 1000
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_defense"]
+script = ExtResource("5_value")
+key = 19
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_effect"]
+script = ExtResource("1_eff")
+id = "balance_bonuses"
+scope = 1
+conditions = Array[ExtResource("2_cond")]([SubResource("Resource_balance")])
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_damage"), SubResource("Resource_defense")])
+
+[resource]
+script = ExtResource("9_def")
+tier = "common"
+kind = "profile"
+id = "drillmasters_baton"
+display_name = "Drillmaster's Baton"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])

@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="HeirloomDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_value"]
+[ext_resource type="Script" path="res://scripts/content/heirloom_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_grades"]
+script = ExtResource("4_value")
+key = 2001
+value = 25.0
+
+[sub_resource type="Resource" id="Resource_effect"]
+script = ExtResource("1_eff")
+id = "grade_bonus"
+scope = 1
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_grades")])
+
+[resource]
+script = ExtResource("9_def")
+tier = "rare"
+kind = "economy"
+id = "gilded_purse"
+display_name = "Gilded Purse"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])

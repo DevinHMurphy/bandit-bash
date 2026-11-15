@@ -1,0 +1,45 @@
+[gd_resource type="Resource" script_class="HeirloomDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_cond"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/counter_condition.gd" id="4_count"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="5_gain"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/all_of_scope.gd" id="6_scope"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="7_const"]
+[ext_resource type="Script" path="res://scripts/content/heirloom_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_first"]
+script = ExtResource("4_count")
+mode = 1
+lane = 0
+
+[sub_resource type="Resource" id="Resource_your_units"]
+script = ExtResource("6_scope")
+scope = 1
+
+[sub_resource type="Resource" id="Resource_three"]
+script = ExtResource("7_const")
+value = 3.0
+
+[sub_resource type="Resource" id="Resource_block"]
+script = ExtResource("5_gain")
+pool = 1
+target = SubResource("Resource_your_units")
+amount = SubResource("Resource_three")
+
+[sub_resource type="Resource" id="Resource_effect"]
+script = ExtResource("1_eff")
+id = "opening_block"
+trigger = 1
+scope = 1
+conditions = Array[ExtResource("2_cond")]([SubResource("Resource_first")])
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_block")])
+
+[resource]
+script = ExtResource("9_def")
+tier = "common"
+kind = "behavior"
+id = "iron_rations"
+display_name = "Iron Rations"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])

@@ -1,0 +1,40 @@
+[gd_resource type="Resource" script_class="HeirloomDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_cond"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/while_role_condition.gd" id="4_role"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/add_timed_modifier.gd" id="5_timed"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/fact_actor.gd" id="6_actor"]
+[ext_resource type="Script" path="res://scripts/content/heirloom_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_initiator"]
+script = ExtResource("4_role")
+role = 0
+
+[sub_resource type="Resource" id="Resource_unit"]
+script = ExtResource("6_actor")
+
+[sub_resource type="Resource" id="Resource_hit"]
+script = ExtResource("5_timed")
+target = SubResource("Resource_unit")
+key = 4
+value = 5.0
+end = 0
+uses = 0
+
+[sub_resource type="Resource" id="Resource_effect"]
+script = ExtResource("1_eff")
+id = "initiator_hit"
+trigger = 3
+scope = 1
+conditions = Array[ExtResource("2_cond")]([SubResource("Resource_initiator")])
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_hit")])
+
+[resource]
+script = ExtResource("9_def")
+tier = "common"
+kind = "behavior"
+id = "hunters_horn"
+display_name = "Hunter's Horn"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])

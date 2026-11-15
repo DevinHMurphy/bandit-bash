@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="HeirloomDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_value"]
+[ext_resource type="Script" path="res://scripts/content/heirloom_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_scrap"]
+script = ExtResource("4_value")
+key = 2004
+value = 20.0
+
+[sub_resource type="Resource" id="Resource_effect"]
+script = ExtResource("1_eff")
+id = "scrap_rate"
+scope = 1
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_scrap")])
+
+[resource]
+script = ExtResource("9_def")
+tier = "common"
+kind = "economy"
+id = "scrappers_tongs"
+display_name = "Scrapper's Tongs"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])

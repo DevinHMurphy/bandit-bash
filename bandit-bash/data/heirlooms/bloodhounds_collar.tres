@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="HeirloomDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/add_timed_modifier.gd" id="4_timed"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/fact_actor.gd" id="5_actor"]
+[ext_resource type="Script" path="res://scripts/content/heirloom_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_killer"]
+script = ExtResource("5_actor")
+
+[sub_resource type="Resource" id="Resource_may_move"]
+script = ExtResource("4_timed")
+target = SubResource("Resource_killer")
+key = 3002
+mode = 6
+end = 1
+uses = 0
+
+[sub_resource type="Resource" id="Resource_effect"]
+script = ExtResource("1_eff")
+id = "kill_move"
+trigger = 17
+scope = 1
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_may_move")])
+
+[resource]
+script = ExtResource("9_def")
+tier = "rare"
+kind = "behavior"
+id = "bloodhounds_collar"
+display_name = "Bloodhound's Collar"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])
