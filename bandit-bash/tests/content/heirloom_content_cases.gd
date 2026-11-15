@@ -6,7 +6,7 @@
 # File:     heirloom_content_cases.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 14, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -166,7 +166,11 @@ const TEXT: Dictionary[String, Array] = {
 	"guild_charter": ["Always: +1 Guildhall Recruits"],
 	"membership_seal": ["Always: -20 Price Percent"],
 	"tinkers_token": ["Always: +1 Free Rerolls"],
-	"haunted": ["Phase Start by Your Unit: remove 2 Block from a random one of your units"],
+	# Resolves first, so the ban is in place before Phase Start's Block gains.
+	"haunted": [
+		"Phase Start by Your Unit: deny Can Gain Block for a random one of your units"
+		+ " until the end of the next phase",
+	],
 	"short_wick": ["Always: -1 Darkness Arrival Offset"],
 	# A Stance loss at the army's first Phase Start, so it lasts until its next refresh.
 	"shaken_footing": [
@@ -228,20 +232,19 @@ const GOLDEN: Dictionary[String, Array] = {
 		"s0#18 AFTER_COMBAT unit:2 -> enemy:5",
 		"s0#19 MODIFIER_GAINED unit:2 effect effect:1",
 	],
-	# Iron Rations (effect:2) reacts before the curse (effect:1); the curse's pick takes 2 of the
-	# Lancer's 3 Block; the Lancer's own Unit Turn Start Block (effect:8) comes after.
-	"Haunted after Iron Rations": [
+	# The curse (effect:1) resolves first, ahead of Iron Rations (effect:2): its pick, the Lancer,
+	# gets neither Iron Rations' Block nor its own Unit Turn Start Block (effect:8), and neither
+	# banned gain is recorded.
+	"Haunted with Iron Rations": [
 		"s0#6 PHASE_START side player amount 1",
-		"s0#7 COUNTER_CHANGED seat:0 lane 0 amount 1 effect effect:2",
-		"s0#8 EFFECT_ACTIVATED seat:0 effect effect:2",
-		"s0#9 EFFECT_ACTIVATED seat:0 effect effect:1",
+		"s0#7 EFFECT_ACTIVATED seat:0 effect effect:1",
+		"s0#8 COUNTER_CHANGED seat:0 lane 0 amount 1 effect effect:2",
+		"s0#9 EFFECT_ACTIVATED seat:0 effect effect:2",
 		"s0#10 UNIT_TURN_START unit:3 tile (0, 0)",
 		"s0#11 UNIT_TURN_START unit:6 tile (1, 0)",
 		"s0#12 EFFECT_ACTIVATED unit:6 effect effect:8",
-		"s0#13 BLOCK_GAINED unit:3 amount 3 (hp 0, block 3) source effect effect effect:2",
-		"s0#14 BLOCK_GAINED unit:6 amount 3 (hp 0, block 3) source effect effect effect:2",
-		"s0#15 BLOCK_LOST unit:6 amount 2 (hp 0, block 2) source effect effect effect:1",
-		"s0#16 BLOCK_GAINED unit:6 amount 1 (hp 0, block 1) source effect effect effect:8",
+		"s0#13 MODIFIER_GAINED unit:6 effect effect:1",
+		"s0#14 BLOCK_GAINED unit:3 amount 3 (hp 0, block 3) source effect effect effect:2",
 	],
 	# Economy and army heirlooms produce no facts: their golden output is the seat's breakdown.
 	"Bounty Ledger and Muster Roll": [
@@ -941,19 +944,53 @@ func _test_commander_and_pouch() -> void:
 	))
 
 
-# Haunted after Iron Rations, so there is Block to take: the golden log, its random pick through
-# the roll source. Alone, at Phase Start after the refresh, it finds no Block; two copies pick
-# twice.
+# Haunted with Iron Rations: the golden log, its random pick through the roll source. The ban
+# resolves first, so the picked unit gets none of Iron Rations' Block, nor any later gain that
+# turn (nothing recorded); it ends at the enemy Phase End, and the next Phase Start picks again.
+# Two copies pick twice.
 func _test_haunted() -> void:
 	var session: CombatSession = _session()
-	_own(session, "haunted")
+	var curse: String = _own(session, "haunted")[0].instance_id
 	_own(session, "iron_rations")
-	_place(session, "hakkapel", PLAYER, 0, Vector2i(0, 0))
-	_place(session, "lancer", PLAYER, 0, Vector2i(1, 0))
+	var hakkapel: String = _place(session, "hakkapel", PLAYER, 0, Vector2i(0, 0))
+	var lancer: String = _place(session, "lancer", PLAYER, 0, Vector2i(1, 0))
 	_place(session, "hakkapel", ENEMY, -1, Vector2i(8, 0))
 	var start: int = session.engine.fact_log.size()
 	session.open_battle()
-	_golden("Haunted after Iron Rations", session.engine, _first_phase_start(session, start))
+	_golden("Haunted with Iron Rations", session.engine, _first_phase_start(session, start))
+	var picked: String = _haunted_pick(session.engine, curse, start)
+	var spared: String = hakkapel if picked == lancer else lancer
+	var block: String = "%d %d" % [
+		session.state.get_block(picked), session.state.get_block(spared),
+	]
+	var before: int = session.engine.fact_log.size()
+	var gains: String = "%d %d" % [
+		session.engine.gain_block(picked, 2.0), session.engine.gain_block(spared, 2.0),
+	]
+	_same("haunted: Block of the picked unit and the other, then a gain of 2 to each", (
+			"%s | %s" % [block, gains]
+	), "0 3 | 0 2")
+	_ok("haunted: a banned gain records nothing", (
+			session.engine.fact_log.size() == before + 1
+			and session.engine.fact_log[before].actor_id == spared
+	))
+
+	var ended_at: int = session.engine.fact_log.size()
+	session.submit(EndTurnCommand.new(0))
+	session.resolve_next()
+	var expired: int = -1
+	var next_start: int = -1
+	for index: int in range(ended_at, session.engine.fact_log.size()):
+		var fact: CombatFact = session.engine.fact_log[index]
+		if fact.kind == CombatFact.Kind.MODIFIER_EXPIRED and fact.actor_id == picked:
+			expired = index
+		elif fact.kind == CombatFact.Kind.PHASE_START and fact.side == PLAYER:
+			next_start = index
+	_ok("haunted: the ban ends before the next Phase Start, which picks again", (
+			expired >= 0
+			and next_start > expired
+			and not _haunted_pick(session.engine, curse, next_start).is_empty()
+	))
 
 	var picks: PackedStringArray = []
 	for copies: int in [1, 2]:
@@ -963,20 +1000,28 @@ func _test_haunted() -> void:
 		_place(haunted, "hakkapel", ENEMY, -1, Vector2i(8, 0))
 		haunted.open_battle()
 		var fired: int = 0
-		var lost: int = 0
+		var banned: int = 0
 		for fact: CombatFact in haunted.engine.fact_log:
-			if fact.kind == CombatFact.Kind.BLOCK_LOST:
-				lost += 1
 			for instance: EffectInstance in instances:
-				if (
-						fact.kind == CombatFact.Kind.EFFECT_ACTIVATED
-						and fact.source_effect_id == instance.instance_id
-				):
+				if fact.source_effect_id != instance.instance_id:
+					continue
+				if fact.kind == CombatFact.Kind.EFFECT_ACTIVATED:
 					fired += 1
-		picks.append("%d copies: %d fired, %d lost" % [copies, fired, lost])
-	_same("haunted: alone it fires but finds no Block; copies each fire", ", ".join(picks), (
-			"1 copies: 1 fired, 0 lost, 2 copies: 2 fired, 0 lost"
+				elif fact.kind == CombatFact.Kind.MODIFIER_GAINED:
+					banned += 1
+		picks.append("%d copies: %d fired, %d banned" % [copies, fired, banned])
+	_same("haunted: copies each fire and pick", ", ".join(picks), (
+			"1 copies: 1 fired, 1 banned, 2 copies: 2 fired, 2 banned"
 	))
+
+
+# The first unit the curse instance curse_id banned from start on; empty when none.
+func _haunted_pick(engine: EffectEngine, curse_id: String, start: int) -> String:
+	for index: int in range(start, engine.fact_log.size()):
+		var fact: CombatFact = engine.fact_log[index]
+		if fact.kind == CombatFact.Kind.MODIFIER_GAINED and fact.source_effect_id == curse_id:
+			return fact.actor_id
+	return ""
 
 
 # On turn 1 Your Units start with 1 Stance less (a Thief's 1 leaves it Exposed); turn 2's refresh

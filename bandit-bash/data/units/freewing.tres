@@ -3,6 +3,8 @@
 [ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/add_timed_modifier.gd" id="4_timed"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="5_gain"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="6_con"]
 [ext_resource type="Script" path="res://scripts/content/unit_type_definition.gd" id="9_def"]
 
 [sub_resource type="Resource" id="Resource_may_move"]
@@ -24,6 +26,21 @@ id = "skirmisher_plus"
 trigger = 4
 operations = Array[ExtResource("3_ops")]([SubResource("Resource_may_move")])
 
+[sub_resource type="Resource" id="Resource_amount_plus"]
+script = ExtResource("6_con")
+value = 2.0
+
+[sub_resource type="Resource" id="Resource_block_plus"]
+script = ExtResource("5_gain")
+pool = 1
+amount = SubResource("Resource_amount_plus")
+
+[sub_resource type="Resource" id="Resource_skirmisher_plus_block"]
+script = ExtResource("1_eff")
+id = "skirmisher_plus_block"
+trigger = 27
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_block_plus")])
+
 [resource]
 script = ExtResource("9_def")
 trait_name = "Skirmisher"
@@ -36,7 +53,7 @@ starting_weapon_id = "simple_sword"
 innate_effects = Array[ExtResource("1_eff")]([])
 base_stats = Dictionary[int, int]({0: 17, 1: 3, 2: 7, 3: 2, 4: 2, 5: 5, 6: 7})
 growths = Dictionary[int, int]({0: 60, 1: 40, 2: 48, 3: 9, 4: 27})
-upgraded_effects = Array[ExtResource("1_eff")]([SubResource("Resource_skirmisher_plus")])
+upgraded_effects = Array[ExtResource("1_eff")]([SubResource("Resource_skirmisher_plus"), SubResource("Resource_skirmisher_plus_block")])
 upgrade_stat_gains = Dictionary[int, int]({2: 2, 4: 1})
 upgrade_weapon_types = PackedStringArray()
 upgrade_tags = PackedStringArray()

@@ -6,7 +6,7 @@
 # File:     describe_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 12, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends "res://tests/effects/effects_case_base.gd"
@@ -538,13 +538,18 @@ func _test_describe_coverage_fixtures() -> void:
 			and not brittle.has_tag(EffectDefinition.Tag.UNIQUE)
 	)
 
-	var haunt: GainResource = _gain(GainResource.Pool.BLOCK, _random_of_army(), _constant(-2.0))
+	var haunt: AddTimedModifier = _timed(
+			CombatValue.Permission.CAN_GAIN_BLOCK, Modifier.Mode.DENY, 0.0
+	)
+	haunt.target = _random_of_army()
+	haunt.end = AddTimedModifier.End.END_OF_NEXT_PHASE
 	var haunted: EffectDefinition = _definition(EffectTerms.Trigger.PHASE_START, [], [haunt])
 	haunted.scope = EffectTerms.Scope.YOUR_UNIT
 	_snapshot(
 			"fixture: Haunted",
 			haunted.describe(),
-			"Phase Start by Your Unit: remove 2 Block from a random one of your units"
+			"Phase Start by Your Unit: deny Can Gain Block for a random one of your units until"
+			+ " the end of the next phase"
 	)
 
 

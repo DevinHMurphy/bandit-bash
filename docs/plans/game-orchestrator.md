@@ -36,7 +36,7 @@ Where the project is, what's next and what's out of scope. Start here.
 - **Milestones:** M0 and M1 are complete. **Current: M2 Combat complete,** with M3 started alongside.
 - **What runs today:** a solo run opens the M1 battle: the Mercenary army against the Brigand pack on the greybox map. All of M2's battle systems and functional UI work on keyboard, mouse and controller: targeting, forecast, intents, the darkness, every objective's HUD, unit detail, and Save & Quit with resume.
 - **What M2 still needs:** content, enemy AI, docs and bug fixes. No new systems.
-- **Tests:** 4,876 cases, all passing, and a clean headless launch (`sh bandit-bash/tools/run_tests.sh`).
+- **Tests:** 4,880 cases, all passing, and a clean headless launch (`sh bandit-bash/tools/run_tests.sh`).
 - **Not started:** P09 (approved) and P10–P12. P08 is in progress (RN1–RN4 merged).
 
 ## Milestones
@@ -47,7 +47,7 @@ The MVP is **one full run, start screen to boss, solo and co-op, on Normal** (ga
 |---|---|---|---|
 | **M0 Foundations** | The engine every system plugs into | P00, P01 | **Complete** October 30, 2026 |
 | **M1 First playable fight** | One greybox combat, start to finish | P02–P07 (subsets) | **Complete** November 5, 2026; its tuning pass is deferred |
-| **M2 Combat complete** | Every MVP combat feature and piece of content, with a functional UI | P02–P07 | **In progress.** Left: P03 CT4, CT7–CT12, CT13F, P05 EN7–EN12, M2's maps, BF1, and the docs (EB8, CC9, MP9, DK6, CT11, EN12) |
+| **M2 Combat complete** | Every MVP combat feature and piece of content, with a functional UI | P02–P07 | **In progress.** Left: P03 CT4, CT7–CT12, P05 EN7–EN12, M2's maps, BF1, and the docs (EB8, CC9, MP9, DK6, CT11, EN12) |
 | **M3 Solo run** | Start screen → campaign → boss, saved and resumable; 60–80 minutes | P08, P09 | **In progress.** RN1–RN5 merged (a run plays map → combat → Results → map on all three devices, headless) |
 | **M4 Co-op run** | The same run for 2–4 players, tested live on two machines | P10, P11 | Not started |
 | **M5 MVP** | Statistics, the Waystation war table, the MVP checklist | P12, polish | Not started |
@@ -86,7 +86,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 2. **Plans:** P08 approved November 12, 2026; RN1 (the map) merged November 12, 2026; RN2 (run state as `CampaignRunState`) merged November 13, 2026; RN3 (the battle bridge, with BUG-009 and BUG-010) merged November 13, 2026; RN4 (rewards, plus a fallen commander kept at critical health, P08 question 19) merged November 14, 2026 (P08 question 20); RN5 (the loop screens: the campaign map, Results, new-item placement, the run's end) merged November 15, 2026 (P08 question 21). P09 approved November 12, 2026; EV1 is open now that RN2 is in. The move-preview re-architecture is adopted ([move-preview.md](../design/move-preview.md)) as P05 EN13–EN16. **Planning is caught up.**
 3. **Then M2's content, two prompts at a time:**
    - **Wave A (ready):** CT6 target shapes (merged November 12, 2026) with EN6 enemy roster (merged November 14, 2026: 10 classes, the shared Javelin, killing blows splash; P05 question 39); then CT13 unit roster (merged November 14, 2026: 11 types; P03 question 27; its Skirmisher+ Block half is CT13F, before RN7) with CT5 equipment and consumables (merged November 13, 2026; the Short Quiver moved to CT4 and the Resonant Ore to RN4). EN13 (preview benchmarks and equality suite) is ready, after splitting the enemies suite (design items, P14 / P05); EN14–EN16 follow EN13.
-   - **Wave B:** CT4 weapons and staves (prompt issued November 15, 2026; with the Short Quiver and Everbloom), CT13F Skirmisher+ Block and the Haunted redesign (prompt issued November 15, 2026), CT9 heirlooms and curses (merged November 15, 2026: 35 pool heirlooms, 10 curses; follow-ups in P03 question 28), EN10 reinforcement groups, EN9 map-object AI.
+   - **Wave B:** CT4 weapons and staves (prompt issued November 15, 2026; with the Short Quiver and Everbloom), CT13F Skirmisher+ Block and the Haunted redesign (merged November 15, 2026; P03 question 29), CT9 heirlooms and curses (merged November 15, 2026: 35 pool heirlooms, 10 curses; follow-ups in P03 question 28), EN10 reinforcement groups, EN9 map-object AI.
    - **Wave C:** CT7 runes, CT8 unit prefixes and pools, CT10 modified prices (its formula goes to the user first).
    - **Wave D:** EN7 elites and bosses (marks leaders on the HUD), EN8 mini-bosses, EN11 the Powder Baron and its map, CT12 weapon prefixes (waits on the vision's weapon-prefix rules).
    - **Docs:** EB8, CC9, MP9, DK6, CT11 and EN12 as one batched step at the end of M2.

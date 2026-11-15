@@ -6,7 +6,7 @@
 # File:     unit_turn_command.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 5, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name UnitTurnCommand
@@ -205,7 +205,7 @@ func resolve(session: CombatSession) -> void:
 
 # Sets the pending second move's flag on the action's facts recorded since index from, before the
 # batch they go out in is finished. The permission is read once the action has resolved, so the
-# flag can't be known when those facts are recorded; no effect reads flags.
+# flag can't be known when those facts are recorded; no effect reads this flag.
 func _mark_second_move(engine: EffectEngine, from: int) -> void:
 	for i: int in range(from, engine.fact_log.size()):
 		var fact: CombatFact = engine.fact_log[i]
@@ -320,9 +320,10 @@ func _uses_sidearm(state: CombatState) -> bool:
 ## Walks [param unit_id] along [param path] in [param state]: checks it
 ## ([method CombatState.validate_path]; an empty path stays on the unit's tile) and, if it is legal
 ## and leaves the tile, moves the unit to its last tile, adds the tiles and movement cost to its
-## turn, and records [constant CombatFact.Kind.UNIT_MOVED] with both (a mirror adds them). An
-## illegal path changes nothing. The command and [CombatForecast] both walk through this, so a
-## forecast walks as the command does. Returns the path's check.
+## turn, and records [constant CombatFact.Kind.UNIT_MOVED] with both (a mirror adds them), flagged
+## [constant CombatFact.Flag.SECOND_MOVE] once the unit has acted. An illegal path changes nothing.
+## The command and [CombatForecast] both walk through this, so a forecast walks as the command
+## does. Returns the path's check.
 static func walk_path(
 		engine: EffectEngine, state: CombatState, unit_id: String, path: Array[Vector2i]
 ) -> CombatGrid.PathCheck:
@@ -341,5 +342,7 @@ static func walk_path(
 	moved.tile = end
 	moved.amount = check.tiles_moved
 	moved.key = check.cost
+	if unit.has_acted:
+		moved.flags |= CombatFact.Flag.SECOND_MOVE
 	engine.record(moved)
 	return check

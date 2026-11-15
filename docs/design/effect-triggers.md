@@ -77,6 +77,7 @@ phase ends when every player with units on it has ended their turn (event bus pl
 | Darkness damage taken | A unit takes damage from [the darkness](the-darkness.md) at its side's Phase End | Not an attack: it never fires Hit taken or Damage taken |
 | Object used | A unit uses a [map object](map-objects.md) (lights or douses, pulls, searches, passes through) | |
 | Shoved a unit / Shoved | A unit shoves another / a unit is shoved | Shove is described in game-vision.md |
+| Moved after acting | A unit makes its own move after acting, which a trait allows (Skirmisher) | Only its own walk: being shoved, Recalled or swapped doesn't count. Fires once the move is made, so Skirmisher+'s "gains 2 Block if it moves" lasts until its side's next Block refresh |
 
 Always-on effects have no trigger. They apply whenever their owner is involved, e.g. "Take 5 less
 damage".

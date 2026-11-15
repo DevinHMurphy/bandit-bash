@@ -181,8 +181,8 @@ flowchart LR
   classDef active fill:#bbdefb,stroke:#1565c0,color:#1b1b1b
   classDef ready fill:#fff3c4,stroke:#b8860b,color:#1b1b1b
   classDef waiting fill:#e0e0e0,stroke:#757575,color:#1b1b1b
-  class R1,R2,R3,R4,R5,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,CT2,EB5,EB7,EBF,EN1,CT3,EN2,EN3,CC8,CT3F,EN3F,EN4,EN5,MP8,DK1,EN4F,DK2,DK3,UI1,DK4,UI2,UI2F,UI3,UI4,UI3F,UI5,UI5F,CC10,UI6,UI7,UI7F,UI8,UI9,UI10,UI11,DK5,CT6,CT5,EN6,CT13,CT9 done
-  class CT4,CT7,CT10,CT13F,EN9,EN10,DK6,UI12 ready
+  class R1,R2,R3,R4,R5,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,CT2,EB5,EB7,EBF,EN1,CT3,EN2,EN3,CC8,CT3F,EN3F,EN4,EN5,MP8,DK1,EN4F,DK2,DK3,UI1,DK4,UI2,UI2F,UI3,UI4,UI3F,UI5,UI5F,CC10,UI6,UI7,UI7F,UI8,UI9,UI10,UI11,DK5,CT6,CT5,EN6,CT13,CT9,CT13F done
+  class CT4,CT7,CT10,EN9,EN10,DK6,UI12 ready
   class CT8,CT12,EN7,EN8,EN11 waiting
 ```
 
@@ -216,7 +216,7 @@ mark it **Open** here.
 | P14 O3 UI layout | P14 O2 done; no open feature branches or worktrees; a clean tree | About 165 files move, so any open branch would conflict | **Open** November 9, 2026; built ✅ (November 9, 2026) |
 | P14 O4 Tests | P14 O3 ✅ (November 9, 2026); no open branch touching `tests/` or `tools/run_tests.sh` | Test files move and the runner changes | **Open** November 9, 2026; built ✅ (November 12, 2026) |
 | P08 RN1–RN5 Run loop | P08 approved ✅ (November 12, 2026); built in order | Runs on M1's data; RN2 and RN3 change the save format | **Open** November 12, 2026; RN1 built ✅ (November 12, 2026); RN2 built ✅ (November 13, 2026); RN3 built ✅ (November 13, 2026); RN4 built ✅ (November 14, 2026); RN5 built ✅ (November 15, 2026) |
-| P08 RN6–RN11 Nodes and full run | RN5 ✅ (November 15, 2026); the M2 content each row of P08's Work Breakdown names (CT4, CT5, CT7, CT8, CT9, CT13, and CT13F before RN7; RN11 also EN7, EN8, EN11 and M2's maps) | Offers need real pools | Waiting |
+| P08 RN6–RN11 Nodes and full run | RN5 ✅ (November 15, 2026); the M2 content each row of P08's Work Breakdown names (CT4, CT5, CT7, CT8, CT9, CT13, and CT13F ✅ (November 15, 2026) before RN7; RN11 also EN7, EN8, EN11 and M2's maps) | Offers need real pools | Waiting |
 | P05 EN13 Preview: measure | move-preview.md adopted ✅ (November 12, 2026) | Benchmarks and the equality suite only; no behavior change | **Open** November 12, 2026, alongside Wave A |
 | P05 EN14–EN16 Preview re-architecture | EN13; EN6 ✅ (November 13, 2026; Guard and Skirmisher, which the zones must cover); in order, EN15 and EN16 after EN14 | The cache and zones must cover every behavior; EN15 also stops re-planning the Shieldbearer on every move preview (EN6 report) | Waiting on EN13 |
 | P09 EV1 Outcomes | P09 approved ✅ (November 12, 2026); P08 RN2 | Outcomes apply to `CampaignRunState` | **Open** November 13, 2026 (RN2 merged) |
