@@ -6,7 +6,7 @@
 # File:     reinforcements.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 4, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name Reinforcements
@@ -15,7 +15,7 @@ extends RefCounted
 ## and a player unit closing a point (combat map plan, Reinforcement points).
 ##
 ## A point's arrival turns are authored on its [MapMarker]. Setup step 5 ([method draw_waves]) draws
-## one group per arrival turn through a [Reinforcements.GroupSource] (P05's enemy groups);
+## one group per arrival turn through a [Reinforcements.GroupSource] ([EnemySetup.WaveGroups]);
 ## [method register] copies the waves into the session's [member MapState.points] and adds:[br]
 ## - [b]Warnings[/b] ([constant CombatHooks.Hook.INTENTS], after every player Phase Start): one
 ## [constant CombatFact.Kind.REINFORCEMENT_INCOMING] per open point with the turns until its next
@@ -36,8 +36,6 @@ extends RefCounted
 ## code: it records through the session's engine and never awaits.
 ##
 ## @tutorial(Combat map plan): docs/plans/2026-10-27-combat-map.md
-##
-## @todo: TOD-002 - Draw P05's enemy groups and build their units (GroupSource).
 
 # What became of one arriving unit.
 enum _Arrival {
@@ -261,7 +259,8 @@ static func _send(
 # movement type reaches from the point (combat map plan, question 24b): the flood passes units and
 # stops at walls, closed doors and terrain it can't enter, so a walled pocket can be full while the
 # map has room. A unit with no such tile is dropped and waits as its entry; it is built again, with
-# a new id, when it next tries.
+# a new id, when it next tries. A placed unit's weapons and effects are registered first, so the
+# full Stance set at placement counts its traits.
 static func _place(
 		session: CombatSession,
 		source: GroupSource,
@@ -284,6 +283,8 @@ static func _place(
 		return _Arrival.WAITING
 	for weapon: CombatState.WeaponStats in recruit.weapons:
 		state.add_weapon(weapon)
+	for instance: EffectInstance in recruit.effects:
+		session.engine.register(instance)
 	unit.tile = tile
 	if not session.add_unit(unit, recruit.bases):
 		_report(session, "%s wasn't placed on %s" % [unit_type, tile], point)
@@ -361,8 +362,8 @@ static func _unit_type_of(entry: Dictionary) -> String:
 	return unit_type if unit_type is String else ""
 
 
-## Where reinforcement waves' groups come from: P05's enemy groups. Override both methods; this
-## base draws no group, so a map's points send nothing.
+## Where reinforcement waves' groups come from: [EnemySetup.WaveGroups] in the game. Override both
+## methods; this base draws no group, so a map's points send nothing.
 class GroupSource:
 	extends RefCounted
 
@@ -371,7 +372,6 @@ class GroupSource:
 	## one Dictionary per unit in arrival order, each naming its
 	## [constant Reinforcements.UNIT_TYPE_KEY]. Empty for no wave.
 	func draw_group(_stream: RngStream, _point: MapLayout.Marker, _turn: int) -> Array[Dictionary]:
-		# TODO(TOD-002): P05's enemy groups, and build() for their units.
 		return []
 
 	## The unit [param entry] (one of [method draw_group]'s) arrives as on [param session]'s map:
@@ -392,3 +392,6 @@ class Recruit:
 	var bases: Dictionary = {}
 	## The records of the weapons it holds.
 	var weapons: Array[CombatState.WeaponStats] = []
+	## Its effect instances (traits, item effects), not yet registered; registered when it is
+	## placed. [b]Empty:[/b] none.
+	var effects: Array[EffectInstance] = []
