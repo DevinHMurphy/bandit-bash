@@ -37,7 +37,7 @@ Where the project is, what's next and what's out of scope. Start here.
 - **What runs today:** a solo run opens the M1 battle: the Mercenary army against the Brigand pack on the greybox map. All of M2's battle systems and functional UI work on keyboard, mouse and controller: targeting, forecast, intents, the darkness, every objective's HUD, unit detail, and Save & Quit with resume.
 - **What M2 still needs:** content, enemy AI, docs and bug fixes. No new systems.
 - **Tests:** 4,880 cases, all passing, and a clean headless launch (`sh bandit-bash/tools/run_tests.sh`).
-- **Not started:** P09 (approved) and P10–P12. P08 is in progress (RN1–RN4 merged).
+- **Not started:** P09 (approved) and P10–P12. P08 is in progress (RN1–RN5 merged).
 
 ## Milestones
 
@@ -64,7 +64,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P00 | [Save system](2026-10-13-save-system.md) | **Implemented** | Multiplayer paths untested live | — |
 | P01 | [Event bus and effects](2026-10-23-event-bus-and-effects.md) | **In progress** | EB8 docs | P00 |
 | P02 | [Combat core](2026-10-26-combat-core.md) | **In progress** | CC9 docs | P01 |
-| P03 | [Content catalog](2026-10-29-content-catalog.md) | **In progress** | CT4, CT7–CT12, CT13F | P01 |
+| P03 | [Content catalog](2026-10-29-content-catalog.md) | **In progress** | CT4, CT7, CT8, CT10–CT12 | P01 |
 | P04 | [Combat map](2026-10-27-combat-map.md) | **In progress** | MP9 docs; M2's maps | P01, P02 |
 | P05 | [Enemies and AI](2026-10-30-enemies-and-ai.md) | **In progress** | EN7–EN16 | P02, P04 |
 | P06 | [The darkness](2026-11-03-the-darkness.md) | **In progress** | DK6 docs | P02, P04 |
@@ -86,7 +86,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 2. **Plans:** P08 approved November 12, 2026; RN1 (the map) merged November 12, 2026; RN2 (run state as `CampaignRunState`) merged November 13, 2026; RN3 (the battle bridge, with BUG-009 and BUG-010) merged November 13, 2026; RN4 (rewards, plus a fallen commander kept at critical health, P08 question 19) merged November 14, 2026 (P08 question 20); RN5 (the loop screens: the campaign map, Results, new-item placement, the run's end) merged November 15, 2026 (P08 question 21). P09 approved November 12, 2026; EV1 is open now that RN2 is in. The move-preview re-architecture is adopted ([move-preview.md](../design/move-preview.md)) as P05 EN13–EN16. **Planning is caught up.**
 3. **Then M2's content, two prompts at a time:**
    - **Wave A (ready):** CT6 target shapes (merged November 12, 2026) with EN6 enemy roster (merged November 14, 2026: 10 classes, the shared Javelin, killing blows splash; P05 question 39); then CT13 unit roster (merged November 14, 2026: 11 types; P03 question 27; its Skirmisher+ Block half is CT13F, before RN7) with CT5 equipment and consumables (merged November 13, 2026; the Short Quiver moved to CT4 and the Resonant Ore to RN4). EN13 (preview benchmarks and equality suite) is ready, after splitting the enemies suite (design items, P14 / P05); EN14–EN16 follow EN13.
-   - **Wave B:** CT4 weapons and staves (prompt issued November 15, 2026; with the Short Quiver and Everbloom), CT13F Skirmisher+ Block and the Haunted redesign (merged November 15, 2026; P03 question 29), CT9 heirlooms and curses (merged November 15, 2026: 35 pool heirlooms, 10 curses; follow-ups in P03 question 28), EN10 reinforcement groups, EN9 map-object AI.
+   - **Wave B:** CT4 weapons and staves (prompt issued November 15, 2026; with the Short Quiver and Everbloom), CT13F Skirmisher+ Block and the Haunted redesign (merged November 15, 2026; P03 question 29), CT9 heirlooms and curses (merged November 15, 2026: 35 pool heirlooms, 10 curses; follow-ups in P03 question 28), EN10 reinforcement groups and the Hunted extra enemy (prompt issued November 15, 2026), EN9 map-object AI.
    - **Wave C:** CT7 runes, CT8 unit prefixes and pools, CT10 modified prices (its formula goes to the user first).
    - **Wave D:** EN7 elites and bosses (marks leaders on the HUD), EN8 mini-bosses, EN11 the Powder Baron and its map, CT12 weapon prefixes (waits on the vision's weapon-prefix rules).
    - **Docs:** EB8, CC9, MP9, DK6, CT11 and EN12 as one batched step at the end of M2.
