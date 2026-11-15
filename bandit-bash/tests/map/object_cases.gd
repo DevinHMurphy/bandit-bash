@@ -6,7 +6,7 @@
 # File:     object_cases.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 14, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -517,10 +517,17 @@ func _test_cutthroat() -> void:
 	state.map.contents[1] = {"kind": "consumable"}
 	var walker: CombatGrid.MovementType = CombatGrid.MovementType.DEFAULT
 	world.add_unit("p1", PLAYER, Vector2i(0, 0))
-	world.add_unit("c1", ENEMY, Vector2i(1, 0), "", [], walker, MapObjects.CUTTHROAT_UNIT_TYPE)
-	world.add_unit("c2", ENEMY, Vector2i(4, 0), "", [], walker, MapObjects.CUTTHROAT_UNIT_TYPE)
+	world.add_unit("c1", ENEMY, Vector2i(1, 0), "", [], walker, "cutthroat")
+	world.add_unit("c2", ENEMY, Vector2i(4, 0), "", [], walker, "cutthroat")
 	world.open()
 	var engine: EffectEngine = world.engine()
+	_same(
+			"cutthroat: its class name alone loots nothing",
+			MapObjects.check_use(engine, state, "c1", "object:0"),
+			"only player units and Cutthroats loot"
+	)
+	world.grant_looting("c1")
+	world.grant_looting("c2")
 	_same(
 			"cutthroat: opens a chest with nothing",
 			MapObjects.use(engine, state, "c1", "object:0"),
@@ -818,6 +825,22 @@ class ObjectWorld:
 					)),
 					Modifier.SourceKind.UNIT_TRAIT
 			))
+
+	# Grants [param unit_id] CAN_LOOT through a hand-built innate effect, as the Cutthroat's class
+	# does, so these cases test the map objects whatever the enemy roster's data says.
+	func grant_looting(unit_id: String) -> void:
+		var loots: SetPermission = SetPermission.new()
+		loots.permission = CombatValue.Permission.CAN_LOOT
+		loots.allow = true
+		var looting: EffectDefinition = EffectDefinition.new()
+		looting.id = "looting"
+		looting.operations.assign([loots])
+		session.engine.register(EffectInstance.new(
+				"eff:looting:%s" % [unit_id],
+				looting,
+				EffectOwner.for_unit(unit_id, -1, CombatFact.CombatSide.ENEMY),
+				Modifier.SourceKind.UNIT_TRAIT
+		))
 
 	func give_item(unit_id: String, effect_id: String, uses: int) -> String:
 		var item_id: String = "item:%s:%s" % [effect_id, unit_id]

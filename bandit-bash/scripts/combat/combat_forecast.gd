@@ -34,6 +34,9 @@ extends RefCounted
 ##
 ## @tutorial(Combat core plan): docs/plans/2026-10-26-combat-core.md
 
+# The Hit an attack on a map object records, on the 0-100 scale: it rolls nothing and lands.
+const _CERTAIN_HIT: int = 100
+
 
 ## The preview of [param command]'s attack ([constant UnitTurnCommand.Action.ATTACK]) on
 ## [param engine]'s map: the path, Sidearm's free swap when the command names the stowed weapon,
@@ -820,8 +823,13 @@ class Recorder:
 				_current.index = attacks.size()
 				_current.attacker_id = fact.actor_id
 				_current.defender_id = fact.target_id
-				# The hit roll is the next roll: the Attack made window rolled before this fact.
-				_current.hit_roll = _engine.rolls.records.size()
+				if state.side_of(fact.target_id) == CombatFact.CombatSide.NONE:
+					# An attack on a map object takes no hit roll ([ExchangeResolver]): it lands.
+					_current.hit = CombatForecast._CERTAIN_HIT
+					_current.hit_probability = 1.0
+				else:
+					# The hit roll is the next roll: the Attack made window rolled before this fact.
+					_current.hit_roll = _engine.rolls.records.size()
 				attacks.append(_current)
 			CombatFact.Kind.MISSED:
 				_take_hit_roll()
@@ -848,7 +856,10 @@ class Recorder:
 				if _current != null and fact.actor_id == _current.defender_id:
 					_current.defeated = true
 
+	# Reads the attack's hit roll; an attack on a map object has none and keeps its certain hit.
 	func _take_hit_roll() -> void:
+		if _current.hit_roll < 0:
+			return
 		var record: RollRecord = _engine.rolls.records[_current.hit_roll]
 		_current.hit = record.value
 		_current.hit_probability = record.probability

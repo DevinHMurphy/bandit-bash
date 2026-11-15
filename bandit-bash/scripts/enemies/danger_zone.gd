@@ -16,8 +16,10 @@ extends RefCounted
 ##
 ## An enemy's tiles are its reach next phase, with its full movement from where it stands now
 ## (units block as they stand), plus the range of each weapon it could attack with there: the one
-## in hand, and the stowed one while a free Sidearm swap is allowed. Heal and Block staves attack
-## nothing, so a Hedge Healer has no tiles. Only tiles on the map count. Built by [Intents]; P07
+## in hand, and the stowed one while a free Sidearm swap is allowed, plus the blast of every powder
+## keg those tiles reach, chained through the kegs it breaks (map-objects.md: a keg an enemy can
+## use shows in the danger zone). Heal and Block staves attack nothing, so a Hedge Healer has no
+## tiles. Only tiles on the map count. Built by [Intents]; P07
 ## draws it. Plain data, pure to build: it reads the board and changes nothing.
 ##
 ## @tutorial(Enemies and AI plan): docs/plans/2026-10-30-enemies-and-ai.md
@@ -62,7 +64,8 @@ static func compute(engine: EffectEngine) -> DangerZone:
 
 
 ## The tiles [param unit_id] could attack next phase on [param engine]'s map, in row-major order:
-## every free tile it could end on with its full movement, plus each attacking weapon's range.
+## every free tile it could end on with its full movement, plus each attacking weapon's range,
+## plus the blasts of the powder kegs in that range ([method MapObjects.explode]'s tiles).
 static func tiles_for(engine: EffectEngine, unit_id: String) -> Array[Vector2i]:
 	var state: CombatState = engine.state
 	var found: Array[Vector2i] = []
@@ -88,6 +91,7 @@ static func tiles_for(engine: EffectEngine, unit_id: String) -> Array[Vector2i]:
 			for tile: Vector2i in tiles_within(end, span):
 				if state.grid.step(tile, Vector2i.ZERO) != CombatFact.NO_TILE:
 					covered[tile] = true
+	_add_keg_blasts(state, covered)
 	found.assign(covered.keys())
 	found.sort_custom(EnemyPlan.tile_precedes)
 	return found
@@ -122,6 +126,26 @@ static func tiles_within(center: Vector2i, span: Vector2i) -> Array[Vector2i]:
 			if absi(dx) + absi(dy) >= span.x:
 				found.append(center + Vector2i(dx, dy))
 	return found
+
+
+# Adds to covered the blast of every unbroken powder keg on a covered tile, then of every keg
+# such a blast reaches, until no new keg is caught (kegs chain with no limit).
+static func _add_keg_blasts(state: CombatState, covered: Dictionary[Vector2i, bool]) -> void:
+	var waiting: Array[MapState.ObjectState] = []
+	for keg: MapState.ObjectState in state.map.objects_of(MapLayout.ObjectKind.POWDER_KEG):
+		if not keg.is_destroyed:
+			waiting.append(keg)
+	var is_growing: bool = true
+	while is_growing:
+		is_growing = false
+		for keg: MapState.ObjectState in waiting.duplicate():
+			if not covered.has(keg.tile):
+				continue
+			waiting.erase(keg)
+			is_growing = true
+			for tile: Vector2i in MapObjects.KEG_BLAST.tiles(keg.tile):
+				if state.grid.step(tile, Vector2i.ZERO) != CombatFact.NO_TILE:
+					covered[tile] = true
 
 
 # Whether held attacks: any weapon but a Block or heal staff, as EnemyAI reads it.

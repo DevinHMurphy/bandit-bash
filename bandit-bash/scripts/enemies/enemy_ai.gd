@@ -16,9 +16,9 @@ extends RefCounted
 ##
 ## [method decide] lists every (end tile, action, target) its behavior allows, each attack and
 ## staff previewed fresh from its tile with [ForecastRolls], and rates them in [EnemyPlan]'s order:
-## a kill (target or splash) first for every behavior, then the class's target rule. Each
-## behavior's rules are in [method decide]. A flooded end tile is dropped when a dry one serves the
-## same goal; after the darkness every enemy plays Aggressive on the nearest foe.
+## a kill (target, splash or a keg's blast) first, then the class's target rule; each behavior's
+## rules and object uses are in [method decide]. A flooded end tile is dropped when a dry one
+## serves the same goal; after the darkness every enemy plays Aggressive on the nearest foe.
 ## [method next_command] re-decides every enemy yet to act and gives the best plan, so each sees
 ## what the ones before it did. Rules code: pure, static, deterministic, no RNG or logging
 ## ([member EffectEngine.diagnostics]); on a sandbox no other thread touches it may run on a
@@ -26,13 +26,14 @@ extends RefCounted
 ##
 ## @tutorial(Enemies and AI plan): docs/plans/2026-10-30-enemies-and-ai.md
 ## @tutorial(Enemy roster): docs/design/enemy-roster.md
+## @tutorial(Map objects): docs/design/map-objects.md
 ##
 ## @todo: TOD-001 - Block staves and a second move after acting; no class uses either before
 ## EN8's Bloodhound, and an enemy holding a Block staff regroups.
 ## @todo: TOD-002 - A boss holding a fixed tile keeps its behavior after the darkness (EN7's mark).
 ## @todo: TOD-003 - The Warcaller's War Horn, its signature move (EN7); until then it only rallies.
-## @todo: TOD-004 - Cutthroat looting: with no attack worth taking, it opens a chest or searches a
-## searchable to deny it (EN9; map_objects.gd:TOD-002).
+## @todo: TOD-005 - Levers off a Seize or Defend map: opening a route toward a foe, and sealing one
+## on other objectives, once a map needs it.
 
 ## (c)'s weight on the damage share: Godot_FE's damage bonus ([code]aiAction.gd[/code],
 ## [code]generate_attack_action_rating[/code]).
@@ -60,6 +61,10 @@ const RALLY_TILES: int = 2
 # Exposed foe ranks first, then the lowest HP.
 const _UNEXPOSED_RANK: float = 1000000.0
 
+# The path cost to the objective tile of a player side that can't reach it: larger than any path,
+# so a lever that cuts the last route always raises it.
+const _SEALED: int = 1 << 30
+
 
 ## Registers the AI on [param session]'s [constant CombatHooks.Hook.ENEMY_COMMANDS], reading each
 ## enemy's class from [param catalog]. Once per session, before its battle opens.
@@ -72,7 +77,9 @@ static func register(session: CombatSession, catalog: EffectCatalog.Index) -> vo
 ## that fails [method UnitTurnCommand.validate] becomes a Wait, with a diagnostic, so a fault
 ## never repeats until the phase's command limit.
 static func next_command(session: CombatSession, catalog: EffectCatalog.Index) -> Command:
-	var plan: EnemyPlan = next_plan(session.engine, catalog, flooded_tiles(session.state))
+	var plan: EnemyPlan = next_plan(
+			session.engine, catalog, flooded_tiles(session.state), objective_tiles(session)
+	)
 	if plan == null:
 		return null
 	var command: UnitTurnCommand = plan.to_command()
@@ -91,14 +98,15 @@ static func next_command(session: CombatSession, catalog: EffectCatalog.Index) -
 static func next_plan(
 		engine: EffectEngine,
 		catalog: EffectCatalog.Index,
-		flooded: Dictionary[Vector2i, bool] = {}
+		flooded: Dictionary[Vector2i, bool] = {},
+		objective: Array[Vector2i] = []
 ) -> EnemyPlan:
 	var state: CombatState = engine.state
 	var best: EnemyPlan = null
 	for unit_id: String in state.units_of(CombatFact.CombatSide.ENEMY):
 		if state.unit(unit_id).has_acted:
 			continue
-		var plan: EnemyPlan = decide(engine, catalog, unit_id, flooded)
+		var plan: EnemyPlan = decide(engine, catalog, unit_id, flooded, objective)
 		if best == null or plan.is_better_than(best):
 			best = plan
 	return best
@@ -110,12 +118,16 @@ static func next_plan(
 ## on the foe nearest its pack). Hold: a kill, else from its own tile, else as Aggressive. Guard:
 ## any attack in reach, else stay; a Shieldbearer first takes its place beside its back-line ally.
 ## Support: heal the most wounded ally, else regroup; a Warcaller attacks only from where most
-## allies stay near. Changes nothing. [param flooded]: the darkness's ([method flooded_tiles]).
+## allies stay near. Any attacker blows a keg to kill; a looter loots unless it can kill; with
+## nothing to attack, the advancing ones seal the objective or douse a Brazier. Changes nothing.
+## [param flooded]: the darkness's ([method flooded_tiles]).
+## [param objective]: the tiles the player side must reach ([method objective_tiles]).
 static func decide(
 		engine: EffectEngine,
 		catalog: EffectCatalog.Index,
 		unit_id: String,
-		flooded: Dictionary[Vector2i, bool] = {}
+		flooded: Dictionary[Vector2i, bool] = {},
+		objective: Array[Vector2i] = []
 ) -> EnemyPlan:
 	var state: CombatState = engine.state
 	var definition: EnemyClassDefinition = null
@@ -124,6 +136,7 @@ static func decide(
 	if definition == null:
 		return _wait_plan(state, unit_id, EnemyClassDefinition.Behavior.AGGRESSIVE, "")
 	var board: Board = Board.new(engine, unit_id, flooded)
+	board.objective = objective
 	board.catalog = catalog
 	board.behavior = definition.behavior
 	board.rule = definition.target_rule_id
@@ -155,10 +168,16 @@ static func decide(
 			or board.behavior == EnemyClassDefinition.Behavior.HOLD
 			or board.behavior == EnemyClassDefinition.Behavior.SKIRMISHER
 	)
-	# TODO(TOD-004): a Cutthroat with no attack loots a chest or a searchable before it advances
-	# (EN9).
+	# Looting is the class's, not the behavior's; once the darkness arrives every enemy only fights.
+	var can_loot: bool = (
+			MapObjects.is_looter(engine, state, unit_id)
+			and not Reinforcements.has_darkness_arrived(state)
+	)
+	if can_loot:
+		options.append_array(_prefer_dry(board, _loots(board)))
 	if options.is_empty() and advances:
-		options = _prefer_dry(board, _advances(board))
+		options = _prefer_dry(board, _object_uses(board))
+		options.append_array(_prefer_dry(board, _advances(board)))
 	if options.is_empty():
 		return _wait_plan(state, unit_id, board.behavior, board.rule)
 	_rate_target_rule(board, options)
@@ -175,6 +194,21 @@ static func flooded_tiles(state: CombatState) -> Dictionary[Vector2i, bool]:
 	return flooded
 
 
+## The tiles [param session]'s player side must reach to win or hold its map, for
+## [method decide]'s levers: Seize's seize tiles, Defend's defend tiles; empty on any other
+## objective and outside an encounter.
+static func objective_tiles(session: CombatSession) -> Array[Vector2i]:
+	var tiles: Array[Vector2i] = []
+	if session.setup == null or session.setup.map == null or session.layout == null:
+		return tiles
+	match session.setup.map.objective:
+		CombatMapDefinition.Objective.SEIZE:
+			tiles = session.layout.tiles_of(MapLayout.MarkerKind.SEIZE)
+		CombatMapDefinition.Objective.DEFEND:
+			tiles = session.layout.tiles_of(MapLayout.MarkerKind.DEFEND)
+	return tiles
+
+
 ## Rating step (d) for [param tile] on [param grid]: avoid ÷ [constant AVOID_DIVISOR] + DEF + RES
 ## of its terrain. Higher is better.
 static func terrain_rating(grid: CombatGrid, tile: Vector2i) -> float:
@@ -186,13 +220,16 @@ static func terrain_rating(grid: CombatGrid, tile: Vector2i) -> float:
 
 # Every attack the enemy can make this turn: each weapon that attacks (the one in hand, and the
 # stowed one through a free Sidearm swap, which the forecast checks), from each end tile, on each
-# foe in range there, kept when its preview is legal.
+# foe in range there, kept when its preview is legal; and on each unbroken powder keg in range,
+# kept only when the blast (or the hit) defeats a player unit.
 static func _attacks(board: Board) -> Array[EnemyPlan]:
 	var options: Array[EnemyPlan] = []
 	var state: CombatState = board.state
 	var holder: CombatUnitState = state.unit(board.unit_id)
 	var weapon_ids: Array[String] = [holder.equipped_weapon_id, holder.stowed_weapon_id]
-	var foes: PackedStringArray = state.units_of(CombatFact.CombatSide.PLAYER)
+	var targets: PackedStringArray = state.units_of(CombatFact.CombatSide.PLAYER)
+	var kegs: PackedStringArray = _kegs(state)
+	targets.append_array(kegs)
 	for order: int in weapon_ids.size():
 		var held: CombatState.WeaponStats = state.weapon(weapon_ids[order])
 		if held == null or not _attacks_with(held):
@@ -200,12 +237,12 @@ static func _attacks(board: Board) -> Array[EnemyPlan]:
 		var span: Vector2i = ExchangeResolver.weapon_range(board.engine, board.unit_id, held.id)
 		for tile: Vector2i in board.reach:
 			var path: Array[Vector2i] = board.path_to(tile)
-			for foe: String in foes:
-				var distance: int = state.grid.distance(tile, state.tile_of(foe))
+			for target: String in targets:
+				var distance: int = state.grid.distance(tile, state.tile_of(target))
 				if distance < span.x or distance > span.y:
 					continue
 				var command: UnitTurnCommand = UnitTurnCommand.new(
-						-1, board.unit_id, UnitTurnCommand.Action.ATTACK, foe, path
+						-1, board.unit_id, UnitTurnCommand.Action.ATTACK, target, path
 				)
 				if order == 1:
 					command.weapon_id = held.id
@@ -213,9 +250,109 @@ static func _attacks(board: Board) -> Array[EnemyPlan]:
 				var forecast: CombatForecast.ExchangeForecast = CombatForecast.exchange(
 						board.engine, command, ForecastRolls.new(), false
 				)
-				if forecast.is_legal:
-					options.append(_attack_plan(board, tile, forecast, command.weapon_id, order))
+				if not forecast.is_legal:
+					continue
+				var plan: EnemyPlan = _attack_plan(board, tile, forecast, command.weapon_id, order)
+				# A keg is blown only to kill (ruthless AI): never for damage alone.
+				if plan.is_kill or not kegs.has(target):
+					options.append(plan)
 	return options
+
+
+# Every powder keg still on state's map, as the units that hold its HP, in spot order.
+static func _kegs(state: CombatState) -> PackedStringArray:
+	var kegs: PackedStringArray = []
+	for keg: MapState.ObjectState in state.map.objects_of(MapLayout.ObjectKind.POWDER_KEG):
+		if not keg.is_destroyed and state.has_unit(keg.id):
+			kegs.append(keg.id)
+	return kegs
+
+
+# Every container a looter can stand on this turn that still holds something: a chest or a
+# searchable (P04: every MAP_LOOT giver is a container), unopened. Among them the fixed order picks
+# (_object_plan).
+static func _loots(board: Board) -> Array[EnemyPlan]:
+	var options: Array[EnemyPlan] = []
+	var map: MapState = board.state.map
+	for object_id: String in map.objects:
+		var container: MapState.ObjectState = map.objects[object_id]
+		if container.container_index < 0 or container.is_used or container.is_destroyed:
+			continue
+		if not map.contents.has(container.container_index) or not board.reach.has(container.tile):
+			continue
+		options.append(_object_plan(board, EnemyPlan.Kind.LOOT, container.tile, object_id))
+	return options
+
+
+# With nothing to attack: every lever it can stand on whose pull seals the objective's route
+# (_seals), and every lit Brazier whose light covers a player unit, from each end tile beside it
+# (it never lights one).
+static func _object_uses(board: Board) -> Array[EnemyPlan]:
+	var options: Array[EnemyPlan] = []
+	var state: CombatState = board.state
+	# TODO(TOD-005): levers only seal a Seize or Defend map's route; none open one toward a foe.
+	if not board.objective.is_empty():
+		for lever: MapState.ObjectState in state.map.objects_of(MapLayout.ObjectKind.LEVER):
+			if lever.is_destroyed or lever.group_id < 0 or not board.reach.has(lever.tile):
+				continue
+			if _seals(board, lever):
+				options.append(_object_plan(board, EnemyPlan.Kind.USE_OBJECT, lever.tile, lever.id))
+	for brazier: MapState.ObjectState in state.map.objects_of(MapLayout.ObjectKind.BRAZIER):
+		if brazier.is_destroyed or not brazier.is_lit or not _lights_a_foe(state, brazier.tile):
+			continue
+		for tile: Vector2i in board.reach:
+			if state.grid.distance(tile, brazier.tile) == 1:
+				options.append(_object_plan(board, EnemyPlan.Kind.USE_OBJECT, tile, brazier.id))
+	return options
+
+
+# Whether pulling lever, walked to and pulled on a sandbox as the command would, raises the least
+# path cost any player unit has to an objective tile (a cut route counts as _SEALED).
+static func _seals(board: Board, lever: MapState.ObjectState) -> bool:
+	if board.objective_cost < 0:
+		board.objective_cost = _objective_cost(board.state, board.objective)
+	var sandbox: Sandbox = Sandbox.new(board.engine, ForecastRolls.new())
+	var engine: EffectEngine = sandbox.engine
+	var state: CombatState = engine.state
+	engine.begin_step()
+	UnitTurnCommand.walk_path(engine, state, board.unit_id, board.path_to(lever.tile))
+	var reason: String = MapObjects.use(engine, state, board.unit_id, lever.id)
+	engine.drain()
+	return reason.is_empty() and _objective_cost(state, board.objective) > board.objective_cost
+
+
+# The least path cost from any player unit on state's map to any of objective, walking as that
+# unit walks; _SEALED when none can reach one.
+static func _objective_cost(state: CombatState, objective: Array[Vector2i]) -> int:
+	var least: int = _SEALED
+	for foe: String in state.units_of(CombatFact.CombatSide.PLAYER):
+		var walker: CombatUnitState = state.unit(foe)
+		var walked: Dictionary[Vector2i, int] = Pathing.flood(
+				state, walker.tile, -1, walker.movement_type, walker.side
+		)
+		for tile: Vector2i in objective:
+			if walked.has(tile):
+				least = mini(least, walked[tile])
+	return least
+
+
+# Whether a player unit stands within a lit Brazier's light around tile (DarknessState).
+static func _lights_a_foe(state: CombatState, tile: Vector2i) -> bool:
+	for foe: String in state.units_of(CombatFact.CombatSide.PLAYER):
+		if state.grid.distance(tile, state.tile_of(foe)) <= DarknessState.BRAZIER_RADIUS:
+			return true
+	return false
+
+
+# A plan of kind (LOOT or USE_OBJECT) using object_id from tile. Terrain counts for nothing, so
+# among object uses the fixed order (e) picks: the least path cost, then the tile order.
+static func _object_plan(
+		board: Board, kind: EnemyPlan.Kind, tile: Vector2i, object_id: String
+) -> EnemyPlan:
+	var plan: EnemyPlan = _new_plan(board, kind, tile)
+	plan.target_id = object_id
+	plan.terrain = 0.0
+	return plan
 
 
 # One attack's plan, rated from its forecast: (a) and (c).
@@ -587,46 +724,63 @@ static func _prefer_dry(board: Board, options: Array[EnemyPlan]) -> Array[EnemyP
 
 
 # Step (b) on every option of one enemy: lower is better. The Warcaller's rule rates every end
-# tile, target or not; the others rate each option's target.
+# tile, target or not; the others rate each option's subject (_rule_subject).
 static func _rate_target_rule(board: Board, options: Array[EnemyPlan]) -> void:
 	if board.rule == ContentIds.TARGET_MOST_ALLIES_NEAR:
 		for plan: EnemyPlan in options:
 			plan.target_rule_key = -_allies_near(board, plan.tile)
 		return
+	var subjects: Dictionary[EnemyPlan, String] = {}
 	var nearest: Dictionary[String, int] = {}
 	for plan: EnemyPlan in options:
-		if plan.target_id.is_empty():
+		var subject: String = _rule_subject(board, plan)
+		if subject.is_empty():
 			continue
-		if not nearest.has(plan.target_id) or plan.path_cost < nearest[plan.target_id]:
-			nearest[plan.target_id] = plan.path_cost
-	for plan: EnemyPlan in options:
-		if plan.target_id.is_empty():
-			continue
-		var hp: int = board.state.get_hp(plan.target_id)
+		subjects[plan] = subject
+		if not nearest.has(subject) or plan.path_cost < nearest[subject]:
+			nearest[subject] = plan.path_cost
+	for plan: EnemyPlan in subjects:
+		var subject: String = subjects[plan]
+		var hp: int = board.state.get_hp(subject)
 		match board.rule:
 			# Holding its ground, the Duelist and the Shieldbearer take the foe they reach with
 			# the least movement, as the nearest foe.
 			ContentIds.TARGET_NEAREST_FOE, ContentIds.TARGET_HOLDS_GROUND, \
 					ContentIds.TARGET_BACK_LINE_ALLY:
-				plan.target_rule_key = nearest[plan.target_id]
+				plan.target_rule_key = nearest[subject]
 			ContentIds.TARGET_EXPOSED_THEN_LOWEST_HP:
-				var is_exposed: bool = board.state.get_stance(plan.target_id) == 0
+				var is_exposed: bool = board.state.get_stance(subject) == 0
 				plan.target_rule_key = hp + (0.0 if is_exposed else _UNEXPOSED_RANK)
 			ContentIds.TARGET_PACK_LOWEST_HP:
 				plan.target_rule_key = hp
 			ContentIds.TARGET_MOST_CURSED:
-				plan.target_rule_key = -_cursed_foes(board.state, plan.target_id)
+				plan.target_rule_key = -_cursed_foes(board.state, subject)
 			ContentIds.TARGET_BACK_LINE_FOES:
-				var is_back_line: bool = _is_back_line_foe(board.engine, plan.target_id)
+				var is_back_line: bool = _is_back_line_foe(board.engine, subject)
 				plan.target_rule_key = 0.0 if is_back_line else 1.0
 			ContentIds.TARGET_LOWEST_DEFENSE:
 				# The target's DEF stat as its unit panel shows it, without its terrain.
-				plan.target_rule_key = board.engine.stats(plan.target_id).get_int(
-						CombatValue.Key.DEF
-				)
+				plan.target_rule_key = board.engine.stats(subject).get_int(CombatValue.Key.DEF)
 			ContentIds.TARGET_MOST_WOUNDED_ALLY:
-				var max_hp: int = board.engine.stats(plan.target_id).get_int(CombatValue.Key.HP)
-				plan.target_rule_key = -(max_hp - board.state.get_hp(plan.target_id))
+				var max_hp: int = board.engine.stats(subject).get_int(CombatValue.Key.HP)
+				plan.target_rule_key = -(max_hp - board.state.get_hp(subject))
+
+
+# The unit the target rule measures for plan: its target; for a powder keg it blows, the first
+# player unit the blast defeats, in state order; empty for an object use and a plan with no target.
+static func _rule_subject(board: Board, plan: EnemyPlan) -> String:
+	if plan.target_id.is_empty():
+		return ""
+	if plan.kind == EnemyPlan.Kind.LOOT or plan.kind == EnemyPlan.Kind.USE_OBJECT:
+		return ""
+	if board.state.side_of(plan.target_id) != CombatFact.CombatSide.NONE:
+		return plan.target_id
+	if plan.forecast != null:
+		for outcome: CombatForecast.UnitOutcome in plan.forecast.units:
+			var side: CombatFact.CombatSide = board.state.side_of(outcome.unit_id)
+			if outcome.is_defeated and side == CombatFact.CombatSide.PLAYER:
+				return outcome.unit_id
+	return ""
 
 
 # The best of options, with the step that made it beat its rival: the best option on another
@@ -849,6 +1003,11 @@ class Board:
 	var threats: Dictionary[Vector2i, int] = {}
 	## Whether [member threats] is filled.
 	var has_threats: bool = false
+	## The tiles the player side must reach ([method EnemyAI.objective_tiles]); empty for none.
+	var objective: Array[Vector2i] = []
+	## The least path cost any player unit has to [member objective] on this board; -1 until the
+	## first lever asks.
+	var objective_cost: int = -1
 
 	# The flood reach is cut from, every tile it can walk through: the paths.
 	var _walked: Dictionary[Vector2i, int] = {}
