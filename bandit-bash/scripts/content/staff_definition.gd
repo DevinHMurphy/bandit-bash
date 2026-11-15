@@ -6,7 +6,7 @@
 # File:     staff_definition.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 29, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 @tool
@@ -28,6 +28,11 @@ extends WeaponDefinition
 ## [member WeaponDefinition.damage] instead and leave this 0.[br]
 ## [b]Units:[/b] Block or HP.
 @export_range(0, 30, 1, "or_greater") var base_amount: int = 0
+
+## A heal staff that heals each recipient by its own maximum HP instead of
+## [member base_amount] plus Might (Everbloom). Healing received still applies, so a halved heal
+## leaves it short of full. [b]Off:[/b] the amount. Ignored by every other staff kind.
+@export var full_heal: bool = false
 
 ## Content id of the [TargetShape] it covers around its target, or around its user at range 0,
 ## such as Sanctuary's adjacent allies. [b]Empty:[/b] the target only.

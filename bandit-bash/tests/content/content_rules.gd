@@ -6,7 +6,7 @@
 # File:     content_rules.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 14, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -19,7 +19,8 @@ extends RefCounted
 ## This unit, no inline operation sits on a trigger with no inline window, and a warning for a
 ## heirloom scoped Any Ally Unit or wider without the unique tag. P03's rules (content catalog
 ## plan, Data layout): the folder matches the data, weapons and staves have a range and attacks
-## start at 1, string ids are in their [ContentIds] list (a while-attack condition's id too; a
+## start at 1, string ids are in their [ContentIds] list (a while-attack condition's id and a
+## held-weapon-type condition's too; a
 ## unit type it names is a unit type or enemy class in the tree), every sellable item has a price,
 ## no Basic, Legendary or Unique item has one, and an item with uses has no charged use effect of
 ## its own (enemies and AI plan, question 18 (d)), every [Area] reuses a shape file from
@@ -477,6 +478,15 @@ func _check_block(path: String, where: String, block: Resource) -> void:
 	if block is WhileAttackCondition:
 		var condition: WhileAttackCondition = block
 		_check_attack_condition(path, where, condition)
+	if block is WhileStateCondition:
+		var state_condition: WhileStateCondition = block
+		if state_condition.state == WhileStateCondition.State.WIELDING_TYPE:
+			_known(
+					path,
+					"%s weapon_type" % [where],
+					state_condition.weapon_type,
+					ContentIds.WEAPON_TYPES
+			)
 	if block is Area:
 		var area: Area = block
 		_check_area_shape(path, where, area)

@@ -6,7 +6,7 @@
 # File:     sandbox_state.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 14, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 @abstract
@@ -81,11 +81,13 @@ extends RefCounted
 @abstract func tags_of(id: String) -> PackedStringArray
 
 
-## [param id]'s unit type, such as "Archer"; empty for an object or an unknown id.
+## [param id]'s unit type or enemy class id, such as [code]archer[/code]; empty for an object or
+## an unknown id.
 @abstract func unit_type_of(id: String) -> String
 
 
-## The weapon type of the weapon [param weapon_id], such as "Bow"; empty when unknown.
+## The weapon type of the weapon [param weapon_id], from [constant ContentIds.WEAPON_TYPES], such
+## as [constant ContentIds.WEAPON_BOW]; empty when unknown.
 @abstract func weapon_type_of(weapon_id: String) -> String
 
 

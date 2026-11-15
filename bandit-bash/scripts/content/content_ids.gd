@@ -6,7 +6,7 @@
 # File:     content_ids.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 13, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 @tool
@@ -67,6 +67,36 @@ const SHAPE_SQUARE: String = "square"
 
 ## Shape kind: the center's row and column, out to the size each way.
 const SHAPE_CROSS: String = "cross"
+
+## Weapon type: swords (game-vision.md, Weapons and equipment).
+const WEAPON_SWORD: String = "sword"
+
+## Weapon type: axes.
+const WEAPON_AXE: String = "axe"
+
+## Weapon type: lances.
+const WEAPON_LANCE: String = "lance"
+
+## Weapon type: bows. Every bow is effective against Fliers; the Short Quiver reads it.
+const WEAPON_BOW: String = "bow"
+
+## Weapon type: gauntlets.
+const WEAPON_GAUNTLETS: String = "gauntlets"
+
+## Weapon type: daggers.
+const WEAPON_DAGGER: String = "dagger"
+
+## Weapon type: anima tomes.
+const WEAPON_ANIMA: String = "anima"
+
+## Weapon type: holy tomes.
+const WEAPON_HOLY: String = "holy"
+
+## Weapon type: dark tomes.
+const WEAPON_DARK: String = "dark"
+
+## Weapon type: staves ([StaffDefinition]).
+const WEAPON_STAFF: String = "staff"
 
 ## Unit tag: heavily armored. Auto-deployment puts Armored units in front.
 const TAG_ARMORED: String = "armored"
@@ -129,16 +159,16 @@ const TARGET_PACK_LOWEST_HP: String = "pack_lowest_hp"
 ## list names the folders under [code]data/items/weapons/[/code] and
 ## [code]data/prefixes/weapons/[/code].
 const WEAPON_TYPES: PackedStringArray = [
-	"sword",
-	"axe",
-	"lance",
-	"bow",
-	"gauntlets",
-	"dagger",
-	"anima",
-	"holy",
-	"dark",
-	"staff",
+	WEAPON_SWORD,
+	WEAPON_AXE,
+	WEAPON_LANCE,
+	WEAPON_BOW,
+	WEAPON_GAUNTLETS,
+	WEAPON_DAGGER,
+	WEAPON_ANIMA,
+	WEAPON_HOLY,
+	WEAPON_DARK,
+	WEAPON_STAFF,
 ]
 
 ## Unit tags: what a unit is (unit-roster.md, Movement and tags). Terror is for enemies only.

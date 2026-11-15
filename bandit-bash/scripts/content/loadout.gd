@@ -6,7 +6,7 @@
 # File:     loadout.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 12, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name Loadout
@@ -141,8 +141,8 @@ static func heirloom_effects(
 
 ## The combat record of [param definition], a weapon or staff, for the item [param item_id]: its
 ## numbers as the definition gives them. A prefix and deltas never change it; they apply as effects.
-## [method load_unit] adds an area staff's [member CombatState.WeaponStats.area], which needs the
-## catalog.
+## [method load_unit] adds an area staff's [member CombatState.WeaponStats.area] from its
+## [member CombatState.WeaponStats.area_shape_id], which needs the catalog.
 static func weapon_record(definition: WeaponDefinition, item_id: String) -> CombatState.WeaponStats:
 	var record: CombatState.WeaponStats = CombatState.WeaponStats.new()
 	record.id = item_id
@@ -164,6 +164,8 @@ static func weapon_record(definition: WeaponDefinition, item_id: String) -> Comb
 		var does: int = _STAFF_KINDS.get(staff.staff_kind, CombatState.WeaponStats.Staff.NONE)
 		record.staff = does as CombatState.WeaponStats.Staff
 		record.staff_amount = staff.base_amount
+		record.area_shape_id = staff.area_shape_id
+		record.full_heal = staff.full_heal
 	return record
 
 
@@ -241,6 +243,9 @@ static func _load_slot(
 		_check_weapon(loaded, item, weapon, weapon_types)
 		var record: CombatState.WeaponStats = weapon_record(weapon, item_id)
 		record.area = _staff_area(loaded, catalog, item, weapon)
+		if record.area == null:
+			# A shape the catalog lacks is reported; a save must not name it either.
+			record.area_shape_id = ""
 		loaded.weapons.append(record)
 	_add_item_effects(loaded, catalog, ids, item, definition, kind)
 
@@ -265,11 +270,7 @@ static func _staff_area(
 			loaded.state.id, item.instance_id, item.definition_id, staff.area_shape_id,
 		])
 		return null
-	var area: Area = Area.new()
-	area.center = Area.Center.COMMAND_TARGET
-	area.shape = shape
-	area.side = EffectTerms.UnitSide.ALLY
-	return area
+	return CombatState.WeaponStats.staff_area(shape)
 
 
 static func _check_weapon(

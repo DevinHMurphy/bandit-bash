@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="StaffDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/staff_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+staff_kind = "heal"
+base_amount = 15
+uses = 1
+weapon_type = "staff"
+profile = 0
+damage = 0
+damage_type = 2
+atk_x = 1
+hit = 0
+crit = 0
+crit_x = 3.0
+range_min = 1
+range_max = 1
+effective_against = PackedStringArray()
+rarity = 2
+weight = 3
+id = "recover"
+display_name = "Recover"

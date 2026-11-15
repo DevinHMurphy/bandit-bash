@@ -6,7 +6,7 @@
 # File:     danger_zone.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 3, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name DangerZone
@@ -93,25 +93,22 @@ static func tiles_for(engine: EffectEngine, unit_id: String) -> Array[Vector2i]:
 	return found
 
 
-## Each range [param unit_id] could attack at, as (shortest, longest): the weapon in hand's from
-## its values, and the stowed weapon's own while a free Sidearm swap is allowed. Empty when it
-## holds nothing that attacks.
+## Each range [param unit_id] could attack at, as (shortest, longest), each read by
+## [method ExchangeResolver.weapon_range]: the weapon in hand's, and the stowed weapon's while a
+## free Sidearm swap is allowed. Empty when it holds nothing that attacks.
 static func attack_ranges(engine: EffectEngine, unit_id: String) -> Array[Vector2i]:
 	var spans: Array[Vector2i] = []
 	var state: CombatState = engine.state
 	var holder: CombatUnitState = state.unit(unit_id)
 	var held: CombatState.WeaponStats = state.weapon(holder.equipped_weapon_id)
 	if held != null and _attacks_with(held):
-		var sheet: StatSheet = engine.stats(unit_id)
-		spans.append(Vector2i(
-				sheet.get_int(CombatValue.Key.RANGE_MIN), sheet.get_int(CombatValue.Key.RANGE_MAX)
-		))
+		spans.append(ExchangeResolver.weapon_range(engine, unit_id, held.id))
 	var stowed: CombatState.WeaponStats = state.weapon(holder.stowed_weapon_id)
 	# Only the permission: WeaponSwap.check also refuses a unit that acted this phase, and the
 	# Phase Start refresh clears that and the Sidearm already used.
 	var is_free: bool = engine.stats(unit_id).is_allowed(CombatValue.Permission.FREE_WEAPON_SWAP)
 	if stowed != null and _attacks_with(stowed) and is_free:
-		spans.append(Vector2i(stowed.range_min, stowed.range_max))
+		spans.append(ExchangeResolver.weapon_range(engine, unit_id, stowed.id))
 	return spans
 
 

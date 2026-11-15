@@ -6,7 +6,7 @@
 # File:     item_content_cases.gd
 # Author:
 # Created:  November 12, 2026
-# Modified: November 14, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -60,6 +60,7 @@ const EQUIPMENT: Dictionary[String, Array] = {
 	"sunshard_band": ["band", RARE, 1],
 	"quick_soles": ["band", RARE, 0],
 	"simple_quiver": ["quiver", COMMON, 1],
+	"short_quiver": ["quiver", UNCOMMON, 1],
 	"simple_coating": ["coating", COMMON, 0],
 	"spirit_coating": ["coating", UNCOMMON, 0],
 	"iron_shield": ["shield", COMMON, 4],
@@ -199,6 +200,10 @@ const TEXT: Dictionary[String, Array] = {
 	"sunshard_band": ["Always: +4 HP", "Phase End: heal HP equal to 10% of this unit's HP"],
 	"quick_soles": ["Always: +1 Movement"],
 	"simple_quiver": ["While at range 2 or more: +1 Attack"],
+	# Every bow reaches 1-2, the Short Bow and the Dragonslayer Bow included.
+	"short_quiver": [
+		"While holding a bow: Range Min 1 instead of its base, Range Max 2 instead of its base",
+	],
 	"simple_coating": ["While the opponent is Exposed: +2 Attack"],
 	# It replaces the damage type's base, so a fixed damage type still wins.
 	"spirit_coating": ["Always: Damage Type Magic instead of its base"],

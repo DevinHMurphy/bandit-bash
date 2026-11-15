@@ -6,14 +6,14 @@
 # File:     while_state_condition.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 14, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 @tool
 class_name WhileStateCondition
 extends EffectCondition
 ## Passes while a unit is in a state: "while Exposed", "while the opponent is Exposed", "while it
-## is the commander", "while holding a Power weapon".
+## is the commander", "while holding a Power weapon", "while holding a bow".
 ##
 ## Checked live on every query, so a weapon swap or a Stance change shows at once. The opponent
 ## exists only from Before Combat to After Combat; outside an exchange an opponent test fails.
@@ -28,6 +28,9 @@ enum State {
 	COMMANDER = 1,
 	## The weapon in its Weapon slot has the profile [member profile]. A stowed weapon never counts.
 	WIELDING_PROFILE = 2,
+	## The weapon in its Weapon slot has the weapon type [member weapon_type] (the Short Quiver's
+	## bows). A stowed weapon never counts.
+	WIELDING_TYPE = 3,
 }
 
 ## Whose state is tested. Saved as an int: [b]append only[/b].
@@ -48,6 +51,16 @@ enum Subject {
 ## [b]None:[/b] a weapon outside the triangle (a bow, gauntlets).
 @export var profile: WeaponTriangle.Profile = WeaponTriangle.Profile.POWER
 
+## The weapon type [constant State.WIELDING_TYPE] tests for, from
+## [constant ContentIds.WEAPON_TYPES]; ignored by the other states. Text reads it as its id
+## ("while holding a bow").
+@export var weapon_type: String = ""
+
+
+func _validate_property(property: Dictionary) -> void:
+	if property["name"] == "weapon_type":
+		ContentIds.apply_hint(property, ContentIds.WEAPON_TYPES)
+
 
 func describe() -> String:
 	var is_opponent: bool = subject == Subject.OPPONENT
@@ -63,6 +76,10 @@ func describe() -> String:
 			if is_opponent:
 				return "while the opponent holds %s" % [weapon]
 			return "while holding %s" % [weapon]
+		State.WIELDING_TYPE:
+			if is_opponent:
+				return "while the opponent holds %s" % [_article(weapon_type)]
+			return "while holding %s" % [_article(weapon_type)]
 	var state_name: String = (State.find_key(state) as String).capitalize()
 	if is_opponent:
 		return "while the opponent is %s" % [state_name]
@@ -82,4 +99,13 @@ func test(ctx: EffectContext) -> bool:
 		State.WIELDING_PROFILE:
 			var weapon_id: String = sandbox.equipped_weapon_id(unit_id)
 			return not weapon_id.is_empty() and sandbox.weapon_profile_of(weapon_id) == profile
+		State.WIELDING_TYPE:
+			var weapon_id: String = sandbox.equipped_weapon_id(unit_id)
+			return not weapon_id.is_empty() and sandbox.weapon_type_of(weapon_id) == weapon_type
 	return sandbox.get_stance(unit_id) == 0
+
+
+# word with "a" or "an" before it: "a bow", "an axe", "an anima".
+static func _article(word: String) -> String:
+	var is_vowel: bool = not word.is_empty() and "aeiou".contains(word[0])
+	return "%s %s" % ["an" if is_vowel else "a", word]
