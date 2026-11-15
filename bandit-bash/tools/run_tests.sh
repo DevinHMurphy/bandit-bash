@@ -7,7 +7,7 @@
 # File:     run_tests.sh
 # Author:
 # Created:  October 29, 2026
-# Modified: November 12, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 # Runs the headless test suites, parse checks and a launch check, and prints one verdict line per
 # run, so a result reads in a few lines instead of the full Godot output. Works from any folder.
@@ -20,7 +20,8 @@
 # Suites are found, not listed: every tests/<name>/run_all.gd is a suite named <name>, and a
 # folder without one may hold suites a level down, tests/<name>/<part>/run_all.gd, named
 # <name>/<part> (tests/ui keeps the combat UI's cases shared by its board, input and display
-# suites). Each must print a summary line "--- N passed, M failed ---" (", K skipped" may follow).
+# suites, beside the campaign screens' suite). Each must print a summary line
+# "--- N passed, M failed ---" (", K skipped" may follow).
 # A tests/ folder with no suite at either level is named in a note and not run.
 #
 # Suites run in parallel, at most JOBS Godot processes at once (default: the machine's core count;

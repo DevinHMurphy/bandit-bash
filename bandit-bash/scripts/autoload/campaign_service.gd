@@ -214,6 +214,22 @@ func submit_command(command: CampaignCommand) -> CampaignBatch:
 	return batch
 
 
+## Ends the run as won from its Boss's Results ([method CampaignRunState.is_boss_beaten]):
+## archives it through [method SaveService.end_run], which closes the session. The run waits at
+## the Boss's results until then, so a quit before it shows the same Results again; leaving the
+## node first would save a run on the last floor with nowhere to go. Returns [constant OK];
+## [constant ERR_UNCONFIGURED] with no run; [constant ERR_UNAVAILABLE] unless its Boss is beaten;
+## or [method SaveService.end_run]'s error, the run ended all the same.
+func end_won_run() -> Error:
+	if session == null or session.run == null:
+		push_error("CampaignService: no run in progress to end.")
+		return ERR_UNCONFIGURED
+	if not session.run.is_boss_beaten():
+		push_error("CampaignService: the run's Boss isn't beaten, so it can't end as won.")
+		return ERR_UNAVAILABLE
+	return SaveService.end_run(true)
+
+
 # The rng sections let go of the previous session first, so a section that refuses the
 # replacement never keeps reading a closed run.
 func _replace_session(replacement: CampaignSession) -> void:

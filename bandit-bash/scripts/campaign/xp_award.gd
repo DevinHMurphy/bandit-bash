@@ -71,6 +71,34 @@ func capture() -> Dictionary:
 	}
 
 
+## The award [param data] describes, as [method capture] wrote it, numbers as whole floats too;
+## null when a field is missing or of the wrong type, or the unit id is empty. The Standout's
+## bonus is saved only inside the total, so it is read from [param rules]
+## ([member CombatRewardRules.standout_xp]), as [method award] gave it.
+static func restore(data: Dictionary, rules: CombatRewardRules) -> XpAward:
+	var unit: Variant = data.get(_KEY_UNIT)
+	var is_best: Variant = data.get(_KEY_STANDOUT)
+	var numbers: Array = [
+		CampaignRunState.whole_number(data.get(_KEY_SHARED)),
+		CampaignRunState.whole_number(data.get(_KEY_PERSONAL)),
+		CampaignRunState.whole_number(data.get(_KEY_PERCENT)),
+		CampaignRunState.whole_number(data.get(_KEY_TOTAL)),
+	]
+	if not unit is String or (unit as String).is_empty() or not is_best is bool:
+		return null
+	if numbers.has(null) or rules == null:
+		return null
+	var read: XpAward = XpAward.new()
+	read.unit_id = unit as String
+	read.is_standout = is_best as bool
+	read.standout = rules.standout_xp if read.is_standout else 0
+	read.shared = numbers[0] as int
+	read.personal = numbers[1] as int
+	read.percent = numbers[2] as int
+	read.total = numbers[3] as int
+	return read
+
+
 ## Each of [param units]' awards from a won combat of [param outcome]'s seat, in their order (the
 ## roster's). [param tally]: the battle's actions. [param unit_percents]: each unit's XP percent
 ## by instance id, 100 for one not listed. Empty for a lost map.

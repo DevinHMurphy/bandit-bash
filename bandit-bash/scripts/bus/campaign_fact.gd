@@ -6,7 +6,7 @@
 # File:     campaign_fact.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 13, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 class_name CampaignFact
@@ -40,6 +40,12 @@ enum Kind {
 	NODE_CHOSEN = 6,
 	## The run left node [member amount] for the map, at the seat's command.
 	NODE_LEFT = 7,
+	## The seat's item [member actor_id] went into a slot of its unit [member target_id]; with
+	## [member target_id] empty, it left its unit's slot for the convoy.
+	ITEM_EQUIPPED = 8,
+	## The seat scrapped the item [member actor_id] (content id [member definition_id]) for
+	## [member amount] gold: it left the roster, or never entered it when scrapped at pickup.
+	ITEM_SCRAPPED = 9,
 }
 
 ## [member seat] when a fact belongs to no single player.

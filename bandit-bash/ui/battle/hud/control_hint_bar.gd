@@ -6,34 +6,23 @@
 # File:     control_hint_bar.gd
 # Author:
 # Created:  November 6, 2026
-# Modified: November 7, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 class_name ControlHintBar
 extends PanelContainer
-## The battle screen's control hints: the keys of the actions live now, with what each does
-## ("T End turn · R Danger zone · Q/E Target"), changing as turn input moves between stages
-## (combat UI plan, questions 24 and 32; Godot_FE FR-UI-1, rebuilt from action names, not a
-## per-screen enum, as its own rebuild recipe asks).
+## A screen's control hints: the keys of the actions live now, with what each does
+## ("T End turn · R Danger zone · Q/E Target"), built from action names, not a per-screen enum.
 ##
-## [b]Which actions:[/b] exactly [method BattleController.get_live_actions] of [member controller],
-## whose [constant BattleController.LIVE_ACTIONS] is the one table of them; this bar adds none.
-## Neighbours that share a label show as one hint, their keys joined ("Q/E").[br]
-## [b]Keys:[/b] read from the [InputMap] each time the bar draws, for the device family
-## [member device] reports: the first key of each action on keyboard and mouse, its first joypad
-## event on a pad, drawn as [member glyphs]' glyph for that family, else as text
-## ([method key_markup]).[br]
-## [b]When it draws:[/b] it compares [method BattleController.get_hint_context] once a frame and
-## redraws when it changes, as the pause menu says nothing when it pauses the tree and playback can
-## start from a command sent elsewhere; it also redraws at once when the controller's live actions
-## change within a context ([signal BattleController.live_actions_changed]) and when the device
-## family changes ([signal InputDeviceAdapter.family_changed]). It runs while paused, so PAUSED
-## shows.[br]
-## [b]Layout:[/b] a strip along one screen edge set by the Position exports, applied at run time;
-## at its defaults it is the bottom strip under the HUD's left column and the map area, beside the
-## turn bar, so at the 1152×648 base size and wider it never covers the map. Its text is one line,
-## clipped, never wrapped, so it never grows over the map. Font, colours and panel are
-## [code]battle_theme.tres[/code]'s [code]ControlHintBar[/code] and [code]ControlHintText[/code].
+## [b]Which actions:[/b] exactly [method HintSource.get_live_actions] of [member controller]; this
+## bar adds none. Neighbours that share a label show as one hint, their keys joined ("Q/E").[br]
+## [b]Keys:[/b] read from the [InputMap] at each draw, for [member device]'s family: the first key
+## on keyboard and mouse, the first joypad event on a pad, as [member glyphs]' glyph or as text.[br]
+## [b]When it draws:[/b] it polls [method HintSource.get_hint_context] once a frame, as the pause
+## menu pauses the tree silently; at once on [signal HintSource.live_actions_changed] and
+## [signal InputDeviceAdapter.family_changed]. It runs while paused, so PAUSED shows.[br]
+## [b]Layout:[/b] one clipped line along a screen edge (the Position exports; by default the
+## battle's strip beside the turn bar, clear of the map), styled by [code]battle_theme.tres[/code].
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
@@ -65,9 +54,10 @@ const SHORT_KEY_NAMES: Dictionary[String, String] = {
 ## The key text of an action with no binding for the family in use.
 const UNBOUND_KEY: String = "(unbound)"
 
-## The turn input whose live actions the bar shows.[br]
+## Whose live actions the bar shows: the battle's [BattleController], another screen's
+## [ScreenHints].[br]
 ## [b]Unset:[/b] the bar stays hidden.
-@export var controller: BattleController = null:
+@export var controller: HintSource = null:
 	set(value):
 		_disconnect_controller()
 		controller = value
@@ -146,7 +136,7 @@ const UNBOUND_KEY: String = "(unbound)"
 # Skip, Debug) have no basis: Move, Select, Back, Pause, Resume, Start, Units, Choose, Confirm,
 # Pick, Swap, Pick tile, Info, Scroll, Close.
 ## What each action does, by action name, or by [code]CONTEXT/action[/code] where a context
-## ([method BattleController.get_hint_context]) gives it another meaning; the context's key wins.
+## ([method HintSource.get_hint_context]) gives it another meaning; the context's key wins.
 ## [b]Missing:[/b] the action's own name shows.
 @export var labels: Dictionary[String, String] = {
 	"ui_up": "Move",

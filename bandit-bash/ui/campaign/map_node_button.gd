@@ -1,0 +1,106 @@
+# ==============================================================================
+# Bandit Bash
+# Copyright (c) 2026 Derc Development
+# Licensed under the MIT License. See LICENSE.
+#
+# File:     map_node_button.gd
+# Author:
+# Created:  November 14, 2026
+# Modified: November 15, 2026
+# ==============================================================================
+
+class_name MapNodeButton
+extends Button
+## One node of the campaign map: a square in its type's colour with its letter (or icon), marked
+## by where it stands on the run's route ([enum Mark]).
+##
+## Only a [constant Mark.REACHABLE] node takes focus and presses; the others stay disabled, but
+## still show their tooltip and report hovering, so any node can be inspected. Placed and wired by
+## [CampaignMapView], which sets its colour, letter and mark; it reads no input action itself.
+
+## Where the node stands on the run's route.
+enum Mark {
+	## Not on the route and not reachable: dimmed and inert.
+	OTHER = 0,
+	## One of the nodes the run can enter next: focusable and pressable.
+	REACHABLE = 1,
+	## On the route taken, before the current node.
+	VISITED = 2,
+	## The node the run last entered.
+	CURRENT = 3,
+}
+
+## How a node off the route and out of reach is tinted (Godot_FE drew its unfocused rooms at
+## [code]#828282[/code]).[br]
+## [b]White:[/b] no dimming.
+@export var dimmed_modulate: Color = Color("828282")
+
+# ASSUMPTION: greybox outline colours and width; Godot_FE marked reachable rooms with a highlight
+# animation and visited rooms as selected, with no colours to carry over.
+## The outline of a reachable node, so the choices stand out.
+@export var reachable_color: Color = Color(1.0, 0.92, 0.45)
+
+## The outline of a node on the route taken, the current one included.
+@export var route_color: Color = Color(0.45, 0.85, 1.0)
+
+## How thick the outline of a reachable or route node is.[br]
+## [b]Units:[/b] pixels at the base size. [b]0:[/b] no outline, only the colour shows the mark.
+@export_range(0, 8, 1) var outline_width: int = 3
+
+## The node's [CampaignGraph] id.
+var node_id: int = CampaignGraph.NO_NODE
+
+## The node's type.
+var node_type: CampaignGraph.NodeType = CampaignGraph.NodeType.STANDARD
+
+var _mark: Mark = Mark.OTHER
+var _fill: Color = Color.GRAY
+
+
+## Shows node [param id] of [param type]: its [param fill] colour, its [param node_icon] when
+## set, else its [param letter], and [param tooltip] on hover.
+func setup(
+		id: int,
+		type: CampaignGraph.NodeType,
+		tooltip: String,
+		fill: Color,
+		letter: String,
+		node_icon: Texture2D
+) -> void:
+	node_id = id
+	node_type = type
+	_fill = fill
+	icon = node_icon
+	text = "" if node_icon != null else letter
+	tooltip_text = tooltip
+	_apply_mark()
+
+
+## Marks the node as [param mark]: how it is drawn, and whether it takes focus and presses.
+func set_mark(mark: Mark) -> void:
+	_mark = mark
+	_apply_mark()
+
+
+## How the node is marked.
+func get_mark() -> Mark:
+	return _mark
+
+
+func _apply_mark() -> void:
+	var is_reachable: bool = _mark == Mark.REACHABLE
+	disabled = not is_reachable
+	focus_mode = Control.FOCUS_ALL if is_reachable else Control.FOCUS_NONE
+	modulate = dimmed_modulate if _mark == Mark.OTHER else Color.WHITE
+	var outline: Color = Color.TRANSPARENT
+	if is_reachable:
+		outline = reachable_color
+	elif _mark != Mark.OTHER:
+		outline = route_color
+	for style_name: StringName in [&"normal", &"hover", &"pressed", &"disabled"]:
+		var box: StyleBoxFlat = StyleBoxFlat.new()
+		box.bg_color = _fill.lightened(0.2) if style_name == &"hover" else _fill
+		box.border_color = outline
+		box.set_border_width_all(outline_width if outline.a > 0.0 else 0)
+		box.set_corner_radius_all(4)
+		add_theme_stylebox_override(style_name, box)

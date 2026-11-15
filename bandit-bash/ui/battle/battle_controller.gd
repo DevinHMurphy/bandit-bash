@@ -6,11 +6,11 @@
 # File:     battle_controller.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 7, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 class_name BattleController
-extends Node
+extends HintSource
 ## Turns the player's input on the battle screen into commands: the tile cursor, selecting a
 ## unit, its move and attack tiles and path, the action menu, the target picker, confirm, End
 ## Turn, the opening swap window and Start (combat UI plan, question 6's flow, ported from
@@ -127,10 +127,6 @@ extends Node
 # hint bar shows them with their keys or glyphs. A binding whose meaning or stage changes here
 # changes that table in the same edit.
 # ============================================================
-
-## What [method get_live_actions] returns may have changed without a change of hint context: a
-## stage was entered, or the current target or weapon changed.
-signal live_actions_changed()
 
 # --- Turn input stage (meaningful once bind() has a session) -------------------------------
 # INACTIVE:    nothing to do: unbound, the combat is over, the seat has no turn (another phase,

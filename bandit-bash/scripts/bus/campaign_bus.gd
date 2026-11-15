@@ -6,7 +6,7 @@
 # File:     campaign_bus.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 13, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 class_name CampaignBus
@@ -27,7 +27,7 @@ signal fact_played(fact: CampaignFact)
 ## The run's progress: the run starting, nodes chosen and left, combats ending.
 var run: RunChannel = RunChannel.new()
 
-## A player's army: heirlooms and items gained, level-ups.
+## A player's army: heirlooms and items gained, equipped and scrapped, level-ups.
 var army: ArmyChannel = ArmyChannel.new()
 
 ## Effect activations and counters.
@@ -77,7 +77,7 @@ class RunChannel:
 		_route(CampaignFact.Kind.NODE_LEFT, node_left)
 
 
-## A player's army: heirlooms and items gained, level-ups.
+## A player's army: heirlooms and items gained, equipped and scrapped, level-ups.
 class ArmyChannel:
 	extends BusChannel
 
@@ -85,10 +85,16 @@ class ArmyChannel:
 	signal gained(fact: CampaignFact)
 	## [constant CampaignFact.LEVELED_UP].
 	signal leveled_up(fact: CampaignFact)
+	## [constant CampaignFact.ITEM_EQUIPPED].
+	signal item_equipped(fact: CampaignFact)
+	## [constant CampaignFact.ITEM_SCRAPPED].
+	signal item_scrapped(fact: CampaignFact)
 
 	func _init() -> void:
 		_route(CampaignFact.Kind.GAINED, gained)
 		_route(CampaignFact.Kind.LEVELED_UP, leveled_up)
+		_route(CampaignFact.Kind.ITEM_EQUIPPED, item_equipped)
+		_route(CampaignFact.Kind.ITEM_SCRAPPED, item_scrapped)
 
 
 ## Effect activations and counters.

@@ -6,19 +6,19 @@
 # File:     ui_suite.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 12, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends SceneTree
-## What the three combat UI suites share (combat UI plan, P07): the board's
-## ([code]tests/ui/board/run_all.gd[/code]), turn input's ([code]tests/ui/input/run_all.gd[/code])
-## and the display's ([code]tests/ui/display/run_all.gd[/code]). Each extends this script: the
-## check counters and the summary line the runner reads, the definitions hash every suite checks
-## at its end, the test user folder guard, and pressing keys and clicking on the root viewport.
-## The cases themselves stay in [code]tests/ui/battle/[/code], one file each, shared by the
-## suites.[br]
-## Never names an autoload, or the gameplay screen's class (whose script does): a suite compiles
-## before autoloads are registered, so it reaches them as nodes and loads the screen at run
+## What the UI suites share: the combat UI's board ([code]tests/ui/board/run_all.gd[/code]), turn
+## input ([code]tests/ui/input/run_all.gd[/code]) and display
+## ([code]tests/ui/display/run_all.gd[/code]), and the campaign screens
+## ([code]tests/ui/campaign/run_all.gd[/code]). Each extends this script: the check counters and
+## the summary line the runner reads, the definitions hash checked at the end, the test user
+## folder guard, pressing keys and clicking on the root viewport, and entering a new run's first
+## node. The combat cases stay in [code]tests/ui/battle/[/code], one file each.[br]
+## Never names an autoload, or a class whose script does (the screens', [RunScreen]): a suite
+## compiles before autoloads are registered, so it reaches them as nodes and loads screens at run
 ## time.[br]
 ## [b]Screen cases[/b] that drive the real [code]SaveService[/code], which writes save files, run
 ## only with a test user folder ([code]tools/run_tests.sh[/code] makes one; see
@@ -86,6 +86,16 @@ func _has_test_user_dir() -> bool:
 			"application/config/custom_user_dir_name", ""
 	)
 	return custom_dir and dir_name.begins_with("bandit_bash_tests")
+
+
+# Enters the new run's first floor-1 node, a Standard combat, as choosing it on the campaign map
+# would: the battle screen begins a battle only with the run inside a combat node.
+func _enter_first_node() -> void:
+	var service: Node = root.get_node(^"CampaignService")
+	var run: CampaignSession = service.get(&"session")
+	if run == null or run.run == null:
+		return
+	service.call(&"submit_command", ChooseNodeCommand.new(0, run.run.graph.nodes_on_floor(1)[0]))
 
 
 # A press and release of key, by its physical position, as the input map binds it, and by its

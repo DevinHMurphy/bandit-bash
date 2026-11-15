@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 9, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 extends "res://tests/ui/ui_suite.gd"
@@ -83,6 +83,7 @@ func _run_pause_case() -> void:
 	var run: CampaignSession = service.get(&"session")
 	var screen: Node = null
 	if err == OK and run != null:
+		_enter_first_node()
 		screen = (load(GAMEPLAY_SCENE) as PackedScene).instantiate()
 		root.add_child(screen)
 	var view: BattleView = null if screen == null else screen.call(&"get_view")
