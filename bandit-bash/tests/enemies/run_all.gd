@@ -6,12 +6,14 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 13, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends SceneTree
 ## Enemies suite (enemies and AI plan, P05): setup step 4 ([EnemySetup],
-## [code]enemy_setup_cases.gd[/code]), the enemy AI ([code]ai_cases.gd[/code]) and its intents
+## [code]enemy_setup_cases.gd[/code]), the reinforcement waves' groups and the Hunted curse's
+## extra enemies (steps 5 and 6, [code]reinforcement_setup_cases.gd[/code]), the enemy AI
+## ([code]ai_cases.gd[/code]) and its intents
 ## ([code]intent_cases.gd[/code]) on the loadout fixture tree's enemy classes, a headless M1
 ## battle on the real catalog ([code]m1_battle_cases.gd[/code]), and the roster's behaviors, packs
 ## and battles ([code]roster_ai_cases.gd[/code], [code]roster_battle_cases.gd[/code]).
@@ -31,6 +33,7 @@ const EnemySetupCases = preload("res://tests/enemies/enemy_setup_cases.gd")
 const IntentCases = preload("res://tests/enemies/intent_cases.gd")
 const LoadoutCases = preload("res://tests/content/loadout_cases.gd")
 const M1BattleCases = preload("res://tests/enemies/m1_battle_cases.gd")
+const ReinforcementSetupCases = preload("res://tests/enemies/reinforcement_setup_cases.gd")
 const RosterAiCases = preload("res://tests/enemies/roster_ai_cases.gd")
 const RosterBattleCases = preload("res://tests/enemies/roster_battle_cases.gd")
 
@@ -43,6 +46,7 @@ func _init() -> void:
 	# Hashed before the first case (event bus plan, question 50): no case may change a definition.
 	var before: Dictionary[String, String] = CatalogCases.hash_definitions([LoadoutCases.TREE])
 	EnemySetupCases.new(_check).run()
+	ReinforcementSetupCases.new(_check).run()
 	var catalog: EffectCatalog.Index = EffectCatalog.load_tree(LoadoutCases.TREE)
 	AiCases.new(_check, catalog).run()
 	IntentCases.new(_check, catalog).run()

@@ -6,7 +6,7 @@
 # File:     campaign_session.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 14, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name CampaignSession
@@ -26,10 +26,10 @@ extends RefCounted
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 ##
-## @todo: TOD-002 - Hand the reinforcement waves P05's group source; the base draws no group.
 ## @todo: TOD-003 - Send each co-op seat's opening-swap setting to the host (P11); no entry means
 ## on. Solo's comes from the battle screen's request (the player's settings).
-## @todo: TOD-004 - Pass the enemy level modifiers (difficulty ladder, run modifiers) to the draw.
+## @todo: TOD-004 - Pass the enemy level modifiers (difficulty ladder, run modifiers) to the enemy
+## draws.
 
 ## A battle began: its setup ran and its sessions are about to open, so a listener can connect to
 ## [signal CombatEncounter.session_opened] first.
@@ -122,15 +122,11 @@ var _collected: BattleResult = null
 # The arrival stamp the next campaign command takes.
 var _next_arrival: int = 1
 
-# Where reinforcement waves' groups come from, for setup step 5 and their arrivals.
-# TODO(TOD-002): P05's enemy groups; this base draws none, so no point sends a wave yet.
-var _wave_groups: Reinforcements.GroupSource = Reinforcements.GroupSource.new()
-
 
 ## [param run_seed]: the campaign's seed. [param run_seats]: every seat of the run. Registers the
-## combat map's own setup steps: the darkness's sources and drain ([method DarknessSetup.draw]),
-## the reinforcement waves ([method Reinforcements.draw_waves]) and each container's contents
-## ([method MapObjects.roll_contents]).
+## combat map's own setup steps: the darkness's sources and drain ([method DarknessSetup.draw])
+## and each container's contents ([method MapObjects.roll_contents]). The enemy steps (4 to 6)
+## read the battle's catalog and floor, so each battle registers its own.
 func _init(run_mode: CampaignData.Mode, run_seed: int, run_seats: PackedInt32Array) -> void:
 	mode = run_mode
 	seats = run_seats.duplicate()
@@ -139,10 +135,6 @@ func _init(run_mode: CampaignData.Mode, run_seed: int, run_seats: PackedInt32Arr
 	for seat: int in seats:
 		ids.set_label(InstanceIdAllocator.seat_subject_id(seat), "army of seat %d" % [seat])
 	add_setup_step(CombatEncounter.SetupStep.DARKNESS_SOURCES, DarknessSetup.draw)
-	add_setup_step(
-			CombatEncounter.SetupStep.REINFORCEMENT_WAVES,
-			Reinforcements.draw_waves.bind(_wave_groups)
-	)
 	add_setup_step(CombatEncounter.SetupStep.CONTAINER_CONTENTS, MapObjects.roll_contents)
 
 
@@ -463,12 +455,26 @@ func _set_up_battle(request: BattleRequest, catalog: EffectCatalog.Index) -> Com
 			request.floor_number, request.node, seats, ids
 	)
 	battle.run_seed = rng.run_seed
-	# Bound per battle: the draw reads this battle's catalog and floor.
+	# Bound per battle: the enemy draws read this battle's catalog and floor, and the waves' arrivals
+	# build their units from the same source.
 	# TODO(TOD-004): Pass the enemy level modifiers (the difficulty ladder's, run modifiers') once
 	# they exist; none until then.
+	var level_modifier: int = 0
+	var waves: EnemySetup.WaveGroups = EnemySetup.WaveGroups.new(
+			catalog, request.floor_number, level_modifier
+	)
 	battle.add_setup_step(
 			CombatEncounter.SetupStep.ENEMY_SLOTS,
-			EnemySetup.draw.bind(catalog, request.floor_number, 0)
+			EnemySetup.draw.bind(catalog, request.floor_number, level_modifier)
+	)
+	battle.add_setup_step(
+			CombatEncounter.SetupStep.REINFORCEMENT_WAVES, Reinforcements.draw_waves.bind(waves)
+	)
+	battle.add_setup_step(
+			CombatEncounter.SetupStep.SEAT_ADDITIONS,
+			EnemySetup.draw_additions.bind(
+					catalog, request.floor_number, level_modifier, _extra_enemies(catalog, request)
+			)
 	)
 	for entry: Array in _setup_steps:
 		var step: CombatEncounter.SetupStep = entry[0]
@@ -515,11 +521,25 @@ func _set_up_battle(request: BattleRequest, catalog: EffectCatalog.Index) -> Com
 		# First on AFTER_ENEMY_PHASE, before the reinforcement arrivals (the-darkness.md, The
 		# darkness step); its damage after the point closing on PHASE_END_EFFECTS.
 		Darkness.register(session)
-		Reinforcements.register(session, _wave_groups)
+		Reinforcements.register(session, waves)
 		Darkness.register_damage(session)
 		EnemyAI.register(session, catalog)
 		Intents.register(session, catalog)
 	return battle
+
+
+# Each seat's extra enemies (EnemySetup.extra_enemies) from its army's heirlooms and curses, by
+# seat; a seat with none has no entry.
+func _extra_enemies(catalog: EffectCatalog.Index, request: BattleRequest) -> Dictionary[int, int]:
+	var extra: Dictionary[int, int] = {}
+	for seat: int in request.armies:
+		var army: Army = request.armies[seat]
+		var count: int = 0 if army == null else EnemySetup.extra_enemies(
+				catalog, army.heirloom_ids, seat
+		)
+		if count > 0:
+			extra[seat] = count
+	return extra
 
 
 # A resume's stand-ins for the seat's heirlooms the run holds no carrier of: registered as Begin
