@@ -17,8 +17,9 @@ extends SceneTree
 ## [EffectCatalog] and the content test, its rules over all of [code]res://data/[/code] and the
 ## rule fixtures, live in catalog_cases.gd; unit and item instances and [Loadout] in
 ## loadout_cases.gd; the M1 content over the real data (the Mercenary army, stats, text snapshots,
-## forecasts) in m1_content_cases.gd, M1's enemies and their pack in m1_enemy_cases.gd, and the
-## equipment, trinkets and consumables in item_content_cases.gd. Every catalog definition and
+## forecasts) in m1_content_cases.gd, M1's enemies and their pack in m1_enemy_cases.gd, the
+## equipment, trinkets and consumables in item_content_cases.gd, and the heirlooms and curses in
+## heirloom_content_cases.gd. Every catalog definition and
 ## every loadout fixture is hashed before the first case and after the last, and the run fails if
 ## any changed.
 ##
@@ -36,6 +37,7 @@ const M1EnemyCases = preload("res://tests/content/m1_enemy_cases.gd")
 const RosterEnemyCases = preload("res://tests/content/roster_enemy_cases.gd")
 const RosterUnitCases = preload("res://tests/content/roster_unit_cases.gd")
 const ItemContentCases = preload("res://tests/content/item_content_cases.gd")
+const HeirloomContentCases = preload("res://tests/content/heirloom_content_cases.gd")
 
 # Fixture trees whose definitions are hashed with the catalog's.
 const HASHED_TREES: PackedStringArray = [LoadoutCases.TREE]
@@ -125,6 +127,7 @@ func _init() -> void:
 	RosterEnemyCases.new(_check).run()
 	RosterUnitCases.new(_check).run()
 	ItemContentCases.new(_check).run()
+	HeirloomContentCases.new(_check).run()
 	_test_definitions_unchanged(before)
 
 	print("--- %d passed, %d failed ---" % [_passes, _failures])

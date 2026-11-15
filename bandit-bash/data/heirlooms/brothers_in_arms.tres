@@ -1,0 +1,45 @@
+[gd_resource type="Resource" script_class="HeirloomDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="4_gain"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/all_of_scope.gd" id="5_scope"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/while_position_condition.gd" id="6_position"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="7_const"]
+[ext_resource type="Script" path="res://scripts/content/heirloom_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_beside_partner"]
+script = ExtResource("6_position")
+kind = 7
+
+[sub_resource type="Resource" id="Resource_allies"]
+script = ExtResource("5_scope")
+scope = 2
+where = SubResource("Resource_beside_partner")
+
+[sub_resource type="Resource" id="Resource_two"]
+script = ExtResource("7_const")
+value = 2.0
+
+[sub_resource type="Resource" id="Resource_block"]
+script = ExtResource("4_gain")
+pool = 1
+target = SubResource("Resource_allies")
+amount = SubResource("Resource_two")
+
+[sub_resource type="Resource" id="Resource_effect"]
+script = ExtResource("1_eff")
+id = "side_by_side"
+trigger = 1
+scope = 2
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_block")])
+tags = 1
+
+[resource]
+script = ExtResource("9_def")
+tier = "uncommon"
+kind = "behavior"
+is_coop_only = true
+id = "brothers_in_arms"
+display_name = "Brothers in Arms"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])

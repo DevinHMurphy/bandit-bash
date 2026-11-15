@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="HeirloomDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_cond"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/counter_condition.gd" id="4_count"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_that.gd" id="5_that"]
+[ext_resource type="Script" path="res://scripts/content/heirloom_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_every_5th"]
+script = ExtResource("4_count")
+mode = 0
+count = 5
+lane = 0
+
+[sub_resource type="Resource" id="Resource_stance"]
+script = ExtResource("5_that")
+what = 3
+mode = 1
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_effect"]
+script = ExtResource("1_eff")
+id = "stance_break"
+trigger = 8
+scope = 1
+conditions = Array[ExtResource("2_cond")]([SubResource("Resource_every_5th")])
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_stance")])
+
+[resource]
+script = ExtResource("9_def")
+tier = "uncommon"
+kind = "behavior"
+id = "breakers_maul"
+display_name = "Breaker's Maul"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])

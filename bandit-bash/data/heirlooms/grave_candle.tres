@@ -1,0 +1,37 @@
+[gd_resource type="Resource" script_class="HeirloomDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="4_gain"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/all_of_scope.gd" id="5_scope"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="6_const"]
+[ext_resource type="Script" path="res://scripts/content/heirloom_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_your_units"]
+script = ExtResource("5_scope")
+scope = 1
+
+[sub_resource type="Resource" id="Resource_four"]
+script = ExtResource("6_const")
+value = 4.0
+
+[sub_resource type="Resource" id="Resource_block"]
+script = ExtResource("4_gain")
+pool = 1
+target = SubResource("Resource_your_units")
+amount = SubResource("Resource_four")
+
+[sub_resource type="Resource" id="Resource_effect"]
+script = ExtResource("1_eff")
+id = "mourning_block"
+trigger = 18
+scope = 1
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_block")])
+
+[resource]
+script = ExtResource("9_def")
+tier = "uncommon"
+kind = "behavior"
+id = "grave_candle"
+display_name = "Grave Candle"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])

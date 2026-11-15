@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="CurseDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_value"]
+[ext_resource type="Script" path="res://scripts/content/curse_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_earlier"]
+script = ExtResource("4_value")
+key = 2014
+value = -1.0
+
+[sub_resource type="Resource" id="Resource_effect"]
+script = ExtResource("1_eff")
+id = "early_darkness"
+scope = 1
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_earlier")])
+tags = 2
+
+[resource]
+script = ExtResource("9_def")
+tier = "minor"
+id = "short_wick"
+display_name = "Short Wick"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])

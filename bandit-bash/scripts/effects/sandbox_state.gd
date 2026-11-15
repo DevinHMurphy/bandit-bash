@@ -6,7 +6,7 @@
 # File:     sandbox_state.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 5, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 @abstract
@@ -87,6 +87,21 @@ extends RefCounted
 
 ## The weapon type of the weapon [param weapon_id], such as "Bow"; empty when unknown.
 @abstract func weapon_type_of(weapon_id: String) -> String
+
+
+## The triangle profile of the weapon [param weapon_id];
+## [constant WeaponTriangle.Profile.NONE] when unknown.
+@abstract func weapon_profile_of(weapon_id: String) -> WeaponTriangle.Profile
+
+
+## Instance id of [param seat]'s commander on this map, defeated or not; empty when the seat has
+## none here, and for an enemy's seat (-1).
+@abstract func commander_of(seat: int) -> String
+
+
+## Whether [param id] is its seat's commander on this map ([method commander_of]).
+func is_commander(id: String) -> bool:
+	return not id.is_empty() and commander_of(seat_of(id)) == id
 
 
 ## Sets the current HP of [param id]. The engine has already clamped [param value].

@@ -1,0 +1,42 @@
+[gd_resource type="Resource" script_class="CurseDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="4_gain"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/random_of.gd" id="5_random"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/all_of_scope.gd" id="6_scope"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="7_const"]
+[ext_resource type="Script" path="res://scripts/content/curse_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_your_units"]
+script = ExtResource("6_scope")
+scope = 1
+
+[sub_resource type="Resource" id="Resource_one_of_them"]
+script = ExtResource("5_random")
+from = SubResource("Resource_your_units")
+
+[sub_resource type="Resource" id="Resource_minus_two"]
+script = ExtResource("7_const")
+value = -2.0
+
+[sub_resource type="Resource" id="Resource_block_loss"]
+script = ExtResource("4_gain")
+pool = 1
+target = SubResource("Resource_one_of_them")
+amount = SubResource("Resource_minus_two")
+
+[sub_resource type="Resource" id="Resource_effect"]
+script = ExtResource("1_eff")
+id = "haunting"
+trigger = 1
+scope = 1
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_block_loss")])
+tags = 2
+
+[resource]
+script = ExtResource("9_def")
+tier = "minor"
+id = "haunted"
+display_name = "Haunted"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])

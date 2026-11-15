@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="HeirloomDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_cond"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/while_attack_condition.gd" id="4_attack"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="5_value"]
+[ext_resource type="Script" path="res://scripts/content/heirloom_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_mounted"]
+script = ExtResource("4_attack")
+kind = 0
+type_name = "mounted"
+
+[sub_resource type="Resource" id="Resource_damage"]
+script = ExtResource("5_value")
+key = 1000
+value = 3.0
+
+[sub_resource type="Resource" id="Resource_effect"]
+script = ExtResource("1_eff")
+id = "against_mounted"
+scope = 1
+conditions = Array[ExtResource("2_cond")]([SubResource("Resource_mounted")])
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_damage")])
+
+[resource]
+script = ExtResource("9_def")
+tier = "common"
+kind = "behavior"
+id = "horsebane_charm"
+display_name = "Horsebane Charm"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])

@@ -6,7 +6,7 @@
 # File:     fake_state.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 5, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 extends SandboxState
@@ -22,6 +22,12 @@ const FakeState = preload("res://tests/effects/harness/fake_state.gd")
 
 ## Weapon type by weapon instance id, for conditions that test it.
 var weapon_types: Dictionary[String, String] = {}
+
+## Triangle profile by weapon instance id, for conditions that test it.
+var weapon_profiles: Dictionary[String, WeaponTriangle.Profile] = {}
+
+## Each seat's commander, by seat.
+var commanders: Dictionary[int, String] = {}
 
 var _units: Dictionary[String, FakeUnit] = {}
 var _order: PackedStringArray = []
@@ -59,6 +65,8 @@ func summary() -> String:
 func copy_for_sandbox() -> SandboxState:
 	var copy: FakeState = FakeState.new()
 	copy.weapon_types = weapon_types.duplicate()
+	copy.weapon_profiles = weapon_profiles.duplicate()
+	copy.commanders = commanders.duplicate()
 	for id: String in _order:
 		var original: FakeUnit = _units[id]
 		var unit_copy: FakeUnit = copy.add(id, original.side, original.seat, original.tile)
@@ -133,6 +141,14 @@ func unit_type_of(id: String) -> String:
 
 func weapon_type_of(weapon_id: String) -> String:
 	return weapon_types.get(weapon_id, "")
+
+
+func weapon_profile_of(weapon_id: String) -> WeaponTriangle.Profile:
+	return weapon_profiles.get(weapon_id, WeaponTriangle.Profile.NONE)
+
+
+func commander_of(seat: int) -> String:
+	return commanders.get(seat, "")
 
 
 func set_hp(id: String, value: int) -> void:

@@ -6,14 +6,15 @@
 # File:     area.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 13, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 @tool
 class_name Area
 extends TargetSelector
 ## Selects units around a center: "adjacent units, friend or foe" (Cleave), "the target and adjacent
-## allies of the target" (Sanctuary), "allies within 2 tiles".
+## allies of the target" (Sanctuary), "your commander and allies within 2 tiles of your commander"
+## (Commander's Standard).
 ##
 ## Which tiles count is a shared [TargetShape] from [code]res://data/shapes/[/code], so staves,
 ## splash, keg blasts and runes describe areas one way; the content test rejects a shape that isn't
@@ -34,6 +35,9 @@ enum Center {
 	## The unit a command targets: the ally an area staff (Sanctuary) is used on. Outside a
 	## command there is none, and the area selects nothing.
 	COMMAND_TARGET = 3,
+	## The commander of the owner's seat on this map ([method SandboxState.commander_of]). With
+	## none, or once it is defeated, the area selects nothing.
+	COMMANDER = 4,
 }
 
 ## The unit the area is centered on.
@@ -64,6 +68,8 @@ func describe() -> String:
 			place += " of the other unit"
 		Center.COMMAND_TARGET:
 			place += " of the target"
+		Center.COMMANDER:
+			place += " of your commander"
 	if side == EffectTerms.UnitSide.ANY:
 		place += ", friend or foe"
 	if shape.includes_center:
@@ -74,7 +80,8 @@ func describe() -> String:
 ## Units around the center, in the state's order, on [member side] relative to the owner's side,
 ## on the tiles [member shape] covers. A center that has left the map since the reaction was
 ## queued (a Brute defeated by the counter, the target a Trample hit defeated, a keg that just
-## broke) is measured from the tile it stood on then; a command target has no such tile.
+## broke) is measured from the tile it stood on then; a command target and a commander have no
+## such tile.
 func select(ctx: EffectContext) -> PackedStringArray:
 	var picked: PackedStringArray = []
 	if shape == null:
@@ -102,7 +109,7 @@ func select(ctx: EffectContext) -> PackedStringArray:
 
 
 # Where the center stood when the reaction was queued ([member EffectContext.owner_tile] and the
-# fact's tiles); NO_TILE for a command target, or outside a reaction.
+# fact's tiles); NO_TILE for a command target or a commander, or outside a reaction.
 func _tile_when_queued(ctx: EffectContext) -> Vector2i:
 	match center:
 		Center.OWNER:
@@ -122,6 +129,8 @@ func _center_id(ctx: EffectContext) -> String:
 			return ctx.fact.target_id
 	if center == Center.COMMAND_TARGET:
 		return ctx.command_target_id
+	if center == Center.COMMANDER:
+		return ctx.engine.state.commander_of(ctx.instance.owner.seat)
 	return ctx.owner_unit_id() if center == Center.OWNER else ""
 
 
@@ -151,4 +160,6 @@ func _center_name() -> String:
 			return "the other unit"
 		Center.COMMAND_TARGET:
 			return "the target"
+		Center.COMMANDER:
+			return "your commander"
 	return "this unit"

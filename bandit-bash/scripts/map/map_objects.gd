@@ -6,7 +6,7 @@
 # File:     map_objects.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 12, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 class_name MapObjects
@@ -122,6 +122,11 @@ const KEY_EFFECT_ID: String = "key"
 ## ([method can_pick_locks]) opens with it, and it is kept (user decision, October 29, 2026).
 const LOCKPICK_EFFECT_ID: String = "lockpick"
 
+## The [member EffectDefinition.id] of Burglar's Roll's army effect: while it has a charge, any
+## unit of its seat opens a chest or door with no item, spending the charge. Saves name the
+## effect by this id: never change it.
+const BURGLAR_EFFECT_ID: String = "burglar"
+
 # TODO(TOD-004): Spark, until P03's rune catalog says which rune it is.
 ## The [member EffectDefinition.id] of the Spark rune's effect: it explodes a powder keg anywhere.
 const SPARK_EFFECT_ID: String = "spark"
@@ -182,7 +187,8 @@ static func place_objects(
 
 
 ## Why [param unit_id] can't use [param object_id] now, with Pouch item [param item_id] (a key or
-## lockpick; empty for none); empty when it can. The caller checks that the unit hasn't acted.
+## lockpick; empty for none, which opens a lock only with its army's Burglar's Roll charge); empty
+## when it can. The caller checks that the unit hasn't acted.
 static func check_use(
 		engine: EffectEngine,
 		state: CombatState,
@@ -238,9 +244,10 @@ static func check_use(
 	return "" if _may_loot(state, unit_id) else "only player units and Cutthroats loot"
 
 
-## [param unit_id] uses [param object_id] as its action ([method check_use]): a key is spent,
-## Object used, then the object's changes (after a door or lever, the darkness's new flow) and the
-## drain. An illegal use records nothing. Returns why it was illegal; empty when it resolved.
+## [param unit_id] uses [param object_id] as its action ([method check_use]): a key or a Burglar's
+## Roll charge is spent, Object used, then the object's changes (after a door or lever, the
+## darkness's new flow) and the drain. An illegal use records nothing. Returns why it was illegal;
+## empty when it resolved.
 static func use(
 		engine: EffectEngine,
 		state: CombatState,
@@ -256,6 +263,11 @@ static func use(
 	var used: MapState.ObjectState = state.map.object(object_id)
 	if not item_id.is_empty():
 		_spend_key(engine, state, unit_id, item_id)
+	elif _is_lock(used) and not is_cutthroat(state, unit_id):
+		# check_use passed with no item, so a charge is left.
+		var ctx: EffectContext = EffectContext.new()
+		ctx.command_target_id = unit_id
+		engine.activate(_burglar_charge(engine, state, unit_id), ctx)
 	var fact: CombatFact = CombatFact.new(CombatFact.Kind.OBJECT_USED, unit_id, object_id)
 	fact.tile = used.tile
 	fact.item_id = item_id
@@ -589,6 +601,8 @@ static func _unlock_reason(
 		engine: EffectEngine, state: CombatState, unit_id: String, item_id: String
 ) -> String:
 	if item_id.is_empty():
+		if _burglar_charge(engine, state, unit_id) != null:
+			return ""
 		return "needs a key or a lockpick"
 	if state.unit(unit_id).pouch_item_id != item_id:
 		return "not in its Pouch"
@@ -599,6 +613,30 @@ static func _unlock_reason(
 		LOCKPICK_EFFECT_ID:
 			return "" if can_pick_locks(engine, unit_id) else "can't pick locks"
 	return "not a key or a lockpick"
+
+
+# The first Burglar's Roll effect of unit_id's army with a charge left, in instance order; null
+# when none. Enemies have no army, so they never have one.
+static func _burglar_charge(
+		engine: EffectEngine, state: CombatState, unit_id: String
+) -> EffectInstance:
+	var seat: int = state.seat_of(unit_id)
+	if seat < 0:
+		return null
+	for instance: EffectInstance in engine.get_instances():
+		if (
+				instance.owner.kind == EffectOwner.Kind.ARMY
+				and instance.owner.seat == seat
+				and instance.definition.id == BURGLAR_EFFECT_ID
+				and instance.has_charge()
+		):
+			return instance
+	return null
+
+
+# Whether the object is a lock: a chest or a door.
+static func _is_lock(used: MapState.ObjectState) -> bool:
+	return used.kind == MapLayout.ObjectKind.CHEST or used.kind == MapLayout.ObjectKind.DOOR
 
 
 # The key or lockpick effect id of item_id's use effects; empty for neither.

@@ -6,7 +6,7 @@
 # File:     content_rules.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 13, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -24,8 +24,8 @@ extends RefCounted
 ## no Basic, Legendary or Unique item has one, and an item with uses has no charged use effect of
 ## its own (enemies and AI plan, question 18 (d)), every [Area] reuses a shape file from
 ## [code]shapes/[/code] (question 17); and (event bus plan, question 50) no effect lacks
-## operations but a key's or lockpick's use effect (CT5), no faction lists its commander among its
-## starting units, and starting gear fits its slots. P05's rules (enemies and AI plan, EN1): enemy
+## operations but an opener (a key's or lockpick's use effect, Burglar's Roll), no faction lists
+## its commander among its starting units, and starting gear fits its slots. P05's rules (enemies and AI plan, EN1): enemy
 ## classes live in enemies/ and packs in enemies/packs/, a pack names only enemy classes, each at
 ## least once, and an enemy class has target rule text and is never a commander or given a role.
 ## P02's rule (event bus plan, question 60): every effect inside a carrier has an id unique within
@@ -428,10 +428,12 @@ func _check_effects(path: String, resource: Resource) -> void:
 					])
 
 
-# Whether [param effect] is a key's or lockpick's use effect: its id is the one MapObjects finds it
-# by, and the consumable's use kind is the same word ("key" or "lockpick"). It needs no
-# operations: opening the lock is MapObjects'.
+# Whether [param effect] opens locks: a key's or lockpick's use effect (its id is the one MapObjects
+# finds it by, and the consumable's use kind is the same word), or an heirloom's Burglar's Roll
+# effect, by its id. It needs no operations: opening the lock is MapObjects'.
 func _is_opener(resource: Resource, effect: EffectDefinition) -> bool:
+	if resource is HeirloomDefinition:
+		return effect.id == MapObjects.BURGLAR_EFFECT_ID
 	if not resource is ConsumableDefinition:
 		return false
 	var consumable: ConsumableDefinition = resource

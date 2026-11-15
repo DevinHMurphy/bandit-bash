@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="HeirloomDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_that.gd" id="4_that"]
+[ext_resource type="Script" path="res://scripts/content/heirloom_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_half"]
+script = ExtResource("4_that")
+what = 1
+mode = 2
+value = 0.5
+
+[sub_resource type="Resource" id="Resource_effect"]
+script = ExtResource("1_eff")
+id = "darkness_ward"
+trigger = 22
+scope = 1
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_half")])
+
+[resource]
+script = ExtResource("9_def")
+tier = "common"
+kind = "behavior"
+id = "lantern_oil"
+display_name = "Lantern Oil"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])
