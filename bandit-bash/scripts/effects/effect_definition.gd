@@ -6,7 +6,7 @@
 # File:     effect_definition.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 14, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 @tool
@@ -29,7 +29,7 @@ extends Resource
 enum Tag {
 	## Once any player owns it, it is never offered to anyone else (co-op).
 	UNIQUE = 1,
-	## A negative heirloom. Curses resolve last among reactions.
+	## A negative heirloom. Curses resolve last among reactions, unless [member resolves_first].
 	CURSE = 2,
 }
 
@@ -64,6 +64,12 @@ enum Tag {
 ## Content tags. [b]Unique:[/b] never offered to a second player in co-op. [b]Curse:[/b] a negative
 ## heirloom that resolves last. [b]0:[/b] no tags.
 @export_flags("Unique:1", "Curse:2") var tags: int = 0
+
+## Resolves before every other reaction to the same fact, before the curses-last rule too, so its
+## result is in place when the others resolve (Haunted's Block ban before Phase Start's Block
+## gains). Two such effects keep the usual order between them. [b]Off:[/b] the usual reaction
+## order ([EffectEngine]).
+@export var resolves_first: bool = false
 
 
 ## The effect text, generated from the data, such as

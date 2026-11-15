@@ -276,7 +276,9 @@ Effect text uses triggers in two ways, and the engine keeps them apart:
   resolve by role (the fact's actor, then its target, then others), then seat (enemy side last),
   then carrier kind (unit trait → weapon → equipment → Pouch item → heirloom → curse), then
   instance id. **Curses resolve last**, so a curse always acts on the finished result and can't be
-  dodged by acquisition order (question 6). This removes reentrancy: thorns-style loops can't recurse mid-hit.
+  dodged by acquisition order (question 6). The one exception is an effect marked
+  `resolves_first`, which goes ahead of every other reaction to its fact. Haunted's Block ban uses
+  it so the ban is in place before Phase Start's Block gains (P03 question 28). This removes reentrancy: thorns-style loops can't recurse mid-hit.
 
 A trigger only has an inline window if it fires before its amount is committed (question 5):
 

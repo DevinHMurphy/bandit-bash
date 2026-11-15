@@ -6,7 +6,7 @@
 # File:     combat_fact.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 4, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name CombatFact
@@ -86,7 +86,8 @@ enum Kind {
 	BLOCK_GAINED = 25,
 	## The actor moved; [member tile] is where it stopped. For its own walk, [member amount] is the
 	## tiles moved and [member key] the movement cost spent; both are 0 when it was moved (a shove,
-	## an oil slide, Recall, an opening swap, a passage).
+	## an oil slide, Recall, an opening swap, a passage). A walk after acting has
+	## [constant Flag.SECOND_MOVE].
 	UNIT_MOVED = 26,
 	## The actor appeared on the map at [member tile].
 	UNIT_SPAWNED = 27,
@@ -129,7 +130,7 @@ enum Kind {
 	RUNE_USED = 39,
 	## The actor waited, ending its turn.
 	UNIT_WAITED = 40,
-	## The actor lost Block outside damage (Haunted's "loses 2 Block"). No inline window.
+	## The actor lost Block outside damage (a negative Block gain). No inline window.
 	BLOCK_LOST = 41,
 	## The actor's base stat [member key] (an [enum CombatValue.Stat]) changed permanently by
 	## [member amount], such as a stat booster's +1 MGT.
@@ -203,6 +204,9 @@ enum Flag {
 	## On each [constant Kind.DARKNESS_ADVANCED] release of the first wave: the darkness arrived
 	## ([member MapState.has_darkness_arrived]).
 	DARKNESS_ARRIVED = 4,
+	## On a [constant Kind.UNIT_MOVED] of the actor's own walk after it acted: the move after acting
+	## that dispatches [constant EffectTerms.Trigger.MOVED_AFTER_ACTING] (Skirmisher+).
+	SECOND_MOVE = 8,
 }
 
 ## [member tile] when a fact has no tile. Map tiles never have negative coordinates (a map rule,

@@ -6,7 +6,7 @@
 # File:     roster_unit_cases.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 14, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -14,14 +14,14 @@ extends RefCounted
 ## [code]res://data/[/code]: the eleven MVP unit types after M1 against unit-roster.md (weapons,
 ## movement, tags, role, starting weapon, trait, stats, Stance, growths and upgrades), the big
 ## upgrades through the loadout, their effect text, the Ward's shover role up front in
-## auto-deployment, Skirmisher's move after combat but not after a shove, and each type drawn by
-## its letters while it has no sprite. Reports each case through the check callable it is given.
+## auto-deployment, Skirmisher's move after combat but not after a shove, Skirmisher+'s Block on
+## that move only, and each type drawn by its letters while it has no sprite. Reports each case
+## through the check callable it is given.
 ##
 ## The expected values are transcribed from the design docs, never read from the data, so a
 ## changed .tres fails here until the docs and this file agree.
 ##
 ## @tutorial(Unit roster): docs/design/unit-roster.md
-## @todo: TOD-001 - Skirmisher+ lacks "gains 2 Block if it moves" (needs a new trigger).
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
@@ -99,9 +99,10 @@ const TEXT: Dictionary[String, Array] = {
 	"thief+": ["Always: +25 Crit Chance"],
 	"thief innate": ["Always: allow Can Pick Locks"],
 	"freewing": ["After Combat: allow May Move After Acting until Phase End"],
-	# TODO(TOD-001): Skirmisher+ lacks "and gains 2 Block if it moves", which needs a Moved after
-	# acting trigger; add it and its line here when the trigger exists.
-	"freewing+": ["After Combat: allow May Move After Acting until Phase End"],
+	"freewing+": [
+		"After Combat: allow May Move After Acting until Phase End",
+		"Moved after acting: gain 2 Block",
+	],
 	"lance_armor": ["Always: +1 Parry"],
 	"lance_armor+": ["Always: +1 Parry, +1 Stance Max"],
 	"ward": ["Always: +1 Shove Distance"],
@@ -134,6 +135,7 @@ func run() -> void:
 	_test_types_load()
 	_test_ward_deploys_in_front()
 	_test_skirmisher()
+	_test_skirmisher_plus()
 	_test_sprite_fallback()
 
 
@@ -367,6 +369,45 @@ func _test_skirmisher() -> void:
 	), shove.rejected_reason)
 
 
+# A Freewing walks up to a Hound and attacks, then moves on; only that move after acting is
+# flagged a second move, and only the Freewing+ gains 2 Block from it, none from the first walk.
+func _test_skirmisher_plus() -> void:
+	var results: PackedStringArray = []
+	for is_upgraded: bool in [false, true]:
+		var session: CombatSession = _battle(_plain(4, 3))
+		var freewing: String = _place(session, "freewing", PLAYER, 0, Vector2i(0, 0), is_upgraded)
+		var hound: String = _place(session, "hound", ENEMY, -1, Vector2i(2, 0))
+		if freewing.is_empty() or hound.is_empty():
+			return
+		session.open_battle()
+		var walk_up: Array[Vector2i] = [Vector2i(0, 0), Vector2i(1, 0)]
+		session.submit(UnitTurnCommand.new(0, freewing, ATTACK, hound, walk_up))
+		var attack: CombatSession.FactBatch = session.resolve_next()
+		var after_attack: int = session.state.get_block(freewing)
+		var away: Array[Vector2i] = [Vector2i(1, 0), Vector2i(1, 1), Vector2i(1, 2)]
+		session.submit(UnitTurnCommand.new(0, freewing, MOVE, "", away))
+		var moved: CombatSession.FactBatch = session.resolve_next()
+		if attack.is_rejected() or moved.is_rejected():
+			_ok("skirmisher+: both commands resolve", false, "%s %s" % [
+				attack.rejected_reason, moved.rejected_reason,
+			])
+			return
+		var flags: PackedStringArray = []
+		for fact: CombatFact in session.engine.fact_log:
+			if fact.kind == CombatFact.Kind.UNIT_MOVED and fact.actor_id == freewing:
+				var is_second: bool = (fact.flags & CombatFact.Flag.SECOND_MOVE) != 0
+				flags.append("second" if is_second else "first")
+		results.append("%s: %s, Block %d then %d" % [
+			"freewing+" if is_upgraded else "freewing",
+			" ".join(flags),
+			after_attack,
+			session.state.get_block(freewing),
+		])
+	_same("skirmisher+: the move after acting, flagged, and its Block", " | ".join(results), (
+			"freewing: first second, Block 0 then 0 | freewing+: first second, Block 0 then 2"
+	))
+
+
 # No type here has a sprite yet (P07), so its token draws its fallback letters.
 func _test_sprite_fallback() -> void:
 	var table: UnitSpriteTable = load(SPRITE_TABLE) as UnitSpriteTable
@@ -412,16 +453,17 @@ func _load(
 	return Loadout.load_unit(_catalog, unit, items, side, seat, ids)
 
 
-# Loads and places a unit of type_id on tile; its id, or empty when it didn't load cleanly or
-# wasn't placed.
+# Loads and places a unit of type_id on tile, upgraded when is_upgraded; its id, or empty when it
+# didn't load cleanly or wasn't placed.
 func _place(
 		session: CombatSession,
 		type_id: String,
 		side: CombatFact.CombatSide,
 		seat: int,
-		tile: Vector2i
+		tile: Vector2i,
+		is_upgraded: bool = false
 ) -> String:
-	var loaded: Loadout.LoadedUnit = _load(type_id, side, seat, session.ids, false)
+	var loaded: Loadout.LoadedUnit = _load(type_id, side, seat, session.ids, is_upgraded)
 	if not loaded.is_loaded() or not loaded.problems.is_empty():
 		_ok("%s: loads for the battle" % [type_id], false, str(loaded.problems))
 		return ""

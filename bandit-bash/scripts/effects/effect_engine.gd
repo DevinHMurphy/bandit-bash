@@ -6,7 +6,7 @@
 # File:     effect_engine.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 13, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name EffectEngine
@@ -58,7 +58,8 @@ const INLINE_TRIGGERS: Array[int] = [
 	EffectTerms.Trigger.BLOCK_GAINED,
 ]
 
-# The trigger of each combat fact kind that is one. Facts without an entry dispatch nothing.
+# The trigger of each combat fact kind that is one. Facts without an entry dispatch nothing, except
+# the flagged ones _trigger_of() reads.
 const _COMBAT_TRIGGERS: Dictionary[int, int] = {
 	CombatFact.Kind.PHASE_START: EffectTerms.Trigger.PHASE_START,
 	CombatFact.Kind.UNIT_TURN_START: EffectTerms.Trigger.UNIT_TURN_START,
@@ -344,7 +345,7 @@ func record(fact: CombatFact, ctx: EffectContext = null) -> void:
 		for reaction: ReactionQueue.Reaction in window.reactions:
 			_run.queue.push(reaction)
 		return
-	var trigger: int = _COMBAT_TRIGGERS.get(fact.kind, -1)
+	var trigger: int = _trigger_of(fact)
 	if trigger >= 0:
 		_dispatch(fact, trigger, ctx, null)
 
@@ -355,7 +356,7 @@ func record(fact: CombatFact, ctx: EffectContext = null) -> void:
 func open_window(fact: CombatFact, ctx: EffectContext) -> void:
 	if _windows.has(fact):
 		return
-	var trigger: int = _COMBAT_TRIGGERS.get(fact.kind, -1)
+	var trigger: int = _trigger_of(fact)
 	if not INLINE_TRIGGERS.has(trigger):
 		diagnostics.append("EffectEngine: %s has no inline window" % [_kind_name(fact.kind)])
 		return
@@ -774,12 +775,15 @@ func is_dormant(instance: EffectInstance) -> bool:
 
 
 ## The one path for every Block gain: opens the [constant CombatFact.Kind.BLOCK_GAINED] window,
-## rounds the shaped amount half up, never below 0, and records the gain.
+## rounds the shaped amount half up, never below 0, and records the gain. A unit denied
+## [constant CombatValue.Permission.CAN_GAIN_BLOCK] gains nothing, and nothing is recorded.
 ## [param giver_id]: the unit giving it, if another unit does. Returns the Block gained.
 func gain_block(
 		unit_id: String, amount: float, giver_id: String = "", source_effect_id: String = ""
 ) -> int:
 	if not state.has_unit(unit_id):
+		return 0
+	if not stats(unit_id).is_allowed(CombatValue.Permission.CAN_GAIN_BLOCK):
 		return 0
 	var fact: CombatFact = _new_fact(
 			CombatFact.Kind.BLOCK_GAINED, unit_id, _other(giver_id, unit_id)
@@ -1025,9 +1029,12 @@ func _sees_fact(instance: EffectInstance, fact: CombatFact) -> bool:
 	return in_scope(owner, fact.actor_id, instance.definition.scope)
 
 
-# Reaction order (question 6): the fact's actor, then its target, then others; seat ascending with
-# enemies last; carrier kind (curses last); instance id.
+# Reaction order: effects marked resolves_first (Haunted's ban, in place before Phase Start's
+# Block gains); then the fact's actor, then its target, then others; seat ascending with enemies
+# last; carrier kind (curses last); instance id.
 func _reacts_before(a: EffectInstance, b: EffectInstance, fact: CombatFact) -> bool:
+	if a.definition.resolves_first != b.definition.resolves_first:
+		return a.definition.resolves_first
 	var role_a: int = _role_rank(a, fact)
 	var role_b: int = _role_rank(b, fact)
 	if role_a != role_b:
@@ -1348,6 +1355,17 @@ static func _source_of(source_effect_id: String) -> CombatFact.Source:
 static func _kind_name(kind: int) -> String:
 	var name: Variant = CombatFact.Kind.find_key(kind)
 	return "KIND_%d" % [kind] if name == null else (name as String)
+
+
+# The trigger fact dispatches, or -1: its kind's, or Moved after acting for a UNIT_MOVED flagged
+# SECOND_MOVE (a unit moved by something else, or walking before it acts, dispatches nothing).
+static func _trigger_of(fact: CombatFact) -> int:
+	if (
+			fact.kind == CombatFact.Kind.UNIT_MOVED
+			and (fact.flags & CombatFact.Flag.SECOND_MOVE) != 0
+	):
+		return EffectTerms.Trigger.MOVED_AFTER_ACTING
+	return _COMBAT_TRIGGERS.get(fact.kind, -1)
 
 
 ## One campaign grant an effect applied: who gets what, and from which effect. Plain data.

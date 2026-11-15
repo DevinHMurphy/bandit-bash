@@ -6,7 +6,7 @@
 # File:     effect_terms.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 4, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 @tool
@@ -28,7 +28,8 @@ extends RefCounted
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
 
 ## When the effect is checked. Saved in .tres files as an int: [b]append only[/b], with explicit
-## values. Combat triggers match [enum CombatFact.Kind]; campaign triggers [enum CampaignFact.Kind].
+## values. Combat triggers match [enum CombatFact.Kind] (Moved after acting: a flagged
+## [constant CombatFact.Kind.UNIT_MOVED]); campaign triggers [enum CampaignFact.Kind].
 enum Trigger {
 	## Always on: no trigger. Its modifiers apply whenever the owner is involved.
 	ALWAYS = 0,
@@ -84,6 +85,9 @@ enum Trigger {
 	SHOVED = 25,
 	## A unit gained Block.
 	BLOCK_GAINED = 26,
+	## A unit made its own move after acting ([constant CombatFact.Flag.SECOND_MOVE] on its
+	## [constant CombatFact.Kind.UNIT_MOVED]).
+	MOVED_AFTER_ACTING = 27,
 	## Campaign: this heirloom or item was acquired.
 	GAINED = 100,
 	## Campaign: a combat ended for the owner, won or lost.
@@ -153,6 +157,7 @@ const TRIGGER_TEXT: Dictionary[int, String] = {
 	Trigger.SHOVED_A_UNIT: "Shoved a unit",
 	Trigger.SHOVED: "Shoved",
 	Trigger.BLOCK_GAINED: "Block gained",
+	Trigger.MOVED_AFTER_ACTING: "Moved after acting",
 	Trigger.GAINED: "Gained",
 	Trigger.COMBAT_ENDED: "Combat ended",
 	Trigger.LEVELED_UP: "Leveled up",

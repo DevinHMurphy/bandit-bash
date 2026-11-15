@@ -6,7 +6,7 @@
 # File:     combat_value.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 12, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name CombatValue
@@ -103,6 +103,9 @@ enum Permission {
 	SKIP_MITIGATION_ON_CRIT = 3004,
 	## Opens a chest or door with a Lockpick (the Thief's innate grant). Denied by default.
 	CAN_PICK_LOCKS = 3005,
+	## May gain Block ([method EffectEngine.gain_block]). Allowed by default; Haunted denies it to
+	## one unit for a turn, and a denied gain does nothing, records nothing and fires nothing.
+	CAN_GAIN_BLOCK = 3006,
 }
 
 ## The value key of each [enum Stat]; MOV is [constant MOVEMENT].
@@ -163,4 +166,5 @@ const PERMISSION_DEFAULTS: Dictionary[int, bool] = {
 	Permission.FREE_WEAPON_SWAP: false,
 	Permission.SKIP_MITIGATION_ON_CRIT: false,
 	Permission.CAN_PICK_LOCKS: false,
+	Permission.CAN_GAIN_BLOCK: true,
 }

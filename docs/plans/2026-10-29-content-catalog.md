@@ -221,12 +221,9 @@ resolved by the step that delivers each piece.
 
 Entered as written, revisited in playtesting (question 7): the Ring of Favor (needs a
 Legendary-sized effect), Heavy Brick (Unique with no source), the Lancer's growths (a `Godot_FE`
-copy-paste), items possibly outside their rarity's budget, Freewing+ (Skirmisher+ lacks "and gains
-2 Block if it moves"; CT13F adds the `MOVED_AFTER_ACTING` trigger and `SECOND_MOVE` fact flag, then
-the effect and its snapshot, `roster_unit_cases.gd:TOD-001`; question 27). From CT9 (question
+copy-paste), items possibly outside their rarity's budget. From CT9 (question
 28): Commander's Standard's area counts allies, so on a map several seats share (P11) partners'
-units near the commander gain its Block too; Haunted fires at Phase Start right after the
-refresh, so alone it finds no Block to take; Hunted's `EXTRA_ENEMIES` and Clouded Sight's
+units near the commander gain its Block too; Hunted's `EXTRA_ENEMIES` and Clouded Sight's
 `INTENTS_HIDDEN` have no reading step yet; "<trigger> by Your Unit" reads oddly for a unit's own
 facts and phase facts (P07's generated text).
 

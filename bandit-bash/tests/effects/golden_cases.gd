@@ -6,7 +6,7 @@
 # File:     golden_cases.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 12, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends "res://tests/effects/engine_cases.gd"
@@ -158,18 +158,18 @@ const GOLDEN: Dictionary[String, Array] = {
 		"s0#1 DARKNESS_DAMAGE_TAKEN p1 amount 2 (hp 2, block 0) source darkness",
 		"s0#2 EFFECT_ACTIVATED seat:0 effect effect:lo",
 	],
-	"Haunted after Iron Rations (curses act on the finished result)": [
+	# The curse resolves first, so its pick (p2) gets none of Iron Rations' Block, unrecorded.
+	"Haunted with Iron Rations (a curse that resolves first)": [
 		"s0#1 BLOCK_STANCE_REFRESHED p1",
 		"s0#2 BLOCK_STANCE_REFRESHED p2",
 		"s0#3 PHASE_START side player amount 1",
-		"s0#4 COUNTER_CHANGED seat:0 lane 0 amount 1 effect effect:ir",
-		"s0#5 EFFECT_ACTIVATED seat:0 effect effect:ir",
-		"s0#6 EFFECT_ACTIVATED seat:0 effect effect:ha",
+		"s0#4 EFFECT_ACTIVATED seat:0 effect effect:ha",
+		"s0#5 COUNTER_CHANGED seat:0 lane 0 amount 1 effect effect:ir",
+		"s0#6 EFFECT_ACTIVATED seat:0 effect effect:ir",
 		"s0#7 UNIT_TURN_START p1",
 		"s0#8 UNIT_TURN_START p2",
-		"s0#9 BLOCK_GAINED p1 amount 3 (hp 0, block 3) source effect effect effect:ir",
-		"s0#10 BLOCK_GAINED p2 amount 3 (hp 0, block 3) source effect effect effect:ir",
-		"s0#11 BLOCK_LOST p2 amount 2 (hp 0, block 2) source effect effect effect:ha",
+		"s0#9 MODIFIER_GAINED p2 effect effect:ha",
+		"s0#10 BLOCK_GAINED p1 amount 3 (hp 0, block 3) source effect effect effect:ir",
 	],
 	"Mend": [
 		"s0#1 EFFECT_ACTIVATED effect effect:me",
@@ -446,7 +446,7 @@ func _test_golden_haunted() -> void:
 	engine.register(_instance("effect:ha", _haunted(), _army(), CURSE, "Haunted"))
 	engine.register(_instance("effect:ir", _iron_rations(), _army(), HEIRLOOM, "Iron Rations"))
 	_harness(engine).phase_start(PLAYER)
-	_golden("Haunted after Iron Rations (curses act on the finished result)", engine)
+	_golden("Haunted with Iron Rations (a curse that resolves first)", engine)
 
 
 func _test_golden_mend() -> void:
@@ -1046,13 +1046,15 @@ func _brittle_guard() -> EffectDefinition:
 func _haunted() -> EffectDefinition:
 	var pick: RandomOf = RandomOf.new()
 	pick.from = AllOfScope.new()
-	var haunted: EffectDefinition = _definition(
-			EffectTerms.Trigger.PHASE_START,
-			[],
-			[_gain(GainResource.Pool.BLOCK, pick, _constant(-2.0))]
-	)
+	var ban: AddTimedModifier = AddTimedModifier.new()
+	ban.target = pick
+	ban.key = CombatValue.Permission.CAN_GAIN_BLOCK
+	ban.mode = Modifier.Mode.DENY
+	ban.end = AddTimedModifier.End.END_OF_NEXT_PHASE
+	var haunted: EffectDefinition = _definition(EffectTerms.Trigger.PHASE_START, [], [ban])
 	haunted.scope = YOUR_UNIT
 	haunted.tags = EffectDefinition.Tag.CURSE
+	haunted.resolves_first = true
 	return haunted
 
 
