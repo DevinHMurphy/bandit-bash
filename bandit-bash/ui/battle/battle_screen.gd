@@ -11,23 +11,21 @@
 
 class_name BattleScreen
 extends Node2D
-## The gameplay screen: a solo run's battle, from Begin to Results.
+## The gameplay screen: a solo run's battle, from Begin to its results.
 ##
-## With a solo run and no battle on, it begins the run's combat node's battle from the run's request
-## (army from the roster, map from the node's pool: [method CampaignRunState.battle_request]),
-## opening in the swap window only while [member SettingsData.is_opening_swap_on]; a battle saved
-## mid-fight resumes from the same request, and one already on shows as it stands. Once the
-## player's map has ended and settled, input stops, the banner shows for [member end_banner_time],
-## then [code]CampaignService.end_battle()[/code] applies and saves the result and all go to
-## Results. [b]Commands only:[/b] its [BattleController] turns input into commands. Co-op and a
-## multiplayer client keep the placeholder. The save debug panel hides while a battle shows, as it
-## would take the map's clicks; toggle_save_debug shows it.
+## With the run inside a combat node and no battle on, it begins that node's battle from the run's
+## request ([method CampaignRunState.battle_request]), opening in the swap window only while
+## [member SettingsData.is_opening_swap_on]; a battle saved mid-fight resumes from the same
+## request, one already on shows as it stands, and a run anywhere else is sent to its own screen
+## ([RunScreen]). Once the player's map has ended and settled, input stops, the banner shows for
+## [member end_banner_time], then [code]CampaignService.end_battle()[/code] applies and saves the
+## result and all go on: to the combat's Results after a win, to the run's end after a loss.
+## [b]Commands only:[/b] its [BattleController] turns input into commands. Co-op and a multiplayer
+## client keep the placeholder. The save debug panel hides while a battle shows, as it would take
+## the map's clicks; toggle_save_debug shows it.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
-##
-## @todo: TOD-001 - Drop the node pick on entry once the campaign map screen chooses nodes (RN5).
-## @todo: TOD-002 - Drop the skipped item pick on entry once the Results screen takes it (RN5).
 
 ## How long the Victory or Defeat banner shows before the route to Results, counted from when it
 ## appears; it pauses with the pause menu. Shorter than the banner's fade-in
@@ -57,6 +55,10 @@ func _ready() -> void:
 	var run: CampaignSession = CampaignService.session
 	if run == null or run.mode != CampaignData.Mode.SOLO:
 		_show_placeholder("")
+		return
+	if run.encounter == null and RunScreen.of(run) != SceneRouter.Screen.GAMEPLAY:
+		_show_placeholder("")
+		RunScreen.go()
 		return
 	if run.encounter == null:
 		var err: Error = _begin_battle(run)
@@ -88,14 +90,6 @@ func _begin_battle(run: CampaignSession) -> Error:
 	if run.run == null:
 		push_error("BattleScreen: the run has no campaign state")
 		return ERR_UNCONFIGURED
-	if run.run.flow.stage == RunFlow.Stage.RESULTS:
-		var left: Error = _leave_results(run)
-		if left != OK:
-			return left
-	if run.run.is_on_map():
-		var chosen: Error = _choose_next_combat(run)
-		if chosen != OK:
-			return chosen
 	var request: CampaignSession.BattleRequest = run.run.battle_request(
 			CombatMapPools.load_default(), EffectCatalog.index()
 	)
@@ -107,47 +101,6 @@ func _begin_battle(run: CampaignSession) -> Error:
 	if SaveService.combat != null:
 		return CampaignService.resume_battle(request)
 	return CampaignService.begin_battle(request)
-
-
-# TODO(TOD-001): The campaign map screen chooses nodes (RN5). Until then, entering with the run on
-# the map chooses the leftmost combat node it can reach next (floor 1 is all Standard combats).
-# Returns ERR_UNAVAILABLE when no reachable node is a combat, ERR_CANT_RESOLVE when it's rejected.
-func _choose_next_combat(run: CampaignSession) -> Error:
-	var state: CampaignRunState = run.run
-	var reachable: PackedInt32Array = (
-			state.graph.nodes_on_floor(1) if state.node == CampaignGraph.NO_NODE
-			else state.graph.children_of(state.node)
-	)
-	for node_id: int in reachable:
-		var type: CampaignGraph.NodeType = state.graph.type_of(node_id)
-		if (
-				type != CampaignGraph.NodeType.STANDARD
-				and type != CampaignGraph.NodeType.KEY
-				and type != CampaignGraph.NodeType.BOSS
-		):
-			continue
-		var batch: CampaignBatch = CampaignService.submit_command(
-				ChooseNodeCommand.new(run.seats[0], node_id)
-		)
-		return ERR_CANT_RESOLVE if batch == null or batch.is_rejected() else OK
-	push_warning("BattleScreen: no combat node is reachable from the map")
-	return ERR_UNAVAILABLE
-
-
-# TODO(TOD-002): The Results screen takes or skips the item pick (RN5). Until then, entering with
-# the run at a combat's results skips the seat's open pick and leaves the node for the map.
-# Returns ERR_CANT_RESOLVE when either command is rejected.
-func _leave_results(run: CampaignSession) -> Error:
-	var seat: int = run.seats[0]
-	var pick: ItemPick = ItemPick.pending(run.run.seat_run(seat))
-	if pick != null and not pick.is_resolved:
-		var skipped: CampaignBatch = CampaignService.submit_command(
-				ItemPickCommand.new(seat, ItemPickCommand.SKIP)
-		)
-		if skipped == null or skipped.is_rejected():
-			return ERR_CANT_RESOLVE
-	var left: CampaignBatch = CampaignService.submit_command(LeaveNodeCommand.new(seat))
-	return ERR_CANT_RESOLVE if left == null or left.is_rejected() else OK
 
 
 func _open(encounter: CombatEncounter, seat: int) -> void:
@@ -192,7 +145,9 @@ func _show_end() -> void:
 	hold.timeout.connect(_end_battle)
 
 
-# Saves the battle's end and routes everyone to Results. Called once, by _show_end().
+# Saves the battle's end and routes everyone on: a solo run still going to its stage's screen
+# (the combat's Results after a win), and a run that ended, or anything but a solo run, to
+# RESULTS. Called once, by _show_end().
 func _end_battle() -> void:
 	_controller.unbind()
 	_hud.unbind()
@@ -200,7 +155,11 @@ func _end_battle() -> void:
 	if CampaignService.end_battle() == null:
 		_show_placeholder("Couldn't save the battle's end; see the log.")
 		return
-	SceneRouter.goto_screen_for_everyone(SceneRouter.Screen.RESULTS)
+	var run: CampaignSession = CampaignService.session
+	var next: SceneRouter.Screen = SceneRouter.Screen.RESULTS
+	if RunScreen.is_solo_run(run):
+		next = RunScreen.of(run)
+	SceneRouter.goto_screen_for_everyone(next)
 
 
 func _on_battle_view_settled() -> void:

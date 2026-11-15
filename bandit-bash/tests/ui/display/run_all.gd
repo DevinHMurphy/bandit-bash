@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 9, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 extends "res://tests/ui/ui_suite.gd"
@@ -117,6 +117,7 @@ func _start_panel_case() -> bool:
 		_check("panel: a new solo run starts", false, error_string(err))
 		_end_panel_case()
 		return false
+	_enter_first_node()
 	var scene: PackedScene = load(GAMEPLAY_SCENE)
 	_panel_screen = scene.instantiate()
 	root.add_child(_panel_screen)

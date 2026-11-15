@@ -6,7 +6,7 @@
 # File:     scene_router.gd
 # Author:
 # Created:  October 9, 2026
-# Modified: October 14, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 extends Node
@@ -39,17 +39,24 @@ signal invite_confirmation_requested()
 #   NEW_RUN     -> LOADING (after the run's first save; new_run_screen.gd), MAIN_MENU
 #   OPTIONS     -> back to whichever screen opened it (only MAIN_MENU links to it)
 #   LOBBY       -> LOADING (everyone, host's Start or Resume), MAIN_MENU
-#   LOADING     -> GAMEPLAY (everyone)
-#   GAMEPLAY    -> RESULTS (everyone), MAIN_MENU (pause menu)
+#   LOADING     -> the solo run's screen by its stage (RunScreen.of): CAMPAIGN_MAP, GAMEPLAY,
+#                  NODE_PLACEHOLDER or COMBAT_RESULTS; GAMEPLAY (everyone) outside a solo run
+#   CAMPAIGN_MAP     -> GAMEPLAY (a combat node chosen), NODE_PLACEHOLDER (any other node)
+#   NODE_PLACEHOLDER -> CAMPAIGN_MAP (Continue leaves the node)
+#   GAMEPLAY    -> COMBAT_RESULTS (a solo battle won), RESULTS (lost, or outside a solo run;
+#                  everyone); a solo run elsewhere is sent to its stage's screen at once
+#   COMBAT_RESULTS -> CAMPAIGN_MAP (Continue leaves the node), RESULTS (End run, after the Boss)
 #   RESULTS     -> LOADING (everyone, next round), MAIN_MENU
+#   CAMPAIGN_MAP, NODE_PLACEHOLDER, COMBAT_RESULTS, GAMEPLAY -> MAIN_MENU (pause menu)
 #   any screen  -> LOBBY on an accepted invite (accept_pending_invite); during a solo run only
 #                  after the player chose Save & Quit
-#   LOADING, GAMEPLAY, RESULTS -> MAIN_MENU on a client whose host left (session_ended)
+#   LOADING and every in-run screen -> MAIN_MENU on a client whose host left (session_ended)
 # "Everyone" edges go through goto_screen_for_everyone(): host only, solo falls back to local.
 # Entering START, SAVE_SELECT or MAIN_MENU ends any lobby session, so Leave Match also leaves the
 # lobby. Entering SAVE_SELECT also closes the open save file (save_select_screen.gd).
 # There is no way to MAIN_MENU without an open save file: every path in passes SAVE_SELECT.
-# There is no separate match-over screen: RESULTS offers both exits.
+# RESULTS is the run's end (won or lost) and the multiplayer round placeholder; it offers both
+# exits. A combat's own results are COMBAT_RESULTS.
 ## Every screen in the game.
 ##
 ## APPEND ONLY with explicit values: an exported [enum Screen] serializes as a plain int in .tscn
@@ -64,6 +71,9 @@ enum Screen {
 	OPTIONS = 6,
 	SAVE_SELECT = 7,
 	NEW_RUN = 8,
+	CAMPAIGN_MAP = 9,
+	COMBAT_RESULTS = 10,
+	NODE_PLACEHOLDER = 11,
 }
 
 ## [enum Screen] -> scene path. Every [enum Screen] value needs an entry.
@@ -77,7 +87,19 @@ const SCREEN_PATHS: Dictionary[Screen, String] = {
 	Screen.OPTIONS: "res://ui/screens/options_screen.tscn",
 	Screen.SAVE_SELECT: "res://ui/screens/save_select_screen.tscn",
 	Screen.NEW_RUN: "res://ui/screens/new_run_screen.tscn",
+	Screen.CAMPAIGN_MAP: "res://ui/campaign/campaign_map_screen.tscn",
+	Screen.COMBAT_RESULTS: "res://ui/campaign/combat_results_screen.tscn",
+	Screen.NODE_PLACEHOLDER: "res://ui/campaign/node_placeholder_screen.tscn",
 }
+
+# The screens a run is played on, where an invite asks to Save & Quit first and a lost host sends
+# a client back to the menu.
+const _RUN_SCREENS: Array[Screen] = [
+	Screen.GAMEPLAY,
+	Screen.CAMPAIGN_MAP,
+	Screen.COMBAT_RESULTS,
+	Screen.NODE_PLACEHOLDER,
+]
 
 ## Screen this machine is showing. [constant Screen.START] until the first [method goto_screen].
 var current_screen: Screen = Screen.START
@@ -172,7 +194,7 @@ func _on_steam_network_invite_received(_lobby_id: int) -> void:
 		SteamNetwork.take_pending_invite()
 		NetLog.warn(NetLog.Category.SCENE, "Ignoring an invite while already in a lobby.")
 		return
-	if current_screen == Screen.GAMEPLAY and SaveService.campaign != null:
+	if _RUN_SCREENS.has(current_screen) and SaveService.campaign != null:
 		invite_confirmation_requested.emit()
 		return
 	accept_pending_invite()
@@ -181,7 +203,10 @@ func _on_steam_network_invite_received(_lobby_id: int) -> void:
 # A client whose host left mid-match has nowhere to be but the menu. The lobby screen handles its
 # own case, so LOBBY isn't listed.
 func _on_steam_network_session_ended() -> void:
-	if current_screen in [Screen.LOADING, Screen.GAMEPLAY, Screen.RESULTS]:
+	if (
+			current_screen == Screen.LOADING or current_screen == Screen.RESULTS
+			or _RUN_SCREENS.has(current_screen)
+	):
 		goto_screen(Screen.MAIN_MENU)
 
 

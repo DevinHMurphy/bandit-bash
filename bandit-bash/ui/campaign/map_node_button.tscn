@@ -1,0 +1,17 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/map_node_button.gd" id="1_node"]
+
+[node name="MapNodeButton" type="Button"]
+custom_minimum_size = Vector2(26, 26)
+offset_right = 26.0
+offset_bottom = 26.0
+theme_override_colors/font_color = Color(0.08, 0.08, 0.1, 1)
+theme_override_colors/font_disabled_color = Color(0.08, 0.08, 0.1, 1)
+theme_override_colors/font_hover_color = Color(0.08, 0.08, 0.1, 1)
+theme_override_colors/font_focus_color = Color(0.08, 0.08, 0.1, 1)
+theme_override_colors/font_pressed_color = Color(0.08, 0.08, 0.1, 1)
+theme_override_font_sizes/font_size = 13
+text = "S"
+expand_icon = true
+script = ExtResource("1_node")

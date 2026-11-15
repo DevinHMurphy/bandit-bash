@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 9, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 extends "res://tests/ui/ui_suite.gd"
@@ -95,6 +95,7 @@ func _run_continue_case() -> void:
 	SaveFile.delete_folder("user://saves/")
 	saves.call(&"open_save_file", SAVE_NUMBER)
 	saves.call(&"start_new_solo_run", RUN_SEED)
+	_enter_first_node()
 	var screen: Node = (load(GAMEPLAY_SCENE) as PackedScene).instantiate()
 	root.add_child(screen)
 	var view: BattleView = screen.call(&"get_view")
@@ -188,6 +189,7 @@ func _start_route_case() -> bool:
 	var run: CampaignSession = service.get(&"session")
 	if run == null:
 		return false
+	_enter_first_node()
 
 	var scene: PackedScene = load(GAMEPLAY_SCENE)
 	var screen: Node = scene.instantiate()

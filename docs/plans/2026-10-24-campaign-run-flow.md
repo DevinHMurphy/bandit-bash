@@ -144,8 +144,11 @@ Steps through RN5 give a playable loop on M1's data. Later steps need content fr
 | `CampaignRunState.apply_battle()` | Signature | `(result, ids)` | `(result, ids, rolls, rules, catalog = null)` | Applied (RN4) | `CampaignService`, campaign and sessions tests | 🔴 |
 | A won battle's flow | Behaviour | Back to the map, `NODE_LEFT` | `results` stage; `LeaveNodeCommand` once every pick is resolved; the battle screen skips the pick until RN5 | Applied (RN4) | `battle_screen.gd:TOD-002` | 🟡 |
 | A fallen commander | Behaviour | Leaves the army | Stays at `max(1, 10% of max HP)` | Applied (RN4) | Campaign tests | 🟡 |
-| `SceneRouter.Screen` | Enum, appended | 9 screens | New campaign screens | Proposed (RN5) | `SCREEN_PATHS` | 🟢 |
-| `Results` after a battle | Flow | The end of the run | A run's end only | Proposed (RN5) | `battle_screen.gd`, `results_screen.gd` | 🟡 |
+| `SceneRouter.Screen` | Enum, appended | 9 screens | New campaign screens | Applied (RN5): `CAMPAIGN_MAP=9`, `COMBAT_RESULTS=10`, `NODE_PLACEHOLDER=11` | `SCREEN_PATHS`, NavButton exports | 🟡 |
+| `Results` after a battle | Flow | The end of the run | A run's end only | Applied (RN5) | `battle_screen.gd`, `results_screen.gd` | 🟡 |
+| `CampaignFact.Kind` | Enum, appended (network contract) | Ends at `NODE_LEFT=7` | `ITEM_EQUIPPED=8`, `ITEM_SCRAPPED=9`; `CampaignBus.ArmyChannel` gains `item_equipped`, `item_scrapped` | Applied (RN5) | Fact logs, bus observers | 🔴 |
+| `ItemPickCommand` | Constructor and behaviour | `_init(sender, offer_index)`; an uncapped convoy | Takes `item_placement` and `catalog`; a full convoy rejects the default placement | Applied (RN5) | Callers of the take | 🔴 |
+| `ControlHintBar.controller`, `BattleController` | `@export` type, base class | `BattleController`; `Node` | `HintSource` for both | Applied (RN5) | `gameplay.tscn` | 🟡 |
 
 ## Verification
 

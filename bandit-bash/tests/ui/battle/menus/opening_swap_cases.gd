@@ -6,7 +6,7 @@
 # File:     opening_swap_cases.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 7, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -136,6 +136,10 @@ func _open_battle() -> Node:
 	if err != OK:
 		_check.call("opening swap: a new solo run starts", false, error_string(err))
 		return null
+	# The battle screen begins a battle only inside a combat node: enter the first, a Standard one.
+	var service: Node = _root.get_node(^"CampaignService")
+	var run: CampaignSession = service.get(&"session")
+	service.call(&"submit_command", ChooseNodeCommand.new(0, run.run.graph.nodes_on_floor(1)[0]))
 	var scene: PackedScene = load(GAMEPLAY_SCENE)
 	var screen: Node = scene.instantiate()
 	_root.add_child(screen)

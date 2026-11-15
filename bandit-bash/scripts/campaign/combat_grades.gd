@@ -72,6 +72,29 @@ func capture() -> Dictionary:
 	}
 
 
+## The grades [param data] describes, as [method capture] wrote it, numbers as whole floats too;
+## null when a field is missing or of the wrong type.
+static func restore(data: Dictionary) -> CombatGrades:
+	var under_par: Variant = data.get(_KEY_UNDER_PAR)
+	var no_losses: Variant = data.get(_KEY_NO_LOSSES)
+	var numbers: Array = [
+		CampaignRunState.whole_number(data.get(_KEY_BASE)),
+		CampaignRunState.whole_number(data.get(_KEY_BONUS)),
+		CampaignRunState.whole_number(data.get(_KEY_EXTRA)),
+		CampaignRunState.whole_number(data.get(_KEY_GOLD)),
+	]
+	if not under_par is bool or not no_losses is bool or numbers.has(null):
+		return null
+	var grades: CombatGrades = CombatGrades.new()
+	grades.is_under_par = under_par as bool
+	grades.is_without_losses = no_losses as bool
+	grades.base_gold = numbers[0] as int
+	grades.bonus_per_grade = numbers[1] as int
+	grades.extra_gold = numbers[2] as int
+	grades.gold = numbers[3] as int
+	return grades
+
+
 ## The grades [param outcome]'s seat earned and the gold they pay, by [param rules]. A lost map
 ## earns no grade and pays nothing.
 static func grade(

@@ -89,6 +89,30 @@ func is_on_map() -> bool:
 	return flow.is_on_map()
 
 
+## The nodes the run can enter next, in id order: on the map, the children of [member node], or
+## every floor-1 node before the first; empty inside a node. [ChooseNodeCommand] accepts exactly
+## these.
+func next_nodes() -> PackedInt32Array:
+	if not is_on_map() or graph == null:
+		return PackedInt32Array()
+	var found: PackedInt32Array = (
+			graph.nodes_on_floor(1) if node == CampaignGraph.NO_NODE
+			else graph.children_of(node).duplicate()
+	)
+	found.sort()
+	return found
+
+
+## Whether the run's Boss is beaten: the run is at the results of a Boss node, which only a won
+## battle reaches. The run ends from there ([method CampaignService.end_won_run]).
+func is_boss_beaten() -> bool:
+	return (
+			flow.stage == RunFlow.Stage.RESULTS
+			and graph != null and graph.has_node_id(node)
+			and graph.type_of(node) == CampaignGraph.NodeType.BOSS
+	)
+
+
 ## Records [param fact] at the end of [member fact_log], numbering it from 1.
 func record(fact: CampaignFact) -> void:
 	fact.seq = fact_log.size() + 1
@@ -288,6 +312,22 @@ func _copy() -> CampaignRunState:
 		copied.seats[seat] = seat_run
 	copied.fact_log = fact_log.duplicate()
 	return copied
+
+
+## [param seat_run]'s combat report (see [constant COMBAT_REPORT_KEY]), read with [param rules]
+## ([method XpAward.restore]); null when it has none, or its data is unusable (reported).
+static func read_combat_report(seat_run: SeatRun, rules: CombatRewardRules) -> CombatReport:
+	var data: Variant = seat_run.pending_offers.get(COMBAT_REPORT_KEY, null)
+	if data == null:
+		return null
+	var report: CombatReport = (
+			CombatReport.restore(data as Dictionary, rules) if data is Dictionary else null
+	)
+	if report == null:
+		push_error("CampaignRunState: seat %d's combat report is unusable - %s" % [
+			seat_run.seat, data,
+		])
+	return report
 
 
 ## [param value] as an int when it is one or a whole float (JSON gives every number back as a
@@ -497,3 +537,50 @@ static func _is_route(
 			return false
 		previous = node_id
 	return last_node == previous
+
+
+## One seat's combat report, as [method read_combat_report] reads it: what Results shows.
+class CombatReport:
+	extends RefCounted
+
+	## The grades and the gold they paid.
+	var grades: CombatGrades = null
+	## Each standing unit's XP, in roster order.
+	var xp: Array[XpAward] = []
+	## Every level-up, in the order reached.
+	var level_ups: Array[LevelUp] = []
+
+	## The report [param data] describes, in the shape
+	## [constant CampaignRunState.COMBAT_REPORT_KEY] gives; null for a missing or unusable part.
+	static func restore(data: Dictionary, rules: CombatRewardRules) -> CombatReport:
+		var grade_data: Variant = data.get(_KEY_GRADES)
+		var xp_data: Variant = data.get(_KEY_XP)
+		var level_data: Variant = data.get(_KEY_LEVEL_UPS)
+		if not grade_data is Dictionary or not xp_data is Array or not level_data is Array:
+			return null
+		var report: CombatReport = CombatReport.new()
+		report.grades = CombatGrades.restore(grade_data as Dictionary)
+		if report.grades == null:
+			return null
+		for entry: Variant in xp_data as Array:
+			var award: XpAward = (
+					XpAward.restore(entry as Dictionary, rules) if entry is Dictionary else null
+			)
+			if award == null:
+				return null
+			report.xp.append(award)
+		for entry: Variant in level_data as Array:
+			var reached: LevelUp = (
+					LevelUp.restore(entry as Dictionary) if entry is Dictionary else null
+			)
+			if reached == null:
+				return null
+			report.level_ups.append(reached)
+		return report
+
+	## The Standout's award; null when nobody was.
+	func standout() -> XpAward:
+		for award: XpAward in xp:
+			if award.is_standout:
+				return award
+		return null

@@ -6,7 +6,7 @@
 # File:     pause_menu.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: November 7, 2026
+# Modified: November 14, 2026
 # ==============================================================================
 
 extends CanvasLayer
@@ -24,7 +24,8 @@ extends CanvasLayer
 ## Also asks "Save & Quit and join?" when a Steam invite arrives during a solo run
 ## ([signal SceneRouter.invite_confirmation_requested]); declining drops the invite.[br]
 ## [b]Focus:[/b] while open, one of its buttons always has focus, so a pad can always move: up and
-## down stay within its column, and focus a click took elsewhere comes back the next frame.
+## down stay within its column, and focus a click took elsewhere comes back the next frame. On
+## close, the control focused before it opened has focus again.
 
 # ============================================================
 # INPUT MAP SETUP (built-in action, overridden in project.godot's [input] to add its pad buttons):
@@ -41,6 +42,9 @@ extends CanvasLayer
 # Right-click steps back the same way but never opens this menu.
 # Nothing else is read here: the buttons are mouse and focus driven.
 # ============================================================
+
+# The control that had focus when the menu opened, given it back on close; null for none.
+var _focus_before: Control = null
 
 @onready var _root: Control = %Root
 @onready var _status_label: Label = %Status
@@ -83,8 +87,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		open()
 
 
-## Shows the menu, pausing the game in solo play.
+## Shows the menu, pausing the game in solo play. The control focused before it gets focus back
+## when it closes ([method close]), so a pad user can carry on where they were.
 func open() -> void:
+	if not _root.visible:
+		var focused: Control = _root.get_viewport().gui_get_focus_owner()
+		_focus_before = null if focused != null and _root.is_ancestor_of(focused) else focused
 	_status_label.text = ""
 	var is_client: bool = SteamNetwork.has_active_session() and not SteamNetwork.is_authoritative()
 	var has_run: bool = SaveService.campaign != null
@@ -103,10 +111,13 @@ func open() -> void:
 	_first_button().grab_focus.call_deferred()
 
 
-## Hides the menu and unpauses.
+## Hides the menu and unpauses, giving focus back to the control that had it when it opened.
 func close() -> void:
 	_root.visible = false
 	get_tree().paused = false
+	if is_instance_valid(_focus_before) and _focus_before.is_visible_in_tree():
+		_focus_before.grab_focus()
+	_focus_before = null
 
 
 ## While the menu is open and its invite question isn't, gives its first button focus when none of

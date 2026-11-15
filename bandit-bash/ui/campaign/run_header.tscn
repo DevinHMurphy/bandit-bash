@@ -1,0 +1,28 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/run_header.gd" id="1_header"]
+
+[node name="RunHeader" type="PanelContainer"]
+custom_minimum_size = Vector2(0, 36)
+mouse_filter = 2
+script = ExtResource("1_header")
+
+[node name="Row" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="Title" type="Label" parent="Row"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Campaign"
+
+[node name="Floor" type="Label" parent="Row"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Floor 0 / 18"
+
+[node name="Gold" type="Label" parent="Row"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Gold 0"

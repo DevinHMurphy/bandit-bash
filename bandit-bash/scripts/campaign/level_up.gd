@@ -72,6 +72,32 @@ func capture() -> Dictionary:
 	return {_KEY_UNIT: unit_id, _KEY_LEVEL: level, _KEY_GAINS: gained}
 
 
+## The level-up [param data] describes, as [method capture] wrote it, numbers as whole floats
+## too; null for an empty unit id, a level below 1, or a gain of an unknown stat.
+static func restore(data: Dictionary) -> LevelUp:
+	var unit: Variant = data.get(_KEY_UNIT)
+	var reached: Variant = CampaignRunState.whole_number(data.get(_KEY_LEVEL))
+	var gained: Variant = data.get(_KEY_GAINS)
+	if (
+			not unit is String or (unit as String).is_empty()
+			or reached == null or (reached as int) < 1
+			or not gained is Dictionary
+	):
+		return null
+	var read: LevelUp = LevelUp.new()
+	read.unit_id = unit as String
+	read.level = reached as int
+	for key: Variant in gained as Dictionary:
+		var points: Variant = CampaignRunState.whole_number((gained as Dictionary)[key])
+		if not key is String or not (key as String).is_valid_int() or points == null:
+			return null
+		var stat: int = (key as String).to_int()
+		if not CombatValue.Stat.values().has(stat):
+			return null
+		read.gains[stat] = points as int
+	return read
+
+
 ## Adds [param xp] to [param unit] and runs one [method level_up] for each
 ## [member CombatRewardRules.xp_per_level] it then holds, in order. [param values]: the unit's
 ## level-up values from its battle. Returns the level-ups; none for no level reached.

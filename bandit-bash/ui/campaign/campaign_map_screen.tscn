@@ -1,0 +1,107 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/campaign_map_screen.gd" id="1_screen"]
+[ext_resource type="PackedScene" path="res://ui/campaign/run_header.tscn" id="2_header"]
+[ext_resource type="PackedScene" path="res://ui/campaign/campaign_map_view.tscn" id="3_view"]
+[ext_resource type="PackedScene" path="res://ui/campaign/map_legend.tscn" id="4_legend"]
+[ext_resource type="PackedScene" path="res://ui/battle/input/input_device_adapter.tscn" id="5_device"]
+[ext_resource type="Script" path="res://ui/common/screen_hints.gd" id="6_hints"]
+[ext_resource type="PackedScene" path="res://ui/battle/hud/control_hint_bar.tscn" id="7_bar"]
+[ext_resource type="PackedScene" path="res://ui/common/pause_menu.tscn" id="8_pause"]
+
+[node name="CampaignMapScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_screen")
+
+[node name="Layout" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 56
+
+[node name="Column" type="VBoxContainer" parent="Layout"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="RunHeader" parent="Layout/Column" instance=ExtResource("2_header")]
+unique_name_in_owner = true
+layout_mode = 2
+title = "Campaign map"
+
+[node name="Body" type="HBoxContainer" parent="Layout/Column"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+theme_override_constants/separation = 16
+
+[node name="CampaignMapView" parent="Layout/Column/Body" instance=ExtResource("3_view")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Side" type="VBoxContainer" parent="Layout/Column/Body"]
+custom_minimum_size = Vector2(240, 0)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="LegendTitle" type="Label" parent="Layout/Column/Body/Side"]
+layout_mode = 2
+text = "Nodes"
+
+[node name="MapLegend" parent="Layout/Column/Body/Side" node_paths=PackedStringArray("map_view") instance=ExtResource("4_legend")]
+unique_name_in_owner = true
+layout_mode = 2
+map_view = NodePath("../../CampaignMapView")
+
+[node name="NodeInfo" type="Label" parent="Layout/Column/Body/Side"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Choose the next node."
+autowrap_mode = 3
+
+[node name="Status" type="Label" parent="Layout/Column/Body/Side"]
+unique_name_in_owner = true
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="InputDeviceAdapter" parent="." instance=ExtResource("5_device")]
+
+[node name="ScreenHints" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("6_hints")
+actions = Dictionary[StringName, PackedStringArray]({
+&"MAP": PackedStringArray("ui_left", "ui_right", "ui_accept", "ui_cancel")
+})
+
+[node name="ControlHintBar" parent="." node_paths=PackedStringArray("controller", "device") instance=ExtResource("7_bar")]
+unique_name_in_owner = true
+layout_mode = 1
+controller = NodePath("../ScreenHints")
+device = NodePath("../InputDeviceAdapter")
+right_margin = 8.0
+labels = Dictionary[String, String]({
+"MAP/ui_accept": "Choose",
+"MAP/ui_cancel": "Pause",
+"PAUSED/ui_cancel": "Resume",
+"PAUSED/ui_down": "Choose",
+"PAUSED/ui_up": "Choose",
+"ui_accept": "Select",
+"ui_cancel": "Back",
+"ui_down": "Move",
+"ui_left": "Move",
+"ui_right": "Move",
+"ui_up": "Move"
+})
+
+[node name="PauseMenu" parent="." instance=ExtResource("8_pause")]

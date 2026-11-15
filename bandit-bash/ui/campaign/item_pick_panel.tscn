@@ -1,0 +1,35 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/item_pick_panel.gd" id="1_pick"]
+
+[node name="ItemPickPanel" type="VBoxContainer"]
+mouse_filter = 2
+script = ExtResource("1_pick")
+
+[node name="Title" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Item pick"
+
+[node name="Row" type="HBoxContainer" parent="."]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="Cards" type="HBoxContainer" parent="Row"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="SkipButton" type="Button" parent="Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(80, 72)
+layout_mode = 2
+text = "Skip"
+
+[node name="Outcome" type="Label" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+autowrap_mode = 3

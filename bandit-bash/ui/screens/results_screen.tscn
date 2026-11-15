@@ -2,6 +2,9 @@
 
 [ext_resource type="Script" path="res://ui/common/nav_button.gd" id="1_nav"]
 [ext_resource type="Script" path="res://ui/screens/results_screen.gd" id="2_results"]
+[ext_resource type="PackedScene" path="res://ui/battle/input/input_device_adapter.tscn" id="3_device"]
+[ext_resource type="Script" path="res://ui/common/screen_hints.gd" id="4_hints"]
+[ext_resource type="PackedScene" path="res://ui/battle/hud/control_hint_bar.tscn" id="5_bar"]
 
 [node name="ResultsScreen" type="Control"]
 layout_mode = 3
@@ -49,3 +52,26 @@ layout_mode = 2
 text = "Leave Match"
 script = ExtResource("1_nav")
 target_screen = 5
+
+[node name="InputDeviceAdapter" parent="." instance=ExtResource("3_device")]
+
+[node name="ScreenHints" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("4_hints")
+actions = Dictionary[StringName, PackedStringArray]({
+&"END": PackedStringArray("ui_accept"),
+&"ROUND": PackedStringArray("ui_up", "ui_down", "ui_accept")
+})
+
+[node name="ControlHintBar" parent="." node_paths=PackedStringArray("controller", "device") instance=ExtResource("5_bar")]
+unique_name_in_owner = true
+layout_mode = 1
+controller = NodePath("../ScreenHints")
+device = NodePath("../InputDeviceAdapter")
+right_margin = 8.0
+labels = Dictionary[String, String]({
+"END/ui_accept": "Main Menu",
+"ui_accept": "Select",
+"ui_down": "Move",
+"ui_up": "Move"
+})
