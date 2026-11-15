@@ -6,7 +6,7 @@
 # File:     map_objects.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 14, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name MapObjects
@@ -33,8 +33,6 @@ extends RefCounted
 ## @tutorial(Map objects): docs/design/map-objects.md
 ## @tutorial(Combat map plan): docs/plans/2026-10-27-combat-map.md
 ##
-## @todo: TOD-001 - Pick each container's item from P03's pools; contents are a category and a
-## rarity until then.
 ## @todo: TOD-002 - Read the Cutthroat from P05's enemy data, not a unit type name.
 ## @todo: TOD-004 - Read Spark from P03's rune catalog, not an effect definition id.
 ## @todo: TOD-005 - Place objects from setup step 2's draw; every candidate spot is placed now.
@@ -131,12 +129,36 @@ const BURGLAR_EFFECT_ID: String = "burglar"
 ## The [member EffectDefinition.id] of the Spark rune's effect: it explodes a powder keg anywhere.
 const SPARK_EFFECT_ID: String = "spark"
 
-## A chest's item rarities, in the order of [constant CHEST_RARITY_WEIGHTS].
+## A chest's item rarities, in the order of [constant CHEST_RARITY_WEIGHTS] and
+## [constant ItemPools.DRAWN_RARITIES].
 const CHEST_RARITIES: Array[String] = ["common", "uncommon", "rare"]
 
 ## Each chest rarity's weight out of 100: Common 50, Uncommon 35, Rare 15 (game-vision.md,
-## Interactables).
+## Interactables). A food shelf's ingredient and a weapon rack's weapon roll the same odds.
 const CHEST_RARITY_WEIGHTS: Array[int] = [50, 35, 15]
+
+## The item kinds a chest holds: a weapon (staves included), equipment or a trinket (game-vision.md,
+## Interactables), drawn evenly over all three at the rolled rarity, as Godot_FE's chests drew.
+const CHEST_KINDS: Array[EffectCatalog.Kind] = [
+	EffectCatalog.Kind.WEAPON,
+	EffectCatalog.Kind.EQUIPMENT,
+	EffectCatalog.Kind.TRINKET,
+]
+
+## The use kinds of a house's consumable, from [constant ContentIds.CONSUMABLE_USE_KINDS]: potions
+## (the Elixir included), the Key, the Lockpick and stat boosters (game-vision.md, Interactables).
+const HOUSE_USE_KINDS: PackedStringArray = ["heal", "full_heal", "key", "lockpick", "stat_booster"]
+
+## Each rarity's weight for a house's consumable, in [constant CHEST_RARITIES]' order: Common 37,
+## Uncommon 8, Rare 3 (Godot_FE's house table: its Rare 2 and Mythical 1 consumables).
+const HOUSE_RARITY_WEIGHTS: Array[int] = [37, 8, 3]
+
+## The use kind of a food shelf's consumable: an ingredient (map-objects.md, Searchable).
+const SHELF_USE_KINDS: PackedStringArray = ["ingredient"]
+
+## The key of a container's drawn item or rune in its contents: its content id. Saves hold it and
+## the battle-end bridge (P08) grants by it: never change it.
+const CONTENTS_ID_KEY: String = "definition_id"
 
 ## The least gold a house holds (game-vision.md, Interactables: 15–25).
 const HOUSE_GOLD_MIN: int = 15
@@ -409,41 +431,68 @@ static func operate(
 ## Setup step 7 ([constant CombatEncounter.SetupStep.CONTAINER_CONTENTS]): rolls every container
 ## on the map into the seat's [member MapState.contents], each from its own
 ## [code]MAP_LOOT[/code] stream by container index, so each seat's copy rolls its own (P13
-## question 3b) and a restart from Begin rolls the same.
-static func roll_contents(ctx: CombatEncounter.SetupContext) -> void:
+## question 3b) and a restart from Begin rolls the same. Items come from [param catalog]
+## ([method roll]); register it bound to the battle's catalog:
+## [code]roll_contents.bind(catalog)[/code].
+static func roll_contents(
+		ctx: CombatEncounter.SetupContext, catalog: EffectCatalog.Index = null
+) -> void:
 	for marker: MapLayout.Marker in ctx.setup.layout.markers_of(MapLayout.MarkerKind.OBJECT_SPOT):
 		if marker.container_index < 0:
 			continue
 		var stream: RngStream = ctx.loot_stream(marker.container_index)
 		if stream == null:
 			continue
-		ctx.seat_setup.map.contents[marker.container_index] = roll(marker.object_kind, stream)
+		ctx.seat_setup.map.contents[marker.container_index] = roll(
+				marker.object_kind, stream, catalog
+		)
 
 
 ## One container's contents, plain data with a [code]"kind"[/code]: a chest's
-## [code]{"kind": "item", "rarity": ...}[/code], a house's gold [code]{"kind": "gold",
-## "amount": N}[/code] or [code]{"kind": "consumable"}[/code], a shelf's ingredient or rune, a
-## rack's weapon. Empty for a kind that isn't a container.
-static func roll(kind: MapLayout.ObjectKind, stream: RngStream) -> Dictionary:
-	# TODO(TOD-001): Pick the item itself from P03's pools; these are its category and rarity.
+## [code]{"kind": "item", "rarity": ...}[/code] (the rarity rolled), a house's gold
+## [code]{"kind": "gold", "amount": N}[/code] or [code]"consumable"[/code], a food shelf's
+## [code]"ingredient"[/code], a book shelf's [code]"rune"[/code], a rack's [code]"weapon"[/code].
+## All but gold also name their item or rune under [constant CONTENTS_ID_KEY], drawn from
+## [param catalog]'s pools ([ItemPools]) after the draws above, so the gold and rarity a stream
+## gives never depend on the catalog. No catalog, or an empty pool, names none and draws nothing
+## more. Empty for a kind that isn't a container.
+static func roll(
+		kind: MapLayout.ObjectKind, stream: RngStream, catalog: EffectCatalog.Index = null
+) -> Dictionary:
+	var contents: Dictionary = {}
+	var drawn: EffectCarrierDefinition = null
 	match kind:
 		MapLayout.ObjectKind.CHEST:
 			var rarity: int = stream.pick_weighted(PackedInt32Array(CHEST_RARITY_WEIGHTS))
-			return {"kind": "item", "rarity": CHEST_RARITIES[rarity]}
+			contents = {"kind": "item", "rarity": CHEST_RARITIES[rarity]}
+			drawn = ItemPools.draw(stream, ItemPools.items_of(catalog, CHEST_KINDS), rarity)
 		MapLayout.ObjectKind.HOUSE:
 			if stream.roll_percent(HOUSE_GOLD_CHANCE):
 				return {
 					"kind": "gold",
 					"amount": stream.randi_range(HOUSE_GOLD_MIN, HOUSE_GOLD_MAX),
 				}
-			return {"kind": "consumable"}
+			contents = {"kind": "consumable"}
+			drawn = _draw_item(stream, _consumables(catalog, HOUSE_USE_KINDS), HOUSE_RARITY_WEIGHTS)
 		MapLayout.ObjectKind.FOOD_SHELF:
-			return {"kind": "ingredient"}
+			contents = {"kind": "ingredient"}
+			drawn = _draw_item(stream, _consumables(catalog, SHELF_USE_KINDS), CHEST_RARITY_WEIGHTS)
 		MapLayout.ObjectKind.BOOK_SHELF:
-			return {"kind": "rune"}
+			contents = {"kind": "rune"}
+			drawn = ItemPools.draw_rune(stream, catalog)
 		MapLayout.ObjectKind.WEAPON_RACK:
-			return {"kind": "weapon"}
-	return {}
+			contents = {"kind": "weapon"}
+			var weapon_kinds: Array[EffectCatalog.Kind] = [EffectCatalog.Kind.WEAPON]
+			# ASSUMPTION: a rack holds any weapon, staves and tomes included, as the vision words
+			# it; Godot_FE's racks held neither (its tomes were on book shelves, which hold runes).
+			drawn = _draw_item(
+					stream, ItemPools.items_of(catalog, weapon_kinds), CHEST_RARITY_WEIGHTS
+			)
+		_:
+			return {}
+	if drawn != null:
+		contents[CONTENTS_ID_KEY] = drawn.id
+	return contents
 
 
 ## Whether [param unit_id] is a Cutthroat, the enemy that loots without a key.
@@ -732,6 +781,25 @@ static func _rune_effect(engine: EffectEngine, rune_id: String) -> EffectInstanc
 		if instance.owner.kind == EffectOwner.Kind.RUNE and instance.owner.owner_id == rune_id:
 			return instance
 	return null
+
+
+# The catalog's consumables of the given use kinds; empty with no catalog.
+static func _consumables(
+		catalog: EffectCatalog.Index, use_kinds: PackedStringArray
+) -> Array[ItemDefinition]:
+	var kinds: Array[EffectCatalog.Kind] = [EffectCatalog.Kind.CONSUMABLE]
+	return ItemPools.with_use_kinds(ItemPools.items_of(catalog, kinds), use_kinds)
+
+
+# A rarity by the weights, then an item of it from candidates; null, drawing nothing, when there
+# are no candidates.
+static func _draw_item(
+		stream: RngStream, candidates: Array[ItemDefinition], weights: Array[int]
+) -> ItemDefinition:
+	if candidates.is_empty():
+		return null
+	var rarity: int = stream.pick_weighted(PackedInt32Array(weights))
+	return ItemPools.draw(stream, candidates, maxi(rarity, 0))
 
 
 # "Any hit" and "any splash": one reaction each, both breaking the keg ([KegExplosion]). Each has

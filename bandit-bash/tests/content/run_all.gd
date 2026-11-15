@@ -19,8 +19,8 @@ extends SceneTree
 ## loadout_cases.gd; the M1 content over the real data (the Mercenary army, stats, text snapshots,
 ## forecasts) in m1_content_cases.gd, M1's enemies and their pack in m1_enemy_cases.gd, the
 ## equipment, trinkets and consumables in item_content_cases.gd, the weapons and staves in
-## weapon_content_cases.gd, and the heirlooms and curses in heirloom_content_cases.gd. Every
-## catalog definition and
+## weapon_content_cases.gd, the heirlooms and curses in heirloom_content_cases.gd, and the unit
+## prefixes, item pools and container contents in pool_cases.gd. Every catalog definition and
 ## every loadout fixture is hashed before the first case and after the last, and the run fails if
 ## any changed.
 ##
@@ -40,6 +40,7 @@ const RosterUnitCases = preload("res://tests/content/roster_unit_cases.gd")
 const ItemContentCases = preload("res://tests/content/item_content_cases.gd")
 const WeaponContentCases = preload("res://tests/content/weapon_content_cases.gd")
 const HeirloomContentCases = preload("res://tests/content/heirloom_content_cases.gd")
+const PoolCases = preload("res://tests/content/pool_cases.gd")
 
 # Fixture trees whose definitions are hashed with the catalog's.
 const HASHED_TREES: PackedStringArray = [LoadoutCases.TREE]
@@ -131,6 +132,7 @@ func _init() -> void:
 	ItemContentCases.new(_check).run()
 	WeaponContentCases.new(_check).run()
 	HeirloomContentCases.new(_check).run()
+	PoolCases.new(_check).run()
 	_test_definitions_unchanged(before)
 
 	print("--- %d passed, %d failed ---" % [_passes, _failures])

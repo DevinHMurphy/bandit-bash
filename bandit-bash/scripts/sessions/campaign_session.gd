@@ -124,9 +124,9 @@ var _next_arrival: int = 1
 
 
 ## [param run_seed]: the campaign's seed. [param run_seats]: every seat of the run. Registers the
-## combat map's own setup steps: the darkness's sources and drain ([method DarknessSetup.draw])
-## and each container's contents ([method MapObjects.roll_contents]). The enemy steps (4 to 6)
-## read the battle's catalog and floor, so each battle registers its own.
+## darkness's sources and drain ([method DarknessSetup.draw]). The enemy steps (4 to 6) and the
+## containers' contents ([method MapObjects.roll_contents]) read the battle's catalog, so each
+## battle registers its own.
 func _init(run_mode: CampaignData.Mode, run_seed: int, run_seats: PackedInt32Array) -> void:
 	mode = run_mode
 	seats = run_seats.duplicate()
@@ -135,7 +135,6 @@ func _init(run_mode: CampaignData.Mode, run_seed: int, run_seats: PackedInt32Arr
 	for seat: int in seats:
 		ids.set_label(InstanceIdAllocator.seat_subject_id(seat), "army of seat %d" % [seat])
 	add_setup_step(CombatEncounter.SetupStep.DARKNESS_SOURCES, DarknessSetup.draw)
-	add_setup_step(CombatEncounter.SetupStep.CONTAINER_CONTENTS, MapObjects.roll_contents)
 
 
 ## Adds [param instance] to the run's carriers: a unit trait, an item's effect, a heirloom or a
@@ -475,6 +474,9 @@ func _set_up_battle(request: BattleRequest, catalog: EffectCatalog.Index) -> Com
 			EnemySetup.draw_additions.bind(
 					catalog, request.floor_number, level_modifier, _extra_enemies(catalog, request)
 			)
+	)
+	battle.add_setup_step(
+			CombatEncounter.SetupStep.CONTAINER_CONTENTS, MapObjects.roll_contents.bind(catalog)
 	)
 	for entry: Array in _setup_steps:
 		var step: CombatEncounter.SetupStep = entry[0]

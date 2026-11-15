@@ -6,7 +6,7 @@
 # File:     reward_cases.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 14, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -16,7 +16,7 @@ extends RefCounted
 ## ties, Family Ring and Veteran's Medal); level-ups (growths, several at once, current HP,
 ## Training Weights, Royal Crest, the Resonant Ore, Feast gains, seeded); the item pick (the
 ## rarity tables and the offset, its fallbacks, never Basic, Legendary or Unique, per seat and
-## seeded, its save shape); the pick and leave commands; a fallen commander's return; a Boss win;
+## seeded, pinned offers, its save shape); the pick and leave commands; a fallen commander's return; a Boss win;
 ## and a real M1 battle paid end to end. Touches no save files.
 
 const RULES_PATH: String = "res://data/campaign/campaign_map_rules.tres"
@@ -85,6 +85,7 @@ func run() -> void:
 	_test_pick_fallbacks()
 	_test_pick_real_catalog()
 	_test_pick_per_seat_and_saved()
+	_test_pick_golden()
 	_test_commands()
 	_test_apply_rewards()
 	_test_fallen_commander()
@@ -565,6 +566,30 @@ func _test_pick_real_catalog() -> void:
 					InstanceIdAllocator.new()
 			) == null
 	))
+
+
+# Three picks each on streams 1 to 40, Standard and Key, for an Archer's army, on today's catalog:
+# slot, offers and the offset after each. Pinned before the pick drew through ItemPools, so the
+# move changed no seed's offers; a new item of a pick's kind changes it, and it is re-recorded.
+func _test_pick_golden() -> void:
+	var lines: PackedStringArray = []
+	for combat_type: CombatMapDefinition.CombatType in [STANDARD, KEY]:
+		for stream_seed: int in range(1, 41):
+			var seat_run: SeatRun = SeatRun.new(0)
+			seat_run.army.append(_unit("unit:1", "archer"))
+			var stream: RngStream = RngStream.new(stream_seed)
+			for pick_number: int in 3:
+				var pick: ItemPick = ItemPick.roll(
+						stream, combat_type, seat_run, _rules, _catalog, InstanceIdAllocator.new()
+				)
+				lines.append("%d:%d:%d:%s:%d" % [
+					combat_type, stream_seed, pick.slot, ",".join(_offered(pick)),
+					seat_run.rare_offset,
+				])
+	_check("pick: 240 seeded picks are pinned", (
+			"\n".join(lines).sha256_text()
+			== "79098ea9af968222eb805543c2f011a9b9f4314f8042fb01578a5f248e6c3a33"
+	), lines[0])
 
 
 func _test_pick_per_seat_and_saved() -> void:
