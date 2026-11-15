@@ -6,7 +6,7 @@
 # File:     exchange_resolver.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 29, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name ExchangeResolver
@@ -280,12 +280,43 @@ static func context(
 	return ctx
 
 
+## [param unit_id]'s range with [param weapon_id], as (shortest, longest): the one read of range
+## outside an attack, for the danger zone, the move preview and the enemy AI. The weapon in hand
+## reads the unit's values; a stowed one is swapped in on a sandbox copy first, so whatever
+## depends on the weapon in hand (the Short Quiver's bows, the weapon's own effects) counts as it
+## will after the swap. Any other weapon gives its record's own range, (0, 0) when it has none.
+static func weapon_range(engine: EffectEngine, unit_id: String, weapon_id: String) -> Vector2i:
+	var state: CombatState = engine.state
+	var holder: CombatUnitState = state.unit(unit_id)
+	if holder != null and not weapon_id.is_empty():
+		if weapon_id == holder.equipped_weapon_id:
+			return _range_now(engine, unit_id)
+		if weapon_id == holder.stowed_weapon_id:
+			var trial: EffectEngine = engine.copy_for_sandbox(ForcedRolls.new())
+			var trial_state: CombatState = trial.state
+			var swapped: CombatUnitState = trial_state.unit(unit_id)
+			swapped.stowed_weapon_id = swapped.equipped_weapon_id
+			swapped.equipped_weapon_id = weapon_id
+			trial_state.load_bases(trial, unit_id)
+			return _range_now(trial, unit_id)
+	var record: CombatState.WeaponStats = state.weapon(weapon_id)
+	return Vector2i.ZERO if record == null else Vector2i(record.range_min, record.range_max)
+
+
 ## Whether [param ctx]'s distance is within [param unit_id]'s range, read with [param ctx].
 static func in_range(engine: EffectEngine, unit_id: String, ctx: EffectContext) -> bool:
 	var sheet: StatSheet = engine.stats(unit_id)
 	return (
 			ctx.distance >= sheet.get_int(CombatValue.Key.RANGE_MIN, ctx)
 			and ctx.distance <= sheet.get_int(CombatValue.Key.RANGE_MAX, ctx)
+	)
+
+
+# unit_id's range on engine's map now, from its values for the weapon in hand.
+static func _range_now(engine: EffectEngine, unit_id: String) -> Vector2i:
+	var sheet: StatSheet = engine.stats(unit_id)
+	return Vector2i(
+			sheet.get_int(CombatValue.Key.RANGE_MIN), sheet.get_int(CombatValue.Key.RANGE_MAX)
 	)
 
 

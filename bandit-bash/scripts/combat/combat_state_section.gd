@@ -6,13 +6,14 @@
 # File:     combat_state_section.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: October 31, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name CombatStateSection
 extends SaveSection
 ## The battle in progress in the combat block: the [code]combat_state[/code] section, with its
-## partner [member effects], the [code]effects[/code] section, both at version 1.
+## partner [member effects], the [code]effects[/code] section; this one at version 2 (weapon records
+## gained [code]area_shape_id[/code] and [code]full_heal[/code], [method migrate]), effects at 1.
 ##
 ## [code]CampaignService[/code] registers this section, then [member effects], and attaches both
 ## to the run's [CampaignSession]. Each capture reads the battle's [method CombatEncounter.snapshot]
@@ -33,7 +34,7 @@ extends SaveSection
 
 # Never change it: it is how saved data finds this section (save-system.md).
 const _KEY: String = "combat_state"
-const _VERSION: int = 1
+const _VERSION: int = 2
 
 ## The [code]effects[/code] section: register it after this one, in the same block.
 var effects: EffectsSection = null
@@ -70,6 +71,28 @@ func get_key() -> String:
 
 func get_version() -> int:
 	return _VERSION
+
+
+## Upgrades [param data] from version 1 in place: every weapon record, on each map and on each
+## unit on its way between maps, gains [code]area_shape_id[/code] [code]""[/code] and
+## [code]full_heal[/code] false ([method CombatState.WeaponStats.capture]). That is how a
+## version 1 battle played: it saved no area and had no full-heal staff. Malformed parts are left
+## for [method restore] to refuse.
+func migrate(data: Dictionary, from_version: int) -> Error:
+	if from_version != 1:
+		return super(data, from_version)
+	var encounter_part: Variant = data.get("encounter", null)
+	if encounter_part is Dictionary:
+		# Untyped: the parts come from JSON and are checked entry by entry.
+		for entry: Variant in _array_of(encounter_part as Dictionary, "in_transit"):
+			if entry is Dictionary:
+				_add_weapon_fields(entry as Dictionary)
+	for entry: Variant in _array_of(data, "sessions"):
+		if entry is Dictionary:
+			var map_state: Variant = (entry as Dictionary).get("combat_state", null)
+			if map_state is Dictionary:
+				_add_weapon_fields(map_state as Dictionary)
+	return OK
 
 
 ## The attached run's battle: [code]{"encounter": ..., "sessions": [...]}[/code], each map by
@@ -208,6 +231,24 @@ func _keep_core_equal(battle: CombatEncounter) -> void:
 static func _refuse(reason: String) -> Error:
 	push_error("CombatStateSection: the combat_state section can't be restored - %s" % [reason])
 	return ERR_INVALID_DATA
+
+
+# part[key] when it is an Array, else an empty one: migrate() leaves malformed parts to restore().
+static func _array_of(part: Dictionary, key: String) -> Array:
+	var found: Variant = part.get(key, null)
+	return found if found is Array else []
+
+
+# Adds version 2's weapon record fields to each record in holder["weapons"] that lacks them.
+static func _add_weapon_fields(holder: Dictionary) -> void:
+	for record: Variant in _array_of(holder, "weapons"):
+		if not record is Dictionary:
+			continue
+		var fields: Dictionary = record
+		if not fields.has("area_shape_id"):
+			fields["area_shape_id"] = ""
+		if not fields.has("full_heal"):
+			fields["full_heal"] = false
 
 
 ## The [code]effects[/code] section: [code]{"encounter": {"cross_map": [...]}, "sessions":

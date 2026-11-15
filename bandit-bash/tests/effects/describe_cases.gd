@@ -339,7 +339,7 @@ func _test_describe_selectors() -> void:
 			"the target and adjacent allies of the target"
 	)
 	var against: WhileAttackCondition = WhileAttackCondition.new()
-	# ASSUMPTION: "beast" stays: it only drives the text, and no real tag reads "against Beasts".
+	# NOTE: "beast" is not in ContentIds.TAGS on purpose: only the text is tested here.
 	against.type_name = "beast"
 	_snapshot("while attack: against a tag", against.describe(), "against Beasts")
 	against.type_name = ContentIds.TAG_ARMORED

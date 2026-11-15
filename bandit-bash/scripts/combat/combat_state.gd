@@ -6,7 +6,7 @@
 # File:     combat_state.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: November 14, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name CombatState
@@ -36,10 +36,6 @@ extends SandboxState
 ##
 ## @tutorial(Combat core plan): docs/plans/2026-10-26-combat-core.md
 ## @tutorial(Save system design): docs/design/save-system.md
-##
-## @todo: TOD-002 - Save an area staff's shape by its content id (P03 CT4, the first staff data
-## with a shape); [method WeaponStats.capture] leaves [member WeaponStats.area] out, so a restored
-## record covers its target only.
 
 # Facts follow() applies only once the engine has followed every fact before them: a refresh and a
 # placement read the unit's Stance maximum, a Pouch item's use and a key's read its charges.
@@ -848,17 +844,22 @@ class WeaponStats:
 	var staff: Staff = Staff.NONE
 	## A Block or heal staff's amount before Might.
 	var staff_amount: int = 0
-	## The allies an area staff gives its amount to (Sanctuary, Everwall), built by [Loadout] from
-	## [member StaffDefinition.area_shape_id]; null: the target only.
+	## The allies an area staff gives its amount to (Sanctuary, Everwall): [method staff_area] of
+	## the shape [member area_shape_id] names; null: the target only.
 	var area: Area = null
+	## Content id of [member area]'s [TargetShape] ([member StaffDefinition.area_shape_id]), which
+	## saves and the wire carry in place of the area; empty for the target only.
+	var area_shape_id: String = ""
+	## A heal staff that heals each recipient by its maximum HP instead of [member staff_amount]
+	## plus Might ([member StaffDefinition.full_heal], Everbloom).
+	var full_heal: bool = false
 
 	## Whether it is a staff of any kind; its holder never counters.
 	func is_staff() -> bool:
 		return staff != Staff.NONE
 
-	## Its numbers as plain JSON values, enums by name. [member area] is left out
-	## ([code]combat_state.gd:TOD-002[/code]); no staff in the content has one yet.
-	## [method from_capture] reverses it.
+	## Its numbers as plain JSON values, enums by name, with [member area] as its
+	## [member area_shape_id]. [method from_capture] reverses it.
 	func capture() -> Dictionary:
 		return {
 			"id": id,
@@ -877,11 +878,14 @@ class WeaponStats:
 			"effective_against": Array(effective_against),
 			"staff": Staff.find_key(staff) as String,
 			"staff_amount": staff_amount,
+			"area_shape_id": area_shape_id,
+			"full_heal": full_heal,
 		}
 
-	## A record from [method capture] output, also after a trip through JSON. Returns
-	## [code]null[/code] when a field is missing, not a whole number where one belongs, or names
-	## an unknown enum value.
+	## A record from [method capture] output, also after a trip through JSON, its [member area]
+	## rebuilt from the content catalog's shape. Returns [code]null[/code] when a field is
+	## missing, not a whole number where one belongs, names an unknown enum value, or names a
+	## shape the catalog lacks.
 	static func from_capture(data: Dictionary) -> WeaponStats:
 		var profile_name: String = str(data.get("profile", ""))
 		var type_name: String = str(data.get("damage_type", ""))
@@ -897,6 +901,8 @@ class WeaponStats:
 				or not Staff.has(staff_name)
 				or not effective is Array
 				or not (crit_multiplier is float or crit_multiplier is int)
+				or not data.get("area_shape_id", null) is String
+				or not data.get("full_heal", null) is bool
 		):
 			return null
 		var numbers: Dictionary[String, int] = {}
@@ -932,7 +938,24 @@ class WeaponStats:
 		record.crit = numbers["crit"]
 		record.weight = numbers["weight"]
 		record.staff_amount = numbers["staff_amount"]
+		record.full_heal = data["full_heal"]
+		record.area_shape_id = data["area_shape_id"]
+		if not record.area_shape_id.is_empty():
+			var shape: TargetShape = EffectCatalog.shape(record.area_shape_id)
+			if shape == null:
+				return null
+			record.area = staff_area(shape)
 		return record
+
+	## The allies an area staff covering [param shape] gives its amount to: the shape around the
+	## unit it is used on, which at range 0 is its user (Everwall). [Loadout] and
+	## [method from_capture] both build it here, so a restored area equals the loaded one.
+	static func staff_area(shape: TargetShape) -> Area:
+		var area: Area = Area.new()
+		area.center = Area.Center.COMMAND_TARGET
+		area.shape = shape
+		area.side = EffectTerms.UnitSide.ALLY
+		return area
 
 	# value as an int, or null: the outer class's _whole() rule, which an inner class can't call
 	# unqualified.

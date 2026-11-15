@@ -6,7 +6,7 @@
 # File:     staff_resolver.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 29, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name StaffResolver
@@ -14,7 +14,8 @@ extends RefCounted
 ## Using a Block or heal staff on an ally in range (combat core plan, Staves; weapons.md, Staves).
 ##
 ## The amount is the staff's [constant CombatValue.Key.STAFF_AMOUNT] plus Might (every staff
-## scales with Might, game-vision.md). A Block staff gives it through the engine's Block-gain path
+## scales with Might, game-vision.md), or a full-heal staff's recipient's maximum HP
+## ([method amount_for], Everbloom). A Block staff gives it through the engine's Block-gain path
 ## (the Block gained window: Brittle Guard), a heal staff through the heal path (Healed an ally and
 ## Healed windows, healing received, capped at maximum HP with the overheal recorded); heal staves
 ## target only damaged allies, Block staves any ally. An area staff gives the amount to each unit
@@ -39,8 +40,8 @@ static func resolve(
 	result.is_legal = true
 	state.unit(user_id).has_acted = true
 	var staff: CombatState.WeaponStats = state.equipped_weapon(user_id)
-	var amount: float = staff_amount(engine, user_id)
 	for recipient: String in _recipients(engine, state, user_id, target_id):
+		var amount: float = amount_for(engine, state, user_id, recipient)
 		if staff.staff == CombatState.WeaponStats.Staff.BLOCK:
 			result.amount += engine.gain_block(recipient, amount, user_id)
 		else:
@@ -78,6 +79,18 @@ static func check(
 	if not ItemUseResolver.has_uses(ItemUseResolver.use_effects(engine, staff.id)):
 		return "no uses left"
 	return ""
+
+
+## The amount [param user_id]'s staff gives [param recipient_id], exact: the recipient's maximum
+## HP for a full-heal staff ([member CombatState.WeaponStats.full_heal]), otherwise
+## [method staff_amount]. Healing received and "that heal" changes apply afterwards, on the path.
+static func amount_for(
+		engine: EffectEngine, state: CombatState, user_id: String, recipient_id: String
+) -> float:
+	var staff: CombatState.WeaponStats = state.equipped_weapon(user_id)
+	if staff != null and staff.full_heal and staff.staff == CombatState.WeaponStats.Staff.HEAL:
+		return engine.stats(recipient_id).get_value(CombatValue.Key.HP)
+	return staff_amount(engine, user_id)
 
 
 ## The amount [param user_id]'s staff gives: [constant CombatValue.Key.STAFF_AMOUNT] plus Might,

@@ -6,7 +6,7 @@
 # File:     combat_forecast.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 5, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name CombatForecast
@@ -243,7 +243,7 @@ static func _use_staff(
 	var held: CombatState.WeaponStats = state.equipped_weapon(actor)
 	if held != null:
 		forecast.kind = held.staff
-	forecast.amount = StaffResolver.staff_amount(engine, actor)
+	forecast.amount = StaffResolver.amount_for(engine, state, actor, target)
 	return StaffResolver.resolve(engine, state, actor, target).reason
 
 
@@ -575,8 +575,8 @@ class StaffForecast:
 
 	## What the staff does ([enum CombatState.WeaponStats.Staff]).
 	var kind: CombatState.WeaponStats.Staff = CombatState.WeaponStats.Staff.NONE
-	## Its amount before any "that heal" or "that Block gain" change and healing received:
-	## [constant CombatValue.Key.STAFF_AMOUNT] plus Might, exact.
+	## Its amount for the target before any "that heal" or "that Block gain" change and healing
+	## received, exact ([method StaffResolver.amount_for]).
 	var amount: float = 0.0
 	## Each unit the staff gave to, in the order it gave.
 	var recipients: Array[Recipient] = []

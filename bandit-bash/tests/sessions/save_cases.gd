@@ -6,7 +6,7 @@
 # File:     save_cases.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 7, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -466,13 +466,13 @@ func _test_section_versions_and_partners() -> void:
 	var saved: Dictionary = host.save()
 	var entry: Dictionary = saved["combat_state"]
 	var effects_entry: Dictionary = saved["effects"]
-	_check.call("section: both keys at version 1, the roll streams left to the rng section", (
-			WireCases.Kit.as_int(entry["version"]) == 1
+	_check.call("section: combat_state at version 2, effects at 1, the roll streams left out", (
+			WireCases.Kit.as_int(entry["version"]) == 2
 			and WireCases.Kit.as_int(effects_entry["version"]) == 1
 			and not JSON.stringify(entry["data"]).contains("\"rolls\"")
 	))
 	var newer: Dictionary = saved.duplicate(true)
-	(newer["combat_state"] as Dictionary)["version"] = 2
+	(newer["combat_state"] as Dictionary)["version"] = 3
 	var zero: Dictionary = saved.duplicate(true)
 	(zero["effects"] as Dictionary)["version"] = 0
 	var effects_only: Dictionary = saved.duplicate(true)
@@ -519,6 +519,26 @@ func _test_section_versions_and_partners() -> void:
 			and JSON.stringify(recaptured["combat_state"]) == JSON.stringify(saved["combat_state"])
 			and JSON.stringify(recaptured["effects"]) == JSON.stringify(saved["effects"])
 	))
+	# A version 1 save: its weapon records lack the area shape and full heal fields.
+	var old: Dictionary = saved.duplicate(true)
+	var old_entry: Dictionary = old["combat_state"]
+	old_entry["version"] = 1
+	var old_maps: Array = (old_entry["data"] as Dictionary)["sessions"]
+	var stripped: int = 0
+	for map: Variant in old_maps:
+		var map_state: Dictionary = (map as Dictionary)["combat_state"]
+		for record: Variant in map_state["weapons"]:
+			(record as Dictionary).erase("area_shape_id")
+			(record as Dictionary).erase("full_heal")
+			stripped += 1
+	var migrated: Skirmish = Skirmish.resume(old, host)
+	_check.call("section: a version 1 save migrates and loads", (
+			stripped > 0
+			and migrated.load_error == OK
+			and migrated.session.state_hash() == host.session.state_hash()
+	), "%d records, %s; %s" % [
+		stripped, error_string(migrated.load_error), Skirmish.difference(host, migrated),
+	])
 
 
 func _test_core_kept_equal() -> void:

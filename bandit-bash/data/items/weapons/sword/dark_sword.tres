@@ -1,0 +1,47 @@
+[gd_resource type="Resource" script_class="WeaponDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="2_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="3_gain"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/owner.gd" id="4_owner"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/percent_of_fact.gd" id="5_percent"]
+[ext_resource type="Script" path="res://scripts/content/weapon_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_self"]
+script = ExtResource("4_owner")
+
+[sub_resource type="Resource" id="Resource_half"]
+script = ExtResource("5_percent")
+field = 1
+percent = 50.0
+
+[sub_resource type="Resource" id="Resource_heal"]
+script = ExtResource("3_gain")
+pool = 0
+target = SubResource("Resource_self")
+amount = SubResource("Resource_half")
+
+[sub_resource type="Resource" id="Resource_drain"]
+script = ExtResource("1_eff")
+id = "drain"
+trigger = 12
+operations = Array[ExtResource("2_ops")]([SubResource("Resource_heal")])
+
+[resource]
+script = ExtResource("9_def")
+weapon_type = "sword"
+profile = 2
+damage = 12
+damage_type = 2
+atk_x = 1
+hit = 80
+crit = 0
+crit_x = 3.0
+range_min = 1
+range_max = 2
+effective_against = PackedStringArray()
+rarity = 3
+weight = 15
+id = "dark_sword"
+display_name = "Dark Sword"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_drain")])

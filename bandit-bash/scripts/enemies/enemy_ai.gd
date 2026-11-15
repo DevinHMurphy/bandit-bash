@@ -6,7 +6,7 @@
 # File:     enemy_ai.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 13, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name EnemyAI
@@ -197,9 +197,7 @@ static func _attacks(board: Board) -> Array[EnemyPlan]:
 		var held: CombatState.WeaponStats = state.weapon(weapon_ids[order])
 		if held == null or not _attacks_with(held):
 			continue
-		var span: Vector2i = Vector2i(held.range_min, held.range_max)
-		if order == 0:
-			span = _range_of(board.engine, board.unit_id)
+		var span: Vector2i = ExchangeResolver.weapon_range(board.engine, board.unit_id, held.id)
 		for tile: Vector2i in board.reach:
 			var path: Array[Vector2i] = board.path_to(tile)
 			for foe: String in foes:
@@ -401,7 +399,7 @@ static func _back_line_ally(board: Board) -> String:
 				definition != null
 				and definition.behavior == EnemyClassDefinition.Behavior.SUPPORT
 		)
-		if not is_support and not _carries_ranged(state, ally):
+		if not is_support and not _carries_ranged(board.engine, ally):
 			continue
 		# Nearest by tile distance, then id.
 		var distance: int = state.grid.distance(board.origin, state.tile_of(ally))
@@ -416,22 +414,31 @@ static func _back_line_ally(board: Board) -> String:
 	return found
 
 
-# Whether unit_id carries a weapon that attacks and reaches RANGED_REACH tiles, in hand or stowed.
-static func _carries_ranged(state: CombatState, unit_id: String) -> bool:
+# Whether unit_id carries a weapon that attacks and reaches RANGED_REACH tiles, in hand or stowed,
+# each range read by ExchangeResolver.weapon_range().
+static func _carries_ranged(engine: EffectEngine, unit_id: String) -> bool:
+	var state: CombatState = engine.state
 	for held: CombatState.WeaponStats in _carried(state, unit_id):
-		if _attacks_with(held) and held.range_max >= RANGED_REACH:
+		if (
+				_attacks_with(held)
+				and ExchangeResolver.weapon_range(engine, unit_id, held.id).y >= RANGED_REACH
+		):
 			return true
 	return false
 
 
-# The Raider's back-line foe: a unit carrying a weapon, every one ranged (RANGED_REACH) or a
-# staff.
-static func _is_back_line_foe(state: CombatState, unit_id: String) -> bool:
+# The Raider's back-line foe: a unit carrying a weapon, every one ranged (RANGED_REACH, read by
+# ExchangeResolver.weapon_range()) or a staff.
+static func _is_back_line_foe(engine: EffectEngine, unit_id: String) -> bool:
+	var state: CombatState = engine.state
 	var carried: Array[CombatState.WeaponStats] = _carried(state, unit_id)
 	if carried.is_empty():
 		return false
 	for held: CombatState.WeaponStats in carried:
-		if not held.is_staff() and held.range_max < RANGED_REACH:
+		if (
+				not held.is_staff()
+				and ExchangeResolver.weapon_range(engine, unit_id, held.id).y < RANGED_REACH
+		):
 			return false
 	return true
 
@@ -610,7 +617,7 @@ static func _rate_target_rule(board: Board, options: Array[EnemyPlan]) -> void:
 			ContentIds.TARGET_MOST_CURSED:
 				plan.target_rule_key = -_cursed_foes(board.state, plan.target_id)
 			ContentIds.TARGET_BACK_LINE_FOES:
-				var is_back_line: bool = _is_back_line_foe(board.state, plan.target_id)
+				var is_back_line: bool = _is_back_line_foe(board.engine, plan.target_id)
 				plan.target_rule_key = 0.0 if is_back_line else 1.0
 			ContentIds.TARGET_LOWEST_DEFENSE:
 				# The target's DEF stat as its unit panel shows it, without its terrain.
@@ -726,11 +733,10 @@ static func _attacks_with(held: CombatState.WeaponStats) -> bool:
 	return not held.is_staff() or held.staff == CombatState.WeaponStats.Staff.ATTACK
 
 
-# unit_id's range now, as (shortest, longest), from its values for the weapon in hand.
+# unit_id's range now, as (shortest, longest), with the weapon in hand.
 static func _range_of(engine: EffectEngine, unit_id: String) -> Vector2i:
-	var sheet: StatSheet = engine.stats(unit_id)
-	return Vector2i(
-			sheet.get_int(CombatValue.Key.RANGE_MIN), sheet.get_int(CombatValue.Key.RANGE_MAX)
+	return ExchangeResolver.weapon_range(
+			engine, unit_id, engine.state.equipped_weapon_id(unit_id)
 	)
 
 
@@ -742,7 +748,7 @@ static func _advance_range(board: Board) -> Vector2i:
 		return _range_of(board.engine, board.unit_id)
 	var stowed: CombatState.WeaponStats = board.state.weapon(holder.stowed_weapon_id)
 	if stowed != null and _attacks_with(stowed):
-		return Vector2i(stowed.range_min, stowed.range_max)
+		return ExchangeResolver.weapon_range(board.engine, board.unit_id, stowed.id)
 	# An enemy with nothing to attack with (a healer once the darkness arrives) closes
 	# to an adjacent tile.
 	return Vector2i(1, 1)
