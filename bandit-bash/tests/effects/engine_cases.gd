@@ -6,7 +6,7 @@
 # File:     engine_cases.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 12, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -106,7 +106,7 @@ func _test_per_stat_modifiers() -> void:
 	_same(
 			"f3: Training Weights text names its stats",
 			weights.describe(),
-			"Always: -2 SPD, deny Stat Can Grow (SPD), +1 Level Up Guaranteed Gains (MGT)"
+			"Always: -2 SPD, SPD can't grow, +1 Level Up Guaranteed Gains (MGT)"
 	)
 	engine.set_base("p1", CombatValue.Key.SPD, 6.0)
 	engine.register(_instance(

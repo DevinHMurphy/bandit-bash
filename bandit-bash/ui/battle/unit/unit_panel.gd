@@ -6,13 +6,14 @@
 # File:     unit_panel.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 7, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name UnitPanel
 extends PanelContainer
-## The hovered or selected unit: its HP, base stats, weapon, Block and Stance (combat UI plan,
-## question 11; Godot_FE FR-UI-3's unit footer, without XP, which is P08's).
+## The hovered or selected unit: its HP, base stats, weapon, Block and Stance, and whether it can't
+## gain Block (combat UI plan, question 11 and UI12; Godot_FE FR-UI-3's unit footer, without XP,
+## which is P08's).
 ##
 ## Draws a [HudViewModel.UnitView]; [BattleHud] picks the unit (the one under the cursor, else the
 ## selected one) and builds the view. Holds no rules. With no unit it hides.[br]
@@ -31,6 +32,11 @@ signal details_pressed(unit_id: String)
 
 ## The Block and Stance line: [code]%d[/code] Block, then Stance now and after a refresh.
 @export var guard_format: String = "Block %d · Stance %d / %d"
+
+## Added to the Block and Stance line while the unit can't gain Block (Haunted's ban), so the
+## ban reads in words on keyboard, mouse and pad alike.[br]
+## [b]Empty:[/b] the panel doesn't name the ban; the token's mark still shows it.
+@export var block_ban_text: String = " · Can't gain Block"
 
 ## The weapon line: [code]%s[/code] its name, then [code]%d[/code] damage, Hit and a range text.
 @export var weapon_format: String = "%s · Dmg %d · Hit %d · Rng %s"
@@ -89,6 +95,8 @@ func show_unit(view: HudViewModel.UnitView) -> void:
 	_hp_bar.value = float(view.hp)
 	_hp.text = hp_format % [view.hp, view.max_hp]
 	_guard.text = guard_format % [view.block, view.stance, view.stance_max]
+	if not view.can_gain_block:
+		_guard.text += block_ban_text
 	var stats: PackedStringArray = []
 	for i: int in view.stat_names.size():
 		stats.append("%s %d" % [view.stat_names[i], view.stat_values[i]])

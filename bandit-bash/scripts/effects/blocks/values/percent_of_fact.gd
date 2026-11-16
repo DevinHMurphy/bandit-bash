@@ -6,7 +6,7 @@
 # File:     percent_of_fact.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 29, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 @tool
@@ -35,6 +35,16 @@ const FIELD_TEXT: Dictionary[int, String] = {
 	Field.OVERHEAL: "overheal",
 }
 
+## Effect text of [constant Field.HP_AMOUNT] under each damage trigger, the damage it is part of.
+const DAMAGE_TEXT: Dictionary[int, String] = {
+	EffectTerms.Trigger.HIT_DEALT: "the damage dealt to HP",
+	EffectTerms.Trigger.DAMAGE_DEALT: "the damage dealt to HP",
+	EffectTerms.Trigger.CRIT_DEALT: "the damage dealt to HP",
+	EffectTerms.Trigger.HIT_TAKEN: "the damage taken to HP",
+	EffectTerms.Trigger.DAMAGE_TAKEN: "the damage taken to HP",
+	EffectTerms.Trigger.CRIT_TAKEN: "the damage taken to HP",
+}
+
 ## The part of the fact read.
 @export var field: Field = Field.AMOUNT
 
@@ -44,6 +54,14 @@ const FIELD_TEXT: Dictionary[int, String] = {
 
 func describe() -> String:
 	return "%s%% of that %s" % [EffectTerms.format_number(percent), FIELD_TEXT[field]]
+
+
+## The text as read under [param trigger]: the HP part of a dealt or taken damage names the damage,
+## "50% of the damage dealt to HP" (Dark Sword); anything else reads as [method describe].
+func describe_for_trigger(trigger: EffectTerms.Trigger) -> String:
+	if field != Field.HP_AMOUNT or not DAMAGE_TEXT.has(trigger):
+		return describe()
+	return "%s%% of %s" % [EffectTerms.format_number(percent), DAMAGE_TEXT[trigger]]
 
 
 ## [member percent] of the triggering fact's [member field]; 0 without a fact.

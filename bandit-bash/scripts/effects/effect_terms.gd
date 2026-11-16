@@ -163,12 +163,85 @@ const TRIGGER_TEXT: Dictionary[int, String] = {
 	Trigger.LEVELED_UP: "Leveled up",
 }
 
+## Effect-text heads of the unit triggers under a scope other than This unit, the scope's name in
+## place of [code]%s[/code]: the scope is the trigger's subject, so "When Your Unit is defeated",
+## not "Defeated by Your Unit" (which reads as Your Unit defeating). A trigger not listed reads
+## "<trigger> by <scope>"; the phase triggers read by [method trigger_head].
+const SCOPED_TRIGGER_TEXT: Dictionary[int, String] = {
+	Trigger.UNIT_TURN_START: "When %s's turn starts",
+	Trigger.BEFORE_COMBAT: "Before %s's combat",
+	Trigger.AFTER_COMBAT: "After %s's combat",
+	Trigger.UNIT_TURN_END: "When %s's turn ends",
+	Trigger.ATTACK_MADE: "When %s attacks",
+	Trigger.HIT_DEALT: "When %s deals a hit",
+	Trigger.HIT_TAKEN: "When %s is hit",
+	Trigger.MISSED: "When %s misses",
+	Trigger.DODGED: "When %s dodges",
+	Trigger.DAMAGE_DEALT: "When %s deals damage",
+	Trigger.DAMAGE_TAKEN: "When %s takes damage",
+	Trigger.CRIT_DEALT: "When %s lands a crit",
+	Trigger.CRIT_TAKEN: "When %s takes a crit",
+	Trigger.EXPOSED: "When %s is Exposed",
+	Trigger.DEFEATED_AN_ENEMY: "When %s defeats an enemy",
+	Trigger.DEFEATED: "When %s is defeated",
+	Trigger.HEALED_AN_ALLY: "When %s heals an ally",
+	Trigger.HEALED: "When %s is healed",
+	Trigger.USED_STAFF_ON_ALLY: "When %s uses a staff on an ally",
+	Trigger.DARKNESS_DAMAGE_TAKEN: "When %s takes darkness damage",
+	Trigger.OBJECT_USED: "When %s uses an object",
+	Trigger.SHOVED_A_UNIT: "When %s shoves a unit",
+	Trigger.SHOVED: "When %s is shoved",
+	Trigger.BLOCK_GAINED: "When %s gains Block",
+	Trigger.MOVED_AFTER_ACTING: "When %s moves after acting",
+	Trigger.LEVELED_UP: "When %s levels up",
+}
+
+## The words before a phase trigger's name for each scope: a phase is a side's, not a unit's, so
+## Your Unit's is just "Phase Start" and the wider scopes name whose phase counts.
+const PHASE_SCOPE_TEXT: Dictionary[int, String] = {
+	Scope.THIS_UNIT: "",
+	Scope.YOUR_UNIT: "",
+	Scope.ANY_ALLY_UNIT: "Allied ",
+	Scope.ANY_UNIT: "Any ",
+}
+
 ## Effect-text names of the scopes.
 const SCOPE_TEXT: Dictionary[int, String] = {
 	Scope.THIS_UNIT: "This unit",
 	Scope.YOUR_UNIT: "Your Unit",
 	Scope.ANY_ALLY_UNIT: "Any Ally Unit",
 	Scope.ANY_UNIT: "Any Unit",
+}
+
+## Effect text of each permission allowed, with no subject ("can gain Block"); [code]%s[/code] is
+## a per-stat key's stat, or "stats" for every stat. A permission not listed reads
+## "allow <name>". Keep its keys equal to [constant PERMISSION_DENIED_TEXT]'s.
+const PERMISSION_ALLOWED_TEXT: Dictionary[int, String] = {
+	CombatValue.Permission.CAN_COUNTER: "can counter",
+	CombatValue.Permission.CAN_BE_SHOVED: "can be shoved",
+	CombatValue.Permission.MAY_MOVE_AFTER_ACTING: "may move after acting",
+	CombatValue.Permission.FREE_WEAPON_SWAP: "may swap weapons for free once per turn",
+	CombatValue.Permission.SKIP_MITIGATION_ON_CRIT: "crits skip Mitigation",
+	CombatValue.Permission.CAN_PICK_LOCKS: "can pick locks",
+	CombatValue.Permission.CAN_GAIN_BLOCK: "can gain Block",
+	CombatValue.Permission.CAN_LOOT: "can loot",
+	CampaignValue.Permission.INTENTS_HIDDEN: "enemy intents are hidden",
+	CampaignValue.Permission.STAT_CAN_GROW: "%s can grow",
+}
+
+## Effect text of each permission denied, as [constant PERMISSION_ALLOWED_TEXT]
+## ("can't gain Block"). A permission not listed reads "deny <name>".
+const PERMISSION_DENIED_TEXT: Dictionary[int, String] = {
+	CombatValue.Permission.CAN_COUNTER: "can't counter",
+	CombatValue.Permission.CAN_BE_SHOVED: "can't be shoved",
+	CombatValue.Permission.MAY_MOVE_AFTER_ACTING: "can't move after acting",
+	CombatValue.Permission.FREE_WEAPON_SWAP: "can't swap weapons for free",
+	CombatValue.Permission.SKIP_MITIGATION_ON_CRIT: "crits don't skip Mitigation",
+	CombatValue.Permission.CAN_PICK_LOCKS: "can't pick locks",
+	CombatValue.Permission.CAN_GAIN_BLOCK: "can't gain Block",
+	CombatValue.Permission.CAN_LOOT: "can't loot",
+	CampaignValue.Permission.INTENTS_HIDDEN: "enemy intents show",
+	CampaignValue.Permission.STAT_CAN_GROW: "%s can't grow",
 }
 
 ## Effect-text names of the lanes.
@@ -238,12 +311,54 @@ static func stat_hint() -> String:
 	return ",".join(entries)
 
 
+## The head of a triggered effect's text for [param trigger] under [param scope]: the trigger's
+## name for This unit ("Hit dealt"), the scope as its subject otherwise
+## ([constant SCOPED_TRIGGER_TEXT]), and a phase trigger named by whose phase it is
+## ([constant PHASE_SCOPE_TEXT]). [param is_counted]: a counter goes before it, so a unit trigger
+## keeps the counted "<trigger> by <scope>" ("Every 5th Hit dealt by Your Unit").
+static func trigger_head(trigger: int, scope: int, is_counted: bool = false) -> String:
+	var name: String = TRIGGER_TEXT.get(trigger, "Trigger %d" % [trigger])
+	if trigger == Trigger.PHASE_START or trigger == Trigger.PHASE_END:
+		return "%s%s" % [PHASE_SCOPE_TEXT.get(scope, ""), name]
+	if scope == Scope.THIS_UNIT:
+		return name
+	var subject: String = SCOPE_TEXT[scope]
+	if is_counted or not SCOPED_TRIGGER_TEXT.has(trigger):
+		return "%s by %s" % [name, subject]
+	return SCOPED_TRIGGER_TEXT[trigger] % [subject]
+
+
+## Effect text for [param key] allowed ([param is_allowed]) or denied, with no subject, such as
+## "can't gain Block" ([constant PERMISSION_DENIED_TEXT]); a per-stat key names [param stat],
+## such as "SPD can't grow".
+static func describe_permission(
+		key: int, is_allowed: bool, stat: int = Modifier.NO_STAT
+) -> String:
+	var phrases: Dictionary[int, String] = (
+			PERMISSION_ALLOWED_TEXT if is_allowed else PERMISSION_DENIED_TEXT
+	)
+	if not phrases.has(key):
+		var name: String = key_name(key)
+		var stat_name: Variant = CombatValue.Stat.find_key(stat)
+		if stat_name != null:
+			name = "%s (%s)" % [name, stat_name]
+		return "%s %s" % ["allow" if is_allowed else "deny", name]
+	var phrase: String = phrases[key]
+	if phrase.contains("%s"):
+		var named: Variant = CombatValue.Stat.find_key(stat)
+		phrase = phrase % [named if named != null else "stats"]
+	return phrase
+
+
 ## Effect text for one modifier, such as "+8 Combat Gold", "×0.5 damage" (a damage stage, named
-## by [constant STAGE_TEXT]), "Range Max 2 instead of its base", "deny Can Counter" or, for a
-## per-stat key with [param stat], "deny Stat Can Grow (SPD)".
+## by [constant STAGE_TEXT]), "Range Max becomes 2" or a permission's, such as
+## "can't counter" or, for a per-stat key with [param stat], "SPD can't grow"
+## ([method describe_permission]).
 static func describe_modifier(
 		key: int, mode: Modifier.Mode, value: float, stat: int = Modifier.NO_STAT
 ) -> String:
+	if mode == Modifier.Mode.GRANT or mode == Modifier.Mode.DENY:
+		return describe_permission(key, mode == Modifier.Mode.GRANT, stat)
 	var name: String = STAGE_TEXT.get(key, key_name(key))
 	var stat_name: Variant = CombatValue.Stat.find_key(stat)
 	if stat_name != null:
@@ -254,7 +369,7 @@ static func describe_modifier(
 		shown = shown if type_name == null else (type_name as String).capitalize()
 	match mode:
 		Modifier.Mode.REPLACE_BASE:
-			return "%s %s instead of its base" % [name, shown]
+			return "%s becomes %s" % [name, shown]
 		Modifier.Mode.ADD:
 			return "%s%s %s" % ["-" if value < 0.0 else "+", format_number(absf(value)), name]
 		Modifier.Mode.MULTIPLY:
@@ -265,11 +380,16 @@ static func describe_modifier(
 			return "%s at most %s" % [name, shown]
 		Modifier.Mode.FIXED:
 			return "%s always %s" % [name, shown]
-		Modifier.Mode.GRANT:
-			return "allow %s" % [name]
-		Modifier.Mode.DENY:
-			return "deny %s" % [name]
 	return "%s %s" % [name, shown]
+
+
+## Effect text for a unit's range set to [param range_min]-[param range_max] in place of its
+## weapon's: "Range becomes 1-2", or "Range becomes 2" when both are the same.
+static func describe_range_base(range_min: float, range_max: float) -> String:
+	var shown: String = format_number(range_max)
+	if absf(range_min - range_max) >= ValueBreakdown.ROUNDING_TOLERANCE:
+		shown = "%s-%s" % [format_number(range_min), shown]
+	return "Range becomes %s" % [shown]
 
 
 ## [param value] for effect text: whole numbers without a decimal point ("3"), others with up to

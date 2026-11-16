@@ -195,18 +195,18 @@ const TEXT: Dictionary[String, Array] = {
 	# "+2 damage" is +2 at the Attack stage, as the Archer's Volley reads it.
 	"power_band": ["Always: +2 Attack"],
 	"training_weights": [
-		"Always: -2 SPD, deny Stat Can Grow (SPD), +1 Level Up Guaranteed Gains (MGT)",
+		"Always: -2 SPD, SPD can't grow, +1 Level Up Guaranteed Gains (MGT)",
 	],
-	"sunshard_band": ["Always: +4 HP", "Phase End: heal HP equal to 10% of this unit's HP"],
+	"sunshard_band": ["Always: +4 HP", "Phase End: heal for 10% of this unit's HP"],
 	"quick_soles": ["Always: +1 Movement"],
 	"simple_quiver": ["While at range 2 or more: +1 Attack"],
 	# Every bow reaches 1-2, the Short Bow and the Dragonslayer Bow included.
 	"short_quiver": [
-		"While holding a bow: Range Min 1 instead of its base, Range Max 2 instead of its base",
+		"While holding a bow: Range becomes 1-2",
 	],
 	"simple_coating": ["While the opponent is Exposed: +2 Attack"],
 	# It replaces the damage type's base, so a fixed damage type still wins.
-	"spirit_coating": ["Always: Damage Type Magic instead of its base"],
+	"spirit_coating": ["Always: Damage Type becomes Magic"],
 	# A shield's Before Combat Block comes in every exchange, attacking or defending.
 	"iron_shield": ["Always: +2 DEF", "Before Combat: gain 1 Block"],
 	"iron_greatshield": ["Always: +2 DEF, +1 Stance Max"],
@@ -230,7 +230,7 @@ const TEXT: Dictionary[String, Array] = {
 	"null_sigil": ["Always: +1 Stance Max"],
 	# "Crits ignore the target's Defense" is Kukri's permission, which skips the whole
 	# Mitigation stage (Resistance against magic too).
-	"jester_mask": ["Always: allow Skip Mitigation On Crit"],
+	"jester_mask": ["Always: crits skip Mitigation"],
 	"royal_crest": ["Always: Level Up Min Stats at least 3"],
 	"ring_of_favor": ["Always: +2 HP, +1 DEF, +1 RES"],
 	"oak_wood_charm": ["Always: +10 Avoid"],

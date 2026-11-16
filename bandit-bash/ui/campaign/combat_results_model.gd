@@ -6,7 +6,7 @@
 # File:     combat_results_model.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 14, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name CombatResultsModel
@@ -144,6 +144,8 @@ static func item_details(definition: ItemDefinition) -> String:
 	if not definition is WeaponDefinition:
 		return line
 	var weapon: WeaponDefinition = definition
+	# NOTE: the weapon's own range, not ExchangeResolver.weapon_range's: an offer has no holder and
+	# Results has no combat engine, so a Short Quiver's bows show their reach in battle.
 	var reach: String = (
 			str(weapon.range_min) if weapon.range_min == weapon.range_max
 			else "%d-%d" % [weapon.range_min, weapon.range_max]

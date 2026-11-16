@@ -6,7 +6,7 @@
 # File:     unit_detail_view_model.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 7, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name UnitDetailViewModel
@@ -143,6 +143,12 @@ static func build(session: CombatSession, unit_id: String) -> UnitDetailViewMode
 		var stowed_stats: CombatState.WeaponStats = state.weapon(unit.stowed_weapon_id)
 		if stowed_stats != null:
 			view.stowed = _weapon_line(session, stowed_stats, effects)
+			# The range it will have in hand: a quivered bow reaches what the Short Quiver gives.
+			var reach: Vector2i = ExchangeResolver.weapon_range(
+					session.engine, unit_id, unit.stowed_weapon_id
+			)
+			view.stowed.range_min = reach.x
+			view.stowed.range_max = reach.y
 	if not unit.equipment_id.is_empty():
 		view.equipment_name = BattleText.name_of(session, unit.equipment_id)
 		view.equipment_effects = _lines_of(effects, unit.equipment_id)
@@ -267,7 +273,8 @@ class WeaponLine:
 	var crit_x: float = 0.0
 	## Its weight.
 	var weight: int = 0
-	## Its shortest range, in tiles: on the Weapon slot the unit's, effects included.
+	## Its shortest range, in tiles: on the Weapon slot the unit's, effects included; on a stowed
+	## weapon the unit's once it is swapped in ([method ExchangeResolver.weapon_range]).
 	var range_min: int = 1
 	## Its longest range, in tiles, as [member range_min].
 	var range_max: int = 1

@@ -6,7 +6,7 @@
 # File:     intent_cases.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 9, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -16,7 +16,9 @@ extends RefCounted
 ## against [DangerZone] (off by default, toggled by R, shown in the opening swap window with no
 ## intents there, beside an enemy's own range), and the move preview's re-planned intents against
 ## [method Intents.preview], reverting when the hover clears, and the picked tile's kept through
-## the action until Cancel (question 35 (1)). No autoload is named or needed.
+## the action until Cancel (question 35 (1)); Clouded Sight hiding every intent but not the danger
+## zone, and the USE_OBJECT icon with its line to the object (UI12). No autoload is named or
+## needed.
 ##
 ## [b]The harness[/b] is turn_input_cases.gd's (the board, the HUD widgets and a
 ## [BattleController] on the M1 battle) with the [IntentDisplay] and [MovePreviewMarks] on the
@@ -80,6 +82,112 @@ func run() -> void:
 	_test_danger_toggle()
 	_test_preview()
 	_test_preview_kept_after_walk()
+	_test_clouded_sight()
+	_test_object_intent()
+
+
+# Clouded Sight on seat 0 (events.md): the session still plans intents, but no icon, line or
+# rule shows, before or after a move preview's hover or an enemy phase; R still draws exactly
+# DangerZone's tiles. The same battle without it shows the icons.
+func _test_clouded_sight() -> void:
+	var h: TurnInputCases.Harness = _harness(true, "clouded_sight")
+	if h == null:
+		return
+	var display: IntentDisplay = h.controller.intent_display
+	var overlay: TileOverlay = h.view.get_danger_overlay()
+	var planned: int = 0 if h.session.intents == null else h.session.intents.enemies.size()
+	var hidden_at_start: bool = (
+			h.controller.are_intents_hidden()
+			and display.shown_icons().is_empty()
+			and display.shown_lines().is_empty()
+	)
+	_press_r()
+	var zone: Array[Vector2i] = _zone_tiles(h.session)
+	var zone_shown: bool = not zone.is_empty() and overlay.shown_tiles() == zone
+	var enemy_id: String = h.session.state.units_of(ENEMY)[0]
+	display.set_hovered(enemy_id)
+	var no_rule: bool = display.get_rule_text().is_empty()
+	var unit_id: String = TurnInputModel.acting_units(h.session, 0)[0]
+	h.controller.confirm_tile(h.session.state.tile_of(unit_id))
+	for option: Vector2i in TurnInputModel.move_tiles(h.session, unit_id):
+		if option != h.session.state.tile_of(unit_id):
+			h.controller.move_cursor(option)
+			break
+	h.controller.run_preview_frame()
+	h.controller.get_preview_queue().wait()
+	h.controller.run_preview_frame()
+	var hidden_in_preview: bool = display.shown_icons().is_empty()
+	h.controller.step_back()
+	for acting: String in TurnInputModel.acting_units(h.session, 0):
+		_send(h, UnitTurnCommand.new(0, acting, UnitTurnCommand.Action.WAIT))
+	_send(h, EndTurnCommand.new(0))
+	var hidden_after: bool = h.session.is_finished or display.shown_icons().is_empty()
+	_check.call("clouded sight: intents planned but no icon, line or rule shows", (
+			planned > 0 and hidden_at_start and no_rule and hidden_in_preview and hidden_after
+	), "planned %d, start %s, rule '%s', preview %s, after %s" % [
+		planned, hidden_at_start, display.get_rule_text(), hidden_in_preview, hidden_after,
+	])
+	_check.call("clouded sight: R still draws exactly DangerZone's tiles", zone_shown, (
+			"%d of %d tiles" % [overlay.shown_tiles().size(), zone.size()]
+	))
+	h.close()
+	var plain: TurnInputCases.Harness = _harness(true)
+	if plain == null:
+		return
+	_check.call("clouded sight: without it the same battle shows its icons", (
+			not plain.controller.are_intents_hidden()
+			and not plain.controller.intent_display.shown_icons().is_empty()
+	))
+	plain.close()
+
+
+# A USE_OBJECT intent on M1's first map object: its icon draws the object glyph in its own theme
+# style, and its numbered line runs to the object's tile (the view model finds objects as targets).
+func _test_object_intent() -> void:
+	var h: TurnInputCases.Harness = _harness(true)
+	if h == null:
+		return
+	var state: CombatState = h.session.state
+	var object_id: String = ""
+	for found: String in state.map.objects:
+		object_id = found
+		break
+	var enemy_id: String = state.units_of(ENEMY)[0]
+	if object_id.is_empty():
+		_check.call("object intent: M1 has a map object", false)
+		h.close()
+		return
+	var intent: EnemyIntent = EnemyIntent.new()
+	intent.unit_id = enemy_id
+	intent.kind = EnemyIntent.Kind.USE_OBJECT
+	intent.target_id = object_id
+	intent.tile = state.tile_of(enemy_id)
+	var intents: Intents = Intents.new()
+	intents.enemies.append(intent)
+	var model: IntentViewModel = IntentViewModel.build(h.session, intents, false)
+	var display: IntentDisplay = h.controller.intent_display
+	display.show_intents(model, h.view.tile_to_position)
+	var icon: IntentIcon = display.icon_of(enemy_id)
+	var lines: Array[IntentLine] = display.shown_lines()
+	var object_tile: Vector2i = state.map.object(object_id).tile
+	_check.call("object intent: USE_OBJECT draws its own glyph", (
+			icon != null
+			and icon.get_glyph_text() == icon.use_object_glyph
+			and icon.glyph_of(EnemyIntent.Kind.USE_OBJECT) != icon.glyph_of(EnemyIntent.Kind.GUARD)
+			and (icon.get_node("%GlyphLabel") as Label).theme_type_variation
+			== &"IntentUseObjectGlyph"
+	), "glyph '%s'" % ["none" if icon == null else icon.get_glyph_text()])
+	_check.call("object intent: its line runs to the object's tile", (
+			model.entries.size() == 1
+			and model.entries[0].target_tile == object_tile
+			and (object_tile == intent.tile or (
+				lines.size() == 1 and lines[0].target_tile == object_tile
+			))
+	), "target %s, object %s, %d lines" % [
+		model.entries[0].target_tile if not model.entries.is_empty() else CombatFact.NO_TILE,
+		object_tile, lines.size(),
+	])
+	h.close()
 
 
 # Question 35 (1): the picked tile's move preview stays from WALK through ACTION, TARGET and
@@ -534,7 +642,7 @@ func _test_preview() -> void:
 
 # turn_input_cases.gd's harness with the forecast panel, the move preview marks and the intent
 # display set, as in the gameplay scene; past the swap window's Start when is_started.
-func _harness(is_started: bool) -> TurnInputCases.Harness:
+func _harness(is_started: bool, curse_id: String = "") -> TurnInputCases.Harness:
 	var h: TurnInputCases.Harness = TurnInputCases.Harness.new()
 	h.run = CampaignSession.new(CampaignData.Mode.SOLO, SEED, PackedInt32Array([0]))
 	h.battle = BattleViewCases.begin_m1(_catalog, _map, h.run)
@@ -543,6 +651,12 @@ func _harness(is_started: bool) -> TurnInputCases.Harness:
 		h.run.close()
 		return null
 	h.session = h.battle.get_session(0)
+	# A curse seat 0 owns, registered before the board and the controller read the session.
+	if not curse_id.is_empty():
+		for instance: EffectInstance in Loadout.heirloom_effects(
+				_catalog, curse_id, 0, h.session.ids
+		):
+			h.session.engine.register(instance)
 	h.view = VIEW_SCENE.instantiate()
 	_root.add_child(h.view)
 	var display: IntentDisplay = DISPLAY_SCENE.instantiate()

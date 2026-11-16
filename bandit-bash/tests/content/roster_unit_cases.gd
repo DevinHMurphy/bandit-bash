@@ -97,10 +97,10 @@ const TEXT: Dictionary[String, Array] = {
 	"brawler+": ["First Hit dealt this combat: the target loses 2 extra Stance"],
 	"thief": ["Always: +15 Crit Chance"],
 	"thief+": ["Always: +25 Crit Chance"],
-	"thief innate": ["Always: allow Can Pick Locks"],
-	"freewing": ["After Combat: allow May Move After Acting until Phase End"],
+	"thief innate": ["Always: can pick locks"],
+	"freewing": ["After Combat: may move after acting until Phase End"],
 	"freewing+": [
-		"After Combat: allow May Move After Acting until Phase End",
+		"After Combat: may move after acting until Phase End",
 		"Moved after acting: gain 2 Block",
 	],
 	"lance_armor": ["Always: +1 Parry"],

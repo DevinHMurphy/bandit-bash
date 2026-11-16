@@ -6,7 +6,7 @@
 # File:     board_view_model.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 5, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name BoardViewModel
@@ -51,6 +51,7 @@ static func unit_view(session: CombatSession, unit_id: String) -> UnitView:
 	view.max_hp = sheet.get_int(CombatValue.Key.HP)
 	view.tile = state.tile_of(unit_id)
 	view.stance_max = sheet.get_int(CombatValue.Key.STANCE_MAX)
+	view.can_gain_block = sheet.is_allowed(CombatValue.Permission.CAN_GAIN_BLOCK)
 	var unit: CombatUnitState = state.unit(unit_id)
 	if unit != null:
 		view.block = unit.block
@@ -66,6 +67,25 @@ static func darkness_of(state: CombatState) -> Dictionary[Vector2i, int]:
 	for tile: Vector2i in state.map.darkness.layers:
 		layers[tile] = state.map.darkness.layers[tile]
 	return layers
+
+
+## Whether [param fact], a [constant CombatFact.Kind.MODIFIER_GAINED] or
+## [constant CombatFact.Kind.MODIFIER_EXPIRED], is a timed ban on gaining Block (Haunted's):
+## the [AddTimedModifier] it names denies [constant CombatValue.Permission.CAN_GAIN_BLOCK]. Read
+## from the effect's definition, so it holds while the fact plays, whatever the state is by then.
+static func is_block_ban(session: CombatSession, fact: CombatFact) -> bool:
+	var instance: EffectInstance = session.engine.get_instance(fact.source_effect_id)
+	if instance == null or instance.definition == null:
+		return false
+	var operations: Array[EffectOperation] = instance.definition.operations
+	if fact.key < 0 or fact.key >= operations.size():
+		return false
+	var timed: AddTimedModifier = operations[fact.key] as AddTimedModifier
+	return (
+			timed != null
+			and timed.key == CombatValue.Permission.CAN_GAIN_BLOCK
+			and timed.mode == Modifier.Mode.DENY
+	)
 
 
 ## The letters a token shows for [param unit_type] by default: the first [param count] letters of
@@ -109,3 +129,6 @@ class UnitView:
 	var has_acted: bool = false
 	## Whether it may still move after its action.
 	var is_second_move_pending: bool = false
+	## Whether it may gain Block ([constant CombatValue.Permission.CAN_GAIN_BLOCK]); Haunted's
+	## ban denies it.
+	var can_gain_block: bool = true

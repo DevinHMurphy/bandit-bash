@@ -6,7 +6,7 @@
 # File:     battle_view.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 7, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name BattleView
@@ -18,8 +18,9 @@ extends Node2D
 ## [method bind] builds the board from state ([BoardViewModel]); after that, facts reach it only
 ## through the session's [member CombatSession.playback], which [method advance] steps each frame:
 ## moves walk their path, damage, heal, Miss and Critical pop-ups rise on the info layer, a crit
-## flashes its unit, defeated units fade out, tokens' HP, Stance, Block and turn follow their
-## facts, spent units gray only in their side's phase, and a tile the darkness deepens is redrawn.
+## flashes its unit, defeated units fade out, tokens' HP, Stance, Block, Block ban (Haunted) and
+## turn follow their facts, spent units gray only in their side's phase, and a tile the darkness
+## deepens is redrawn.
 ## A hit's number is its damage past Block, overkill included, with a small Block number beside
 ## it for what Block absorbed (question 30 (c)). Each fact's wait is the time its animation
 ## takes. The board steps its own tweens with the same time, so a test can drive it frame by frame
@@ -172,6 +173,10 @@ var _terrain: TileMapLayer = null
 
 # The token of each unit on the board, by unit id.
 var _tokens: Dictionary[String, UnitToken] = {}
+
+# Each unit's timed Block bans as played (BoardViewModel.is_block_ban), by unit id: two Haunted
+# copies can pick one unit, so its mark goes only when the last ban expires. Absent: none.
+var _block_bans: Dictionary[String, int] = {}
 
 # Tweens playback waits for (moves, pans, fades), and cosmetic ones it doesn't (numbers); both
 # stepped by advance(), never by the tree.
@@ -747,6 +752,7 @@ func _clear_board() -> void:
 	_walks.clear()
 	_end_staged_walk()
 	_tokens.clear()
+	_block_bans.clear()
 	_leader_marks.clear()
 	_info_layer.clear()
 	clear_target_marks()
@@ -813,6 +819,10 @@ func _place_token(view: BoardViewModel.UnitView) -> void:
 	_token_layer.add_child(token)
 	_info_layer.add_info(view.id, token)
 	token.show_unit(view)
+	if view.can_gain_block:
+		_block_bans.erase(view.id)
+	else:
+		_block_bans[view.id] = 1
 	token.show_phase(view.side == _phase_side)
 	token.position = tile_to_position(view.tile)
 	_tokens[view.id] = token
@@ -851,6 +861,8 @@ func _bus_links(bus: CombatBus) -> Array[Array]:
 		[bus.action.damage_taken, _on_action_damage_taken],
 		[bus.action.missed, _on_action_missed],
 		[bus.action.crit_taken, _on_action_crit_taken],
+		[bus.effect.modifier_gained, _on_effect_modifier_gained],
+		[bus.effect.modifier_expired, _on_effect_modifier_expired],
 		[bus.flow.phase_started, _on_flow_phase_started],
 		[bus.world.darkness_advanced, _on_world_darkness_advanced],
 		[bus.fact_played, _on_fact_played],
@@ -1229,6 +1241,29 @@ func _on_flow_phase_started(fact: CombatFact) -> void:
 	_phase_side = fact.side
 	for token: UnitToken in _tokens.values():
 		token.show_phase(token.side == _phase_side)
+
+
+func _on_effect_modifier_gained(fact: CombatFact) -> void:
+	_count_block_ban(fact, 1)
+
+
+func _on_effect_modifier_expired(fact: CombatFact) -> void:
+	_count_block_ban(fact, -1)
+
+
+# Adds change to the actor's timed Block bans when fact is one (BoardViewModel.is_block_ban), and
+# shows its mark while any is left.
+func _count_block_ban(fact: CombatFact, change: int) -> void:
+	var token: UnitToken = token_of(fact.actor_id)
+	if token == null or not BoardViewModel.is_block_ban(_session, fact):
+		return
+	var held: int = _block_bans.get(fact.actor_id, 0)
+	var bans: int = maxi(held + change, 0)
+	if bans == 0:
+		_block_bans.erase(fact.actor_id)
+	else:
+		_block_bans[fact.actor_id] = bans
+	token.show_block_ban(bans > 0)
 
 
 func _on_unit_block_gained(fact: CombatFact) -> void:

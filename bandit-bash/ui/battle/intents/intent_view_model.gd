@@ -6,7 +6,7 @@
 # File:     intent_view_model.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 5, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name IntentViewModel
@@ -75,6 +75,9 @@ static func build(
 			entry.target_tile = intents.moved_to
 		elif state.has_unit(intent.target_id):
 			entry.target_tile = state.tile_of(intent.target_id)
+		elif not intent.target_id.is_empty() and state.map.object(intent.target_id) != null:
+			# An object use's lever, Brazier or container, or a keg an attack blows.
+			entry.target_tile = state.map.object(intent.target_id).tile
 		model.entries.append(entry)
 	return model
 
@@ -93,9 +96,10 @@ class Entry:
 	var rule_text: String = ""
 	## The tile it stands on now.
 	var enemy_tile: Vector2i = CombatFact.NO_TILE
-	## The unit it attacks, heals or advances on; empty for a guard.
+	## The unit it attacks, heals or advances on, or the map object it uses or blows; empty for a
+	## guard.
 	var target_id: String = ""
-	## Where that unit stands on the board read; [constant CombatFact.NO_TILE] for none.
+	## Where that unit or object stands on the board read; [constant CombatFact.NO_TILE] for none.
 	var target_tile: Vector2i = CombatFact.NO_TILE
 	## In a preview, whether this intent differs from the current one.
 	var is_changed: bool = false
