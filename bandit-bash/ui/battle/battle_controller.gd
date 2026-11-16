@@ -6,7 +6,7 @@
 # File:     battle_controller.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 14, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name BattleController
@@ -36,7 +36,8 @@ extends HintSource
 ## [b]Unit detail[/b] (UI11): unit_detail or the unit panel's Details opens any unit's
 ## [UnitDetailPanel] from IDLE or MOVE ([method request_unit_detail]); Back closes it.[br]
 ## [b]Enemy information[/b] (question 10): the [IntentDisplay] shows the intents once the board
-## settles; [method toggle_danger_zone] draws [DangerZone], support tiles purple (question 23).[br]
+## settles, none while the seat's [constant CampaignValue.Permission.INTENTS_HIDDEN] holds
+## (Clouded Sight); [method toggle_danger_zone] draws [DangerZone] either way, support purple.[br]
 ## [b]Hints and pads[/b] (questions 24, 25, 31): [constant LIVE_ACTIONS] lists each hint context's
 ## actions, which [method get_live_actions] gives the [ControlHintBar] less what can do nothing
 ## now; every action has a pad binding, held directions repeating through [member pad_repeat].[br]
@@ -737,6 +738,16 @@ func is_danger_zone_shown() -> bool:
 	return _is_danger_shown
 
 
+## Whether enemy intents are hidden from this seat (Clouded Sight): its sheet allows
+## [constant CampaignValue.Permission.INTENTS_HIDDEN]. Read on every draw, so it follows the
+## seat's curses as they stand; false while unbound.
+func are_intents_hidden() -> bool:
+	if _session == null or _seat < 0:
+		return false
+	var sheet: StatSheet = _session.engine.stats(InstanceIdAllocator.seat_subject_id(_seat))
+	return sheet.is_allowed(CampaignValue.Permission.INTENTS_HIDDEN)
+
+
 ## Weapon cycling in the forecast (cycle_weapon, Next weapon): shows the target's next weapon's
 ## forecast, wrapping, and makes its command the one Confirm sends. Returns false, doing nothing,
 ## outside CONFIRM's forecast panel or with one weapon.
@@ -1193,14 +1204,20 @@ func _shown_preview() -> MovePreview:
 # Draws the intents that apply now on the intent display: the shown move preview's
 # (_shown_preview()), else the session's, while they are current (no newer fact), the board is
 # settled and no command is waited on; otherwise none, so no icon stands where a token is still
-# walking.
+# walking. None at all while are_intents_hidden(): the previews still run, for the danger zone.
 func _show_intents() -> void:
 	if not is_instance_valid(intent_display):
 		return
 	var shown: Intents = null
 	var is_preview: bool = false
 	var changed: PackedStringArray = []
-	if _session != null and not _session.is_finished and not _is_waiting and view.is_settled():
+	if (
+			_session != null
+			and not _session.is_finished
+			and not _is_waiting
+			and view.is_settled()
+			and not are_intents_hidden()
+	):
 		var seq: int = _session.last_seq()
 		var preview: MovePreview = _shown_preview()
 		if preview != null and preview.intents != null and preview.based_on_seq == seq:

@@ -18,8 +18,9 @@ extends Resource
 ## ([EffectCarrierDefinition]). [b]Read-only at runtime:[/b] Godot shares a loaded .tres, so
 ## counters, charges and owners live on the effect's runtime instance, never here.[br]
 ## [method describe] generates the effect text in the effect-triggers.md grammar,
-## "[Every Nth] <trigger> by <scope> [this combat | this campaign]: <operation>", so text and
-## behavior can't drift. Its enums, their text and the text helpers blocks share live in
+## "<head> [this combat | this campaign]: <operation>", the head naming the scope as the
+## trigger's subject ([method EffectTerms.trigger_head]), so text and behavior can't drift.
+## Its enums, their text and the text helpers blocks share live in
 ## [EffectTerms], a leaf: blocks must never name this class (see there for why).
 ##
 ## @tutorial(Effect triggers): docs/design/effect-triggers.md
@@ -90,9 +91,7 @@ func describe() -> String:
 
 	var head: String = ""
 	if trigger != EffectTerms.Trigger.ALWAYS:
-		head = EffectTerms.TRIGGER_TEXT.get(trigger, "Trigger %d" % [trigger])
-		if scope != EffectTerms.Scope.THIS_UNIT:
-			head += " by %s" % [EffectTerms.SCOPE_TEXT[scope]]
+		head = EffectTerms.trigger_head(trigger, scope, counter != null)
 	if counter != null:
 		head = ("%s %s" % [counter.describe_count(), head]).strip_edges()
 		head += " %s" % [EffectTerms.LANE_TEXT[counter.lane]]
@@ -104,9 +103,18 @@ func describe() -> String:
 		opening.append(head)
 	opening.append_array(clauses)
 	var actions: PackedStringArray = []
-	for operation: EffectOperation in operations:
+	var i: int = 0
+	while i < operations.size():
+		var operation: EffectOperation = operations[i]
+		if i + 1 < operations.size() and _is_range_pair(operation, operations[i + 1]):
+			var low: ModifyValue = operation
+			var high: ModifyValue = operations[i + 1]
+			actions.append(EffectTerms.describe_range_base(low.value, high.value))
+			i += 2
+			continue
 		if operation != null:
 			actions.append(operation.describe_for_trigger(trigger))
+		i += 1
 
 	var text: String = ", ".join(actions)
 	if not opening.is_empty():
@@ -135,4 +143,18 @@ func _is_used_on_target() -> bool:
 		if gain == null or not gain.target is CommandTarget:
 			return false
 	return true
+
+
+# Whether low then high set a unit's whole range in place of its weapon's (the Short Quiver): one
+# "Range becomes 1-2" reads better than a clause per end.
+static func _is_range_pair(low: EffectOperation, high: EffectOperation) -> bool:
+	var first: ModifyValue = low as ModifyValue
+	var second: ModifyValue = high as ModifyValue
+	if first == null or second == null or first.per != null or second.per != null:
+		return false
+	return (
+			first.key == CombatValue.Key.RANGE_MIN and second.key == CombatValue.Key.RANGE_MAX
+			and first.mode == Modifier.Mode.REPLACE_BASE
+			and second.mode == Modifier.Mode.REPLACE_BASE
+	)
 

@@ -14,7 +14,8 @@ extends RefCounted
 ## all 70 MVP weapons and staves against weapons.md, each type folder holding exactly the listed
 ## ones, effect text snapshots, hand-computed forecasts (one per weapon type, effectiveness,
 ## both lifesteals, Everbloom), the Short Quiver's range read the same way by attacks, counters,
-## the danger zone and a stowed bow, Sanctuary's and Everwall's areas, and an area or full-heal
+## the danger zone, a stowed bow and the detail panel's stowed line, Sanctuary's and Everwall's
+## areas, and an area or full-heal
 ## staff record surviving a save and a version 1 save migrating. Reports each case through the
 ## check callable it is given.
 ##
@@ -135,7 +136,7 @@ const STAVES: Dictionary[String, Array] = {
 # The generated text of every weapon with effects; the rest have none.
 const TEXT: Dictionary[String, Array] = {
 	# weapons.md: "Hit dealt: heals the attacker for half the damage it deals to HP".
-	"dark_sword": ["Damage dealt: heal HP equal to 50% of that HP amount"],
+	"dark_sword": ["Damage dealt: heal for 50% of the damage dealt to HP"],
 	"kukri": ["Crit dealt: that hit skips Mitigation"],
 	"life_tap": ["Hit dealt: that hit gains lifesteal"],
 	"colossus": ["Always: +20 HP, +5 DEF, +5 CON"],
@@ -426,6 +427,14 @@ func _test_short_quiver_reads() -> void:
 				and session.engine.stats(archer).get_int(CombatValue.Key.RANGE_MAX)
 				== (3 if quiver.is_empty() else 2)
 		))
+		# The unit detail panel's stowed line reads the same range (combat UI plan, UI12).
+		var detail: UnitDetailViewModel = UnitDetailViewModel.build(session, archer)
+		var shown: String = "none" if detail == null or detail.stowed == null else (
+				detail.stowed.range_text()
+		)
+		_same("short quiver reads: the stowed line's range %s" % [
+			"without" if quiver.is_empty() else "with",
+		], shown, "3-5" if quiver.is_empty() else "1-2")
 	_same("short quiver reads: without, then with", " | ".join(results), (
 			"held (2, 3) stowed (3, 5) danger [(2, 3)] lance (1, 1)"
 			+ " | held (1, 2) stowed (1, 2) danger [(1, 2)] lance (1, 1)"

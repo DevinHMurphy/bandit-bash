@@ -6,7 +6,7 @@
 # File:     hud_view_model.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 7, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name HudViewModel
@@ -89,6 +89,7 @@ static func unit_view(session: CombatSession, unit_id: String) -> UnitView:
 	view.block = unit.block
 	view.stance = unit.stance
 	view.stance_max = sheet.get_int(CombatValue.Key.STANCE_MAX)
+	view.can_gain_block = sheet.is_allowed(CombatValue.Permission.CAN_GAIN_BLOCK)
 	for row: Array in STAT_ROWS:
 		view.stat_names.append(row[0] as String)
 		view.stat_values.append(sheet.get_int(row[1] as int))
@@ -255,6 +256,9 @@ class UnitView:
 	var stance: int = 0
 	## Stance after a refresh ([constant CombatValue.Key.STANCE_MAX]).
 	var stance_max: int = 0
+	## Whether it may gain Block ([constant CombatValue.Permission.CAN_GAIN_BLOCK]); Haunted's
+	## ban denies it.
+	var can_gain_block: bool = true
 	## The base stats' short names, in [constant HudViewModel.STAT_ROWS] order.
 	var stat_names: PackedStringArray = []
 	## The base stats' values, in the same order ([method CombatSession.stats]).

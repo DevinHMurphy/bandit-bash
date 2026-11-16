@@ -6,7 +6,7 @@
 # File:     add_timed_modifier.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 30, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 @tool
@@ -79,8 +79,9 @@ func describe() -> String:
 		duration = "on its next %d attacks %s" % [uses, duration]
 	var to_owner: bool = target == null or target.is_owner()
 	if mode == Modifier.Mode.GRANT or mode == Modifier.Mode.DENY:
-		var who: String = "" if to_owner else " for %s" % [target.describe()]
-		return "%s%s %s" % [change, who, duration]
+		# The target is the permission's subject: "that unit may move after acting".
+		var who: String = "" if to_owner else "%s " % [target.describe()]
+		return "%s%s %s" % [who, change, duration]
 	if to_owner:
 		return "gain %s %s" % [change, duration]
 	return "give %s %s %s" % [target.describe(), change, duration]

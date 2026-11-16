@@ -6,7 +6,7 @@
 # File:     intent_icon.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 5, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name IntentIcon
@@ -16,8 +16,9 @@ extends Node2D
 ##
 ## The glyph is a label authored in the scene; its font and colour come from the battle theme's
 ## variation for the kind ([code]IntentAttackGlyph[/code], [code]IntentHealGlyph[/code],
-## [code]IntentGuardGlyph[/code], [code]IntentAdvanceGlyph[/code]). Its origin is the enemy's tile
-## centre. [IntentDisplay] places and reuses these, one per acting enemy.
+## [code]IntentGuardGlyph[/code], [code]IntentAdvanceGlyph[/code],
+## [code]IntentUseObjectGlyph[/code]: a lever, Brazier or container). Its origin is the enemy's
+## tile centre. [IntentDisplay] places and reuses these, one per acting enemy.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
@@ -33,6 +34,10 @@ extends Node2D
 
 ## The glyph of an advance toward its target.
 @export var advance_glyph: String = "»"
+
+# ASSUMPTION: greybox glyph and its theme colour, as above; Latin-1, so the default font draws it.
+## The glyph of an object use: pulling a lever, dousing a Brazier, looting a container.
+@export var use_object_glyph: String = "¤"
 
 # ASSUMPTION: greybox tints, as above.
 ## The icon's tint in a move preview, so the re-planned intents read as previewed.[br]
@@ -87,6 +92,8 @@ func glyph_of(of_kind: EnemyIntent.Kind) -> String:
 			return heal_glyph
 		EnemyIntent.Kind.ADVANCE:
 			return advance_glyph
+		EnemyIntent.Kind.USE_OBJECT:
+			return use_object_glyph
 	return guard_glyph
 
 
@@ -103,4 +110,6 @@ static func _variation_of(of_kind: EnemyIntent.Kind) -> StringName:
 			return &"IntentHealGlyph"
 		EnemyIntent.Kind.ADVANCE:
 			return &"IntentAdvanceGlyph"
+		EnemyIntent.Kind.USE_OBJECT:
+			return &"IntentUseObjectGlyph"
 	return &"IntentGuardGlyph"

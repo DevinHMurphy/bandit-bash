@@ -6,7 +6,7 @@
 # File:     unit_token.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 7, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name UnitToken
@@ -17,8 +17,9 @@ extends Node2D
 ##
 ## [BattleView] places one per unit, moves it and gives it each value as the facts play
 ## ([method show_unit], [method show_hp], [method show_stance], [method show_block],
-## [method show_turn], [method show_range_tracked]); the token keeps the values shown and passes
-## them to [member info], which the [UnitInfoLayer] keeps over it on screen. It holds no rules.
+## [method show_block_ban], [method show_turn], [method show_range_tracked]); the token keeps the
+## values shown and passes them to [member info], which the [UnitInfoLayer] keeps over it on
+## screen. It holds no rules.
 ## Its origin is the tile's centre; the layout is authored in the scene for 32 px tiles.[br]
 ## [b]The sprite[/b] is [member sprites]'s texture for the unit's type, drawn by
 ## [code]unit_sprite.gdshader[/code] (Godot_FE's [code]StrokeShader[/code], rewritten): outlined
@@ -141,6 +142,10 @@ var is_second_move_pending: bool = false
 ## Whether the enemy range toggle tracks the unit.
 var is_range_tracked: bool = false
 
+## Whether the unit is shown as unable to gain Block (Haunted's ban): the [BlockBanMark] on its
+## info.
+var is_block_banned: bool = false
+
 ## Whether it is the unit's side's phase, as shown; only then is a spent unit gray.
 var is_phase_side: bool = true
 
@@ -161,8 +166,8 @@ var _flash_color: Color = Color.WHITE
 @onready var _letter: Label = %Letter
 
 
-## Draws [param view]: its sprite or letters, its side's outline or colour, its HP, Stance, Block
-## and turn. Whether its range is tracked is left as it is.
+## Draws [param view]: its sprite or letters, its side's outline or colour, its HP, Stance, Block,
+## Block ban and turn. Whether its range is tracked is left as it is.
 func show_unit(view: BoardViewModel.UnitView) -> void:
 	unit_id = view.id
 	tile = view.tile
@@ -178,6 +183,7 @@ func show_unit(view: BoardViewModel.UnitView) -> void:
 	show_hp(view.hp, view.max_hp)
 	show_stance(view.stance, view.stance_max)
 	show_block(view.block)
+	show_block_ban(not view.can_gain_block)
 	show_turn(view.has_acted, view.is_second_move_pending)
 
 
@@ -229,6 +235,13 @@ func show_block(amount: int) -> void:
 	block = maxi(amount, 0)
 	if is_instance_valid(info):
 		info.show_block(block)
+
+
+## Shows whether the unit can't gain Block ([param is_banned]): the mark beside its Block badge.
+func show_block_ban(is_banned: bool) -> void:
+	is_block_banned = is_banned
+	if is_instance_valid(info):
+		info.show_block_ban(is_banned)
 
 
 ## Shows whether the unit [param acted] and whether its [param second_move_pending]: it is drawn

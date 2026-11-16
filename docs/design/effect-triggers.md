@@ -11,12 +11,21 @@ a real effect needs it.
 Every triggered effect reads the same way:
 
 ```
-[Every Nth] <trigger> by <scope> [this combat | this campaign]: <operation>
+<trigger head> [this combat | this campaign]: <operation>
 ```
 
-- "Every 10th **Hit taken** by **This unit** **this combat**: take half damage from that hit."
-- "Every 7th **Attack made** by **Your Unit** **this campaign**: that attack gains lifesteal."
-- "**Before Combat**: gain 2 Block." (scope This unit and no counter, so both are left out)
+- With scope This unit, the head is the trigger's name: "**Before Combat**: gain 2 Block."
+- With a wider scope, the scope is the trigger's subject: "**When Your Unit is defeated**: give
+  your units 4 Block." "**Before Your Unit's combat**, while it is the initiator: …" ("Defeated by
+  Your Unit" would read as Your Unit doing the defeating.)
+- A phase is a side's, not a unit's: Your Unit's reads "**Phase Start**", Any Ally Unit's
+  "**Allied Phase Start**", Any Unit's "**Any Phase Start**".
+- With a counter, a unit trigger keeps the counted form `Every Nth <trigger> by <scope>`:
+  "Every 7th **Attack made** by **Your Unit** **this campaign**: that attack gains lifesteal."
+- Permissions read as what the unit can do, with the target as subject: "a random one of your
+  units can't gain Block until the end of the next phase", "Always: can pick locks".
+
+The generated text lives in `EffectTerms` (`trigger_head`, `describe_permission`).
 
 ## Scopes
 

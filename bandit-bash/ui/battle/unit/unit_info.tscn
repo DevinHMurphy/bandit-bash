@@ -1,10 +1,11 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://ui/battle/unit/unit_info.gd" id="1_info"]
 [ext_resource type="Theme" uid="uid://bi25fbqd4wl3o" path="res://ui/theme/battle_theme.tres" id="2_theme"]
 [ext_resource type="PackedScene" path="res://ui/battle/unit/hp_bar.tscn" id="3_hp_bar"]
 [ext_resource type="PackedScene" path="res://ui/battle/unit/stance_pips.tscn" id="4_pips"]
 [ext_resource type="PackedScene" uid="uid://bgmxqllrpuh84" path="res://ui/battle/unit/block_badge.tscn" id="5_badge"]
+[ext_resource type="PackedScene" path="res://ui/battle/unit/block_ban_mark.tscn" id="6_ban"]
 
 [node name="UnitInfo" type="Control"]
 layout_mode = 3
@@ -50,3 +51,11 @@ offset_left = -26.0
 offset_top = -3.0
 offset_right = -11.0
 offset_bottom = 12.0
+
+[node name="BlockBanMark" parent="." instance=ExtResource("6_ban")]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = -26.0
+offset_top = -16.0
+offset_right = -11.0
+offset_bottom = -2.0

@@ -128,7 +128,7 @@ func _test_describe_operations() -> void:
 	_snapshot(
 			"modify value: replace base",
 			_modify_value(CombatValue.Key.RANGE_MAX, REPLACE_BASE, 2.0).describe(),
-			"Range Max 2 instead of its base"
+			"Range Max becomes 2"
 	)
 	var magic: float = CombatFact.DamageType.MAGIC
 	_snapshot(
@@ -208,14 +208,14 @@ func _test_describe_operations() -> void:
 	_snapshot(
 			"timed: permission",
 			skirmish.describe(),
-			"allow May Move After Acting until Phase End"
+			"may move after acting until Phase End"
 	)
 	skirmish.target = FactActor.new()
 	skirmish.uses = 2
 	_snapshot(
 			"timed: permission for a target, with uses",
 			skirmish.describe(),
-			"allow May Move After Acting for that unit on its next 2 attacks until Phase End"
+			"that unit may move after acting on its next 2 attacks until Phase End"
 	)
 
 	var block: GainResource.Pool = GainResource.Pool.BLOCK
@@ -253,7 +253,7 @@ func _test_describe_operations() -> void:
 	_snapshot(
 			"gain: HP equal to a share",
 			_gain(GainResource.Pool.HP, null, _percent_of_overheal()).describe(),
-			"heal HP equal to 100% of that overheal"
+			"heal for 100% of that overheal"
 	)
 
 	var cleave: DealSplash = DealSplash.new()
@@ -286,10 +286,10 @@ func _test_describe_operations() -> void:
 
 	var permission_op: SetPermission = SetPermission.new()
 	permission_op.permission = CombatValue.Permission.CAN_BE_SHOVED
-	_snapshot("set permission: allow", permission_op.describe(), "allow Can Be Shoved")
+	_snapshot("set permission: allow", permission_op.describe(), "can be shoved")
 	permission_op.permission = CampaignValue.Permission.STAT_CAN_GROW
 	permission_op.allow = false
-	_snapshot("set permission: deny", permission_op.describe(), "deny Stat Can Grow")
+	_snapshot("set permission: deny", permission_op.describe(), "stats can't grow")
 
 	var grant: CampaignGrant = CampaignGrant.new()
 	grant.amount = 50
@@ -483,7 +483,7 @@ func _test_describe_coverage_fixtures() -> void:
 	_snapshot(
 			"fixture: Overflowing Cup",
 			cup.describe(),
-			"Healed by Your Unit: give that unit Block equal to 100% of that overheal"
+			"When Your Unit is healed: give that unit Block equal to 100% of that overheal"
 	)
 
 	var halve: ModifyThat = ModifyThat.new()
@@ -497,7 +497,7 @@ func _test_describe_coverage_fixtures() -> void:
 	_snapshot(
 			"fixture: Lantern Oil",
 			lantern.describe(),
-			"Darkness damage taken by Your Unit: ×0.5 damage for that darkness damage"
+			"When Your Unit takes darkness damage: ×0.5 damage for that darkness damage"
 	)
 
 	var gold: ModifyValue = _modify_value(CampaignValue.Key.COMBAT_GOLD, ADD, 8.0)
@@ -516,7 +516,7 @@ func _test_describe_coverage_fixtures() -> void:
 	_snapshot(
 			"fixture: Training Weights without stats named (engine cases name them)",
 			_definition(EffectTerms.Trigger.ALWAYS, [], [no_growth, gain_might]).describe(),
-			"Always: deny Stat Can Grow, +1 Level Up Guaranteed Gains"
+			"Always: stats can't grow, +1 Level Up Guaranteed Gains"
 	)
 
 	var minus_one: ModifyThat = ModifyThat.new()
@@ -530,7 +530,7 @@ func _test_describe_coverage_fixtures() -> void:
 	_snapshot(
 			"fixture: Brittle Guard",
 			brittle.describe(),
-			"Block gained by Your Unit: -1 to that Block gain"
+			"When Your Unit gains Block: -1 to that Block gain"
 	)
 	_check(
 			"fixture: Brittle Guard is a curse, not unique",
@@ -548,7 +548,7 @@ func _test_describe_coverage_fixtures() -> void:
 	_snapshot(
 			"fixture: Haunted",
 			haunted.describe(),
-			"Phase Start by Your Unit: deny Can Gain Block for a random one of your units until"
+			"Phase Start: a random one of your units can't gain Block until"
 			+ " the end of the next phase"
 	)
 

@@ -6,15 +6,16 @@
 # File:     forecast_cases.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 9, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends RefCounted
 ## The forecast's and move preview's cases for the ui/display suite (combat UI plan, UI3 and UI5F
 ## rows): forecast rows against [CombatForecast] for an attack, a staff and a shove; the counter
-## and the defeat's chance when the all-hits line defeats the target; the staff's label; the
-## forecast panel as the confirm, its breakdown toggle against explain's stages; weapon cycling
-## with a Sidearm unit, the forecast and the command sent; the move preview against
+## and the defeat's chance when the all-hits line defeats the target; Hit 100 against a keg
+## (UI12); the staff's label; the forecast panel as the confirm, its breakdown toggle against
+## explain's stages; weapon cycling with a Sidearm unit, the forecast and the command sent; the
+## move preview against
 ## [method Darkness.damage_at]
 ## and [method Intents.preview], at most one per frame under a burst of hovers; and FR-GRID-6, a
 ## ranged attack forecast from each tile it can be made from. No autoload is named or needed.
@@ -111,6 +112,7 @@ func run() -> void:
 		return
 	_test_rows_match_forecast()
 	_test_counter_on_kill()
+	_test_object_hit()
 	_test_staff_label()
 	_test_panel_confirms()
 	_test_weapon_cycle()
@@ -235,6 +237,53 @@ func _test_counter_on_kill() -> void:
 			and is_equal_approx(ForecastViewModel.defeat_chance(100, 1, 1), 1.0)
 			and is_equal_approx(ForecastViewModel.defeat_chance(0, 1, 2), 0.0)
 	))
+
+
+# A sword user beside a powder keg on a fixture board: the Hit row's attacker cell reads 100, as
+# the forecast records an attack on a map object (it takes no hit roll), though the unit's own Hit
+# is lower.
+func _test_object_hit() -> void:
+	var catalog: EffectCatalog.Index = EffectCatalog.load_tree(FIXTURE_TREE)
+	var world: AiWorld = AiWorld.new(catalog, PLAIN_8X8, ForecastRolls.new())
+	var layout: MapLayout = world.session.layout
+	layout.add_marker(
+			MapLayout.MarkerKind.OBJECT_SPOT, Vector2i(3, 2), MapLayout.ObjectKind.POWDER_KEG
+	)
+	layout.index_markers()
+	MapObjects.place(world.session)
+	var keg_id: String = ""
+	for object_id: String in world.state().map.objects:
+		if world.state().map.objects[object_id].tile == Vector2i(3, 2):
+			keg_id = object_id
+	world.add_enemy("e1", BRUTE, Vector2i(6, 6))
+	world.add_player("p1", Vector2i(2, 2))
+	# The fixture sword reaches Hit 100 on its own; a test delta brings it under, so the row's 100
+	# can only come from the target being an object.
+	world.engine().add_delta("p1", Modifier.new(
+			CombatValue.Key.HIT, Modifier.Mode.ADD, -60.0, Modifier.SourceKind.UNIT_TRAIT, "",
+			"test",
+	))
+	world.session.open_battle()
+	var command: UnitTurnCommand = UnitTurnCommand.new(
+			0, "p1", UnitTurnCommand.Action.ATTACK, keg_id
+	)
+	var model: ForecastViewModel = ForecastViewModel.build(world.session, command)
+	var found: CombatForecast.ExchangeForecast = model.forecast as CombatForecast.ExchangeForecast
+	var hit_row: ForecastViewModel.Row = model.row("Hit")
+	var own_hit: int = world.engine().stats("p1").get_int(CombatValue.Key.HIT)
+	_check.call("object hit: an attack on a keg forecasts Hit 100", (
+			not keg_id.is_empty()
+			and found != null
+			and found.is_legal
+			and hit_row != null
+			and hit_row.actor == "100%"
+			and own_hit < 100
+	), "keg '%s', legal %s, Hit row %s, own Hit %d" % [
+		keg_id,
+		found != null and found.is_legal,
+		"none" if hit_row == null else "%s | %s" % [hit_row.actor, hit_row.target],
+		own_hit,
+	])
 
 
 # M1's staff forecast names the staff by its label alone: a staff is outside the triangle, so no

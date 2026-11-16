@@ -100,9 +100,6 @@ const CURSES: Dictionary[String, String] = {
 }
 
 # Reviewed effect text, one line per effect.
-# NOTE: "<trigger> by <scope>" reads oddly for facts about the unit itself ("Defeated by Your
-# Unit" is Your Unit being defeated) and for phase facts ("Phase Start by Your Unit"); the
-# wording is P07's generated-text item.
 const TEXT: Dictionary[String, Array] = {
 	# "+2 damage" is +2 at the Attack stage; the profile is the held weapon's.
 	"grandfathers_whetstone": ["While holding a Power weapon: +2 Attack"],
@@ -112,18 +109,18 @@ const TEXT: Dictionary[String, Array] = {
 	"hammerhead_charm": ["Against Armored units: +3 Attack"],
 	"horsebane_charm": ["Against Mounted units: +3 Attack"],
 	"bloodied_banner": [
-		"Defeated an enemy by Your Unit: give that unit +3 Attack on its next attack"
+		"When Your Unit defeats an enemy: give that unit +3 Attack on its next attack"
 		+ " this combat",
 	],
-	"iron_rations": ["First Phase Start by Your Unit this combat: give your units 3 Block"],
+	"iron_rations": ["First Phase Start this combat: give your units 3 Block"],
 	# +5 Hit for that exchange only.
 	"hunters_horn": [
-		"Before Combat by Your Unit, while it is the initiator: give that unit +5 Hit"
+		"Before Your Unit's combat, while it is the initiator: give that unit +5 Hit"
 		+ " this exchange",
 	],
-	"shoving_pole": ["Shoved a unit by Your Unit: give that unit 2 Block"],
-	"sappers_fuse": ["Object used by Your Unit: give that unit 3 Block"],
-	"lantern_oil": ["Darkness damage taken by Your Unit: ×0.5 to that darkness damage"],
+	"shoving_pole": ["When Your Unit shoves a unit: give that unit 2 Block"],
+	"sappers_fuse": ["When Your Unit uses an object: give that unit 3 Block"],
+	"lantern_oil": ["When Your Unit takes darkness damage: ×0.5 to that darkness damage"],
 	"bounty_ledger": ["Always: +8 Combat Gold"],
 	# Percents add points to their base: 20 + 20 is the 40% scrap rate.
 	"scrappers_tongs": ["Always: +20 Scrap Percent"],
@@ -132,34 +129,34 @@ const TEXT: Dictionary[String, Array] = {
 		"Every 5th Hit dealt by Your Unit this combat: the target loses 1 extra Stance",
 	],
 	"war_ledger": ["Every 10th Attack made by Your Unit this campaign: ×2 damage for that attack"],
-	"overflowing_cup": ["Healed by Your Unit: give that unit Block equal to 100% of that overheal"],
+	"overflowing_cup": [
+		"When Your Unit is healed: give that unit Block equal to 100% of that overheal",
+	],
 	"tactical_map": [
-		"First Phase Start by Your Unit this combat: give your units +1 Movement"
-		+ " until Phase End",
+		"First Phase Start this combat: give your units +1 Movement until Phase End",
 	],
 	# The defeated unit is off the map when the Block is given, so "every other one" holds.
-	"grave_candle": ["Defeated by Your Unit: give your units 4 Block"],
-	"warlords_spoils": ["Defeated an enemy by Your Unit: heal that unit for 3"],
+	"grave_candle": ["When Your Unit is defeated: give your units 4 Block"],
+	"warlords_spoils": ["When Your Unit defeats an enemy: heal that unit for 3"],
 	# An opener with no operations, like the Key: MapObjects reads its charge.
 	"burglars_roll": ["Always: (1 use this combat)"],
 	"veterans_medal": ["Always: +20 Shared Xp Percent"],
 	"brothers_in_arms": [
-		"Phase Start by Any Ally Unit: give every ally unit adjacent to a unit of"
-		+ " another player 2 Block",
+		"Allied Phase Start: give every ally unit adjacent to a unit of another player 2 Block",
 	],
 	# The ceiling of 8 is the recruiting step's rule, not this value's.
 	"muster_roll": ["Always: +1 Max Army Size"],
 	"warhorse_lineage": ["Always: +1 Movement"],
 	"ancestral_mail": ["Always: +1 Stance Max"],
 	"bloodhounds_collar": [
-		"Defeated an enemy by Your Unit: allow May Move After Acting for that unit"
-		+ " until Phase End",
+		"When Your Unit defeats an enemy: that unit may move after acting until Phase End",
 	],
-	"champions_belt": ["Defeated an enemy by Your Unit: give that unit +1 Attack this combat"],
+	"champions_belt": [
+		"When Your Unit defeats an enemy: give that unit +1 Attack this combat",
+	],
 	# The commander counts: it is 0 tiles from itself.
 	"commanders_standard": [
-		"Phase Start by Your Unit: give your commander and allies within 2 tiles of"
-		+ " your commander 2 Block",
+		"Phase Start: give your commander and allies within 2 tiles of your commander 2 Block",
 	],
 	"gilded_purse": ["Always: +25 Grade Bonus Percent"],
 	"merchants_ledger": ["Always: +1 Armory Stock"],
@@ -168,19 +165,18 @@ const TEXT: Dictionary[String, Array] = {
 	"tinkers_token": ["Always: +1 Free Rerolls"],
 	# Resolves first, so the ban is in place before Phase Start's Block gains.
 	"haunted": [
-		"Phase Start by Your Unit: deny Can Gain Block for a random one of your units"
+		"Phase Start: a random one of your units can't gain Block"
 		+ " until the end of the next phase",
 	],
 	"short_wick": ["Always: -1 Darkness Arrival Offset"],
 	# A Stance loss at the army's first Phase Start, so it lasts until its next refresh.
 	"shaken_footing": [
-		"First Phase Start by Your Unit this combat: remove 1 Stance from"
-		+ " your units",
+		"First Phase Start this combat: remove 1 Stance from your units",
 	],
 	"heavy_pack": ["Always: +2 Pouch Item Weight"],
 	"leaden_boots": ["Always: -1 SPD"],
-	"brittle_guard": ["Block gained by Your Unit: -1 to that Block gain"],
-	"clouded_sight": ["Always: allow Intents Hidden"],
+	"brittle_guard": ["When Your Unit gains Block: -1 to that Block gain"],
+	"clouded_sight": ["Always: enemy intents are hidden"],
 	"ill_omen": ["While it is the commander: -1 Stance Max"],
 	"hunted": ["Always: +1 Extra Enemies"],
 	# It multiplies, so two copies leave a quarter.

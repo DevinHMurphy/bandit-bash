@@ -6,7 +6,7 @@
 # File:     unit_info_cases.gd
 # Author:
 # Created:  November 6, 2026
-# Modified: November 9, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -15,7 +15,8 @@ extends RefCounted
 ## colour above the maximum, the Exposed look at 0, a drop's lag and the tick fallback; the
 ## forecast dimming the pips its exchange would break; each unit's info staying on its token as the
 ## camera moves; and a Miss for every missed strike and a Critical for every crit, once each, in
-## normal playback, held fast-forward and the faded skip. No autoload is named or needed.
+## normal playback, held fast-forward and the faded skip; Haunted's Block ban on the token and
+## the unit panel (UI12). No autoload is named or needed.
 ##
 ## [b]The battle driver[/b] is unit_display_cases.gd's: each acting unit takes a Staff, else an
 ## Attack on its first target, from its first move tile that offers one, else waits; then End
@@ -35,6 +36,7 @@ const ACTION_MENU_SCENE: PackedScene = preload("res://ui/battle/menus/action_men
 const TARGET_PICKER_SCENE: PackedScene = preload("res://ui/battle/input/target_picker.tscn")
 const CONFIRM_SCENE: PackedScene = preload("res://ui/battle/menus/confirm_dialog.tscn")
 const FORECAST_SCENE: PackedScene = preload("res://ui/battle/forecast/forecast_panel.tscn")
+const UNIT_PANEL_SCENE: PackedScene = preload("res://ui/battle/unit/unit_panel.tscn")
 
 # Any fixed seed: no case compares golden numbers.
 const SEED: int = 0x0C0FFEE
@@ -92,6 +94,52 @@ func run() -> void:
 	_test_follows_camera()
 	_test_popups_synthetic()
 	_test_popups_by_mode()
+	_test_block_ban()
+
+
+# Haunted on seat 0 (UI12): after each of two enemy phases, the units whose tokens show the Block
+# ban are exactly those the session denies CAN_GAIN_BLOCK, one at a time (the last ban expired at
+# the enemy phase's end, as its facts played), and the unit panel names it for that unit only.
+func _test_block_ban() -> void:
+	var h: TurnInputCases.Harness = _harness("block ban: the M1 battle begins")
+	if h == null:
+		return
+	for instance: EffectInstance in Loadout.heirloom_effects(_catalog, "haunted", 0, h.session.ids):
+		h.session.engine.register(instance)
+	var panel: UnitPanel = UNIT_PANEL_SCENE.instantiate()
+	h.hud.add_child(panel)
+	var rounds: PackedStringArray = []
+	var problems: PackedStringArray = []
+	for round_index: int in 2:
+		_wait_phase(h)
+		if h.session.is_finished:
+			break
+		var banned: PackedStringArray = []
+		for unit_id: String in h.session.state.units_of(PLAYER):
+			var denied: bool = not h.session.stats(unit_id).is_allowed(
+					CombatValue.Permission.CAN_GAIN_BLOCK
+			)
+			var token: UnitToken = h.view.token_of(unit_id)
+			if token.is_block_banned != denied or token.info.is_block_ban_shown() != denied:
+				problems.append("round %d %s: denied %s, token %s, mark %s" % [
+					round_index, unit_id, denied, token.is_block_banned,
+					token.info.is_block_ban_shown(),
+				])
+			panel.show_unit(HudViewModel.unit_view(h.session, unit_id))
+			if panel.get_texts()[3].ends_with(panel.block_ban_text) != denied:
+				problems.append("round %d %s: panel '%s'" % [
+					round_index, unit_id, panel.get_texts()[3],
+				])
+			if denied:
+				banned.append(unit_id)
+		if banned.size() != 1:
+			problems.append("round %d: %d units banned" % [round_index, banned.size()])
+		rounds.append(" ".join(banned))
+	_check.call("block ban: the token's mark and the panel follow the session's ban", (
+			problems.is_empty() and rounds.size() == 2
+	), "; ".join(problems) + " (banned: %s)" % [" | ".join(rounds)])
+	panel.free()
+	h.close()
 
 
 # Every unit's HP bar and number match the session at the start ("HP/max", the bar's default);

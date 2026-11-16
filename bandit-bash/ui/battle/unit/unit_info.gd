@@ -6,14 +6,14 @@
 # File:     unit_info.gd
 # Author:
 # Created:  November 6, 2026
-# Modified: November 7, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name UnitInfo
 extends Control
 ## One unit's bars, numbers and icons on the screen-space [UnitInfoLayer]: its [HpBar] with the
-## HP inside, its [StancePips], its [BlockBadge] and the range-tracked icon (combat UI plan,
-## question 29 (2)).
+## HP inside, its [StancePips], its [BlockBadge], the [BlockBanMark] while it can't gain Block
+## and the range-tracked icon (combat UI plan, question 29 (2); UI12).
 ##
 ## Its origin is the unit's centre on screen; the layout is authored in screen pixels, around a
 ## tile drawn about 59 px wide (M1 framed in the default 1152 × 648 window). [UnitToken] gives it
@@ -27,6 +27,7 @@ extends Control
 @onready var _hp_bar: HpBar = %HpBar
 @onready var _stance_pips: StancePips = %StancePips
 @onready var _block_badge: BlockBadge = %BlockBadge
+@onready var _block_ban: BlockBanMark = %BlockBanMark
 @onready var _range_icon: Control = %RangeTrackedIcon
 
 
@@ -67,6 +68,11 @@ func show_block(amount: int) -> void:
 	_block_badge.show_block(amount)
 
 
+## Shows the [BlockBanMark] while [param is_banned]: the unit can't gain Block.
+func show_block_ban(is_banned: bool) -> void:
+	_block_ban.show_ban(is_banned)
+
+
 ## Shows or hides the range-tracked icon.
 func show_range_tracked(is_tracked: bool) -> void:
 	_range_icon.visible = is_tracked
@@ -90,3 +96,8 @@ func get_block_badge() -> BlockBadge:
 ## Whether the range-tracked icon shows.
 func is_range_icon_shown() -> bool:
 	return _range_icon.visible
+
+
+## Whether the [BlockBanMark] shows.
+func is_block_ban_shown() -> bool:
+	return _block_ban.is_shown()
