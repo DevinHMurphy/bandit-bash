@@ -1,0 +1,82 @@
+[gd_scene format=4]
+
+[ext_resource type="TileSet" path="res://maps/greybox_tile_set.tres" id="1_6td0x"]
+[ext_resource type="Script" path="res://scripts/map/map_marker.gd" id="2_arryi"]
+
+[node name="RiverFord" type="Node2D" unique_id=263065002]
+
+[node name="Terrain" type="TileMapLayer" parent="." unique_id=550638142]
+tile_map_data = PackedByteArray("AAAAAAAAAAAHAAAAAAABAAAAAAAQAAAAAAACAAAAAAAYAAAAAAADAAAAAAAQAAAAAAAEAAAAAAAQAAAAAAAFAAAAAAAQAAAAAAAGAAAAAAAQAAAAAAAHAAAAAAAQAAAAAAAIAAAAAAAHAAAAAAAJAAAAAAAHAAAAAAAAAAEAAAAQAAAAAAABAAEAAAAQAAAAAAACAAEAAAAHAAAAAAADAAEAAAAQAAAAAAAEAAEAAAAQAAAAAAAFAAEAAAAHAAAAAAAGAAEAAAAQAAAAAAAHAAEAAAAQAAAAAAAIAAEAAAAQAAAAAAAJAAEAAAAQAAAAAAAAAAIAAAAQAAAAAAABAAIAAAAYAAAAAAACAAIAAAAQAAAAAAADAAIAAAAQAAAAAAAEAAIAAAAQAAAAAAAFAAIAAAAQAAAAAAAGAAIAAAAQAAAAAAAHAAIAAAAYAAAAAAAIAAIAAAAQAAAAAAAJAAIAAAAQAAAAAAAAAAMAAAARAAAAAAABAAMAAAARAAAAAAACAAMAAAAAAAAAAAADAAMAAAARAAAAAAAEAAMAAAARAAAAAAAFAAMAAAARAAAAAAAGAAMAAAARAAAAAAAHAAMAAAAAAAAAAAAIAAMAAAARAAAAAAAJAAMAAAARAAAAAAAAAAQAAAARAAAAAAABAAQAAAARAAAAAAACAAQAAAAAAAAAAAADAAQAAAARAAAAAAAEAAQAAAARAAAAAAAFAAQAAAARAAAAAAAGAAQAAAARAAAAAAAHAAQAAAAAAAAAAAAIAAQAAAARAAAAAAAJAAQAAAARAAAAAAAAAAUAAAAQAAAAAAABAAUAAAAQAAAAAAACAAUAAAAYAAAAAAADAAUAAAAQAAAAAAAEAAUAAAAQAAAAAAAFAAUAAAAQAAAAAAAGAAUAAAAQAAAAAAAHAAUAAAAHAAAAAAAIAAUAAAAQAAAAAAAJAAUAAAAQAAAAAAAAAAYAAAAQAAAAAAABAAYAAAAHAAAAAAACAAYAAAAQAAAAAAADAAYAAAAQAAAAAAAEAAYAAAAUAAAAAAAFAAYAAAAQAAAAAAAGAAYAAAAQAAAAAAAHAAYAAAAQAAAAAAAIAAYAAAAQAAAAAAAJAAYAAAAYAAAAAAAAAAcAAAAQAAAAAAABAAcAAAAQAAAAAAACAAcAAAAQAAAAAAADAAcAAAAQAAAAAAAEAAcAAAAYAAAAAAAFAAcAAAAQAAAAAAAGAAcAAAAQAAAAAAAHAAcAAAAQAAAAAAAIAAcAAAAQAAAAAAAJAAcAAAAQAAAAAAA=")
+tile_set = ExtResource("1_6td0x")
+
+[node name="Markers" type="TileMapLayer" parent="." unique_id=1892900981]
+tile_map_data = PackedByteArray("AAAJAAAAAAAkAAAAAAAGAAIAAAAuAAAAAAAIAAIAAAAuAAAAAAADAAYAAAAdAAAAAAAEAAYAAAAdAAAAAAAFAAYAAAAdAAAAAAAGAAYAAAAdAAAAAAADAAcAAAAdAAAAAAAEAAcAAAAdAAAAAAAFAAcAAAAdAAAAAAAGAAcAAAAdAAAAAAA=")
+tile_set = ExtResource("1_6td0x")
+
+[node name="EnemySlots" type="Node2D" parent="." unique_id=46888646]
+
+[node name="EnemySlot1" type="Node2D" parent="EnemySlots" unique_id=837307104]
+position = Vector2(80, 16)
+script = ExtResource("2_arryi")
+variance_tiles = 2
+group_slot = "A"
+
+[node name="EnemySlot2" type="Node2D" parent="EnemySlots" unique_id=89648123]
+position = Vector2(272, 16)
+script = ExtResource("2_arryi")
+variance_tiles = 2
+group_slot = "A"
+
+[node name="EnemySlot3" type="Node2D" parent="EnemySlots" unique_id=1103566300]
+position = Vector2(16, 48)
+script = ExtResource("2_arryi")
+variance_tiles = 2
+group_slot = "A"
+
+[node name="EnemySlot4" type="Node2D" parent="EnemySlots" unique_id=11398320]
+position = Vector2(176, 48)
+script = ExtResource("2_arryi")
+variance_tiles = 2
+group_slot = "B"
+
+[node name="EnemySlot5" type="Node2D" parent="EnemySlots" unique_id=1793597185]
+position = Vector2(304, 48)
+script = ExtResource("2_arryi")
+variance_tiles = 2
+group_slot = "B"
+
+[node name="EnemySlot6" type="Node2D" parent="EnemySlots" unique_id=1567887847]
+position = Vector2(48, 80)
+script = ExtResource("2_arryi")
+variance_tiles = 2
+
+[node name="EnemySlot7" type="Node2D" parent="EnemySlots" unique_id=208841717]
+position = Vector2(240, 80)
+script = ExtResource("2_arryi")
+variance_tiles = 2
+
+[node name="DarknessSources" type="Node2D" parent="." unique_id=1718742409]
+
+[node name="DarknessSource1" type="Node2D" parent="DarknessSources" unique_id=1101851129]
+position = Vector2(16, 240)
+script = ExtResource("2_arryi")
+kind = 5
+group_id = 0
+
+[node name="DarknessSource2" type="Node2D" parent="DarknessSources" unique_id=2129791745]
+position = Vector2(16, 208)
+script = ExtResource("2_arryi")
+kind = 5
+group_id = 0
+
+[node name="DarknessSource3" type="Node2D" parent="DarknessSources" unique_id=1258888037]
+position = Vector2(304, 240)
+script = ExtResource("2_arryi")
+kind = 5
+group_id = 1
+
+[node name="DarknessSource4" type="Node2D" parent="DarknessSources" unique_id=1743150450]
+position = Vector2(304, 208)
+script = ExtResource("2_arryi")
+kind = 5
+group_id = 1

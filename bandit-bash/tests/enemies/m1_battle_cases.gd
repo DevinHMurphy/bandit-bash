@@ -6,7 +6,7 @@
 # File:     m1_battle_cases.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 13, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -113,9 +113,10 @@ func run() -> void:
 	])
 
 
-# One battle from Begin to its end, or to MAX_TURNS. Through turn [param hold_until], the seat
-# ends its turn without acting.
-func play(map: CombatMapDefinition, hold_until: int = 0) -> Battle:
+## One battle on [param map] from Begin to its end, or to [constant MAX_TURNS], at node
+## [constant NODE] of [param floor_number]. Through turn [param hold_until], the seat ends its turn
+## without acting. Also played by map_set_battle_cases.gd on every map of the M2 set.
+func play(map: CombatMapDefinition, hold_until: int = 0, floor_number: int = FLOOR) -> Battle:
 	var played: Battle = Battle.new()
 	var run: CampaignSession = CampaignSession.new(
 			CampaignData.Mode.SOLO, SEED, PackedInt32Array([0])
@@ -127,7 +128,7 @@ func play(map: CombatMapDefinition, hold_until: int = 0) -> Battle:
 	army.item_instances = mercenary.items
 	army.heirloom_ids = mercenary.heirloom_ids
 	var request: CampaignSession.BattleRequest = CampaignSession.BattleRequest.new()
-	request.floor_number = FLOOR
+	request.floor_number = floor_number
 	request.node = NODE
 	request.pool = [map]
 	request.catalog = _catalog

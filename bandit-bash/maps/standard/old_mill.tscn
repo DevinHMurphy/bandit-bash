@@ -1,0 +1,96 @@
+[gd_scene format=4]
+
+[ext_resource type="TileSet" path="res://maps/greybox_tile_set.tres" id="1_dgjrd"]
+[ext_resource type="Script" path="res://scripts/map/map_marker.gd" id="2_iwntn"]
+
+[node name="OldMill" type="Node2D" unique_id=1961369771]
+
+[node name="Terrain" type="TileMapLayer" parent="." unique_id=128483436]
+tile_map_data = PackedByteArray("AAAAAAAAAAAQAAAAAAABAAAAAAAQAAAAAAACAAAAAAAHAAAAAAADAAAAAAAQAAAAAAAEAAAAAAAQAAAAAAAFAAAAAAAQAAAAAAAGAAAAAAAYAAAAAAAHAAAAAAAQAAAAAAAIAAAAAAAQAAAAAAAJAAAAAAAHAAAAAAAAAAEAAAAYAAAAAAABAAEAAAAaAAAAAAACAAEAAAAaAAAAAAADAAEAAAAaAAAAAAAEAAEAAAAaAAAAAAAFAAEAAAAQAAAAAAAGAAEAAAAQAAAAAAAHAAEAAAAQAAAAAAAIAAEAAAAQAAAAAAAJAAEAAAAQAAAAAAAAAAIAAAAQAAAAAAABAAIAAAAaAAAAAAACAAIAAAAGAAAAAAADAAIAAAAGAAAAAAAEAAIAAAAaAAAAAAAFAAIAAAAQAAAAAAAGAAIAAAAQAAAAAAAHAAIAAAAHAAAAAAAIAAIAAAAQAAAAAAAJAAIAAAAQAAAAAAAAAAMAAAAQAAAAAAABAAMAAAAaAAAAAAACAAMAAAAGAAAAAAADAAMAAAAGAAAAAAAEAAMAAAAaAAAAAAAFAAMAAAAQAAAAAAAGAAMAAAAaAAAAAAAHAAMAAAAaAAAAAAAIAAMAAAAQAAAAAAAJAAMAAAAaAAAAAAAAAAQAAAAQAAAAAAABAAQAAAAaAAAAAAACAAQAAAAaAAAAAAADAAQAAAAGAAAAAAAEAAQAAAAaAAAAAAAFAAQAAAAQAAAAAAAGAAQAAAAQAAAAAAAHAAQAAAAQAAAAAAAIAAQAAAAQAAAAAAAJAAQAAAAQAAAAAAAAAAUAAAAQAAAAAAABAAUAAAAQAAAAAAACAAUAAAAQAAAAAAADAAUAAAASAAAAAAAEAAUAAAAQAAAAAAAFAAUAAAAQAAAAAAAGAAUAAAAQAAAAAAAHAAUAAAAYAAAAAAAIAAUAAAAQAAAAAAAJAAUAAAAQAAAAAAAAAAYAAAAQAAAAAAABAAYAAAAYAAAAAAACAAYAAAAQAAAAAAADAAYAAAASAAAAAAAEAAYAAAAQAAAAAAAFAAYAAAAQAAAAAAAGAAYAAAAHAAAAAAAHAAYAAAAQAAAAAAAIAAYAAAAQAAAAAAAJAAYAAAAQAAAAAAAAAAcAAAAQAAAAAAABAAcAAAAQAAAAAAACAAcAAAAQAAAAAAADAAcAAAASAAAAAAAEAAcAAAAQAAAAAAAFAAcAAAAQAAAAAAAGAAcAAAAQAAAAAAAHAAcAAAAQAAAAAAAIAAcAAAAQAAAAAAAJAAcAAAAQAAAAAAA=")
+tile_set = ExtResource("1_dgjrd")
+
+[node name="Markers" type="TileMapLayer" parent="." unique_id=88476640]
+tile_map_data = PackedByteArray("AAACAAIAAAAoAAAAAAAIAAMAAAAsAAAAAAAEAAYAAAAdAAAAAAAFAAYAAAAdAAAAAAAGAAYAAAAdAAAAAAAHAAYAAAAdAAAAAAAEAAcAAAAdAAAAAAAFAAcAAAAdAAAAAAAGAAcAAAAdAAAAAAAHAAcAAAAdAAAAAAA=")
+tile_set = ExtResource("1_dgjrd")
+
+[node name="EnemySlots" type="Node2D" parent="." unique_id=471565321]
+
+[node name="EnemySlot1" type="Node2D" parent="EnemySlots" unique_id=997059564]
+position = Vector2(16, 16)
+script = ExtResource("2_iwntn")
+variance_tiles = 2
+group_slot = "A"
+
+[node name="EnemySlot2" type="Node2D" parent="EnemySlots" unique_id=762248449]
+position = Vector2(112, 16)
+script = ExtResource("2_iwntn")
+variance_tiles = 2
+group_slot = "A"
+
+[node name="EnemySlot3" type="Node2D" parent="EnemySlots" unique_id=856368272]
+position = Vector2(240, 16)
+script = ExtResource("2_iwntn")
+variance_tiles = 2
+group_slot = "A"
+
+[node name="EnemySlot4" type="Node2D" parent="EnemySlots" unique_id=111582708]
+position = Vector2(304, 48)
+script = ExtResource("2_iwntn")
+variance_tiles = 2
+group_slot = "B"
+
+[node name="EnemySlot5" type="Node2D" parent="EnemySlots" unique_id=1995976050]
+position = Vector2(16, 80)
+script = ExtResource("2_iwntn")
+variance_tiles = 2
+group_slot = "B"
+
+[node name="EnemySlot6" type="Node2D" parent="EnemySlots" unique_id=1985479511]
+position = Vector2(208, 80)
+script = ExtResource("2_iwntn")
+variance_tiles = 2
+
+[node name="EnemySlot7" type="Node2D" parent="EnemySlots" unique_id=1610440902]
+position = Vector2(272, 80)
+script = ExtResource("2_iwntn")
+variance_tiles = 2
+
+[node name="Objects" type="Node2D" parent="." unique_id=1084925974]
+
+[node name="Door1" type="Node2D" parent="Objects" unique_id=1776321255]
+position = Vector2(112, 144)
+script = ExtResource("2_iwntn")
+kind = 1
+group_id = 0
+
+[node name="Lever1" type="Node2D" parent="Objects" unique_id=306614939]
+position = Vector2(176, 48)
+script = ExtResource("2_iwntn")
+kind = 2
+group_id = 0
+
+[node name="DarknessSources" type="Node2D" parent="." unique_id=743151943]
+
+[node name="DarknessSource1" type="Node2D" parent="DarknessSources" unique_id=1025730468]
+position = Vector2(112, 240)
+script = ExtResource("2_iwntn")
+kind = 5
+group_id = 0
+
+[node name="DarknessSource2" type="Node2D" parent="DarknessSources" unique_id=2053146934]
+position = Vector2(16, 176)
+script = ExtResource("2_iwntn")
+kind = 5
+group_id = 1
+
+[node name="DarknessSource3" type="Node2D" parent="DarknessSources" unique_id=1204977773]
+position = Vector2(16, 208)
+script = ExtResource("2_iwntn")
+kind = 5
+group_id = 1
+
+[node name="DarknessSource4" type="Node2D" parent="DarknessSources" unique_id=945967543]
+position = Vector2(304, 240)
+script = ExtResource("2_iwntn")
+kind = 5
+group_id = 2

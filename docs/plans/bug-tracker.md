@@ -46,6 +46,7 @@ Not a bug.
 | [BUG-006](#bug-006-netlog-raises-an-engine-error-once-the-peer-is-cleared) | NetLog raises an engine error once the peer is cleared | P00 / P10 | S3 | Assigned (BF1) | November 9, 2026, O3 report | BF1 |
 | [BUG-008](#bug-008-a-mirror-keeps-a-used-up-consumable) | A mirror keeps a used-up consumable, so its hash differs from the host's | P02 / P11 | S2 | Assigned (BF1) | November 13, 2026, CT5 report | BF1 |
 | [BUG-011](#bug-011-a-test-run-deletes-another-runs-override) | A test run's cleanup deletes another run's `override.cfg` in the same checkout | P14 (runner) | S3 | New, **low priority** (user, November 14, 2026) | November 14, 2026, RN4 merge | — (no step until a free slot) |
+| [BUG-012](#bug-012-loading-the-map-pools-in-a-test-leaks-resources) | Loading `CombatMapPools.load_default()` inside the board suite's route case leaves 74 objects and 58 resources in use at exit | P04 (map pools) / tests | S4 | New | November 16, 2026, MP10a report | — (worked around in the test) |
 
 ### BUG-001 No Block at the start of combat
 
@@ -212,3 +213,12 @@ Not a bug.
 | [BUG-007](#bug-007-test-runs-in-two-worktrees-share-one-user-folder) | Test runs in two worktrees share one user folder | P14 (runner) | S3 | Fixed (BF2, 76774d4, November 12, 2026) | — |
 | [BUG-009](#bug-009-a-second-copy-of-a-heirloom-never-reaches-the-battle) | A second copy of a heirloom or curse never reaches the battle | P08 / P09 | S2 | Fixed (RN3, 9e34098, November 13, 2026) | — |
 | [BUG-010](#bug-010-save-select-shows-a-stale-floor) | Save Select's floor doesn't follow the run's floor | P08 | S4 | Fixed (RN3, 9e34098, November 13, 2026) | — |
+
+### BUG-012 Loading the map pools in a test leaks resources
+
+- **Found:** MP10a's report. Calling `CombatMapPools.load_default()` inside the ui/board suite's
+  route case leaves 74 objects and 58 resources in use at exit. The battle screen's own call to the
+  same function doesn't.
+- **Cause:** not investigated. MP10a worked around it in the test.
+- **Expected:** loading the pools from a test frees everything at exit, as the battle screen does.
+- **Harm seen:** an exit warning only; no wrong result.

@@ -1,0 +1,82 @@
+[gd_scene format=4]
+
+[ext_resource type="TileSet" path="res://maps/greybox_tile_set.tres" id="1_dtxe1"]
+[ext_resource type="Script" path="res://scripts/map/map_marker.gd" id="2_ad1wp"]
+
+[node name="RuinedChapel" type="Node2D" unique_id=1285636344]
+
+[node name="Terrain" type="TileMapLayer" parent="." unique_id=1851864207]
+tile_map_data = PackedByteArray("AAAAAAAAAAATAAAAAAABAAAAAAATAAAAAAACAAAAAAAGAAAAAAADAAAAAAAOAAAAAAAEAAAAAAAGAAAAAAAFAAAAAAAGAAAAAAAGAAAAAAAOAAAAAAAHAAAAAAAGAAAAAAAIAAAAAAATAAAAAAAJAAAAAAATAAAAAAAAAAEAAAATAAAAAAABAAEAAAAGAAAAAAACAAEAAAAGAAAAAAADAAEAAAAGAAAAAAAEAAEAAAAGAAAAAAAFAAEAAAAGAAAAAAAGAAEAAAAGAAAAAAAHAAEAAAAGAAAAAAAIAAEAAAAGAAAAAAAJAAEAAAATAAAAAAAAAAIAAAAQAAAAAAABAAIAAAAGAAAAAAACAAIAAAAOAAAAAAADAAIAAAAGAAAAAAAEAAIAAAATAAAAAAAFAAIAAAATAAAAAAAGAAIAAAAGAAAAAAAHAAIAAAAOAAAAAAAIAAIAAAAGAAAAAAAJAAIAAAAQAAAAAAAAAAMAAAAQAAAAAAABAAMAAAAQAAAAAAACAAMAAAAQAAAAAAADAAMAAAATAAAAAAAEAAMAAAAQAAAAAAAFAAMAAAAQAAAAAAAGAAMAAAATAAAAAAAHAAMAAAAQAAAAAAAIAAMAAAAQAAAAAAAJAAMAAAAQAAAAAAAAAAQAAAAQAAAAAAABAAQAAAAUAAAAAAACAAQAAAAQAAAAAAADAAQAAAAQAAAAAAAEAAQAAAAQAAAAAAAFAAQAAAAQAAAAAAAGAAQAAAAQAAAAAAAHAAQAAAAQAAAAAAAIAAQAAAAUAAAAAAAJAAQAAAAQAAAAAAAAAAUAAAAQAAAAAAABAAUAAAAQAAAAAAACAAUAAAAHAAAAAAADAAUAAAAQAAAAAAAEAAUAAAATAAAAAAAFAAUAAAATAAAAAAAGAAUAAAAQAAAAAAAHAAUAAAAHAAAAAAAIAAUAAAAQAAAAAAAJAAUAAAAQAAAAAAAAAAYAAAAQAAAAAAABAAYAAAAQAAAAAAACAAYAAAAQAAAAAAADAAYAAAAYAAAAAAAEAAYAAAAQAAAAAAAFAAYAAAAQAAAAAAAGAAYAAAAYAAAAAAAHAAYAAAAQAAAAAAAIAAYAAAAQAAAAAAAJAAYAAAAQAAAAAAAAAAcAAAAQAAAAAAABAAcAAAAHAAAAAAACAAcAAAAQAAAAAAADAAcAAAAQAAAAAAAEAAcAAAAQAAAAAAAFAAcAAAAQAAAAAAAGAAcAAAAQAAAAAAAHAAcAAAAQAAAAAAAIAAcAAAAHAAAAAAAJAAcAAAAQAAAAAAA=")
+tile_set = ExtResource("1_dtxe1")
+
+[node name="Markers" type="TileMapLayer" parent="." unique_id=1755459542]
+tile_map_data = PackedByteArray("AAAFAAAAAAApAAAAAAAEAAEAAAAvAAAAAAAGAAQAAAAvAAAAAAADAAYAAAAdAAAAAAAEAAYAAAAdAAAAAAAFAAYAAAAdAAAAAAAGAAYAAAAdAAAAAAADAAcAAAAdAAAAAAAEAAcAAAAdAAAAAAAFAAcAAAAdAAAAAAAGAAcAAAAdAAAAAAA=")
+tile_set = ExtResource("1_dtxe1")
+
+[node name="EnemySlots" type="Node2D" parent="." unique_id=1165214991]
+
+[node name="EnemySlot1" type="Node2D" parent="EnemySlots" unique_id=2141326685]
+position = Vector2(48, 16)
+script = ExtResource("2_ad1wp")
+variance_tiles = 2
+group_slot = "A"
+
+[node name="EnemySlot2" type="Node2D" parent="EnemySlots" unique_id=1144761831]
+position = Vector2(240, 16)
+script = ExtResource("2_ad1wp")
+variance_tiles = 2
+group_slot = "A"
+
+[node name="EnemySlot3" type="Node2D" parent="EnemySlots" unique_id=1760856039]
+position = Vector2(80, 48)
+script = ExtResource("2_ad1wp")
+variance_tiles = 2
+group_slot = "A"
+
+[node name="EnemySlot4" type="Node2D" parent="EnemySlots" unique_id=1616484961]
+position = Vector2(176, 48)
+script = ExtResource("2_ad1wp")
+variance_tiles = 2
+group_slot = "B"
+
+[node name="EnemySlot5" type="Node2D" parent="EnemySlots" unique_id=342730369]
+position = Vector2(272, 48)
+script = ExtResource("2_ad1wp")
+variance_tiles = 2
+group_slot = "B"
+
+[node name="EnemySlot6" type="Node2D" parent="EnemySlots" unique_id=189199379]
+position = Vector2(16, 80)
+script = ExtResource("2_ad1wp")
+variance_tiles = 2
+
+[node name="EnemySlot7" type="Node2D" parent="EnemySlots" unique_id=506962076]
+position = Vector2(304, 80)
+script = ExtResource("2_ad1wp")
+variance_tiles = 2
+
+[node name="DarknessSources" type="Node2D" parent="." unique_id=1870796822]
+
+[node name="DarknessSource1" type="Node2D" parent="DarknessSources" unique_id=431520271]
+position = Vector2(16, 208)
+script = ExtResource("2_ad1wp")
+kind = 5
+group_id = 0
+
+[node name="DarknessSource2" type="Node2D" parent="DarknessSources" unique_id=1098879596]
+position = Vector2(16, 240)
+script = ExtResource("2_ad1wp")
+kind = 5
+group_id = 0
+
+[node name="DarknessSource3" type="Node2D" parent="DarknessSources" unique_id=1173835920]
+position = Vector2(304, 208)
+script = ExtResource("2_ad1wp")
+kind = 5
+group_id = 1
+
+[node name="DarknessSource4" type="Node2D" parent="DarknessSources" unique_id=2097502137]
+position = Vector2(304, 240)
+script = ExtResource("2_ad1wp")
+kind = 5
+group_id = 1

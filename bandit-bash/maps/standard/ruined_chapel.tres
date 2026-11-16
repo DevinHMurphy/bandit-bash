@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="CombatMapDefinition" format=3]
+
+[ext_resource type="PackedScene" path="res://maps/standard/ruined_chapel.tscn" id="1_iuvbe"]
+[ext_resource type="Script" path="res://scripts/map/combat_map_definition.gd" id="2_7sreq"]
+
+[resource]
+script = ExtResource("2_7sreq")
+id = "ruined_chapel"
+scene = ExtResource("1_iuvbe")
+; ASSUMPTION: turn par 5, as M1's (the middle of game-vision.md's standard target, 4-6), until
+; playtesting measures a clean clear (par = its turns + 1).
+turn_par = 5

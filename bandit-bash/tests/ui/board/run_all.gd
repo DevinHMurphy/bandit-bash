@@ -6,14 +6,14 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 14, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 extends "res://tests/ui/ui_suite.gd"
 ## Combat UI board suite (combat UI plan, P07): the board, enemy information and the unit info
 ## layer, a cases file each in [code]tests/ui/battle/[/code] (preloaded below; each one's class
 ## doc lists its checks); then the gameplay screen itself: a run saved mid-battle and continued
-## opens on the board at its saved state; a new solo run's M1 battle played to its end, the
+## opens on the board at its saved state; a new solo run's first battle played to its end, the
 ## control hints showing PLAYBACK through its final playback until the end banner, its Victory or
 ## Defeat banner, and the route to Results. The shared helpers are
 ## [code]tests/ui/ui_suite.gd[/code]'s.
@@ -170,7 +170,7 @@ func _end_continue_case() -> void:
 	SaveFile.delete_folder("user://saves/")
 
 
-# A new solo run enters the gameplay screen, which begins the M1 battle; the swap window's Start
+# A new solo run enters the gameplay screen, which begins its first battle; the swap window's Start
 # and the turn bar's End Turn (confirming its question) play it until it ends, and the screen ends
 # it, shows its end banner and, after end_banner_time, routes to Results. Returns true once the
 # banner shows, so _poll_route() waits for the route and the remaining checks a few frames more.
@@ -198,10 +198,12 @@ func _start_route_case() -> bool:
 	var view: BattleView = screen.call(&"get_view")
 	var controller: BattleController = screen.call(&"get_controller")
 	var session: CombatSession = view.get_session()
-	_check("screen: entering it begins the M1 battle", (
+	# Not compared with the pools: loading them here leaves resources in use at exit.
+	_check("screen: entering it begins a battle on a standard map, not M1", (
 			run.encounter != null
 			and session != null
-			and session.setup.map.id == "m1_greybox"
+			and session.setup.map.combat_type == CombatMapDefinition.CombatType.STANDARD
+			and session.setup.map.id != "m1_greybox"
 			and saves.get(&"combat") != null
 	))
 	if session == null:
@@ -209,9 +211,14 @@ func _start_route_case() -> bool:
 		return false
 	var sorted_ids: PackedStringArray = session.state.unit_ids()
 	sorted_ids.sort()
+	# The army's 4 and a step-1 pack's 3; the map's breakable objects have tokens too.
+	var fighters: int = (
+			session.state.units_of(CombatFact.CombatSide.PLAYER).size()
+			+ session.state.units_of(CombatFact.CombatSide.ENEMY).size()
+	)
 	_check("screen: one token per unit, each on its tile", (
 			view.token_ids() == sorted_ids
-			and sorted_ids.size() == 7
+			and fighters == 7
 			and view.mismatches().is_empty()
 	), "%s; %s" % [view.token_ids(), view.mismatches()])
 
