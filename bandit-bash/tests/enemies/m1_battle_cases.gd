@@ -115,14 +115,27 @@ func run() -> void:
 
 ## One battle on [param map] from Begin to its end, or to [constant MAX_TURNS], at node
 ## [constant NODE] of [param floor_number]. Through turn [param hold_until], the seat ends its turn
-## without acting. Also played by map_set_battle_cases.gd on every map of the M2 set.
-func play(map: CombatMapDefinition, hold_until: int = 0, floor_number: int = FLOOR) -> Battle:
+## without acting. Each army unit first levels up to [param army_level] through [LevelUp], drawn
+## from the seed's [code]LEVEL_UPS[/code] stream in roster order. Also played by
+## map_set_battle_cases.gd on every map of the M2 set.
+func play(
+		map: CombatMapDefinition,
+		hold_until: int = 0,
+		floor_number: int = FLOOR,
+		army_level: int = 1
+) -> Battle:
 	var played: Battle = Battle.new()
 	var run: CampaignSession = CampaignSession.new(
 			CampaignData.Mode.SOLO, SEED, PackedInt32Array([0])
 	)
 	var mercenary: StartingArmy = StartingArmy.build(_catalog, "mercenary", run.ids)
 	played.problems.append_array(mercenary.problems)
+	var level_ups: RngStream = RngStreams.new(SEED).stream(
+			RngKey.new(RngKey.RngPurpose.LEVEL_UPS, floor_number, NODE, 0, -1)
+	)
+	for unit: UnitInstance in mercenary.units:
+		while unit.level < army_level:
+			LevelUp.level_up(unit, null, level_ups, _catalog)
 	var army: CampaignSession.Army = CampaignSession.Army.new()
 	army.unit_instances = mercenary.units
 	army.item_instances = mercenary.items

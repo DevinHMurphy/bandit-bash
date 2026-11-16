@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="CombatMapDefinition" format=3]
+
+[ext_resource type="PackedScene" path="res://maps/key/village.tscn" id="1_rkkxj"]
+[ext_resource type="Script" path="res://scripts/map/combat_map_definition.gd" id="2_xyhfn"]
+
+[resource]
+script = ExtResource("2_xyhfn")
+id = "village"
+scene = ExtResource("1_rkkxj")
+combat_type = 1
+objective = 5
+; ASSUMPTION: turn par 5, below survive_turns, so only an early end (no enemy left and every
+; reinforcement point closed) earns the speed bonus; waiting it out still wins.
+turn_par = 5
+; ASSUMPTION: 6 turns, a first value (Godot_FE's Survive maps used 7-8 on larger maps), until
+; playtesting sets it.
+survive_turns = 6

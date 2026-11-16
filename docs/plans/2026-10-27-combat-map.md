@@ -1,7 +1,7 @@
 # Plan: Combat Map
 **Date:** October 27, 2026
 **Status:** **Approved** October 27, 2026; MP1–MP3 (with fix-ups) and MP4 (with P02 CC6)
-implemented October 28, 2026; MP5, MP6 and MP7 implemented October 29, 2026 (461 headless map tests pass); MP10a (the six standard maps) built November 16, 2026 on `feature/MP10`, MP10b (the key maps) next (question 27). After review (questions 12–13 answered; "within N
+implemented October 28, 2026; MP5, MP6 and MP7 implemented October 29, 2026 (461 headless map tests pass); MP10a (the six standard maps) merged and MP10b (the four key maps) built November 16, 2026 (question 27). After review (questions 12–13 answered; "within N
 movable tiles" cut; no prep screen in any combat). Orchestrator ID **P04**
 ([game-orchestrator.md](game-orchestrator.md)). Its approval opens P01 EB6 (sessions).
 
