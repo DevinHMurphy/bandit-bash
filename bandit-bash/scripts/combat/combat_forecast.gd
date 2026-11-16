@@ -11,8 +11,9 @@
 
 class_name CombatForecast
 extends RefCounted
-## The player's forecast of an attack, a staff or a shove, and the AI's exchange summary, both by
-## running the command's own resolver in a [Sandbox] (combat core plan, Forecast and AI summary).
+## The player's forecast of an attack, a staff, a shove or a rune, and the AI's exchange summary,
+## all by running the command's own resolver in a [Sandbox] (combat core plan, Forecast and AI
+## summary). A rune's preview ([method rune]) runs [method CastRuneCommand.cast_on].
 ##
 ## Each preview copies the engine, walks the [UnitTurnCommand]'s path
 ## ([method UnitTurnCommand.walk_path]) and resolves its action with [ExchangeResolver],
@@ -76,6 +77,52 @@ static func shove(
 	var forecast: ShoveForecast = _preview(
 			engine, command, rolls, UnitTurnCommand.Action.SHOVE, true
 	)
+	return forecast
+
+
+## The preview of [param command]'s rune cast: the tiles it acts on and every unit it changes,
+## from the same cast the command resolves ([method CastRuneCommand.cast_on]) on a sandbox, so its
+## facts are the cast's facts. The phase isn't checked. Reads the rune catalog, so it runs on the
+## main thread.
+static func rune(engine: EffectEngine, command: CastRuneCommand) -> RuneForecast:
+	var forecast: RuneForecast = RuneForecast.new()
+	var sandbox: Sandbox = Sandbox.new(engine, ForecastRolls.new())
+	var trial: EffectEngine = sandbox.engine
+	var state: CombatState = trial.state as CombatState
+	if state == null:
+		forecast.reason = "the engine's state is not a combat state"
+		return forecast
+	var definition: RuneDefinition = RuneResolver.definition_of(trial, command.rune_id)
+	forecast.rune_id = command.rune_id
+	forecast.target_kind = "" if definition == null else definition.target_kind
+	forecast.target_id = command.target_id
+	forecast.second_target_id = command.second_target_id
+	var before: Dictionary[String, UnitOutcome] = {}
+	for unit_id: String in state.unit_ids():
+		before[unit_id] = UnitOutcome.before(state, unit_id)
+	var on_tile: Array[MapState.ObjectState] = state.map.objects_at(command.tile)
+	forecast.object_id = "" if on_tile.is_empty() else on_tile[0].id
+
+	trial.begin_step()
+	forecast.reason = command.cast_on(trial, CastRuneCommand.sandbox_rule(trial))
+	trial.drain()
+
+	forecast.is_legal = forecast.reason.is_empty()
+	forecast.facts = sandbox.facts()
+	forecast.rolls = sandbox.roll_records()
+	forecast.diagnostics = trial.diagnostics
+	if not forecast.facts.is_empty():
+		forecast.based_on_seq = forecast.facts[0].seq - 1
+	for unit_id: String in before:
+		var outcome_of: UnitOutcome = before[unit_id]
+		outcome_of.finish(state)
+		var is_named: bool = (
+				unit_id == forecast.target_id or unit_id == forecast.second_target_id
+		)
+		if outcome_of.is_changed() or (is_named and forecast.is_legal):
+			forecast.units.append(outcome_of)
+	if forecast.is_legal:
+		forecast.fill_tiles(state, command.tile, before)
 	return forecast
 
 
@@ -632,6 +679,52 @@ class ShoveForecast:
 
 	## Where the target goes and why it stops; null when the shove isn't legal.
 	var path: ShoveResolver.Path = null
+
+
+## A rune cast's preview: the tiles it acts on and, in [member Forecast.units], every unit it
+## changes plus the units it names.
+class RuneForecast:
+	extends Forecast
+
+	## The rune's instance id.
+	var rune_id: String = ""
+	## Its [member RuneDefinition.target_kind]; empty when the rune has no definition here.
+	var target_kind: String = ""
+	## Recall's second unit; empty for every other rune.
+	var second_target_id: String = ""
+	## The object an object rune acts on; empty when none stands on the tile, or for other runes.
+	var object_id: String = ""
+	## The tiles it acts on, each once, in the order reached: a unit rune's unit's tile, Recall's
+	## two tiles before the swap, Spark's keg tile then every tile each exploding keg's blast
+	## ([constant MapObjects.KEG_BLAST]) covers, down the chain. Blast tiles past the map's edge
+	## are kept, for the board to drop. Empty when the cast isn't legal.
+	var tiles: Array[Vector2i] = []
+
+	## Fills [member tiles] from the facts, with [param state] after the cast, [param on_tile] the
+	## command's tile and [param before] each unit as it was.
+	func fill_tiles(
+			state: CombatState, on_tile: Vector2i, before: Dictionary[String, UnitOutcome]
+	) -> void:
+		for unit_id: String in [target_id, second_target_id]:
+			if before.has(unit_id):
+				_add(before[unit_id].tile_before)
+		if on_tile != CombatFact.NO_TILE:
+			_add(on_tile)
+		for fact: CombatFact in facts:
+			if (
+					fact.kind != CombatFact.Kind.OBJECT_STATE_CHANGED
+					or fact.key != MapObjects.Change.DESTROYED
+			):
+				continue
+			var broken: MapState.ObjectState = state.map.object(fact.actor_id)
+			if broken == null or broken.kind != MapLayout.ObjectKind.POWDER_KEG:
+				continue
+			for covered: Vector2i in MapObjects.KEG_BLAST.tiles(broken.tile):
+				_add(covered)
+
+	func _add(tile: Vector2i) -> void:
+		if tile != CombatFact.NO_TILE and not tiles.has(tile):
+			tiles.append(tile)
 
 
 ## One unit before and after a preview.

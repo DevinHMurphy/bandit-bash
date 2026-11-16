@@ -22,8 +22,8 @@ operations = Array[ExtResource("2_ops")]([SubResource("Resource_op")])
 
 [resource]
 script = ExtResource("9_def")
-target_kind = "area"
-shape_id = "fixture_adjacent"
+target_kind = "unit"
+target_side = "player"
 id = "fixture_mend"
 display_name = "Fixture Mend"
 effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])

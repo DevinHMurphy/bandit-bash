@@ -6,7 +6,7 @@
 # File:     cast_rune_command.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 30, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name CastRuneCommand
@@ -15,38 +15,54 @@ extends Command
 ##
 ## Runes are outside the action economy and act for no unit, so any seat holding the rune may
 ## cast it during this map's player phase, a teammate's map included (the encounter routes it
-## there with the caster's seat). A seat that has ended its turn here can't. Most runes fire their
-## effect on [member target_id]; Recall swaps [member target_id] and [member second_target_id],
-## two of the seat's units. A rune cast on a map object (Spark on a powder keg) runs the map's
-## [constant CombatHooks.Hook.OBJECT_OPERATIONS] instead ([method RuneResolver.cast_on_object]);
-## validation tries the map's own rule ([method MapObjects.operate]) on a sandbox copy, since the
-## hook acts on the real session.
+## there with the caster's seat). A seat that has ended its turn here can't. The rune's
+## [member RuneDefinition.target_kind] says which fields the cast names, and a cast naming any
+## other is refused: a [code]unit[/code] rune [member target_id]; a [code]pair[/code] rune (Recall)
+## [member target_id] and [member second_target_id]; an [code]object[/code] rune (Spark)
+## [member tile], whose object the map's [constant CombatHooks.Hook.OBJECT_OPERATIONS] act on.
+## [method cast_on] is the one cast path: [method resolve] runs it on the session, [method validate]
+## and [method CombatForecast.rune] on a sandbox copy, where the map's own rule
+## ([method MapObjects.operate]) stands in for the hooks, which act on the real session.
 ##
 ## @tutorial(Combat core plan): docs/plans/2026-10-26-combat-core.md
 
 ## Its name on the wire ([method Command.get_wire_type]). Its fields follow the common ones: the
-## rune, the target, the second target.
+## rune, the target, the second target, the tile ([code][x, y][/code], or [code][][/code] for none).
 const WIRE_TYPE: String = "cast_rune"
+
+# What each kind's cast names, the refusal of one that names something else.
+const _NEEDS: Dictionary[String, String] = {
+	ContentIds.RUNE_UNIT: "a unit rune names one unit and no tile",
+	ContentIds.RUNE_PAIR: "a pair rune names two units and no tile",
+	ContentIds.RUNE_OBJECT: "an object rune names a tile and no unit",
+}
 
 ## The rune's instance id, in [member CombatState.rune_slots] of the seat.
 var rune_id: String = ""
 
-## The unit the rune acts on; Recall's first unit.
+## The unit a [code]unit[/code] rune acts on; Recall's first unit. Empty for an object rune.
 var target_id: String = ""
 
-# ASSUMPTION: a cast naming a second unit is Recall, until the rune catalog (P03) says which rune
-# is Recall.
 ## Recall's second unit; empty for every other rune.
 var second_target_id: String = ""
 
+## The tile of the object an [code]object[/code] rune acts on; [constant CombatFact.NO_TILE] for
+## every other rune.
+var tile: Vector2i = CombatFact.NO_TILE
+
 
 func _init(
-		sender: int = -1, rune: String = "", target: String = "", second_target: String = ""
+		sender: int = -1,
+		rune: String = "",
+		target: String = "",
+		second_target: String = "",
+		on_tile: Vector2i = CombatFact.NO_TILE
 ) -> void:
 	seat = sender
 	rune_id = rune
 	target_id = target
 	second_target_id = second_target
+	tile = on_tile
 
 
 func get_label() -> String:
@@ -65,66 +81,93 @@ func validate(session: CombatSession) -> String:
 	var reason: String = CommandValidator.player_phase_reason(session, seat)
 	if not reason.is_empty():
 		return reason
-	if second_target_id.is_empty() and _rune_effect(session.engine) == null:
-		return "%s has no effect on this map" % [rune_id]
 	# The resolver's own checks (the slot, the targets, whether the effect can fire) run on a copy.
 	var trial: EffectEngine = session.engine.copy_for_sandbox(ForcedRolls.new())
-	var trial_state: CombatState = trial.state
-	if _is_on_object(trial_state):
-		var try_rule: Callable = func(rune: String, object_id: String) -> bool:
-			return MapObjects.operate(trial, trial_state, rune, object_id)
-		return RuneResolver.cast_on_object(
-				trial, trial_state, seat, _rune_effect(trial), target_id, try_rule
-		)
-	return _cast(trial, trial_state)
+	return cast_on(trial, sandbox_rule(trial))
 
 
 func resolve(session: CombatSession) -> void:
-	if _is_on_object(session.state):
-		var run_hooks: Callable = func(rune: String, object_id: String) -> bool:
-			return _run_object_hooks(session, rune, object_id)
-		RuneResolver.cast_on_object(
-				session.engine, session.state, seat, _rune_effect(session.engine), target_id,
-				run_hooks
-		)
-		return
-	_cast(session.engine, session.state)
+	var run_hooks: Callable = func(rune: String, object_id: String) -> bool:
+		return _run_object_hooks(session, rune, object_id)
+	cast_on(session.engine, run_hooks)
+
+
+## Casts the rune on [param engine]'s state, the session's or a sandbox's. [param operate] acts on
+## an object rune's object, as in [method RuneResolver.cast_on_object]. Returns why the cast is
+## illegal, recording nothing then; empty when it resolved.
+func cast_on(engine: EffectEngine, operate: Callable) -> String:
+	var state: CombatState = engine.state as CombatState
+	if state == null:
+		return "the engine's state is not a combat state"
+	var rune: RuneDefinition = RuneResolver.definition_of(engine, rune_id)
+	if rune == null:
+		return "%s has no effect on this map" % [rune_id]
+	var reason: String = _fields_reason(rune)
+	if not reason.is_empty():
+		return reason
+	match rune.target_kind:
+		ContentIds.RUNE_PAIR:
+			return RuneResolver.recall(
+					engine, state, seat, rune_id, target_id, second_target_id
+			)
+		ContentIds.RUNE_OBJECT:
+			return RuneResolver.cast_on_object(engine, state, seat, rune_id, tile, operate)
+	return RuneResolver.cast(
+			engine, state, seat, RuneResolver.effect_of(engine, rune_id), target_id
+	)
 
 
 func _wire_fields() -> Array:
-	return [rune_id, target_id, second_target_id]
+	var at: Array = [] if tile == CombatFact.NO_TILE else [tile.x, tile.y]
+	return [rune_id, target_id, second_target_id, at]
 
 
 func _read_wire_fields(values: Array) -> bool:
-	if values.size() != 3:
+	if values.size() != 4 or not values[3] is Array:
 		return false
-	for value: Variant in values:
-		if not value is String:
+	for i: int in 3:
+		if not values[i] is String:
 			return false
+	var at: Array = values[3]
+	var on_tile: Vector2i = CombatFact.NO_TILE
+	if not at.is_empty():
+		if at.size() != 2:
+			return false
+		var x: Variant = _wire_int(at[0])
+		var y: Variant = _wire_int(at[1])
+		if x == null or y == null:
+			return false
+		on_tile = Vector2i(x as int, y as int)
 	rune_id = values[0]
 	target_id = values[1]
 	second_target_id = values[2]
+	tile = on_tile
 	return true
 
 
-# Casts the rune on state; returns why it couldn't, recording nothing then.
-func _cast(engine: EffectEngine, state: CombatState) -> String:
-	if not second_target_id.is_empty():
-		return RuneResolver.recall(engine, state, seat, rune_id, target_id, second_target_id)
-	return RuneResolver.cast(engine, state, seat, _rune_effect(engine), target_id)
+# Why the cast names fields rune's kind doesn't use, or misses one it needs; empty when it fits.
+func _fields_reason(rune: RuneDefinition) -> String:
+	var has_tile: bool = tile != CombatFact.NO_TILE
+	var fits: bool = false
+	match rune.target_kind:
+		ContentIds.RUNE_UNIT:
+			fits = not target_id.is_empty() and second_target_id.is_empty() and not has_tile
+		ContentIds.RUNE_PAIR:
+			fits = not target_id.is_empty() and not second_target_id.is_empty() and not has_tile
+		ContentIds.RUNE_OBJECT:
+			fits = target_id.is_empty() and second_target_id.is_empty() and has_tile
+	if fits:
+		return ""
+	var needs: String = _NEEDS.get(rune.target_kind, "%s names other targets" % [rune.id])
+	return needs
 
 
-# Whether the cast names one map object, which the map's rules act on.
-func _is_on_object(state: CombatState) -> bool:
-	return second_target_id.is_empty() and state.map.object(target_id) != null
-
-
-# The rune's effect instance in engine; null when it has none.
-func _rune_effect(engine: EffectEngine) -> EffectInstance:
-	for instance: EffectInstance in engine.get_instances():
-		if instance.owner.kind == EffectOwner.Kind.RUNE and instance.owner.owner_id == rune_id:
-			return instance
-	return null
+## The map's own object rule on [param engine], for a cast on a copy: [method MapObjects.operate],
+## the only [constant CombatHooks.Hook.OBJECT_OPERATIONS] registration a battle makes.
+static func sandbox_rule(engine: EffectEngine) -> Callable:
+	return func(rune: String, object_id: String) -> bool:
+		var state: CombatState = engine.state as CombatState
+		return state != null and MapObjects.operate(engine, state, rune, object_id)
 
 
 # The session's OBJECT_OPERATIONS registrations in order, until one acts; false when none does.

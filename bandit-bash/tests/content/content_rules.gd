@@ -269,9 +269,6 @@ func _check_references(path: String, resource: Resource) -> void:
 	elif resource is StaffDefinition:
 		var staff: StaffDefinition = resource
 		_reference(path, "area_shape_id", staff.area_shape_id, EffectCatalog.Kind.SHAPE)
-	elif resource is RuneDefinition:
-		var rune: RuneDefinition = resource
-		_reference(path, "shape_id", rune.shape_id, EffectCatalog.Kind.SHAPE)
 	for effect: EffectDefinition in _effects_of(resource):
 		if effect == null:
 			continue
@@ -313,7 +310,7 @@ func _grant_reference(path: String, grant: CampaignGrant) -> void:
 			_reference(path, "definition_id", grant.definition_id, EffectCatalog.Kind.RUNE)
 
 
-# ASSUMPTION: a reference to a definition of the wrong kind (a rune's shape naming a weapon) counts
+# ASSUMPTION: a reference to a definition of the wrong kind (a staff's shape naming a weapon) counts
 # as dangling, since nothing of the kind the field needs resolves.
 func _reference(
 		path: String, field: String, id: String, kind: EffectCatalog.Kind, required: bool = false
@@ -379,6 +376,15 @@ func _check_string_ids(path: String, resource: Resource) -> void:
 	elif resource is RuneDefinition:
 		var rune: RuneDefinition = resource
 		_known(path, "target_kind", rune.target_kind, ContentIds.RUNE_TARGET_KINDS)
+		# A side is only read by unit runes, so only they must name one.
+		var is_side_optional: bool = rune.target_kind != ContentIds.RUNE_UNIT
+		_known(
+				path,
+				"target_side",
+				rune.target_side,
+				ContentIds.RUNE_TARGET_SIDES,
+				is_side_optional
+		)
 	elif resource is TargetShape:
 		var shape: TargetShape = resource
 		_known(path, "kind", shape.kind, ContentIds.SHAPE_KINDS)

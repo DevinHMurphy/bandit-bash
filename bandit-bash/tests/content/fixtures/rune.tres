@@ -28,8 +28,8 @@ operations = Array[ExtResource("3_5ervk")]([SubResource("Resource_yytl8")])
 
 [resource]
 script = ExtResource("7_vnxwp")
-target_kind = "area"
-shape_id = "target_shape"
+target_kind = "unit"
+target_side = "player"
 id = "rune"
 display_name = "Fixture Mend"
 effects = Array[ExtResource("1_xmwsy")]([SubResource("Resource_uu3ui")])

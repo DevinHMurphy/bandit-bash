@@ -33,7 +33,6 @@ extends RefCounted
 ## @tutorial(Map objects): docs/design/map-objects.md
 ## @tutorial(Combat map plan): docs/plans/2026-10-27-combat-map.md
 ##
-## @todo: TOD-004 - Read Spark from P03's rune catalog, not an effect definition id.
 ## @todo: TOD-005 - Place objects from setup step 2's draw; every candidate spot is placed now.
 
 ## What an [constant CombatFact.Kind.OBJECT_STATE_CHANGED] reports, in its
@@ -120,9 +119,9 @@ const LOCKPICK_EFFECT_ID: String = "lockpick"
 ## effect by this id: never change it.
 const BURGLAR_EFFECT_ID: String = "burglar"
 
-# TODO(TOD-004): Spark, until P03's rune catalog says which rune it is.
-## The [member EffectDefinition.id] of the Spark rune's effect: it explodes a powder keg anywhere.
-const SPARK_EFFECT_ID: String = "spark"
+## The content id of the Spark rune ([RuneDefinition]): it explodes a powder keg anywhere. Rune
+## slots and saves name runes by content id: never change it.
+const SPARK_RUNE_ID: String = "spark"
 
 ## A chest's item rarities, in the order of [constant CHEST_RARITY_WEIGHTS] and
 ## [constant ItemPools.DRAWN_RARITIES].
@@ -406,8 +405,9 @@ static func operate_hook(session: CombatSession, source_id: String, object_id: S
 	return operate(session.engine, session.state, source_id, object_id)
 
 
-## A rune or effect [param source_id] acting on [param object_id]: Spark explodes a powder keg.
-## Returns whether it acted; when false, nothing changed.
+## The rune [param source_id] acting on [param object_id]: Spark ([constant SPARK_RUNE_ID], read
+## from the rune catalog through [method RuneResolver.definition_of]) breaks a powder keg, which
+## explodes, credited to Spark's effect. Returns whether it acted; when false, nothing changed.
 static func operate(
 		engine: EffectEngine, state: CombatState, source_id: String, object_id: String
 ) -> bool:
@@ -416,10 +416,10 @@ static func operate(
 		return false
 	if target.kind != MapLayout.ObjectKind.POWDER_KEG:
 		return false
-	var spark: EffectInstance = _rune_effect(engine, source_id)
-	if spark == null or spark.definition.id != SPARK_EFFECT_ID:
+	var rune: RuneDefinition = RuneResolver.definition_of(engine, source_id)
+	if rune == null or rune.id != SPARK_RUNE_ID:
 		return false
-	state.defeat(engine, object_id, "", spark.instance_id)
+	state.defeat(engine, object_id, "", RuneResolver.effect_of(engine, source_id).instance_id)
 	return true
 
 
@@ -774,13 +774,6 @@ static func _keg_effect_id(engine: EffectEngine, keg_id: String) -> String:
 		if instance.owner.kind == EffectOwner.Kind.MAP_OBJECT and instance.owner.owner_id == keg_id:
 			return instance.instance_id
 	return ""
-
-
-static func _rune_effect(engine: EffectEngine, rune_id: String) -> EffectInstance:
-	for instance: EffectInstance in engine.get_instances():
-		if instance.owner.kind == EffectOwner.Kind.RUNE and instance.owner.owner_id == rune_id:
-			return instance
-	return null
 
 
 # The catalog's consumables of the given use kinds; empty with no catalog.

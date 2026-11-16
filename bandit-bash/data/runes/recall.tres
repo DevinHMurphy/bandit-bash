@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="RuneDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="2_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/custom_operation.gd" id="3_custom"]
+[ext_resource type="Script" path="res://scripts/content/rune_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_wording"]
+script = ExtResource("3_custom")
+text = "two of your units swap positions"
+
+[sub_resource type="Resource" id="Resource_cast"]
+script = ExtResource("1_eff")
+id = "swap"
+operations = Array[ExtResource("2_ops")]([SubResource("Resource_wording")])
+
+[resource]
+script = ExtResource("9_def")
+target_kind = "pair"
+id = "recall"
+display_name = "Recall"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_cast")])

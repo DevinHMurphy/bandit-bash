@@ -6,7 +6,7 @@
 # File:     wire_cases.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 3, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -74,6 +74,7 @@ func _test_command_wire() -> void:
 		StartCommand.new(0),
 		EndTurnCommand.new(2),
 		CastRuneCommand.new(0, "rune:8", "unit:3", "unit:6"),
+		CastRuneCommand.new(0, "rune:9", "", "", Vector2i(4, 2)),
 	]
 	var same: bool = true
 	for command: Command in commands:
@@ -95,7 +96,32 @@ func _test_command_wire() -> void:
 			and read.weapon_id == "item:5"
 	))
 
+	var spark: CastRuneCommand = Command.from_wire(
+			Kit.through_json(commands[4].to_wire()) as Array
+	) as CastRuneCommand
+	var unit_cast: CastRuneCommand = CastRuneCommand.new(0, "rune:2", "unit:3")
+	var unit_back: CastRuneCommand = Command.from_wire(unit_cast.to_wire()) as CastRuneCommand
+	_check.call("wire: a rune cast keeps its tile, and none as []", (
+			spark != null
+			and spark.tile == Vector2i(4, 2)
+			and spark.target_id.is_empty()
+			and unit_cast.to_wire()[8] == []
+			and unit_back != null
+			and unit_back.tile == CombatFact.NO_TILE
+	))
+
 	print("    (warnings about malformed command data follow)")
+	var short_tile: Array = commands[4].to_wire()
+	short_tile[8] = [4]
+	var half_tile: Array = commands[4].to_wire()
+	half_tile[8] = [4, 2.5]
+	var no_tile: Array = commands[4].to_wire()
+	no_tile.resize(8)
+	_check.call("wire: a rune cast's broken or missing tile is refused", (
+			Command.from_wire(short_tile) == null
+			and Command.from_wire(half_tile) == null
+			and Command.from_wire(no_tile) == null
+	))
 	var half: Array = turn.to_wire()
 	half[1] = 1.5
 	var odd_path: Array = turn.to_wire()

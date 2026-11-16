@@ -440,12 +440,14 @@ func _test_contents_pools() -> void:
 	var problems: PackedStringArray = []
 	var houses: int = 0
 	var books: int = 0
+	var shelf_runes: Dictionary[String, bool] = {}
 	for stream_seed: int in 400:
 		for kind: MapLayout.ObjectKind in [CHEST, HOUSE, FOOD_SHELF, BOOK_SHELF, WEAPON_RACK]:
 			var contents: Dictionary = MapObjects.roll(kind, RngStream.new(stream_seed), _catalog)
 			var id: String = contents.get(MapObjects.CONTENTS_ID_KEY, "")
 			if kind == BOOK_SHELF:
-				books += 0 if id.is_empty() else 1
+				books += 1 if _catalog.rune(id) != null else 0
+				shelf_runes[id] = true
 				continue
 			if kind == HOUSE and contents.get("kind") == "gold":
 				continue
@@ -474,9 +476,10 @@ func _test_contents_pools() -> void:
 			+ "key, lockpick or stat booster; shelves an ingredient; racks a weapon; all sold", (
 			problems.is_empty() and houses > 0
 	), ", ".join(problems))
-	_check("contents: a book shelf names no rune while data/runes/ is empty", (
-			_catalog.all_of(EffectCatalog.Kind.RUNE).is_empty() and books == 0
-	))
+	_check("contents: every book shelf names a catalog rune, and over 400 every one of them", (
+			books == 400
+			and shelf_runes.size() == _catalog.all_of(EffectCatalog.Kind.RUNE).size()
+	), ", ".join(PackedStringArray(shelf_runes.keys())))
 
 
 func _test_house_odds() -> void:
