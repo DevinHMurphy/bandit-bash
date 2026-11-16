@@ -6,15 +6,16 @@
 # File:     map_save_cases.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 7, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends RefCounted
 ## Cases for the map save (combat map plan MP8): [MapState] capture and restore, the
 ## [CombatMapSection] pair through a [SaveSectionRegistry], Save & Quit mid-phase then resume with
 ## broken, opened, lit and exploded objects, a closed point, waves left and waiting wave units, a
-## mirror following object and reinforcement facts hash for hash, and a dump replayed through them;
-## and the [DarknessSaveSection]'s versions, refusals and checks against the rebuilt battle
+## chest's drawn item restored from the save before it is opened, a mirror following object and
+## reinforcement facts hash for hash, and a dump replayed through them; and the
+## [DarknessSaveSection]'s versions, refusals and checks against the rebuilt battle
 ## (darkness plan, DK5).
 ##
 ## Run by [code]tests/sessions/run_all.gd[/code] on its first frame, after the save cases, whose
@@ -39,6 +40,8 @@ const RUN_SEED: int = 0x3F9A12C077E1A
 const FLOOR: int = 2
 const NODE: int = 5
 
+const ID_KEY: String = MapObjects.CONTENTS_ID_KEY
+
 var _check: Callable
 
 
@@ -50,6 +53,7 @@ func run() -> void:
 	_test_map_state_round_trip()
 	_test_map_state_refusals()
 	_test_save_and_resume_same_map()
+	_test_saved_chest_item()
 	_test_mirror_follows_objects_and_points()
 	_test_dump_replays_objects_and_points()
 	_test_section_versions_and_pairing()
@@ -116,6 +120,36 @@ func _test_map_state_refusals() -> void:
 			]
 			and JSON.stringify(target.capture()) == before
 	), str(results))
+
+
+# A battle saved before its chest is opened restores the chest's item from the save, never from a
+# new roll: the saved id is swapped for another before the resume, and the opener finds that one.
+func _test_saved_chest_item() -> void:
+	var host: Outpost = Outpost.new()
+	var rolled: Dictionary = host.chest_contents()
+	var saved: Dictionary = host.save()
+	var resumed: Outpost = Outpost.new(saved.duplicate(true))
+	var swapped_id: String = "lucky_coin"
+	if rolled.get(ID_KEY, "") == swapped_id:
+		swapped_id = "old_pendant"
+	var swapped: Dictionary = saved.duplicate(true)
+	var swap_ok: bool = Outpost.swap_saved_item(swapped, swapped_id)
+	var from_save: Outpost = Outpost.new(swapped)
+	from_save.play_first_turn()
+	var found: Array = from_save.session.state.map.found.get(0, [])
+	var rolled_id: String = rolled.get(ID_KEY, "")
+	_check.call("saved chest: its item is drawn from the pools before it is opened", (
+			EffectCatalog.item(rolled_id) != null
+	), str(rolled))
+	_check.call("saved chest: a resume restores the same item", (
+			resumed.load_error == OK and resumed.chest_contents() == rolled
+	), "%s / %s" % [resumed.chest_contents(), rolled])
+	_check.call("saved chest: the item comes from the save, and opening it finds that item", (
+			swap_ok
+			and from_save.load_error == OK
+			and found.size() == 1
+			and (found[0] as Dictionary).get(ID_KEY, "") == swapped_id
+	), str(found))
 
 
 # Save & Quit mid-phase on turn 2 after every kind of object change and a wave that overflowed,
@@ -510,7 +544,8 @@ class Outpost:
 				Reinforcements.draw_waves.bind(source)
 		)
 		battle.add_setup_step(
-				CombatEncounter.SetupStep.CONTAINER_CONTENTS, MapObjects.roll_contents
+				CombatEncounter.SetupStep.CONTAINER_CONTENTS,
+				MapObjects.roll_contents.bind(EffectCatalog.index())
 		)
 		var pool: Array[CombatMapDefinition] = [definition]
 		battle.run_setup(pool, CombatEncounter.SetupStreams.new(RUN_SEED, FLOOR, NODE))
@@ -576,6 +611,35 @@ class Outpost:
 	## The COMBAT block's sections now, through a registry and JSON, as a combat file holds them.
 	func save() -> Dictionary:
 		return WireCases.Kit.through_json(_sections.sections.capture(COMBAT, {})) as Dictionary
+
+	## The chest's contents on this battle's map; empty when it has none.
+	func chest_contents() -> Dictionary:
+		var chest: MapState.ObjectState = session.state.map.object(object_at(CHEST))
+		if chest == null:
+			return {}
+		var contents: Variant = session.state.map.contents.get(chest.container_index, {})
+		return contents if contents is Dictionary else {}
+
+	## Puts [param item_id] in every saved copy of the chest's contents in [param saved], a
+	## [method save] result, in place of its rolled item. Returns whether it found one to swap.
+	static func swap_saved_item(saved: Variant, item_id: String) -> bool:
+		var swapped: bool = false
+		if saved is Array:
+			for entry: Variant in saved as Array:
+				swapped = swap_saved_item(entry, item_id) or swapped
+			return swapped
+		if not saved is Dictionary:
+			return false
+		var contents: Variant = (saved as Dictionary).get("contents", null)
+		if contents is Dictionary:
+			for key: Variant in contents as Dictionary:
+				var entry: Variant = (contents as Dictionary)[key]
+				if entry is Dictionary and (entry as Dictionary).get("kind") == "item":
+					(entry as Dictionary)[ID_KEY] = item_id
+					swapped = true
+		for value: Variant in (saved as Dictionary).values():
+			swapped = swap_saved_item(value, item_id) or swapped
+		return swapped
 
 	## The id of the object on [param tile], destroyed or not; empty for none.
 	func object_at(tile: Vector2i) -> String:

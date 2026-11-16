@@ -626,9 +626,10 @@ func _test_marker_kinds() -> void:
 	_ok("marker kinds: they match up", matching.is_empty(), "; ".join(matching))
 
 
-# Step 7 rolls each seat's contents from its own MAP_LOOT stream into its map state, and a session
-# starts from a copy.
+# Step 7 rolls each seat's contents from its own MAP_LOOT stream into its map state, items from the
+# real catalog's pools, and a session starts from a copy.
 func _test_contents() -> void:
+	var catalog: EffectCatalog.Index = EffectCatalog.index()
 	var pool: Array[CombatMapDefinition] = []
 	var definition: CombatMapDefinition = CombatMapDefinition.new()
 	definition.id = "fixture"
@@ -641,7 +642,7 @@ func _test_contents() -> void:
 				FLOOR, NODE, PackedInt32Array([0, 1]), InstanceIdAllocator.new()
 		)
 		encounter.add_setup_step(
-				CombatEncounter.SetupStep.CONTAINER_CONTENTS, MapObjects.roll_contents
+				CombatEncounter.SetupStep.CONTAINER_CONTENTS, MapObjects.roll_contents.bind(catalog)
 		)
 		encounter.run_setup(pool, CombatEncounter.SetupStreams.new(RUN_SEED, FLOOR, NODE))
 		summaries.append(encounter.setup.summary())
@@ -656,7 +657,7 @@ func _test_contents() -> void:
 			var stream: RngStream = RngStream.new(RngKey.derive_seed(
 					RUN_SEED, RngKey.RngPurpose.MAP_LOOT, FLOOR, NODE, seat, index
 			))
-			expected.append(str(MapObjects.roll(kind, stream)))
+			expected.append(str(MapObjects.roll(kind, stream, catalog)))
 			actual.append(str(first.setup.seats[seat].map.contents.get(index)))
 	_same("contents: each seat from its own stream per container", " | ".join(actual), (
 			" | ".join(expected)
@@ -669,11 +670,15 @@ func _test_contents() -> void:
 			str(first.setup.seats[0].map.contents[0]) == expected[0]
 			and first.get_session(1).state.map.contents.size() == 2
 	))
-	_ok("contents: a chest rolls a rarity", (
-			MapObjects.CHEST_RARITIES.has(
-					(first.setup.seats[0].map.contents[0] as Dictionary).get("rarity", "")
-			)
-	))
+	var chest: Dictionary = first.setup.seats[0].map.contents[0]
+	var item_id: String = chest.get(MapObjects.CONTENTS_ID_KEY, "")
+	var rarity: String = chest.get("rarity", "")
+	var item: ItemDefinition = catalog.item(item_id)
+	_ok("contents: a chest rolls a rarity and an item of it from the pools", (
+			MapObjects.CHEST_RARITIES.has(rarity)
+			and item != null
+			and MapObjects.CHEST_RARITIES[item.rarity - 1] == rarity
+	), str(chest))
 
 
 func _marker_node(

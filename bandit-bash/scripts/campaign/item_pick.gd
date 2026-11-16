@@ -6,7 +6,7 @@
 # File:     item_pick.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 14, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name ItemPick
@@ -15,9 +15,8 @@ extends RefCounted
 ##
 ## [method roll] draws from the seat's [code]REWARD[/code] stream: the slot kind, then per offer
 ## its rarity (with the rare offset, [method rarity_weights]), for a weapon whether it must be
-## army-usable, and the item, evenly. Only Common, Uncommon and Rare items are offered, all
-## different; a usable weapon falls back to any type, an empty rarity to the next lower, then the
-## higher ones; a short kind offers fewer. The offset moves per offer ([method next_offset]). Each
+## army-usable, and the item through [method ItemPools.draw], with its fallbacks. Offers are all
+## different; a short kind offers fewer. The offset moves per offer ([method next_offset]). Each
 ## offer's instance id is minted as it is rolled. Saved in [member SeatRun.pending_offers] under
 ## [constant OFFER_KEY]; [ItemPickCommand] takes or skips it. Pure rules code.
 ##
@@ -44,12 +43,8 @@ const SLOT_IDS: Dictionary[Slot, String] = {
 	Slot.POUCH: "pouch",
 }
 
-## The rarities a pick offers, in [method CombatRewardRules.rarity_table]'s order.
-const OFFERED_RARITIES: Array[ItemDefinition.Rarity] = [
-	ItemDefinition.Rarity.COMMON,
-	ItemDefinition.Rarity.UNCOMMON,
-	ItemDefinition.Rarity.RARE,
-]
+## The rarities a pick offers, in [method CombatRewardRules.rarity_table]'s order: the pools'.
+const OFFERED_RARITIES: Array[ItemDefinition.Rarity] = ItemPools.DRAWN_RARITIES
 
 ## [member taken] while the pick is skipped or not yet resolved.
 const NOT_TAKEN: int = -1
@@ -124,11 +119,11 @@ static func roll(
 		var needs_usable: bool = (
 				pick.slot == Slot.WEAPON and stream.roll_percent(rules.usable_weapon_chance)
 		)
-		var found: ItemDefinition = _draw(
+		var found: ItemDefinition = ItemPools.draw(
 				stream,
 				candidates,
-				offered,
 				maxi(rarity_index, 0),
+				offered,
 				usable if needs_usable else PackedStringArray()
 		)
 		if found == null:
@@ -181,20 +176,15 @@ static func restore(data: Dictionary) -> ItemPick:
 	return pick
 
 
-## Every item of [param slot]'s kind in [param catalog], in id order: weapons (staves included),
-## equipment, or trinkets then consumables.
+## Every item of [param slot_kind]'s kind in [param catalog] ([method ItemPools.items_of]):
+## weapons (staves included), equipment, or trinkets then consumables, each in id order.
 static func items_for(slot_kind: Slot, catalog: EffectCatalog.Index) -> Array[ItemDefinition]:
 	var kinds: Array[EffectCatalog.Kind] = [EffectCatalog.Kind.WEAPON]
 	if slot_kind == Slot.EQUIPMENT:
 		kinds = [EffectCatalog.Kind.EQUIPMENT]
 	elif slot_kind == Slot.POUCH:
 		kinds = [EffectCatalog.Kind.TRINKET, EffectCatalog.Kind.CONSUMABLE]
-	var found: Array[ItemDefinition] = []
-	for kind: EffectCatalog.Kind in kinds:
-		for definition: Resource in catalog.all_of(kind):
-			if definition is ItemDefinition:
-				found.append(definition as ItemDefinition)
-	return found
+	return ItemPools.items_of(catalog, kinds)
 
 
 ## The weapon types [param seat_run]'s living army can use: each unit's type's, and its upgrade's
@@ -247,49 +237,6 @@ static func next_offset(
 		ItemDefinition.Rarity.RARE:
 			return SeatRun.RARE_OFFSET_START
 	return offset
-
-
-# One item from candidates not in offered: at the rarity of OFFERED_RARITIES[rarity_index], else
-# each lower rarity, then each higher; within a rarity, of a usable type when usable names any
-# and one exists. Null when none is left.
-static func _draw(
-		stream: RngStream,
-		candidates: Array[ItemDefinition],
-		offered: Dictionary[String, bool],
-		rarity_index: int,
-		usable: PackedStringArray
-) -> ItemDefinition:
-	var order: Array[int] = []
-	for index: int in range(rarity_index, -1, -1):
-		order.append(index)
-	for index: int in range(rarity_index + 1, OFFERED_RARITIES.size()):
-		order.append(index)
-	for index: int in order:
-		var rarity: ItemDefinition.Rarity = OFFERED_RARITIES[index]
-		var pool: Array[ItemDefinition] = _of_rarity(candidates, offered, rarity, usable)
-		if pool.is_empty() and not usable.is_empty():
-			pool = _of_rarity(candidates, offered, rarity, PackedStringArray())
-		if not pool.is_empty():
-			return pool[0 if pool.size() == 1 else stream.pick_index(pool.size())]
-	return null
-
-
-static func _of_rarity(
-		candidates: Array[ItemDefinition],
-		offered: Dictionary[String, bool],
-		rarity: ItemDefinition.Rarity,
-		usable: PackedStringArray
-) -> Array[ItemDefinition]:
-	var pool: Array[ItemDefinition] = []
-	for definition: ItemDefinition in candidates:
-		if definition.rarity != rarity or offered.has(definition.id):
-			continue
-		if not usable.is_empty():
-			var weapon: WeaponDefinition = definition as WeaponDefinition
-			if weapon == null or not usable.has(weapon.weapon_type):
-				continue
-		pool.append(definition)
-	return pool
 
 
 ## One item offered: its content id and the instance id it gets when taken.
