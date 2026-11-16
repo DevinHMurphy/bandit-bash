@@ -6,7 +6,7 @@
 # File:     targeting_cases.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 15, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -537,6 +537,12 @@ static func _list_mismatch(
 		option: TurnInputModel.ActionOption
 ) -> String:
 	var list: TargetList = TargetList.build(option)
+	if option.kind == RUNE:
+		# A rune's targets are its runes': the fixture's Mend, a unit rune with one command each.
+		var all: Array[TurnInputModel.TargetOption] = []
+		for rune: TurnInputModel.RuneOption in option.runes:
+			all.append_array(rune.targets)
+		list = TargetList.new(all)
 	var listed: PackedStringArray = _listed_keys(list)
 	var accepted: PackedStringArray = _accepted_keys(session, unit_id, path, option.kind)
 	var rejected: PackedStringArray = []

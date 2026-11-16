@@ -6,7 +6,7 @@
 # File:     battle_controller.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 15, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 class_name BattleController
@@ -54,19 +54,23 @@ extends HintSource
 #                              stick (built-in   and moves focus instead. A held d-pad direction or
 #                              defaults, as      stick push repeats through pad_repeat, the keys
 #                              Godot_FE's)       through the system's key echo)
-#   (mouse motion)                            (IDLE, MOVE, TARGET, SWAP, SWAP_PICKED: the cursor
-#                                                follows the mouse over the board. In TARGET, over
-#                                                a listed target it makes that target current)
+#   (mouse motion)                            (IDLE, MOVE, TARGET, PAIR_TARGET, SWAP, SWAP_PICKED:
+#                                                the cursor follows the mouse over the board. In
+#                                                TARGET and PAIR_TARGET, over a listed target it
+#                                                makes that target current)
 #   "ui_accept"             -> Enter, Space;  (on the board: confirm the cursor's tile; in MOVE on
 #                              A [Cross]         another move tile that starts the walk there
 #                                                (WALK). In a panel the focused row takes it first
-#                                                and is pressed; in TARGET that row is the current
-#                                                target's)
+#                                                and is pressed; in TARGET and PAIR_TARGET that row
+#                                                is the current target's)
 #   (Left Mouse Button)                       (confirm the tile under the mouse; on a panel row the
-#                                                row takes the click. In TARGET a click on any
-#                                                listed target picks it, as its row would)
-#   "target_next"           -> E; RB [R1]     (TARGET, CONFIRM: the next target, wrapping, keeping
-#                                                the weapon where it can; in CONFIRM the forecast
+#                                                row takes the click. In TARGET and PAIR_TARGET a
+#                                                click on any listed target picks it, as its row
+#                                                would; for a rune, a click elsewhere says why
+#                                                nothing there can be picked)
+#   "target_next"           -> E; RB [R1]     (TARGET, PAIR_TARGET, CONFIRM: the next target,
+#                                                wrapping, keeping the weapon where it can; in
+#                                                CONFIRM the forecast
 #                                                or question follows. IDLE: the cursor and camera
 #                                                go to the next of the seat's units that can act.
 #                                                Deliberate reuse by stage, as Godot_FE's bumpers.
@@ -166,24 +170,35 @@ extends HintSource
 #              menu opens: ACTION, with MOVE, not WALK, as the stage Cancel returns to.
 # ACTION:      the action menu on top of PanelHost; the token stands on the picked tile and the
 #              cursor on it, and board clicks and hovers are inert. An action with targets opens
-#              the target picker (TARGET); Wait and Swap send their command at once, as Godot_FE's
-#              Wait does. Cancel -> MOVE, the token snapped back to its tile at once (Godot_FE
-#              walked it back; question 34 (3) snaps).
+#              the target picker (TARGET); Rune opens the rune menu (RUNE); Wait and Swap send
+#              their command at once, as Godot_FE's Wait does. Cancel -> MOVE, the token snapped
+#              back to its tile at once (Godot_FE walked it back; question 34 (3) snaps).
+# RUNE:        the rune menu: one row per rune the seat can cast now, the focused one's text under
+#              them. Board clicks and hovers are inert. A row opens the target picker on that
+#              rune's targets (TARGET). Cancel -> ACTION.
 # TARGET:      the action's TargetList, built once when it was chosen, and the target picker
 #              listing it. Every target is outlined (TargetMark) and its tile drawn, purple for
-#              Staff and Item, red for the rest; the current target's outline is stronger, its
-#              row focused and the cursor (target colour) on it. Q / E, a focused row and the
-#              mouse over a target move the current target; the cursor follows the mouse
-#              elsewhere. A row, accept, or a click on a target's tile opens the confirm for that
-#              target (CONFIRM). Cancel -> ACTION.
-# CONFIRM:     Attack, Staff, Shove: the forecast panel (with forecast_panel_scene set), whose
-#              Confirm sends the command of the weapon shown; cycle_weapon and Next weapon move to
-#              the target's next weapon. While it is open the board flashes the HP and Stance its
-#              forecast predicts on every unit it changes, following each target and weapon
-#              change, cleared when it closes. Item, Rune, or no forecast scene: the confirm dialog,
-#              whose Confirm sends the command. Q / E move to the next target and the panel
-#              follows; the outlines stay. Cancel or Back -> TARGET, on the target shown, back to
-#              its first weapon.
+#              Staff, Item and a player-side rune, the move colour for Recall, red for the rest;
+#              the current target's outline is stronger, its row focused and the cursor (target
+#              colour) on it. Q / E, a focused row and the mouse over a target move the current
+#              target; the cursor follows the mouse elsewhere. A row, accept, or a click on a
+#              target's tile opens the confirm for that target (CONFIRM); Recall's opens its
+#              partners (PAIR_TARGET). A rune's picker lists its refused units greyed, with why,
+#              after its targets; a click on any tile that isn't a target puts the rune's refusal
+#              in the message (TurnInputModel.rune_refusal). Spark's current keg also draws its
+#              whole chain of blasts (its preview's tiles). Cancel -> ACTION, or RUNE for a rune.
+# PAIR_TARGET: Recall's second unit: as TARGET, on the first unit's partners, with the first unit
+#              outlined as picked (TargetMark.Spec.is_picked). A row, accept or a click on a
+#              partner opens the confirm (CONFIRM). Cancel -> TARGET, on the first unit.
+# CONFIRM:     Attack, Staff, Shove, Rune: the forecast panel (with forecast_panel_scene set),
+#              whose Confirm sends the command of the weapon shown; cycle_weapon and Next weapon
+#              move to the target's next weapon. While it is open the board flashes the HP and
+#              Stance its forecast predicts on every unit it changes, following each target and
+#              weapon change, cleared when it closes; a rune's also draws the tiles its cast acts
+#              on, Spark's chain included. Item, or no forecast scene: the confirm dialog, whose
+#              Confirm sends the command. Q / E move to the next target and the panel follows; the
+#              outlines stay. Cancel or Back -> TARGET (PAIR_TARGET for Recall), on the target
+#              shown, back to its first weapon.
 # END_CONFIRM: End Turn's question while units can still act: Confirm sends EndTurnCommand.
 #              Cancel or Back -> the stage it was asked from (IDLE or MOVE).
 # DETAIL:      a unit's detail panel (UnitDetailPanel) over IDLE or MOVE, for the unit under the
@@ -204,9 +219,9 @@ extends HintSource
 # back to MOVE clears it, and the session's return. The forecast walks the command's path itself.
 # Cycling changes no state: each weapon has its own command (TargetOption.commands),
 # where Godot_FE equipped the weapon on the unit at each step and left it equipped on Back. Q / E
-# are inert in SWAP, SWAP_PICKED, MOVE, WALK, ACTION, END_CONFIRM and DETAIL: cycling units there
-# would drop the selection or the panel under way (Godot_FE's details screen cycled units on its
-# bumpers; not ported).
+# are inert in SWAP, SWAP_PICKED, MOVE, WALK, ACTION, RUNE, END_CONFIRM and DETAIL: cycling units
+# there would drop the selection or the panel under way (Godot_FE's details screen cycled units on
+# its bumpers; not ported).
 # Global: cancel pops exactly one stage (_history), and one panel with it; WALK is never on
 # _history. Sending a command flushes every panel, stage and mark but leaves a staged token where
 # it stands, hides the intents, and waits in INACTIVE; when its playback settles the stage, the
@@ -245,6 +260,10 @@ enum Stage {
 	WALK = 9,
 	## A unit's detail panel, opened from IDLE or MOVE.
 	DETAIL = 10,
+	## The rune menu, opened by the action menu's Rune.
+	RUNE = 11,
+	## Recall's second unit, picked after its first.
+	PAIR_TARGET = 12,
 }
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
@@ -253,14 +272,17 @@ const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
 # --- Live actions by hint context: the hint bar's one source ---------------------------------
 # Each row is what acts in that context, read from the state and input blocks above: the arrows
 # where they move the cursor or a panel's focus (a menu's and the picker's rows go up and down
-# only; the forecast's and the dialogs' buttons sit side by side), Q / E in IDLE, TARGET and
-# CONFIRM, accept wherever it picks, presses or confirms, cycle_weapon on the forecast only.
-# ui_cancel is the pause menu's in SWAP, IDLE, PLAYBACK and INACTIVE (this node leaves Esc to it
-# there), and toggle_save_debug is the save debug panel's. Order is the bar's display order.
+# only; the forecast's and the dialogs' buttons sit side by side), Q / E in IDLE, TARGET,
+# PAIR_TARGET and CONFIRM, accept wherever it picks, presses or confirms, cycle_weapon on the
+# forecast only. ui_cancel is the pause menu's in SWAP, IDLE, PLAYBACK and INACTIVE (this node
+# leaves Esc to it there), and toggle_save_debug is the save debug panel's. Order is the bar's
+# display order.
 # get_live_actions() leaves out what a row lists but can do nothing now (question 31 (a)): Q / E
-# with one target and C with one weapon in TARGET, CONFIRM and FORECAST, the danger zone in
-# the final playback, unit_detail in IDLE and MOVE with no unit to show, and DETAIL's up and down
-# while its body fits. tests/ui/hint_bar_cases.gd presses every action in every context it
+# with one target and C with one weapon in TARGET, PAIR_TARGET, CONFIRM and FORECAST, the
+# danger zone in the final playback, unit_detail in IDLE and MOVE with no unit to show, RUNE's up
+# and down with one rune, FORECAST's up and down with no Breakdown or Next weapon (a staff, a
+# shove, a rune), and DETAIL's up and down while its body fits.
+# tests/ui/hint_bar_cases.gd presses every action in every context it
 # reaches, by key and by pad, and fails when one acts outside its row or a listed one does
 # nothing; change a row with the blocks above.
 # ASSUMPTION: fast_forward is listed in every unpaused context, since holding it before a command
@@ -293,7 +315,15 @@ const LIVE_ACTIONS: Dictionary[StringName, Array] = {
 		&"ui_up", &"ui_down", &"ui_accept", &"ui_cancel", &"toggle_danger_zone", &"fast_forward",
 		&"toggle_save_debug",
 	],
+	&"RUNE": [
+		&"ui_up", &"ui_down", &"ui_accept", &"ui_cancel", &"toggle_danger_zone", &"fast_forward",
+		&"toggle_save_debug",
+	],
 	&"TARGET": [
+		&"ui_up", &"ui_down", &"target_prev", &"target_next", &"ui_accept", &"ui_cancel",
+		&"toggle_danger_zone", &"fast_forward", &"toggle_save_debug",
+	],
+	&"PAIR_TARGET": [
 		&"ui_up", &"ui_down", &"target_prev", &"target_next", &"ui_accept", &"ui_cancel",
 		&"toggle_danger_zone", &"fast_forward", &"toggle_save_debug",
 	],
@@ -333,9 +363,14 @@ const LIVE_ACTIONS: Dictionary[StringName, Array] = {
 ## [b]Unset:[/b] no confirm opens and an error is reported.
 @export var confirm_dialog_scene: PackedScene = null
 
-## The forecast panel scene ([ForecastPanel]), the confirm of an attack, a staff or a shove.[br]
+## The forecast panel scene ([ForecastPanel]), the confirm of an attack, a staff, a shove or a
+## rune.[br]
 ## [b]Unset:[/b] those confirm on the confirm dialog, with no forecast.
 @export var forecast_panel_scene: PackedScene = null
+
+## The rune menu scene ([RuneMenu]), opened by the action menu's Rune.[br]
+## [b]Unset:[/b] Rune opens nothing and an error is reported.
+@export var rune_menu_scene: PackedScene = null
 
 ## The unit detail panel scene ([UnitDetailPanel]), opened by unit_detail or the unit panel's
 ## Details button.[br]
@@ -410,15 +445,26 @@ var _end_tile: Vector2i = CombatFact.NO_TILE
 var _path: Array[Vector2i] = []
 var _action: TurnInputModel.ActionOption = null
 
-# In TARGET and CONFIRM, the action's targets; its current target and weapon are what CONFIRM
-# shows and sends. Null elsewhere.
+# In TARGET, PAIR_TARGET and CONFIRM, the action's targets (in PAIR_TARGET, the partners); its
+# current target and weapon are what CONFIRM shows and sends. Null elsewhere.
 var _targets: TargetList = null
+
+# From TARGET to CONFIRM, the rune picked in RUNE; null for any other action.
+var _rune: TurnInputModel.RuneOption = null
+
+# In PAIR_TARGET and the CONFIRM after it, Recall's first-unit list and its picker, whose current
+# target is the unit picked; null elsewhere.
+var _first_targets: TargetList = null
+var _first_picker: TargetPicker = null
+
+# In TARGET for Spark, the current keg's preview, whose tiles draw its chain; null elsewhere.
+var _rune_preview: ForecastViewModel = null
 
 # The panel open in CONFIRM: the forecast panel, or the confirm dialog; null outside CONFIRM.
 var _forecast_panel: ForecastPanel = null
 var _confirm_dialog: ConfirmDialog = null
 
-# The target picker open in TARGET and under CONFIRM; null elsewhere.
+# The target picker open in TARGET and PAIR_TARGET and under CONFIRM; null elsewhere.
 var _picker: TargetPicker = null
 
 # The unit detail panel open in DETAIL; null elsewhere.
@@ -769,18 +815,24 @@ func get_confirm_command() -> Command:
 	return _targets.command()
 
 
-## The chosen action's targets, in TARGET and CONFIRM; null elsewhere.
+## The chosen action's targets, in TARGET, PAIR_TARGET (Recall's partners) and CONFIRM; null
+## elsewhere.
 func get_target_list() -> TargetList:
 	return _targets
 
 
+## The rune picked in the rune menu, from TARGET to CONFIRM; null for any other action.
+func get_rune() -> TurnInputModel.RuneOption:
+	return _rune
+
+
 ## target_next / target_prev while targeting: makes the next ([param forward]) or previous target
 ## current, wrapping, with the cursor, outlines and focused row on it; in CONFIRM the panel shows
-## it. Returns false, doing nothing, outside TARGET and CONFIRM or with one target.
+## it. Returns false, doing nothing, outside TARGET, PAIR_TARGET and CONFIRM or with one target.
 func cycle_target(forward: bool) -> bool:
 	if not is_accepting_input() or _targets == null:
 		return false
-	if _stage != Stage.TARGET and _stage != Stage.CONFIRM:
+	if not _is_targeting(_stage) and _stage != Stage.CONFIRM:
 		return false
 	var moved: bool = _targets.next_target() if forward else _targets.previous_target()
 	if moved:
@@ -857,10 +909,12 @@ func confirm_tile(tile: Vector2i) -> void:
 		Stage.MOVE:
 			if _is_move_tile.has(tile):
 				_pick_tile(tile)
-		Stage.TARGET:
+		Stage.TARGET, Stage.PAIR_TARGET:
 			var index: int = _targets.index_at(tile)
 			if index >= 0:
 				_pick_target(index)
+			elif _rune != null and message != null:
+				message.show_message(TurnInputModel.rune_refusal(_rune, tile))
 
 
 ## Cancel: steps back exactly one stage, closing the panel that stage opened; out of ACTION, or of
@@ -869,9 +923,12 @@ func confirm_tile(tile: Vector2i) -> void:
 func step_back() -> bool:
 	if _history.is_empty():
 		return false
-	match _stage:
-		Stage.ACTION, Stage.TARGET, Stage.CONFIRM, Stage.END_CONFIRM, Stage.DETAIL:
-			panel_host.back()
+	var opened_panel: Array[Stage] = [
+		Stage.ACTION, Stage.RUNE, Stage.TARGET, Stage.PAIR_TARGET, Stage.CONFIRM,
+		Stage.END_CONFIRM, Stage.DETAIL,
+	]
+	if _stage in opened_panel:
+		panel_host.back()
 	var leaving: Stage = _stage
 	var previous: Stage = _history.pop_back()
 	_set_stage(previous)
@@ -889,10 +946,20 @@ func step_back() -> bool:
 			# ASSUMPTION: the cursor stays on the picked tile and its hover preview isn't asked
 			# again until the cursor moves, so the session's intents stay shown after Cancel.
 			_clear_preview()
+		Stage.RUNE:
+			_action = null
 		Stage.TARGET:
 			_targets = null
 			_picker = null
+			_rune = null
+			_rune_preview = null
 			move_cursor(_end_tile)
+		Stage.PAIR_TARGET:
+			_targets = _first_targets
+			_picker = _first_picker
+			_first_targets = null
+			_first_picker = null
+			_show_current_target()
 		Stage.CONFIRM:
 			_targets.reset_weapon()
 			_forecast_panel = null
@@ -960,7 +1027,7 @@ func _read_mouse(mouse: InputEventMouse) -> void:
 		return
 	if _follows_mouse() and tile != _cursor:
 		move_cursor(tile)
-		if _stage == Stage.TARGET and _targets.select(_targets.index_at(tile)):
+		if _is_targeting(_stage) and _targets.select(_targets.index_at(tile)):
 			_show_current_target()
 
 
@@ -984,11 +1051,31 @@ func _can_act_now(context: StringName, action: StringName) -> bool:
 		&"ui_up", &"ui_down":
 			if context == &"DETAIL":
 				return is_instance_valid(_detail_panel) and _detail_panel.can_scroll()
+			if context == &"RUNE":
+				return _action != null and _action.runes.size() > 1
+			if context == &"FORECAST":
+				# Up and down reach the Breakdown and Next weapon row, which only an exchange or a
+				# second weapon shows.
+				var model: ForecastViewModel = (
+						_forecast_panel.get_model() if is_instance_valid(_forecast_panel) else null
+				)
+				return (
+						model != null
+						and (model.kind == ForecastViewModel.Kind.EXCHANGE or model.can_cycle())
+				)
 	return true
 
 
 func _follows_mouse() -> bool:
-	return _stage in [Stage.SWAP, Stage.SWAP_PICKED, Stage.IDLE, Stage.MOVE, Stage.TARGET]
+	return (
+			_stage in [Stage.SWAP, Stage.SWAP_PICKED, Stage.IDLE, Stage.MOVE]
+			or _is_targeting(_stage)
+	)
+
+
+# Whether stage picks from a target list on the board: TARGET, or Recall's PAIR_TARGET.
+func _is_targeting(stage: Stage) -> bool:
+	return stage == Stage.TARGET or stage == Stage.PAIR_TARGET
 
 
 # target_next / target_prev: units in IDLE, targets in TARGET and CONFIRM (see the input block).
@@ -1070,15 +1157,17 @@ func _pick_swap_unit(unit_id: String) -> void:
 	_redraw()
 
 
-# The step between the target and the command: the forecast panel for an attack, a staff or a
-# shove, the confirm dialog for the rest (see the state block).
+# The step between the target and the command: the forecast panel for an attack, a staff, a
+# shove or a rune, the confirm dialog for the rest (see the state block).
 func _open_confirm() -> void:
 	_forecast_panel = null
 	_confirm_dialog = null
 	var turn: UnitTurnCommand = _targets.current().command as UnitTurnCommand
+	var is_cast: bool = _targets.current().command is CastRuneCommand
 	# ASSUMPTION: the forecast takes the confirm dialog's place (Confirm on it sends), as Godot_FE's
 	# forecast took ui_confirm; a second question after the forecast would ask twice.
-	if forecast_panel_scene != null and turn != null and turn.needs_fresh_forecast():
+	var has_forecast: bool = is_cast or (turn != null and turn.needs_fresh_forecast())
+	if forecast_panel_scene != null and has_forecast:
 		var panel: ForecastPanel = (
 				_open_panel(Stage.CONFIRM, forecast_panel_scene, _forecast_model()) as ForecastPanel
 		)
@@ -1099,13 +1188,22 @@ func _open_confirm() -> void:
 	_redraw()
 
 
-# The confirm dialog's question for the current target.
+# The confirm dialog's question for the current target: a rune's names the rune, and Recall's
+# both its units.
 func _confirm_question() -> String:
-	return "%s %s?" % [_action.label, _targets.current().label]
+	if _rune == null:
+		return "%s %s?" % [_action.label, _targets.current().label]
+	var aimed: String = _targets.current().label
+	if _first_targets != null:
+		aimed = "%s ↔ %s" % [_first_targets.current().label, aimed]
+	return "%s %s?" % [_rune.label, aimed]
 
 
-# The forecast of the current target with the weapon shown.
+# The forecast of the current target with the weapon shown; a rune's cast preview for a rune.
 func _forecast_model() -> ForecastViewModel:
+	var cast: CastRuneCommand = _targets.command() as CastRuneCommand
+	if cast != null:
+		return ForecastViewModel.build_rune(_session, cast, "" if _rune == null else _rune.text)
 	var command: UnitTurnCommand = _targets.command() as UnitTurnCommand
 	return ForecastViewModel.build(
 			_session, command, _targets.weapon_index(), _targets.weapon_count()
@@ -1113,40 +1211,89 @@ func _forecast_model() -> ForecastViewModel:
 
 
 # Puts the cursor, the outlines and the picker's focus on the target list's current target, and
-# in CONFIRM shows it on the open panel.
+# in CONFIRM shows it on the open panel. For Spark in TARGET, the current keg's chain is redrawn.
 func _show_current_target() -> void:
 	if _targets == null or _targets.is_empty():
 		return
 	move_cursor(_targets.current().tile)
 	_draw_target_marks()
 	live_actions_changed.emit()
-	if is_instance_valid(_picker) and _stage == Stage.TARGET:
+	if is_instance_valid(_picker) and _is_targeting(_stage):
 		_picker.focus_row(_targets.current_index())
+	if _stage == Stage.TARGET and _rune != null and _rune.target_kind == ContentIds.RUNE_OBJECT:
+		_rune_preview = _forecast_model()
+		_redraw()
 	if _stage != Stage.CONFIRM:
 		return
 	if is_instance_valid(_forecast_panel):
 		_forecast_panel.show_forecast(_forecast_model())
-		_draw_forecast_preview()
+		_redraw()
 	elif is_instance_valid(_confirm_dialog):
 		_confirm_dialog.open_with(_confirm_question())
 
 
-# Opens the confirm for target index of the list.
+# Opens the confirm for target index of the list; for Recall's first unit, its partners instead.
 func _pick_target(index: int) -> void:
-	if _stage != Stage.TARGET or _targets == null:
+	if not _is_targeting(_stage) or _targets == null:
 		return
 	_targets.select(index)
 	_show_current_target()
+	if _stage == Stage.TARGET and _rune != null and _rune.target_kind == ContentIds.RUNE_PAIR:
+		_open_partners()
+		return
 	_open_confirm()
 
 
-# Outlines every target of the list, the current one strongly, by its side; none outside TARGET
-# and CONFIRM.
+# Recall's first unit is picked: its partners open on a second picker (PAIR_TARGET), the first
+# list kept to step back to.
+func _open_partners() -> void:
+	var first: TurnInputModel.TargetOption = _targets.current()
+	var list: TargetList = TargetList.new(first.partners)
+	var previous_targets: TargetList = _targets
+	var previous_picker: TargetPicker = _picker
+	var empty: Array[TurnInputModel.TargetOption] = []
+	if not _open_picker(
+			Stage.PAIR_TARGET, "%s: %s ↔ …" % [_rune.label, first.label], list, empty
+	):
+		_targets = previous_targets
+		_picker = previous_picker
+		return
+	_first_targets = previous_targets
+	_first_picker = previous_picker
+	_redraw()
+	_show_current_target()
+
+
+# Opens the target picker on list for stage, with title and refused's greyed rows, making list
+# the controller's targets. Returns whether it opened.
+func _open_picker(
+		stage: Stage,
+		title: String,
+		list: TargetList,
+		refused: Array[TurnInputModel.TargetOption]
+) -> bool:
+	var request: TargetPicker.Request = TargetPicker.Request.new()
+	request.title = title
+	request.targets = list.targets()
+	request.refused = refused
+	_targets = list
+	var picker: BattlePanel = _open_panel(stage, target_picker_scene, request)
+	if picker == null:
+		return false
+	_picker = picker as TargetPicker
+	picker.confirmed.connect(_on_target_picker_confirmed)
+	picker.highlighted.connect(_on_target_picker_highlighted)
+	picker.cancelled.connect(_on_panel_cancelled)
+	return true
+
+
+# Outlines every target of the list, the current one strongly, by its side, and Recall's first
+# unit as picked once its partner is being chosen; none outside TARGET, PAIR_TARGET and CONFIRM.
 func _draw_target_marks() -> void:
 	if not is_instance_valid(view):
 		return
 	var marks: Array[TargetMark.Spec] = []
-	if _targets != null and (_stage == Stage.TARGET or _stage == Stage.CONFIRM):
+	if _targets != null and (_is_targeting(_stage) or _stage == Stage.CONFIRM):
 		var options: Array[TurnInputModel.TargetOption] = _targets.targets()
 		for i: int in options.size():
 			var spec: TargetMark.Spec = TargetMark.Spec.new()
@@ -1154,6 +1301,12 @@ func _draw_target_marks() -> void:
 			spec.side = _session.state.side_of(options[i].target_id)
 			spec.is_current = i == _targets.current_index()
 			marks.append(spec)
+		if _first_targets != null and _first_targets.current() != null:
+			var picked: TargetMark.Spec = TargetMark.Spec.new()
+			picked.tile = _first_targets.current().tile
+			picked.side = _session.state.side_of(_first_targets.current().target_id)
+			picked.is_picked = true
+			marks.append(picked)
 	view.show_target_marks(marks)
 
 
@@ -1185,9 +1338,13 @@ func _has_preview_widgets() -> bool:
 
 
 # Whether stage shows a move preview: MOVE the hovered tile's, and WALK to CONFIRM the picked
-# tile's, kept from the pick until Cancel snaps the token back (question 35 (1)).
+# tile's, kept from the pick until Cancel snaps the token back (question 35 (1)); the rune stages
+# are part of the action.
 func _keeps_preview(stage: Stage) -> bool:
-	return stage in [Stage.MOVE, Stage.WALK, Stage.ACTION, Stage.TARGET, Stage.CONFIRM]
+	return stage in [
+		Stage.MOVE, Stage.WALK, Stage.ACTION, Stage.RUNE, Stage.TARGET, Stage.PAIR_TARGET,
+		Stage.CONFIRM,
+	]
 
 
 # The move preview the board shows now: the queue's in MOVE; from WALK to CONFIRM only the picked
@@ -1331,7 +1488,7 @@ func _set_stage(stage: Stage) -> void:
 	if not _keeps_preview(stage):
 		_clear_preview()
 	if view != null and view.get_cursor() != null:
-		view.get_cursor().is_targeting = stage == Stage.TARGET or stage == Stage.CONFIRM
+		view.get_cursor().is_targeting = _is_targeting(stage) or stage == Stage.CONFIRM
 	_refresh_widgets()
 	live_actions_changed.emit()
 
@@ -1346,6 +1503,10 @@ func _clear_selection() -> void:
 	_path.clear()
 	_action = null
 	_targets = null
+	_rune = null
+	_first_targets = null
+	_first_picker = null
+	_rune_preview = null
 	_forecast_panel = null
 	_confirm_dialog = null
 	_picker = null
@@ -1442,11 +1603,13 @@ func _redraw() -> void:
 			move.show_tiles(_move_tiles)
 			attack.show_tiles(_attack_tiles)
 			support.show_tiles(_support_tiles)
-		Stage.TARGET, Stage.CONFIRM:
+		Stage.TARGET, Stage.PAIR_TARGET, Stage.CONFIRM:
 			var tiles: Array[Vector2i] = []
 			for option: TurnInputModel.TargetOption in _targets.targets():
 				tiles.append(option.tile)
-			if TurnInputModel.is_support_action(_action.kind):
+			if _rune != null:
+				_draw_rune_tiles(tiles)
+			elif TurnInputModel.is_support_action(_action.kind):
 				support.show_tiles(tiles)
 			else:
 				attack.show_tiles(tiles)
@@ -1463,6 +1626,32 @@ func _redraw() -> void:
 	_draw_forecast_preview()
 	# Again here, as a stage's panel is kept only after _set_stage() runs (see get_hint_context()).
 	live_actions_changed.emit()
+
+
+# A rune's tiles, on its overlay (RuneOption.is_support purple, Recall the move colour, else red):
+# its targets' tiles, Recall's first unit's, and the tiles its preview acts on (Spark's chain), the
+# confirm's in CONFIRM and the current keg's in TARGET.
+func _draw_rune_tiles(target_tiles: Array[Vector2i]) -> void:
+	var overlay: TileOverlay = view.get_attack_overlay()
+	if _rune.target_kind == ContentIds.RUNE_PAIR:
+		overlay = view.get_move_overlay()
+	elif _rune.is_support:
+		overlay = view.get_support_overlay()
+	var shown: Dictionary[Vector2i, bool] = {}
+	for tile: Vector2i in target_tiles:
+		shown[tile] = true
+	if _first_targets != null and _first_targets.current() != null:
+		shown[_first_targets.current().tile] = true
+	var preview: ForecastViewModel = _rune_preview
+	if _stage == Stage.CONFIRM and is_instance_valid(_forecast_panel):
+		preview = _forecast_panel.get_model()
+	if preview != null and _stage != Stage.PAIR_TARGET:
+		for tile: Vector2i in preview.tiles:
+			shown[tile] = true
+	var tiles: Array[Vector2i] = []
+	tiles.assign(shown.keys())
+	tiles.sort_custom(MapLayout.is_before)
+	overlay.show_tiles(tiles)
 
 
 func _draw_path() -> void:
@@ -1559,19 +1748,35 @@ func _on_action_menu_confirmed(result: Variant) -> void:
 		_send(option.command)
 		return
 	_action = option
-	_targets = TargetList.build(option)
-	var request: TargetPicker.Request = TargetPicker.Request.new()
-	request.title = option.label
-	request.targets = _targets.targets()
-	var picker: BattlePanel = _open_panel(Stage.TARGET, target_picker_scene, request)
-	if picker == null:
+	if option.kind == TurnInputModel.ActionKind.RUNE:
+		var menu: BattlePanel = _open_panel(Stage.RUNE, rune_menu_scene, option.runes)
+		if menu == null:
+			_action = null
+			return
+		menu.confirmed.connect(_on_rune_menu_confirmed)
+		menu.cancelled.connect(_on_panel_cancelled)
+		_redraw()
+		return
+	var empty: Array[TurnInputModel.TargetOption] = []
+	if not _open_picker(Stage.TARGET, option.label, TargetList.build(option), empty):
 		_action = null
 		_targets = null
 		return
-	_picker = picker as TargetPicker
-	picker.confirmed.connect(_on_target_picker_confirmed)
-	picker.highlighted.connect(_on_target_picker_highlighted)
-	picker.cancelled.connect(_on_panel_cancelled)
+	_redraw()
+	_show_current_target()
+
+
+# A rune picked in the rune menu: its targets open on the target picker (TARGET), its refused
+# units greyed under them.
+func _on_rune_menu_confirmed(result: Variant) -> void:
+	var rune: TurnInputModel.RuneOption = result
+	if _stage != Stage.RUNE or rune == null:
+		return
+	_rune = rune
+	if not _open_picker(Stage.TARGET, rune.title, TargetList.new(rune.targets), rune.refused):
+		_rune = null
+		_targets = null
+		return
 	_redraw()
 	_show_current_target()
 
@@ -1584,7 +1789,7 @@ func _on_target_picker_confirmed(result: Variant) -> void:
 
 func _on_target_picker_highlighted(result: Variant) -> void:
 	var option: TurnInputModel.TargetOption = result
-	if _stage != Stage.TARGET or _targets == null:
+	if not _is_targeting(_stage) or _targets == null:
 		return
 	if _targets.select(_targets.targets().find(option)):
 		_show_current_target()

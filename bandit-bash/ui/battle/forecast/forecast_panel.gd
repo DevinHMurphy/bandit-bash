@@ -6,15 +6,15 @@
 # File:     forecast_panel.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 7, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 class_name ForecastPanel
 extends BattlePanel
-## The forecast before an attack, a staff or a shove is sent: one [ForecastRow] per row of a
-## [ForecastViewModel], the notes under them, the per-stage [ForecastBreakdown] on a toggle, and
-## Confirm, Back and, when the target can be hit with more than one weapon, Next weapon (combat UI
-## plan, question 7).
+## The forecast before an attack, a staff, a shove or a rune is sent: one [ForecastRow] per row
+## of a [ForecastViewModel], the notes under them, the per-stage [ForecastBreakdown] on a toggle
+## (an exchange's only), and Confirm, Back and, when the target can be hit with more than one
+## weapon, Next weapon (combat UI plan, question 7).
 ##
 ## Opened by [BattleController] through [PanelHost] with the model; Confirm emits
 ## [signal BattlePanel.confirmed] with it, Back emits [signal BattlePanel.cancelled]. Next weapon,

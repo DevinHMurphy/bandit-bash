@@ -6,7 +6,7 @@
 # File:     hint_bar_cases.gd
 # Author:
 # Created:  November 6, 2026
-# Modified: November 9, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -16,7 +16,8 @@ extends RefCounted
 ## area at the 1152×648 base size; a rebound key changing its label; two M1 battles walked by
 ## input through every hint context a solo battle (unit detail's DETAIL included)
 ## reaches, by the actions' keys, then again by their joypad bindings with the bar drawing the Xbox
-## family; and the hints left out while they can do nothing (one target, one weapon).[br]
+## family, with a third casting Recall for the rune menu (RUNE) and its second pick
+## (PAIR_TARGET); and the hints left out while they can do nothing (one target, one weapon).[br]
 ## [b]The pad walk[/b] presses each action's first joypad event (a button, or an axis pushed and
 ## let back) where the key walk sends the action, through a [PadRepeat] on the controller; and in
 ## every context with a panel or the pause menu open it presses the d-pad every way, checking
@@ -40,8 +41,10 @@ extends RefCounted
 
 const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
 const TurnInputCases = preload("res://tests/ui/battle/input/turn_input_cases.gd")
+const CombatWorld = preload("res://tests/combat/combat_world.gd")
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
+const RUNE_MENU_SCENE: PackedScene = preload("res://ui/battle/menus/rune_menu.tscn")
 const VIEW_SCENE: PackedScene = preload("res://ui/battle/board/battle_view.tscn")
 const PANEL_HOST_SCENE: PackedScene = preload("res://ui/battle/menus/panel_host.tscn")
 const TURN_BAR_SCENE: PackedScene = preload("res://ui/battle/hud/turn_bar.tscn")
@@ -146,10 +149,12 @@ func run() -> void:
 	_test_hidden_hints()
 	_test_swap_window()
 	_test_turn()
+	_test_rune_walk()
 	_test_coverage()
 	_start_pad_walk()
 	_test_swap_window()
 	_test_turn()
+	_test_rune_walk()
 	_test_coverage()
 	_end_pad_walk()
 	window.size = old_size
@@ -562,6 +567,47 @@ func _test_turn() -> void:
 	rig.close()
 
 
+# A third battle, with seat 0 holding Aegis and Recall: Rune's menu (RUNE) and back, Recall's first
+# unit (TARGET), its partner (PAIR_TARGET) and back, then the rune's forecast, whose Confirm casts.
+func _test_rune_walk() -> void:
+	var rig: Rig = _rig()
+	if rig == null:
+		return
+	var h: TurnInputCases.Harness = rig.h
+	var aegis_id: String = h.session.ids.next_rune_id("Aegis")
+	var recall_id: String = h.session.ids.next_rune_id("Recall")
+	CombatWorld.give_rune(h.session.engine, 0, aegis_id, "aegis")
+	CombatWorld.give_rune(h.session.engine, 0, recall_id, "recall")
+	h.controller.request_start()
+	BattleViewCases.settle(h.view)
+	var acting: PackedStringArray = TurnInputModel.acting_units(h.session, 0)
+	if acting.size() < 3:
+		_check.call(_tag() + ": three units can act for Recall's walk", false, str(acting))
+		rig.close()
+		return
+	h.controller.move_cursor(h.session.state.tile_of(acting[0]))
+	_expect_acts(rig, &"ui_accept", &"MOVE")
+	_expect_acts(rig, &"ui_accept", &"ACTION")
+	_focus_action(rig, TurnInputModel.ActionKind.RUNE)
+	_expect_acts(rig, &"ui_accept", &"RUNE")
+	_expect_context(rig, &"RUNE")
+	_expect_acts(rig, &"ui_cancel", &"ACTION")
+	_focus_action(rig, TurnInputModel.ActionKind.RUNE)
+	_expect_acts(rig, &"ui_accept", &"RUNE")
+	_focus_rune(rig, recall_id)
+	_expect_acts(rig, &"ui_accept", &"TARGET")
+	_expect_acts(rig, &"ui_accept", &"PAIR_TARGET")
+	_expect_context(rig, &"PAIR_TARGET")
+	_expect_acts(rig, &"ui_cancel", &"TARGET")
+	_expect_acts(rig, &"ui_accept", &"PAIR_TARGET")
+	_expect_acts(rig, &"ui_accept", &"FORECAST")
+	_expect_context(rig, &"FORECAST")
+	(h.host.top() as BattlePanel).focus_first()
+	_expect_acts(rig, &"ui_accept", &"PLAYBACK")
+	BattleViewCases.settle(h.view)
+	rig.close()
+
+
 # Every listed action of every context the walks reached acted there; and every context but
 # INACTIVE was reached.
 func _test_coverage() -> void:
@@ -923,6 +969,19 @@ func _focus_action(rig: Rig, kind: TurnInputModel.ActionKind) -> void:
 		_hold(&"ui_down", false)
 
 
+# Focuses the open rune menu's row for rune_id, from its first row, by ui_down.
+func _focus_rune(rig: Rig, rune_id: String) -> void:
+	var menu: RuneMenu = rig.h.host.top() as RuneMenu
+	if menu == null:
+		return
+	menu.focus_first()
+	for option: TurnInputModel.RuneOption in menu.get_options():
+		if option.rune_id == rune_id:
+			return
+		_hold(&"ui_down", true)
+		_hold(&"ui_down", false)
+
+
 # Makes target_id the target list's current target by target_next.
 func _current_target(rig: Rig, target_id: String) -> void:
 	var list: TargetList = rig.h.controller.get_target_list()
@@ -965,6 +1024,7 @@ func _rig() -> Rig:
 	h.controller.confirm_dialog_scene = CONFIRM_SCENE
 	h.controller.forecast_panel_scene = FORECAST_SCENE
 	h.controller.unit_detail_scene = DETAIL_SCENE
+	h.controller.rune_menu_scene = RUNE_MENU_SCENE
 	h.controller.view = h.view
 	h.controller.panel_host = h.host
 	h.controller.turn_bar = h.bar

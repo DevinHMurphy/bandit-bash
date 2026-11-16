@@ -6,7 +6,7 @@
 # File:     target_mark.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 5, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 class_name TargetMark
@@ -45,6 +45,11 @@ const CURRENT_STYLE: StringName = &"TargetMarkCurrent"
 ## [b]0.0:[/b] only the current target shows. [b]1.0:[/b] they differ by width alone.
 @export_range(0.0, 1.0, 0.01) var other_alpha: float = 0.75
 
+# ASSUMPTION: gold for the picked unit; no design doc or Godot_FE colour marks a first pick.
+## The outline of a target already picked while the next is chosen: Recall's first unit while
+## its partner is picked. Drawn strong and fully opaque, whatever [member other_alpha].
+@export var picked_color: Color = Color(1.0, 0.843137, 0.0, 1.0)
+
 ## The tile the mark stands on; [constant CombatFact.NO_TILE] until [method show_mark].
 var tile: Vector2i = CombatFact.NO_TILE
 
@@ -54,17 +59,22 @@ var side: CombatFact.CombatSide = CombatFact.CombatSide.NONE
 ## Whether it marks the current target.
 var is_current: bool = false
 
+## Whether it marks a target already picked ([member Spec.is_picked]).
+var is_picked: bool = false
+
 @onready var _outline: Panel = %Outline
 
 
-## Marks [param mark]'s tile for its side, strongly when it is the current target.
+## Marks [param mark]'s tile for its side, strongly when it is the current target; a picked
+## target strongly in [member picked_color].
 func show_mark(mark: Spec) -> void:
 	tile = mark.tile
 	side = mark.side
 	is_current = mark.is_current
-	_outline.theme_type_variation = CURRENT_STYLE if is_current else OTHER_STYLE
-	var tint: Color = color_of(side)
-	if not is_current:
+	is_picked = mark.is_picked
+	_outline.theme_type_variation = CURRENT_STYLE if is_current or is_picked else OTHER_STYLE
+	var tint: Color = picked_color if is_picked else color_of(side)
+	if not is_current and not is_picked:
 		tint.a *= other_alpha
 	_outline.self_modulate = tint
 
@@ -99,3 +109,5 @@ class Spec:
 	var side: CombatFact.CombatSide = CombatFact.CombatSide.NONE
 	## Whether it is the current target.
 	var is_current: bool = false
+	## Whether it was picked already and the next target is being chosen (Recall's first unit).
+	var is_picked: bool = false

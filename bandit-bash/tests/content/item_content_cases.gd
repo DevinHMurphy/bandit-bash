@@ -6,7 +6,7 @@
 # File:     item_content_cases.gd
 # Author:
 # Created:  November 12, 2026
-# Modified: November 15, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -45,16 +45,15 @@ const RUNE_DIR: String = "res://data/runes/"
 # items.md's seven runes: target kind, target side (unit runes only), whether the unit must not
 # have acted, and the reviewed effect text.
 const RUNES: Dictionary[String, Array] = {
-	"mend": ["unit", "player", false, "Heal the target for 10"],
-	"aegis": ["unit", "player", false, "Give the target 6 Block"],
-	"shatter": ["unit", "enemy", false, "Remove 2 Stance from the target"],
+	"mend": ["unit", "player", false, "Heal an ally for 10"],
+	"aegis": ["unit", "player", false, "Give an ally 6 Block"],
+	"shatter": ["unit", "enemy", false, "Remove 2 Stance from an enemy"],
 	"clarity": ["unit", "player", false, (
-			"Always: give the target +20 Hit on its next attack until Phase End, give the target"
-			+ " +2 Attack on its next attack until Phase End"
+			"Give an ally +20 Hit and +2 Attack on its next attack until Phase End"
 	)],
-	"haste": ["unit", "player", true, "Always: give the target +2 Movement until Phase End"],
-	"spark": ["object", "", false, "Always: a powder keg anywhere on the map explodes"],
-	"recall": ["pair", "", false, "Always: two of your units swap positions"],
+	"haste": ["unit", "player", true, "Give an ally that hasn't acted +2 Movement until Phase End"],
+	"spark": ["object", "", false, "A powder keg anywhere on the map explodes"],
+	"recall": ["pair", "", false, "Two of your units swap positions"],
 }
 
 # Any fixed seed: the forecasts draw nothing from it, and no item use rolls.

@@ -10,9 +10,10 @@
 # ==============================================================================
 
 extends "res://tests/ui/ui_suite.gd"
-## Combat UI input suite (combat UI plan, P07): turn input, targeting, the control hints and pads
-## (joypad bindings, the device adapter, glyphs, focus navigation, the cursor's repeat, hints that
-## hide when they can do nothing), unit detail (opened and closed by keys, mouse and pad), a cases
+## Combat UI input suite (combat UI plan, P07): turn input, targeting, rune casting (each rune by
+## keys, mouse and pad), the control hints and pads (joypad bindings, the device adapter, glyphs,
+## focus navigation, the cursor's repeat, hints that hide when they can do nothing), unit detail
+## (opened and closed by keys, mouse and pad), a cases
 ## file each in [code]tests/ui/battle/[/code] (preloaded below;
 ## each one's class doc lists its checks); then the gameplay screen's pause menu, opened by Esc and
 ## closed by Esc or Resume, pausing the tree and the board's playback and unpausing both, with the
@@ -26,11 +27,12 @@ extends "res://tests/ui/ui_suite.gd"
 ## the board plays. It needs a test user folder (see the base).
 
 # The test report's line on this suite; tools/run_tests.sh reads it from this one line.
-const SUITE_DESCRIPTION: String = "Turn input, targeting, hints, pads, unit detail, pause menu"
+const SUITE_DESCRIPTION: String = "Input, targeting, runes, hints, pads, unit detail, pause menu"
 
 const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
 const TurnInputCases = preload("res://tests/ui/battle/input/turn_input_cases.gd")
 const TargetingCases = preload("res://tests/ui/battle/input/targeting_cases.gd")
+const RuneCases = preload("res://tests/ui/battle/input/rune_cases.gd")
 const HintBarCases = preload("res://tests/ui/battle/hud/hint_bar_cases.gd")
 const PadCases = preload("res://tests/ui/battle/input/pad_cases.gd")
 const UnitDetailCases = preload("res://tests/ui/battle/unit/unit_detail_cases.gd")
@@ -54,6 +56,8 @@ func _process(_delta: float) -> bool:
 		TurnInputCases.new(_check, root).run()
 		GroupClock.lap("targeting_cases")
 		TargetingCases.new(_check, root).run()
+		GroupClock.lap("rune_cases")
+		RuneCases.new(_check, root).run()
 		GroupClock.lap("hint_bar_cases")
 		HintBarCases.new(_check, root).run()
 		GroupClock.lap("pad_cases")

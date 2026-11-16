@@ -6,7 +6,7 @@
 # File:     control_hint_bar.gd
 # Author:
 # Created:  November 6, 2026
-# Modified: November 14, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 class_name ControlHintBar
@@ -165,8 +165,12 @@ const UNBOUND_KEY: String = "(unbound)"
 	"MOVE/ui_accept": "Pick tile",
 	"ACTION/ui_up": "Choose",
 	"ACTION/ui_down": "Choose",
+	"RUNE/ui_up": "Choose",
+	"RUNE/ui_down": "Choose",
 	"TARGET/ui_up": "Choose",
 	"TARGET/ui_down": "Choose",
+	"PAIR_TARGET/ui_up": "Choose",
+	"PAIR_TARGET/ui_down": "Choose",
 	"FORECAST/ui_up": "Choose",
 	"FORECAST/ui_down": "Choose",
 	"FORECAST/ui_left": "Choose",

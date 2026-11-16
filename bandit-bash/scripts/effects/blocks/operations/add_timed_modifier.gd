@@ -6,7 +6,7 @@
 # File:     add_timed_modifier.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 15, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 @tool
@@ -72,11 +72,7 @@ func _validate_property(property: Dictionary) -> void:
 
 func describe() -> String:
 	var change: String = EffectTerms.describe_modifier(key, mode, value)
-	var duration: String = END_TEXT[end]
-	if uses == 1:
-		duration = "on its next attack %s" % [duration]
-	elif uses > 1:
-		duration = "on its next %d attacks %s" % [uses, duration]
+	var duration: String = describe_duration()
 	var to_owner: bool = target == null or target.is_owner()
 	if mode == Modifier.Mode.GRANT or mode == Modifier.Mode.DENY:
 		# The target is the permission's subject: "that unit may move after acting".
@@ -85,6 +81,18 @@ func describe() -> String:
 	if to_owner:
 		return "gain %s %s" % [change, duration]
 	return "give %s %s %s" % [target.describe(), change, duration]
+
+
+## How long the modifier lasts, as its text ends: [code]until Phase End[/code], or with
+## [member uses], [code]on its next attack until Phase End[/code]. [RuneDefinition] joins two
+## modifiers that last alike under one duration.
+func describe_duration() -> String:
+	var duration: String = END_TEXT[end]
+	if uses == 1:
+		return "on its next attack %s" % [duration]
+	if uses > 1:
+		return "on its next %d attacks %s" % [uses, duration]
+	return duration
 
 
 ## Gives each target the modifier through [method EffectEngine.add_timed_modifier], naming this

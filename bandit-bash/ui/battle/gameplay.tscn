@@ -1,4 +1,4 @@
-[gd_scene load_steps=23 format=3]
+[gd_scene load_steps=24 format=3]
 
 [ext_resource type="Script" path="res://ui/common/nav_button.gd" id="1_nav"]
 [ext_resource type="PackedScene" path="res://ui/debug/save_debug_panel.tscn" id="2_save_debug"]
@@ -22,6 +22,7 @@
 [ext_resource type="PackedScene" path="res://ui/battle/input/input_device_adapter.tscn" id="21_device"]
 [ext_resource type="PackedScene" path="res://ui/battle/input/pad_repeat.tscn" id="22_pad_repeat"]
 [ext_resource type="PackedScene" path="res://ui/battle/unit/unit_detail_panel.tscn" id="23_unit_detail"]
+[ext_resource type="PackedScene" path="res://ui/battle/menus/rune_menu.tscn" id="24_rune_menu"]
 
 [node name="Gameplay" type="Node2D"]
 script = ExtResource("5_screen")
@@ -120,6 +121,7 @@ target_picker_scene = ExtResource("14_target_picker")
 confirm_dialog_scene = ExtResource("15_confirm_dialog")
 forecast_panel_scene = ExtResource("16_forecast_panel")
 unit_detail_scene = ExtResource("23_unit_detail")
+rune_menu_scene = ExtResource("24_rune_menu")
 view = NodePath("../BattleView")
 panel_host = NodePath("../Hud/PanelHost")
 turn_bar = NodePath("../Hud/TurnBar")

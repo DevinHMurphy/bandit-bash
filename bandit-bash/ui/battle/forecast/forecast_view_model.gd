@@ -6,27 +6,21 @@
 # File:     forecast_view_model.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 7, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 class_name ForecastViewModel
 extends RefCounted
 ## What the forecast panel shows for one command, as plain rows read from [CombatForecast]: an
-## attack's two sides, a staff's user and target, or a shove's shover and target (combat UI plan,
-## question 7; Godot_FE FR-UI-4 plus Block and Stance).
+## attack's two sides, a staff's or a shove's two units, or a rune cast's changed units, now and
+## after (combat UI plan, question 7; Godot_FE FR-UI-4 plus Block and Stance).
 ##
-## [method build] runs the command's own preview ([method CombatForecast.exchange],
-## [method CombatForecast.staff] or [method CombatForecast.shove]) on the session's engine, so the
-## rows are what the command resolves to with every hit landing (FR-MATH-12). Each [Row] has one
-## cell per column: the actor's on the left, the target's on the right. An exchange also keeps each
-## side's first landed hit's stages ([member breakdowns], explain's [CombatForecast.HitBreakdown]),
-## which the panel shows on its toggle.[br]
-## [b]Never certain:[/b] a defeat in an exchange reads as a chance ([constant DEFEAT_ON_HIT]), and
-## when the all-hits line defeats a defender that could counter, its counter comes from
-## [member counter], the same exchange with the actor's strikes before it missing ([CounterRolls]).
-## [member flashes] gives the board each unit's predicted HP and Stance to flash (question 34 (1)).
-## Reading only: previews run on sandboxes. [ForecastPanel] draws it; tests compare it with the
-## forecast without rendering (question 13).
+## [method build] and [method build_rune] run the command's own preview on the session's engine,
+## so the rows are what it resolves to with every hit landing (FR-MATH-12). An exchange keeps each
+## side's first landed hit's stages ([member breakdowns]) for the panel's toggle, and reads a
+## defeat as a chance ([constant DEFEAT_ON_HIT]), its counter from [member counter] (the actor's
+## strikes before it missing, [CounterRolls]). [member flashes] gives the board each unit's
+## predicted HP and Stance (question 34 (1)). Reading only: previews run on sandboxes.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
@@ -38,7 +32,16 @@ enum Kind {
 	STAFF = 1,
 	## A shove ([constant UnitTurnCommand.Action.SHOVE]).
 	SHOVE = 2,
+	## A rune cast ([CastRuneCommand], [method CombatForecast.rune]).
+	RUNE = 3,
 }
+
+# ASSUMPTION: a rune preview's column headings; no design doc words them.
+## A rune preview's left column heading: each changed unit as it is now.
+const RUNE_NOW_HEADING: String = "Now"
+
+## A rune preview's right column heading: each changed unit after the cast.
+const RUNE_AFTER_HEADING: String = "After"
 
 ## The cell shown where a side has no value, such as the Hit of a defender that can't counter.
 const NONE_TEXT: String = "—"
@@ -76,8 +79,16 @@ var kind: Kind = Kind.EXCHANGE
 ## The heading, such as "Attack Brute".
 var title: String = ""
 
-## The command previewed: the one Confirm sends.
+## The command previewed: the one Confirm sends. Null for a rune's, in [member rune_command].
 var command: UnitTurnCommand = null
+
+## A rune preview's command, the one Confirm sends; null for every other kind.
+var rune_command: CastRuneCommand = null
+
+## A rune preview's tiles on the map, in the order the cast reaches them
+## ([member CombatForecast.RuneForecast.tiles]): Spark's whole chain of blasts. Empty for every
+## other kind, and for an illegal cast.
+var tiles: Array[Vector2i] = []
 
 ## The preview itself, for readers that need more than the rows.
 var forecast: CombatForecast.Forecast = null
@@ -368,6 +379,53 @@ func _counter_line(
 	return line
 
 
+# A rune cast's rows: for each unit it changes, the HP, Block, Stance and tile that change, now
+# and after; its text and any refusal in the notes. A unit it names that changes none of those
+# (Clarity's and Haste's timed modifiers, which the preview doesn't track) is read in the text.
+func _fill_rune(session: CombatSession, cast: CastRuneCommand, text: String) -> void:
+	kind = Kind.RUNE
+	rune_command = cast
+	var found: CombatForecast.RuneForecast = CombatForecast.rune(session.engine, cast)
+	forecast = found
+	var aimed: String = BattleText.name_of(session, cast.target_id)
+	if found.target_kind == ContentIds.RUNE_PAIR:
+		aimed = "%s ↔ %s" % [aimed, BattleText.name_of(session, cast.second_target_id)]
+	elif found.target_kind == ContentIds.RUNE_OBJECT:
+		aimed = BattleText.name_of(session, found.object_id)
+	title = "%s %s" % [BattleText.name_of(session, cast.rune_id), aimed]
+	actor_label = RUNE_NOW_HEADING
+	target_label = RUNE_AFTER_HEADING
+	if not text.is_empty():
+		notes.append(text + ".")
+	if not found.is_legal:
+		notes.append("Not legal: %s" % [found.reason])
+		return
+	for tile: Vector2i in found.tiles:
+		if session.state.grid.step(tile, Vector2i.ZERO) != CombatFact.NO_TILE:
+			tiles.append(tile)
+	for outcome: CombatForecast.UnitOutcome in found.units:
+		var shown_name: String = BattleText.name_of(session, outcome.unit_id)
+		if outcome.hp_after != outcome.hp_before or outcome.is_defeated:
+			_add_row("%s HP" % [shown_name], "%d" % [outcome.hp_before], (
+					"%d (defeated)" % [maxi(outcome.hp_after, 0)] if outcome.is_defeated
+					else "%d" % [outcome.hp_after]
+			))
+		if outcome.is_defeated:
+			continue
+		if outcome.block_after != outcome.block_before:
+			_add_row("%s Block" % [shown_name], "%d" % [outcome.block_before], (
+					"%d" % [outcome.block_after]
+			))
+		if outcome.stance_after != outcome.stance_before:
+			_add_row("%s Stance" % [shown_name], "%d" % [outcome.stance_before], (
+					"%d (Exposed)" % [outcome.stance_after] if outcome.stance_after == 0
+					else "%d" % [outcome.stance_after]
+			))
+		if outcome.tile_after != outcome.tile_before:
+			_add_row("%s tile" % [shown_name], str(outcome.tile_before), str(outcome.tile_after))
+	_fill_flashes()
+
+
 func _add_row(label: String, left: String, right: String) -> void:
 	var added: Row = Row.new()
 	added.label = label
@@ -386,6 +444,18 @@ static func build(
 		count: int = 1
 ) -> ForecastViewModel:
 	return ForecastViewModel.new(session, previewed, index, count)
+
+
+## The rows for [param cast], a rune cast, on [param session] ([method CombatForecast.rune]):
+## each unit it changes now and after, its [member tiles], and [param text] (the rune's own
+## text, [member TurnInputModel.RuneOption.text]) as the first note. Confirm sends
+## [member rune_command]; there is one weapon and no breakdown.
+static func build_rune(
+		session: CombatSession, cast: CastRuneCommand, text: String = ""
+) -> ForecastViewModel:
+	var model: ForecastViewModel = ForecastViewModel.new()
+	model._fill_rune(session, cast, text)
+	return model
 
 
 ## The HP cell of [param outcome] in [param exchange]: before and after, and for a defeat by the
