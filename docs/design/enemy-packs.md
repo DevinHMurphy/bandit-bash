@@ -65,18 +65,62 @@ Crossbowman 1, Cutthroat 1, Hexer 1, Hedge Healer 1, Warcaller 1, Raider 1, **Du
    more enemies than its step suggests.
 7. **No pack weighting:** every pack is equally likely at every step and on every objective.
 
-## Still to write
+## Draft pack lists
 
-**The pack lists.** Every decision below is a rule; none names units. Before P05 EN17 can build,
-each pack needs its basic and hard variant at each step (3, 4 and 5 units), the Duelist's hard and
-key packs, and each mini-boss's key packs. A starting point for the key packs: each mini-boss's
-are built around its own class's pack (Brigand Captain, a Brute, with the War Band or Field
-Hospital; Bloodhound with the Hunting Party; Hex Matron with Hex and Knife; Iron Wall with Shield
-and Bolt).
+**Status:** drafted November 15, 2026 for the user's approval; not a decision until it moves to
+[Decisions](#decisions). It applies decisions 1–9: every pack fields exactly its step's count, so
+the Hunting Party's varying 2–3 Hounds becomes a fixed count per step.
+
+**Basic pool.** The five roster packs, each keeping its puzzle as it grows:
+
+| Pack | Step 1 (3) | Step 2 (4) | Step 3 (5) | Leader |
+|------|------------|------------|------------|--------|
+| Shield and Bolt | Shieldbearer, 2 Crossbowmen | Shieldbearer, 3 Crossbowmen | 2 Shieldbearers, 3 Crossbowmen | Shieldbearer |
+| Hex and Knife | Hexer, 2 Cutthroats | Hexer, 3 Cutthroats | Hexer, 3 Cutthroats, Crossbowman | Hexer |
+| Field Hospital | Hedge Healer, Brute, Shieldbearer | Hedge Healer, 2 Brutes, Shieldbearer | Hedge Healer, 2 Brutes, Shieldbearer, Crossbowman | Brute |
+| War Band | Warcaller, Brute, Hound | Warcaller, Brute, 2 Hounds | Warcaller, 2 Brutes, 2 Hounds | Warcaller |
+| Hunting Party | Raider, 2 Hounds | Raider, 3 Hounds | 2 Raiders, 3 Hounds | Raider |
+
+**Hard pool.** A hard variant of each roster pack, which swaps a filler unit for one that makes the
+puzzle harder, plus one new pack built on the Duelist:
+
+| Pack | Step 1 (3) | Step 2 (4) | Step 3 (5) | Leader | What makes it hard |
+|------|------------|------------|------------|--------|--------------------|
+| Shield and Bolt (hard) | Shieldbearer, Crossbowman, Hedge Healer | Shieldbearer, 2 Crossbowmen, Hedge Healer | 2 Shieldbearers, 2 Crossbowmen, Hedge Healer | Shieldbearer | The healer sits behind the wall |
+| Hex and Knife (hard) | Hexer, Cutthroat, Duelist | Hexer, 2 Cutthroats, Duelist | Hexer, 2 Cutthroats, Duelist, Raider | Hexer | The Duelist punishes the dive on the Hexer |
+| Field Hospital (hard) | Hedge Healer, 2 Brutes | Hedge Healer, 2 Brutes, Shieldbearer | 2 Hedge Healers, 2 Brutes, Shieldbearer | Brute | Two Cleaves to keep alive, then two healers |
+| War Band (hard) | Warcaller, Raider, Hound | Warcaller, Brute, Raider, Hound | Warcaller, 2 Brutes, Raider, Hound | Warcaller | War Horn on a Trample charge |
+| Hunting Party (hard) | Raider, Warcaller, Hound | Raider, Warcaller, 2 Hounds | 2 Raiders, Warcaller, 2 Hounds | Raider | War Horn on the swarm |
+| Sellswords | Duelist, Crossbowman, Hedge Healer | Duelist, 2 Crossbowmen, Hedge Healer | 2 Duelists, 2 Crossbowmen, Hedge Healer | Duelist | Guards that won't be baited off their healer |
+
+**Key pool.** One key pack per mini-boss, built around its own class's pack. The escorts number
+the step's count, so a key combat fields the count plus the mini-boss (4, 5 and 6). Each escort is
+at the key level (step +1) and the mini-boss at +2, which makes a key pack harder than a standard
+one of the same size. The Duelist guards three of them.
+
+| Mini-boss | Escorts, step 1 (3) | Step 2 (4) | Step 3 (5) | The puzzle |
+|-----------|---------------------|------------|------------|------------|
+| Brigand Captain (Brute) | Brute, Hedge Healer, Duelist | Brute, Hedge Healer, Duelist, Shieldbearer | Brute, Hedge Healer, Duelist, Shieldbearer, Crossbowman | Command restores the Stance a healed front line lost |
+| Bloodhound (Hound) | 2 Hounds, Raider | 3 Hounds, Raider | 3 Hounds, Raider, Warcaller | A kill lets it move again, so every wounded unit is bait |
+| Hex Matron (Hexer) | 2 Cutthroats, Duelist | 3 Cutthroats, Duelist | 3 Cutthroats, Duelist, Crossbowman | Hex Storm sets up Backstab crits on your clump |
+| Iron Wall (Shieldbearer) | 2 Crossbowmen, Duelist | 2 Crossbowmen, Duelist, Hedge Healer | 3 Crossbowmen, Duelist, Hedge Healer | Fortify turns the firing line into a wall |
+
+**What this means for maps (P04 MP10):** a standard map needs 5 enemy slots at step 3 and a key
+map 6 (with the mini-boss), each plus 2 free for Hunted: 7 on a step-3 standard map and 8 on a
+step-3 key map. A map used across steps needs the largest step's slots.
+
+**Choices in this draft, for the user to accept or change:**
+
+- **Every leader is an elite of its pack's signature class,** the one the pack is named for.
+- **Key escorts number the step's full count.** The lighter choice the user allowed ("fewer but
+  more powerful") would be the count minus 1, with one escort an elite.
+- **The Duelist** appears in two hard packs (Hex and Knife hard, Sellswords) and three key packs.
+- **Step 3 adds a second unit of the signature class** (2 Shieldbearers, 2 Raiders) rather than a
+  new class, where the basic pack's puzzle allows it.
 
 ## Open questions
 
-None. The pack lists above are content to write, not a rule to decide.
+None on the rules. The draft pack lists above wait for the user's approval.
 
 ## Decisions
 
