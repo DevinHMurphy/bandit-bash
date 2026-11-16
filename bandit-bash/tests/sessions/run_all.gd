@@ -25,8 +25,12 @@ extends SceneTree
 ## folder on its path whose name starts [code]bandit_bash_tests[/code], and are skipped otherwise;
 ## [code]tools/run_tests.sh[/code] gives each suite its own, and fails a suite that skips them.
 
+# The test report's line on this suite; tools/run_tests.sh reads it from this one line.
+const SUITE_DESCRIPTION: String = "Commands, sessions, saving, resuming, logging, wire format"
+
 # Preloaded scripts used as types (gdscript.md, Naming): the content suite's hashing, the loadout
-# fixture tree the definitions hash covers, and the case scripts (no class name).
+# fixture tree the definitions hash covers, the group timer, and the case scripts (no class name).
+const GroupClock = preload("res://tests/group_clock.gd")
 const CatalogCases = preload("res://tests/content/catalog_cases.gd")
 const LoadoutCases = preload("res://tests/content/loadout_cases.gd")
 const SessionsCaseBase = preload("res://tests/sessions/sessions_case_base.gd")
@@ -58,26 +62,40 @@ func _process(_delta: float) -> bool:
 	# Hashed before any case loads a definition (event bus plan, question 50).
 	var before: Dictionary[String, String] = CatalogCases.hash_definitions([LoadoutCases.TREE])
 
+	GroupClock.lap("queue_cases")
 	_run_cases(QueueCases.new(_check, root))
+	GroupClock.lap("encounter_cases")
 	_run_cases(EncounterCases.new(_check, root))
+	GroupClock.lap("bridge_cases")
 	_run_cases(BridgeCases.new(_check, root))
+	GroupClock.lap("service_cases")
 	_run_cases(ServiceCases.new(_check, root))
+	GroupClock.lap("run_service_cases")
 	_run_cases(RunServiceCases.new(_check, root))
+	GroupClock.lap("run_battle_cases")
 	_run_cases(RunBattleCases.new(_check, root))
+	GroupClock.lap("run_reward_cases")
 	_run_cases(RunRewardCases.new(_check, root))
+	GroupClock.lap("resume_cases")
 	_run_cases(ResumeCases.new(_check, root))
+	GroupClock.lap("logging_cases")
 	_run_cases(LoggingCases.new(_check, root))
 
+	GroupClock.lap("wire_cases")
 	WireCases.new(_check).run()
+	GroupClock.lap("save_cases")
 	SaveCases.new(_check).run()
+	GroupClock.lap("map_save_cases")
 	MapSaveCases.new(_check).run()
 
+	GroupClock.lap("definitions check")
 	var changed: PackedStringArray = CatalogCases.changed_definitions(
 			before, CatalogCases.hash_definitions([LoadoutCases.TREE])
 	)
 	_check("definitions: none changed during the run (%d hashed)" % [before.size()], (
 			changed.is_empty()
 	), ", ".join(changed))
+	GroupClock.stop()
 
 	print("--- %d passed, %d failed, %d skipped ---" % [_passes, _failures, _skips])
 	quit(1 if _failures > 0 else 0)

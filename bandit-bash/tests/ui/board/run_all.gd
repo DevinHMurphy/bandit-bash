@@ -25,6 +25,9 @@ extends "res://tests/ui/ui_suite.gd"
 ## The cases run from the first frame, when autoloads exist; the routing case over a few more for
 ## the scene change. The continue and routing cases need a test user folder (see the base).
 
+# The test report's line on this suite; tools/run_tests.sh reads it from this one line.
+const SUITE_DESCRIPTION: String = "Combat board, enemy intents, unit info; continue and routing"
+
 const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
 const IntentCases = preload("res://tests/ui/battle/intents/intent_cases.gd")
 const UnitInfoCases = preload("res://tests/ui/battle/unit/unit_info_cases.gd")
@@ -59,10 +62,16 @@ func _process(_delta: float) -> bool:
 	_frame += 1
 	if _frame == 1:
 		_start("Combat UI tests: board")
+		GroupClock.lap("battle_view_cases")
 		BattleViewCases.new(_check, root).run()
+		GroupClock.lap("intent_cases")
 		IntentCases.new(_check, root).run()
+		GroupClock.lap("unit_info_cases")
 		UnitInfoCases.new(_check, root).run()
+		GroupClock.lap("continue case")
 		_run_continue_case()
+		# Open over the frames the route to Results takes.
+		GroupClock.lap("route case")
 		if _start_route_case():
 			_route_frame = _frame
 			return false

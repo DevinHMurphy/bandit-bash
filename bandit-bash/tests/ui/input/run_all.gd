@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 14, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 extends "res://tests/ui/ui_suite.gd"
@@ -24,6 +24,9 @@ extends "res://tests/ui/ui_suite.gd"
 ## [code]--- N passed, M failed, K skipped ---[/code]; exits with code 1 on any failure.[br]
 ## The cases run from the first frame, when autoloads exist; the pause case over real frames while
 ## the board plays. It needs a test user folder (see the base).
+
+# The test report's line on this suite; tools/run_tests.sh reads it from this one line.
+const SUITE_DESCRIPTION: String = "Turn input, targeting, hints, pads, unit detail, pause menu"
 
 const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
 const TurnInputCases = preload("res://tests/ui/battle/input/turn_input_cases.gd")
@@ -47,10 +50,15 @@ func _process(_delta: float) -> bool:
 	_frame += 1
 	if _frame == 1:
 		_start("Combat UI tests: input")
+		GroupClock.lap("turn_input_cases")
 		TurnInputCases.new(_check, root).run()
+		GroupClock.lap("targeting_cases")
 		TargetingCases.new(_check, root).run()
+		GroupClock.lap("hint_bar_cases")
 		HintBarCases.new(_check, root).run()
+		GroupClock.lap("pad_cases")
 		PadCases.new(_check, root).run()
+		GroupClock.lap("unit_detail_cases")
 		UnitDetailCases.new(_check, root).run()
 		return false
 	if not _is_pause_started:
@@ -60,6 +68,7 @@ func _process(_delta: float) -> bool:
 			_finish()
 			return false
 		# A coroutine over frames of its own; it sets _is_pause_done as it ends.
+		GroupClock.lap("pause case")
 		_run_pause_case()
 		return false
 	if not _is_pause_done:

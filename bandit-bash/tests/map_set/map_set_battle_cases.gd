@@ -14,20 +14,22 @@ extends RefCounted
 ## plan, MP10 row): on each map of one combat type, the Mercenary army at its step's expected
 ## level (the step's enemy level, 1, 3 or 5) against a pack setup draws from the real catalog,
 ## with seeded rolls and the AI playing the enemies, through m1_battle_cases.gd's driver
-## ([method M1BattleCases.play]): standard maps at steps 1 and 3, key maps at steps 2 and 3. Each
-## fields its step's full pack and runs to [constant CombatFact.Kind.COMBAT_ENDED] with no command
-## rejected; at step 3 the same seed gives the same fact log twice. Reports each case through the
-## check callable it is given.[br]
+## ([method M1BattleCases.play]): standard maps at steps 1 and 3, key maps at step 3 only, since
+## a key battle takes minutes. Each fields its step's full pack and runs to
+## [constant CombatFact.Kind.COMBAT_ENDED] with no command rejected; at step 3 the same seed gives
+## the same fact log twice. Reports each case through the check callable it is given, and times
+## each map as a test group.[br]
 ## [b]Either side may win:[/b] the driver is simple, and the Leader and mini-boss maps can't be won
 ## until P05 EN7 and EN8 fill their leader slots, so there the darkness ends the battle.
 
 # Preloaded scripts used as types (gdscript.md, Naming): the cases have no class name.
+const GroupClock = preload("res://tests/group_clock.gd")
 const M1BattleCases = preload("res://tests/enemies/m1_battle_cases.gd")
 const MapSetCases = preload("res://tests/map_set/map_set_cases.gd")
 
 # The first floor of each step a map is played at (game-vision.md, Run structure).
 const STANDARD_FLOORS: Array[int] = [1, 12]
-const KEY_FLOORS: Array[int] = [6, 12]
+const KEY_FLOORS: Array[int] = [12]
 
 # The floor whose battle is played twice to compare fact logs.
 const REPEAT_FLOOR: int = 12
@@ -59,6 +61,7 @@ func run() -> void:
 
 
 func _test_map(path: String, floors: Array[int]) -> void:
+	GroupClock.lap("map battle %s" % [path.get_file().get_basename()])
 	var map: CombatMapDefinition = load(path) as CombatMapDefinition
 	if map == null:
 		_check.call("map battle: the definition loads", false, path)

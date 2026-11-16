@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 29, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -24,7 +24,11 @@ extends SceneTree
 ## first frame, and their names are unknown while this script compiles), so nothing here may use
 ## them.
 
+# The test report's line on this suite; tools/run_tests.sh reads it from this one line.
+const SUITE_DESCRIPTION: String = "Combat maps: layout, grid, pathing, deploy, objectives, objects"
+
 # Preloaded scripts used as types (gdscript.md, Naming): the case scripts have no class name.
+const GroupClock = preload("res://tests/group_clock.gd")
 const LayoutCases = preload("res://tests/map/layout_cases.gd")
 const GridCases = preload("res://tests/map/grid_cases.gd")
 const DeployCases = preload("res://tests/map/deploy_cases.gd")
@@ -40,14 +44,23 @@ var _passes: int = 0
 
 func _init() -> void:
 	print("--- Combat map tests ---")
+	GroupClock.lap("layout_cases")
 	LayoutCases.new(_check).run()
+	GroupClock.lap("grid_cases")
 	GridCases.new(_check).run()
+	GroupClock.lap("deploy_cases")
 	DeployCases.new(_check).run()
+	GroupClock.lap("objective_cases")
 	ObjectiveCases.new(_check).run()
+	GroupClock.lap("check_cases")
 	CheckCases.new(_check).run()
+	GroupClock.lap("m1_cases")
 	M1Cases.new(_check).run()
+	GroupClock.lap("object_cases")
 	ObjectCases.new(_check).run()
+	GroupClock.lap("reinforcement_cases")
 	ReinforcementCases.new(_check).run()
+	GroupClock.stop()
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)
 

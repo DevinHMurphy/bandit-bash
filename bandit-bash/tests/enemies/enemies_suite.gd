@@ -14,15 +14,17 @@ extends SceneTree
 ## ([code]tests/enemies/ai/run_all.gd[/code]), the setup and the roster's AI
 ## ([code]tests/enemies/roster/run_all.gd[/code]) and the roster's battles
 ## ([code]tests/enemies/battles/run_all.gd[/code]). Each extends this script: the check counters,
-## the summary line the runner reads, and the definitions hash checked at the end. The case files
+## the summary line the runner reads, the definitions hash checked at the end, and the group timer
+## (each part laps it before each case file; [method _finish] stops it). The case files
 ## stay in [code]tests/enemies/[/code], one per topic; the parts are split to take about the same
 ## time.[br]
 ## The cases run in [code]_init[/code], before autoloads exist (in [code]--script[/code] mode they
 ## exist from the first frame, and their names are unknown while this script compiles), so nothing
 ## here or in a case file may use them.
 
-# Preloaded scripts used as types (gdscript.md, Naming): the content suite's hashing and the
-# loadout fixture tree the definitions hash covers.
+# Preloaded scripts used as types (gdscript.md, Naming): the group timer, the content suite's
+# hashing and the loadout fixture tree the definitions hash covers.
+const GroupClock = preload("res://tests/group_clock.gd")
 const CatalogCases = preload("res://tests/content/catalog_cases.gd")
 const LoadoutCases = preload("res://tests/content/loadout_cases.gd")
 
@@ -40,15 +42,17 @@ func _start(title: String) -> void:
 	_before = CatalogCases.hash_definitions([LoadoutCases.TREE])
 
 
-# Checks the definitions are as _start() found them, prints the summary line and quits, with
-# exit code 1 on any failure.
+# Checks the definitions are as _start() found them, closes the last test group, prints the
+# summary line and quits, with exit code 1 on any failure.
 func _finish() -> void:
+	GroupClock.lap("definitions check")
 	var changed: PackedStringArray = CatalogCases.changed_definitions(
 			_before, CatalogCases.hash_definitions([LoadoutCases.TREE])
 	)
 	_check("definitions: none changed during the run (%d hashed)" % [_before.size()], (
 			changed.is_empty()
 	), ", ".join(changed))
+	GroupClock.stop()
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)
 

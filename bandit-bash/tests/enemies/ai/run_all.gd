@@ -21,6 +21,9 @@ extends "res://tests/enemies/enemies_suite.gd"
 ## live in their own file in [code]tests/enemies/[/code]; a new file goes to the part it keeps
 ## closest in time to the others.
 
+# The test report's line on this suite; tools/run_tests.sh reads it from this one line.
+const SUITE_DESCRIPTION: String = "Enemy AI and intents, and a headless battle on the M1 map"
+
 # Preloaded scripts used as types (gdscript.md, Naming): the cases have no class name.
 const AiCases = preload("res://tests/enemies/ai_cases.gd")
 const IntentCases = preload("res://tests/enemies/intent_cases.gd")
@@ -29,8 +32,12 @@ const M1BattleCases = preload("res://tests/enemies/m1_battle_cases.gd")
 
 func _init() -> void:
 	_start("Enemies tests: AI, intents and the M1 battle")
+	GroupClock.lap("fixture catalog load")
 	var catalog: EffectCatalog.Index = EffectCatalog.load_tree(LoadoutCases.TREE)
+	GroupClock.lap("ai_cases")
 	AiCases.new(_check, catalog).run()
+	GroupClock.lap("intent_cases")
 	IntentCases.new(_check, catalog).run()
+	GroupClock.lap("m1_battle_cases")
 	M1BattleCases.new(_check).run()
 	_finish()

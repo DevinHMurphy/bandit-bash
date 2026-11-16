@@ -19,11 +19,15 @@ extends "res://tests/enemies/enemies_suite.gd"
 ## [br]Prints one PASS or FAIL line per check and the summary line
 ## [code]--- N passed, M failed ---[/code]; exits with code 1 on any failure.
 
+# The test report's line on this suite; tools/run_tests.sh reads it from this one line.
+const SUITE_DESCRIPTION: String = "The enemy roster's five packs, each played to the end"
+
 # Preloaded script used as a type (gdscript.md, Naming): the cases have no class name.
 const RosterBattleCases = preload("res://tests/enemies/roster_battle_cases.gd")
 
 
 func _init() -> void:
 	_start("Enemies tests: the roster's battles")
+	GroupClock.lap("roster_battle_cases")
 	RosterBattleCases.new(_check).run()
 	_finish()

@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 9, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -21,7 +21,11 @@ extends SceneTree
 ## Prints PASS or FAIL per case and exits with code 1 if any case fails. Cases that feed in bad
 ## input make the RNG classes log errors on purpose; only FAIL lines mean a problem.
 
+# The test report's line on this suite; tools/run_tests.sh reads it from this one line.
+const SUITE_DESCRIPTION: String = "Seeded random streams: keys, streams, registry, saves, seeds"
+
 # Preloaded scripts used as types (gdscript.md, Naming): the case scripts have no class name.
+const GroupClock = preload("res://tests/group_clock.gd")
 const KeyCases = preload("res://tests/rng/key_cases.gd")
 const StreamCases = preload("res://tests/rng/stream_cases.gd")
 const RegistryCases = preload("res://tests/rng/registry_cases.gd")
@@ -38,12 +42,18 @@ func _init() -> void:
 			+ " are expected. ---"
 	)
 
+	GroupClock.lap("key_cases")
 	KeyCases.new(_check).run()
+	GroupClock.lap("stream_cases")
 	StreamCases.new(_check).run()
+	GroupClock.lap("registry_cases")
 	RegistryCases.new(_check).run()
+	GroupClock.lap("rng_section_cases")
 	RngSectionCases.new(_check).run()
+	GroupClock.lap("run_seed_cases")
 	RunSeedCases.new(_check).run()
 
+	GroupClock.stop()
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)
 

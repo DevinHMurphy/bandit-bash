@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 15, 2026
-# Modified: November 15, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 extends "res://tests/ui/ui_suite.gd"
@@ -24,6 +24,9 @@ extends "res://tests/ui/ui_suite.gd"
 ## Prints one PASS, FAIL or SKIP line per check and
 ## [code]--- N passed, M failed, K skipped ---[/code]; exits with code 1 on any failure. It needs
 ## a test user folder (see the base). Battles are won by recording their end, not played.
+
+# The test report's line on this suite; tools/run_tests.sh reads it from this one line.
+const SUITE_DESCRIPTION: String = "A run played through the campaign screens by key, mouse, pad"
 
 # SceneRouter.Screen values: a suite can't name the autoload (see the base).
 const SCREEN_LOADING: int = 2
@@ -144,6 +147,7 @@ func _process(_delta: float) -> bool:
 
 # A new solo run, opened through Loading as the New Run screen does.
 func _begin_run() -> void:
+	GroupClock.lap("new run")
 	_old_root_size = root.size
 	root.size = BASE_SCREEN_SIZE
 	var saves: Node = root.get_node(^"SaveService")
@@ -177,6 +181,8 @@ func _on_map(scene: Node) -> void:
 	var reachable: PackedInt32Array = view.get_reachable()
 	_check_map(scene, view, run)
 	var device: String = DEVICES[_entered % DEVICES.size()]
+	# A group per node: its choice here, its battle or placeholder, and its Results.
+	GroupClock.lap("walk: node %d by %s" % [_entered + 1, device])
 	if _route.is_empty():
 		_route = _plan_route(run.graph)
 	var target: int = 0
@@ -512,6 +518,7 @@ func _finish_walk() -> void:
 # Puts the run at its Boss's results, as a won Boss battle leaves it (a report, no pick), and
 # opens Results.
 func _begin_boss_case() -> void:
+	GroupClock.lap("boss case and run end")
 	var run: CampaignRunState = _run()
 	var boss: int = run.graph.nodes_on_floor(run.graph.get_floor_count())[0]
 	run.node = boss

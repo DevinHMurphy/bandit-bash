@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 29, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -24,7 +24,11 @@ extends SceneTree
 ## first frame, and their names are unknown while this script compiles), so nothing here may use
 ## them.
 
+# The test report's line on this suite; tools/run_tests.sh reads it from this one line.
+const SUITE_DESCRIPTION: String = "Combat rules: grid, exchanges, Shove, support, turns, forecasts"
+
 # Preloaded scripts used as types (gdscript.md, Naming): the case scripts have no class name.
+const GroupClock = preload("res://tests/group_clock.gd")
 const StateCases = preload("res://tests/combat/state_cases.gd")
 const ExchangeCases = preload("res://tests/combat/exchange_cases.gd")
 const ShoveCases = preload("res://tests/combat/shove_cases.gd")
@@ -43,18 +47,26 @@ func _init() -> void:
 	# Hashed before the first case (event bus plan, question 50): combat reads definitions through
 	# the loadout, so no case may change one.
 	var before: Dictionary[String, String] = CatalogCases.hash_definitions([LoadoutCases.TREE])
+	GroupClock.lap("state_cases")
 	StateCases.new(_check).run()
+	GroupClock.lap("exchange_cases")
 	ExchangeCases.new(_check).run()
+	GroupClock.lap("shove_cases")
 	ShoveCases.new(_check).run()
+	GroupClock.lap("support_cases")
 	SupportCases.new(_check).run()
+	GroupClock.lap("turn_cases")
 	TurnCases.new(_check).run()
+	GroupClock.lap("forecast_cases")
 	ForecastCases.new(_check).run()
+	GroupClock.lap("definitions check")
 	var changed: PackedStringArray = CatalogCases.changed_definitions(
 			before, CatalogCases.hash_definitions([LoadoutCases.TREE])
 	)
 	_check("definitions: none changed during the run (%d hashed)" % [before.size()], (
 			changed.is_empty()
 	), ", ".join(changed))
+	GroupClock.stop()
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)
 

@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -26,7 +26,11 @@ extends SceneTree
 ## fails. The cases run in [code]_init[/code], before autoloads exist, so nothing here may use
 ## them.
 
+# The test report's line on this suite; tools/run_tests.sh reads it from this one line.
+const SUITE_DESCRIPTION: String = "The darkness: its flow, waves, setup, step and damage"
+
 # Preloaded scripts used as types (gdscript.md, Naming): the case scripts have no class name.
+const GroupClock = preload("res://tests/group_clock.gd")
 const FlowCases = preload("res://tests/darkness/flow_cases.gd")
 const StateCases = preload("res://tests/darkness/state_cases.gd")
 const SetupCases = preload("res://tests/darkness/setup_cases.gd")
@@ -39,11 +43,17 @@ var _passes: int = 0
 
 func _init() -> void:
 	print("--- Darkness tests ---")
+	GroupClock.lap("flow_cases")
 	FlowCases.new(_check).run()
+	GroupClock.lap("state_cases")
 	StateCases.new(_check).run()
+	GroupClock.lap("setup_cases")
 	SetupCases.new(_check).run()
+	GroupClock.lap("step_cases")
 	StepCases.new(_check).run()
+	GroupClock.lap("damage_cases")
 	DamageCases.new(_check).run()
+	GroupClock.stop()
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)
 
