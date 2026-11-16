@@ -1,0 +1,96 @@
+[gd_scene format=4]
+
+[ext_resource type="TileSet" path="res://maps/greybox_tile_set.tres" id="1_k1jwr"]
+[ext_resource type="Script" path="res://scripts/map/map_marker.gd" id="2_8csm2"]
+
+[node name="WatchPost" type="Node2D" unique_id=1689690461]
+
+[node name="Terrain" type="TileMapLayer" parent="." unique_id=464718861]
+tile_map_data = PackedByteArray("AAAAAAAAAAAQAAAAAAABAAAAAAAYAAAAAAACAAAAAAAQAAAAAAADAAAAAAAaAAAAAAAEAAAAAAAIAAAAAAAFAAAAAAAaAAAAAAAGAAAAAAAQAAAAAAAHAAAAAAAYAAAAAAAIAAAAAAAQAAAAAAAAAAEAAAAQAAAAAAABAAEAAAAKAAAAAAACAAEAAAAQAAAAAAADAAEAAAAaAAAAAAAEAAEAAAAGAAAAAAAFAAEAAAAaAAAAAAAGAAEAAAAQAAAAAAAHAAEAAAAKAAAAAAAIAAEAAAAQAAAAAAAAAAIAAAAHAAAAAAABAAIAAAAQAAAAAAACAAIAAAAQAAAAAAADAAIAAAAaAAAAAAAEAAIAAAAGAAAAAAAFAAIAAAAaAAAAAAAGAAIAAAAQAAAAAAAHAAIAAAAQAAAAAAAIAAIAAAAHAAAAAAAAAAMAAAAQAAAAAAABAAMAAAAQAAAAAAACAAMAAAAQAAAAAAADAAMAAAAQAAAAAAAEAAMAAAAQAAAAAAAFAAMAAAAQAAAAAAAGAAMAAAAQAAAAAAAHAAMAAAAQAAAAAAAIAAMAAAAQAAAAAAAAAAQAAAAQAAAAAAABAAQAAAAYAAAAAAACAAQAAAAQAAAAAAADAAQAAAAHAAAAAAAEAAQAAAAQAAAAAAAFAAQAAAAQAAAAAAAGAAQAAAAHAAAAAAAHAAQAAAAYAAAAAAAIAAQAAAAQAAAAAAAAAAUAAAAQAAAAAAABAAUAAAAJAAAAAAACAAUAAAAQAAAAAAADAAUAAAAQAAAAAAAEAAUAAAAQAAAAAAAFAAUAAAAQAAAAAAAGAAUAAAAQAAAAAAAHAAUAAAAQAAAAAAAIAAUAAAAQAAAAAAAAAAYAAAAQAAAAAAABAAYAAAAQAAAAAAACAAYAAAAQAAAAAAADAAYAAAAQAAAAAAAEAAYAAAAYAAAAAAAFAAYAAAAQAAAAAAAGAAYAAAAQAAAAAAAHAAYAAAAQAAAAAAAIAAYAAAAQAAAAAAA=")
+tile_set = ExtResource("1_k1jwr")
+
+[node name="Markers" type="TileMapLayer" parent="." unique_id=1736978561]
+tile_map_data = PackedByteArray("AAAEAAAAAAAgAAAAAAABAAUAAAAnAAAAAAADAAUAAAAdAAAAAAAEAAUAAAAdAAAAAAAFAAUAAAAdAAAAAAAGAAUAAAAdAAAAAAADAAYAAAAdAAAAAAAEAAYAAAAdAAAAAAAFAAYAAAAdAAAAAAAGAAYAAAAdAAAAAAA=")
+tile_set = ExtResource("1_k1jwr")
+
+[node name="EnemySlots" type="Node2D" parent="." unique_id=702611711]
+
+[node name="EnemySlot1" type="Node2D" parent="EnemySlots" unique_id=619593319]
+position = Vector2(48, 16)
+script = ExtResource("2_8csm2")
+variance_tiles = 2
+group_slot = "A"
+
+[node name="EnemySlot2" type="Node2D" parent="EnemySlots" unique_id=691551936]
+position = Vector2(240, 16)
+script = ExtResource("2_8csm2")
+variance_tiles = 2
+group_slot = "A"
+
+[node name="EnemySlot3" type="Node2D" parent="EnemySlots" unique_id=1098725793]
+position = Vector2(80, 48)
+script = ExtResource("2_8csm2")
+variance_tiles = 2
+group_slot = "A"
+
+[node name="EnemySlot4" type="Node2D" parent="EnemySlots" unique_id=537382949]
+position = Vector2(208, 48)
+script = ExtResource("2_8csm2")
+variance_tiles = 2
+group_slot = "B"
+
+[node name="EnemySlot5" type="Node2D" parent="EnemySlots" unique_id=923006875]
+position = Vector2(16, 80)
+script = ExtResource("2_8csm2")
+variance_tiles = 2
+group_slot = "B"
+
+[node name="EnemySlot6" type="Node2D" parent="EnemySlots" unique_id=289862942]
+position = Vector2(272, 80)
+script = ExtResource("2_8csm2")
+variance_tiles = 2
+
+[node name="EnemySlot7" type="Node2D" parent="EnemySlots" unique_id=1376933534]
+position = Vector2(48, 144)
+script = ExtResource("2_8csm2")
+variance_tiles = 2
+
+[node name="Objects" type="Node2D" parent="." unique_id=2036031356]
+
+[node name="Door1" type="Node2D" parent="Objects" unique_id=207371932]
+position = Vector2(144, 80)
+script = ExtResource("2_8csm2")
+kind = 1
+group_id = 0
+
+[node name="Lever1" type="Node2D" parent="Objects" unique_id=1935113195]
+position = Vector2(240, 112)
+script = ExtResource("2_8csm2")
+kind = 2
+group_id = 0
+
+[node name="DarknessSources" type="Node2D" parent="." unique_id=1640338084]
+
+[node name="DarknessSource1" type="Node2D" parent="DarknessSources" unique_id=812929176]
+position = Vector2(16, 176)
+script = ExtResource("2_8csm2")
+kind = 5
+group_id = 0
+
+[node name="DarknessSource2" type="Node2D" parent="DarknessSources" unique_id=1770447382]
+position = Vector2(16, 208)
+script = ExtResource("2_8csm2")
+kind = 5
+group_id = 0
+
+[node name="DarknessSource3" type="Node2D" parent="DarknessSources" unique_id=1179966383]
+position = Vector2(272, 176)
+script = ExtResource("2_8csm2")
+kind = 5
+group_id = 1
+
+[node name="DarknessSource4" type="Node2D" parent="DarknessSources" unique_id=1989233581]
+position = Vector2(272, 208)
+script = ExtResource("2_8csm2")
+kind = 5
+group_id = 1

@@ -1,0 +1,82 @@
+[gd_scene format=4]
+
+[ext_resource type="TileSet" path="res://maps/greybox_tile_set.tres" id="1_popbr"]
+[ext_resource type="Script" path="res://scripts/map/map_marker.gd" id="2_0epfb"]
+
+[node name="Crossroads" type="Node2D" unique_id=346850159]
+
+[node name="Terrain" type="TileMapLayer" parent="." unique_id=1390292491]
+tile_map_data = PackedByteArray("AAAAAAAAAAAHAAAAAAABAAAAAAAQAAAAAAACAAAAAAAYAAAAAAADAAAAAAAQAAAAAAAEAAAAAAAQAAAAAAAFAAAAAAASAAAAAAAGAAAAAAAQAAAAAAAHAAAAAAAHAAAAAAAIAAAAAAAQAAAAAAAJAAAAAAAYAAAAAAAAAAEAAAAQAAAAAAABAAEAAAAQAAAAAAACAAEAAAAQAAAAAAADAAEAAAAQAAAAAAAEAAEAAAAQAAAAAAAFAAEAAAASAAAAAAAGAAEAAAAQAAAAAAAHAAEAAAAJAAAAAAAIAAEAAAAQAAAAAAAJAAEAAAAQAAAAAAAAAAIAAAAYAAAAAAABAAIAAAAQAAAAAAACAAIAAAAHAAAAAAADAAIAAAAQAAAAAAAEAAIAAAAQAAAAAAAFAAIAAAASAAAAAAAGAAIAAAAQAAAAAAAHAAIAAAAQAAAAAAAIAAIAAAAQAAAAAAAJAAIAAAAHAAAAAAAAAAMAAAASAAAAAAABAAMAAAASAAAAAAACAAMAAAASAAAAAAADAAMAAAASAAAAAAAEAAMAAAASAAAAAAAFAAMAAAASAAAAAAAGAAMAAAASAAAAAAAHAAMAAAASAAAAAAAIAAMAAAASAAAAAAAJAAMAAAASAAAAAAAAAAQAAAAQAAAAAAABAAQAAAAQAAAAAAACAAQAAAAYAAAAAAADAAQAAAAQAAAAAAAEAAQAAAAQAAAAAAAFAAQAAAASAAAAAAAGAAQAAAAQAAAAAAAHAAQAAAAQAAAAAAAIAAQAAAAHAAAAAAAJAAQAAAAQAAAAAAAAAAUAAAAQAAAAAAABAAUAAAAJAAAAAAACAAUAAAAQAAAAAAADAAUAAAAQAAAAAAAEAAUAAAAQAAAAAAAFAAUAAAASAAAAAAAGAAUAAAAQAAAAAAAHAAUAAAAQAAAAAAAIAAUAAAAQAAAAAAAJAAUAAAAQAAAAAAAAAAYAAAAQAAAAAAABAAYAAAAQAAAAAAACAAYAAAAHAAAAAAADAAYAAAAQAAAAAAAEAAYAAAAQAAAAAAAFAAYAAAASAAAAAAAGAAYAAAAQAAAAAAAHAAYAAAAYAAAAAAAIAAYAAAAQAAAAAAAJAAYAAAAQAAAAAAAAAAcAAAAYAAAAAAABAAcAAAAQAAAAAAACAAcAAAAQAAAAAAADAAcAAAAQAAAAAAAEAAcAAAAQAAAAAAAFAAcAAAASAAAAAAAGAAcAAAAQAAAAAAAHAAcAAAAQAAAAAAAIAAcAAAAQAAAAAAAJAAcAAAAQAAAAAAA=")
+tile_set = ExtResource("1_popbr")
+
+[node name="Markers" type="TileMapLayer" parent="." unique_id=1166679287]
+tile_map_data = PackedByteArray("AAAHAAEAAAAnAAAAAAAIAAMAAAArAAAAAAABAAUAAAAnAAAAAAAFAAUAAAArAAAAAAAAAAYAAAAdAAAAAAABAAYAAAAdAAAAAAACAAYAAAAdAAAAAAADAAYAAAAdAAAAAAAAAAcAAAAdAAAAAAABAAcAAAAdAAAAAAACAAcAAAAdAAAAAAADAAcAAAAdAAAAAAA=")
+tile_set = ExtResource("1_popbr")
+
+[node name="EnemySlots" type="Node2D" parent="." unique_id=1253149326]
+
+[node name="EnemySlot1" type="Node2D" parent="EnemySlots" unique_id=635732809]
+position = Vector2(48, 16)
+script = ExtResource("2_0epfb")
+variance_tiles = 2
+group_slot = "A"
+
+[node name="EnemySlot2" type="Node2D" parent="EnemySlots" unique_id=1984930443]
+position = Vector2(208, 16)
+script = ExtResource("2_0epfb")
+variance_tiles = 2
+group_slot = "A"
+
+[node name="EnemySlot3" type="Node2D" parent="EnemySlots" unique_id=356037091]
+position = Vector2(80, 48)
+script = ExtResource("2_0epfb")
+variance_tiles = 2
+group_slot = "A"
+
+[node name="EnemySlot4" type="Node2D" parent="EnemySlots" unique_id=1896662316]
+position = Vector2(272, 48)
+script = ExtResource("2_0epfb")
+variance_tiles = 2
+group_slot = "B"
+
+[node name="EnemySlot5" type="Node2D" parent="EnemySlots" unique_id=1566841250]
+position = Vector2(48, 80)
+script = ExtResource("2_0epfb")
+variance_tiles = 2
+group_slot = "B"
+
+[node name="EnemySlot6" type="Node2D" parent="EnemySlots" unique_id=309231958]
+position = Vector2(272, 80)
+script = ExtResource("2_0epfb")
+variance_tiles = 2
+
+[node name="EnemySlot7" type="Node2D" parent="EnemySlots" unique_id=469657970]
+position = Vector2(240, 144)
+script = ExtResource("2_0epfb")
+variance_tiles = 2
+
+[node name="DarknessSources" type="Node2D" parent="." unique_id=224350570]
+
+[node name="DarknessSource1" type="Node2D" parent="DarknessSources" unique_id=221752012]
+position = Vector2(176, 240)
+script = ExtResource("2_0epfb")
+kind = 5
+group_id = 0
+
+[node name="DarknessSource2" type="Node2D" parent="DarknessSources" unique_id=1336006785]
+position = Vector2(304, 208)
+script = ExtResource("2_0epfb")
+kind = 5
+group_id = 1
+
+[node name="DarknessSource3" type="Node2D" parent="DarknessSources" unique_id=1492433935]
+position = Vector2(304, 240)
+script = ExtResource("2_0epfb")
+kind = 5
+group_id = 1
+
+[node name="DarknessSource4" type="Node2D" parent="DarknessSources" unique_id=77316504]
+position = Vector2(16, 112)
+script = ExtResource("2_0epfb")
+kind = 5
+group_id = 2

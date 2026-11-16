@@ -6,11 +6,11 @@
 # File:     battle_bridge_cases.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 14, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 extends RefCounted
-## Battle bridge cases for tests/campaign/run_all.gd, on the real content and M1: the map pools
+## Battle bridge cases for tests/campaign/run_all.gd, on the real content and maps: the map pools
 ## and the no-repeat rule; the run's battle request (its node, pool and living army); a result
 ## applied to a copy (HP, a fall with its items, Hit and growth deltas, heirloom lanes, grants,
 ## used maps, the node's results, a fallen commander kept at critical HP; the run itself
@@ -86,9 +86,10 @@ func new_session(catalog: EffectCatalog.Index = null) -> CampaignSession:
 
 func _test_pools() -> void:
 	var standard: CombatMapPool = _pools.pool_for(CampaignGraph.NodeType.STANDARD, 1)
-	_check("pools: every combat step has a pool of M1, and nothing else has one", (
+	_check("pools: every combat step has a pool without M1, and nothing else has one", (
 			standard != null
-			and standard.map_ids() == PackedStringArray([M1_ID])
+			and not standard.map_ids().is_empty()
+			and not standard.map_ids().has(M1_ID)
 			and _pools.pool_for(CampaignGraph.NodeType.STANDARD, 6) != standard
 			and _pools.pool_for(CampaignGraph.NodeType.STANDARD, 17) != null
 			and _pools.pool_for(CampaignGraph.NodeType.KEY, 3) == null
@@ -121,11 +122,12 @@ func _test_request() -> void:
 	var request: CampaignSession.BattleRequest = run.battle_request(_pools, _catalog)
 	var army: CampaignSession.Army = null if request == null else request.armies.get(0, null)
 	_check("request: none outside a node", on_map == null)
-	_check("request: the node's floor and id, and its pool's map", (
+	var floor_pool: CombatMapPool = _pools.pool_for(CampaignGraph.NodeType.STANDARD, 1)
+	_check("request: the node's floor and id, and its pool's maps", (
 			request != null
 			and request.floor_number == 1
 			and request.node == run.node
-			and _ids(request.pool) == PackedStringArray([M1_ID])
+			and _ids(request.pool) == floor_pool.map_ids()
 			and request.catalog == _catalog
 	))
 	_check("request: the seat's living army, as the run's own instances, without the fallen", (
@@ -269,8 +271,8 @@ func _test_apply_loss_and_commander() -> void:
 	))
 
 
-# A real M1 battle from the run's request: a unit is hurt, one falls, one gains +5 Hit and hits
-# twice; the map is won. The next battle's request leaves the fallen unit out, loads the hurt
+# A real battle from the run's request, on a map of floor 1's pool: a unit is hurt, one falls, one
+# gains +5 Hit and hits twice; the map is won. The next battle's request leaves the fallen unit out, loads the hurt
 # unit's HP, and the roster unit has the Hit delta.
 func _test_real_battle_carries_over() -> void:
 	var session: CampaignSession = new_session()
@@ -282,11 +284,13 @@ func _test_real_battle_carries_over() -> void:
 	var fall_id: String = seat_run.army[3].instance_id
 	var hit_before: int = seat_run.army[1].stats(_catalog).get_int(CombatValue.Key.HIT)
 	var battle: CombatEncounter = session.begin_battle(run.battle_request(_pools, _catalog))
-	_check("battle: the run's request begins a battle on M1", (
-			battle != null and battle.setup.map.id == M1_ID
+	var floor_pool: CombatMapPool = _pools.pool_for(CampaignGraph.NodeType.STANDARD, 1)
+	_check("battle: the run's request begins a battle on a map of its pool", (
+			battle != null and floor_pool.map_ids().has(battle.setup.map.id)
 	))
 	if battle == null:
 		return
+	var map_id: String = battle.setup.map.id
 	var map: CombatSession = battle.get_session(0)
 	var enemies: PackedStringArray = map.state.units_of(ENEMY)
 	_check("battle: the drawn enemies are on the map", not enemies.is_empty())
@@ -312,7 +316,7 @@ func _test_real_battle_carries_over() -> void:
 	_check("battle: the result has the win, HP, the fall and the Hit delta", (
 			result.is_finished
 			and result.is_won
-			and result.map_id == M1_ID
+			and result.map_id == map_id
 			and result.units[hurt_id].hp == 4
 			and result.units[fall_id].is_fallen
 			and result.units[hit_id].stat_deltas.size() == 1

@@ -1,0 +1,82 @@
+[gd_scene format=4]
+
+[ext_resource type="TileSet" path="res://maps/greybox_tile_set.tres" id="1_nrv0v"]
+[ext_resource type="Script" path="res://scripts/map/map_marker.gd" id="2_4n14x"]
+
+[node name="BanditCamp" type="Node2D" unique_id=69281904]
+
+[node name="Terrain" type="TileMapLayer" parent="." unique_id=1773351756]
+tile_map_data = PackedByteArray("AAAAAAAAAAAYAAAAAAABAAAAAAAQAAAAAAACAAAAAAAQAAAAAAADAAAAAAAaAAAAAAAEAAAAAAAIAAAAAAAFAAAAAAAaAAAAAAAGAAAAAAAQAAAAAAAHAAAAAAAQAAAAAAAIAAAAAAAYAAAAAAAAAAEAAAAQAAAAAAABAAEAAAAQAAAAAAACAAEAAAAQAAAAAAADAAEAAAAaAAAAAAAEAAEAAAAQAAAAAAAFAAEAAAAaAAAAAAAGAAEAAAAQAAAAAAAHAAEAAAAQAAAAAAAIAAEAAAAQAAAAAAAAAAIAAAAQAAAAAAABAAIAAAAHAAAAAAACAAIAAAAQAAAAAAADAAIAAAAQAAAAAAAEAAIAAAAQAAAAAAAFAAIAAAAQAAAAAAAGAAIAAAAQAAAAAAAHAAIAAAAHAAAAAAAIAAIAAAAQAAAAAAAAAAMAAAAQAAAAAAABAAMAAAAQAAAAAAACAAMAAAAQAAAAAAADAAMAAAAYAAAAAAAEAAMAAAAQAAAAAAAFAAMAAAAYAAAAAAAGAAMAAAAQAAAAAAAHAAMAAAAQAAAAAAAIAAMAAAAQAAAAAAAAAAQAAAAQAAAAAAABAAQAAAAUAAAAAAACAAQAAAAQAAAAAAADAAQAAAAQAAAAAAAEAAQAAAAQAAAAAAAFAAQAAAAQAAAAAAAGAAQAAAAQAAAAAAAHAAQAAAAUAAAAAAAIAAQAAAAQAAAAAAAAAAUAAAAQAAAAAAABAAUAAAAQAAAAAAACAAUAAAAHAAAAAAADAAUAAAAQAAAAAAAEAAUAAAAQAAAAAAAFAAUAAAAQAAAAAAAGAAUAAAAHAAAAAAAHAAUAAAAQAAAAAAAIAAUAAAAQAAAAAAAAAAYAAAAQAAAAAAABAAYAAAAQAAAAAAACAAYAAAAQAAAAAAADAAYAAAAQAAAAAAAEAAYAAAAQAAAAAAAFAAYAAAAQAAAAAAAGAAYAAAAQAAAAAAAHAAYAAAAQAAAAAAAIAAYAAAAQAAAAAAA=")
+tile_set = ExtResource("1_nrv0v")
+
+[node name="Markers" type="TileMapLayer" parent="." unique_id=418985928]
+tile_map_data = PackedByteArray("AAACAAAAAAAuAAAAAAAEAAAAAAAgAAAAAAAGAAAAAAAqAAAAAAACAAUAAAAdAAAAAAADAAUAAAAdAAAAAAAEAAUAAAAdAAAAAAAFAAUAAAAdAAAAAAACAAYAAAAdAAAAAAADAAYAAAAdAAAAAAAEAAYAAAAdAAAAAAAFAAYAAAAdAAAAAAA=")
+tile_set = ExtResource("1_nrv0v")
+
+[node name="EnemySlots" type="Node2D" parent="." unique_id=1958493267]
+
+[node name="EnemySlot1" type="Node2D" parent="EnemySlots" unique_id=1875065200]
+position = Vector2(48, 16)
+script = ExtResource("2_4n14x")
+variance_tiles = 2
+group_slot = "A"
+
+[node name="EnemySlot2" type="Node2D" parent="EnemySlots" unique_id=554049417]
+position = Vector2(240, 16)
+script = ExtResource("2_4n14x")
+variance_tiles = 2
+group_slot = "A"
+
+[node name="EnemySlot3" type="Node2D" parent="EnemySlots" unique_id=1281419534]
+position = Vector2(144, 48)
+script = ExtResource("2_4n14x")
+variance_tiles = 2
+group_slot = "A"
+
+[node name="EnemySlot4" type="Node2D" parent="EnemySlots" unique_id=2084994170]
+position = Vector2(48, 80)
+script = ExtResource("2_4n14x")
+variance_tiles = 2
+group_slot = "B"
+
+[node name="EnemySlot5" type="Node2D" parent="EnemySlots" unique_id=1944509099]
+position = Vector2(240, 80)
+script = ExtResource("2_4n14x")
+variance_tiles = 2
+group_slot = "B"
+
+[node name="EnemySlot6" type="Node2D" parent="EnemySlots" unique_id=449613951]
+position = Vector2(112, 112)
+script = ExtResource("2_4n14x")
+variance_tiles = 2
+
+[node name="EnemySlot7" type="Node2D" parent="EnemySlots" unique_id=270390547]
+position = Vector2(176, 112)
+script = ExtResource("2_4n14x")
+variance_tiles = 2
+
+[node name="DarknessSources" type="Node2D" parent="." unique_id=2138012337]
+
+[node name="DarknessSource1" type="Node2D" parent="DarknessSources" unique_id=1605257717]
+position = Vector2(16, 176)
+script = ExtResource("2_4n14x")
+kind = 5
+group_id = 0
+
+[node name="DarknessSource2" type="Node2D" parent="DarknessSources" unique_id=2007195719]
+position = Vector2(16, 208)
+script = ExtResource("2_4n14x")
+kind = 5
+group_id = 0
+
+[node name="DarknessSource3" type="Node2D" parent="DarknessSources" unique_id=1754551075]
+position = Vector2(272, 176)
+script = ExtResource("2_4n14x")
+kind = 5
+group_id = 1
+
+[node name="DarknessSource4" type="Node2D" parent="DarknessSources" unique_id=630449258]
+position = Vector2(272, 208)
+script = ExtResource("2_4n14x")
+kind = 5
+group_id = 1

@@ -6,12 +6,12 @@
 # File:     run_battle_cases.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 14, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 extends "res://tests/sessions/sessions_case_base.gd"
 ## A run's battle through the real [code]SaveService[/code] and [code]CampaignService[/code], for
-## tests/sessions/run_all.gd: one script plays a node's M1 battle (a unit hurt, one fallen, a Hit
+## tests/sessions/run_all.gd: one script plays a node's battle (a unit hurt, one fallen, a Hit
 ## delta, two hits, a grant, a checkpoint, the win, the end) without a quit, and with a quit and
 ## Continue before the result is collected, after it is applied but not saved, and after the save;
 ## every play ends in the same run at the node's results, rewards and item pick included, the XP
@@ -36,7 +36,8 @@ enum Quit {
 const HIT_GAIN: float = 5.0
 const GRANT_GOLD: int = 40
 const HURT_HP: int = 4
-# A won Standard combat on M1 (par 5) by turn 1, with a unit fallen: 30, +8 for under par.
+# A won Standard combat by turn 1, under any floor-1 map's par, with a unit fallen: 30, +8 for
+# under par.
 const STANDARD_GOLD: int = 38
 
 
@@ -61,7 +62,8 @@ func _test_quit_at_each_step() -> bool:
 			and straight.fallen_size == 1
 			and straight.hurt_hp == HURT_HP
 			and straight.hit_deltas == 1
-			and straight.used_maps == PackedStringArray(["m1_greybox"])
+			and straight.used_maps.size() == 1
+			and _floor_1_maps().has(straight.used_maps[0])
 			and straight.is_at_results
 	), "%d gold, army %d, fallen %d, hp %d, %d Hit deltas, %s" % [
 		straight.gold, straight.army_size, straight.fallen_size, straight.hurt_hp,
@@ -265,6 +267,11 @@ func _continue(saves: Node, service: Node, played: Play, in_battle: bool) -> Cam
 		return null
 	played.tally_resumed = JSON.stringify(run.tally.capture())
 	return run
+
+
+# The maps a floor-1 standard combat may draw.
+func _floor_1_maps() -> PackedStringArray:
+	return CombatMapPools.load_default().pool_for(CampaignGraph.NodeType.STANDARD, 1).map_ids()
 
 
 # The run's request for its current node, as the battle screen builds it.

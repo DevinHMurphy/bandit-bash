@@ -6,7 +6,7 @@
 # File:     m1_cases.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 30, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -102,12 +102,12 @@ func _test_cover(definition: CombatMapDefinition) -> void:
 	enemy_tiles.append_array(layout.tiles_of(MapLayout.MarkerKind.LEADER_SLOT))
 	var uncovered: Array[Vector2i] = []
 	for tile: Vector2i in enemy_tiles:
-		if not _has_cover_near(layout, tile):
+		if not has_cover_near(layout, tile):
 			uncovered.append(tile)
 	_ok("m1 cover: next to every enemy start", uncovered.is_empty(), str(uncovered))
 	var covered: int = 0
 	for tile: Vector2i in layout.tiles_of(MapLayout.MarkerKind.DEPLOYMENT):
-		if _has_cover_near(layout, tile):
+		if has_cover_near(layout, tile):
 			covered += 1
 	_ok("m1 cover: next to the deployment zone", covered >= 4, "%d tiles" % [covered])
 
@@ -301,8 +301,9 @@ func _marker_node(node_name: String, terrain: TileMapLayer, tile: Vector2i) -> M
 	return marker
 
 
-# Whether tile or a neighbor (grid distance 1) gives more avoid than Plain.
-func _has_cover_near(layout: MapLayout, tile: Vector2i) -> bool:
+## Whether [param tile] or a neighbor (grid distance 1) gives more avoid than Plain. Also used by
+## map_set_cases.gd on every map of the M2 set.
+static func has_cover_near(layout: MapLayout, tile: Vector2i) -> bool:
 	var near: Array[Vector2i] = [tile]
 	for direction: Vector2i in CombatGrid.DIRECTIONS:
 		near.append(tile + direction)
