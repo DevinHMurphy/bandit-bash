@@ -6,7 +6,7 @@
 # File:     placement_panel.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 15, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 class_name PlacementPanel
@@ -274,8 +274,10 @@ func _held_name(item_id: String) -> String:
 	return CombatResultsModel.item_name(_held_definition(item_id), item_id)
 
 
+# The gold scrapping the held item item_id pays: its own value, so a modified item pays more.
 func _scrap_gold(item_id: String) -> int:
-	return ItemPlacement.scrap_value(_held_definition(item_id))
+	var item: ItemInstance = _seat_run.items.get(item_id, null)
+	return ItemPlacement.held_scrap_value(item, _catalog)
 
 
 func _on_equip_chosen(unit_id: String) -> void:

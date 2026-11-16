@@ -6,7 +6,7 @@
 # File:     placement_cases.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 15, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -15,7 +15,8 @@ extends RefCounted
 ## until one of its items is scrapped (gold and ITEM_SCRAPPED); equipping a usable weapon, the
 ## displaced item to the convoy or scrapped (ITEM_EQUIPPED both ways); a weapon the unit can't
 ## wield, a fallen unit, scrapping a displaced item from an empty slot, and a convoy scrap nothing
-## needs, all refused and changing nothing; scrapping at pickup (gold, no GAINED); the roster whole
+## needs, all refused and changing nothing; scrapping at pickup (gold, no GAINED); a modified
+## convoy item scrapped for its own, higher value; the roster whole
 ## after each; the report classes read back as written, through JSON too, and bad data refused;
 ## the nodes the map can enter next; and the Boss's results. Touches no save files.
 
@@ -47,6 +48,7 @@ func run() -> void:
 	_test_equip()
 	_test_refusals()
 	_test_scrap_at_pickup()
+	_test_scrap_modified()
 	_test_report_restore()
 	_test_next_nodes_and_boss()
 
@@ -274,6 +276,34 @@ func _test_scrap_at_pickup() -> void:
 			and ItemPick.pending(seat_run).is_resolved
 			and ItemPick.pending(seat_run).taken == 0
 	), scrapped.rejected_reason)
+
+
+func _test_scrap_modified() -> void:
+	var session: CampaignSession = _session()
+	var seat_run: SeatRun = session.run.seat_run(0)
+	var trinket: ItemDefinition = _first_of(EffectCatalog.Kind.TRINKET)
+	seat_run.convoy.clear()
+	_fill_convoy(session, seat_run, 4)
+	var modified_id: String = seat_run.convoy[0]
+	var modified: ItemInstance = seat_run.items[modified_id]
+	modified.stat_deltas.append(ItemInstance.StatDelta.new(
+			CombatValue.Key.HIT, 10.0, "placement_event", "Event"
+	))
+	var held_gold: int = ItemPlacement.held_scrap_value(modified, _catalog)
+	_open_pick(session, PackedStringArray([trinket.id]))
+	var gold_before: int = seat_run.gold
+	var made_room: CampaignBatch = session.submit(ItemPickCommand.new(
+			0, 0, ItemPlacement.new(ItemPlacement.Destination.CONVOY, "", false, modified_id)
+	))
+	_check("placement: a modified convoy item scraps for its own value, more than a fresh one", (
+			not made_room.is_rejected()
+			and held_gold > ItemPlacement.scrap_value(trinket)
+			and held_gold == Prices.item_scrap_value(modified, _catalog, 20.0)
+			and made_room.facts[0].kind == CampaignFact.Kind.ITEM_SCRAPPED
+			and made_room.facts[0].amount == held_gold
+			and seat_run.gold == gold_before + held_gold
+			and _is_whole(seat_run)
+	), "%s: %d gold" % [made_room.rejected_reason, held_gold])
 
 
 func _test_report_restore() -> void:

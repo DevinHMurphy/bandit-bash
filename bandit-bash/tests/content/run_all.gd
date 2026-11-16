@@ -19,10 +19,10 @@ extends SceneTree
 ## loadout_cases.gd; the M1 content over the real data (the Mercenary army, stats, text snapshots,
 ## forecasts) in m1_content_cases.gd, M1's enemies and their pack in m1_enemy_cases.gd, the
 ## equipment, trinkets and consumables in item_content_cases.gd, the weapons and staves in
-## weapon_content_cases.gd, the heirlooms and curses in heirloom_content_cases.gd, and the unit
-## prefixes, item pools and container contents in pool_cases.gd. Every catalog definition and
-## every loadout fixture is hashed before the first case and after the last, and the run fails if
-## any changed.
+## weapon_content_cases.gd, the heirlooms and curses in heirloom_content_cases.gd, the unit
+## prefixes, item pools and container contents in pool_cases.gd, and modified-item prices in
+## price_cases.gd. Every catalog definition and every loadout fixture is hashed before the first
+## case and after the last, and the run fails if any changed.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/content/run_all.gd[/code][br]
@@ -46,6 +46,7 @@ const ItemContentCases = preload("res://tests/content/item_content_cases.gd")
 const WeaponContentCases = preload("res://tests/content/weapon_content_cases.gd")
 const HeirloomContentCases = preload("res://tests/content/heirloom_content_cases.gd")
 const PoolCases = preload("res://tests/content/pool_cases.gd")
+const PriceCases = preload("res://tests/content/price_cases.gd")
 
 # Fixture trees whose definitions are hashed with the catalog's.
 const HASHED_TREES: PackedStringArray = [LoadoutCases.TREE]
@@ -171,6 +172,8 @@ func _init() -> void:
 	HeirloomContentCases.new(_check).run()
 	GroupClock.lap("pool_cases")
 	PoolCases.new(_check).run()
+	GroupClock.lap("price_cases")
+	PriceCases.new(_check).run()
 	GroupClock.lap("definitions check")
 	_test_definitions_unchanged(before)
 	GroupClock.stop()

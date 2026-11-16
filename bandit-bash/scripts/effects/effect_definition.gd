@@ -6,7 +6,7 @@
 # File:     effect_definition.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 15, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 @tool
@@ -71,6 +71,12 @@ enum Tag {
 ## gains). Two such effects keep the usual order between them. [b]Off:[/b] the usual reaction
 ## order ([EffectEngine]).
 @export var resolves_first: bool = false
+
+## What the effect adds to an item's price when an event grants it to that item
+## ([method Prices.item_value]): "Hit dealt: heal 2" is 1. Read only for granted effects.[br]
+## [b]Units:[/b] points on the prefix scale (1 point = 1 Might = 10 Hit). [b]0:[/b] adds nothing;
+## negative lowers the price, never below the unmodified price.
+@export var item_points: float = 0.0
 
 
 ## The effect text, generated from the data, such as
