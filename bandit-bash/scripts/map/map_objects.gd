@@ -6,7 +6,7 @@
 # File:     map_objects.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 14, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name MapObjects
@@ -35,7 +35,6 @@ extends RefCounted
 ##
 ## @todo: TOD-001 - Pick each container's item from P03's pools; contents are a category and a
 ## rarity until then.
-## @todo: TOD-002 - Read the Cutthroat from P05's enemy data, not a unit type name.
 ## @todo: TOD-004 - Read Spark from P03's rune catalog, not an effect definition id.
 ## @todo: TOD-005 - Place objects from setup step 2's draw; every candidate spot is placed now.
 
@@ -109,10 +108,6 @@ const USED_FROM_NEXT_TO: Array[MapLayout.ObjectKind] = [
 	MapLayout.ObjectKind.DOOR,
 	MapLayout.ObjectKind.BRAZIER,
 ]
-
-# TODO(TOD-002): The Cutthroat, the only enemy that loots, until P05 marks it in enemy data.
-## The unit type of the Cutthroat: the only enemy that opens chests and searches, needing no key.
-const CUTTHROAT_UNIT_TYPE: String = "Cutthroat"
 
 ## The [member EffectDefinition.id] of a key's use effect: any unit opens a chest or door with it,
 ## and it is used up (user decision, October 29, 2026).
@@ -217,9 +212,9 @@ static func check_use(
 		MapLayout.ObjectKind.CHEST:
 			if used.is_used:
 				return "already opened"
-			if not _may_loot(state, unit_id):
+			if not _may_loot(engine, state, unit_id):
 				return "only player units and Cutthroats loot"
-			if item_id.is_empty() and is_cutthroat(state, unit_id):
+			if item_id.is_empty() and is_looter(engine, state, unit_id):
 				return ""
 			return _unlock_reason(engine, state, unit_id, item_id)
 		MapLayout.ObjectKind.DOOR:
@@ -241,7 +236,7 @@ static func check_use(
 			return ""
 	if used.is_used:
 		return "already searched"
-	return "" if _may_loot(state, unit_id) else "only player units and Cutthroats loot"
+	return "" if _may_loot(engine, state, unit_id) else "only player units and Cutthroats loot"
 
 
 ## [param unit_id] uses [param object_id] as its action ([method check_use]): a key or a Burglar's
@@ -263,7 +258,7 @@ static func use(
 	var used: MapState.ObjectState = state.map.object(object_id)
 	if not item_id.is_empty():
 		_spend_key(engine, state, unit_id, item_id)
-	elif _is_lock(used) and not is_cutthroat(state, unit_id):
+	elif _is_lock(used) and not is_looter(engine, state, unit_id):
 		# check_use passed with no item, so a charge is left.
 		var ctx: EffectContext = EffectContext.new()
 		ctx.command_target_id = unit_id
@@ -446,11 +441,13 @@ static func roll(kind: MapLayout.ObjectKind, stream: RngStream) -> Dictionary:
 	return {}
 
 
-## Whether [param unit_id] is a Cutthroat, the enemy that loots without a key.
-static func is_cutthroat(state: CombatState, unit_id: String) -> bool:
+## Whether [param unit_id] is an enemy that loots, opening chests with no key: its
+## [constant CombatValue.Permission.CAN_LOOT], which the Cutthroat's class grants. Player units
+## loot without it, but a chest still needs their key.
+static func is_looter(engine: EffectEngine, state: CombatState, unit_id: String) -> bool:
 	return (
 			state.side_of(unit_id) == CombatFact.CombatSide.ENEMY
-			and state.unit_type_of(unit_id) == CUTTHROAT_UNIT_TYPE
+			and engine.stats(unit_id).is_allowed(CombatValue.Permission.CAN_LOOT)
 	)
 
 
@@ -661,9 +658,12 @@ static func _spend_key(
 		state.load_bases(engine, unit_id)
 
 
-# Player units loot; of the enemies, only Cutthroats do (map-objects.md, Enemy AI).
-static func _may_loot(state: CombatState, unit_id: String) -> bool:
-	return state.side_of(unit_id) == CombatFact.CombatSide.PLAYER or is_cutthroat(state, unit_id)
+# Player units loot; of the enemies, only looters (Cutthroats) do (map-objects.md, Enemy AI).
+static func _may_loot(engine: EffectEngine, state: CombatState, unit_id: String) -> bool:
+	return (
+			state.side_of(unit_id) == CombatFact.CombatSide.PLAYER
+			or is_looter(engine, state, unit_id)
+	)
 
 
 static func _add_found(state: CombatState, seat: int, loot_found: Array) -> void:

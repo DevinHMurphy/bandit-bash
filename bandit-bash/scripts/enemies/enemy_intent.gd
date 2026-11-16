@@ -6,7 +6,7 @@
 # File:     enemy_intent.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 13, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name EnemyIntent
@@ -33,6 +33,9 @@ enum Kind {
 	GUARD = 2,
 	## Walks toward [member target_id], the nearest foe by path cost.
 	ADVANCE = 3,
+	## Uses the map object [member target_id] from [member tile]: loots a chest or searchable,
+	## pulls a lever or douses a Brazier; [member area] shows what changes.
+	USE_OBJECT = 4,
 }
 
 # The rule text once the darkness has switched an enemy to the nearest foe (enemies and AI plan,
@@ -65,7 +68,8 @@ var is_kill: bool = false
 ## The rating step that chose this plan over its best rival ([member EnemyPlan.decided_by]).
 var decided_by: EnemyPlan.Step = EnemyPlan.Step.ONLY_OPTION
 
-## The unit it attacks, heals or advances on; empty for [constant Kind.GUARD].
+## The unit it attacks, heals or advances on; a map object's id for [constant Kind.USE_OBJECT]
+## and for a powder keg it blows (an attack); empty for [constant Kind.GUARD].
 var target_id: String = ""
 
 ## The tile it acts from: the end of [member path], or its own tile.
@@ -78,7 +82,8 @@ var path: Array[Vector2i] = []
 var weapon_id: String = ""
 
 ## The tiles its splash or curse would hit (Cleave around [member tile], Trample and Curse
-## around its target), in row-major order; empty when none fires in its forecast.
+## around its target, each powder keg's blast that goes off), in row-major order; for an object
+## use, the doors a lever moves or the tiles a Brazier lights. Empty when none applies.
 var area: Array[Vector2i] = []
 
 ## Every player unit its forecast defeats, in state order.
@@ -144,6 +149,9 @@ static func from_plan(
 	intent.tile = chosen.tile
 	intent.path = chosen.path.duplicate()
 	intent.weapon_id = chosen.weapon_id
+	if intent.kind == Kind.USE_OBJECT:
+		intent.area = _object_area(state, state.map.object(chosen.target_id))
+		return intent
 	if chosen.forecast == null:
 		return intent
 	for outcome: CombatForecast.UnitOutcome in chosen.forecast.units:
@@ -168,18 +176,46 @@ static func _kind_of(state: CombatState, chosen: EnemyPlan) -> Kind:
 				return Kind.HEAL
 		EnemyPlan.Kind.ADVANCE:
 			return Kind.ADVANCE
+		EnemyPlan.Kind.LOOT, EnemyPlan.Kind.USE_OBJECT:
+			return Kind.USE_OBJECT
 	# A Support regroup and a Wait show the guard icon (question 23): the vision's icon list
 	# (attack, guard, buff, advance) has no regroup or wait icon.
 	return Kind.GUARD
 
 
+# What an object use changes: the doors in a lever's group, or the tiles on the map a lit
+# Brazier holds at Dusk (DarknessState); empty for a container. Row-major order.
+static func _object_area(state: CombatState, used: MapState.ObjectState) -> Array[Vector2i]:
+	var tiles: Array[Vector2i] = []
+	if used == null:
+		return tiles
+	match used.kind:
+		MapLayout.ObjectKind.LEVER:
+			for door: MapState.ObjectState in state.map.objects_of(MapLayout.ObjectKind.DOOR):
+				if door.group_id == used.group_id:
+					tiles.append(door.tile)
+		MapLayout.ObjectKind.BRAZIER:
+			var light: Vector2i = Vector2i(0, DarknessState.BRAZIER_RADIUS)
+			for tile: Vector2i in DangerZone.tiles_within(used.tile, light):
+				if state.grid.step(tile, Vector2i.ZERO) != CombatFact.NO_TILE:
+					tiles.append(tile)
+	tiles.sort_custom(EnemyPlan.tile_precedes)
+	return tiles
+
+
 # The tiles of every splash area the plan's forecast fired: each of the enemy's activated effects
 # that deals splash to an Area or takes Block or Stance across one (_area_hit_by), centered where
 # the enemy acts from (the owner, or the fact's actor on its Hit dealt) or on its target (the
-# fact's target, the command's target).
+# fact's target, the command's target); and the blast of each powder keg the forecast breaks.
 static func _splash_area(engine: EffectEngine, chosen: EnemyPlan) -> Array[Vector2i]:
 	var state: CombatState = engine.state
 	var covered: Dictionary[Vector2i, bool] = {}
+	for outcome: CombatForecast.UnitOutcome in chosen.forecast.units:
+		var keg: MapState.ObjectState = state.map.object(outcome.unit_id)
+		if outcome.is_defeated and keg != null and keg.kind == MapLayout.ObjectKind.POWDER_KEG:
+			for tile: Vector2i in MapObjects.KEG_BLAST.tiles(keg.tile):
+				if state.grid.step(tile, Vector2i.ZERO) != CombatFact.NO_TILE:
+					covered[tile] = true
 	var fired: Dictionary[String, bool] = {}
 	for fact: CombatFact in chosen.forecast.facts:
 		if fact.kind != CombatFact.Kind.EFFECT_ACTIVATED or fact.actor_id != chosen.actor_id:

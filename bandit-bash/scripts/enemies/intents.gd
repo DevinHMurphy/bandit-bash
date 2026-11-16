@@ -6,7 +6,7 @@
 # File:     intents.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 13, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name Intents
@@ -66,6 +66,10 @@ var diagnostics: PackedStringArray = []
 # The catalog the enemies' classes are read from; previews built on these use it too.
 var _catalog: EffectCatalog.Index = null
 
+# The tiles the player side must reach (EnemyAI.objective_tiles), read from the session with the
+# catalog; previews built on these use them too.
+var _objective: Array[Vector2i] = []
+
 # One per step of the phase: every enemy yet to act, decided, and the one that acted.
 var _rounds: Array[Round] = []
 
@@ -121,6 +125,7 @@ static func refresh(session: CombatSession, catalog: EffectCatalog.Index) -> voi
 static func compute(session: CombatSession, catalog: EffectCatalog.Index) -> Intents:
 	var found: Intents = Intents.new()
 	found._catalog = catalog
+	found._objective = EnemyAI.objective_tiles(session)
 	found.based_on_seq = session.last_seq()
 	var sandbox: Sandbox = Sandbox.new(session.engine, ForecastRolls.new())
 	found.danger = DangerZone.compute(sandbox.engine)
@@ -182,6 +187,7 @@ static func prepare_preview(session: CombatSession, unit_id: String, tile: Vecto
 		return job
 	var found: Intents = Intents.new()
 	found._catalog = base._catalog
+	found._objective = base._objective
 	found.based_on_seq = base.based_on_seq
 	found.moved_unit_id = unit_id
 	found.moved_to = tile
@@ -226,7 +232,9 @@ static func _play(
 				if decision.touches(touched):
 					decision = null
 			if decision == null:
-				decision = _decide(engine, found._catalog, unit_id, flooded, margin)
+				decision = _decide(
+						engine, found._catalog, unit_id, flooded, margin, found._objective
+				)
 				found.decisions += 1
 			round_of.decisions[unit_id] = decision
 			if best == null or decision.plan.is_better_than(best.plan):
@@ -244,22 +252,24 @@ static func _play(
 
 
 # unit_id's decision on engine's board, with the tiles a moved player unit would have to touch to
-# change it.
+# change it. objective: the tiles the player side must reach (EnemyAI.objective_tiles).
 static func _decide(
 		engine: EffectEngine,
 		catalog: EffectCatalog.Index,
 		unit_id: String,
 		flooded: Dictionary[Vector2i, bool],
-		margin: int
+		margin: int,
+		objective: Array[Vector2i]
 ) -> Decision:
 	var decision: Decision = Decision.new()
-	decision.plan = EnemyAI.decide(engine, catalog, unit_id, flooded)
+	decision.plan = EnemyAI.decide(engine, catalog, unit_id, flooded, objective)
 	var plan: EnemyPlan = decision.plan
 	if plan.kind == EnemyPlan.Kind.WAIT and plan.target_rule_id.is_empty():
 		return decision
 	# Support rates every end tile by every player unit's reach, an advance follows the nearest foe
 	# anywhere on the map, and a Wait with a class had no foe in reach: any move can change them.
-	# A Shieldbearer's posts beside its ally can follow a path anywhere on the map too.
+	# A Shieldbearer's posts beside its ally can follow a path anywhere on the map too, and a lever
+	# reads every player unit's route to the objective; a loot and a douse count as global too.
 	decision.is_global = (
 			margin < 0
 			or plan.behavior == EnemyClassDefinition.Behavior.SUPPORT
@@ -299,11 +309,17 @@ static func _zone_of(
 
 
 # How far any effect on engine's map reaches from a unit by position: the largest Area shape and
-# "within N tiles" or adjacency test in any effect's definition; -1 when one reads the whole map
-# (no ally closer to the enemy), so every decision counts as touched by any move. reaches: each
-# definition's _reach_in, read and filled here.
+# "within N tiles" or adjacency test in any effect's definition, and the powder kegs' blasts
+# chained end to end (a keg in range can kill a unit one blast past it, or past a chain); -1 when
+# one reads the whole map (no ally closer to the enemy), so every decision counts as touched by
+# any move. reaches: each definition's _reach_in, read and filled here.
 static func _effect_margin(engine: EffectEngine, reaches: Dictionary[EffectDefinition, int]) -> int:
-	var margin: int = 0
+	var state: CombatState = engine.state
+	var kegs: int = 0
+	for keg: MapState.ObjectState in state.map.objects_of(MapLayout.ObjectKind.POWDER_KEG):
+		if not keg.is_destroyed:
+			kegs += 1
+	var margin: int = kegs * _reach_in(MapObjects.KEG_BLAST)
 	for instance: EffectInstance in engine.get_instances():
 		var definition: EffectDefinition = instance.definition
 		if definition == null:
@@ -368,6 +384,8 @@ static func _carry_out(engine: EffectEngine, plan: EnemyPlan) -> void:
 			ExchangeResolver.resolve(engine, state, actor, plan.target_id)
 		EnemyPlan.Kind.STAFF:
 			StaffResolver.resolve(engine, state, actor, plan.target_id)
+		EnemyPlan.Kind.LOOT, EnemyPlan.Kind.USE_OBJECT:
+			MapObjects.use(engine, state, actor, plan.target_id)
 	if state.has_unit(actor) and not state.unit(actor).has_acted:
 		state.wait(engine, actor)
 	engine.drain()

@@ -6,7 +6,7 @@
 # File:     enemy_plan.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 13, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name EnemyPlan
@@ -23,8 +23,9 @@ extends RefCounted
 ##
 ## @tutorial(Enemies and AI plan): docs/plans/2026-10-30-enemies-and-ai.md
 
-## What the plan does, which also orders plans of different kinds: attacks first, then staves,
-## then moves, then a plain Wait ([constant Step.ACTION]).
+## What the plan does, which also orders plans of different kinds: a looter's loot first, then
+## attacks, staves, object uses, moves and a plain Wait ([constant Step.ACTION]). A kill is compared
+## before the kind, so only a kill beats looting. Append only.
 enum Kind {
 	## Attacks [member target_id] from [member tile].
 	ATTACK = 0,
@@ -37,6 +38,12 @@ enum Kind {
 	REGROUP = 3,
 	## Waits where it stands: no option, or no enemy class to play.
 	WAIT = 4,
+	## A looter (a Cutthroat) opens the chest or searches the searchable [member target_id] on
+	## [member tile], denying its contents to the player ([method MapObjects.use]).
+	LOOT = 5,
+	## Uses the map object [member target_id] from [member tile]: pulls a lever to seal the
+	## objective's route, or douses a lit Brazier whose light covers a player unit.
+	USE_OBJECT = 6,
 }
 
 ## The rating steps, in the order they are compared, except [constant ALLIES_BESIDE]: appended,
@@ -48,7 +55,7 @@ enum Step {
 	KILL = 1,
 	## (a) Among kills, the higher chance that those hits land.
 	KILL_CHANCE = 2,
-	## Its [enum Kind]: attacks before staves before moves before Wait.
+	## Its [enum Kind]: loot, then attacks, staves, object uses, moves, Wait.
 	ACTION = 3,
 	## (b) The behavior's target rule. Same enemy only.
 	TARGET_RULE = 4,
@@ -90,8 +97,9 @@ var behavior: EnemyClassDefinition.Behavior = EnemyClassDefinition.Behavior.AGGR
 ## enemy class.
 var target_rule_id: String = ""
 
-## The unit it attacks, heals or advances on; the user itself for a range-0 staff; empty for
-## [constant Kind.REGROUP] and [constant Kind.WAIT].
+## The unit it attacks, heals or advances on (a powder keg's object id when it blows one); the
+## user itself for a range-0 staff; the object for [constant Kind.LOOT] and
+## [constant Kind.USE_OBJECT]; empty for [constant Kind.REGROUP] and [constant Kind.WAIT].
 var target_id: String = ""
 
 ## The weapon an attack names: empty for the one in hand, the stowed one for a free Sidearm swap.
@@ -165,6 +173,9 @@ func to_command() -> UnitTurnCommand:
 		action = UnitTurnCommand.Action.STAFF
 		# A range-0 staff names no target; the command fills in the user.
 		command_target = "" if target_id == actor_id else target_id
+	elif kind == Kind.LOOT or kind == Kind.USE_OBJECT:
+		action = UnitTurnCommand.Action.USE_OBJECT
+		command_target = target_id
 	var command: UnitTurnCommand = UnitTurnCommand.new(-1, actor_id, action, command_target, path)
 	command.weapon_id = weapon_id
 	return command
@@ -233,13 +244,19 @@ static func tile_precedes(a: Vector2i, b: Vector2i) -> bool:
 	return a.y < b.y or (a.y == b.y and a.x < b.x)
 
 
-# Advancing and regrouping are both moves and rank together.
+# Advancing and regrouping are both moves and rank together. Looting ranks above attacks, so a
+# Cutthroat takes a chest over any attack but a kill; object uses rank below staves, so an enemy
+# pulls or douses only with nothing to attack or heal.
 static func _kind_rank(of_kind: Kind) -> int:
 	match of_kind:
-		Kind.ATTACK:
+		Kind.LOOT:
 			return 0
-		Kind.STAFF:
+		Kind.ATTACK:
 			return 1
-		Kind.ADVANCE, Kind.REGROUP:
+		Kind.STAFF:
 			return 2
-	return 3
+		Kind.USE_OBJECT:
+			return 3
+		Kind.ADVANCE, Kind.REGROUP:
+			return 4
+	return 5

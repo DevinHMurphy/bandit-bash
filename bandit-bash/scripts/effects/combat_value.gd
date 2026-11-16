@@ -106,6 +106,10 @@ enum Permission {
 	## May gain Block ([method EffectEngine.gain_block]). Allowed by default; Haunted denies it to
 	## one unit for a turn, and a denied gain does nothing, records nothing and fires nothing.
 	CAN_GAIN_BLOCK = 3006,
+	## Loots as an enemy: opens a chest with no key and searches a searchable, carrying what it
+	## takes until defeated (the Cutthroat's innate grant; [method MapObjects.is_looter]). Denied
+	## by default. Player units loot without it.
+	CAN_LOOT = 3007,
 }
 
 ## The value key of each [enum Stat]; MOV is [constant MOVEMENT].
@@ -167,4 +171,5 @@ const PERMISSION_DEFAULTS: Dictionary[int, bool] = {
 	Permission.SKIP_MITIGATION_ON_CRIT: false,
 	Permission.CAN_PICK_LOCKS: false,
 	Permission.CAN_GAIN_BLOCK: true,
+	Permission.CAN_LOOT: false,
 }

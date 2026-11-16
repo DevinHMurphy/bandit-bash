@@ -6,7 +6,7 @@
 # File:     ai_world.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 13, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -161,9 +161,14 @@ func wound(unit_id: String, hp: int) -> void:
 	session.state.set_hp(unit_id, hp)
 
 
-## The AI's plan for [param unit_id] now, with [param flooded] tiles.
-func decide(unit_id: String, flooded: Dictionary[Vector2i, bool] = {}) -> EnemyPlan:
-	return EnemyAI.decide(session.engine, catalog, unit_id, flooded)
+## The AI's plan for [param unit_id] now, with [param flooded] tiles and the player side's
+## [param objective] tiles.
+func decide(
+		unit_id: String,
+		flooded: Dictionary[Vector2i, bool] = {},
+		objective: Array[Vector2i] = []
+) -> EnemyPlan:
+	return EnemyAI.decide(session.engine, catalog, unit_id, flooded, objective)
 
 
 func _weapon(weapon_id: String, preset: String) -> CombatState.WeaponStats:

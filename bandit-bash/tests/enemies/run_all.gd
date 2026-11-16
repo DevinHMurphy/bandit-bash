@@ -16,7 +16,8 @@ extends SceneTree
 ## ([code]ai_cases.gd[/code]) and its intents
 ## ([code]intent_cases.gd[/code]) on the loadout fixture tree's enemy classes, a headless M1
 ## battle on the real catalog ([code]m1_battle_cases.gd[/code]), and the roster's behaviors, packs
-## and battles ([code]roster_ai_cases.gd[/code], [code]roster_battle_cases.gd[/code]).
+## and battles ([code]roster_ai_cases.gd[/code], [code]roster_battle_cases.gd[/code]), and the AI's
+## map objects ([code]object_ai_cases.gd[/code]).
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/enemies/run_all.gd[/code][br]
@@ -33,6 +34,7 @@ const EnemySetupCases = preload("res://tests/enemies/enemy_setup_cases.gd")
 const IntentCases = preload("res://tests/enemies/intent_cases.gd")
 const LoadoutCases = preload("res://tests/content/loadout_cases.gd")
 const M1BattleCases = preload("res://tests/enemies/m1_battle_cases.gd")
+const ObjectAiCases = preload("res://tests/enemies/object_ai_cases.gd")
 const ReinforcementSetupCases = preload("res://tests/enemies/reinforcement_setup_cases.gd")
 const RosterAiCases = preload("res://tests/enemies/roster_ai_cases.gd")
 const RosterBattleCases = preload("res://tests/enemies/roster_battle_cases.gd")
@@ -53,6 +55,7 @@ func _init() -> void:
 	M1BattleCases.new(_check).run()
 	RosterAiCases.new(_check).run()
 	RosterBattleCases.new(_check).run()
+	ObjectAiCases.new(_check).run()
 	var changed: PackedStringArray = CatalogCases.changed_definitions(
 			before, CatalogCases.hash_definitions([LoadoutCases.TREE])
 	)
