@@ -6,7 +6,7 @@
 # File:     ui_suite.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 15, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -76,16 +76,14 @@ func _skip(case_name: String, reason: String) -> void:
 	print("SKIP  %s: %s" % [case_name, reason])
 
 
-# Whether this run uses a test user folder, which the screen cases need: a custom one whose name
-# starts "bandit_bash_tests", as tools/run_tests.sh names each run's, so a real one is never used.
+# Whether this run uses a test user folder, which the screen cases need: one with a folder on its
+# path whose name starts "bandit_bash_tests", as tools/run_tests.sh gives each suite (and a manual
+# override.cfg may name), so a real one is never used. Reads the folder Godot actually resolved.
 func _has_test_user_dir() -> bool:
-	var custom_dir: bool = ProjectSettings.get_setting(
-			"application/config/use_custom_user_dir", false
-	)
-	var dir_name: String = ProjectSettings.get_setting(
-			"application/config/custom_user_dir_name", ""
-	)
-	return custom_dir and dir_name.begins_with("bandit_bash_tests")
+	for part: String in OS.get_user_data_dir().split("/"):
+		if part.begins_with("bandit_bash_tests"):
+			return true
+	return false
 
 
 # Enters the new run's first floor-1 node, a Standard combat, as choosing it on the campaign map

@@ -6,11 +6,11 @@
 # File:     object_ai_cases.gd
 # Author:
 # Created:  November 15, 2026
-# Modified: November 15, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 extends RefCounted
-## The map-object AI cases for tests/enemies/run_all.gd, on the real catalog's classes
+## The map-object AI cases for tests/enemies/roster/run_all.gd, on the real catalog's classes
 ## ([EnemyAI], map-objects.md, Enemy AI): a powder keg blown only to kill, friendly fire ignored,
 ## its intent, danger zone and phase; Cutthroat looting (a kill beats it, an attack doesn't; none
 ## after the darkness), its drop when defeated and its save; a lever sealing a Seize map's route

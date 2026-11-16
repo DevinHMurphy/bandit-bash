@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 14, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -21,9 +21,9 @@ extends SceneTree
 ## Prints PASS or FAIL per case and exits with code 1 if any fails. The cases run on the first
 ## frame, when autoloads exist; this script compiles before they are registered, so it reaches
 ## them as nodes.[br]
-## [b]Lifecycle cases[/b] write save files, so they run only when an [code]override.cfg[/code]
-## (never committed) sets a custom user folder whose name starts [code]bandit_bash_tests[/code],
-## and are skipped otherwise; [code]tools/run_tests.sh[/code] writes one, unique to each run.
+## [b]Lifecycle cases[/b] write save files, so they run only in a test user folder, one with a
+## folder on its path whose name starts [code]bandit_bash_tests[/code], and are skipped otherwise;
+## [code]tools/run_tests.sh[/code] gives each suite its own, and fails a suite that skips them.
 
 # Preloaded scripts used as types (gdscript.md, Naming): the content suite's hashing, the loadout
 # fixture tree the definitions hash covers, and the case scripts (no class name).

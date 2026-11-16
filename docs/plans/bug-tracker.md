@@ -1,6 +1,6 @@
 # Bug Tracker
 
-**Created:** November 6, 2026. **Last updated:** November 14, 2026.
+**Created:** November 6, 2026. **Last updated:** November 16, 2026.
 
 Every known defect in `bandit-bash/`, from playtests, build reports and reviews. It works under the
 [orchestrator](game-orchestrator.md): the orchestrator session triages new rows, batches them into
@@ -45,7 +45,7 @@ Not a bug.
 | [BUG-005](#bug-005-unit-detail-shows-the-type-id-not-its-name) | Unit detail shows the type id, not its name | P07 | S4 | Assigned (BF1) | November 7, 2026, UI11 report | BF1 |
 | [BUG-006](#bug-006-netlog-raises-an-engine-error-once-the-peer-is-cleared) | NetLog raises an engine error once the peer is cleared | P00 / P10 | S3 | Assigned (BF1) | November 9, 2026, O3 report | BF1 |
 | [BUG-008](#bug-008-a-mirror-keeps-a-used-up-consumable) | A mirror keeps a used-up consumable, so its hash differs from the host's | P02 / P11 | S2 | Assigned (BF1) | November 13, 2026, CT5 report | BF1 |
-| [BUG-011](#bug-011-a-test-run-deletes-another-runs-override) | A test run's cleanup deletes another run's `override.cfg` in the same checkout | P14 (runner) | S3 | New, **low priority** (user, November 14, 2026) | November 14, 2026, RN4 merge | — (no step until a free slot) |
+| [BUG-011](#bug-011-a-test-run-deletes-another-runs-override) | A test run's cleanup deletes another run's `override.cfg` in the same checkout | P14 (runner) | S3 | Fixed (O6, `feature/O6`, not yet merged) | November 14, 2026, RN4 merge | O6 |
 | [BUG-012](#bug-012-loading-the-map-pools-in-a-test-leaks-resources) | Loading `CombatMapPools.load_default()` inside the board suite's route case leaves 74 objects and 58 resources in use at exit | P04 (map pools) / tests | S4 | New | November 16, 2026, MP10a report | — (worked around in the test) |
 
 ### BUG-001 No Block at the start of combat
@@ -184,6 +184,14 @@ Not a bug.
 - **Workaround:** one runner per checkout at a time; after an interrupted run, wait for its Godot
   processes to exit before starting another.
 - **Priority:** low (user, November 14, 2026): fix when a runner step or a free slot comes up.
+- **Fixed** in O6 (`feature/O6`, not yet merged, November 16, 2026). The runner writes no
+  `override.cfg` at all: each suite's Godot gets its own user folder through its own `APPDATA`
+  (`XDG_DATA_HOME` on Linux, `HOME` on macOS; both unchecked), in the run's log folder, so no run
+  can delete or block another's. The ui and sessions guards read the folder Godot resolved
+  (`OS.get_user_data_dir()`) instead of the project setting, and the runner fails any suite that
+  prints "needs a test user folder". Regression: a copy of the runner with the per-suite folder
+  switched off makes `sessions` FAIL on its skipped cases instead of PASS; two full runs at once,
+  in one checkout and in two worktrees, both pass.
 
 ### BUG-007 Test runs in two worktrees share one user folder
 

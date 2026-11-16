@@ -6,11 +6,11 @@
 # File:     ai_cases.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: October 31, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 extends RefCounted
-## The enemy AI cases for tests/enemies/run_all.gd ([EnemyAI], [EnemyPlan]): each rating step
+## The enemy AI cases for tests/enemies/ai/run_all.gd ([EnemyAI], [EnemyPlan]): each rating step
 ## deciding for the behavior that shows it (kill first, the target rule, the damage share, terrain,
 ## the fixed order), Hold standing to shoot and moving only for a kill or with nothing in range,
 ## a Cleave splash kill counted and splash on an ally ignored, Support healing

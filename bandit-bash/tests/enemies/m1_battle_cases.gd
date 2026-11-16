@@ -10,7 +10,7 @@
 # ==============================================================================
 
 extends RefCounted
-## The headless M1 battle for tests/enemies/run_all.gd (enemies and AI plan, EN4 row): the
+## The headless M1 battle for tests/enemies/ai/run_all.gd (enemies and AI plan, EN4 row): the
 ## Mercenary army ([method StartingArmy.build]) against the M1 pack on the greybox map, begun
 ## through [method CampaignSession.begin_battle] on the real catalog with seeded rolls, the AI
 ## playing the enemies, runs to [constant CombatFact.Kind.COMBAT_ENDED]; the same seed gives the

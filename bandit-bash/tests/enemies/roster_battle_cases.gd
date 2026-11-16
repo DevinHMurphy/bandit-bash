@@ -6,17 +6,17 @@
 # File:     roster_battle_cases.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 15, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 extends RefCounted
-## The roster's battles for tests/enemies/run_all.gd: the Mercenary army against each of the
-## roster's five packs on the M1 greybox, played headless to its end with the M1 battle's driver
-## and seed ([code]m1_battle_cases.gd[/code]) on the real catalog with that pack its only pack;
-## each runs to [constant CombatFact.Kind.COMBAT_ENDED] with no command rejected, and the same
-## seed gives the same fact log twice. At step 1 setup's Hunting Party fields its fixed 2 Hounds
-## on every seed (enemy-packs.md: a pack's count is fixed per step). Reports each case through the
-## check callable it is given.
+## The roster's battles for tests/enemies/battles/run_all.gd: the Mercenary army against each of
+## the roster's five packs on the M1 greybox, played headless to its end with the M1 battle's
+## driver and seed ([code]m1_battle_cases.gd[/code]) on the real catalog with that pack its only
+## pack; each runs to [constant CombatFact.Kind.COMBAT_ENDED] with no command rejected, and the
+## same seed gives the same fact log twice. At step 1 setup's Hunting Party fields its fixed 2
+## Hounds on every seed (enemy-packs.md: a pack's count is fixed per step). Reports each case
+## through the check callable it is given.
 
 # Preloaded scripts used as types (gdscript.md, Naming): the helpers have no class name.
 const M1BattleCases = preload("res://tests/enemies/m1_battle_cases.gd")

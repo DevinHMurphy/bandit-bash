@@ -6,15 +6,15 @@
 # File:     roster_ai_cases.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 15, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 extends RefCounted
-## The roster's AI cases for tests/enemies/run_all.gd, on the real catalog's classes ([EnemyAI]):
-## each behavior (Guard, the Shieldbearer, the Skirmishers, the Hound's pack, the Warcaller) and
-## target rule, Trample kills (a killing hit's included), kills first for every new class, each
-## pack's phase playing as its intents showed, and move previews equal to the real move. Reports
-## each case through the check callable it is given.
+## The roster's AI cases for tests/enemies/roster/run_all.gd, on the real catalog's classes
+## ([EnemyAI]): each behavior (Guard, the Shieldbearer, the Skirmishers, the Hound's pack, the
+## Warcaller) and target rule, Trample kills (a killing hit's included), kills first for every new
+## class, each pack's phase playing as its intents showed, and move previews equal to the real
+## move. Reports each case through the check callable it is given.
 ##
 ## Boards are plain. Level 1 hits: the Duelist's Simple Sword 5 + 4, the Shieldbearer's Simple
 ## Lance 7 + 2, the Warcaller's 7 + 6, the Cutthroat's Simple Dagger 2 + 5 (Backstab +2), the
