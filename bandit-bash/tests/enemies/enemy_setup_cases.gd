@@ -6,17 +6,21 @@
 # File:     enemy_setup_cases.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: October 30, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends RefCounted
 ## Setup step 4 ([EnemySetup]) on the M1 map, through [CampaignSession] as the game runs it: the
 ## same seed draws the same enemies twice, a battle restarted from Begin draws them again, levels
 ## by step, slots filled in [MapLayout] order with the leader slot empty, and units built through
-## [Loadout] with their stats at the drawn level.
+## [Loadout] with their stats at the drawn level. The pack pools (enemy-packs.md): a step's first
+## standard combats draw the basic pool and later ones the hard pool, a key combat the key pool,
+## no draw yields the M1 Pack, and a real pack fields its step's count.
 ##
 ## Content is the loadout fixture tree (EN1's Brute and Hedge Healer, and an Archer for the army)
-## plus packs built here; no real enemy data exists yet.
+## plus packs built here; the pool cases on the real catalog run setup alone.
+
+const PackCatalog = preload("res://tests/enemies/pack_catalog.gd")
 
 const TREE: String = "res://tests/content/fixtures/loadout/"
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
@@ -52,6 +56,10 @@ func run() -> void:
 	_test_built_through_the_loadout()
 	_test_key_combat_level()
 	_test_enemies_placed_before_deployment()
+	_test_pool_for_and_step_of()
+	_test_pools_on_fixtures()
+	_test_real_pools()
+	_test_real_same_seed()
 
 
 # game-vision.md, Run structure: levels 1 / 3 / 5 by step, +1 in key combats, +2 for leaders.
@@ -223,7 +231,9 @@ func _test_built_through_the_loadout() -> void:
 
 # A key combat on floor 12: step 3's level 5, +1.
 func _test_key_combat_level() -> void:
-	var catalog: EffectCatalog.Index = _catalog([_pack("pack_brutes", {BRUTE: 3})])
+	var catalog: EffectCatalog.Index = _catalog([
+		_pack("pack_brutes", {BRUTE: 3}, PackDefinition.Pool.KEY),
+	])
 	var key_map: CombatMapDefinition = _m1.duplicate()
 	key_map.combat_type = CombatMapDefinition.CombatType.KEY
 	var run: CampaignSession = _run(RUN_SEED)
@@ -255,6 +265,137 @@ func _test_enemies_placed_before_deployment() -> void:
 			"".join(order) == "EEEP"
 	), "".join(order))
 	run.close()
+
+
+func _test_pool_for_and_step_of() -> void:
+	var basic: PackDefinition.Pool = PackDefinition.Pool.BASIC
+	var hard: PackDefinition.Pool = PackDefinition.Pool.HARD
+	var key: PackDefinition.Pool = PackDefinition.Pool.KEY
+	_check.call("pools: the first 2 standard combats of a step draw basic, then hard", (
+			EnemySetup.BASIC_COMBATS_PER_STEP == 2
+			and EnemySetup.pool_for(false, 0) == basic
+			and EnemySetup.pool_for(false, 1) == basic
+			and EnemySetup.pool_for(false, 2) == hard
+			and EnemySetup.pool_for(false, 7) == hard
+	))
+	_check.call("pools: a key combat draws the key pool, however many came before", (
+			EnemySetup.pool_for(true, 0) == key and EnemySetup.pool_for(true, 5) == key
+	))
+	var steps: Array[int] = []
+	for floor_number: int in [0, 1, 5, 6, 11, 12, 17, 18]:
+		steps.append(EnemySetup.step_of(floor_number))
+	_check.call("steps: floors 1-5, 6-11 and 12-17; outside them the nearest", (
+			steps == [1, 1, 1, 2, 2, 3, 3, 3]
+	), str(steps))
+
+
+# One pack per pool: each combat draws its pool's pack over 16 seeds; the unpooled one never.
+func _test_pools_on_fixtures() -> void:
+	var catalog: EffectCatalog.Index = _catalog([
+		_pack("pack_basic", {BRUTE: 3}),
+		_pack("pack_hard", {HEALER: 3}, PackDefinition.Pool.HARD),
+		_pack("pack_key", {BRUTE: 1, HEALER: 2}, PackDefinition.Pool.KEY),
+		_pack("pack_none", {BRUTE: 2}, PackDefinition.Pool.NONE),
+	])
+	# Each combat to the pack it must draw: standard ones by the combats before them, then a key map.
+	var expected: Dictionary[String, String] = {
+		"0": "pack_basic", "1": "pack_basic", "2": "pack_hard", "3": "pack_hard", "key": "pack_key",
+	}
+	var wrong: PackedStringArray = []
+	for run_seed: int in range(1, 17):
+		for label: String in expected:
+			var is_key: bool = label == "key"
+			var setup: CombatEncounter.EncounterSetup = _draw_only(
+					catalog,
+					_key_copy() if is_key else _m1,
+					6 if is_key else 1,
+					0 if is_key else label.to_int(),
+					run_seed
+			)
+			if _pack_of(setup) != expected[label]:
+				wrong.append("seed %d %s: %s" % [run_seed, label, _pack_of(setup)])
+	_check.call("pools: basic for the first 2, hard after, key for a key map, never unpooled", (
+			wrong.is_empty()
+	), "; ".join(wrong))
+	var empty: EffectCatalog.Index = _catalog([_pack("pack_basic", {BRUTE: 3})])
+	_check.call("pools: an empty pool draws nothing", (
+			_pack_of(_draw_only(empty, _m1, 1, 2, RUN_SEED)).is_empty()
+			and _pack_of(_draw_only(empty, _key_copy(), 6, 0, RUN_SEED)).is_empty()
+	))
+
+
+# The real catalog over 24 seeds, every step: standard combats 0 and 1 draw a basic pack, the third
+# a hard one, a key map a key one, never the M1 Pack, each at its step's count.
+func _test_real_pools() -> void:
+	var real: EffectCatalog.Index = EffectCatalog.index()
+	var wrong: PackedStringArray = []
+	var seen: Dictionary[String, bool] = {}
+	for run_seed: int in range(1, 25):
+		for floor_number: int in [1, 6, 12]:
+			var step: int = EnemySetup.step_of(floor_number)
+			var cases: Dictionary[String, Array] = {
+				"standard 1st": [_m1, 0, PackDefinition.Pool.BASIC],
+				"standard 2nd": [_m1, 1, PackDefinition.Pool.BASIC],
+				"standard 3rd": [_m1, 2, PackDefinition.Pool.HARD],
+				"key": [_key_copy(), 0, PackDefinition.Pool.KEY],
+			}
+			for label: String in cases:
+				var row: Array = cases[label]
+				var setup: CombatEncounter.EncounterSetup = _draw_only(
+						real, row[0] as CombatMapDefinition, floor_number, row[1] as int, run_seed
+				)
+				var pack: PackDefinition = real.pack(_pack_of(setup))
+				var fielded: int = _units_of(setup) + _unplaced_of(setup)
+				if (
+						pack == null
+						or pack.id == "m1_pack"
+						or pack.pool != row[2]
+						or fielded != PackDefinition.STEP_SIZES[step - 1]
+				):
+					wrong.append("seed %d floor %d %s: %s, %d units" % [
+						run_seed, floor_number, label, _pack_of(setup), fielded,
+					])
+				else:
+					seen[pack.id] = true
+	_check.call("real pools: each combat draws its pool at its step's count, never the M1 Pack", (
+			wrong.is_empty()
+	), "; ".join(wrong))
+	_check.call("real pools: over the seeds every drawn pack comes up", seen.size() == 15, (
+			str(seen.keys())
+	))
+
+
+func _test_real_same_seed() -> void:
+	var first: PackedStringArray = _real_draws()
+	var second: PackedStringArray = _real_draws()
+	_check.call("real pools: the same seed draws the same packs twice", (
+			first == second and first.size() == 7
+	), " | ".join(first))
+
+
+# Seven seeded draws on the real catalog: basic and hard at every step, then a step-3 key map.
+func _real_draws() -> PackedStringArray:
+	var real: EffectCatalog.Index = EffectCatalog.index()
+	var draws: PackedStringArray = []
+	for combats: int in [0, 2]:
+		for floor_number: int in [1, 6, 12]:
+			draws.append(_draw_only(real, _m1, floor_number, combats, RUN_SEED).summary())
+	draws.append(_draw_only(real, _key_copy(), 12, 0, RUN_SEED).summary())
+	return draws
+
+
+func _pack_of(setup: CombatEncounter.EncounterSetup) -> String:
+	return str(_result(setup).get(EnemySetup.PACK_KEY, ""))
+
+
+func _units_of(setup: CombatEncounter.EncounterSetup) -> int:
+	var units: Variant = _result(setup).get(EnemySetup.UNITS_KEY, [])
+	return (units as Array).size() if units is Array else 0
+
+
+func _unplaced_of(setup: CombatEncounter.EncounterSetup) -> int:
+	var unplaced: Variant = _result(setup).get(EnemySetup.UNPLACED_KEY, [])
+	return (unplaced as Array).size() if unplaced is Array else 0
 
 
 func _run(run_seed: int) -> CampaignSession:
@@ -293,12 +434,37 @@ func _catalog(packs: Array[PackDefinition]) -> EffectCatalog.Index:
 	return index
 
 
-func _pack(id: String, counts: Dictionary) -> PackDefinition:
-	var pack: PackDefinition = PackDefinition.new()
-	pack.id = id
-	pack.display_name = id
-	pack.class_counts.assign(counts)
-	return pack
+func _pack(
+		id: String, counts: Dictionary, pool: PackDefinition.Pool = PackDefinition.Pool.BASIC
+) -> PackDefinition:
+	return PackCatalog.fixture(id, counts, pool)
+
+
+# Setup step 4 alone on map at floor_number, standard_combats before it in its step, seeded with
+# run_seed: the battle's setup, for the draw's result.
+func _draw_only(
+		catalog: EffectCatalog.Index,
+		map: CombatMapDefinition,
+		floor_number: int,
+		standard_combats: int,
+		run_seed: int
+) -> CombatEncounter.EncounterSetup:
+	var battle: CombatEncounter = CombatEncounter.new(
+			floor_number, NODE, PackedInt32Array([0]), InstanceIdAllocator.new()
+	)
+	battle.add_setup_step(
+			CombatEncounter.SetupStep.ENEMY_SLOTS,
+			EnemySetup.draw.bind(catalog, floor_number, 0, standard_combats)
+	)
+	var pool: Array[CombatMapDefinition] = [map]
+	battle.run_setup(pool, CombatEncounter.SetupStreams.new(run_seed, floor_number, NODE))
+	return battle.setup
+
+
+func _key_copy() -> CombatMapDefinition:
+	var key_map: CombatMapDefinition = _m1.duplicate()
+	key_map.combat_type = CombatMapDefinition.CombatType.KEY
+	return key_map
 
 
 # The setup's enemies result; empty when none was drawn.

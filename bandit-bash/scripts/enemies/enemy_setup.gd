@@ -14,9 +14,10 @@ extends RefCounted
 ## Setup steps 4 to 6 for the battle's enemies: the pack every map shares, each reinforcement
 ## wave's group, and each seat's extra enemies (the Hunted curse).
 ##
-## [method draw] (step 4) picks one pack with the shared [code]ENCOUNTER_SETUP[/code] stream and
-## gives its units the map's enemy slots in [MapLayout] order; the leader slot is never filled.
-## [WaveGroups] draws a pack per reinforcement wave the same way (step 5). [method draw_additions]
+## [method draw] (step 4) picks one pack from the combat's pool ([method pool_for]) with the shared
+## [code]ENCOUNTER_SETUP[/code] stream and gives its units at the floor's step the map's enemy
+## slots in [MapLayout] order; the leader slot is never filled. [WaveGroups] draws a pack per
+## reinforcement wave from a standard pool (step 5). [method draw_additions]
 ## (step 6) draws a seat's extra enemies from that seat's stream into the slots step 4 left free.
 ## [method place] builds each unit through [Loadout] (side enemy, seat -1) and places it; every map
 ## places its own copies of the shared units, plus its seats' additions. Results are plain data,
@@ -24,7 +25,7 @@ extends RefCounted
 ## snapshot. Pure rules code: it draws only from the streams handed to it and reports problems in
 ## the session's [member EffectEngine.diagnostics].
 ##
-## @tutorial(Enemies and AI plan): docs/plans/2026-10-30-enemies-and-ai.md
+## @tutorial(Enemy packs): docs/design/enemy-packs.md
 ## @tutorial(Run structure): docs/design/game-vision.md
 
 ## The key of the drawn enemies in [member CombatEncounter.EncounterSetup.shared]: a Dictionary
@@ -60,29 +61,37 @@ const KEY_COMBAT_LEVELS: int = 1
 ## Levels a leader or mini-boss has over its step's enemies (game-vision.md, Run structure).
 const LEADER_LEVELS: int = 2
 
+## A difficulty step's first standard combats that draw the basic pool; later ones draw the hard
+## pool (enemy-packs.md, Decision 5). A first value to tune in playtesting.[br]
+## [b]Units:[/b] standard combats. [b]0:[/b] every standard combat draws the hard pool.
+const BASIC_COMBATS_PER_STEP: int = 2
+
 # game-vision.md, Run structure: each difficulty step's last floor and its Normal enemy level.
 const _STEP_LAST_FLOORS: Array[int] = [5, 11, 17]
 const _STEP_LEVELS: Array[int] = [1, 3, 5]
 
 
-## Setup step 4: draws one pack from every [PackDefinition] in [param catalog] (in id order) with
-## [param ctx]'s shared stream, then, from the same stream, the count of each of its classes whose
-## count varies ([method PackDefinition.varying_classes], in order; a pack with none draws nothing
-## more), and assigns its units to the map's enemy slots, each at
-## [method level_for] the floor [param floor_number], key when the drawn map is a key combat, plus
-## [param level_modifier]. No pack in the catalog draws and writes nothing. Register it bound:
-## [code]draw.bind(catalog, floor_number, level_modifier)[/code].
+## Setup step 4: draws one pack evenly from [param catalog]'s packs of [method pool_for] the drawn
+## map and [param standard_combats] (the standard combats entered earlier in this step), in id
+## order, with [param ctx]'s shared stream, and assigns its units at the floor's step to the map's
+## enemy slots, each at [method level_for] the floor [param floor_number], key when the map is a
+## key combat, plus [param level_modifier]. An empty pool draws and writes nothing. Register it
+## bound: [code]draw.bind(catalog, floor_number, level_modifier, standard_combats)[/code].
 static func draw(
 		ctx: CombatEncounter.SetupContext,
 		catalog: EffectCatalog.Index,
 		floor_number: int,
-		level_modifier: int
+		level_modifier: int,
+		standard_combats: int = 0
 ) -> void:
-	var pack: PackDefinition = _pick_pack(catalog, ctx.stream)
+	var is_key: bool = _is_key(ctx.setup.map)
+	var pack: PackDefinition = _pick_pack(
+			catalog, pool_for(is_key, standard_combats), ctx.stream
+	)
 	if pack == null:
 		return
-	var classes: PackedStringArray = _draw_units(pack, ctx.stream)
-	var level: int = level_for(floor_number, _is_key(ctx.setup.map), false, level_modifier)
+	var classes: PackedStringArray = pack.units(step_of(floor_number))
+	var level: int = level_for(floor_number, is_key, false, level_modifier)
 	var slots: Array[Vector2i] = ctx.setup.layout.tiles_of(MapLayout.MarkerKind.ENEMY_SLOT)
 	var units: Array[Dictionary] = []
 	var unplaced: Array[String] = []
@@ -156,16 +165,17 @@ static func extra_enemies(
 	return maxi(sheet.get_int(CampaignValue.Key.EXTRA_ENEMIES), 0)
 
 
-## Ids of the standard enemy classes in [param catalog], in id order: every class some
-## [PackDefinition] fields. Leaders, mini-bosses and the boss never sit in a pack, so they are
-## left out without a mark of their own; so is a class a pack names that the catalog lacks.
+## Ids of the standard enemy classes in [param catalog], in id order: every class some pack setup
+## can draw ([method PackDefinition.is_drawn]) fields at any step. Mini-bosses and the boss never
+## sit in a pack's units, so they are left out without a mark of their own; so is a class a pack
+## names that the catalog lacks.
 static func standard_classes(catalog: EffectCatalog.Index) -> PackedStringArray:
 	var found: Dictionary[String, bool] = {}
 	for resource: Resource in catalog.all_of(EffectCatalog.Kind.PACK):
 		var pack: PackDefinition = resource as PackDefinition
-		if pack == null:
+		if pack == null or not pack.is_drawn():
 			continue
-		for class_id: String in pack.class_counts:
+		for class_id: String in pack.class_ids():
 			if catalog.enemy_class(class_id) != null:
 				found[class_id] = true
 	var ids: PackedStringArray = PackedStringArray(found.keys())
@@ -200,21 +210,37 @@ static func place(session: CombatSession, catalog: EffectCatalog.Index) -> Packe
 	return placed
 
 
-## The level of an enemy on floor [param floor_number] (counted from 1, as in game-vision.md's
-## Run structure): its step's Normal level, +[constant KEY_COMBAT_LEVELS] in a key combat,
-## +[constant LEADER_LEVELS] for a leader or mini-boss, plus [param modifier] (such as the
-## difficulty ladder's), never below 1. A floor before the first step counts as step 1; one past
-## the last, as the last.
+## The pool a combat draws its pack from: [constant PackDefinition.Pool.KEY] for a key combat;
+## for any other, [constant PackDefinition.Pool.BASIC] while [param standard_combats] (those
+## entered earlier in the step) is below [constant BASIC_COMBATS_PER_STEP], else
+## [constant PackDefinition.Pool.HARD].
+static func pool_for(is_key: bool, standard_combats: int) -> PackDefinition.Pool:
+	if is_key:
+		return PackDefinition.Pool.KEY
+	if standard_combats < BASIC_COMBATS_PER_STEP:
+		return PackDefinition.Pool.BASIC
+	return PackDefinition.Pool.HARD
+
+
+## The difficulty step of floor [param floor_number] (game-vision.md, Run structure), 1 to
+## [constant PackDefinition.STEPS]. A floor before the first step counts as step 1; one past the
+## last, as the last.
+static func step_of(floor_number: int) -> int:
+	# ASSUMPTION: CombatEncounter.floor_number counts floors from 1, as the vision's table does;
+	# P08 owns the numbering.
+	for step: int in _STEP_LAST_FLOORS.size():
+		if floor_number <= _STEP_LAST_FLOORS[step]:
+			return step + 1
+	return _STEP_LAST_FLOORS.size()
+
+
+## The level of an enemy on floor [param floor_number]: its step's ([method step_of]) Normal
+## level, +[constant KEY_COMBAT_LEVELS] in a key combat, +[constant LEADER_LEVELS] for a leader or
+## mini-boss, plus [param modifier] (such as the difficulty ladder's), never below 1.
 static func level_for(
 		floor_number: int, is_key: bool, is_leader: bool = false, modifier: int = 0
 ) -> int:
-	# ASSUMPTION: CombatEncounter.floor_number counts floors from 1, as the vision's table does;
-	# P08 owns the numbering.
-	var level: int = _STEP_LEVELS[_STEP_LEVELS.size() - 1]
-	for step: int in _STEP_LAST_FLOORS.size():
-		if floor_number <= _STEP_LAST_FLOORS[step]:
-			level = _STEP_LEVELS[step]
-			break
+	var level: int = _STEP_LEVELS[step_of(floor_number) - 1]
 	# ASSUMPTION: a leader's or mini-boss's +2 is over its step's level and replaces a key
 	# combat's +1 rather than adding to it; EN7 is the first to place one.
 	if is_leader:
@@ -323,25 +349,19 @@ static func _load(
 	return Loadout.load_unit(catalog, unit, items, CombatFact.CombatSide.ENEMY, -1, session.ids)
 
 
-# One pack drawn evenly from every pack in catalog, in id order; null, drawing nothing, when there
-# is none.
-static func _pick_pack(catalog: EffectCatalog.Index, stream: RngStream) -> PackDefinition:
-	var packs: Array[Resource] = catalog.all_of(EffectCatalog.Kind.PACK)
+# One pack drawn evenly from catalog's packs of pool, in id order; null, drawing nothing, when
+# the pool has none.
+static func _pick_pack(
+		catalog: EffectCatalog.Index, pool: PackDefinition.Pool, stream: RngStream
+) -> PackDefinition:
+	var packs: Array[PackDefinition] = []
+	for resource: Resource in catalog.all_of(EffectCatalog.Kind.PACK):
+		var pack: PackDefinition = resource as PackDefinition
+		if pack != null and pack.pool == pool:
+			packs.append(pack)
 	if packs.is_empty():
 		return null
-	return packs[stream.pick_index(packs.size())] as PackDefinition
-
-
-# pack's units as class ids, the count of each class whose count varies drawn from stream in
-# PackDefinition.varying_classes() order; a fixed pack draws nothing.
-static func _draw_units(pack: PackDefinition, stream: RngStream) -> PackedStringArray:
-	var drawn: Dictionary[String, int] = {}
-	for class_id: String in pack.varying_classes():
-		var fewest: int = pack.class_counts[class_id]
-		# ASSUMPTION: every count from the fewest to the most is equally likely (the Hunting
-		# Party's 2 or 3 Hounds, first pass).
-		drawn[class_id] = fewest + stream.pick_index(pack.max_counts[class_id] - fewest + 1)
-	return pack.units(drawn)
+	return packs[stream.pick_index(packs.size())]
 
 
 # The enemy slots of setup's layout, in MapLayout order, that step 4 gave no unit.
@@ -387,33 +407,45 @@ static func _whole(value: Variant) -> int:
 	return roundi(number)
 
 
-## Reinforcement waves' groups (setup step 5): each wave is one pack, drawn as [method draw] draws
-## step 4's, and each of its units is built at the level step 4's units have, with its weapon,
-## equipment and traits. Make one per battle, for that battle's catalog and floor, and hand the
-## same one to [method Reinforcements.draw_waves] and [method Reinforcements.register].
+## Reinforcement waves' groups (setup step 5): each wave is one pack at the floor's step, drawn
+## as [method draw] draws a standard combat's (basic or hard pool, even on a key map, whose escorts
+## belong with their mini-boss), and each of its units is built at the level step 4's units have,
+## with its weapon, equipment and traits. Make one per battle, for that battle's catalog and floor,
+## and hand the same one to [method Reinforcements.draw_waves] and [method Reinforcements.register].
 class WaveGroups:
 	extends Reinforcements.GroupSource
 
 	var _catalog: EffectCatalog.Index = null
 	var _floor_number: int = -1
 	var _level_modifier: int = 0
+	var _standard_combats: int = 0
 
-	## [param catalog]: the battle's content. [param floor_number], [param level_modifier]: as
-	## [method EnemySetup.draw]'s.
-	func _init(catalog: EffectCatalog.Index, floor_number: int, level_modifier: int) -> void:
+	## [param catalog]: the battle's content. [param floor_number], [param level_modifier],
+	## [param standard_combats]: as [method EnemySetup.draw]'s.
+	func _init(
+			catalog: EffectCatalog.Index,
+			floor_number: int,
+			level_modifier: int,
+			standard_combats: int = 0
+	) -> void:
 		_catalog = catalog
 		_floor_number = floor_number
 		_level_modifier = level_modifier
+		_standard_combats = standard_combats
 
 	## One pack's units drawn from [param stream], one entry per unit naming its class as its
-	## [constant Reinforcements.UNIT_TYPE_KEY]; empty, drawing nothing, with no pack in the catalog.
-	## Every wave draws its own pack, whatever its point and turn.
+	## [constant Reinforcements.UNIT_TYPE_KEY]; empty, drawing nothing, with an empty pool. Every
+	## wave draws its own pack, whatever its point and turn.
 	func draw_group(stream: RngStream, _point: MapLayout.Marker, _turn: int) -> Array[Dictionary]:
 		var group: Array[Dictionary] = []
-		var pack: PackDefinition = EnemySetup._pick_pack(_catalog, stream)
+		# ASSUMPTION: a wave is one standard pack at the step's size, also on a key map; wave sizes
+		# are left to playtesting (enemy-packs.md, Decision 4).
+		var pack: PackDefinition = EnemySetup._pick_pack(
+				_catalog, EnemySetup.pool_for(false, _standard_combats), stream
+		)
 		if pack == null:
 			return group
-		for class_id: String in EnemySetup._draw_units(pack, stream):
+		for class_id: String in pack.units(EnemySetup.step_of(_floor_number)):
 			group.append({Reinforcements.UNIT_TYPE_KEY: class_id})
 		return group
 

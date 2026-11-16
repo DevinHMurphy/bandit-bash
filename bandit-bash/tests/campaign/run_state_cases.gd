@@ -6,7 +6,7 @@
 # File:     run_state_cases.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 13, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -16,7 +16,7 @@ extends RefCounted
 ## sections ([RunSaveSections], driven by a [SaveSectionRegistry] and a JSON round trip) and
 ## reloads identically, with a Hit delta, a curse held twice, a convoy item and a fallen unit's
 ## items; a section from a newer build or at version 0 stops the load; bad, partial and empty run
-## data. Touches no save files.
+## data; the standard combats a step has seen, read from the saved route. Touches no save files.
 
 const RULES_PATH: String = "res://data/campaign/campaign_map_rules.tres"
 
@@ -60,6 +60,7 @@ func run() -> void:
 	_test_newer_and_zero_versions_refused()
 	_test_bad_data_refused()
 	_test_partial_and_empty_runs()
+	_test_standard_combats_in_step()
 
 
 ## A session on [param run_seed] for [constant SEATS] with a new run built as
@@ -95,6 +96,51 @@ static func run_text(run: CampaignRunState) -> String:
 			seat_run.capture_economy(),
 		])
 	return JSON.stringify(parts)
+
+
+# A one-column route: floors 1, 2, 4, 5, 7, 8 and 9 standard, 3 a Camp, 6 a Key combat. The count
+# reads only earlier floors of the node's own step, and only Standard nodes; it is the same after
+# the map's save round trip, and the battle request carries it.
+func _test_standard_combats_in_step() -> void:
+	var standard: CampaignGraph.NodeType = CampaignGraph.NodeType.STANDARD
+	var types: Array[CampaignGraph.NodeType] = [
+		standard, standard, CampaignGraph.NodeType.CAMP, standard, standard,
+		CampaignGraph.NodeType.KEY, standard, standard, standard,
+	]
+	var graph: CampaignGraph = CampaignGraph.new(18, 1)
+	for index: int in types.size():
+		graph.add_node(index + 1, 0, types[index])
+		if index > 0:
+			graph.link(index - 1, index)
+	# Floor reached to the count expected there.
+	var expected: Dictionary[int, int] = {1: 0, 2: 1, 3: 2, 4: 2, 5: 3, 6: 0, 7: 0, 9: 2}
+	var counts: Dictionary[int, int] = {}
+	var reloaded: Dictionary[int, int] = {}
+	for floor_reached: int in expected:
+		var run: CampaignRunState = CampaignRunState.new()
+		run.graph = graph
+		for node_id: int in floor_reached:
+			run.enter_node(node_id)
+		counts[floor_reached] = run.standard_combats_in_step()
+		var copy: CampaignRunState = CampaignRunState.new()
+		var data: Variant = JSON.parse_string(JSON.stringify(run.capture_map()))
+		var restored: bool = data is Dictionary and copy.restore_map(data as Dictionary) == OK
+		reloaded[floor_reached] = copy.standard_combats_in_step() if restored else -1
+	_check("standard combats in step: earlier Standard floors of the same step", (
+			counts == expected
+	), str(counts))
+	_check("standard combats in step: the same after the map's save round trip", (
+			reloaded == expected
+	), str(reloaded))
+	var pools: CombatMapPools = load("res://data/campaign/combat_map_pools.tres") as CombatMapPools
+	var at_four: CampaignRunState = CampaignRunState.new()
+	at_four.graph = graph
+	for node_id: int in 4:
+		at_four.enter_node(node_id)
+	var request: CampaignSession.BattleRequest = at_four.battle_request(pools, _catalog)
+	_check("standard combats in step: the battle request carries the count", (
+			request != null and request.standard_combats_in_step == 2
+	))
 
 
 func _test_new_run() -> void:

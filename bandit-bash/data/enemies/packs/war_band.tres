@@ -4,6 +4,9 @@
 
 [resource]
 script = ExtResource("1_def")
-class_counts = Dictionary[String, int]({"warcaller": 1, "brute": 1, "hound": 2})
+step_1_counts = Dictionary[String, int]({"warcaller": 1, "brute": 1, "hound": 1})
+step_2_counts = Dictionary[String, int]({"warcaller": 1, "brute": 1, "hound": 2})
+step_3_counts = Dictionary[String, int]({"warcaller": 1, "brute": 2, "hound": 2})
+leader_class_id = "warcaller"
 id = "war_band"
 display_name = "War Band"

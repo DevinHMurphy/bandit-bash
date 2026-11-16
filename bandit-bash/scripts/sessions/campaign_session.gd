@@ -460,11 +460,13 @@ func _set_up_battle(request: BattleRequest, catalog: EffectCatalog.Index) -> Com
 	# they exist; none until then.
 	var level_modifier: int = 0
 	var waves: EnemySetup.WaveGroups = EnemySetup.WaveGroups.new(
-			catalog, request.floor_number, level_modifier
+			catalog, request.floor_number, level_modifier, request.standard_combats_in_step
 	)
 	battle.add_setup_step(
 			CombatEncounter.SetupStep.ENEMY_SLOTS,
-			EnemySetup.draw.bind(catalog, request.floor_number, level_modifier)
+			EnemySetup.draw.bind(
+					catalog, request.floor_number, level_modifier, request.standard_combats_in_step
+			)
 	)
 	battle.add_setup_step(
 			CombatEncounter.SetupStep.REINFORCEMENT_WAVES, Reinforcements.draw_waves.bind(waves)
@@ -907,6 +909,10 @@ class BattleRequest:
 	var floor_number: int = -1
 	## The combat node on its floor.
 	var node: int = -1
+	## The standard combats the run entered on earlier floors of this node's difficulty step
+	## ([method CampaignRunState.standard_combats_in_step]): it picks the basic or hard pack pool
+	## ([method EnemySetup.pool_for]). [b]0:[/b] the basic pool.
+	var standard_combats_in_step: int = 0
 	## The maps the node can draw from, in a fixed order.
 	var pool: Array[CombatMapDefinition] = []
 	## Each seat's army, by seat. A seat without one gets an empty map.

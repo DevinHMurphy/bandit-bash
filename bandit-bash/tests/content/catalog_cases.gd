@@ -6,7 +6,7 @@
 # File:     catalog_cases.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 12, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -59,6 +59,8 @@ const BAD_TREES: Dictionary[String, String] = {
 	"pack_missing_class": ContentRules.DANGLING_REFERENCE,
 	"pack_not_enemy": ContentRules.DANGLING_REFERENCE,
 	"pack_count": ContentRules.PACK_COUNT,
+	"pack_size": ContentRules.PACK_COUNT,
+	"pack_role": ContentRules.PACK_ROLE,
 	"enemy_class_text": ContentRules.ENEMY_CLASS,
 	"enemy_class_role": ContentRules.ENEMY_CLASS,
 	"folder_enemy_class": ContentRules.FOLDER,
@@ -305,10 +307,16 @@ func _test_sub_kinds() -> void:
 					== EnemyClassDefinition.Behavior.HOLD
 	), "")
 	var pack: PackDefinition = index.pack("fixture_bolt_pack")
-	_check.call("pack: its units in order, each class by its count", (
+	_check.call("pack: its units at each step, each class by its count", (
 			pack != null
-			and pack.units() == PackedStringArray(["fixture_crossbowman", "fixture_crossbowman"])
-	), "" if pack == null else str(pack.units()))
+			and pack.units(1) == PackedStringArray([
+				"fixture_crossbowman", "fixture_crossbowman", "fixture_crossbowman",
+			])
+			and pack.units(2).size() == 4
+			and pack.units(3).size() == 5
+			and pack.units(0) == pack.units(1)
+			and pack.units(9) == pack.units(3)
+	), "" if pack == null else str(pack.units(1)))
 	_check.call("sub-kinds: kind_of names the own kind", (
 			index.kind_of("fixture_everwall") == EffectCatalog.Kind.STAFF
 			and index.is_of("fixture_everwall", EffectCatalog.Kind.WEAPON)

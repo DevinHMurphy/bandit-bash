@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="PackDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/pack_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+pool = 1
+step_1_counts = Dictionary[String, int]({"hedge_healer": 1, "brute": 2})
+step_2_counts = Dictionary[String, int]({"hedge_healer": 1, "brute": 2, "shieldbearer": 1})
+step_3_counts = Dictionary[String, int]({"hedge_healer": 2, "brute": 2, "shieldbearer": 1})
+leader_class_id = "brute"
+id = "field_hospital_hard"
+display_name = "Field Hospital (hard)"

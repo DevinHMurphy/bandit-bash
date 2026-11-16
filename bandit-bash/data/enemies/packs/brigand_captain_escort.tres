@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="PackDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/pack_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+pool = 2
+step_1_counts = Dictionary[String, int]({"brute": 1, "hedge_healer": 1, "duelist": 1})
+step_2_counts = Dictionary[String, int]({"brute": 1, "hedge_healer": 1, "duelist": 1, "shieldbearer": 1})
+step_3_counts = Dictionary[String, int]({"brute": 1, "hedge_healer": 1, "duelist": 1, "shieldbearer": 1, "crossbowman": 1})
+mini_boss_id = "brigand_captain"
+id = "brigand_captain_escort"
+display_name = "Brigand Captain's Escort"

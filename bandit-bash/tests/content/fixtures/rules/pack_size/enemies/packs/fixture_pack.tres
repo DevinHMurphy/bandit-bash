@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="PackDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/pack_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+step_1_counts = Dictionary[String, int]({"fixture_brute": 3})
+step_2_counts = Dictionary[String, int]({"fixture_brute": 3})
+step_3_counts = Dictionary[String, int]({"fixture_brute": 5})
+leader_class_id = "fixture_brute"
+id = "fixture_pack"
+display_name = "Fixture Pack"

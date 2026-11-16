@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="PackDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/pack_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+pool = 1
+step_1_counts = Dictionary[String, int]({"warcaller": 1, "raider": 1, "hound": 1})
+step_2_counts = Dictionary[String, int]({"warcaller": 1, "brute": 1, "raider": 1, "hound": 1})
+step_3_counts = Dictionary[String, int]({"warcaller": 1, "brute": 2, "raider": 1, "hound": 1})
+leader_class_id = "warcaller"
+id = "war_band_hard"
+display_name = "War Band (hard)"
