@@ -24,8 +24,13 @@ Every triggered effect reads the same way:
   "Every 7th **Attack made** by **Your Unit** **this campaign**: that attack gains lifesteal."
 - Permissions read as what the unit can do, with the target as subject: "a random one of your
   units can't gain Block until the end of the next phase", "Always: can pick locks".
+- A rune reads as its cast, with no head, naming who it is cast on in place of "the target"
+  (an ally, an enemy, an ally that hasn't acted): "Heal an ally for 10", "Remove 2 Stance from an
+  enemy". Timed modifiers that last alike share one duration: "Give an ally +20 Hit and +2 Attack
+  on its next attack until Phase End". Only runes read this way; a Pouch item keeps "the target".
 
-The generated text lives in `EffectTerms` (`trigger_head`, `describe_permission`).
+The generated text lives in `EffectTerms` (`trigger_head`, `describe_permission`); a rune's in
+`RuneDefinition.describe()`.
 
 ## Scopes
 

@@ -6,7 +6,7 @@
 # File:     turn_input_model.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 5, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 class_name TurnInputModel
@@ -19,7 +19,8 @@ extends RefCounted
 ## Every action and target holds a built command that its own [method Command.validate] accepted
 ## on the session as it stands ([UnitTurnCommand], [CastRuneCommand], [EndTurnCommand]); the
 ## [CommandValidator] phase checks run inside those. So a menu lists only what the session would
-## accept, and nothing here re-derives a rule. Reading only: validation runs on sandbox copies and
+## accept, and nothing here re-derives a rule. Runes come by kind ([method rune_options]): Recall's
+## first unit holds its partners' commands. Reading only: validation runs on sandbox copies and
 ## nothing changes the session. [BattleController] draws it; tests check it without rendering
 ## (combat UI plan, question 13). Targets are labelled by name ([method BattleText.name_of]).
 ##
@@ -38,7 +39,8 @@ enum ActionKind {
 	SHOVE = 3,
 	## The weapon swap as the action ([constant UnitTurnCommand.Action.SWAP_WEAPON]).
 	SWAP = 4,
-	## A rune from the seat's slots ([CastRuneCommand]); acts for no unit.
+	## A rune from the seat's slots ([CastRuneCommand]); acts for no unit. Its option lists
+	## [member ActionOption.runes], not targets.
 	RUNE = 5,
 	## Ends the unit's turn where it stands; with a second move pending, ends that move
 	## ([constant UnitTurnCommand.Action.MOVE] to another tile, a Wait where it stands).
@@ -76,6 +78,16 @@ const MENU_ORDER: Array[ActionKind] = [
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
+
+# ASSUMPTION: the three refusal wordings; no design doc words them.
+## Why a rune with [member RuneDefinition.needs_unacted_target] refuses a unit (Haste).
+const ACTED_REASON: String = "has acted"
+
+## Why a unit rune refuses a unit of its side for any other reason.
+const REFUSED_REASON: String = "can't take it now"
+
+## Why Recall refuses one of the seat's units: none of the others can trade tiles with it.
+const NO_PARTNER_REASON: String = "can't swap with any of your units"
 
 
 ## Whether [param unit_id] can still take its turn now: a player unit, in its seat's player phase,
@@ -260,10 +272,11 @@ static func support_reach(session: CombatSession, unit_id: String) -> Array[Vect
 	return tiles
 
 
-# ASSUMPTION: a Shove, a Rune and a Use show red whatever their target; only Staff and Item are
-# support by kind.
+# ASSUMPTION: a Shove and a Use show red whatever their target; only Staff and Item are support by
+# kind.
 ## Whether [param kind] is a support action, whose targets show on the purple support overlay:
-## Staff and Item. Every other targeted action's show on the red attack overlay.
+## Staff and Item. Every other targeted action's show on the red attack overlay, but a rune's
+## colour is its own ([member RuneOption.is_support]).
 static func is_support_action(kind: ActionKind) -> bool:
 	return kind == ActionKind.STAFF or kind == ActionKind.ITEM
 
@@ -338,7 +351,8 @@ static func path_to(session: CombatSession, unit_id: String, tile: Vector2i) -> 
 ## move pending gets only Wait, which ends that move: the move to the path's end
 ## ([constant UnitTurnCommand.Action.MOVE]), or a Wait where it stands.
 ## Use lists each map object whose use the session accepts from the path's end, with no item or
-## else the unit's Pouch item (a key or lockpick). Empty when it can't act.
+## else the unit's Pouch item (a key or lockpick). Rune, on the unit's own tile only, lists its
+## [method rune_options]. Empty when it can't act.
 static func actions_at(
 		session: CombatSession, unit_id: String, path: Array[Vector2i]
 ) -> Array[ActionOption]:
@@ -433,27 +447,63 @@ static func actions_at(
 			session, unit_id, UnitTurnCommand.Action.SWAP_WEAPON, "", path
 	))
 
-	# ASSUMPTION: a rune is offered only on the unit's own tile. A cast acts for no unit and
-	# carries no path, so offering it after a move would drop the move; Recall (two targets)
-	# isn't offered until the rune catalog (P03) says which rune is Recall.
+	# A rune is offered only on the unit's own tile: a cast acts for no unit and carries no path,
+	# so offered after a move it would drop the move.
 	if path.size() <= 1:
 		var rune: ActionOption = ActionOption.new(ActionKind.RUNE)
-		var slots: PackedStringArray = state.rune_slots.get(seat, PackedStringArray())
-		for rune_id: String in slots:
-			for target_id: String in state.unit_ids():
-				var cast: CastRuneCommand = CastRuneCommand.new(seat, rune_id, target_id)
-				if cast.validate(session).is_empty():
-					var option: TargetOption = _target(session, target_id, cast)
-					option.label = "%s on %s" % [
-						BattleText.name_of(session, rune_id), option.label,
-					]
-					rune.targets.append(option)
-		_add_targeted(options, rune)
+		rune.runes = rune_options(session, seat)
+		if not rune.runes.is_empty():
+			options.append(rune)
 
 	_add_untargeted(options, ActionKind.WAIT, _turn(
 			session, unit_id, UnitTurnCommand.Action.WAIT, "", path
 	))
 	return options
+
+
+## Every rune in [param seat]'s slots that can be cast now, in slot order, each with its targets
+## by its [member RuneDefinition.target_kind]: a unit rune's units, Recall's first units (each
+## with its [member TargetOption.partners]), Spark's kegs. Each target's command passed
+## [method CastRuneCommand.validate]; a rune with none is left out.
+static func rune_options(session: CombatSession, seat: int) -> Array[RuneOption]:
+	var found: Array[RuneOption] = []
+	var slots: PackedStringArray = session.state.rune_slots.get(seat, PackedStringArray())
+	for rune_id: String in slots:
+		var definition: RuneDefinition = RuneResolver.definition_of(session.engine, rune_id)
+		if definition == null:
+			continue
+		var option: RuneOption = RuneOption.new()
+		option.rune_id = rune_id
+		option.label = BattleText.name_of(session, rune_id)
+		option.text = " ".join(definition.describe())
+		option.target_kind = definition.target_kind
+		option.target_noun = definition.target_noun()
+		option.title = "%s: %s" % [option.label, option.target_noun]
+		option.is_support = (
+				definition.target_kind == ContentIds.RUNE_UNIT
+				and definition.target_side != ContentIds.RUNE_SIDE_ENEMY
+		)
+		match definition.target_kind:
+			ContentIds.RUNE_UNIT:
+				_fill_unit_rune(session, seat, definition, option)
+			ContentIds.RUNE_PAIR:
+				_fill_pair_rune(session, seat, option)
+			ContentIds.RUNE_OBJECT:
+				_fill_object_rune(session, seat, option)
+		if not option.targets.is_empty():
+			found.append(option)
+	return found
+
+
+## What the battle message says when accept on [param tile] picks none of [param rune]'s targets:
+## the reason of a refused unit there ([member RuneOption.refused]), such as
+## [code]Haste: Archer has acted.[/code], else who the rune is cast on, such as
+## [code]Shatter targets an enemy.[/code]
+static func rune_refusal(rune: RuneOption, tile: Vector2i) -> String:
+	for refused: TargetOption in rune.refused:
+		if refused.tile == tile:
+			return "%s: %s %s." % [rune.label, refused.label, refused.reason]
+	return "%s targets %s." % [rune.label, rune.target_noun]
 
 
 ## Whether [param seat] is in the opening swap window, before its Start
@@ -515,6 +565,71 @@ static func _turn(
 	return command if command.validate(session).is_empty() else null
 
 
+# A unit rune's targets: every unit its cast validates on, in state order. A unit of the rune's
+# side that it refuses (one that has acted, for Haste) is listed in option.refused with why.
+static func _fill_unit_rune(
+		session: CombatSession, seat: int, definition: RuneDefinition, option: RuneOption
+) -> void:
+	var state: CombatState = session.state
+	# The side RuneResolver.target_reason() asks for; only the picker's refused rows read it.
+	var side: CombatFact.CombatSide = (
+			ENEMY if definition.target_side == ContentIds.RUNE_SIDE_ENEMY else PLAYER
+	)
+	for unit_id: String in state.unit_ids():
+		var cast: CastRuneCommand = CastRuneCommand.new(seat, option.rune_id, unit_id)
+		if cast.validate(session).is_empty():
+			option.targets.append(_target(session, unit_id, cast))
+		elif state.side_of(unit_id) == side:
+			var refused: TargetOption = _target(session, unit_id, null)
+			var has_acted: bool = state.unit(unit_id).has_acted
+			refused.reason = (
+					ACTED_REASON if definition.needs_unacted_target and has_acted
+					else REFUSED_REASON
+			)
+			option.refused.append(refused)
+
+
+# Recall's targets: each of the seat's units with a partner the cast validates with, each partner
+# a target of its own in TargetOption.partners. A unit with none is refused.
+static func _fill_pair_rune(session: CombatSession, seat: int, option: RuneOption) -> void:
+	var state: CombatState = session.state
+	var own: PackedStringArray = []
+	for unit_id: String in state.units_of(PLAYER):
+		if state.seat_of(unit_id) == seat:
+			own.append(unit_id)
+	for first_id: String in own:
+		var first: TargetOption = _target(session, first_id, null)
+		for second_id: String in own:
+			if second_id == first_id:
+				continue
+			var cast: CastRuneCommand = CastRuneCommand.new(
+					seat, option.rune_id, first_id, second_id
+			)
+			if cast.validate(session).is_empty():
+				first.partners.append(_target(session, second_id, cast))
+		if first.partners.is_empty():
+			first.reason = NO_PARTNER_REASON
+			option.refused.append(first)
+		else:
+			option.targets.append(first)
+
+
+# Spark's targets: each standing object's tile the cast validates on, once, in spot order.
+static func _fill_object_rune(session: CombatSession, seat: int, option: RuneOption) -> void:
+	var tiles: Dictionary[Vector2i, bool] = {}
+	for placed: MapState.ObjectState in _standing_objects(session.state):
+		if tiles.has(placed.tile):
+			continue
+		var cast: CastRuneCommand = CastRuneCommand.new(
+				seat, option.rune_id, "", "", placed.tile
+		)
+		if cast.validate(session).is_empty():
+			tiles[placed.tile] = true
+			var target: TargetOption = _target(session, placed.id, cast)
+			target.tile = placed.tile
+			option.targets.append(target)
+
+
 # The map's objects not broken off it, in spot order: what a Use is tried on. The validator says
 # which of them the unit can use.
 static func _standing_objects(state: CombatState) -> Array[MapState.ObjectState]:
@@ -528,13 +643,16 @@ static func _standing_objects(state: CombatState) -> Array[MapState.ObjectState]
 	return standing
 
 
+# A target for target_id with command; with none (a refused unit, Recall's first pick), no
+# command at all.
 static func _target(session: CombatSession, target_id: String, command: Command) -> TargetOption:
 	var option: TargetOption = TargetOption.new()
 	option.target_id = target_id
 	option.tile = session.state.tile_of(target_id)
 	option.label = BattleText.name_of(session, target_id)
 	option.command = command
-	option.commands.append(command)
+	if command != null:
+		option.commands.append(command)
 	return option
 
 
@@ -591,6 +709,9 @@ class ActionOption:
 	var targets: Array[TargetOption] = []
 	## The command an action with no target sends; null for an action with targets.
 	var command: Command = null
+	## Rune only: the runes that can be cast, which the rune menu lists in place of
+	## [member targets] ([method TurnInputModel.rune_options]); empty for every other action.
+	var runes: Array[RuneOption] = []
 
 	func _init(action_kind: ActionKind = ActionKind.WAIT) -> void:
 		kind = action_kind
@@ -605,15 +726,50 @@ class ActionOption:
 class TargetOption:
 	extends RefCounted
 
-	## The target's instance id: a unit's, or a map object's for Use.
+	## The target's instance id: a unit's, or a map object's for Use and Spark.
 	var target_id: String = ""
 	## Its tile, where the cursor shows it.
 	var tile: Vector2i = CombatFact.NO_TILE
 	## Its label in the target picker: its name ([method BattleText.name_of]).
 	var label: String = ""
-	## The command sent when this target is confirmed: the first of [member commands].
+	## The command sent when this target is confirmed: the first of [member commands]. Null for
+	## Recall's first unit, whose command is a partner's, and for a refused unit.
 	var command: Command = null
 	## Every command that aims the action here: for an attack, one per weapon the session accepts
 	## (the one in hand first, then the stowed one through Sidearm's free swap), which the forecast
 	## cycles; otherwise only [member command].
 	var commands: Array[Command] = []
+	## Recall's first unit only: each unit it can swap with, with that cast's command, picked next.
+	var partners: Array[TargetOption] = []
+	## A refused unit only ([member RuneOption.refused]): why it can't be picked, such as
+	## [code]has acted[/code]; empty for a target.
+	var reason: String = ""
+
+
+## One rune the rune menu lists, with what it can be cast on now.
+class RuneOption:
+	extends RefCounted
+
+	## The rune's instance id, in the seat's slots.
+	var rune_id: String = ""
+	## Its name, such as "Haste".
+	var label: String = ""
+	## Its text ([method RuneDefinition.describe]), such as "Heal an ally for 10".
+	var text: String = ""
+	## Its [member RuneDefinition.target_kind]: [code]unit[/code], [code]pair[/code] (Recall) or
+	## [code]object[/code] (Spark).
+	var target_kind: String = ""
+	## Who it is cast on ([method RuneDefinition.target_noun]), such as "an enemy".
+	var target_noun: String = ""
+	## The target picker's heading: its name and [member target_noun].
+	var title: String = ""
+	## Whether its targets show on the purple support overlay: a player-side unit rune. Recall's
+	## show on the move overlay, every other's on the red attack overlay.
+	var is_support: bool = false
+	## What it can be cast on, each with its command: a unit rune's units, Recall's first units
+	## (each with its [member TargetOption.partners]), Spark's kegs.
+	var targets: Array[TargetOption] = []
+	## Units it can't be cast on now that the picker lists greyed with their
+	## [member TargetOption.reason]: a unit of its side it refuses, or Recall's unit with no
+	## partner. Never in [member targets].
+	var refused: Array[TargetOption] = []

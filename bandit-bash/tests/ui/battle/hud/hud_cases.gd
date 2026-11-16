@@ -6,7 +6,7 @@
 # File:     hud_cases.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 9, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -312,6 +312,10 @@ func _test_target_labels() -> void:
 				for option: TurnInputModel.ActionOption in TurnInputModel.actions_at(
 						session, unit_id, path
 				):
+					for rune: TurnInputModel.RuneOption in option.runes:
+						for target: TurnInputModel.TargetOption in rune.targets:
+							labelled += 1
+							_check_label(session, target, wrong)
 					for target: TurnInputModel.TargetOption in option.targets:
 						labelled += 1
 						_check_label(session, target, wrong)
@@ -667,10 +671,6 @@ func _check_label(
 		session: CombatSession, target: TurnInputModel.TargetOption, wrong: PackedStringArray
 ) -> void:
 	var expected: String = BattleText.name_of(session, target.target_id)
-	if target.command is CastRuneCommand:
-		if not target.label.ends_with(" on " + expected):
-			wrong.append("rune '%s'" % [target.label])
-		return
 	if target.label != expected or target.label.contains(target.target_id):
 		wrong.append("'%s' for %s" % [target.label, target.target_id])
 

@@ -6,7 +6,7 @@
 # File:     forecast_breakdown.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 class_name ForecastBreakdown
@@ -30,6 +30,11 @@ extends VBoxContainer
 ## Shows [param model]'s breakdowns: its actor's under the first label, its target's under the
 ## second.
 func show_breakdowns(model: ForecastViewModel) -> void:
+	# A rune's model has no unit command and no hits (the panel hides the toggle for it).
+	if model.command == null:
+		_actor_stages.text = ""
+		_target_stages.text = ""
+		return
 	_actor_stages.text = _side_text(model, model.command.actor_id, model.actor_label)
 	_target_stages.text = _side_text(model, model.command.get_target_id(), model.target_label)
 
