@@ -310,7 +310,7 @@ func _grant_reference(path: String, grant: CampaignGrant) -> void:
 			_reference(path, "definition_id", grant.definition_id, EffectCatalog.Kind.RUNE)
 
 
-# ASSUMPTION: a reference to a definition of the wrong kind (a rune's shape naming a weapon) counts
+# ASSUMPTION: a reference to a definition of the wrong kind (a staff's shape naming a weapon) counts
 # as dangling, since nothing of the kind the field needs resolves.
 func _reference(
 		path: String, field: String, id: String, kind: EffectCatalog.Kind, required: bool = false
