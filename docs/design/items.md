@@ -297,7 +297,20 @@ where the player already is, so shopping stays short and the convoy never fills 
 An event can change one item (Dark Goblet's *Infuse*, Cavern of Echoing Steel's *Forge
 Resonance*, the Clockwork Hermit's *Upgrade Gear*). A modified item is shown as **"Infused <name>"**
 with a marker icon, and its card lists what changed. Its price and scrap value change with its
-deltas; the formula belongs to the items implementation plan.
+deltas ([P03 question 8](../plans/decisions/P03-content-catalog.md), first values to tune in
+playtesting):
+
+- **Modified price** = base price + net points × the kind's step value, rounded to the nearest
+  gold, halves up, and never below the unmodified price. Scrap stays 20% of it.
+- **Base price:** the kind's rarity price; Legendary and Unique at the kind's Rare price; Basic 0.
+- **Step value:** the kind's Common-to-Uncommon gap: weapons and staves 20, equipment 40,
+  trinkets 20, consumables 25.
+- **Points:** the [prefix point scale](unit-roster.md#prefixes) (+1 damage 1; +10 Hit, crit or
+  avoid 1); +1 AtkX 3; +1 Range 2; +1 weight −0.25. A granted effect carries a hand-set value
+  ("Hit dealt: heal 2" = 1). What a weapon prefix does to the price is still open (P03
+  question 15); until then it adds nothing.
+- **Examples** (Common weapon / Basic weapon): *Infuse* 0.5 points, 50 / 10; *Upgrade Gear* 1.25,
+  65 / 25; *Forge Resonance* 2, 80 / 40.
 
 ## Open questions
 

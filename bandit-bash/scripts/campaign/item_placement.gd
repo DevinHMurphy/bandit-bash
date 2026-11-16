@@ -6,7 +6,7 @@
 # File:     item_placement.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 14, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 class_name ItemPlacement
@@ -132,13 +132,13 @@ func apply(
 	if destination == Destination.SCRAP:
 		# ASSUMPTION: an item scrapped at pickup records ITEM_SCRAPPED alone, never GAINED: it
 		# never enters the roster, so nothing reacting to a gain sees it.
-		_scrap(run, seat, item.instance_id, definition)
+		_scrap(run, seat, item, catalog)
 		return
 	if not convoy_scrap_id.is_empty():
 		var scrapped: ItemInstance = seat_run.items[convoy_scrap_id]
 		seat_run.convoy.remove_at(seat_run.convoy.find(convoy_scrap_id))
 		seat_run.items.erase(convoy_scrap_id)
-		_scrap(run, seat, convoy_scrap_id, catalog.item(scrapped.definition_id))
+		_scrap(run, seat, scrapped, catalog)
 	seat_run.items[item.instance_id] = item
 	var gained: CampaignFact = CampaignFact.new(CampaignFact.Kind.GAINED, seat, item.instance_id)
 	gained.definition_id = item.definition_id
@@ -153,7 +153,7 @@ func apply(
 		var displaced: ItemInstance = seat_run.items[displaced_id]
 		if is_displaced_scrapped:
 			seat_run.items.erase(displaced_id)
-			_scrap(run, seat, displaced_id, catalog.item(displaced.definition_id))
+			_scrap(run, seat, displaced, catalog)
 		else:
 			seat_run.convoy.append(displaced_id)
 			var moved: CampaignFact = CampaignFact.new(
@@ -170,13 +170,18 @@ func apply(
 	run.record(equipped)
 
 
-# Adds the scrap gold of the item item_id (of definition) and records ITEM_SCRAPPED. The caller
-# takes it out of the roster first.
-func _scrap(run: CampaignRunState, seat: int, item_id: String, definition: ItemDefinition) -> void:
+# Adds item's scrap gold (held_scrap_value, so a modified item pays more) and records
+# ITEM_SCRAPPED. The caller takes it out of the roster first.
+func _scrap(
+		run: CampaignRunState, seat: int, item: ItemInstance, catalog: EffectCatalog.Index
+) -> void:
 	var seat_run: SeatRun = run.seat_run(seat)
-	var gold: int = scrap_value(definition)
+	var definition: ItemDefinition = catalog.item(item.definition_id)
+	var gold: int = held_scrap_value(item, catalog)
 	seat_run.gold = maxi(seat_run.gold + gold, 0)
-	var scrapped: CampaignFact = CampaignFact.new(CampaignFact.Kind.ITEM_SCRAPPED, seat, item_id)
+	var scrapped: CampaignFact = CampaignFact.new(
+			CampaignFact.Kind.ITEM_SCRAPPED, seat, item.instance_id
+	)
 	scrapped.definition_id = definition.id if definition != null else ""
 	scrapped.amount = gold
 	run.record(scrapped)
@@ -261,10 +266,19 @@ static func is_convoy_full(seat_run: SeatRun, catalog: EffectCatalog.Index) -> b
 	return seat_run.convoy.size() >= convoy_capacity(seat_run, catalog)
 
 
-## The gold scrapping an item of [param definition] pays ([method Prices.scrap_value] at the
-## default rate); 0 for Basic items or no definition.
+## The gold scrapping a fresh, unmodified item of [param definition] pays, such as an offer not
+## yet taken ([method Prices.scrap_value] at the default rate); 0 for Basic items or no
+## definition. For an item already held, use [method held_scrap_value].
 static func scrap_value(definition: ItemDefinition) -> int:
 	if definition == null:
 		return 0
 	# TODO(TOD-001): SCRAP_PERCENT through the campaign's values (Scrapper's Tongs).
 	return Prices.scrap_value(definition.kind, definition.rarity, Prices.default_scrap_percent())
+
+
+## The gold scrapping the held [param item] pays ([method Prices.item_scrap_value] at the default
+## rate), so a modified item scraps for more; equal to [method scrap_value] for an unmodified one.
+## 0 for Basic items, a null item or one not in [param catalog].
+static func held_scrap_value(item: ItemInstance, catalog: EffectCatalog.Index) -> int:
+	# TODO(TOD-001): SCRAP_PERCENT through the campaign's values (Scrapper's Tongs).
+	return Prices.item_scrap_value(item, catalog, Prices.default_scrap_percent())
