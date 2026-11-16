@@ -10,53 +10,69 @@
 # ==============================================================================
 
 extends RefCounted
-## Headless battles on the M2 map set for tests/map_set/run_all.gd (combat map plan, MP10 row): on
-## each map, the Mercenary army against a pack setup draws from the real catalog, at step 1 and
-## step 3, with seeded rolls and the AI playing the enemies, through m1_battle_cases.gd's player
-## driver ([method M1BattleCases.play]). Each fields its step's full pack and runs to
-## [constant CombatFact.Kind.COMBAT_ENDED] with no command rejected; at step 3 the same seed gives
-## the same fact log twice. Reports each case through the check callable it is given.[br]
-## [b]Either side may win:[/b] the driver's level-1 army often loses at step 3, and a Defeat the
-## Leader map can't be won until P05 EN7 fills its leader slot, so there the darkness ends it.
+## Headless battles on the M2 map set, for the map_set/standard and map_set/key suites (combat map
+## plan, MP10 row): on each map of one combat type, the Mercenary army at its step's expected
+## level (the step's enemy level, 1, 3 or 5) against a pack setup draws from the real catalog,
+## with seeded rolls and the AI playing the enemies, through m1_battle_cases.gd's driver
+## ([method M1BattleCases.play]): standard maps at steps 1 and 3, key maps at steps 2 and 3. Each
+## fields its step's full pack and runs to [constant CombatFact.Kind.COMBAT_ENDED] with no command
+## rejected; at step 3 the same seed gives the same fact log twice. Reports each case through the
+## check callable it is given.[br]
+## [b]Either side may win:[/b] the driver is simple, and the Leader and mini-boss maps can't be won
+## until P05 EN7 and EN8 fill their leader slots, so there the darkness ends the battle.
 
 # Preloaded scripts used as types (gdscript.md, Naming): the cases have no class name.
 const M1BattleCases = preload("res://tests/enemies/m1_battle_cases.gd")
 const MapSetCases = preload("res://tests/map_set/map_set_cases.gd")
 
-# The first floor of step 1 and of step 3 (game-vision.md, Run structure), and each step's pack
-# size (enemy-packs.md, Pack lists).
-const STEP_1_FLOOR: int = 1
-const STEP_3_FLOOR: int = 12
-const STEP_SIZES: Dictionary[int, int] = {STEP_1_FLOOR: 3, STEP_3_FLOOR: 5}
+# The first floor of each step a map is played at (game-vision.md, Run structure).
+const STANDARD_FLOORS: Array[int] = [1, 12]
+const KEY_FLOORS: Array[int] = [6, 12]
+
+# The floor whose battle is played twice to compare fact logs.
+const REPEAT_FLOOR: int = 12
 
 const STARTING_ARMY_SIZE: int = 4
 
 var _check: Callable
 var _battles: M1BattleCases = null
+var _combat_type: CombatMapDefinition.CombatType = CombatMapDefinition.CombatType.STANDARD
 
 
 ## [param check]: called as check(case_name: String, passed: bool, detail: String).
-func _init(check: Callable) -> void:
+## [param combat_type]: whose maps to play, standard or key; each type is its own suite, as a
+## battle per map takes minutes and the runner limits each suite's time.
+func _init(check: Callable, combat_type: CombatMapDefinition.CombatType) -> void:
 	_check = check
+	_combat_type = combat_type
 	_battles = M1BattleCases.new(check, EffectCatalog.index())
 
 
 ## Runs every case.
 func run() -> void:
+	if _combat_type == CombatMapDefinition.CombatType.KEY:
+		for map_id: String in MapSetCases.KEY_MAPS:
+			_test_map("res://maps/key/%s.tres" % [map_id], KEY_FLOORS)
+		return
 	for map_id: String in MapSetCases.STANDARD_MAPS:
-		var path: String = "res://maps/standard/%s.tres" % [map_id]
-		var map: CombatMapDefinition = load(path) as CombatMapDefinition
-		if map == null:
-			_check.call("map battle %s: the definition loads" % [map_id], false, path)
-			continue
-		for floor_number: int in [STEP_1_FLOOR, STEP_3_FLOOR]:
-			_test_battle(map, floor_number)
+		_test_map("res://maps/standard/%s.tres" % [map_id], STANDARD_FLOORS)
+
+
+func _test_map(path: String, floors: Array[int]) -> void:
+	var map: CombatMapDefinition = load(path) as CombatMapDefinition
+	if map == null:
+		_check.call("map battle: the definition loads", false, path)
+		return
+	for floor_number: int in floors:
+		_test_battle(map, floor_number)
 
 
 func _test_battle(map: CombatMapDefinition, floor_number: int) -> void:
-	var label: String = "map battle %s, floor %d" % [map.id, floor_number]
-	var played: M1BattleCases.Battle = _battles.play(map, 0, floor_number)
-	var size: int = STEP_SIZES[floor_number]
+	var level: int = EnemySetup.level_for(floor_number, false)
+	var label: String = "map battle %s, floor %d, army level %d" % [map.id, floor_number, level]
+	var played: M1BattleCases.Battle = _battles.play(map, 0, floor_number, level)
+	# A key pack's escorts number the step's count; its mini-boss isn't placed until P05 EN8.
+	var size: int = PackDefinition.STEP_SIZES[EnemySetup.step_of(floor_number) - 1]
 	_check.call("%s: the army against its step's full pack" % [label], (
 			played.problems.is_empty()
 			and played.players == STARTING_ARMY_SIZE
@@ -71,9 +87,9 @@ func _test_battle(map: CombatMapDefinition, floor_number: int) -> void:
 		label, played.pack_id, played.outcome, played.turns, played.facts.size(),
 		played.enemy_actions,
 	])
-	if floor_number != STEP_3_FLOOR:
+	if floor_number != REPEAT_FLOOR:
 		return
-	var again: M1BattleCases.Battle = _battles.play(map, 0, floor_number)
+	var again: M1BattleCases.Battle = _battles.play(map, 0, floor_number, level)
 	_check.call("%s: the same seed gives the same fact log twice" % [label], (
 			played.facts.size() > 0 and played.facts == again.facts
 	), "%d / %d facts" % [played.facts.size(), again.facts.size()])

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CombatMapDefinition" format=3]
+
+[ext_resource type="PackedScene" path="res://maps/key/hall.tscn" id="1_x8vh7"]
+[ext_resource type="Script" path="res://scripts/map/combat_map_definition.gd" id="2_vif88"]
+
+[resource]
+script = ExtResource("2_vif88")
+id = "hall"
+scene = ExtResource("1_x8vh7")
+combat_type = 1
+objective = 2
+; ASSUMPTION: turn par 8, inside game-vision.md's key target (7-10), until playtesting
+; measures a clean clear (par = its turns + 1).
+turn_par = 8

@@ -10,21 +10,20 @@
 # ==============================================================================
 
 extends SceneTree
-## Map set suite (combat map plan, MP10): the shipped maps and the map pools (map_set_cases.gd),
-## and a headless battle against the AI on each map (map_set_battle_cases.gd). Its own suite, not
-## part of the map or enemies suite, because a battle per map takes minutes and the runner gives
-## each suite a time limit; suites run in parallel.
+## Map set suite, key part (combat map plan, MP10): a headless battle against the AI on each key
+## map (map_set_battle_cases.gd). The maps' and pools' checks and the standard maps' battles are
+## the map_set/standard suite: a battle per map takes minutes, the runner limits each suite's
+## time, and suites run in parallel.
 ##
 ## Run from the repo root:[br]
-## [code]godot --headless --path bandit-bash --script res://tests/map_set/run_all.gd[/code][br]
+## [code]godot --headless --path bandit-bash --script res://tests/map_set/key/run_all.gd[/code][br]
 ## Prints one PASS or FAIL line per check and the summary line
 ## [code]--- N passed, M failed ---[/code]; exits with code 1 on any failure. The cases run in
 ## [code]_init[/code], before autoloads exist (in [code]--script[/code] mode they exist from the
 ## first frame, and their names are unknown while this script compiles), so nothing here may use
 ## them.
 
-# Preloaded scripts used as types (gdscript.md, Naming): the cases have no class name.
-const MapSetCases = preload("res://tests/map_set/map_set_cases.gd")
+# Preloaded script used as a type (gdscript.md, Naming): the cases have no class name.
 const MapSetBattleCases = preload("res://tests/map_set/map_set_battle_cases.gd")
 
 var _failures: int = 0
@@ -32,9 +31,8 @@ var _passes: int = 0
 
 
 func _init() -> void:
-	print("--- Map set tests ---")
-	MapSetCases.new(_check).run()
-	MapSetBattleCases.new(_check).run()
+	print("--- Map set tests: key battles ---")
+	MapSetBattleCases.new(_check, CombatMapDefinition.CombatType.KEY).run()
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)
 

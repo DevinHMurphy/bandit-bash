@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CombatMapDefinition" format=3]
+
+[ext_resource type="PackedScene" path="res://maps/key/gatehouse.tscn" id="1_n2krp"]
+[ext_resource type="Script" path="res://scripts/map/combat_map_definition.gd" id="2_mshgd"]
+
+[resource]
+script = ExtResource("2_mshgd")
+id = "gatehouse"
+scene = ExtResource("1_n2krp")
+combat_type = 1
+objective = 3
+; ASSUMPTION: turn par 7, the low end of game-vision.md's key target (7-10), until
+; playtesting measures a clean clear (par = its turns + 1).
+turn_par = 7

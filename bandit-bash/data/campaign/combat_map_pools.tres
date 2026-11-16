@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="CombatMapPools" load_steps=15 format=3]
+[gd_resource type="Resource" script_class="CombatMapPools" load_steps=18 format=3]
 
 [ext_resource type="Script" path="res://scripts/campaign/combat_map_pools.gd" id="1_pools"]
 [ext_resource type="Script" path="res://scripts/campaign/combat_map_pool.gd" id="2_pool"]
@@ -8,13 +8,17 @@
 [ext_resource type="Resource" path="res://maps/standard/river_ford.tres" id="6_river_ford"]
 [ext_resource type="Resource" path="res://maps/standard/old_mill.tres" id="7_old_mill"]
 [ext_resource type="Resource" path="res://maps/standard/ruined_chapel.tres" id="8_ruined_chapel"]
+[ext_resource type="Resource" path="res://maps/key/gatehouse.tres" id="9_gatehouse"]
+[ext_resource type="Resource" path="res://maps/key/hilltop.tres" id="10_hilltop"]
+[ext_resource type="Resource" path="res://maps/key/village.tres" id="11_village"]
 
 ; The steps are game-vision.md's Run structure: floors 1-5, 6-11 and 12-17, the boss on 18. Key
 ; combats start on floor 6 (campaign map rules: no extra Key before floor 6). Every standard pool
 ; holds the same M2 maps: a map isn't drawn again until its pool is used up, counted across the
 ; whole run, so a run rarely repeats one. The Defeat the Leader maps (bandit_camp, watch_post)
-; join them once P05 EN7 fills the leader slot. The key pools keep m1_greybox until the M2 key
-; maps (P04 MP10b), and the boss pool until the Powder Baron's map (P05 EN11).
+; join them once P05 EN7 fills the leader slot. Both key pools hold the same three key maps; the
+; Defeat the mini-boss map (hall) joins them once P05 EN8 places the mini-boss. The boss pool
+; keeps m1_greybox until the Powder Baron's map (P05 EN11).
 [sub_resource type="Resource" id="Resource_standard_1"]
 script = ExtResource("2_pool")
 node_type = 0
@@ -41,14 +45,14 @@ script = ExtResource("2_pool")
 node_type = 1
 first_floor = 6
 last_floor = 11
-maps = Array[ExtResource("3_map")]([ExtResource("4_m1")])
+maps = Array[ExtResource("3_map")]([ExtResource("9_gatehouse"), ExtResource("10_hilltop"), ExtResource("11_village")])
 
 [sub_resource type="Resource" id="Resource_key_3"]
 script = ExtResource("2_pool")
 node_type = 1
 first_floor = 12
 last_floor = 17
-maps = Array[ExtResource("3_map")]([ExtResource("4_m1")])
+maps = Array[ExtResource("3_map")]([ExtResource("9_gatehouse"), ExtResource("10_hilltop"), ExtResource("11_village")])
 
 [sub_resource type="Resource" id="Resource_boss"]
 script = ExtResource("2_pool")
