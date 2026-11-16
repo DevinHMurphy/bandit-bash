@@ -4,6 +4,9 @@
 
 [resource]
 script = ExtResource("1_def")
-class_counts = Dictionary[String, int]({"fixture_crossbowman": 2})
+step_1_counts = Dictionary[String, int]({"fixture_crossbowman": 3})
+step_2_counts = Dictionary[String, int]({"fixture_crossbowman": 4})
+step_3_counts = Dictionary[String, int]({"fixture_crossbowman": 5})
+leader_class_id = "fixture_crossbowman"
 id = "fixture_bolt_pack"
 display_name = "Fixture Pack"

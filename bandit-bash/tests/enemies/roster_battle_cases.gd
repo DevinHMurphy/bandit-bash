@@ -6,7 +6,7 @@
 # File:     roster_battle_cases.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 13, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -14,9 +14,9 @@ extends RefCounted
 ## roster's five packs on the M1 greybox, played headless to its end with the M1 battle's driver
 ## and seed ([code]m1_battle_cases.gd[/code]) on the real catalog with that pack its only pack;
 ## each runs to [constant CombatFact.Kind.COMBAT_ENDED] with no command rejected, and the same
-## seed gives the same fact log twice. Setup's Hunting Party fields 2 or 3 Hounds, both seen within
-## a run of seeds, and a seed draws the same count twice. Reports each case through the check
-## callable it is given.
+## seed gives the same fact log twice. At step 1 setup's Hunting Party fields its fixed 2 Hounds
+## on every seed (enemy-packs.md: a pack's count is fixed per step). Reports each case through the
+## check callable it is given.
 
 # Preloaded scripts used as types (gdscript.md, Naming): the helpers have no class name.
 const M1BattleCases = preload("res://tests/enemies/m1_battle_cases.gd")
@@ -24,18 +24,20 @@ const PackCatalog = preload("res://tests/enemies/pack_catalog.gd")
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
 
-# Each roster pack and the units it fields (the Hunting Party at its fewest Hounds).
+# Each roster pack and the units it fields at step 1.
 const PACKS: Dictionary[String, int] = {
 	"shield_and_bolt": 3,
 	"hex_and_knife": 3,
 	"field_hospital": 3,
-	"war_band": 4,
+	"war_band": 3,
 	"hunting_party": 3,
 }
 
-# The most seeds the Hound count is drawn over: with an even draw, 12 seeds show one count only
-# at odds of 2 × 0.5^12. The seeds are fixed, so a run's result never changes.
+# The seeds the Hound count is read over; any fixed run serves, since the count no longer varies.
 const COUNT_SEEDS: int = 12
+
+# The Hunting Party's Hounds at step 1 (enemy-packs.md, Pack lists).
+const STEP_1_HOUNDS: int = 2
 
 # Floor 1 is step 1 (game-vision.md, Run structure).
 const FLOOR: int = 1
@@ -67,12 +69,10 @@ func _test_pack_battle(map: CombatMapDefinition, pack_id: String) -> void:
 	var cases: M1BattleCases = M1BattleCases.new(_check, PackCatalog.with_only(_catalog, pack_id))
 	var first: M1BattleCases.Battle = cases.play(map)
 	var second: M1BattleCases.Battle = cases.play(map)
-	var fewest: int = PACKS[pack_id]
 	var fields_it: bool = (
 			first.pack_id == pack_id
 			and first.problems.is_empty()
-			and first.enemies >= fewest
-			and first.enemies <= fewest + 1
+			and first.enemies == PACKS[pack_id]
 	)
 	var opened: String = "%s; %s, %d enemies" % [first.problems, first.pack_id, first.enemies]
 	_check.call("battle %s: begins against the pack" % [pack_id], fields_it, opened)
@@ -87,23 +87,21 @@ func _test_pack_battle(map: CombatMapDefinition, pack_id: String) -> void:
 	])
 
 
-# The Hunting Party's Hounds over up to COUNT_SEEDS seeds: 2 and 3 both seen, and seed 0 drawing
-# the same count twice.
+# The Hunting Party's Hounds over COUNT_SEEDS seeds at step 1: always its fixed count, and seed 0
+# drawing the same count twice.
 func _test_hound_count(map: CombatMapDefinition) -> void:
 	var catalog: EffectCatalog.Index = PackCatalog.with_only(_catalog, "hunting_party")
 	var seen: Dictionary[int, bool] = {}
 	var first: int = _hounds(catalog, map, 0)
 	var repeats: bool = _hounds(catalog, map, 0) == first
 	seen[first] = true
-	# Stops once two counts are seen; a third would still fail the check below.
 	for run_seed: int in range(1, COUNT_SEEDS):
-		if seen.size() > 1:
-			break
 		seen[_hounds(catalog, map, run_seed)] = true
 	var counts: Array[int] = []
 	counts.assign(seen.keys())
-	counts.sort()
-	_check.call("hunting party: fields 2 or 3 Hounds, both drawn", counts == [2, 3], str(counts))
+	_check.call("hunting party: fields its step's fixed 2 Hounds on every seed", (
+			counts == [STEP_1_HOUNDS]
+	), str(counts))
 	_check.call("hunting party: a seed draws the same count twice", repeats)
 
 

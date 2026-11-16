@@ -28,12 +28,17 @@ extends RefCounted
 ## operations but an opener (a key's or lockpick's use effect, Burglar's Roll), no faction lists
 ## its commander among its starting units, and starting gear fits its slots. P05's rules (enemies and AI plan, EN1): enemy
 ## classes live in enemies/ and packs in enemies/packs/, a pack names only enemy classes, each at
-## least once, and an enemy class has target rule text and is never a commander or given a role.
+## least once at every step, and an enemy class has target rule text and is never a commander or
+## given a role; and (EN17) a drawn pack fields its step's size at every step, a basic or hard
+## pack names a leader it fields at every step, and only a key pack names a mini-boss.
 ## P02's rule (event bus plan, question 60): every effect inside a carrier has an id unique within
 ## it, which saves name it by. [constant LOAD] fails a file the catalog turned away.[br]
 ## The price rules read the price through a callable, so their fixtures can run against a table
 ## with a row missing or a price for an unsold rarity, which [Prices] itself never has.
 ##
+##
+## @todo: TOD-001 - Check a key pack's mini_boss_id names a mini-boss in the catalog once the
+## mini-bosses exist (EN8).
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
 ## @tutorial(Content catalog plan): docs/plans/2026-10-29-content-catalog.md
 
@@ -70,9 +75,13 @@ const COMMANDER_STARTING: String = "commander_starting"
 ## A faction's starting gear in the wrong slot: a non-weapon in the Weapon slot, a non-equipment
 ## in the Equipment slot, equipment in the Pouch, or more than three slots.
 const GEAR_SLOT: String = "gear_slot"
-## A pack that lists no enemy class, a class count below 1, or a most-count below its count or
-## for a class it doesn't list.
+## A pack that lists no enemy class at a step, a class count below 1, or a drawn pack
+## ([method PackDefinition.is_drawn]) whose units at a step aren't that step's
+## [constant PackDefinition.STEP_SIZES].
 const PACK_COUNT: String = "pack_count"
+## A basic or hard pack with no leader, a leader the pack doesn't field at every step, a key pack
+## with no mini-boss or with a leader, or a mini-boss on a pack outside the key pool.
+const PACK_ROLE: String = "pack_role"
 ## An enemy class with no target rule text, a commander flag or a role.
 const ENEMY_CLASS: String = "enemy_class"
 ## An effect inside a carrier with no id, or with the id of another effect of that carrier: a
@@ -103,6 +112,7 @@ const FAILURE_RULES: PackedStringArray = [
 	COMMANDER_STARTING,
 	GEAR_SLOT,
 	PACK_COUNT,
+	PACK_ROLE,
 	ENEMY_CLASS,
 	CARRIER_EFFECT_ID,
 	DOUBLE_USES,
@@ -184,6 +194,7 @@ func _check_definition(path: String, resource: Resource) -> void:
 	elif resource is PackDefinition:
 		var pack: PackDefinition = resource
 		_check_pack_counts(path, pack)
+		_check_pack_roles(path, pack)
 
 
 func _check_duplicates() -> void:
@@ -264,8 +275,10 @@ func _check_references(path: String, resource: Resource) -> void:
 			_check_gear_slots(path, gear)
 	elif resource is PackDefinition:
 		var pack: PackDefinition = resource
-		for class_id: String in pack.class_counts:
-			_reference(path, "class_counts", class_id, EffectCatalog.Kind.ENEMY_CLASS, true)
+		for class_id: String in pack.class_ids():
+			_reference(path, "a step's counts", class_id, EffectCatalog.Kind.ENEMY_CLASS, true)
+		_reference(path, "leader_class_id", pack.leader_class_id, EffectCatalog.Kind.ENEMY_CLASS)
+		# TODO(TOD-001): check mini_boss_id against the catalog once the mini-bosses exist (EN8).
 	elif resource is StaffDefinition:
 		var staff: StaffDefinition = resource
 		_reference(path, "area_shape_id", staff.area_shape_id, EffectCatalog.Kind.SHAPE)
@@ -628,20 +641,44 @@ func _check_enemy_class(path: String, enemy: EnemyClassDefinition) -> void:
 		_fail(ENEMY_CLASS, path, "an enemy class has no role; it has \"%s\"" % [enemy.role])
 
 
+# Every step lists a class, each at least once; a drawn pack fields exactly its step's size.
 func _check_pack_counts(path: String, pack: PackDefinition) -> void:
-	if pack.class_counts.is_empty():
-		_fail(PACK_COUNT, path, "it lists no enemy class")
-	for class_id: String in pack.class_counts:
-		if pack.class_counts[class_id] < 1:
-			_fail(PACK_COUNT, path, "\"%s\" has count %d; each class fields at least 1" % [
-				class_id, pack.class_counts[class_id],
+	for step: int in range(1, PackDefinition.STEPS + 1):
+		var counts: Dictionary[String, int] = pack.counts_at(step)
+		if counts.is_empty():
+			_fail(PACK_COUNT, path, "it lists no enemy class at step %d" % [step])
+		for class_id: String in counts:
+			if counts[class_id] < 1:
+				_fail(PACK_COUNT, path, "\"%s\" has count %d at step %d; at least 1 each" % [
+					class_id, counts[class_id], step,
+				])
+		var size: int = pack.units(step).size()
+		var expected: int = PackDefinition.STEP_SIZES[step - 1]
+		if pack.is_drawn() and size != expected:
+			_fail(PACK_COUNT, path, "it fields %d at step %d, not the step's %d" % [
+				size, step, expected,
 			])
-	for class_id: String in pack.max_counts:
-		if not pack.class_counts.has(class_id):
-			_fail(PACK_COUNT, path, "max_counts names \"%s\", not in class_counts" % [class_id])
-		elif pack.max_counts[class_id] < pack.class_counts[class_id]:
-			_fail(PACK_COUNT, path, "\"%s\" fields at most %d, below its count %d" % [
-				class_id, pack.max_counts[class_id], pack.class_counts[class_id],
+
+
+# enemy-packs.md, Decisions 9 and 10: a basic or hard pack's leader is one of its own units at
+# every step; a key pack escorts a mini-boss and has no leader of its own.
+func _check_pack_roles(path: String, pack: PackDefinition) -> void:
+	var is_key: bool = pack.pool == PackDefinition.Pool.KEY
+	var needs_leader: bool = (
+			pack.pool == PackDefinition.Pool.BASIC or pack.pool == PackDefinition.Pool.HARD
+	)
+	if needs_leader and pack.leader_class_id.is_empty():
+		_fail(PACK_ROLE, path, "a basic or hard pack names a leader")
+	if is_key and not pack.leader_class_id.is_empty():
+		_fail(PACK_ROLE, path, "a key pack has no leader; its mini-boss leads it")
+	if is_key == pack.mini_boss_id.is_empty():
+		_fail(PACK_ROLE, path, "only a key pack names a mini-boss, and every key pack does")
+	if pack.leader_class_id.is_empty():
+		return
+	for step: int in range(1, PackDefinition.STEPS + 1):
+		if not pack.counts_at(step).has(pack.leader_class_id):
+			_fail(PACK_ROLE, path, "its leader \"%s\" isn't one of its units at step %d" % [
+				pack.leader_class_id, step,
 			])
 
 

@@ -11,8 +11,9 @@
 
 extends RefCounted
 ## Setup steps 5 and 6 through [CampaignSession] as the game runs them: reinforcement waves drawn
-## as packs ([EnemySetup.WaveGroups]), the same seed sending the same waves twice, wave units built
-## at the step's level and arriving with their traits; and the Hunted curse's extra enemies
+## as packs ([EnemySetup.WaveGroups]), the same seed sending the same waves twice, each wave a
+## basic or hard pack at the step's count and never the M1 Pack, wave units built at the step's
+## level and arriving with their traits; and the Hunted curse's extra enemies
 ## ([method EnemySetup.draw_additions]): one per copy, a standard class from the seat's own
 ## stream, at the step's level, in an enemy slot step 4 left free, and listed unplaced with none.
 ##
@@ -20,6 +21,8 @@ extends RefCounted
 ## content from the loadout fixture tree plus packs built here (and the real Hunted curse); the
 ## catalog cases read the real catalog. Waves send Hedge Healers, which never attack, so ending
 ## turn 1 depends on no roll that could end the battle.
+
+const PackCatalog = preload("res://tests/enemies/pack_catalog.gd")
 
 const TREE: String = "res://tests/content/fixtures/loadout/"
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
@@ -56,6 +59,7 @@ func run() -> void:
 		return
 	_test_waves_same_seed()
 	_test_waves_from_the_stream()
+	_test_waves_follow_the_pools()
 	_test_waves_arrive()
 	_test_wave_units_keep_their_traits()
 	_test_extra_enemies_value()
@@ -195,16 +199,69 @@ func _test_extra_enemies_value() -> void:
 	))
 
 
-# Standard classes are the classes some pack fields, in id order. The Duelist sits in no pack.
+# Standard classes are the classes some drawn pack fields, in id order: the Duelist (hard and key
+# packs) among them. A pack in no pool adds none.
 func _test_standard_classes() -> void:
 	var classes: PackedStringArray = EnemySetup.standard_classes(EffectCatalog.index())
 	var expected: PackedStringArray = [
-		"brute", "crossbowman", "cutthroat", "hedge_healer", "hexer", "hound", "raider",
+		"brute", "crossbowman", "cutthroat", "duelist", "hedge_healer", "hexer", "hound", "raider",
 		"shieldbearer", "warcaller",
 	]
-	_check.call("standard classes: every class a catalog pack fields, in id order", (
+	_check.call("standard classes: every class a drawn catalog pack fields, in id order", (
 			classes == expected
 	), str(classes))
+	var catalog: EffectCatalog.Index = _catalog([
+		_pack("pack_healers", {HEALER: 3}, PackDefinition.Pool.HARD),
+		_pack("pack_unpooled", {BRUTE: 3}, PackDefinition.Pool.NONE),
+	])
+	var fixture_classes: PackedStringArray = EnemySetup.standard_classes(catalog)
+	_check.call("standard classes: a pack setup never draws adds no class", (
+			fixture_classes == PackedStringArray([HEALER])
+	), str(fixture_classes))
+
+
+# The real catalog over 16 seeds at every step: a wave is one basic pack's units at the step's
+# count while the step has had fewer than 2 standard combats, a hard pack's after, never the M1
+# Pack's, and the same on a key map (a wave never draws a key pack).
+func _test_waves_follow_the_pools() -> void:
+	var real: EffectCatalog.Index = EffectCatalog.index()
+	var wrong: PackedStringArray = []
+	for floor_number: int in [1, 6, 12]:
+		var step: int = EnemySetup.step_of(floor_number)
+		for combats: int in [0, 1, 2]:
+			var pool: PackDefinition.Pool = EnemySetup.pool_for(false, combats)
+			var allowed: PackedStringArray = _pool_units(real, pool, step)
+			var source: EnemySetup.WaveGroups = EnemySetup.WaveGroups.new(
+					real, floor_number, 0, combats
+			)
+			for run_seed: int in range(1, 17):
+				var streams: CombatEncounter.SetupStreams = CombatEncounter.SetupStreams.new(
+						run_seed, floor_number, NODE
+				)
+				var types: PackedStringArray = []
+				for entry: Dictionary in source.draw_group(streams.shared(), null, 1):
+					types.append(str(entry.get(Reinforcements.UNIT_TYPE_KEY, "")))
+				streams.close()
+				var group: String = ", ".join(types)
+				if not allowed.has(group) or types.size() != PackDefinition.STEP_SIZES[step - 1]:
+					wrong.append("floor %d, %d before, seed %d: %s" % [
+						floor_number, combats, run_seed, group,
+					])
+	_check.call("waves: a basic pack's units, hard after 2, at the step's count, never M1's", (
+			wrong.is_empty()
+	), "; ".join(wrong))
+
+
+# The units at step of every pack of pool in catalog, each joined as one string.
+func _pool_units(
+		catalog: EffectCatalog.Index, pool: PackDefinition.Pool, step: int
+) -> PackedStringArray:
+	var listed: PackedStringArray = []
+	for resource: Resource in catalog.all_of(EffectCatalog.Kind.PACK):
+		var pack: PackDefinition = resource as PackDefinition
+		if pack != null and pack.pool == pool:
+			listed.append(", ".join(pack.units(step)))
+	return listed
 
 
 # A pack of 3 on M1's 4 slots leaves one free: Hunted's enemy takes it, a class drawn from seat 0's
@@ -333,12 +390,10 @@ func _mixed_packs() -> Array[PackDefinition]:
 	return [_pack("pack_brutes", {BRUTE: 3}), _pack("pack_healers", {HEALER: 3})]
 
 
-func _pack(id: String, counts: Dictionary) -> PackDefinition:
-	var pack: PackDefinition = PackDefinition.new()
-	pack.id = id
-	pack.display_name = id
-	pack.class_counts.assign(counts)
-	return pack
+func _pack(
+		id: String, counts: Dictionary, pool: PackDefinition.Pool = PackDefinition.Pool.BASIC
+) -> PackDefinition:
+	return PackCatalog.fixture(id, counts, pool)
 
 
 # A Survive copy of map with a reinforcement point on POINT_TILE sending on POINT_TURNS.

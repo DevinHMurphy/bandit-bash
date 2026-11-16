@@ -6,7 +6,7 @@
 # File:     roster_ai_cases.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 13, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -476,12 +476,12 @@ func _world(rows: Array[String], rolls: RollSource = null) -> AiWorld:
 	return AiWorld.new(_catalog, rows, rolls)
 
 
-# pack_id's units (Hunting Party: its fewest Hounds) at PACK_TILES against four player units,
+# pack_id's step-1 units at PACK_TILES against four player units,
 # with the AI and intents registered and turn 1 open. rolls: null for the world's LiveRolls.
 func _pack_world(pack_id: String, rolls: RollSource) -> AiWorld:
 	var world: AiWorld = _world(_plain(10, 7), rolls)
 	var pack: PackDefinition = _catalog.pack(pack_id)
-	var units: PackedStringArray = [] if pack == null else pack.units()
+	var units: PackedStringArray = [] if pack == null else pack.units(1)
 	for i: int in units.size():
 		world.add_enemy("e%d" % [i + 1], units[i], PACK_TILES[i])
 	world.add_player("p_front", Vector2i(2, 2))

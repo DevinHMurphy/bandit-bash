@@ -4,7 +4,9 @@
 
 [resource]
 script = ExtResource("1_def")
-class_counts = Dictionary[String, int]({"raider": 1, "hound": 2})
-max_counts = Dictionary[String, int]({"hound": 3})
+step_1_counts = Dictionary[String, int]({"raider": 1, "hound": 2})
+step_2_counts = Dictionary[String, int]({"raider": 1, "hound": 3})
+step_3_counts = Dictionary[String, int]({"raider": 2, "hound": 3})
+leader_class_id = "raider"
 id = "hunting_party"
 display_name = "Hunting Party"

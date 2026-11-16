@@ -6,7 +6,7 @@
 # File:     campaign_run_state.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 14, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 class_name CampaignRunState
@@ -148,8 +148,29 @@ func enter_node(node_id: int) -> void:
 	flow.stage = RunFlow.Stage.NODE
 
 
+## The standard combat nodes the run entered on earlier floors of [member floor_number]'s
+## difficulty step ([method EnemySetup.step_of]), read from [member visited], which the run saves:
+## a node left in retreat still counts. The node the run is in never counts, so a resume reads the
+## same number Begin did.
+func standard_combats_in_step() -> int:
+	if graph == null:
+		return 0
+	var step: int = EnemySetup.step_of(floor_number)
+	var count: int = 0
+	for node_id: int in visited:
+		var node_floor: int = graph.floor_of(node_id)
+		if (
+				node_floor < floor_number
+				and EnemySetup.step_of(node_floor) == step
+				and graph.type_of(node_id) == CampaignGraph.NodeType.STANDARD
+		):
+			count += 1
+	return count
+
+
 ## The battle of the combat node the run is in: floor and node from [member floor_number] and
-## [member node], the maps of its pool in [param pools] that [member RunFlow.used_maps] hasn't used
+## [member node], the standard combats before it in its step ([method standard_combats_in_step]),
+## the maps of its pool in [param pools] that [member RunFlow.used_maps] hasn't used
 ## ([method CombatMapPools.available]), and each seat's living army with its current HP, items and
 ## heirlooms, a repeated heirloom once per copy. The army's unit and item instances are the run's
 ## own, so the battle's write-back reaches them. Content from [param catalog] (null: the loaded
@@ -173,6 +194,7 @@ func battle_request(
 	var request: CampaignSession.BattleRequest = CampaignSession.BattleRequest.new()
 	request.floor_number = floor_number
 	request.node = node
+	request.standard_combats_in_step = standard_combats_in_step()
 	request.pool = maps
 	request.catalog = catalog
 	for seat: int in seat_numbers():

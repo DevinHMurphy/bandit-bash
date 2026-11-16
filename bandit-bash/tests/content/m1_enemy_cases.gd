@@ -6,7 +6,7 @@
 # File:     m1_enemy_cases.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 13, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -164,12 +164,12 @@ func _test_text_snapshots() -> void:
 # Question 12: one of each M1 class, in that order.
 func _test_pack() -> void:
 	var pack: PackDefinition = _catalog.pack("m1_pack")
-	_ok("m1 pack: in the catalog, beside the roster's five packs", (
-			pack != null and _catalog.all_of(EffectCatalog.Kind.PACK).size() == 6
+	_ok("m1 pack: in the catalog, in no pool, so never drawn", (
+			pack != null and not pack.is_drawn()
 	))
 	if pack == null:
 		return
-	_same("m1 pack: a Brute, a Crossbowman and a Hedge Healer", ", ".join(pack.units()), (
+	_same("m1 pack: a Brute, a Crossbowman and a Hedge Healer", ", ".join(pack.units(1)), (
 			"brute, crossbowman, hedge_healer"
 	))
 
@@ -185,7 +185,7 @@ func _test_pack_loads() -> void:
 	var weapons: PackedStringArray = []
 	var limited: PackedStringArray = []
 	var off_base: PackedStringArray = []
-	for class_id: String in pack.units():
+	for class_id: String in pack.units(1):
 		var loaded: Loadout.LoadedUnit = _load(class_id, ENEMY, -1, ids)
 		problems.append_array(loaded.problems)
 		if not loaded.is_loaded():

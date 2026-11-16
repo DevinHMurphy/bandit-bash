@@ -6,14 +6,15 @@
 # File:     roster_enemy_cases.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 13, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends RefCounted
 ## The roster's enemy cases for tests/content/run_all.gd, over the real [code]res://data/[/code]:
 ## the seven classes after M1 against enemy-roster.md (behavior, target rule, weapon, gear, stats
 ## and growths), their traits' text, the shared Javelin (Common) and the enemy-only Fangs (Basic,
-## never carried by a player unit), the five packs, every class loaded through the loadout, and
+## never carried by a player unit), every pack against enemy-packs.md's lists, every class loaded
+## through the loadout, and
 ## each trait in a battle: Backstab, Riposte, Shield Wall, Curse, Trample and Pack, and a killing
 ## blow still splashing and cursing as its forecast showed. Reports each case through the check
 ## callable it is given.
@@ -23,6 +24,7 @@ extends RefCounted
 ## [ForecastRolls]: every hit lands, every crit fails.
 ##
 ## @tutorial(Enemy roster): docs/design/enemy-roster.md
+## @tutorial(Enemy packs): docs/design/enemy-packs.md
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
@@ -95,14 +97,98 @@ const NEW_WEAPONS: Dictionary[String, Array] = {
 # The enemy-only weapons: Basic, and carried by no player unit type or starting army.
 const ENEMY_ONLY: Array[String] = ["fangs"]
 
-# enemy-roster.md's Packs table, in setup order.
-const PACKS: Dictionary[String, String] = {
-	"shield_and_bolt": "shieldbearer, crossbowman, crossbowman",
-	"hex_and_knife": "hexer, cutthroat, cutthroat",
-	"field_hospital": "hedge_healer, brute, shieldbearer",
-	"war_band": "warcaller, brute, hound, hound",
-	"hunting_party": "raider, hound, hound",
+const BASIC: PackDefinition.Pool = PackDefinition.Pool.BASIC
+const HARD: PackDefinition.Pool = PackDefinition.Pool.HARD
+const KEY: PackDefinition.Pool = PackDefinition.Pool.KEY
+const NONE: PackDefinition.Pool = PackDefinition.Pool.NONE
+
+# enemy-packs.md's Pack lists, every pack in the catalog: pool, the units at steps 1, 2 and 3 in
+# setup order, the leader class and the mini-boss. The M1 Pack is from M1 (enemy-roster.md).
+const PACKS: Dictionary[String, Array] = {
+	"shield_and_bolt": [BASIC,
+		"shieldbearer, crossbowman, crossbowman",
+		"shieldbearer, crossbowman, crossbowman, crossbowman",
+		"shieldbearer, shieldbearer, crossbowman, crossbowman, crossbowman",
+		"shieldbearer", ""],
+	"hex_and_knife": [BASIC,
+		"hexer, cutthroat, cutthroat",
+		"hexer, cutthroat, cutthroat, cutthroat",
+		"hexer, cutthroat, cutthroat, cutthroat, crossbowman",
+		"hexer", ""],
+	"field_hospital": [BASIC,
+		"hedge_healer, brute, shieldbearer",
+		"hedge_healer, brute, brute, shieldbearer",
+		"hedge_healer, brute, brute, shieldbearer, crossbowman",
+		"brute", ""],
+	"war_band": [BASIC,
+		"warcaller, brute, hound",
+		"warcaller, brute, hound, hound",
+		"warcaller, brute, brute, hound, hound",
+		"warcaller", ""],
+	"hunting_party": [BASIC,
+		"raider, hound, hound",
+		"raider, hound, hound, hound",
+		"raider, raider, hound, hound, hound",
+		"raider", ""],
+	"shield_and_bolt_hard": [HARD,
+		"shieldbearer, crossbowman, hedge_healer",
+		"shieldbearer, crossbowman, crossbowman, hedge_healer",
+		"shieldbearer, shieldbearer, crossbowman, crossbowman, hedge_healer",
+		"shieldbearer", ""],
+	"hex_and_knife_hard": [HARD,
+		"hexer, cutthroat, duelist",
+		"hexer, cutthroat, cutthroat, duelist",
+		"hexer, cutthroat, cutthroat, duelist, raider",
+		"hexer", ""],
+	"field_hospital_hard": [HARD,
+		"hedge_healer, brute, brute",
+		"hedge_healer, brute, brute, shieldbearer",
+		"hedge_healer, hedge_healer, brute, brute, shieldbearer",
+		"brute", ""],
+	"war_band_hard": [HARD,
+		"warcaller, raider, hound",
+		"warcaller, brute, raider, hound",
+		"warcaller, brute, brute, raider, hound",
+		"warcaller", ""],
+	"hunting_party_hard": [HARD,
+		"raider, warcaller, hound",
+		"raider, warcaller, hound, hound",
+		"raider, raider, warcaller, hound, hound",
+		"raider", ""],
+	"sellswords": [HARD,
+		"duelist, crossbowman, hedge_healer",
+		"duelist, crossbowman, crossbowman, hedge_healer",
+		"duelist, duelist, crossbowman, crossbowman, hedge_healer",
+		"duelist", ""],
+	"brigand_captain_escort": [KEY,
+		"brute, hedge_healer, duelist",
+		"brute, hedge_healer, duelist, shieldbearer",
+		"brute, hedge_healer, duelist, shieldbearer, crossbowman",
+		"", "brigand_captain"],
+	"bloodhound_escort": [KEY,
+		"hound, hound, raider",
+		"hound, hound, hound, raider",
+		"hound, hound, hound, raider, warcaller",
+		"", "bloodhound"],
+	"hex_matron_escort": [KEY,
+		"cutthroat, cutthroat, duelist",
+		"cutthroat, cutthroat, cutthroat, duelist",
+		"cutthroat, cutthroat, cutthroat, duelist, crossbowman",
+		"", "hex_matron"],
+	"iron_wall_escort": [KEY,
+		"crossbowman, crossbowman, duelist",
+		"crossbowman, crossbowman, duelist, hedge_healer",
+		"crossbowman, crossbowman, crossbowman, duelist, hedge_healer",
+		"", "iron_wall"],
+	"m1_pack": [NONE,
+		"brute, crossbowman, hedge_healer",
+		"brute, crossbowman, hedge_healer",
+		"brute, crossbowman, hedge_healer",
+		"", ""],
 }
+
+# Units a drawn pack fields at steps 1, 2 and 3 (game-vision.md, Run structure).
+const STEP_SIZES: Array[int] = [3, 4, 5]
 
 var _check: Callable
 var _catalog: EffectCatalog.Index = null
@@ -230,21 +316,37 @@ func _test_new_weapons() -> void:
 	), str(carriers))
 
 
+# Every pack against enemy-packs.md's lists: its pool, its units at each step, its leader and its
+# mini-boss; every drawn pack at its step's size; and no pack in the catalog the lists lack.
 func _test_packs() -> void:
 	for pack_id: String in PACKS:
+		var expected: Array = PACKS[pack_id]
 		var pack: PackDefinition = _catalog.pack(pack_id)
-		_same("pack %s: its units, in order" % [pack_id], (
-				"missing" if pack == null else ", ".join(pack.units())
-		), PACKS[pack_id])
-	var hunting: PackDefinition = _catalog.pack("hunting_party")
-	var most: Dictionary[String, int] = {"hound": 3}
-	var most_hounds: int = 0 if hunting == null else hunting.max_counts.get("hound", 0)
-	_ok("pack hunting_party: 2 or 3 Hounds, its one varying class", (
-			hunting != null
-			and hunting.varying_classes() == PackedStringArray(["hound"])
-			and most_hounds == 3
-			and hunting.units(most).count("hound") == 3
-	))
+		if pack == null:
+			_ok("pack %s: in the catalog" % [pack_id], false)
+			continue
+		_same("pack %s: its pool" % [pack_id], str(PackDefinition.Pool.find_key(pack.pool)), (
+				str(PackDefinition.Pool.find_key(expected[0]))
+		))
+		var sizes_ok: bool = true
+		for step: int in range(1, 4):
+			var units: PackedStringArray = pack.units(step)
+			_same("pack %s: its units at step %d, in order" % [pack_id, step], (
+					", ".join(units)
+			), str(expected[step]))
+			sizes_ok = sizes_ok and (not pack.is_drawn() or units.size() == STEP_SIZES[step - 1])
+		_ok("pack %s: fields 3, 4 and 5 by step" % [pack_id], sizes_ok)
+		_same("pack %s: its leader and mini-boss" % [pack_id], "%s / %s" % [
+			pack.leader_class_id, pack.mini_boss_id,
+		], "%s / %s" % [expected[4], expected[5]])
+	var unlisted: PackedStringArray = []
+	for resource: Resource in _catalog.all_of(EffectCatalog.Kind.PACK):
+		var pack: PackDefinition = resource as PackDefinition
+		if pack != null and not PACKS.has(pack.id):
+			unlisted.append(pack.id)
+	_ok("packs: the catalog holds exactly the listed packs", (
+			unlisted.is_empty() and _catalog.all_of(EffectCatalog.Kind.PACK).size() == PACKS.size()
+	), str(unlisted))
 
 
 # Every new class through the loadout as setup builds it: no problems, its weapon (and the

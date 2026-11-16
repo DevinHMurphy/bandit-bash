@@ -4,6 +4,9 @@
 
 [resource]
 script = ExtResource("1_def")
-class_counts = Dictionary[String, int]({"brute": 1, "crossbowman": 1, "hedge_healer": 1})
+pool = 3
+step_1_counts = Dictionary[String, int]({"brute": 1, "crossbowman": 1, "hedge_healer": 1})
+step_2_counts = Dictionary[String, int]({"brute": 1, "crossbowman": 1, "hedge_healer": 1})
+step_3_counts = Dictionary[String, int]({"brute": 1, "crossbowman": 1, "hedge_healer": 1})
 id = "m1_pack"
 display_name = "M1 Pack"
