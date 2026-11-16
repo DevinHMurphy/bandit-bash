@@ -183,6 +183,14 @@ Report its lines in the summary. It judges runs by their output, because an engi
 `--- N passed, M failed ---`. When a change adds a suite, or changes how runs report results or
 how tests must be launched, update the runner in the same change.
 
+**The report:** every run writes a live `report.html` and prints `Report: <path>`; put that path
+in the summary. In a session the user is watching, run the full suite with `--open`
+(`sh bandit-bash/tools/run_tests.sh --open`), so the report opens in their browser as the tests
+run. Unattended runs (headless, scheduled, background) leave `--open` off. Every suite's
+`run_all.gd` declares a one-line `const SUITE_DESCRIPTION: String` saying what it covers, and
+times each case file as a group through `tests/group_clock.gd`. A new suite or case file follows
+both, or the report shows it undescribed and untimed.
+
 ### 4. Definition of done
 
 - [ ] Estimate given up front; plan offered, not assumed
