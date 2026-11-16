@@ -7,56 +7,59 @@
 # File:     run_tests.sh
 # Author:
 # Created:  October 29, 2026
-# Modified: November 15, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 # Runs the headless test suites, parse checks and a launch check, and prints one verdict line per
 # run, so a result reads in a few lines instead of the full Godot output. Works from any folder.
 #
 #   tools/run_tests.sh                       every suite, then a headless launch
-#   tools/run_tests.sh map combat ui/input   only these suites (no launch)
+#   tools/run_tests.sh map enemies ui/input  only these suites (no launch); a top folder with
+#                                            parts, such as enemies or ui, runs all its parts
 #   tools/run_tests.sh --check <git ref>     parse-check every .gd changed since <git ref>
 #   tools/run_tests.sh --check-file res://scripts/a.gd ...
 #
 # Suites are found, not listed: every tests/<name>/run_all.gd is a suite named <name>, and a
 # folder without one may hold suites a level down, tests/<name>/<part>/run_all.gd, named
-# <name>/<part> (tests/ui keeps the combat UI's cases shared by its board, input and display
-# suites, beside the campaign screens' suite). Each must print a summary line
-# "--- N passed, M failed ---" (", K skipped" may follow).
+# <name>/<part> (tests/ui and tests/enemies keep the cases their parts share at the top). Each
+# must print a summary line "--- N passed, M failed ---" (", K skipped" may follow).
 # A tests/ folder with no suite at either level is named in a note and not run.
 #
 # Suites run in parallel, at most JOBS Godot processes at once (default: the machine's core count;
-# JOBS=1 runs them one after another, in the order found). All suites in a run share its test user
-# folder, so any suite whose code mentions user://, SaveFile or SaveService runs one at a time, as
-# a group beside the others. A nested suite counts its whole top folder, where shared cases live.
-# Verdicts print once every suite has finished, always in the order found.
+# JOBS=1 runs them one after another, in the order found). Verdicts print once every suite has
+# finished, always in the order found.
 #
-# Test user folder: each run writes a temporary override.cfg pointing user:// at its own folder,
-# bandit_bash_tests_<pid>_<random>, in the folder Godot keeps custom user folders in (%APPDATA% on
-# Windows), and prints its path. Runs in other worktrees therefore never share it. The run deletes
-# that one folder when it ends, passed, failed or interrupted, after copying its logs/ (godot.log
-# and any repro dumps) into the log folder as user_logs/.
+# Test user folders: each suite's Godot gets its own user://, so no two suites, in this run or any
+# other, ever share one. The runner points the variable Godot builds user:// from (APPDATA on
+# Windows, XDG_DATA_HOME on Linux, HOME on macOS) at bandit_bash_tests_<suite> in the run's log
+# folder, for that one process; nothing is written to the checkout. The suites' guards
+# (tests/ui/ui_suite.gd, tests/sessions/sessions_case_base.gd) look for that name on the user
+# folder's path and skip their save cases without it, so a skip that says "needs a test user
+# folder" fails the suite: here it can only mean the route broke. When a run ends, a suite that
+# passed keeps only its Godot logs (user_logs/<suite>/ in the log folder); a FAIL or HUNG suite
+# keeps its whole folder, whose path prints under its verdict. An interrupted run keeps the logs.
 #
-# Verdicts: PASS; FAIL (a failed test, a script or parse error, a leak, or no summary line);
-# EXIT-CRASH (every test passed but the engine crashed at exit, Godot issue #117975: the results
-# stand); HUNG (the run outlived SUITE_TIMEOUT seconds, default 300, and was stopped: a script
-# that fails to compile can leave Godot waiting forever; 0 turns the limit off). The exit status
-# is 0 only when nothing failed. Each run's full output is kept in the log folder printed at the
-# end. The limit needs `timeout` (coreutils, Git Bash); without it runs are unlimited.
+# Verdicts: PASS; FAIL (a failed test, a script or parse error, a leak, no summary line, or no
+# test user folder); EXIT-CRASH (every test passed but the engine crashed at exit, Godot issue
+# #117975: the results stand); HUNG (the run outlived SUITE_TIMEOUT seconds, default 300, and was
+# stopped: a script that fails to compile can leave Godot waiting forever; 0 turns the limit off).
+# The exit status is 0 only when nothing failed. Each run's full output is kept in the log folder
+# printed at the end. The limit needs `timeout` (coreutils, Git Bash); without it runs are
+# unlimited. The import, the parse checks and the launch run as a player would, in the real user
+# folder.
 #
 # Godot: $GODOT if set, else `godot` or `godot4` on PATH, else the project's Windows install.
 # ==============================================================================
 
 PROJECT="$(cd "$(dirname "$0")/.." && pwd)"
 WINDOWS_GODOT="/c/Users/demur/Documents/Godot/Godot_v4.7.1-stable_win64_console.exe"
-OVERRIDE="$PROJECT/override.cfg"
 LOGS="$(mktemp -d "${TMPDIR:-/tmp}/bandit_tests.XXXXXX")"
-# The suites refuse a user folder whose name lacks this prefix (tests/ui/ui_suite.gd,
-# tests/sessions/sessions_case_base.gd), so it must stay in step with their checks.
+# The suites' guards accept a user folder only with a folder of this name on its path
+# (tests/ui/ui_suite.gd, tests/sessions/sessions_case_base.gd), so it must stay in step with them.
 TEST_DIR_PREFIX="bandit_bash_tests_"
-# Set once the run has a test user folder; end_run deletes only this exact path.
-TEST_DIR_NAME=""
-TEST_DIR=""
+# What the guarded cases print when they skip for want of a test user folder (the same files).
+NO_USER_FOLDER='needs a test user folder'
 failed=0
+status=""
 
 if [ -z "$GODOT" ]; then
 	GODOT="$(command -v godot || command -v godot4 || echo "$WINDOWS_GODOT")"
@@ -65,6 +68,22 @@ if ! "$GODOT" --version >/dev/null 2>&1; then
 	echo "Godot not found: set GODOT to the Godot 4.7.1 binary."
 	exit 2
 fi
+
+# The variable Godot's OS::get_data_path() reads, which user:// sits under, and how a path is
+# written for it. Checked on Windows only.
+case "$(uname -s)" in
+MINGW* | MSYS* | CYGWIN*)
+	USER_VAR=APPDATA
+	;;
+Darwin)
+	# ASSUMPTION: unchecked on macOS: Godot builds user:// under $HOME/Library/Application Support.
+	USER_VAR=HOME
+	;;
+*)
+	# ASSUMPTION: unchecked on Linux: Godot builds user:// under an absolute $XDG_DATA_HOME.
+	USER_VAR=XDG_DATA_HOME
+	;;
+esac
 
 # Every Godot run goes through $LIMIT, so a hung run is stopped instead of blocking the rest.
 SUITE_TIMEOUT="${SUITE_TIMEOUT:-300}"
@@ -88,10 +107,11 @@ esac
 # Output lines that mean a run is broken, whatever its exit code says.
 BROKEN='SCRIPT ERROR|Parse Error|Compile Error|Failed to load script|leaked at exit|resources still in use'
 
-# Prints one verdict line for a finished suite: $1 name, $2 exit code, $3 log file.
+# Prints one verdict line for a finished suite and leaves it in $status: $1 name, $2 exit code,
+# $3 log file.
 verdict() {
 	summary=$(grep -E '^--- [0-9]+ passed' "$3" | tail -1)
-	broken=$(grep -cE "$BROKEN" "$3")
+	broken=$(grep -cE "$BROKEN|$NO_USER_FOLDER" "$3")
 	fails=$(echo "$summary" | sed -nE 's/.* ([0-9]+) failed.*/\1/p')
 	if [ "$2" -eq 124 ] || [ "$2" -eq 137 ]; then
 		status=HUNG
@@ -105,25 +125,55 @@ verdict() {
 	printf '%-10s %-10s %s (exit %s)\n' "$1" "$status" "${summary:-no summary line}" "$2"
 	if [ "$status" = FAIL ] || [ "$status" = HUNG ]; then
 		failed=1
-		grep -E "^FAIL|$BROKEN" "$3" | head -15 | sed 's/^/    /'
+		grep -E "^FAIL|$BROKEN|$NO_USER_FOLDER" "$3" | head -15 | sed 's/^/    /'
 	fi
 }
 
-# A suite's log file, named with an underscore for a nested suite's slash.
+# A suite's file name: its name with an underscore for a nested suite's slash.
+suite_file_name() {
+	echo "$1" | tr '/' '_'
+}
+
 suite_log() {
-	echo "$LOGS/$(echo "$1" | tr '/' '_').log"
+	echo "$LOGS/$(suite_file_name "$1").log"
 }
 
-# True when a suite's code can reach the run's test user folder. Comment lines don't count.
-uses_user_folder() {
-	grep -rh --include='*.gd' -v '^[[:space:]]*#' "$PROJECT/tests/${1%%/*}" 2>/dev/null |
-		grep -qE 'user://|SaveFile\.|SaveService'
+# The folder a suite's Godot builds its user:// under, inside the log folder.
+suite_user_root() {
+	echo "$LOGS/$TEST_DIR_PREFIX$(suite_file_name "$1")"
 }
 
-# Runs one suite, leaving its exit code beside its log and its process id for cancel_run.
+# A path as Godot reads it from the environment: a Windows path under Git Bash.
+native_path() {
+	if [ "$USER_VAR" = APPDATA ] && command -v cygpath >/dev/null 2>&1; then
+		cygpath -w "$1"
+	else
+		echo "$1"
+	fi
+}
+
+# Prints the suites in tests/<name>: the folder itself when it has a run_all.gd, else each part
+# a level down that does. Prints nothing when there are none.
+suites_in() {
+	if [ -f "$PROJECT/tests/$1/run_all.gd" ]; then
+		echo "$1"
+		return 0
+	fi
+	for part in "$PROJECT/tests/$1"/*/; do
+		if [ -f "$part/run_all.gd" ]; then
+			echo "$1/$(basename "$part")"
+		fi
+	done
+}
+
+# Runs one suite in its own test user folder, leaving its exit code beside its log and its
+# process id for cancel_run.
 run_suite() {
 	suite_file=$(suite_log "$1")
-	$LIMIT "$GODOT" --headless --path "$PROJECT" --script "res://tests/$1/run_all.gd" >"$suite_file" 2>&1 &
+	user_root=$(suite_user_root "$1")
+	mkdir -p "$user_root"
+	env "$USER_VAR=$(native_path "$user_root")" $LIMIT "$GODOT" --headless --path "$PROJECT" \
+		--script "res://tests/$1/run_all.gd" >"$suite_file" 2>&1 &
 	echo $! >"$suite_file.pid"
 	wait $!
 	echo $? >"$suite_file.code"
@@ -139,12 +189,6 @@ run_unclaimed() {
 	done
 }
 
-# Starts a background worker over the suites given.
-start_worker() {
-	run_unclaimed "$@" &
-	workers="$workers $!"
-}
-
 # On Ctrl+C or kill: stops the workers, so nothing new starts, then the running suites, and ends
 # the run only once they are told to stop.
 cancel_run() {
@@ -157,50 +201,42 @@ cancel_run() {
 	exit 130
 }
 
-
-# The folder Godot puts a custom user folder in, as OS::get_data_path() resolves it: %APPDATA%
-# on Windows, ~/Library/Application Support on macOS, else an absolute $XDG_DATA_HOME or
-# ~/.local/share. Prints nothing when it can't tell.
-data_folder() {
-	case "$(uname -s)" in
-	MINGW* | MSYS* | CYGWIN*)
-		[ -n "$APPDATA" ] && (cygpath -u "$APPDATA" 2>/dev/null || echo "$APPDATA")
-		;;
-	Darwin)
-		[ -n "$HOME" ] && echo "$HOME/Library/Application Support"
-		;;
-	*)
-		case "$XDG_DATA_HOME" in
-		/*) echo "$XDG_DATA_HOME" ;;
-		*) [ -n "$HOME" ] && echo "$HOME/.local/share" ;;
-		esac
-		;;
-	esac
-}
-
-
-# Removes the override and this run's test user folder, keeping the folder's logs/. Safe to call
-# more than once. Deletes only the exact path built from this run's name, and only when that name
-# has the test prefix, so it can't reach another run's folder or the data folder itself. A Godot
-# just stopped on Windows can hold files open for a moment, hence the retries.
-end_run() {
-	rm -f "$OVERRIDE"
-	case "$TEST_DIR_NAME" in
+# Deletes a suite's test user folder, after copying its Godot logs to user_logs/<suite>/. Deletes
+# only a folder in the log folder whose name has the test prefix. A Godot just stopped on Windows
+# can hold files open for a moment, hence the retries.
+remove_user_folder() {
+	root="$1"
+	case "$(basename "$root")" in
 	"$TEST_DIR_PREFIX"?*) ;;
 	*) return 0 ;;
 	esac
-	if [ "$(basename "$TEST_DIR")" != "$TEST_DIR_NAME" ] || [ ! -d "$TEST_DIR" ]; then
+	if [ "$(dirname "$root")" != "$LOGS" ] || [ ! -d "$root" ]; then
 		return 0
 	fi
-	if [ -d "$TEST_DIR/logs" ] && [ ! -e "$LOGS/user_logs" ]; then
-		cp -R "$TEST_DIR/logs" "$LOGS/user_logs" 2>/dev/null
+	kept="$LOGS/user_logs/$(basename "$root" | sed "s/^$TEST_DIR_PREFIX//")"
+	logs_dir=$(find "$root" -type d -name logs 2>/dev/null | head -1)
+	if [ -n "$logs_dir" ] && [ ! -e "$kept" ]; then
+		mkdir -p "$LOGS/user_logs"
+		cp -R "$logs_dir" "$kept" 2>/dev/null
 	fi
 	for _attempt in 1 2 3 4 5; do
-		rm -rf "$TEST_DIR" 2>/dev/null
-		[ -d "$TEST_DIR" ] || return 0
+		rm -rf "$root" 2>/dev/null
+		[ -d "$root" ] || return 0
 		sleep 1
 	done
-	echo "warning: could not delete the test user folder $TEST_DIR; delete it by hand."
+	echo "warning: could not delete the test user folder $root; delete it by hand."
+}
+
+# Deletes every test user folder still in the log folder except the ones kept for reading.
+# Safe to call more than once.
+end_run() {
+	for root in "$LOGS/$TEST_DIR_PREFIX"*; do
+		[ -d "$root" ] || continue
+		case " $keep " in
+		*" $root "*) continue ;;
+		esac
+		remove_user_folder "$root"
+	done
 }
 
 # Parse-checks each res:// script given. The output decides: a crash at exit returns 139 even
@@ -248,97 +284,62 @@ case "$1" in
 	;;
 esac
 
+suites=""
 if [ $# -gt 0 ]; then
-	suites="$*"
+	for name in "$@"; do
+		found=$(suites_in "$name")
+		if [ -z "$found" ]; then
+			echo "No suite at tests/$name: it needs a run_all.gd there or a level down."
+			exit 2
+		fi
+		suites="$suites $found"
+	done
 	run_launch=0
 else
-	suites=""
 	for folder in "$PROJECT"/tests/*/; do
 		name=$(basename "$folder")
-		if [ -f "$folder/run_all.gd" ]; then
-			suites="$suites $name"
-			continue
-		fi
-		found=""
-		for part in "$folder"*/; do
-			if [ -f "$part/run_all.gd" ]; then
-				found="$found $name/$(basename "$part")"
-			fi
-		done
+		found=$(suites_in "$name")
 		if [ -n "$found" ]; then
-			suites="$suites$found"
+			suites="$suites $found"
 		else
 			echo "note: tests/$name has no run_all.gd, so it is not a suite and was not run"
 		fi
 	done
 	run_launch=1
 fi
+# Word splitting is wanted: suite names have no spaces, and suites_in prints one per line.
+# shellcheck disable=SC2086
+suites=$(echo $suites)
 
-# Every suite needs a test user folder, or it would write to the player's real one. Never touch
-# an override.cfg or a user folder we didn't make.
-if [ -e "$OVERRIDE" ]; then
-	echo "bandit-bash/override.cfg already exists; remove it (it must never be committed) and rerun."
-	exit 2
-fi
-data_dir="$(data_folder)"
-if [ -z "$data_dir" ] || [ ! -d "$data_dir" ]; then
-	echo "Can't find the folder Godot keeps user folders in ('$data_dir'), so the run has none."
-	exit 2
-fi
-random=$(od -An -N4 -tu4 /dev/urandom 2>/dev/null | tr -d ' \n')
-dir_name="$TEST_DIR_PREFIX$$_${random:-0}"
-if [ -e "$data_dir/$dir_name" ]; then
-	echo "Test user folder $data_dir/$dir_name already exists, so it isn't this run's; rerun."
-	exit 2
-fi
-TEST_DIR_NAME="$dir_name"
-TEST_DIR="$data_dir/$dir_name"
 workers=""
+keep=""
 trap end_run EXIT
 trap cancel_run INT TERM
-printf '[application]\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="%s"\n' \
-	"$TEST_DIR_NAME" >"$OVERRIDE"
-echo "Test user folder: $TEST_DIR"
+echo "Test user folders: $LOGS/$TEST_DIR_PREFIX<suite>"
 
-user_folder_suites=""
-other_suites=""
-for suite in $suites; do
-	if uses_user_folder "$suite"; then
-		user_folder_suites="$user_folder_suites $suite"
-	else
-		other_suites="$other_suites $suite"
-	fi
-done
-
-# Word splitting is wanted: suite names have no spaces.
-# shellcheck disable=SC2086
-if [ "$JOBS" -eq 1 ]; then
-	start_worker $suites
-else
-	# The user folder group is a single worker, and takes one of the JOBS slots.
-	slots=$JOBS
-	if [ -n "$user_folder_suites" ]; then
-		start_worker $user_folder_suites
-		slots=$((JOBS - 1))
-	fi
-	while [ "$slots" -gt 0 ]; do
-		start_worker $other_suites
-		slots=$((slots - 1))
-	done
+# No more workers than suites: the rest would find nothing to claim.
+slots=$JOBS
+count=$(echo "$suites" | wc -w | tr -d ' ')
+if [ "$slots" -gt "$count" ]; then
+	slots=$count
 fi
+while [ "$slots" -gt 0 ]; do
+	# shellcheck disable=SC2086
+	run_unclaimed $suites &
+	workers="$workers $!"
+	slots=$((slots - 1))
+done
 wait
 
 # Judged here, not in the workers: verdict() sets $failed, which a background job can't.
 for suite in $suites; do
 	log=$(suite_log "$suite")
 	verdict "$suite" "$(cat "$log.code" 2>/dev/null || echo 1)" "$log"
+	if [ "$status" = FAIL ] || [ "$status" = HUNG ]; then
+		keep="$keep $(suite_user_root "$suite")"
+		echo "    test user folder kept: $(suite_user_root "$suite")"
+	fi
 done
-# Every Godot run with file logging on writes user://logs, so a missing folder means Godot put it
-# somewhere data_folder() doesn't know, and it is left behind there.
-if [ ! -d "$TEST_DIR" ]; then
-	echo "note: no test user folder at $TEST_DIR; Godot may have made it elsewhere, so it remains"
-fi
-# The launch below runs without the override, as a player would.
 end_run
 
 if [ $run_launch -eq 1 ]; then

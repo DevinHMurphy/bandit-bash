@@ -171,13 +171,15 @@ stop for review. No code until the plan is approved.
    autoload you didn't touch usually means a stale cache: rerun step 1.
 4. If Godot can't be run, say so in the summary. Never claim code parses without running the check.
 
-**The runner:** `sh bandit-bash/tools/run_tests.sh` does steps 1 and 2 and runs every suite (with
-the temporary `override.cfg` they all need) plus a headless launch, printing one verdict line
-each. Suites run in parallel, up to `JOBS` at once (default: the core count; `JOBS=1` is
-sequential), and any suite whose code uses the shared test user folder runs one at a time, as a
-group. `--check <git ref>` parse-checks every `.gd` changed since that ref. Report its lines in the
-summary. It judges runs by their output, because an engine crash at exit (exit 139) can follow a
-passing or a failing run. It finds suites itself: each `tests/<name>/run_all.gd` must print
+**The runner:** `sh bandit-bash/tools/run_tests.sh` does steps 1 and 2 and runs every suite plus
+a headless launch, printing one verdict line each. Suites run in parallel, up to `JOBS` at once
+(default: the core count; `JOBS=1` is sequential), each in its own temporary test user folder, so
+no two suites or runs share one and nothing is written to the checkout; a suite that skips cases
+for want of that folder fails. Name suites to run only those; a top folder with parts (`enemies`,
+`ui`) runs all its parts. `--check <git ref>` parse-checks every `.gd` changed since that ref.
+Report its lines in the summary. It judges runs by their output, because an engine crash at exit
+(exit 139) can follow a passing or a failing run. It finds suites itself: each
+`tests/<name>/run_all.gd` (or `tests/<name>/<part>/run_all.gd`) must print
 `--- N passed, M failed ---`. When a change adds a suite, or changes how runs report results or
 how tests must be launched, update the runner in the same change.
 

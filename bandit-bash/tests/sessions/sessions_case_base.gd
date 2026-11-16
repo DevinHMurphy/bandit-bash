@@ -6,7 +6,7 @@
 # File:     sessions_case_base.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 12, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -134,15 +134,13 @@ func _kinds_of(facts: Array[CombatFact]) -> String:
 
 
 # Whether this run uses a test user folder, which the lifecycle cases need (see run_all.gd's class
-# doc): a custom one whose name starts "bandit_bash_tests", as tools/run_tests.sh names each run's.
+# doc): one with a folder on its path whose name starts "bandit_bash_tests", as tools/run_tests.sh
+# gives each suite. Reads the folder Godot actually resolved.
 func _has_test_user_dir() -> bool:
-	var custom_dir: bool = ProjectSettings.get_setting(
-			"application/config/use_custom_user_dir", false
-	)
-	var dir_name: String = ProjectSettings.get_setting(
-			"application/config/custom_user_dir_name", ""
-	)
-	return custom_dir and dir_name.begins_with("bandit_bash_tests")
+	for part: String in OS.get_user_data_dir().split("/"):
+		if part.begins_with("bandit_bash_tests"):
+			return true
+	return false
 
 
 # Runs one case. A script error aborts a case without failing a check, so each case returns true

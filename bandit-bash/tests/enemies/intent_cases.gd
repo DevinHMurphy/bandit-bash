@@ -6,11 +6,11 @@
 # File:     intent_cases.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 4, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 extends RefCounted
-## The intents and danger zone cases for tests/enemies/run_all.gd ([Intents], [EnemyIntent],
+## The intents and danger zone cases for tests/enemies/ai/run_all.gd ([Intents], [EnemyIntent],
 ## [DangerZone]): the first enemy to act carries out its shown intent when nothing changed (and,
 ## with every hit landing, the whole phase does), a chained intent shows the follow-up a kill
 ## opens, a splash kill names the unit that falls, a preview equals the intents after the unit
