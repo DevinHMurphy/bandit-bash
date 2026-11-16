@@ -313,8 +313,10 @@ func _test_rune_fixture() -> void:
 	if rune == null:
 		return
 	_check_carrier("rune", rune, 1)
-	_check("fixture rune: target kind and shape", (
-			rune.target_kind == "area" and rune.shape_id == "target_shape"
+	_check("fixture rune: target kind and side", (
+			rune.target_kind == ContentIds.RUNE_UNIT
+			and rune.target_side == ContentIds.RUNE_SIDE_PLAYER
+			and not rune.needs_unacted_target
 	))
 
 
@@ -676,7 +678,10 @@ func _test_id_lists_contents() -> void:
 			ContentIds.ROLES.size() == 14 and ContentIds.ROLES.has("shover")
 	))
 	_check("ids: rune target kinds", ContentIds.RUNE_TARGET_KINDS == PackedStringArray([
-		"area", "random", "pair",
+		"unit", "pair", "object",
+	]))
+	_check("ids: rune target sides", ContentIds.RUNE_TARGET_SIDES == PackedStringArray([
+		"player", "enemy",
 	]))
 	_check("ids: shape kinds", ContentIds.SHAPE_KINDS == PackedStringArray([
 		"tile", "radius", "square", "cross",
@@ -876,6 +881,7 @@ func _id_lists() -> Dictionary[String, PackedStringArray]:
 		"HEIRLOOM_KINDS": ContentIds.HEIRLOOM_KINDS,
 		"CURSE_TIERS": ContentIds.CURSE_TIERS,
 		"RUNE_TARGET_KINDS": ContentIds.RUNE_TARGET_KINDS,
+		"RUNE_TARGET_SIDES": ContentIds.RUNE_TARGET_SIDES,
 		"SHAPE_KINDS": ContentIds.SHAPE_KINDS,
 		"TARGET_RULES": ContentIds.TARGET_RULES,
 	}

@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="RuneDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="2_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="3_gain"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="4_target"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="5_con"]
+[ext_resource type="Script" path="res://scripts/content/rune_definition.gd" id="9_def"]
+
+[sub_resource type="Resource" id="Resource_target"]
+script = ExtResource("4_target")
+
+[sub_resource type="Resource" id="Resource_amount"]
+script = ExtResource("5_con")
+value = -2.0
+
+[sub_resource type="Resource" id="Resource_stance"]
+script = ExtResource("3_gain")
+pool = 2
+target = SubResource("Resource_target")
+amount = SubResource("Resource_amount")
+
+[sub_resource type="Resource" id="Resource_cast"]
+script = ExtResource("1_eff")
+id = "stance_loss"
+operations = Array[ExtResource("2_ops")]([SubResource("Resource_stance")])
+
+[resource]
+script = ExtResource("9_def")
+target_kind = "unit"
+target_side = "enemy"
+id = "shatter"
+display_name = "Shatter"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_cast")])

@@ -12,14 +12,18 @@
 extends RefCounted
 ## Map object cases for tests/map/run_all.gd: a golden fact log per object, an attack on debris
 ## shaped like one on a unit, kegs exploding and a three-keg chain, destroyed debris restoring its
-## terrain, a lever both ways, keys and lockpicks, Cutthroat carry and drop, Spark through
-## [constant CombatHooks.Hook.OBJECT_OPERATIONS], a sandbox leaving the real map alone, P06's
-## queries, the door, lever and passage [MapMarker] kinds, and setup step 7's contents per seat.
+## terrain, a lever both ways, keys and lockpicks, Cutthroat carry and drop, Spark on a keg's tile
+## through [constant CombatHooks.Hook.OBJECT_OPERATIONS] (a chain and its preview too), a sandbox
+## leaving the real map alone, P06's queries, the door, lever and passage [MapMarker] kinds, and
+## setup step 7's contents per seat.
 ##
 ## Most cases run a real [CombatSession] on a small plain map with the objects the case needs,
 ## placed by [method MapObjects.place], so actions go through [UnitTurnCommand] and
 ## [CastRuneCommand] as in a battle. Rolls are forced hits, so no case depends on a roll. Golden
 ## logs are fact log lines without their sequence prefix.
+
+# A preloaded script used as a type (gdscript.md, Naming): its give_rune() registers catalog runes.
+const CombatWorld = preload("res://tests/combat/combat_world.gd")
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
@@ -78,6 +82,7 @@ func run() -> void:
 	_test_keg_chain()
 	_test_sandbox()
 	_test_spark()
+	_test_spark_chain()
 	_test_cutthroat()
 	_test_darkness_queries()
 	_test_marker_kinds()
@@ -482,21 +487,39 @@ func _test_spark() -> void:
 	])
 	world.add_unit("p1", PLAYER, Vector2i(0, 3))
 	world.add_unit("e1", ENEMY, Vector2i(4, 3))
-	var spark: String = world.give_rune(0, MapObjects.SPARK_EFFECT_ID)
+	var spark: String = world.give_rune(0, MapObjects.SPARK_RUNE_ID)
 	var mend: String = world.give_rune(0, "mend")
 	world.open()
+	var keg_tile: Vector2i = Vector2i(4, 2)
 	_same(
 			"spark: not on a chest",
-			world.send(CastRuneCommand.new(0, spark, "object:0")).rejected_reason,
+			world.send(CastRuneCommand.new(0, spark, "", "", Vector2i(0, 0))).rejected_reason,
 			"it can't act on that object"
 	)
 	_same(
-			"spark: only Spark acts on a keg",
+			"spark: not on an empty tile",
+			world.send(CastRuneCommand.new(0, spark, "", "", Vector2i(2, 2))).rejected_reason,
+			"no object on (2, 2)"
+	)
+	_same(
+			"spark: names a tile, not the keg",
+			world.send(CastRuneCommand.new(0, spark, "object:1")).rejected_reason,
+			"an object rune names a tile and no unit"
+	)
+	_same(
+			"spark: Mend doesn't take a tile",
+			world.send(CastRuneCommand.new(0, mend, "", "", keg_tile)).rejected_reason,
+			"a unit rune names one unit and no tile"
+	)
+	_same(
+			"spark: nor a keg as its unit",
 			world.send(CastRuneCommand.new(0, mend, "object:1")).rejected_reason,
-			"it can't act on that object"
+			"object:1 isn't on the player side"
 	)
 	var start: int = world.log_size()
-	var batch: CombatSession.FactBatch = world.send(CastRuneCommand.new(0, spark, "object:1"))
+	var batch: CombatSession.FactBatch = world.send(
+			CastRuneCommand.new(0, spark, "", "", keg_tile)
+	)
 	_ok("spark: cast", batch.rejected_reason.is_empty(), batch.rejected_reason)
 	_same_lines("spark: golden log, the keg explodes", world.lines(start), [
 		"OBJECT_STATE_CHANGED object:1 change 5 effect eff:rune:spark tile (4, 2)",
@@ -504,6 +527,62 @@ func _test_spark() -> void:
 		"RUNE_USED -> object:1 item rune:spark tile (4, 2)",
 	])
 	_ok("spark: the rune leaves its slot", not world.state().rune_slots[0].has(spark))
+
+
+# Spark on the first of three kegs, far from every unit: the chain runs as a keg's break does, its
+# first break credited to Spark, and the preview's facts, units and blast tiles are the cast's.
+func _test_spark_chain() -> void:
+	var world: ObjectWorld = ObjectWorld.new(PLAIN_ROWS, [
+		[Vector2i(1, 1), KEG],
+		[Vector2i(2, 1), KEG],
+		[Vector2i(3, 1), KEG],
+		[Vector2i(4, 1), WOODEN],
+		[Vector2i(5, 1), WOODEN],
+	])
+	world.add_unit("p1", PLAYER, Vector2i(1, 2))
+	world.add_unit("e1", ENEMY, Vector2i(3, 0))
+	var spark: String = world.give_rune(0, MapObjects.SPARK_RUNE_ID)
+	world.open()
+	var command: CastRuneCommand = CastRuneCommand.new(0, spark, "", "", Vector2i(1, 1))
+	var preview: CombatForecast.RuneForecast = CombatForecast.rune(world.engine(), command)
+	_ok("spark chain: the preview is legal", preview.is_legal, preview.reason)
+	var start: int = world.log_size()
+	var batch: CombatSession.FactBatch = world.send(command)
+	_ok("spark chain: cast", not batch.is_rejected(), batch.rejected_reason)
+	var lines: Array[String] = world.lines(start)
+	_same_lines("spark chain: golden log, as a keg's chain", lines, [
+		"OBJECT_STATE_CHANGED object:0 change 5 effect eff:rune:spark tile (1, 1)",
+		"DAMAGE_TAKEN p1 <- object:0 amount 5 (hp 5, block 0) source splash effect effect:1",
+		"OBJECT_STATE_CHANGED object:1 -> object:0 change 5 effect effect:1 tile (2, 1)",
+		"OBJECT_STATE_CHANGED object:2 -> object:1 change 5 effect effect:3 tile (3, 1)",
+		"DAMAGE_TAKEN e1 <- object:2 amount 5 (hp 5, block 0) source splash effect effect:5",
+		"OBJECT_STATE_CHANGED object:3 -> object:2 change 5 effect effect:5 tile (4, 1)",
+		"RUNE_USED -> object:0 item rune:spark tile (1, 1)",
+	])
+	var previewed: Array[String] = []
+	for fact: CombatFact in preview.facts:
+		previewed.append(fact.to_log_line())
+	var cast: Array[String] = []
+	for fact: CombatFact in batch.facts:
+		cast.append(fact.to_log_line())
+	_ok("spark chain: preview = execution", previewed == cast, "\n".join(previewed))
+	var hit: PackedStringArray = []
+	for outcome_of: CombatForecast.UnitOutcome in preview.units:
+		hit.append(outcome_of.unit_id)
+	_same(
+			"spark chain: the preview names every unit hit and object broken, in state order",
+			",".join(hit),
+			"object:0,object:1,object:2,object:3,p1,e1"
+	)
+	var tiles: Array[Vector2i] = [
+		Vector2i(1, 1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(2, 1), Vector2i(1, 2),
+		Vector2i(2, 0), Vector2i(3, 1), Vector2i(2, 2), Vector2i(3, 0), Vector2i(4, 1),
+		Vector2i(3, 2),
+	]
+	_ok("spark chain: the preview's tiles, down the chain", preview.tiles == tiles, (
+			str(preview.tiles)
+	))
+	_ok("spark chain: the keg it named", preview.object_id == "object:0", preview.object_id)
 
 
 func _test_cutthroat() -> void:
@@ -864,20 +943,11 @@ class ObjectWorld:
 		session.state.unit(unit_id).pouch_item_id = item_id
 		return item_id
 
-	# Puts a rune whose effect is [param effect_id] in [param seat]'s slots. Returns its id.
-	func give_rune(seat: int, effect_id: String) -> String:
-		var rune_id: String = "rune:%s" % [effect_id]
-		var definition: EffectDefinition = EffectDefinition.new()
-		definition.id = effect_id
-		session.engine.register(EffectInstance.new(
-				"eff:%s" % [rune_id],
-				definition,
-				EffectOwner.for_rune(rune_id, seat),
-				Modifier.SourceKind.RUNE
-		))
-		var slots: PackedStringArray = session.state.rune_slots.get(seat, PackedStringArray())
-		slots.append(rune_id)
-		session.state.rune_slots[seat] = slots
+	# Puts the catalog rune [param definition_id] in [param seat]'s slots as
+	# rune:<definition_id>, its effect eff:rune:<definition_id>. Returns its id.
+	func give_rune(seat: int, definition_id: String) -> String:
+		var rune_id: String = "rune:%s" % [definition_id]
+		CombatWorld.give_rune(session.engine, seat, rune_id, definition_id)
 		return rune_id
 
 	# Opens the battle: turn 1's player phase.

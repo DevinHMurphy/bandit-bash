@@ -88,10 +88,9 @@ None open. Answered questions, by number: [decisions/P03-content-catalog.md](dec
   (owners, duplicates, unique heirlooms).
 - **Decisions that change the vision** (queued for the ideation thread; this plan follows them):
   keys and lockpicks (question 5) replace "lockpicks are Pouch consumables any unit can carry; no
-  unit type picks locks innately"; Everwall's range "—" is 0 (P02 question 14); runes target a
-  place with an area of effect and a preview (question 12), where items.md's runes target units.
-- **Not in the vision yet:** weapon prefixes (question 15), each rune's shape (question 16), and
-  rune prefixes (post-MVP).
+  unit type picks locks innately"; Everwall's range "—" is 0 (P02 question 14). Runes target what
+  items.md says, with a preview (question 32 replaces question 16's areas).
+- **Not in the vision yet:** weapon prefixes (question 15) and rune prefixes (post-MVP).
   Their rules and values go to the ideation thread; this plan builds the model only.
 - **Open in the vision, not a basis for values:** prefix tuning, the Lancer's growths, re-roll
   prices, balance of every listed value (each doc's "Open questions"). They are entered as
@@ -148,7 +147,7 @@ from `describe()`. Generated text is canonical; the design docs keep their wordi
 | `EquipmentDefinition` | Category: cloak, armor, band, quiver, coating, shield, unique |
 | `TrinketDefinition` | Nothing beyond the base; its effects are the trinket |
 | `ConsumableDefinition` | Use kind (heal, Block, full heal, key, lockpick, stat booster, ingredient), amount, uses and their refresh (per map, total, never used up); ingredients add their eaten and cooked gains |
-| `RuneDefinition` | `target_kind` (questions 12 and 16): **area** (any tile the player picks, plus the rune's `TargetShape` id), **random** (its own selector, such as a random enemy; no aiming) or **pair** (Recall: two of your units) |
+| `RuneDefinition` | `target_kind` (question 32): **unit** (one unit of its `target_side`, player or enemy; `needs_unacted_target` for Haste), **pair** (Recall: two of your units) or **object** (Spark: the object on a tile the player picks). No rune has an area |
 | `TargetShape` (question 17) | `kind` (tile, radius, square, cross), `size` (grid distance only; question 18), `includes_center`; `tiles(center)` returns the tiles it covers. Read by P01's `Area` selector (F17), so staves, splash, kegs and runes share it |
 | `HeirloomDefinition` | Tier (common, uncommon, rare, shop, starting, commander), kind (profile, behavior, economy), `coop_only`; the `unique` tag as P01 defines it |
 | `CurseDefinition` (a heirloom tagged `curse`) | Tier (minor, major, severe) |
@@ -258,7 +257,7 @@ needs a migration in P08's section.
 | CT4 Weapons and staves | `data/items/weapons/**` | All 70 MVP weapons and staves (weapons.md); Sanctuary and Everwall name their shapes; Everbloom's full-heal setting and the staff resolver reading it (question 18); the Short Quiver, with range read outside attacks (question 25); the Javelin (the Pilum renamed) comes from EN6 (P05 question 24) | 🟡 touches P02's staff resolver | CT3, CT6 | Content test; a sample of forecasts against hand-computed values |
 | CT5 Equipment, trinkets, consumables | `data/items/{equipment,trinkets,consumables}/` | items.md, with the Key and the Lockpick (question 5); the Short Quiver moves to CT4 and the Resonant Ore to P08 RN4 (question 25) | 🟢 | CT3 | Content test; Training Weights, Spirit Coating and the Simple Quiver behave in combat tests |
 | CT6 Target shapes | `scripts/content/target_shape.gd`, `data/shapes/`; changes in P01's `blocks/selectors/area.gd`, `combat_state.gd` (staff area), `map_objects.gd` (keg blast) | `TargetShape` and its kinds (question 17); P01's `Area` reads a shape (amendment F17); the area staves, Cleave's splash and the keg blast move onto shapes; retires `combat_state.gd:421` | 🔴 changes a P01 block every area uses | CT2 | Each kind's tiles at sizes 0–3 (grid distance only, question 18); every existing area test (Cleave, Sanctuary, Everwall, kegs) passes unchanged |
-| CT7 Runes | `data/runes/`, changes in `cast_rune_command.gd`, `rune_resolver.gd`, `combat_forecast.gd`, `map_objects.gd` | The seven runes with their target kinds (questions 12 and 16); `CastRuneCommand` carries a tile; the rune preview (area tiles and every unit hit) through the forecast's sandbox run; area runes cover the chosen tile until the vision sets each shape; retires both rune stopgaps | 🔴 command and wire contract | CT6 | Each rune's golden fact log; the preview equals the result; Recall as a pair, Spark detonating the kegs in its area |
+| CT7 Runes | `data/runes/`, changes in `cast_rune_command.gd`, `rune_resolver.gd`, `combat_forecast.gd`, `map_objects.gd` | The seven runes with their target kinds (question 32: unit, pair, object; no area); `CastRuneCommand` carries a tile for an object rune; the rune preview (target tiles and every unit hit) through the forecast's sandbox run; retires both rune stopgaps | 🔴 command and wire contract | CT6 | Each rune's golden fact log; the preview equals the result; Recall as a pair, Spark detonating a keg anywhere and its chain |
 | CT8 Unit prefixes and pools | `data/prefixes/units/`, `scripts/content/item_pools.gd`; change in `map_objects.gd` | The 12 unit prefixes and the tier odds; loot and offer pools by kind and rarity; MP6's chest and house items (`map_objects.gd:TOD-001`) | 🟡 | CT4, CT5 | Prefix budgets match unit-roster.md's table; a seeded pool draw is stable; a Basic or Legendary item never appears in a sellable pool |
 | CT9 Heirlooms and curses | `data/heirlooms/`, `data/curses/`, `data/shapes/within_2_with_center.tres`; changes in P01's `while_state_condition.gd`, `while_position_condition.gd`, `area.gd`, `all_of_scope.gd`, `sandbox_state.gd`, `effect_definition.gd`; `combat_state.gd`, `combat_session.gd` (deploy), `map_objects.gd` | heirlooms.md's 35 pool heirlooms and events.md's 10 curses; the held-weapon profile and commander states, the commander area center, the scope selector's `where` filter (P01 question 30), Burglar's Roll as a third opener, Heavy Pack read at deployment (question 28) | 🔴 P01 blocks and `SandboxState` (additions only) | CT2 | Content test (tiers, scopes, unique and co-op marks); text snapshots; a battle case per combat-side effect; stacking; a golden log per heirloom kind and a curse |
 | CT10 Modified-item prices | `scripts/content/prices.gd` | The price and scrap formula from deltas, brought to the user first (question 8) | 🟢 | CT5 | Price examples for *Infuse* and *Forge Resonance* |
@@ -281,7 +280,7 @@ Rune prefixes are post-MVP: `prefixes/runes/` exists and nothing reads it.
 | `CombatValue.Permission.CAN_PICK_LOCKS` appended | Enum (P01) | — | New value, default denied | Proposed (CT2) | `combat_value.gd`, `map_objects.gd` | 🟡 |
 | Auto-deployment reads `role` | Behavior (P04) | Ward's type name | `role == "shover"` | Proposed (CT2) | `auto_deploy.gd`, deploy tests | 🟢 |
 | `Area` selector reads a `TargetShape` | P01 block (amendment F17) | Its own center and radius | Center plus a shape | Applied (CT6) | `blocks/selectors/area.gd`, every area in content and tests, `combat_state.gd`, `map_objects.gd` | 🔴 |
-| Rune target kinds and `CastRuneCommand` carrying a tile | Command and wire contract (P02) | Unit ids, Recall inferred from a second unit | A tile (area), nothing (random) or two units (pair), read from the rune | Proposed (CT7) | `cast_rune_command.gd`, `rune_resolver.gd`, `map_objects.gd`, P07's rune UI, P11 | 🔴 |
+| Rune target kinds and `CastRuneCommand` carrying a tile | Command and wire contract (P02) | Unit ids, Recall inferred from a second unit | One unit (unit), two units (pair) or a tile (object), read from the rune; wire `[rune, target, second, tile]` | Applied (CT7) | `cast_rune_command.gd`, `rune_resolver.gd`, `map_objects.gd`, P07's rune UI, P11 | 🔴 |
 | `ItemInstance.prefix_id` | P01 contract addition (F16) | — | New field | Proposed (CT2) | `item_instance.gd`, P08's `roster` | 🟢 |
 | `res://data/` layout | Content layout | `terrain/` only | The folders above | Proposed (CT1) | EB5's catalog | 🟢 |
 

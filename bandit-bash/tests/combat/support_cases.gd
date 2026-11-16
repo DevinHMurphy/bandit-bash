@@ -6,17 +6,18 @@
 # File:     support_cases.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: November 12, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends RefCounted
 ## Support action cases for tests/combat/run_all.gd: golden fact logs for each staff kind, the area
 ## staves (Sanctuary, Everwall), each Pouch item kind (an eaten ingredient too), a Sidearm swap,
-## runes (Mend, Aegis, Shatter, Recall) and Wait, their legality, and per-map uses refilling between
-## two battles while total uses don't.
+## the unit runes and Recall and Wait, their legality, and per-map uses refilling between two
+## battles while total uses don't. Spark's log is the map suite's (it needs a keg).
 ##
-## Item and rune effects are fixtures built from the effect blocks, with the values of items.md and
-## weapons.md. Every scenario also asserts that the engine reported no diagnostics.
+## Item effects are fixtures built from the effect blocks, with the values of items.md and
+## weapons.md; runes are the catalog's, from [code]data/runes/[/code]. Every scenario also asserts
+## that the engine reported no diagnostics.
 
 # A preloaded script used as a type (gdscript.md, Naming): the test map has no class name.
 const CombatWorld = preload("res://tests/combat/combat_world.gd")
@@ -130,17 +131,32 @@ const GOLDEN: Dictionary[String, Array] = {
 	"weapon swap as the action": [
 		"s0#1 WEAPON_SWAPPED p1 item w:bow",
 	],
-	"runes": [
-		"s0#1 EFFECT_ACTIVATED effect effect:rune:mend",
+	"mend": [
+		"s0#1 EFFECT_ACTIVATED effect eff:rune:mend",
 		"s0#2 RUNE_USED -> p2 item rune:mend tile (2, 1)",
-		"s0#3 HEALED p2 amount 10 (hp 10, block 0) source effect effect effect:rune:mend",
-		"s0#4 EFFECT_ACTIVATED effect effect:rune:aegis",
-		"s0#5 RUNE_USED -> p1 item rune:aegis tile (1, 1)",
-		"s0#6 BLOCK_GAINED p1 amount 6 (hp 0, block 6) source effect effect effect:rune:aegis",
-		"s0#7 EFFECT_ACTIVATED effect effect:rune:shatter",
-		"s0#8 RUNE_USED -> e1 item rune:shatter tile (3, 1)",
-		"s0#9 STANCE_CHANGED e1 amount -2 source effect effect effect:rune:shatter",
-		"s0#10 EXPOSED e1 effect effect:rune:shatter",
+		"s0#3 HEALED p2 amount 10 (hp 10, block 0) source effect effect eff:rune:mend",
+	],
+	"aegis": [
+		"s0#1 EFFECT_ACTIVATED effect eff:rune:aegis",
+		"s0#2 RUNE_USED -> p1 item rune:aegis tile (1, 1)",
+		"s0#3 BLOCK_GAINED p1 amount 6 (hp 0, block 6) source effect effect eff:rune:aegis",
+	],
+	"shatter": [
+		"s0#1 EFFECT_ACTIVATED effect eff:rune:shatter",
+		"s0#2 RUNE_USED -> e1 item rune:shatter tile (3, 1)",
+		"s0#3 STANCE_CHANGED e1 amount -2 source effect effect eff:rune:shatter",
+		"s0#4 EXPOSED e1 effect eff:rune:shatter",
+	],
+	"clarity": [
+		"s0#1 EFFECT_ACTIVATED effect eff:rune:clarity",
+		"s0#2 RUNE_USED -> p1 item rune:clarity tile (2, 1)",
+		"s0#3 MODIFIER_GAINED p1 effect eff:rune:clarity",
+		"s0#4 MODIFIER_GAINED p1 effect eff:rune:clarity",
+	],
+	"haste": [
+		"s0#1 EFFECT_ACTIVATED effect eff:rune:haste",
+		"s0#2 RUNE_USED -> p1 item rune:haste tile (1, 1)",
+		"s0#3 MODIFIER_GAINED p1 effect eff:rune:haste",
 	],
 	"recall": [
 		"s0#1 UNIT_MOVED p1 tile (2, 1)",
@@ -175,7 +191,12 @@ func run() -> void:
 	_test_item_legality()
 	_test_sidearm_swap()
 	_test_swap_as_action()
-	_test_runes()
+	_test_mend()
+	_test_aegis()
+	_test_shatter()
+	_test_clarity()
+	_test_haste()
+	_test_rune_kinds()
 	_test_recall()
 	_test_wait()
 	_test_uses_between_battles()
@@ -430,33 +451,112 @@ func _test_swap_as_action() -> void:
 	_golden("weapon swap as the action", world)
 
 
-func _test_runes() -> void:
+func _test_mend() -> void:
 	var world: CombatWorld = _team()
-	var mend: EffectInstance = _rune(world, "rune:mend", _rune_gain(GainResource.Pool.HP, 10.0))
-	var aegis: EffectInstance = _rune(world, "rune:aegis", _rune_gain(GainResource.Pool.BLOCK, 6.0))
-	var shatter: EffectInstance = _rune(
-			world, "rune:shatter", _rune_gain(GainResource.Pool.STANCE, -2.0)
-	)
+	var mend: EffectInstance = world.add_rune(0, "rune:mend", "mend")
 	world.state.set_hp("p2", 5)
-	_same("rune: Mend", RuneResolver.cast(world.engine, world.state, 0, mend, "p2"), "")
-	_ok("rune: Mend heals 10", world.state.get_hp("p2") == 15)
-	_same("rune: Aegis", RuneResolver.cast(world.engine, world.state, 0, aegis, "p1"), "")
-	_ok("rune: Aegis gives 6 Block", world.state.get_block("p1") == 6)
-	_same("rune: Shatter", RuneResolver.cast(world.engine, world.state, 0, shatter, "e1"), "")
-	_ok("rune: Shatter Exposes", world.state.get_stance("e1") == 0)
-	_ok("rune: the slots empty", world.state.rune_slots[0].is_empty())
-	_ok("rune: outside the action economy", not world.state.unit("p1").has_acted)
-	_same(
-			"rune: single use",
-			RuneResolver.cast(world.engine, world.state, 0, mend, "p2"),
-			"not in the seat's rune slots"
+	_same("mend: cast", _cast(world, mend, "p2"), "")
+	_ok("mend: heals 10", world.state.get_hp("p2") == 15)
+	_ok("mend: leaves its slot", world.state.rune_slots[0].is_empty())
+	_ok("mend: outside the action economy", not world.state.unit("p2").has_acted)
+	_same("mend: single use", _cast(world, mend, "p2"), "not in the seat's rune slots")
+	_golden("mend", world)
+	var other: EffectInstance = world.add_rune(0, "rune:mend2", "mend")
+	var start: int = world.engine.fact_log.size()
+	_same("mend: not on an enemy", _cast(world, other, "e1"), "e1 isn't on the player side")
+	_same("mend: not on nothing", _cast(world, other, "p9"), "no target on the map")
+	_ok("mend: a refusal records nothing", world.engine.fact_log.size() == start)
+	_ok("mend: and keeps the rune", world.state.rune_slots[0].has("rune:mend2"))
+
+
+func _test_aegis() -> void:
+	var world: CombatWorld = _team()
+	var aegis: EffectInstance = world.add_rune(0, "rune:aegis", "aegis")
+	_same("aegis: cast", _cast(world, aegis, "p1"), "")
+	_ok("aegis: gives 6 Block", world.state.get_block("p1") == 6)
+	_golden("aegis", world)
+
+
+func _test_shatter() -> void:
+	var world: CombatWorld = _team()
+	var shatter: EffectInstance = world.add_rune(0, "rune:shatter", "shatter")
+	_same("shatter: not on an ally", _cast(world, shatter, "p1"), "p1 isn't on the enemy side")
+	_same("shatter: cast", _cast(world, shatter, "e1"), "")
+	_ok("shatter: Stance 2 to 0, Exposed", world.state.get_stance("e1") == 0)
+	_golden("shatter", world)
+
+
+# Clarity's +20 Hit and +2 damage last for p1's next attack only: e1 is hit for sword 5 + Might 3
+# + 2 - DEF 2 = 8, and the Hit is back to the sword's after it.
+func _test_clarity() -> void:
+	var world: CombatWorld = _team()
+	world.arm("p1", world.add_weapon("w:sword", "sword").id)
+	world.state.swap_units("p1", "p2")
+	var clarity: EffectInstance = world.add_rune(0, "rune:clarity", "clarity")
+	var hit: int = world.engine.stats("p1").get_int(CombatValue.Key.HIT)
+	_same("clarity: cast", _cast(world, clarity, "p1"), "")
+	_ok(
+			"clarity: +20 Hit",
+			world.engine.stats("p1").get_int(CombatValue.Key.HIT) == hit + 20
 	)
-	_golden("runes", world)
+	_golden("clarity", world)
+	# A sure hit, so the attack shows the damage.
+	world.add_effect("effect:sure", _always_item(CombatValue.Key.HIT, 100.0), "p1")
+	_attack(world, "p1", "e1")
+	_ok("clarity: +2 damage on that attack", _last_attack_amount(world) == 5 + 3 + 2 - 2)
+	_ok(
+			"clarity: spent by it",
+			world.engine.stats("p1").get_int(CombatValue.Key.HIT) == hit + 100
+	)
+	_quiet(world)
+
+
+func _test_haste() -> void:
+	var world: CombatWorld = _team()
+	var haste: EffectInstance = world.add_rune(0, "rune:haste", "haste")
+	var movement: int = world.engine.stats("p1").get_int(CombatValue.Key.MOVEMENT)
+	world.state.unit("p2").has_acted = true
+	_same("haste: not on a unit that acted", _cast(world, haste, "p2"), "p2 has acted")
+	world.state.unit("p1").tiles_moved = 2
+	_same("haste: on a unit that only moved", _cast(world, haste, "p1"), "")
+	_ok(
+			"haste: +2 Movement",
+			world.engine.stats("p1").get_int(CombatValue.Key.MOVEMENT) == movement + 2
+	)
+	_golden("haste", world)
+
+
+func _test_rune_kinds() -> void:
+	var world: CombatWorld = _team()
+	var mend: EffectInstance = world.add_rune(0, "rune:mend", "mend")
+	var recall: EffectInstance = world.add_rune(0, "rune:recall", "recall")
+	var spark: EffectInstance = world.add_rune(0, "rune:spark", "spark")
+	_same(
+			"kinds: Recall isn't cast on one unit",
+			_cast(world, recall, "p1"),
+			"recall is cast on two of your units"
+	)
+	_same("kinds: nor is Spark", _cast(world, spark, "p1"), "spark is cast on a map object")
+	_same(
+			"kinds: Mend isn't a pair rune",
+			RuneResolver.recall(world.engine, world.state, 0, "rune:mend", "p1", "p2"),
+			"mend is cast on one unit"
+	)
+	_same(
+			"kinds: Mend isn't an object rune",
+			RuneResolver.cast_on_object(
+					world.engine, world.state, 0, "rune:mend", Vector2i(1, 1), Callable()
+			),
+			"mend is cast on one unit"
+	)
+	_ok("kinds: nothing recorded", world.engine.fact_log.is_empty())
+	_ok("kinds: every rune kept", world.state.rune_slots[0].size() == 3 and mend != null)
 
 
 func _test_recall() -> void:
 	var world: CombatWorld = _team()
-	world.state.rune_slots[0] = PackedStringArray(["rune:recall", "rune:recall2"])
+	world.add_rune(0, "rune:recall", "recall")
+	world.add_rune(0, "rune:recall2", "recall")
 	_same(
 			"recall: swaps two of the seat's units",
 			RuneResolver.recall(world.engine, world.state, 0, "rune:recall", "p1", "p2"),
@@ -588,17 +688,10 @@ func _give(
 	return world.add_effect("effect:" + item_id, definition, unit_id, POUCH, item_id)
 
 
-# A rune in seat 0's slots, with definition as its effect.
-func _rune(world: CombatWorld, rune_id: String, definition: EffectDefinition) -> EffectInstance:
-	if not world.state.rune_slots.has(0):
-		world.state.rune_slots[0] = PackedStringArray()
-	world.state.rune_slots[0].append(rune_id)
-	var owner: EffectOwner = EffectOwner.for_rune(rune_id, 0)
-	var instance: EffectInstance = EffectInstance.new(
-			"effect:" + rune_id, definition, owner, Modifier.SourceKind.RUNE, rune_id
-	)
-	world.engine.register(instance)
-	return instance
+# Casts seat 0's unit rune (its effect instance) on target_id in a step of its own, as a command.
+func _cast(world: CombatWorld, rune: EffectInstance, target_id: String) -> String:
+	world.engine.begin_step()
+	return RuneResolver.cast(world.engine, world.state, 0, rune, target_id)
 
 
 # A Block staff with range 1 to range_max, amount before Might, and area as its shape.
@@ -641,10 +734,6 @@ func _heal_item(amount: float, charges: int, lane: EffectTerms.Lane) -> EffectDe
 
 func _block_item(amount: float, charges: int, lane: EffectTerms.Lane) -> EffectDefinition:
 	return _item([_gain_to_target(GainResource.Pool.BLOCK, amount)], charges, lane)
-
-
-func _rune_gain(pool: GainResource.Pool, amount: float) -> EffectDefinition:
-	return _item([_gain_to_target(pool, amount)], 0, COMBAT_LANE)
 
 
 func _gain_to_target(pool: GainResource.Pool, amount: float) -> GainResource:

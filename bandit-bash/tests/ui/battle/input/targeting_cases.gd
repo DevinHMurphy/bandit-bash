@@ -6,7 +6,7 @@
 # File:     targeting_cases.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 9, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -23,6 +23,7 @@ extends RefCounted
 
 const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
 const TurnInputCases = preload("res://tests/ui/battle/input/turn_input_cases.gd")
+const CombatWorld = preload("res://tests/combat/combat_world.gd")
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
 const VIEW_SCENE: PackedScene = preload("res://ui/battle/board/battle_view.tscn")
@@ -501,25 +502,11 @@ func _harness() -> TurnInputCases.Harness:
 	return h
 
 
-# Seat 0 gets a Mend rune (heal 10 on the unit cast on) and one of its units loses WOUND HP.
+# Seat 0 gets the catalog's Mend rune (heal 10 on the unit cast on) and one of its units loses
+# WOUND HP.
 func _give_mend_rune(session: CombatSession) -> void:
 	var state: CombatState = session.state
-	var rune_id: String = session.ids.next_rune_id("Mend")
-	state.rune_slots[0] = PackedStringArray([rune_id])
-	var amount: Constant = Constant.new()
-	amount.value = 10.0
-	var mend: GainResource = GainResource.new()
-	mend.pool = GainResource.Pool.HP
-	mend.amount = amount
-	mend.target = CommandTarget.new()
-	var definition: EffectDefinition = EffectDefinition.new()
-	definition.id = "test_mend"
-	definition.trigger = EffectTerms.Trigger.ALWAYS
-	definition.operations.append(mend)
-	session.engine.register(EffectInstance.new(
-			session.ids.next_effect_id("Mend"), definition, EffectOwner.for_rune(rune_id, 0),
-			Modifier.SourceKind.RUNE
-	))
+	CombatWorld.give_rune(session.engine, 0, session.ids.next_rune_id("Mend"), "mend")
 	var wounded: String = state.units_of(PLAYER)[0]
 	state.set_hp(wounded, state.get_hp(wounded) - WOUND)
 

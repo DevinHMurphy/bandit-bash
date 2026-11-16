@@ -6,7 +6,7 @@
 # File:     forecast_cases.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 12, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -14,13 +14,16 @@ extends RefCounted
 ## seeded exchanges (combat core plan, Verification), the AI summary's probabilities sum to 1, a
 ## forecast never changes the real state, each side's numbers and a hit's breakdown (inline "that
 ## hit" changes included, matching the real hit's), chance-gated effects listed apart, staff
-## previews (range 0 included) and shove previews equal their results, an illegal preview gives the
-## command's own rejection, and the stale rule: any fact since the forecast makes an attack, staff
-## or shove stale, never a move.
+## previews (range 0 included), shove previews and the unit runes' and Recall's previews equal
+## their results, an illegal preview gives the command's own rejection, and the stale rule: any
+## fact since the forecast makes an attack, staff or shove stale, never a move.
 ##
 ## Each case runs a real [CombatSession] on a small hand-built map, so the real side of every
 ## comparison is the command resolving through the session's queue. Every case also asserts that
 ## the engines reported no diagnostics.
+
+# A preloaded script used as a type (gdscript.md, Naming): its give_rune() registers catalog runes.
+const CombatWorld = preload("res://tests/combat/combat_world.gd")
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
@@ -121,6 +124,7 @@ func run() -> void:
 	_test_staff_previews()
 	_test_range_zero_staff()
 	_test_shove_previews()
+	_test_rune_previews()
 	_test_rejections_match()
 	_test_stale_rule()
 
@@ -681,6 +685,80 @@ func _test_shove_previews() -> void:
 
 # An illegal preview gives the reason the command is rejected with, and changes nothing: out of
 # range, a path through a unit, a unit that has acted, the wrong action.
+# Each unit rune and Recall, previewed on the session and then cast: the preview changes nothing,
+# its facts (seq included) and predicted units are the cast's, it shows the targets' tiles and
+# names its targets. Spark's preview is the map suite's (it needs kegs). An illegal cast's preview
+# gives the command's own rejection.
+func _test_rune_previews() -> void:
+	var cases: Array[Array] = [
+		# Rune, target, second target, tiles shown.
+		["mend", "p2", "", [Vector2i(3, 2)]],
+		["aegis", "p1", "", [Vector2i(0, 2)]],
+		["shatter", "e1", "", [Vector2i(6, 4)]],
+		["clarity", "p1", "", [Vector2i(0, 2)]],
+		["haste", "p2", "", [Vector2i(3, 2)]],
+		["recall", "p1", "p2", [Vector2i(0, 2), Vector2i(3, 2)]],
+	]
+	for row: Array in cases:
+		var definition_id: String = row[0]
+		var target: String = row[1]
+		var second: String = row[2]
+		var listed: Array = row[3]
+		var tiles: Array[Vector2i] = []
+		tiles.assign(listed)
+		var field: Field = _rune_field(definition_id)
+		var command: CastRuneCommand = CastRuneCommand.new(
+				0, "rune:%s" % [definition_id], target, second
+		)
+		var before: String = _fingerprint(field)
+		var forecast: CombatForecast.RuneForecast = CombatForecast.rune(field.engine(), command)
+		_ok("rune %s: the preview changes nothing" % [definition_id], _fingerprint(field) == before)
+		_ok("rune %s: legal" % [definition_id], forecast.is_legal, forecast.reason)
+		var batch: CombatSession.FactBatch = field.send(command)
+		_same(
+				"rune %s: preview = execution" % [definition_id],
+				_lines(forecast.facts),
+				_lines(batch.facts)
+		)
+		_same(
+				"rune %s: predicted state" % [definition_id],
+				_units_problem(forecast, field.state()),
+				""
+		)
+		_same("rune %s: its tiles" % [definition_id], forecast.tiles, tiles)
+		_ok("rune %s: names its targets" % [definition_id], (
+				forecast.unit(target) != null
+				and (second.is_empty() or forecast.unit(second) != null)
+				and forecast.target_kind == (
+						ContentIds.RUNE_PAIR if definition_id == "recall" else ContentIds.RUNE_UNIT
+				)
+		))
+		_quiet("rune %s" % [definition_id], field)
+
+	var refused: Field = _rune_field("mend")
+	var on_enemy: CastRuneCommand = CastRuneCommand.new(0, "rune:mend", "e1")
+	var illegal: CombatForecast.RuneForecast = CombatForecast.rune(refused.engine(), on_enemy)
+	_ok("rune: an illegal preview gives the command's rejection", (
+			not illegal.is_legal
+			and illegal.reason == refused.send(on_enemy).rejected_reason
+			and illegal.facts.is_empty()
+			and illegal.tiles.is_empty()
+	), illegal.reason)
+
+
+# Seat 0's p1 at (0, 2) and p2 at (3, 2), p2 on 12 / 20 HP, and e1 at (6, 4); seat 0 holds the
+# catalog rune definition_id as rune:<definition_id>. The battle is open.
+func _rune_field(definition_id: String) -> Field:
+	var field: Field = Field.new(_grid, SEED)
+	field.add_unit("p1", PLAYER, 0, Vector2i(0, 2), "", _bases(20))
+	field.add_unit("p2", PLAYER, 0, Vector2i(3, 2), "", _bases(20))
+	field.add_unit("e1", ENEMY, -1, Vector2i(6, 4), "", _bases(20))
+	CombatWorld.give_rune(field.engine(), 0, "rune:%s" % [definition_id], definition_id)
+	field.session.open_battle()
+	field.state().set_hp("p2", 12)
+	return field
+
+
 func _test_rejections_match() -> void:
 	var field: Field = Field.new(_grid, SEED)
 	field.add_weapon("w:p1", "sword")
@@ -737,19 +815,7 @@ func _test_stale_rule() -> void:
 	field.add_unit("p5", PLAYER, 0, Vector2i(0, 0), "", _bases(20))
 	field.add_unit("q1", PLAYER, 1, Vector2i(0, 4), "", _bases(20))
 	field.add_unit("e1", ENEMY, -1, Vector2i(3, 2), "w:e1", _bases(20))
-	field.state().rune_slots[1] = PackedStringArray(["rune:mend"])
-	var mend: GainResource = GainResource.new()
-	mend.pool = GainResource.Pool.HP
-	mend.target = CommandTarget.new()
-	var ten: Constant = Constant.new()
-	ten.value = 10.0
-	mend.amount = ten
-	field.engine().register(EffectInstance.new(
-			"effect:mend",
-			_definition(EffectTerms.Trigger.ALWAYS, [], [mend]),
-			EffectOwner.for_rune("rune:mend", 1),
-			Modifier.SourceKind.RUNE
-	))
+	CombatWorld.give_rune(field.engine(), 1, "rune:mend", "mend")
 	field.session.open_battle()
 	field.state().set_hp("q1", 5)
 	var commands: Array[UnitTurnCommand] = [

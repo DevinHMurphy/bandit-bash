@@ -6,7 +6,7 @@
 # File:     combat_world.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: November 5, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -149,6 +149,12 @@ func add_effect(
 	return instance
 
 
+## Puts [param rune_id] in [param seat]'s slots as the catalog rune [param definition_id]
+## ([method give_rune]). Returns its effect instance; null when the catalog has no such rune.
+func add_rune(seat: int, rune_id: String, definition_id: String) -> EffectInstance:
+	return give_rune(engine, seat, rune_id, definition_id)
+
+
 ## The fact log from index [param start] on, one [method CombatFact.to_log_line] per fact.
 func log_lines(start: int = 0) -> Array[String]:
 	var lines: Array[String] = []
@@ -163,3 +169,36 @@ func kinds(start: int = 0) -> String:
 	for i: int in range(start, engine.fact_log.size()):
 		names.append(CombatFact.Kind.find_key(engine.fact_log[i].kind) as String)
 	return " ".join(names)
+
+
+## Puts [param rune_id] in [param seat]'s slots on [param engine]'s state and registers the
+## effects of the catalog rune [param definition_id], owned by the rune, as the battle-start
+## bridge does: the first as [code]eff:<rune_id>[/code], any more with their index appended.
+## Returns the first instance; null, changing nothing, when the catalog has no such rune.
+## Static, so the map, session and UI suites give runes the same way.
+static func give_rune(
+		engine: EffectEngine, seat: int, rune_id: String, definition_id: String
+) -> EffectInstance:
+	var rune: RuneDefinition = EffectCatalog.rune(definition_id)
+	var state: CombatState = engine.state as CombatState
+	if rune == null or state == null:
+		return null
+	var first: EffectInstance = null
+	for index: int in rune.effects.size():
+		var instance_id: String = "eff:%s" % [rune_id]
+		if index > 0:
+			instance_id += ":%d" % [index]
+		var instance: EffectInstance = EffectInstance.new(
+				instance_id,
+				rune.effects[index],
+				EffectOwner.for_rune(rune_id, seat),
+				Modifier.SourceKind.RUNE,
+				rune.display_name
+		)
+		engine.register(instance)
+		if first == null:
+			first = instance
+	var slots: PackedStringArray = state.rune_slots.get(seat, PackedStringArray())
+	slots.append(rune_id)
+	state.rune_slots[seat] = slots
+	return first

@@ -6,7 +6,7 @@
 # File:     grid_cases.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 27, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -18,6 +18,7 @@ extends RefCounted
 # Preloaded scripts used as types (gdscript.md, Naming): the test map and cases have no class name.
 const MapWorld = preload("res://tests/map/map_world.gd")
 const LayoutCases = preload("res://tests/map/layout_cases.gd")
+const CombatWorld = preload("res://tests/combat/combat_world.gd")
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
@@ -387,7 +388,7 @@ func _test_resolvers_ask_the_state() -> void:
 	var recall: MapWorld = MapWorld.new(["plain plain river"])
 	recall.add_unit("foot", PLAYER, Vector2i(0, 0))
 	recall.add_unit("flier", PLAYER, Vector2i(2, 0), FLIER)
-	recall.state.rune_slots[0] = PackedStringArray(["rune:1"])
+	CombatWorld.give_rune(recall.engine, 0, "rune:1", "recall")
 	var reason: String = RuneResolver.recall(
 			recall.engine, recall.state, 0, "rune:1", "foot", "flier"
 	)

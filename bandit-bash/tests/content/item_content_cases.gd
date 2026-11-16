@@ -10,9 +10,10 @@
 # ==============================================================================
 
 extends RefCounted
-## The equipment, trinket and consumable cases for tests/content/run_all.gd, over the real
-## [code]res://data/[/code]: each item's category, rarity, weight, uses and cooked gains against
-## items.md, each folder holding exactly the listed items, effect text snapshots, and battles
+## The equipment, trinket, consumable and rune cases for tests/content/run_all.gd, over the real
+## [code]res://data/[/code]: each item's category, rarity, weight, uses and cooked gains and each
+## rune's target rules against items.md, each folder holding exactly the listed items and runes,
+## effect text snapshots, and battles
 ## loaded from the data: Training Weights' Speed cost and level-up rules, Spirit Coating's hits
 ## mitigated by Resistance, the Elixir healing to full and being used up, the Simple Quiver's
 ## damage at range, the Sunshard Band's rounded heal, Tungsten Ooze's Armored tag, a Hit booster's
@@ -39,6 +40,22 @@ const TOTAL: EffectTerms.Lane = EffectTerms.Lane.CAMPAIGN
 const EQUIPMENT_DIR: String = "res://data/items/equipment/"
 const TRINKET_DIR: String = "res://data/items/trinkets/"
 const CONSUMABLE_DIR: String = "res://data/items/consumables/"
+const RUNE_DIR: String = "res://data/runes/"
+
+# items.md's seven runes: target kind, target side (unit runes only), whether the unit must not
+# have acted, and the reviewed effect text.
+const RUNES: Dictionary[String, Array] = {
+	"mend": ["unit", "player", false, "Heal the target for 10"],
+	"aegis": ["unit", "player", false, "Give the target 6 Block"],
+	"shatter": ["unit", "enemy", false, "Remove 2 Stance from the target"],
+	"clarity": ["unit", "player", false, (
+			"Always: give the target +20 Hit on its next attack until Phase End, give the target"
+			+ " +2 Attack on its next attack until Phase End"
+	)],
+	"haste": ["unit", "player", true, "Always: give the target +2 Movement until Phase End"],
+	"spark": ["object", "", false, "Always: a powder keg anywhere on the map explodes"],
+	"recall": ["pair", "", false, "Always: two of your units swap positions"],
+}
 
 # Any fixed seed: the forecasts draw nothing from it, and no item use rolls.
 const SEED: int = 0xC7_0005
@@ -325,6 +342,7 @@ func run() -> void:
 	_test_cooked_gains()
 	_test_folders()
 	_test_text_snapshots()
+	_test_runes()
 	_test_training_weights()
 	_test_spirit_coating()
 	_test_elixir()
@@ -433,6 +451,31 @@ func _test_text_snapshots() -> void:
 			continue
 		var expected: PackedStringArray = PackedStringArray(TEXT[item_id])
 		_same("text %s" % [item_id], " | ".join(item.describe()), " | ".join(expected))
+
+
+# The seven runes against items.md: the folder holds exactly them, each with its target rules and
+# one effect, whose text is the reviewed snapshot.
+func _test_runes() -> void:
+	var found: PackedStringArray = []
+	for file: String in DirAccess.get_files_at(RUNE_DIR):
+		if file.get_extension() == "tres":
+			found.append(file.get_basename())
+	found.sort()
+	var expected: PackedStringArray = PackedStringArray(RUNES.keys())
+	expected.sort()
+	_same("runes: data/runes/ holds exactly the seven", ", ".join(found), ", ".join(expected))
+	for rune_id: String in RUNES:
+		var rune: RuneDefinition = _catalog.rune(rune_id)
+		if rune == null:
+			_ok("rune %s: in the catalog" % [rune_id], false)
+			continue
+		var row: Array = RUNES[rune_id]
+		var rules: String = "%s %s %s" % [
+			rune.target_kind, rune.target_side, rune.needs_unacted_target,
+		]
+		_same("rune %s: target rules" % [rune_id], rules, "%s %s %s" % [row[0], row[1], row[2]])
+		var text: String = row[3]
+		_same("rune %s: one effect, its text" % [rune_id], " | ".join(rune.describe()), text)
 
 
 # An Archer (SPD 8) wearing Training Weights: -2 SPD in battle, its Speed can't grow while every

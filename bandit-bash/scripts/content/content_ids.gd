@@ -56,6 +56,21 @@ const HEIRLOOM_STARTING: String = "starting"
 ## Heirloom tier: a commander's own heirloom, such as Iron Heart; never offered.
 const HEIRLOOM_COMMANDER: String = "commander"
 
+## Rune target kind: one unit, named by the cast (Mend, Aegis, Shatter, Clarity, Haste).
+const RUNE_UNIT: String = "unit"
+
+## Rune target kind: two of the caster's own units, named by the cast (Recall).
+const RUNE_PAIR: String = "pair"
+
+## Rune target kind: the map object on the tile the cast names (Spark).
+const RUNE_OBJECT: String = "object"
+
+## Rune target side: a unit of the player side, the caster's own or a teammate's.
+const RUNE_SIDE_PLAYER: String = "player"
+
+## Rune target side: an enemy unit.
+const RUNE_SIDE_ENEMY: String = "enemy"
+
 ## Shape kind: the center tile only, whatever the size.
 const SHAPE_TILE: String = "tile"
 
@@ -239,9 +254,12 @@ const HEIRLOOM_KINDS: PackedStringArray = ["profile", "behavior", "economy", "ar
 ## Curse tiers, matched to the size of an event option's reward (events.md, Curses).
 const CURSE_TIERS: PackedStringArray = ["minor", "major", "severe"]
 
-## How a rune picks its targets (content catalog plan, questions 12 and 16): a tile the player
-## picks with the rune's shape around it, its own random selector, or two of your units (Recall).
-const RUNE_TARGET_KINDS: PackedStringArray = ["area", "random", "pair"]
+## How a rune is aimed: one unit, two of your units, or a map object (items.md, Runes). No rune
+## has an area; a kind for one waits until content needs it.
+const RUNE_TARGET_KINDS: PackedStringArray = [RUNE_UNIT, RUNE_PAIR, RUNE_OBJECT]
+
+## Which side a [constant RUNE_UNIT] rune's unit is on. Breakables, of neither side, never are.
+const RUNE_TARGET_SIDES: PackedStringArray = [RUNE_SIDE_PLAYER, RUNE_SIDE_ENEMY]
 
 ## Target shape kinds (content catalog plan, question 17). Directional shapes wait for content.
 const SHAPE_KINDS: PackedStringArray = [SHAPE_TILE, SHAPE_RADIUS, SHAPE_SQUARE, SHAPE_CROSS]

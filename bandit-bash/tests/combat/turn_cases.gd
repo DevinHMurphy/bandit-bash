@@ -6,13 +6,14 @@
 # File:     turn_cases.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 12, 2026
+# Modified: November 15, 2026
 # ==============================================================================
 
 extends RefCounted
 ## Turn loop and command cases for tests/combat/run_all.gd: Phase Start and Phase End order, the
 ## full hook order, terrain healing, the enemy phase as one command, the unit-turn, end-turn and
-## rune commands with their rejections, the second move and a move that goes nowhere, a range-0
+## rune commands with their rejections (Recall as a pair, Clarity and Haste ending at Phase End),
+## the second move and a move that goes nowhere, a range-0
 ## staff, a scripted two-side fight
 ## that runs to a defeat and repeats exactly, and battle start: the opening swap window, its swaps
 ## and Start commands, and the setting off.
@@ -20,6 +21,9 @@ extends RefCounted
 ## Each case runs a real [CombatSession] on a small hand-built map (plain, with a fort at (1, 1)
 ## for terrain healing), so commands go through the session's queue as they do in a battle. Every
 ## case also asserts that the engine reported no diagnostics, unless it provokes one.
+
+# A preloaded script used as a type (gdscript.md, Naming): its give_rune() registers catalog runes.
+const CombatWorld = preload("res://tests/combat/combat_world.gd")
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
@@ -59,6 +63,7 @@ func run() -> void:
 	_test_move_nowhere_refused()
 	_test_range_zero_staff()
 	_test_rune_command()
+	_test_rune_phase_end()
 	_test_enemy_command_rejected()
 	_test_scripted_fight()
 	_test_opening_swap_then_start()
@@ -516,15 +521,9 @@ func _test_rune_command() -> void:
 	var world: TurnWorld = TurnWorld.new(PackedInt32Array([0, 1]))
 	world.add_unit("p1", PLAYER, 0, Vector2i(0, 0))
 	world.add_unit("q1", PLAYER, 1, Vector2i(0, 2))
-	world.state().rune_slots[0] = PackedStringArray(["rune:mend", "rune:recall"])
-	var mend: GainResource = _gain(GainResource.Pool.HP, _constant(10.0))
-	mend.target = CommandTarget.new()
-	world.engine().register(EffectInstance.new(
-			"effect:mend",
-			_definition(EffectTerms.Trigger.ALWAYS, [mend]),
-			EffectOwner.for_rune("rune:mend", 0),
-			Modifier.SourceKind.RUNE
-	))
+	world.add_unit("p2", PLAYER, 0, Vector2i(2, 0))
+	CombatWorld.give_rune(world.engine(), 0, "rune:mend", "mend")
+	CombatWorld.give_rune(world.engine(), 0, "rune:recall", "recall")
 	world.state().set_hp("q1", 5)
 	_same(
 			"rune: player phase only",
@@ -532,26 +531,79 @@ func _test_rune_command() -> void:
 			"not the player phase"
 	)
 	world.session.open_battle()
+	_same(
+			"rune: a unit rune names no tile",
+			world.send(
+					CastRuneCommand.new(0, "rune:mend", "q1", "", Vector2i(0, 2))
+			).rejected_reason,
+			"a unit rune names one unit and no tile"
+	)
+	_same(
+			"rune: nor a second unit",
+			world.send(CastRuneCommand.new(0, "rune:mend", "q1", "p1")).rejected_reason,
+			"a unit rune names one unit and no tile"
+	)
 	var batch: CombatSession.FactBatch = world.send(CastRuneCommand.new(0, "rune:mend", "q1"))
 	_ok("rune: on a teammate's unit", not batch.is_rejected(), batch.rejected_reason)
 	_ok("rune: Mend heals 10", world.state().get_hp("q1") == 15)
+	_same(
+			"rune: Recall names two units",
+			world.send(CastRuneCommand.new(0, "rune:recall", "p1")).rejected_reason,
+			"a pair rune names two units and no tile"
+	)
 	_same(
 			"rune: Recall needs the seat's own units",
 			world.send(CastRuneCommand.new(0, "rune:recall", "p1", "q1")).rejected_reason,
 			"not two of the seat's units"
 	)
+	var start: int = world.log_size()
+	batch = world.send(CastRuneCommand.new(0, "rune:recall", "p1", "p2"))
+	_ok("rune: Recall swaps two as a pair", (
+			not batch.is_rejected()
+			and world.state().tile_of("p1") == Vector2i(2, 0)
+			and world.state().tile_of("p2") == Vector2i(0, 0)
+	), batch.rejected_reason)
+	_same("rune: Recall's log", world.lines(start), [
+		"s0#%d UNIT_MOVED p1 tile (2, 0)" % [start + 1],
+		"s0#%d UNIT_MOVED p2 tile (0, 0)" % [start + 2],
+		"s0#%d RUNE_USED -> p1 item rune:recall tile (2, 0)" % [start + 3],
+	])
+	CombatWorld.give_rune(world.engine(), 0, "rune:recall2", "recall")
 	_same(
 			"rune: not from a seat's empty slots",
 			world.send(CastRuneCommand.new(1, "rune:mend", "q1")).rejected_reason,
 			"not in the seat's rune slots"
 	)
 	world.send(EndTurnCommand.new(0))
-	world.state().rune_slots[0] = PackedStringArray(["rune:recall"])
 	_same(
 			"rune: not after the seat ended",
-			world.send(CastRuneCommand.new(0, "rune:recall", "p1", "p1")).rejected_reason,
+			world.send(CastRuneCommand.new(0, "rune:recall2", "p1", "p2")).rejected_reason,
 			"seat 0 has ended its turn"
 	)
+	_quiet(world)
+
+
+# Clarity's and Haste's modifiers last until the player phase ends, and leave with it.
+func _test_rune_phase_end() -> void:
+	var world: TurnWorld = TurnWorld.new()
+	world.add_unit("p1", PLAYER, 0, Vector2i(0, 0))
+	world.add_unit("e1", ENEMY, -1, Vector2i(5, 3))
+	CombatWorld.give_rune(world.engine(), 0, "rune:clarity", "clarity")
+	CombatWorld.give_rune(world.engine(), 0, "rune:haste", "haste")
+	world.session.open_battle()
+	var stats: StatSheet = world.engine().stats("p1")
+	var hit: int = stats.get_int(CombatValue.Key.HIT)
+	world.send(CastRuneCommand.new(0, "rune:clarity", "p1"))
+	world.send(CastRuneCommand.new(0, "rune:haste", "p1"))
+	stats = world.engine().stats("p1")
+	_ok("phase end: Clarity's +20 Hit holds in the phase", stats.get_int(CombatValue.Key.HIT) == (
+			hit + 20
+	))
+	_ok("phase end: Haste's 5 + 2 Movement", stats.get_int(CombatValue.Key.MOVEMENT) == 7)
+	world.send(EndTurnCommand.new(0))
+	stats = world.engine().stats("p1")
+	_ok("phase end: Clarity's Hit is gone", stats.get_int(CombatValue.Key.HIT) == hit)
+	_ok("phase end: Haste's Movement is gone", stats.get_int(CombatValue.Key.MOVEMENT) == 5)
 	_quiet(world)
 
 
