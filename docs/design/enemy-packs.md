@@ -6,7 +6,7 @@ what [enemy-roster.md](enemy-roster.md) and [game-vision.md](game-vision.md#run-
 open. Nothing here is decided until it is in [Decisions](#decisions), and the vision and
 enemy-roster.md are updated through the ideation thread.
 
-**Status:** rules decided November 15, 2026 (user); the pack lists are still to write. Feeds
+**Status:** rules and pack lists decided November 15, 2026 (user). Feeds
 P05 EN17 (pack pools), EN7 (leaders), EN8 (mini-bosses) and P04 MP10 (the M2 map set).
 
 ## Where it stands
@@ -65,10 +65,10 @@ Crossbowman 1, Cutthroat 1, Hexer 1, Hedge Healer 1, Warcaller 1, Raider 1, **Du
    more enemies than its step suggests.
 7. **No pack weighting:** every pack is equally likely at every step and on every objective.
 
-## Draft pack lists
+## Pack lists
 
-**Status:** drafted November 15, 2026 for the user's approval; not a decision until it moves to
-[Decisions](#decisions). It applies decisions 1–9: every pack fields exactly its step's count, so
+**Status:** approved as drafted November 15, 2026 (user; decision 10), with the choices below. It
+applies decisions 1–9: every pack fields exactly its step's count, so
 the Hunting Party's varying 2–3 Hounds becomes a fixed count per step.
 
 **Basic pool.** The five roster packs, each keeping its puzzle as it grows:
@@ -109,7 +109,7 @@ one of the same size. The Duelist guards three of them.
 map 6 (with the mini-boss), each plus 2 free for Hunted: 7 on a step-3 standard map and 8 on a
 step-3 key map. A map used across steps needs the largest step's slots.
 
-**Choices in this draft, for the user to accept or change:**
+**Choices made in the lists:**
 
 - **Every leader is an elite of its pack's signature class,** the one the pack is named for.
 - **Key escorts number the step's full count.** The lighter choice the user allowed ("fewer but
@@ -120,7 +120,7 @@ step-3 key map. A map used across steps needs the largest step's slots.
 
 ## Open questions
 
-None on the rules. The draft pack lists above wait for the user's approval.
+None.
 
 ## Decisions
 
@@ -148,3 +148,7 @@ ideation thread.
 8. **The M1 Pack is retired from the draw.** It stays for tests and the M1 map.
 9. **A leader is an elite of one of its pack's classes,** placed in the map's leader slot, and
    counts toward the step's enemy count.
+10. **The [pack lists](#pack-lists) are approved as drafted,** with their four choices: each
+    leader is an elite of its pack's signature class; key escorts number the step's full count;
+    the Duelist is in two hard packs and three key packs; step 3 adds a second unit of the
+    signature class where the puzzle allows.

@@ -87,8 +87,8 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 3. **Then M2's content, two prompts at a time:**
    - **Wave A (ready):** CT6 target shapes (merged November 12, 2026) with EN6 enemy roster (merged November 14, 2026: 10 classes, the shared Javelin, killing blows splash; P05 question 39); then CT13 unit roster (merged November 14, 2026: 11 types; P03 question 27; its Skirmisher+ Block half is CT13F, before RN7) with CT5 equipment and consumables (merged November 13, 2026; the Short Quiver moved to CT4 and the Resonant Ore to RN4). EN13 (preview benchmarks and equality suite) is ready, after splitting the enemies suite (design items, P14 / P05); EN14–EN16 follow EN13.
    - **Wave B:** CT4 weapons and staves (merged November 15, 2026: all 70, Everbloom's full heal, the Short Quiver, one range read; `combat_state` v2), CT13F Skirmisher+ Block and the Haunted redesign (merged November 15, 2026; P03 question 29), CT9 heirlooms and curses (merged November 15, 2026: 35 pool heirlooms, 10 curses; follow-ups in P03 question 28), EN10 reinforcement groups and the Hunted extra enemy (merged November 15, 2026; P05 question 40), EN9 map-object AI (merged November 15, 2026: kegs, levers, Braziers, Cutthroat looting through `CAN_LOOT`; P05 question 41).
-   - **Wave C:** MP10 the M2 map set (after EN10; its map count and mix go to the user in its estimate; its slot counts follow the pack lists in enemy-packs.md), CT7 runes (prompt issued November 15, 2026), CT8 unit prefixes and pools (merged November 15, 2026: 12 prefixes, `ItemPools`, container items from the pools; P03 question 31), CT10 modified prices (its formula goes to the user first), P07 UI12 curse display, trigger wording and the object intent (prompt issued November 15, 2026).
-   - **Wave D:** EN17 pack pools (after the pack lists are written in [enemy-packs.md](../design/enemy-packs.md); rules decided November 15, 2026), then EN7 elites and bosses (marks leaders on the HUD), EN8 mini-bosses, EN11 the Powder Baron and its map, CT12 weapon prefixes (waits on the vision's weapon-prefix rules).
+   - **Wave C:** MP10 the M2 map set (after EN10; its map count and mix go to the user in its estimate; its slot counts follow enemy-packs.md: up to 7 enemy slots on a step-3 standard map, 8 on a step-3 key map, Hunted included), CT7 runes (prompt issued November 15, 2026), CT8 unit prefixes and pools (merged November 15, 2026: 12 prefixes, `ItemPools`, container items from the pools; P03 question 31), CT10 modified prices (its formula goes to the user first), P07 UI12 curse display, trigger wording and the object intent (prompt issued November 15, 2026).
+   - **Wave D:** EN17 pack pools (ready: rules and pack lists in [enemy-packs.md](../design/enemy-packs.md) approved November 15, 2026), then EN7 elites and bosses (marks leaders on the HUD), EN8 mini-bosses, EN11 the Powder Baron and its map, CT12 weapon prefixes (waits on the vision's weapon-prefix rules).
    - **Docs:** EB8, CC9, MP9, DK6, CT11 and EN12 as one batched step at the end of M2.
 4. **Bugs** ([tracker](bug-tracker.md)), fix step **BF1** once the user's engine bugs are in:
    - BUG-002 (S2): the forecast's crit ignores Stance.
@@ -103,7 +103,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 5. **M2's exit:** playtest a full M2 map set, folding in the deferred M1 tuning pass.
 6. **Later:** P04 MP11, a map authoring toolkit so the user can build maps by hand in the editor as in `Godot_FE` (after MP10 and MP9; P04 question 26); one public `Pathing.path_to` (P07 question 15 d); vision updates for the ideation thread.
 
-**Open questions for the user:** approve the draft pack lists in [enemy-packs.md](../design/enemy-packs.md) (before P05 EN17 and P04 MP10's slot counts).
+**Open questions for the user:** none.
 
 ## Scope guardrails
 
