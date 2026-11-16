@@ -127,6 +127,8 @@ flowchart LR
     EN7 --> EN11[EN11 Powder Baron]
     EN9 --> EN11
     EN2 --> EN10[EN10 reinforcement groups]
+    EN6 --> EN17[EN17 pack pools] --> EN7
+    EN10 --> EN17
   end
   CT8 --> EN7
   EN1 --> EN5
@@ -178,14 +180,15 @@ flowchart LR
   EN4F --> UI4
   CT9 --> UI12[UI12 curse display, trigger wording]
   UI4 --> UI12
+  EN9 --> UI12
 
   classDef done fill:#c8e6c9,stroke:#2e7d32,color:#1b1b1b
   classDef active fill:#bbdefb,stroke:#1565c0,color:#1b1b1b
   classDef ready fill:#fff3c4,stroke:#b8860b,color:#1b1b1b
   classDef waiting fill:#e0e0e0,stroke:#757575,color:#1b1b1b
-  class R1,R2,R3,R4,R5,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,CT2,EB5,EB7,EBF,EN1,CT3,EN2,EN3,CC8,CT3F,EN3F,EN4,EN5,MP8,DK1,EN4F,DK2,DK3,UI1,DK4,UI2,UI2F,UI3,UI4,UI3F,UI5,UI5F,CC10,UI6,UI7,UI7F,UI8,UI9,UI10,UI11,DK5,CT6,CT5,EN6,CT13,CT9,CT13F,CT4,EN10 done
-  class CT7,CT8,CT10,EN9,DK6,UI12,MP10 ready
-  class CT12,EN7,EN8,EN11,MP11 waiting
+  class R1,R2,R3,R4,R5,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,CT2,EB5,EB7,EBF,EN1,CT3,EN2,EN3,CC8,CT3F,EN3F,EN4,EN5,MP8,DK1,EN4F,DK2,DK3,UI1,DK4,UI2,UI2F,UI3,UI4,UI3F,UI5,UI5F,CC10,UI6,UI7,UI7F,UI8,UI9,UI10,UI11,DK5,CT6,CT5,EN6,CT13,CT9,CT13F,CT4,EN10,EN9,CT8 done
+  class CT7,CT10,DK6,UI12,MP10 ready
+  class CT12,EN17,EN7,EN8,EN11,MP11 waiting
 ```
 
 `CC6 --- MP4`: built together; MP4's objective checks run on CC6's `AFTER_STEP` hook.
