@@ -14,7 +14,8 @@ extends SceneTree
 ## input ([code]tests/ui/input/run_all.gd[/code]) and display
 ## ([code]tests/ui/display/run_all.gd[/code]), and the campaign screens
 ## ([code]tests/ui/campaign/run_all.gd[/code]). Each extends this script: the check counters and
-## the summary line the runner reads, the definitions hash checked at the end, the test user
+## the summary line the runner reads, the definitions hash checked at the end, the group timer
+## (each suite laps it before each case file or phase; [method _finish] stops it), the test user
 ## folder guard, pressing keys and clicking on the root viewport, and entering a new run's first
 ## node. The combat cases stay in [code]tests/ui/battle/[/code], one file each.[br]
 ## Never names an autoload, or a class whose script does (the screens', [RunScreen]): a suite
@@ -25,6 +26,7 @@ extends SceneTree
 ## [code]tests/sessions/run_all.gd[/code]) and are skipped otherwise.
 
 const CatalogCases = preload("res://tests/content/catalog_cases.gd")
+const GroupClock = preload("res://tests/group_clock.gd")
 
 const GAMEPLAY_SCENE: String = "res://ui/battle/gameplay.tscn"
 
@@ -57,15 +59,17 @@ func _start(title: String) -> void:
 	_before = CatalogCases.hash_definitions(PackedStringArray())
 
 
-# Checks the definitions are as _start() found them, prints the summary line and quits, with
-# exit code 1 on any failure.
+# Checks the definitions are as _start() found them, closes the last test group, prints the
+# summary line and quits, with exit code 1 on any failure.
 func _finish() -> void:
+	GroupClock.lap("definitions check")
 	var changed: PackedStringArray = CatalogCases.changed_definitions(
 			_before, CatalogCases.hash_definitions(PackedStringArray())
 	)
 	_check("definitions: none changed during the run (%d hashed)" % [_before.size()], (
 			changed.is_empty()
 	), ", ".join(changed))
+	GroupClock.stop()
 	print("--- %d passed, %d failed, %d skipped ---" % [_passes, _failures, _skips])
 	quit(1 if _failures > 0 else 0)
 

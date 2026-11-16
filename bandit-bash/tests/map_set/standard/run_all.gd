@@ -23,7 +23,11 @@ extends SceneTree
 ## first frame, and their names are unknown while this script compiles), so nothing here may use
 ## them.
 
+# The test report's line on this suite; tools/run_tests.sh reads it from this one line.
+const SUITE_DESCRIPTION: String = "Every shipped map and pool, and an AI battle per standard map"
+
 # Preloaded scripts used as types (gdscript.md, Naming): the cases have no class name.
+const GroupClock = preload("res://tests/group_clock.gd")
 const MapSetCases = preload("res://tests/map_set/map_set_cases.gd")
 const MapSetBattleCases = preload("res://tests/map_set/map_set_battle_cases.gd")
 
@@ -33,8 +37,12 @@ var _passes: int = 0
 
 func _init() -> void:
 	print("--- Map set tests: maps, pools and standard battles ---")
+	GroupClock.lap("map_set_cases")
 	MapSetCases.new(_check).run()
+	# The battle cases time each map; this group is their catalog's load.
+	GroupClock.lap("map_set_battle_cases: catalog")
 	MapSetBattleCases.new(_check, CombatMapDefinition.CombatType.STANDARD).run()
+	GroupClock.stop()
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)
 

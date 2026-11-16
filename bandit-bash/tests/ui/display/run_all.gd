@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 14, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 extends "res://tests/ui/ui_suite.gd"
@@ -28,6 +28,9 @@ extends "res://tests/ui/ui_suite.gd"
 ## [code]--- N passed, M failed, K skipped ---[/code]; exits with code 1 on any failure.[br]
 ## The cases run from the first frame, when autoloads exist; the panel case over a few more frames
 ## so the layout and the camera settle. It needs a test user folder (see the base).
+
+# The test report's line on this suite; tools/run_tests.sh reads it from this one line.
+const SUITE_DESCRIPTION: String = "Forecast, HUD, unit display, objectives and screen layout"
 
 const ForecastCases = preload("res://tests/ui/battle/forecast/forecast_cases.gd")
 const HudCases = preload("res://tests/ui/battle/hud/hud_cases.gd")
@@ -58,16 +61,25 @@ func _process(_delta: float) -> bool:
 	_frame += 1
 	if _frame == 1:
 		_start("Combat UI tests: display")
+		GroupClock.lap("forecast_cases")
 		ForecastCases.new(_check, root).run()
+		GroupClock.lap("hud_cases")
 		HudCases.new(_check, root).run()
+		GroupClock.lap("unit_display_cases")
 		UnitDisplayCases.new(_check, root).run()
+		GroupClock.lap("display_fix_cases")
 		DisplayFixCases.new(_check, root).run()
+		GroupClock.lap("exchange_feedback_cases")
 		ExchangeFeedbackCases.new(_check, root).run()
+		GroupClock.lap("objective_hud_cases")
 		ObjectiveHudCases.new(_check, root).run()
 		if _has_test_user_dir():
+			GroupClock.lap("opening_swap_cases")
 			OpeningSwapCases.new(_check, root).run()
 		else:
 			_skip("opening swap", "the settings and gameplay screens need a test user folder")
+		# Open over the frames the panel, wide and detail cases take.
+		GroupClock.lap("gameplay screen layout")
 		if _start_panel_case():
 			_panel_frame = _frame
 			return false

@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: November 9, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -23,7 +23,11 @@ extends SceneTree
 ## first frame, and their names are unknown while this script compiles), so nothing here may use
 ## [code]SaveService[/code].
 
+# The test report's line on this suite; tools/run_tests.sh reads it from this one line.
+const SUITE_DESCRIPTION: String = "Save files, profile settings, sections, archive, lobby rules"
+
 # Preloaded scripts used as types (gdscript.md, Naming): the case scripts have no class name.
+const GroupClock = preload("res://tests/group_clock.gd")
 const SaveCaseBase = preload("res://tests/save/save_case_base.gd")
 const SaveFileCases = preload("res://tests/save/save_file_cases.gd")
 const ProfileSettingsCases = preload("res://tests/save/profile_settings_cases.gd")
@@ -39,14 +43,21 @@ var _passes: int = 0
 func _init() -> void:
 	print("--- Save layer tests. Errors and warnings from SaveFile below are expected. ---")
 
+	GroupClock.lap("save_file_cases")
 	SaveFileCases.new(_check).run()
+	GroupClock.lap("profile_settings_cases")
 	ProfileSettingsCases.new(_check).run()
+	GroupClock.lap("campaign_cases")
 	CampaignCases.new(_check).run()
+	GroupClock.lap("section_cases")
 	SectionCases.new(_check).run()
+	GroupClock.lap("combat_archive_cases")
 	CombatArchiveCases.new(_check).run()
+	GroupClock.lap("multiplayer_cases")
 	MultiplayerCases.new(_check).run()
 
 	SaveFile.delete_folder(SaveCaseBase.TEST_DIR)
+	GroupClock.stop()
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)
 

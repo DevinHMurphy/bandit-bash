@@ -21,6 +21,9 @@ extends "res://tests/enemies/enemies_suite.gd"
 ## [br]Prints one PASS or FAIL line per check and the summary line
 ## [code]--- N passed, M failed ---[/code]; exits with code 1 on any failure.
 
+# The test report's line on this suite; tools/run_tests.sh reads it from this one line.
+const SUITE_DESCRIPTION: String = "Enemy setup, reinforcement waves, roster AI and map objects"
+
 # Preloaded scripts used as types (gdscript.md, Naming): the cases have no class name.
 const EnemySetupCases = preload("res://tests/enemies/enemy_setup_cases.gd")
 const ObjectAiCases = preload("res://tests/enemies/object_ai_cases.gd")
@@ -30,8 +33,12 @@ const RosterAiCases = preload("res://tests/enemies/roster_ai_cases.gd")
 
 func _init() -> void:
 	_start("Enemies tests: setup, the roster's AI and map objects")
+	GroupClock.lap("enemy_setup_cases")
 	EnemySetupCases.new(_check).run()
+	GroupClock.lap("reinforcement_setup_cases")
 	ReinforcementSetupCases.new(_check).run()
+	GroupClock.lap("roster_ai_cases")
 	RosterAiCases.new(_check).run()
+	GroupClock.lap("object_ai_cases")
 	ObjectAiCases.new(_check).run()
 	_finish()

@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 9, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -24,7 +24,11 @@ extends SceneTree
 ## exist from the first frame, and their names are unknown while this script compiles), so nothing
 ## here may use them.
 
+# The test report's line on this suite; tools/run_tests.sh reads it from this one line.
+const SUITE_DESCRIPTION: String = "Event bus, facts, value queries and the effect engine"
+
 # Preloaded scripts used as types (gdscript.md, Naming): the case scripts have no class name.
+const GroupClock = preload("res://tests/group_clock.gd")
 const FactCases = preload("res://tests/effects/fact_cases.gd")
 const BusCases = preload("res://tests/effects/bus_cases.gd")
 const ValueCases = preload("res://tests/effects/value_cases.gd")
@@ -41,15 +45,24 @@ var _passes: int = 0
 func _init() -> void:
 	print("--- Event bus tests. Warnings from CombatFact and CampaignFact below are expected. ---")
 
+	GroupClock.lap("fact_cases")
 	FactCases.new(_check).run()
+	GroupClock.lap("bus_cases")
 	BusCases.new(_check).run()
+	GroupClock.lap("value_cases")
 	ValueCases.new(_check).run()
+	GroupClock.lap("describe_cases")
 	DescribeCases.new(_check).run()
+	GroupClock.lap("engine_cases")
 	EngineCases.new(_check).run()
+	GroupClock.lap("golden_cases")
 	GoldenCases.new(_check).run()
+	GroupClock.lap("sandbox_cases")
 	SandboxCases.new(_check).run()
+	GroupClock.lap("stats_cases")
 	StatsCases.new(_check).run()
 
+	GroupClock.stop()
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)
 

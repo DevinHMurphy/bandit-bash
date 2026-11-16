@@ -11,9 +11,9 @@
 
 extends SceneTree
 ## Map set suite, key part (combat map plan, MP10): a headless battle against the AI on each key
-## map (map_set_battle_cases.gd). The maps' and pools' checks and the standard maps' battles are
-## the map_set/standard suite: a battle per map takes minutes, the runner limits each suite's
-## time, and suites run in parallel.
+## map at step 3, played twice to compare fact logs (map_set_battle_cases.gd). The maps' and
+## pools' checks and the standard maps' battles are the map_set/standard suite: a battle per map
+## takes minutes, the runner limits each suite's time, and suites run in parallel.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/map_set/key/run_all.gd[/code][br]
@@ -23,7 +23,11 @@ extends SceneTree
 ## first frame, and their names are unknown while this script compiles), so nothing here may use
 ## them.
 
-# Preloaded script used as a type (gdscript.md, Naming): the cases have no class name.
+# The test report's line on this suite; tools/run_tests.sh reads it from this one line.
+const SUITE_DESCRIPTION: String = "An AI battle on each key map at step 3, played twice"
+
+# Preloaded scripts used as types (gdscript.md, Naming): the cases have no class name.
+const GroupClock = preload("res://tests/group_clock.gd")
 const MapSetBattleCases = preload("res://tests/map_set/map_set_battle_cases.gd")
 
 var _failures: int = 0
@@ -32,7 +36,10 @@ var _passes: int = 0
 
 func _init() -> void:
 	print("--- Map set tests: key battles ---")
+	# The battle cases time each map; this group is their catalog's load.
+	GroupClock.lap("map_set_battle_cases: catalog")
 	MapSetBattleCases.new(_check, CombatMapDefinition.CombatType.KEY).run()
+	GroupClock.stop()
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)
 

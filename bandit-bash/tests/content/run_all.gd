@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 15, 2026
+# Modified: November 16, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -30,7 +30,12 @@ extends SceneTree
 ## [code]tests/content/fixtures/[/code], never under [code]data/[/code], which the catalog loads.
 ## The cases run in [code]_init[/code]; nothing here uses an autoload.
 
-# A preloaded script used as a type (gdscript.md, Naming): the cases script has no class name.
+# The test report's line on this suite; tools/run_tests.sh reads it from this one line.
+const SUITE_DESCRIPTION: String = "Content definitions, shapes, prices, ids and the data folders"
+
+# Preloaded scripts used as types (gdscript.md, Naming): the group timer and the case scripts
+# (no class name).
+const GroupClock = preload("res://tests/group_clock.gd")
 const CatalogCases = preload("res://tests/content/catalog_cases.gd")
 const LoadoutCases = preload("res://tests/content/loadout_cases.gd")
 const M1ContentCases = preload("res://tests/content/m1_content_cases.gd")
@@ -100,40 +105,75 @@ func _init() -> void:
 	# Hashed before any case loads a definition, so the check covers the whole run.
 	var before: Dictionary[String, String] = CatalogCases.hash_definitions(HASHED_TREES)
 
+	GroupClock.lap("test_unit_type_fixture")
 	_test_unit_type_fixture()
+	GroupClock.lap("test_commander_fixture")
 	_test_commander_fixture()
+	GroupClock.lap("test_prefix_fixtures")
 	_test_prefix_fixtures()
+	GroupClock.lap("test_faction_fixture")
 	_test_faction_fixture()
+	GroupClock.lap("test_weapon_fixtures")
 	_test_weapon_fixtures()
+	GroupClock.lap("test_other_item_fixtures")
 	_test_other_item_fixtures()
+	GroupClock.lap("test_rune_fixture")
 	_test_rune_fixture()
+	GroupClock.lap("test_heirloom_fixtures")
 	_test_heirloom_fixtures()
+	GroupClock.lap("test_shape_fixture")
 	_test_shape_fixture()
+	GroupClock.lap("test_shape_counts")
 	_test_shape_counts()
+	GroupClock.lap("test_shape_exact_tiles")
 	_test_shape_exact_tiles()
+	GroupClock.lap("test_shape_edges")
 	_test_shape_edges()
+	GroupClock.lap("test_shape_covers")
 	_test_shape_covers()
+	GroupClock.lap("test_shape_map_edges")
 	_test_shape_map_edges()
+	GroupClock.lap("test_data_shapes")
 	_test_data_shapes()
+	GroupClock.lap("test_item_prices")
 	_test_item_prices()
+	GroupClock.lap("test_unsold_rarities")
 	_test_unsold_rarities()
+	GroupClock.lap("test_rune_and_heirloom_prices")
 	_test_rune_and_heirloom_prices()
+	GroupClock.lap("test_scrap_values")
 	_test_scrap_values()
+	GroupClock.lap("test_id_lists_have_no_duplicates")
 	_test_id_lists_have_no_duplicates()
+	GroupClock.lap("test_id_lists_contents")
 	_test_id_lists_contents()
+	GroupClock.lap("test_inspector_hints")
 	_test_inspector_hints()
+	GroupClock.lap("test_data_layout")
 	_test_data_layout()
+	GroupClock.lap("catalog_cases")
 	CatalogCases.new(_check).run()
+	GroupClock.lap("loadout_cases")
 	LoadoutCases.new(_check).run()
+	GroupClock.lap("m1_content_cases")
 	M1ContentCases.new(_check).run()
+	GroupClock.lap("m1_enemy_cases")
 	M1EnemyCases.new(_check).run()
+	GroupClock.lap("roster_enemy_cases")
 	RosterEnemyCases.new(_check).run()
+	GroupClock.lap("roster_unit_cases")
 	RosterUnitCases.new(_check).run()
+	GroupClock.lap("item_content_cases")
 	ItemContentCases.new(_check).run()
+	GroupClock.lap("weapon_content_cases")
 	WeaponContentCases.new(_check).run()
+	GroupClock.lap("heirloom_content_cases")
 	HeirloomContentCases.new(_check).run()
+	GroupClock.lap("pool_cases")
 	PoolCases.new(_check).run()
+	GroupClock.lap("definitions check")
 	_test_definitions_unchanged(before)
+	GroupClock.stop()
 
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)
