@@ -6,7 +6,7 @@
 # File:     intents.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 15, 2026
+# Modified: November 17, 2026
 # ==============================================================================
 
 class_name Intents
@@ -73,6 +73,9 @@ var _objective: Array[Vector2i] = []
 # One per step of the phase: every enemy yet to act, decided, and the one that acted.
 var _rounds: Array[Round] = []
 
+# The signature moves the crossed enemy Phase Start fired, by their enemy (_signatures_fired).
+var _signatures: Dictionary[String, Signature] = {}
+
 # For previews built on these intents, which share their board: each moved player unit's flood
 # (Pathing.flood with its budget) and end tiles (Pathing.reach), by unit id. Main thread only.
 var _walked_of: Dictionary[String, Dictionary] = {}
@@ -121,7 +124,9 @@ static func refresh(session: CombatSession, catalog: EffectCatalog.Index) -> voi
 
 
 ## The intents of [param session]'s enemies on its board as it stands, if the player phase ended
-## now, their classes read from [param catalog]. Changes nothing on the map.
+## now, their classes read from [param catalog]. An enemy whose signature move the crossed enemy
+## Phase Start fires shows [constant EnemyIntent.Kind.SIGNATURE], the phase before it fires
+## ([method EnemyIntent.show_signature]); previews do the same. Changes nothing on the map.
 static func compute(session: CombatSession, catalog: EffectCatalog.Index) -> Intents:
 	var found: Intents = Intents.new()
 	found._catalog = catalog
@@ -129,7 +134,9 @@ static func compute(session: CombatSession, catalog: EffectCatalog.Index) -> Int
 	found.based_on_seq = session.last_seq()
 	var sandbox: Sandbox = Sandbox.new(session.engine, ForecastRolls.new())
 	found.danger = DangerZone.compute(sandbox.engine)
+	var crossed_from: int = sandbox.engine.fact_log.size()
 	PhaseRunner.cross_to_enemy_phase(session, sandbox.engine)
+	found._signatures = _signatures_fired(sandbox.engine, catalog, crossed_from)
 	var no_move: Array[Vector2i] = []
 	var margin: int = _effect_margin(sandbox.engine, found._reaches)
 	_play(found, sandbox.engine, EnemyAI.flooded_tiles(session.state), null, no_move, margin)
@@ -192,7 +199,9 @@ static func prepare_preview(session: CombatSession, unit_id: String, tile: Vecto
 	found.moved_unit_id = unit_id
 	found.moved_to = tile
 	found.danger = DangerZone.compute(engine)
+	var crossed_from: int = engine.fact_log.size()
 	PhaseRunner.cross_to_enemy_phase(session, engine)
+	found._signatures = _signatures_fired(engine, base._catalog, crossed_from)
 	job._found = found
 	job._engine = engine
 	job._flooded = EnemyAI.flooded_tiles(session.state)
@@ -247,7 +256,11 @@ static func _play(
 		var definition: EnemyClassDefinition = null
 		if found._catalog != null:
 			definition = found._catalog.enemy_class(state.unit_type_of(best.plan.actor_id))
-		found.enemies.append(EnemyIntent.from_plan(engine, best.plan, step, definition))
+		var intent: EnemyIntent = EnemyIntent.from_plan(engine, best.plan, step, definition)
+		var fired: Signature = found._signatures.get(best.plan.actor_id, null)
+		if fired != null:
+			intent.show_signature(fired.name, fired.area)
+		found.enemies.append(intent)
 		_carry_out(engine, best.plan)
 
 
@@ -391,6 +404,55 @@ static func _carry_out(engine: EffectEngine, plan: EnemyPlan) -> void:
 	engine.drain()
 
 
+# Every signature move engine fired from fact from on (the crossed enemy Phase Start), by the
+# enemy it belongs to: an EFFECT_ACTIVATED of the effect its class names as its signature_move,
+# with its label and the tiles its Area operations cover around the enemy, in row-major order.
+static func _signatures_fired(
+		engine: EffectEngine, catalog: EffectCatalog.Index, from: int
+) -> Dictionary[String, Signature]:
+	var fired: Dictionary[String, Signature] = {}
+	if catalog == null:
+		return fired
+	var state: CombatState = engine.state
+	for index: int in range(from, engine.fact_log.size()):
+		var fact: CombatFact = engine.fact_log[index]
+		if fact.kind != CombatFact.Kind.EFFECT_ACTIVATED:
+			continue
+		var instance: EffectInstance = engine.get_instance(fact.source_effect_id)
+		if instance == null or instance.owner == null:
+			continue
+		var owner_id: String = instance.owner.subject_id()
+		if fired.has(owner_id) or state.side_of(owner_id) != CombatFact.CombatSide.ENEMY:
+			continue
+		var definition: EnemyClassDefinition = catalog.enemy_class(state.unit_type_of(owner_id))
+		if definition == null or definition.signature_move != instance.definition:
+			continue
+		var signature: Signature = Signature.new()
+		signature.name = instance.label
+		signature.area = _covered_by(state, instance.definition, state.tile_of(owner_id))
+		fired[owner_id] = signature
+	return fired
+
+
+# The tiles on state's map the Area targets of definition's operations cover around its owner's
+# tile owner_tile (an Area centred elsewhere has no centre at Phase Start), in row-major order.
+static func _covered_by(
+		state: CombatState, definition: EffectDefinition, owner_tile: Vector2i
+) -> Array[Vector2i]:
+	var covered: Dictionary[Vector2i, bool] = {}
+	for operation: EffectOperation in definition.operations:
+		var area: Area = operation.get(&"target") as Area
+		if area == null or area.shape == null or area.center != Area.Center.OWNER:
+			continue
+		for tile: Vector2i in area.shape.tiles(owner_tile):
+			if state.grid.step(tile, Vector2i.ZERO) != CombatFact.NO_TILE:
+				covered[tile] = true
+	var tiles: Array[Vector2i] = []
+	tiles.assign(covered.keys())
+	tiles.sort_custom(EnemyPlan.tile_precedes)
+	return tiles
+
+
 # A cheapest walk for unit_id from its tile to tile on engine, the board these intents read, as
 # EnemyAI walks: each step back to the first neighbor, in CombatGrid.DIRECTIONS order, whose cost
 # leads to it. Empty when it can't end there. The unit's flood and end tiles are kept for the next
@@ -492,3 +554,13 @@ class Round:
 	var decisions: Dictionary[String, Decision] = {}
 	## The one that acted.
 	var winner: Decision = null
+
+
+## A signature move the coming enemy Phase Start fires: its name and the tiles it covers.
+class Signature:
+	extends RefCounted
+
+	## Its name as players read it, the effect's label ("War Horn").
+	var name: String = ""
+	## The tiles it covers, in row-major order.
+	var area: Array[Vector2i] = []

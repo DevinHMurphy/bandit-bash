@@ -6,7 +6,7 @@
 # File:     unit_prefix_definition.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 15, 2026
+# Modified: November 17, 2026
 # ==============================================================================
 
 @tool
@@ -16,10 +16,11 @@ extends EffectCarrierDefinition
 ## and their growths in the same direction (unit-roster.md, Prefixes).
 ##
 ## Lives in [code]res://data/prefixes/units/[/code]. A unit rolls one, or none, which is the
-## baseline ([method roll]; [method reroll] for the Guildhall's re-roll). The deltas apply as
-## modifiers sourced to the prefix, so breakdowns name it. Prefixes never touch MOV or CON, and
-## never take a stat or growth below 0. Commanders never roll one. The draws are pure: the caller
-## hands in the stream its purpose owns (rng-streams plan, Purpose catalog).
+## baseline ([method roll]; [method reroll] for the Guildhall's re-roll; [method roll_elite],
+## always positive, for an elite enemy). The deltas apply as modifiers sourced to the prefix, so
+## breakdowns name it. Prefixes never touch MOV or CON, and never take a stat or growth below 0.
+## Commanders never roll one. The draws are pure: the caller hands in the stream its purpose owns
+## (rng-streams plan, Purpose catalog).
 ##
 ## @tutorial(Unit roster, Prefixes): docs/design/unit-roster.md
 
@@ -56,6 +57,29 @@ const TIER_WEIGHTS: Array[int] = [30, 10, 35, 18, 7]
 ## or a null stream or catalog (nothing drawn).
 static func roll(stream: RngStream, catalog: EffectCatalog.Index) -> String:
 	return _draw(stream, catalog, NO_PREFIX, false)
+
+
+## A prefix id for an elite (a leader, a mini-boss) from [param stream]: drawn like [method roll]
+## among the positive tiers only, with their [constant TIER_WEIGHTS], so an elite is never
+## unprefixed or weakened (game-vision.md: elites are a class plus a prefix). [constant NO_PREFIX]
+## only when the catalog holds no positive prefix, or for a null stream or catalog.
+static func roll_elite(stream: RngStream, catalog: EffectCatalog.Index) -> String:
+	if stream == null or catalog == null:
+		return NO_PREFIX
+	var weights: PackedInt32Array = []
+	var total: int = 0
+	for index: int in TIERS.size():
+		var is_open: bool = TIERS[index] > 0 and not of_tier(catalog, TIERS[index]).is_empty()
+		var weight: int = TIER_WEIGHTS[index] if is_open else 0
+		weights.append(weight)
+		total += weight
+	if total == 0:
+		return NO_PREFIX
+	var picked: int = stream.pick_weighted(weights)
+	if picked < 0 or TIERS[picked] <= 0:
+		return NO_PREFIX
+	var pool: Array[UnitPrefixDefinition] = of_tier(catalog, TIERS[picked])
+	return pool[stream.pick_index(pool.size())].id
 
 
 ## A different result for a unit whose prefix is [param current_id] ([constant NO_PREFIX] for

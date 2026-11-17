@@ -6,7 +6,7 @@
 # File:     objectives.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 3, 2026
+# Modified: November 17, 2026
 # ==============================================================================
 
 class_name Objectives
@@ -38,9 +38,6 @@ extends RefCounted
 ## Pure rules code: it records through the session's engine and never awaits.
 ##
 ## @tutorial(Combat map plan): docs/plans/2026-10-27-combat-map.md
-##
-## @todo: TOD-004 - Read the boss or mini-boss P05 marks; until then it is the enemy placed on a
-## leader slot.
 
 ## The key of [member CombatEncounter.EncounterSetup.shared] where setup step 5 puts the
 ## reinforcement waves ([method Reinforcements.draw_waves]). Its value maps each reinforcement
@@ -111,8 +108,9 @@ static func waves_left(session: CombatSession, point_index: int) -> int:
 
 ## The enemies marked as leaders on [param session]'s map, in the order they appeared: those a
 ## loaded battle held ([member MapState.leader_ids]), then each enemy whose
-## [constant CombatFact.Kind.UNIT_SPAWNED] since is on a leader slot. A loaded battle's fact log
-## starts empty, so the marks are saved with the map ([method CombatSession.snapshot]).
+## [constant CombatFact.Kind.UNIT_SPAWNED] since is on a leader slot. The slot is the mark: setup
+## places every leader, mini-boss and boss there ([method EnemySetup.draw]). A loaded battle's fact
+## log starts empty, so the marks are saved with the map ([method CombatSession.snapshot]).
 static func marked_ids(session: CombatSession) -> PackedStringArray:
 	var state: CombatState = session.state
 	var marked: PackedStringArray = state.map.leader_ids.duplicate()
@@ -160,7 +158,6 @@ static func _is_won(session: CombatSession) -> bool:
 
 
 # Whether every enemy that appeared on a leader slot is defeated; false when none did.
-# TODO(TOD-004): The boss or mini-boss is the enemy placed on a leader slot until P05 marks bosses.
 static func _marked_enemies_defeated(session: CombatSession) -> bool:
 	var marked: PackedStringArray = marked_ids(session)
 	for enemy_id: String in marked:

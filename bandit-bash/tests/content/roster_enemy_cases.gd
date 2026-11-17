@@ -6,7 +6,7 @@
 # File:     roster_enemy_cases.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 15, 2026
+# Modified: November 17, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -62,8 +62,8 @@ const GROWTH_STATS: Array[int] = [
 	CombatValue.Stat.RES,
 ]
 
-# Reviewed effect text of each class's trait, one line per effect. The Warcaller's War Horn is a
-# signature move, built with EN7's.
+# Reviewed effect text of each class's trait, one line per effect. The Warcaller's War Horn is
+# also its signature move.
 const TEXT: Dictionary[String, Array] = {
 	"cutthroat": ["While the opponent is Exposed: +2 Attack"],
 	"duelist": ["Before Combat, while it is the defender: gain 3 Block"],
@@ -72,7 +72,10 @@ const TEXT: Dictionary[String, Array] = {
 		"Hit dealt: remove 1 Stance from the other unit and adjacent units of the other unit, "
 		+ "friend or foe",
 	],
-	"warcaller": [],
+	"warcaller": [
+		"Every 2nd Phase Start this combat: give this unit and units within 2 tiles, friend or foe "
+		+ "+2 Attack until the end of the next phase",
+	],
 	"raider": [
 		"Hit dealt, while this unit moved 3+ tiles this turn: deal 3 splash damage to adjacent "
 		+ "units of the other unit, friend or foe",

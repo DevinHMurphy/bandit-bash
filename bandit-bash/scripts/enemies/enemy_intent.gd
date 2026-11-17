@@ -6,7 +6,7 @@
 # File:     enemy_intent.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 15, 2026
+# Modified: November 17, 2026
 # ==============================================================================
 
 class_name EnemyIntent
@@ -36,6 +36,10 @@ enum Kind {
 	## Uses the map object [member target_id] from [member tile]: loots a chest or searchable,
 	## pulls a lever or douses a Brazier; [member area] shows what changes.
 	USE_OBJECT = 4,
+	## Its signature move ([member EnemyClassDefinition.signature_move]) fires at the coming enemy
+	## Phase Start, before it acts: [member signature_name] names it, and [member area] holds the
+	## tiles it covers. Target, tile and path still show the action its [member plan] takes after.
+	SIGNATURE = 5,
 }
 
 # The rule text once the darkness has switched an enemy to the nearest foe (enemies and AI plan,
@@ -96,6 +100,10 @@ var allies_defeated: PackedStringArray = []
 ## The plan it came from, with its forecast; read-only.
 var plan: EnemyPlan = null
 
+## The signature move it fires first, as players read it ("War Horn", its class's trait name);
+## empty unless [member kind] is [constant Kind.SIGNATURE].
+var signature_name: String = ""
+
 
 ## Why it chose this, as the player reads it: [constant EnemyPlan.Step.KILL] whenever its
 ## forecast defeats a player unit, else [member decided_by].
@@ -108,6 +116,8 @@ func reason() -> EnemyPlan.Step:
 func describe() -> String:
 	var icon: String = (Kind.find_key(kind) as String).to_lower()
 	var parts: PackedStringArray = ["%d %s %s" % [order, unit_id, icon]]
+	if kind == Kind.SIGNATURE:
+		parts[0] += " %s" % [signature_name]
 	if not target_id.is_empty():
 		parts[0] += " %s" % [target_id]
 	parts[0] += " from %s" % [tile]
@@ -119,6 +129,20 @@ func describe() -> String:
 	if not area.is_empty():
 		parts.append("area %d tiles" % [area.size()])
 	return ", ".join(parts)
+
+
+## Shows its signature move [param move_name] firing before it acts, over [param tiles]: the icon
+## becomes [constant Kind.SIGNATURE], and [param tiles] join the action's own [member area].
+func show_signature(move_name: String, tiles: Array[Vector2i]) -> void:
+	kind = Kind.SIGNATURE
+	signature_name = move_name
+	var covered: Dictionary[Vector2i, bool] = {}
+	for tile: Vector2i in area:
+		covered[tile] = true
+	for tile: Vector2i in tiles:
+		covered[tile] = true
+	area.assign(covered.keys())
+	area.sort_custom(EnemyPlan.tile_precedes)
 
 
 ## The intent of [param chosen], the [param place]-th enemy to act on [param engine]'s board,

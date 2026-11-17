@@ -6,7 +6,7 @@
 # File:     content_rules.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 15, 2026
+# Modified: November 17, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -631,10 +631,13 @@ func _is_charged_use(effect: EffectDefinition) -> bool:
 
 
 # The intent shows the target rule's text, so it can't be empty; an enemy class is never a
-# commander and has no role (P03 question 14), since commanders and roles are the player's.
+# commander and has no role (P03 question 14), since commanders and roles are the player's. Its
+# signature move is one of its trait effects, the same resource, or Intents never matches it.
 func _check_enemy_class(path: String, enemy: EnemyClassDefinition) -> void:
 	if enemy.target_rule_text.strip_edges().is_empty():
 		_fail(ENEMY_CLASS, path, "it has no target rule text")
+	if enemy.signature_move != null and not enemy.effects.has(enemy.signature_move):
+		_fail(ENEMY_CLASS, path, "its signature move isn't among its trait effects")
 	if enemy.is_commander:
 		_fail(ENEMY_CLASS, path, "an enemy class is never a commander")
 	if not enemy.role.is_empty():

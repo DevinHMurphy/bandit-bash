@@ -34,7 +34,8 @@ P05 EN17 (pack pools), EN7 (leaders), EN8 (mini-bosses) and P04 MP10 (the M2 map
   draws that count.
 - Each reinforcement wave draws one whole pack the same way (step 5).
 - Hunted draws a class evenly from the classes that appear in packs (step 6).
-- The leader slot is never filled yet (EN7).
+- On a map with a leader slot, the first unit of the pack's leader class stands there as an elite
+  (step level +2, a positive prefix), counted in the pack (EN7).
 
 **The packs** (enemy-roster.md; data in `data/enemies/packs/`):
 
