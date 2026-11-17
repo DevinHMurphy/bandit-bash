@@ -6,7 +6,7 @@
 # File:     heirloom_content_cases.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 15, 2026
+# Modified: November 17, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -35,8 +35,8 @@ const COMMANDER_HEIRLOOMS: PackedStringArray = ["iron_heart"]
 # Any fixed seed; the cases that need a hit force it with _sure_hit().
 const SEED: int = 0xC7_0009
 
-# A Hakkapel's 22 HP, Simple Lance (7 damage, weight 12) and 2 Stance (unit-roster.md).
-const HAKKAPEL_HP: int = 22
+# A Hakkapel's 36 HP, Simple Lance (7 damage, weight 12) and 2 Stance (unit-roster.md).
+const HAKKAPEL_HP: int = 36
 const LANCE_WEIGHT: int = 12
 
 # A locked chest on the first object spot, as in item_content_cases.gd.
@@ -622,17 +622,22 @@ func _test_sappers_fuse_and_burglars_roll() -> void:
 	))
 
 
-# Darkness damage at Gloom on a Hakkapel: 25% of 22 HP is 5.5, rounded down to 5; Lantern Oil
-# halves it before rounding, 2.75 to 2.
+# Darkness damage at Gloom on a Hakkapel: 25% of its HP, rounded down; Lantern Oil halves it
+# before rounding, so 12.5%, rounded down. The HP is read from the unit's stats, so tuning the
+# Hakkapel's HP leaves this case alone.
 func _test_lantern_oil() -> void:
 	var taken: PackedStringArray = []
+	var full_hp: int = 0
 	for heirloom_id: String in ["", "lantern_oil"]:
 		var session: CombatSession = _session()
 		_own(session, heirloom_id)
 		var who: String = _place(session, "hakkapel", PLAYER, 0, Vector2i(0, 0))
+		full_hp = session.stats(who).get_int(CombatValue.Key.HP)
 		session.state.map.darkness.layers[Vector2i(0, 0)] = WhileLayerCondition.Layer.GLOOM
 		taken.append(str(Darkness.damage_at(session.engine, who, Vector2i(0, 0))))
-	_same("lantern_oil: Gloom damage without and with", " ".join(taken), "5 2")
+	_same("lantern_oil: Gloom damage without and with", " ".join(taken), "%d %d" % [
+		floori(full_hp * 0.25), floori(full_hp * 0.125),
+	])
 
 
 # +3 damage against an Exposed target only.
@@ -703,18 +708,20 @@ func _test_war_ledger() -> void:
 	])
 
 
-# A Potion (8) on a Hakkapel at 20 of 22 HP restores 2: Overflowing Cup turns the other 6 into
-# Block. Cursed Blood halves a Potion on a Hakkapel at 10 HP to 4; two copies quarter it to 2.
+# A Potion (8) on a Hakkapel 2 HP below full restores 2: Overflowing Cup turns the other 6 into
+# Block. Cursed Blood halves a Potion on a Hakkapel at 10 HP to 4; two copies quarter it to 2. Full
+# HP is read from the unit's stats, so tuning the Hakkapel's HP leaves this case alone.
 func _test_overflowing_cup_and_cursed_blood() -> void:
 	var cup: CombatSession = _session()
 	_own(cup, "overflowing_cup")
 	var drinker: String = _place(cup, "hakkapel", PLAYER, 0, Vector2i(0, 0), "", "potion")
 	cup.open_battle()
-	cup.state.set_hp(drinker, 20)
+	var full_hp: int = cup.stats(drinker).get_int(CombatValue.Key.HP)
+	cup.state.set_hp(drinker, full_hp - 2)
 	_drink(cup, drinker)
-	_same("overflowing_cup: HP and Block after an 8 heal at 20 of 22", "%d %d" % [
+	_same("overflowing_cup: HP and Block after an 8 heal 2 below full", "%d %d" % [
 		cup.state.get_hp(drinker), cup.state.get_block(drinker),
-	], "22 6")
+	], "%d 6" % [full_hp])
 
 	var healed: PackedStringArray = []
 	for curses: int in 3:

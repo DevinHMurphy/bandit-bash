@@ -6,7 +6,7 @@
 # File:     unit_display_cases.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 9, 2026
+# Modified: November 17, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -43,8 +43,9 @@ const M1_TYPES: Array[String] = [
 	"archer", "battle_medic", "brute", "crossbowman", "drengr", "hakkapel", "hedge_healer",
 ]
 
-# Any fixed seed: no case compares golden numbers.
-const SEED: int = 0x0C0FFEE
+# A fixed seed whose driven M1 battle has a hit into Block, which the values case needs; no case
+# compares golden numbers. Retuned units can change that, so pick another seed if one goes missing.
+const SEED: int = 0x5EED
 
 # Player phases the battle may take: past what the M1 battle needs, so only a stall reaches it.
 const MAX_PHASES: int = 40

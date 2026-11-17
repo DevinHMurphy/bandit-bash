@@ -6,7 +6,7 @@
 # File:     item_content_cases.gd
 # Author:
 # Created:  November 12, 2026
-# Modified: November 16, 2026
+# Modified: November 17, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -530,26 +530,28 @@ func _test_spirit_coating() -> void:
 	_same("spirit coating: damage dealt/taken, without and with", " ".join(results), "7/7 11/7")
 
 
-# The real Elixir in a Hakkapel's Pouch (HP 22) at 3 HP: used on itself it heals to full, and its
-# one total use spends it, so it leaves the Pouch (items.md: "1, then it's used up").
+# The real Elixir in a Hakkapel's Pouch at 3 HP: used on itself it heals to its full HP, and its
+# one total use spends it, so it leaves the Pouch (items.md: "1, then it's used up"). Full HP is
+# read from the unit's stats, so tuning the Hakkapel's HP leaves this case alone.
 func _test_elixir() -> void:
 	var session: CombatSession = _session()
 	var who: String = _place(session, "hakkapel", PLAYER, 0, Vector2i(0, 0), "", "elixir")
 	if who.is_empty() or session.open_battle().is_rejected():
 		_ok("elixir: the battle loads", false)
 		return
+	var full_hp: int = session.stats(who).get_int(CombatValue.Key.HP)
 	var elixir: String = session.state.unit(who).pouch_item_id
 	session.state.set_hp(who, 3)
 	session.engine.begin_step()
 	var used: ItemUseResolver.Result = ItemUseResolver.resolve(
 			session.engine, session.state, who, who, elixir
 	)
-	_ok("elixir: heals 3 to the full 22, then leaves the Pouch", (
+	_ok("elixir: heals 3 to full HP, then leaves the Pouch", (
 			used.is_legal
 			and used.is_consumed
-			and session.state.get_hp(who) == 22
+			and session.state.get_hp(who) == full_hp
 			and session.state.unit(who).pouch_item_id.is_empty()
-	), "%s %d" % [used.reason, session.state.get_hp(who)])
+	), "%s %d of %d" % [used.reason, session.state.get_hp(who), full_hp])
 
 
 # The Simple Quiver's +1 damage on hits dealt at range 2 or more: an Archer's bow at 2 and 3
@@ -582,13 +584,15 @@ func _test_simple_quiver() -> void:
 	))
 
 
-# The Sunshard Band's Phase End heal: 10% of a Hakkapel's 22 + 4 HP is 2.6, rounded half up to 3.
+# The Sunshard Band's Phase End heal: 10% of a Hakkapel's HP with the band's +4, rounded half up.
+# The HP is read from the unit's stats, so tuning the Hakkapel's HP leaves this case alone.
 func _test_sunshard_band() -> void:
 	var session: CombatSession = _session()
 	var who: String = _place(session, "hakkapel", PLAYER, 0, Vector2i(0, 0), "sunshard_band")
 	if who.is_empty() or session.open_battle().is_rejected():
 		_ok("sunshard band: the battle loads", false)
 		return
+	var full_hp: int = session.stats(who).get_int(CombatValue.Key.HP)
 	session.state.set_hp(who, 10)
 	var start: int = session.engine.fact_log.size()
 	session.submit(EndTurnCommand.new(0))
@@ -598,7 +602,9 @@ func _test_sunshard_band() -> void:
 		var fact: CombatFact = session.engine.fact_log[index]
 		if fact.kind == CombatFact.Kind.HEALED and fact.actor_id == who:
 			healed.append(str(fact.amount))
-	_same("sunshard band: Phase End heals 10% of 26 HP, rounded up", " ".join(healed), "3")
+	_same("sunshard band: Phase End heals 10% of full HP, rounded half up", " ".join(healed), (
+			str(floori(full_hp * 0.1 + 0.5))
+	))
 
 
 # Tungsten Ooze on a Hakkapel: +4 DEF and -1 Movement against a bare one, the Armored tag added to

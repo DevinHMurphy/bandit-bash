@@ -6,7 +6,7 @@
 # File:     weapon_content_cases.gd
 # Author:
 # Created:  November 15, 2026
-# Modified: November 15, 2026
+# Modified: November 17, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -343,8 +343,9 @@ func _test_lifesteal() -> void:
 		], expected)
 
 
-# Everbloom from 5 tiles (range 1-10) on an Archer at 3 of 13 HP: it gives the Archer's maximum
-# HP, 13, not base 0 + the Battle Medic's 4 Might, and restores the 10 missing.
+# Everbloom from 5 tiles (range 1-10) on an Archer at 3 HP: it gives the Archer's maximum HP, not
+# base 0 + the Battle Medic's 4 Might, and restores all that is missing. The maximum is read from
+# the Archer's stats, so tuning its HP leaves this case alone.
 func _test_everbloom() -> void:
 	var session: CombatSession = _session()
 	var medic: String = _place(session, "battle_medic", PLAYER, 0, Vector2i(0, 0), "everbloom")
@@ -352,6 +353,7 @@ func _test_everbloom() -> void:
 	if medic.is_empty() or archer.is_empty() or session.open_battle().is_rejected():
 		_ok("everbloom: the battle loads", false)
 		return
+	var full_hp: int = session.stats(archer).get_int(CombatValue.Key.HP)
 	session.state.set_hp(archer, 3)
 	var forecast: CombatForecast.StaffForecast = CombatForecast.staff(
 			session.engine, UnitTurnCommand.new(0, medic, STAFF, archer)
@@ -359,7 +361,7 @@ func _test_everbloom() -> void:
 	var restored: int = -1 if forecast.recipients.is_empty() else forecast.recipients[0].restored
 	_same("everbloom: legal at 5, amount and HP restored", "%s %d %d" % [
 		forecast.is_legal, roundi(forecast.amount), restored,
-	], "true 13 10")
+	], "true %d %d" % [full_hp, full_hp - 3])
 
 
 # The Short Quiver on an Archer against an enemy Ward: every bow reaches 1-2, so 1 is legal and

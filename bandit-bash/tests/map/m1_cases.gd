@@ -6,7 +6,7 @@
 # File:     m1_cases.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 16, 2026
+# Modified: November 17, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -285,8 +285,8 @@ func _test_battle_opens(definition: CombatMapDefinition) -> void:
 			and session.state.units_of(ENEMY).size() == 5
 	))
 	_same("battle: the army as loaded, in roster order", _describe_army(session, army), (
-			"drengr Simple Axe 24/24 Stance 3; hakkapel Simple Lance 22/22 Stance 2; "
-			+ "archer Simple Bow 13/13 Stance 1; battle_medic Shelter 16/16 Stance 1"
+			"drengr Simple Sword 40/40 Stance 3; hakkapel Simple Lance 36/36 Stance 2; "
+			+ "archer Simple Bow 21/21 Stance 1; battle_medic Shelter 16/16 Stance 1"
 	))
 	var commander: String = session.commander_ids.get(0, "")
 	_ok("battle: the Drengr commands seat 0", commander == mercenary.commander_id, commander)

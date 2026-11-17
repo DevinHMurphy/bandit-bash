@@ -6,7 +6,7 @@
 # File:     unit_info_cases.gd
 # Author:
 # Created:  November 6, 2026
-# Modified: November 15, 2026
+# Modified: November 17, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -38,8 +38,9 @@ const CONFIRM_SCENE: PackedScene = preload("res://ui/battle/menus/confirm_dialog
 const FORECAST_SCENE: PackedScene = preload("res://ui/battle/forecast/forecast_panel.tscn")
 const UNIT_PANEL_SCENE: PackedScene = preload("res://ui/battle/unit/unit_panel.tscn")
 
-# Any fixed seed: no case compares golden numbers.
-const SEED: int = 0x0C0FFEE
+# A fixed seed whose driven M1 battle has a missed strike, which the pop-up cases need; no case
+# compares golden numbers. Retuned units can change that, so pick another seed if one goes missing.
+const SEED: int = 0x0C0FFEF
 
 # Player phases a battle may take: past what the M1 battle needs, so only a stall reaches it.
 const MAX_PHASES: int = 40

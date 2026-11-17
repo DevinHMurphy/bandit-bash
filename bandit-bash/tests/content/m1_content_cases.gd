@@ -6,7 +6,7 @@
 # File:     m1_content_cases.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 5, 2026
+# Modified: November 17, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -39,10 +39,10 @@ const SEED: int = 0xC7_0003
 # unit-roster.md's MVP roster and Commander tables. Columns: HP, MGT, SPD, DEF, RES, MOV, CON,
 # Stance, then growths HP, MGT, SPD, DEF, RES.
 const ROSTER: Dictionary[String, Array] = {
-	"drengr": [24, 5, 6, 3, 2, 5, 13, 3, 85, 55, 40, 35, 15],
-	"archer": [13, 5, 8, 0, 0, 5, 6, 1, 55, 38, 58, 8, 17],
+	"drengr": [40, 5, 6, 3, 2, 5, 13, 3, 85, 55, 40, 35, 15],
+	"archer": [21, 5, 8, 0, 0, 5, 6, 1, 55, 38, 58, 8, 17],
 	"battle_medic": [16, 4, 5, 1, 1, 6, 7, 1, 65, 35, 35, 18, 18],
-	"hakkapel": [22, 4, 5, 4, 0, 7, 10, 2, 70, 30, 40, 20, 12],
+	"hakkapel": [36, 4, 5, 4, 0, 7, 10, 2, 70, 30, 40, 20, 12],
 }
 
 # unit-roster.md's Upgrades table: stat gains as HP, MGT, SPD, DEF, RES.
@@ -142,7 +142,7 @@ func run() -> void:
 	_test_iron_heart()
 	_test_text_snapshots()
 	_test_bow_forecast()
-	_test_axe_forecast()
+	_test_sword_forecast()
 
 
 func _test_faction() -> void:
@@ -166,7 +166,7 @@ func _test_starting_army() -> void:
 	var army: StartingArmy = StartingArmy.build(_catalog, "mercenary", ids)
 	_ok("starting army: no problems", army.problems.is_empty(), str(army.problems))
 	_same("starting army: the commander first, then the faction's order", _describe(army), (
-			"drengr [simple_axe, -, -]; hakkapel [simple_lance, -, potion]; "
+			"drengr [simple_sword, -, -]; hakkapel [simple_lance, -, potion]; "
 			+ "archer [simple_bow, -, guard_tonic]; battle_medic [shelter, -, minor_heal]"
 	))
 	_ok("starting army: the commander's id and heirloom", (
@@ -221,7 +221,7 @@ func _test_starting_army_loads() -> void:
 		weapons.append("%s: %s" % [unit.unit_type_id, ", ".join(labels)])
 	_ok("starting army: every unit loads without problems", problems.is_empty(), str(problems))
 	_same("starting army: each unit's weapon records", "; ".join(weapons), (
-			"drengr: Simple Axe; hakkapel: Simple Lance; archer: Simple Bow; "
+			"drengr: Simple Sword; hakkapel: Simple Lance; archer: Simple Bow; "
 			+ "battle_medic: Shelter, Minor Heal"
 	))
 
@@ -236,7 +236,7 @@ func _test_unit_types() -> void:
 			and drengr.upgrade_stat_gains.is_empty()
 	))
 	_same("unit types: weapons, movement, tags, role, starting weapon, trait", _describe_types(), (
-			"drengr axe/sword DEFAULT [] - simple_axe Vanguard; "
+			"drengr axe/sword DEFAULT [] - simple_sword Vanguard; "
 			+ "archer bow DEFAULT [] bow simple_bow Volley; "
 			+ "battle_medic dagger/staff MOBILE [] support shelter Triage; "
 			+ "hakkapel lance/sword MOUNTED [mounted] mounted simple_lance Charge"
@@ -429,7 +429,7 @@ func _test_text_snapshots() -> void:
 # The Archer's Simple Bow against an enemy Hakkapel on Plain, at range 2 and at range 3 (Volley).
 # Hit: 100 - 5 Plain avoid; no triangle (the bow has no profile). Damage: 6 + 5 MGT - 4 DEF = 7,
 # +2 at maximum range. Attack Speed 8 against 5 - (12 - 10) = 3: a gap of 5 gives one bonus turn,
-# and a lance can't counter at range 2 or 3, so two hits land on HP 22.
+# and a lance can't counter at range 2 or 3, so two hits land on the Hakkapel's full HP.
 func _test_bow_forecast() -> void:
 	for distance: int in [2, 3]:
 		var damage: int = 7 if distance == 2 else 9
@@ -449,15 +449,15 @@ func _test_bow_forecast() -> void:
 					forecast.attacks.size(),
 					-1 if defender == null else defender.hp_after,
 				]
-		), "95 %d 2/0 false 2 %d" % [damage, 22 - 2 * damage])
+		), "95 %d 2/0 false 2 %d" % [damage, ROSTER["hakkapel"][0] - 2 * damage])
 
 
-# The Drengr's Simple Axe (Power) against an enemy Hakkapel's Simple Lance (Balance), adjacent on
-# Plain: Advantage. Drengr Hit 65 + 15 - 5 = 75; damage 10 + 5 MGT + round(10 / 4) = 18, - 4 DEF =
-# 14. Hakkapel Hit 80 - 15 - 5 = 60; damage 7 + 4 MGT - round(7 / 4) = 9, - 3 DEF = 6, of which
-# Vanguard's 3 Block (Phase Start, no ally nearer an enemy) takes 3. Attack Speed 6 - (15 - 13) = 4
-# against 3: no bonus turn.
-func _test_axe_forecast() -> void:
+# The Drengr's Simple Sword (Nimble) against an enemy Hakkapel's Simple Lance (Balance), adjacent
+# on Plain: Disadvantage. Drengr Hit 80 - 15 - 5 = 60; damage 5 + 5 MGT - round(5 / 4) = 9, - 4 DEF
+# = 5. Hakkapel Hit 80 + 15 - 5 = 90; damage 7 + 4 MGT + round(7 / 4) = 13, - 3 DEF = 10, of which
+# Vanguard's 3 Block (Phase Start, no ally nearer an enemy) takes 3. Attack Speed 6 (weight 8 under
+# CON 13) against 5 - (12 - 10) = 3: a gap of 3, under the first bonus turn's 4.
+func _test_sword_forecast() -> void:
 	var forecast: CombatForecast.ExchangeForecast = _forecast(
 			"drengr", "hakkapel", Vector2i(1, 0)
 	)
@@ -465,18 +465,18 @@ func _test_axe_forecast() -> void:
 		return
 	var attacker: CombatForecast.UnitOutcome = forecast.attacker.outcome
 	var defender: CombatForecast.UnitOutcome = forecast.defender.outcome
-	_same("axe forecast: Hit and damage each way", "%d %d / %d %d" % [
+	_same("sword forecast: Hit and damage each way", "%d %d / %d %d" % [
 		forecast.attacker.hit, forecast.attacker.damage,
 		forecast.defender.hit, forecast.defender.damage,
-	], "75 14 / 60 6")
-	_same("axe forecast: turn order", ", ".join(forecast.turn_order), "%s, %s" % [
+	], "60 5 / 90 10")
+	_same("sword forecast: turn order", ", ".join(forecast.turn_order), "%s, %s" % [
 		forecast.actor_id, forecast.target_id,
 	])
-	_same("axe forecast: HP and Block after", "%d %d / %d" % [
+	_same("sword forecast: HP and Block after", "%d %d / %d" % [
 		-1 if attacker == null else attacker.hp_after,
 		-1 if attacker == null else attacker.block_after,
 		-1 if defender == null else defender.hp_after,
-	], "21 0 / 8")
+	], "%d 0 / %d" % [ROSTER["drengr"][0] - 7, ROSTER["hakkapel"][0] - 5])
 
 
 # A battle on a row of Plain with the player's [param attacker_type] at (0, 0) and an enemy

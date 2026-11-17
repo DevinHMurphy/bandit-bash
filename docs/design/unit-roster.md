@@ -32,11 +32,11 @@ units' Magic are dropped.
 | Sword | Sellsword (`sellsword`) | Sword | Default | — | 22/5/7/4/1/5/11 | 110/42/34/18/20 |
 | Axe | Fighter (`fighter`) | Axe | Default | — | 22/6/4/3/2/5/12 | 85/55/35/32/15 |
 | Lance | Lancer (`lancer`) | Lance | Default | — | 19/3/6/3/2/5/8 | 85/42/55/15/17 |
-| Bow | Archer (`archer`) | Bow | Default | — | 13/5/8/0/0/5/6 | 55/38/58/8/17 |
+| Bow | Archer (`archer`) | Bow | Default | — | 21/5/8/0/0/5/6 | 55/38/58/8/17 |
 | Fist | Brawler (`brawler`) | Gauntlets | Default | — | 25/6/4/1/3/5/7 | 65/50/22/22/15 |
 | Dagger | Thief (`thief`) | Dagger | Mobile | — | 14/3/9/2/1/6/6 | 65/30/65/25/20 |
 | Support | Battle Medic (`field_medic`) | Dagger, staff | Mobile | — | 16/4/5/1/1/6/7 | 65/35/35/18/18 |
-| Mounted | Hakkapel (`hakkapel`) | Lance, sword | Mounted | Mounted | 22/4/5/4/0/7/10 | 70/30/40/20/12 |
+| Mounted | Hakkapel (`hakkapel`) | Lance, sword | Mounted | Mounted | 36/4/5/4/0/7/10 | 70/30/40/20/12 |
 | Flier | Freewing (`freewing`) | Sword | Flier | Flier, Mounted | 17/3/7/2/2/7/5 | 60/40/48/9/27 |
 | Armored | Lance Armor (`lance_armor`) | Lance | Heavy | Armored | 23/7/2/7/1/4/14 | 75/47/15/48/20 |
 | Shover | Ward (`ward`) | Lance | Heavy | — | 25/2/2/7/1/5/14 | 70/25/28/45/10 |
@@ -61,15 +61,16 @@ and can't be replaced by a recruit.
 
 | Commander (`Godot_FE` key) | Weapons | Movement | Tags | Stance | Base HP/MGT/SPD/DEF/RES/MOV/CON | Growths % HP/MGT/SPD/DEF/RES |
 |----------------------------|---------|----------|------|--------|---------------------------------|------------------------------|
-| Drengr (`drengr`) | Axe, sword | Default | — | 3 | 24/5/6/3/2/5/13 | 85/55/40/35/15 |
+| Drengr (`drengr`) | Axe, sword | Default | — | 3 | 40/5/6/3/2/5/13 | 85/55/40/35/15 |
 
 - **Trait: Vanguard.** Phase Start, while no ally is closer to an enemy than this unit: gain 3
   Block. It rewards leading from the front, and because the commander's fall ends a solo run, that
   Block is a real trade, not a free bonus. "Closer" is tile distance; a tie still counts.
 - **Commander Heirloom: Iron Heart.** Every 7th Attack made by Your Unit this combat: that attack
   heals the attacker for the damage it deals to HP.
-- **Starting weapon:** Simple Axe. Like any unit, it can stow a sword in its Pouch and swap it in as
-  its action; it has no Sidearm.
+- **Starting weapon:** Simple Sword (the Simple Axe until the user's rebalance of November 17,
+  2026, which also raised the Drengr's, Archer's and Hakkapel's HP). Like any unit, it can stow an
+  axe in its Pouch and swap it in as its action; it has no Sidearm.
 - **Changes from `Godot_FE`:** Speed 7 → 6 and Defense 5 → 3, because the old Drengr was
   overpowered; Resistance 2, which `Godot_FE` left unset (0). Its signature weapon, Dawnbreak (a
   lifesteal sword), is not ported; it may return later as a rare weapon. Iron Heart's lifesteal
