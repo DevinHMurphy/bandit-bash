@@ -6,7 +6,7 @@
 # File:     map_set_cases.gd
 # Author:
 # Created:  November 16, 2026
-# Modified: November 16, 2026
+# Modified: November 17, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -29,8 +29,7 @@ const STANDARD_MAPS: Array[String] = [
 	"crossroads", "river_ford", "old_mill", "ruined_chapel", "bandit_camp", "watch_post",
 ]
 
-## The Defeat the Leader maps, kept out of every pool until P05 EN7 fills the leader slot: before
-## that, nothing appears there and the objective can't be won.
+## The Defeat the Leader maps: setup places the drawn pack's leader on their leader slot.
 const LEADER_MAPS: Array[String] = ["bandit_camp", "watch_post"]
 
 ## The key maps of the set, each [code]res://maps/key/<id>.tres[/code], with its objective.
@@ -42,7 +41,7 @@ const KEY_MAPS: Dictionary[String, CombatMapDefinition.Objective] = {
 }
 
 ## The Defeat the mini-boss map, kept out of the key pools until P05 EN8 places the mini-boss on
-## its leader slot, for the same reason as [constant LEADER_MAPS].
+## its leader slot: before that, nothing appears there and the objective can't be won.
 const MINI_BOSS_MAPS: Array[String] = ["hall"]
 
 ## Free enemy slots a map keeps beyond its largest pack: two Hunted copies (P05 question 40).
@@ -202,10 +201,7 @@ func _test_pool_coverage() -> void:
 
 
 func _test_pool_maps() -> void:
-	var standard: PackedStringArray = []
-	for map_id: String in STANDARD_MAPS:
-		if not LEADER_MAPS.has(map_id):
-			standard.append(map_id)
+	var standard: PackedStringArray = PackedStringArray(STANDARD_MAPS)
 	var key: PackedStringArray = []
 	for map_id: String in KEY_MAPS:
 		if not MINI_BOSS_MAPS.has(map_id):

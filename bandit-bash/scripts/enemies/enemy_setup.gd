@@ -6,7 +6,7 @@
 # File:     enemy_setup.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 15, 2026
+# Modified: November 17, 2026
 # ==============================================================================
 
 class_name EnemySetup
@@ -16,9 +16,9 @@ extends RefCounted
 ##
 ## [method draw] (step 4) picks one pack from the combat's pool ([method pool_for]) with the shared
 ## [code]ENCOUNTER_SETUP[/code] stream and gives its units at the floor's step the map's enemy
-## slots in [MapLayout] order; the leader slot is never filled. [WaveGroups] draws a pack per
-## reinforcement wave from a standard pool (step 5). [method draw_additions]
-## (step 6) draws a seat's extra enemies from that seat's stream into the slots step 4 left free.
+## slots in [MapLayout] order, but its leader, an elite, the leader slot. [WaveGroups] draws a pack
+## per reinforcement wave from a standard pool (step 5). [method draw_additions] (step 6) draws a
+## seat's extra enemies from that seat's stream into the slots step 4 left free.
 ## [method place] builds each unit through [Loadout] (side enemy, seat -1) and places it; every map
 ## places its own copies of the shared units, plus its seats' additions. Results are plain data,
 ## never saved: a restart from Begin draws them again, and a resume restores units from the
@@ -29,7 +29,8 @@ extends RefCounted
 ## @tutorial(Run structure): docs/design/game-vision.md
 
 ## The key of the drawn enemies in [member CombatEncounter.EncounterSetup.shared]: a Dictionary
-## with [constant PACK_KEY], [constant UNITS_KEY] and [constant UNPLACED_KEY].
+## with [constant PACK_KEY], [constant UNITS_KEY], [constant UNPLACED_KEY] and, when the leader
+## slot stays empty, [constant NO_LEADER_KEY].
 const ENEMIES_KEY: String = "enemies"
 
 ## The key of a seat's extra enemies in [member CombatEncounter.SeatSetup.additions]: a
@@ -52,8 +53,16 @@ const CLASS_KEY: String = "class_id"
 ## A unit's level.
 const LEVEL_KEY: String = "level"
 
-## A unit's tile, its enemy slot's, as [code][x, y][/code].
+## A unit's tile, its enemy slot's or the leader slot's, as [code][x, y][/code].
 const TILE_KEY: String = "tile"
+
+## The leader's prefix id ([method UnitPrefixDefinition.roll_elite]); only the leader's entry has
+## it.
+const PREFIX_KEY: String = "prefix_id"
+
+## The leader class id of a pack whose step doesn't field it, so the leader slot stays empty;
+## absent otherwise. [method place] reports it.
+const NO_LEADER_KEY: String = "no_leader"
 
 ## Levels a key combat's enemies have over their step's (game-vision.md, Run structure).
 const KEY_COMBAT_LEVELS: int = 1
@@ -72,11 +81,13 @@ const _STEP_LEVELS: Array[int] = [1, 3, 5]
 
 
 ## Setup step 4: draws one pack evenly from [param catalog]'s packs of [method pool_for] the drawn
-## map and [param standard_combats] (the standard combats entered earlier in this step), in id
-## order, with [param ctx]'s shared stream, and assigns its units at the floor's step to the map's
-## enemy slots, each at [method level_for] the floor [param floor_number], key when the map is a
-## key combat, plus [param level_modifier]. An empty pool draws and writes nothing. Register it
-## bound: [code]draw.bind(catalog, floor_number, level_modifier, standard_combats)[/code].
+## map and [param standard_combats] (those entered earlier in this step), in id order, with
+## [param ctx]'s shared stream, and assigns its units at the floor's step to the enemy slots, at
+## [method level_for] [param floor_number] plus [param level_modifier]. On a map with a leader
+## slot, the first unit of the pack's [member PackDefinition.leader_class_id] takes it instead, at
+## the leader's level, with a prefix drawn next ([method UnitPrefixDefinition.roll_elite]), so it
+## counts toward the step's count. An empty pool draws nothing. Register it bound:
+## [code]draw.bind(catalog, floor_number, level_modifier, standard_combats)[/code].
 static func draw(
 		ctx: CombatEncounter.SetupContext,
 		catalog: EffectCatalog.Index,
@@ -93,19 +104,38 @@ static func draw(
 	var classes: PackedStringArray = pack.units(step_of(floor_number))
 	var level: int = level_for(floor_number, is_key, false, level_modifier)
 	var slots: Array[Vector2i] = ctx.setup.layout.tiles_of(MapLayout.MarkerKind.ENEMY_SLOT)
+	var leader_slots: Array[Vector2i] = ctx.setup.layout.tiles_of(
+			MapLayout.MarkerKind.LEADER_SLOT
+	)
+	var leader_at: int = -1
+	var drawn: Dictionary = {PACK_KEY: pack.id}
+	if not leader_slots.is_empty() and not pack.leader_class_id.is_empty():
+		leader_at = classes.find(pack.leader_class_id)
+		if leader_at < 0:
+			drawn[NO_LEADER_KEY] = pack.leader_class_id
 	var units: Array[Dictionary] = []
 	var unplaced: Array[String] = []
-	for class_id: String in classes:
-		if units.size() >= slots.size():
+	var filled: int = 0
+	for index: int in classes.size():
+		var class_id: String = classes[index]
+		if index == leader_at:
+			var leader_tile: Vector2i = leader_slots[0]
+			units.append({
+				CLASS_KEY: class_id,
+				LEVEL_KEY: level_for(floor_number, is_key, true, level_modifier),
+				TILE_KEY: [leader_tile.x, leader_tile.y],
+				PREFIX_KEY: UnitPrefixDefinition.roll_elite(ctx.stream, catalog),
+			})
+			continue
+		if filled >= slots.size():
 			unplaced.append(class_id)
 			continue
-		var tile: Vector2i = slots[units.size()]
+		var tile: Vector2i = slots[filled]
+		filled += 1
 		units.append({CLASS_KEY: class_id, LEVEL_KEY: level, TILE_KEY: [tile.x, tile.y]})
-	ctx.setup.shared[ENEMIES_KEY] = {
-		PACK_KEY: pack.id,
-		UNITS_KEY: units,
-		UNPLACED_KEY: unplaced,
-	}
+	drawn[UNITS_KEY] = units
+	drawn[UNPLACED_KEY] = unplaced
+	ctx.setup.shared[ENEMIES_KEY] = drawn
 
 
 ## Setup step 6 for [param ctx]'s seat: one extra enemy per point of the seat's count in
@@ -187,16 +217,20 @@ static func standard_classes(catalog: EffectCatalog.Index) -> PackedStringArray:
 ## [param catalog]: the shared units ([method draw]) in order, then the additions of each of its
 ## seats ([method draw_additions]). Call once per session, before the army deploys, so automatic
 ## deployment ranks its tiles by the enemies' real tiles. A unit that can't be built or whose tile
-## is taken or can't be stood on is skipped, as is each unplaced unit, with a line in the
-## session's diagnostics.
+## is taken or can't be stood on is skipped, as is each unplaced unit and an empty leader slot
+## ([constant NO_LEADER_KEY]), with a line in the session's diagnostics. The leader is marked by
+## the slot it stands on ([method Objectives.marked_ids]).
 ## Returns the ids of the units placed, in order.
 static func place(session: CombatSession, catalog: EffectCatalog.Index) -> PackedStringArray:
 	var placed: PackedStringArray = []
 	if session.setup == null:
 		return placed
-	placed.append_array(_place_result(
-			session, catalog, session.setup.shared.get(ENEMIES_KEY, null), "no enemy slot left"
-	))
+	var shared: Variant = session.setup.shared.get(ENEMIES_KEY, null)
+	placed.append_array(_place_result(session, catalog, shared, "no enemy slot left"))
+	if shared is Dictionary and (shared as Dictionary).has(NO_LEADER_KEY):
+		_report(session, "the pack fields no %s at this step, so the leader slot stays empty" % [
+			(shared as Dictionary)[NO_LEADER_KEY],
+		])
 	for seat: int in session.seats:
 		var seat_setup: CombatEncounter.SeatSetup = session.setup.seats.get(seat, null)
 		if seat_setup == null:
@@ -294,12 +328,14 @@ static func _place_unit(
 		_report(session, "%s can't stand on %s" % [enemy_class.display_name, tile])
 		return ""
 
+	var prefix_id: String = str(entry.get(PREFIX_KEY, UnitPrefixDefinition.NO_PREFIX))
 	var loaded: Loadout.LoadedUnit = _load(
 			session,
 			catalog,
 			enemy_class,
 			_whole(entry.get(LEVEL_KEY, 1)),
-			session.ids.next_enemy_id(enemy_class.display_name)
+			session.ids.next_enemy_id(_label_of(catalog, enemy_class, prefix_id)),
+			prefix_id
 	)
 	for problem: String in loaded.problems:
 		_report(session, problem)
@@ -318,17 +354,20 @@ static func _place_unit(
 	return loaded.state.id
 
 
-# Loads enemy_class at level as unit unit_id, with its class's starting weapon and equipment, item
-# ids minted by session's allocator. Changes nothing in session but the ids it mints.
+# Loads enemy_class at level as unit unit_id, with its class's starting weapon and equipment and
+# prefix_id (none when empty), item ids minted by session's allocator. Changes nothing in session
+# but the ids it mints.
 static func _load(
 		session: CombatSession,
 		catalog: EffectCatalog.Index,
 		enemy_class: EnemyClassDefinition,
 		level: int,
-		unit_id: String
+		unit_id: String,
+		prefix_id: String = UnitPrefixDefinition.NO_PREFIX
 ) -> Loadout.LoadedUnit:
 	var unit: UnitInstance = UnitInstance.new(unit_id, enemy_class.id)
 	unit.level = level
+	unit.prefix_id = prefix_id
 	var items: Dictionary[String, ItemInstance] = {}
 	var weapon_id: String = enemy_class.starting_weapon_id
 	if not weapon_id.is_empty():
@@ -384,6 +423,19 @@ static func _free_slots(setup: CombatEncounter.EncounterSetup) -> Array[Vector2i
 
 static func _is_key(map: CombatMapDefinition) -> bool:
 	return map != null and map.combat_type == CombatMapDefinition.CombatType.KEY
+
+
+# The unit's name in logs and the HUD: its prefix before its class (unit-roster.md, Prefixes), as
+# "Sturdy Warcaller"; the class alone with no prefix or one the catalog lacks.
+static func _label_of(
+		catalog: EffectCatalog.Index, enemy_class: EnemyClassDefinition, prefix_id: String
+) -> String:
+	if prefix_id.is_empty():
+		return enemy_class.display_name
+	var prefix: UnitPrefixDefinition = catalog.unit_prefix(prefix_id)
+	if prefix == null:
+		return enemy_class.display_name
+	return "%s %s" % [prefix.display_name, enemy_class.display_name]
 
 
 static func _report(session: CombatSession, problem: String) -> void:

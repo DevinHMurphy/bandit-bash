@@ -6,13 +6,14 @@
 # File:     enemy_class_definition.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 13, 2026
+# Modified: November 17, 2026
 # ==============================================================================
 
 @tool
 class_name EnemyClassDefinition
 extends UnitTypeDefinition
-## One enemy class: a unit type on the player's rules plus its AI behavior and target rule.
+## One enemy class: a unit type on the player's rules plus its AI behavior, its target rule and,
+## for a few, a signature move ([member signature_move]).
 ##
 ## Content data in [code]res://data/enemies/[/code]; read-only at runtime. Its own catalog kind
 ## ([constant EffectCatalog.Kind.ENEMY_CLASS]), so it never counts as a player unit type. Never a
@@ -56,6 +57,12 @@ enum Behavior {
 ## content test checks it names equipment.[br]
 ## [b]Empty:[/b] the Equipment slot stays empty, as for most classes.
 @export var starting_equipment_id: String = ""
+
+## Its signature move: the one of its trait [member effects] on a telegraphed cooldown, such as
+## the Warcaller's War Horn, which [Intents] shows as a [constant EnemyIntent.Kind.SIGNATURE]
+## intent the phase before it fires. Name the same resource as in [member effects]; the content
+## test checks it is there. [b]Null:[/b] no signature move, as for most classes.
+@export var signature_move: EffectDefinition = null
 
 
 func _validate_property(property: Dictionary) -> void:

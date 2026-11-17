@@ -1,13 +1,46 @@
 [gd_resource type="Resource" script_class="EnemyClassDefinition" format=3]
 
 [ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_cond"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/counter_condition.gd" id="4_count"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/add_timed_modifier.gd" id="5_timed"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/area.gd" id="6_area"]
 [ext_resource type="Script" path="res://scripts/content/enemy_class_definition.gd" id="9_def"]
+[ext_resource type="Resource" path="res://data/shapes/within_2_with_center.tres" id="10_shape"]
+
+[sub_resource type="Resource" id="Resource_every_2nd"]
+script = ExtResource("4_count")
+mode = 0
+count = 2
+lane = 0
+
+[sub_resource type="Resource" id="Resource_within_2"]
+script = ExtResource("6_area")
+center = 0
+shape = ExtResource("10_shape")
+side = 2
+
+[sub_resource type="Resource" id="Resource_horn"]
+script = ExtResource("5_timed")
+target = SubResource("Resource_within_2")
+key = 1000
+value = 2.0
+end = 2
+
+[sub_resource type="Resource" id="Resource_war_horn"]
+script = ExtResource("1_eff")
+id = "war_horn"
+trigger = 1
+conditions = Array[ExtResource("2_cond")]([SubResource("Resource_every_2nd")])
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_horn")])
 
 [resource]
 script = ExtResource("9_def")
 behavior = 3
 target_rule_id = "most_allies_near"
 target_rule_text = "Stays within 2 tiles of the most allies"
+signature_move = SubResource("Resource_war_horn")
 trait_name = "War Horn"
 weapon_types = PackedStringArray("lance")
 movement_type = 0
@@ -24,4 +57,4 @@ upgrade_tags = PackedStringArray()
 is_commander = false
 id = "warcaller"
 display_name = "Warcaller"
-effects = Array[ExtResource("1_eff")]([])
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_war_horn")])

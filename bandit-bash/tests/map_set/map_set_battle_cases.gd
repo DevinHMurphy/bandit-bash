@@ -6,7 +6,7 @@
 # File:     map_set_battle_cases.gd
 # Author:
 # Created:  November 16, 2026
-# Modified: November 16, 2026
+# Modified: November 17, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -19,8 +19,9 @@ extends RefCounted
 ## [constant CombatFact.Kind.COMBAT_ENDED] with no command rejected; at step 3 the same seed gives
 ## the same fact log twice. Reports each case through the check callable it is given, and times
 ## each map as a test group.[br]
-## [b]Either side may win:[/b] the driver is simple, and the Leader and mini-boss maps can't be won
-## until P05 EN7 and EN8 fill their leader slots, so there the darkness ends the battle.
+## [b]Either side may win:[/b] the driver is simple. A Leader map's leader stands on its leader
+## slot and counts toward the pack; the mini-boss map can't be won until P05 EN8 fills its leader
+## slot, so there the darkness ends the battle.
 
 # Preloaded scripts used as types (gdscript.md, Naming): the cases have no class name.
 const GroupClock = preload("res://tests/group_clock.gd")
