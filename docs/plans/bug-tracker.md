@@ -47,6 +47,7 @@ Not a bug.
 | [BUG-008](#bug-008-a-mirror-keeps-a-used-up-consumable) | A mirror keeps a used-up consumable, so its hash differs from the host's | P02 / P11 | S2 | Assigned (BF1) | November 13, 2026, CT5 report | BF1 |
 | [BUG-012](#bug-012-loading-the-map-pools-in-a-test-leaks-resources) | Loading `CombatMapPools.load_default()` inside the board suite's route case leaves 74 objects and 58 resources in use at exit | P04 (map pools) / tests | S4 | New | November 16, 2026, MP10a report | — (worked around in the test) |
 | [BUG-014](#bug-014-a-runs-runes-never-reach-the-battle) | A run's runes never reach the battle, and a cast or discard never reaches the run | P08 (battle bridge) | S2 (latent: no run grants runes yet) | Assigned (RN9) | November 18, 2026, UI14 report | RN9 |
+| [BUG-015](#bug-015-the-unit-panels-details-button-cant-be-clicked) | The unit panel's Details button can't be clicked: the panel follows the hovered unit, so moving the mouse to it changes or hides the panel | P07 (unit panel) | S2 | Assigned (UL3) | November 18, 2026, user playtest | UL3 (ui-lift.md) |
 
 ### BUG-001 No Block at the start of combat
 
@@ -262,3 +263,16 @@ Not a bug.
 - **Expected:** the battle bridge (RN3's `BattleRequest`) carries the player's runes in, and the
   battle's end writes the remaining runes back, in the save order RN3 set.
 - **Fix in P08 RN9.**
+
+### BUG-015 The unit panel's Details button can't be clicked
+
+- **Found:** the user's playtest (November 18, 2026): the mouse can't reach the Details button on
+  the left unit panel, because the panel shows whichever unit the mouse hovers; leaving the unit
+  to reach the button changes or hides the panel.
+- **Where:** `ui/battle/unit/unit_panel.gd` (the `# ASSUMPTION` at its Details button: Godot_FE had
+  no mouse way to its details screen) and the hover path in `battle_controller.gd`. The key and pad
+  binding (`unit_detail`) works.
+- **Expected:** a mouse user opens a unit's detail. Proposed in
+  [ui-lift.md](../design/ui-lift.md#unit-detail-pop-up): right-click a unit opens it, and the panel
+  stops following hover while the mouse is over it.
+- **Fix in UL3** (the UI lift's HUD and unit detail step).
