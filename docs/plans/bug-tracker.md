@@ -46,6 +46,7 @@ Not a bug.
 | [BUG-006](#bug-006-netlog-raises-an-engine-error-once-the-peer-is-cleared) | NetLog raises an engine error once the peer is cleared | P00 / P10 | S3 | Assigned (BF1) | November 9, 2026, O3 report | BF1 |
 | [BUG-008](#bug-008-a-mirror-keeps-a-used-up-consumable) | A mirror keeps a used-up consumable, so its hash differs from the host's | P02 / P11 | S2 | Assigned (BF1) | November 13, 2026, CT5 report | BF1 |
 | [BUG-012](#bug-012-loading-the-map-pools-in-a-test-leaks-resources) | Loading `CombatMapPools.load_default()` inside the board suite's route case leaves 74 objects and 58 resources in use at exit | P04 (map pools) / tests | S4 | New | November 16, 2026, MP10a report | — (worked around in the test) |
+| [BUG-013](#bug-013-a-map-can-need-a-door-no-one-can-open) | A map can put a required route behind a door the army can't open (no reachable lever, no key) | P04 (maps, map check) | S2 | New (user, November 18, 2026) | November 18, 2026, user playtest | MP12 |
 
 ### BUG-001 No Block at the start of combat
 
@@ -230,3 +231,19 @@ Not a bug.
 - **Cause:** not investigated. MP10a worked around it in the test.
 - **Expected:** loading the pools from a test frees everything at exit, as the battle screen does.
 - **Harm seen:** an exit warning only; no wrong result.
+
+### BUG-013 A map can need a door no one can open
+
+- **Found:** the user's playtest (November 18, 2026): maps have doors with no lever and no key to
+  open them, so the map can't be finished.
+- **Read so far:** every door on the M2 maps has a lever in its group except the Hall's (a key
+  door to its chest room, which is optional loot): `old_mill`, `watch_post` (the leader behind a
+  lever door) and `gatehouse` (two levers). So the likely cause is a lever that can only be
+  reached through its own door, or a lever the player can't find. `MapCheck` checks no
+  reachability at all, so nothing caught it. Which map the user saw is not yet known.
+- **Expected** (the user's rule): every required tile (objectives, the leader slot, the deployment
+  zone's way out, every enemy slot an objective needs) is reachable without a key. Only optional
+  content, such as shortcuts and loot, sits behind a key-only door. Every lever door's lever is
+  reachable from the player's side without passing that door.
+- **Fix in P04 MP12:** the map check enforces the rule, every map passes it, and the rule is
+  written into map-objects.md.
