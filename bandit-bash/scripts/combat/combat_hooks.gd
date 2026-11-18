@@ -6,7 +6,7 @@
 # File:     combat_hooks.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 4, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name CombatHooks
@@ -37,7 +37,7 @@ enum Hook {
 	## (P06: flooded tiles). Every registration must allow it.
 	## [code]func(session, unit_id: String) -> bool[/code].
 	TERRAIN_HEALING_ALLOWED = 1,
-	## At each side's Phase End, after Unit Turn End and the drain (P06: darkness damage; P04:
+	## At each side's Phase End, after Unit Turn End and the drain (P04:
 	## [method Reinforcements.close_points], a player unit ending its turn on an open point closes
 	## it, at the player Phase End only).
 	## [code]func(session, side: CombatFact.CombatSide) -> void[/code].
@@ -47,7 +47,8 @@ enum Hook {
 	## (P05: the AI). With none registered, every enemy Waits.
 	## [code]func(session) -> Command[/code].
 	ENEMY_COMMANDS = 3,
-	## After the enemy Phase End, each registration its own step (P06's darkness step, then P04's
+	## After the enemy Phase End, each registration its own step (P06's darkness phase: its damage,
+	## then its step; then P04's
 	## [method Reinforcements.arrive]: the waves due after this turn's enemy phase arrive, so
 	## Survive and Defend check their early end here). [code]func(session) -> void[/code].
 	AFTER_ENEMY_PHASE = 4,

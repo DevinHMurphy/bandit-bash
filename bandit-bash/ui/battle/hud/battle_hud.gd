@@ -6,7 +6,7 @@
 # File:     battle_hud.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 7, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name BattleHud
@@ -25,7 +25,8 @@ extends Control
 ## frame while the board is settled): the tile info and the unit panel, for the unit under the
 ## cursor, else the selected one. While playback runs nothing redraws from state, which already
 ## holds the command's outcome, so the panels never show a result before the board plays it;[br]
-## - each Phase Start fact as it plays: the banner, and the turn counter's turn;[br]
+## - each Phase Start fact as it plays: the banner, and the turn counter's turn; a darkness phase
+## as it begins to play ([signal BattleView.darkness_phase_started]): its banner;[br]
 ## - [method show_result], called by the screen once the battle has ended: the end banner;[br]
 ## - each batch the session sends ([signal CombatSession.batch_resolved]): a fact log line.[br]
 ## [b]Layout:[/b] the columns and the map area are set in the scene; at the 1152×648 base size and
@@ -81,6 +82,7 @@ func bind(session: CombatSession, controller: BattleController, view: BattleView
 	_session.bus.flow.phase_started.connect(_on_flow_phase_started)
 	if is_instance_valid(_view):
 		_view.settled.connect(_on_view_settled)
+		_view.darkness_phase_started.connect(_on_view_darkness_phase_started)
 	_fact_log.clear()
 	_show_widgets(true)
 	refresh()
@@ -96,6 +98,11 @@ func unbind() -> void:
 		_session.bus.flow.phase_started.disconnect(_on_flow_phase_started)
 	if is_instance_valid(_view) and _view.settled.is_connected(_on_view_settled):
 		_view.settled.disconnect(_on_view_settled)
+	if (
+			is_instance_valid(_view)
+			and _view.darkness_phase_started.is_connected(_on_view_darkness_phase_started)
+	):
+		_view.darkness_phase_started.disconnect(_on_view_darkness_phase_started)
 	if is_instance_valid(_view):
 		_view.show_objective(null)
 	_session = null
@@ -207,6 +214,10 @@ func _show_widgets(is_shown: bool) -> void:
 
 func _on_view_settled() -> void:
 	refresh()
+
+
+func _on_view_darkness_phase_started(_turn: int) -> void:
+	_banner.show_darkness()
 
 
 func _on_session_batch_resolved(batch: CombatSession.FactBatch) -> void:

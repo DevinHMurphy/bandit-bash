@@ -61,7 +61,7 @@ so they need no second pass.
 a pair is not listed):
 
 1. UL0 with the user: done November 18, 2026 ([ui-style.md](ui-style.md)).
-2. UL1 (the only UI step in flight: it touches every scene) beside EN18.
+2. UL1 (the only UI step in flight: it touches every scene), issued November 18, 2026 beside DK7; it leaves DK7's phase banner, turn bar and darkness overlay scenes for a short follow-up (UL1F) once both are merged.
 3. UL4 beside DK7.
 4. UL3 beside UL5.
 5. UL8 beside UL2.

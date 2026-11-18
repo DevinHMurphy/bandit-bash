@@ -6,13 +6,13 @@
 # File:     move_preview.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 5, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name MovePreview
 extends RefCounted
 ## What moving a selected unit to a hovered tile would mean, before any action: the darkness damage
-## it would take ending its phase there ([method Darkness.damage_at]) and the enemies' intents
+## it would take there in this turn's darkness phase ([method Darkness.damage_at]) and the intents
 ## re-planned for it ([method Intents.preview]), with which enemies' intents differ from the
 ## current ones (combat UI plan, question 9).
 ##
@@ -32,7 +32,7 @@ var unit_id: String = ""
 ## The tile it would end its move on.
 var tile: Vector2i = CombatFact.NO_TILE
 
-## The HP it would lose to the darkness ending its phase on [member tile]; 0 on a dry tile.
+## The HP it would lose on [member tile] in this turn's darkness phase; 0 on a dry tile.
 var darkness_damage: int = 0
 
 ## The enemies' intents with the unit on [member tile]; null when the session keeps none (before

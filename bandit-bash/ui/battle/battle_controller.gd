@@ -517,6 +517,10 @@ var _seat: int = -1
 
 var _stage: Stage = Stage.INACTIVE
 
+# The turn bar's status while playback plays a phase: each side's Phase Start and each darkness
+# phase as it plays; cleared when the board settles. Empty: the status comes from state.
+var _played_status: String = ""
+
 # The stage to return to from each stage entered by a step forward; cancel pops one.
 var _history: Array[Stage] = []
 
@@ -702,8 +706,11 @@ func bind(encounter: CombatEncounter, session: CombatSession, seat: int) -> void
 	_seat = seat
 	_session.command_rejected.connect(_on_session_command_rejected)
 	_session.intents_changed.connect(_on_session_intents_changed)
+	_session.bus.flow.phase_started.connect(_on_flow_phase_started)
 	view.settled.connect(_on_view_settled)
 	view.staged_walk_finished.connect(_on_view_staged_walk_finished)
+	view.darkness_phase_started.connect(_on_view_darkness_phase_started)
+	_played_status = ""
 	_show_widgets(true)
 	_was_swapping = TurnInputModel.is_swapping(session, seat)
 	_is_danger_shown = _was_swapping and shows_danger_in_swap_window
@@ -726,6 +733,13 @@ func unbind() -> void:
 		_session.command_rejected.disconnect(_on_session_command_rejected)
 	if _session.intents_changed.is_connected(_on_session_intents_changed):
 		_session.intents_changed.disconnect(_on_session_intents_changed)
+	if _session.bus.flow.phase_started.is_connected(_on_flow_phase_started):
+		_session.bus.flow.phase_started.disconnect(_on_flow_phase_started)
+	if (
+			is_instance_valid(view)
+			and view.darkness_phase_started.is_connected(_on_view_darkness_phase_started)
+	):
+		view.darkness_phase_started.disconnect(_on_view_darkness_phase_started)
 	if view != null and view.settled.is_connected(_on_view_settled):
 		view.settled.disconnect(_on_view_settled)
 	if (
@@ -2039,7 +2053,6 @@ func _refresh_widgets() -> void:
 	if rune_bar != null:
 		rune_bar.set_navigable(_stage == Stage.RUNE_SLOTS)
 		rune_bar.show_runes(get_held_runes(), rune_bar_reason())
-	var state: CombatState = _session.state
 	var is_swapping: bool = TurnInputModel.is_swapping(_session, _seat)
 	if swap_window != null:
 		swap_window.visible = is_swapping and not _session.is_finished
@@ -2054,15 +2067,27 @@ func _refresh_widgets() -> void:
 			and not _is_waiting
 			and TurnInputModel.end_turn_command(_session, _seat) != null
 	)
-	var status: String = "Turn %d · %s phase" % [
-		state.turn,
-		(CombatFact.CombatSide.find_key(state.phase_side) as String).to_lower(),
-	]
-	if is_swapping:
-		status = "Opening swap"
-	elif _session.is_finished:
-		status = "Won" if _session.is_won else "Lost"
-	turn_bar.show_status(status)
+	turn_bar.show_status(_status_text())
+
+
+# The turn bar's status: the opening swap, the battle's end, the phase playing, else state's phase.
+func _status_text() -> String:
+	if TurnInputModel.is_swapping(_session, _seat):
+		return "Opening swap"
+	if _session.is_finished:
+		return "Won" if _session.is_won else "Lost"
+	if not _played_status.is_empty():
+		return _played_status
+	return _phase_status(_session.state.turn, _side_name(_session.state.phase_side))
+
+
+# The turn bar's status for turn's phase called phase_name ("player", "enemy", "darkness").
+func _phase_status(turn: int, phase_name: String) -> String:
+	return "Turn %d · %s phase" % [turn, phase_name]
+
+
+func _side_name(side: CombatFact.CombatSide) -> String:
+	return (CombatFact.CombatSide.find_key(side) as String).to_lower()
 
 
 func _is_on_map(tile: Vector2i) -> bool:
@@ -2191,6 +2216,7 @@ func _on_session_command_rejected(seat: int, _arrival: int, reason: String) -> v
 # with no flow under way the stage follows the session; a flow under way is left to its command,
 # which the session checks when it is sent.
 func _on_view_settled() -> void:
+	_played_status = ""
 	if _is_waiting:
 		_after_playback()
 		return
@@ -2200,6 +2226,21 @@ func _on_view_settled() -> void:
 	_refresh_widgets()
 	_refresh_danger_zone()
 	_show_intents()
+
+
+# The turn bar follows the phases as they play, so the enemy and darkness phases show on it.
+func _on_flow_phase_started(fact: CombatFact) -> void:
+	_show_played_status(_phase_status(fact.amount, _side_name(fact.side)))
+
+
+func _on_view_darkness_phase_started(turn: int) -> void:
+	_show_played_status(_phase_status(turn, "darkness"))
+
+
+func _show_played_status(status: String) -> void:
+	_played_status = status
+	if turn_bar != null and _session != null:
+		turn_bar.show_status(_status_text())
 
 
 # WALK's walk arrived: the action menu opens with MOVE, not WALK, as the stage Cancel returns to.

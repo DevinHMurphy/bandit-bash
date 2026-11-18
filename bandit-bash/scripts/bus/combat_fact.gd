@@ -71,7 +71,7 @@ enum Kind {
 	HEALED = 19,
 	## The actor used a staff (heal or Block) on the target.
 	USED_STAFF_ON_ALLY = 20,
-	## The actor took darkness damage at its side's Phase End ([Darkness]). Not an attack: Block
+	## The actor took darkness damage in the darkness phase ([Darkness]). Not an attack: Block
 	## never absorbs it, so [member amount] and [member hp_amount] are both the HP it lost;
 	## [member source] is [constant Source.DARKNESS]; no target.
 	DARKNESS_DAMAGE_TAKEN = 21,

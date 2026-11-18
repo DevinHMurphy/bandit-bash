@@ -6,19 +6,18 @@
 # File:     damage_cases.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends RefCounted
 ## [Darkness]'s damage and readers for tests/darkness/run_all.gd: 10/25/50% of max HP rounded down
-## with a minimum of 1, at each side's own Phase End; a Phase End heal landing first; a unit
-## passing through taking none; a commander it defeats ending the battle; "that darkness damage"
-## halving it; no terrain heal on a flooded tile; the AI's dry tile; dry-first arrivals and the
-## free-tile search; [method Darkness.damage_at] matching the damage taken; the intents preview
-## foreseeing it and changing nothing; [method Darkness.next_deepening] matching the step and
-## [method Darkness.source_counters]; [constant DarknessState.NO_RELEASE]; the damage as
-## [method CampaignSession.begin_battle] registers it, after point closing; and the queries timed
-## on the M1 map (NOTE).
+## with a minimum of 1, both sides in the darkness phase after the enemy Phase End, before the
+## creep; a tile the creep reaches hurting no one that turn; a unit moved off or onto the dark in
+## the enemy phase; a Phase End heal landing first; passing through; the battle's end on a
+## darkness defeat (commander, last enemy, both, Survive); "that darkness damage"; no terrain
+## heal; the AI's dry tile; dry-first arrivals; [method Darkness.damage_at] matching; the intents
+## preview; [method Darkness.next_deepening]; [constant DarknessState.NO_RELEASE]; the
+## [method CampaignSession.begin_battle] registration; and the M1 queries timed (NOTE).
 ##
 ## Layers are set on the tiles directly ([method DarknessWorld.flood]) where no wave is needed.
 
@@ -38,6 +37,15 @@ const ADVANCED: CombatFact.Kind = CombatFact.Kind.DARKNESS_ADVANCED
 const WAIT: UnitTurnCommand.Action = UnitTurnCommand.Action.WAIT
 const DEBRIS: MapLayout.ObjectKind = MapLayout.ObjectKind.WOODEN_DEBRIS
 const BRUTE: String = "loadout_brute"
+
+# The facts a battle's end is read from: the enemy phase starting, darkness damage, defeats, the
+# end, and any later phase.
+const _END_KINDS: Array[CombatFact.Kind] = [
+	CombatFact.Kind.PHASE_START,
+	CombatFact.Kind.DARKNESS_DAMAGE_TAKEN,
+	CombatFact.Kind.DEFEATED,
+	CombatFact.Kind.COMBAT_ENDED,
+]
 
 const CORRIDOR_7: Array[String] = ["plain plain plain plain plain plain plain"]
 
@@ -94,9 +102,14 @@ func _init(check: Callable) -> void:
 
 func run() -> void:
 	_test_layer_damage()
+	_test_creep_hurts_next_turn()
+	_test_moved_in_enemy_phase()
 	_test_heal_first()
 	_test_passing_through()
 	_test_commander_defeat()
+	_test_last_enemy_defeat()
+	_test_commander_and_last_enemy()
+	_test_survive_ends_first()
 	_test_that_darkness_damage()
 	_test_no_terrain_heal()
 	_test_ai_dry_tile()
@@ -111,11 +124,11 @@ func run() -> void:
 	_test_m1_timing()
 
 
-# Each layer's share of max HP, rounded down, at least 1, at that side's own Phase End: the player
-# units after the player PHASE_END, the enemy after the enemy's. A dry unit takes none.
+# Each layer's share of max HP, rounded down, at least 1, in the darkness phase: after the enemy
+# PHASE_END, player units first, then the enemy. A dry unit takes none.
 func _test_layer_damage() -> void:
 	var world: DarknessWorld = DarknessWorld.new(PLAIN_6X4)
-	world.register_damage()
+	world.register()
 	# Unit, max HP, layer: 20 gives 2 / 5 / 10, 27 floors 2.7 / 6.75 / 13.5, 5 lifts 0.5 and 1.25
 	# to the minimum.
 	var cases: Array = [
@@ -135,9 +148,11 @@ func _test_layer_damage() -> void:
 	var start: int = world.engine().fact_log.size()
 	world.end_turns(1)
 	var phases: Array = [CombatFact.Kind.PHASE_START, CombatFact.Kind.PHASE_END, DAMAGED]
-	_same_lines("layers: 10/25/50%, floor, minimum 1, each side at its own Phase End",
+	_same_lines("layers: 10/25/50%, floor, minimum 1, both sides in the darkness phase",
 			world.lines(phases, start), [
 				"t1 PHASE_END side player",
+				"t1 PHASE_START side enemy amount 1",
+				"t1 PHASE_END side enemy",
 				"t1 DARKNESS_DAMAGE_TAKEN p1 amount 2 (hp 2, block 0) source darkness",
 				"t1 DARKNESS_DAMAGE_TAKEN p2 amount 5 (hp 5, block 0) source darkness",
 				"t1 DARKNESS_DAMAGE_TAKEN p3 amount 10 (hp 10, block 0) source darkness",
@@ -147,8 +162,6 @@ func _test_layer_damage() -> void:
 				"t1 DARKNESS_DAMAGE_TAKEN p7 amount 1 (hp 1, block 0) source darkness",
 				"t1 DARKNESS_DAMAGE_TAKEN p8 amount 1 (hp 1, block 0) source darkness",
 				"t1 DARKNESS_DAMAGE_TAKEN p9 amount 2 (hp 2, block 0) source darkness",
-				"t1 PHASE_START side enemy amount 1",
-				"t1 PHASE_END side enemy",
 				"t1 DARKNESS_DAMAGE_TAKEN e1 amount 5 (hp 5, block 0) source darkness",
 				"t2 PHASE_START side player amount 2",
 			])
@@ -162,12 +175,58 @@ func _test_layer_damage() -> void:
 	_quiet(world)
 
 
-# A Unit Turn End heal of 5 lands before the darkness (combat core plan, question 12): p1 at 3 HP
+# The first wave, released at the end of turn 1, floods p1's source tile after the damage: p1
+# takes none in turn 1's darkness phase, then its Dusk share (2) in turn 2's, before that creep.
+func _test_creep_hurts_next_turn() -> void:
+	var world: DarknessWorld = DarknessWorld.new(CORRIDOR_7)
+	world.set_up([[Vector2i(0, 0)]], Vector2i(6, 0))
+	world.darkness().first_release = 1
+	world.register()
+	world.add_unit("p1", PLAYER, Vector2i(0, 0))
+	world.session.open_battle()
+	world.end_turns(1)
+	var first: Array[String] = world.lines([DAMAGED])
+	var layer: WhileLayerCondition.Layer = world.darkness().layer_at(Vector2i(0, 0))
+	var start: int = world.engine().fact_log.size()
+	world.end_turns(1)
+	var second: Array[String] = world.lines([DAMAGED, ADVANCED], start)
+	_ok("creep: the tile it reaches hurts no one that turn", (
+			first.is_empty() and layer == DUSK
+	), "%s, layer %d" % [first, layer])
+	_ok("creep: the next darkness phase hurts, before that turn's creep", (
+			second.size() > 1
+			and second[0] == "t2 DARKNESS_DAMAGE_TAKEN p1 amount 2 (hp 2, block 0) source darkness"
+	), str(second))
+	_quiet(world)
+
+
+# A move in the enemy phase, standing in for a shove (the AI never shoves): p1 ends the player
+# phase on Gloom and is moved to a dry tile; p2 ends it dry and is moved onto Gloom. The darkness
+# phase reads where they stand: p1 takes none, p2 its 5.
+func _test_moved_in_enemy_phase() -> void:
+	var world: DarknessWorld = DarknessWorld.new(PLAIN_6X4)
+	world.register()
+	world.session.hooks.add(CombatHooks.Hook.PHASE_END_EFFECTS, _move_at_enemy_phase_end)
+	world.add_unit("p1", PLAYER, Vector2i(0, 0))
+	world.add_unit("p2", PLAYER, Vector2i(5, 0))
+	world.add_unit("e1", ENEMY, Vector2i(5, 3))
+	world.flood(Vector2i(0, 0), GLOOM)
+	world.flood(Vector2i(4, 0), GLOOM)
+	world.session.open_battle()
+	world.end_turns(1)
+	_same_lines("moved: shoved off the dark takes none, moved onto it takes its layer",
+			world.lines([DAMAGED]), [
+				"t1 DARKNESS_DAMAGE_TAKEN p2 amount 5 (hp 5, block 0) source darkness",
+			])
+	_quiet(world)
+
+
+# A Unit Turn End heal of 5 lands at the player Phase End, before the darkness phase: p1 at 3 HP
 # on Gloom (5) heals to 8 and keeps 3; p2, the same without the heal, loses its last 3 and falls,
 # its fact the HP it lost.
 func _test_heal_first() -> void:
 	var world: DarknessWorld = DarknessWorld.new(PLAIN_6X4)
-	world.register_damage()
+	world.register()
 	world.add_unit("p1", PLAYER, Vector2i(0, 0))
 	world.add_unit("p2", PLAYER, Vector2i(2, 0))
 	world.add_unit("p3", PLAYER, Vector2i(5, 3))
@@ -206,7 +265,7 @@ func _test_heal_first() -> void:
 # p1 walks the corridor through two Abyss tiles and ends dry: no darkness damage.
 func _test_passing_through() -> void:
 	var world: DarknessWorld = DarknessWorld.new(CORRIDOR_7)
-	world.register_damage()
+	world.register()
 	world.add_unit("p1", PLAYER, Vector2i(0, 0))
 	world.flood(Vector2i(2, 0), ABYSS)
 	world.flood(Vector2i(3, 0), ABYSS)
@@ -226,17 +285,10 @@ func _test_passing_through() -> void:
 	_quiet(world)
 
 
-# The commander at 1 HP on Dusk falls to the darkness at the player Phase End: the map is lost at
-# that step's end, as for any defeat, and the enemy phase never starts.
+# The commander at 1 HP on Dusk falls in the darkness phase: the map is lost on turn 1 at that
+# step's end, as for any defeat, and turn 2 never starts.
 func _test_commander_defeat() -> void:
-	var world: DarknessWorld = DarknessWorld.new(PLAIN_6X4)
-	var definition: CombatMapDefinition = CombatMapDefinition.new()
-	definition.id = "darkness"
-	world.session.setup = CombatEncounter.EncounterSetup.new()
-	world.session.setup.map = definition
-	world.session.commander_ids[0] = "p1"
-	Objectives.register(world.session)
-	world.register_damage()
+	var world: DarknessWorld = _objective_world(CombatMapDefinition.Objective.ROUT)
 	world.add_unit("p1", PLAYER, Vector2i(0, 0))
 	world.add_unit("p2", PLAYER, Vector2i(5, 0))
 	world.add_unit("e1", ENEMY, Vector2i(5, 3))
@@ -245,20 +297,80 @@ func _test_commander_defeat() -> void:
 	world.state().set_hp("p1", 1)
 	var start: int = world.engine().fact_log.size()
 	world.end_turns(1)
-	var kinds: Array = [
-		DAMAGED,
-		CombatFact.Kind.DEFEATED,
-		CombatFact.Kind.COMBAT_ENDED,
-		CombatFact.Kind.PHASE_START,
-	]
-	_same_lines("commander: defeated by the darkness, the map is lost", world.lines(kinds, start), [
-		"t1 DARKNESS_DAMAGE_TAKEN p1 amount 1 (hp 1, block 0) source darkness",
-		"t1 DEFEATED p1",
-		"t1 COMBAT_ENDED side enemy amount 1",
-	])
+	_same_lines("commander: defeated by the darkness, the map is lost",
+			world.lines(_END_KINDS, start), [
+				"t1 PHASE_START side enemy amount 1",
+				"t1 DARKNESS_DAMAGE_TAKEN p1 amount 1 (hp 1, block 0) source darkness",
+				"t1 DEFEATED p1",
+				"t1 COMBAT_ENDED side enemy amount 1",
+			])
 	_ok("commander: the session is finished and lost", (
 			world.session.is_finished and not world.session.is_won
 	))
+
+
+# Rout: the last enemy, at 1 HP on Dusk, falls in the darkness phase: the map is won on turn 1,
+# and turn 2 never starts.
+func _test_last_enemy_defeat() -> void:
+	var world: DarknessWorld = _objective_world(CombatMapDefinition.Objective.ROUT)
+	world.add_unit("p1", PLAYER, Vector2i(0, 0))
+	world.add_unit("e1", ENEMY, Vector2i(5, 3))
+	world.flood(Vector2i(5, 3), DUSK)
+	world.session.open_battle()
+	world.state().set_hp("e1", 1)
+	var start: int = world.engine().fact_log.size()
+	world.end_turns(1)
+	_same_lines("last enemy: defeated by the darkness, the map is won",
+			world.lines(_END_KINDS, start), [
+				"t1 PHASE_START side enemy amount 1",
+				"t1 DARKNESS_DAMAGE_TAKEN e1 amount 1 (hp 1, block 0) source darkness",
+				"t1 DEFEATED e1",
+				"t1 COMBAT_ENDED side player amount 1",
+			])
+	_ok("last enemy: the session is finished and won", (
+			world.session.is_finished and world.session.is_won
+	))
+
+
+# The commander and the last enemy fall to one darkness phase: one step, so the loss beats the win.
+func _test_commander_and_last_enemy() -> void:
+	var world: DarknessWorld = _objective_world(CombatMapDefinition.Objective.ROUT)
+	world.add_unit("p1", PLAYER, Vector2i(0, 0))
+	world.add_unit("e1", ENEMY, Vector2i(5, 3))
+	world.flood(Vector2i(0, 0), DUSK)
+	world.flood(Vector2i(5, 3), DUSK)
+	world.session.open_battle()
+	world.state().set_hp("p1", 1)
+	world.state().set_hp("e1", 1)
+	var start: int = world.engine().fact_log.size()
+	world.end_turns(1)
+	_same_lines("both: the commander's fall loses the map",
+			world.lines(_END_KINDS, start), [
+				"t1 PHASE_START side enemy amount 1",
+				"t1 DARKNESS_DAMAGE_TAKEN p1 amount 1 (hp 1, block 0) source darkness",
+				"t1 DEFEATED p1",
+				"t1 DARKNESS_DAMAGE_TAKEN e1 amount 1 (hp 1, block 0) source darkness",
+				"t1 DEFEATED e1",
+				"t1 COMBAT_ENDED side enemy amount 1",
+			])
+
+
+# Survive 1 turn: the map is won at turn 1's enemy Phase End, before the darkness phase, so units
+# on Abyss take nothing. (Survive maps get no darkness; this pins the order.)
+func _test_survive_ends_first() -> void:
+	var world: DarknessWorld = _objective_world(CombatMapDefinition.Objective.SURVIVE, 1)
+	world.add_unit("p1", PLAYER, Vector2i(0, 0))
+	world.add_unit("e1", ENEMY, Vector2i(5, 3))
+	world.flood(Vector2i(0, 0), ABYSS)
+	world.flood(Vector2i(5, 3), ABYSS)
+	world.session.open_battle()
+	var start: int = world.engine().fact_log.size()
+	world.end_turns(1)
+	_same_lines("survive: won at the enemy Phase End, no darkness phase",
+			world.lines(_END_KINDS, start), [
+				"t1 PHASE_START side enemy amount 1",
+				"t1 COMBAT_ENDED side player amount 1",
+			])
 
 
 # "That darkness damage": Lantern Oil's ×0.5 on the Multipliers stage (event bus plan) and a ×0.5
@@ -266,7 +378,7 @@ func _test_commander_defeat() -> void:
 # damage_at foresees each on a sandbox and leaves the real session as it was.
 func _test_that_darkness_damage() -> void:
 	var world: DarknessWorld = DarknessWorld.new(PLAIN_6X4)
-	world.register_damage()
+	world.register()
 	for i: int in 3:
 		var tile: Vector2i = Vector2i(i, 0)
 		world.add_unit("p%d" % [i + 1], PLAYER, tile)
@@ -406,10 +518,11 @@ func _test_dry_first_arrivals() -> void:
 
 
 # damage_at for each layer and a dry tile, the unit's own and others it could move to, then the
-# damage it actually takes there; capped at a 3-HP unit's HP; 0 for a unit off the map.
+# damage it actually takes there in the darkness phase; capped at a 3-HP unit's HP; 0 for a unit
+# off the map.
 func _test_damage_at() -> void:
 	var world: DarknessWorld = DarknessWorld.new(CORRIDOR_7)
-	world.register_damage()
+	world.register()
 	world.add_unit("p1", PLAYER, Vector2i(0, 0))
 	world.add_unit("p2", PLAYER, Vector2i(6, 0))
 	world.add_unit("e1", ENEMY, Vector2i(5, 0))
@@ -442,28 +555,29 @@ func _test_damage_at() -> void:
 	_quiet(world)
 
 
-# The Brute's hit takes 15 of p1's 20; p1's Gloom tile takes 5 more at the player Phase End. The
-# intents' forecasts, on a stand-in crossing that Phase End, foresee the kill; a preview moving p1
-# to a dry tile foresees none; the real session keeps its HP and fact log.
+# The Brute's hit takes 15 of p1's 20; p1's Gloom tile takes 5 more, but in the darkness phase,
+# after the enemy phase. The intents' forecasts, on a stand-in crossing the player Phase End, see
+# p1 at 20 and foresee no kill, on its tile or a preview's; the real session keeps its HP and log.
 func _test_intents_preview() -> void:
 	var catalog: EffectCatalog.Index = EffectCatalog.load_tree(LoadoutCases.TREE)
 	var world: AiWorld = AiWorld.new(catalog, PLAIN_8X8, ForecastRolls.new())
 	world.add_enemy("e1", BRUTE, Vector2i(0, 0))
 	world.add_player("p1", Vector2i(2, 0), "bow")
 	world.state().map.darkness.layers[Vector2i(2, 0)] = GLOOM
-	Darkness.register_damage(world.session)
+	world.state().map.darkness.layers[Vector2i(2, 1)] = GLOOM
+	Darkness.register(world.session)
 	EnemyAI.register(world.session, catalog)
 	Intents.register(world.session, catalog)
 	world.session.open_battle()
 	var facts: int = world.engine().fact_log.size()
 	var shown: Intents = world.session.intents
 	var intent: EnemyIntent = null if shown == null else shown.intent_of("e1")
-	_ok("intents: the forecasts see the darkness damage and foresee the kill", (
-			intent != null and intent.target_id == "p1" and intent.defeats.has("p1")
+	_ok("intents: the darkness phase comes after the enemy phase, so no kill", (
+			intent != null and intent.target_id == "p1" and not intent.defeats.has("p1")
 	), "" if intent == null else intent.describe())
 	var moved: Intents = Intents.preview(world.session, "p1", Vector2i(2, 1))
 	var moved_intent: EnemyIntent = null if moved == null else moved.intent_of("e1")
-	_ok("intents: moved to a dry tile, no kill", (
+	_ok("intents: a preview onto Gloom foresees no kill either", (
 			moved_intent != null and not moved_intent.defeats.has("p1")
 	), "" if moved_intent == null else moved_intent.describe())
 	_ok("intents: the real session is untouched", (
@@ -594,8 +708,8 @@ func _test_m1_timing() -> void:
 
 
 # The M1 battle as CampaignSession.begin_battle registers it: a player unit put on Gloom takes 25%
-# at the first player Phase End. (The headless M1 battles in tests/enemies never end a phase in the
-# darkness: held past turn 3, the commander falls in turn 5, before it reaches anyone.)
+# in turn 1's darkness phase. (The headless M1 battles in tests/enemies never meet the darkness:
+# held past turn 3, the commander falls in turn 5, before it reaches anyone.)
 func _test_begin_battle_registers() -> void:
 	var run_session: CampaignSession = CampaignSession.new(
 			CampaignData.Mode.SOLO, SEED, PackedInt32Array([0])
@@ -626,12 +740,10 @@ func _test_begin_battle_registers() -> void:
 
 
 # A player unit ending its turn on an open reinforcement point that is flooded: the point closes
-# first, then the darkness hurts it (darkness plan question 5), registered in CampaignSession's
-# order.
+# at the player Phase End, then the darkness phase hurts it, registered in CampaignSession's order.
 func _test_point_closing_first() -> void:
 	var world: DarknessWorld = DarknessWorld.new(PLAIN_6X4, [], [[Vector2i(5, 3), [3]]])
 	world.register(ReinforcementCases.FixtureGroups.new({3: ["Bandit"]}))
-	world.register_damage()
 	world.add_unit("p1", PLAYER, Vector2i(5, 3))
 	world.flood(Vector2i(5, 3), DUSK)
 	world.session.open_battle()
@@ -644,6 +756,32 @@ func _test_point_closing_first() -> void:
 				"t1 DARKNESS_DAMAGE_TAKEN p1 amount 2 (hp 2, block 0) source darkness",
 			])
 	_quiet(world)
+
+
+# A darkness world on PLAIN_6X4 whose map has objective (Survive: survive_turns), p1 its
+# commander, with Objectives and the darkness phase registered.
+func _objective_world(
+		objective: CombatMapDefinition.Objective, survive_turns: int = 0
+) -> DarknessWorld:
+	var world: DarknessWorld = DarknessWorld.new(PLAIN_6X4)
+	var definition: CombatMapDefinition = CombatMapDefinition.new()
+	definition.id = "darkness"
+	definition.objective = objective
+	definition.survive_turns = survive_turns
+	world.session.setup = CombatEncounter.EncounterSetup.new()
+	world.session.setup.map = definition
+	world.session.commander_ids[0] = "p1"
+	Objectives.register(world.session)
+	world.register()
+	return world
+
+
+# PHASE_END_EFFECTS at the enemy Phase End: p1 off its Gloom tile to (1, 0), p2 onto Gloom (4, 0).
+func _move_at_enemy_phase_end(session: CombatSession, side: CombatFact.CombatSide) -> void:
+	if side != ENEMY:
+		return
+	session.state.move_unit("p1", Vector2i(1, 0))
+	session.state.move_unit("p2", Vector2i(4, 0))
 
 
 # Begins the M1 battle on run_session: the Mercenary army, the real catalog. Null when it fails.

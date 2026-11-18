@@ -6,23 +6,20 @@
 # File:     phase_banner.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 5, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name PhaseBanner
 extends PanelContainer
-## The banner at each phase change: "Player Phase" with its turn, or "Enemy Phase", fading in and
-## out; and at the battle's end, "Victory" or "Defeat", which stays (combat UI plan, questions 11
-## and 18 (f); game-vision.md, Combat: the UI shows the turn phases;
-## Godot_FE's turn transition, [code]combat_ui.gd[/code] and
-## [code]TurnTransitionAnimation.tscn[/code]).
+## The banner at each phase change: "Player Phase" with its turn, "Enemy Phase" or "Darkness",
+## fading in and out; at the battle's end, "Victory" or "Defeat", which stays (combat UI plan,
+## questions 11 and 18 (f); ui-lift.md, Darkness phase; Godot_FE's turn transition).
 ##
-## [BattleHud] calls [method show_phase] as each side's Phase Start fact plays. Like Godot_FE's, it
-## holds nothing up: playback goes on under it. [BattleScreen] calls [method show_result] (through
-## [method BattleHud.show_result]) once the battle has ended and its playback settled, and holds
-## the route to Results for [member BattleScreen.end_banner_time]. A new banner replaces one still
-## showing. Its fade runs on the scene tree, so it pauses with the pause menu and ignores
-## fast-forward.
+## [BattleHud] calls [method show_phase] as each side's Phase Start fact plays, and
+## [method show_darkness] as a darkness phase that does anything begins. Like Godot_FE's, it holds
+## nothing up: playback goes on under it. [BattleScreen] calls [method show_result] once the battle
+## has ended and settled. A new banner replaces one still showing. Its fade runs on the scene
+## tree, so it pauses with the pause menu and ignores fast-forward.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
@@ -31,6 +28,9 @@ extends PanelContainer
 
 ## The enemy phase's text.
 @export var enemy_text: String = "Enemy Phase"
+
+## The darkness phase's text. It shows with no turn line.
+@export var darkness_text: String = "Darkness"
 
 ## The turn's line under the player phase's text: [code]%d[/code] the turn. Empty shows none.
 @export var turn_format: String = "Turn %d"
@@ -46,6 +46,9 @@ extends PanelContainer
 
 ## The enemy phase's text colour (Godot_FE tints its enemy banner red).
 @export var enemy_color: Color = Color(1.0, 0.45, 0.4, 1.0)
+
+## The darkness phase's text colour: ui-style.md's [code]darkness[/code] token, #6b4fa0.
+@export var darkness_color: Color = Color("#6b4fa0")
 
 ## How long the banner takes to fade in (Godot_FE's [code]new_turn[/code] animation: 1.0 of its
 ## 2.0 s).[br]
@@ -73,20 +76,18 @@ func show_phase(side: CombatFact.CombatSide, turn: int) -> void:
 	var is_player: bool = side == CombatFact.CombatSide.PLAYER
 	if not is_player and side != CombatFact.CombatSide.ENEMY:
 		return
-	_text.text = player_text if is_player else enemy_text
-	_text.add_theme_color_override(&"font_color", player_color if is_player else enemy_color)
-	_turn.text = turn_format % [turn] if is_player and not turn_format.is_empty() else ""
-	_turn.visible = not _turn.text.is_empty()
-	_shown_count += 1
-	if _tween != null and _tween.is_valid():
-		_tween.kill()
-	visible = true
-	modulate.a = 0.0 if fade_in_time > 0.0 else 1.0
-	_tween = create_tween()
-	if fade_in_time > 0.0:
-		_tween.tween_property(self, ^"modulate:a", 1.0, fade_in_time)
-	_tween.tween_property(self, ^"modulate:a", 0.0, fade_out_time)
-	_tween.tween_callback(hide)
+	var turn_line: String = turn_format % [turn] if is_player and not turn_format.is_empty() else ""
+	_fade_through(
+			player_text if is_player else enemy_text,
+			player_color if is_player else enemy_color,
+			turn_line
+	)
+
+
+## Shows the darkness phase's banner, [member darkness_text] in [member darkness_color], fading in
+## and out as a side's does.
+func show_darkness() -> void:
+	_fade_through(darkness_text, darkness_color, "")
 
 
 ## Shows the battle's end: [member victory_text] when [param is_won], else [member defeat_text].
@@ -114,3 +115,21 @@ func get_shown_count() -> int:
 ## The last banner's text and turn line.
 func get_texts() -> PackedStringArray:
 	return PackedStringArray([_text.text, _turn.text])
+
+
+# Shows text in color with turn_line under it (none when empty), fading in, then out, then hidden.
+func _fade_through(text: String, color: Color, turn_line: String) -> void:
+	_text.text = text
+	_text.add_theme_color_override(&"font_color", color)
+	_turn.text = turn_line
+	_turn.visible = not _turn.text.is_empty()
+	_shown_count += 1
+	if _tween != null and _tween.is_valid():
+		_tween.kill()
+	visible = true
+	modulate.a = 0.0 if fade_in_time > 0.0 else 1.0
+	_tween = create_tween()
+	if fade_in_time > 0.0:
+		_tween.tween_property(self, ^"modulate:a", 1.0, fade_in_time)
+	_tween.tween_property(self, ^"modulate:a", 0.0, fade_out_time)
+	_tween.tween_callback(hide)

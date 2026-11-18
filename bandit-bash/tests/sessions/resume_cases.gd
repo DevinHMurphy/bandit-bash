@@ -6,7 +6,7 @@
 # File:     resume_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 15, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends "res://tests/sessions/sessions_case_base.gd"
@@ -274,12 +274,12 @@ func _test_service_resume_battle() -> bool:
 	return true
 
 
-# Battle resume after the darkness arrived (darkness plan, DK5): the M1 battle played to turn 6
-# (arrival at the end of turn 4, par 5, then a creep), saved, then played on through darkness
-# damage at the player Phase End (the commander's tile is flooded) and turn 6's release;
+# Battle resume across the darkness phase (darkness plan, DK5 and DK7): the M1 battle played to
+# turn 6 (arrival in turn 4's darkness phase, par 5, then turn 5's creep), saved, then played on
+# through turn 6's darkness phase (damage, the commander's tile being flooded, then the release);
 # uninterrupted, and with Save & Quit then Continue at the save. The resumed battle has the saved
 # layers, waves (reach and tiles entered), contacts and arrival, then the same facts and darkness
-# as the uninterrupted one.
+# as the uninterrupted one: nothing repeated, nothing lost.
 func _test_service_resume_after_arrival() -> bool:
 	if not _has_test_user_dir():
 		_skips += 1
@@ -340,8 +340,8 @@ func _test_service_resume_after_arrival() -> bool:
 
 
 # Plays the arrival script on a new solo run's M1 battle: Start, then End Turn until turn
-# ARRIVAL_SAVE_TURN; a checkpoint; then End Turn twice (turn 6's darkness damage and release, then
-# turn 7). With [param quits], the checkpoint is followed by a quit and a Continue.
+# ARRIVAL_SAVE_TURN; a checkpoint; then End Turn twice (turn 6's darkness phase, its damage and
+# release, then turn 7's). With [param quits], the checkpoint is followed by a quit and a Continue.
 # [member ResumeRun.darkness] is the darkness at the end, as captured.
 func _play_arrival_script(saves: Node, service: Node, quits: bool) -> ResumeRun:
 	var result: ResumeRun = ResumeRun.new()
