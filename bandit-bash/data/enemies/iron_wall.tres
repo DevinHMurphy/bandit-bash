@@ -10,26 +10,28 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/add_timed_modifier.gd" id="8_timed"]
 [ext_resource type="Script" path="res://scripts/content/enemy_class_definition.gd" id="9_def"]
 [ext_resource type="Resource" path="res://data/shapes/adjacent.tres" id="10_shape"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="11_mod"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/resource_of.gd" id="12_res"]
 
 [sub_resource type="Resource" id="Resource_adjacent"]
 script = ExtResource("4_area")
 shape = ExtResource("10_shape")
 side = 2
 
-[sub_resource type="Resource" id="Resource_amount"]
-script = ExtResource("5_con")
+[sub_resource type="Resource" id="Resource_stance"]
+script = ExtResource("12_res")
+pool = 2
+
+[sub_resource type="Resource" id="Resource_def"]
+script = ExtResource("11_mod")
+key = 19
 value = 2.0
+per = SubResource("Resource_stance")
 
-[sub_resource type="Resource" id="Resource_block"]
-script = ExtResource("3_gain")
-target = SubResource("Resource_adjacent")
-amount = SubResource("Resource_amount")
-
-[sub_resource type="Resource" id="Resource_shield_wall"]
+[sub_resource type="Resource" id="Resource_braced"]
 script = ExtResource("1_eff")
-id = "shield_wall"
-trigger = 1
-operations = Array[ExtResource("2_ops")]([SubResource("Resource_block")])
+id = "braced"
+operations = Array[ExtResource("2_ops")]([SubResource("Resource_def")])
 
 [sub_resource type="Resource" id="Resource_every_2nd"]
 script = ExtResource("7_count")
@@ -69,14 +71,14 @@ starting_equipment_id = "iron_shield"
 signature_move = SubResource("Resource_fortify")
 signature_name = "Fortify"
 base_class_id = "shieldbearer"
-trait_name = "Shield Wall"
-weapon_types = PackedStringArray("lance")
+trait_name = "Braced"
+weapon_types = PackedStringArray("sword")
 movement_type = 1
 tags = PackedStringArray("armored")
 stance = 3
-starting_weapon_id = "simple_lance"
+starting_weapon_id = "shieldmace"
 innate_effects = Array[ExtResource("1_eff")]([])
-base_stats = Dictionary[int, int]({0: 25, 1: 2, 2: 2, 3: 7, 4: 1, 5: 14, 6: 5})
+base_stats = Dictionary[int, int]({0: 25, 1: 1, 2: 2, 3: 1, 4: 1, 5: 14, 6: 4})
 growths = Dictionary[int, int]({0: 70, 1: 25, 2: 28, 3: 45, 4: 10})
 upgraded_effects = Array[ExtResource("1_eff")]([])
 upgrade_stat_gains = Dictionary[int, int]({})
@@ -85,4 +87,4 @@ upgrade_tags = PackedStringArray()
 is_commander = false
 id = "iron_wall"
 display_name = "Iron Wall"
-effects = Array[ExtResource("1_eff")]([SubResource("Resource_shield_wall"), SubResource("Resource_fortify")])
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_braced"), SubResource("Resource_fortify")])

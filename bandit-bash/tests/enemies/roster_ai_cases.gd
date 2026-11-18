@@ -6,7 +6,7 @@
 # File:     roster_ai_cases.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 16, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -143,13 +143,14 @@ func _test_shieldbearer_attacks_from_its_post() -> void:
 	), _describe(plan))
 
 
-# A kill anywhere in reach comes before its post (Ruthless AI).
+# A kill anywhere in reach comes before its post (Ruthless AI): its Shieldmace's 5 Attack less the
+# foe's 2 DEF takes a 3 HP foe.
 func _test_shieldbearer_kill_first() -> void:
 	var world: AiWorld = _world(_plain(8, 8))
 	world.add_enemy("e1", "shieldbearer", Vector2i(0, 0))
 	world.add_enemy("e2", "crossbowman", Vector2i(4, 0))
 	world.add_player("p2", Vector2i(0, 2))
-	world.wound("p2", 5)
+	world.wound("p2", 3)
 	var plan: EnemyPlan = world.decide("e1")
 	_check.call("shieldbearer: a kill away from its post comes first", (
 			plan.kind == EnemyPlan.Kind.ATTACK

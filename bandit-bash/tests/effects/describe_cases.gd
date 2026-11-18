@@ -6,7 +6,7 @@
 # File:     describe_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 15, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends "res://tests/effects/effects_case_base.gd"
@@ -398,6 +398,11 @@ func _test_describe_values() -> void:
 	_snapshot("stat of: owner", movement.describe(), "this unit's Movement")
 	movement.subject = FactTarget.new()
 	_snapshot("stat of: subject", movement.describe(), "the other unit's Movement")
+	var stance: ResourceOf = ResourceOf.new()
+	_snapshot("resource of: owner", stance.describe(), "this unit's current Stance")
+	stance.pool = GainResource.Pool.BLOCK
+	stance.subject = FactTarget.new()
+	_snapshot("resource of: subject", stance.describe(), "the other unit's current Block")
 	var adjacent_allies: Area = _area(Area.Center.OWNER, 1, EffectTerms.UnitSide.ALLY, false)
 	var doubled: CountOf = _count(adjacent_allies)
 	_snapshot("count of", doubled.describe(), "the number of adjacent allies")

@@ -45,7 +45,7 @@ Found November 18, 2026, in `bandit-bash/`:
 | **UL0 Style guide** ✅ ([ui-style.md](ui-style.md), November 18, 2026) | `docs/design/ui-style.md`: palette, two fonts, icon style, panel and button styles, spacing, focus look on a pad, base resolution and scaling | — | The questions below |
 | **UL1 Shared theme** | One project theme with colour and size tokens and the fonts; the 53 scenes' overrides moved onto it; base resolution and scaling set | P07, P08 screens | UL0 |
 | **UL2 Board art** | Terrain from Godot_FE's tilemaps; a sprite for every unit and enemy class (reused, or one consistent placeholder); map objects, intents and signature moves as icons (most of RF-008) | P07, P04 | UL1 |
-| **UL3 HUD and unit detail** | A layout pass on the unit panel, forecast, turn bar, hint bar and menus, checked at the target sizes; the [unit detail pop-up](#unit-detail-pop-up); BUG-015 | P07 | UL1 |
+| **UL3 HUD and unit detail** | A layout pass on the unit panel, forecast, turn bar, hint bar and menus, checked at the target sizes; the forecast shows every hit of a multi-hit attack, not only the first (EN18: later hits on a stripped Braced unit deal more; P05 question 45); the [unit detail pop-up](#unit-detail-pop-up); BUG-015 | P07 | UL1 |
 | **UL4 Event log** | The [event log](#event-log) replaces the fact log | P07 | UL1 |
 | **UL5 Victory sequence** | The [staged victory overlay](#victory-sequence) replaces the Results screen | P08, P07 | UL1 |
 | **UL6 Combat feedback** | Hit, crit, Block and Stance-break feedback, floating numbers, phase banners, playback pacing; tweens and existing art only | P07 | UL2 |
