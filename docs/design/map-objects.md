@@ -64,6 +64,27 @@ second attack system. Their rules below stay for later.
 - **Trigger:** using an object fires **Object used**, so traits and heirlooms can reward it later.
 - **Co-op:** each player's parallel map has its own copy of every object.
 
+## Reachable maps
+
+The user's rule (November 18, 2026, BUG-013): **only optional content (shortcuts, loot) may sit
+behind a door that needs a key.** Every map must be finishable by an army with no key, no lockpick
+and no Thief. The map check (`MapCheck`, rule `REACHABILITY`) enforces it:
+
+- **The walk:** from the deployment zone, as the commander moves (Default movement: every other
+  unit can fall, and a lone commander must still finish the map). A lever door opens once a lever
+  of its group is reached; a passage links its two ends; debris and powder kegs stay solid, since
+  breaking them costs turns; units and the darkness don't count.
+- **Required, reached by that walk:** the Seize and Defend tiles, the leader slot, every
+  reinforcement point, every enemy slot on a Rout map, and every lever of every lever door. Defeat
+  the Leader or the Boss needs only the leader slot; Survive and Defend need no enemy, as ending
+  early is optional. A required tile the commander can't stand on (a point on a river) counts as
+  reached from next to it; other rules judge the tile itself.
+- **No trap:** either side can pull a lever, so an area reached only through a lever door must hold
+  a lever of that door's group, and a unit inside can always open its own way out (a lever on each
+  side, as the Gatehouse has).
+- Each failure names the tile and why: behind a key-only door, behind its own door, behind doors
+  whose levers can't be reached, only past breakables, walled off, or shut in by a lever.
+
 ## Enemy AI
 
 - Enemies use objects by the same ruthless rule: any kill first, friendly fire ignored. An enemy

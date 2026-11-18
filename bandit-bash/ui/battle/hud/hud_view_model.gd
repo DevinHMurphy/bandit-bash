@@ -6,7 +6,7 @@
 # File:     hud_view_model.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 15, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name HudViewModel
@@ -69,7 +69,9 @@ static func tile_view(session: CombatSession, tile: Vector2i) -> TileView:
 		# A standing breakable is the occupant already; a broken one is off the map.
 		if placed.is_destroyed or placed.id == view.occupant_id:
 			continue
-		view.object_names.append(BattleText.name_of(session, placed.id))
+		var object_name: String = BattleText.name_of(session, placed.id)
+		var note: String = BoardViewModel.object_note(session.state, placed)
+		view.object_names.append(object_name if note.is_empty() else "%s (%s)" % [object_name, note])
 	return view
 
 
@@ -232,7 +234,9 @@ class TileView:
 	var occupant_name: String = ""
 	## Its side; [constant CombatFact.CombatSide.NONE] for none or a breakable.
 	var occupant_side: CombatFact.CombatSide = CombatFact.CombatSide.NONE
-	## The names of the map objects on it besides the occupant, in spot order.
+	## The names of the map objects on it besides the occupant, in spot order, each with its state
+	## and link in brackets when it has one ([method BoardViewModel.object_note]), such as
+	## [code]Door (closed, lever A)[/code].
 	var object_names: PackedStringArray = []
 
 

@@ -6,21 +6,22 @@
 # File:     battle_view.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 15, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name BattleView
 extends Node2D
-## The battle board: the map scene for terrain, a [UnitToken] per unit with its [UnitInfo] on the
-## [UnitInfoLayer], the [DarknessOverlay], turn input's overlays, path and cursor, and the
-## [CameraRig], drawn from one [CombatSession] and animated by its facts.
+## The battle board: the map scene for terrain, a [MapObjectMark] per map object that isn't a
+## token, a [UnitToken] per unit with its [UnitInfo] on the [UnitInfoLayer], the
+## [DarknessOverlay], turn input's overlays, path and cursor, and the [CameraRig], drawn from one
+## [CombatSession] and animated by its facts.
 ##
 ## [method bind] builds the board from state ([BoardViewModel]); after that, facts reach it only
 ## through the session's [member CombatSession.playback], which [method advance] steps each frame:
 ## moves walk their path, damage, heal, Miss and Critical pop-ups rise on the info layer, a crit
 ## flashes its unit, defeated units fade out, tokens' HP, Stance, Block, Block ban (Haunted) and
-## turn follow their facts, spent units gray only in their side's phase, and a tile the darkness
-## deepens is redrawn.
+## turn follow their facts, spent units gray only in their side's phase, a tile the darkness
+## deepens is redrawn, and an object's mark follows its door, container or brazier changes.
 ## A hit's number is its damage past Block, overkill included, with a small Block number beside
 ## it for what Block absorbed (question 30 (c)). Each fact's wait is the time its animation
 ## takes. The board steps its own tweens with the same time, so a test can drive it frame by frame
@@ -88,8 +89,13 @@ const _ACTION_KINDS: Array[CombatFact.Kind] = [
 ## [b]Unset:[/b] no enemy is outlined; the objective panel still names them.
 @export var leader_mark_scene: PackedScene = null
 
+## The mark placed on each map object that isn't a token: doors, levers, chests, searchables,
+## passages and braziers ([MapObjectMark]), under the tokens.[br]
+## [b]Unset:[/b] no object is drawn; the tile panel still names them.
+@export var object_mark_scene: PackedScene = null
+
 ## Whether the map scene's marker layers and marker nodes (deployment tiles, enemy slots) show.
-## Off for play; on to check a map's authoring.
+## Off for play; on to check a map's authoring. Map objects draw as marks either way.
 @export var show_markers: bool = false
 
 @export_group("Framing")
@@ -252,8 +258,12 @@ var _skip_left: float = 0.0
 # The leader marks shown, by the marked enemy's id; each is a child of that enemy's token.
 var _leader_marks: Dictionary[String, LeaderMark] = {}
 
+# The mark of each map object drawn (BoardViewModel.is_drawn), by object id.
+var _object_marks: Dictionary[String, MapObjectMark] = {}
+
 @onready var _map_holder: Node2D = %MapHolder
 @onready var _darkness: DarknessOverlay = %DarknessOverlay
+@onready var _object_layer: Node2D = %Objects
 @onready var _seize_overlay: TileOverlay = %SeizeOverlay
 @onready var _defend_overlay: TileOverlay = %DefendOverlay
 @onready var _point_overlay: TileOverlay = %ReinforcementOverlay
@@ -300,6 +310,8 @@ func bind(session: CombatSession) -> void:
 	_phase_side = session.state.phase_side
 	_build_map(session.setup.map)
 	var model: BoardViewModel = BoardViewModel.build(session)
+	for object_view: BoardViewModel.ObjectView in model.objects:
+		_place_object_mark(object_view)
 	for view: BoardViewModel.UnitView in model.units:
 		_place_token(view)
 	_darkness.show_layers(model.darkness)
@@ -421,6 +433,18 @@ func token_of(unit_id: String) -> UnitToken:
 ## The ids of every unit with a token, sorted.
 func token_ids() -> PackedStringArray:
 	var ids: PackedStringArray = PackedStringArray(_tokens.keys())
+	ids.sort()
+	return ids
+
+
+## The mark of map object [param object_id]; null when it has none (a breakable, or none set).
+func object_mark_of(object_id: String) -> MapObjectMark:
+	return _object_marks.get(object_id, null)
+
+
+## The ids of every map object with a mark, sorted.
+func object_mark_ids() -> PackedStringArray:
+	var ids: PackedStringArray = PackedStringArray(_object_marks.keys())
 	ids.sort()
 	return ids
 
@@ -691,8 +715,8 @@ func map_rect() -> Rect2:
 
 ## How the board differs from the session's state, one line per difference: a unit with no token
 ## or a token with no unit, a token on the wrong tile or position, or showing the wrong HP, Stance,
-## Block, turn or phase, or its info drawing other HP or Stance than the token holds. Empty when
-## they agree. A staged walk's token ([method stage_walk]) is placed right on its staged tile once
+## Block, turn or phase, or its info drawing other HP or Stance than the token holds; a drawn map
+## object with no mark, or a mark off its tile or showing another state. Empty when they agree. A staged walk's token ([method stage_walk]) is placed right on its staged tile once
 ## it stands there, and anywhere while it walks; its tile must still be the unit's. For tests and
 ## debugging; meaningful once [method is_settled].
 func mismatches() -> PackedStringArray:
@@ -739,6 +763,8 @@ func mismatches() -> PackedStringArray:
 	for unit_id: String in _tokens:
 		if not state.has_unit(unit_id):
 			found.append("%s has a token but is not on the map" % [unit_id])
+	if object_mark_scene != null:
+		found.append_array(_object_mismatches(state))
 	return found
 
 
@@ -754,6 +780,10 @@ func _clear_board() -> void:
 	_tokens.clear()
 	_block_bans.clear()
 	_leader_marks.clear()
+	_object_marks.clear()
+	for child: Node in _object_layer.get_children():
+		_object_layer.remove_child(child)
+		child.queue_free()
 	_info_layer.clear()
 	clear_target_marks()
 	for overlay: TileOverlay in [_seize_overlay, _defend_overlay, _point_overlay]:
@@ -811,6 +841,38 @@ func _tile_size() -> Vector2:
 	return Vector2(_terrain.tile_set.tile_size)
 
 
+func _place_object_mark(view: BoardViewModel.ObjectView) -> void:
+	if object_mark_scene == null:
+		return
+	var mark: MapObjectMark = object_mark_scene.instantiate()
+	_object_layer.add_child(mark)
+	mark.show_object(view, tile_to_position(view.tile))
+	_object_marks[view.id] = mark
+
+
+# Each drawn object of state with no mark, or a mark off its tile or showing another state.
+func _object_mismatches(state: CombatState) -> PackedStringArray:
+	var found: PackedStringArray = []
+	for view: BoardViewModel.ObjectView in BoardViewModel.objects_of(state):
+		var mark: MapObjectMark = object_mark_of(view.id)
+		if mark == null or mark.view == null:
+			found.append("%s has no mark" % [view.id])
+			continue
+		var shown: BoardViewModel.ObjectView = mark.view
+		if not mark.position.is_equal_approx(tile_to_position(view.tile)):
+			found.append("%s's mark is at %s, not on %s" % [view.id, mark.position, view.tile])
+		if (
+				shown.is_open != view.is_open
+				or shown.is_used != view.is_used
+				or shown.is_lit != view.is_lit
+		):
+			found.append("%s's mark shows open %s, used %s, lit %s; is %s, %s, %s" % [
+				view.id, shown.is_open, shown.is_used, shown.is_lit,
+				view.is_open, view.is_used, view.is_lit,
+			])
+	return found
+
+
 func _place_token(view: BoardViewModel.UnitView) -> void:
 	if token_scene == null:
 		push_error("BattleView: no token scene set")
@@ -865,6 +927,7 @@ func _bus_links(bus: CombatBus) -> Array[Array]:
 		[bus.effect.modifier_expired, _on_effect_modifier_expired],
 		[bus.flow.phase_started, _on_flow_phase_started],
 		[bus.world.darkness_advanced, _on_world_darkness_advanced],
+		[bus.world.object_state_changed, _on_world_object_state_changed],
 		[bus.fact_played, _on_fact_played],
 	]
 	return links
@@ -1350,6 +1413,32 @@ func _on_world_darkness_advanced(fact: CombatFact) -> void:
 	if layer <= WhileLayerCondition.Layer.DRY:
 		layer = _session.state.map.darkness.layer_at(fact.tile)
 	_darkness.show_layer(fact.tile, layer)
+
+
+# A door opened or closed, a container opened or searched, a brazier lit or doused: its mark shows
+# the fact's change (MapObjects.Change) at once, with no wait. Other changes draw no mark.
+func _on_world_object_state_changed(fact: CombatFact) -> void:
+	var mark: MapObjectMark = object_mark_of(fact.actor_id)
+	if mark == null or mark.view == null:
+		return
+	var shown: BoardViewModel.ObjectView = mark.view
+	match fact.key:
+		MapObjects.Change.OPENED:
+			if shown.kind == MapLayout.ObjectKind.DOOR:
+				shown.is_open = true
+			else:
+				shown.is_used = true
+		MapObjects.Change.CLOSED:
+			shown.is_open = false
+		MapObjects.Change.SEARCHED:
+			shown.is_used = true
+		MapObjects.Change.LIT:
+			shown.is_lit = true
+		MapObjects.Change.DOUSED:
+			shown.is_lit = false
+		_:
+			return
+	mark.refresh()
 
 
 func _on_camera_rig_framed() -> void:

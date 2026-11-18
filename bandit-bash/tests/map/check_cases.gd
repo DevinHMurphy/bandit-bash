@@ -6,7 +6,7 @@
 # File:     check_cases.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 4, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -18,7 +18,8 @@ extends RefCounted
 ## check looks at: 8 deployment tiles, a reinforcement point, a two-door lever group, a door no
 ## lever pulls (a lockpick opens it), a passage pair, 3 powder kegs and 2 containers, and no turn
 ## par, so no darkness; the darkness cases give it a par and source candidates. Each bad fixture
-## changes one thing.
+## changes one thing. The reachability cases wall in a one-tile room at (8, 2) and change how it
+## is entered.
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
 
@@ -37,6 +38,11 @@ const RIVER: Vector2i = Vector2i(5, 0)
 
 # A free plain tile the bad fixtures add their marker on.
 const SPARE: Vector2i = Vector2i(7, 1)
+
+# The reachability cases' walled room and the one wall tile a door or debris may replace.
+const ROOM: Vector2i = Vector2i(8, 2)
+const ROOM_DOOR: Vector2i = Vector2i(8, 3)
+const REACH: MapCheck.Rule = MapCheck.Rule.REACHABILITY
 
 var _check: Callable
 var _terrains: Dictionary[String, MapLayout.Terrain] = {}
@@ -62,6 +68,7 @@ func run() -> void:
 	_test_lever_group()
 	_test_passage_pair()
 	_test_darkness_sources()
+	_test_reachability()
 
 
 func _test_m1_passes() -> void:
@@ -359,6 +366,105 @@ func _test_darkness_sources() -> void:
 			undrained.is_empty(),
 			MapCheck.describe(undrained)
 	)
+
+
+# The reachability cases wall in ROOM, a one-tile room at (8, 2), leaving the wall at ROOM_DOOR
+# (8, 3) open only where a case puts a door or debris; each changes one thing.
+func _test_reachability() -> void:
+	var own: MapLayout = _room_layout(true)
+	_spot(own, ROOM_DOOR, DOOR, 7)
+	_spot(own, ROOM, LEVER, 7)
+	own.index_markers()
+	_only("reach: a lever behind its own door", own, _definition(), REACH, [ROOM])
+	_same(
+			"reach: says the lever is behind its own door",
+			MapCheck.describe(MapCheck.check(_definition(), own)),
+			"REACHABILITY at (8, 2): lever of group 7 is behind its own door (group 7)"
+	)
+
+	var seize: CombatMapDefinition = _definition(CombatMapDefinition.Objective.SEIZE)
+	var keyed: MapLayout = _room_layout(true)
+	_spot(keyed, ROOM_DOOR, DOOR)
+	keyed.add_marker(MapLayout.MarkerKind.SEIZE, ROOM)
+	keyed.index_markers()
+	_only("reach: an objective behind a key-only door", keyed, seize, REACH, [ROOM])
+	_same(
+			"reach: names the key-only door",
+			MapCheck.describe(MapCheck.check(seize, keyed)),
+			"REACHABILITY at (8, 2): the seize tile is behind key-only door at (8, 3)"
+	)
+	var chest: MapLayout = _room_layout(true)
+	_spot(chest, ROOM_DOOR, DOOR)
+	_spot(chest, ROOM, MapLayout.ObjectKind.BOOK_SHELF)
+	chest.index_markers()
+	var looted: Array[MapCheck.Failure] = MapCheck.check(_definition(), chest)
+	_ok("reach: loot behind a key-only door passes", looted.is_empty(), MapCheck.describe(looted))
+
+	var walled: MapLayout = _room_layout(false)
+	walled.add_marker(MapLayout.MarkerKind.ENEMY_SLOT, ROOM)
+	walled.index_markers()
+	_only("reach: an enemy slot walled off", walled, _definition(), REACH, [ROOM])
+	_same(
+			"reach: says the slot is walled off",
+			MapCheck.describe(MapCheck.check(_definition(), walled)),
+			"REACHABILITY at (8, 2): an enemy slot is walled off"
+	)
+	var survive: Array[MapCheck.Failure] = MapCheck.check(_definition(SURVIVE), walled)
+	_ok(
+			"reach: Survive needs no enemy slot reached",
+			survive.is_empty(),
+			MapCheck.describe(survive)
+	)
+
+	var trap: MapLayout = _room_layout(true)
+	_spot(trap, ROOM_DOOR, DOOR, 7)
+	_spot(trap, Vector2i(6, 6), LEVER, 7)
+	trap.index_markers()
+	_only("reach: a lever door with no lever on its far side", trap, _definition(), REACH, [ROOM])
+	_same(
+			"reach: says who is shut in",
+			MapCheck.describe(MapCheck.check(_definition(), trap)),
+			"REACHABILITY at (8, 2): shut in when group 7's doors close: no lever of the group on"
+					+ " this side"
+	)
+	var both: MapLayout = _room_layout(true)
+	_spot(both, ROOM_DOOR, DOOR, 7)
+	_spot(both, Vector2i(6, 6), LEVER, 7)
+	_spot(both, ROOM, LEVER, 7)
+	both.index_markers()
+	var sided: Array[MapCheck.Failure] = MapCheck.check(_definition(), both)
+	_ok("reach: a lever on each side passes", sided.is_empty(), MapCheck.describe(sided))
+
+	var tunnel: MapLayout = _room_layout(false)
+	_spot(tunnel, ROOM, PASSAGE, -1, 1)
+	_spot(tunnel, Vector2i(6, 6), PASSAGE, -1, 1)
+	tunnel.add_marker(MapLayout.MarkerKind.ENEMY_SLOT, ROOM)
+	tunnel.index_markers()
+	var passed: Array[MapCheck.Failure] = MapCheck.check(_definition(), tunnel)
+	_ok("reach: a passage is a route", passed.is_empty(), MapCheck.describe(passed))
+
+	var debris: MapLayout = _room_layout(true)
+	_spot(debris, ROOM_DOOR, MapLayout.ObjectKind.WOODEN_DEBRIS)
+	debris.add_marker(MapLayout.MarkerKind.ENEMY_SLOT, ROOM)
+	debris.index_markers()
+	_only("reach: debris is not a route", debris, _definition(), REACH, [ROOM])
+	_same(
+			"reach: says it takes breaking",
+			MapCheck.describe(MapCheck.check(_definition(), debris)),
+			"REACHABILITY at (8, 2): an enemy slot is reached only by breaking debris or a"
+					+ " powder keg"
+	)
+
+
+# The good fixture, unindexed, with walls around ROOM; ROOM_DOOR stays plain when has_gap.
+func _room_layout(has_gap: bool) -> MapLayout:
+	var layout: MapLayout = _good_layout(false)
+	for y: int in range(ROOM.y - 1, ROOM.y + 2):
+		for x: int in range(ROOM.x - 1, ROOM.x + 2):
+			var tile: Vector2i = Vector2i(x, y)
+			if tile != ROOM and not (has_gap and tile == ROOM_DOOR):
+				layout.set_terrain(tile, _terrain("wall"))
+	return layout
 
 
 # The good fixture with the two darkness candidates of _test_darkness_sources(), plus extra

@@ -49,7 +49,7 @@ pacing, readability).
 | RF-005 | November 15, 2026 (enemy-packs.md decision 5) | Enemies | Balance | The first 2 standard combats of each step draw the basic pool | Tune the 2 in play | Open | M2 | — |
 | RF-006 | November 16, 2026 (P03 question 8) | Economy | Balance | Modified-item point values: AtkX 3, Range 2, weight −0.25 (`# ASSUMPTION` in `prices.gd`) | Tune once events modify items in play | Open | M3 | — |
 | RF-007 | November 16, 2026 (UI13 report) | Runes | Feature | A rune can only be cast from a unit's own menu, so once every unit has acted none can be cast; the vision puts runes outside the action economy | A battle-level Runes entry (key, pad button, HUD button) usable at any time in the player phase (proposed P07 UI14) | Open | M2 | — |
-| RF-008 | November 15–17, 2026 (UI12, UI13, EN7 reports) | UI | Feel | Placeholder glyphs and colours: "¤" object intent, "Ø" Block ban, "§" signature, gold Recall pick, the rune preview's "Now / After" | Replace in the art pass, or confirm | Open | Later | — |
+| RF-008 | November 15–18, 2026 (UI12, UI13, EN7, MP12 reports) | UI | Feel | Placeholder glyphs and colours: "¤" object intent, "Ø" Block ban, "§" signature, gold Recall pick, the rune preview's "Now / After"; the board's map-object symbols and their dimmed spent look (MP12, `map_object_mark.gd`) | Replace in the art pass, or confirm | Open | Later | — |
 | RF-009 | November 5, 2026 (M1) | All | Balance | M1's tuning pass was deferred to M2's playtest | Fold into the first rebalance pass | Open | M2 | — |
 
 ## Rebalance passes

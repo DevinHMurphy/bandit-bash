@@ -6,7 +6,7 @@
 # File:     gen_maps.gd
 # Author:
 # Created:  November 16, 2026
-# Modified: November 16, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -398,6 +398,8 @@ func _standard_maps() -> Array[MapSpec]:
 			[6, 2, ""], [8, 2, ""]])
 	old_mill.door(Vector2i(3, 4), 0)
 	old_mill.lever(Vector2i(5, 1), 0)
+	# Inside the mill, so a unit shut in by the lever outside can open its way out.
+	old_mill.lever(Vector2i(2, 3), 0)
 	old_mill.sources([[3, 7, 0], [0, 5, 1], [0, 6, 1], [9, 7, 2]])
 
 	var chapel: MapSpec = MapSpec.standard("ruined_chapel", "RuinedChapel", ROUT, 5, ROUT_PAR_NOTE)
@@ -471,6 +473,8 @@ func _standard_maps() -> Array[MapSpec]:
 			[8, 2, ""], [1, 4, ""]])
 	post.door(Vector2i(4, 2), 0)
 	post.lever(Vector2i(7, 3), 0)
+	# Inside the leader's room, so a unit shut in by the lever outside can open its way out.
+	post.lever(Vector2i(4, 1), 0)
 	post.sources([[0, 5, 0], [0, 6, 0], [8, 5, 1], [8, 6, 1]])
 	return [crossroads, river_ford, old_mill, chapel, camp, post]
 
