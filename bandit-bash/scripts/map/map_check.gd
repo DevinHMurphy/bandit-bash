@@ -6,7 +6,7 @@
 # File:     map_check.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 4, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name MapCheck
@@ -52,6 +52,10 @@ enum Rule {
 	## [constant MIN_SOURCE_CANDIDATES] source candidates, or a candidate with no floodable tile as
 	## the battle starts; that failure names the candidate's first tile.
 	DARKNESS_SOURCES = 10,
+	## A required tile or a lever of a lever door the commander can't reach from the deployment
+	## zone with no key, or an area behind a lever door with no lever of its group to get out by
+	## ([method _check_reachability]). Names the tile and why.
+	REACHABILITY = 11,
 }
 
 ## The fewest deployment tiles a map may author: the army-size ceiling (game-vision.md, Combat
@@ -73,6 +77,13 @@ const OBJECTIVE_MARKERS: Dictionary[CombatMapDefinition.Objective, MapLayout.Mar
 	CombatMapDefinition.Objective.DEFEND: MapLayout.MarkerKind.DEFEND,
 }
 
+## The movement type [constant Rule.REACHABILITY] walks with: the commander's (Drengr's), since
+## every other unit can fall and a lone commander must still be able to finish the map.
+const REACH_MOVEMENT: CombatGrid.MovementType = CombatGrid.MovementType.DEFAULT
+
+# Marks "no lever group" where a group id is expected.
+const _NO_GROUP: int = -1
+
 const _DOOR: MapLayout.ObjectKind = MapLayout.ObjectKind.DOOR
 const _LEVER: MapLayout.ObjectKind = MapLayout.ObjectKind.LEVER
 const _PASSAGE: MapLayout.ObjectKind = MapLayout.ObjectKind.PASSAGE
@@ -93,6 +104,7 @@ static func check(definition: CombatMapDefinition, layout: MapLayout) -> Array[F
 	_check_lever_groups(layout, failures)
 	_check_passages(layout, failures)
 	_check_darkness_sources(definition, layout, failures)
+	_check_reachability(definition, layout, failures)
 	return failures
 
 
@@ -267,6 +279,86 @@ static func _check_darkness_sources(
 			))
 
 
+## Only optional content (shortcuts, loot) may sit behind a door that needs a key
+## (map-objects.md, Reachable maps). Walking as [constant REACH_MOVEMENT] from the deployment zone,
+## with no key and nothing broken, a lever door opening once a lever of its group is reached and
+## passages linking their ends: every required tile ([method _required]) and every lever of a lever
+## door is reached; and each area reached only through a lever door holds a lever of its group,
+## since either side can pull a lever to shut a unit in.
+static func _check_reachability(
+		definition: CombatMapDefinition, layout: MapLayout, failures: Array[Failure]
+) -> void:
+	var walk: ReachWalk = ReachWalk.new(layout)
+	# No objective to read, or no zone to walk from: OBJECTIVE_TILE or DEPLOYMENT_TILES says so.
+	if definition == null or walk.origins.is_empty():
+		return
+	var opened: Dictionary[int, bool] = {}
+	var reached: Dictionary[Vector2i, bool] = walk.flood(walk.origins, opened)
+	for marker: MapLayout.Marker in _required(definition, layout):
+		if not walk.is_reached(marker.tile, reached):
+			failures.append(Failure.new(
+					Rule.REACHABILITY,
+					"%s is %s" % [_required_name(marker), walk.why(marker.tile, opened, -1)],
+					marker.tile
+			))
+	for lever: MapLayout.Marker in walk.levers:
+		if not reached.has(lever.tile):
+			failures.append(Failure.new(
+					Rule.REACHABILITY,
+					"lever of group %d is %s" % [
+						lever.group_id, walk.why(lever.tile, opened, lever.group_id),
+					],
+					lever.tile
+			))
+	var groups: Array[int] = []
+	groups.assign(opened.keys())
+	groups.sort()
+	for group_id: int in groups:
+		for tile: Vector2i in walk.shut_in(reached, opened, group_id):
+			failures.append(Failure.new(
+					Rule.REACHABILITY,
+					"shut in when group %d's doors close: no lever of the group on this side"
+							% [group_id],
+					tile
+			))
+
+
+# The markers the objective needs reached, in marker order: Seize and Defend tiles, leader slots
+# and reinforcement points on every map, and on Rout every enemy slot. Defeat the Leader or the
+# Boss needs only the leader slot; Survive and Defend need no enemy, as ending early is optional.
+static func _required(
+		definition: CombatMapDefinition, layout: MapLayout
+) -> Array[MapLayout.Marker]:
+	var kinds: Array[MapLayout.MarkerKind] = [
+		MapLayout.MarkerKind.SEIZE,
+		MapLayout.MarkerKind.DEFEND,
+		MapLayout.MarkerKind.LEADER_SLOT,
+		MapLayout.MarkerKind.REINFORCEMENT_POINT,
+	]
+	if definition.objective == CombatMapDefinition.Objective.ROUT:
+		kinds.append(MapLayout.MarkerKind.ENEMY_SLOT)
+	var found: Array[MapLayout.Marker] = []
+	for marker: MapLayout.Marker in layout.markers:
+		if kinds.has(marker.kind):
+			found.append(marker)
+	return found
+
+
+# A required marker in failure text, such as "the seize tile" or "point 1"; enemy slots carry no
+# index, so the failure's tile tells them apart.
+static func _required_name(marker: MapLayout.Marker) -> String:
+	match marker.kind:
+		MapLayout.MarkerKind.SEIZE:
+			return "the seize tile"
+		MapLayout.MarkerKind.DEFEND:
+			return "the defend tile"
+		MapLayout.MarkerKind.LEADER_SLOT:
+			return "the leader slot"
+		MapLayout.MarkerKind.REINFORCEMENT_POINT:
+			return "point %d" % [marker.index]
+	return "an enemy slot"
+
+
 # A marker in failure text: its object kind for an object spot, else its marker kind.
 static func _name_of(marker: MapLayout.Marker) -> String:
 	if marker.kind == MapLayout.MarkerKind.OBJECT_SPOT:
@@ -302,3 +394,219 @@ class Failure:
 		if has_tile:
 			return "%s at %s: %s" % [rule_name, tile, detail]
 		return "%s: %s" % [rule_name, detail]
+
+
+## The walk [constant Rule.REACHABILITY] makes over one map: [constant REACH_MOVEMENT]'s terrain,
+## closed doors and standing breakables solid, a passage end linked to its pair's other end. Reads
+## the layout only; units and the darkness don't count.
+class ReachWalk:
+	extends RefCounted
+
+	## The deployment tiles every walk from the zone starts on, in marker order.
+	var origins: Array[Vector2i] = []
+	## Each lever whose group has a door, in marker order.
+	var levers: Array[MapLayout.Marker] = []
+
+	var _grid: MapGrid = null
+	# Each door tile's lever group; _NO_GROUP for a key-only door.
+	var _doors: Dictionary[Vector2i, int] = {}
+	# Each tile a breakable (debris, powder keg) stands on.
+	var _breakables: Dictionary[Vector2i, bool] = {}
+	# Each passage end's other end, for the pairs with exactly two ends.
+	var _passages: Dictionary[Vector2i, Vector2i] = {}
+
+	func _init(layout: MapLayout) -> void:
+		_grid = MapGrid.new(layout)
+		origins = layout.tiles_of(MapLayout.MarkerKind.DEPLOYMENT)
+		# Untyped values: typed collections can't nest. Each holds a pair's end tiles.
+		var ends: Dictionary[int, Array] = {}
+		var spots: Array[MapLayout.Marker] = layout.markers_of(MapLayout.MarkerKind.OBJECT_SPOT)
+		for marker: MapLayout.Marker in spots:
+			if marker.object_kind == _DOOR:
+				_doors[marker.tile] = marker.group_id if marker.group_id >= 0 else _NO_GROUP
+			elif marker.object_kind == _PASSAGE and marker.pair_id >= 0:
+				if not ends.has(marker.pair_id):
+					ends[marker.pair_id] = []
+				ends[marker.pair_id].append(marker.tile)
+			elif MapObjects.BREAKABLE_STATS.has(marker.object_kind):
+				_breakables[marker.tile] = true
+		for pair_id: int in ends:
+			if ends[pair_id].size() == 2:
+				_passages[ends[pair_id][0] as Vector2i] = ends[pair_id][1] as Vector2i
+				_passages[ends[pair_id][1] as Vector2i] = ends[pair_id][0] as Vector2i
+		for marker: MapLayout.Marker in spots:
+			if (
+					marker.object_kind == _LEVER
+					and marker.group_id >= 0
+					and _doors.values().has(marker.group_id)
+			):
+				levers.append(marker)
+
+	## Every tile reached from [param from]. [param opened]: the lever groups whose doors are open;
+	## it grows by each group a reached lever opens, except [param closed_group], kept shut.
+	## [param extra]: door and breakable tiles counted open.
+	func flood(
+			from: Array[Vector2i],
+			opened: Dictionary[int, bool],
+			closed_group: int = _NO_GROUP,
+			extra: Dictionary[Vector2i, bool] = {}
+	) -> Dictionary[Vector2i, bool]:
+		var reached: Dictionary[Vector2i, bool] = _spread(from, opened, closed_group, extra)
+		while _pull_reached(reached, opened, closed_group):
+			reached = _spread(from, opened, closed_group, extra)
+		return reached
+
+	## Whether [param tile] is in [param reached], or, on terrain the commander can't stand on
+	## (an enemy on a wall, a point on a river), next to a tile in it: other rules judge the tile.
+	func is_reached(tile: Vector2i, reached: Dictionary[Vector2i, bool]) -> bool:
+		if reached.has(tile) or _grid.can_stand(tile, REACH_MOVEMENT):
+			return reached.has(tile)
+		for direction: Vector2i in CombatGrid.DIRECTIONS:
+			if reached.has(tile + direction):
+				return true
+		return false
+
+	## Why the walk from the zone doesn't reach [param tile], with [param opened] the groups it
+	## opened: the first of a key-only door, the doors of a group whose levers it can't reach,
+	## breakables, or walls. [param own_group]: a lever's group, whose tile must be stood on;
+	## [constant _NO_GROUP] for a required tile.
+	func why(tile: Vector2i, opened: Dictionary[int, bool], own_group: int) -> String:
+		var must_stand: bool = own_group != _NO_GROUP
+		var key_doors: Dictionary[Vector2i, bool] = {}
+		var group_ids: Array[int] = []
+		for door: Vector2i in _sorted(_doors.keys()):
+			if _doors[door] == _NO_GROUP:
+				key_doors[door] = true
+			elif not opened.has(_doors[door]) and not group_ids.has(_doors[door]):
+				group_ids.append(_doors[door])
+		for door: Vector2i in key_doors:
+			if _reaches(tile, must_stand, opened, {door: true}):
+				return "behind key-only door at %s" % [door]
+		if not key_doors.is_empty() and _reaches(tile, must_stand, opened, key_doors):
+			return "behind key-only doors"
+		group_ids.sort()
+		for group_id: int in group_ids:
+			var with_group: Dictionary[int, bool] = opened.duplicate()
+			with_group[group_id] = true
+			if _reaches(tile, must_stand, with_group, {}):
+				if group_id == own_group:
+					return "behind its own door (group %d)" % [group_id]
+				return "behind the doors of group %d, whose levers can't be reached" % [group_id]
+		var every_door: Dictionary[Vector2i, bool] = {}
+		for door: Vector2i in _doors:
+			every_door[door] = true
+		if _reaches(tile, must_stand, opened, every_door):
+			return "behind doors no reachable lever opens"
+		var everything: Dictionary[Vector2i, bool] = every_door.duplicate()
+		for breakable: Vector2i in _breakables:
+			everything[breakable] = true
+		if _reaches(tile, must_stand, opened, everything):
+			return "reached only by breaking debris or a powder keg"
+		return "walled off"
+
+	## The first tile, row-major, of each area of [param reached] that only group
+	## [param group_id]'s doors lead to and that holds no lever of the group: a unit there is shut
+	## in when either side closes them. [param opened]: the groups the walk opened.
+	func shut_in(
+			reached: Dictionary[Vector2i, bool], opened: Dictionary[int, bool], group_id: int
+	) -> Array[Vector2i]:
+		var others: Dictionary[int, bool] = opened.duplicate()
+		others.erase(group_id)
+		var outside: Dictionary[Vector2i, bool] = flood(origins, others.duplicate(), group_id)
+		var far: Array[Vector2i] = []
+		for tile: Vector2i in reached:
+			if not outside.has(tile) and _doors.get(tile, _NO_GROUP) != group_id:
+				far.append(tile)
+		far.sort_custom(MapLayout.is_before)
+		var seen: Dictionary[Vector2i, bool] = {}
+		var found: Array[Vector2i] = []
+		for tile: Vector2i in far:
+			if seen.has(tile):
+				continue
+			var area: Dictionary[Vector2i, bool] = flood([tile], others.duplicate(), group_id)
+			seen.merge(area)
+			var has_lever: bool = false
+			for lever: MapLayout.Marker in levers:
+				has_lever = has_lever or (lever.group_id == group_id and area.has(lever.tile))
+			if not has_lever:
+				found.append(tile)
+		return found
+
+	# Whether the walk from the zone with opened and extra reaches tile (standing on it when
+	# must_stand).
+	func _reaches(
+			tile: Vector2i,
+			must_stand: bool,
+			opened: Dictionary[int, bool],
+			extra: Dictionary[Vector2i, bool]
+	) -> bool:
+		var reached: Dictionary[Vector2i, bool] = flood(
+				origins, opened.duplicate(), _NO_GROUP, extra
+		)
+		return reached.has(tile) if must_stand else is_reached(tile, reached)
+
+	# Opens the group of each lever in reached not yet open (never closed_group); whether any was.
+	func _pull_reached(
+			reached: Dictionary[Vector2i, bool], opened: Dictionary[int, bool], closed_group: int
+	) -> bool:
+		var grew: bool = false
+		for lever: MapLayout.Marker in levers:
+			var group_id: int = lever.group_id
+			if reached.has(lever.tile) and group_id != closed_group and not opened.has(group_id):
+				opened[group_id] = true
+				grew = true
+		return grew
+
+	# Every tile reached from `from` over open tiles, through orthogonal steps and passages.
+	func _spread(
+			from: Array[Vector2i],
+			opened: Dictionary[int, bool],
+			closed_group: int,
+			extra: Dictionary[Vector2i, bool]
+	) -> Dictionary[Vector2i, bool]:
+		var reached: Dictionary[Vector2i, bool] = {}
+		var frontier: Array[Vector2i] = []
+		for tile: Vector2i in from:
+			if not reached.has(tile) and _is_open(tile, opened, closed_group, extra):
+				reached[tile] = true
+				frontier.append(tile)
+		while not frontier.is_empty():
+			var tile: Vector2i = frontier.pop_back()
+			var nexts: Array[Vector2i] = []
+			for direction: Vector2i in CombatGrid.DIRECTIONS:
+				nexts.append(_grid.step(tile, direction))
+			if _passages.has(tile):
+				nexts.append(_passages[tile])
+			for next: Vector2i in nexts:
+				if next == CombatFact.NO_TILE or reached.has(next):
+					continue
+				if _is_open(next, opened, closed_group, extra):
+					reached[next] = true
+					frontier.append(next)
+		return reached
+
+	# Whether the commander may stand on tile: its terrain allows it, and it holds no breakable
+	# and no closed door, unless extra opens it.
+	func _is_open(
+			tile: Vector2i,
+			opened: Dictionary[int, bool],
+			closed_group: int,
+			extra: Dictionary[Vector2i, bool]
+	) -> bool:
+		if not _grid.can_stand(tile, REACH_MOVEMENT):
+			return false
+		if extra.has(tile):
+			return true
+		if _breakables.has(tile):
+			return false
+		if _doors.has(tile):
+			var group_id: int = _doors[tile]
+			return group_id != _NO_GROUP and group_id != closed_group and opened.has(group_id)
+		return true
+
+	# tiles, typed and sorted row-major. Untyped parameter: Dictionary.keys() is untyped.
+	static func _sorted(tiles: Array) -> Array[Vector2i]:
+		var sorted: Array[Vector2i] = []
+		sorted.assign(tiles)
+		sorted.sort_custom(MapLayout.is_before)
+		return sorted

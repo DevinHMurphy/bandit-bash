@@ -69,6 +69,12 @@ script = ExtResource("2_8csm2")
 kind = 2
 group_id = 0
 
+[node name="Lever2" type="Node2D" parent="Objects" unique_id=1838043621]
+position = Vector2(144, 48)
+script = ExtResource("2_8csm2")
+kind = 2
+group_id = 0
+
 [node name="DarknessSources" type="Node2D" parent="." unique_id=1640338084]
 
 [node name="DarknessSource1" type="Node2D" parent="DarknessSources" unique_id=812929176]

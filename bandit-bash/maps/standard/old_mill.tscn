@@ -69,6 +69,12 @@ script = ExtResource("2_iwntn")
 kind = 2
 group_id = 0
 
+[node name="Lever2" type="Node2D" parent="Objects" unique_id=497521137]
+position = Vector2(80, 112)
+script = ExtResource("2_iwntn")
+kind = 2
+group_id = 0
+
 [node name="DarknessSources" type="Node2D" parent="." unique_id=743151943]
 
 [node name="DarknessSource1" type="Node2D" parent="DarknessSources" unique_id=1025730468]
