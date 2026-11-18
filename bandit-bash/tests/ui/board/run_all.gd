@@ -6,13 +6,13 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 16, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends "res://tests/ui/ui_suite.gd"
-## Combat UI board suite (combat UI plan, P07): the board, enemy information and the unit info
-## layer, a cases file each in [code]tests/ui/battle/[/code] (preloaded below; each one's class
-## doc lists its checks); then the gameplay screen itself: a run saved mid-battle and continued
+## Combat UI board suite (combat UI plan, P07): the board, the map object marks, enemy information
+## and the unit info layer, a cases file each in [code]tests/ui/battle/[/code] (preloaded below;
+## each one's class doc lists its checks); then the gameplay screen itself: a run saved mid-battle and continued
 ## opens on the board at its saved state; a new solo run's first battle played to its end, the
 ## control hints showing PLAYBACK through its final playback until the end banner, its Victory or
 ## Defeat banner, and the route to Results. The shared helpers are
@@ -26,9 +26,10 @@ extends "res://tests/ui/ui_suite.gd"
 ## the scene change. The continue and routing cases need a test user folder (see the base).
 
 # The test report's line on this suite; tools/run_tests.sh reads it from this one line.
-const SUITE_DESCRIPTION: String = "Combat board, enemy intents, unit info; continue and routing"
+const SUITE_DESCRIPTION: String = "Combat board, object marks, intents, unit info; continue, routing"
 
 const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
+const ObjectMarkCases = preload("res://tests/ui/battle/board/object_mark_cases.gd")
 const IntentCases = preload("res://tests/ui/battle/intents/intent_cases.gd")
 const UnitInfoCases = preload("res://tests/ui/battle/unit/unit_info_cases.gd")
 
@@ -64,6 +65,8 @@ func _process(_delta: float) -> bool:
 		_start("Combat UI tests: board")
 		GroupClock.lap("battle_view_cases")
 		BattleViewCases.new(_check, root).run()
+		GroupClock.lap("object_mark_cases")
+		ObjectMarkCases.new(_check, root).run()
 		GroupClock.lap("intent_cases")
 		IntentCases.new(_check, root).run()
 		GroupClock.lap("unit_info_cases")

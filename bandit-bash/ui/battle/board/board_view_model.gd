@@ -6,13 +6,14 @@
 # File:     board_view_model.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 15, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name BoardViewModel
 extends RefCounted
 ## What the battle board draws, as plain data read from a [CombatSession]: each unit on the map,
-## with its HP, Stance, Block and turn, and each flooded tile's darkness layer.
+## with its HP, Stance, Block and turn, each flooded tile's darkness layer, and each map object
+## that isn't a token, with its state and the tag linking a lever to its doors and a passage's ends.
 ##
 ## Built by [method build] and read by [BattleView]; widgets draw it and hold no rules. Reading
 ## only: nothing here changes the session. Tests check it without rendering (combat UI plan,
@@ -26,6 +27,9 @@ var units: Array[UnitView] = []
 ## Each flooded tile's layer, a [enum WhileLayerCondition.Layer]; a dry tile is absent.
 var darkness: Dictionary[Vector2i, int] = {}
 
+## Each map object drawn as a mark ([method is_drawn]), in id order.
+var objects: Array[ObjectView] = []
+
 
 ## The board of [param session] as it stands now.
 static func build(session: CombatSession) -> BoardViewModel:
@@ -33,7 +37,83 @@ static func build(session: CombatSession) -> BoardViewModel:
 	for unit_id: String in session.state.unit_ids():
 		model.units.append(unit_view(session, unit_id))
 	model.darkness = darkness_of(session.state)
+	model.objects = objects_of(session.state)
 	return model
+
+
+## Whether a [MapObjectMark] draws objects of [param kind]: every kind but the breakables
+## (debris, powder kegs), which stand on the map as units and draw as tokens.
+static func is_drawn(kind: MapLayout.ObjectKind) -> bool:
+	return kind != MapLayout.ObjectKind.NONE and not MapObjects.BREAKABLE_STATS.has(kind)
+
+
+## Each object of [param state] a mark draws ([method is_drawn]), in id order.
+static func objects_of(state: CombatState) -> Array[ObjectView]:
+	var ids: Array[String] = []
+	ids.assign(state.map.objects.keys())
+	ids.sort()
+	var views: Array[ObjectView] = []
+	for object_id: String in ids:
+		var placed: MapState.ObjectState = state.map.objects[object_id]
+		if is_drawn(placed.kind) and not placed.is_destroyed:
+			views.append(object_view(state, placed))
+	return views
+
+
+## [param placed] of [param state] as its mark draws it.
+static func object_view(state: CombatState, placed: MapState.ObjectState) -> ObjectView:
+	var view: ObjectView = ObjectView.new()
+	view.id = placed.id
+	view.kind = placed.kind
+	view.tile = placed.tile
+	view.is_open = placed.is_open
+	view.is_used = placed.is_used
+	view.is_lit = placed.is_lit
+	view.group_id = placed.group_id
+	view.pair_id = placed.pair_id
+	view.tag = tag_of(placed)
+	if placed.kind == MapLayout.ObjectKind.PASSAGE:
+		var other: MapState.ObjectState = MapObjects.other_end(state, placed)
+		if other != null:
+			view.other_end = other.tile
+	return view
+
+
+## The short tag a mark shows to link objects: the lever group's letter on a lever and its doors
+## ([code]A[/code] for group 0), the pair's number on both ends of a passage ([code]1[/code] for
+## pair 0); empty for anything else, a key-only door included.
+static func tag_of(placed: MapState.ObjectState) -> String:
+	match placed.kind:
+		MapLayout.ObjectKind.DOOR, MapLayout.ObjectKind.LEVER:
+			if placed.group_id >= 0:
+				return String.chr("A".unicode_at(0) + placed.group_id)
+		MapLayout.ObjectKind.PASSAGE:
+			if placed.pair_id >= 0:
+				return str(placed.pair_id + 1)
+	return ""
+
+
+## The state and link of [param placed] in words, for the tile panel, such as
+## [code]closed, lever A[/code] or [code]to (11, 1)[/code]; empty when there is nothing to say.
+static func object_note(state: CombatState, placed: MapState.ObjectState) -> String:
+	var tag: String = tag_of(placed)
+	match placed.kind:
+		MapLayout.ObjectKind.DOOR:
+			if tag.is_empty():
+				return "open" if placed.is_open else "locked, needs a key"
+			return "%s, lever %s" % ["open" if placed.is_open else "closed", tag]
+		MapLayout.ObjectKind.LEVER:
+			return "opens and closes doors %s" % [tag] if not tag.is_empty() else ""
+		MapLayout.ObjectKind.PASSAGE:
+			var other: MapState.ObjectState = MapObjects.other_end(state, placed)
+			return "" if other == null else "%s, to %s" % [tag, other.tile]
+		MapLayout.ObjectKind.BRAZIER:
+			return "lit" if placed.is_lit else "unlit"
+		MapLayout.ObjectKind.CHEST:
+			return "opened" if placed.is_used else "locked"
+	if MapLayout.CONTAINERS.has(placed.kind) and placed.is_used:
+		return "searched"
+	return ""
 
 
 ## The unit [param unit_id] of [param session] as a token draws it; its max HP and Stance
@@ -132,3 +212,38 @@ class UnitView:
 	## Whether it may gain Block ([constant CombatValue.Permission.CAN_GAIN_BLOCK]); Haunted's
 	## ban denies it.
 	var can_gain_block: bool = true
+
+
+## One map object as its [MapObjectMark] draws it.
+class ObjectView:
+	extends RefCounted
+
+	## The object's id.
+	var id: String = ""
+	## What it is.
+	var kind: MapLayout.ObjectKind = MapLayout.ObjectKind.NONE
+	## Its tile.
+	var tile: Vector2i = CombatFact.NO_TILE
+	## A door: whether it is open.
+	var is_open: bool = false
+	## A container: whether it was opened or searched.
+	var is_used: bool = false
+	## A brazier: whether it is lit.
+	var is_lit: bool = false
+	## A door's or lever's lever group; -1 for none.
+	var group_id: int = -1
+	## A passage end's pair; -1 for none.
+	var pair_id: int = -1
+	## The link tag ([method BoardViewModel.tag_of]); empty for none.
+	var tag: String = ""
+	## A passage end's other end; [constant CombatFact.NO_TILE] for anything else.
+	var other_end: Vector2i = CombatFact.NO_TILE
+
+	## Whether it shows spent: an open door, a used container, an unlit brazier.
+	func is_spent() -> bool:
+		match kind:
+			MapLayout.ObjectKind.DOOR:
+				return is_open
+			MapLayout.ObjectKind.BRAZIER:
+				return not is_lit
+		return is_used
