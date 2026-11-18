@@ -6,12 +6,13 @@
 # File:     pad_cases.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 9, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends RefCounted
 ## Pads' cases for tests/ui/input/run_all.gd (combat UI plan, UI9 row; questions 25 and 32): every
-## action the hints list has a joypad binding; the [InputDeviceAdapter] switching family on a key,
+## action the hints list but the save debug panel's has a joypad binding; the [InputDeviceAdapter]
+## switching family on a key,
 ## then a pad button, then a mouse move, through the Input Helper addon; the addon's device names
 ## mapped to families; the [ControlHintBar] drawing each family's glyph or label for every listed
 ## action and redrawing on a switch; and the [PadRepeat]'s one step on a press, its repeat while a
@@ -69,7 +70,8 @@ func run() -> void:
 	helper.emit_signal(&"device_changed", "keyboard", -1)
 
 
-# Every action LIVE_ACTIONS lists has a joypad binding, and no pad input is bound to two of them.
+# Every action LIVE_ACTIONS lists has a joypad binding, but the save debug panel's (a keyboard-only
+# developer tool, its RS gone to open_runes), and no pad input is bound to two of them.
 func _test_bindings() -> void:
 	var actions: Dictionary[StringName, bool] = {}
 	for context: StringName in BattleController.LIVE_ACTIONS:
@@ -79,7 +81,8 @@ func _test_bindings() -> void:
 	var owner_of: Dictionary[String, StringName] = {}
 	var shared: PackedStringArray = []
 	for action: StringName in actions:
-		if ControlHintBar.pad_event(action) == null:
+		var is_pad_bound: bool = ControlHintBar.pad_event(action) != null
+		if is_pad_bound == (action == &"toggle_save_debug"):
 			unbound.append(action)
 		for event: InputEvent in InputMap.action_get_events(action):
 			if not (event is InputEventJoypadButton or event is InputEventJoypadMotion):
@@ -88,7 +91,7 @@ func _test_bindings() -> void:
 			if owner_of.has(id) and owner_of[id] != action:
 				shared.append("%s: %s and %s" % [id, owner_of[id], action])
 			owner_of[id] = action
-	_check.call("pads: every listed action has a joypad binding, none shares a pad input", (
+	_check.call("pads: each listed action but Debug has a pad binding, none shared", (
 			unbound.is_empty() and shared.is_empty()
 	), "unbound %s; shared %s" % [unbound, shared])
 
@@ -164,8 +167,11 @@ func _test_glyphs(helper: Node) -> void:
 		for context: StringName in BattleController.LIVE_ACTIONS:
 			for action: StringName in BattleController.LIVE_ACTIONS[context]:
 				var markup: String = bar.key_markup(action)
-				if bar.key_text(action) == ControlHintBar.UNBOUND_KEY:
-					problems.append("%s %s unbound" % [device, action])
+				# The save debug panel is keyboard-only; the bar leaves it out on a pad.
+				var is_keyboard_only: bool = action == &"toggle_save_debug" and device != "keyboard"
+				var is_unbound: bool = bar.key_text(action) == ControlHintBar.UNBOUND_KEY
+				if is_unbound != is_keyboard_only:
+					problems.append("%s %s unbound %s" % [device, action, is_unbound])
 				drawn["%s/%s" % [device, action]] = markup
 	var expected: Dictionary[String, String] = {
 		"keyboard/target_prev": "[img height=%d]res://assets/sprites/controls/keyboard/q.png[/img]",

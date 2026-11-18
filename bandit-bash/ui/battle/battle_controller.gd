@@ -6,7 +6,7 @@
 # File:     battle_controller.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 16, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name BattleController
@@ -106,8 +106,23 @@ extends HintSource
 #                                                and the command move to the target's next weapon,
 #                                                wrapping. Harmless elsewhere, and with one weapon;
 #                                                Q / E are targets, not weapons, unlike Godot_FE)
-#   "toggle_save_debug"     -> F3; RS [R3]    (read by the save debug panel, in debug builds; not
-#                                                read here)
+#   "toggle_save_debug"     -> F3; no pad     (read by the save debug panel, in debug builds; not
+#                              binding           read here. RS went to open_runes: the panel is a
+#                                                developer's tool, and the bar hides its hint on
+#                                                a pad)
+#   "open_runes"            -> V; RS [R3]     (IDLE, MOVE: focuses the rune bar (RUNE_SLOTS) on its
+#                                                first rune that can be cast. RUNE_SLOTS: closes
+#                                                it, as cancel does. Anywhere else, or while the bar
+#                                                is refused (rune_bar_reason), the message says
+#                                                why and nothing changes, playback included)
+#   (Left Mouse Button on the rune bar)       (a rune: as accept on it in RUNE_SLOTS, from IDLE,
+#                                                MOVE or RUNE_SLOTS; its corner X: the discard
+#                                                question. Refused, the message says why. A click
+#                                                on the board in RUNE_SLOTS closes the bar)
+#   ui_left / ui_right /    in RUNE_SLOTS     (GUI focus moves inside the bar: left and right
+#   ui_up / ui_down                              between runes, wrapping; down to a rune's Discard,
+#                                                up back. The bar's own focus links; never read
+#                                                here)
 #   "unit_detail"           -> Ctrl; LS [L3]  (IDLE, MOVE: opens the detail of the unit under the
 #                                                cursor, else of the selected one (DETAIL); with
 #                                                neither, harmless. DETAIL: closes it, as Back
@@ -118,13 +133,14 @@ extends HintSource
 #   ui_up / ui_down in DETAIL                 (scroll the detail's body while it overflows; the
 #                                                Close button keeps focus. Harmless otherwise)
 # ASSUMPTION: Godot_FE bound none of end_turn, toggle_danger_zone, cycle_weapon, fast_forward,
-# skip_playback, toggle_save_debug or unit_detail to a pad; their pad buttons above have no basis
-# (unit_detail's L3 is the one pad button left free). Every pad input is bound to one action only,
-# as this file reads them in one chain and the first match wins.
+# skip_playback or unit_detail to a pad; their pad buttons above have no basis (unit_detail's L3
+# was the last pad button left free). Every pad input is bound to one action only, as this file
+# reads them in one chain and the first match wins. V for open_runes has no basis either.
 # While a command's playback runs, the token walks to its picked tile (WALK), the map's combat is
-# over, or the seat has no turn, every input but fast_forward, skip_playback and
-# toggle_danger_zone is ignored: that guard is deliberate, not a missing check (Godot_FE took no
-# input until a walk arrived either). skip_playback does nothing in WALK, as no fact plays.
+# over, or the seat has no turn, every input but fast_forward, skip_playback, toggle_danger_zone
+# and open_runes (which only says why it can't) is ignored: that guard is deliberate, not a
+# missing check (Godot_FE took no input until a walk arrived either). skip_playback does nothing
+# in WALK, as no fact plays.
 # pad_repeat still sees the d-pad and stick then, so a direction released during playback stops
 # repeating.
 # Control hints: LIVE_ACTIONS (below the state block) lists, per stage, the actions above that act
@@ -173,9 +189,18 @@ extends HintSource
 #              the target picker (TARGET); Rune opens the rune menu (RUNE); Wait and Swap send
 #              their command at once, as Godot_FE's Wait does. Cancel -> MOVE, the token snapped
 #              back to its tile at once (Godot_FE walked it back; question 34 (3) snaps).
-# RUNE:        the rune menu: one row per rune the seat can cast now, the focused one's text under
-#              them. Board clicks and hovers are inert. A row opens the target picker on that
-#              rune's targets (TARGET). Cancel -> ACTION.
+# RUNE:        the unit menu's rune menu, on the unit's own tile only: one row per rune that can be
+#              cast on that unit (TurnInputModel.runes_for_unit), the focused one's text under
+#              them. Board clicks and hovers are inert. A unit rune's row opens its confirm on the
+#              unit (CONFIRM); Recall's opens the unit's partners (PAIR_TARGET). Cancel -> ACTION.
+# RUNE_SLOTS:  the rune bar focused by open_runes from IDLE or MOVE (the selection, its overlays
+#              and the cursor kept, the hover preview and path dropped). The arrows move focus in
+#              the bar; accept on a rune opens the target picker on its targets (TARGET), on a
+#              Discard the discard question (DISCARD_CONFIRM). Board clicks close it, as cancel
+#              and open_runes do -> the stage it was opened from.
+# DISCARD_CONFIRM: the confirm dialog before a rune is discarded, from the bar: Confirm sends
+#              DiscardRuneCommand. Cancel or Back -> the stage it was asked from (IDLE, MOVE or
+#              RUNE_SLOTS).
 # TARGET:      the action's TargetList, built once when it was chosen, and the target picker
 #              listing it. Every target is outlined (TargetMark) and its tile drawn, purple for
 #              Staff, Item and a player-side rune, the move colour for Recall, red for the rest;
@@ -186,10 +211,12 @@ extends HintSource
 #              partners (PAIR_TARGET). A rune's picker lists its refused units greyed, with why,
 #              after its targets; a click on any tile that isn't a target puts the rune's refusal
 #              in the message (TurnInputModel.rune_refusal). Spark's current keg also draws its
-#              whole chain of blasts (its preview's tiles). Cancel -> ACTION, or RUNE for a rune.
+#              whole chain of blasts (its preview's tiles). Cancel -> ACTION, or for a rune from
+#              the bar the stage the bar was used from (IDLE, MOVE or RUNE_SLOTS), cursor back.
 # PAIR_TARGET: Recall's second unit: as TARGET, on the first unit's partners, with the first unit
 #              outlined as picked (TargetMark.Spec.is_picked). A row, accept or a click on a
-#              partner opens the confirm (CONFIRM). Cancel -> TARGET, on the first unit.
+#              partner opens the confirm (CONFIRM). Cancel -> TARGET, on the first unit; RUNE when
+#              the unit menu's Recall picked the unit itself.
 # CONFIRM:     Attack, Staff, Shove, Rune: the forecast panel (with forecast_panel_scene set),
 #              whose Confirm sends the command of the weapon shown; cycle_weapon and Next weapon
 #              move to the target's next weapon. While it is open the board flashes the HP and
@@ -198,7 +225,7 @@ extends HintSource
 #              on, Spark's chain included. Item, or no forecast scene: the confirm dialog, whose
 #              Confirm sends the command. Q / E move to the next target and the panel follows; the
 #              outlines stay. Cancel or Back -> TARGET (PAIR_TARGET for Recall), on the target
-#              shown, back to its first weapon.
+#              shown, back to its first weapon; RUNE for the unit menu's unit rune.
 # END_CONFIRM: End Turn's question while units can still act: Confirm sends EndTurnCommand.
 #              Cancel or Back -> the stage it was asked from (IDLE or MOVE).
 # DETAIL:      a unit's detail panel (UnitDetailPanel) over IDLE or MOVE, for the unit under the
@@ -219,9 +246,17 @@ extends HintSource
 # back to MOVE clears it, and the session's return. The forecast walks the command's path itself.
 # Cycling changes no state: each weapon has its own command (TargetOption.commands),
 # where Godot_FE equipped the weapon on the unit at each step and left it equipped on Back. Q / E
-# are inert in SWAP, SWAP_PICKED, MOVE, WALK, ACTION, RUNE, END_CONFIRM and DETAIL: cycling units
+# are inert in SWAP, SWAP_PICKED, MOVE, WALK, ACTION, RUNE, END_CONFIRM, DETAIL, RUNE_SLOTS and
+# DISCARD_CONFIRM: cycling units
 # there would drop the selection or the panel under way (Godot_FE's details screen cycled units on
 # its bumpers; not ported).
+# The rune bar (RuneBar) casts any held rune at any point of the player phase, outside the action
+# economy: from IDLE and MOVE, by a click on a rune or by open_runes then accept, with no unit
+# needed and after every unit has acted. Elsewhere (WALK to CONFIRM, END_CONFIRM, DETAIL, a rune
+# under way) it is refused, as in another phase, during playback and with no runes; the bar dims
+# and says why (rune_bar_reason). A rune from the bar or a discard returns, once its playback
+# settles, to the stage it was used from: IDLE, or MOVE with the same unit selected while it can
+# still act, the cursor where it was. A cast changes no unit's acted state (CastRuneCommand).
 # Global: cancel pops exactly one stage (_history), and one panel with it; WALK is never on
 # _history. Sending a command flushes every panel, stage and mark but leaves a staged token where
 # it stands, hides the intents, and waits in INACTIVE; when its playback settles the stage, the
@@ -264,6 +299,10 @@ enum Stage {
 	RUNE = 11,
 	## Recall's second unit, picked after its first.
 	PAIR_TARGET = 12,
+	## The rune bar focused by open_runes, from IDLE or MOVE.
+	RUNE_SLOTS = 13,
+	## The question before a rune is discarded from the bar.
+	DISCARD_CONFIRM = 14,
 }
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
@@ -281,7 +320,8 @@ const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
 # with one target and C with one weapon in TARGET, PAIR_TARGET, CONFIRM and FORECAST, the
 # danger zone in the final playback, unit_detail in IDLE and MOVE with no unit to show, RUNE's up
 # and down with one rune, FORECAST's up and down with no Breakdown or Next weapon (a staff, a
-# shove, a rune), and DETAIL's up and down while its body fits.
+# shove, a rune), DETAIL's up and down while its body fits, open_runes in IDLE and MOVE while the
+# bar is refused, and RUNE_SLOTS' left and right with one rune held.
 # tests/ui/hint_bar_cases.gd presses every action in every context it
 # reaches, by key and by pad, and fails when one acts outside its row or a listed one does
 # nothing; change a row with the blocks above.
@@ -300,12 +340,20 @@ const LIVE_ACTIONS: Dictionary[StringName, Array] = {
 	],
 	&"IDLE": [
 		&"ui_up", &"ui_down", &"ui_left", &"ui_right", &"ui_accept", &"target_prev",
-		&"target_next", &"unit_detail", &"end_turn", &"toggle_danger_zone", &"fast_forward",
-		&"ui_cancel", &"toggle_save_debug",
+		&"target_next", &"unit_detail", &"open_runes", &"end_turn", &"toggle_danger_zone",
+		&"fast_forward", &"ui_cancel", &"toggle_save_debug",
 	],
 	&"MOVE": [
 		&"ui_up", &"ui_down", &"ui_left", &"ui_right", &"ui_accept", &"ui_cancel", &"unit_detail",
-		&"end_turn", &"toggle_danger_zone", &"fast_forward", &"toggle_save_debug",
+		&"open_runes", &"end_turn", &"toggle_danger_zone", &"fast_forward", &"toggle_save_debug",
+	],
+	&"RUNE_SLOTS": [
+		&"ui_left", &"ui_right", &"ui_up", &"ui_down", &"ui_accept", &"ui_cancel", &"open_runes",
+		&"toggle_danger_zone", &"fast_forward", &"toggle_save_debug",
+	],
+	&"DISCARD_CONFIRM": [
+		&"ui_left", &"ui_right", &"ui_accept", &"ui_cancel", &"toggle_danger_zone",
+		&"fast_forward", &"toggle_save_debug",
 	],
 	&"DETAIL": [
 		&"ui_up", &"ui_down", &"ui_accept", &"ui_cancel", &"unit_detail", &"toggle_danger_zone",
@@ -349,6 +397,38 @@ const LIVE_ACTIONS: Dictionary[StringName, Array] = {
 	&"PAUSED": [&"ui_up", &"ui_down", &"ui_accept", &"ui_cancel"],
 }
 
+# ASSUMPTION: the wordings of the rune bar's refusals and of the discard question; no design doc
+# words them.
+## Why the rune bar is refused once the battle is over.
+const RUNES_BATTLE_OVER: String = "The battle is over."
+
+## Why the rune bar is refused before the seat's Start (the opening swap window).
+const RUNES_BEFORE_START: String = "Not before Start."
+
+## Why the rune bar is refused outside the player phase.
+const RUNES_ENEMY_PHASE: String = "Not in the enemy phase."
+
+## Why the rune bar is refused once the seat has ended its turn.
+const RUNES_TURN_ENDED: String = "Your turn has ended."
+
+## Why the rune bar is refused while a command's playback runs.
+const RUNES_PLAYING: String = "Wait for the board to finish."
+
+## Why the rune bar is refused with every slot empty.
+const RUNES_NONE: String = "You hold no runes."
+
+## Why the rune bar is refused while a unit's action is under way (WALK to CONFIRM).
+const RUNES_UNIT_BUSY: String = "Finish or cancel this unit's action first."
+
+## Why the rune bar is refused while End Turn's question or a unit's detail is open.
+const RUNES_PANEL_OPEN: String = "Close this panel first."
+
+## Why the rune bar is refused while a rune from it is being aimed or discarded.
+const RUNES_RUNE_BUSY: String = "Finish or cancel this rune first."
+
+## The discard question: [code]%s[/code] the rune's name.
+const DISCARD_QUESTION: String = "Discard %s? It is gone for good."
+
 @export_group("Panels")
 
 ## The action menu scene ([ActionMenu]).[br]
@@ -368,7 +448,7 @@ const LIVE_ACTIONS: Dictionary[StringName, Array] = {
 ## [b]Unset:[/b] those confirm on the confirm dialog, with no forecast.
 @export var forecast_panel_scene: PackedScene = null
 
-## The rune menu scene ([RuneMenu]), opened by the action menu's Rune.[br]
+## The rune menu scene ([RuneMenu]), opened by the unit menu's Rune.[br]
 ## [b]Unset:[/b] Rune opens nothing and an error is reported.
 @export var rune_menu_scene: PackedScene = null
 
@@ -407,6 +487,13 @@ const LIVE_ACTIONS: Dictionary[StringName, Array] = {
 ## The enemies' intents on the board, a child of [member view].[br]
 ## [b]Unset:[/b] no intents, lines or target rules show.
 @export var intent_display: IntentDisplay = null
+
+# ASSUMPTION: the bar sits in the HUD's top-right strip, above the panel column (rune_bar.tscn's
+# offsets); the user's layout pass may move it.
+## The seat's rune slots, which cast any held rune or discard one at any point of the player
+## phase.[br]
+## [b]Unset:[/b] runes are cast only from the unit menu, and open_runes does nothing.
+@export var rune_bar: RuneBar = null
 
 ## Repeats a held d-pad direction or stick push as cursor steps.[br]
 ## [b]Unset:[/b] each joypad direction event is read as a press, so a held d-pad steps once and a
@@ -504,6 +591,27 @@ var _danger_support: Array[Vector2i] = []
 # Whether the stage was last rebuilt in the swap window, so leaving it turns the danger zone off.
 var _was_swapping: bool = false
 
+# While a rune from the bar is under way (RUNE_SLOTS, its TARGET to CONFIRM, DISCARD_CONFIRM): the
+# stage it was used from, IDLE or MOVE, and the cursor then; INACTIVE and NO_TILE otherwise.
+var _bar_origin: Stage = Stage.INACTIVE
+var _bar_cursor: Vector2i = CombatFact.NO_TILE
+
+# The rune last aimed from the bar, whose slot RUNE_SLOTS focuses again on return.
+var _bar_rune_id: String = ""
+
+# In DISCARD_CONFIRM, the command its Confirm sends; null elsewhere.
+var _discard: DiscardRuneCommand = null
+
+# Where a rune sent from the bar returns once its playback settles: the unit to select again
+# (empty from IDLE) and the cursor; NO_TILE when the command came from elsewhere.
+var _resume_unit_id: String = ""
+var _resume_cursor: Vector2i = CombatFact.NO_TILE
+
+# The seat's runes as the bar shows them, and the session seq they were read at; read again when
+# a fact has been recorded since, outside playback.
+var _held: Array[TurnInputModel.HeldRune] = []
+var _held_seq: int = -2
+
 
 func _ready() -> void:
 	_show_widgets(false)
@@ -513,6 +621,9 @@ func _ready() -> void:
 		swap_window.start_pressed.connect(_on_swap_window_start_pressed)
 	if pad_repeat != null:
 		pad_repeat.stepped.connect(_on_pad_repeat_stepped)
+	if rune_bar != null:
+		rune_bar.rune_pressed.connect(_on_rune_bar_rune_pressed)
+		rune_bar.discard_pressed.connect(_on_rune_bar_discard_pressed)
 
 
 func _exit_tree() -> void:
@@ -539,6 +650,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed(&"toggle_danger_zone"):
 		toggle_danger_zone()
+		return
+	if event.is_action_pressed(&"open_runes"):
+		request_runes()
 		return
 	if is_instance_valid(pad_repeat) and pad_repeat.take(event):
 		return
@@ -594,6 +708,7 @@ func bind(encounter: CombatEncounter, session: CombatSession, seat: int) -> void
 	_was_swapping = TurnInputModel.is_swapping(session, seat)
 	_is_danger_shown = _was_swapping and shows_danger_in_swap_window
 	_danger = null
+	_held_seq = -2
 	var units: PackedStringArray = TurnInputModel.acting_units(session, seat)
 	if units.is_empty():
 		for unit_id: String in session.state.units_of(PLAYER):
@@ -925,7 +1040,7 @@ func step_back() -> bool:
 		return false
 	var opened_panel: Array[Stage] = [
 		Stage.ACTION, Stage.RUNE, Stage.TARGET, Stage.PAIR_TARGET, Stage.CONFIRM,
-		Stage.END_CONFIRM, Stage.DETAIL,
+		Stage.END_CONFIRM, Stage.DETAIL, Stage.DISCARD_CONFIRM,
 	]
 	if _stage in opened_panel:
 		panel_host.back()
@@ -969,6 +1084,13 @@ func step_back() -> bool:
 			_detail_panel = null
 			# Asks MOVE's hover preview again, which DETAIL dropped.
 			move_cursor(_cursor)
+		Stage.DISCARD_CONFIRM:
+			_discard = null
+	if _stage == Stage.RUNE:
+		# The unit menu's rune skipped the picker: nothing of its targeting is left to step to.
+		_drop_rune_targeting()
+		move_cursor(_end_tile)
+	_return_from_bar_use()
 	_redraw()
 	return true
 
@@ -1010,6 +1132,130 @@ func request_start() -> void:
 		_send(command)
 
 
+## open_runes: from IDLE or MOVE focuses the rune bar on its first rune that can be cast
+## (RUNE_SLOTS); in RUNE_SLOTS closes it, as cancel does. Refused ([method rune_bar_reason]), the
+## message says why and nothing changes. Returns whether the bar opened or closed.
+func request_runes() -> bool:
+	if _session == null or _session.is_finished or rune_bar == null:
+		return false
+	if _stage == Stage.RUNE_SLOTS and is_accepting_input():
+		return step_back()
+	var reason: String = rune_bar_reason()
+	if not reason.is_empty():
+		_refuse_runes(reason)
+		return false
+	_begin_bar_use()
+	_advance(Stage.RUNE_SLOTS)
+	rune_bar.focus_rune(_bar_rune_id)
+	_redraw()
+	return true
+
+
+## A held rune picked on the bar (a click, or accept in RUNE_SLOTS): opens the target picker on its
+## targets (TARGET) from IDLE, MOVE or RUNE_SLOTS. Refused, or [param rune_id] with no target now,
+## the message says why. Returns whether the picker opened.
+func pick_rune(rune_id: String) -> bool:
+	if _session == null or _session.is_finished:
+		return false
+	var reason: String = rune_bar_reason()
+	if not reason.is_empty():
+		_refuse_runes(reason)
+		return false
+	var held: TurnInputModel.HeldRune = _held_rune(rune_id)
+	if held == null:
+		return false
+	if held.option == null:
+		_show_message("%s: %s." % [held.label, held.reason])
+		return false
+	var is_new_use: bool = _stage != Stage.RUNE_SLOTS
+	if is_new_use:
+		_begin_bar_use()
+	_bar_rune_id = rune_id
+	_rune = held.option
+	var list: TargetList = TargetList.new(_rune.targets)
+	if not _open_picker(Stage.TARGET, _rune.title, list, _rune.refused):
+		_rune = null
+		_targets = null
+		if is_new_use:
+			_bar_origin = Stage.INACTIVE
+		return false
+	_redraw()
+	_show_current_target()
+	return true
+
+
+## A held rune's Discard on the bar: asks first (DISCARD_CONFIRM), whose Confirm sends
+## [DiscardRuneCommand]; from IDLE, MOVE or RUNE_SLOTS. Refused, the message says why. Returns
+## whether the question opened.
+func request_discard(rune_id: String) -> bool:
+	if _session == null or _session.is_finished:
+		return false
+	var reason: String = rune_bar_reason()
+	if not reason.is_empty():
+		_refuse_runes(reason)
+		return false
+	var held: TurnInputModel.HeldRune = _held_rune(rune_id)
+	if held == null or held.discard == null:
+		return false
+	var is_new_use: bool = _stage != Stage.RUNE_SLOTS
+	if is_new_use:
+		_begin_bar_use()
+	_bar_rune_id = rune_id
+	var dialog: BattlePanel = _open_panel(
+			Stage.DISCARD_CONFIRM, confirm_dialog_scene, DISCARD_QUESTION % [held.label]
+	)
+	if dialog == null:
+		if is_new_use:
+			_bar_origin = Stage.INACTIVE
+		return false
+	_discard = held.discard
+	dialog.confirmed.connect(_on_discard_dialog_confirmed)
+	dialog.cancelled.connect(_on_panel_cancelled)
+	_redraw()
+	return true
+
+
+## Why the rune bar can't be used now, as the bar and the message show it; empty when it can:
+## in IDLE, MOVE or RUNE_SLOTS of the seat's player phase, settled, with a rune held. The phase
+## cases follow [method CommandValidator.player_phase_reason].
+func rune_bar_reason() -> String:
+	if _session == null or _session.is_finished:
+		return RUNES_BATTLE_OVER
+	if _is_waiting or not view.is_settled():
+		return RUNES_PLAYING
+	if not CommandValidator.player_phase_reason(_session, _seat).is_empty():
+		# NOTE: the same three cases as CommandValidator.player_phase_reason(); keep them in step.
+		var state: CombatState = _session.state
+		if state.map.opening_swap_open:
+			return RUNES_BEFORE_START
+		if state.ended_seats.has(_seat) and state.phase_side == PLAYER:
+			return RUNES_TURN_ENDED
+		return RUNES_ENEMY_PHASE
+	if get_held_runes().is_empty():
+		return RUNES_NONE
+	match _stage:
+		Stage.IDLE, Stage.MOVE, Stage.RUNE_SLOTS:
+			return ""
+		Stage.END_CONFIRM, Stage.DETAIL:
+			return RUNES_PANEL_OPEN
+	if _bar_origin != Stage.INACTIVE:
+		return RUNES_RUNE_BUSY
+	return RUNES_UNIT_BUSY
+
+
+## The seat's runes as the bar shows them ([method TurnInputModel.held_runes]), read again once a
+## fact has been recorded since, outside playback, which shows the runes as they were before it.
+## Empty while unbound.
+func get_held_runes() -> Array[TurnInputModel.HeldRune]:
+	if _session == null:
+		return []
+	var seq: int = _session.last_seq()
+	if seq != _held_seq and not _is_waiting and view.is_settled():
+		_held = TurnInputModel.held_runes(_session, _seat)
+		_held_seq = seq
+	return _held
+
+
 func _read_mouse(mouse: InputEventMouse) -> void:
 	var local: InputEventMouse = view.make_input_local(mouse) as InputEventMouse
 	var tile: Vector2i = view.tile_at(local.position)
@@ -1021,7 +1267,9 @@ func _read_mouse(mouse: InputEventMouse) -> void:
 		# board; a panel's rows keep theirs.
 		if panel_host.depth() == 0:
 			get_viewport().gui_release_focus()
-		if button.button_index == MOUSE_BUTTON_LEFT and _follows_mouse():
+		if button.button_index == MOUSE_BUTTON_LEFT and _stage == Stage.RUNE_SLOTS:
+			step_back()
+		elif button.button_index == MOUSE_BUTTON_LEFT and _follows_mouse():
 			move_cursor(tile)
 			confirm_tile(tile)
 		return
@@ -1048,6 +1296,11 @@ func _can_act_now(context: StringName, action: StringName) -> bool:
 			if context == &"DETAIL":
 				return true
 			return unit_detail_scene != null and not detail_unit().is_empty()
+		&"open_runes":
+			return context == &"RUNE_SLOTS" or (rune_bar != null and rune_bar_reason().is_empty())
+		&"ui_left", &"ui_right":
+			if context == &"RUNE_SLOTS":
+				return get_held_runes().size() > 1
 		&"ui_up", &"ui_down":
 			if context == &"DETAIL":
 				return is_instance_valid(_detail_panel) and _detail_panel.can_scroll()
@@ -1064,6 +1317,48 @@ func _can_act_now(context: StringName, action: StringName) -> bool:
 						and (model.kind == ForecastViewModel.Kind.EXCHANGE or model.can_cycle())
 				)
 	return true
+
+
+# A rune from the bar starts in IDLE or MOVE: remembers that stage and the cursor to return to,
+# and drops MOVE's hover preview and path, which the bar's stages don't show.
+func _begin_bar_use() -> void:
+	_bar_origin = _stage
+	_bar_cursor = _cursor
+	if _stage == Stage.MOVE:
+		_clear_preview()
+		_path.clear()
+		_draw_path()
+
+
+# Back in the stage a rune from the bar was used from (cancel): the cursor returns, and the use
+# ends unless that stage is the bar itself.
+func _return_from_bar_use() -> void:
+	if _bar_origin == Stage.INACTIVE:
+		return
+	if _stage == Stage.RUNE_SLOTS:
+		move_cursor(_bar_cursor)
+		rune_bar.focus_rune(_bar_rune_id)
+	elif _stage == Stage.IDLE or _stage == Stage.MOVE:
+		move_cursor(_bar_cursor)
+		_bar_origin = Stage.INACTIVE
+		_bar_cursor = CombatFact.NO_TILE
+
+
+# The held rune rune_id as the bar shows it; null when it isn't held.
+func _held_rune(rune_id: String) -> TurnInputModel.HeldRune:
+	for held: TurnInputModel.HeldRune in get_held_runes():
+		if held.rune_id == rune_id:
+			return held
+	return null
+
+
+func _refuse_runes(reason: String) -> void:
+	_show_message("Runes: %s" % [reason])
+
+
+func _show_message(text: String) -> void:
+	if message != null:
+		message.show_message(text)
 
 
 func _follows_mouse() -> bool:
@@ -1513,6 +1808,9 @@ func _clear_selection() -> void:
 	_detail_panel = null
 	_walk_options.clear()
 	_targets_by_tile.clear()
+	_discard = null
+	_bar_origin = Stage.INACTIVE
+	_bar_cursor = CombatFact.NO_TILE
 
 
 # Sends command for the seat and resolves it; input waits, with the board's marks cleared, until
@@ -1521,6 +1819,8 @@ func _send(command: Command) -> void:
 	panel_host.flush()
 	_history.clear()
 	_sent_unit_id = _unit_id
+	_resume_cursor = _bar_cursor if _bar_origin != Stage.INACTIVE else CombatFact.NO_TILE
+	_resume_unit_id = _unit_id if _bar_origin == Stage.MOVE else ""
 	_clear_selection()
 	_rejection = ""
 	_is_waiting = true
@@ -1538,7 +1838,14 @@ func _after_playback() -> void:
 	_is_waiting = false
 	var acted_id: String = _sent_unit_id
 	_sent_unit_id = ""
+	var resume_unit_id: String = _resume_unit_id
+	var resume_cursor: Vector2i = _resume_cursor
+	_resume_unit_id = ""
+	_resume_cursor = CombatFact.NO_TILE
 	_rebuild()
+	if resume_cursor != CombatFact.NO_TILE and _stage == Stage.IDLE:
+		_resume_after_bar(resume_unit_id, resume_cursor)
+		return
 	# ASSUMPTION: after a rejection the flow starts over at IDLE, not at the stage it was sent from.
 	if not _rejection.is_empty():
 		return
@@ -1549,6 +1856,21 @@ func _after_playback() -> void:
 			and TurnInputModel.can_act(_session, acted_id)
 	):
 		_select(acted_id)
+
+
+# After a rune from the bar, or a discard, resolved: back to MOVE with unit_id selected while it
+# is still on the map and can act (Recall may have moved it, so MOVE starts from its tile), else
+# IDLE; the cursor on the tile it was on. A rejection, too, keeps the cursor and comes back to
+# IDLE, as any rejected command does.
+func _resume_after_bar(unit_id: String, cursor: Vector2i) -> void:
+	if (
+			_rejection.is_empty()
+			and not unit_id.is_empty()
+			and _session.state.has_unit(unit_id)
+			and TurnInputModel.can_act(_session, unit_id)
+	):
+		_select(unit_id)
+	move_cursor(cursor)
 
 
 # The stage the session allows with nothing selected, with every panel and selection dropped and a
@@ -1613,7 +1935,7 @@ func _redraw() -> void:
 				support.show_tiles(tiles)
 			else:
 				attack.show_tiles(tiles)
-		Stage.END_CONFIRM, Stage.DETAIL:
+		Stage.END_CONFIRM, Stage.DETAIL, Stage.RUNE_SLOTS, Stage.DISCARD_CONFIRM:
 			if not _unit_id.is_empty():
 				move.show_tiles(_move_tiles)
 				attack.show_tiles(_attack_tiles)
@@ -1702,14 +2024,21 @@ func _show_widgets(is_shown: bool) -> void:
 		swap_window.visible = false
 	if panel_host != null:
 		panel_host.visible = is_shown
+	if rune_bar != null:
+		rune_bar.visible = is_shown
+		if not is_shown:
+			rune_bar.set_navigable(false)
 	if view != null and view.get_cursor() != null and not is_shown:
 		view.get_cursor().visible = false
 
 
-# The status line, End Turn's state, and the swap window with its hint.
+# The status line, End Turn's state, the swap window with its hint, and the rune bar.
 func _refresh_widgets() -> void:
 	if _session == null:
 		return
+	if rune_bar != null:
+		rune_bar.set_navigable(_stage == Stage.RUNE_SLOTS)
+		rune_bar.show_runes(get_held_runes(), rune_bar_reason())
 	var state: CombatState = _session.state
 	var is_swapping: bool = TurnInputModel.is_swapping(_session, _seat)
 	if swap_window != null:
@@ -1766,19 +2095,32 @@ func _on_action_menu_confirmed(result: Variant) -> void:
 	_show_current_target()
 
 
-# A rune picked in the rune menu: its targets open on the target picker (TARGET), its refused
-# units greyed under them.
+# A rune picked in the unit menu's rune menu, already narrowed to the unit
+# (TurnInputModel.runes_for_unit): a unit rune's confirm opens on it (CONFIRM), Recall's partners
+# for it (PAIR_TARGET), with no picker.
 func _on_rune_menu_confirmed(result: Variant) -> void:
 	var rune: TurnInputModel.RuneOption = result
-	if _stage != Stage.RUNE or rune == null:
+	if _stage != Stage.RUNE or rune == null or rune.targets.is_empty():
 		return
 	_rune = rune
-	if not _open_picker(Stage.TARGET, rune.title, TargetList.new(rune.targets), rune.refused):
-		_rune = null
-		_targets = null
-		return
-	_redraw()
-	_show_current_target()
+	_targets = TargetList.new(rune.targets)
+	_picker = null
+	if rune.target_kind == ContentIds.RUNE_PAIR:
+		_open_partners()
+	else:
+		_open_confirm()
+	if _stage == Stage.RUNE:
+		_drop_rune_targeting()
+
+
+# Clears a rune's targeting: its rune, targets, Recall's first pick and Spark's preview.
+func _drop_rune_targeting() -> void:
+	_rune = null
+	_targets = null
+	_picker = null
+	_first_targets = null
+	_first_picker = null
+	_rune_preview = null
 
 
 func _on_target_picker_confirmed(result: Variant) -> void:
@@ -1805,6 +2147,19 @@ func _on_confirm_dialog_confirmed(_result: Variant) -> void:
 
 func _on_forecast_panel_weapon_cycle_requested() -> void:
 	cycle_weapon()
+
+
+func _on_discard_dialog_confirmed(_result: Variant) -> void:
+	if _stage == Stage.DISCARD_CONFIRM and _discard != null:
+		_send(_discard)
+
+
+func _on_rune_bar_rune_pressed(rune_id: String) -> void:
+	pick_rune(rune_id)
+
+
+func _on_rune_bar_discard_pressed(rune_id: String) -> void:
+	request_discard(rune_id)
 
 
 func _on_end_turn_dialog_confirmed(_result: Variant) -> void:

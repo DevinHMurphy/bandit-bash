@@ -6,7 +6,7 @@
 # File:     control_hint_bar.gd
 # Author:
 # Created:  November 6, 2026
-# Modified: November 16, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name ControlHintBar
@@ -14,8 +14,9 @@ extends PanelContainer
 ## A screen's control hints: the keys of the actions live now, with what each does
 ## ("T End turn · R Danger zone · Q/E Target"), built from action names, not a per-screen enum.
 ##
-## [b]Which actions:[/b] exactly [method HintSource.get_live_actions] of [member controller]; this
-## bar adds none. Neighbours that share a label show as one hint, their keys joined ("Q/E").[br]
+## [b]Which actions:[/b] [method HintSource.get_live_actions] of [member controller], less any with
+## no binding in the family in use (the save debug panel's on a pad); this bar adds none.
+## Neighbours that share a label show as one hint, their keys joined ("Q/E").[br]
 ## [b]Keys:[/b] read from the [InputMap] at each draw, for [member device]'s family: the first key
 ## on keyboard and mouse, the first joypad event on a pad, as [member glyphs]' glyph or as text.[br]
 ## [b]When it draws:[/b] it polls [method HintSource.get_hint_context] once a frame, as the pause
@@ -134,7 +135,7 @@ const UNBOUND_KEY: String = "(unbound)"
 
 # ASSUMPTION: the labels beyond the plan's examples (Danger zone, End turn, Target, Weapon, Fast,
 # Skip, Debug) have no basis: Move, Select, Back, Pause, Resume, Start, Units, Choose, Confirm,
-# Pick, Swap, Pick tile, Info, Scroll, Close.
+# Pick, Swap, Pick tile, Info, Scroll, Close, Runes, Discard.
 ## What each action does, by action name, or by [code]CONTEXT/action[/code] where a context
 ## ([method HintSource.get_hint_context]) gives it another meaning; the context's key wins.
 ## [b]Missing:[/b] the action's own name shows.
@@ -152,6 +153,7 @@ const UNBOUND_KEY: String = "(unbound)"
 	"skip_playback": "Skip",
 	"toggle_save_debug": "Debug",
 	"unit_detail": "Info",
+	"open_runes": "Runes",
 	"target_prev": "Target",
 	"target_next": "Target",
 	"SWAP/ui_accept": "Pick",
@@ -193,6 +195,16 @@ const UNBOUND_KEY: String = "(unbound)"
 	"DETAIL/ui_accept": "Close",
 	"DETAIL/ui_cancel": "Close",
 	"DETAIL/unit_detail": "Close",
+	"RUNE_SLOTS/ui_left": "Choose",
+	"RUNE_SLOTS/ui_right": "Choose",
+	"RUNE_SLOTS/ui_up": "Discard",
+	"RUNE_SLOTS/ui_down": "Discard",
+	"RUNE_SLOTS/ui_accept": "Pick",
+	"RUNE_SLOTS/ui_cancel": "Close",
+	"RUNE_SLOTS/open_runes": "Close",
+	"DISCARD_CONFIRM/ui_left": "Choose",
+	"DISCARD_CONFIRM/ui_right": "Choose",
+	"DISCARD_CONFIRM/ui_accept": "Confirm",
 }
 
 @export_group("")
@@ -243,6 +255,11 @@ func get_context() -> StringName:
 ## The actions last drawn, in order; empty while hidden.
 func get_shown_actions() -> Array[StringName]:
 	return _actions.duplicate()
+
+
+## Whether [param action] has a binding in the family in use, so the bar can show it.
+func is_bound(action: StringName) -> bool:
+	return key_text(action) != UNBOUND_KEY
 
 
 ## The hints as shown, without markup or glyphs ("T End turn  ·  R Danger zone").
@@ -324,13 +341,16 @@ func _glyph_id(action: StringName) -> String:
 	return "" if code == KEY_NONE else "key:%s" % [OS.get_keycode_string(code)]
 
 
-# Draws the hints for context: one per run of neighbouring live actions that share a label.
+# Draws the hints for context: one per run of neighbouring live actions that share a label,
+# leaving out the ones the family in use can't press.
 func _draw_hints(context: StringName) -> void:
 	_context = context
 	_is_drawn = true
 	_actions.clear()
 	if is_instance_valid(controller):
-		_actions = controller.get_live_actions()
+		for action: StringName in controller.get_live_actions():
+			if is_bound(action):
+				_actions.append(action)
 	visible = not _actions.is_empty()
 	var key_colour: String = get_theme_color(&"key_color", &"ControlHintBar").to_html()
 	var hints: PackedStringArray = []

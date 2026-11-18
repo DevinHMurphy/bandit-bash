@@ -6,7 +6,7 @@
 # File:     targeting_cases.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 16, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -684,7 +684,8 @@ static func _listed_keys(list: TargetList) -> PackedStringArray:
 
 
 # Every command of kind for unit_id after path the validator accepts, tried on every unit on the
-# map (and the user's own tile for a staff) with each weapon, as _listed_keys writes them.
+# map (and the user's own tile for a staff) with each weapon, as _listed_keys writes them; for a
+# rune, only on unit_id itself, as the unit menu offers runes on its unit.
 static func _accepted_keys(
 		session: CombatSession,
 		unit_id: String,
@@ -696,10 +697,9 @@ static func _accepted_keys(
 	var found: Dictionary[String, bool] = {}
 	if kind == RUNE:
 		for rune_id: String in state.rune_slots.get(0, PackedStringArray()):
-			for target_id: String in state.unit_ids():
-				var cast: CastRuneCommand = CastRuneCommand.new(0, rune_id, target_id)
-				if cast.validate(session).is_empty():
-					found[_key(target_id, cast)] = true
+			var cast: CastRuneCommand = CastRuneCommand.new(0, rune_id, unit_id)
+			if cast.validate(session).is_empty():
+				found[_key(unit_id, cast)] = true
 		return _sorted_keys(found)
 	var actions: Dictionary[int, UnitTurnCommand.Action] = {
 		ATTACK: UnitTurnCommand.Action.ATTACK,

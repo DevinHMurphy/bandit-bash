@@ -6,7 +6,7 @@
 # File:     wire_cases.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 15, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -75,6 +75,7 @@ func _test_command_wire() -> void:
 		EndTurnCommand.new(2),
 		CastRuneCommand.new(0, "rune:8", "unit:3", "unit:6"),
 		CastRuneCommand.new(0, "rune:9", "", "", Vector2i(4, 2)),
+		DiscardRuneCommand.new(1, "rune:7"),
 	]
 	var same: bool = true
 	for command: Command in commands:
@@ -108,6 +109,21 @@ func _test_command_wire() -> void:
 			and unit_cast.to_wire()[8] == []
 			and unit_back != null
 			and unit_back.tile == CombatFact.NO_TILE
+	))
+
+	var discard: DiscardRuneCommand = Command.from_wire(
+			Kit.through_json(commands[5].to_wire()) as Array
+	) as DiscardRuneCommand
+	var no_rune: Array = commands[5].to_wire()
+	no_rune.resize(5)
+	var number_rune: Array = commands[5].to_wire()
+	number_rune[5] = 7
+	_check.call("wire: a discard keeps its seat and rune; a missing or non-text rune is refused", (
+			discard != null
+			and discard.seat == 1
+			and discard.rune_id == "rune:7"
+			and Command.from_wire(no_rune) == null
+			and Command.from_wire(number_rune) == null
 	))
 
 	print("    (warnings about malformed command data follow)")

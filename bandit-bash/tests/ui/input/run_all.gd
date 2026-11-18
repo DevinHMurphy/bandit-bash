@@ -6,12 +6,13 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 16, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends "res://tests/ui/ui_suite.gd"
 ## Combat UI input suite (combat UI plan, P07): turn input, targeting, rune casting (each rune by
-## keys, mouse and pad), the control hints and pads (joypad bindings, the device adapter, glyphs,
+## keys, mouse and pad, from the rune bar; discards), the control hints and pads (joypad bindings,
+## the device adapter, glyphs,
 ## focus navigation, the cursor's repeat, hints that hide when they can do nothing), unit detail
 ## (opened and closed by keys, mouse and pad), a cases
 ## file each in [code]tests/ui/battle/[/code] (preloaded below;
@@ -33,6 +34,7 @@ const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.g
 const TurnInputCases = preload("res://tests/ui/battle/input/turn_input_cases.gd")
 const TargetingCases = preload("res://tests/ui/battle/input/targeting_cases.gd")
 const RuneCases = preload("res://tests/ui/battle/input/rune_cases.gd")
+const RuneBarCases = preload("res://tests/ui/battle/input/rune_bar_cases.gd")
 const HintBarCases = preload("res://tests/ui/battle/hud/hint_bar_cases.gd")
 const PadCases = preload("res://tests/ui/battle/input/pad_cases.gd")
 const UnitDetailCases = preload("res://tests/ui/battle/unit/unit_detail_cases.gd")
@@ -58,6 +60,8 @@ func _process(_delta: float) -> bool:
 		TargetingCases.new(_check, root).run()
 		GroupClock.lap("rune_cases")
 		RuneCases.new(_check, root).run()
+		GroupClock.lap("rune_bar_cases")
+		RuneBarCases.new(_check, root).run()
 		GroupClock.lap("hint_bar_cases")
 		HintBarCases.new(_check, root).run()
 		GroupClock.lap("pad_cases")

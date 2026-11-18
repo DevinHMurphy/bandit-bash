@@ -6,7 +6,7 @@
 # File:     hint_bar_cases.gd
 # Author:
 # Created:  November 6, 2026
-# Modified: November 16, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -16,7 +16,8 @@ extends RefCounted
 ## area at the 1152×648 base size; a rebound key changing its label; two M1 battles walked by
 ## input through every hint context a solo battle (unit detail's DETAIL included)
 ## reaches, by the actions' keys, then again by their joypad bindings with the bar drawing the Xbox
-## family, with a third casting Recall for the rune menu (RUNE) and its second pick
+## family, with a third walking the rune bar (RUNE_SLOTS, DISCARD_CONFIRM), the rune menu (RUNE)
+## and Recall's second pick
 ## (PAIR_TARGET); and the hints left out while they can do nothing (one target, one weapon).[br]
 ## [b]The pad walk[/b] presses each action's first joypad event (a button, or an axis pushed and
 ## let back) where the key walk sends the action, through a [PadRepeat] on the controller; and in
@@ -45,6 +46,7 @@ const CombatWorld = preload("res://tests/combat/combat_world.gd")
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
 const RUNE_MENU_SCENE: PackedScene = preload("res://ui/battle/menus/rune_menu.tscn")
+const RUNE_BAR_SCENE: PackedScene = preload("res://ui/battle/hud/rune_bar.tscn")
 const VIEW_SCENE: PackedScene = preload("res://ui/battle/board/battle_view.tscn")
 const PANEL_HOST_SCENE: PackedScene = preload("res://ui/battle/menus/panel_host.tscn")
 const TURN_BAR_SCENE: PackedScene = preload("res://ui/battle/hud/turn_bar.tscn")
@@ -98,6 +100,9 @@ const OPPOSITE: Dictionary[StringName, StringName] = {
 
 # Actions a second press undoes.
 const TOGGLES: Array[StringName] = [&"toggle_danger_zone", &"toggle_save_debug"]
+
+# Actions with no pad binding: the pad walk can't press them, and the bar leaves them out on a pad.
+const KEYBOARD_ONLY: Array[StringName] = [&"toggle_save_debug"]
 
 # The contexts besides the stages' names (BattleController's state block).
 const EXTRA_CONTEXTS: Array[StringName] = [&"FORECAST", &"PLAYBACK", &"PAUSED"]
@@ -567,8 +572,10 @@ func _test_turn() -> void:
 	rig.close()
 
 
-# A third battle, with seat 0 holding Aegis and Recall: Rune's menu (RUNE) and back, Recall's first
-# unit (TARGET), its partner (PAIR_TARGET) and back, then the rune's forecast, whose Confirm casts.
+# A third battle, with seat 0 holding Aegis and Recall: the rune bar (RUNE_SLOTS) from MOVE, a
+# rune's targets from it and back, closed by cancel and by open_runes; the unit menu's Rune
+# (RUNE) and back, its Recall on the unit itself (PAIR_TARGET) and back, then its forecast, whose
+# Confirm casts; then from IDLE the bar's discard question (DISCARD_CONFIRM) and back, confirmed.
 func _test_rune_walk() -> void:
 	var rig: Rig = _rig()
 	if rig == null:
@@ -587,6 +594,13 @@ func _test_rune_walk() -> void:
 		return
 	h.controller.move_cursor(h.session.state.tile_of(acting[0]))
 	_expect_acts(rig, &"ui_accept", &"MOVE")
+	_expect_acts(rig, &"open_runes", &"RUNE_SLOTS")
+	_expect_context(rig, &"RUNE_SLOTS")
+	_expect_acts(rig, &"ui_accept", &"TARGET")
+	_expect_acts(rig, &"ui_cancel", &"RUNE_SLOTS")
+	_expect_acts(rig, &"ui_cancel", &"MOVE")
+	_expect_acts(rig, &"open_runes", &"RUNE_SLOTS")
+	_expect_acts(rig, &"open_runes", &"MOVE")
 	_expect_acts(rig, &"ui_accept", &"ACTION")
 	_focus_action(rig, TurnInputModel.ActionKind.RUNE)
 	_expect_acts(rig, &"ui_accept", &"RUNE")
@@ -595,13 +609,26 @@ func _test_rune_walk() -> void:
 	_focus_action(rig, TurnInputModel.ActionKind.RUNE)
 	_expect_acts(rig, &"ui_accept", &"RUNE")
 	_focus_rune(rig, recall_id)
-	_expect_acts(rig, &"ui_accept", &"TARGET")
 	_expect_acts(rig, &"ui_accept", &"PAIR_TARGET")
 	_expect_context(rig, &"PAIR_TARGET")
-	_expect_acts(rig, &"ui_cancel", &"TARGET")
+	_expect_acts(rig, &"ui_cancel", &"RUNE")
+	_focus_rune(rig, recall_id)
 	_expect_acts(rig, &"ui_accept", &"PAIR_TARGET")
 	_expect_acts(rig, &"ui_accept", &"FORECAST")
 	_expect_context(rig, &"FORECAST")
+	(h.host.top() as BattlePanel).focus_first()
+	_expect_acts(rig, &"ui_accept", &"PLAYBACK")
+	BattleViewCases.settle(h.view)
+
+	_expect_acts(rig, &"open_runes", &"RUNE_SLOTS")
+	_hold(&"ui_down", true)
+	_hold(&"ui_down", false)
+	_expect_acts(rig, &"ui_accept", &"DISCARD_CONFIRM")
+	_expect_context(rig, &"DISCARD_CONFIRM")
+	_expect_acts(rig, &"ui_cancel", &"RUNE_SLOTS")
+	_hold(&"ui_down", true)
+	_hold(&"ui_down", false)
+	_expect_acts(rig, &"ui_accept", &"DISCARD_CONFIRM")
 	(h.host.top() as BattlePanel).focus_first()
 	_expect_acts(rig, &"ui_accept", &"PLAYBACK")
 	BattleViewCases.settle(h.view)
@@ -615,6 +642,8 @@ func _test_coverage() -> void:
 	for context: StringName in _reached:
 		for action: StringName in BattleController.LIVE_ACTIONS.get(context, []):
 			if action == &"toggle_save_debug" and not OS.is_debug_build():
+				continue
+			if _pad and KEYBOARD_ONLY.has(action):
 				continue
 			if not _acted.has("%s/%s" % [context, action]):
 				missing.append("%s/%s" % [context, action])
@@ -690,15 +719,20 @@ func _expect_context(rig: Rig, expected: StringName) -> void:
 	var context: StringName = c.get_hint_context()
 	_reached[context] = true
 	var live: Array[StringName] = c.get_live_actions()
+	# What the bar can show: the live actions with a binding in the walk's family.
+	var shown_live: Array[StringName] = []
+	for action: StringName in live:
+		if not (_pad and KEYBOARD_ONLY.has(action)):
+			shown_live.append(action)
 	var problems: PackedStringArray = []
 	if context != expected:
 		problems.append("context %s" % [context])
 	rig.bar.refresh()
 	if not rig.bar.visible:
 		problems.append("the bar is hidden")
-	if rig.bar.get_shown_actions() != live:
-		problems.append("shows %s, live %s" % [rig.bar.get_shown_actions(), live])
-	problems.append_array(_text_problems(rig.bar, context, live))
+	if rig.bar.get_shown_actions() != shown_live:
+		problems.append("shows %s, live %s" % [rig.bar.get_shown_actions(), shown_live])
+	problems.append_array(_text_problems(rig.bar, context, shown_live))
 	_check.call(_tag() + " %s: the bar shows exactly the controller's live actions, keyed" % [
 		expected,
 	], problems.is_empty(), "; ".join(problems))
@@ -710,7 +744,7 @@ func _expect_context(rig: Rig, expected: StringName) -> void:
 
 	var acting: PackedStringArray = []
 	for action: StringName in _candidates:
-		if live.has(action):
+		if live.has(action) or (_pad and KEYBOARD_ONLY.has(action)):
 			continue
 		var before: String = _snapshot(rig)
 		var after: PackedStringArray = _probe(rig, action)
@@ -721,7 +755,7 @@ func _expect_context(rig: Rig, expected: StringName) -> void:
 	))
 
 	var failed: PackedStringArray = []
-	for action: StringName in live:
+	for action: StringName in shown_live:
 		if not _is_undoable(action):
 			continue
 		var problem: String = _acts_and_undoes(rig, action)
@@ -1016,9 +1050,11 @@ func _rig() -> Rig:
 	h.swap = SWAP_WINDOW_SCENE.instantiate()
 	h.host = PANEL_HOST_SCENE.instantiate()
 	h.message = MESSAGE_SCENE.instantiate()
-	for widget: Control in [h.bar, h.swap, h.host, h.message]:
+	var rune_bar: RuneBar = RUNE_BAR_SCENE.instantiate()
+	for widget: Control in [h.bar, rune_bar, h.swap, h.host, h.message]:
 		h.hud.add_child(widget)
 	h.controller = BattleController.new()
+	h.controller.rune_bar = rune_bar
 	h.controller.action_menu_scene = ACTION_MENU_SCENE
 	h.controller.target_picker_scene = TARGET_PICKER_SCENE
 	h.controller.confirm_dialog_scene = CONFIRM_SCENE

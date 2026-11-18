@@ -6,7 +6,7 @@
 # File:     rune_resolver.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: November 15, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name RuneResolver
@@ -20,8 +20,8 @@ extends RefCounted
 ## swaps two of the seat's units ([method recall]); Spark acts on the object on a tile through the
 ## map's rules ([method cast_on_object]). Each empties the slot and records
 ## [constant CombatFact.Kind.RUNE_USED]: the rune, its target, the target's tile and, in its amount,
-## the casting seat. Pure and static; the caller starts the resolution step and checks that it is
-## this map's player phase.
+## the casting seat. [method discard] empties the slot unused. Pure and static; the caller starts
+## the resolution step and checks that it is this map's player phase.
 ##
 ## @tutorial(Combat core plan): docs/plans/2026-10-26-combat-core.md
 
@@ -170,6 +170,26 @@ static func recall(
 		engine.record(moved)
 	_record_used(engine, state, seat, rune_id, first_id)
 	engine.drain()
+	return ""
+
+
+## Takes the rune [param rune_id] out of [param seat]'s slots unused: its effect never fires, and
+## [constant CombatFact.Kind.RUNE_DISCARDED] is recorded with the rune and, in its amount, the seat.
+## Returns why it can't be discarded (it isn't in the seat's slots), recording nothing then; empty
+## when it was.
+static func discard(
+		engine: EffectEngine, state: CombatState, seat: int, rune_id: String
+) -> String:
+	var reason: String = _check_slot(state, seat, rune_id)
+	if not reason.is_empty():
+		return reason
+	var slots: PackedStringArray = state.rune_slots[seat]
+	slots.remove_at(slots.find(rune_id))
+	state.rune_slots[seat] = slots
+	var discarded: CombatFact = CombatFact.new(CombatFact.Kind.RUNE_DISCARDED)
+	discarded.item_id = rune_id
+	discarded.amount = seat
+	engine.record(discarded)
 	return ""
 
 

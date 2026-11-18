@@ -6,7 +6,7 @@
 # File:     command.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 30, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 @abstract
@@ -151,6 +151,8 @@ static func _of_wire_type(wire_type: String) -> Command:
 			return UnitTurnCommand.new()
 		CastRuneCommand.WIRE_TYPE:
 			return CastRuneCommand.new()
+		DiscardRuneCommand.WIRE_TYPE:
+			return DiscardRuneCommand.new()
 	return null
 
 

@@ -6,7 +6,7 @@
 # File:     combat_bus.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 29, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name CombatBus
@@ -175,6 +175,8 @@ class ActionChannel:
 	signal weapon_swapped(fact: CombatFact)
 	## [constant CombatFact.RUNE_USED].
 	signal rune_used(fact: CombatFact)
+	## [constant CombatFact.RUNE_DISCARDED].
+	signal rune_discarded(fact: CombatFact)
 	## [constant CombatFact.UNIT_WAITED].
 	signal waited(fact: CombatFact)
 
@@ -199,6 +201,7 @@ class ActionChannel:
 		_route(CombatFact.Kind.ITEM_USED, item_used)
 		_route(CombatFact.Kind.WEAPON_SWAPPED, weapon_swapped)
 		_route(CombatFact.Kind.RUNE_USED, rune_used)
+		_route(CombatFact.Kind.RUNE_DISCARDED, rune_discarded)
 		_route(CombatFact.Kind.UNIT_WAITED, waited)
 
 
