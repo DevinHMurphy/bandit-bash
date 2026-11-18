@@ -6,16 +6,16 @@
 # File:     roster_enemy_cases.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 17, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends RefCounted
 ## The roster's enemy cases for tests/content/run_all.gd, over the real [code]res://data/[/code]:
 ## the seven classes after M1 against enemy-roster.md (behavior, target rule, weapon, gear, stats
-## and growths), their traits' text, the shared Javelin (Common) and the enemy-only Fangs (Basic,
-## never carried by a player unit), every pack against enemy-packs.md's lists, every class loaded
-## through the loadout, and
-## each trait in a battle: Backstab, Riposte, Shield Wall, Curse, Trample and Pack, and a killing
+## and growths), their traits' text, the shared Javelin (Common) and the enemy-only Fangs and
+## Shieldmace (Basic, never carried by a player unit), every pack against enemy-packs.md's lists,
+## every class loaded through the loadout, and each trait in a battle: Backstab, Riposte, Braced
+## (DEF from current Stance, and the Shieldmace's Standoff), Curse, Trample and Pack, and a killing
 ## blow still splashing and cursing as its forecast showed. Reports each case through the check
 ## callable it is given.
 ##
@@ -30,12 +30,15 @@ const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
 const ATTACK: UnitTurnCommand.Action = UnitTurnCommand.Action.ATTACK
 
+# A preloaded script used as a type: its give_rune() registers catalog runes.
+const CombatWorld = preload("res://tests/combat/combat_world.gd")
+
 # enemy-roster.md's Classes table. Columns: HP, MGT, SPD, DEF, RES, MOV, CON, Stance, then growths
 # HP, MGT, SPD, DEF, RES.
 const ROSTER: Dictionary[String, Array] = {
 	"cutthroat": [21, 5, 5, 3, 2, 5, 8, 1, 90, 40, 45, 22, 20],
 	"duelist": [16, 4, 9, 3, 1, 5, 5, 2, 75, 30, 50, 15, 20],
-	"shieldbearer": [25, 2, 2, 7, 1, 5, 14, 3, 70, 25, 28, 45, 10],
+	"shieldbearer": [25, 1, 2, 1, 1, 4, 14, 3, 70, 25, 28, 45, 10],
 	"hexer": [17, 8, 3, 3, 4, 5, 12, 1, 75, 65, 22, 18, 30],
 	"warcaller": [22, 6, 3, 2, 4, 5, 12, 2, 65, 45, 29, 18, 22],
 	"raider": [21, 6, 4, 5, 1, 7, 12, 2, 85, 40, 27, 25, 10],
@@ -67,7 +70,7 @@ const GROWTH_STATS: Array[int] = [
 const TEXT: Dictionary[String, Array] = {
 	"cutthroat": ["While the opponent is Exposed: +2 Attack"],
 	"duelist": ["Before Combat, while it is the defender: gain 3 Block"],
-	"shieldbearer": ["Phase Start: give adjacent units, friend or foe 2 Block"],
+	"shieldbearer": ["Always: +2 DEF × this unit's current Stance"],
 	"hexer": [
 		"Hit dealt: remove 1 Stance from the other unit and adjacent units of the other unit, "
 		+ "friend or foe",
@@ -83,9 +86,9 @@ const TEXT: Dictionary[String, Array] = {
 	"hound": ["Always: +2 Attack × the number of adjacent allies"],
 }
 
-# The Raider's and the Hound's weapons. Columns: Dmg, AtkX, profile, range min, range max, Hit,
-# Crit, CritX, Weight, weapon type, rarity. The Javelin is weapons.md's Pilum, renamed and shared
-# (P05 question 24); the Fangs are enemy-roster.md's enemy-only natural weapon.
+# The Raider's, the Hound's and the Shieldbearer's weapons. Columns: Dmg, AtkX, profile, range min,
+# range max, Hit, Crit, CritX, Weight, weapon type, rarity. The Javelin is weapons.md's Pilum,
+# renamed and shared; the Fangs and the Shieldmace are enemy-roster.md's enemy-only weapons.
 const NEW_WEAPONS: Dictionary[String, Array] = {
 	"javelin": [
 		5, 1, WeaponTriangle.Profile.BALANCE, 1, 2, 80, 0, 3.0, 9, "lance",
@@ -95,10 +98,18 @@ const NEW_WEAPONS: Dictionary[String, Array] = {
 		3, 2, WeaponTriangle.Profile.NIMBLE, 1, 1, 90, 0, 2.0, 0, "gauntlets",
 		ItemDefinition.Rarity.BASIC,
 	],
+	"shieldmace": [
+		4, 1, WeaponTriangle.Profile.NONE, 1, 1, 75, 0, 3.0, 12, "sword",
+		ItemDefinition.Rarity.BASIC,
+	],
 }
 
 # The enemy-only weapons: Basic, and carried by no player unit type or starting army.
-const ENEMY_ONLY: Array[String] = ["fangs"]
+const ENEMY_ONLY: Array[String] = ["fangs", "shieldmace"]
+
+# Braced's DEF on the Shieldbearer at Stance 3, 2, 1 and 0: base 1, the Iron Shield's +2, and +2 per
+# point of current Stance (enemy-roster.md).
+const BRACED_DEF: String = "9, 7, 5, 3"
 
 const BASIC: PackDefinition.Pool = PackDefinition.Pool.BASIC
 const HARD: PackDefinition.Pool = PackDefinition.Pool.HARD
@@ -213,7 +224,11 @@ func run() -> void:
 	_test_classes_load()
 	_test_backstab()
 	_test_riposte()
-	_test_shield_wall()
+	_test_braced_forecast()
+	_test_braced_mitigated_hit()
+	_test_braced_stance_loss()
+	_test_shieldmace_standoff()
+	_test_iron_wall_base()
 	_test_curse()
 	_test_trample()
 	_test_pack_trait()
@@ -230,7 +245,7 @@ func _test_classes() -> void:
 	_same("roster enemies: weapons, movement, tags, gear, trait, behavior", _describe(), "; ".join([
 		"cutthroat dagger MOBILE [] simple_dagger - Backstab AGGRESSIVE",
 		"duelist sword MOBILE [] simple_sword - Riposte GUARD",
-		"shieldbearer lance HEAVY [armored] simple_lance iron_shield Shield Wall GUARD",
+		"shieldbearer sword HEAVY [armored] shieldmace iron_shield Braced GUARD",
 		"hexer dark DEFAULT [] simple_dark - Curse SKIRMISHER",
 		"warcaller lance DEFAULT [] simple_lance - War Horn SUPPORT",
 		"raider lance MOUNTED [mounted] javelin - Trample SKIRMISHER",
@@ -281,10 +296,10 @@ func _test_text_snapshots() -> void:
 		_same("text %s" % [class_id], " | ".join(enemy_class.describe()), " | ".join(expected))
 
 
-# The Javelin (a lance) and the Fangs (natural, like gauntlets) with their sources' numbers, both
-# physical. The Javelin is Common, so it is sold and found like any lance; the Fangs are Basic,
-# so no pool, shop or reward ever offers them, and no player unit type or starting army carries
-# them (P05 question 24).
+# The Javelin (a lance), the Fangs (natural, like gauntlets) and the Shieldmace (a sword outside
+# the triangle) with their sources' numbers, all physical. The Javelin is Common, so it is sold and
+# found like any lance; the enemy-only weapons are Basic, so no pool, shop or reward ever offers
+# them, and no player unit type or starting army carries them.
 func _test_new_weapons() -> void:
 	for weapon_id: String in NEW_WEAPONS:
 		var weapon: WeaponDefinition = _catalog.weapon(weapon_id)
@@ -353,7 +368,8 @@ func _test_packs() -> void:
 
 
 # Every new class through the loadout as setup builds it: no problems, its weapon (and the
-# Shieldbearer's Iron Shield), no use limit, and the shield's +2 DEF in battle.
+# Shieldbearer's Iron Shield), no use limit, and its full-Stance DEF in battle: 1, the shield's +2
+# and Braced's +6.
 func _test_classes_load() -> void:
 	var ids: InstanceIdAllocator = InstanceIdAllocator.new()
 	var problems: PackedStringArray = []
@@ -376,14 +392,14 @@ func _test_classes_load() -> void:
 			str(problems)
 	))
 	_same("roster enemies: each unit's weapon records", "; ".join(weapons), "; ".join([
-		"cutthroat: Simple Dagger", "duelist: Simple Sword", "shieldbearer: Simple Lance",
+		"cutthroat: Simple Dagger", "duelist: Simple Sword", "shieldbearer: Shieldmace",
 		"hexer: Shade", "warcaller: Simple Lance", "raider: Javelin", "hound: Fangs",
 	]))
 	_ok("roster enemies: no weapon use is limited", limited.is_empty(), str(limited))
 
 	var session: CombatSession = _battle(_plain(2, 1), ids)
 	var bearer: String = _place(session, "shieldbearer", ENEMY, -1, Vector2i(0, 0))
-	_same("shieldbearer: the Iron Shield's +2 DEF in battle", (
+	_same("shieldbearer: 9 DEF at full Stance in battle", (
 			"" if bearer.is_empty() else str(session.stats(bearer).get_int(CombatValue.Key.DEF))
 	), "9")
 
@@ -423,26 +439,160 @@ func _test_riposte() -> void:
 	], "3, 0")
 
 
-# At the enemy Phase Start the Shieldbearer gives 2 Block to every unit beside it, its Crossbowman
-# and the two player units, but not to itself or the unit on its diagonal.
-func _test_shield_wall() -> void:
-	var session: CombatSession = _battle(_plain(3, 3), InstanceIdAllocator.new())
-	var bearer: String = _place(session, "shieldbearer", ENEMY, -1, Vector2i(1, 1))
-	_place(session, "crossbowman", ENEMY, -1, Vector2i(0, 1))
-	_place(session, "archer", PLAYER, 0, Vector2i(2, 1))
-	_place(session, "hakkapel", PLAYER, 0, Vector2i(1, 0))
-	_place(session, "battle_medic", PLAYER, 0, Vector2i(2, 2))
+# A Hakkapel's forecast against the Shieldbearer shows Braced's DEF falling 2 per Stance lost: the
+# Mitigation stage of its first hit at Stance 3, 2, 1 and 0.
+func _test_braced_forecast() -> void:
+	var session: CombatSession = _battle(_plain(2, 1), InstanceIdAllocator.new())
+	var hakkapel: String = _place(session, "hakkapel", PLAYER, 0, Vector2i(0, 0))
+	var bearer: String = _place(session, "shieldbearer", ENEMY, -1, Vector2i(1, 0))
+	if hakkapel.is_empty() or bearer.is_empty():
+		return
+	session.open_battle()
+	var shown: PackedStringArray = []
+	for stance: int in [3, 2, 1, 0]:
+		session.state.set_stance(bearer, stance)
+		var command: UnitTurnCommand = UnitTurnCommand.new(0, hakkapel, ATTACK, bearer)
+		var found: CombatForecast.ExchangeForecast = CombatForecast.exchange(
+				session.engine, command, ForecastRolls.new()
+		)
+		var side: CombatForecast.SideForecast = null if found == null else found.attacker
+		var is_shown: bool = (
+				side != null and side.breakdown != null and side.breakdown.mitigation != null
+		)
+		shown.append(str(roundi(side.breakdown.mitigation.total)) if is_shown else "-")
+	_same("braced: the forecast shows its DEF at Stance 3, 2, 1 and 0", ", ".join(shown), (
+			BRACED_DEF
+	))
+
+
+# At full Stance a hit Braced's DEF fully mitigates costs no Stance (game-vision.md, Stance and
+# Exposure): the Simple Lance's 7 plus 2 Might meets 9 DEF. With 4 Might the first hit deals 2 and
+# takes a Stance, and the DEF after the exchange follows the Stance left.
+func _test_braced_mitigated_hit() -> void:
+	var results: PackedStringArray = []
+	var follows: bool = false
+	for might: float in [2.0, 4.0]:
+		var session: CombatSession = _battle(_plain(2, 1), InstanceIdAllocator.new())
+		var hakkapel: String = _place(session, "hakkapel", PLAYER, 0, Vector2i(0, 0))
+		var bearer: String = _place(session, "shieldbearer", ENEMY, -1, Vector2i(1, 0))
+		if hakkapel.is_empty() or bearer.is_empty():
+			return
+		session.engine.set_base(hakkapel, CombatValue.Key.MGT, might)
+		session.open_battle()
+		session.submit(UnitTurnCommand.new(0, hakkapel, ATTACK, bearer))
+		var batch: CombatSession.FactBatch = session.resolve_next()
+		var facts: Array[CombatFact] = []
+		if batch != null:
+			facts.assign(batch.facts)
+		var stance: int = session.state.get_stance(bearer)
+		var first: int = maxi(_first_hit(facts, bearer), 0)
+		var def: int = session.stats(bearer).get_int(CombatValue.Key.DEF)
+		results.append("first hit %d, Stance %d, DEF %d" % [first, stance, def])
+		follows = first == 2 and stance < 3 and def == 3 + 2 * stance
+	_same("braced: a fully mitigated hit at full Stance costs no Stance", results[0], (
+			"first hit 0, Stance 3, DEF 9"
+	))
+	_ok("braced: a hit that lands takes Stance, and DEF follows it", follows, results[1])
+
+
+# Stance lost without damage strips the DEF too: the Shatter rune takes 2 Stance (DEF 9 to 5), and
+# the enemy Phase Start refresh brings both back. The Hexer's Curse on a foe beside its own
+# Shieldbearer takes 1 from it (DEF 7).
+func _test_braced_stance_loss() -> void:
+	var session: CombatSession = _battle(_plain(4, 1), InstanceIdAllocator.new())
+	var bearer: String = _place(session, "shieldbearer", ENEMY, -1, Vector2i(3, 0))
+	_place(session, "archer", PLAYER, 0, Vector2i(0, 0))
 	if bearer.is_empty():
 		return
+	CombatWorld.give_rune(session.engine, 0, "rune:shatter", "shatter")
 	session.hooks.add(CombatHooks.Hook.ENEMY_COMMANDS, func(_at: CombatSession) -> Command:
 		return null
 	)
 	session.open_battle()
+	var steps: PackedStringArray = [_stance_and_def(session, bearer)]
+	session.submit(CastRuneCommand.new(0, "rune:shatter", bearer))
+	session.resolve_next()
+	steps.append(_stance_and_def(session, bearer))
 	session.submit(EndTurnCommand.new(0))
-	var turn: CombatSession.FactBatch = session.resolve_next()
-	_same("shield wall: 2 Block to every unit beside it, friend or foe", _gained(
-			session, turn.facts, "shield_wall", CombatFact.Kind.BLOCK_GAINED
-	), "archer 2, crossbowman 2, hakkapel 2")
+	session.resolve_next()
+	steps.append(_stance_and_def(session, bearer))
+	_same("braced: Shatter takes 2 Stance and 4 DEF; the refresh brings both back", (
+			" > ".join(steps)
+	), "Stance 3 DEF 9 > Stance 1 DEF 5 > Stance 3 DEF 9")
+
+	var hex: CombatSession = _battle(_plain(5, 3), InstanceIdAllocator.new())
+	var hexer: String = _place(hex, "hexer", ENEMY, -1, Vector2i(0, 1))
+	var target: String = _place(hex, "hakkapel", PLAYER, 0, Vector2i(2, 1))
+	var cursed: String = _place(hex, "shieldbearer", ENEMY, -1, Vector2i(3, 1))
+	if cursed.is_empty():
+		return
+	_enemy_attack(hex, hexer, target, [])
+	_same("braced: its own Hexer's Curse takes 1 Stance and 2 DEF", (
+			_stance_and_def(hex, cursed)
+	), "Stance 2 DEF 7")
+
+
+# The Shieldmace sits outside the triangle: against a sword (Nimble), a lance (Balance) and an axe
+# (Power) both sides get a Standoff, in the triangle's rule and in the forecast's damage stages.
+func _test_shieldmace_standoff() -> void:
+	var shieldmace: WeaponDefinition = _catalog.weapon("shieldmace")
+	if shieldmace == null:
+		_ok("shieldmace: in the catalog", false)
+		return
+	var rows: PackedStringArray = []
+	for attacker_type: String in ["sellsword", "hakkapel", "fighter"]:
+		var session: CombatSession = _battle(_plain(2, 1), InstanceIdAllocator.new())
+		var attacker: String = _place(session, attacker_type, PLAYER, 0, Vector2i(0, 0))
+		var bearer: String = _place(session, "shieldbearer", ENEMY, -1, Vector2i(1, 0))
+		if attacker.is_empty() or bearer.is_empty():
+			return
+		session.open_battle()
+		var held: CombatState.WeaponStats = session.state.weapon(
+				session.state.equipped_weapon_id(attacker)
+		)
+		if held == null:
+			rows.append("%s unarmed" % [attacker_type])
+			continue
+		var command: UnitTurnCommand = UnitTurnCommand.new(0, attacker, ATTACK, bearer)
+		var found: CombatForecast.ExchangeForecast = CombatForecast.exchange(
+				session.engine, command, ForecastRolls.new()
+		)
+		rows.append("%s %s/%s, triangle %s/%s" % [
+			WeaponTriangle.Profile.find_key(held.profile),
+			_matchup_name(WeaponTriangle.matchup(held.profile, shieldmace.profile)),
+			_matchup_name(WeaponTriangle.matchup(shieldmace.profile, held.profile)),
+			_triangle_of(null if found == null else found.attacker),
+			_triangle_of(null if found == null else found.defender),
+		])
+	_same("shieldmace: a Standoff against Nimble, Balance and Power, both ways", "; ".join(rows), (
+			"; ".join([
+				"NIMBLE STANDOFF/STANDOFF, triangle 0/0",
+				"BALANCE STANDOFF/STANDOFF, triangle 0/0",
+				"POWER STANDOFF/STANDOFF, triangle 0/0",
+			])
+	))
+
+
+# The Iron Wall is the Shieldbearer plus Fortify: the same base, weapon, gear and Braced, so its
+# DEF falls the same way.
+func _test_iron_wall_base() -> void:
+	var wall: EnemyClassDefinition = _catalog.enemy_class("iron_wall")
+	var base: EnemyClassDefinition = _catalog.enemy_class("shieldbearer")
+	if wall == null or base == null:
+		_ok("iron wall: it and its base class in the catalog", false)
+		return
+	_same("iron wall: the Shieldbearer's base, weapon, gear and Braced", _base_of(wall), (
+			_base_of(base)
+	))
+	var session: CombatSession = _battle(_plain(2, 1), InstanceIdAllocator.new())
+	var iron_wall: String = _place(session, "iron_wall", ENEMY, -1, Vector2i(0, 0))
+	if iron_wall.is_empty():
+		return
+	var shown: PackedStringArray = []
+	for stance: int in [3, 2, 1, 0]:
+		session.state.set_stance(iron_wall, stance)
+		shown.append(_def_of(session, iron_wall))
+	_same("iron wall: its DEF at Stance 3, 2, 1 and 0", ", ".join(shown), BRACED_DEF)
 
 
 # From 2 tiles, the Hexer's hit on a Hakkapel (which can't answer at that range) costs 1 Stance to
@@ -661,6 +811,40 @@ static func _first_hit(facts: Array[CombatFact], target: String) -> int:
 		if is_hit:
 			return fact.amount
 	return -1
+
+
+# unit_id's DEF as the stat read API gives it now.
+static func _def_of(session: CombatSession, unit_id: String) -> String:
+	return str(session.stats(unit_id).get_int(CombatValue.Key.DEF))
+
+
+# unit_id's current Stance and DEF, as "Stance S DEF D".
+static func _stance_and_def(session: CombatSession, unit_id: String) -> String:
+	return "Stance %d DEF %s" % [session.state.get_stance(unit_id), _def_of(session, unit_id)]
+
+
+# A triangle result's enum name.
+static func _matchup_name(result: WhileMatchupCondition.Matchup) -> String:
+	return str(WhileMatchupCondition.Matchup.find_key(result))
+
+
+# The triangle damage change in side's first landed hit; "-" when none landed.
+static func _triangle_of(side: CombatForecast.SideForecast) -> String:
+	if side == null or side.breakdown == null:
+		return "-"
+	return str(roundi(side.breakdown.triangle))
+
+
+# What an enemy class shares with the class it is built on: base stats, growths, Stance, trait,
+# weapon, gear, weapon types and its first effect's text.
+static func _base_of(enemy_class: EnemyClassDefinition) -> String:
+	var lines: PackedStringArray = enemy_class.describe()
+	return "%s %s %d %s %s %s %s %s" % [
+		str(enemy_class.base_stats), str(enemy_class.growths), enemy_class.stance,
+		enemy_class.trait_name, enemy_class.starting_weapon_id,
+		enemy_class.starting_equipment_id, "/".join(enemy_class.weapon_types),
+		"" if lines.is_empty() else lines[0],
+	]
 
 
 # The Block the effect named effect_id gave in facts, summed.

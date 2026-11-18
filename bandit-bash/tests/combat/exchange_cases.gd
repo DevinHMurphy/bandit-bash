@@ -6,7 +6,7 @@
 # File:     exchange_cases.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: November 12, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -807,7 +807,7 @@ func _test_incoming_while_adjacent() -> void:
 	beside.kind = WhilePositionCondition.Kind.ADJACENT_TO
 	beside.side = EffectTerms.UnitSide.ALLY
 	var wall: EffectDefinition = _triggered(EffectTerms.Trigger.ALWAYS, [beside], [half])
-	world.add_effect("effect:shield_wall", wall, "e1")
+	world.add_effect("effect:huddle", wall, "e1")
 	_ok("adjacent: 6 halved to 3", _hit(world, "p1", "e1").damage == 3)
 	world.state.move_unit("e2", Vector2i(6, 6))
 	_ok("adjacent: alone, 6 again", _hit(world, "p1", "e1").damage == 6)
