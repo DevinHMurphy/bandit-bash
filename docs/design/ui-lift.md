@@ -42,7 +42,7 @@ Found November 18, 2026, in `bandit-bash/`:
 
 | Step | What | Plans touched | Needs |
 |------|------|---------------|-------|
-| **UL0 Style guide** (with the user) | `docs/design/ui-style.md`: palette, two fonts, icon style, panel and button styles, spacing, focus look on a pad, base resolution and scaling | — | The questions below |
+| **UL0 Style guide** ✅ ([ui-style.md](ui-style.md), November 18, 2026) | `docs/design/ui-style.md`: palette, two fonts, icon style, panel and button styles, spacing, focus look on a pad, base resolution and scaling | — | The questions below |
 | **UL1 Shared theme** | One project theme with colour and size tokens and the fonts; the 53 scenes' overrides moved onto it; base resolution and scaling set | P07, P08 screens | UL0 |
 | **UL2 Board art** | Terrain from Godot_FE's tilemaps; a sprite for every unit and enemy class (reused, or one consistent placeholder); map objects, intents and signature moves as icons (most of RF-008) | P07, P04 | UL1 |
 | **UL3 HUD and unit detail** | A layout pass on the unit panel, forecast, turn bar, hint bar and menus, checked at the target sizes; the [unit detail pop-up](#unit-detail-pop-up); BUG-015 | P07 | UL1 |
@@ -60,7 +60,7 @@ so they need no second pass.
 **Order** (two prompts at a time; content steps EN18, EN11, CT11, CT12 take the other slot where
 a pair is not listed):
 
-1. UL0 with the user, now.
+1. UL0 with the user: done November 18, 2026 ([ui-style.md](ui-style.md)).
 2. UL1 (the only UI step in flight: it touches every scene) beside EN18.
 3. UL4 beside DK7.
 4. UL3 beside UL5.

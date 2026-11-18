@@ -75,7 +75,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P11 | Co-op combat (game-vision.md Multiplayer maps) | **Not started** | — | P01, P02, P04, P08, P10 |
 | P12 | Statistics and the Waystation war table (meta-progression.md) | **Not started** | — | P01, P08 |
 | P13 | [RNG streams](2026-10-26-rng-streams.md) | **Implemented** | — | P00 |
-| P15 | UI lift ([ui-lift.md](../design/ui-lift.md); its scope doc is the plan) | **Approved** (November 18, 2026) | UL0–UL8 | P07, P08 |
+| P15 | UI lift ([ui-lift.md](../design/ui-lift.md); its scope doc is the plan) | **Approved** (November 18, 2026); UL0 the style guide done ([ui-style.md](../design/ui-style.md)) | UL1–UL8 | P07, P08 |
 | P14 | [Project organization](2026-11-09-project-organization.md) | **In progress** | O5 (deferred) | — |
 | P20–P24 | Meta progression, tutorials, dev console, status effects, shared co-op battles | Post-MVP | — | — |
 
