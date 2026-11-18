@@ -1,4 +1,4 @@
-[gd_scene load_steps=24 format=3]
+[gd_scene load_steps=25 format=3]
 
 [ext_resource type="Script" path="res://ui/common/nav_button.gd" id="1_nav"]
 [ext_resource type="PackedScene" path="res://ui/debug/save_debug_panel.tscn" id="2_save_debug"]
@@ -23,6 +23,7 @@
 [ext_resource type="PackedScene" path="res://ui/battle/input/pad_repeat.tscn" id="22_pad_repeat"]
 [ext_resource type="PackedScene" path="res://ui/battle/unit/unit_detail_panel.tscn" id="23_unit_detail"]
 [ext_resource type="PackedScene" path="res://ui/battle/menus/rune_menu.tscn" id="24_rune_menu"]
+[ext_resource type="PackedScene" path="res://ui/battle/hud/rune_bar.tscn" id="25_rune_bar"]
 
 [node name="Gameplay" type="Node2D"]
 script = ExtResource("5_screen")
@@ -62,6 +63,9 @@ unique_name_in_owner = true
 unique_name_in_owner = true
 anchor_left = 1.0
 offset_left = -308.0
+
+[node name="RuneBar" parent="Hud" instance=ExtResource("25_rune_bar")]
+unique_name_in_owner = true
 
 [node name="ControlHintBar" parent="Hud" node_paths=PackedStringArray("controller", "device") instance=ExtResource("20_hints")]
 unique_name_in_owner = true
@@ -113,7 +117,7 @@ unique_name_in_owner = true
 
 [node name="SaveIndicator" parent="Hud" instance=ExtResource("4_save_indicator")]
 
-[node name="BattleController" type="Node" parent="." node_paths=PackedStringArray("view", "panel_host", "turn_bar", "swap_window", "message", "move_preview_marks", "intent_display", "pad_repeat")]
+[node name="BattleController" type="Node" parent="." node_paths=PackedStringArray("view", "panel_host", "turn_bar", "swap_window", "message", "move_preview_marks", "intent_display", "rune_bar", "pad_repeat")]
 unique_name_in_owner = true
 script = ExtResource("12_controller")
 action_menu_scene = ExtResource("13_action_menu")
@@ -129,6 +133,7 @@ swap_window = NodePath("../Hud/SwapWindow")
 message = NodePath("../Hud/BattleMessage")
 move_preview_marks = NodePath("../BattleView/MovePreviewMarks")
 intent_display = NodePath("../BattleView/IntentDisplay")
+rune_bar = NodePath("../Hud/RuneBar")
 pad_repeat = NodePath("PadRepeat")
 
 [node name="PadRepeat" parent="BattleController" instance=ExtResource("22_pad_repeat")]

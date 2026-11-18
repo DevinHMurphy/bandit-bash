@@ -6,7 +6,7 @@
 # File:     combat_state.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: November 15, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name CombatState
@@ -520,7 +520,7 @@ func follow(
 			CombatFact.Kind.SHOVED:
 				if actor != null:
 					actor.has_been_shoved = true
-			CombatFact.Kind.RUNE_USED:
+			CombatFact.Kind.RUNE_USED, CombatFact.Kind.RUNE_DISCARDED:
 				if rune_slots.has(fact.amount):
 					var slots: PackedStringArray = rune_slots[fact.amount]
 					var index: int = slots.find(fact.item_id)

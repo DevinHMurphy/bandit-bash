@@ -6,7 +6,7 @@
 # File:     combat_fact.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 15, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name CombatFact
@@ -146,6 +146,10 @@ enum Kind {
 	## A wave arrived at the reinforcement point named by the actor, at [member tile], after its
 	## units' [constant UNIT_SPAWNED]: [member amount] is how many were placed.
 	REINFORCEMENT_ARRIVED = 45,
+	## The rune [member item_id] left its seat's slots unused ([DiscardRuneCommand]). As
+	## [constant RUNE_USED], the actor is empty and [member amount] is the seat; no target, no tile,
+	## and no trigger fires on it.
+	RUNE_DISCARDED = 46,
 }
 
 ## What produced an amount. Sent over the network as an int: [b]append only[/b].
@@ -278,7 +282,8 @@ var flags: int = 0
 var side: CombatSide = CombatSide.NONE
 
 ## Instance id of the item, weapon or rune the fact is about ([constant ITEM_USED],
-## [constant WEAPON_SWAPPED], [constant RUNE_USED]). Empty on every other kind.
+## [constant WEAPON_SWAPPED], [constant RUNE_USED], [constant RUNE_DISCARDED]). Empty on every
+## other kind.
 var item_id: String = ""
 
 ## A small number whose meaning depends on the kind: the [enum EffectTerms.Lane] of a

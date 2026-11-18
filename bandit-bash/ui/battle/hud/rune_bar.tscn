@@ -1,0 +1,64 @@
+[gd_scene load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://ui/battle/hud/rune_bar.gd" id="1_bar"]
+[ext_resource type="Theme" path="res://ui/theme/battle_theme.tres" id="2_theme"]
+[ext_resource type="PackedScene" path="res://ui/battle/hud/rune_slot_button.tscn" id="3_slot"]
+[ext_resource type="Texture2D" path="res://assets/sprites/runes/rune_02.png" id="4_aegis"]
+[ext_resource type="Texture2D" path="res://assets/sprites/runes/rune_03.png" id="5_clarity"]
+[ext_resource type="Texture2D" path="res://assets/sprites/runes/rune_04.png" id="6_haste"]
+[ext_resource type="Texture2D" path="res://assets/sprites/runes/rune_05.png" id="7_mend"]
+[ext_resource type="Texture2D" path="res://assets/sprites/runes/rune_06.png" id="8_recall"]
+[ext_resource type="Texture2D" path="res://assets/sprites/runes/rune_07.png" id="9_shatter"]
+[ext_resource type="Texture2D" path="res://assets/sprites/runes/rune_08.png" id="10_spark"]
+
+[node name="RuneBar" type="PanelContainer"]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -308.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = 56.0
+grow_horizontal = 0
+theme = ExtResource("2_theme")
+script = ExtResource("1_bar")
+slot_scene = ExtResource("3_slot")
+icons = Dictionary[String, Texture2D]({
+"aegis": ExtResource("4_aegis"),
+"clarity": ExtResource("5_clarity"),
+"haste": ExtResource("6_haste"),
+"mend": ExtResource("7_mend"),
+"recall": ExtResource("8_recall"),
+"shatter": ExtResource("9_shatter"),
+"spark": ExtResource("10_spark")
+})
+
+[node name="Column" type="VBoxContainer" parent="."]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Row" type="HBoxContainer" parent="Column"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="Column/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"HudHeading"
+text = "Runes"
+vertical_alignment = 1
+
+[node name="Slots" type="HBoxContainer" parent="Column/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 14
+
+[node name="RuneText" type="Label" parent="Column"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(280, 0)
+layout_mode = 2
+theme_type_variation = &"HudNote"
+autowrap_mode = 3

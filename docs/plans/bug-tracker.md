@@ -46,6 +46,7 @@ Not a bug.
 | [BUG-006](#bug-006-netlog-raises-an-engine-error-once-the-peer-is-cleared) | NetLog raises an engine error once the peer is cleared | P00 / P10 | S3 | Assigned (BF1) | November 9, 2026, O3 report | BF1 |
 | [BUG-008](#bug-008-a-mirror-keeps-a-used-up-consumable) | A mirror keeps a used-up consumable, so its hash differs from the host's | P02 / P11 | S2 | Assigned (BF1) | November 13, 2026, CT5 report | BF1 |
 | [BUG-012](#bug-012-loading-the-map-pools-in-a-test-leaks-resources) | Loading `CombatMapPools.load_default()` inside the board suite's route case leaves 74 objects and 58 resources in use at exit | P04 (map pools) / tests | S4 | New | November 16, 2026, MP10a report | — (worked around in the test) |
+| [BUG-014](#bug-014-a-runs-runes-never-reach-the-battle) | A run's runes never reach the battle, and a cast or discard never reaches the run | P08 (battle bridge) | S2 (latent: no run grants runes yet) | Assigned (RN9) | November 18, 2026, UI14 report | RN9 |
 
 ### BUG-001 No Block at the start of combat
 
@@ -249,3 +250,15 @@ Not a bug.
   written into map-objects.md.
 - **Cause (MP12, November 18, 2026):** no door truly lacked a lever. The battle board drew only terrain: a door looked like an open gap units couldn't enter, and its lever, and every chest, searchable, passage and brazier, was invisible. Two maps also had traps: on `watch_post` and `old_mill` the only lever stood outside its door, so an enemy could shut units in (on a Rout map with every survivor inside, the battle could never end).
 - **Fixed in MP12** (merged November 18, 2026): each map object is drawn (`map_object_mark.tscn`, placeholder symbols, dimmed once spent, a tag linking levers to doors and passage ends) and named with its state in the tile panel; a second lever inside each trap room, (4,1) on `watch_post` and (2,3) on `old_mill`; `MapCheck.Rule.REACHABILITY` fails any map whose required tiles or levers can't be reached without a key, or whose lever-door room has no lever inside; map-objects.md's "Reachable maps" states the rule. **Verify:** the user's next playtest.
+
+### BUG-014 A run's runes never reach the battle
+
+- **Found:** UI14's report (November 18, 2026). Nothing copies a run's runes into
+  `CombatState.rune_slots` when a battle starts, and nothing writes them back when it ends. In a
+  real run the rune bar shows three empty slots, and a cast or discard in battle doesn't reach the
+  run's runes. Battles built by tests fill the slots directly, so every case passes.
+- **Harm today:** none seen. No node grants runes yet; the Guildhall (P08 RN9) is their first
+  source.
+- **Expected:** the battle bridge (RN3's `BattleRequest`) carries the player's runes in, and the
+  battle's end writes the remaining runes back, in the save order RN3 set.
+- **Fix in P08 RN9.**

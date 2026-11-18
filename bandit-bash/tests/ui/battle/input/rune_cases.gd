@@ -6,21 +6,22 @@
 # File:     rune_cases.gd
 # Author:
 # Created:  November 16, 2026
-# Modified: November 16, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends RefCounted
-## Rune casting's cases for the ui/input suite (combat UI plan, UI13 row): every rune's targets
-## against what the validator accepts, by kind; the rune menu's text and the picker's title; each
-## of the seven runes cast from the menu by keys, by the mouse and by a pad, its forecast showing
-## the cast's tiles; Recall swapping its two units; Spark's chain resolving as its preview showed;
-## Shatter's and Haste's refusals (no ally, no unit that has acted), greyed in the picker and said
-## in the message; and cancel stepping back one stage at a time on every device. No autoload is
-## named or needed.
+## Rune casting's cases for the ui/input suite (combat UI plan, UI13 and UI14 rows): every rune's
+## targets against what the validator accepts, by kind; the unit menu's runes, each on its own
+## unit, with their text and title; each of the seven runes cast from the rune bar by keys
+## (open_runes, the arrows, accept), by the mouse (a click on its slot) and by a pad, its forecast
+## showing the cast's tiles; Recall swapping its two units; Spark's chain resolving as its preview
+## showed; Shatter's and Haste's refusals (no ally, no unit that has acted), greyed in the picker
+## and said in the message; and cancel stepping back one stage at a time on every device, from the
+## bar and from the unit menu. No autoload is named or needed. rune_bar_cases.gd extends this file.
 ##
-## The harness is targeting_cases.gd's, with the rune menu. Its fixture gives seat 0 all seven
-## catalog runes, wounds a player unit and places two powder kegs, one in the other's blast and
-## one beside an enemy (test setup only; the UI never does this).
+## The harness is targeting_cases.gd's, with the rune menu and the rune bar. Its fixture gives
+## seat 0 all seven catalog runes, wounds a player unit and places two powder kegs, one in the
+## other's blast and one beside an enemy (test setup only; the UI never does this).
 
 const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
 const TurnInputCases = preload("res://tests/ui/battle/input/turn_input_cases.gd")
@@ -37,6 +38,7 @@ const RUNE_MENU_SCENE: PackedScene = preload("res://ui/battle/menus/rune_menu.ts
 const TARGET_PICKER_SCENE: PackedScene = preload("res://ui/battle/input/target_picker.tscn")
 const CONFIRM_SCENE: PackedScene = preload("res://ui/battle/menus/confirm_dialog.tscn")
 const FORECAST_SCENE: PackedScene = preload("res://ui/battle/forecast/forecast_panel.tscn")
+const RUNE_BAR_SCENE: PackedScene = preload("res://ui/battle/hud/rune_bar.tscn")
 
 # Any fixed seed; the other UI cases use the same one.
 const SEED: int = 0x0C0FFEE
@@ -59,6 +61,8 @@ const RUNE_STAGE: BattleController.Stage = BattleController.Stage.RUNE
 const TARGET: BattleController.Stage = BattleController.Stage.TARGET
 const PAIR_TARGET: BattleController.Stage = BattleController.Stage.PAIR_TARGET
 const CONFIRM: BattleController.Stage = BattleController.Stage.CONFIRM
+const RUNE_SLOTS: BattleController.Stage = BattleController.Stage.RUNE_SLOTS
+const DISCARD_CONFIRM: BattleController.Stage = BattleController.Stage.DISCARD_CONFIRM
 const RUNE_KIND: TurnInputModel.ActionKind = TurnInputModel.ActionKind.RUNE
 
 ## How a case drives the screen.
@@ -149,22 +153,40 @@ func _test_lists_match_validator() -> void:
 	_check.call("runes: Rune is offered on the unit's own tile, not after a move", (
 			here and not there and walked.size() > 1
 	), "own tile %s, after a move %s" % [here, there])
+
+	var own: Array[TurnInputModel.RuneOption] = TurnInputModel.runes_for_unit(session, 0, caster)
+	var own_kinds: PackedStringArray = []
+	var stray: PackedStringArray = []
+	for option: TurnInputModel.RuneOption in own:
+		own_kinds.append(_definition_id(session, option))
+		if option.targets.size() != 1 or option.targets[0].target_id != caster:
+			stray.append(option.label)
+		if not option.refused.is_empty():
+			stray.append("%s refuses" % [option.label])
+	own_kinds.sort()
+	# Every player-side unit rune takes the caster; Shatter (enemies) and Spark (kegs) never do.
+	var expected: PackedStringArray = ["aegis", "clarity", "haste", "mend", "recall"]
+	_check.call("runes: the unit menu offers only the runes cast on that unit, aimed at it", (
+			own_kinds == expected and stray.is_empty()
+	), "offered %s, aimed elsewhere %s" % [own_kinds, stray])
 	h.close()
 
 
-# The rune menu shows the focused rune's text, the catalog's; the picker's title names who it is
-# cast on.
+# The unit menu's rune menu lists the caster's own runes and shows the focused rune's text, the
+# catalog's; the picker's title names who it is cast on.
 func _test_menu_text() -> void:
 	var h: TurnInputCases.Harness = _harness(true)
 	if h == null:
 		return
 	var problems: PackedStringArray = []
-	if not _open_rune_menu(h, Device.KEYS, _caster(h)):
+	var caster: String = _caster(h)
+	if not _open_rune_menu(h, Device.KEYS, caster):
 		_check.call("text: the rune menu opens", false, str(h.controller.get_stage()))
 		h.close()
 		return
 	var menu: RuneMenu = h.host.top() as RuneMenu
 	var options: Array[TurnInputModel.RuneOption] = menu.get_options()
+	var own: Array[TurnInputModel.RuneOption] = TurnInputModel.runes_for_unit(h.session, 0, caster)
 	for i: int in options.size():
 		_focus_row(Device.KEYS, menu.get_rows(), i)
 		var definition: RuneDefinition = _catalog.rune(_definition_id(h.session, options[i]))
@@ -177,13 +199,13 @@ func _test_menu_text() -> void:
 		if options[i].title != title:
 			problems.append("%s's title is '%s'" % [options[i].label, options[i].title])
 	_check.call("text: the menu shows each rune's own text, its title who it is cast on", (
-			problems.is_empty() and options.size() == RUNES.size()
+			problems.is_empty() and options.size() == own.size() and not own.is_empty()
 	), "; ".join(problems))
 	h.close()
 
 
-# Each of the seven runes, cast from the menu by device: its command reaches the session, the rune
-# leaves the slot, its forecast showed the cast's tiles, and Recall's two units traded tiles.
+# Each of the seven runes, cast from the rune bar by device: its command reaches the session, the
+# rune leaves the slot, its forecast showed the cast's tiles, and Recall's two units traded tiles.
 func _test_cast_every_rune(device: Device) -> void:
 	var tag: String = "cast (%s)" % [DEVICE_NAMES[device]]
 	var h: TurnInputCases.Harness = _harness(true)
@@ -205,7 +227,7 @@ func _test_cast_every_rune(device: Device) -> void:
 		var second_id: String = aim[1]
 		var before_first: Vector2i = state.tile_of(target_id)
 		var before_second: Vector2i = state.tile_of(second_id)
-		var problem: String = _cast(h, device, caster, rune_id, target_id, second_id)
+		var problem: String = _cast(h, device, rune_id, target_id, second_id)
 		if problem.is_empty():
 			problem = _cast_landed(h, rune_id)
 		if problem.is_empty() and definition_id == "recall":
@@ -219,7 +241,7 @@ func _test_cast_every_rune(device: Device) -> void:
 			cast_count += 1
 		else:
 			failed.append("%s: %s" % [definition_id, problem])
-	_check.call(tag + ": each of the seven runes is cast from the menu", (
+	_check.call(tag + ": each of the seven runes is cast from the rune bar", (
 			cast_count == RUNES.size()
 	), "; ".join(failed))
 	var left: PackedStringArray = state.rune_slots.get(0, PackedStringArray())
@@ -243,8 +265,7 @@ func _test_spark_chain() -> void:
 		h.close()
 		return
 	var rune_id: String = _rune_id_of(session, "spark")
-	var caster: String = _caster(h)
-	var stopped: String = _cast(h, Device.KEYS, caster, rune_id, kegs[0], "", CONFIRM)
+	var stopped: String = _cast(h, Device.KEYS, rune_id, kegs[0], "", CONFIRM)
 	var panel: ForecastPanel = h.host.top() as ForecastPanel
 	if not stopped.is_empty() or panel == null or panel.get_model() == null:
 		_check.call("spark: its forecast opens", false, stopped)
@@ -309,7 +330,7 @@ func _test_refusals() -> void:
 	_send(h, UnitTurnCommand.new(0, acted, UnitTurnCommand.Action.WAIT))
 
 	var shatter: String = _rune_id_of(session, "shatter")
-	var stopped: String = _cast(h, Device.KEYS, caster, shatter, "", "", TARGET)
+	var stopped: String = _cast(h, Device.KEYS, shatter, "", "", TARGET)
 	var list: TargetList = h.controller.get_target_list()
 	var allies: PackedStringArray = []
 	if list != null:
@@ -330,7 +351,7 @@ func _test_refusals() -> void:
 		pass
 
 	var haste: String = _rune_id_of(session, "haste")
-	stopped = _cast(h, Device.KEYS, caster, haste, "", "", TARGET)
+	stopped = _cast(h, Device.KEYS, haste, "", "", TARGET)
 	list = h.controller.get_target_list()
 	var picker: TargetPicker = h.host.top() as TargetPicker
 	var visited: Dictionary[String, bool] = {}
@@ -362,8 +383,10 @@ func _test_refusals() -> void:
 	h.close()
 
 
-# From Recall's PAIR_TARGET, cancel by device steps back one stage at a time: PAIR_TARGET, TARGET,
-# RUNE, ACTION, MOVE, IDLE; the first unit is outlined as picked in PAIR_TARGET only.
+# From Recall's PAIR_TARGET off the bar, cancel by device steps back one stage at a time:
+# TARGET, the bar (RUNE_SLOTS, for keys and pads, which opened it), IDLE, the cursor back where it
+# was; the first unit is outlined as picked in PAIR_TARGET only. From the unit menu's Recall, which
+# skips the picker: RUNE, ACTION, MOVE, IDLE.
 func _test_cancel_steps(device: Device) -> void:
 	var tag: String = "cancel (%s)" % [DEVICE_NAMES[device]]
 	var h: TurnInputCases.Harness = _harness()
@@ -374,7 +397,8 @@ func _test_cancel_steps(device: Device) -> void:
 	var caster: String = _caster(h)
 	var aim: Array = _aim(h, "recall", caster, [])
 	var first_id: String = "" if aim.is_empty() else aim[0]
-	var stopped: String = _cast(h, device, caster, recall, first_id, "", PAIR_TARGET)
+	var cursor: Vector2i = h.controller.get_cursor_tile()
+	var stopped: String = _cast(h, device, recall, first_id, "", PAIR_TARGET)
 	var picked: bool = false
 	for mark: TargetMark in h.view.get_target_marks():
 		if mark.is_picked and mark.tile == session.state.tile_of(first_id):
@@ -382,52 +406,63 @@ func _test_cancel_steps(device: Device) -> void:
 	_check.call(tag + ": Recall's first unit stays outlined as picked", (
 			stopped.is_empty() and picked
 	), stopped)
+	var expected: Array[BattleController.Stage] = [TARGET, RUNE_SLOTS, IDLE]
+	if device == Device.MOUSE:
+		expected = [TARGET, IDLE]
 	var stages: Array[BattleController.Stage] = []
-	for _i: int in 5:
+	for _i: int in expected.size():
 		_cancel(h, device)
 		stages.append(h.controller.get_stage())
-	var expected: Array[BattleController.Stage] = [TARGET, RUNE_STAGE, ACTION, MOVE, IDLE]
 	var marks_left: int = h.view.get_target_marks().size()
-	_check.call(tag + ": cancel steps back one stage at a time", (
+	_check.call(tag + ": from the bar, cancel steps back one stage at a time, cursor back", (
 			stages == expected and marks_left == 0 and h.host.depth() == 0
-	), "stages %s, marks %d, panels %d" % [stages, marks_left, h.host.depth()])
+			and h.controller.get_cursor_tile() == cursor
+	), "stages %s, marks %d, panels %d, cursor %s (was %s)" % [
+		stages, marks_left, h.host.depth(), h.controller.get_cursor_tile(), cursor,
+	])
+
+	stages.clear()
+	if _open_rune_menu(h, device, caster):
+		var menu: RuneMenu = h.host.top() as RuneMenu
+		for i: int in menu.get_options().size():
+			if menu.get_options()[i].rune_id == recall:
+				_pick_row(h, device, menu.get_rows(), i)
+		stages.append(h.controller.get_stage())
+		for _i: int in 4:
+			_cancel(h, device)
+			stages.append(h.controller.get_stage())
+	var from_menu: Array[BattleController.Stage] = [PAIR_TARGET, RUNE_STAGE, ACTION, MOVE, IDLE]
+	_check.call(tag + ": from the unit menu, Recall picks the unit itself, cancel steps back", (
+			stages == from_menu and h.host.depth() == 0
+			and h.view.get_target_marks().is_empty()
+	), "stages %s, panels %d" % [stages, h.host.depth()])
 	h.close()
 
 
 # --- Driving the screen --------------------------------------------------------------------
 
 
-# Casts rune_id from caster's action menu on its own tile by device, aiming at target_id (for Spark,
-# the keg; empty: stop at TARGET) then second_id (Recall's partner), and confirms on the forecast.
-# Stops early, leaving the stage as it is, once stop_at is reached. Empty when every step reached
-# the stage it should; else which didn't.
+# Casts rune_id from the rune bar by device, from the stage the flow is in (IDLE or MOVE), aiming
+# at target_id (for Spark, the keg; empty: stop at TARGET) then second_id (Recall's partner), and
+# confirms on the forecast. Stops early, leaving the stage as it is, once stop_at is reached. Empty
+# when every step reached the stage it should, and the flow came back to the stage it began in;
+# else which didn't.
 func _cast(
 		h: TurnInputCases.Harness,
 		device: Device,
-		caster: String,
 		rune_id: String,
 		target_id: String,
 		second_id: String,
 		stop_at: BattleController.Stage = BattleController.Stage.INACTIVE
 ) -> String:
 	var c: BattleController = h.controller
-	if not _open_rune_menu(h, device, caster):
-		return "the rune menu didn't open (stage %d)" % [c.get_stage()]
-	if stop_at == RUNE_STAGE:
-		return ""
-	var menu: RuneMenu = h.host.top() as RuneMenu
-	var index: int = -1
-	for i: int in menu.get_options().size():
-		if menu.get_options()[i].rune_id == rune_id:
-			index = i
-	if index < 0:
-		return "%s isn't in the rune menu" % [rune_id]
-	_pick_row(h, device, menu.get_rows(), index)
-	if c.get_stage() != TARGET or c.get_rune() == null or c.get_rune().rune_id != rune_id:
-		return "the rune's targets didn't open (stage %d)" % [c.get_stage()]
+	var origin: BattleController.Stage = c.get_stage()
+	var problem: String = _open_rune_targets(h, device, rune_id)
+	if not problem.is_empty():
+		return problem
 	if stop_at == TARGET or target_id.is_empty():
 		return ""
-	var problem: String = _pick_target(h, device, target_id)
+	problem = _pick_target(h, device, target_id)
 	if not problem.is_empty():
 		return problem
 	if c.get_rune().target_kind == ContentIds.RUNE_PAIR:
@@ -470,8 +505,37 @@ func _cast(
 	else:
 		_press(device, &"ui_accept")
 	BattleViewCases.settle(h.view)
-	if c.get_stage() != IDLE:
-		return "the flow didn't return to IDLE (stage %d)" % [c.get_stage()]
+	if c.get_stage() != origin:
+		return "the flow didn't return to stage %d (stage %d)" % [origin, c.get_stage()]
+	return ""
+
+
+# Opens rune_id's targets (TARGET) from the rune bar by device: a click on its slot, or open_runes,
+# the arrows to its slot and accept. Empty when TARGET opened on that rune; else why not.
+func _open_rune_targets(h: TurnInputCases.Harness, device: Device, rune_id: String) -> String:
+	var c: BattleController = h.controller
+	var bar: RuneBar = c.rune_bar
+	var index: int = -1
+	for i: int in bar.get_runes().size():
+		if bar.get_runes()[i].rune_id == rune_id:
+			index = i
+	if index < 0:
+		return "%s isn't on the rune bar" % [rune_id]
+	if device == Device.MOUSE:
+		_click_control(h, bar.get_slots()[index].get_slot_button())
+	else:
+		_press(device, &"open_runes")
+		if c.get_stage() != RUNE_SLOTS:
+			return "open_runes didn't focus the bar (stage %d)" % [c.get_stage()]
+		for _i: int in bar.get_runes().size():
+			if bar.get_focused_rune() == rune_id:
+				break
+			_press(device, &"ui_right")
+		if bar.get_focused_rune() != rune_id:
+			return "the arrows never reached %s's slot" % [rune_id]
+		_press(device, &"ui_accept")
+	if c.get_stage() != TARGET or c.get_rune() == null or c.get_rune().rune_id != rune_id:
+		return "the rune's targets didn't open (stage %d)" % [c.get_stage()]
 	return ""
 
 
@@ -601,7 +665,7 @@ func _is_clear(h: TurnInputCases.Harness, tile: Vector2i) -> bool:
 	var point: Vector2 = _screen_point(h, tile)
 	if not _root.get_viewport().get_visible_rect().has_point(point):
 		return false
-	var covers: Array[Control] = [h.bar, h.swap, h.message]
+	var covers: Array[Control] = [h.bar, h.swap, h.message, h.controller.rune_bar]
 	if h.host.top() != null:
 		covers.append(h.host.top())
 	for widget: Control in covers:
@@ -775,7 +839,8 @@ func _harness(with_kegs: bool = false) -> TurnInputCases.Harness:
 	h.swap = SWAP_WINDOW_SCENE.instantiate()
 	h.host = PANEL_HOST_SCENE.instantiate()
 	h.message = MESSAGE_SCENE.instantiate()
-	for widget: Control in [h.bar, h.swap, h.host, h.message]:
+	var rune_bar: RuneBar = RUNE_BAR_SCENE.instantiate()
+	for widget: Control in [h.bar, rune_bar, h.swap, h.host, h.message]:
 		h.hud.add_child(widget)
 	h.controller = BattleController.new()
 	h.controller.action_menu_scene = ACTION_MENU_SCENE
@@ -788,6 +853,7 @@ func _harness(with_kegs: bool = false) -> TurnInputCases.Harness:
 	h.controller.turn_bar = h.bar
 	h.controller.swap_window = h.swap
 	h.controller.message = h.message
+	h.controller.rune_bar = rune_bar
 	_root.add_child(h.controller)
 	var state: CombatState = h.session.state
 	for definition_id: String in RUNES:

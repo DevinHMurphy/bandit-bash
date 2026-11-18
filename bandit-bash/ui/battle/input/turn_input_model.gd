@@ -6,7 +6,7 @@
 # File:     turn_input_model.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 16, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name TurnInputModel
@@ -20,8 +20,9 @@ extends RefCounted
 ## on the session as it stands ([UnitTurnCommand], [CastRuneCommand], [EndTurnCommand]); the
 ## [CommandValidator] phase checks run inside those. So a menu lists only what the session would
 ## accept, and nothing here re-derives a rule. Runes come by kind ([method rune_options]): Recall's
-## first unit holds its partners' commands. Reading only: validation runs on sandbox copies and
-## nothing changes the session. [BattleController] draws it; tests check it without rendering
+## first unit holds its partners' commands; the rune bar reads [method held_runes]. Reading only:
+## validation runs on sandbox copies and nothing changes the session. [BattleController] draws it;
+## tests check it without rendering
 ## (combat UI plan, question 13). Targets are labelled by name ([method BattleText.name_of]).
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
@@ -88,6 +89,10 @@ const REFUSED_REASON: String = "can't take it now"
 
 ## Why Recall refuses one of the seat's units: none of the others can trade tiles with it.
 const NO_PARTNER_REASON: String = "can't swap with any of your units"
+
+# ASSUMPTION: the wording; no design doc words it.
+## Why the rune bar can't cast a held rune now: nothing on the map is a legal target for it.
+const NO_TARGET_REASON: String = "no target now"
 
 
 ## Whether [param unit_id] can still take its turn now: a player unit, in its seat's player phase,
@@ -351,8 +356,8 @@ static func path_to(session: CombatSession, unit_id: String, tile: Vector2i) -> 
 ## move pending gets only Wait, which ends that move: the move to the path's end
 ## ([constant UnitTurnCommand.Action.MOVE]), or a Wait where it stands.
 ## Use lists each map object whose use the session accepts from the path's end, with no item or
-## else the unit's Pouch item (a key or lockpick). Rune, on the unit's own tile only, lists its
-## [method rune_options]. Empty when it can't act.
+## else the unit's Pouch item (a key or lockpick). Rune, on the unit's own tile only, lists the
+## runes that can be cast on the unit ([method runes_for_unit]). Empty when it can't act.
 static func actions_at(
 		session: CombatSession, unit_id: String, path: Array[Vector2i]
 ) -> Array[ActionOption]:
@@ -451,7 +456,7 @@ static func actions_at(
 	# so offered after a move it would drop the move.
 	if path.size() <= 1:
 		var rune: ActionOption = ActionOption.new(ActionKind.RUNE)
-		rune.runes = rune_options(session, seat)
+		rune.runes = runes_for_unit(session, seat, unit_id)
 		if not rune.runes.is_empty():
 			options.append(rune)
 
@@ -469,30 +474,54 @@ static func rune_options(session: CombatSession, seat: int) -> Array[RuneOption]
 	var found: Array[RuneOption] = []
 	var slots: PackedStringArray = session.state.rune_slots.get(seat, PackedStringArray())
 	for rune_id: String in slots:
-		var definition: RuneDefinition = RuneResolver.definition_of(session.engine, rune_id)
-		if definition == null:
-			continue
-		var option: RuneOption = RuneOption.new()
-		option.rune_id = rune_id
-		option.label = BattleText.name_of(session, rune_id)
-		option.text = " ".join(definition.describe())
-		option.target_kind = definition.target_kind
-		option.target_noun = definition.target_noun()
-		option.title = "%s: %s" % [option.label, option.target_noun]
-		option.is_support = (
-				definition.target_kind == ContentIds.RUNE_UNIT
-				and definition.target_side != ContentIds.RUNE_SIDE_ENEMY
-		)
-		match definition.target_kind:
-			ContentIds.RUNE_UNIT:
-				_fill_unit_rune(session, seat, definition, option)
-			ContentIds.RUNE_PAIR:
-				_fill_pair_rune(session, seat, option)
-			ContentIds.RUNE_OBJECT:
-				_fill_object_rune(session, seat, option)
-		if not option.targets.is_empty():
+		var option: RuneOption = _rune_option(session, seat, rune_id)
+		if option != null and not option.targets.is_empty():
 			found.append(option)
 	return found
+
+
+## The runes of [param seat] that can be cast on [param unit_id], each narrowed to that one
+## target: a unit rune whose targets include the unit, and Recall with the unit as its first pick
+## (its partners still to choose). Spark, and a rune the unit can't take, are left out; the rune
+## bar ([method held_runes]) casts those.
+static func runes_for_unit(
+		session: CombatSession, seat: int, unit_id: String
+) -> Array[RuneOption]:
+	var found: Array[RuneOption] = []
+	for option: RuneOption in rune_options(session, seat):
+		if option.target_kind == ContentIds.RUNE_OBJECT:
+			continue
+		for target: TargetOption in option.targets:
+			if target.target_id == unit_id:
+				option.targets = [target]
+				option.refused = []
+				found.append(option)
+				break
+	return found
+
+
+## Every rune in [param seat]'s slots, in slot order, as the rune bar shows it: each with its
+## [method rune_options] entry when it can be cast now, and the command that discards it.
+static func held_runes(session: CombatSession, seat: int) -> Array[HeldRune]:
+	var held: Array[HeldRune] = []
+	var slots: PackedStringArray = session.state.rune_slots.get(seat, PackedStringArray())
+	for rune_id: String in slots:
+		var definition: RuneDefinition = RuneResolver.definition_of(session.engine, rune_id)
+		var rune: HeldRune = HeldRune.new()
+		rune.rune_id = rune_id
+		rune.definition_id = "" if definition == null else definition.id
+		rune.label = BattleText.name_of(session, rune_id)
+		rune.text = "" if definition == null else " ".join(definition.describe())
+		var option: RuneOption = _rune_option(session, seat, rune_id)
+		if option != null and not option.targets.is_empty():
+			rune.option = option
+		else:
+			rune.reason = NO_TARGET_REASON
+		var discard: DiscardRuneCommand = DiscardRuneCommand.new(seat, rune_id)
+		if discard.validate(session).is_empty():
+			rune.discard = discard
+		held.append(rune)
+	return held
 
 
 ## What the battle message says when accept on [param tile] picks none of [param rune]'s targets:
@@ -563,6 +592,33 @@ static func _turn(
 	if action == UnitTurnCommand.Action.ITEM:
 		command.item_id = session.state.unit(unit_id).pouch_item_id
 	return command if command.validate(session).is_empty() else null
+
+
+# rune_id's option with its targets and refused units by its kind, possibly no target at all; null
+# when it has no definition on this map.
+static func _rune_option(session: CombatSession, seat: int, rune_id: String) -> RuneOption:
+	var definition: RuneDefinition = RuneResolver.definition_of(session.engine, rune_id)
+	if definition == null:
+		return null
+	var option: RuneOption = RuneOption.new()
+	option.rune_id = rune_id
+	option.label = BattleText.name_of(session, rune_id)
+	option.text = " ".join(definition.describe())
+	option.target_kind = definition.target_kind
+	option.target_noun = definition.target_noun()
+	option.title = "%s: %s" % [option.label, option.target_noun]
+	option.is_support = (
+			definition.target_kind == ContentIds.RUNE_UNIT
+			and definition.target_side != ContentIds.RUNE_SIDE_ENEMY
+	)
+	match definition.target_kind:
+		ContentIds.RUNE_UNIT:
+			_fill_unit_rune(session, seat, definition, option)
+		ContentIds.RUNE_PAIR:
+			_fill_pair_rune(session, seat, option)
+		ContentIds.RUNE_OBJECT:
+			_fill_object_rune(session, seat, option)
+	return option
 
 
 # A unit rune's targets: every unit its cast validates on, in state order. A unit of the rune's
@@ -773,3 +829,24 @@ class RuneOption:
 	## [member TargetOption.reason]: a unit of its side it refuses, or Recall's unit with no
 	## partner. Never in [member targets].
 	var refused: Array[TargetOption] = []
+
+
+## One rune in a seat's slots, as the rune bar shows it, castable now or not.
+class HeldRune:
+	extends RefCounted
+
+	## The rune's instance id, in the seat's slots.
+	var rune_id: String = ""
+	## Its [RuneDefinition]'s id, such as [code]mend[/code], which picks its icon; empty when the
+	## map knows no definition for it.
+	var definition_id: String = ""
+	## Its name, such as "Mend".
+	var label: String = ""
+	## Its text ([method RuneDefinition.describe]); empty with no definition.
+	var text: String = ""
+	## What casting it offers now, its targets included; null when nothing can be cast on.
+	var option: RuneOption = null
+	## Why it can't be cast now ([constant TurnInputModel.NO_TARGET_REASON]); empty when it can.
+	var reason: String = ""
+	## The command that discards it; null when the session would refuse one now.
+	var discard: DiscardRuneCommand = null

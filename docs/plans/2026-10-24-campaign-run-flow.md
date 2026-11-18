@@ -128,7 +128,7 @@ Steps through RN5 give a playable loop on M1's data. Later steps need content fr
 | RN6 Run start | Starting heirloom offer and each one's effect | 🟡 | RN5 | CT9, CT13 | All seven work |
 | RN7 Treasure and Camp | Chests, Feast with cooking, Train, re-gear, army view, scrapping; the Key combat's heirloom, from the same draw (question 20) | 🟡 | RN5 | CT5, CT9, CT13 | The vision's odds and rules hold |
 | RN8 Armory | Stock, buying onto a unit, trade-in (a held item's value through `ItemPlacement.held_scrap_value`, so a modified item trades in for more; P03 question 8) | 🟡 | RN5 | CT4, CT5, CT9 | Stock and prices match the vision |
-| RN9 Guildhall | Recruits, hand-over, runes, prefix re-rolls | 🟡 | RN5 | CT7, CT8, CT13 | Recruits match the preview |
+| RN9 Guildhall | Recruits, hand-over, runes, prefix re-rolls; the run's runes carried into each battle (`CombatState.rune_slots`) and written back after it, casts and discards included (BUG-014) | 🟡 | RN5 | CT7, CT8, CT13 | Recruits match the preview; a rune bought here shows on the battle's rune bar, and one cast or discarded there is gone from the run |
 | RN10 Unknown | Resolution, rising odds, the P09 hand-off | 🟢 | RN7, RN8, RN9 | — | Odds match over many seeds |
 | RN11 Full run | Map pools per step and type, the boss, a seeded headless run to the end, the run seed on Results | 🟡 | RN10 | EN7, EN8, EN11, M2's maps | A full run completes solo and resumes after a quit at each kind of node |
 | RN12 Docs | save-system.md's sections; the campaign layer's guide | 🟢 | RN11 | — | Docs match the code |

@@ -6,7 +6,7 @@
 # File:     fact_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 9, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends "res://tests/effects/effects_case_base.gd"
@@ -165,12 +165,16 @@ func _test_combat_fact_amendments() -> void:
 	_check(
 			"amendments: old kind values unchanged",
 			CombatFact.Kind.PHASE_START == 0 and CombatFact.Kind.MODIFIER_EXPIRED == 34
-			and CombatFact.Kind.size() == 46
+			and CombatFact.Kind.size() == 47
 	)
 	_check(
-			"amendments: the reinforcement kinds appended last (combat map plan, New facts)",
+			"amendments: the reinforcement kinds appended (combat map plan, New facts)",
 			CombatFact.Kind.REINFORCEMENT_INCOMING == 44
 			and CombatFact.Kind.REINFORCEMENT_ARRIVED == 45
+	)
+	_check(
+			"amendments: the rune discard appended last (combat UI plan, UI14)",
+			CombatFact.Kind.RUNE_DISCARDED == 46
 	)
 
 

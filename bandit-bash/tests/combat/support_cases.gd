@@ -6,13 +6,14 @@
 # File:     support_cases.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: November 15, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends RefCounted
 ## Support action cases for tests/combat/run_all.gd: golden fact logs for each staff kind, the area
 ## staves (Sanctuary, Everwall), each Pouch item kind (an eaten ingredient too), a Sidearm swap,
-## the unit runes and Recall and Wait, their legality, and per-map uses refilling between two
+## the unit runes and Recall and Wait, their legality, a rune discarded, and per-map uses refilling
+## between two
 ## battles while total uses don't. Spark's log is the map suite's (it needs a keg).
 ##
 ## Item effects are fixtures built from the effect blocks, with the values of items.md and
@@ -192,6 +193,7 @@ func run() -> void:
 	_test_sidearm_swap()
 	_test_swap_as_action()
 	_test_mend()
+	_test_discard()
 	_test_aegis()
 	_test_shatter()
 	_test_clarity()
@@ -467,6 +469,43 @@ func _test_mend() -> void:
 	_same("mend: not on nothing", _cast(world, other, "p9"), "no target on the map")
 	_ok("mend: a refusal records nothing", world.engine.fact_log.size() == start)
 	_ok("mend: and keeps the rune", world.state.rune_slots[0].has("rune:mend2"))
+
+
+# A discard takes the rune out of its slot unused: Rune discarded with the seat, no effect, no
+# unit changed; a rune not held is refused and records nothing. A mirror following the facts loses
+# the rune too.
+func _test_discard() -> void:
+	var world: CombatWorld = _team()
+	world.add_rune(0, "rune:mend", "mend")
+	world.add_rune(0, "rune:aegis", "aegis")
+	world.state.set_hp("p2", 5)
+	# A copy taken before the discard stands for a client's mirror.
+	var mirror_engine: EffectEngine = world.engine.copy_for_sandbox(ForcedRolls.new())
+	var mirror: CombatState = mirror_engine.state as CombatState
+	var start: int = world.engine.fact_log.size()
+	_same("discard: a rune not held is refused", RuneResolver.discard(
+			world.engine, world.state, 0, "rune:none"
+	), "not in the seat's rune slots")
+	_ok("discard: a refusal records nothing", world.engine.fact_log.size() == start)
+	_same("discard: discarded", RuneResolver.discard(
+			world.engine, world.state, 0, "rune:mend"
+	), "")
+	var facts: Array[CombatFact] = world.engine.fact_log.slice(start)
+	var fact: CombatFact = facts[0] if facts.size() == 1 else null
+	_ok("discard: one Rune discarded fact, the rune and the seat, no target or tile", (
+			fact != null and fact.kind == CombatFact.Kind.RUNE_DISCARDED
+			and fact.item_id == "rune:mend" and fact.amount == 0 and fact.actor_id.is_empty()
+			and fact.target_id.is_empty() and fact.tile == CombatFact.NO_TILE
+	))
+	_ok("discard: leaves its slot, the other rune kept, nothing healed", (
+			world.state.rune_slots[0] == PackedStringArray(["rune:aegis"])
+			and world.state.get_hp("p2") == 5
+	))
+	if mirror != null:
+		mirror.follow(mirror_engine, facts)
+	_ok("discard: a mirror following the fact loses the rune", (
+			mirror != null and mirror.rune_slots[0] == PackedStringArray(["rune:aegis"])
+	))
 
 
 func _test_aegis() -> void:
