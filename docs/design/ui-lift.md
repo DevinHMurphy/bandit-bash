@@ -4,10 +4,10 @@ The scope for making the game's UI ready for more playtesters: how it looks, how
 and how a won combat hands out its rewards. M2's goal was a "functional UI" (P07 left art, audio
 and animation beyond tweens out of scope); this lifts it before M2 is marked complete.
 
-**Status:** scoping (ideation), opened November 18, 2026 (user). Nothing here is built until its
-[questions](#open-questions) are answered; the steps then become plan **P15 UI lift**, registered
-on the [orchestrator](../plans/game-orchestrator.md) as an M2 exit item. Rule changes (the darkness
-phase's damage) go through the ideation thread; this doc only proposes them.
+**Status:** scoped November 18, 2026 (user; every question answered as recommended, see
+[Decisions](#decisions)). The steps are plan **P15 UI lift**, an M2 exit item on the
+[orchestrator](../plans/game-orchestrator.md); DK7 belongs to P06. The darkness damage rule change
+goes to game-vision.md and the-darkness.md through the ideation thread.
 
 ## Where it stands
 
@@ -29,6 +29,11 @@ Found November 18, 2026, in `bandit-bash/`:
 - **Results** (`ui/campaign/combat_results_screen.gd`, P08 RN4–RN5) is its own screen showing
   grades, gold, XP, level-ups and the item pick all at once, built from the saved run so a quit
   and Continue shows the same.
+- **Heirlooms** are built as data and effects (CT9: 35 pool heirlooms, the starting and commander
+  ones, 10 curses) and work in battle, but show only as effect text in the unit detail panel. No
+  screen lists the army's heirlooms, and `HeirloomDefinition` has no icon. Most ways to gain one
+  arrive later: the run-start offer (P08 RN6), Treasure and the key combat's heirloom (RN7), the
+  Armory (RN8), events (P09).
 - **The darkness** changes in one step at the end of every turn (after the enemy Phase End, before
   the player Phase Start; the-darkness.md, The darkness step). Its damage lands at each side's own
   Phase End. Playback shows the spread with no pause or banner of its own.
@@ -45,6 +50,7 @@ Found November 18, 2026, in `bandit-bash/`:
 | **UL5 Victory sequence** | The [staged victory overlay](#victory-sequence) replaces the Results screen | P08, P07 | UL1 |
 | **UL6 Combat feedback** | Hit, crit, Block and Stance-break feedback, floating numbers, phase banners, playback pacing; tweens and existing art only | P07 | UL2 |
 | **UL7 Campaign and menu pass** | The campaign map, level-up, item pick and placement, start, save and options screens on the new theme | P08 | UL1 |
+| **UL8 Heirloom bar** | The [heirloom bar](#heirloom-bar) on every campaign screen and in battle | P07, P08, P03 (an icon on heirlooms and curses) | UL1 |
 | **DK7 Darkness phase** (P06, not UI) | The [darkness phase](#darkness-phase) | P06, P07 | — |
 
 **Out of scope** (M5 polish or later): new art made from scratch, unit animations, audio, an
@@ -55,11 +61,34 @@ so they need no second pass.
 a pair is not listed):
 
 1. UL0 with the user, now.
-2. UL1 (alone: it touches every scene) beside EN18.
+2. UL1 (the only UI step in flight: it touches every scene) beside EN18.
 3. UL4 beside DK7.
 4. UL3 beside UL5.
-5. UL2 beside EN11.
+5. UL8 beside UL2.
 6. UL6 beside UL7.
+
+EN11, CT11, CT12 and BF1 take the next free slot between waves.
+
+## Heirloom bar
+
+The army's heirlooms, always in view, in the manner of a roguelike relic or item bar (the user's
+references, November 18, 2026: relics under the top bar, items in a row).
+
+- **Where:** an HBox directly below the top header: the campaign screens' run header and the
+  battle HUD's top strip. One shared `heirloom_bar.tscn`; each heirloom is its own
+  `heirloom_icon.tscn`.
+- **Look:** each icon sits at low opacity at rest and comes to full on hover, focus or when it
+  fires. Curses follow the heirlooms after a divider, tinted apart. A repeated heirloom shows once
+  per copy.
+- **Tooltip** on hover or focus: name, tier, effect text (the same generated text as everywhere
+  else), and its counter where it has one ("every 7th").
+- **Live in battle:** a counter shows as a small number on the icon (`COUNTER_CHANGED`), and the icon
+  pulses when it fires (`EFFECT_ACTIVATED`), with the matching event log line (UL4).
+- **Input:** a key and pad button move focus onto the bar, as the rune bar does (UI14); left and
+  right move between icons; Back leaves.
+- **Data:** an `icon` export on `HeirloomDefinition` and `CurseDefinition` (P03 content), with
+  placeholder art per the art decision; a missing icon falls back to one generic mark.
+- **Co-op:** each seat sees its own heirlooms. Showing teammates' bars waits for P11.
 
 ## Event log
 
@@ -126,7 +155,7 @@ Not UI, and partly a rule change. Two parts:
 - **(a) A phase you can see.** When the darkness step does anything (a wave released, the creep,
   breakables breaking), it gets a "Darkness" banner and an entry on the turn bar, and the spread
   plays tile by tile at a set pace, skippable like other playback. No rule changes.
-- **(b) Its damage moves into that phase** (the user's "maybe"). All darkness happens at once:
+- **(b) Its damage moves into that phase** (decided: [decision 5](#decisions)). All darkness happens at once:
   damage first, from the layer each unit stands on (the layers the move preview showed), then the
   creep. Both sides take it at the same moment, once per turn. What changes from today:
   - player units in the dark take damage after the enemy phase instead of at the end of their
@@ -140,6 +169,8 @@ Not UI, and partly a rule change. Two parts:
   [RF-014](rebalance-and-features.md).
 
 ## Open questions
+
+None. The questions as asked, kept for reference:
 
 1. **Art source:** reuse Godot_FE's art wherever it fits and use one consistent placeholder style
    for the rest (recommended), or stop for new art (which would push the lift past M2)?
@@ -157,4 +188,16 @@ Not UI, and partly a rule change. Two parts:
 
 ## Decisions
 
-None yet.
+Decided by the user, November 18, 2026: every question as recommended.
+
+1. **Art:** Godot_FE's art wherever it fits; one consistent placeholder style for the rest. No new
+   art blocks the lift.
+2. **Target sizes:** 1920×1080 desktop and 1280×800 Steam Deck.
+3. **UL6 and UL7 are in M2.**
+4. **Gold** shows as already collected in the Grade stage, not as a reward row.
+5. **The darkness's damage moves into the darkness phase,** damage first (from the layers units
+   stand on), then the creep; both sides at once. The-darkness.md and game-vision.md change through
+   the ideation thread.
+6. **The unit detail pop-up** opens by right-clicking a unit, plus the existing key and pad button.
+7. **A heirloom bar** (UL8) below the top header on campaign screens and in battle: low-opacity
+   icons with a tooltip on hover (user, with the questions).

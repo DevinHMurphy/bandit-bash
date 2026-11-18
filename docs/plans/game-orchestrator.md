@@ -47,13 +47,13 @@ The MVP is **one full run, start screen to boss, solo and co-op, on Normal** (ga
 |---|---|---|---|
 | **M0 Foundations** | The engine every system plugs into | P00, P01 | **Complete** October 30, 2026 |
 | **M1 First playable fight** | One greybox combat, start to finish | P02–P07 (subsets) | **Complete** November 5, 2026; its tuning pass is deferred |
-| **M2 Combat complete** | Every MVP combat feature and piece of content, with a functional UI | P02–P07 | **In progress.** Left: P03 CT11 and CT12, P05 EN11, EN12 and EN18 (Shieldbearer rework, RF-010), P04 MP10's last map (the boss map, with EN11), the UI lift (P15, scoping: [ui-lift.md](../design/ui-lift.md)), BF1, and the docs (EB8, CC9, MP9, DK6, CT11, EN12) |
+| **M2 Combat complete** | Every MVP combat feature and piece of content, with a functional UI | P02–P07 | **In progress.** Left: P03 CT11 and CT12, P05 EN11, EN12 and EN18 (Shieldbearer rework, RF-010), P04 MP10's last map (the boss map, with EN11), P15 UI lift UL0–UL8 ([ui-lift.md](../design/ui-lift.md)), P06 DK7 (darkness phase), BF1, and the docs (EB8, CC9, MP9, DK6, CT11, EN12) |
 | **M3 Solo run** | Start screen → campaign → boss, saved and resumable; 60–80 minutes | P08, P09 | **In progress.** RN1–RN5 merged (a run plays map → combat → Results → map on all three devices, headless) |
 | **M4 Co-op run** | The same run for 2–4 players, tested live on two machines | P10, P11 | Not started |
 | **M5 MVP** | Statistics, the Waystation war table, the MVP checklist | P12, polish | Not started |
 | Post-MVP | Meta progression and beyond | P20–P24 | Not planned |
 
-**M2's exit:** the UI lift ([ui-lift.md](../design/ui-lift.md), scoping November 18, 2026; becomes P15) built; every entry targeted at M2 in [rebalance-and-features.md](../design/rebalance-and-features.md) built (the playtest feedback log, opened November 18, 2026); every objective and map object, the 10 enemy classes, 4 mini-bosses, the Powder Baron map, and all MVP units, weapons, staves, items, heirlooms and runes as data.
+**M2's exit:** the UI lift (P15, [ui-lift.md](../design/ui-lift.md), scoped November 18, 2026) built; every entry targeted at M2 in [rebalance-and-features.md](../design/rebalance-and-features.md) built (the playtest feedback log, opened November 18, 2026); every objective and map object, the 10 enemy classes, 4 mini-bosses, the Powder Baron map, and all MVP units, weapons, staves, items, heirlooms and runes as data.
 
 ## Plan registry
 
@@ -67,7 +67,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P03 | [Content catalog](2026-10-29-content-catalog.md) | **In progress** | CT11, CT12 | P01 |
 | P04 | [Combat map](2026-10-27-combat-map.md) | **In progress** | MP9 docs; MP10 the M2 map set; MP11 map authoring toolkit (future) | P01, P02 |
 | P05 | [Enemies and AI](2026-10-30-enemies-and-ai.md) | **In progress** | EN8, EN11–EN16 | P02, P04 |
-| P06 | [The darkness](2026-11-03-the-darkness.md) | **In progress** | DK6 docs | P02, P04 |
+| P06 | [The darkness](2026-11-03-the-darkness.md) | **In progress** | DK6 docs; DK7 darkness phase | P02, P04 |
 | P07 | [Combat UI](2026-11-04-combat-ui.md) | **In progress** | Nothing for M2 | P02, P04, P05, P06 |
 | P08 | [Campaign and run flow](2026-10-24-campaign-run-flow.md) | **In progress** | RN6–RN12 | P01, P03 |
 | P09 | [Narrative events and curses](2026-11-12-events-and-curses.md) | **Approved** | EV1–EV6 | P01, P03, P08 |
@@ -75,6 +75,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P11 | Co-op combat (game-vision.md Multiplayer maps) | **Not started** | — | P01, P02, P04, P08, P10 |
 | P12 | Statistics and the Waystation war table (meta-progression.md) | **Not started** | — | P01, P08 |
 | P13 | [RNG streams](2026-10-26-rng-streams.md) | **Implemented** | — | P00 |
+| P15 | UI lift ([ui-lift.md](../design/ui-lift.md); its scope doc is the plan) | **Approved** (November 18, 2026) | UL0–UL8 | P07, P08 |
 | P14 | [Project organization](2026-11-09-project-organization.md) | **In progress** | O5 (deferred) | — |
 | P20–P24 | Meta progression, tutorials, dev console, status effects, shared co-op battles | Post-MVP | — | — |
 
