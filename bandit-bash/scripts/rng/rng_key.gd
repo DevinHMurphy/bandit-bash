@@ -6,7 +6,7 @@
 # File:     rng_key.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name RngKey
@@ -58,6 +58,9 @@ enum RngPurpose {
 	MAP_LOOT = 12,
 	## One seat's hit, crit and Chance rolls and random targets for one battle. Node key, per seat.
 	COMBAT_ROLLS = 13,
+	## The run's order of mini-bosses, one per key combat ([method EnemySetup.mini_boss_for]). Run
+	## key, shared; re-derived from its key at every key combat and never held or saved.
+	MINI_BOSS_DRAW = 14,
 }
 
 # SplitMix64's golden-ratio increment and finalizer multipliers, as signed decimals: GDScript can't

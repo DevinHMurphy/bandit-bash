@@ -6,7 +6,7 @@
 # File:     enemy_setup_cases.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 15, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -325,7 +325,8 @@ func _test_pools_on_fixtures() -> void:
 
 
 # The real catalog over 24 seeds, every step: standard combats 0 and 1 draw a basic pack, the third
-# a hard one, a key map a key one, never the M1 Pack, each at its step's count.
+# a hard one, a key map a key one, never the M1 Pack, each at its step's count (a key pack's
+# mini-boss on top).
 func _test_real_pools() -> void:
 	var real: EffectCatalog.Index = EffectCatalog.index()
 	var wrong: PackedStringArray = []
@@ -346,11 +347,15 @@ func _test_real_pools() -> void:
 				)
 				var pack: PackDefinition = real.pack(_pack_of(setup))
 				var fielded: int = _units_of(setup) + _unplaced_of(setup)
+				# A key pack's mini-boss stands on the leader slot on top of its escort.
+				var size: int = PackDefinition.STEP_SIZES[step - 1]
+				if row[2] == PackDefinition.Pool.KEY:
+					size += 1
 				if (
 						pack == null
 						or pack.id == "m1_pack"
 						or pack.pool != row[2]
-						or fielded != PackDefinition.STEP_SIZES[step - 1]
+						or fielded != size
 				):
 					wrong.append("seed %d floor %d %s: %s, %d units" % [
 						run_seed, floor_number, label, _pack_of(setup), fielded,

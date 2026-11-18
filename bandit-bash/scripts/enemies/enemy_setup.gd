@@ -6,7 +6,7 @@
 # File:     enemy_setup.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 17, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name EnemySetup
@@ -16,7 +16,9 @@ extends RefCounted
 ##
 ## [method draw] (step 4) picks one pack from the combat's pool ([method pool_for]) with the shared
 ## [code]ENCOUNTER_SETUP[/code] stream and gives its units at the floor's step the map's enemy
-## slots in [MapLayout] order, but its leader, an elite, the leader slot. [WaveGroups] draws a pack
+## slots in [MapLayout] order, but its leader, an elite, the leader slot. On a key map the pack is
+## the escort of the run's next mini-boss ([method mini_boss_for]), who takes the leader slot, so
+## no mini-boss repeats until all have fought. [WaveGroups] draws a pack
 ## per reinforcement wave from a standard pool (step 5). [method draw_additions] (step 6) draws a
 ## seat's extra enemies from that seat's stream into the slots step 4 left free.
 ## [method place] builds each unit through [Loadout] (side enemy, seat -1) and places it; every map
@@ -29,8 +31,9 @@ extends RefCounted
 ## @tutorial(Run structure): docs/design/game-vision.md
 
 ## The key of the drawn enemies in [member CombatEncounter.EncounterSetup.shared]: a Dictionary
-## with [constant PACK_KEY], [constant UNITS_KEY], [constant UNPLACED_KEY] and, when the leader
-## slot stays empty, [constant NO_LEADER_KEY].
+## with [constant PACK_KEY], [constant UNITS_KEY], [constant UNPLACED_KEY], on a key map
+## [constant MINI_BOSS_KEY], and, when the leader slot stays empty, [constant NO_LEADER_KEY] or
+## [constant NO_LEADER_SLOT_KEY].
 const ENEMIES_KEY: String = "enemies"
 
 ## The key of a seat's extra enemies in [member CombatEncounter.SeatSetup.additions]: a
@@ -56,13 +59,21 @@ const LEVEL_KEY: String = "level"
 ## A unit's tile, its enemy slot's or the leader slot's, as [code][x, y][/code].
 const TILE_KEY: String = "tile"
 
-## The leader's prefix id ([method UnitPrefixDefinition.roll_elite]); only the leader's entry has
-## it.
+## The elite's prefix id ([method UnitPrefixDefinition.roll_elite]); only the entry of a leader or
+## a mini-boss has it.
 const PREFIX_KEY: String = "prefix_id"
 
 ## The leader class id of a pack whose step doesn't field it, so the leader slot stays empty;
 ## absent otherwise. [method place] reports it.
 const NO_LEADER_KEY: String = "no_leader"
+
+## The drawn key pack's mini-boss class id ([member PackDefinition.mini_boss_id]); absent on a map
+## that isn't a key map.
+const MINI_BOSS_KEY: String = "mini_boss"
+
+## The mini-boss class id of a key map with no leader slot, so only its escort fields; absent
+## otherwise. [method place] reports it.
+const NO_LEADER_SLOT_KEY: String = "no_leader_slot"
 
 ## Levels a key combat's enemies have over their step's (game-vision.md, Run structure).
 const KEY_COMBAT_LEVELS: int = 1
@@ -86,19 +97,26 @@ const _STEP_LEVELS: Array[int] = [1, 3, 5]
 ## [method level_for] [param floor_number] plus [param level_modifier]. On a map with a leader
 ## slot, the first unit of the pack's [member PackDefinition.leader_class_id] takes it instead, at
 ## the leader's level, with a prefix drawn next ([method UnitPrefixDefinition.roll_elite]), so it
-## counts toward the step's count. An empty pool draws nothing. Register it bound:
-## [code]draw.bind(catalog, floor_number, level_modifier, standard_combats)[/code].
+## counts toward the step's count. On a key map the pack is one naming [param mini_boss_id] (any
+## key pack when it is empty or none does), and its mini-boss stands on the leader slot at the
+## leader's level with a prefix drawn right after the pack, on top of the escort. An empty pool
+## draws nothing. Register it bound:
+## [code]draw.bind(catalog, floor_number, level_modifier, standard_combats, mini_boss_id)[/code].
 static func draw(
 		ctx: CombatEncounter.SetupContext,
 		catalog: EffectCatalog.Index,
 		floor_number: int,
 		level_modifier: int,
-		standard_combats: int = 0
+		standard_combats: int = 0,
+		mini_boss_id: String = ""
 ) -> void:
 	var is_key: bool = _is_key(ctx.setup.map)
-	var pack: PackDefinition = _pick_pack(
-			catalog, pool_for(is_key, standard_combats), ctx.stream
-	)
+	var pool: PackDefinition.Pool = pool_for(is_key, standard_combats)
+	var pack: PackDefinition = null
+	if is_key and not mini_boss_id.is_empty():
+		pack = _pick_pack(catalog, pool, ctx.stream, mini_boss_id)
+	if pack == null:
+		pack = _pick_pack(catalog, pool, ctx.stream)
 	if pack == null:
 		return
 	var classes: PackedStringArray = pack.units(step_of(floor_number))
@@ -109,11 +127,23 @@ static func draw(
 	)
 	var leader_at: int = -1
 	var drawn: Dictionary = {PACK_KEY: pack.id}
+	var units: Array[Dictionary] = []
+	if is_key and not pack.mini_boss_id.is_empty():
+		drawn[MINI_BOSS_KEY] = pack.mini_boss_id
+		if leader_slots.is_empty():
+			drawn[NO_LEADER_SLOT_KEY] = pack.mini_boss_id
+		else:
+			var boss_tile: Vector2i = leader_slots[0]
+			units.append({
+				CLASS_KEY: pack.mini_boss_id,
+				LEVEL_KEY: level_for(floor_number, is_key, true, level_modifier),
+				TILE_KEY: [boss_tile.x, boss_tile.y],
+				PREFIX_KEY: UnitPrefixDefinition.roll_elite(ctx.stream, catalog),
+			})
 	if not leader_slots.is_empty() and not pack.leader_class_id.is_empty():
 		leader_at = classes.find(pack.leader_class_id)
 		if leader_at < 0:
 			drawn[NO_LEADER_KEY] = pack.leader_class_id
-	var units: Array[Dictionary] = []
 	var unplaced: Array[String] = []
 	var filled: int = 0
 	for index: int in classes.size():
@@ -217,9 +247,10 @@ static func standard_classes(catalog: EffectCatalog.Index) -> PackedStringArray:
 ## [param catalog]: the shared units ([method draw]) in order, then the additions of each of its
 ## seats ([method draw_additions]). Call once per session, before the army deploys, so automatic
 ## deployment ranks its tiles by the enemies' real tiles. A unit that can't be built or whose tile
-## is taken or can't be stood on is skipped, as is each unplaced unit and an empty leader slot
-## ([constant NO_LEADER_KEY]), with a line in the session's diagnostics. The leader is marked by
-## the slot it stands on ([method Objectives.marked_ids]).
+## is taken or can't be stood on is skipped, as is each unplaced unit, an empty leader slot
+## ([constant NO_LEADER_KEY]) and a mini-boss with no slot ([constant NO_LEADER_SLOT_KEY]), with a
+## line in the session's diagnostics. The leader or mini-boss is marked by the slot it stands on
+## ([method Objectives.marked_ids]).
 ## Returns the ids of the units placed, in order.
 static func place(session: CombatSession, catalog: EffectCatalog.Index) -> PackedStringArray:
 	var placed: PackedStringArray = []
@@ -230,6 +261,10 @@ static func place(session: CombatSession, catalog: EffectCatalog.Index) -> Packe
 	if shared is Dictionary and (shared as Dictionary).has(NO_LEADER_KEY):
 		_report(session, "the pack fields no %s at this step, so the leader slot stays empty" % [
 			(shared as Dictionary)[NO_LEADER_KEY],
+		])
+	if shared is Dictionary and (shared as Dictionary).has(NO_LEADER_SLOT_KEY):
+		_report(session, "the key map has no leader slot, so its mini-boss %s isn't placed" % [
+			(shared as Dictionary)[NO_LEADER_SLOT_KEY],
 		])
 	for seat: int in session.seats:
 		var seat_setup: CombatEncounter.SeatSetup = session.setup.seats.get(seat, null)
@@ -254,6 +289,38 @@ static func pool_for(is_key: bool, standard_combats: int) -> PackDefinition.Pool
 	if standard_combats < BASIC_COMBATS_PER_STEP:
 		return PackDefinition.Pool.BASIC
 	return PackDefinition.Pool.HARD
+
+
+## Ids of the mini-bosses in [param catalog], in id order: every enemy class a key pack names as
+## its [member PackDefinition.mini_boss_id]. A name the catalog lacks is left out.
+static func mini_boss_ids(catalog: EffectCatalog.Index) -> PackedStringArray:
+	var found: Dictionary[String, bool] = {}
+	for resource: Resource in catalog.all_of(EffectCatalog.Kind.PACK):
+		var pack: PackDefinition = resource as PackDefinition
+		if pack == null or pack.pool != PackDefinition.Pool.KEY or pack.mini_boss_id.is_empty():
+			continue
+		if catalog.enemy_class(pack.mini_boss_id) != null:
+			found[pack.mini_boss_id] = true
+	var ids: PackedStringArray = PackedStringArray(found.keys())
+	ids.sort()
+	return ids
+
+
+## The mini-boss of a run's key combat with [param key_combats_before] key combats before it: its
+## place in the run's order, shuffled from [param order], a stream fresh from the run's
+## [constant RngKey.RngPurpose.MINI_BOSS_DRAW] key. Every [method mini_boss_ids] fights once
+## before any repeats; past them all a new shuffle begins. Empty when the catalog has none.
+static func mini_boss_for(
+		catalog: EffectCatalog.Index, order: RngStream, key_combats_before: int
+) -> String:
+	var ids: PackedStringArray = mini_boss_ids(catalog)
+	if ids.is_empty():
+		return ""
+	var index: int = maxi(key_combats_before, 0)
+	var shuffled: PackedInt32Array = []
+	for _cycle: int in floori(float(index) / float(ids.size())) + 1:
+		shuffled = order.shuffle_indices(ids.size())
+	return ids[shuffled[index % ids.size()]]
 
 
 ## The difficulty step of floor [param floor_number] (game-vision.md, Run structure), 1 to
@@ -388,15 +455,20 @@ static func _load(
 	return Loadout.load_unit(catalog, unit, items, CombatFact.CombatSide.ENEMY, -1, session.ids)
 
 
-# One pack drawn evenly from catalog's packs of pool, in id order; null, drawing nothing, when
-# the pool has none.
+# One pack drawn evenly from catalog's packs of pool, in id order, only those escorting
+# mini_boss_id when it isn't empty; null, drawing nothing, when none is left.
 static func _pick_pack(
-		catalog: EffectCatalog.Index, pool: PackDefinition.Pool, stream: RngStream
+		catalog: EffectCatalog.Index,
+		pool: PackDefinition.Pool,
+		stream: RngStream,
+		mini_boss_id: String = ""
 ) -> PackDefinition:
 	var packs: Array[PackDefinition] = []
 	for resource: Resource in catalog.all_of(EffectCatalog.Kind.PACK):
 		var pack: PackDefinition = resource as PackDefinition
-		if pack != null and pack.pool == pool:
+		if pack == null or pack.pool != pool:
+			continue
+		if mini_boss_id.is_empty() or pack.mini_boss_id == mini_boss_id:
 			packs.append(pack)
 	if packs.is_empty():
 		return null

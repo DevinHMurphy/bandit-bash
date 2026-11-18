@@ -6,16 +6,19 @@
 # File:     while_state_condition.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 15, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 @tool
 class_name WhileStateCondition
 extends EffectCondition
 ## Passes while a unit is in a state: "while Exposed", "while the opponent is Exposed", "while it
-## is the commander", "while holding a Power weapon", "while holding a bow".
+## is the commander", "while holding a Power weapon", "while holding a bow", "while its Curse is a
+## Hex Storm".
 ##
-## Checked live on every query, so a weapon swap or a Stance change shows at once. The opponent
+## Checked live on every query, so a weapon swap or a Stance change shows at once. A permission
+## state reads the unit's stats, so it belongs on a reaction, never on an always-on effect that
+## could change that permission. The opponent
 ## exists only from Before Combat to After Combat; outside an exchange an opponent test fails.
 ##
 ## @tutorial(Effect triggers): docs/design/effect-triggers.md
@@ -31,6 +34,11 @@ enum State {
 	## The weapon in its Weapon slot has the weapon type [member weapon_type] (the Short Quiver's
 	## bows). A stowed weapon never counts.
 	WIELDING_TYPE = 3,
+	## [member permission] is allowed for the unit (the Hex Matron's Hex Storm, granted for a
+	## phase).
+	ALLOWED = 4,
+	## [member permission] is denied for the unit, as it is with no grant for a default-denied one.
+	DENIED = 5,
 }
 
 ## Whose state is tested. Saved as an int: [b]append only[/b].
@@ -56,6 +64,11 @@ enum Subject {
 ## ("while holding a bow").
 @export var weapon_type: String = ""
 
+## The permission [constant State.ALLOWED] and [constant State.DENIED] test, a
+## [enum CombatValue.Permission] value such as [constant CombatValue.Permission.HEX_STORM]; ignored
+## by the other states. Text reads it as its effect text ("while its Curse is a Hex Storm").
+@export var permission: int = CombatValue.Permission.HEX_STORM
+
 
 func _validate_property(property: Dictionary) -> void:
 	if property["name"] == "weapon_type":
@@ -80,6 +93,17 @@ func describe() -> String:
 			if is_opponent:
 				return "while the opponent holds %s" % [_article(weapon_type)]
 			return "while holding %s" % [_article(weapon_type)]
+		State.ALLOWED, State.DENIED:
+			var texts: Dictionary[int, String] = (
+					EffectTerms.PERMISSION_ALLOWED_TEXT if state == State.ALLOWED
+					else EffectTerms.PERMISSION_DENIED_TEXT
+			)
+			var text: String = texts.get(permission, "%s %d" % [
+				"allowed" if state == State.ALLOWED else "denied", permission,
+			])
+			if is_opponent:
+				return "while the opponent %s" % [text]
+			return "while %s" % [text]
 	var state_name: String = (State.find_key(state) as String).capitalize()
 	if is_opponent:
 		return "while the opponent is %s" % [state_name]
@@ -102,6 +126,10 @@ func test(ctx: EffectContext) -> bool:
 		State.WIELDING_TYPE:
 			var weapon_id: String = sandbox.equipped_weapon_id(unit_id)
 			return not weapon_id.is_empty() and sandbox.weapon_type_of(weapon_id) == weapon_type
+		State.ALLOWED:
+			return ctx.engine.stats(unit_id).is_allowed(permission)
+		State.DENIED:
+			return not ctx.engine.stats(unit_id).is_allowed(permission)
 	return sandbox.get_stance(unit_id) == 0
 
 

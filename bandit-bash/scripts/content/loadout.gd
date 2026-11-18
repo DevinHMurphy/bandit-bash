@@ -6,7 +6,7 @@
 # File:     loadout.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 15, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name Loadout
@@ -25,9 +25,10 @@ extends RefCounted
 ## A staff's [member StaffDefinition.uses] and a consumable's [member ConsumableDefinition.uses]
 ## become a use effect that combat counts ([method ItemUseResolver.use_effects]): per map, or a
 ## consumable's total uses kept on its instance. An [EnemyClassDefinition] loads like a unit type,
-## its level as a "Level L" source. An enemy's weapons and staves never run out (enemies and AI
-## plan, question 13): it gets no staff uses, and each charged use effect on them registers as a
-## copy without charges; its traits and consumables keep their limits.[br]
+## its level as a "Level L" source, its signature move labelled by its own name. An enemy's
+## weapons and staves never run out (enemies and AI plan, question 13): it gets no staff uses, and
+## each charged use effect on them registers as a copy without charges; its traits and consumables
+## keep their limits.[br]
 ## Campaign-lane counters and charges are copied in from the instances and back out by
 ## [method LoadedUnit.write_back]. Bad data (an unknown id, gear in the wrong slot) is reported in
 ## [member LoadedUnit.problems] and skipped, never guessed at. Static and pure: it reads only the
@@ -104,7 +105,17 @@ static func load_unit(
 	if trait_label.is_empty():
 		trait_label = unit_type.display_name
 	var trait_home: CounterHome = CounterHome.new(unit.counters, unit.charges)
-	_add_effects(loaded, ids, unit.trait_effects(unit_type), owner, trait_label, trait_home)
+	_add_effects(
+			loaded,
+			ids,
+			unit.trait_effects(unit_type),
+			owner,
+			trait_label,
+			trait_home,
+			Modifier.SourceKind.UNIT_TRAIT,
+			false,
+			_signature_label(unit_type)
+	)
 	_add_effects(loaded, ids, unit_type.innate_effects, owner, unit_type.display_name, trait_home)
 	for source: UnitInstance.StatSource in unit.stat_sources(catalog):
 		_add_runtime(loaded, ids, source.id, source.operations, owner, source.label)
@@ -388,7 +399,8 @@ static func _prefix_operations(prefix: WeaponPrefixDefinition) -> Array[EffectOp
 
 # One instance per effect of [param effects], each keeping its campaign-lane state in [param home]
 # by its key ([method CounterHome.for_effect]). With [param is_unlimited], a use effect with
-# charges registers as a copy without them: an enemy's weapon never runs out.
+# charges registers as a copy without them: an enemy's weapon never runs out. An effect in
+# [param named] takes its own label instead of [param label] (an enemy's signature move).
 static func _add_effects(
 		loaded: LoadedUnit,
 		ids: InstanceIdAllocator,
@@ -397,14 +409,16 @@ static func _add_effects(
 		label: String,
 		home: CounterHome,
 		kind: Modifier.SourceKind = Modifier.SourceKind.UNIT_TRAIT,
-		is_unlimited: bool = false
+		is_unlimited: bool = false,
+		named: Dictionary[EffectDefinition, String] = {}
 ) -> void:
 	for index: int in effects.size():
 		var effect: EffectDefinition = effects[index]
 		if effect == null:
 			continue
+		var effect_label: String = named.get(effect, label)
 		var instance: EffectInstance = EffectInstance.new(
-				ids.next_effect_id(label), effect, owner.copy(), kind, label
+				ids.next_effect_id(effect_label), effect, owner.copy(), kind, effect_label
 		)
 		if is_unlimited and _is_charged_use(instance):
 			instance.definition = _without_charges(effect)
@@ -490,6 +504,18 @@ static func _add_operation(key: int, amount: float) -> ModifyValue:
 	change.key = key
 	change.value = amount
 	return change
+
+
+# An enemy class's signature move by its own name ([member EnemyClassDefinition.signature_name]),
+# so intents and breakdowns name Command, not the trait beside it; empty for any other type.
+static func _signature_label(unit_type: UnitTypeDefinition) -> Dictionary[EffectDefinition, String]:
+	var named: Dictionary[EffectDefinition, String] = {}
+	var enemy_class: EnemyClassDefinition = unit_type as EnemyClassDefinition
+	if enemy_class == null:
+		return named
+	if enemy_class.signature_move != null and not enemy_class.signature_name.is_empty():
+		named[enemy_class.signature_move] = enemy_class.signature_name
+	return named
 
 
 static func _append_new(list: PackedStringArray, added: PackedStringArray) -> void:

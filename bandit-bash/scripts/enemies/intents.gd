@@ -6,7 +6,7 @@
 # File:     intents.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 17, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name Intents
@@ -125,7 +125,8 @@ static func refresh(session: CombatSession, catalog: EffectCatalog.Index) -> voi
 
 ## The intents of [param session]'s enemies on its board as it stands, if the player phase ended
 ## now, their classes read from [param catalog]. An enemy whose signature move the crossed enemy
-## Phase Start fires shows [constant EnemyIntent.Kind.SIGNATURE], the phase before it fires
+## Phase Start fires, or its own action fires (the Bloodhound's kill), shows
+## [constant EnemyIntent.Kind.SIGNATURE], the phase before it fires
 ## ([method EnemyIntent.show_signature]); previews do the same. Changes nothing on the map.
 static func compute(session: CombatSession, catalog: EffectCatalog.Index) -> Intents:
 	var found: Intents = Intents.new()
@@ -261,7 +262,16 @@ static func _play(
 		if fired != null:
 			intent.show_signature(fired.name, fired.area)
 		found.enemies.append(intent)
-		_carry_out(engine, best.plan)
+		var acted_from: int = engine.fact_log.size()
+		_carry_out(engine, best.plan, found, flooded)
+		# A signature move that fires while it acts (the Bloodhound's, on a kill) shows on the
+		# action that sets it off.
+		if fired == null:
+			var on_action: Signature = _signatures_fired(engine, found._catalog, acted_from).get(
+					best.plan.actor_id, null
+			)
+			if on_action != null:
+				intent.show_signature(on_action.name, on_action.area)
 
 
 # unit_id's decision on engine's board, with the tiles a moved player unit would have to touch to
@@ -383,8 +393,12 @@ static func _reach_in(block: Object) -> int:
 
 
 # Carries plan out on engine as UnitTurnCommand.resolve would: the walk, then the action. A plan
-# that resolves to no action becomes a Wait, as EnemyAI.next_command makes a rejected one.
-static func _carry_out(engine: EffectEngine, plan: EnemyPlan) -> void:
+# that resolves to no action becomes a Wait, as EnemyAI.next_command makes a rejected one. When
+# the action leaves it free to move again, its second move follows at once, as
+# EnemyAI.next_plan plays it, decided with found's catalog and objective and flooded.
+static func _carry_out(
+		engine: EffectEngine, plan: EnemyPlan, found: Intents, flooded: Dictionary[Vector2i, bool]
+) -> void:
 	var state: CombatState = engine.state
 	var actor: String = plan.actor_id
 	engine.begin_step()
@@ -402,6 +416,19 @@ static func _carry_out(engine: EffectEngine, plan: EnemyPlan) -> void:
 	if state.has_unit(actor) and not state.unit(actor).has_acted:
 		state.wait(engine, actor)
 	engine.drain()
+	var acts: bool = plan.kind != EnemyPlan.Kind.WAIT
+	if (
+			acts
+			and state.has_unit(actor)
+			and engine.stats(actor).is_allowed(CombatValue.Permission.MAY_MOVE_AFTER_ACTING)
+	):
+		var second: EnemyPlan = EnemyAI.decide_second_move(
+				engine, found._catalog, actor, flooded, found._objective
+		)
+		if not second.path.is_empty():
+			engine.begin_step()
+			UnitTurnCommand.walk_path(engine, state, actor, second.path)
+			engine.drain()
 
 
 # Every signature move engine fired from fact from on (the crossed enemy Phase Start), by the

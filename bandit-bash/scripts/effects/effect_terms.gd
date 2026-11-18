@@ -6,7 +6,7 @@
 # File:     effect_terms.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 15, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 @tool
@@ -225,6 +225,7 @@ const PERMISSION_ALLOWED_TEXT: Dictionary[int, String] = {
 	CombatValue.Permission.CAN_PICK_LOCKS: "can pick locks",
 	CombatValue.Permission.CAN_GAIN_BLOCK: "can gain Block",
 	CombatValue.Permission.CAN_LOOT: "can loot",
+	CombatValue.Permission.HEX_STORM: "its Curse is a Hex Storm",
 	CampaignValue.Permission.INTENTS_HIDDEN: "enemy intents are hidden",
 	CampaignValue.Permission.STAT_CAN_GROW: "%s can grow",
 }
@@ -240,6 +241,7 @@ const PERMISSION_DENIED_TEXT: Dictionary[int, String] = {
 	CombatValue.Permission.CAN_PICK_LOCKS: "can't pick locks",
 	CombatValue.Permission.CAN_GAIN_BLOCK: "can't gain Block",
 	CombatValue.Permission.CAN_LOOT: "can't loot",
+	CombatValue.Permission.HEX_STORM: "its Curse isn't a Hex Storm",
 	CampaignValue.Permission.INTENTS_HIDDEN: "enemy intents show",
 	CampaignValue.Permission.STAT_CAN_GROW: "%s can't grow",
 }

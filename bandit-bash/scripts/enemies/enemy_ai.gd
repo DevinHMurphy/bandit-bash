@@ -6,7 +6,7 @@
 # File:     enemy_ai.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 15, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name EnemyAI
@@ -28,8 +28,7 @@ extends RefCounted
 ## @tutorial(Enemy roster): docs/design/enemy-roster.md
 ## @tutorial(Map objects): docs/design/map-objects.md
 ##
-## @todo: TOD-001 - Block staves and a second move after acting; no class uses either before
-## EN8's Bloodhound, and an enemy holding a Block staff regroups.
+## @todo: TOD-001 - Block staves; no enemy class holds one, and an enemy holding one regroups.
 ## @todo: TOD-002 - A boss holding a fixed tile keeps its behavior after the darkness (EN7's mark).
 ## @todo: TOD-003 - The Warcaller's War Horn, its signature move (EN7); until then it only rallies.
 ## @todo: TOD-005 - Levers off a Seize or Defend map: opening a route toward a foe, and sealing one
@@ -56,6 +55,12 @@ const RANGED_REACH: int = 2
 ## (enemy-roster.md, the Warcaller), by grid distance.[br]
 ## [b]Units:[/b] tiles.
 const RALLY_TILES: int = 2
+
+## How far from its target a Hex Storm reaches, for the Hex Matron's rule (enemy-roster.md, Hex
+## Storm: "every unit within 2 tiles of its target"), by grid distance. The Hex Matron's data
+## draws the same area with its 2-tile shape.[br]
+## [b]Units:[/b] tiles.
+const HEX_STORM_TILES: int = 2
 
 # Added to a foe's HP under the Cutthroat's rule unless it is Exposed: larger than any HP, so every
 # Exposed foe ranks first, then the lowest HP.
@@ -94,7 +99,9 @@ static func next_command(session: CombatSession, catalog: EffectCatalog.Index) -
 
 ## The highest-rated plan ([method EnemyPlan.is_better_than]) among every enemy on
 ## [param engine]'s map that hasn't acted, each decided on the board as it is now
-## ([method decide]); null when none is left. Runs on a sandbox engine unchanged.
+## ([method decide]); null when none is left. An enemy with a second move pending after acting
+## (the Bloodhound's kill) takes it first ([method decide_second_move]), right after its action.
+## Runs on a sandbox engine unchanged.
 static func next_plan(
 		engine: EffectEngine,
 		catalog: EffectCatalog.Index,
@@ -103,6 +110,9 @@ static func next_plan(
 ) -> EnemyPlan:
 	var state: CombatState = engine.state
 	var best: EnemyPlan = null
+	for unit_id: String in state.units_of(CombatFact.CombatSide.ENEMY):
+		if state.unit(unit_id).is_second_move_pending:
+			return decide_second_move(engine, catalog, unit_id, flooded, objective)
 	for unit_id: String in state.units_of(CombatFact.CombatSide.ENEMY):
 		if state.unit(unit_id).has_acted:
 			continue
@@ -182,6 +192,46 @@ static func decide(
 		return _wait_plan(state, unit_id, board.behavior, board.rule)
 	_rate_target_rule(board, options)
 	return _best(options)
+
+
+## [param unit_id]'s second move after acting on [param engine]'s map, with the movement it has
+## left: an advance as its behavior's no-attack advance ([method decide]; a Hound's toward the foe
+## nearest its pack), so it ends set for its next turn; a Wait, which ends the move, when no tile
+## is better than its own. [member EnemyPlan.is_second_move] is set. Changes nothing.
+static func decide_second_move(
+		engine: EffectEngine,
+		catalog: EffectCatalog.Index,
+		unit_id: String,
+		flooded: Dictionary[Vector2i, bool] = {},
+		objective: Array[Vector2i] = []
+) -> EnemyPlan:
+	var state: CombatState = engine.state
+	var definition: EnemyClassDefinition = null
+	if catalog != null and state.has_unit(unit_id):
+		definition = catalog.enemy_class(state.unit_type_of(unit_id))
+	var plan: EnemyPlan = null
+	if definition != null:
+		var board: Board = Board.new(engine, unit_id, flooded)
+		board.objective = objective
+		board.catalog = catalog
+		board.behavior = definition.behavior
+		board.rule = definition.target_rule_id
+		if Reinforcements.has_darkness_arrived(state) and not _holds_fixed_tile(state, unit_id):
+			board.behavior = EnemyClassDefinition.Behavior.AGGRESSIVE
+			board.rule = ContentIds.TARGET_NEAREST_FOE
+		var options: Array[EnemyPlan] = _prefer_dry(board, _advances(board))
+		if not options.is_empty():
+			_rate_target_rule(board, options)
+			plan = _best(options)
+	if plan == null or plan.path.is_empty():
+		var behavior: EnemyClassDefinition.Behavior = EnemyClassDefinition.Behavior.AGGRESSIVE
+		var rule: String = ""
+		if definition != null:
+			behavior = definition.behavior
+			rule = definition.target_rule_id
+		plan = _wait_plan(state, unit_id, behavior, rule)
+	plan.is_second_move = true
+	return plan
 
 
 ## The tiles the darkness has flooded on [param state]'s map, any layer, for [method decide]: its
@@ -592,12 +642,19 @@ static func _carried(state: CombatState, unit_id: String) -> Array[CombatState.W
 
 
 # The Hexer's rule: the player units its Curse would catch hitting target_id, the target and
-# every unit beside it (enemy-roster.md, Curse); its own side caught too never counts against.
-static func _cursed_foes(state: CombatState, target_id: String) -> int:
+# every unit beside it (enemy-roster.md, Curse), or within HEX_STORM_TILES while the cursing unit
+# holds the Hex Storm; its own side caught too never counts against.
+static func _cursed_foes(board: Board, target_id: String) -> int:
+	var state: CombatState = board.state
+	var reach: int = 1
+	# ASSUMPTION: during a Hex Storm the Hex Matron's rule counts the foes the storm's wider area
+	# catches, as "whose curse catches the most player units" reads for that attack.
+	if board.engine.stats(board.unit_id).is_allowed(CombatValue.Permission.HEX_STORM):
+		reach = HEX_STORM_TILES
 	var center: Vector2i = state.tile_of(target_id)
 	var caught: int = 0
 	for foe: String in state.units_of(CombatFact.CombatSide.PLAYER):
-		if state.grid.distance(center, state.tile_of(foe)) <= 1:
+		if state.grid.distance(center, state.tile_of(foe)) <= reach:
 			caught += 1
 	return caught
 
@@ -754,7 +811,7 @@ static func _rate_target_rule(board: Board, options: Array[EnemyPlan]) -> void:
 			ContentIds.TARGET_PACK_LOWEST_HP:
 				plan.target_rule_key = hp
 			ContentIds.TARGET_MOST_CURSED:
-				plan.target_rule_key = -_cursed_foes(board.state, subject)
+				plan.target_rule_key = -_cursed_foes(board, subject)
 			ContentIds.TARGET_BACK_LINE_FOES:
 				var is_back_line: bool = _is_back_line_foe(board.engine, subject)
 				plan.target_rule_key = 0.0 if is_back_line else 1.0

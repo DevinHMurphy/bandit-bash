@@ -51,7 +51,10 @@ pacing, readability).
 | RF-007 | November 16, 2026 (UI13 report) | Runes | Feature | A rune can only be cast from a unit's own menu, so once every unit has acted none can be cast; the vision puts runes outside the action economy | A battle-level Runes entry (key, pad button, HUD button) usable at any time in the player phase | **Accepted** (November 18, 2026, user) | M2 | P07 UI14 |
 | RF-008 | November 15–18, 2026 (UI12, UI13, EN7, MP12 reports) | UI | Feel | Placeholder glyphs and colours: "¤" object intent, "Ø" Block ban, "§" signature, gold Recall pick, the rune preview's "Now / After"; the board's map-object symbols and their dimmed spent look (MP12, `map_object_mark.gd`) | Replace in the art pass, or confirm | Open | Later | — |
 | RF-009 | November 5, 2026 (M1) | All | Balance | M1's tuning pass was deferred to M2's playtest | Fold into the first rebalance pass | Open | M2 | — |
-| RF-010 | November 18, 2026 (user) | Enemies | Feature | The Shieldbearer is too strong. It should be an interesting enemy that asks the player to strip its Stance and pick favourable engagements | A trait that grants DEF from current Stance (proposed: +2 DEF per Stance point); base DEF greatly reduced (proposed 7 → 1, so with the Iron Shield's +2 it has 9 at full Stance 3, as now, falling 2 per Stance lost to 3 when Exposed); less movement (proposed MOV 5 → 4) and less damage (proposed MGT 2 → 1); its Simple Lance (Balance) becomes an enemy-only **Shield** weapon with a neutral profile. See [RF-010 notes](#rf-010-notes) | Open (direction from the user; values proposed by the orchestrator) | M2 | — |
+| RF-010 | November 18, 2026 (user) | Enemies | Feature | The Shieldbearer is too strong. It should be an interesting enemy that asks the player to strip its Stance and pick favourable engagements | A trait that grants DEF from current Stance (proposed: +2 DEF per Stance point); base DEF greatly reduced (proposed 7 → 1, so with the Iron Shield's +2 it has 9 at full Stance 3, as now, falling 2 per Stance lost to 3 when Exposed); less movement (proposed MOV 5 → 4) and less damage (proposed MGT 2 → 1); its Simple Lance (Balance) becomes an enemy-only **Shield** weapon with a neutral profile. See [RF-010 notes](#rf-010-notes) | **Accepted** (November 18, 2026, user: the proposed values and all four recommendations in the notes) | M2 | P05 EN18 |
+| RF-011 | November 18, 2026 (EN8 report) | Enemies | Balance | Mini-boss signature moves as built: Command raises Stance past the maximum (every 3rd enemy Phase Start); Fortify's Block on your units is cleared by your own Phase Start refresh, so it helps them only through the enemy phase; Hex Storm targets by foes within 2 tiles (`# ASSUMPTION`); the Bloodhound's move is named "Blood Scent" (a placeholder name) | Watch in play: Command's over-max Stance, Fortify's cooldown, Hex Storm's reach; name the Bloodhound's move | Open | M2 | — |
+| RF-012 | November 18, 2026 (EN8 report) | UI | Feel | The danger zone doesn't show the Bloodhound's second move after a kill | Show it, or accept it as a surprise the intent warns of | Open | M2 | — |
+| RF-013 | November 18, 2026 (EN8 report) | Progression | Balance | Godot_FE gave +40 XP for defeating a boss; EN8 dropped it | Decide whether mini-bosses and the Powder Baron give bonus XP | Open | M2 | — |
 
 ## Entry notes
 
@@ -62,7 +65,9 @@ Iron Shield, which also gives 1 Block Before Combat), RES 1, MOV 5, Stance 3, He
 Armored, a Simple Lance (Balance). Its trait is **Shield Wall** (Phase Start: every adjacent unit,
 friend or foe, gains 2 Block).
 
-To settle before it is built:
+Accepted November 18, 2026 (user) with the recommendations below: the new trait replaces Shield Wall,
+"less speed" is MOV, and the neutral Shield is a Standoff against every profile (the vision update
+goes through the ideation thread).
 
 1. **Shield Wall:** the new trait replaces it (recommended: one trait per class, and Shield Wall's
    Block on its neighbours is part of why it feels strong), or joins it. Replacing it changes the

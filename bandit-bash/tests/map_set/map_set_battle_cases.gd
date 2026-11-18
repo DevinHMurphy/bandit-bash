@@ -6,7 +6,7 @@
 # File:     map_set_battle_cases.gd
 # Author:
 # Created:  November 16, 2026
-# Modified: November 17, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -20,8 +20,8 @@ extends RefCounted
 ## the same fact log twice. Reports each case through the check callable it is given, and times
 ## each map as a test group.[br]
 ## [b]Either side may win:[/b] the driver is simple. A Leader map's leader stands on its leader
-## slot and counts toward the pack; the mini-boss map can't be won until P05 EN8 fills its leader
-## slot, so there the darkness ends the battle.
+## slot and counts toward the pack; a key map's mini-boss stands on its leader slot on top of its
+## escort, and on the mini-boss map its fall ends the battle.
 
 # Preloaded scripts used as types (gdscript.md, Naming): the cases have no class name.
 const GroupClock = preload("res://tests/group_clock.gd")
@@ -75,8 +75,10 @@ func _test_battle(map: CombatMapDefinition, floor_number: int) -> void:
 	var level: int = EnemySetup.level_for(floor_number, false)
 	var label: String = "map battle %s, floor %d, army level %d" % [map.id, floor_number, level]
 	var played: M1BattleCases.Battle = _battles.play(map, 0, floor_number, level)
-	# A key pack's escorts number the step's count; its mini-boss isn't placed until P05 EN8.
+	# A key pack's escorts number the step's count, and its mini-boss stands on the leader slot.
 	var size: int = PackDefinition.STEP_SIZES[EnemySetup.step_of(floor_number) - 1]
+	if map.combat_type == CombatMapDefinition.CombatType.KEY:
+		size += 1
 	_check.call("%s: the army against its step's full pack" % [label], (
 			played.problems.is_empty()
 			and played.players == STARTING_ARMY_SIZE

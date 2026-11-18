@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="EnemyClassDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/enemy_class_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+target_rule_id = "nearest_foe"
+target_rule_text = "Nearest foe it can hit"
+base_class_id = "fixture_brute"
+base_stats = Dictionary[int, int]({0: 30, 1: 7})
+id = "fixture_captain"
+display_name = "Fixture Captain"

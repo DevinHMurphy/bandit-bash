@@ -6,7 +6,7 @@
 # File:     content_rules.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 17, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -30,15 +30,13 @@ extends RefCounted
 ## classes live in enemies/ and packs in enemies/packs/, a pack names only enemy classes, each at
 ## least once at every step, and an enemy class has target rule text and is never a commander or
 ## given a role; and (EN17) a drawn pack fields its step's size at every step, a basic or hard
-## pack names a leader it fields at every step, and only a key pack names a mini-boss.
+## pack names a leader it fields at every step, and only a key pack names a mini-boss; and (EN8)
+## that mini-boss is a class built on a base class it matches, with a signature move, in no pack.
 ## P02's rule (event bus plan, question 60): every effect inside a carrier has an id unique within
 ## it, which saves name it by. [constant LOAD] fails a file the catalog turned away.[br]
 ## The price rules read the price through a callable, so their fixtures can run against a table
 ## with a row missing or a price for an unsold rarity, which [Prices] itself never has.
 ##
-##
-## @todo: TOD-001 - Check a key pack's mini_boss_id names a mini-boss in the catalog once the
-## mini-bosses exist (EN8).
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
 ## @tutorial(Content catalog plan): docs/plans/2026-10-29-content-catalog.md
 
@@ -93,6 +91,10 @@ const DOUBLE_USES: String = "double_uses"
 ## An [Area] with no shape, or whose shape isn't the tree's file of that id in
 ## [code]shapes/[/code]: areas reuse the shared shapes, never a copy of their own.
 const AREA_SHAPE: String = "area_shape"
+## A key pack's mini-boss that is no class built on a base class; a mini-boss that differs from its
+## base class (stats, growths, gear, behavior, target rule, movement, tags, Stance, trait), lacks
+## one of its base's trait effects or a signature move, or sits in a pack's units.
+const MINI_BOSS: String = "mini_boss"
 
 ## Every rule that fails the test.
 const FAILURE_RULES: PackedStringArray = [
@@ -117,6 +119,7 @@ const FAILURE_RULES: PackedStringArray = [
 	CARRIER_EFFECT_ID,
 	DOUBLE_USES,
 	AREA_SHAPE,
+	MINI_BOSS,
 ]
 
 # A faction's starting gear slots in order (FactionDefinition.starting_gear).
@@ -191,10 +194,12 @@ func _check_definition(path: String, resource: Resource) -> void:
 	if resource is EnemyClassDefinition:
 		var enemy: EnemyClassDefinition = resource
 		_check_enemy_class(path, enemy)
+		_check_mini_boss(path, enemy)
 	elif resource is PackDefinition:
 		var pack: PackDefinition = resource
 		_check_pack_counts(path, pack)
 		_check_pack_roles(path, pack)
+		_check_pack_mini_boss(path, pack)
 
 
 func _check_duplicates() -> void:
@@ -278,7 +283,7 @@ func _check_references(path: String, resource: Resource) -> void:
 		for class_id: String in pack.class_ids():
 			_reference(path, "a step's counts", class_id, EffectCatalog.Kind.ENEMY_CLASS, true)
 		_reference(path, "leader_class_id", pack.leader_class_id, EffectCatalog.Kind.ENEMY_CLASS)
-		# TODO(TOD-001): check mini_boss_id against the catalog once the mini-bosses exist (EN8).
+		_reference(path, "mini_boss_id", pack.mini_boss_id, EffectCatalog.Kind.ENEMY_CLASS)
 	elif resource is StaffDefinition:
 		var staff: StaffDefinition = resource
 		_reference(path, "area_shape_id", staff.area_shape_id, EffectCatalog.Kind.SHAPE)
@@ -683,6 +688,73 @@ func _check_pack_roles(path: String, pack: PackDefinition) -> void:
 			_fail(PACK_ROLE, path, "its leader \"%s\" isn't one of its units at step %d" % [
 				pack.leader_class_id, step,
 			])
+
+
+# enemy-roster.md, Mini-bosses: a key pack's mini-boss is a class built on a base class (a missing
+# class is DANGLING_REFERENCE's), and no pack fields a mini-boss among its units.
+func _check_pack_mini_boss(path: String, pack: PackDefinition) -> void:
+	var boss: EnemyClassDefinition = _index.enemy_class(pack.mini_boss_id)
+	if boss != null and boss.base_class_id.is_empty():
+		_fail(MINI_BOSS, path, "mini_boss_id names \"%s\", a class with no base class" % [
+			pack.mini_boss_id,
+		])
+	for class_id: String in pack.class_ids():
+		var unit: EnemyClassDefinition = _index.enemy_class(class_id)
+		if unit != null and not unit.base_class_id.is_empty():
+			_fail(MINI_BOSS, path, "\"%s\" is built on a base class and never sits in a pack" % [
+				class_id,
+			])
+
+
+# enemy-roster.md, Mini-bosses: an elite of its base class, the class plus a prefix and a
+# signature move, so everything a unit of the base class has must match, and every one of the
+# base's trait effects is there by id (a mini-boss may add a condition to one, as the Hex
+# Matron's Curse does).
+func _check_mini_boss(path: String, enemy: EnemyClassDefinition) -> void:
+	if enemy.base_class_id.is_empty():
+		return
+	_reference(path, "base_class_id", enemy.base_class_id, EffectCatalog.Kind.ENEMY_CLASS)
+	var base: EnemyClassDefinition = _index.enemy_class(enemy.base_class_id)
+	if base == null:
+		return
+	if not base.base_class_id.is_empty():
+		_fail(MINI_BOSS, path, "its base class \"%s\" is built on another" % [base.id])
+	if enemy.signature_move == null:
+		_fail(MINI_BOSS, path, "it has no signature move")
+	var differs: PackedStringArray = []
+	if enemy.base_stats != base.base_stats:
+		differs.append("base_stats")
+	if enemy.growths != base.growths:
+		differs.append("growths")
+	if enemy.starting_weapon_id != base.starting_weapon_id:
+		differs.append("starting_weapon_id")
+	if enemy.starting_equipment_id != base.starting_equipment_id:
+		differs.append("starting_equipment_id")
+	if enemy.behavior != base.behavior:
+		differs.append("behavior")
+	if enemy.target_rule_id != base.target_rule_id:
+		differs.append("target_rule_id")
+	if enemy.movement_type != base.movement_type:
+		differs.append("movement_type")
+	if enemy.tags != base.tags:
+		differs.append("tags")
+	if enemy.weapon_types != base.weapon_types:
+		differs.append("weapon_types")
+	if enemy.stance != base.stance:
+		differs.append("stance")
+	if enemy.trait_name != base.trait_name:
+		differs.append("trait_name")
+	if not differs.is_empty():
+		_fail(MINI_BOSS, path, "it differs from its base class \"%s\" in %s" % [
+			base.id, ", ".join(differs),
+		])
+	var own_ids: PackedStringArray = []
+	for effect: EffectDefinition in enemy.effects:
+		if effect != null:
+			own_ids.append(effect.id)
+	for effect: EffectDefinition in base.effects:
+		if effect != null and not own_ids.has(effect.id):
+			_fail(MINI_BOSS, path, "it lacks its base class's trait effect \"%s\"" % [effect.id])
 
 
 # NOTE: The carrier lists EffectInstance._carried_effects names saved effects in; keep them in

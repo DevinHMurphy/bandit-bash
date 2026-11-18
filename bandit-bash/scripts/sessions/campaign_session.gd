@@ -6,7 +6,7 @@
 # File:     campaign_session.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 15, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name CampaignSession
@@ -462,10 +462,22 @@ func _set_up_battle(request: BattleRequest, catalog: EffectCatalog.Index) -> Com
 	var waves: EnemySetup.WaveGroups = EnemySetup.WaveGroups.new(
 			catalog, request.floor_number, level_modifier, request.standard_combats_in_step
 	)
+	# A fresh stream from its run key each battle, so the order is the same at every key combat
+	# and nothing about it is saved; a standard map ignores the id.
+	var order: RngStream = RngStream.new(RngKey.derive_seed(
+			rng.run_seed, RngKey.RngPurpose.MINI_BOSS_DRAW, -1, -1, -1, -1
+	))
+	var mini_boss_id: String = EnemySetup.mini_boss_for(
+			catalog, order, request.key_combats_before
+	)
 	battle.add_setup_step(
 			CombatEncounter.SetupStep.ENEMY_SLOTS,
 			EnemySetup.draw.bind(
-					catalog, request.floor_number, level_modifier, request.standard_combats_in_step
+					catalog,
+					request.floor_number,
+					level_modifier,
+					request.standard_combats_in_step,
+					mini_boss_id
 			)
 	)
 	battle.add_setup_step(
@@ -913,6 +925,10 @@ class BattleRequest:
 	## ([method CampaignRunState.standard_combats_in_step]): it picks the basic or hard pack pool
 	## ([method EnemySetup.pool_for]). [b]0:[/b] the basic pool.
 	var standard_combats_in_step: int = 0
+	## The key combats the run entered on earlier floors
+	## ([method CampaignRunState.key_combats_before]): on a key map, the place of its mini-boss in
+	## the run's order ([method EnemySetup.mini_boss_for]). [b]0:[/b] the run's first mini-boss.
+	var key_combats_before: int = 0
 	## The maps the node can draw from, in a fixed order.
 	var pool: Array[CombatMapDefinition] = []
 	## Each seat's army, by seat. A seat without one gets an empty map.
