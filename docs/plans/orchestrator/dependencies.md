@@ -183,6 +183,7 @@ flowchart LR
   UI4 --> UI12
   EN9 --> UI12
   UI12 --> UI13[UI13 rune casting]
+  UI13 --> UI14[UI14 runes at any time]
   CT7 --> UI13
 
   classDef done fill:#c8e6c9,stroke:#2e7d32,color:#1b1b1b
@@ -190,7 +191,7 @@ flowchart LR
   classDef ready fill:#fff3c4,stroke:#b8860b,color:#1b1b1b
   classDef waiting fill:#e0e0e0,stroke:#757575,color:#1b1b1b
   class R1,R2,R3,R4,R5,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,CT2,EB5,EB7,EBF,EN1,CT3,EN2,EN3,CC8,CT3F,EN3F,EN4,EN5,MP8,DK1,EN4F,DK2,DK3,UI1,DK4,UI2,UI2F,UI3,UI4,UI3F,UI5,UI5F,CC10,UI6,UI7,UI7F,UI8,UI9,UI10,UI11,DK5,CT6,CT5,EN6,CT13,CT9,CT13F,CT4,EN10,EN9,CT8,UI12,CT7,EN17,MP10,CT10,UI13,EN7,MP12 done
-  class DK6,EN11 ready
+  class DK6,EN11,UI14 ready
   class EN8 active
 
   class CT12,MP11 waiting
