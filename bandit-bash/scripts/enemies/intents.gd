@@ -15,7 +15,7 @@ extends RefCounted
 ## and the [DangerZone] (enemies and AI plan, Intents and the danger zone; questions 3, 9, 10).
 ##
 ## [b]Compute[/b] ([method compute]): a [Sandbox] of the session, rolling with [ForecastRolls],
-## crosses the player Phase End (every Phase End effect, darkness damage included) and the enemy
+## crosses the player Phase End (every Phase End effect) and the enemy
 ## Phase Start as the turn loop does ([method PhaseRunner.cross_to_enemy_phase]), then plays the
 ## phase as [method EnemyAI.next_plan] plays it: every enemy yet to act decides on the board as it
 ## is, the highest-rated acts with every hit landing, and the rest decide again on that board. So

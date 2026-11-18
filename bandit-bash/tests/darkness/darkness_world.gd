@@ -6,7 +6,7 @@
 # File:     darkness_world.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -134,18 +134,13 @@ func add_unit(
 	})
 
 
-## Registers darkness damage ([method Darkness.register_damage]), after any [method register].
-func register_damage() -> void:
-	Darkness.register_damage(session)
-
-
 ## Sets [param tile]'s layer directly, as waves would have.
 func flood(tile: Vector2i, layer: WhileLayerCondition.Layer) -> void:
 	darkness().layers[tile] = layer
 
 
-## Registers the darkness step, then, when [param source] is given, draws the points' waves
-## through it and registers [Reinforcements], as [CampaignSession] does.
+## Registers the darkness phase (its damage, then its step), then, when [param source] is given,
+## draws the points' waves through it and registers [Reinforcements], as [CampaignSession] does.
 func register(source: Reinforcements.GroupSource = null) -> void:
 	Darkness.register(session)
 	if source == null:

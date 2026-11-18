@@ -1,9 +1,10 @@
 # The Move Preview
 
 When a player hovers a tile for a selected unit, the board shows what moving there would do before
-any action: the darkness damage the unit would take there, and every enemy's intent re-planned with
-the unit on that tile. The intents are what the enemies would do, not an estimate, so the preview
-must give exactly what a full re-plan gives.
+any action: the darkness damage the unit would take there in this turn's darkness phase (after the
+enemy phase, before the creep; [ui-lift.md](ui-lift.md#darkness-phase)), and every enemy's intent
+re-planned with the unit on that tile. The intents are what the enemies would do, not an estimate,
+so the preview must give exactly what a full re-plan gives.
 
 **Status:** adopted November 12, 2026 (decisions at the end). This doc covers the
 re-architecture of `Intents.preview` (`scripts/enemies/intents.gd`, `TOD-001`) and of the
@@ -31,8 +32,8 @@ starting from `Godot_FE`'s absolute-range check.
    - copy the session into a sandbox;
    - walk the unit to the tile;
    - compute the whole danger zone;
-   - cross the player Phase End and the enemy Phase Start (every Phase End effect, darkness damage
-     included).
+   - cross the player Phase End and the enemy Phase Start (every Phase End effect; darkness damage
+     comes later, in the darkness phase).
 2. **On a worker** (`PreviewJob.run`), play the enemy phase step by step. At each step every enemy
    yet to act decides, and the best one acts.
 3. **Reuse.** An enemy keeps its decision from the latest intents while neither the unit's old tile
@@ -80,8 +81,7 @@ the same point, unit by unit. Each unit gets a signature: tile, HP, Block, Stanc
 effect instances with their counters.
 
 The changed set is the moved unit plus every unit whose signature differs. For example, a Phase End
-heal for standing next to an ally, or darkness damage on the new tile. Their old and new tiles are
-the touched tiles.
+heal for standing next to an ally. Their old and new tiles are the touched tiles.
 
 This replaces "the moved unit's two tiles", which misses a Phase End effect that changes a third
 unit. The effect margin still widens each zone, because an effect can read a unit's position without

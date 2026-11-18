@@ -6,7 +6,7 @@
 # File:     phase_runner.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 4, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name PhaseRunner
@@ -30,7 +30,7 @@ extends RefCounted
 ## End" modifiers expire. A unit's action ends its turn but fires no Unit Turn End of its own.[br]
 ## The last seat's end turn resolves, as one command: player Phase End and enemy Phase Start
 ## ([method cross_to_enemy_phase], which a sandbox can cross too), each enemy's turn, enemy Phase
-## End, [constant CombatHooks.Hook.AFTER_ENEMY_PHASE], and the next
+## End, [constant CombatHooks.Hook.AFTER_ENEMY_PHASE] (the darkness phase first), and the next
 ## player Phase Start. Every step ends with [constant CombatHooks.Hook.AFTER_STEP]
 ## ([method end_step]); once the map's combat has ended, nothing more runs.[br]
 ## Pure rules code on the session's state and engine: it never awaits and records every change as
@@ -234,7 +234,7 @@ static func _phase_end(session: CombatSession, side: CombatFact.CombatSide) -> v
 		var turn_end: CombatFact = CombatFact.new(CombatFact.Kind.UNIT_TURN_END, unit_id)
 		turn_end.tile = state.tile_of(unit_id)
 		engine.record(turn_end)
-	# Phase End and Unit Turn End effects land before the darkness (combat core plan, question 12).
+	# Phase End and Unit Turn End effects land before the PHASE_END_EFFECTS registrations.
 	engine.drain()
 	for run: Callable in session.hooks.get_registered(CombatHooks.Hook.PHASE_END_EFFECTS):
 		run.call(session, side)

@@ -57,6 +57,11 @@ signal number_shown(unit_id: String, style: DamageNumber.Style)
 ## there. Not emitted for a walk [method unstage_walk] or a bind cut short.
 signal staged_walk_finished(unit_id: String)
 
+## Turn [param turn]'s darkness phase began to play: the first fact after the enemy Phase End that
+## hurts a unit, deepens or releases darkness, or erodes a breakable. Once per phase; never for a
+## phase where nothing happens. A skip plays it too.
+signal darkness_phase_started(turn: int)
+
 # Facts whose actor took its action, which ends its turn; an attack's is the attacker's
 # BEFORE_COMBAT and a swap's WEAPON_SWAPPED (see _on_fact_played). Mirrors CombatState.follow()'s
 # _ACTION_KINDS in combat_state.gd: change both together, or tokens gray at the wrong time.
@@ -137,6 +142,11 @@ const _ACTION_KINDS: Array[CombatFact.Kind] = [
 # ASSUMPTION: no basis in Godot_FE or the vision; for M1's tuning pass (plan, question 5).
 @export_range(0.0, 3.0, 0.01) var defeat_time: float = 0.4
 
+## How long playback waits on each tile the darkness deepens, so a spread plays tile by tile; a
+## wave's release and a breakable's contact take no time.[br]
+## [b]Units:[/b] seconds at playback speed 1.0. [b]0.0:[/b] a whole spread shows at once.
+@export_range(0.0, 1.0, 0.01) var darkness_tile_hold: float = 0.08
+
 ## Game speed: every wait and animation is divided by it ([member FactPlayback.speed]). Held
 ## fast-forward multiplies it by [member fast_forward_speed] without changing it.[br]
 ## [b]1.0:[/b] normal speed. [b]2.0:[/b] twice as fast.
@@ -215,6 +225,13 @@ var _hit_damage: Dictionary[String, int] = {}
 
 # The side whose phase it is, as played: spent units gray only on this side.
 var _phase_side: CombatFact.CombatSide = CombatFact.CombatSide.NONE
+
+# The darkness phase as played: _played_turn is the turn of the last Phase Start played (the
+# state's at bind). Between an enemy Phase End and the next Phase Start, _is_darkness_window;
+# _is_darkness_shown once that window's first darkness change has emitted darkness_phase_started.
+var _played_turn: int = 0
+var _is_darkness_window: bool = false
+var _is_darkness_shown: bool = false
 
 # Whether the unit infos must be put over their tokens again at the next advance(), with no tween
 # moving anything: a token placed or the map framed.
@@ -308,6 +325,9 @@ func bind(session: CombatSession) -> void:
 	_session.playback.play_all()
 	_clear_board()
 	_phase_side = session.state.phase_side
+	_played_turn = session.state.turn
+	_is_darkness_window = false
+	_is_darkness_shown = false
 	_build_map(session.setup.map)
 	var model: BoardViewModel = BoardViewModel.build(session)
 	for object_view: BoardViewModel.ObjectView in model.objects:
@@ -926,6 +946,7 @@ func _bus_links(bus: CombatBus) -> Array[Array]:
 		[bus.effect.modifier_gained, _on_effect_modifier_gained],
 		[bus.effect.modifier_expired, _on_effect_modifier_expired],
 		[bus.flow.phase_started, _on_flow_phase_started],
+		[bus.flow.phase_ended, _on_flow_phase_ended],
 		[bus.world.darkness_advanced, _on_world_darkness_advanced],
 		[bus.world.object_state_changed, _on_world_object_state_changed],
 		[bus.fact_played, _on_fact_played],
@@ -1302,8 +1323,26 @@ func _on_action_crit_taken(fact: CombatFact) -> void:
 # A side's Phase Start: its spent units gray from now on, the other side's show in colour.
 func _on_flow_phase_started(fact: CombatFact) -> void:
 	_phase_side = fact.side
+	_played_turn = fact.amount
+	_is_darkness_window = false
 	for token: UnitToken in _tokens.values():
 		token.show_phase(token.side == _phase_side)
+
+
+# The darkness phase follows the enemy Phase End (Darkness.register).
+func _on_flow_phase_ended(fact: CombatFact) -> void:
+	if fact.side != CombatFact.CombatSide.ENEMY:
+		return
+	_is_darkness_window = true
+	_is_darkness_shown = false
+
+
+# Emits darkness_phase_started at the darkness phase's first change of anything.
+func _note_darkness_phase(fact: CombatFact) -> void:
+	if not _is_darkness_window or _is_darkness_shown or not _is_darkness_change(fact):
+		return
+	_is_darkness_shown = true
+	darkness_phase_started.emit(_played_turn)
 
 
 func _on_effect_modifier_gained(fact: CombatFact) -> void:
@@ -1364,6 +1403,7 @@ func _on_unit_block_stance_refreshed(fact: CombatFact) -> void:
 # Every fact, after its own signal: whether its actor has acted and may still move, by the same
 # rules as CombatState.follow() (see _ACTION_KINDS). The exchange is tracked whoever has a token.
 func _on_fact_played(fact: CombatFact) -> void:
+	_note_darkness_phase(fact)
 	if fact.kind == CombatFact.Kind.ATTACK_MADE:
 		_crit_shown.clear()
 		_hit_damage.clear()
@@ -1404,8 +1444,8 @@ func _stance_max_of(unit_id: String, fallback: int) -> int:
 	return _session.stats(unit_id).get_int(CombatValue.Key.STANCE_MAX)
 
 
-# One fact per tile that deepens, its amount the new layer (darkness plan, question 4); a wave's
-# release has no tile and draws nothing by itself.
+# One fact per tile that deepens, its amount the new layer (darkness plan, question 4), held for
+# darkness_tile_hold; a wave's release has no tile and draws nothing by itself.
 func _on_world_darkness_advanced(fact: CombatFact) -> void:
 	if fact.tile == CombatFact.NO_TILE:
 		return
@@ -1413,6 +1453,7 @@ func _on_world_darkness_advanced(fact: CombatFact) -> void:
 	if layer <= WhileLayerCondition.Layer.DRY:
 		layer = _session.state.map.darkness.layer_at(fact.tile)
 	_darkness.show_layer(fact.tile, layer)
+	_hold_for(fact, darkness_tile_hold)
 
 
 # A door opened or closed, a container opened or searched, a brazier lit or doused: its mark shows
@@ -1448,3 +1489,13 @@ func _on_camera_rig_framed() -> void:
 func _on_map_area_resized() -> void:
 	if _session != null:
 		_frame_map()
+
+
+# The facts the darkness phase records (Darkness): damage, deepening and releases, and erosion.
+static func _is_darkness_change(fact: CombatFact) -> bool:
+	match fact.kind:
+		CombatFact.Kind.DARKNESS_DAMAGE_TAKEN, CombatFact.Kind.DARKNESS_ADVANCED:
+			return true
+		CombatFact.Kind.OBJECT_STATE_CHANGED:
+			return fact.key == MapObjects.Change.CONTACTED or fact.key == MapObjects.Change.ERODED
+	return false

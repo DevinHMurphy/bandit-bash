@@ -6,13 +6,14 @@
 # File:     hud_cases.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 16, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends RefCounted
 ## The HUD's cases for the ui/display suite (combat UI plan, UI5 row): the tile info and the unit
 ## panel against state and [method CombatSession.stats]; the turn counter and its colour past par;
-## a banner per phase change; the objective's text; the darkness counter against
+## a banner per phase change, the darkness phase's included, and the turn bar naming each; the
+## darkness banner's text and colour; the objective's text; the darkness counter against
 ## [method Darkness.source_counters] before and after arrival; the fact log against
 ## [method CombatSession.describe_batch]; target labels by name; the panel area clear of the turn
 ## bar and the map; and Use, listed exactly where the validator accepts it and sending the command
@@ -42,6 +43,7 @@ const CONFIRM_SCENE: PackedScene = preload("res://ui/battle/menus/confirm_dialog
 const FORECAST_SCENE: PackedScene = preload("res://ui/battle/forecast/forecast_panel.tscn")
 const HUD_SCENE: PackedScene = preload("res://ui/battle/hud/battle_hud.tscn")
 const TURN_COUNTER_SCENE: PackedScene = preload("res://ui/battle/hud/turn_counter.tscn")
+const BANNER_SCENE: PackedScene = preload("res://ui/battle/hud/phase_banner.tscn")
 
 # turn_input_cases.gd's seed: no case compares golden numbers.
 const SEED: int = 0x0C0FFEE
@@ -84,6 +86,7 @@ func run() -> void:
 	_test_tile_info()
 	_test_unit_panel()
 	_test_turns_and_darkness()
+	_test_darkness_banner()
 	_test_turn_colour()
 	_test_objective()
 	_test_target_labels()
@@ -200,8 +203,9 @@ func _test_unit_panel() -> void:
 
 # From the swap window, End Turn alone: after every settle the turn counter reads the turn against
 # par, coloured only past par; the darkness counter is source_counters' first count, saying arrives
-# before arrival and next wave after; a banner shows per Phase Start played; the fact log holds
-# describe_batch's line for every batch since bind.
+# before arrival and next wave after; a banner shows per Phase Start and darkness phase played,
+# and the turn bar's status names each as it plays; the fact log holds describe_batch's line for
+# every batch since bind.
 func _test_turns_and_darkness() -> void:
 	var rig: Rig = _rig(false)
 	if rig == null:
@@ -245,14 +249,47 @@ func _test_turns_and_darkness() -> void:
 	var expected_text: String = (
 			banner.player_text if rig.last_phase_side == PLAYER else banner.enemy_text
 	)
-	_check.call("phase banner: one per Phase Start played, naming its side", (
-			rig.phase_starts > 1 and shown == rig.phase_starts and last_texts[0] == expected_text
-	), "%d banners for %d phase starts; last '%s'" % [shown, rig.phase_starts, last_texts[0]])
+	if rig.was_darkness_last:
+		expected_text = banner.darkness_text
+	_check.call("phase banner: one per Phase Start and darkness phase played, naming it", (
+			rig.phase_starts > 1
+			and shown == rig.phase_starts + rig.darkness_phases
+			and last_texts[0] == expected_text
+	), "%d banners for %d phase starts and %d darkness phases; last '%s'" % [
+		shown, rig.phase_starts, rig.darkness_phases, last_texts[0],
+	])
+	_check.call("phase banner: the darkness phase shows once the darkness has arrived", (
+			rig.darkness_phases > 0 or not saw_after
+	), "%d darkness phases, arrived %s" % [rig.darkness_phases, saw_after])
+	_check.call("turn bar: the status follows each phase as it plays, the darkness's included", (
+			rig.wrong_status.is_empty()
+	), "; ".join(rig.wrong_status.slice(0, 3)))
 	var logged: PackedStringArray = rig.hud.get_fact_log().get_lines()
 	_check.call("fact log: describe_batch's line for every batch since bind, in order", (
 			not rig.lines.is_empty() and logged == rig.lines
 	), "%d logged, %d sent" % [logged.size(), rig.lines.size()])
 	rig.close()
+
+
+# The banner on its own: the darkness phase's shows darkness_text in ui-style.md's darkness colour,
+# with no turn line, and fades out as a side's does.
+func _test_darkness_banner() -> void:
+	var banner: PhaseBanner = BANNER_SCENE.instantiate()
+	_root.add_child(banner)
+	banner.show_darkness()
+	var texts: PackedStringArray = banner.get_texts()
+	var text_label: Label = banner.get_node(^"%Text")
+	var turn_label: Label = banner.get_node(^"%TurnLine")
+	var color: Color = text_label.get_theme_color(&"font_color")
+	_check.call("darkness banner: 'Darkness' in #6b4fa0, no turn line, shown", (
+			texts[0] == "Darkness"
+			and color == Color("#6b4fa0")
+			and color == banner.darkness_color
+			and not turn_label.visible
+			and banner.visible
+			and banner.get_shown_count() == 1
+	), "%s, %s" % [texts, color])
+	banner.free()
 
 
 # The counter on its own: within par it keeps the theme's colour, past par it takes past_par_color.
@@ -738,6 +775,7 @@ func _rig(is_started: bool) -> Rig:
 	h.session.batch_resolved.connect(h.record)
 	h.session.batch_resolved.connect(rig.record_line)
 	h.session.bus.flow.phase_started.connect(rig.count_phase)
+	h.view.darkness_phase_started.connect(rig.count_darkness)
 	if is_started:
 		h.controller.request_start()
 		BattleViewCases.settle(h.view)
@@ -814,15 +852,30 @@ class Rig:
 	var phase_starts: int = 0
 	## The side of the last one.
 	var last_phase_side: CombatFact.CombatSide = CombatFact.CombatSide.NONE
+	## Darkness phases announced since bind ([signal BattleView.darkness_phase_started]).
+	var darkness_phases: int = 0
+	## Whether the last phase played was a darkness phase.
+	var was_darkness_last: bool = false
+	## Each turn bar status that didn't name the phase as it began to play.
+	var wrong_status: PackedStringArray = []
 
 	## Keeps [param batch]'s log line.
 	func record_line(batch: CombatSession.FactBatch) -> void:
 		lines.append(h.session.describe_batch(batch))
 
-	## Counts [param fact], a Phase Start played.
+	## Counts [param fact], a Phase Start played, and checks the turn bar names it.
 	func count_phase(fact: CombatFact) -> void:
 		phase_starts += 1
 		last_phase_side = fact.side
+		was_darkness_last = false
+		var side_name: String = (CombatFact.CombatSide.find_key(fact.side) as String).to_lower()
+		_check_status("Turn %d · %s phase" % [fact.amount, side_name])
+
+	## Counts turn [param turn]'s darkness phase, played, and checks the turn bar names it.
+	func count_darkness(turn: int) -> void:
+		darkness_phases += 1
+		was_darkness_last = true
+		_check_status("Turn %d · darkness phase" % [turn])
 
 	## Sends [param command] straight to the encounter and lets it play.
 	func send(command: Command) -> void:
@@ -843,4 +896,13 @@ class Rig:
 			h.session.batch_resolved.disconnect(record_line)
 		if h.session.bus.flow.phase_started.is_connected(count_phase):
 			h.session.bus.flow.phase_started.disconnect(count_phase)
+		if h.view.darkness_phase_started.is_connected(count_darkness):
+			h.view.darkness_phase_started.disconnect(count_darkness)
 		h.close()
+
+	# Appends to wrong_status when the turn bar doesn't show expected, unless the battle is over
+	# (it then shows Won or Lost).
+	func _check_status(expected: String) -> void:
+		var shown: String = h.bar.get_status()
+		if shown != expected and not h.session.is_finished:
+			wrong_status.append("'%s', expected '%s'" % [shown, expected])

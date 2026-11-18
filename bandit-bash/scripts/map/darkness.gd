@@ -6,35 +6,25 @@
 # File:     darkness.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name Darkness
 extends RefCounted
-## The darkness step at the end of every turn, arrival, darkness damage, and the queries the board
-## reads (the-darkness.md, The darkness step, Layers and damage; darkness plan, DK3 and DK4).
+## The darkness phase at the end of every turn, arrival, and the queries the board reads
+## (the-darkness.md; ui-lift.md, Darkness phase; darkness plan, DK3, DK4 and DK7).
 ##
-## [method register] puts [method step] first on [constant CombatHooks.Hook.AFTER_ENEMY_PHASE],
-## before [method Reinforcements.arrive], and stops terrain healing on a flooded tile.
-## [method advance], in order: [b]creep[/b], [b]release[/b] when a wave is due
-## ([method is_release_due]), then [b]erosion[/b]: each standing breakable 4-adjacent to a flooded
-## tile gains a turn of contact, and at [constant CONTACT_LIMIT] breaks through
-## [method MapObjects.erode]. The first release is arrival ([member MapState.has_darkness_arrived]).
-## A break or door change lets the darkness flow anew through [method recalculate].[br]
-## [b]Damage[/b] ([method register_damage]): at each side's Phase End, each of its units on a
-## flooded tile takes [constant LAYER_DAMAGE_PERCENT] of its max HP, rounded down, at least
-## [constant MINIMUM_DAMAGE]. Not an attack: no damage stages, Block or Stance loss; only the
-## Darkness damage taken window, whose "that darkness damage" changes apply.[br]
-## [b]Facts[/b], in order: one [constant CombatFact.Kind.DARKNESS_ADVANCED] per tile deepened;
-## per released wave, one with [constant CombatFact.Flag.DARKNESS_RELEASED] (and
-## [constant CombatFact.Flag.DARKNESS_ARRIVED] at the first release) before its own tiles;
-## erosion as [constant CombatFact.Kind.OBJECT_STATE_CHANGED]
-## ([constant MapObjects.Change.CONTACTED] or [constant MapObjects.Change.ERODED]); one
-## [constant CombatFact.Kind.DARKNESS_DAMAGE_TAKEN] per unit hurt, then its defeat at 0 HP.
-## Payloads are on the kinds.[br]
-## [b]Queries[/b] for the board: [method damage_at], [method next_deepening],
-## [method source_counters]. Pure, static rules code: it reads and changes only the engine and
-## state it is handed, so it runs unchanged on a sandbox or a stand-in session, and never awaits.
+## [b]The darkness phase[/b], after the enemy Phase End and before the player Phase Start, is
+## [method hurt] then [method step], each its own step on
+## [constant CombatHooks.Hook.AFTER_ENEMY_PHASE], so a battle the damage ends sees no creep. It has
+## no Phase Start or Phase End of its own. [b]Damage[/b] is not an attack: only the Darkness damage
+## taken window. [b]Step[/b] ([method advance]): creep, release when due (the first is arrival,
+## [member MapState.has_darkness_arrived]), then erosion. [b]Queries[/b] for the board:
+## [method damage_at], [method next_deepening], [method source_counters].[br]
+## [b]Facts[/b], in order: per unit hurt, [constant CombatFact.Kind.DARKNESS_DAMAGE_TAKEN] then its
+## defeat; per tile deepened, [constant CombatFact.Kind.DARKNESS_ADVANCED] (a release's flagged one
+## first); erosion as [constant CombatFact.Kind.OBJECT_STATE_CHANGED]. Pure static rules code on
+## the engine and state it is handed; it never awaits.
 ##
 ## @tutorial(The darkness): docs/design/the-darkness.md
 ## @tutorial(The darkness plan): docs/plans/2026-11-03-the-darkness.md
@@ -61,27 +51,42 @@ const CONTACT_LIMIT: int = 3
 ## before the player has played a turn (darkness plan question 12 d).
 const EARLIEST_RELEASE: int = 1
 
+# The order hurt takes the sides in: the turn's own order, player then enemy.
+const _HURT_ORDER: Array[CombatFact.CombatSide] = [
+	CombatFact.CombatSide.PLAYER,
+	CombatFact.CombatSide.ENEMY,
+]
 
-## Puts [method step] on [param session]'s [constant CombatHooks.Hook.AFTER_ENEMY_PHASE], and a
-## [constant CombatHooks.Hook.TERRAIN_HEALING_ALLOWED] check that stops terrain healing on a
-## flooded tile (the-darkness.md, Terrain). Call once per session, before
-## [method Reinforcements.register], so the darkness step runs first.
+
+## Puts the darkness phase on [param session]'s [constant CombatHooks.Hook.AFTER_ENEMY_PHASE],
+## [method hurt] then [method step], and a [constant CombatHooks.Hook.TERRAIN_HEALING_ALLOWED]
+## check that stops terrain healing on a flooded tile (the-darkness.md, Terrain). Call once per
+## session, before [method Reinforcements.register], so the phase runs before arrivals.
 static func register(session: CombatSession) -> void:
+	session.hooks.add(CombatHooks.Hook.AFTER_ENEMY_PHASE, Darkness.hurt)
 	session.hooks.add(CombatHooks.Hook.AFTER_ENEMY_PHASE, Darkness.step)
 	session.hooks.add(CombatHooks.Hook.TERRAIN_HEALING_ALLOWED, _allows_terrain_healing)
 
 
-## Puts darkness damage on [param session]'s [constant CombatHooks.Hook.PHASE_END_EFFECTS]: at each
-## side's Phase End, after its Phase End and Unit Turn End effects, each of its units on a flooded
-## tile takes its darkness damage, in placement order. Call once per session, after
-## [method Reinforcements.register], so a unit ending its turn on an open point closes it before
-## the darkness hurts it (darkness plan question 5).
-static func register_damage(session: CombatSession) -> void:
-	session.hooks.add(CombatHooks.Hook.PHASE_END_EFFECTS, _hurt_side)
+## [constant CombatHooks.Hook.AFTER_ENEMY_PHASE]: the darkness phase's damage on [param session].
+## Every unit on a flooded tile, player units then enemies, each side in placement order, takes
+## its darkness damage at its tile's layer now, before the creep. The battle's end is checked
+## after all of it, so a commander and the last enemy falling together is a loss.
+static func hurt(session: CombatSession) -> void:
+	var state: CombatState = session.state
+	for side: CombatFact.CombatSide in _HURT_ORDER:
+		for unit_id: String in state.units_of(side):
+			if not state.has_unit(unit_id):
+				continue
+			var layer: WhileLayerCondition.Layer = state.map.darkness.layer_at(
+					state.tile_of(unit_id)
+			)
+			if layer != WhileLayerCondition.Layer.DRY:
+				_deal(session.engine, state, unit_id, layer)
 
 
 ## [constant CombatHooks.Hook.AFTER_ENEMY_PHASE]: the darkness step on [param session]
-## ([method advance]), at the end of turn [member CombatState.turn].
+## ([method advance]), at the end of turn [member CombatState.turn], after [method hurt].
 static func step(session: CombatSession) -> void:
 	advance(session.engine, session.state)
 
@@ -126,13 +131,11 @@ static func recalculate(engine: EffectEngine, state: CombatState) -> void:
 	_record(engine, state.map.darkness.recalculate(state))
 
 
-## The HP [param unit_id] would lose to the darkness by ending its side's phase on [param tile]
-## now: its darkness damage for that tile's layer, with every "that darkness damage" effect that
-## would answer it, at most its HP, as its [constant CombatFact.Kind.DARKNESS_DAMAGE_TAKEN] would
-## record. 0 on a dry tile or for a unit off [param engine]'s map. Changes nothing: with no
-## effect answering darkness damage it reads the stat sheet only, else it deals the damage on a
-## sandbox with the unit moved there. Phase End effects that would land first (a heal) aren't
-## foreseen; the intents preview runs them.
+## The HP [param unit_id] would lose in this turn's darkness phase standing on [param tile]: its
+## damage for the tile's layer now, with every "that darkness damage" effect, at most its HP now,
+## as [constant CombatFact.Kind.DARKNESS_DAMAGE_TAKEN] would record. 0 on a dry tile or off the
+## map. Changes nothing (a sandbox when an effect answers it). What happens before the phase (a
+## heal, a hit, a shove, a break) isn't foreseen.
 ## [param tile]: a tile the unit could end its move on, free or its own.
 static func damage_at(engine: EffectEngine, unit_id: String, tile: Vector2i) -> int:
 	var state: CombatState = engine.state as CombatState
@@ -275,18 +278,6 @@ static func _is_touching(state: CombatState, tile: Vector2i) -> bool:
 		if state.map.darkness.layer_at(next) != WhileLayerCondition.Layer.DRY:
 			return true
 	return false
-
-
-# PHASE_END_EFFECTS: each unit of side on a flooded tile, in placement order, takes its darkness
-# damage at its tile's layer now. A unit that only passed through darkness is on a dry tile here.
-static func _hurt_side(session: CombatSession, side: CombatFact.CombatSide) -> void:
-	var state: CombatState = session.state
-	for unit_id: String in state.units_of(side):
-		if not state.has_unit(unit_id):
-			continue
-		var layer: WhileLayerCondition.Layer = state.map.darkness.layer_at(state.tile_of(unit_id))
-		if layer != WhileLayerCondition.Layer.DRY:
-			_deal(session.engine, state, unit_id, layer)
 
 
 # TERRAIN_HEALING_ALLOWED: no terrain heal for a unit on a flooded tile.

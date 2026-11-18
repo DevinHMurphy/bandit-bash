@@ -161,14 +161,11 @@ func add_setup_step(step: CombatEncounter.SetupStep, run: Callable) -> void:
 ## Begins the battle [param request] describes: the encounter with its enemy draw
 ## ([method EnemySetup.draw]) and setup from fresh streams (a restart from Begin rolls the same),
 ## [signal combat_encounter_opened], one session per seat on its [code]COMBAT_ROLLS[/code] stream,
-## then per map its objects, enemies, darkness step, reinforcement points, darkness damage, AI and
-## intents ([method MapObjects.place], [method EnemySetup.place], [method Darkness.register],
-## [method Reinforcements.register], [method Darkness.register_damage], [method EnemyAI.register],
-## [method Intents.register]), carrier copies, its darkness ([method DarknessSetup.place], so Short
-## Wick counts), each army deployed, and [method CombatSession.open_battle] as
-## [member BattleRequest.opening_swap] says.
-## Returns the encounter; null, with nothing begun, when a battle is already on, the run is closed,
-## or setup fails.
+## then per map its objects, enemies, darkness phase, reinforcement points, AI and intents (each
+## one's [code]place[/code] or [code]register[/code]), carrier copies, its darkness
+## ([method DarknessSetup.place], so Short Wick counts), each army deployed, and
+## [method CombatSession.open_battle] as [member BattleRequest.opening_swap] says. Returns the
+## encounter; null, with nothing begun, when a battle is on, the run is closed, or setup fails.
 func begin_battle(request: BattleRequest) -> CombatEncounter:
 	if not _can_open_battle(request):
 		return null
@@ -534,11 +531,9 @@ func _set_up_battle(request: BattleRequest, catalog: EffectCatalog.Index) -> Com
 		MapObjects.place(session)
 		# Before deployment too, which ranks its tiles by the enemies' tiles.
 		EnemySetup.place(session, catalog)
-		# First on AFTER_ENEMY_PHASE, before the reinforcement arrivals (the-darkness.md, The
-		# darkness step); its damage after the point closing on PHASE_END_EFFECTS.
+		# The darkness phase first on AFTER_ENEMY_PHASE, before the reinforcement arrivals.
 		Darkness.register(session)
 		Reinforcements.register(session, waves)
-		Darkness.register_damage(session)
 		EnemyAI.register(session, catalog)
 		Intents.register(session, catalog)
 	return battle

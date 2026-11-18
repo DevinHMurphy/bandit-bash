@@ -6,7 +6,7 @@
 # File:     reinforcements.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 15, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name Reinforcements
@@ -85,7 +85,7 @@ static func draw_waves(ctx: CombatEncounter.SetupContext, source: GroupSource) -
 
 ## Loads [param session]'s reinforcement points ([method load_waves]) and adds [method warn],
 ## [method close_points] and [method arrive] (bound to [param source]) to its hooks. Call once per
-## session, before the battle opens and after [method Darkness.register]: the darkness step comes
+## session, before the battle opens and after [method Darkness.register]: the darkness phase comes
 ## first on [constant CombatHooks.Hook.AFTER_ENEMY_PHASE], so a wave due at arrival never comes.
 static func register(session: CombatSession, source: GroupSource) -> void:
 	load_waves(session)

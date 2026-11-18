@@ -6,14 +6,14 @@
 # File:     battle_view_cases.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 13, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends RefCounted
 ## The battle board's cases for the ui/board suite (combat UI plan, UI1 row): the view-model,
 ## the board built on the M1 map, a whole M1 battle's facts played through the session's
-## playback, the darkness overlay, held fast-forward and the faded skip. No autoload is named or
-## needed.
+## playback, the darkness overlay and the darkness phase's playback, held fast-forward and the
+## faded skip. No autoload is named or needed.
 ##
 ## [b]The battle:[/b] the Mercenary army ([method StartingArmy.build]) against the M1 pack on the
 ## greybox map, begun through [method CampaignSession.begin_battle] on the real catalog with the M1
@@ -73,6 +73,7 @@ func run() -> void:
 	_test_view_model(map)
 	_test_board_and_playback(map)
 	_test_darkness_overlay(map)
+	_test_darkness_phase(map)
 	_test_fast_forward(map)
 	_test_skip(map)
 	_test_skip_stops(map)
@@ -343,6 +344,98 @@ func _test_darkness_overlay(map: CombatMapDefinition) -> void:
 	), str(overlay.drawn_tiles()))
 	view.free()
 	run.close()
+
+
+# Turn ends queued on the M1 board as the rules record them: a darkness phase that changes
+# nothing announces nothing; one deepening three tiles announces itself once, with the turn of the
+# Phase Start played before it, and waits darkness_tile_hold per tile, halved at speed 2; a
+# deepening in a side's phase (a break) announces nothing; a skipped phase is still announced.
+func _test_darkness_phase(map: CombatMapDefinition) -> void:
+	var run: CampaignSession = _new_run()
+	var battle: CombatEncounter = begin_m1(_catalog, map, run)
+	if battle == null:
+		_check.call("darkness phase: the M1 battle begins", false, "begin_battle gave no battle")
+		run.close()
+		return
+	var session: CombatSession = battle.get_session(0)
+	var view: BattleView = VIEW_SCENE.instantiate()
+	_root.add_child(view)
+	view.bind(session)
+	var announced: Array[int] = []
+	view.darkness_phase_started.connect(func(turn: int) -> void: announced.append(turn))
+	session.playback.enqueue(_turn_end(3, []))
+	settle(view)
+	var silent: bool = announced.is_empty()
+	var hold: float = 0.5
+	view.darkness_tile_hold = hold
+	var tiles: Array[Vector2i] = [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)]
+	session.playback.enqueue(_turn_end(3, tiles))
+	var normal: float = _frames_to_settle(view) * FRAME
+	view.playback_speed = 2.0
+	session.playback.enqueue(_turn_end(4, tiles))
+	var doubled: float = _frames_to_settle(view) * FRAME
+	view.playback_speed = 1.0
+	var expected: float = hold * tiles.size()
+	_check.call("darkness phase: a phase where nothing happens is silent", silent, str(announced))
+	_check.call("darkness phase: announced once per phase, with its turn", (
+			str(announced) == "[3, 4]"
+	), str(announced))
+	_check.call("darkness phase: the spread waits darkness_tile_hold per tile, at the speed", (
+			absf(normal - expected) <= 2.0 * FRAME
+			and absf(doubled - expected / 2.0) <= 2.0 * FRAME
+	), "%.2f s at speed 1, %.2f s at speed 2, expected %.2f" % [normal, doubled, expected])
+
+	var mid_phase: CombatFact = CombatFact.new(CombatFact.Kind.PHASE_START)
+	mid_phase.side = PLAYER
+	mid_phase.amount = 5
+	var broke: CombatFact = CombatFact.new(CombatFact.Kind.DARKNESS_ADVANCED)
+	broke.tile = Vector2i(3, 0)
+	broke.amount = WhileLayerCondition.Layer.DUSK
+	var side_phase: Array[CombatFact] = [mid_phase, broke]
+	session.playback.enqueue(side_phase)
+	settle(view)
+	_check.call("darkness phase: a deepening in a side's phase is no darkness phase", (
+			str(announced) == "[3, 4]"
+	), str(announced))
+
+	var last: Array[Vector2i] = [Vector2i(4, 0)]
+	session.playback.enqueue(_turn_end(5, last))
+	view.skip_playback()
+	var skipped: bool = settle(view)
+	_check.call("darkness phase: a skip plays it, announced, its tiles drawn", (
+			skipped
+			and str(announced) == "[3, 4, 5]"
+			and view.get_darkness().layer_at(Vector2i(4, 0)) == WhileLayerCondition.Layer.DUSK
+	), str(announced))
+	view.free()
+	run.close()
+
+
+# A turn's end as the rules record it, for turn: the enemy Phase Start and Phase End, then the
+# darkness phase deepening tiles to Dusk (a wave released first), then the next player Phase Start.
+static func _turn_end(turn: int, tiles: Array[Vector2i]) -> Array[CombatFact]:
+	var facts: Array[CombatFact] = []
+	var enemy_start: CombatFact = CombatFact.new(CombatFact.Kind.PHASE_START)
+	enemy_start.side = ENEMY
+	enemy_start.amount = turn
+	facts.append(enemy_start)
+	var enemy_end: CombatFact = CombatFact.new(CombatFact.Kind.PHASE_END)
+	enemy_end.side = ENEMY
+	facts.append(enemy_end)
+	if not tiles.is_empty():
+		var released: CombatFact = CombatFact.new(CombatFact.Kind.DARKNESS_ADVANCED)
+		released.flags = CombatFact.Flag.DARKNESS_RELEASED
+		facts.append(released)
+	for tile: Vector2i in tiles:
+		var deepened: CombatFact = CombatFact.new(CombatFact.Kind.DARKNESS_ADVANCED)
+		deepened.tile = tile
+		deepened.amount = WhileLayerCondition.Layer.DUSK
+		facts.append(deepened)
+	var player_start: CombatFact = CombatFact.new(CombatFact.Kind.PHASE_START)
+	player_start.side = PLAYER
+	player_start.amount = turn + 1
+	facts.append(player_start)
+	return facts
 
 
 # One unit's longest walk, sent to twin boards: the one with fast-forward held settles in about a
