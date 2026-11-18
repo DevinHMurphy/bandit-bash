@@ -1,0 +1,87 @@
+[gd_resource type="Resource" script_class="EnemyClassDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="2_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/deal_splash.gd" id="3_splash"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/area.gd" id="4_area"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="5_con"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="6_cond"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/counter_condition.gd" id="7_count"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="8_gain"]
+[ext_resource type="Script" path="res://scripts/content/enemy_class_definition.gd" id="9_def"]
+[ext_resource type="Resource" path="res://data/shapes/adjacent.tres" id="10_shape"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/all_of_scope.gd" id="11_scope"]
+
+[sub_resource type="Resource" id="Resource_adjacent"]
+script = ExtResource("4_area")
+shape = ExtResource("10_shape")
+side = 2
+
+[sub_resource type="Resource" id="Resource_amount"]
+script = ExtResource("5_con")
+value = 2.0
+
+[sub_resource type="Resource" id="Resource_splash"]
+script = ExtResource("3_splash")
+target = SubResource("Resource_adjacent")
+amount = SubResource("Resource_amount")
+
+[sub_resource type="Resource" id="Resource_cleave"]
+script = ExtResource("1_eff")
+id = "cleave"
+trigger = 8
+operations = Array[ExtResource("2_ops")]([SubResource("Resource_splash")])
+
+[sub_resource type="Resource" id="Resource_every_3rd"]
+script = ExtResource("7_count")
+mode = 0
+count = 3
+lane = 0
+
+[sub_resource type="Resource" id="Resource_allies"]
+script = ExtResource("11_scope")
+scope = 2
+
+[sub_resource type="Resource" id="Resource_one"]
+script = ExtResource("5_con")
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_stance"]
+script = ExtResource("8_gain")
+pool = 2
+target = SubResource("Resource_allies")
+amount = SubResource("Resource_one")
+can_exceed_maximum = true
+
+[sub_resource type="Resource" id="Resource_command"]
+script = ExtResource("1_eff")
+id = "command"
+trigger = 1
+conditions = Array[ExtResource("6_cond")]([SubResource("Resource_every_3rd")])
+operations = Array[ExtResource("2_ops")]([SubResource("Resource_stance")])
+
+[resource]
+script = ExtResource("9_def")
+behavior = 0
+target_rule_id = "nearest_foe"
+target_rule_text = "Nearest foe it can hit"
+signature_move = SubResource("Resource_command")
+signature_name = "Command"
+base_class_id = "brute"
+trait_name = "Cleave"
+weapon_types = PackedStringArray("axe")
+movement_type = 0
+tags = PackedStringArray()
+stance = 2
+starting_weapon_id = "simple_axe"
+innate_effects = Array[ExtResource("1_eff")]([])
+base_stats = Dictionary[int, int]({0: 23, 1: 7, 2: 4, 3: 2, 4: 2, 5: 12, 6: 5})
+growths = Dictionary[int, int]({0: 115, 1: 60, 2: 35, 3: 20, 4: 15})
+upgraded_effects = Array[ExtResource("1_eff")]([])
+upgrade_stat_gains = Dictionary[int, int]({})
+upgrade_weapon_types = PackedStringArray()
+upgrade_tags = PackedStringArray()
+is_commander = false
+id = "brigand_captain"
+display_name = "Brigand Captain"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_cleave"), SubResource("Resource_command")])

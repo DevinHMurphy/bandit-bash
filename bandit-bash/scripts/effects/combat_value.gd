@@ -6,7 +6,7 @@
 # File:     combat_value.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 15, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name CombatValue
@@ -110,6 +110,10 @@ enum Permission {
 	## takes until defeated (the Cutthroat's innate grant; [method MapObjects.is_looter]). Denied
 	## by default. Player units loot without it.
 	CAN_LOOT = 3007,
+	## Its Curse is a Hex Storm: a hit's Stance loss reaches every unit within 2 tiles of the
+	## target, not only those beside it (the Hex Matron's signature move grants it for its next
+	## attack). Denied by default.
+	HEX_STORM = 3008,
 }
 
 ## The value key of each [enum Stat]; MOV is [constant MOVEMENT].
@@ -172,4 +176,5 @@ const PERMISSION_DEFAULTS: Dictionary[int, bool] = {
 	Permission.CAN_PICK_LOCKS: false,
 	Permission.CAN_GAIN_BLOCK: true,
 	Permission.CAN_LOOT: false,
+	Permission.HEX_STORM: false,
 }

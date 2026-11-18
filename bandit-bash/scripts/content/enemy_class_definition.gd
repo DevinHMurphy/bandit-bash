@@ -6,7 +6,7 @@
 # File:     enemy_class_definition.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 17, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 @tool
@@ -17,8 +17,9 @@ extends UnitTypeDefinition
 ##
 ## Content data in [code]res://data/enemies/[/code]; read-only at runtime. Its own catalog kind
 ## ([constant EffectCatalog.Kind.ENEMY_CLASS]), so it never counts as a player unit type. Never a
-## commander and no role; its upgrade fields stay empty. A unit of this class at level L has its
-## base plus floor(growth % × (L − 1)) in each stat, a source named for the level
+## commander and no role; its upgrade fields stay empty. A mini-boss is a class of its own built on
+## a base class ([member base_class_id]), which a key pack names. A unit of this class at level L
+## has its base plus floor(growth % × (L − 1)) in each stat, a source named for the level
 ## ([method UnitInstance.stat_sources]), and never rolls a level-up. Its weapons and staves never
 ## run out ([Loadout]); limits on an enemy live on its traits.
 ##
@@ -63,6 +64,16 @@ enum Behavior {
 ## intent the phase before it fires. Name the same resource as in [member effects]; the content
 ## test checks it is there. [b]Null:[/b] no signature move, as for most classes.
 @export var signature_move: EffectDefinition = null
+
+## Its signature move as players read it in intents and breakdowns, such as "Command"; setup labels
+## that one effect with it. [b]Empty:[/b] the trait name, as for the Warcaller, whose trait is its
+## War Horn.
+@export var signature_name: String = ""
+
+## The class it is an elite of, by content id, such as the Brigand Captain's [code]brute[/code]:
+## it carries that class's stats, growths, gear, behavior and trait, plus its own signature move.
+## The content test checks they match. [b]Empty:[/b] a standard class.
+@export var base_class_id: String = ""
 
 
 func _validate_property(property: Dictionary) -> void:

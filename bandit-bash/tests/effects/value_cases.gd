@@ -6,7 +6,7 @@
 # File:     value_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 15, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends "res://tests/effects/effects_case_base.gd"
@@ -348,7 +348,7 @@ func _test_value_keys_seeded_and_disjoint() -> void:
 	]
 	var expected_permissions: PackedStringArray = [
 		"CAN_COUNTER", "CAN_BE_SHOVED", "MAY_MOVE_AFTER_ACTING", "FREE_WEAPON_SWAP",
-		"SKIP_MITIGATION_ON_CRIT", "CAN_PICK_LOCKS", "CAN_GAIN_BLOCK", "CAN_LOOT",
+		"SKIP_MITIGATION_ON_CRIT", "CAN_PICK_LOCKS", "CAN_GAIN_BLOCK", "CAN_LOOT", "HEX_STORM",
 	]
 	var expected_stages: PackedStringArray = [
 		"ATTACK", "MITIGATION", "CRITICAL", "MULTIPLIERS", "INCOMING_MULTIPLIERS",

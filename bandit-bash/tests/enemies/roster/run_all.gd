@@ -6,16 +6,17 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 16, 2026
-# Modified: November 16, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends "res://tests/enemies/enemies_suite.gd"
 ## Enemies suite, setup and roster part (enemies and AI plan, P05): setup step 4 ([EnemySetup],
 ## [code]enemy_setup_cases.gd[/code]), the reinforcement waves' groups and the Hunted curse's extra
 ## enemies (steps 5 and 6, [code]reinforcement_setup_cases.gd[/code]), the roster's behaviors and
-## packs ([code]roster_ai_cases.gd[/code]), the AI's map objects ([code]object_ai_cases.gd[/code])
-## and elites: leaders, their prefixes and marks, and War Horn's intent
-## ([code]elite_cases.gd[/code]). The counters, the summary and the definitions check are the
+## packs ([code]roster_ai_cases.gd[/code]), the AI's map objects ([code]object_ai_cases.gd[/code]),
+## elites: leaders, their prefixes and marks, and War Horn's intent ([code]elite_cases.gd[/code]),
+## and mini-bosses: the no-repeat order, key-map placement and each signature move
+## ([code]mini_boss_cases.gd[/code]). The counters, the summary and the definitions check are the
 ## base's.[br]
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/enemies/roster/run_all.gd[/code]
@@ -24,11 +25,12 @@ extends "res://tests/enemies/enemies_suite.gd"
 
 # The test report's line on this suite; tools/run_tests.sh reads it from this one line.
 const SUITE_DESCRIPTION: String = (
-		"Enemy setup, reinforcement waves, roster AI, map objects and elites"
+		"Enemy setup, reinforcement waves, roster AI, map objects, elites and mini-bosses"
 )
 
 # Preloaded scripts used as types (gdscript.md, Naming): the cases have no class name.
 const EliteCases = preload("res://tests/enemies/elite_cases.gd")
+const MiniBossCases = preload("res://tests/enemies/mini_boss_cases.gd")
 const EnemySetupCases = preload("res://tests/enemies/enemy_setup_cases.gd")
 const ObjectAiCases = preload("res://tests/enemies/object_ai_cases.gd")
 const ReinforcementSetupCases = preload("res://tests/enemies/reinforcement_setup_cases.gd")
@@ -47,4 +49,6 @@ func _init() -> void:
 	ObjectAiCases.new(_check).run()
 	GroupClock.lap("elite_cases")
 	EliteCases.new(_check).run()
+	GroupClock.lap("mini_boss_cases")
+	MiniBossCases.new(_check).run()
 	_finish()

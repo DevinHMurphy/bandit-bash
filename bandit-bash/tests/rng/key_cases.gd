@@ -6,7 +6,7 @@
 # File:     key_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 9, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends "res://tests/rng/rng_case_base.gd"
@@ -63,6 +63,7 @@ const PURPOSE_VALUES: Dictionary[String, int] = {
 	"ENCOUNTER_SETUP": 11,
 	"MAP_LOOT": 12,
 	"COMBAT_ROLLS": 13,
+	"MINI_BOSS_DRAW": 14,
 }
 
 

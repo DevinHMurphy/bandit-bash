@@ -6,7 +6,7 @@
 # File:     enemy_plan.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 15, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name EnemyPlan
@@ -161,11 +161,22 @@ var decided_by: Step = Step.ONLY_OPTION
 ## The preview it was rated on ([CombatForecast]); null for a move or a Wait.
 var forecast: CombatForecast.Forecast = null
 
+## Whether it is the second move after acting ([method EnemyAI.decide_second_move]): an
+## [constant Kind.ADVANCE] walks as [constant UnitTurnCommand.Action.MOVE], and a Wait ends the
+## pending move.
+var is_second_move: bool = false
+
 
 ## The turn this plan takes, as the enemy side sends it: seat -1.
 func to_command() -> UnitTurnCommand:
 	var action: UnitTurnCommand.Action = UnitTurnCommand.Action.WAIT
 	var command_target: String = ""
+	if is_second_move:
+		if kind == Kind.ADVANCE and not path.is_empty():
+			action = UnitTurnCommand.Action.MOVE
+		return UnitTurnCommand.new(
+				-1, actor_id, action, "", path if action == UnitTurnCommand.Action.MOVE else []
+		)
 	if kind == Kind.ATTACK:
 		action = UnitTurnCommand.Action.ATTACK
 		command_target = target_id

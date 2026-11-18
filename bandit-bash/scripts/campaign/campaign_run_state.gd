@@ -6,7 +6,7 @@
 # File:     campaign_run_state.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 15, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name CampaignRunState
@@ -168,8 +168,24 @@ func standard_combats_in_step() -> int:
 	return count
 
 
+## The key combat nodes the run entered on earlier floors, read from [member visited], which the
+## run saves: the place of this node's mini-boss in the run's order
+## ([method EnemySetup.mini_boss_for]). The node the run is in never counts, so a resume reads the
+## same number Begin did.
+func key_combats_before() -> int:
+	if graph == null:
+		return 0
+	var count: int = 0
+	for node_id: int in visited:
+		var is_key: bool = graph.type_of(node_id) == CampaignGraph.NodeType.KEY
+		if is_key and graph.floor_of(node_id) < floor_number:
+			count += 1
+	return count
+
+
 ## The battle of the combat node the run is in: floor and node from [member floor_number] and
 ## [member node], the standard combats before it in its step ([method standard_combats_in_step]),
+## the key combats before it ([method key_combats_before]),
 ## the maps of its pool in [param pools] that [member RunFlow.used_maps] hasn't used
 ## ([method CombatMapPools.available]), and each seat's living army with its current HP, items and
 ## heirlooms, a repeated heirloom once per copy. The army's unit and item instances are the run's
@@ -195,6 +211,7 @@ func battle_request(
 	request.floor_number = floor_number
 	request.node = node
 	request.standard_combats_in_step = standard_combats_in_step()
+	request.key_combats_before = key_combats_before()
 	request.pool = maps
 	request.catalog = catalog
 	for seat: int in seat_numbers():

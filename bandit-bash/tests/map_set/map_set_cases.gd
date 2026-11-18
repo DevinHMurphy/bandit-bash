@@ -6,7 +6,7 @@
 # File:     map_set_cases.gd
 # Author:
 # Created:  November 16, 2026
-# Modified: November 17, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -39,10 +39,6 @@ const KEY_MAPS: Dictionary[String, CombatMapDefinition.Objective] = {
 	"hilltop": CombatMapDefinition.Objective.SURVIVE,
 	"village": CombatMapDefinition.Objective.DEFEND,
 }
-
-## The Defeat the mini-boss map, kept out of the key pools until P05 EN8 places the mini-boss on
-## its leader slot: before that, nothing appears there and the objective can't be won.
-const MINI_BOSS_MAPS: Array[String] = ["hall"]
 
 ## Free enemy slots a map keeps beyond its largest pack: two Hunted copies (P05 question 40).
 const HUNTED_SLOTS: int = 2
@@ -202,16 +198,13 @@ func _test_pool_coverage() -> void:
 
 func _test_pool_maps() -> void:
 	var standard: PackedStringArray = PackedStringArray(STANDARD_MAPS)
-	var key: PackedStringArray = []
-	for map_id: String in KEY_MAPS:
-		if not MINI_BOSS_MAPS.has(map_id):
-			key.append(map_id)
+	var key: PackedStringArray = PackedStringArray(KEY_MAPS.keys())
 	var wrong: PackedStringArray = []
 	for floor_number: int in range(1, LAST_STANDARD_FLOOR + 1):
 		_note_wrong(wrong, STANDARD, floor_number, standard)
 		if floor_number >= FIRST_KEY_FLOOR:
 			_note_wrong(wrong, KEY, floor_number, key)
-	_ok("pools: every floor draws the set's maps, not M1, a Leader or a mini-boss map", (
+	_ok("pools: every floor draws the set's maps, the mini-boss map among the key maps, not M1", (
 			wrong.is_empty()
 	), "; ".join(wrong))
 

@@ -6,7 +6,7 @@
 # File:     run_state_cases.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 15, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -61,6 +61,7 @@ func run() -> void:
 	_test_bad_data_refused()
 	_test_partial_and_empty_runs()
 	_test_standard_combats_in_step()
+	_test_key_combats_before()
 
 
 ## A session on [param run_seed] for [constant SEATS] with a new run built as
@@ -140,6 +141,49 @@ func _test_standard_combats_in_step() -> void:
 	var request: CampaignSession.BattleRequest = at_four.battle_request(pools, _catalog)
 	_check("standard combats in step: the battle request carries the count", (
 			request != null and request.standard_combats_in_step == 2
+	))
+
+
+# A one-column route with Key combats on floors 3 and 6: the count reads only earlier floors, so
+# the key node the run is in never counts; it is the same after the map's save round trip, and the
+# battle request carries it.
+func _test_key_combats_before() -> void:
+	var standard: CampaignGraph.NodeType = CampaignGraph.NodeType.STANDARD
+	var key: CampaignGraph.NodeType = CampaignGraph.NodeType.KEY
+	var types: Array[CampaignGraph.NodeType] = [
+		standard, standard, key, standard, standard, key, standard,
+	]
+	var graph: CampaignGraph = CampaignGraph.new(18, 1)
+	for index: int in types.size():
+		graph.add_node(index + 1, 0, types[index])
+		if index > 0:
+			graph.link(index - 1, index)
+	# Floor reached to the count expected there.
+	var expected: Dictionary[int, int] = {1: 0, 3: 0, 4: 1, 6: 1, 7: 2}
+	var counts: Dictionary[int, int] = {}
+	var reloaded: Dictionary[int, int] = {}
+	for floor_reached: int in expected:
+		var run: CampaignRunState = CampaignRunState.new()
+		run.graph = graph
+		for node_id: int in floor_reached:
+			run.enter_node(node_id)
+		counts[floor_reached] = run.key_combats_before()
+		var copy: CampaignRunState = CampaignRunState.new()
+		var data: Variant = JSON.parse_string(JSON.stringify(run.capture_map()))
+		var restored: bool = data is Dictionary and copy.restore_map(data as Dictionary) == OK
+		reloaded[floor_reached] = copy.key_combats_before() if restored else -1
+	_check("key combats before: the Key nodes on earlier floors", counts == expected, str(counts))
+	_check("key combats before: the same after the map's save round trip", (
+			reloaded == expected
+	), str(reloaded))
+	var pools: CombatMapPools = load("res://data/campaign/combat_map_pools.tres") as CombatMapPools
+	var at_seven: CampaignRunState = CampaignRunState.new()
+	at_seven.graph = graph
+	for node_id: int in 7:
+		at_seven.enter_node(node_id)
+	var request: CampaignSession.BattleRequest = at_seven.battle_request(pools, _catalog)
+	_check("key combats before: the battle request carries the count", (
+			request != null and request.key_combats_before == 2
 	))
 
 
