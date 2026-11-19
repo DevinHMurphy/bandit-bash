@@ -77,7 +77,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P13 | [RNG streams](2026-10-26-rng-streams.md) | **Implemented** | — | P00 |
 | P15 | UI lift ([ui-lift.md](../design/ui-lift.md); its scope doc is the plan) | **In progress**: UL0 the style guide ([ui-style.md](../design/ui-style.md)) , UL1 the shared theme, UL4 the event log (with UL1F) , UL3 the HUD and unit detail, and UL5 the victory sequence done | UL2, UL6–UL8 | P07, P08 |
 | P14 | [Project organization](2026-11-09-project-organization.md) | **In progress** | O5 (deferred) | — |
-| P16 | Audio ([audio.md](../design/audio.md); its scope doc is the plan) | **Approved** November 19, 2026 | AU1 (M2, beside UL2); AU2+ sound design (M5, after the audio direction) | P07, P15 |
+| P16 | Audio ([audio.md](../design/audio.md); its scope doc is the plan) | **In progress**: AU1 issued November 19, 2026 | AU1 (M2); AU2+ sound design (M5, after the audio direction) | P07, P15 |
 | P20–P24 | Meta progression, tutorials, dev console, status effects, shared co-op battles | Post-MVP | — | — |
 
 ## Next actions
