@@ -10,19 +10,21 @@
 # ==============================================================================
 
 extends SceneTree
-## Headless tests for event outcomes: every outcome block against a real run state, option
-## requirements and event data, the weapon modification with test-only prefixes, and the
-## resolver's all-or-nothing rule, curses and RNG use. They are the case files declaring this
-## suite, which [code]tests/case_files.gd[/code] finds and runs in path order; each one's class doc
-## lists its checks. Shared setup is in event_fixture.gd. Touches no save files.
+## Headless tests for events: every outcome block against a real run state, option requirements
+## and event data, the weapon modification with test-only prefixes, the resolver's all-or-nothing
+## rule, curses and RNG use, the event draw and its rolls, choosing through the event commands
+## (a surprise combat through the battle bridge included), and the events section with quit and
+## Continue. They are the case files declaring this suite, which [code]tests/case_files.gd[/code]
+## finds and runs in path order; each one's class doc lists its checks. Shared setup is in
+## event_fixture.gd. Saves go through memory and JSON only; no file is written.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/events/run_all.gd[/code][br]
 ## Prints PASS or FAIL per case and exits with code 1 if any case fails. Refused options log
-## nothing; only FAIL lines mean a problem.
+## nothing; refused save data logs an error, as it should; only FAIL lines mean a problem.
 
 # The test report's line on this suite; tools/run_tests.sh reads it from this one line.
-const SUITE_DESCRIPTION: String = "Event outcome blocks, requirements, weapon prefixes, resolver"
+const SUITE_DESCRIPTION: String = "Event outcomes, resolver, the draw, choosing, the events section"
 
 # Preloaded scripts used as types (gdscript.md, Naming): they have no class name.
 const GroupClock = preload("res://tests/group_clock.gd")

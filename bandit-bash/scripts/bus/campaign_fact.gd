@@ -65,6 +65,15 @@ enum Kind {
 	## The rune [member actor_id] (content id [member definition_id]) left rune slot
 	## [member amount] to make room for a new one.
 	RUNE_DISCARDED = 15,
+	## The run drew the event [member definition_id] at node [member amount]; it belongs to no
+	## seat.
+	EVENT_DRAWN = 16,
+	## The seat opened the chooser of option [member amount] of the event [member definition_id];
+	## [member amount] -1 is the chooser closed.
+	EVENT_CHOOSING = 17,
+	## The seat chose option [member amount] of the event [member definition_id]; the option's
+	## own facts follow.
+	EVENT_CHOSEN = 18,
 }
 
 ## [member seat] when a fact belongs to no single player.
