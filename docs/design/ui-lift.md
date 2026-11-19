@@ -64,7 +64,7 @@ a pair is not listed):
 2. UL1: merged November 18, 2026. Its follow-up UL1F puts DK7's turn bar and darkness overlay on the tokens (the phase banner's colours were moved at the merge) and clears the theme test's exempt list.
 3. UL4 with UL1F: merged November 18, 2026.
 4. UL3 beside UL5: both merged November 19, 2026.
-5. UL8 beside UL2.
+5. UL8 beside BF1: issued November 19, 2026.
 6. UL6 beside UL7.
 
 BF1, P09 EV1 and P08 RN6 take the next free slots between waves (M3 steps that touch no UI-lift screen); CT11 joins the docs batch.
