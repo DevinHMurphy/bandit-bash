@@ -6,7 +6,8 @@ later in a battle; only where it deploys changes. Every swap needs both players'
 user's request and vision, November 19, 2026). Nothing here is decided until it is in
 [Decisions](#decisions).
 
-**Status:** open, November 19, 2026. Not blocking M2 or M3; it lands with co-op (P11).
+**Status:** decided November 19, 2026 (user; see [Decisions](#decisions)). Not blocking M2 or
+M3; it lands with co-op (P11). The vision update goes through the ideation thread.
 
 ## Where it stands
 
@@ -95,13 +96,29 @@ wire.
 
 ## Open questions
 
-1. When: A (campaign map, next combat), B (pre-battle step) or C (standing)?
-2. One for one only, or also one-way loans?
-3. Where the visitor deploys: with the host army by role, or on the edge as H1's units do?
-4. XP, the Standout and grades for a visiting unit?
-5. In the opening swap window, who may move the visitor?
-6. Settle "Your Unit" heirlooms and timed modifiers on a partner's map once, for swaps and H1?
+None.
 
 ## Decisions
 
-None yet.
+Decided by the user, November 19, 2026: the recommendations, with the Standout and grades
+counting for the unit's owner.
+
+1. **Agreed on the campaign map, for the next combat only** (option A). Between nodes, one player
+   proposes and the partner accepts; the swap applies to the next combat and then lapses.
+2. **One for one.** Each player sends one unit and receives one, so every map keeps its unit count.
+   One-way loans are not in. At most one swap per pair of players per combat.
+3. **Who:** only living units in the army; never the commander.
+4. **Deployment:** the visiting unit deploys with the host map's army in its deployment zone,
+   placed by role like the rest.
+5. **Control:** the owner controls the visitor and ends their turn on that map; the map's player
+   phase waits for both players. In the opening swap window, **the visitor's owner** moves it,
+   since control never changes hands.
+6. **Rewards:** the visitor earns its personal XP and the shared XP of the map it fought on. **Its
+   Standout and grades count for its owner** (user). Loot from that map stays with the map's
+   owner. A visitor that falls is its owner's loss (permadeath).
+7. **Approval and saving:** a proposal names both units; the partner sees both and accepts or
+   declines; either can withdraw until the combat starts. An accepted swap is saved with the run
+   until the combat starts; an unaccepted proposal is not saved. Only the two players named take
+   part.
+8. **Units on a partner's map share one rule set:** "Your Unit" heirlooms and timed modifiers for
+   a unit on a teammate's map are settled once in P11, for swaps and H1 Reinforce alike.
