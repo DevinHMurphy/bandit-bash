@@ -58,7 +58,7 @@ flowchart LR
   class P00,P13 done
   class P01,P02,P03,P04,P05,P06,P07,P08 active
   class P09 active
-  class P10 ready
+  class P10 active
   class P11,P12 waiting
 ```
 
@@ -224,7 +224,8 @@ flowchart LR
   class UL6 active
 
   class CT12,MP11,AU2,EV1F waiting
-  class EV3,EV5 ready
+  class EV3 ready
+  class EV5 active
 
 ```
 
@@ -293,7 +294,7 @@ mark it **Open** here.
 | P05 EN13 Preview: measure | move-preview.md adopted ✅ (November 12, 2026) | Benchmarks and the equality suite only; no behavior change | **Open** November 12, 2026, alongside Wave A |
 | P05 EN14–EN16 Preview re-architecture | EN13; EN6 ✅ (November 13, 2026; Guard and Skirmisher, which the zones must cover); in order, EN15 and EN16 after EN14 | The cache and zones must cover every behavior; EN15 also stops re-planning the Shieldbearer on every move preview (EN6 report) | Waiting on EN13 |
 | P09 EV1 Outcomes | P09 approved ✅ (November 12, 2026); P08 RN2 | Outcomes apply to `CampaignRunState` | **Done**: merged November 19, 2026 (13 outcome blocks with the CT12 weapon-prefix block, `EventRequirements`, `EventResolver`; `CampaignFact.Kind` 10–15 appended, P09 question 7) |
-| P09 EV1F Recruit, upgrade and max army size blocks | EV1 ✅; P08 RN6 (builds those run operations in `scripts/campaign/`) | Both lanes needed the same operations. EV1 left four TOD-001 markers: the three blocks (`event_outcome.gd`), a revive into a full army (`revive_outcome.gd`, needs RN6's replace-a-unit), the per-seat max army size behind the Charter requirement (`event_requirements.gd`), the healing-received percent handed in (`event_context.gd`; EV2 passes 100, so Cursed Blood doesn't halve event heals until the campaign layer reads heirloom values) | Waiting on RN6 |
+| P09 EV1F Recruit, upgrade and max army size blocks | EV1 ✅; P08 RN6 (builds those run operations in `scripts/campaign/`, and the army-size read; P08 question 29). EV1F also adds the saved seat-level value changes for event army-size changes (Company Charter): a list in the `heirlooms` section, version 1 → 2 with a no-op migration (🔴 save) | Both lanes needed the same operations. EV1 left four TOD-001 markers: the three blocks (`event_outcome.gd`), a revive into a full army (`revive_outcome.gd`, needs RN6's replace-a-unit), the per-seat max army size behind the Charter requirement (`event_requirements.gd`), the healing-received percent handed in (`event_context.gd`; EV2 passes 100, so Cursed Blood doesn't halve event heals until the campaign layer reads heirloom values) | Waiting on RN6 |
 | P09 EV2, EV3, EV5 | EV1 ✅ (November 19, 2026); P08 RN5 ✅; **EV2 ✅** (merged November 19, 2026: the `events` section, CAMPAIGN v1; `EventNode.open()` for RN10, `EventNode.view()` / `open_chooser()` / `choose()` for EV3; `CampaignFact.Kind` 16–18) | EV2 adds the `events` save section; it fills `EventRolls.curse_id` (the tier draw) and the rare heirloom, saves `EventRolls`, and calls `EventResolver.roll` when the event is made (EV1 report) | **Open**: EV3 and EV5 ready (Lane C). EV3 also routes an open event to the event screen in `run_screen.gd` (today both go to the placeholder), and takes `ui/campaign/run_screen.gd`'s routing of an Unknown node with a pending surprise combat to the battle screen (EV2 estimate) |
 | P09 EV4 Content, EV6 Docs | EV3; P03 CT4, CT5, CT8, CT9 (curse copies must stack), CT13 | The events name real items, prefixes, curses and units | Waiting |
 | P03 CT12 Weapon modifications | P09 EV1 (the outcome blocks); P03 question 33 | Weapons never generate with a prefix; only events and later run sources apply one | Waiting on EV1 |
@@ -301,7 +302,7 @@ mark it **Open** here.
 | P04 MP1–MP3, MP6 | P04 approved ✅ (October 27, 2026) | — | **Open** October 27, 2026; MP1–MP3 built October 28, 2026; MP6 built October 29, 2026, so MP7 may start; MP7 built October 29, 2026 |
 | P04 MP4 Objectives | P02 CC6 (the `AFTER_STEP` hook) | The checks run on the turn loop's hook; built with CC6 | **Open** October 28, 2026 (EB6 implemented, so CC6 may start); implemented with CC6 October 28, 2026, so MP5 may start |
 | P04 MP8 Save sections | P01 EB7, P02 CC8 | `entities` and `combat_map` follow the session snapshot and `combat_state` | **Open** October 31, 2026 (CC8 merged) |
-| P10 NT1–NT8 Net transport | P10 approved ✅ (November 19, 2026); in order NT1, then NT2 and NT3 in parallel, then NT4–NT8 | Cross-lane edits per the plan's "Other lanes' files" column (P10 question 12): NT3 touches Lanes B and C, NT5 `battle_controller.gd` (Lane A), NT6 `scene_router.gd` (Lane B); schedule each when those lanes are quiet | **Open** November 19, 2026 (NT1 ready, Lane E) |
+| P10 NT1–NT8 Net transport | P10 approved ✅ (November 19, 2026); in order NT1, then NT2 and NT3 in parallel, then NT4–NT8 | Cross-lane edits per the plan's "Other lanes' files" column (P10 question 12): NT3 touches Lanes B and C, NT5 `battle_controller.gd` (Lane A), NT6 `scene_router.gd` (Lane B); schedule each when those lanes are quiet | **Open** November 19, 2026; NT1 issued November 19, 2026 (Lane E) |
 | P11 implementation | P10 NT6 (pause and rejoin; not the live check), P01 EB7, the per-map battle save format | Co-op needs transport, snapshots and saves. M4's live two-machine test (P10 NT8's matrix) runs after P11 | Closed |
 
 ## Unowned and cross-cutting dependencies
