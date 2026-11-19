@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/change_base_stat.gd" id="4_piyji"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="5_24ofj"]
 [ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="6_maxe2"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/consumables/soul_dust.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_e8pin"]
 script = ExtResource("5_24ofj")
@@ -23,6 +24,7 @@ operations = Array[ExtResource("3_jh8mr")]([SubResource("Resource_1x6wg")])
 
 [resource]
 script = ExtResource("6_maxe2")
+icon = ExtResource("icon_1")
 use_kind = "stat_booster"
 uses_lane = 1
 rarity = 3

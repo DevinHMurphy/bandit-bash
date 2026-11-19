@@ -1,10 +1,23 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://ui/battle/intents/intent_icon.gd" id="1_icon"]
 [ext_resource type="Theme" path="res://ui/theme/battle_theme.tres" id="2_theme"]
+[ext_resource type="Texture2D" path="res://assets/sprites/icons/physical_damage_icon.png" id="3_attack"]
+[ext_resource type="Texture2D" path="res://assets/sprites/icons/support_icon.png" id="4_heal"]
+[ext_resource type="Texture2D" path="res://assets/sprites/icons/wait_icon.png" id="5_guard"]
+[ext_resource type="Texture2D" path="res://assets/sprites/icons/arrow_icon.png" id="6_advance"]
+[ext_resource type="Texture2D" path="res://assets/sprites/icons/interact_icon.png" id="7_object"]
+[ext_resource type="Texture2D" path="res://assets/sprites/icons/skill_icon.png" id="8_signature"]
 
 [node name="IntentIcon" type="Node2D"]
+texture_filter = 1
 script = ExtResource("1_icon")
+attack_texture = ExtResource("3_attack")
+heal_texture = ExtResource("4_heal")
+guard_texture = ExtResource("5_guard")
+advance_texture = ExtResource("6_advance")
+use_object_texture = ExtResource("7_object")
+signature_texture = ExtResource("8_signature")
 
 [node name="GlyphLabel" type="Label" parent="."]
 unique_name_in_owner = true
@@ -18,3 +31,8 @@ theme_type_variation = &"IntentGuardGlyph"
 text = "="
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="Art" type="Sprite2D" parent="."]
+unique_name_in_owner = true
+visible = false
+position = Vector2(13, -18)

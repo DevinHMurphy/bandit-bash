@@ -5,6 +5,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_1p7wg"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_hrms7"]
 [ext_resource type="Script" path="res://scripts/content/trinket_definition.gd" id="5_tb58a"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/trinkets/loaded_dice.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_glnwx"]
 script = ExtResource("4_hrms7")
@@ -23,6 +24,7 @@ operations = Array[ExtResource("3_1p7wg")]([SubResource("Resource_glnwx"), SubRe
 
 [resource]
 script = ExtResource("5_tb58a")
+icon = ExtResource("icon_1")
 rarity = 3
 tags = PackedStringArray()
 id = "loaded_die"

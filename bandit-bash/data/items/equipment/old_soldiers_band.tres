@@ -5,6 +5,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_6vu1j"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_0qskn"]
 [ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="5_dklxo"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/equipment/old_soldiers_band.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_1em4t"]
 script = ExtResource("4_0qskn")
@@ -28,6 +29,7 @@ operations = Array[ExtResource("3_6vu1j")]([SubResource("Resource_1em4t"), SubRe
 
 [resource]
 script = ExtResource("5_dklxo")
+icon = ExtResource("icon_1")
 category = "band"
 rarity = 1
 weight = 1

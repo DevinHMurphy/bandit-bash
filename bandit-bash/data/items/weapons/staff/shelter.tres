@@ -1,9 +1,11 @@
 [gd_resource type="Resource" script_class="StaffDefinition" format=3]
 
 [ext_resource type="Script" path="res://scripts/content/staff_definition.gd" id="1_def"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/weapons/staff_icon.png" id="icon_1"]
 
 [resource]
 script = ExtResource("1_def")
+icon = ExtResource("icon_1")
 staff_kind = "block"
 base_amount = 3
 uses = 0

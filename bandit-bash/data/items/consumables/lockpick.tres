@@ -4,6 +4,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_jgrfb"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_6pmwe"]
 [ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="4_rhvi7"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/consumables/skeleton_key.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_8dm4n"]
 script = ExtResource("1_04lr3")
@@ -11,6 +12,7 @@ id = "lockpick"
 
 [resource]
 script = ExtResource("4_rhvi7")
+icon = ExtResource("icon_1")
 use_kind = "lockpick"
 uses = 0
 uses_lane = 1

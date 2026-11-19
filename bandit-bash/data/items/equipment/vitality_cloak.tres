@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="5_2aqn8"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="6_r7a8q"]
 [ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="7_42jge"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/equipment/vitality_cloak.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_wa5ck"]
 script = ExtResource("4_yp653")
@@ -35,6 +36,7 @@ operations = Array[ExtResource("3_qmrtk")]([SubResource("Resource_3kjeu")])
 
 [resource]
 script = ExtResource("7_42jge")
+icon = ExtResource("icon_1")
 category = "cloak"
 rarity = 1
 weight = 1

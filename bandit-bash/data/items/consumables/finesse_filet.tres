@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="6_wiplf"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/change_base_stat.gd" id="7_macwj"]
 [ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="8_s2xin"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/consumables/finesse_fillet.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_5xj2e"]
 script = ExtResource("4_5pnr5")
@@ -38,6 +39,7 @@ operations = Array[ExtResource("3_hpqnk")]([SubResource("Resource_ibf1a"), SubRe
 
 [resource]
 script = ExtResource("8_s2xin")
+icon = ExtResource("icon_1")
 use_kind = "ingredient"
 amount = 10
 uses_lane = 1

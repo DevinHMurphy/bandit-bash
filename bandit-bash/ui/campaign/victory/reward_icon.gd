@@ -13,7 +13,8 @@ class_name RewardIcon
 extends Control
 ## A reward row's icon: the reward's texture, or the style guide's placeholder mark (a flat
 ## [code]accent[/code] symbol on a dark circle: [code]panel[/code] fill, 1-unit [code]border[/code]
-## edge) while it has none. Colours come from [UiTokens].
+## edge) while it has none. Colours come from [UiTokens]. Item icons use it too: placement, the
+## unit detail pop-up's gear and the forecast; it draws at whatever size its parent gives it.
 ##
 ## @tutorial(UI style guide): docs/design/ui-style.md
 

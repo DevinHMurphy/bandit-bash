@@ -14,14 +14,15 @@ extends SceneTree
 ## guide: base 1280×720, shown at 1920×1080 and the Steam Deck's 1280×800). Drives the real
 ## router through a new solo run: boot, start, save select, main menu, new run, options, lobby,
 ## loading, the campaign map with its heirloom bar, the battle (swap window, HUD with the unit
-## panel and rune bar, the heirloom bar with a count, a ready and spent icons, and its tooltip,
-## action menu, forecast and a multi-hit forecast, unit detail for a player unit and an enemy
-## (an elite where there is one), runes, the event log after turns played into the first darkness
-## phase, the darkness's three layers side by side, pause), the victory sequence over the board
-## (Grade, Recap filling, a level-up, Recap, Rewards, the item picker, placement, the leave
-## dialog), the sequence resumed over its backdrop (on Grade, then on Rewards once the pick is
-## settled), the map's pause menu, a node placeholder where one is reachable, and the run's end
-## (the run ended as lost, so it shows a lost run and its seed). Each shot is
+## panel and rune bar, the board with an elite, the heirloom bar with a count, a ready and spent
+## icons, and its tooltip, action menu, forecast and a multi-hit forecast, unit detail for a
+## player unit and an enemy (an elite where there is one), runes, the event log after turns played
+## into the first darkness phase, the darkness's three layers side by side, every map object state
+## and a lit keg, pause), the victory sequence over the board (Grade, Recap filling, a level-up,
+## Recap, Rewards, the item picker, placement, the leave dialog), the sequence resumed over its
+## backdrop (on Grade, then on Rewards once the pick is settled), the map's pause menu, a node
+## placeholder where one is reachable, contact sheets of every unit sprite and item icon, and the
+## run's end (the run ended as lost, so it shows a lost run and its seed). Each shot is
 ## [code]<out>/<size>/<nn>_<name>.png[/code].
 ## Each shot also lists visible text under [constant MIN_FONT_SIZE] base units and visible
 ## controls reaching outside the window, and the run ends with their count.[br]
@@ -71,6 +72,17 @@ const TURNS_FOR_ATTACK: int = 4
 
 # Phases played for the event log's shot at most: past the M1 darkness's arrival (end of turn 4).
 const LOG_PHASES: int = 6
+
+# The contact sheets' layout, in base units: columns, art size, label width, margin, and how many
+# items fit a page at 1280×720. Drawn over every screen.
+const SHEET_UNIT_COLUMNS: int = 5
+const SHEET_UNIT_ICON: int = 64
+const SHEET_ITEM_COLUMNS: int = 6
+const SHEET_ITEM_ICON: int = 32
+const SHEET_ITEMS_PER_PAGE: int = 84
+const SHEET_LABEL_WIDTH: int = 140
+const SHEET_MARGIN: int = 12
+const SHEET_LAYER: int = 100
 
 var _out_dir: String = ""
 
@@ -140,6 +152,7 @@ func _run() -> void:
 	await _battle()
 	await _results()
 	await _campaign_after_battle()
+	await _contact_sheets()
 	await _goto(SCREEN_RESULTS, "run_end")
 	_end()
 
@@ -172,6 +185,7 @@ func _battle() -> void:
 	controller.move_cursor(session.state.tile_of(first))
 	await _frames(SETTLE_FRAMES)
 	await _capture("battle_hud")
+	await _elite_board(view, session)
 	_heirloom_states(session)
 	await _frames(SETTLE_FRAMES)
 	await _capture("battle_heirloom_bar")
@@ -199,6 +213,7 @@ func _battle() -> void:
 	await _play_for_log(view, session)
 	await _capture("battle_event_log")
 	await _darkness_layers(view, session)
+	await _object_states(view, session)
 	var pause: Node = current_scene.get_node(^"PauseMenu")
 	pause.call(&"open")
 	await _frames(SETTLE_FRAMES)
@@ -380,6 +395,189 @@ func _darkness_layers(view: BattleView, session: CombatSession) -> void:
 	await _frames(SETTLE_FRAMES)
 	await _capture("battle_darkness_layers")
 	overlay.show_layers(kept)
+
+
+# The board's units with an elite among the enemies: the first prefixed enemy, else the first enemy
+# given a prefix in this throwaway run (said in a NOTE), outlined by the LeaderMark a Defeat the
+# Leader map's elite wears (drawing only, cleared by the next settle).
+func _elite_board(view: BattleView, session: CombatSession) -> void:
+	var enemies: PackedStringArray = session.state.units_of(CombatFact.CombatSide.ENEMY)
+	if enemies.is_empty():
+		return
+	var elite_id: String = ""
+	for enemy_id: String in enemies:
+		if not session.state.unit(enemy_id).prefix_id.is_empty():
+			elite_id = enemy_id
+			break
+	if elite_id.is_empty():
+		elite_id = enemies[0]
+		var prefixes: Array[Resource] = EffectCatalog.all_of(EffectCatalog.Kind.UNIT_PREFIX)
+		if not prefixes.is_empty():
+			session.state.unit(elite_id).prefix_id = str(prefixes[0].get(&"id"))
+		print("NOTE  elite board shot: %s given a prefix for the shot" % [elite_id])
+	var objective: HudViewModel.ObjectiveView = HudViewModel.ObjectiveView.new()
+	objective.marked_left_ids = PackedStringArray([elite_id])
+	view.show_objective(objective)
+	print("NOTE  elite board shot: %s outlined as a leader; the board has no elite mark" % [
+		elite_id,
+	])
+	await _frames(SETTLE_FRAMES)
+	await _capture("battle_board_elite")
+	view.show_objective(null)
+
+
+# Every map object state's mark side by side on the board, from the map's top-left tile, and a lit
+# keg thrown onto the first free tile: staged in this throwaway run (said in a NOTE), the marks
+# removed after the shot. The keg stays in the run.
+func _object_states(view: BattleView, session: CombatSession) -> void:
+	var mark_scene: PackedScene = load("res://ui/battle/board/map_object_mark.tscn")
+	var rect: Rect2i = session.layout.get_rect()
+	var staged: Array[Node] = []
+	var index: int = 0
+	for state: Array in _staged_object_views():
+		var tile: Vector2i = rect.position + Vector2i(
+				index % rect.size.x, floori(float(index) / rect.size.x)
+		)
+		var mark: MapObjectMark = mark_scene.instantiate()
+		view.add_child(mark)
+		var shown: BoardViewModel.ObjectView = state[1]
+		mark.show_object(shown, view.tile_to_position(tile))
+		staged.append(mark)
+		index += 1
+	var thrower: PackedStringArray = session.state.units_of(CombatFact.CombatSide.ENEMY)
+	var keg_tile: String = "none"
+	var recorded: int = session.engine.fact_log.size()
+	if not thrower.is_empty():
+		for y: int in range(rect.end.y - 1, rect.position.y - 1, -1):
+			for x: int in range(rect.position.x, rect.end.x):
+				var tile: Vector2i = Vector2i(x, y)
+				if keg_tile == "none" and MapObjects.can_land(session.state, tile):
+					if not MapObjects.throw_keg(session, tile, thrower[0]).is_empty():
+						keg_tile = str(tile)
+	# The throw's facts play as a session's do, so the keg's token spawns on the board.
+	var thrown: Array[CombatFact] = []
+	thrown.assign(session.engine.fact_log.slice(recorded))
+	session.playback.enqueue(thrown)
+	print("NOTE  object states shot: %d marks staged from the top-left tile (%s), a lit keg"
+			% [index, ", ".join(_staged_names())] + " thrown at %s" % [keg_tile])
+	_settle(view)
+	await _frames(SETTLE_FRAMES)
+	await _capture("battle_object_states")
+	for mark: Node in staged:
+		mark.queue_free()
+	await _frames(1)
+
+
+# Each object state staged for the shot: [name, view].
+func _staged_object_views() -> Array[Array]:
+	var kinds: Array[MapLayout.ObjectKind] = [
+		MapLayout.ObjectKind.CHEST, MapLayout.ObjectKind.LEVER, MapLayout.ObjectKind.HOUSE,
+		MapLayout.ObjectKind.FOOD_SHELF, MapLayout.ObjectKind.BOOK_SHELF,
+		MapLayout.ObjectKind.WEAPON_RACK, MapLayout.ObjectKind.PASSAGE,
+	]
+	var states: Array[Array] = []
+	for kind: MapLayout.ObjectKind in kinds:
+		var name: String = (MapLayout.ObjectKind.find_key(kind) as String).to_lower()
+		states.append([name, _object_view(kind, false, false, false, -1)])
+		if kind != MapLayout.ObjectKind.LEVER and kind != MapLayout.ObjectKind.PASSAGE:
+			states.append([name + " used", _object_view(kind, false, true, false, -1)])
+	var door: MapLayout.ObjectKind = MapLayout.ObjectKind.DOOR
+	var brazier: MapLayout.ObjectKind = MapLayout.ObjectKind.BRAZIER
+	states.append(["key door", _object_view(door, false, false, false, -1)])
+	states.append(["key door open", _object_view(door, true, false, false, -1)])
+	states.append(["lever door", _object_view(door, false, false, false, 0)])
+	states.append(["lever door open", _object_view(door, true, false, false, 0)])
+	states.append(["brazier lit", _object_view(brazier, false, false, true, -1)])
+	states.append(["brazier out", _object_view(brazier, false, false, false, -1)])
+	return states
+
+
+func _staged_names() -> PackedStringArray:
+	var names: PackedStringArray = []
+	for state: Array in _staged_object_views():
+		names.append(state[0] as String)
+	return names
+
+
+func _object_view(
+		kind: MapLayout.ObjectKind, is_open: bool, is_used: bool, is_lit: bool, group_id: int
+) -> BoardViewModel.ObjectView:
+	var shown: BoardViewModel.ObjectView = BoardViewModel.ObjectView.new()
+	shown.id = "object:staged"
+	shown.kind = kind
+	shown.is_open = is_open
+	shown.is_used = is_used
+	shown.is_lit = is_lit
+	shown.group_id = group_id
+	return shown
+
+
+# Contact sheets for reviewing the art picks: every sprite in the unit sprite table at twice its
+# size with its key, then every item's icon with its name, a page at a time, over the screen.
+func _contact_sheets() -> void:
+	var table: UnitSpriteTable = load("res://assets/sprites/units/unit_sprites.tres")
+	var units: Array[Array] = []
+	var keys: Array[String] = []
+	keys.assign(table.sprites.keys())
+	keys.sort()
+	for key: String in keys:
+		units.append([key, table.sprites[key]])
+	await _sheet("sheet_unit_sprites", units, SHEET_UNIT_COLUMNS, SHEET_UNIT_ICON)
+	var items: Array[Array] = []
+	for kind: EffectCatalog.Kind in [
+		EffectCatalog.Kind.WEAPON, EffectCatalog.Kind.EQUIPMENT, EffectCatalog.Kind.TRINKET,
+		EffectCatalog.Kind.CONSUMABLE,
+	]:
+		for resource: Resource in EffectCatalog.all_of(kind):
+			var item: ItemDefinition = resource as ItemDefinition
+			if item != null:
+				items.append([item.display_name, item.icon])
+	var page: int = 0
+	while page * SHEET_ITEMS_PER_PAGE < items.size():
+		var start: int = page * SHEET_ITEMS_PER_PAGE
+		var shown: Array[Array] = []
+		shown.assign(items.slice(start, start + SHEET_ITEMS_PER_PAGE))
+		await _sheet(
+				"sheet_item_icons_%d" % [page + 1], shown, SHEET_ITEM_COLUMNS, SHEET_ITEM_ICON
+		)
+		page += 1
+
+
+# One contact sheet of entries ([label, texture]) in a grid over the screen, captured and removed.
+func _sheet(shot_name: String, entries: Array[Array], columns: int, icon_size: int) -> void:
+	var layer: CanvasLayer = CanvasLayer.new()
+	layer.layer = SHEET_LAYER
+	var backdrop: Panel = Panel.new()
+	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(backdrop)
+	var grid: GridContainer = GridContainer.new()
+	grid.columns = columns
+	layer.add_child(grid)
+	grid.set_anchors_and_offsets_preset(
+			Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, SHEET_MARGIN
+	)
+	for entry: Array in entries:
+		var cell: HBoxContainer = HBoxContainer.new()
+		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var art: TextureRect = TextureRect.new()
+		art.texture = entry[1]
+		art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		art.custom_minimum_size = Vector2(icon_size, icon_size)
+		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		cell.add_child(art)
+		var label: Label = Label.new()
+		label.text = entry[0]
+		label.clip_text = true
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		label.custom_minimum_size = Vector2(SHEET_LABEL_WIDTH, 0.0)
+		cell.add_child(label)
+		grid.add_child(cell)
+	root.add_child(layer)
+	await _frames(SETTLE_FRAMES)
+	await _capture(shot_name)
+	layer.queue_free()
+	await _frames(1)
 
 
 # The enemy whose name isn't its class's alone (a prefixed elite), else the first enemy.

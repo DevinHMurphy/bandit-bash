@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="5_cjw0y"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="6_oyn1h"]
 [ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="7_ao35e"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/equipment/silver_shield.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_nuqvm"]
 script = ExtResource("4_5y4ou")
@@ -34,6 +35,7 @@ operations = Array[ExtResource("3_ueltq")]([SubResource("Resource_jvn6u")])
 
 [resource]
 script = ExtResource("7_ao35e")
+icon = ExtResource("icon_1")
 category = "shield"
 rarity = 3
 weight = 10

@@ -246,7 +246,11 @@ func _fill_exchange(session: CombatSession, found: CombatForecast.ExchangeForeca
 	]
 	var actor_weapon: CombatState.WeaponStats = state.weapon(found.attacker.weapon_id)
 	var target_weapon: CombatState.WeaponStats = state.weapon(found.defender.weapon_id)
-	_add_row("Weapon", _weapon_text(actor_weapon), _weapon_text(target_weapon))
+	_add_row(
+			"Weapon", _weapon_text(actor_weapon), _weapon_text(target_weapon),
+			BattleText.item_icon(session, found.attacker.weapon_id),
+			BattleText.item_icon(session, found.defender.weapon_id)
+	)
 	if actor_weapon != null and target_weapon != null:
 		var result: WhileMatchupCondition.Matchup = WeaponTriangle.matchup(
 				actor_weapon.profile, target_weapon.profile
@@ -387,7 +391,10 @@ func _fill_staff(session: CombatSession, found: CombatForecast.StaffForecast) ->
 			given.append("Block +%d" % [recipient.block_gained])
 		if recipient.healed > 0:
 			given.append("HP +%d" % [recipient.restored])
-	_add_row("Staff", staff_text, ", ".join(given) if not given.is_empty() else NONE_TEXT)
+	_add_row(
+			"Staff", staff_text, ", ".join(given) if not given.is_empty() else NONE_TEXT,
+			null if held == null else BattleText.item_icon(session, held.id)
+	)
 	var user: CombatForecast.UnitOutcome = found.unit(found.actor_id)
 	var target: CombatForecast.UnitOutcome = found.unit(found.target_id)
 	_add_outcome_rows(user, target)
@@ -515,11 +522,19 @@ func _fill_rune(session: CombatSession, cast: CastRuneCommand, text: String) -> 
 	_fill_flashes()
 
 
-func _add_row(label: String, left: String, right: String) -> void:
+func _add_row(
+		label: String,
+		left: String,
+		right: String,
+		left_icon: Texture2D = null,
+		right_icon: Texture2D = null
+) -> void:
 	var added: Row = Row.new()
 	added.label = label
 	added.actor = left
 	added.target = right
+	added.actor_icon = left_icon
+	added.target_icon = right_icon
 	rows.append(added)
 
 
@@ -659,6 +674,11 @@ class Row:
 	var actor: String = ""
 	## The target's cell.
 	var target: String = ""
+	## The icon beside the acting unit's cell (its weapon's, on the Weapon and Staff rows); null
+	## for none.
+	var actor_icon: Texture2D = null
+	## The icon beside the target's cell; null for none.
+	var target_icon: Texture2D = null
 
 
 ## One unit's predicted HP and Stance, which its [HpBar] and [StancePips] flash between.

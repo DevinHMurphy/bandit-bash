@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/values/stat_of.gd" id="5_jucpg"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="6_wnx42"]
 [ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="7_out3k"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/equipment/sunshard_band.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_0wxa7"]
 script = ExtResource("4_ymg88")
@@ -36,6 +37,7 @@ operations = Array[ExtResource("3_1xbtd")]([SubResource("Resource_hpr7v")])
 
 [resource]
 script = ExtResource("7_out3k")
+icon = ExtResource("icon_1")
 category = "band"
 granted_tags = PackedStringArray()
 rarity = 3

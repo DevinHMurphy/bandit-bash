@@ -148,11 +148,18 @@ func show_detail(view: UnitDetailViewModel) -> void:
 	_header.show_header(view)
 	_show_values(_stat_rows, view.stat_rows)
 	_show_values(_combat_rows, view.combat_rows)
-	_weapon.show_gear("Weapon", _item_name(view.weapon), _weapon_detail(view.weapon))
-	_stowed.show_gear("Stowed", _item_name(view.stowed), _weapon_detail(view.stowed))
+	_weapon.show_gear(
+			"Weapon", _item_name(view.weapon), _weapon_detail(view.weapon), _icon_of(view.weapon)
+	)
+	_stowed.show_gear(
+			"Stowed", _item_name(view.stowed), _weapon_detail(view.stowed), _icon_of(view.stowed)
+	)
 	_stowed.visible = view.stowed != null
-	_equipment.show_gear("Equipment", view.equipment_name, _lines_text(view.equipment_effects))
-	_pouch.show_gear("Pouch", view.pouch_name, _lines_text(view.pouch_effects))
+	_equipment.show_gear(
+			"Equipment", view.equipment_name, _lines_text(view.equipment_effects),
+			view.equipment_icon
+	)
+	_pouch.show_gear("Pouch", view.pouch_name, _lines_text(view.pouch_effects), view.pouch_icon)
 	_enemy.show_enemy(view)
 	_show_effects(view)
 	var tags: String = ", ".join(view.tags) if not view.tags.is_empty() else empty_slot_text
@@ -285,6 +292,10 @@ func _report_texts(view: UnitDetailViewModel) -> PackedStringArray:
 
 func _item_name(line: UnitDetailViewModel.WeaponLine) -> String:
 	return "" if line == null else line.name
+
+
+func _icon_of(line: UnitDetailViewModel.WeaponLine) -> Texture2D:
+	return null if line == null else line.icon
 
 
 # A weapon's profile and its effects, without its name, for its gear row.

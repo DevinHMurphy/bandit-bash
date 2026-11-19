@@ -22,6 +22,10 @@ extends RefCounted
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
+# Every catalog item's icon by its display name, built on the first [method item_icon].
+static var _icons_by_name: Dictionary[String, Texture2D] = {}
+static var _is_icon_index_built: bool = false
+
 
 ## The display name of [param id] on [param session]: its label, else its unit type's name, else
 ## [method CombatSession.describe]'s text. Empty for an empty id.
@@ -32,6 +36,22 @@ static func name_of(session: CombatSession, id: String) -> String:
 	if label.is_empty():
 		label = type_name(session.state.unit_type_of(id))
 	return label if not label.is_empty() else session.describe(id)
+
+
+## The icon ([member ItemDefinition.icon]) of the item [param id] on [param session]: the catalog
+## item whose display name is the id's label. Combat keeps no content id for an item, but every
+## item is labelled with its definition's name when minted, and item names are unique (the ui/art
+## suite checks it). Null for an empty id, an id that is no item, or an item with no icon.
+static func item_icon(session: CombatSession, id: String) -> Texture2D:
+	if id.is_empty() or session == null:
+		return null
+	var label: String = session.ids.label_of(id)
+	if label.is_empty():
+		return null
+	if not _is_icon_index_built:
+		_build_icon_index()
+	var icon: Texture2D = _icons_by_name.get(label, null)
+	return icon
 
 
 ## The display name of the unit type or enemy class [param type_id] ("Battle Medic"), from the
@@ -47,3 +67,16 @@ static func type_name(type_id: String) -> String:
 	if unit_type != null and not unit_type.display_name.is_empty():
 		return unit_type.display_name
 	return type_id.capitalize()
+
+
+static func _build_icon_index() -> void:
+	_is_icon_index_built = true
+	var kinds: Array[EffectCatalog.Kind] = [
+		EffectCatalog.Kind.WEAPON, EffectCatalog.Kind.EQUIPMENT, EffectCatalog.Kind.TRINKET,
+		EffectCatalog.Kind.CONSUMABLE,
+	]
+	for kind: EffectCatalog.Kind in kinds:
+		for resource: Resource in EffectCatalog.all_of(kind):
+			var item: ItemDefinition = resource as ItemDefinition
+			if item != null and item.icon != null and not item.display_name.is_empty():
+				_icons_by_name[item.display_name] = item.icon

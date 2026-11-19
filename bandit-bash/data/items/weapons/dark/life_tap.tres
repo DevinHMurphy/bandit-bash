@@ -4,6 +4,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="2_ops"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_that.gd" id="3_that"]
 [ext_resource type="Script" path="res://scripts/content/weapon_definition.gd" id="9_def"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/weapons/life_tap.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_lifesteal"]
 script = ExtResource("3_that")
@@ -18,6 +19,7 @@ operations = Array[ExtResource("2_ops")]([SubResource("Resource_lifesteal")])
 
 [resource]
 script = ExtResource("9_def")
+icon = ExtResource("icon_1")
 weapon_type = "dark"
 profile = 2
 damage = 10

@@ -6,14 +6,14 @@
 # File:     unit_token.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name UnitToken
 extends Node2D
 ## One unit on the battle board: its sprite, or its type's letters when it has none, in the world;
-## its HP, Stance, Block and range-tracked icon on its [UnitInfo] (combat UI plan, questions 22,
-## 23 and 29).
+## its HP, Stance, Block, range-tracked icon and a lit keg's fuse on its [UnitInfo] (combat UI
+## plan, questions 22, 23 and 29).
 ##
 ## [BattleView] places one per unit, moves it and gives it each value as the facts play
 ## ([method show_unit], [method show_hp], [method show_stance], [method show_block],
@@ -147,6 +147,9 @@ var is_block_banned: bool = false
 ## Whether it is the unit's side's phase, as shown; only then is a spent unit gray.
 var is_phase_side: bool = true
 
+## A lit powder keg's fuse as shown: the enemy Phase Ends left; -1 for none.
+var fuse: int = -1
+
 ## Its bars, numbers and icons on the [UnitInfoLayer], which sets this; null draws none of them.
 var info: UnitInfo = null
 
@@ -165,7 +168,7 @@ var _flash_color: Color = Color.WHITE
 
 
 ## Draws [param view]: its sprite or letters, its side's outline or colour, its HP, Stance, Block,
-## Block ban and turn. Whether its range is tracked is left as it is.
+## Block ban, turn and a lit keg's fuse. Whether its range is tracked is left as it is.
 func show_unit(view: BoardViewModel.UnitView) -> void:
 	unit_id = view.id
 	tile = view.tile
@@ -183,6 +186,14 @@ func show_unit(view: BoardViewModel.UnitView) -> void:
 	show_block(view.block)
 	show_block_ban(not view.can_gain_block)
 	show_turn(view.has_acted, view.is_second_move_pending)
+	show_fuse(view.fuse)
+
+
+## Shows a lit keg's [param value] Phase Ends left on its [FuseBadge]; below 0 shows none.
+func show_fuse(value: int) -> void:
+	fuse = maxi(value, -1)
+	if is_instance_valid(info):
+		info.show_fuse(fuse)
 
 
 ## Shows [param current] HP of [param maximum]; HP is never shown below 0.

@@ -5,6 +5,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_s5uhr"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_ojwfl"]
 [ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="5_wdocu"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/equipment/magic_whetstone.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_h1dvu"]
 script = ExtResource("4_ojwfl")
@@ -19,6 +20,7 @@ operations = Array[ExtResource("3_s5uhr")]([SubResource("Resource_h1dvu")])
 
 [resource]
 script = ExtResource("5_wdocu")
+icon = ExtResource("icon_1")
 category = "coating"
 rarity = 2
 tags = PackedStringArray()

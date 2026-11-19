@@ -57,7 +57,7 @@ flowchart LR
   classDef waiting fill:#e0e0e0,stroke:#757575,color:#1b1b1b
   class P00,P13 done
   class P01,P02,P03,P04,P05,P06,P07,P08 active
-  class P09 ready
+  class P09 active
   class P10,P11,P12 waiting
 ```
 
@@ -119,6 +119,7 @@ flowchart LR
     CT4 --> CT12
     EV1[P09 EV1 outcomes] --> CT12
     EV1 --> EV1F[P09 EV1F run-operation blocks]
+    EV1 --> EV2[P09 EV2 draw and state]
     RN6[P08 RN6 run start] --> EV1F
     CT2 --> CT9[CT9 heirlooms, curses]
   end
@@ -213,13 +214,13 @@ flowchart LR
   classDef active fill:#bbdefb,stroke:#1565c0,color:#1b1b1b
   classDef ready fill:#fff3c4,stroke:#b8860b,color:#1b1b1b
   classDef waiting fill:#e0e0e0,stroke:#757575,color:#1b1b1b
-  class R1,R2,R3,R4,R5,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,CT2,EB5,EB7,EBF,EN1,CT3,EN2,EN3,CC8,CT3F,EN3F,EN4,EN5,MP8,DK1,EN4F,DK2,DK3,UI1,DK4,UI2,UI2F,UI3,UI4,UI3F,UI5,UI5F,CC10,UI6,UI7,UI7F,UI8,UI9,UI10,UI11,DK5,CT6,CT5,EN6,CT13,CT9,CT13F,CT4,EN10,EN9,CT8,UI12,CT7,EN17,MP10,CT10,UI13,EN7,MP12,EN8,UI14,UL0,EN18,DK7,UL1,EN11,UL1F,UL4,UL5,UL3,UL8,AU1 done
+  class R1,R2,R3,R4,R5,R6,EB1,EB2,EB3,EB4,EB6,EB9,CC1,CC2,CC3,CC4,CC5,CC6,CC7,MP1,MP2,MP3,MP3F,MP4,MP5,MP6,MP7,CT1,CT2,EB5,EB7,EBF,EN1,CT3,EN2,EN3,CC8,CT3F,EN3F,EN4,EN5,MP8,DK1,EN4F,DK2,DK3,UI1,DK4,UI2,UI2F,UI3,UI4,UI3F,UI5,UI5F,CC10,UI6,UI7,UI7F,UI8,UI9,UI10,UI11,DK5,CT6,CT5,EN6,CT13,CT9,CT13F,CT4,EN10,EN9,CT8,UI12,CT7,EN17,MP10,CT10,UI13,EN7,MP12,EN8,UI14,UL0,EN18,DK7,UL1,EN11,UL1F,UL4,UL5,UL3,UL8,AU1,EV1,UL2 done
   class DK6 ready
-  class UL7 ready
-  class UL2 active
+  class UL7 active
+  class UL6 active
 
-  class CT12,MP11,UL6,AU2,EV1F waiting
-  class EV1 active
+  class CT12,MP11,AU2,EV1F waiting
+  class EV2 active
   class RN6 ready
 
 ```
@@ -287,9 +288,9 @@ mark it **Open** here.
 | P08 RN6–RN11 Nodes and full run | RN5 ✅ (November 15, 2026); the M2 content each row of P08's Work Breakdown names (CT4, CT5, CT7, CT8, CT9, CT13, and CT13F ✅ (November 15, 2026) before RN7; RN11 also EN7, EN8, EN11 and P04 MP10, the M2 map set) | Offers need real pools | Waiting |
 | P05 EN13 Preview: measure | move-preview.md adopted ✅ (November 12, 2026) | Benchmarks and the equality suite only; no behavior change | **Open** November 12, 2026, alongside Wave A |
 | P05 EN14–EN16 Preview re-architecture | EN13; EN6 ✅ (November 13, 2026; Guard and Skirmisher, which the zones must cover); in order, EN15 and EN16 after EN14 | The cache and zones must cover every behavior; EN15 also stops re-planning the Shieldbearer on every move preview (EN6 report) | Waiting on EN13 |
-| P09 EV1 Outcomes | P09 approved ✅ (November 12, 2026); P08 RN2 | Outcomes apply to `CampaignRunState` | **Open** November 13, 2026 (RN2 merged); **issued** November 19, 2026 (Lane C), with the CT12 weapon modification block on a test-only prefix |
-| P09 EV1F Recruit, upgrade and max army size blocks | EV1; P08 RN6 (builds those run operations in `scripts/campaign/`) | Both lanes needed the same operations; EV1 left these three blocks out (a TODO marker) | Waiting on EV1 and RN6 |
-| P09 EV2, EV3, EV5 | EV1; P08 RN5 (EV2 uses the battle bridge and the loop) | EV2 adds the `events` save section | Waiting |
+| P09 EV1 Outcomes | P09 approved ✅ (November 12, 2026); P08 RN2 | Outcomes apply to `CampaignRunState` | **Done**: merged November 19, 2026 (13 outcome blocks with the CT12 weapon-prefix block, `EventRequirements`, `EventResolver`; `CampaignFact.Kind` 10–15 appended, P09 question 7) |
+| P09 EV1F Recruit, upgrade and max army size blocks | EV1 ✅; P08 RN6 (builds those run operations in `scripts/campaign/`) | Both lanes needed the same operations. EV1 left four TOD-001 markers: the three blocks (`event_outcome.gd`), a revive into a full army (`revive_outcome.gd`, needs RN6's replace-a-unit), the per-seat max army size behind the Charter requirement (`event_requirements.gd`), the healing-received percent handed in (`event_context.gd`) | Waiting on RN6 |
+| P09 EV2, EV3, EV5 | EV1 ✅ (November 19, 2026); P08 RN5 ✅ | EV2 adds the `events` save section; it fills `EventRolls.curse_id` (the tier draw) and the rare heirloom, saves `EventRolls`, and calls `EventResolver.roll` when the event is made (EV1 report) | **Open** November 19, 2026; EV2 issued November 19, 2026 (Lane C) |
 | P09 EV4 Content, EV6 Docs | EV3; P03 CT4, CT5, CT8, CT9 (curse copies must stack), CT13 | The events name real items, prefixes, curses and units | Waiting |
 | P03 CT12 Weapon modifications | P09 EV1 (the outcome blocks); P03 question 33 | Weapons never generate with a prefix; only events and later run sources apply one | Waiting on EV1 |
 | P02 CC10 Battle resume | P02 CC8 ✅; P04 MP8 ✅ | Restores the saved sections into a rebuilt battle | **Open** November 3, 2026; built ✅ (November 5, 2026) |

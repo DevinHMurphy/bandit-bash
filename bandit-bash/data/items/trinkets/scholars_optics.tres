@@ -5,6 +5,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_4fw78"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_66c52"]
 [ext_resource type="Script" path="res://scripts/content/trinket_definition.gd" id="5_1ao70"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/trinkets/scholars_optics.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_yw6bn"]
 script = ExtResource("4_66c52")
@@ -18,6 +19,7 @@ operations = Array[ExtResource("3_4fw78")]([SubResource("Resource_yw6bn")])
 
 [resource]
 script = ExtResource("5_1ao70")
+icon = ExtResource("icon_1")
 rarity = 1
 tags = PackedStringArray()
 id = "scholars_optics"
