@@ -6,7 +6,7 @@
 # File:     roster_unit_cases.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 15, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -22,6 +22,9 @@ extends RefCounted
 ## changed .tres fails here until the docs and this file agree.
 ##
 ## @tutorial(Unit roster): docs/design/unit-roster.md
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "content"
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY

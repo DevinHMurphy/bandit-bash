@@ -6,7 +6,7 @@
 # File:     unit_display_cases.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 17, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -22,6 +22,9 @@ extends RefCounted
 ## where it stands. Then the seat ends its turn. The board is settled after every command and
 ## must then agree with the state ([method BattleView.mismatches]), Block, Stance and turn
 ## included.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "ui/display"
 
 const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
 const TurnInputCases = preload("res://tests/ui/battle/input/turn_input_cases.gd")

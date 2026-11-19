@@ -18,6 +18,9 @@ extends RefCounted
 ## items; a section from a newer build or at version 0 stops the load; bad, partial and empty run
 ## data; the standard combats a step has seen, read from the saved route. Touches no save files.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "campaign"
+
 const RULES_PATH: String = "res://data/campaign/campaign_map_rules.tres"
 
 # Any fixed run seeds: the cases compare runs with each other, never with golden numbers.

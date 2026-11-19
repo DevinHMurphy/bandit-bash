@@ -6,7 +6,7 @@
 # File:     object_mark_cases.gd
 # Author:
 # Created:  November 18, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -19,6 +19,9 @@ extends RefCounted
 ## [b]The battle:[/b] the Old Mill with the M1 pack, begun as the board cases begin M1
 ## ([method BattleViewCases.begin_m1]). After Start, two player units are put on the levers
 ## (state only, before the board is bound) so each can pull one with no walk.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "ui/board"
 
 const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
 

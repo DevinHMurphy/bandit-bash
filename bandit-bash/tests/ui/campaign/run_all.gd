@@ -119,6 +119,8 @@ func _process(_delta: float) -> bool:
 	_frame += 1
 	if _frame == 1:
 		_start("Campaign screens tests")
+		# Any case files declaring this suite, before the screens.
+		_run_case_files()
 		if not _has_test_user_dir():
 			_skip("campaign screens", "the screens need a test user folder (see the class doc)")
 			_finish()

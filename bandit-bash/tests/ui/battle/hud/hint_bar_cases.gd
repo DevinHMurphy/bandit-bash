@@ -43,6 +43,9 @@ extends RefCounted
 ## focus as that frame would. The Sidearm fixture (a stowed sword, free swaps) is
 ## [code]forecast_cases.gd[/code]'s, so the forecast has two weapons to cycle.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "ui/input"
+
 const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
 const TurnInputCases = preload("res://tests/ui/battle/input/turn_input_cases.gd")
 const CombatWorld = preload("res://tests/combat/combat_world.gd")

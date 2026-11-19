@@ -6,7 +6,7 @@
 # File:     roster_enemy_cases.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -25,6 +25,9 @@ extends RefCounted
 ##
 ## @tutorial(Enemy roster): docs/design/enemy-roster.md
 ## @tutorial(Enemy packs): docs/design/enemy-packs.md
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "content"
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY

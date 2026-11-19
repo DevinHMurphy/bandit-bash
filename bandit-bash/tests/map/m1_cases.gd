@@ -6,7 +6,7 @@
 # File:     m1_cases.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 17, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -19,6 +19,9 @@ extends RefCounted
 ## builds the Mercenary army from [code]res://data/[/code] ([method StartingArmy.build]), loads it
 ## through [Loadout] as [CampaignSession] does, with Iron Heart, deploys it automatically and opens
 ## the battle. It fights nothing. The fixture enemies stay until P05 enters enemy classes.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "map"
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
 const FIXTURE_SCENE: PackedScene = preload("res://tests/map/fixture_map.tscn")

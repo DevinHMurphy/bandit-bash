@@ -22,6 +22,9 @@ extends RefCounted
 ## stored value and sub-resource, for run_all.gd's check that no catalog definition changes
 ## during the run. Reports each case through the check callable it is given.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "content"
+
 # A preloaded script used as a type (gdscript.md, Naming): the rules script has no class name.
 const ContentRules = preload("res://tests/content/content_rules.gd")
 

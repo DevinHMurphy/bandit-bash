@@ -6,7 +6,7 @@
 # File:     pad_cases.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -22,6 +22,9 @@ extends RefCounted
 ## public [code]device_last_changed_at[/code]), as a second of play would. Headless runs have no
 ## real pads, whose names Godot reports as empty, so a pad event names the other-pad family; the
 ## Xbox and PlayStation families are reached by the addon's own signal with their names.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "ui/input"
 
 const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
 const TurnInputCases = preload("res://tests/ui/battle/input/turn_input_cases.gd")

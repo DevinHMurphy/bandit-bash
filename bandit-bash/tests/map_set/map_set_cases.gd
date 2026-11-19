@@ -6,7 +6,7 @@
 # File:     map_set_cases.gd
 # Author:
 # Created:  November 16, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -21,6 +21,9 @@ extends RefCounted
 ## order, so only the count matters.
 ##
 ## @tutorial(Enemy packs): docs/design/enemy-packs.md
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "map_set/standard"
 
 const M1Cases = preload("res://tests/map/m1_cases.gd")
 

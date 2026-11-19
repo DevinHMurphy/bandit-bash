@@ -21,6 +21,9 @@ extends RefCounted
 ##
 ## @tutorial(Enemy packs): docs/design/enemy-packs.md
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "enemies/roster"
+
 const AiWorld = preload("res://tests/enemies/ai_world.gd")
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER

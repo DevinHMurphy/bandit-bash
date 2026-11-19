@@ -15,6 +15,7 @@ extends SceneTree
 ## because a battle on the larger boss map takes minutes, and the runner limits each suite's time;
 ## the same-seed comparison is map_set/boss_repeat, so neither part plays the battle twice.
 ##
+## Case files declaring this part run first, through [code]tests/case_files.gd[/code].[br]
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script[/code]
 ## [code]res://tests/map_set/boss/run_all.gd[/code][br]
@@ -27,6 +28,7 @@ const SUITE_DESCRIPTION: String = "An AI battle on the Powder Baron's keep, play
 
 # Preloaded scripts used as types (gdscript.md, Naming): the cases have no class name.
 const GroupClock = preload("res://tests/group_clock.gd")
+const CaseFiles = preload("res://tests/case_files.gd")
 const MapSetBattleCases = preload("res://tests/map_set/map_set_battle_cases.gd")
 
 var _failures: int = 0
@@ -35,6 +37,7 @@ var _passes: int = 0
 
 func _init() -> void:
 	print("--- Map set tests: boss battle ---")
+	CaseFiles.run(self, _check)
 	# The battle cases time the map; this group is their catalog's load.
 	GroupClock.lap("map_set_battle_cases: catalog")
 	MapSetBattleCases.new(

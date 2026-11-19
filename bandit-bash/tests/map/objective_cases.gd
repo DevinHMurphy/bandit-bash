@@ -6,7 +6,7 @@
 # File:     objective_cases.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 29, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -19,6 +19,9 @@ extends RefCounted
 ## (6 × 4 plain) carrying the markers the case needs, so steps end through the session's queue and
 ## the turn loop as they do in a battle. Defeats come from a fixture command, so a case never
 ## depends on a roll; the scripted fight uses real attacks and a fixed seed.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "map"
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY

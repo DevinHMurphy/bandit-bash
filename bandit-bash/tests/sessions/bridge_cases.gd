@@ -6,12 +6,15 @@
 # File:     bridge_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 9, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends "res://tests/sessions/sessions_case_base.gd"
 ## [CampaignSession] battle bridge cases for tests/sessions/run_all.gd: beginning and ending
 ## battles, grants, restarts, and armies loaded through [Loadout].
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "sessions"
 
 const LoadoutCases = preload("res://tests/content/loadout_cases.gd")
 

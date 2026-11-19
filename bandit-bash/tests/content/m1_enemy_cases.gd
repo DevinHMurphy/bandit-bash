@@ -6,7 +6,7 @@
 # File:     m1_enemy_cases.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 15, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -23,6 +23,9 @@ extends RefCounted
 ##
 ## @tutorial(Enemy roster): docs/design/enemy-roster.md
 ## @tutorial(Enemies and AI plan): docs/plans/2026-10-30-enemies-and-ai.md
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "content"
 
 # A preloaded script used as a type (gdscript.md, Naming): the helper has no class name.
 const PackCatalog = preload("res://tests/enemies/pack_catalog.gd")

@@ -6,7 +6,7 @@
 # File:     enemies_suite.gd
 # Author:
 # Created:  November 16, 2026
-# Modified: November 16, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -14,17 +14,19 @@ extends SceneTree
 ## ([code]tests/enemies/ai/run_all.gd[/code]), the setup and the roster's AI
 ## ([code]tests/enemies/roster/run_all.gd[/code]) and the roster's battles
 ## ([code]tests/enemies/battles/run_all.gd[/code]). Each extends this script: the check counters,
-## the summary line the runner reads, the definitions hash checked at the end, and the group timer
-## (each part laps it before each case file; [method _finish] stops it). The case files
-## stay in [code]tests/enemies/[/code], one per topic; the parts are split to take about the same
-## time.[br]
+## the summary line the runner reads, the definitions hash checked at the end, the group timer
+## ([method _finish] stops it) and the case finder. The case files stay in
+## [code]tests/enemies/[/code], one per topic, each declaring the part that runs it; the parts are
+## split to take about the same time, so a new file goes to the part it keeps closest to the
+## others.[br]
 ## The cases run in [code]_init[/code], before autoloads exist (in [code]--script[/code] mode they
 ## exist from the first frame, and their names are unknown while this script compiles), so nothing
 ## here or in a case file may use them.
 
-# Preloaded scripts used as types (gdscript.md, Naming): the group timer, the content suite's
-# hashing and the loadout fixture tree the definitions hash covers.
+# Preloaded scripts used as types (gdscript.md, Naming): the group timer, the case finder, the
+# content suite's hashing and the loadout fixture tree the definitions hash covers.
 const GroupClock = preload("res://tests/group_clock.gd")
+const CaseFiles = preload("res://tests/case_files.gd")
 const CatalogCases = preload("res://tests/content/catalog_cases.gd")
 const LoadoutCases = preload("res://tests/content/loadout_cases.gd")
 

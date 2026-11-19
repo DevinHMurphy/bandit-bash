@@ -6,7 +6,7 @@
 # File:     support_cases.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -19,6 +19,9 @@ extends RefCounted
 ## Item effects are fixtures built from the effect blocks, with the values of items.md and
 ## weapons.md; runes are the catalog's, from [code]data/runes/[/code]. Every scenario also asserts
 ## that the engine reported no diagnostics.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "combat"
 
 # A preloaded script used as a type (gdscript.md, Naming): the test map has no class name.
 const CombatWorld = preload("res://tests/combat/combat_world.gd")

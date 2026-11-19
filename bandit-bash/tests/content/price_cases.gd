@@ -6,7 +6,7 @@
 # File:     price_cases.gd
 # Author:
 # Created:  November 16, 2026
-# Modified: November 16, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -21,6 +21,9 @@ extends RefCounted
 ## prices.gd. The examples run on an in-memory catalog, so no data file moves them.
 ##
 ## @tutorial(Items, Modified items): docs/design/items.md
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "content"
 
 const COMMON: ItemDefinition.Rarity = ItemDefinition.Rarity.COMMON
 const UNCOMMON: ItemDefinition.Rarity = ItemDefinition.Rarity.UNCOMMON

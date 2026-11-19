@@ -6,7 +6,7 @@
 # File:     reinforcement_cases.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 3, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -22,6 +22,9 @@ extends RefCounted
 ## [method Reinforcements.draw_waves] through a fixture [Reinforcements.GroupSource] (P05's groups
 ## don't exist yet) and its hooks added by [method Reinforcements.register]. Enemies Wait, so no
 ## case depends on a roll. Log lines are compared without their sequence prefix.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "map"
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY

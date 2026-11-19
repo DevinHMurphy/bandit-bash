@@ -18,6 +18,9 @@ extends RefCounted
 ## unfocused one nothing; anything under [constant UiSoundHook.OFF_GROUP] is silent; and a detached
 ## hook sounds nothing. The hook here records instead of playing.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "audio"
+
 const NAV_BUTTON_SCRIPT: String = "res://ui/common/nav_button.gd"
 # The campaign map's nodes sound this on focus (MapNodeButton).
 const MAP_NODE_CUE: StringName = &"campaign_map_room_hovered"

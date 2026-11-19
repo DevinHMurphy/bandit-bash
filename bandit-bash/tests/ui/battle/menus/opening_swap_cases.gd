@@ -6,7 +6,7 @@
 # File:     opening_swap_cases.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 14, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -19,6 +19,11 @@ extends RefCounted
 ## Writes save files, so it runs only with a test user folder (see [code]ui_suite.gd[/code]); it
 ## deletes [code]user://saves/[/code] before and after. It never names an autoload: a suite
 ## compiles before they exist, so they are reached as nodes.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "ui/display"
+# Runs only with a test user folder, as it writes save files; the suite skips it otherwise.
+const NEEDS_TEST_USER_FOLDER: bool = true
 
 const OPTIONS_SCENE: String = "res://ui/screens/options_screen.tscn"
 const GAMEPLAY_SCENE: String = "res://ui/battle/gameplay.tscn"

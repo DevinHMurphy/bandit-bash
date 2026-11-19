@@ -6,12 +6,15 @@
 # File:     fact_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends "res://tests/effects/effects_case_base.gd"
 ## Fact cases for tests/effects/run_all.gd ([CombatFact], [CampaignFact]): wire round trips and
 ## refused data, amendments, item ids, fact keys and log lines.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "effects"
 
 # The documented example line (event bus plan, Logging and debugging), without NetLog's prefix.
 const DOCUMENTED_HIT_LINE: String = (

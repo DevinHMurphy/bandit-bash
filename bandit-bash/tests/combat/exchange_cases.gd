@@ -6,7 +6,7 @@
 # File:     exchange_cases.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -19,6 +19,9 @@ extends RefCounted
 ## that needs a sure outcome gets it from the numbers (Hit 100 always hits, Hit 0 always misses,
 ## crit chance 100 always crits), never from a forced roll. Every scenario also asserts that the
 ## engine reported no diagnostics.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "combat"
 
 # A preloaded script used as a type (gdscript.md, Naming): the test map has no class name.
 const CombatWorld = preload("res://tests/combat/combat_world.gd")

@@ -10,29 +10,24 @@
 # ==============================================================================
 
 extends SceneTree
-## Headless tests for the audio layer, a case file per topic (each one's class doc lists its
-## checks): the cues and sound set (cue_cases.gd), the buses and volume settings
-## (bus_cases.gd), the sound and music players (player_cases.gd), the interface sound hook
-## (ui_hook_cases.gd), facts to cues and the music map (fact_cases.gd), and sounds never touching
-## a seed (rng_cases.gd).
+## Headless tests for the audio layer: the cues and sound set, the buses and volume settings, the
+## sound and music players, the interface sound hook, facts to cues and the music map, and sounds
+## never touching a seed. They are the case files declaring this suite, built with the root, which
+## [code]tests/case_files.gd[/code] finds and runs in path order; each one's class doc lists its
+## checks.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/audio/run_all.gd[/code][br]
 ## Headless runs use Godot's Dummy audio driver, which mixes without a sound device. The cases run
-## on the first frame, when autoloads exist; the suite then waits for the playbacks it stopped to
-## be freed, as one still held at quit reads as a leak, and quits. Prints PASS or FAIL per check
-## and exits with code 1 if any fails.
+## on the first frame, when autoloads exist; the suite then waits for the playbacks freed by each
+## file's [code]release()[/code], if it has one, as one held at quit reads as a leak, calls each
+## [code]free_nodes()[/code] and quits. Prints PASS or FAIL per check; exits 1 if any fails.
 
 # The test report's line on this suite; tools/run_tests.sh reads it from this one line.
 const SUITE_DESCRIPTION: String = "Audio: cues, buses and settings, voices, music, UI hook, facts"
 
 const GroupClock = preload("res://tests/group_clock.gd")
-const CueCases = preload("res://tests/audio/cue_cases.gd")
-const BusCases = preload("res://tests/audio/bus_cases.gd")
-const PlayerCases = preload("res://tests/audio/player_cases.gd")
-const UiHookCases = preload("res://tests/audio/ui_hook_cases.gd")
-const FactCases = preload("res://tests/audio/fact_cases.gd")
-const RngCases = preload("res://tests/audio/rng_cases.gd")
+const CaseFiles = preload("res://tests/case_files.gd")
 
 # The driver every headless run gets.
 const HEADLESS_DRIVER: String = "Dummy"
@@ -43,8 +38,7 @@ const RELEASE_TIMEOUT_MSEC: int = 2000
 var _failures: int = 0
 var _passes: int = 0
 var _frame: int = 0
-var _player_cases: PlayerCases = null
-var _rng_cases: RngCases = null
+var _cases: Array[RefCounted] = []
 var _released: Array[WeakRef] = []
 var _release_started_msec: int = 0
 var _is_done: bool = false
@@ -66,8 +60,9 @@ func _process(_delta: float) -> bool:
 			"%d still held" % [_alive_count()],
 	)
 	_is_done = true
-	_player_cases.free_nodes()
-	_rng_cases.free_nodes()
+	for cases: RefCounted in _cases:
+		if cases.has_method(&"free_nodes"):
+			cases.call(&"free_nodes")
 	GroupClock.stop()
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)
@@ -82,23 +77,12 @@ func _run_cases() -> void:
 			AudioServer.get_driver_name() == HEADLESS_DRIVER,
 			AudioServer.get_driver_name(),
 	)
-	GroupClock.lap("cue_cases")
-	CueCases.new(_check, root).run()
-	GroupClock.lap("bus_cases")
-	BusCases.new(_check, root).run()
-	GroupClock.lap("player_cases")
-	_player_cases = PlayerCases.new(_check, root)
-	_player_cases.run()
-	GroupClock.lap("ui_hook_cases")
-	UiHookCases.new(_check, root).run()
-	GroupClock.lap("fact_cases")
-	FactCases.new(_check, root).run()
-	GroupClock.lap("rng_cases")
-	_rng_cases = RngCases.new(_check, root)
-	_rng_cases.run()
+	_cases = CaseFiles.run(self, _check, root)
 	GroupClock.lap("release wait")
-	_released = _player_cases.release()
-	_released.append_array(_rng_cases.release())
+	for cases: RefCounted in _cases:
+		if cases.has_method(&"release"):
+			var released: Array[WeakRef] = cases.call(&"release")
+			_released.append_array(released)
 	_release_started_msec = Time.get_ticks_msec()
 
 

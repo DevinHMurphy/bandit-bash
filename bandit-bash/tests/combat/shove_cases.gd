@@ -6,7 +6,7 @@
 # File:     shove_cases.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 29, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -15,6 +15,9 @@ extends RefCounted
 ##
 ## Every shove starts with p1 at (1, 1) pushing the unit at (2, 1) to the right on an 8 by 4 stub
 ## map. Every scenario also asserts that the engine reported no diagnostics.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "combat"
 
 # A preloaded script used as a type (gdscript.md, Naming): the test map has no class name.
 const CombatWorld = preload("res://tests/combat/combat_world.gd")

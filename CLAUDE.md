@@ -189,7 +189,9 @@ in the summary. In a session the user is watching, run the full suite with `--op
 run. Unattended runs (headless, scheduled, background) leave `--open` off. Every suite's
 `run_all.gd` declares a one-line `const SUITE_DESCRIPTION: String` saying what it covers, and
 times each case file as a group through `tests/group_clock.gd`. A new suite or case file follows
-both, or the report shows it undescribed and untimed.
+both, or the report shows it undescribed and untimed. Every `*_cases.gd` declares
+`const SUITE: String = "<suite as the runner prints it>"` on one line, and `tests/case_files.gd`
+runs it in that suite; a missing or unknown declaration fails the run.
 
 ### 4. Definition of done
 

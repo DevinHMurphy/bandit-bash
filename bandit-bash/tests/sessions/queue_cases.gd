@@ -6,13 +6,16 @@
 # File:     queue_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 9, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends "res://tests/sessions/sessions_case_base.gd"
 ## Session queue cases for tests/sessions/run_all.gd: [InstanceIdAllocator], [Command] and the
 ## queue, [CombatSession], [FactPlayback] and [PresentationRequest].
 
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "sessions"
 
 func run() -> void:
 	_run(_test_allocator)

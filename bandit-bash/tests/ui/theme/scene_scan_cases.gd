@@ -6,7 +6,7 @@
 # File:     scene_scan_cases.gd
 # Author:
 # Created:  November 18, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -16,6 +16,9 @@ extends RefCounted
 ## literal; the project's base viewport, stretch, window, theme and pointer-focus settings; the red
 ## and blue tile overlays drawing their tokens. Reads files as text, so no scene is loaded but the
 ## overlays.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "ui/theme"
 
 const UI_FOLDER: String = "res://ui/"
 

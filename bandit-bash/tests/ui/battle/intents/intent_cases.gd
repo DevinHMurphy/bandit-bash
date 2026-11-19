@@ -6,7 +6,7 @@
 # File:     intent_cases.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 15, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -23,6 +23,9 @@ extends RefCounted
 ## [b]The harness[/b] is turn_input_cases.gd's (the board, the HUD widgets and a
 ## [BattleController] on the M1 battle) with the [IntentDisplay] and [MovePreviewMarks] on the
 ## board, as in the gameplay scene. R goes through the root viewport as a key press.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "ui/board"
 
 const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
 const TurnInputCases = preload("res://tests/ui/battle/input/turn_input_cases.gd")

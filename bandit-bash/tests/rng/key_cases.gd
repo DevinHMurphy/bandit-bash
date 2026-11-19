@@ -6,12 +6,15 @@
 # File:     key_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends "res://tests/rng/rng_case_base.gd"
 ## RNG key cases for tests/rng/run_all.gd: the hex helpers, the SplitMix64 mixer ([RngKey]),
 ## derived seeds, the pinned purpose numbers and save keys.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "rng"
 
 # SplitMix64 reference pairs: [state, first output]. The first five are the sequence seeded with
 # 0 and the next five the sequence seeded with 1234567 (each state is the seed plus k times the

@@ -6,7 +6,7 @@
 # File:     rune_cases.gd
 # Author:
 # Created:  November 16, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -22,6 +22,9 @@ extends RefCounted
 ## The harness is targeting_cases.gd's, with the rune menu and the rune bar. Its fixture gives
 ## seat 0 all seven catalog runes, wounds a player unit and places two powder kegs, one in the
 ## other's blast and one beside an enemy (test setup only; the UI never does this).
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "ui/input"
 
 const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
 const TurnInputCases = preload("res://tests/ui/battle/input/turn_input_cases.gd")

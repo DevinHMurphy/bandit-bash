@@ -6,7 +6,7 @@
 # File:     turn_cases.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 15, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -21,6 +21,9 @@ extends RefCounted
 ## Each case runs a real [CombatSession] on a small hand-built map (plain, with a fort at (1, 1)
 ## for terrain healing), so commands go through the session's queue as they do in a battle. Every
 ## case also asserts that the engine reported no diagnostics, unless it provokes one.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "combat"
 
 # A preloaded script used as a type (gdscript.md, Naming): its give_rune() registers catalog runes.
 const CombatWorld = preload("res://tests/combat/combat_world.gd")

@@ -22,6 +22,9 @@ extends RefCounted
 ## slanted push scrolling and never focusing; the lines' and headers' contrast. No autoload is
 ## named or needed.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "ui/display"
+
 const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
 const TurnInputCases = preload("res://tests/ui/battle/input/turn_input_cases.gd")
 const ThemeCases = preload("res://tests/ui/theme/theme_cases.gd")

@@ -6,7 +6,7 @@
 # File:     state_cases.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 7, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -20,6 +20,9 @@ extends RefCounted
 ##
 ## Layers are written as one digit per tile of row 0, west to east (0 dry, 1 Dusk, 2 Gloom,
 ## 3 Abyss); golden values are worked by hand from the flow costs in flow_cases.gd.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "darkness"
 
 const DarknessWorld = preload("res://tests/darkness/darkness_world.gd")
 

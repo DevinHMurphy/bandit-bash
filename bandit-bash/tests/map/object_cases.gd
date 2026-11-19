@@ -6,7 +6,7 @@
 # File:     object_cases.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 15, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -21,6 +21,9 @@ extends RefCounted
 ## placed by [method MapObjects.place], so actions go through [UnitTurnCommand] and
 ## [CastRuneCommand] as in a battle. Rolls are forced hits, so no case depends on a roll. Golden
 ## logs are fact log lines without their sequence prefix.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "map"
 
 # A preloaded script used as a type (gdscript.md, Naming): its give_rune() registers catalog runes.
 const CombatWorld = preload("res://tests/combat/combat_world.gd")

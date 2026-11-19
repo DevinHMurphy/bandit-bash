@@ -6,7 +6,7 @@
 # File:     objective_hud_cases.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 9, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -21,6 +21,9 @@ extends RefCounted
 ## ObjectiveWorld: 6 × 4 plain with the markers each case needs, [Objectives] registered); defeats
 ## come from its DefeatFixture, so no case depends on a roll. The HUD is bound with no board or
 ## controller there, as only its objective is read. No autoload is named or needed.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "ui/display"
 
 const ObjectiveCases = preload("res://tests/map/objective_cases.gd")
 const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")

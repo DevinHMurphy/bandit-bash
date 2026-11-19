@@ -16,6 +16,9 @@ extends RefCounted
 ## unbound listener is silent. Then the music map: screens, battle moments and the node-type
 ## fallback. The listener here records instead of playing.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "audio"
+
 const COMBAT_MAP_PATH: String = "res://data/audio/maps/combat_facts.tres"
 const CAMPAIGN_MAP_PATH: String = "res://data/audio/maps/campaign_facts.tres"
 const MUSIC_MAP_PATH: String = "res://data/audio/maps/music.tres"
