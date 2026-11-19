@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="AudioCue" format=3]
+
+[ext_resource type="Script" path="res://scripts/audio/audio_cue.gd" id="1_7sclh"]
+[ext_resource type="AudioStream" path="res://assets/audio/music/Action_-_Knightly_Fighting.ogg" id="2_x655b"]
+
+[resource]
+script = ExtResource("1_7sclh")
+id = &"action_knightly_fighting"
+streams = Array[AudioStream]([ExtResource("2_x655b")])
+bus = 2
+voice_limit = 1

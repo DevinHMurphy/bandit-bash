@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="AudioCue" format=3]
+
+[ext_resource type="Script" path="res://scripts/audio/audio_cue.gd" id="1_j0bp7"]
+[ext_resource type="AudioStream" path="res://assets/audio/sounds/ui/overworld/begin_campaign.ogg" id="2_7w2jp"]
+
+[resource]
+script = ExtResource("1_j0bp7")
+id = &"begin_campaign"
+streams = Array[AudioStream]([ExtResource("2_7w2jp")])
+bus = 1
+voice_limit = 2

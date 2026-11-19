@@ -170,7 +170,7 @@ refused and the defaults apply (with a warning). Options edits a copy; only Appl
 
 | `core` key | Type | Default | Read by |
 |------------|------|---------|---------|
-| `master_volume`, `music_volume`, `sfx_volume` | int 0–10, clamped | 5 | `SettingsData.apply()` (a stub until audio exists) |
+| `master_volume`, `music_volume`, `sfx_volume` | int 0–10, clamped | 5 | `SettingsData.apply()`: the Master, Music and SFX buses (UI follows SFX); 0 mutes |
 | `opening_swap` | bool (anything else is repaired) | `true` | The battle screen, as a solo battle begins (`BattleRequest.opening_swap`) |
 
 - **Schema version 2.** Step 1 → 2 adds `opening_swap: true`, keeping a hand-written value for

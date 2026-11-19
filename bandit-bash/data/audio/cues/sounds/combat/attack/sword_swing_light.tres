@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="AudioCue" format=3]
+
+[ext_resource type="Script" path="res://scripts/audio/audio_cue.gd" id="1_j0mml"]
+[ext_resource type="AudioStream" path="res://assets/audio/sounds/combat/attack/sword_swing_light.ogg" id="2_3cd7v"]
+
+[resource]
+script = ExtResource("1_j0mml")
+id = &"sword_swing_light"
+streams = Array[AudioStream]([ExtResource("2_3cd7v")])
+pitch_min = 0.75
+pitch_max = 1.25

@@ -48,7 +48,7 @@ Found November 18, 2026, in `bandit-bash/`:
 | **UL3 HUD and unit detail** ✅ (merged November 19, 2026; at the exit playtest, check the elite pop-up and the multi-hit forecast, which were captured only on a Hexer and a staged AtkX 2) | A layout pass on the unit panel, forecast, turn bar, hint bar and menus, checked at the target sizes; the forecast shows every hit of a multi-hit attack, not only the first (EN18: later hits on a stripped Braced unit deal more; P05 question 45); the [unit detail pop-up](#unit-detail-pop-up); BUG-015. From UL1 and UL4: `danger` as text fails contrast (2.79:1 on `panel`: HudWarning, the turn counter past par, the enemy name, the enemy phase banner); the rune Discard button is about 18 units tall (floor 32); the Saved indicator overlaps the rune bar's third slot; tooltips lack the 320-unit width and name, body and footer | P07 | UL1 |
 | **UL4 Event log** ✅ (merged November 18, 2026, with UL1F) | The [event log](#event-log) replaces the fact log. From UL1: `darkness` and `danger` fail contrast as text (2.06:1 and 2.79:1 on `panel`), so log lines need a lighter text form or an icon beside the colour | P07 | UL1 |
 | **UL5 Victory sequence** ✅ (merged November 19, 2026) | The [staged victory overlay](#victory-sequence) replaces the Results screen | P08, P07 | UL1 |
-| **UL6 Combat feedback** | Hit, crit, Block and Stance-break feedback, floating numbers, phase banners, playback pacing; tweens and existing art only. From UL8: the phase banner draws over the heirloom bar at phase start once it holds about 6 icons. From BF1: `battle_screen.gd` declares an `@export` before a `const` (file order) | P07 | UL2 |
+| **UL6 Combat feedback** | Hit, crit, Block and Stance-break feedback, floating numbers, phase banners, playback pacing; tweens and existing art only. From UL8: the phase banner draws over the heirloom bar at phase start once it holds about 6 icons. From BF1 and AU1: `battle_screen.gd` declares an `@export` before a `const` (file order), and its class doc is over the 12-line budget | P07 | UL2 |
 | **UL7 Campaign and menu pass** | The campaign map, level-up, item pick and placement, start, save and options screens on the new theme. From UL1: titles and headings are still body text and Continue is not yet a primary button (the styles exist); map nodes are 26×26 (floor 32); sliders show focus only by a brighter grabber | P08 | UL1 |
 | **UL8 Heirloom bar** ✅ (merged November 19, 2026) | The [heirloom bar](#heirloom-bar) on every campaign screen and in battle | P07, P08, P03 (an icon on heirlooms and curses) | UL1 |
 | **DK7 Darkness phase** (P06, not UI) | The [darkness phase](#darkness-phase) | P06, P07 | — |
@@ -66,7 +66,7 @@ a pair is not listed):
 4. UL3 beside UL5: both merged November 19, 2026.
 5. UL8 beside BF1: both merged November 19, 2026.
 6. UL2 beside P16 AU1 (the audio layer, [audio.md](audio.md)): both issued November 19, 2026.
-7. UL6 beside UL7, both wiring their sounds onto AU1.
+7. UL7 issued November 19, 2026 (Lane B, beside UL2, EV1 and O8); UL6 follows UL2.
 
 P09 EV1 takes the slot beside the docs batch after round 7, and P08 RN6 the next free one (M3 steps that touch no UI-lift screen); CT11 joins the docs batch.
 

@@ -16,6 +16,10 @@ run/main_scene="res://ui/screens/boot.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 
+[audio]
+
+buses/default_bus_layout="res://data/audio/bus_layout.tres"
+
 [autoload]
 
 NetLog="*res://scripts/autoload/net_log.gd"
@@ -24,6 +28,7 @@ SteamNetwork="*res://scripts/autoload/steam_network.gd"
 SaveService="*res://scripts/autoload/save_service.gd"
 CampaignService="*res://scripts/autoload/campaign_service.gd"
 SceneRouter="*res://scripts/autoload/scene_router.gd"
+AudioService="*res://scripts/autoload/audio_service.gd"
 InputHelper="*uid://cholww48njaeh"
 
 [debug]

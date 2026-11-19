@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="AudioCue" format=3]
+
+[ext_resource type="Script" path="res://scripts/audio/audio_cue.gd" id="1_fc5wa"]
+[ext_resource type="AudioStream" path="res://assets/audio/sounds/ui/menu_cursor.ogg" id="2_vcrjr"]
+
+[resource]
+script = ExtResource("1_fc5wa")
+id = &"menu_cursor"
+streams = Array[AudioStream]([ExtResource("2_vcrjr")])
+bus = 1
+voice_limit = 2

@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="AudioCue" format=3]
+
+[ext_resource type="Script" path="res://scripts/audio/audio_cue.gd" id="1_p4elx"]
+[ext_resource type="AudioStream" path="res://assets/audio/sounds/ui/promotion/promotion.ogg" id="2_8liw4"]
+
+[resource]
+script = ExtResource("1_p4elx")
+id = &"promotion"
+streams = Array[AudioStream]([ExtResource("2_8liw4")])
+bus = 1
+voice_limit = 2

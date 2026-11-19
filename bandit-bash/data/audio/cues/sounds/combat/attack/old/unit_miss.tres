@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="AudioCue" format=3]
+
+[ext_resource type="Script" path="res://scripts/audio/audio_cue.gd" id="1_rvfpg"]
+[ext_resource type="AudioStream" path="res://assets/audio/sounds/combat/attack/old/miss.wav" id="2_pjhmn"]
+
+[resource]
+script = ExtResource("1_rvfpg")
+id = &"unit_miss"
+streams = Array[AudioStream]([ExtResource("2_pjhmn")])

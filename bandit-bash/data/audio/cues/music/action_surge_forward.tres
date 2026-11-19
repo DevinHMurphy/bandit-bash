@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="AudioCue" format=3]
+
+[ext_resource type="Script" path="res://scripts/audio/audio_cue.gd" id="1_2g538"]
+[ext_resource type="AudioStream" path="res://assets/audio/music/Action_-_Surge_Forward.ogg" id="2_wsu20"]
+
+[resource]
+script = ExtResource("1_2g538")
+id = &"action_surge_forward"
+streams = Array[AudioStream]([ExtResource("2_wsu20")])
+bus = 2
+voice_limit = 1
