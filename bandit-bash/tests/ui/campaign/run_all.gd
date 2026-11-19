@@ -20,6 +20,9 @@ extends "res://tests/ui/ui_suite.gd"
 ## convoy, scrapped, equipped, Back by pad without the pause menu; Leave), a quit and Continue
 ## mid-recap reopening it on Grade with the same report and, once taken, on Rewards with the row
 ## gone, the node placeholder, and the Boss's End run reaching the run's end. Pad glyphs show.
+## Campaign facts play ([CampaignPlayback]; its cases, playback_cases.gd, run first): the run's
+## start once on the first map, each chosen node once with its sound, each level-up card's own
+## fact with one level_up voice. Every map node is 32 units or more, the choice scrolled in view.
 ##
 ## Run from the repo root:
 ## [code]godot --headless --path bandit-bash --script res://tests/ui/campaign/run_all.gd[/code].
@@ -29,6 +32,7 @@ extends "res://tests/ui/ui_suite.gd"
 
 # The test report's line on this suite; tools/run_tests.sh reads it from this one line.
 const SUITE_DESCRIPTION: String = "A run played through the campaign screens by key, mouse, pad"
+
 
 # SceneRouter.Screen values: a suite can't name the autoload (see the base).
 const SCREEN_LOADING: int = 2
@@ -66,8 +70,14 @@ const FRAME_LIMIT: int = 4000
 # Frames to wait for a new scene after an action before it counts as not routed.
 const ROUTE_LIMIT: int = 60
 
+const CAMPAIGN_CUES_PATH: String = "res://data/audio/maps/campaign_facts.tres"
+const LEVEL_UP_CUE: StringName = &"level_up"
+
 # The Input Helper autoload, which tells the device adapters the pad family in use.
 const HELPER_PATH: NodePath = ^"/root/InputHelper"
+
+# The style guide's floor for anything clickable (ui-style.md). Units: base units.
+const MIN_TARGET: float = 32.0
 
 const JOY_A: JoyButton = JOY_BUTTON_A
 const JOY_B: JoyButton = JOY_BUTTON_B
@@ -86,6 +96,22 @@ var _old_root_size: Vector2i = Vector2i.ZERO
 
 # The scene last acted on: the walk acts once per scene, on the next one the router shows.
 var _acted_scene: Node = null
+
+# The map node the mouse clicks once the map has settled; -1 for none.
+var _pending_map_click: int = -1
+
+# Every campaign fact played on a run's bus, across quits (each session's bus is watched), and a
+# listener on the real campaign map to read which cue each would sound.
+var _bus_facts: Array[CampaignFact] = []
+var _watched_buses: Array[CampaignBus] = []
+var _cue_reader: FactCueListener = null
+var _cue_bus: CampaignBus = CampaignBus.new()
+
+# How many level-up cards each victory has shown, and how many LEVELED_UP facts had played when
+# it opened.
+var _cards_shown: int = 0
+var _level_ups_at_open: int = 0
+var _level_up_cards_checked: int = 0
 
 # Nodes entered so far, the node the last choice should have entered, and the route planned on
 # the first map (_plan_route).
@@ -139,6 +165,10 @@ func _process(_delta: float) -> bool:
 		_wait -= 1
 		return false
 	var scene: Node = current_scene
+	if _pending_map_click >= 0 and scene == _acted_scene:
+		_click_map_node(scene, _pending_map_click)
+		_pending_map_click = -1
+		return false
 	if is_instance_valid(_overlay) and scene == _acted_scene:
 		_wait = SETTLE_FRAMES
 		_step_victory()
@@ -191,7 +221,58 @@ func _begin_run() -> void:
 		return
 	var ledger: SeatRun.OwnedHeirloom = _run().seat_run(0).add_heirloom(STAGED_HEIRLOOM)
 	ledger.counters[LEDGER_EFFECT] = LEDGER_COUNT
+	var service: Node = root.get_node(^"CampaignService")
+	_watch_session(service.get(&"session") as CampaignSession)
+	service.connect(&"session_started", _watch_session)
+	_cue_reader = FactCueListener.new(load(CAMPAIGN_CUES_PATH) as FactCueMap, Callable())
+	_cue_reader.bind_campaign(_cue_bus, _node_type_of_run)
 	_router().call(&"goto_screen", SCREEN_LOADING)
+
+
+# Records every fact session's bus plays from now on.
+func _watch_session(session: CampaignSession) -> void:
+	if session == null or _watched_buses.has(session.bus):
+		return
+	_watched_buses.append(session.bus)
+	session.bus.fact_played.connect(_on_bus_fact_played)
+
+
+func _on_bus_fact_played(fact: CampaignFact) -> void:
+	_bus_facts.append(fact)
+
+
+# The facts of kind played so far.
+func _played(kind: CampaignFact.Kind) -> Array[CampaignFact]:
+	var found: Array[CampaignFact] = []
+	for fact: CampaignFact in _bus_facts:
+		if fact.kind == kind:
+			found.append(fact)
+	return found
+
+
+# The type of node_id on the run's map, for the cue reader's combat shape; -1 for none.
+func _node_type_of_run(node_id: int) -> int:
+	var run: CampaignRunState = _run()
+	if run == null or run.graph == null or not run.graph.has_node_id(node_id):
+		return -1
+	return run.graph.type_of(node_id)
+
+
+# The node chosen last was played on the bus once per choice, sounding battle_map_enter for a
+# combat node and nothing for any other (campaign_facts.tres, through the real listener's rules).
+func _check_node_chosen(where: String, is_combat: bool) -> void:
+	var chosen: Array[CampaignFact] = _played(CampaignFact.Kind.NODE_CHOSEN)
+	var last: CampaignFact = chosen[chosen.size() - 1] if not chosen.is_empty() else null
+	var cue: StringName = _cue_reader.cue_for_campaign(last) if last != null else &""
+	var expected: StringName = &"battle_map_enter" if is_combat else &""
+	_check("%s %d: the choice played once on the run's bus, sounding %s" % [
+		where, _entered, "battle_map_enter" if is_combat else "nothing",
+	], (
+			chosen.size() == _entered
+			and last != null
+			and last.amount == _expected_node
+			and cue == expected
+	), "%d played; cue %s" % [chosen.size(), cue])
 
 
 func _on_loading(scene: Node) -> void:
@@ -229,7 +310,11 @@ func _on_map(scene: Node) -> void:
 			if _entered == 1:
 				_press_key(KEY_ESCAPE)
 				var opened: bool = paused
+				var pause_seed: String = scene.get_node(^"PauseMenu").call(&"get_seed_text")
 				_press_key(KEY_ESCAPE)
+				_check("map (keys): the pause menu shows the run's seed (RunSeed.format)", (
+						pause_seed == "Seed %s" % [RunSeed.format(RUN_SEED)]
+				), "'%s'" % [pause_seed])
 				_check("map (keys): Esc opens the pause menu; closing it gives focus back", (
 						opened and not paused and view.get_node_button(reachable[0]).has_focus()
 				), "paused %s then %s" % [opened, paused])
@@ -256,8 +341,9 @@ func _on_map(scene: Node) -> void:
 				_press_key(KEY_RIGHT)
 			_press_key(KEY_ENTER)
 		"mouse":
-			var button: MapNodeButton = view.get_node_button(_expected_node)
-			_click(button.get_global_rect().get_center())
+			# Clicked once the screen has settled: the map scrolls its choices into view on its
+			# first layout, which runs after this frame.
+			_pending_map_click = _expected_node
 		"pad":
 			_use_pad()
 			var bar: ControlHintBar = scene.get_node(^"%ControlHintBar")
@@ -281,6 +367,28 @@ func _on_map(scene: Node) -> void:
 					view.get_node_button(_expected_node).has_focus()
 			))
 			_press_pad(JOY_A)
+
+
+# The settled map: the node to choose is at least 32 units square and inside the scrolled map's
+# visible rect, as every node is 32 or more; then a click on it.
+func _click_map_node(scene: Node, node_id: int) -> void:
+	var view: CampaignMapView = scene.call(&"get_map_view")
+	var scroll: ScrollContainer = scene.get_node(^"%MapScroll")
+	var button: MapNodeButton = view.get_node_button(node_id)
+	var smallest: Vector2 = Vector2.INF
+	for id: int in _run().graph.node_count():
+		var size: Vector2 = view.get_node_button(id).size
+		smallest = Vector2(minf(smallest.x, size.x), minf(smallest.y, size.y))
+	_check("map (mouse): every node is at least %d units square; the choice is in view" % [
+		MIN_TARGET,
+	], (
+			smallest.x >= MIN_TARGET
+			and smallest.y >= MIN_TARGET
+			and scroll.get_global_rect().encloses(button.get_global_rect())
+	), "smallest %s; node %s in %s" % [
+		smallest, button.get_global_rect(), scroll.get_global_rect(),
+	])
+	_click(button.get_global_rect().get_center())
 
 
 # The map shows the run: reachable nodes enabled and focusable, the others not, the route marked,
@@ -337,6 +445,13 @@ func _check_map(scene: Node, view: CampaignMapView, run: CampaignRunState) -> vo
 		_check("map: the legend lists every node type", (
 				legend.get_lines().size() == CampaignMapView.TYPE_NAMES.size()
 		), ", ".join(legend.get_lines()))
+		var started: Array[CampaignFact] = _played(CampaignFact.Kind.RUN_STARTED)
+		var cue: StringName = (
+				_cue_reader.cue_for_campaign(started[0]) if started.size() == 1 else &""
+		)
+		_check("map: a new run's first map plays its start once, sounding begin_campaign", (
+				started.size() == 1 and cue == &"begin_campaign"
+		), "%d played; cue %s" % [started.size(), cue])
 
 
 # The battle shown is the chosen node's; it is won by recording its end, and the screen routes on.
@@ -350,6 +465,7 @@ func _on_battle(scene: Node) -> void:
 	if session == null:
 		_end()
 		return
+	_check_node_chosen("battle", true)
 	scene.set(&"end_banner_time", 0.0)
 	var ended: CombatFact = CombatFact.new(CombatFact.Kind.COMBAT_ENDED)
 	ended.side = CombatFact.CombatSide.PLAYER
@@ -388,6 +504,7 @@ func _begin_victory(overlay: Node, on_board: bool) -> void:
 	_is_on_board = on_board
 	_checked_stages = {}
 	_victory_device = "keyboard" if _boss_step == 1 else DEVICES[_results_done % DEVICES.size()]
+	_cards_shown = 0
 
 
 # One action on the victory sequence for its stage; a stage's checks run the first time it shows.
@@ -411,7 +528,9 @@ func _step_victory() -> void:
 				_check("victory %d: each level-up shows on a card, Continue moving on" % [
 					_entered,
 				], card.visible and not card.get_text().is_empty(), card.get_text())
+			var before: int = _quiet_level_ups()
 			_accept(_primary(overlay))
+			_check_card_sound(overlay, before)
 		STAGE_RECAP_DONE:
 			_on_recap_done(overlay)
 		STAGE_REWARDS:
@@ -480,6 +599,7 @@ func _check_recap(overlay: Node) -> void:
 
 # Skips the fills by the device: X, LT, or a click on Continue; every bar then shows its end.
 func _skip_fill(overlay: Node) -> void:
+	var before: int = _quiet_level_ups()
 	match _victory_device:
 		"keyboard":
 			_press_key(KEY_X)
@@ -497,6 +617,40 @@ func _skip_fill(overlay: Node) -> void:
 	_check("victory %d (%s): skip ends every fill, each bar at its unit's XP now" % [
 		_entered, _victory_device,
 	], (overlay.call(&"get_stage") as int) != STAGE_RECAP_FILLING and at_end)
+	_check_card_sound(overlay, before)
+
+
+# Silences every sound, so a level-up voice playing afterwards started with the next card, and
+# returns how many LEVELED_UP facts have played.
+func _quiet_level_ups() -> int:
+	var cues: CuePlayer = root.get_node(^"AudioService").call(&"get_cue_player")
+	cues.stop_all()
+	return _played(CampaignFact.Kind.LEVELED_UP).size()
+
+
+# After a step that may show a level-up card: a card over a won board played its unit's own
+# LEVELED_UP fact once and one level_up voice sounds (the listener's; the overlay plays none);
+# after a resume the log holds no such fact, so the card is silent. No card: nothing played.
+func _check_card_sound(overlay: Node, before: int) -> void:
+	var ups: Array[CampaignFact] = _played(CampaignFact.Kind.LEVELED_UP)
+	var cues: CuePlayer = root.get_node(^"AudioService").call(&"get_cue_player")
+	var voices: int = cues.playing_count(LEVEL_UP_CUE)
+	if (overlay.call(&"get_stage") as int) != STAGE_RECAP_LEVEL_UPS:
+		_check("victory %d: no card, no level-up sound" % [_entered], (
+				ups.size() == before and voices == 0
+		), "%d facts played, %d voices" % [ups.size() - before, voices])
+		return
+	_cards_shown += 1
+	_level_up_cards_checked += 1
+	var lines: Array[CombatResultsModel.LevelUpLine] = _model_of(overlay).level_up_lines
+	var unit_id: String = lines[_cards_shown - 1].unit_id if _cards_shown <= lines.size() else ""
+	var sounds: int = 1 if _is_on_board else 0
+	var is_own: bool = sounds == 0 or ups[ups.size() - 1].actor_id == unit_id
+	_check("victory %d: level-up card %d sounds %s through the listener" % [
+		_entered, _cards_shown, "once" if sounds == 1 else "nothing (resumed)",
+	], ups.size() == before + sounds and voices == sounds and is_own, (
+			"%d facts played, %d voices, own %s" % [ups.size() - before, voices, is_own]
+	))
 
 
 # The still recap: by pad, up from Continue reaches the rows and down comes back; the keyboard's
@@ -762,6 +916,7 @@ func _on_placeholder(scene: Node) -> void:
 			and button.has_focus()
 			and _hint_context(scene) == &"NODE"
 	), title.text)
+	_check_node_chosen("placeholder", false)
 	_placeholder_with[device] = true
 	match device:
 		"mouse":
@@ -784,6 +939,8 @@ func _finish_walk() -> void:
 	])
 	if _placeholder_with.is_empty():
 		_skip("placeholder", "the seed's route reached no node that isn't a combat")
+	if _level_up_cards_checked == 0:
+		_skip("level-up sound", "no victory on the seed's route reached a level-up card")
 
 
 # Puts the run at its Boss's results, as a won Boss battle leaves it (a report, no pick), and
@@ -814,6 +971,13 @@ func _on_run_end(scene: Node) -> void:
 			and leave.has_focus()
 			and _hint_context(scene) == &"END"
 	), "%s; focus %s; %s" % [title.text, leave.has_focus(), _hint_context(scene)])
+	var seed_text: String = scene.call(&"get_seed_text")
+	var title_type: StringName = title.theme_type_variation
+	_check("run's end: the seed by RunSeed.format, the title styled, Main Menu primary", (
+			seed_text == "Seed %s" % [RunSeed.format(RUN_SEED)]
+			and title_type == &"TitleLabel"
+			and leave.theme_type_variation == &"PrimaryButton"
+	), "'%s'; %s; %s" % [seed_text, title_type, leave.theme_type_variation])
 	_end()
 
 

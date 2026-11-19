@@ -84,3 +84,33 @@ func event_id() -> String:
 ## The event's name, as breakdowns show the changes it makes.
 func label() -> String:
 	return "" if event == null else event.title
+
+
+## A context for [param for_seat]'s option [param index] of [param open_event], the event open in
+## [param in_run]: its rolls are the seat's saved ones ([member CampaignRunState.events]), the rest
+## as given. [param picked] null: nothing picked.
+static func of(
+		in_run: CampaignRunState,
+		for_seat: int,
+		open_event: EventDefinition,
+		index: int,
+		contents: EffectCatalog.Index,
+		allocator: InstanceIdAllocator = null,
+		outcome_stream: RngStream = null,
+		picked: EventChoice = null
+) -> EventContext:
+	var ctx: EventContext = EventContext.new()
+	ctx.run = in_run
+	ctx.seat = for_seat
+	ctx.event = open_event
+	ctx.option_index = index
+	ctx.catalog = contents
+	ctx.ids = allocator
+	ctx.stream = outcome_stream
+	ctx.choice = picked if picked != null else EventChoice.new()
+	var part: EventRunState.SeatEvent = (
+			null if in_run == null else in_run.events.seat_event(for_seat)
+	)
+	if part != null:
+		ctx.rolls = part.rolls_of(index)
+	return ctx

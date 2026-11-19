@@ -63,9 +63,11 @@ var _mark: Mark = Mark.OTHER
 var _fill: Color = Color.GRAY
 
 
-# Focus on a node sounds Godot_FE's room-hover cue, not the menu cursor ([UiSoundHook]).
+# Focus on a node sounds Godot_FE's room-hover cue, not the menu cursor ([UiSoundHook]); so does
+# the mouse moving onto a reachable one, which takes no focus.
 func _ready() -> void:
 	set_meta(UiSoundHook.FOCUS_CUE_META, _FOCUS_CUE)
+	mouse_entered.connect(_on_mouse_entered)
 
 
 ## Shows node [param id] of [param type]: its [param fill] colour, its [param node_icon] when
@@ -115,3 +117,10 @@ func _apply_mark() -> void:
 		box.set_border_width_all(outline_width if outline.a > 0.0 else 0)
 		box.set_corner_radius_all(4)
 		add_theme_stylebox_override(style_name, box)
+
+
+# ASSUMPTION: hovering a reachable node by mouse sounds the focus cue (Godot_FE's rooms sounded
+# on focus only); a node already focused, or one out of reach, stays silent.
+func _on_mouse_entered() -> void:
+	if _mark == Mark.REACHABLE and not has_focus():
+		Sound.play(_FOCUS_CUE)

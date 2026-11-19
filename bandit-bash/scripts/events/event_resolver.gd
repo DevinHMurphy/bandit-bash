@@ -25,7 +25,8 @@ extends RefCounted
 
 ## Draws [param option]'s random parts for [param seat_run] from [param stream], its seat's
 ## [code]EVENT_OUTCOME[/code] stream, block by block in order ([method EventOutcome.roll]):
-## random items with [param rules]' pick odds, random runes. The tier curse is drawn elsewhere.
+## random items with [param rules]' pick odds, random runes. [EventDraw] then draws the tier
+## heirlooms and the tier curse.
 static func roll(
 		option: EventOption,
 		seat_run: SeatRun,
@@ -63,6 +64,13 @@ static func unmet_reason(ctx: EventContext) -> String:
 		if not problem.is_empty():
 			return problem
 	return ""
+
+
+## Why [param ctx]'s option can't apply now, as [method resolve] would refuse it: the seat, the
+## requirements, every block and the curse against the player's [EventChoice]. Empty when it can.
+## Changes nothing, so a command can check every seat before applying any.
+static func refusal(ctx: EventContext) -> String:
+	return _problem(ctx)
 
 
 ## Applies [param ctx]'s option to its seat, once every check passes (see the class doc). Returns

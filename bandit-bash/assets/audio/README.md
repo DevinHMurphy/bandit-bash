@@ -39,7 +39,7 @@ keep whatever plays.
 | `sounds/ui/menu_confirm.ogg` | same | `menu_confirm` | Any button press (UI hook) |
 | `sounds/ui/menu_back.ogg` | same | `menu_back` | A Back button's press: a `NavButton` set to Go Back, or the `ui_sound_back` group (UI hook) |
 | `sounds/ui/menu_back.ogg` | same | `ui_refused` | A click or accept on a disabled control (UI hook; `# ASSUMPTION`: Godot_FE had no refused sound) |
-| `sounds/ui/campaign_map/campaign_map_room_hovered.ogg` | same | `campaign_map_room_hovered` | Focus on a campaign map node (`MapNodeButton`, as Godot_FE's rooms) |
+| `sounds/ui/campaign_map/campaign_map_room_hovered.ogg` | same | `campaign_map_room_hovered` | Focus on a campaign map node (`MapNodeButton`, as Godot_FE's rooms), and the mouse moving onto a reachable one (`# ASSUMPTION`: Godot_FE sounded on focus only) |
 | `sounds/combat/move_tile.ogg` | same | `move_tile` | The battle cursor stepping to a new tile (`BattleController`) |
 | `sounds/combat/unit_select.ogg` | same | `unit_select` | Picking a unit to move, or to swap in the opening swap |
 | `sounds/combat/unit_confirm.ogg` | same | `unit_confirm` | Accepting a move tile |
@@ -55,7 +55,9 @@ keep whatever plays.
 | `sounds/combat/level_win.ogg` | same | `level_win` | The battle won (`COMBAT_ENDED/player_side`) |
 | `sounds/combat/rewards/gold_rewarded.ogg` | same | `gold_rewarded` | The victory's Grade stage (gold collected); scrapping the item pick |
 | `sounds/combat/rewards/item_obtained.ogg` | same | `item_obtained` | Taking the item pick, equipped or to the convoy |
-| `sounds/ui/level_up/level_up.ogg` | same | `level_up` | Each level-up card in the victory recap. `CampaignBus`'s `LEVELED_UP` maps to it too, silent until campaign facts play |
+| `sounds/ui/level_up/level_up.ogg` | same | `level_up` | Each level-up card in the victory recap: the card plays its `LEVELED_UP` fact (`CampaignPlayback`), which the campaign listener sounds once. A resumed recap's cards are silent (the fact log isn't saved) |
+| `sounds/ui/campaign_map/battle_map_enter.ogg` | same | `battle_map_enter` | Choosing a combat node, Standard, Key or Boss (`NODE_CHOSEN/combat`, as Godot_FE's battle rooms) |
+| `sounds/ui/overworld/begin_campaign.ogg` | same | `begin_campaign` | A new run's map first showing (`RUN_STARTED`, Godot_FE's campaign start); a continued run doesn't sound it |
 
 The fact rules are `res://data/audio/maps/combat_facts.tres` and `campaign_facts.tres`. The music is
 `res://data/audio/maps/music.tres`.
@@ -73,11 +75,9 @@ The fact rules are `res://data/audio/maps/combat_facts.tres` and `campaign_facts
 | `sounds/combat/rewards/bonus_experience_rewarded.ogg` | same | `bonus_experience_rewarded` | Unmapped: waits for a bonus-XP reward (none today) |
 | `sounds/ui/level_up/level_up_point.ogg` | same | `level_up_point` | Unmapped: waits for a level-up card that reveals gains one by one |
 | `sounds/ui/level_up/experience_point.ogg` | same | `experience_point` | Unmapped: UL5 dropped the XP tick |
-| `sounds/ui/campaign_map/battle_map_enter.ogg` | same | `battle_map_enter` | Unmapped: waits for the campaign map's node-type enter sounds |
-| `sounds/ui/campaign_map/event_map_enter.ogg` | same | `event_map_enter` | Unmapped: waits for the campaign map's node-type enter sounds |
-| `sounds/ui/campaign_map/treasure_map_enter.ogg` | same | `treasure_map_enter` | Unmapped: waits for the campaign map's node-type enter sounds |
-| `sounds/ui/campaign_map/recruit_map_enter.ogg` | same | `recruit_map_enter` | Unmapped: waits for the campaign map's node-type enter sounds |
-| `sounds/ui/overworld/begin_campaign.ogg` | same | `begin_campaign` | Unmapped: waits for the run-start screens |
+| `sounds/ui/campaign_map/event_map_enter.ogg` | same | `event_map_enter` | Unmapped: waits for the ? node's events (P09) |
+| `sounds/ui/campaign_map/treasure_map_enter.ogg` | same | `treasure_map_enter` | Unmapped: waits for the Treasure node (RN7) |
+| `sounds/ui/campaign_map/recruit_map_enter.ogg` | same | `recruit_map_enter` | Unmapped: waits for recruiting (the Guildhall, RN9) |
 | `sounds/ui/draft/draft_hover.ogg` | same | `draft_hover` | Unmapped: waits for a draft screen |
 | `sounds/ui/draft/draft_confirm.ogg` | same | `draft_confirm` | Unmapped: waits for a draft screen |
 | `sounds/ui/shop/item_buy.ogg` | same | `item_buy` | Unmapped: waits for the shop |
@@ -99,5 +99,5 @@ The fact rules are `res://data/audio/maps/combat_facts.tres` and `campaign_facts
 | `sounds/ui/graveyard/resurrect.ogg` | same | `resurrect` | Unmapped: waits for resurrection |
 | `sounds/ui/promotion/promotion.ogg` | same | `promotion` | Unmapped: waits for promotion |
 
-Summary: 62 files, 63 cues (`ui_refused` reuses `menu_back.ogg`). In use: 7 tracks and 21 sound
-cues (20 files). Unmapped: 1 track and 34 sounds.
+Summary: 62 files, 63 cues (`ui_refused` reuses `menu_back.ogg`). In use: 7 tracks and 23 sound
+cues (22 files). Unmapped: 1 track and 32 sounds.

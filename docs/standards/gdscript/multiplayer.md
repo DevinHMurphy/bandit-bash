@@ -8,8 +8,8 @@ Detail for [the core rules](../../../.claude/rules/gdscript.md). Section numbers
   the kit and follow its API for Steam and peer setup (`CLAUDE.md`, Multiplayer). The rules below
   still govern the code you write.
 - **Gate all decision logic behind `is_multiplayer_authority()`.** Clients render; they don't decide.
-- **Set authority identically on every peer** (`set_multiplayer_authority()`) before the node
-  replicates; a mismatch drops or rejects updates.
+- **The host (peer 1) is the authority on every node, on every peer; a client never is.** Never
+  call `set_multiplayer_authority()` to hand a node to a client (kit Model).
 - **Validate every `@rpc("any_peer")` handler on the receiver:** check
   `multiplayer.get_remote_sender_id()` is allowed to make that call, and range-check every
   argument. Never trust client input.

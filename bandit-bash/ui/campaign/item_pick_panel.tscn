@@ -9,6 +9,7 @@ script = ExtResource("1_pick")
 [node name="Title" type="Label" parent="."]
 unique_name_in_owner = true
 layout_mode = 2
+theme_type_variation = &"HeaderLabel"
 text = "Item pick"
 
 [node name="Row" type="HBoxContainer" parent="."]

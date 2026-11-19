@@ -18,7 +18,7 @@ extends Control
 ## It exists so a route through the fixed Treasure and Camp floors still reaches the Boss (Godot_FE
 ## sent its unbuilt rooms to a placeholder scene the same way). Opened at any other stage, it
 ## sends the run on at once. The [HeirloomBar] under the header shows the seat's heirlooms as the
-## run saved them.
+## run saved them. The run's facts still to play ([CampaignPlayback]) play once Continue resolves.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 ##
@@ -87,6 +87,7 @@ func _on_continue_button_pressed() -> void:
 		]
 		return
 	_is_leaving = true
+	CampaignPlayback.play_pending(session)
 	RunScreen.go()
 
 

@@ -56,11 +56,13 @@ theme_override_constants/separation = 12
 [node name="Title" type="Label" parent="Layout/Column/Center/Box"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_type_variation = &"TitleLabel"
 text = "Treasure"
 horizontal_alignment = 1
 
 [node name="Note" type="Label" parent="Layout/Column/Center/Box"]
 layout_mode = 2
+theme_type_variation = &"MutedLabel"
 text = "This node isn't built yet. Continue to return to the map."
 horizontal_alignment = 1
 
@@ -72,6 +74,7 @@ horizontal_alignment = 1
 [node name="ContinueButton" type="Button" parent="Layout/Column/Center/Box"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_type_variation = &"PrimaryButton"
 size_flags_horizontal = 4
 text = "Continue"
 

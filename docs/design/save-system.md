@@ -329,6 +329,36 @@ after `instance_ids`, the map before the flow
 - **The core follows:** every save `CampaignService` makes sets `CampaignData.floors_climbed`, which
   Save Select and the archive show, to the run's `floor`.
 
+## Events
+
+The run's events (`CampaignRunState.events`, an `EventRunState`) are one more `CAMPAIGN` section,
+`EventSaveSection`, which `CampaignService` registers after the run sections
+([events and curses plan](../plans/2026-11-12-events-and-curses.md), Save Impact):
+
+| Block | Key | Per player | Version | Holds |
+|-------|-----|------------|---------|-------|
+| `CAMPAIGN` | `events` | No | 1 | `seen` event ids since the pool last refilled; `current`, the event open at a node (`{}` with none): `event`, `floor`, `node`, `seats` (by seat: `rolls` per option, each block's drawn id in `picks` and the tier's `curse`; `choosing`, the option whose chooser is open; `chosen`, -1 for none), `votes` (by seat, an option index; empty until the team vote), `combat_pending` |
+
+```json
+"events": { "version": 1, "data": { "seen": ["dark_goblet"], "current": { "event": "dark_goblet", "floor": 3, "node": 7, "seats": { "0": { "rolls": [ { "picks": {}, "curse": "" }, { "picks": { "0": "frost_blade" }, "curse": "haunted" } ], "choosing": -1, "chosen": -1 } }, "votes": {}, "combat_pending": false } } }
+```
+
+- **Rolled before shown:** opening an event draws it and every seat's random parts (items, runes,
+  heirlooms, tier curses) in one command, saved at once, so a quit and Continue shows the same
+  event, curses and items; a node never draws a second event. The prefix re-roll draws when its
+  option applies, from the seat's `EVENT_OUTCOME` stream, saved in `rng`.
+- **The chooser stage is saved;** item placements and a rune to discard are not, since they come
+  with the choice itself. A quit mid-placement resumes at the chooser or the options.
+- **What an option changes** lands in the run sections: curses and heirlooms in `heirlooms`, units
+  and items in `roster`, gold in `economy`. A pending surprise combat makes the node's battle a
+  Standard one (`CampaignRunState.battle_request()`), saved like any battle from Begin.
+- **Load order.** Like the run sections, it only checks and holds its data while the file loads;
+  once the run is built, `CampaignService` puts it into the run, and the section reads the run from
+  then on, the copy a battle's end swaps in included.
+- **Refused:** an empty id, a seat key or number that isn't whole, a choice or vote outside the
+  seat's options, a vote for a seat not in the event, and a seat both choosing and chosen. A
+  saved event id the event pool doesn't hold loads, and the event screen reports it.
+
 ## Combat state
 
 The battle itself is two `COMBAT` sections, one `CombatStateSection` and its partner, which
