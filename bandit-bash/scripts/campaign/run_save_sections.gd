@@ -6,15 +6,17 @@
 # File:     run_save_sections.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 13, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name RunSaveSections
 extends RefCounted
-## The save sections of a run's [CampaignRunState], all version 1 in the [code]CAMPAIGN[/code]
-## block: [code]campaign_map[/code] and [code]run_flow[/code] ([SaveSection]s), and per seat
+## The save sections of a run's [CampaignRunState] in the [code]CAMPAIGN[/code] block:
+## [code]campaign_map[/code] and [code]run_flow[/code] ([SaveSection]s), and per seat
 ## [code]roster[/code], [code]heirlooms[/code], [code]runes[/code] and [code]economy[/code]
-## ([PlayerSaveSection]s). [code]CampaignService[/code] registers them, map before flow.[br]
+## ([PlayerSaveSection]s): [code]economy[/code] at [constant ECONOMY_VERSION], the rest at
+## [constant VERSION].
+## [code]CampaignService[/code] registers them, map before flow.[br]
 ## [b]Load order:[/b] sections restore before the run's session exists, so each only checks its data
 ## and holds it; [method attach] builds the session's [member CampaignSession.run] from it.
 ## [code]{}[/code] is a part with no run, as a new run's first save writes before its session is
@@ -40,8 +42,13 @@ enum Part {
 	ECONOMY,
 }
 
-## Every section's data version.
+## The data version of every section but [code]economy[/code] ([constant ECONOMY_VERSION]).
 const VERSION: int = 1
+
+## The [code]economy[/code] section's data version. 2: the combat report in its pending offers
+## carries each unit's battle stats ([constant CampaignRunState.COMBAT_REPORT_KEY]); a version 1
+## report has none and reads as it is.
+const ECONOMY_VERSION: int = 2
 
 # Section keys. Never change one: it is how saved data finds its owner (save-system.md).
 const _KEYS: Dictionary[Part, String] = {
@@ -109,6 +116,7 @@ func attach(session: CampaignSession) -> Error:
 ## Stops reading the attached session: the run it belongs to was closed or replaced.
 func detach() -> void:
 	_store.session = null
+
 
 
 # NOTE: The inner classes below read this file's constants and enum directly, never through
@@ -254,7 +262,14 @@ class SeatSection:
 		return _KEYS[_part]
 
 	func get_version() -> int:
-		return VERSION
+		return ECONOMY_VERSION if _part == Part.ECONOMY else VERSION
+
+	## [code]economy[/code] from version 1 needs no change: a combat report without stats reads
+	## as one with none. Every other part has no older version.
+	func migrate(data: Dictionary, from_version: int) -> Error:
+		if _part == Part.ECONOMY and from_version == 1:
+			return OK
+		return super(data, from_version)
 
 	## The attached session's seat, else the held data; [code]{}[/code] with neither.
 	func capture(seat: int) -> Dictionary:

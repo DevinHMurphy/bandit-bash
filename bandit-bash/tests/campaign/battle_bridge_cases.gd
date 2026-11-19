@@ -6,7 +6,7 @@
 # File:     battle_bridge_cases.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 16, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -16,8 +16,9 @@ extends RefCounted
 ## used maps, the node's results, a fallen commander kept at critical HP; the run itself
 ## unchanged); a real battle whose fallen unit is gone
 ## from the next request, whose HP carries over and whose Hit delta is on the roster; a curse held
-## twice bringing two carriers, each with its own campaign lane (BUG-009); and the XP tally, its
-## counting rules and both save sections. Touches no save files.
+## twice bringing two carriers, each with its own campaign lane (BUG-009); the XP tally, its
+## counting rules and both save sections; and the battle stats, their counting rules, their
+## section and their place in the combat report. Touches no save files.
 
 const RULES_PATH: String = "res://data/campaign/campaign_map_rules.tres"
 const M1_ID: String = "m1_greybox"
@@ -32,6 +33,9 @@ const RUNE_ID: String = "test_rune"
 
 # The hit fixture's Hit booster: +5 Hit (items.md, Stat boosters).
 const HIT_GAIN: float = 5.0
+
+# Damage a recorded DAMAGE_DEALT carries in the real battle case; any amount above 0 serves.
+const STAT_DAMAGE: int = 7
 
 const SessionsCaseBase = preload("res://tests/sessions/sessions_case_base.gd")
 
@@ -65,6 +69,8 @@ func run() -> void:
 	_test_curse_twice()
 	_test_tally_counts()
 	_test_tally_sections()
+	_test_stats_counts()
+	_test_stats_section()
 
 
 ## A solo session with a new run built as [code]CampaignService[/code] builds it.
@@ -304,6 +310,9 @@ func _test_real_battle_carries_over() -> void:
 	))
 	map.engine.record(CombatFact.new(CombatFact.Kind.HIT_DEALT, hit_id, enemies[0]))
 	map.engine.record(CombatFact.new(CombatFact.Kind.HIT_DEALT, hit_id, enemies[0]))
+	map.engine.record(_amount(
+			CombatFact.new(CombatFact.Kind.DAMAGE_DEALT, hit_id, enemies[0]), STAT_DAMAGE
+	))
 	map.state.defeat(map.engine, fall_id, enemies[0])
 	var ended: CombatFact = CombatFact.new(CombatFact.Kind.COMBAT_ENDED)
 	ended.side = PLAYER
@@ -311,6 +320,9 @@ func _test_real_battle_carries_over() -> void:
 	_check("battle: the tally counted the two hits", (
 			session.tally.count(hit_id, BattleTally.Action.HIT) == 2
 	), str(session.tally.capture()))
+	_check("battle: the stats counted the damage dealt", (
+			session.stats.value(hit_id, BattleStats.Stat.DAMAGE_DEALT) == STAT_DAMAGE
+	), str(session.stats.capture()))
 
 	var result: CampaignSession.BattleResult = session.collect_battle()
 	_check("battle: the result has the win, HP, the fall and the Hit delta", (
@@ -331,6 +343,16 @@ func _test_real_battle_carries_over() -> void:
 			after.unit(hit_id).stats(_catalog).get_int(CombatValue.Key.HIT)
 					== hit_before + int(HIT_GAIN)
 	))
+	var report: CampaignRunState.CombatReport = CampaignRunState.read_combat_report(
+			after, CombatRewardRules.load_default()
+	)
+	_check("battle: the report keeps every unit's stats, the fallen one's too", (
+			report != null
+			and report.stats.size() == seat_run.army.size() + seat_run.fallen.size()
+			and report.stats.has(fall_id)
+			and report.stats[hit_id][BattleStats.Stat.DAMAGE_DEALT] == STAT_DAMAGE
+			and report.stats[hurt_id][BattleStats.Stat.DAMAGE_DEALT] == 0
+	), "" if report == null else str(report.stats))
 
 	session.submit(ItemPickCommand.new(0, ItemPickCommand.SKIP))
 	session.submit(LeaveNodeCommand.new(0))
@@ -509,6 +531,92 @@ func _test_tally_sections() -> void:
 	section.detach()
 
 
+func _test_stats_counts() -> void:
+	var world: SessionsCaseBase.World = SessionsCaseBase.World.new()
+	var state: CombatState = world.session.state
+	var striker: String = world.add_unit("Hakkapel", PLAYER, 0, Vector2i(0, 3))
+	var medic: String = world.add_unit("Battle Medic", PLAYER, 0, Vector2i(1, 3))
+	var enemy: String = world.add_unit("Brute", ENEMY, -1, Vector2i(3, 2))
+	var stats: BattleStats = BattleStats.new()
+	var facts: Array[CombatFact] = [
+		CombatFact.new(CombatFact.Kind.DEFEATED_AN_ENEMY, striker, enemy),
+		CombatFact.new(CombatFact.Kind.DEFEATED_AN_ENEMY, striker, medic),
+		_amount(CombatFact.new(CombatFact.Kind.DAMAGE_DEALT, striker, enemy), 9),
+		_amount(CombatFact.new(CombatFact.Kind.DAMAGE_DEALT, striker, medic), 4),
+		_amount(CombatFact.new(CombatFact.Kind.DAMAGE_DEALT, enemy, striker), 5),
+		_amount(CombatFact.new(CombatFact.Kind.DAMAGE_TAKEN, striker, enemy), 5),
+		_amount(CombatFact.new(CombatFact.Kind.DAMAGE_TAKEN, enemy, striker), 9),
+		_amount(CombatFact.new(CombatFact.Kind.DARKNESS_DAMAGE_TAKEN, medic), 3),
+		_amount(CombatFact.new(CombatFact.Kind.HEALED_AN_ALLY, medic, striker), 6),
+		_amount(CombatFact.new(CombatFact.Kind.HEALED_AN_ALLY, medic, medic), 2),
+		_amount(CombatFact.new(CombatFact.Kind.DAMAGE_DEALT, striker, enemy), 0),
+	]
+	for fact: CombatFact in facts:
+		stats.record(fact, state)
+	_check("stats: kills and damage dealt count on enemies only", (
+			stats.value(striker, BattleStats.Stat.KILLS) == 1
+			and stats.value(striker, BattleStats.Stat.DAMAGE_DEALT) == 9
+			and not stats.has_unit(enemy)
+	), str(stats.capture()))
+	_check("stats: damage taken counts every source, the darkness included", (
+			stats.value(striker, BattleStats.Stat.DAMAGE_TAKEN) == 5
+			and stats.value(medic, BattleStats.Stat.DAMAGE_TAKEN) == 3
+	), str(stats.capture()))
+	_check("stats: heals count only on another player unit", (
+			stats.value(medic, BattleStats.Stat.HEALED) == 6
+			and stats.unit_ids().size() == 2
+	), str(stats.capture()))
+
+	var text: String = JSON.stringify(stats.capture())
+	var reloaded: BattleStats = BattleStats.new()
+	var restored: Error = reloaded.restore(JSON.parse_string(text) as Dictionary)
+	_check("stats: they round-trip through JSON", (
+			restored == OK and JSON.stringify(reloaded.capture()) == text
+	), text)
+	print("    (errors about unusable battle stats follow)")
+	var bad: Dictionary[String, Dictionary] = {
+		"a negative number": {"units": {striker: _stat_values(-1)}},
+		"an unknown stat": {"units": {striker: {"kills": 1, "style": 2}}},
+		"a fractional number": {"units": {striker: _stat_values(1.5)}},
+		"no units": {},
+	}
+	for case_name: String in bad:
+		var target: BattleStats = BattleStats.new()
+		target.restore({"units": {"unit:1": _stat_values(1)}})
+		_check("stats: %s is refused and changes nothing" % [case_name], (
+				target.restore(bad[case_name]) == ERR_INVALID_DATA
+				and target.value("unit:1", BattleStats.Stat.KILLS) == 1
+		))
+
+
+func _test_stats_section() -> void:
+	var section: BattleTallySection = BattleTallySection.new()
+	var stats_data: Dictionary = {"units": {"unit:5": _stat_values(3)}}
+	var restored: Error = section.stats.restore(stats_data)
+	_check("stats section: version 1 under its key", (
+			section.stats.get_key() == "battle_stats" and section.stats.get_version() == 1
+	))
+	var session: CampaignSession = new_session()
+	section.attach(session)
+	var held_capture: String = JSON.stringify(section.stats.capture())
+	var loaded: Error = section.load_into(session)
+	_check("stats section: held data loads into the session's stats with the tally", (
+			restored == OK
+			and held_capture == JSON.stringify(stats_data)
+			and loaded == OK
+			and session.stats.value("unit:5", BattleStats.Stat.HEALED) == 3
+			and section.stats.capture().is_empty()
+	))
+	print("    (errors about unusable battle stats follow)")
+	var fresh: BattleTallySection = BattleTallySection.new()
+	_check("stats section: bad data is refused; empty data holds nothing", (
+			fresh.stats.restore({"units": {"unit:5": {"kills": -1}}}) == ERR_INVALID_DATA
+			and fresh.stats.restore({}) == OK
+			and fresh.stats.capture().is_empty()
+	))
+	section.detach()
+
+
 # run with result applied as CampaignService applies it: the session's reward streams, the
 # shipped reward rules and the loaded catalog.
 func _apply(
@@ -622,6 +730,11 @@ func _amount(fact: CombatFact, amount: int) -> CombatFact:
 # Every action at value, as a tally's entry.
 func _counts(value: Variant) -> Dictionary:
 	return {"hit": value, "defeat": value, "heal": value, "block": value, "non_combat": value}
+
+
+# Every stat at value, as a battle stats entry.
+func _stat_values(value: Variant) -> Dictionary:
+	return {"kills": value, "damage_dealt": value, "damage_taken": value, "healed": value}
 
 
 static func _ids(maps: Array[CombatMapDefinition]) -> PackedStringArray:
