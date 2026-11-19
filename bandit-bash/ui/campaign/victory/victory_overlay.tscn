@@ -1,0 +1,193 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/victory/victory_overlay.gd" id="1_overlay"]
+[ext_resource type="PackedScene" path="res://ui/campaign/victory/victory_grade_stage.tscn" id="2_grade"]
+[ext_resource type="PackedScene" path="res://ui/campaign/victory/victory_recap_stage.tscn" id="3_recap"]
+[ext_resource type="PackedScene" path="res://ui/campaign/victory/victory_rewards_stage.tscn" id="4_rewards"]
+[ext_resource type="PackedScene" path="res://ui/campaign/victory/leave_confirm_dialog.tscn" id="5_confirm"]
+[ext_resource type="PackedScene" path="res://ui/battle/input/input_device_adapter.tscn" id="6_device"]
+[ext_resource type="Script" path="res://ui/common/screen_hints.gd" id="7_hints"]
+[ext_resource type="PackedScene" path="res://ui/battle/hud/control_hint_bar.tscn" id="8_bar"]
+
+[node name="VictoryOverlay" type="CanvasLayer"]
+layer = 5
+script = ExtResource("1_overlay")
+
+[node name="Root" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Backdrop" type="ColorRect" parent="Root"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Layout" type="MarginContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 56
+
+[node name="Column" type="VBoxContainer" parent="Root/Layout"]
+custom_minimum_size = Vector2(720, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+mouse_filter = 2
+theme_override_constants/separation = 16
+
+[node name="Ribbon" type="PanelContainer" parent="Root/Layout/Column"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"RibbonPanel"
+
+[node name="RibbonText" type="Label" parent="Root/Layout/Column/Ribbon"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"RibbonLabel"
+text = "Victory"
+horizontal_alignment = 1
+
+[node name="Stages" type="Control" parent="Root/Layout/Column"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+
+[node name="VictoryGradeStage" parent="Root/Layout/Column/Stages" instance=ExtResource("2_grade")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VictoryRecapStage" parent="Root/Layout/Column/Stages" instance=ExtResource("3_recap")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+
+[node name="VictoryRewardsStage" parent="Root/Layout/Column/Stages" instance=ExtResource("4_rewards")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Footer" type="HBoxContainer" parent="Root/Layout/Column"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 12
+
+[node name="Status" type="Label" parent="Root/Layout/Column/Footer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_type_variation = &"MutedLabel"
+autowrap_mode = 3
+
+[node name="PrimaryButton" type="Button" parent="Root/Layout/Column/Footer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(140, 36)
+layout_mode = 2
+theme_type_variation = &"PrimaryButton"
+text = "Continue"
+
+[node name="PickerHolder" type="Control" parent="Root"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="LeaveConfirmDialog" parent="Root" instance=ExtResource("5_confirm")]
+unique_name_in_owner = true
+layout_mode = 1
+
+[node name="InputDeviceAdapter" parent="." instance=ExtResource("6_device")]
+
+[node name="ScreenHints" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("7_hints")
+actions = Dictionary[StringName, PackedStringArray]({
+&"BOSS": PackedStringArray("ui_up", "ui_down", "ui_accept", "ui_cancel"),
+&"CONFIRM": PackedStringArray("ui_left", "ui_right", "ui_accept", "ui_cancel"),
+&"FILL": PackedStringArray("ui_accept", "skip_playback", "fast_forward", "ui_cancel"),
+&"GRADE": PackedStringArray("ui_accept", "ui_cancel"),
+&"PICK": PackedStringArray("ui_left", "ui_right", "ui_accept", "ui_cancel"),
+&"PLACE": PackedStringArray("ui_up", "ui_down", "ui_accept", "ui_cancel"),
+&"RECAP": PackedStringArray("ui_up", "ui_down", "ui_accept", "ui_cancel"),
+&"REWARDS": PackedStringArray("ui_up", "ui_down", "ui_accept", "ui_cancel")
+})
+
+[node name="ControlHintBar" parent="Root" node_paths=PackedStringArray("controller", "device") instance=ExtResource("8_bar")]
+unique_name_in_owner = true
+layout_mode = 1
+controller = NodePath("../../ScreenHints")
+device = NodePath("../../InputDeviceAdapter")
+right_margin = 8.0
+labels = Dictionary[String, String]({
+"BOSS/ui_accept": "Select",
+"BOSS/ui_cancel": "Pause",
+"BOSS/ui_down": "Move",
+"BOSS/ui_up": "Move",
+"CONFIRM/ui_accept": "Select",
+"CONFIRM/ui_cancel": "Stay",
+"CONFIRM/ui_left": "Move",
+"CONFIRM/ui_right": "Move",
+"FILL/fast_forward": "Fast",
+"FILL/skip_playback": "Skip",
+"FILL/ui_accept": "Skip",
+"FILL/ui_cancel": "Pause",
+"GRADE/ui_accept": "Continue",
+"GRADE/ui_cancel": "Pause",
+"PAUSED/ui_cancel": "Resume",
+"PAUSED/ui_down": "Choose",
+"PAUSED/ui_up": "Choose",
+"PICK/ui_accept": "Choose",
+"PICK/ui_cancel": "Back",
+"PICK/ui_left": "Move",
+"PICK/ui_right": "Move",
+"PLACE/ui_accept": "Choose",
+"PLACE/ui_cancel": "Back",
+"PLACE/ui_down": "Choose",
+"PLACE/ui_up": "Choose",
+"RECAP/ui_accept": "Select",
+"RECAP/ui_cancel": "Pause",
+"RECAP/ui_down": "Move",
+"RECAP/ui_up": "Move",
+"REWARDS/ui_accept": "Select",
+"REWARDS/ui_cancel": "Pause",
+"REWARDS/ui_down": "Move",
+"REWARDS/ui_up": "Move",
+"ui_accept": "Select",
+"ui_cancel": "Back",
+"ui_down": "Move",
+"ui_left": "Move",
+"ui_right": "Move",
+"ui_up": "Move"
+})

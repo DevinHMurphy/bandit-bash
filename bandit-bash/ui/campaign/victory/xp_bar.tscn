@@ -1,0 +1,34 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/victory/xp_bar.gd" id="1_bar"]
+
+[node name="XpBar" type="HBoxContainer"]
+mouse_filter = 2
+theme_override_constants/separation = 8
+script = ExtResource("1_bar")
+
+[node name="Level" type="Label" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(48, 0)
+layout_mode = 2
+theme_type_variation = &"SmallLabel"
+text = "Lv 1"
+
+[node name="Bar" type="ProgressBar" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 16)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+mouse_filter = 2
+max_value = 100.0
+step = 0.0
+show_percentage = false
+
+[node name="Count" type="Label" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_type_variation = &"SmallLabel"
+text = "0 / 100 XP"
+horizontal_alignment = 2
