@@ -20,7 +20,7 @@ extends "res://tests/ui/ui_suite.gd"
 ## convoy, scrapped, equipped, Back by pad without the pause menu; Leave), a quit and Continue
 ## mid-recap reopening it on Grade with the same report and, once taken, on Rewards with the row
 ## gone, the node placeholder, and the Boss's End run reaching the run's end. Pad glyphs show.
-## Campaign facts play ([CampaignPlayback]; its unit cases, playback_cases.gd, run first): the run's
+## Campaign facts play ([CampaignPlayback]; its cases, playback_cases.gd, run first): the run's
 ## start once on the first map, each chosen node once with its sound, each level-up card's own
 ## fact with one level_up voice. Every map node is 32 units or more, the choice scrolled in view.
 ##
