@@ -6,7 +6,7 @@
 # File:     hint_bar_cases.gd
 # Author:
 # Created:  November 6, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -927,8 +927,8 @@ func _text_problems(
 
 
 # What a press can change, as one line: the hint context, the stage and selection, the cursor,
-# the danger zone and toggled ranges, the target and weapon, the panels and focus, playback speed
-# and skip, pause, the save debug panel, and the commands sent.
+# the danger zone and toggled ranges, the unit the detail shows, the target and weapon, the panels
+# and focus, playback speed and skip, pause, the save debug panel, and the commands sent.
 func _snapshot(rig: Rig) -> String:
 	var h: TurnInputCases.Harness = rig.h
 	var c: BattleController = h.controller
@@ -937,6 +937,7 @@ func _snapshot(rig: Rig) -> String:
 	var detail: UnitDetailPanel = c.get_detail_panel()
 	var parts: PackedStringArray = [
 		"detail scroll %s" % ["-" if detail == null else str(detail.get_scroll())],
+		"detail unit %s" % ["-" if detail == null else detail.get_view().unit_id],
 		"context %s" % [c.get_hint_context()],
 		"stage %d" % [c.get_stage()],
 		"cursor %s" % [c.get_cursor_tile()],

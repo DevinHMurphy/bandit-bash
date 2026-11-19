@@ -45,7 +45,7 @@ Found November 18, 2026, in `bandit-bash/`:
 | **UL0 Style guide** ✅ ([ui-style.md](ui-style.md), November 18, 2026) | `docs/design/ui-style.md`: palette, two fonts, icon style, panel and button styles, spacing, focus look on a pad, base resolution and scaling | — | The questions below |
 | **UL1 Shared theme** ✅ (merged November 18, 2026; UL1F merged with UL4) | One project theme with colour and size tokens and the fonts; the 53 scenes' overrides moved onto it; base resolution and scaling set | P07, P08 screens | UL0 |
 | **UL2 Board art** | Terrain from Godot_FE's tilemaps; a sprite for every unit and enemy class (reused, or one consistent placeholder); map objects, intents and signature moves as icons (most of RF-008); a lit keg's fuse count (RF-021) | P07, P04 | UL1 |
-| **UL3 HUD and unit detail** | A layout pass on the unit panel, forecast, turn bar, hint bar and menus, checked at the target sizes; the forecast shows every hit of a multi-hit attack, not only the first (EN18: later hits on a stripped Braced unit deal more; P05 question 45); the [unit detail pop-up](#unit-detail-pop-up); BUG-015. From UL1 and UL4: `danger` as text fails contrast (2.79:1 on `panel`: HudWarning, the turn counter past par, the enemy name, the enemy phase banner); the rune Discard button is about 18 units tall (floor 32); the Saved indicator overlaps the rune bar's third slot; tooltips lack the 320-unit width and name, body and footer | P07 | UL1 |
+| **UL3 HUD and unit detail** ✅ (merged November 19, 2026; at the exit playtest, check the elite pop-up and the multi-hit forecast, which were captured only on a Hexer and a staged AtkX 2) | A layout pass on the unit panel, forecast, turn bar, hint bar and menus, checked at the target sizes; the forecast shows every hit of a multi-hit attack, not only the first (EN18: later hits on a stripped Braced unit deal more; P05 question 45); the [unit detail pop-up](#unit-detail-pop-up); BUG-015. From UL1 and UL4: `danger` as text fails contrast (2.79:1 on `panel`: HudWarning, the turn counter past par, the enemy name, the enemy phase banner); the rune Discard button is about 18 units tall (floor 32); the Saved indicator overlaps the rune bar's third slot; tooltips lack the 320-unit width and name, body and footer | P07 | UL1 |
 | **UL4 Event log** ✅ (merged November 18, 2026, with UL1F) | The [event log](#event-log) replaces the fact log. From UL1: `darkness` and `danger` fail contrast as text (2.06:1 and 2.79:1 on `panel`), so log lines need a lighter text form or an icon beside the colour | P07 | UL1 |
 | **UL5 Victory sequence** ✅ (merged November 19, 2026) | The [staged victory overlay](#victory-sequence) replaces the Results screen | P08, P07 | UL1 |
 | **UL6 Combat feedback** | Hit, crit, Block and Stance-break feedback, floating numbers, phase banners, playback pacing; tweens and existing art only | P07 | UL2 |
@@ -63,7 +63,7 @@ a pair is not listed):
 1. UL0 with the user: done November 18, 2026 ([ui-style.md](ui-style.md)).
 2. UL1: merged November 18, 2026. Its follow-up UL1F puts DK7's turn bar and darkness overlay on the tokens (the phase banner's colours were moved at the merge) and clears the theme test's exempt list.
 3. UL4 with UL1F: merged November 18, 2026.
-4. UL3 beside UL5: issued November 19, 2026; UL5 merged November 19, 2026.
+4. UL3 beside UL5: both merged November 19, 2026.
 5. UL8 beside UL2.
 6. UL6 beside UL7.
 

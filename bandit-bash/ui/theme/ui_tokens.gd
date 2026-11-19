@@ -6,7 +6,7 @@
 # File:     ui_tokens.gd
 # Author:
 # Created:  November 18, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name UiTokens
@@ -45,6 +45,9 @@ const ACCENT: StringName = &"accent"
 const PARCHMENT: StringName = &"parchment"
 ## Damage, enemy intents and the enemy side, lethal warnings, the danger zone.
 const DANGER: StringName = &"danger"
+## The fill of danger chips (warnings, the enemy chip, the enemy phase banner), under
+## [constant TEXT] text: [constant DANGER] itself is too light for text on it or as text.
+const DANGER_FILL: StringName = &"danger_fill"
 ## Healing, positive changes.
 const HEAL: StringName = &"heal"
 ## Block, the player side's colour.
@@ -54,8 +57,8 @@ const DARKNESS: StringName = &"darkness"
 
 ## Every token, in the style guide's order.
 const ALL: Array[StringName] = [
-	BG, PANEL, PANEL_RAISED, BORDER, TEXT, TEXT_MUTED, ACCENT, PARCHMENT, DANGER, HEAL, BLOCK,
-	DARKNESS,
+	BG, PANEL, PANEL_RAISED, BORDER, TEXT, TEXT_MUTED, ACCENT, PARCHMENT, DANGER, DANGER_FILL,
+	HEAL, BLOCK, DARKNESS,
 ]
 
 ## How opaque a disabled control is (the style guide's Disabled line).

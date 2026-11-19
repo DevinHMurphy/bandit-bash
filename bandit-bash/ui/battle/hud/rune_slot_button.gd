@@ -6,13 +6,14 @@
 # File:     rune_slot_button.gd
 # Author:
 # Created:  November 18, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name RuneSlotButton
 extends Control
 ## One slot of the [RuneBar]: a circle, empty or showing a held rune's icon (its name where it has
-## no icon), dimmed while the rune can't be cast, with a small Discard button on its corner.
+## no icon), dimmed while the rune can't be cast, with its Discard button under it, as wide as the
+## circle and 32 units tall (the style guide's click floor).
 ##
 ## It only reports: a press on the rune ([signal pressed]) or on Discard
 ## ([signal discard_pressed]), and being pointed at by the mouse or focus ([signal pointed],
@@ -34,7 +35,7 @@ signal pointed(is_discard: bool)
 ## The mouse left, or focus left, the part last pointed at.
 signal unpointed()
 
-# ASSUMPTION: the circle, its hover and gold focus ring, and the corner X (the theme's RuneSlot
+# ASSUMPTION: the circle, its hover and gold focus ring, and the X under it (the theme's RuneSlot
 # and RuneDiscardButton styles) are placeholders for the art pass.
 ## How a held rune that can't be cast now is tinted: its icon or name is multiplied by it.
 ## Defaults to the style guide's disabled look, white at [constant UiTokens.DISABLED_ALPHA].[br]

@@ -1,111 +1,144 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://ui/battle/unit/unit_detail_panel.gd" id="1_panel"]
 [ext_resource type="Theme" path="res://ui/theme/battle_theme.tres" id="2_theme"]
+[ext_resource type="PackedScene" path="res://ui/battle/unit/detail/unit_detail_header.tscn" id="3_header"]
+[ext_resource type="PackedScene" path="res://ui/battle/unit/detail/detail_stat_row.tscn" id="4_stat_row"]
+[ext_resource type="PackedScene" path="res://ui/battle/unit/detail/detail_gear_row.tscn" id="5_gear_row"]
+[ext_resource type="PackedScene" path="res://ui/battle/unit/detail/detail_effect_row.tscn" id="6_effect_row"]
+[ext_resource type="PackedScene" path="res://ui/battle/unit/detail/detail_enemy_section.tscn" id="7_enemy"]
 
 [node name="UnitDetailPanel" type="PanelContainer"]
+mouse_filter = 2
 theme = ExtResource("2_theme")
+theme_type_variation = &"ModalHostPanel"
 script = ExtResource("1_panel")
+stat_row_scene = ExtResource("4_stat_row")
+effect_row_scene = ExtResource("6_effect_row")
 
-[node name="Column" type="VBoxContainer" parent="."]
+[node name="Modal" type="CanvasLayer" parent="."]
+unique_name_in_owner = true
+layer = 3
+
+[node name="Dim" type="Panel" parent="Modal"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_bottom = -56.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+theme_type_variation = &"ModalDim"
+
+[node name="Center" type="CenterContainer" parent="Modal/Dim"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Popup" type="PanelContainer" parent="Modal/Dim/Center"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(880, 600)
 layout_mode = 2
-theme_override_constants/separation = 4
+theme_type_variation = &"FloatingPanel"
 
-[node name="CloseButton" type="Button" parent="Column"]
+[node name="Column" type="VBoxContainer" parent="Modal/Dim/Center/Popup"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Header" parent="Modal/Dim/Center/Popup/Column" instance=ExtResource("3_header")]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 0
-text = "Close"
 
-[node name="Body" type="ScrollContainer" parent="Column"]
+[node name="Body" type="ScrollContainer" parent="Modal/Dim/Center/Popup/Column"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(272, 380)
 layout_mode = 2
+size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="Lines" type="VBoxContainer" parent="Column/Body"]
+[node name="Lines" type="VBoxContainer" parent="Modal/Dim/Center/Popup/Column/Body"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 4
+theme_override_constants/separation = 16
 
-[node name="UnitName" type="Label" parent="Column/Body/Lines"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(260, 0)
+[node name="Columns" type="HBoxContainer" parent="Modal/Dim/Center/Popup/Column/Body/Lines"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Values" type="VBoxContainer" parent="Modal/Dim/Center/Popup/Column/Body/Lines/Columns"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="StatsHeading" type="Label" parent="Modal/Dim/Center/Popup/Column/Body/Lines/Columns/Values"]
 layout_mode = 2
 theme_type_variation = &"HudHeading"
-autowrap_mode = 3
+text = "Stats"
 
-[node name="Summary" type="Label" parent="Column/Body/Lines"]
+[node name="StatRows" type="VBoxContainer" parent="Modal/Dim/Center/Popup/Column/Body/Lines/Columns/Values"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(260, 0)
+layout_mode = 2
+
+[node name="CombatHeading" type="Label" parent="Modal/Dim/Center/Popup/Column/Body/Lines/Columns/Values"]
+layout_mode = 2
+theme_type_variation = &"HudHeading"
+text = "Combat"
+
+[node name="CombatRows" type="VBoxContainer" parent="Modal/Dim/Center/Popup/Column/Body/Lines/Columns/Values"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Gear" type="VBoxContainer" parent="Modal/Dim/Center/Popup/Column/Body/Lines/Columns"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="GearHeading" type="Label" parent="Modal/Dim/Center/Popup/Column/Body/Lines/Columns/Gear"]
+layout_mode = 2
+theme_type_variation = &"HudHeading"
+text = "Gear"
+
+[node name="WeaponRow" parent="Modal/Dim/Center/Popup/Column/Body/Lines/Columns/Gear" instance=ExtResource("5_gear_row")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="StowedRow" parent="Modal/Dim/Center/Popup/Column/Body/Lines/Columns/Gear" instance=ExtResource("5_gear_row")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="EquipmentRow" parent="Modal/Dim/Center/Popup/Column/Body/Lines/Columns/Gear" instance=ExtResource("5_gear_row")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="PouchRow" parent="Modal/Dim/Center/Popup/Column/Body/Lines/Columns/Gear" instance=ExtResource("5_gear_row")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="EnemySection" parent="Modal/Dim/Center/Popup/Column/Body/Lines/Columns/Gear" instance=ExtResource("7_enemy")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Effects" type="VBoxContainer" parent="Modal/Dim/Center/Popup/Column/Body/Lines/Columns/Gear"]
+layout_mode = 2
+
+[node name="EffectsHeading" type="Label" parent="Modal/Dim/Center/Popup/Column/Body/Lines/Columns/Gear/Effects"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HudHeading"
+text = "Traits and heirlooms"
+
+[node name="EffectRows" type="VBoxContainer" parent="Modal/Dim/Center/Popup/Column/Body/Lines/Columns/Gear/Effects"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="NoEffects" type="Label" parent="Modal/Dim/Center/Popup/Column/Body/Lines/Columns/Gear/Effects"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"HudNote"
-autowrap_mode = 3
+text = "—"
 
-[node name="Vitals" type="Label" parent="Column/Body/Lines"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(260, 0)
-layout_mode = 2
-theme_type_variation = &"HudText"
-autowrap_mode = 3
-
-[node name="Stats" type="Label" parent="Column/Body/Lines"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(260, 0)
-layout_mode = 2
-theme_type_variation = &"HudText"
-autowrap_mode = 3
-
-[node name="Combat" type="Label" parent="Column/Body/Lines"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(260, 0)
-layout_mode = 2
-theme_type_variation = &"HudText"
-autowrap_mode = 3
-
-[node name="Weapon" type="Label" parent="Column/Body/Lines"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(260, 0)
-layout_mode = 2
-theme_type_variation = &"HudText"
-autowrap_mode = 3
-
-[node name="Stowed" type="Label" parent="Column/Body/Lines"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(260, 0)
-layout_mode = 2
-theme_type_variation = &"HudText"
-autowrap_mode = 3
-
-[node name="Equipment" type="Label" parent="Column/Body/Lines"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(260, 0)
-layout_mode = 2
-theme_type_variation = &"HudText"
-autowrap_mode = 3
-
-[node name="Pouch" type="Label" parent="Column/Body/Lines"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(260, 0)
-layout_mode = 2
-theme_type_variation = &"HudText"
-autowrap_mode = 3
-
-[node name="Traits" type="Label" parent="Column/Body/Lines"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(260, 0)
-layout_mode = 2
-theme_type_variation = &"HudText"
-autowrap_mode = 3
-
-[node name="Heirlooms" type="Label" parent="Column/Body/Lines"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(260, 0)
-layout_mode = 2
-theme_type_variation = &"HudText"
-autowrap_mode = 3
-
-[node name="Tags" type="Label" parent="Column/Body/Lines"]
+[node name="Tags" type="Label" parent="Modal/Dim/Center/Popup/Column/Body/Lines"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(260, 0)
 layout_mode = 2

@@ -1,0 +1,76 @@
+# ==============================================================================
+# Bandit Bash
+# Copyright (c) 2026 Derc Development
+# Licensed under the MIT License. See LICENSE.
+#
+# File:     detail_enemy_section.gd
+# Author:
+# Created:  November 19, 2026
+# Modified: November 19, 2026
+# ==============================================================================
+
+class_name DetailEnemySection
+extends VBoxContainer
+## An enemy's part of the [UnitDetailPanel]: its intent and target rule as the intents show them,
+## and its signature move with its effect text and counter, read as an effect card reads one
+## ("War Horn 1/3") (ui-lift.md, Unit detail pop-up). Hidden for a player unit. Holds no rules.
+##
+## @tutorial(UI lift): docs/design/ui-lift.md
+
+## The intent line: [code]%s[/code] the intent, such as "Attack Archer".
+@export var intent_format: String = "Intent: %s"
+
+## The intent line while the enemy has no intent (it doesn't act, or the intents are hidden).
+@export var no_intent_text: String = "Intent: —"
+
+## The target rule line: [code]%s[/code] the rule as its intent states it.
+@export var rule_format: String = "Target rule: %s"
+
+## The signature line: [code]%s[/code] the move's name.
+@export var signature_format: String = "Signature move: %s"
+
+## Added to the signature line for a move on a counter: [code]%d[/code] the count, then the
+## period, as an effect card shows a counter.
+@export var counter_format: String = " %d/%d"
+
+## Added to the signature line while the intents show the move firing at the next enemy Phase
+## Start. [b]Empty:[/b] nothing is added.
+@export var next_text: String = " · fires next enemy phase"
+
+@onready var _intent: Label = %Intent
+@onready var _rule: Label = %Rule
+@onready var _signature: Label = %Signature
+@onready var _signature_text: Label = %SignatureText
+
+
+## Draws [param view]'s enemy lines; hides for a player unit or null.
+func show_enemy(view: UnitDetailViewModel) -> void:
+	visible = view != null and view.side == CombatFact.CombatSide.ENEMY
+	if not visible:
+		return
+	_intent.text = intent_format % [view.intent_text] if not view.intent_text.is_empty() else (
+			no_intent_text
+	)
+	_rule.text = rule_format % [view.target_rule_text]
+	_rule.visible = not view.target_rule_text.is_empty()
+	var has_signature: bool = not view.signature_name.is_empty()
+	_signature.visible = has_signature
+	_signature_text.visible = has_signature and not view.signature_text.is_empty()
+	if not has_signature:
+		return
+	var line: String = signature_format % [view.signature_name]
+	if view.signature_period > 0:
+		line += counter_format % [view.signature_count, view.signature_period]
+	if view.is_signature_next:
+		line += next_text
+	_signature.text = line
+	_signature_text.text = view.signature_text
+
+
+## Its lines as shown, for tests: intent, rule, signature, the signature's text (a hidden one as
+## empty).
+func get_texts() -> PackedStringArray:
+	var texts: PackedStringArray = []
+	for label: Label in [_intent, _rule, _signature, _signature_text]:
+		texts.append(label.text if label.visible else "")
+	return texts

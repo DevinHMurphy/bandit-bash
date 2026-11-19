@@ -64,6 +64,7 @@ pacing, readability).
 | RF-020 | November 18, 2026 (EN11 report) | Enemies | Feature | The boss fight has no scripted beats beyond the barrage and the darkness. Godot_FE's boss map sent reinforcement waves on turns 4, 7 and 11 (dropped, P05 question 46); a half-HP second phase is another candidate | Decide after the first boss playtest: waves, a second phase, or neither | Open | M2 | — |
 | RF-021 | November 18, 2026 (EN11 report) | UI | Feel | A lit keg's fuse count isn't shown on the board | Show the fuse on the keg's mark (P15 UL2, map objects as icons) | Open | M2 | P15 UL2 |
 | RF-022 | November 18, 2026 (UL4 report) | UI | Feel | The event log doesn't say what was looted ("Cutthroat loots Chest at (4, 2)"): no fact carries the item taken | Name the item, which needs a fact change | Open | Later | — |
+| RF-023 | November 19, 2026 (UL3 report) | Darkness | Feel | The darkness layers read close together: Dusk was raised to 0.45 (RF-017), next to Gloom 0.50 and Abyss 0.70 | First pass 0.45 / 0.60 / 0.75 (UL3, marked ASSUMPTION in `darkness_overlay.gd`); settle at the M2 exit playtest | Open | M2 | RB1 |
 
 ## Entry notes
 

@@ -1,0 +1,42 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ui/battle/unit/detail/detail_enemy_section.gd" id="1_section"]
+[ext_resource type="Theme" path="res://ui/theme/battle_theme.tres" id="2_theme"]
+
+[node name="DetailEnemySection" type="VBoxContainer"]
+mouse_filter = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_section")
+
+[node name="Heading" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"HudHeading"
+text = "Enemy"
+
+[node name="Intent" type="Label" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(240, 0)
+layout_mode = 2
+theme_type_variation = &"HudText"
+autowrap_mode = 3
+
+[node name="Rule" type="Label" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(240, 0)
+layout_mode = 2
+theme_type_variation = &"HudNote"
+autowrap_mode = 3
+
+[node name="Signature" type="Label" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(240, 0)
+layout_mode = 2
+theme_type_variation = &"HudText"
+autowrap_mode = 3
+
+[node name="SignatureText" type="Label" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(240, 0)
+layout_mode = 2
+theme_type_variation = &"HudNote"
+autowrap_mode = 3

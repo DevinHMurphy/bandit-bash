@@ -6,7 +6,7 @@
 # File:     save_cases.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 15, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -466,13 +466,13 @@ func _test_section_versions_and_partners() -> void:
 	var saved: Dictionary = host.save()
 	var entry: Dictionary = saved["combat_state"]
 	var effects_entry: Dictionary = saved["effects"]
-	_check.call("section: combat_state at version 2, effects at 1, the roll streams left out", (
-			WireCases.Kit.as_int(entry["version"]) == 2
+	_check.call("section: combat_state at version 3, effects at 1, the roll streams left out", (
+			WireCases.Kit.as_int(entry["version"]) == 3
 			and WireCases.Kit.as_int(effects_entry["version"]) == 1
 			and not JSON.stringify(entry["data"]).contains("\"rolls\"")
 	))
 	var newer: Dictionary = saved.duplicate(true)
-	(newer["combat_state"] as Dictionary)["version"] = 3
+	(newer["combat_state"] as Dictionary)["version"] = 4
 	var zero: Dictionary = saved.duplicate(true)
 	(zero["effects"] as Dictionary)["version"] = 0
 	var effects_only: Dictionary = saved.duplicate(true)
@@ -519,7 +519,8 @@ func _test_section_versions_and_partners() -> void:
 			and JSON.stringify(recaptured["combat_state"]) == JSON.stringify(saved["combat_state"])
 			and JSON.stringify(recaptured["effects"]) == JSON.stringify(saved["effects"])
 	))
-	# A version 1 save: its weapon records lack the area shape and full heal fields.
+	# A version 1 save: its weapon records lack the area shape and full heal fields, its units the
+	# prefix and level.
 	var old: Dictionary = saved.duplicate(true)
 	var old_entry: Dictionary = old["combat_state"]
 	old_entry["version"] = 1
@@ -531,6 +532,7 @@ func _test_section_versions_and_partners() -> void:
 			(record as Dictionary).erase("area_shape_id")
 			(record as Dictionary).erase("full_heal")
 			stripped += 1
+		_strip_unit_fields(map_state)
 	var migrated: Skirmish = Skirmish.resume(old, host)
 	_check.call("section: a version 1 save migrates and loads", (
 			stripped > 0
@@ -539,6 +541,38 @@ func _test_section_versions_and_partners() -> void:
 	), "%d records, %s; %s" % [
 		stripped, error_string(migrated.load_error), Skirmish.difference(host, migrated),
 	])
+	# A version 2 save: its units lack the prefix and level; they resume with none and level 1.
+	var two: Dictionary = saved.duplicate(true)
+	var two_entry: Dictionary = two["combat_state"]
+	two_entry["version"] = 2
+	var units_stripped: int = 0
+	for map: Variant in (two_entry["data"] as Dictionary)["sessions"]:
+		units_stripped += _strip_unit_fields((map as Dictionary)["combat_state"] as Dictionary)
+	var from_two: Skirmish = Skirmish.resume(two, host)
+	var defaults: bool = from_two.load_error == OK
+	if defaults:
+		for unit_id: String in from_two.session.state.unit_ids():
+			var unit: CombatUnitState = from_two.session.state.unit(unit_id)
+			defaults = defaults and unit.prefix_id.is_empty() and unit.level == 1
+	_check.call("section: a version 2 save migrates its units to no prefix and level 1", (
+			units_stripped > 0
+			and defaults
+			and from_two.session.state_hash() == host.session.state_hash()
+	), "%d units, %s; %s" % [
+		units_stripped, error_string(from_two.load_error), Skirmish.difference(host, from_two),
+	])
+
+
+# Removes version 3's unit fields from every unit in map_state, as a version 1 or 2 save wrote
+# them. Returns how many units it changed.
+static func _strip_unit_fields(map_state: Dictionary) -> int:
+	var count: int = 0
+	# Untyped: the parts come from JSON.
+	for unit: Variant in map_state.get("units", []):
+		(unit as Dictionary).erase("prefix_id")
+		(unit as Dictionary).erase("level")
+		count += 1
+	return count
 
 
 func _test_core_kept_equal() -> void:

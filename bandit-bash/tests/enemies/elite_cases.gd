@@ -6,7 +6,7 @@
 # File:     elite_cases.gd
 # Author:
 # Created:  November 17, 2026
-# Modified: November 17, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -15,8 +15,9 @@ extends RefCounted
 ## the pack's leader class stands on the leader slot at its step's level +2 with that prefix,
 ## counted in the step's count; the same seed fields the same leader twice; a map with no leader
 ## slot fields none. In a battle the leader is the one marked enemy, the HUD names it with its
-## prefix, and its fall ends the map. The Warcaller's War Horn shows as its intent the phase before
-## it fires, and fires then. Reports each case through the check callable it is given.
+## prefix, its state holds its prefix and level (through a JSON trip too) as its unit detail
+## shows them, and its fall ends the map. The Warcaller's War Horn shows as its intent the phase
+## before it fires, and fires then. Reports each case through the check callable it is given.
 ##
 ## @tutorial(Enemy packs): docs/design/enemy-packs.md
 
@@ -184,6 +185,10 @@ func _test_leader_in_battle(map_id: String) -> void:
 	_check.call("battle %s: the leader carries its prefix, its HP at its level" % [map_id], (
 			_carries_prefix(session, leader_id, entry, prefix)
 	), str(entry))
+	var shown_problem: String = _shown_elite_problem(session, leader_id, entry, prefix)
+	_check.call("battle %s: the leader's state holds its prefix and level, as its detail shows" % [
+		map_id,
+	], shown_problem.is_empty(), shown_problem)
 	_check.call("battle %s: the enemies number step 2's count, the leader included" % [map_id], (
 			state.units_of(ENEMY).size() == PackDefinition.STEP_SIZES[1]
 	), "%d enemies" % [state.units_of(ENEMY).size()])
@@ -318,6 +323,36 @@ func _carries_prefix(
 		if instance.owner != null and instance.owner.subject_id() == unit_id:
 			is_named = is_named or instance.label == prefix.display_name
 	return is_named and session.stats(unit_id).get_int(CombatValue.Key.HP) == hp
+
+
+# Why unit_id's battle state or detail doesn't hold entry's prefix and level, through a JSON trip
+# of its capture too, or another enemy has a prefix; empty when all hold.
+func _shown_elite_problem(
+		session: CombatSession, unit_id: String, entry: Dictionary, prefix: UnitPrefixDefinition
+) -> String:
+	if unit_id.is_empty() or prefix == null or not session.state.has_unit(unit_id):
+		return "no leader or prefix"
+	var level: int = _whole(entry.get(EnemySetup.LEVEL_KEY, 0))
+	var placed: CombatUnitState = session.state.unit(unit_id)
+	var trip: Variant = JSON.parse_string(JSON.stringify(placed.capture()))
+	var back: CombatUnitState = (
+			CombatUnitState.from_capture(trip as Dictionary) if trip is Dictionary else null
+	)
+	var detail: UnitDetailViewModel = UnitDetailViewModel.build(session, unit_id)
+	if placed.prefix_id != prefix.id or placed.level != level:
+		return "state %s level %d, drawn %s level %d" % [
+			placed.prefix_id, placed.level, prefix.id, level,
+		]
+	if back == null or back.prefix_id != prefix.id or back.level != level:
+		return "lost through its capture"
+	if detail == null or detail.prefix_name != prefix.display_name or detail.level != level:
+		return "detail %s level %d" % [
+			"-" if detail == null else detail.prefix_name, 0 if detail == null else detail.level,
+		]
+	for enemy_id: String in session.state.units_of(ENEMY):
+		if enemy_id != unit_id and not session.state.unit(enemy_id).prefix_id.is_empty():
+			return "%s has a prefix too" % [enemy_id]
+	return ""
 
 
 # The leader's class, prefix, tile and level in setup's draw; empty when there is none.

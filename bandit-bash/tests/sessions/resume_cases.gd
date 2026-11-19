@@ -6,7 +6,7 @@
 # File:     resume_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends "res://tests/sessions/sessions_case_base.gd"
@@ -27,6 +27,10 @@ const M1_NODE: int = 1
 # wave. On this seed a battle of End Turns only lasts into turn 8.
 const ARRIVAL_SAVE_TURN: int = 6
 
+# The hand-placed Brute's prefix and level in the combat state case: any prefix in the catalog.
+const ELITE_PREFIX: String = "sturdy"
+const ELITE_LEVEL: int = 3
+
 
 func run() -> void:
 	_run(_test_service_combat_state)
@@ -37,8 +41,9 @@ func run() -> void:
 
 
 # The combat_state and effects sections through the real SaveService (combat core plan, CC8): a
-# checkpoint mid-phase writes both at version 1 with the core's turn and phase equal to the
-# battle's, and a continued run holds them until they load into the battle rebuilt from Begin.
+# checkpoint mid-phase writes them at versions 3 and 1 with the core's turn and phase equal to the
+# battle's, and a continued run holds them until they load into the battle rebuilt from Begin,
+# an elite's prefix and level included.
 func _test_service_combat_state() -> bool:
 	if not _has_test_user_dir():
 		_skips += 1
@@ -64,6 +69,9 @@ func _test_service_combat_state() -> bool:
 	brute.side = ENEMY
 	brute.tile = Vector2i(3, 2)
 	brute.hp = 40
+	# An elite's prefix and level, which the unit detail shows: they must survive the resume.
+	brute.prefix_id = ELITE_PREFIX
+	brute.level = ELITE_LEVEL
 	brute.equipped_weapon_id = sword.id
 	session.add_unit(brute, WireCases.Kit.bases(40.0))
 	session.flush("enemies")
@@ -86,7 +94,7 @@ func _test_service_combat_state() -> bool:
 	_check("service combat state: a checkpoint writes both sections and the core's turn", (
 			begun == OK
 			and saved == OK
-			and versions == [2, 1]
+			and versions == [3, 1]
 			and core.turn == 1
 			and core.phase == CombatData.Phase.PLAYER
 			and session.state.unit(units[0]).has_acted
@@ -115,6 +123,21 @@ func _test_service_combat_state() -> bool:
 			and again.state.unit(units[0]).has_acted
 			and again.state.has_unit(brute.id)
 	), "resume point %d, %s, holding %s" % [resume_point, error_string(loaded), holding])
+	var kept: CombatUnitState = (
+			again.state.unit(brute.id) if again.state.has_unit(brute.id) else null
+	)
+	var detail: UnitDetailViewModel = UnitDetailViewModel.build(again, brute.id)
+	_check("service combat state: a resumed elite keeps its prefix and level, and shows them", (
+			kept != null
+			and kept.prefix_id == ELITE_PREFIX
+			and kept.level == ELITE_LEVEL
+			and detail != null
+			and detail.prefix_name == "Sturdy"
+			and detail.level == ELITE_LEVEL
+	), "%s, %s" % [
+		"-" if kept == null else "%s level %d" % [kept.prefix_id, kept.level],
+		"-" if detail == null else "%s level %d" % [detail.prefix_name, detail.level],
+	])
 
 	saves.call(&"abandon_run", CampaignData.Mode.SOLO)
 	saves.call(&"close_save_file")

@@ -6,7 +6,7 @@
 # File:     battle_hud.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name BattleHud
@@ -66,6 +66,9 @@ func _exit_tree() -> void:
 
 func _process(_delta: float) -> void:
 	if _session == null or not is_instance_valid(_view) or not _view.is_settled():
+		return
+	# The unit panel holds its unit while the mouse is over it, so its Details button is reachable.
+	if _unit_panel.is_mouse_over():
 		return
 	var tile: Vector2i = _cursor_tile()
 	if tile != _shown_tile or _unit_to_show(tile) != _shown_unit:

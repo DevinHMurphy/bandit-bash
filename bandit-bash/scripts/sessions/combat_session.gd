@@ -6,7 +6,7 @@
 # File:     combat_session.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name CombatSession
@@ -77,7 +77,7 @@ const DUMP_DIR: String = "user://logs"
 # The shape of snapshot() and debug_dump() output, the wire arrays of a dump's commands included;
 # raised when any changes. Snapshots are never saved as they are (CombatStateSection saves their
 # parts), so an older format is refused.
-const _SNAPSHOT_FORMAT: int = 5
+const _SNAPSHOT_FORMAT: int = 6
 
 # The NetLog autoload's script, used as a type and for its enums. The autoload is reached by node
 # path, never by name: the sessions also compile in a headless --script run, before autoload names

@@ -6,14 +6,15 @@
 # File:     theme_cases.gd
 # Author:
 # Created:  November 18, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
 ## The shared theme against the UI style guide (docs/design/ui-style.md), for the ui/theme suite:
 ## every colour token in [code]game_theme.tres[/code]'s Palette with the guide's value and none
 ## besides, read alike through [UiTokens]; text and muted text at 4.5:1 or more on panel and
-## raised panel (the ratios are in the case names); every colour in the project and battle themes
+## raised panel, and text on the danger and darkness chip fills (the ratios are in the case
+## names); every colour in the project and battle themes
 ## a token at some alpha, white or clear (tints and outlines drawn white), or one of the listed
 ## placeholders; no font size under 14 base units; the fonts and weights of the type scale, with
 ## their licence files; the row looks (rest, hover, focus, primary, disabled). No autoload is
@@ -28,8 +29,12 @@ const SERIF_FILE: String = "res://assets/fonts/alegreya/alegreya.ttf"
 const GUIDE: Dictionary[StringName, String] = {
 	&"bg": "14171c", &"panel": "2a3038", &"panel_raised": "3a434d", &"border": "4a5560",
 	&"text": "e8e2d4", &"text_muted": "a6afb9", &"accent": "d9b45a", &"parchment": "d8c9a3",
-	&"danger": "c8463c", &"heal": "5fae6b", &"block": "6fa3d8", &"darkness": "6b4fa0",
+	&"danger": "c8463c", &"danger_fill": "9e352e", &"heal": "5fae6b", &"block": "6fa3d8",
+	&"darkness": "6b4fa0",
 }
+
+## The chip fills text sits on: warnings and the enemy side, the darkness banner and log rows.
+const CHIP_FILLS: Array[StringName] = [&"danger_fill", &"darkness"]
 
 ## WCAG AA for body text.
 const MIN_CONTRAST: float = 4.5
@@ -96,7 +101,9 @@ func _test_tokens() -> void:
 	constants.sort()
 	var guide: Array[StringName] = GUIDE.keys()
 	guide.sort()
-	_check.call("tokens: the Palette holds the guide's 12 tokens, read alike by UiTokens", (
+	_check.call("tokens: the Palette holds the guide's %d tokens, read alike by UiTokens" % [
+		GUIDE.size(),
+	], (
 			wrong.is_empty() and extra.is_empty() and constants == guide
 	), "; ".join(wrong + extra))
 	var project: Theme = ThemeDB.get_project_theme()
@@ -113,6 +120,11 @@ func _test_contrast() -> void:
 			_check.call("contrast: %s on %s is %.2f:1 (at least %.1f)" % [
 				text, back, ratio, MIN_CONTRAST,
 			], ratio >= MIN_CONTRAST)
+	for fill: StringName in CHIP_FILLS:
+		var on_fill: float = contrast(UiTokens.color(UiTokens.TEXT), UiTokens.color(fill))
+		_check.call("contrast: text on the %s chip is %.2f:1 (at least %.1f)" % [
+			fill, on_fill, MIN_CONTRAST,
+		], on_fill >= MIN_CONTRAST)
 
 
 # Every colour either theme draws is a token (any alpha), white or clear, or listed.

@@ -1,0 +1,42 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ui/battle/unit/detail/detail_stat_row.gd" id="1_row"]
+[ext_resource type="Theme" path="res://ui/theme/battle_theme.tres" id="2_theme"]
+
+[node name="DetailStatRow" type="HBoxContainer"]
+mouse_filter = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_row")
+
+[node name="Label" type="Label" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(56, 0)
+layout_mode = 2
+size_flags_vertical = 0
+theme_type_variation = &"HudText"
+text = "MGT"
+
+[node name="Value" type="Label" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(28, 0)
+layout_mode = 2
+size_flags_vertical = 0
+theme_type_variation = &"HudText"
+text = "0"
+horizontal_alignment = 2
+
+[node name="Sources" type="Label" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"HudNote"
+autowrap_mode = 3
+
+[node name="Growth" type="Label" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(44, 0)
+layout_mode = 2
+size_flags_vertical = 0
+theme_type_variation = &"HudNote"
+horizontal_alignment = 2
