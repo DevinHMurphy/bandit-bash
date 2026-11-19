@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="5_op4hd"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="6_kul1g"]
 [ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="7_osb53"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/equipment/knight_shield.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_wyqvr"]
 script = ExtResource("4_lhxx6")
@@ -39,6 +40,7 @@ operations = Array[ExtResource("3_b0olw")]([SubResource("Resource_ce8qn")])
 
 [resource]
 script = ExtResource("7_osb53")
+icon = ExtResource("icon_1")
 category = "shield"
 rarity = 3
 weight = 7

@@ -6,7 +6,7 @@
 # File:     item_definition.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 13, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 @tool
@@ -52,6 +52,11 @@ enum Rarity {
 # exists yet, so the content test can't check them until one does.
 ## Item tags. [b]Empty:[/b] none; no MVP item has one.
 @export var tags: PackedStringArray = []
+
+## The item's picture wherever it is listed: reward rows, item picks, placement, the unit detail
+## pop-up and the forecast. Painted, about 32 units square (Godot_FE's item art), drawn untinted.
+## [br][b]Unset:[/b] those places show the placeholder mark ([RewardIcon]'s "?").
+@export var icon: Texture2D = null
 
 ## Which price row and folder the item belongs to, from [constant ContentIds.ITEM_KINDS]. Set by
 ## the item's class, never authored: a staff is a weapon, an ingredient a consumable.

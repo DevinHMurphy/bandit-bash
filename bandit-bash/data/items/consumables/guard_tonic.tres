@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="4_target"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="5_con"]
 [ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="9_def"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/consumables/elixir_small.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_target"]
 script = ExtResource("4_target")
@@ -27,6 +28,7 @@ operations = Array[ExtResource("2_ops")]([SubResource("Resource_block")])
 
 [resource]
 script = ExtResource("9_def")
+icon = ExtResource("icon_1")
 use_kind = "block"
 amount = 6
 uses = 1

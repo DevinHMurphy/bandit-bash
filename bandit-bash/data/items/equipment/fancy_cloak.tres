@@ -5,6 +5,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_gye6o"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_c62s6"]
 [ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="5_ew3lm"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/equipment/fancy_cloak.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_72hsm"]
 script = ExtResource("4_c62s6")
@@ -18,6 +19,7 @@ operations = Array[ExtResource("3_gye6o")]([SubResource("Resource_72hsm")])
 
 [resource]
 script = ExtResource("5_ew3lm")
+icon = ExtResource("icon_1")
 category = "cloak"
 rarity = 3
 weight = 1

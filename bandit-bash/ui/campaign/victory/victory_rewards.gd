@@ -21,13 +21,21 @@ extends RefCounted
 ## @tutorial(UL5 plan): docs/plans/2026-11-19-ul5-victory-sequence.md
 ## @todo: TOD-001 - List the key combat's heirloom (RN7) and rune rewards once they are rolled.
 
-## Every reward of [param model], taken ones included, in the order shown; empty for null.
+## Every reward of [param model], taken ones included, in the order shown; empty for null. The
+## item pick's row shows its first offer's icon (the placeholder when no offer has one).
 static func build(model: CombatResultsModel) -> Array[VictoryReward]:
 	var rewards: Array[VictoryReward] = []
 	if model == null:
 		return rewards
 	if model.pick != null and not model.pick.offers.is_empty():
-		rewards.append(ItemPickReward.new(model.pick))
+		var item_pick: ItemPickReward = ItemPickReward.new(model.pick)
+		# ASSUMPTION: the first offer's icon stands for the pick, as reward screens show an item;
+		# a per-slot kind icon is the alternative.
+		for definition: ItemDefinition in model.offers:
+			if definition != null and definition.icon != null:
+				item_pick.icon = definition.icon
+				break
+		rewards.append(item_pick)
 	# TODO(TOD-001): the key combat's heirloom (RN7) and runes join here.
 	return rewards
 

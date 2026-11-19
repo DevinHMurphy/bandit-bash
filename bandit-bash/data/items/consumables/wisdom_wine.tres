@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="6_47crg"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/change_base_stat.gd" id="7_ai07v"]
 [ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="8_h7apf"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/consumables/wisdom_wine.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_4tr6q"]
 script = ExtResource("4_3a00c")
@@ -39,6 +40,7 @@ operations = Array[ExtResource("3_6bgb3")]([SubResource("Resource_phtky"), SubRe
 
 [resource]
 script = ExtResource("8_h7apf")
+icon = ExtResource("icon_1")
 use_kind = "ingredient"
 amount = 5
 uses_lane = 1

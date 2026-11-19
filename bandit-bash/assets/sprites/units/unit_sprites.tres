@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="UnitSpriteTable" load_steps=9 format=3]
+[gd_resource type="Resource" script_class="UnitSpriteTable" load_steps=34 format=3]
 
 [ext_resource type="Script" path="res://ui/battle/unit/unit_sprite_table.gd" id="1_table"]
 [ext_resource type="Texture2D" path="res://assets/sprites/units/archer.png" id="2_archer"]
@@ -8,15 +8,67 @@
 [ext_resource type="Texture2D" path="res://assets/sprites/units/drengr.png" id="6_drengr"]
 [ext_resource type="Texture2D" path="res://assets/sprites/units/hakkapel.png" id="7_hakkapel"]
 [ext_resource type="Texture2D" path="res://assets/sprites/units/healer.png" id="8_healer"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/brawler.png" id="9_brawler"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/fighter.png" id="10_fighter"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/freewing.png" id="11_freewing"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/lance_armor.png" id="12_lance_armor"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/lancer.png" id="13_lancer"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/mage.png" id="14_mage"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/sellsword.png" id="15_sellsword"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/shaman.png" id="16_shaman"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/suncaster.png" id="17_suncaster"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/thief.png" id="18_thief"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/ward.png" id="19_ward"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/duelist.png" id="20_duelist"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/bladehand.png" id="21_bladehand"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/sea_witch.png" id="22_sea_witch"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/hound.png" id="23_hound"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/axe_cavalier.png" id="24_axe_cavalier"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/bulwark.png" id="25_bulwark"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/banner_bearer.png" id="26_banner_bearer"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/destroyer.png" id="27_destroyer"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/flesh_prowler.png" id="28_flesh_prowler"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/bone_mancer.png" id="29_bone_mancer"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/sword_armor.png" id="30_sword_armor"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/gunner.png" id="31_gunner"]
+[ext_resource type="Texture2D" path="res://assets/sprites/objects/wood_debris.png" id="32_wood_debris"]
+[ext_resource type="Texture2D" path="res://assets/sprites/objects/stone_debris_1.png" id="33_stone_debris"]
+[ext_resource type="Texture2D" path="res://assets/sprites/objects/powder_keg.png" id="34_powder_keg"]
 
 [resource]
 script = ExtResource("1_table")
 sprites = Dictionary[String, Texture2D]({
+"Powder Keg": ExtResource("34_powder_keg"),
+"Stone Debris": ExtResource("33_stone_debris"),
+"Wooden Debris": ExtResource("32_wood_debris"),
 "archer": ExtResource("2_archer"),
 "battle_medic": ExtResource("3_field_medic"),
+"bloodhound": ExtResource("28_flesh_prowler"),
+"brawler": ExtResource("9_brawler"),
+"brigand_captain": ExtResource("27_destroyer"),
 "brute": ExtResource("4_vandal"),
 "crossbowman": ExtResource("5_crossbowman"),
+"cutthroat": ExtResource("21_bladehand"),
 "drengr": ExtResource("6_drengr"),
+"duelist": ExtResource("20_duelist"),
+"fighter": ExtResource("10_fighter"),
+"freewing": ExtResource("11_freewing"),
 "hakkapel": ExtResource("7_hakkapel"),
-"hedge_healer": ExtResource("8_healer")
+"hedge_healer": ExtResource("8_healer"),
+"hex_matron": ExtResource("29_bone_mancer"),
+"hexer": ExtResource("22_sea_witch"),
+"hound": ExtResource("23_hound"),
+"iron_wall": ExtResource("30_sword_armor"),
+"lance_armor": ExtResource("12_lance_armor"),
+"lancer": ExtResource("13_lancer"),
+"mage": ExtResource("14_mage"),
+"powder_baron": ExtResource("31_gunner"),
+"raider": ExtResource("24_axe_cavalier"),
+"sellsword": ExtResource("15_sellsword"),
+"shaman": ExtResource("16_shaman"),
+"shieldbearer": ExtResource("25_bulwark"),
+"suncaster": ExtResource("17_suncaster"),
+"thief": ExtResource("18_thief"),
+"ward": ExtResource("19_ward"),
+"warcaller": ExtResource("26_banner_bearer")
 })

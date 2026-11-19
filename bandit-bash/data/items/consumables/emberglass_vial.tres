@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="5_nwq7a"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="6_kj3rs"]
 [ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="7_iath0"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/consumables/vial_of_quiet_flame.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_us48d"]
 script = ExtResource("4_ggu0a")
@@ -28,6 +29,7 @@ operations = Array[ExtResource("3_r7scm")]([SubResource("Resource_k3iek")])
 
 [resource]
 script = ExtResource("7_iath0")
+icon = ExtResource("icon_1")
 use_kind = "heal"
 amount = 12
 uses = 2

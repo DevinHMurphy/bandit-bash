@@ -1,23 +1,50 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=18 format=3]
 
 [ext_resource type="Script" path="res://ui/battle/board/map_object_mark.gd" id="1_mark"]
 [ext_resource type="Theme" path="res://ui/theme/battle_theme.tres" id="2_theme"]
+[ext_resource type="PackedScene" path="res://ui/campaign/victory/reward_icon.tscn" id="3_icon"]
+[ext_resource type="Texture2D" path="res://assets/sprites/objects/chest.png" id="4_chest"]
+[ext_resource type="Texture2D" path="res://assets/sprites/objects/door_h.png" id="5_key_door"]
+[ext_resource type="Texture2D" path="res://assets/sprites/objects/door_gate_h.png" id="6_lever_door"]
+[ext_resource type="Texture2D" path="res://assets/sprites/objects/lever.png" id="7_lever"]
+[ext_resource type="Texture2D" path="res://assets/sprites/objects/food_counter.png" id="8_food"]
+[ext_resource type="Texture2D" path="res://assets/sprites/objects/food_counter_empty.png" id="9_food_used"]
+[ext_resource type="Texture2D" path="res://assets/sprites/objects/book_shelf.png" id="10_book"]
+[ext_resource type="Texture2D" path="res://assets/sprites/objects/book_shelf_empty.png" id="11_book_used"]
+[ext_resource type="Texture2D" path="res://assets/sprites/objects/weapon_rack_full_1.png" id="12_rack"]
+[ext_resource type="Texture2D" path="res://assets/sprites/objects/weapon_rack_empty.png" id="13_rack_used"]
+[ext_resource type="Texture2D" path="res://assets/sprites/objects/passage.png" id="14_passage"]
+[ext_resource type="Texture2D" path="res://assets/sprites/objects/brazier_lit.png" id="15_lit"]
+[ext_resource type="Texture2D" path="res://assets/sprites/objects/brazier_unlit.png" id="16_unlit"]
 
 [node name="MapObjectMark" type="Node2D"]
+texture_filter = 1
 script = ExtResource("1_mark")
+chest_texture = ExtResource("4_chest")
+key_door_texture = ExtResource("5_key_door")
+lever_door_texture = ExtResource("6_lever_door")
+lever_texture = ExtResource("7_lever")
+food_shelf_texture = ExtResource("8_food")
+food_shelf_used_texture = ExtResource("9_food_used")
+book_shelf_texture = ExtResource("10_book")
+book_shelf_used_texture = ExtResource("11_book_used")
+weapon_rack_texture = ExtResource("12_rack")
+weapon_rack_used_texture = ExtResource("13_rack_used")
+passage_texture = ExtResource("14_passage")
+brazier_lit_texture = ExtResource("15_lit")
+brazier_unlit_texture = ExtResource("16_unlit")
 
-[node name="GlyphLabel" type="Label" parent="."]
+[node name="Art" type="Sprite2D" parent="."]
 unique_name_in_owner = true
-offset_left = -16.0
-offset_top = -16.0
-offset_right = 16.0
-offset_bottom = 16.0
-mouse_filter = 2
-theme = ExtResource("2_theme")
-theme_type_variation = &"ObjectLootGlyph"
-text = "?"
-horizontal_alignment = 1
-vertical_alignment = 1
+visible = false
+
+[node name="Placeholder" parent="." instance=ExtResource("3_icon")]
+unique_name_in_owner = true
+offset_left = -12.0
+offset_top = -12.0
+offset_right = 12.0
+offset_bottom = 12.0
+custom_minimum_size = Vector2(24, 24)
 
 [node name="TagLabel" type="Label" parent="."]
 unique_name_in_owner = true

@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/selectors/owner.gd" id="4_owner"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/values/percent_of_fact.gd" id="5_percent"]
 [ext_resource type="Script" path="res://scripts/content/weapon_definition.gd" id="9_def"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/weapons/dark_sword.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_self"]
 script = ExtResource("4_owner")
@@ -29,6 +30,7 @@ operations = Array[ExtResource("2_ops")]([SubResource("Resource_heal")])
 
 [resource]
 script = ExtResource("9_def")
+icon = ExtResource("icon_1")
 weapon_type = "sword"
 profile = 2
 damage = 12

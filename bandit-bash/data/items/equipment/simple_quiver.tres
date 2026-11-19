@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="4_3lf47"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="5_6l58k"]
 [ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="6_wnw4k"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/equipment/equipment_icon.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_fbcpg"]
 script = ExtResource("3_gsfdt")
@@ -25,6 +26,7 @@ operations = Array[ExtResource("4_3lf47")]([SubResource("Resource_nbed2")])
 
 [resource]
 script = ExtResource("6_wnw4k")
+icon = ExtResource("icon_1")
 category = "quiver"
 granted_tags = PackedStringArray()
 rarity = 1

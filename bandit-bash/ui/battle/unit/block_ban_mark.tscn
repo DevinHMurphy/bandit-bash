@@ -2,9 +2,11 @@
 
 [ext_resource type="Script" path="res://ui/battle/unit/block_ban_mark.gd" id="1_mark"]
 [ext_resource type="Theme" uid="uid://bi25fbqd4wl3o" path="res://ui/theme/battle_theme.tres" id="2_theme"]
+[ext_resource type="Texture2D" path="res://assets/sprites/icons/shield_icon.png" id="3_shield"]
 
 [node name="BlockBanMark" type="Label"]
 visible = false
+texture_filter = 1
 offset_right = 15.0
 offset_bottom = 14.0
 mouse_filter = 2
@@ -14,3 +16,17 @@ text = "Ø"
 horizontal_alignment = 1
 vertical_alignment = 1
 script = ExtResource("1_mark")
+shield_texture = ExtResource("3_shield")
+
+[node name="Shield" type="TextureRect" parent="."]
+unique_name_in_owner = true
+show_behind_parent = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5

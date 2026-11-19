@@ -5,6 +5,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_via4x"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_v2ly7"]
 [ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="5_p4o5j"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/equipment/tungsten_ooze.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_15kje"]
 script = ExtResource("4_v2ly7")
@@ -23,6 +24,7 @@ operations = Array[ExtResource("3_via4x")]([SubResource("Resource_15kje"), SubRe
 
 [resource]
 script = ExtResource("5_p4o5j")
+icon = ExtResource("icon_1")
 category = "armor"
 granted_tags = PackedStringArray("armored")
 rarity = 3

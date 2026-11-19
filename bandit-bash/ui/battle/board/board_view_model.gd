@@ -6,7 +6,7 @@
 # File:     board_view_model.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name BoardViewModel
@@ -138,6 +138,12 @@ static func unit_view(session: CombatSession, unit_id: String) -> UnitView:
 		view.stance = unit.stance
 		view.has_acted = unit.has_acted
 		view.is_second_move_pending = unit.is_second_move_pending
+	# A breakable's unit id is its object id, so a thrown keg finds its fuse there.
+	var placed: MapState.ObjectState = (
+			null if state.map == null else state.map.objects.get(unit_id, null)
+	)
+	if placed != null and placed.is_thrown and not placed.is_destroyed:
+		view.fuse = placed.fuse
 	return view
 
 
@@ -212,6 +218,9 @@ class UnitView:
 	## Whether it may gain Block ([constant CombatValue.Permission.CAN_GAIN_BLOCK]); Haunted's
 	## ban denies it.
 	var can_gain_block: bool = true
+	## A thrown powder keg's lit fuse: the enemy Phase Ends left until it explodes
+	## ([member MapState.ObjectState.fuse]); -1 for anything else.
+	var fuse: int = -1
 
 
 ## One map object as its [MapObjectMark] draws it.

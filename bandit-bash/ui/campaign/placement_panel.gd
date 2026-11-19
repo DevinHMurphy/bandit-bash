@@ -6,7 +6,7 @@
 # File:     placement_panel.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 16, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name PlacementPanel
@@ -20,7 +20,7 @@ extends Control
 ## [signal placement_chosen]; the screen sends the command, which checks it again. Each step lists
 ## its choices as one column of buttons, so a pad moves up and down within it; the panel's dimmed
 ## backdrop takes every click outside it. Each choice shows the unit's item in that slot and the
-## scrap gold; there is no stat comparison.
+## scrap gold, with the icon of any held item it names; there is no stat comparison.
 
 # ============================================================
 # INPUT MAP SETUP:
@@ -66,6 +66,7 @@ var _catalog: EffectCatalog.Index = null
 var _ids: InstanceIdAllocator = null
 var _placement: ItemPlacement = null
 
+@onready var _icon: RewardIcon = %Icon
 @onready var _title_label: Label = %Title
 @onready var _details_label: Label = %Details
 @onready var _question_label: Label = %Question
@@ -98,6 +99,7 @@ func open(
 	_catalog = catalog
 	_ids = ids
 	_placement = null
+	_icon.texture = null if definition == null else definition.icon
 	_title_label.text = "Place %s" % [CombatResultsModel.item_name(definition, definition_id)]
 	_details_label.text = CombatResultsModel.item_details(definition)
 	visible = true
@@ -185,13 +187,14 @@ func _show_displaced() -> void:
 	var held_name: String = _held_name(held)
 	_question_label.text = "What happens to %s?" % [held_name]
 	_clear_choices()
+	var held_icon: Texture2D = _held_icon(held)
 	_add_choice(
 			"Send %s to the convoy (%s)" % [held_name, _convoy_text()], true,
-			_on_displaced_chosen.bind(false)
+			_on_displaced_chosen.bind(false), held_icon
 	)
 	_add_choice(
 			"Scrap %s for %d gold" % [held_name, _scrap_gold(held)], true,
-			_on_displaced_chosen.bind(true)
+			_on_displaced_chosen.bind(true), held_icon
 	)
 	_finish_column()
 
@@ -206,7 +209,7 @@ func _show_convoy_scrap() -> void:
 	for item_id: String in _seat_run.convoy:
 		_add_choice(
 				"Scrap %s for %d gold" % [_held_name(item_id), _scrap_gold(item_id)], true,
-				_on_convoy_scrap_chosen.bind(item_id)
+				_on_convoy_scrap_chosen.bind(item_id), _held_icon(item_id)
 		)
 	_finish_column()
 
@@ -229,9 +232,13 @@ func _clear_choices() -> void:
 		child.queue_free()
 
 
-func _add_choice(text: String, is_enabled: bool, chosen: Callable) -> void:
+# A choice naming a held item shows that item's icon; null shows none.
+func _add_choice(
+		text: String, is_enabled: bool, chosen: Callable, item_icon: Texture2D = null
+) -> void:
 	var button: Button = Button.new()
 	button.text = text
+	button.icon = item_icon
 	button.disabled = not is_enabled
 	button.focus_mode = Control.FOCUS_ALL if is_enabled else Control.FOCUS_NONE
 	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -268,6 +275,11 @@ func _convoy_text() -> String:
 func _held_definition(item_id: String) -> ItemDefinition:
 	var item: ItemInstance = _seat_run.items.get(item_id, null)
 	return null if item == null else _catalog.item(item.definition_id)
+
+
+func _held_icon(item_id: String) -> Texture2D:
+	var definition: ItemDefinition = _held_definition(item_id)
+	return null if definition == null else definition.icon
 
 
 func _held_name(item_id: String) -> String:

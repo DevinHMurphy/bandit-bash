@@ -5,6 +5,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_q3ify"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_1ponq"]
 [ext_resource type="Script" path="res://scripts/content/trinket_definition.gd" id="5_igc7f"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/trinkets/royal_crest.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_j1i20"]
 script = ExtResource("4_1ponq")
@@ -19,6 +20,7 @@ operations = Array[ExtResource("3_q3ify")]([SubResource("Resource_j1i20")])
 
 [resource]
 script = ExtResource("5_igc7f")
+icon = ExtResource("icon_1")
 rarity = 3
 tags = PackedStringArray()
 id = "royal_crest"

@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="6_ayhcy"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/change_base_stat.gd" id="7_k6v0t"]
 [ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="8_gk6gk"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/consumables/rush_raddish.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_8726e"]
 script = ExtResource("4_sefdk")
@@ -39,6 +40,7 @@ operations = Array[ExtResource("3_8wqud")]([SubResource("Resource_yvpla"), SubRe
 
 [resource]
 script = ExtResource("8_gk6gk")
+icon = ExtResource("icon_1")
 use_kind = "ingredient"
 amount = 5
 uses_lane = 1

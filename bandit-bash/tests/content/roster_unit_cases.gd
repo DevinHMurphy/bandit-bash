@@ -6,7 +6,7 @@
 # File:     roster_unit_cases.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 15, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -408,19 +408,19 @@ func _test_skirmisher_plus() -> void:
 	))
 
 
-# No type here has a sprite yet (P07), so its token draws its fallback letters.
+# Every type here has a sprite (P15 UL2); its two fallback letters stay for a missing one.
 func _test_sprite_fallback() -> void:
 	var table: UnitSpriteTable = load(SPRITE_TABLE) as UnitSpriteTable
 	if table == null:
 		_ok("sprites: the sprite table loads", false)
 		return
-	var drawn: PackedStringArray = []
+	var wrong: PackedStringArray = []
 	for type_id: String in ROSTER:
-		if table.sprite_for(type_id) != null:
-			drawn.append("%s sprite" % [type_id])
-		elif BoardViewModel.letter_of(type_id).length() != 2:
-			drawn.append("%s \"%s\"" % [type_id, BoardViewModel.letter_of(type_id)])
-	_ok("sprites: no type has one yet, so each draws two letters", drawn.is_empty(), str(drawn))
+		if table.sprite_for(type_id) == null:
+			wrong.append("%s no sprite" % [type_id])
+		if BoardViewModel.letter_of(type_id).length() != 2:
+			wrong.append("%s \"%s\"" % [type_id, BoardViewModel.letter_of(type_id)])
+	_ok("sprites: every type has one, and two fallback letters", wrong.is_empty(), str(wrong))
 
 
 func _battle(grid: MapGrid) -> CombatSession:
