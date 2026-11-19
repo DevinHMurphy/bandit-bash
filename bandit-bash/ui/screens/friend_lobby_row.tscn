@@ -1,0 +1,17 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/screens/friend_lobby_row.gd" id="1_row"]
+
+[node name="FriendLobbyRow" type="HBoxContainer"]
+script = ExtResource("1_row")
+
+[node name="Name" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Friend"
+
+[node name="JoinButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Join"

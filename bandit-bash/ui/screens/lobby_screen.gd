@@ -6,7 +6,7 @@
 # File:     lobby_screen.gd
 # Author:
 # Created:  October 9, 2026
-# Modified: October 14, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends Control
@@ -23,7 +23,24 @@ extends Control
 ## [br]
 ## [b]Visibility:[/b] [method _refresh] derives every widget's state from live session state, so
 ## the screen cannot drift into a half-updated combination. Without Steam the screen stays usable:
-## the buttons are disabled and the status says why.
+## the buttons are disabled and the status says why. Focus starts on the first enabled main
+## action (Start, Host, Ready, Join), else Back or Leave, and returns there when a refresh hides
+## or disables the focused control.
+
+# ============================================================
+# INPUT MAP SETUP (built-in ui_* actions; read through the GUI, not here):
+#   "ui_up" / "ui_down"    -> arrows; d-pad, left stick   (move along the column)
+#   "ui_left" / "ui_right" -> arrows; d-pad, left stick   (move along a row: code and Copy, the
+#                             join field and Join, a friend's Join)
+#   "ui_accept"            -> Enter, Space; pad A [Cross] (press the focused button; in the join
+#                             field, Enter submits the code)
+#   "ui_cancel"            -> Esc; pad B [Circle], Menu [Options] (Back's shortcut, to the Main
+#                             Menu; inert in a lobby, where Back is hidden: Leave Lobby leaves)
+#   Mouse: clicks on the buttons and fields.
+# Hint context: MENU.
+# ============================================================
+
+const _FRIEND_ROW_SCENE: PackedScene = preload("res://ui/screens/friend_lobby_row.tscn")
 
 # Text for a request that is in flight, or "" when idle. Non-empty disables Host and Join.
 var _pending_text: String = ""
@@ -77,6 +94,22 @@ func _ready() -> void:
 	var invited_lobby: int = SteamNetwork.take_pending_invite()
 	if invited_lobby != 0:
 		_join(invited_lobby)
+
+
+## The control a pad lands on first: the first shown and enabled of the main actions, else Back
+## or Leave; null when none is.
+func get_default_focus() -> Control:
+	var candidates: Array[Control] = [
+		_start_button, _host_button, _ready_toggle, _join_button, _back_button, _leave_button,
+	]
+	for candidate: Control in candidates:
+		if not candidate.is_visible_in_tree():
+			continue
+		var button: BaseButton = candidate as BaseButton
+		if button != null and button.disabled:
+			continue
+		return candidate
+	return null
 
 
 func _is_resume_mode() -> bool:
@@ -241,6 +274,26 @@ func _refresh() -> void:
 		_code_field.text = ""
 
 	_rebuild_member_list()
+	_keep_focus.call_deferred()
+
+
+# Moves focus to the default when nothing usable has it: on opening, and after a refresh hid or
+# disabled the focused control.
+func _keep_focus() -> void:
+	if not is_inside_tree():
+		return
+	var focused: Control = get_viewport().gui_get_focus_owner()
+	var focused_button: BaseButton = focused as BaseButton
+	var is_usable: bool = (
+			focused != null
+			and focused.is_visible_in_tree()
+			and (focused_button == null or not focused_button.disabled)
+	)
+	if is_usable:
+		return
+	var target: Control = get_default_focus()
+	if target != null:
+		target.grab_focus()
 
 
 func _can_start() -> bool:
@@ -328,24 +381,16 @@ func _rebuild_friends_list() -> void:
 		return
 
 	for entry: SteamNetwork.FriendLobby in lobbies:
-		var row: HBoxContainer = HBoxContainer.new()
-		var label: Label = Label.new()
+		var text: String = entry.friend_name
 		var lobby_version: String = SteamNetwork.get_lobby_version(entry.lobby_id)
 		if lobby_version.is_empty():
 			SteamNetwork.request_lobby_data(entry.lobby_id)
-			label.text = entry.friend_name
 		elif lobby_version != SaveFile.get_running_version():
-			label.text = "%s  ·  version %s (yours: %s)" % [
+			text = "%s  ·  version %s (yours: %s)" % [
 				entry.friend_name, lobby_version, SaveFile.get_running_version()
 			]
-		else:
-			label.text = entry.friend_name
-		row.add_child(label)
-
-		var join_button: Button = Button.new()
 		var version_differs: bool = lobby_version != SaveFile.get_running_version()
-		join_button.text = "Join"
-		join_button.disabled = not lobby_version.is_empty() and version_differs
-		join_button.pressed.connect(_join.bind(entry.lobby_id))
-		row.add_child(join_button)
+		var row: FriendLobbyRow = _FRIEND_ROW_SCENE.instantiate()
 		_friends_list.add_child(row)
+		row.show_lobby(entry.lobby_id, text, lobby_version.is_empty() or not version_differs)
+		row.join_requested.connect(_join)

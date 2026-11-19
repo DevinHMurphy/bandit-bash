@@ -6,5 +6,7 @@
 script = ExtResource("1_7xrxp")
 domain = 1
 cues = Dictionary[String, String]({
-"LEVELED_UP": "level_up"
+"LEVELED_UP": "level_up",
+"NODE_CHOSEN/combat": "battle_map_enter",
+"RUN_STARTED": "begin_campaign"
 })

@@ -19,8 +19,8 @@ extends CanvasLayer
 ## A picker sends its reward's commands; Leave sends each open reward's skip, then
 ## [LeaveNodeCommand], asking first while rewards are open; after the Boss it reads End run and
 ## ends the run as won ([method CampaignService.end_won_run]). A rejection shows its reason and
-## changes nothing. The XP fills run on playback time ([member playback_speed]); stage changes are
-## fixed tweens.
+## changes nothing. XP fills run on playback time ([member playback_speed]). The run's facts play
+## ([CampaignPlayback]) on opening, each level-up with its card, the rest at Rewards.
 ##
 ## @tutorial(UL5 plan): docs/plans/2026-11-19-ul5-victory-sequence.md
 
@@ -85,11 +85,9 @@ const BACKDROP_ALPHA: float = 0.85
 ## [b]Units:[/b] seconds, not scaled by playback speed.
 const STAGE_FADE_TIME: float = 0.25
 
-# The Grade stage's gold, and each level-up card (Godot_FE's reward and level-up panels).
-# NOTE: the level-up sounds here because nothing plays CampaignBus facts yet; once something does,
-# data/audio/maps/campaign_facts.tres sounds LEVELED_UP and this one goes.
+# The Grade stage's gold (Godot_FE's reward panel). Gold has no fact of its own, so it sounds
+# here; level-ups sound through their facts (_play_level_up).
 const _GOLD_CUE: StringName = &"gold_rewarded"
-const _LEVEL_UP_CUE: StringName = &"level_up"
 
 ## How fast the XP fills play: 1.0 is the bar's own timing, 2.0 twice as fast. The battle screen
 ## sets it to its board's [member BattleView.playback_speed].[br]
@@ -161,6 +159,7 @@ func open(seat: int, is_resumed: bool) -> void:
 		_status_label.text = "This combat's report couldn't be read; see the log."
 		_primary_button.disabled = true
 		return
+	CampaignPlayback.play_before(CampaignService.session, CampaignFact.Kind.LEVELED_UP, _seat)
 	var starts_on_rewards: bool = is_resumed and VictoryRewards.has_taken(_rewards)
 	_enter(Stage.REWARDS if starts_on_rewards else Stage.GRADE)
 
@@ -263,6 +262,7 @@ func _enter(stage: Stage) -> void:
 			if stage == Stage.RECAP_DONE:
 				_recap_stage.hide_level_up()
 		Stage.REWARDS:
+			CampaignPlayback.play_pending(CampaignService.session)
 			_ribbon_label.text = "Rewards"
 			_rewards_stage.show_rewards(VictoryRewards.open_of(_rewards))
 			_show_stage(_rewards_stage)
@@ -334,7 +334,7 @@ func _begin_recap() -> void:
 func _after_fill() -> void:
 	_level_up_index = 0
 	if _recap_stage.show_level_up(_level_up_index):
-		Sound.play(_LEVEL_UP_CUE)
+		_play_level_up(_level_up_index)
 		_enter(Stage.RECAP_LEVEL_UPS)
 	else:
 		_enter(Stage.RECAP_DONE)
@@ -345,7 +345,19 @@ func _next_level_up() -> void:
 	if not _recap_stage.show_level_up(_level_up_index):
 		_enter(Stage.RECAP_DONE)
 		return
-	Sound.play(_LEVEL_UP_CUE)
+	_play_level_up(_level_up_index)
+
+
+# Plays card index's LEVELED_UP fact, and any still to play before it; nothing when the run's log
+# no longer holds it (a resumed run).
+func _play_level_up(index: int) -> void:
+	var session: CampaignSession = CampaignService.session
+	if _model == null or index < 0 or index >= _model.level_up_lines.size():
+		return
+	var unit_id: String = _model.level_up_lines[index].unit_id
+	CampaignPlayback.play_through(session, CampaignPlayback.next_pending(
+			session, CampaignFact.Kind.LEVELED_UP, _seat, unit_id
+	))
 
 
 func _submit(command: CampaignCommand) -> bool:
@@ -354,6 +366,7 @@ func _submit(command: CampaignCommand) -> bool:
 		var reason: String = batch.rejected_reason if batch != null else "no run in progress"
 		_status_label.text = "Can't do that: %s." % [reason]
 		return false
+	CampaignPlayback.play_pending(CampaignService.session)
 	return true
 
 

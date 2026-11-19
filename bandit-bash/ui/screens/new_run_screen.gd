@@ -6,7 +6,7 @@
 # File:     new_run_screen.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: October 14, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends Control
@@ -15,6 +15,16 @@ extends Control
 ## Start writes the run's first save ([code]SaveService.start_new_solo_run()[/code]) and only then
 ## moves on to loading, so a run that couldn't be saved never begins. Back returns to the Main
 ## Menu without creating anything.
+
+# ============================================================
+# INPUT MAP SETUP (built-in ui_* actions; read through the GUI, not here):
+#   "ui_up" / "ui_down" -> arrows; d-pad, left stick         (move between Start and Back)
+#   "ui_accept"         -> Enter, Space; pad A [Cross]       (press the focused button; Start has
+#                          focus first)
+#   "ui_cancel"         -> Esc; pad B [Circle], Menu [Options] (Back's shortcut: presses it)
+#   Mouse: a click on a button.
+# Hint context: MENU.
+# ============================================================
 
 @onready var _status_label: Label = %Status
 @onready var _start_button: Button = %StartButton

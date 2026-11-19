@@ -227,9 +227,22 @@ func _on_scene_router_screen_changed(screen: SceneRouter.Screen) -> void:
 
 
 func _on_campaign_service_session_started(session: CampaignSession) -> void:
-	_campaign_listener.bind_campaign(session.bus if session != null else null)
+	if session == null:
+		_campaign_listener.unbind()
+		return
+	_campaign_listener.bind_campaign(session.bus, _node_type_in.bind(session))
 
 
 func _on_campaign_service_session_ended(session: CampaignSession) -> void:
 	if session != null and _campaign_listener.is_bound_to(session.bus):
 		_campaign_listener.unbind()
+
+
+# The CampaignGraph.NodeType of node_id on session's map, for the campaign listener's combat
+# shape; -1 before the run is built or for a node the map doesn't have.
+static func _node_type_in(node_id: int, session: CampaignSession) -> int:
+	if session == null or session.run == null or session.run.graph == null:
+		return -1
+	if not session.run.graph.has_node_id(node_id):
+		return -1
+	return session.run.graph.type_of(node_id)

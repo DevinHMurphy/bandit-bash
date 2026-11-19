@@ -15,7 +15,7 @@ extends Control
 ## Edits a copy of [code]SaveService.settings[/code]. Apply writes only the open save file's
 ## settings file ([code]SaveService.save_settings()[/code]); Back discards anything not applied.
 ## [br]
-## One slider row per [enum SettingsData.Channel] is built in code. A volume is heard as its
+## One [VolumeRow] per [enum SettingsData.Channel] is added in code. A volume is heard as its
 ## slider moves ([method SettingsData.apply] on the copy); leaving the screen any way applies the
 ## settings in effect again, so an unapplied change goes with Back. The opening-swap
 ## toggle ([code]%OpeningSwapToggle[/code], a [SettingToggle] scene) edits
@@ -23,23 +23,30 @@ extends Control
 ## Every control takes focus, so the arrows and a pad's d-pad move between them and accept or A
 ## presses or flips the focused one.
 
+# ============================================================
+# INPUT MAP SETUP (built-in ui_* actions; read through the GUI, not here):
+#   "ui_up" / "ui_down"    -> arrows; d-pad, left stick   (move between the rows and buttons)
+#   "ui_left" / "ui_right" -> arrows; d-pad, left stick   (step the focused volume slider)
+#   "ui_accept"            -> Enter, Space; pad A [Cross] (press Apply or Back, flip the toggle)
+#   "ui_cancel"            -> Esc; pad B [Circle], Menu [Options] (Back's shortcut: presses it)
+#   Mouse: drag or click a slider, click the toggle and buttons.
+# Hint context: MENU.
+# ============================================================
+
 const _CHANNEL_NAMES: Dictionary[SettingsData.Channel, String] = {
 	SettingsData.Channel.MASTER: "Master",
 	SettingsData.Channel.MUSIC: "Music",
 	SettingsData.Channel.SFX: "Sound Effects",
 }
 
+const _ROW_SCENE: PackedScene = preload("res://ui/screens/volume_row.tscn")
+
 # Shown while there are no unapplied changes.
 const _IDLE_TEXT: String = "Volume changes are heard at once; Apply keeps them."
 
-# Width of the channel name column, so the sliders line up. Units: pixels.
-const _NAME_COLUMN_WIDTH: float = 120.0
-# Slider width. Units: pixels.
-const _SLIDER_WIDTH: float = 200.0
-
 # The settings being edited: heard at once, saved only by the Apply button.
 var _edited: SettingsData = null
-var _value_labels: Dictionary[SettingsData.Channel, Label] = {}
+var _rows_by_channel: Dictionary[SettingsData.Channel, VolumeRow] = {}
 var _first_slider: HSlider = null
 
 @onready var _status_label: Label = %Status
@@ -53,7 +60,7 @@ func _ready() -> void:
 	_edited = SaveService.settings.copy()
 
 	for channel: SettingsData.Channel in _CHANNEL_NAMES:
-		_rows.add_child(_build_row(channel))
+		_add_row(channel)
 	_opening_swap.set_on(_edited.is_opening_swap_on)
 	_opening_swap.toggled_on.connect(_on_opening_swap_toggled_on)
 
@@ -71,38 +78,26 @@ func _exit_tree() -> void:
 	SaveService.settings.apply()
 
 
-func _build_row(channel: SettingsData.Channel) -> Control:
-	var row: HBoxContainer = HBoxContainer.new()
+## The volume row of [param channel], for tests; null for a channel with none.
+func get_volume_row(channel: SettingsData.Channel) -> VolumeRow:
+	return _rows_by_channel.get(channel, null)
 
-	var name_label: Label = Label.new()
-	name_label.text = _CHANNEL_NAMES[channel]
-	name_label.custom_minimum_size.x = _NAME_COLUMN_WIDTH
-	row.add_child(name_label)
 
-	var slider: HSlider = HSlider.new()
-	slider.min_value = SettingsData.MIN_VOLUME
-	slider.max_value = SettingsData.MAX_VOLUME
-	slider.step = 1.0
-	slider.value = _edited.get_volume(channel)
-	slider.custom_minimum_size.x = _SLIDER_WIDTH
-	slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	slider.value_changed.connect(_on_slider_value_changed.bind(channel))
-	row.add_child(slider)
+func _add_row(channel: SettingsData.Channel) -> void:
+	var row: VolumeRow = _ROW_SCENE.instantiate()
+	row.label_text = _CHANNEL_NAMES[channel]
+	_rows.add_child(row)
+	row.set_volume(_edited.get_volume(channel))
+	row.volume_changed.connect(_on_volume_row_volume_changed.bind(channel))
+	_rows_by_channel[channel] = row
 	if _first_slider == null:
-		_first_slider = slider
-
-	var value_label: Label = Label.new()
-	value_label.text = str(_edited.get_volume(channel))
-	row.add_child(value_label)
-	_value_labels[channel] = value_label
-
-	return row
+		_first_slider = row.get_slider()
 
 
-func _on_slider_value_changed(value: float, channel: SettingsData.Channel) -> void:
-	_edited.set_volume(channel, roundi(value))
+func _on_volume_row_volume_changed(volume: int, channel: SettingsData.Channel) -> void:
+	_edited.set_volume(channel, volume)
 	_edited.apply()
-	_value_labels[channel].text = str(_edited.get_volume(channel))
+	_rows_by_channel[channel].set_volume(_edited.get_volume(channel))
 	_status_label.text = "Unapplied changes. Press Apply to keep them."
 
 

@@ -30,8 +30,9 @@ enum Domain {
 	CAMPAIGN = 1,
 }
 
-## What else a fact must be for a rule to match, tried in this order. A shape that needs the
-## battle's state ([code]on_object[/code], [code]player_actor[/code]) never matches without it.
+## What else a fact must be for a rule to match, tried in this order with [constant ANY] last. A
+## shape that needs the battle's or run's state ([code]on_object[/code], [code]player_actor[/code],
+## [code]combat[/code]) never matches without it.
 enum Shape {
 	## [code]no_damage[/code]: [member CombatFact.amount] is 0, a hit fully countered.
 	NO_DAMAGE = 0,
@@ -46,7 +47,18 @@ enum Shape {
 	ENEMY_SIDE = 4,
 	## The bare kind: any fact of it.
 	ANY = 5,
+	## [code]combat[/code]: a campaign fact whose [member CampaignFact.amount] is a node of a
+	## combat type ([constant COMBAT_NODE_TYPES]), such as [code]NODE_CHOSEN[/code].
+	COMBAT_NODE = 6,
 }
+
+## The [enum CampaignGraph.NodeType]s a [code]combat[/code] rule matches: the nodes that open a
+## battle.
+const COMBAT_NODE_TYPES: Array[CampaignGraph.NodeType] = [
+	CampaignGraph.NodeType.STANDARD,
+	CampaignGraph.NodeType.KEY,
+	CampaignGraph.NodeType.BOSS,
+]
 
 ## The prefix of a value naming a battle music moment instead of a cue id.
 const MUSIC_PREFIX: String = "music:"
@@ -58,6 +70,7 @@ const _SHAPE_WORDS: Dictionary[String, Shape] = {
 	"player_actor": Shape.PLAYER_ACTOR,
 	"player_side": Shape.PLAYER_SIDE,
 	"enemy_side": Shape.ENEMY_SIDE,
+	"combat": Shape.COMBAT_NODE,
 }
 
 ## Which kinds the keys name.
@@ -95,7 +108,9 @@ func compile() -> PackedStringArray:
 			_rules[kind] = []
 		_rules[kind].append(Rule.new(shape, StringName(cues[key])))
 	for kind: int in _rules:
-		_rules[kind].sort_custom(func(a: Rule, b: Rule) -> bool: return a.shape < b.shape)
+		_rules[kind].sort_custom(
+				func(a: Rule, b: Rule) -> bool: return _try_order(a.shape) < _try_order(b.shape)
+		)
 	return problems
 
 
@@ -107,6 +122,12 @@ func rules_for(kind: int) -> Array[Rule]:
 	for rule: Rule in _rules.get(kind, []):
 		rules.append(rule)
 	return rules
+
+
+# Where shape is tried: in Shape order, except ANY, which is always last; the shapes added after
+# it keep their enum values.
+static func _try_order(shape: Shape) -> int:
+	return Shape.size() if shape == Shape.ANY else shape
 
 
 ## One rule: a shape and the cue id (or music moment) it sounds.

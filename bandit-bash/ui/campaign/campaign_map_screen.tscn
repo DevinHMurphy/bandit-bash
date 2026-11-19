@@ -53,7 +53,15 @@ size_flags_vertical = 3
 mouse_filter = 2
 theme_override_constants/separation = 16
 
-[node name="CampaignMapView" parent="Layout/Column/Body" instance=ExtResource("3_view")]
+[node name="MapScroll" type="ScrollContainer" parent="Layout/Column/Body"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+follow_focus = true
+horizontal_scroll_mode = 0
+
+[node name="CampaignMapView" parent="Layout/Column/Body/MapScroll" instance=ExtResource("3_view")]
 unique_name_in_owner = true
 layout_mode = 2
 
@@ -64,12 +72,13 @@ mouse_filter = 2
 
 [node name="LegendTitle" type="Label" parent="Layout/Column/Body/Side"]
 layout_mode = 2
+theme_type_variation = &"HeaderLabel"
 text = "Nodes"
 
 [node name="MapLegend" parent="Layout/Column/Body/Side" node_paths=PackedStringArray("map_view") instance=ExtResource("4_legend")]
 unique_name_in_owner = true
 layout_mode = 2
-map_view = NodePath("../../CampaignMapView")
+map_view = NodePath("../../MapScroll/CampaignMapView")
 
 [node name="NodeInfo" type="Label" parent="Layout/Column/Body/Side"]
 unique_name_in_owner = true
