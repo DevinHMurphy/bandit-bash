@@ -28,7 +28,7 @@
 [ext_resource type="Texture2D" path="res://assets/sprites/units/banner_bearer.png" id="26_banner_bearer"]
 [ext_resource type="Texture2D" path="res://assets/sprites/units/destroyer.png" id="27_destroyer"]
 [ext_resource type="Texture2D" path="res://assets/sprites/units/flesh_prowler.png" id="28_flesh_prowler"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/bone_mancer.png" id="29_bone_mancer"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/herbalist.png" id="29_herbalist"]
 [ext_resource type="Texture2D" path="res://assets/sprites/units/sword_armor.png" id="30_sword_armor"]
 [ext_resource type="Texture2D" path="res://assets/sprites/units/gunner.png" id="31_gunner"]
 [ext_resource type="Texture2D" path="res://assets/sprites/objects/wood_debris.png" id="32_wood_debris"]
@@ -55,7 +55,7 @@ sprites = Dictionary[String, Texture2D]({
 "freewing": ExtResource("11_freewing"),
 "hakkapel": ExtResource("7_hakkapel"),
 "hedge_healer": ExtResource("8_healer"),
-"hex_matron": ExtResource("29_bone_mancer"),
+"hex_matron": ExtResource("29_herbalist"),
 "hexer": ExtResource("22_sea_witch"),
 "hound": ExtResource("23_hound"),
 "iron_wall": ExtResource("30_sword_armor"),

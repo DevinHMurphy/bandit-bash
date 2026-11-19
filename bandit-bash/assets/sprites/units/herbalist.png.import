@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dt24or4v77a2o"
-path="res://.godot/imported/bone_mancer.png-fbef2ebfe76952ffb4faa40844f3154d.ctex"
+uid="uid://cmu08p1jukmpf"
+path="res://.godot/imported/herbalist.png-929711ec7d462b3dfbefd9a783a4ef6d.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/units/bone_mancer.png"
-dest_files=["res://.godot/imported/bone_mancer.png-fbef2ebfe76952ffb4faa40844f3154d.ctex"]
+source_file="res://assets/sprites/units/herbalist.png"
+dest_files=["res://.godot/imported/herbalist.png-929711ec7d462b3dfbefd9a783a4ef6d.ctex"]
 
 [params]
 

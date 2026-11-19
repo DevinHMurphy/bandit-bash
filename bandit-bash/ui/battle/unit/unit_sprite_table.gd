@@ -24,14 +24,15 @@ extends Resource
 # The table's picks where Godot_FE had no exact match (ui-lift.md decision 10; art-sources.md lists
 # every file's source):
 # ASSUMPTION: cutthroat - bladehand (paired knives, as its dagger); corsair rejected (sword-armed).
-# ASSUMPTION: hexer - sea_witch; bone_mancer went to the Hex Matron.
-# ASSUMPTION: hound - the user's hound.png (32rogues' wolf), not flesh_prowler.
+# ASSUMPTION: hexer - sea_witch; bone_mancer rejected (reads like the player Shaman).
+# hound - the user's hound.png (32rogues' wolf), the user's pick.
 # ASSUMPTION: raider - axe_cavalier (mounted, as the class); marauder rejected (on foot).
 # ASSUMPTION: shieldbearer - Bulwark (tower shield); sword_armor went to the Iron Wall.
 # ASSUMPTION: warcaller - banner_bearer; sanctioner rejected.
 # ASSUMPTION: bloodhound - flesh_prowler, its own sprite, so no tint of the hound's.
 # ASSUMPTION: brigand_captain - Destroyer; a tinted vandal and tier4/captain rejected.
-# ASSUMPTION: hex_matron - bone_mancer; a tinted sea_witch rejected.
+# ASSUMPTION: hex_matron - tier1/herbalist (crooked staff, earthy greens), apart from the pale,
+# purple Shaman and the Hexer; bone_mancer, dark_imp, bishop, Cleric and goblin_caster rejected.
 # ASSUMPTION: iron_wall - sword_armor; a tinted Bulwark rejected.
 # ASSUMPTION: powder_baron - gunner (a firearm, for the powder); a tinted vandal rejected.
 # ASSUMPTION: powder kegs - the dungeon tile sheet's barrel; Godot_FE has no keg.

@@ -31,14 +31,14 @@ tile sheet one 32 px cell at a time.
 | brute (`vandal.png`), crossbowman, hedge_healer (`healer.png`) | as before (M1) | `units/` | Exact |
 | duelist | `duelist.png` | `units/duelist.png` | Exact |
 | cutthroat | `bladehand.png` | `units/bladehand.png` | *Assumption*: paired knives, as its dagger; corsair rejected (sword-armed, too close to the Duelist) |
-| hexer | `sea_witch.png` | `units/sea_witch.png` | *Assumption*; bone_mancer went to the Hex Matron |
+| hexer | `sea_witch.png` | `units/sea_witch.png` | *Assumption*; bone_mancer rejected (reads like the player Shaman) |
 | hound | `hound.png` | `assests/hound.png` | The user's pick (32rogues wolf) |
 | raider | `axe_cavalier.png` | `units/axe_cavalier.png` | *Assumption*: mounted, as the class; marauder rejected (on foot) |
 | shieldbearer | `bulwark.png` | `units/Bulwark.png` | *Assumption*: tower shield; sword_armor went to the Iron Wall |
 | warcaller | `banner_bearer.png` | `units/banner_bearer.png` | *Assumption*; sanctioner rejected |
 | bloodhound | `flesh_prowler.png` | `units/flesh_prowler.png` | *Assumption*: its own sprite, so no tint |
 | brigand_captain | `destroyer.png` | `units/Destroyer.png` | *Assumption*; a tinted vandal and `tier4/captain.png` rejected |
-| hex_matron | `bone_mancer.png` | `units/bone_mancer.png` | *Assumption*; a tinted sea_witch rejected. Reads close to the player Shaman (both pale casters in purple) |
+| hex_matron | `herbalist.png` | `units/tier1/herbalist.png` | *Assumption*: crooked staff, earthy greens, so it reads apart from the pale, purple player Shaman and the Hexer (user, at review: bone_mancer read too close to the Shaman); dark_imp (purple again), bishop and Cleric (priests), goblin_caster (not human) and a tinted sea_witch rejected |
 | iron_wall | `sword_armor.png` | `units/sword_armor.png` | *Assumption*; a tinted Bulwark rejected |
 | powder_baron | `gunner.png` | `units/gunner.png` | *Assumption*: a firearm, for the powder; a tinted vandal rejected |
 | Wooden Debris, Stone Debris | `objects/wood_debris.png`, `objects/stone_debris_1.png` | `entities/debris/` | Exact (breakables key by their label) |
