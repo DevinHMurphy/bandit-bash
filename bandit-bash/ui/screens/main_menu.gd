@@ -6,7 +6,7 @@
 # File:     main_menu.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: October 14, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends Control
@@ -21,6 +21,17 @@ extends Control
 ## Resume loads it so the lobby gathers its players.[br]
 ## Both abandons ask for confirmation, then archive the run as lost. Options and Back stay
 ## NavButtons in the scene.
+
+# ============================================================
+# INPUT MAP SETUP (built-in ui_* actions; read through the GUI, not here):
+#   "ui_up" / "ui_down" -> arrows; d-pad, left stick         (move along the buttons)
+#   "ui_accept"         -> Enter, Space; pad A [Cross]       (press the focused button; Continue
+#                          Run, else New Run, has focus first)
+#   "ui_cancel"         -> Esc; pad B [Circle], Menu [Options] (Back's shortcut: back to Save
+#                          Select; in the abandon dialog it cancels the dialog instead)
+#   Mouse: a click on a button.
+# Hint context: MENU.
+# ============================================================
 
 # Which slot the open abandon confirmation is for.
 var _pending_abandon: CampaignData.Mode = CampaignData.Mode.SOLO
