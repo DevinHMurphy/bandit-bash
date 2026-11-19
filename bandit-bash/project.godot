@@ -49,8 +49,8 @@ enabled=PackedStringArray("res://addons/input_helper/plugin.cfg")
 
 [gui]
 
-theme/custom="res://ui/theme/game_theme.tres"
 common/show_focus_state_on_pointer_event=0
+theme/custom="res://ui/theme/game_theme.tres"
 
 [input]
 

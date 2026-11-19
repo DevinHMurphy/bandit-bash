@@ -1,7 +1,7 @@
 [gd_resource type="Theme" format=3 uid="uid://cyukj7ee1s45x"]
 
-[ext_resource type="FontFile" path="res://assets/fonts/source_sans_3/source_sans_3.ttf" id="1_4ghru"]
-[ext_resource type="FontFile" path="res://assets/fonts/alegreya/alegreya.ttf" id="2_dtkdr"]
+[ext_resource type="FontFile" uid="uid://cqaypo7b0o44x" path="res://assets/fonts/source_sans_3/source_sans_3.ttf" id="1_4ghru"]
+[ext_resource type="FontFile" uid="uid://da8r0euem12br" path="res://assets/fonts/alegreya/alegreya.ttf" id="2_dtkdr"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_4ghru"]
 content_margin_left = 12.0
