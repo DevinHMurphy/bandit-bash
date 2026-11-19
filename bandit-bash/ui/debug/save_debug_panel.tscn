@@ -2,14 +2,10 @@
 
 [ext_resource type="Script" path="res://ui/debug/save_debug_panel.gd" id="1_panel"]
 
-[sub_resource type="Theme" id="Theme_debug"]
-default_font_size = 14
-
 [node name="SaveDebugPanel" type="PanelContainer"]
 custom_minimum_size = Vector2(192, 0)
 offset_left = 8.0
 offset_top = 8.0
-theme = SubResource("Theme_debug")
 script = ExtResource("1_panel")
 
 [node name="Column" type="VBoxContainer" parent="."]

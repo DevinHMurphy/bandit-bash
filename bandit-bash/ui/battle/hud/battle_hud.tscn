@@ -31,7 +31,6 @@ offset_right = 240.0
 offset_bottom = -56.0
 grow_vertical = 2
 mouse_filter = 2
-theme_override_constants/separation = 6
 
 [node name="TurnCounter" parent="LeftColumn" instance=ExtResource("3_turn")]
 unique_name_in_owner = true
@@ -69,9 +68,9 @@ anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 248.0
-offset_top = 64.0
+offset_top = 72.0
 offset_right = -316.0
-offset_bottom = -56.0
+offset_bottom = -72.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2

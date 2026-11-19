@@ -6,7 +6,7 @@
 # File:     unit_panel.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 15, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name UnitPanel
@@ -50,11 +50,12 @@ signal details_pressed(unit_id: String)
 ## The line under the name once the unit has acted this phase; empty hides it.
 @export var acted_text: String = "Has acted"
 
-## The name's colour for each side: player units.
-@export var player_color: Color = Color(0.55, 0.75, 1.0, 1.0)
+## The name's colour for each side: player units. Defaults to the [code]block[/code] token.
+@export var player_color: Color = UiTokens.color(UiTokens.BLOCK)
 
-## The name's colour for enemy units; anything else (a breakable) keeps the theme's.
-@export var enemy_color: Color = Color(1.0, 0.5, 0.45, 1.0)
+## The name's colour for enemy units; anything else (a breakable) keeps the theme's. Defaults to
+## the [code]danger[/code] token.
+@export var enemy_color: Color = UiTokens.color(UiTokens.DANGER)
 
 var _view: HudViewModel.UnitView = null
 

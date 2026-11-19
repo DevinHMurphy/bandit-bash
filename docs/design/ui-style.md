@@ -4,8 +4,10 @@ How Bandit Bash's UI looks: colours, fonts, sizes, panels, focus and icons. Ever
 it through one shared theme (P15 UL1); a scene sets no colour, font or size of its own outside the
 theme's tokens.
 
-**Status:** decided November 18, 2026 (user; P15 UL0, [ui-lift.md](ui-lift.md)). Placeholder art
-stays until the art pass; this guide sets the frame it fits in.
+**Status:** decided November 18, 2026 (user; P15 UL0, [ui-lift.md](ui-lift.md)). Revised the same
+day with UL1 (user): `text_muted` lightened from `#9aa3ad` so it meets the contrast line on
+`panel_raised`, the row looks set state by state, the 14-unit floor applied to the board.
+Placeholder art stays until the art pass; this guide sets the frame it fits in.
 
 ## Mood
 
@@ -16,16 +18,18 @@ victory stages, screen titles).
 
 ## Colour tokens
 
-Every colour comes from a token. Names are the theme's.
+Every colour comes from a token. Names are the theme's: the colours of the `Palette` type in
+`ui/theme/game_theme.tres`, the project theme. Code reads them through `UiTokens`
+(`ui/theme/ui_tokens.gd`), as `UiTokens.color(UiTokens.DANGER)`.
 
 | Token | Hex | Use |
 |-------|-----|-----|
 | `bg` | `#14171c` | Screen background, the victory overlay's base (at 85% over the board) |
-| `panel` | `#2a3038` | Panels, menus, tooltips |
-| `panel_raised` | `#3a434d` | Rows, buttons, hovered rows |
+| `panel` | `#2a3038` | Panels, menus, tooltips, rows at rest |
+| `panel_raised` | `#3a434d` | Hovered and focused rows and buttons |
 | `border` | `#4a5560` | Panel and row borders |
 | `text` | `#e8e2d4` | Body text, names, numbers |
-| `text_muted` | `#9aa3ad` | Secondary text, disabled labels, the event log's tiles and times |
+| `text_muted` | `#a6afb9` | Secondary text, disabled labels, the event log's tiles and times |
 | `accent` | `#d9b45a` | Focus, highlights, gold amounts, headers on dark |
 | `parchment` | `#d8c9a3` | The ribbon header's fill (its text is `bg`) |
 | `danger` | `#c8463c` | Damage, enemy intents, lethal warnings, the danger zone |
@@ -35,8 +39,10 @@ Every colour comes from a token. Names are the theme's.
 
 - **Disabled:** a control at 45% opacity, its text `text_muted`. Refused options say why (as UI13
   and UI14 do).
-- **Contrast:** `text` and `text_muted` on `panel` and `panel_raised` meet WCAG AA (4.5:1). Colour
-  is never the only signal: an icon, word or shape goes with it.
+- **Contrast:** `text` and `text_muted` on `panel` and `panel_raised` meet WCAG AA (4.5:1):
+  `text` 10.30:1 on `panel` and 7.78:1 on `panel_raised`, `text_muted` 5.99:1 and 4.52:1
+  (`tests/ui/theme/` measures them). Colour is never the only signal: an icon, word or shape goes
+  with it.
 
 ## Fonts
 
@@ -61,7 +67,8 @@ licence files:
   | Small labels, the log, tooltips' footers | Source Sans 3 | 14 | 21 |
   | Big numbers (damage, grades) | Source Sans 3 Bold | 28 | 42 |
 
-- **Floor:** no text below 14 base units, so nothing on the Deck is under 14 px.
+- **Floor:** no text below 14 base units, so nothing on the Deck is under 14 px. This holds on
+  the board too: HP numbers, Block badges, object tags, intent numbers.
 - **Spacing:** a 4-unit grid; panels pad 12, rows pad 8 vertically and 12 horizontally, gaps
   between rows 4, between groups 16.
 - **Targets:** anything clickable is at least 32 units tall.
@@ -70,10 +77,18 @@ licence files:
 
 - **Panel:** `panel` fill, 1-unit `border`, corner radius 4, a soft shadow (`bg` at 50%, 4 units
   down) where it floats over the board.
-- **Row** (menus, reward lists, the event log's filters): full width, `panel_raised` fill, an icon on
-  the left (24 units), label, and a value or hint on the right.
+- **Row** (menus, reward lists, the event log's filters): full width, an icon on the left (24
+  units), label, and a value or hint on the right. Its looks:
+
+  | State | Look |
+  |-------|------|
+  | Rest | `panel` fill, 1-unit `border` |
+  | Hover | `panel_raised` fill, 1-unit `border` |
+  | Focus | `panel_raised` fill, 2-unit `accent` outline |
+  | Disabled | the rest look at 45% opacity, text `text_muted` |
+
 - **Button:** a row with centred text. The primary button of a screen (Continue, Start) uses an
-  `accent` border.
+  `accent` border at rest and on hover (theme type `PrimaryButton`).
 - **Ribbon header:** `parchment` fill with `bg` text in Alegreya; only on screen titles and the
   victory stages.
 - **Tooltip:** a panel, at most 320 units wide; name in Alegreya, then body text, then muted

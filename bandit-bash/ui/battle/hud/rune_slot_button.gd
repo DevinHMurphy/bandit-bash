@@ -34,13 +34,12 @@ signal pointed(is_discard: bool)
 ## The mouse left, or focus left, the part last pointed at.
 signal unpointed()
 
-# ASSUMPTION: the circle, its hover and gold focus ring, and the corner X (the scene's styles) are
-# placeholders for the art pass.
-# ASSUMPTION: no basis in the design docs or Godot_FE; a half-transparent rune reads as "not now"
-# while staying recognisable.
-## How a held rune that can't be cast now is tinted: its icon or name is multiplied by it.[br]
+# ASSUMPTION: the circle, its hover and gold focus ring, and the corner X (the theme's RuneSlot
+# and RuneDiscardButton styles) are placeholders for the art pass.
+## How a held rune that can't be cast now is tinted: its icon or name is multiplied by it.
+## Defaults to the style guide's disabled look, white at [constant UiTokens.DISABLED_ALPHA].[br]
 ## [b]White:[/b] no different from a rune that can be cast. Alpha 0 hides it.
-@export var refused_modulate: Color = Color(1.0, 1.0, 1.0, 0.35)
+@export var refused_modulate: Color = Color(1.0, 1.0, 1.0, UiTokens.DISABLED_ALPHA)
 
 var _rune: TurnInputModel.HeldRune = null
 

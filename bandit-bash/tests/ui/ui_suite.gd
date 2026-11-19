@@ -6,7 +6,7 @@
 # File:     ui_suite.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 16, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -39,9 +39,9 @@ const RUN_SEED: int = 0x51A7E
 # The save file the screen cases write, in the test user folder only.
 const SAVE_NUMBER: int = 1
 
-# The screen size the screen cases lay the screen out at: the project sets no window size, so this
-# is Godot's default window and the base size of the canvas_items stretch.
-const BASE_SCREEN_SIZE: Vector2i = Vector2i(1152, 648)
+# The screen size the screen cases lay the screen out at: the project's base viewport, the size
+# the canvas_items stretch lays every screen out at.
+const BASE_SCREEN_SIZE: Vector2i = Vector2i(1280, 720)
 
 var _failures: int = 0
 var _passes: int = 0

@@ -6,7 +6,7 @@
 # File:     turn_counter.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 5, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name TurnCounter
@@ -29,9 +29,9 @@ extends PanelContainer
 ## The text before turn 1 (the opening swap window): [code]%d[/code] the par.
 @export var before_first_turn_format: String = "Before turn 1 · par %d"
 
-# ASSUMPTION: greybox colour, the intent attack glyph's red; no basis in the vision.
-## The text's colour once the turn is past par; within par it keeps the theme's.
-@export var past_par_color: Color = Color(1.0, 0.4, 0.35, 1.0)
+## The text's colour once the turn is past par; within par it keeps the theme's. Defaults to the
+## [code]danger[/code] token.
+@export var past_par_color: Color = UiTokens.color(UiTokens.DANGER)
 
 var _view: HudViewModel.TurnView = null
 

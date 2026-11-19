@@ -4,5 +4,6 @@
 
 [node name="AttackOverlay" type="Node2D"]
 script = ExtResource("1_overlay")
-fill_color = Color(0.862745, 0.0784314, 0.235294, 0.5)
-edge_color = Color(0.862745, 0.0784314, 0.235294, 0.8)
+color_token = &"danger"
+fill_color = Color(1, 1, 1, 0.5)
+edge_color = Color(1, 1, 1, 0.8)

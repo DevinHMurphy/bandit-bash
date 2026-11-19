@@ -37,12 +37,20 @@ gdscript/warnings/narrowing_conversion=2
 
 [display]
 
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/size/mode=2
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
 [editor_plugins]
 
 enabled=PackedStringArray("res://addons/input_helper/plugin.cfg")
+
+[gui]
+
+theme/custom="res://ui/theme/game_theme.tres"
+common/show_focus_state_on_pointer_event=0
 
 [input]
 

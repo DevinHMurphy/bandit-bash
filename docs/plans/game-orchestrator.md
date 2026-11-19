@@ -36,7 +36,7 @@ Where the project is, what's next and what's out of scope. Start here.
 - **Milestones:** M0 and M1 are complete. **Current: M2 Combat complete,** with M3 started alongside.
 - **What runs today:** a solo run opens the M1 battle: the Mercenary army against the Brigand pack on the greybox map. All of M2's battle systems and functional UI work on keyboard, mouse and controller: targeting, forecast, intents, the darkness, every objective's HUD, unit detail, and Save & Quit with resume.
 - **What M2 still needs:** content, enemy AI, docs and bug fixes. No new systems.
-- **Tests:** 5,143 cases, all passing, and a clean headless launch (`sh bandit-bash/tools/run_tests.sh`).
+- **Tests:** 5,936 cases, all passing, and a clean headless launch (`sh bandit-bash/tools/run_tests.sh`).
 - **Not started:** P09 (approved) and P10–P12. P08 is in progress (RN1–RN5 merged).
 
 ## Milestones
@@ -47,7 +47,7 @@ The MVP is **one full run, start screen to boss, solo and co-op, on Normal** (ga
 |---|---|---|---|
 | **M0 Foundations** | The engine every system plugs into | P00, P01 | **Complete** October 30, 2026 |
 | **M1 First playable fight** | One greybox combat, start to finish | P02–P07 (subsets) | **Complete** November 5, 2026; its tuning pass is deferred |
-| **M2 Combat complete** | Every MVP combat feature and piece of content, with a functional UI | P02–P07 | **In progress.** Left: P03 CT11 and CT12, P05 EN11 and EN12, P04 MP10's last map (the boss map, with EN11), P15 UI lift UL0–UL8 ([ui-lift.md](../design/ui-lift.md)), BF1, and the docs (EB8, CC9, MP9, DK6, CT11, EN12) |
+| **M2 Combat complete** | Every MVP combat feature and piece of content, with a functional UI | P02–P07 | **In progress.** Left: P03 CT11 and CT12, P05 EN11 and EN12, P04 MP10's last map (the boss map, with EN11), P15 UI lift UL1F and UL2–UL8 ([ui-lift.md](../design/ui-lift.md)), BF1, and the docs (EB8, CC9, MP9, DK6, CT11, EN12) |
 | **M3 Solo run** | Start screen → campaign → boss, saved and resumable; 60–80 minutes | P08, P09 | **In progress.** RN1–RN5 merged (a run plays map → combat → Results → map on all three devices, headless) |
 | **M4 Co-op run** | The same run for 2–4 players, tested live on two machines | P10, P11 | Not started |
 | **M5 MVP** | Statistics, the Waystation war table, the MVP checklist | P12, polish | Not started |
@@ -75,7 +75,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P11 | Co-op combat (game-vision.md Multiplayer maps) | **Not started** | — | P01, P02, P04, P08, P10 |
 | P12 | Statistics and the Waystation war table (meta-progression.md) | **Not started** | — | P01, P08 |
 | P13 | [RNG streams](2026-10-26-rng-streams.md) | **Implemented** | — | P00 |
-| P15 | UI lift ([ui-lift.md](../design/ui-lift.md); its scope doc is the plan) | **In progress**: UL0 the style guide done ([ui-style.md](../design/ui-style.md)); UL1 prompt issued November 18, 2026 | UL1–UL8 | P07, P08 |
+| P15 | UI lift ([ui-lift.md](../design/ui-lift.md); its scope doc is the plan) | **In progress**: UL0 the style guide ([ui-style.md](../design/ui-style.md)) and UL1 the shared theme done | UL1F, UL2–UL8 | P07, P08 |
 | P14 | [Project organization](2026-11-09-project-organization.md) | **In progress** | O5 (deferred) | — |
 | P20–P24 | Meta progression, tutorials, dev console, status effects, shared co-op battles | Post-MVP | — | — |
 

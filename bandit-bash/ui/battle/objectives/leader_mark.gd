@@ -6,7 +6,7 @@
 # File:     leader_mark.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 7, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name LeaderMark
@@ -22,11 +22,10 @@ extends Node2D
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
-# ASSUMPTION: greybox gold, apart from the side outlines (navy, dark red) and the target marks;
-# no basis in the vision or Godot_FE (whose boss icon UI7 left for EN7).
-## The outline's colour. Its alpha is its opacity.[br]
+## The outline's colour, apart from the side outlines and the target marks. Its alpha is its
+## opacity. Defaults to the [code]accent[/code] token.[br]
 ## [b]Alpha 0.0:[/b] the mark is invisible.
-@export var color: Color = Color(1.0, 0.8, 0.2, 1.0):
+@export var color: Color = UiTokens.color(UiTokens.ACCENT):
 	set(value):
 		color = value
 		if is_node_ready():

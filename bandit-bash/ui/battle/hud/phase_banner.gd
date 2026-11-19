@@ -41,14 +41,16 @@ extends PanelContainer
 ## The text when the player side loses. It shows in [member enemy_color].
 @export var defeat_text: String = "Defeat"
 
-## The player phase's text colour (Godot_FE tints its player banner blue).
-@export var player_color: Color = Color(0.55, 0.75, 1.0, 1.0)
+## The player phase's text colour (Godot_FE tints its player banner blue). Defaults to the
+## [code]block[/code] token, the player side's colour.
+@export var player_color: Color = UiTokens.color(UiTokens.BLOCK)
 
-## The enemy phase's text colour (Godot_FE tints its enemy banner red).
-@export var enemy_color: Color = Color(1.0, 0.45, 0.4, 1.0)
+## The enemy phase's text colour (Godot_FE tints its enemy banner red). Defaults to the
+## [code]danger[/code] token.
+@export var enemy_color: Color = UiTokens.color(UiTokens.DANGER)
 
-## The darkness phase's text colour: ui-style.md's [code]darkness[/code] token, #6b4fa0.
-@export var darkness_color: Color = Color("#6b4fa0")
+## The darkness phase's text colour. Defaults to the [code]darkness[/code] token.
+@export var darkness_color: Color = UiTokens.color(UiTokens.DARKNESS)
 
 ## How long the banner takes to fade in (Godot_FE's [code]new_turn[/code] animation: 1.0 of its
 ## 2.0 s).[br]

@@ -6,7 +6,7 @@
 # File:     stance_pips.gd
 # Author:
 # Created:  November 6, 2026
-# Modified: November 7, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name StancePips
@@ -74,11 +74,11 @@ enum Pip {
 
 @export_group("Outline")
 
-# Near-black at the tick marks' alpha, one pixel, so 5 px pips keep 3 px of colour.
+# The bg token at the tick marks' alpha, one pixel, so 5 px pips keep 3 px of colour.
 ## The outline drawn inside each segment's edge, so neighbouring segments read apart at any count,
 ## overflow and Exposed included; in bar mode it frames the whole bar.[br]
 ## [b]Transparent:[/b] no outline.
-@export var outline_color: Color = Color(0.0, 0.0, 0.0, 0.85):
+@export var outline_color: Color = UiTokens.with_alpha(UiTokens.BG, 0.85):
 	set(value):
 		outline_color = value
 		queue_redraw()

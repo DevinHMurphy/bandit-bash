@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 16, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends "res://tests/ui/ui_suite.gd"
@@ -17,7 +17,7 @@ extends "res://tests/ui/ui_suite.gd"
 ## setting (Options, settings.json and the solo battle; with a test user folder only), a cases
 ## file each in [code]tests/ui/battle/[/code] (preloaded below; each one's class doc lists its
 ## checks); then the gameplay screen's layout: its save debug panel (hidden when the battle opens,
-## toggled by F3 and read afresh, clear of the M1 map at the 1152×648 base size, untouched by
+## toggled by F3 and read afresh, clear of the M1 map at the 1280×720 base size, untouched by
 ## clicks on the deployment tiles); the HUD and the hint bar clear of the map at the base size and
 ## wider; the run seed on the pause screen; a real click on the unit panel's Details opening unit
 ## detail. The shared helpers are [code]tests/ui/ui_suite.gd[/code]'s.
@@ -45,7 +45,7 @@ const PANEL_FRAMES: int = 3
 
 # A wider screen the HUD case lays out at too: 21:9 at the base height, so the expand aspect gives
 # the HUD more width than the base size.
-const WIDE_SCREEN_SIZE: Vector2i = Vector2i(1512, 648)
+const WIDE_SCREEN_SIZE: Vector2i = Vector2i(1680, 720)
 
 var _frame: int = 0
 var _panel_frame: int = -1
@@ -163,7 +163,7 @@ func _start_panel_case() -> bool:
 # _finish_wide_case().
 func _finish_panel_case() -> void:
 	var covering: PackedStringArray = _hud_over_map()
-	_check("hud: at 1152×648 no HUD widget, panel or bar covers the M1 map", (
+	_check("hud: at 1280×720 no HUD widget, panel or bar covers the M1 map", (
 			covering.size() == 1 and covering[0].begins_with("map ")
 	), "; ".join(covering))
 	var pause: Node = _panel_screen.get_node(^"PauseMenu")
@@ -182,7 +182,7 @@ func _finish_panel_case() -> void:
 	var to_screen: Transform2D = view.get_global_transform_with_canvas()
 	var map_on_screen: Rect2 = to_screen * view.map_rect()
 	var panel_rect: Rect2 = panel.get_global_rect()
-	_check("panel: shown at 1152×648, it covers no tile of the M1 map", (
+	_check("panel: shown at 1280×720, it covers no tile of the M1 map", (
 			panel.visible
 			and root.get_visible_rect().size == Vector2(BASE_SCREEN_SIZE)
 			and map_on_screen.has_area()

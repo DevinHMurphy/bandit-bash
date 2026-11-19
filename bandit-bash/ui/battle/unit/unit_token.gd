@@ -6,7 +6,7 @@
 # File:     unit_token.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 15, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name UnitToken
@@ -84,15 +84,13 @@ const FLASH_AMOUNT_PARAM: StringName = &"flash_amount"
 
 @export_group("Letters")
 
-# ASSUMPTION: greybox colour; the combat UI plan sets no palette (Design Basis, Gaps).
-## Body colour of a lettered player-side unit.
-@export var player_color: Color = Color(0.25, 0.45, 0.9, 1.0)
+## Body colour of a lettered player-side unit. Defaults to the [code]block[/code] token.
+@export var player_color: Color = UiTokens.color(UiTokens.BLOCK)
 
-# ASSUMPTION: greybox colour, as above.
-## Body colour of a lettered enemy-side unit.
-@export var enemy_color: Color = Color(0.85, 0.25, 0.25, 1.0)
+## Body colour of a lettered enemy-side unit. Defaults to the [code]danger[/code] token.
+@export var enemy_color: Color = UiTokens.color(UiTokens.DANGER)
 
-# ASSUMPTION: greybox colour, as above.
+# ASSUMPTION: greybox colour; the style guide gives neither side's units a token.
 ## Body colour of a lettered unit on neither side (a map object standing as a unit).
 @export var other_color: Color = Color(0.6, 0.6, 0.6, 1.0)
 

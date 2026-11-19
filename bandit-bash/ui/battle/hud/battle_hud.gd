@@ -29,7 +29,7 @@ extends Control
 ## as it begins to play ([signal BattleView.darkness_phase_started]): its banner;[br]
 ## - [method show_result], called by the screen once the battle has ended: the end banner;[br]
 ## - each batch the session sends ([signal CombatSession.batch_resolved]): a fact log line.[br]
-## [b]Layout:[/b] the columns and the map area are set in the scene; at the 1152×648 base size and
+## [b]Layout:[/b] the columns and the map area are set in the scene; at the 1280×720 base size and
 ## wider nothing here covers the map, because the camera frames it inside the map area. The panel
 ## stack ([PanelHost]) and the turn bar are the screen's, laid out in their own scenes to match.
 ##

@@ -6,6 +6,7 @@
 [node name="FactLog" type="PanelContainer"]
 theme = ExtResource("2_theme")
 script = ExtResource("1_log")
+is_open_at_start = false
 
 [node name="Column" type="VBoxContainer" parent="."]
 layout_mode = 2
@@ -22,7 +23,7 @@ alignment = 0
 
 [node name="Body" type="RichTextLabel" parent="Column"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 120)
+custom_minimum_size = Vector2(0, 64)
 layout_mode = 2
 theme_type_variation = &"FactLogText"
 scroll_following = true

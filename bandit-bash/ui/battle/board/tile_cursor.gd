@@ -6,7 +6,7 @@
 # File:     tile_cursor.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name TileCursor
@@ -18,23 +18,21 @@ extends Node2D
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
-## The outline's colour while picking a tile.
-# ASSUMPTION: greybox colour; the combat UI plan sets no palette (Design Basis, Gaps).
-@export var color: Color = Color(1.0, 0.95, 0.4, 1.0):
+## The outline's colour while picking a tile. Defaults to the [code]accent[/code] token.
+@export var color: Color = UiTokens.color(UiTokens.ACCENT):
 	set(value):
 		color = value
 		queue_redraw()
 
-## The outline's colour while picking a target.
-# ASSUMPTION: greybox colour, as above.
-@export var target_color: Color = Color(1.0, 0.35, 0.3, 1.0):
+## The outline's colour while picking a target. Defaults to the [code]danger[/code] token.
+@export var target_color: Color = UiTokens.color(UiTokens.DANGER):
 	set(value):
 		target_color = value
 		queue_redraw()
 
 ## The outline's width, drawn inside the tile.[br]
 ## [b]Units:[/b] pixels.
-# ASSUMPTION: greybox value, as above.
+# ASSUMPTION: greybox value; the combat UI plan sets no cursor width (Design Basis, Gaps).
 @export_range(1.0, 8.0, 0.5) var line_width: float = 2.0:
 	set(value):
 		line_width = value

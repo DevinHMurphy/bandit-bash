@@ -6,7 +6,7 @@
 # File:     intent_line.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 5, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name IntentLine
@@ -21,13 +21,13 @@ extends Node2D
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
-# ASSUMPTION: greybox look for every export here; the combat UI plan sets no palette.
-## The line's colour.
-@export var line_color: Color = Color(1.0, 0.85, 0.3, 0.9):
+## The line's colour. Defaults to the [code]accent[/code] token at 0.9 alpha.
+@export var line_color: Color = UiTokens.with_alpha(UiTokens.ACCENT, 0.9):
 	set(value):
 		line_color = value
 		queue_redraw()
 
+# ASSUMPTION: greybox look for the exports below; the style guide gives a preview no token.
 ## The line's colour in a move preview.
 @export var preview_color: Color = Color(0.7, 0.85, 1.0, 0.9):
 	set(value):

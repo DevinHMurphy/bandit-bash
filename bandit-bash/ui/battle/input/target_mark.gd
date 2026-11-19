@@ -6,7 +6,7 @@
 # File:     target_mark.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 16, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name TargetMark
@@ -45,10 +45,10 @@ const CURRENT_STYLE: StringName = &"TargetMarkCurrent"
 ## [b]0.0:[/b] only the current target shows. [b]1.0:[/b] they differ by width alone.
 @export_range(0.0, 1.0, 0.01) var other_alpha: float = 0.75
 
-# ASSUMPTION: gold for the picked unit; no design doc or Godot_FE colour marks a first pick.
 ## The outline of a target already picked while the next is chosen: Recall's first unit while
-## its partner is picked. Drawn strong and fully opaque, whatever [member other_alpha].
-@export var picked_color: Color = Color(1.0, 0.843137, 0.0, 1.0)
+## its partner is picked. Drawn strong and fully opaque, whatever [member other_alpha]. Defaults
+## to the [code]accent[/code] token, the guide's highlight.
+@export var picked_color: Color = UiTokens.color(UiTokens.ACCENT)
 
 ## The tile the mark stands on; [constant CombatFact.NO_TILE] until [method show_mark].
 var tile: Vector2i = CombatFact.NO_TILE

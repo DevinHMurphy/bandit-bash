@@ -6,7 +6,7 @@
 # File:     campaign_map_view.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 15, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name CampaignMapView
@@ -85,14 +85,16 @@ const TYPE_NAMES: Dictionary[CampaignGraph.NodeType, String] = {
 ## [b]Units:[/b] pixels at the base size.
 @export_range(1.0, 8.0, 0.5) var edge_width: float = 2.0
 
-## A path off the route and not leading on from the current node.
-@export var edge_color: Color = Color(1.0, 1.0, 1.0, 0.18)
+## A path off the route and not leading on from the current node. Defaults to the
+## [code]border[/code] token.
+@export var edge_color: Color = UiTokens.color(UiTokens.BORDER)
 
-## A path the route took.
-@export var route_edge_color: Color = Color(0.45, 0.85, 1.0, 0.9)
+## A path the route took. Defaults to the [code]block[/code] token (the player's side) at 0.9.
+@export var route_edge_color: Color = UiTokens.with_alpha(UiTokens.BLOCK, 0.9)
 
-## A path from the current node to a node it can enter next.
-@export var next_edge_color: Color = Color(1.0, 0.92, 0.45, 0.8)
+## A path from the current node to a node it can enter next. Defaults to the [code]accent[/code]
+## token at 0.8.
+@export var next_edge_color: Color = UiTokens.with_alpha(UiTokens.ACCENT, 0.8)
 
 @export_group("")
 

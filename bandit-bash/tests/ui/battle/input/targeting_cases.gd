@@ -353,9 +353,9 @@ func _test_support_overlays() -> void:
 	]
 	var colours_ok: bool = true
 	for overlay: TileOverlay in purple:
-		colours_ok = colours_ok and _is_purple(overlay.fill_color)
+		colours_ok = colours_ok and _is_purple(overlay.drawn_fill_color())
 	for overlay: TileOverlay in red:
-		var fill: Color = overlay.fill_color
+		var fill: Color = overlay.drawn_fill_color()
 		colours_ok = colours_ok and _is_red(fill) and not _is_purple(fill)
 	_check.call("support: the support overlays are purple, the attack ones red", colours_ok)
 
