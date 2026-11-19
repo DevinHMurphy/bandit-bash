@@ -71,7 +71,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P07 | [Combat UI](2026-11-04-combat-ui.md) | **In progress** | Nothing for M2 | P02, P04, P05, P06 |
 | P08 | [Campaign and run flow](2026-10-24-campaign-run-flow.md) | **In progress** | RN6–RN12 | P01, P03 |
 | P09 | [Narrative events and curses](2026-11-12-events-and-curses.md) | **In progress**: EV1 merged November 19, 2026 | EV1F (after RN6), EV2–EV6 | P01, P03, P08 |
-| P10 | Net transport (multiplayer-combat-options.md; read `steam_multiplayer_kit/` first) | **Planning**: the plan prompt issued November 19, 2026 (Lane F, `feature/P10-plan`) | — | P00, P01 |
+| P10 | [Net transport](2026-11-19-net-transport.md) | **Approved** November 19, 2026 (P10 questions 1–14) | NT1–NT8 (Lane E): NT1, then NT2 and NT3 in parallel, then NT4–NT8 | P00, P01 |
 | P11 | Co-op combat (game-vision.md Multiplayer maps) | **Not started** | — | P01, P02, P04, P08, P10 |
 | P12 | Statistics and the Waystation war table (meta-progression.md) | **Not started** | — | P01, P08 |
 | P13 | [RNG streams](2026-10-26-rng-streams.md) | **Implemented** | — | P00 |
