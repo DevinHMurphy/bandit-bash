@@ -16,8 +16,8 @@ extends RefCounted
 ## counted in the step's count; the same seed fields the same leader twice; a map with no leader
 ## slot fields none. In a battle the leader is the one marked enemy, the HUD names it with its
 ## prefix, its state holds its prefix and level (through a JSON trip too) as its unit detail
-## shows them, and its fall ends the map. The Warcaller's War Horn shows as its intent the phase before
-## it fires, and fires then. Reports each case through the check callable it is given.
+## shows them, and its fall ends the map. The Warcaller's War Horn shows as its intent the phase
+## before it fires, and fires then. Reports each case through the check callable it is given.
 ##
 ## @tutorial(Enemy packs): docs/design/enemy-packs.md
 
