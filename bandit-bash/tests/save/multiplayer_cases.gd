@@ -72,40 +72,44 @@ func _test_lobby_admission() -> void:
 	var anyone: PackedInt64Array = []
 	var campaign_ids: PackedInt64Array = [76561198000000001, joiner]
 	var members: PackedInt64Array = [76561198000000001]
+	# Both sides' build fingerprint; tests/net checks a mismatch.
+	var build: int = 7
+	var outsider: int = 76561198000000099
 
 	_check(
 			"admission: new lobby admits a matching version",
-			LobbyAdmission.decide(host, host, joiner, anyone, members) == LobbyAdmission.ADMIT
+			LobbyAdmission.decide(host, host, build, build, joiner, anyone, members)
+			== LobbyAdmission.ADMIT
 	)
 	_check(
 			"admission: other version refused",
-			LobbyAdmission.decide(host, "0.2.0", joiner, anyone, members)
+			LobbyAdmission.decide(host, "0.2.0", build, build, joiner, anyone, members)
 			== LobbyAdmission.Refusal.VERSION_MISMATCH
 	)
 	_check(
 			"admission: oversized version refused",
-			LobbyAdmission.decide(host, "0.1.0".repeat(20), joiner, anyone, members)
+			LobbyAdmission.decide(host, "0.1.0".repeat(20), build, build, joiner, anyone, members)
 			== LobbyAdmission.Refusal.VERSION_MISMATCH
 	)
 	_check(
 			"admission: campaign player admitted on resume",
-			LobbyAdmission.decide(host, host, joiner, campaign_ids, members)
+			LobbyAdmission.decide(host, host, build, build, joiner, campaign_ids, members)
 			== LobbyAdmission.ADMIT
 	)
 	_check(
 			"admission: outsider refused on resume",
-			LobbyAdmission.decide(host, host, 76561198000000099, campaign_ids, members)
+			LobbyAdmission.decide(host, host, build, build, outsider, campaign_ids, members)
 			== LobbyAdmission.Refusal.NOT_IN_CAMPAIGN
 	)
 	var with_joiner: PackedInt64Array = [76561198000000001, joiner]
 	_check(
 			"admission: same account twice refused",
-			LobbyAdmission.decide(host, host, joiner, anyone, with_joiner)
+			LobbyAdmission.decide(host, host, build, build, joiner, anyone, with_joiner)
 			== LobbyAdmission.Refusal.ALREADY_JOINED
 	)
 	_check(
 			"admission: version checked before membership",
-			LobbyAdmission.decide(host, "9.9.9", 76561198000000099, campaign_ids, members)
+			LobbyAdmission.decide(host, "9.9.9", build, build, outsider, campaign_ids, members)
 			== LobbyAdmission.Refusal.VERSION_MISMATCH
 	)
 	_check(
