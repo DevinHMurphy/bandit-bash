@@ -6,7 +6,7 @@
 # File:     save_select_screen.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: October 27, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends Control
@@ -14,9 +14,22 @@ extends Control
 ##
 ## Entered from Start on every launch; there is no way to the Main Menu without choosing a file.
 ## Entering this screen closes any open save file.[br]
-## One card per save file is built in code from [code]SaveService.SAVE_FILE_COUNT[/code], so the
+## One [SaveCard] per save file is added from [code]SaveService.SAVE_FILE_COUNT[/code], so the
 ## count lives in one place. Choosing an empty card creates that save file. Delete always asks for
 ## confirmation. Focus starts on the last selected file.
+
+# ============================================================
+# INPUT MAP SETUP (built-in ui_* actions; read through the GUI, not here):
+#   "ui_up" / "ui_down"    -> arrows; d-pad, left stick   (move between the cards and Back)
+#   "ui_left" / "ui_right" -> arrows; d-pad, left stick   (move between a card's Open and Delete)
+#   "ui_accept"            -> Enter, Space; pad A [Cross] (press the focused button)
+#   "ui_cancel"            -> Esc; pad B [Circle], Menu [Options] (Back's shortcut, to Start; in
+#                             the delete dialog it cancels the dialog instead)
+#   Mouse: a click on a button.
+# Hint context: MENU.
+# ============================================================
+
+const CARD_SCENE: PackedScene = preload("res://ui/screens/save_card.tscn")
 
 # Save number waiting on the delete confirmation dialog.
 var _pending_delete: int = 0
@@ -43,43 +56,21 @@ func _rebuild_cards() -> void:
 	var notices: PackedStringArray = []
 	for save_number: int in range(1, SaveService.SAVE_FILE_COUNT + 1):
 		var summary: SaveFileSummary = SaveService.get_summary(save_number)
-		_cards.add_child(_build_card(summary))
+		_add_card(summary)
 		if summary.was_recovered:
 			notices.append("Save %d was restored from its backup copy." % [save_number])
 	_status_label.text = "\n".join(notices)
 
 
-func _build_card(summary: SaveFileSummary) -> Control:
-	var card: PanelContainer = PanelContainer.new()
-	var column: VBoxContainer = VBoxContainer.new()
-	card.add_child(column)
-
-	var title: Label = Label.new()
-	title.text = "Save %d" % [summary.save_number]
-	column.add_child(title)
-
-	var detail: Label = Label.new()
-	detail.text = _describe(summary)
-	column.add_child(detail)
-
-	var buttons: HBoxContainer = HBoxContainer.new()
-	column.add_child(buttons)
-
-	var open_button: Button = Button.new()
+func _add_card(summary: SaveFileSummary) -> void:
+	var card: SaveCard = CARD_SCENE.instantiate()
+	_cards.add_child(card)
 	var is_empty: bool = summary.state == SaveFileSummary.State.EMPTY
-	open_button.text = "New" if is_empty else "Open"
-	open_button.disabled = not (is_empty or summary.state == SaveFileSummary.State.READY)
-	open_button.pressed.connect(_on_open_button_pressed.bind(summary.save_number))
-	buttons.add_child(open_button)
-	_open_buttons[summary.save_number] = open_button
-
-	var delete_button: Button = Button.new()
-	delete_button.text = "Delete"
-	delete_button.visible = not is_empty
-	delete_button.pressed.connect(_on_delete_button_pressed.bind(summary.save_number))
-	buttons.add_child(delete_button)
-
-	return card
+	var can_open: bool = is_empty or summary.state == SaveFileSummary.State.READY
+	card.show_save(summary.save_number, _describe(summary), is_empty, can_open)
+	card.open_requested.connect(_on_card_open_requested)
+	card.delete_requested.connect(_on_card_delete_requested)
+	_open_buttons[summary.save_number] = card.get_open_button()
 
 
 func _describe(summary: SaveFileSummary) -> String:
@@ -153,7 +144,7 @@ func _focus_card(save_number: int) -> void:
 		target.grab_focus.call_deferred()
 
 
-func _on_open_button_pressed(save_number: int) -> void:
+func _on_card_open_requested(save_number: int) -> void:
 	var err: Error = SaveService.open_save_file(save_number)
 	if err != OK:
 		_status_label.text = "Couldn't open save %d (%s)." % [save_number, error_string(err)]
@@ -161,7 +152,7 @@ func _on_open_button_pressed(save_number: int) -> void:
 	SceneRouter.goto_screen(SceneRouter.Screen.MAIN_MENU)
 
 
-func _on_delete_button_pressed(save_number: int) -> void:
+func _on_card_delete_requested(save_number: int) -> void:
 	_pending_delete = save_number
 	_delete_dialog.dialog_text = "Delete save %d? This can't be undone." % [save_number]
 	_delete_dialog.popup_centered()

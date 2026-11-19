@@ -18,7 +18,9 @@ extends Control
 ## for a combat node, the placeholder for any other. There is no confirm step (Godot_FE's map had
 ## none). A rejected choice shows its reason and changes nothing. Opened at any other stage, it
 ## sends the run on at once. The info line describes the node hovered or focused. The
-## [HeirloomBar] under the header shows the seat's heirlooms as the run saved them.
+## [HeirloomBar] under the header shows the seat's heirlooms as the run saved them. The run's
+## facts still to play ([CampaignPlayback]) play as it opens (a new run's start) and once a choice
+## resolves, before the screen changes.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 
@@ -27,23 +29,27 @@ extends Control
 #   "ui_left" / "ui_right" -> Left / Right arrows; d-pad, left stick    (move focus between the
 #                             reachable nodes, in column order; the ends stop. On the heirloom
 #                             bar: between its icons, wrapping)
-#   "ui_up" / "ui_down"    -> deliberately inert: focus stays on the node (nothing scrolls)
+#   "ui_up" / "ui_down"    -> deliberately inert: focus stays on the node; the map scrolls only
+#                             to follow focus (MapScroll) and by the mouse wheel
 #   "ui_accept"            -> Enter, Space; pad A [Cross]               (choose the focused node)
 #   "ui_cancel"            -> Esc; pad B [Circle], Menu [Options]       (the pause menu, which
 #                             reads it; on the heirloom bar the bar reads it, closing itself)
 #   "heirloom_bar_focus"   -> H; RS pushed left [R stick]               (read by the HeirloomBar:
 #                             focuses it, then back to the node; hints HEIRLOOMS meanwhile)
 #   Mouse: a click on a reachable node chooses it; hovering any node describes it, and any
-#   heirloom shows its tooltip.
+#   heirloom shows its tooltip; the wheel scrolls the map.
 # ============================================================
 
 ## The hint context while choosing a node.
 const HINT_CONTEXT: StringName = &"MAP"
 
 var _is_leaving: bool = false
+# Whether the choices have been scrolled into view since the screen opened.
+var _is_revealed: bool = false
 
 @onready var _header: RunHeader = %RunHeader
 @onready var _map_view: CampaignMapView = %CampaignMapView
+@onready var _map_scroll: ScrollContainer = %MapScroll
 @onready var _info_label: Label = %NodeInfo
 @onready var _status_label: Label = %Status
 @onready var _hints: ScreenHints = %ScreenHints
@@ -68,6 +74,10 @@ func _ready() -> void:
 	_info_label.text = "Choose the next node."
 	_hints.context = HINT_CONTEXT
 	_map_view.focus_first_reachable.call_deferred()
+	# Follow-focus scrolls before the map's height is laid out, so each layout pass scrolls the
+	# choices into view until they show; then never again, so the wheel stays free.
+	_map_scroll.sort_children.connect(_on_map_scroll_sort_children)
+	CampaignPlayback.play_pending(session)
 
 
 ## The map, for tests.
@@ -98,7 +108,28 @@ func _on_map_view_node_chosen(node_id: int) -> void:
 		]
 		return
 	_is_leaving = true
+	CampaignPlayback.play_pending(session)
 	RunScreen.go()
+
+
+# Scrolls the focused choice (else the first) into view after a layout pass; done once it shows.
+func _reveal_choices() -> void:
+	var reachable: PackedInt32Array = _map_view.get_reachable()
+	if _is_revealed or reachable.is_empty() or not is_inside_tree():
+		return
+	var target: Control = _map_view.get_node_button(reachable[0])
+	var focused: Control = get_viewport().gui_get_focus_owner()
+	if focused is MapNodeButton:
+		target = focused
+	if _map_scroll.get_global_rect().encloses(target.get_global_rect()):
+		_is_revealed = true
+		return
+	_map_scroll.ensure_control_visible(target)
+
+
+func _on_map_scroll_sort_children() -> void:
+	if not _is_revealed:
+		_reveal_choices.call_deferred()
 
 
 func _on_map_view_node_inspected(node_id: int) -> void:

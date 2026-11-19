@@ -1,0 +1,19 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/map_legend_row.gd" id="1_row"]
+
+[node name="MapLegendRow" type="HBoxContainer"]
+mouse_filter = 2
+script = ExtResource("1_row")
+
+[node name="Swatch" type="ColorRect" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(14, 14)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+
+[node name="Label" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+text = "S  Combat"

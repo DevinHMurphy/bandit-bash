@@ -13,8 +13,9 @@ class_name ItemRewardPicker
 extends RewardPicker
 ## The item pick's picker: the offers and Skip ([ItemPickPanel]) in a modal, then where a taken
 ## item goes ([PlacementPanel]). A take with its placement goes as one [ItemPickCommand], Skip as
-## another; either resolves the pick, so its row leaves the list. A rejection shows its reason and
-## changes nothing. Back, or ui_cancel, closes it untouched.
+## another; either resolves the pick, so its row leaves the list, and its facts play
+## ([CampaignPlayback]). A rejection shows its reason and changes nothing. Back, or ui_cancel,
+## closes it untouched.
 ##
 ## @tutorial(UL5 plan): docs/plans/2026-11-19-ul5-victory-sequence.md
 
@@ -137,6 +138,7 @@ func _submit(command: CampaignCommand) -> bool:
 		else:
 			_status_label.text = "Can't do that: %s." % [reason]
 		return false
+	CampaignPlayback.play_pending(CampaignService.session)
 	return true
 
 

@@ -20,8 +20,10 @@ extends SceneTree
 ## into the first darkness phase, the darkness's three layers side by side, every map object state
 ## and a lit keg, pause), the victory sequence over the board (Grade, Recap filling, a level-up,
 ## Recap, Rewards, the item picker, placement, the leave dialog), the sequence resumed over its
-## backdrop (on Grade, then on Rewards once the pick is settled), contact sheets of every unit
-## sprite and item icon, and the run's end. Each shot is [code]<out>/<size>/<nn>_<name>.png[/code].
+## backdrop (on Grade, then on Rewards once the pick is settled), the map's pause menu, a node
+## placeholder where one is reachable, contact sheets of every unit sprite and item icon, and the
+## run's end (the run ended as lost, so it shows a lost run and its seed). Each shot is
+## [code]<out>/<size>/<nn>_<name>.png[/code].
 ## Each shot also lists visible text under [constant MIN_FONT_SIZE] base units and visible
 ## controls reaching outside the window, and the run ends with their count.[br]
 ## Run windowed (a headless run renders nothing), from the repo root, with a throwaway user folder
@@ -149,6 +151,7 @@ func _run() -> void:
 		return
 	await _battle()
 	await _results()
+	await _campaign_after_battle()
 	await _contact_sheets()
 	await _goto(SCREEN_RESULTS, "run_end")
 	_end()
@@ -803,6 +806,35 @@ func _node(path: NodePath) -> Node:
 func _end() -> void:
 	print("--- %d shots, %d issues ---" % [_shot, _issues])
 	quit(0)
+
+
+# Back on the map after the victory: the pause menu over it (with the run's seed), a node
+# placeholder when a node that isn't a combat is reachable, then the run ended as lost (as a lost
+# battle ends it), so the run's end shot shows a lost run and its seed.
+func _campaign_after_battle() -> void:
+	if _router_screen() != SCREEN_MAP:
+		print("FAIL  the victory's Leave didn't reach the map (screen %d)" % [_router_screen()])
+		return
+	await _frames(SETTLE_FRAMES)
+	var pause: Node = current_scene.get_node(^"PauseMenu")
+	pause.call(&"open")
+	await _frames(SETTLE_FRAMES)
+	await _capture("campaign_map_pause")
+	pause.call(&"close")
+	await _frames(SETTLE_FRAMES)
+	var view: CampaignMapView = current_scene.call(&"get_map_view")
+	for node_id: int in view.get_reachable():
+		var button: MapNodeButton = view.get_node_button(node_id)
+		if not FactCueMap.COMBAT_NODE_TYPES.has(button.node_type):
+			button.pressed.emit()
+			await _frames(SETTLE_FRAMES)
+			await _capture("node_placeholder")
+			(current_scene.call(&"get_continue_button") as Button).pressed.emit()
+			await _frames(SETTLE_FRAMES)
+			break
+	var err: Error = _node(^"SaveService").call(&"end_run", false)
+	if err != OK:
+		print("FAIL  the run did not end as lost for the run's end: %s" % [error_string(err)])
 
 
 # Waits FADE_WAIT seconds of real time, then captures, so a victory stage's fade has ended.

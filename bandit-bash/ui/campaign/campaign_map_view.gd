@@ -16,10 +16,11 @@ extends Control
 ## top, the paths between them drawn as lines, the route taken and the next steps in their colours.
 ##
 ## The grid fills the view's rect less [member padding], one row per floor and one column per map
-## column, re-laid out on resize, so nothing scrolls. Only the reachable nodes take focus; left
-## and right move between them in column order and stop at the ends (Godot_FE's campaign map),
-## up and down stay put. Pressing one emits [signal node_chosen]; the screen sends the command.
-## Reading only: it never changes the run.
+## column, re-laid out on resize. Its minimum height fits every floor at [member node_size] plus
+## [member floor_gap], so the screen scrolls it when it is taller. Only reachable nodes take
+## focus; left and right move between them in column order and stop at the ends (Godot_FE's
+## campaign map), up and down stay put. Pressing one emits [signal node_chosen]; the screen sends
+## the command. Reading only: it never changes the run.
 
 ## The player pressed reachable node [param node_id], by click, key or pad.
 signal node_chosen(node_id: int)
@@ -70,10 +71,14 @@ const TYPE_NAMES: Dictionary[CampaignGraph.NodeType, String] = {
 ## Each node type's icon, drawn instead of its letter. [b]A type left out:[/b] its letter shows.
 @export var type_icons: Dictionary[CampaignGraph.NodeType, Texture2D] = {}
 
-## The size of each node's square.[br]
-## [b]Units:[/b] pixels at the base size. Keep below one floor's row ([member size] less
-## [member padding], over the floor count) or neighbouring floors touch.
-@export var node_size: Vector2 = Vector2(26.0, 26.0)
+## The size of each node's square: its click target, so at least 32 by 32 (ui-style.md).[br]
+## [b]Units:[/b] pixels at the base size.
+@export var node_size: Vector2 = Vector2(32.0, 32.0)
+
+## The least space between one floor's nodes and the next's: the style guide's 4-unit gap
+## between rows. Sets the view's minimum height with [member node_size].[br]
+## [b]Units:[/b] pixels at the base size. [b]0:[/b] neighbouring floors may touch.
+@export_range(0.0, 32.0, 1.0) var floor_gap: float = 4.0
 
 ## The gap between the view's edges and the grid.[br]
 ## [b]Units:[/b] pixels at the base size.
@@ -133,6 +138,9 @@ func show_run(run: CampaignRunState) -> void:
 		queue_redraw()
 		return
 	var graph: CampaignGraph = run.graph
+	custom_minimum_size.y = (
+			padding.y * 2.0 + graph.get_floor_count() * (node_size.y + floor_gap)
+	)
 	for node_id: int in graph.node_count():
 		var button: MapNodeButton = NODE_SCENE.instantiate()
 		var type: CampaignGraph.NodeType = graph.type_of(node_id)

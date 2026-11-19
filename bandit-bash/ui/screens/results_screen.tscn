@@ -29,6 +29,7 @@ layout_mode = 2
 [node name="Title" type="Label" parent="Center/Column"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_type_variation = &"TitleLabel"
 text = "Results (placeholder)"
 horizontal_alignment = 1
 
@@ -38,9 +39,18 @@ layout_mode = 2
 text = "Round scores and rankings go here."
 horizontal_alignment = 1
 
+[node name="Seed" type="Label" parent="Center/Column"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+text = "Seed 0000-0000-0000-0"
+horizontal_alignment = 1
+
 [node name="NextRoundButton" type="Button" parent="Center/Column"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_type_variation = &"PrimaryButton"
 text = "Next Round"
 script = ExtResource("1_nav")
 action = 3

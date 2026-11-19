@@ -49,6 +49,7 @@ Not a bug.
 | [BUG-014](#bug-014-a-runs-runes-never-reach-the-battle) | A run's runes never reach the battle, and a cast or discard never reaches the run | P08 (battle bridge) | S2 (latent: no run grants runes yet) | Assigned (RN9) | November 18, 2026, UI14 report | RN9 |
 | [BUG-015](#bug-015-the-unit-panels-details-button-cant-be-clicked) | The unit panel's Details button can't be clicked: the panel follows the hovered unit, so moving the mouse to it changes or hides the panel | P07 (unit panel) | S2 | Fixed (UL3 merge, November 19, 2026) | November 18, 2026, user playtest | UL3 (ui-lift.md) |
 | [BUG-016](#bug-016-steamnetworklocal_peer_id-errors-once-the-peer-is-cleared) | `SteamNetwork.local_peer_id()` errors once the peer is cleared | P10 | S4 | New (latent) | November 19, 2026, BF1 report | P10 |
+| [BUG-017](#bug-017-choosing-a-map-node-by-keyboard-logs-a-grab_focus-error) | Choosing a map node by keyboard logs `grab_focus: !is_inside_tree()` | P08 (campaign map) | S4 | New | November 19, 2026, UL7 report | — |
 
 ### BUG-001 No Block at the start of combat
 
@@ -289,3 +290,12 @@ Not a bug.
 - **Harm today:** none. It is only called inside a lobby.
 - **Expected:** 1 with no error when there is no peer, or a guard at the call.
 - **Fix in P10** (net transport), which owns `SteamNetwork`.
+
+### BUG-017 Choosing a map node by keyboard logs a grab_focus error
+
+- **Found:** UL7's report, confirmed on clean `dev` before UL7. The campaign walk logs
+  `grab_focus: !is_inside_tree()` once when the keyboard chooses a node.
+- **Harm seen:** none: an engine error line; the choice goes through.
+- **Likely cause** (not checked): focus is asked of a control that is leaving or not yet in the
+  tree as the screen changes.
+- **Fix:** with the next campaign-map step (RN7 or RN10), or a bug-fix step.

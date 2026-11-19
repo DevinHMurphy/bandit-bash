@@ -21,20 +21,24 @@ direction is open, for an ideation pass before AU2.
 - **UI sounds:** a tree-wide hook (`UiSoundHook`), not a component in the shared scenes. It plays
   focus, press, Back and refused for every button, slider and focus change, with the
   `ui_sound_off` group to opt out, so no scene has sound code. Focus moves sound; a screen's first
-  focus and a click's don't. An Esc that goes back without pressing a button is silent until UL7.
+  focus and a click's don't. On the menu screens Esc and pad B press the Back button (its
+  `ui_cancel` shortcut, P15 UL7), so they sound as Back.
 - **Facts to cues:** one `FactCueListener` per bus reads a `FactCueMap`, one line per rule
   (`"HIT_DEALT/no_damage": "no_damage"`). Combat: swing on every attack, miss, hit, no damage, hit
   on an object, crit, heal, a player unit's death, victory, and the phase banner's music change.
-  Nothing plays `CampaignBus` facts yet, so its `LEVELED_UP` rule is silent and the victory recap
-  plays the level-up itself.
+  Campaign facts play from P15 UL7: the campaign screens play the run's facts on its
+  `CampaignBus` as they show them (`CampaignPlayback`), so `LEVELED_UP` sounds the level-up once
+  per recap card, `NODE_CHOSEN` on a combat node `battle_map_enter` (the `combat` shape, the
+  node's type read through a lookup the service binds), and `RUN_STARTED` `begin_campaign`. The
+  run's fact log isn't saved, so a resumed run replays none of them.
 - **The sound set:** 62 files from Godot_FE (8 tracks, 53 current sounds and the old `miss.wav`)
   in `bandit-bash/assets/audio/`, Godot_FE's folder layout, 63 cues (`ui_refused` reuses
   `menu_back.ogg`). In use today: 7 tracks (menus and campaign map; prep, player and enemy phase
-  per battle, the boss set on the Powder Baron's map) and 21 sound cues (UI hook, campaign map
-  nodes, board input, combat facts, victory sequence). Unmapped: `Action_-_Treasure_Hunters` and
-  34 sounds waiting for their screen (shop, Guildhall training, equip and convoy, draft, the map's
-  node-type enter sounds, run start, resurrect, promotion, weapon durability, UL6's magic hits and
-  walk). The full table is [assets/audio/README.md](../../bandit-bash/assets/audio/README.md).
+  per battle, the boss set on the Powder Baron's map) and 23 sound cues (UI hook, campaign map
+  nodes, board input, combat facts, victory sequence, and from UL7 a combat node chosen and the
+  run's start). Unmapped: `Action_-_Treasure_Hunters` and 32 sounds waiting for their screen
+  (shop, Guildhall training, equip and convoy, draft, the Treasure, event and recruit nodes' enter
+  sounds, resurrect, promotion, weapon durability, UL6's magic hits and walk). The full table is [assets/audio/README.md](../../bandit-bash/assets/audio/README.md).
   Placeholders under RF-008.
 
 Found November 19, 2026, before AU1:
