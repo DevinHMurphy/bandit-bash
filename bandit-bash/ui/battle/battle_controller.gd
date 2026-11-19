@@ -138,11 +138,19 @@ extends HintSource
 #   ui_up / ui_down in DETAIL                 (scroll the detail's body while it overflows; the
 #                                                Close button keeps focus. Harmless otherwise)
 #   "event_log_focus"       -> L; RS pushed   (IDLE, MOVE: focuses the event log (EVENT_LOG) on its
-#                              left or right     header. EVENT_LOG: closes it, as cancel does.
-#                              [R stick]         Harmless elsewhere. The stick counts only when its
+#                              right [R stick]   header. EVENT_LOG: closes it, as cancel does.
+#                                                Harmless elsewhere. The stick counts only when its
 #                                                horizontal push is past the deadzone and larger
 #                                                than its vertical one, so a slanted scroll never
 #                                                grabs focus; once per push, until it is let back)
+#   "heirloom_bar_focus"    -> H; RS pushed   (IDLE, MOVE: focuses the heirloom bar (HEIRLOOM_BAR)
+#                              left [R stick]    on its last focused icon. HEIRLOOM_BAR: closes it,
+#                                                as cancel does. Harmless elsewhere and with no
+#                                                icons. The stick counts as event_log_focus's does;
+#                                                its push's side picks the bar or the log)
+#   ui_left / ui_right in   HEIRLOOM_BAR      (GUI focus moves between the icons, wrapping; up and
+#                                                down stay. The bar's own focus links; never read
+#                                                here. Hovering an icon shows its tooltip anywhere)
 #   "event_log_scroll_up" / -> PageUp /       (any stage, even during playback, while the log shows:
 #   "event_log_scroll_down"    PageDown; RS      open and no panel over it. One page up or down; a
 #                              up / down         key repeats by its echo, the stick by pad_repeat's
@@ -159,9 +167,11 @@ extends HintSource
 #                                                on the board in EVENT_LOG closes it)
 # ASSUMPTION: Godot_FE bound none of end_turn, toggle_danger_zone, cycle_weapon, fast_forward,
 # skip_playback or unit_detail to a pad; their pad buttons above have no basis (unit_detail's L3
-# was the last pad button left free, so the event log took the right stick's axes). Every pad
-# input is bound to one action only, as this file reads them in one chain and the first match
-# wins. V for open_runes and L for event_log_focus have no basis either.
+# was the last pad button left free, so the event log took the right stick's axes, and the
+# heirloom bar shares its sideways push, by the user's choice, as H is). Every pad input is
+# bound to one action only, as this file reads them in one chain and the first match wins, except
+# the stick's sideways push, read once for both actions by its side. V for open_runes and L for
+# event_log_focus have no basis either.
 # While a command's playback runs, the token walks to its picked tile (WALK), the map's combat is
 # over, or the seat has no turn, every input but fast_forward, skip_playback, toggle_danger_zone,
 # the event log's scrolling and open_runes (which only says why it can't) is ignored: that guard
@@ -267,6 +277,10 @@ extends HintSource
 #              Up and down scroll it a line; left and right move focus between its header and
 #              filters; accept presses the focused one. The board is inert; a click on it, cancel
 #              or event_log_focus -> the stage it was opened from. No command is sent from it.
+# HEIRLOOM_BAR: the heirloom bar focused by heirloom_bar_focus from IDLE or MOVE (kept and dropped
+#              as EVENT_LOG keeps and drops them). Left and right move focus between its icons,
+#              each showing its tooltip; accept does nothing. The board is inert; a click on it,
+#              cancel or heirloom_bar_focus -> the stage it was opened from. No command is sent.
 # There is no separate forecast stage: the forecast is CONFIRM's panel, as Godot_FE's forecast
 # took the confirm. The walk before the action menu is the board's alone: the move and the action
 # are still one command, so the session changes only on Confirm, and its playback finds the token
@@ -279,8 +293,9 @@ extends HintSource
 # Cycling changes no state: each weapon has its own command (TargetOption.commands),
 # where Godot_FE equipped the weapon on the unit at each step and left it equipped on Back. Q / E
 # are inert in SWAP, SWAP_PICKED, MOVE, WALK, ACTION, RUNE, END_CONFIRM, RUNE_SLOTS,
-# DISCARD_CONFIRM and EVENT_LOG: cycling units there would drop the selection or the panel under
-# way. In DETAIL they step the detail through its side, as Godot_FE's details screen did.
+# DISCARD_CONFIRM, EVENT_LOG and HEIRLOOM_BAR: cycling units there would drop the selection or
+# the panel under way. In DETAIL they step the detail through its side, as Godot_FE's details
+# screen did.
 
 # The rune bar (RuneBar) casts any held rune at any point of the player phase, outside the action
 # economy: from IDLE and MOVE, by a click on a rune or by open_runes then accept, with no unit
@@ -339,6 +354,8 @@ enum Stage {
 	DISCARD_CONFIRM = 14,
 	## The event log focused by event_log_focus, from IDLE or MOVE.
 	EVENT_LOG = 15,
+	## The heirloom bar focused by heirloom_bar_focus, from IDLE or MOVE.
+	HEIRLOOM_BAR = 16,
 }
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
@@ -359,9 +376,10 @@ const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
 # shove, a rune), DETAIL's up and down while its body fits and its Q / E while its side has one
 # unit, open_runes in IDLE and MOVE while the
 # bar is refused, RUNE_SLOTS' left and right with one rune held, the event log's scrolling (and
-# EVENT_LOG's up and down) while it fits or doesn't show, event_log_focus with no log shown, and
-# EVENT_LOG's left and right while collapsed to its header. The scroll actions are in exactly the
-# rows where no panel covers the log.
+# EVENT_LOG's up and down) while it fits or doesn't show, event_log_focus with no log shown,
+# EVENT_LOG's left and right while collapsed to its header, heirloom_bar_focus with no icon shown,
+# and HEIRLOOM_BAR's left and right with one icon. The scroll actions are in exactly the rows
+# where no panel covers the log.
 # tests/ui/hint_bar_cases.gd presses every action in every context it
 # reaches, by key and by pad, and fails when one acts outside its row or a listed one does
 # nothing; change a row with the blocks above.
@@ -382,14 +400,15 @@ const LIVE_ACTIONS: Dictionary[StringName, Array] = {
 	],
 	&"IDLE": [
 		&"ui_up", &"ui_down", &"ui_left", &"ui_right", &"ui_accept", &"target_prev",
-		&"target_next", &"unit_detail", &"open_runes", &"event_log_focus",
+		&"target_next", &"unit_detail", &"open_runes", &"event_log_focus", &"heirloom_bar_focus",
 		&"event_log_scroll_up", &"event_log_scroll_down", &"end_turn", &"toggle_danger_zone",
 		&"fast_forward", &"ui_cancel", &"toggle_save_debug",
 	],
 	&"MOVE": [
 		&"ui_up", &"ui_down", &"ui_left", &"ui_right", &"ui_accept", &"ui_cancel", &"unit_detail",
-		&"open_runes", &"event_log_focus", &"event_log_scroll_up", &"event_log_scroll_down",
-		&"end_turn", &"toggle_danger_zone", &"fast_forward", &"toggle_save_debug",
+		&"open_runes", &"event_log_focus", &"heirloom_bar_focus", &"event_log_scroll_up",
+		&"event_log_scroll_down", &"end_turn", &"toggle_danger_zone", &"fast_forward",
+		&"toggle_save_debug",
 	],
 	&"RUNE_SLOTS": [
 		&"ui_left", &"ui_right", &"ui_up", &"ui_down", &"ui_accept", &"ui_cancel", &"open_runes",
@@ -400,6 +419,10 @@ const LIVE_ACTIONS: Dictionary[StringName, Array] = {
 		&"ui_up", &"ui_down", &"ui_left", &"ui_right", &"ui_accept", &"ui_cancel",
 		&"event_log_focus", &"event_log_scroll_up", &"event_log_scroll_down",
 		&"toggle_danger_zone", &"fast_forward", &"toggle_save_debug",
+	],
+	&"HEIRLOOM_BAR": [
+		&"ui_left", &"ui_right", &"ui_cancel", &"heirloom_bar_focus", &"event_log_scroll_up",
+		&"event_log_scroll_down", &"toggle_danger_zone", &"fast_forward", &"toggle_save_debug",
 	],
 	&"DISCARD_CONFIRM": [
 		&"ui_left", &"ui_right", &"ui_accept", &"ui_cancel", &"toggle_danger_zone",
@@ -560,6 +583,10 @@ const DISCARD_QUESTION: String = "Discard %s? It is gone for good."
 ## panel is open.[br]
 ## [b]Unset:[/b] event_log_focus and the scroll actions do nothing.
 @export var event_log: EventLog = null
+
+## The seat's heirloom bar, which HEIRLOOM_BAR focuses.[br]
+## [b]Unset:[/b] heirloom_bar_focus does nothing.
+@export var heirloom_bar: HeirloomBar = null
 
 @export_group("Danger zone")
 
@@ -746,6 +773,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if _take_log_input(event):
 		return
+	if event.is_action_pressed(&"heirloom_bar_focus"):
+		request_heirloom_bar()
+		return
 	if is_instance_valid(pad_repeat) and pad_repeat.take(event):
 		return
 	if not is_accepting_input():
@@ -846,6 +876,8 @@ func unbind() -> void:
 	if is_instance_valid(event_log):
 		event_log.set_navigable(false)
 		event_log.set_covered(false)
+	if is_instance_valid(heirloom_bar):
+		heirloom_bar.set_navigable(false)
 	_log_stick = Vector2.ZERO
 	_is_log_focus_latched = false
 	_log_scroll_held = 0
@@ -1210,9 +1242,9 @@ func step_back() -> bool:
 			_forecast_panel = null
 			_confirm_dialog = null
 			_show_current_target()
-		Stage.DETAIL, Stage.EVENT_LOG:
+		Stage.DETAIL, Stage.EVENT_LOG, Stage.HEIRLOOM_BAR:
 			_detail_panel = null
-			# Asks MOVE's hover preview again, which DETAIL and EVENT_LOG dropped.
+			# Asks MOVE's hover preview again, which DETAIL, EVENT_LOG and HEIRLOOM_BAR dropped.
 			move_cursor(_cursor)
 		Stage.DISCARD_CONFIRM:
 			_discard = null
@@ -1292,6 +1324,22 @@ func request_event_log() -> bool:
 	if _stage != Stage.IDLE and _stage != Stage.MOVE:
 		return false
 	_advance(Stage.EVENT_LOG)
+	_redraw()
+	return true
+
+
+## heirloom_bar_focus: from IDLE or MOVE focuses the heirloom bar on its last focused icon
+## (HEIRLOOM_BAR); in HEIRLOOM_BAR closes it, as cancel does. Returns false, doing nothing,
+## elsewhere, while input isn't taken, or with no bar or no icon showing.
+func request_heirloom_bar() -> bool:
+	if not is_accepting_input() or not _can_focus_heirlooms():
+		return false
+	if _stage == Stage.HEIRLOOM_BAR:
+		return step_back()
+	if _stage != Stage.IDLE and _stage != Stage.MOVE:
+		return false
+	_advance(Stage.HEIRLOOM_BAR)
+	heirloom_bar.focus_icon()
 	_redraw()
 	return true
 
@@ -1391,7 +1439,7 @@ func rune_bar_reason() -> String:
 	match _stage:
 		Stage.IDLE, Stage.MOVE, Stage.RUNE_SLOTS:
 			return ""
-		Stage.END_CONFIRM, Stage.DETAIL, Stage.EVENT_LOG:
+		Stage.END_CONFIRM, Stage.DETAIL, Stage.EVENT_LOG, Stage.HEIRLOOM_BAR:
 			return RUNES_PANEL_OPEN
 	if _bar_origin != Stage.INACTIVE:
 		return RUNES_RUNE_BUSY
@@ -1422,7 +1470,9 @@ func _read_mouse(mouse: InputEventMouse) -> void:
 		# board; a panel's rows keep theirs.
 		if panel_host.depth() == 0:
 			get_viewport().gui_release_focus()
-		var is_focused_away: bool = _stage == Stage.RUNE_SLOTS or _stage == Stage.EVENT_LOG
+		var is_focused_away: bool = (
+				_stage in [Stage.RUNE_SLOTS, Stage.EVENT_LOG, Stage.HEIRLOOM_BAR]
+		)
 		if button.button_index == MOUSE_BUTTON_LEFT and is_focused_away:
 			step_back()
 		elif button.button_index == MOUSE_BUTTON_LEFT and _follows_mouse():
@@ -1461,6 +1511,8 @@ func _can_act_now(context: StringName, action: StringName) -> bool:
 			return context == &"RUNE_SLOTS" or (rune_bar != null and rune_bar_reason().is_empty())
 		&"event_log_focus":
 			return _can_focus_log()
+		&"heirloom_bar_focus":
+			return _can_focus_heirlooms()
 		&"event_log_scroll_up", &"event_log_scroll_down":
 			return event_log != null and event_log.can_scroll()
 		&"ui_left", &"ui_right":
@@ -1468,6 +1520,8 @@ func _can_act_now(context: StringName, action: StringName) -> bool:
 				return get_held_runes().size() > 1
 			if context == &"EVENT_LOG":
 				return event_log != null and event_log.get_focusables().size() > 1
+			if context == &"HEIRLOOM_BAR":
+				return heirloom_bar != null and heirloom_bar.get_icons().size() > 1
 		&"ui_up", &"ui_down":
 			if context == &"EVENT_LOG":
 				return event_log != null and event_log.can_scroll()
@@ -1539,17 +1593,27 @@ func _can_focus_log() -> bool:
 	)
 
 
-# The event log's actions, in any stage (see the input block); true when event was one of them.
-# Their stick motion goes to _read_log_stick(), so a push counts once, not per motion event.
+# Whether heirloom_bar_focus can focus or close the bar: set, shown and holding an icon.
+func _can_focus_heirlooms() -> bool:
+	return heirloom_bar != null and heirloom_bar.is_visible_in_tree() and heirloom_bar.has_icons()
+
+
+# The event log's actions and the stick's sideways push, which heirloom_bar_focus shares, in any
+# stage (see the input block); true when event was one of them. Their stick motion goes to
+# _read_log_stick(), so a push counts once, not per motion event.
 func _take_log_input(event: InputEvent) -> bool:
 	var actions: Array[StringName] = [
-		&"event_log_focus", &"event_log_scroll_up", &"event_log_scroll_down",
+		&"event_log_focus", &"heirloom_bar_focus", &"event_log_scroll_up",
+		&"event_log_scroll_down",
 	]
 	var motion: InputEventJoypadMotion = event as InputEventJoypadMotion
 	if motion != null:
 		for action: StringName in actions:
 			if motion.is_action(action):
-				_read_log_stick(motion, action == &"event_log_focus")
+				var is_sideways: bool = (
+						action == &"event_log_focus" or action == &"heirloom_bar_focus"
+				)
+				_read_log_stick(motion, is_sideways)
 				return true
 		return false
 	if event.is_action_pressed(&"event_log_scroll_up", true):
@@ -1564,9 +1628,10 @@ func _take_log_input(event: InputEvent) -> bool:
 	return false
 
 
-# The stick's push on one axis: sideways (is_focus) focuses or closes the log once per push while
-# it is past the deadzone and larger than the vertical push; up or down, while the larger, scrolls
-# a page and repeats as pad_repeat's directions do (_repeat_log_scroll()).
+# The stick's push on one axis: sideways (is_focus) once per push while it is past the deadzone
+# and larger than the vertical push, focusing or closing the log when pushed right and the
+# heirloom bar when pushed left; up or down, while the larger, scrolls a page and repeats as
+# pad_repeat's directions do (_repeat_log_scroll()).
 func _read_log_stick(motion: InputEventJoypadMotion, is_focus: bool) -> void:
 	var deadzone: float = InputMap.action_get_deadzone(&"event_log_focus")
 	if is_focus:
@@ -1579,7 +1644,10 @@ func _read_log_stick(motion: InputEventJoypadMotion, is_focus: bool) -> void:
 		_is_log_focus_latched = false
 	elif across > along and not _is_log_focus_latched:
 		_is_log_focus_latched = true
-		request_event_log()
+		if _log_stick.x < 0.0:
+			request_heirloom_bar()
+		else:
+			request_event_log()
 	var held: int = 0
 	if along >= deadzone and along >= across:
 		held = 1 if _log_stick.y > 0.0 else -1
@@ -2226,7 +2294,8 @@ func _redraw() -> void:
 				support.show_tiles(tiles)
 			else:
 				attack.show_tiles(tiles)
-		Stage.END_CONFIRM, Stage.DETAIL, Stage.RUNE_SLOTS, Stage.DISCARD_CONFIRM, Stage.EVENT_LOG:
+		Stage.END_CONFIRM, Stage.DETAIL, Stage.RUNE_SLOTS, Stage.DISCARD_CONFIRM, Stage.EVENT_LOG, \
+				Stage.HEIRLOOM_BAR:
 			if not _unit_id.is_empty():
 				move.show_tiles(_move_tiles)
 				attack.show_tiles(_attack_tiles)
@@ -2334,6 +2403,8 @@ func _refresh_widgets() -> void:
 		# Every stage that opens a panel pushes it before its stage is set, so depth is current.
 		event_log.set_covered(panel_host.depth() > 0)
 		event_log.set_navigable(_stage == Stage.EVENT_LOG)
+	if is_instance_valid(heirloom_bar):
+		heirloom_bar.set_navigable(_stage == Stage.HEIRLOOM_BAR)
 	var is_swapping: bool = TurnInputModel.is_swapping(_session, _seat)
 	if swap_window != null:
 		swap_window.visible = is_swapping and not _session.is_finished

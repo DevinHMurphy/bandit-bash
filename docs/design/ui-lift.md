@@ -89,9 +89,12 @@ references, November 18, 2026: relics under the top bar, items in a row).
   the UI. The count toward its period ("every 10th"), in battle and, for campaign-lane counters
   (War Ledger), on campaign screens too; a **ready** look when the next qualifying event fires it;
   uses left where it has charges, and a spent look once they run out. A resumed battle shows the
-  same state.
+  same state. A "First ... this combat" heirloom shows no count and takes the spent look once it
+  has fired, until its period starts over; other heirlooms are never spent just by firing (user,
+  November 19, 2026, at UL8).
 - **Input:** a key and pad button move focus onto the bar, as the rune bar does (UI14); left and
-  right move between icons; Back leaves.
+  right move between icons; Back leaves. Built as H and the right stick pushed left; the event log
+  keeps the right stick pushed right (user, November 19, 2026, at UL8: every pad button was taken).
 - **Data:** an `icon` export on `HeirloomDefinition` and `CurseDefinition` (P03 content), with
   placeholder art per the art decision; a missing icon falls back to one generic mark.
 - **Co-op:** each seat sees its own heirlooms. Showing teammates' bars waits for P11.

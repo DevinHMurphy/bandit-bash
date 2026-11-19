@@ -4,6 +4,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_value"]
 [ext_resource type="Script" path="res://scripts/content/heirloom_definition.gd" id="9_def"]
+[ext_resource type="Texture2D" path="res://assets/sprites/heirlooms/heirloom_economy.svg" id="20_icon"]
 
 [sub_resource type="Resource" id="Resource_grades"]
 script = ExtResource("4_value")
@@ -23,3 +24,4 @@ kind = "economy"
 id = "gilded_purse"
 display_name = "Gilded Purse"
 effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])
+icon = ExtResource("20_icon")

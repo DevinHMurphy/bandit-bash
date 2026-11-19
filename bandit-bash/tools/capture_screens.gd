@@ -13,7 +13,8 @@ extends SceneTree
 ## Screenshots every screen at one window size, for checking the UI's layout by eye (UI style
 ## guide: base 1280×720, shown at 1920×1080 and the Steam Deck's 1280×800). Drives the real
 ## router through a new solo run: boot, start, save select, main menu, new run, options, lobby,
-## loading, the campaign map, the battle (swap window, HUD with the unit panel and rune bar,
+## loading, the campaign map with its heirloom bar, the battle (swap window, HUD with the unit
+## panel and rune bar, the heirloom bar with a count, a ready and spent icons, and its tooltip,
 ## action menu, forecast and a multi-hit forecast, unit detail for a player unit and an enemy
 ## (an elite where there is one), runes, the event log after turns played into the first darkness
 ## phase, the darkness's three layers side by side, pause), the victory sequence over the board
@@ -127,6 +128,7 @@ func _run() -> void:
 		print("FAIL  a new solo run did not start: %s" % [error_string(err)])
 		_end()
 		return
+	_stage_heirlooms()
 	await _goto(SCREEN_LOADING, "loading")
 	(current_scene.get_node(^"%ContinueButton") as Button).pressed.emit()
 	await _frames(SETTLE_FRAMES)
@@ -167,6 +169,14 @@ func _battle() -> void:
 	controller.move_cursor(session.state.tile_of(first))
 	await _frames(SETTLE_FRAMES)
 	await _capture("battle_hud")
+	_heirloom_states(session)
+	await _frames(SETTLE_FRAMES)
+	await _capture("battle_heirloom_bar")
+	if controller.request_heirloom_bar():
+		await _frames(SETTLE_FRAMES)
+		await _capture("battle_heirloom_tooltip")
+		controller.step_back()
+		await _frames(SETTLE_FRAMES)
 	if controller.request_unit_detail(first):
 		await _frames(SETTLE_FRAMES)
 		await _capture("battle_unit_detail")
@@ -203,6 +213,39 @@ func _battle() -> void:
 	_settle(view)
 	view.settled.emit()
 	await _frames(SETTLE_FRAMES)
+
+
+# Runs gain no heirloom yet (RN6), so this throwaway run is given some before the map, said in a
+# NOTE: War Ledger with its campaign count at 7, Breaker's Maul, Burglar's Roll, Iron Rations, and
+# two curses, Shaken Footing and Haunted.
+func _stage_heirlooms() -> void:
+	var campaign: CampaignSession = _node(^"CampaignService").get(&"session")
+	var seat_run: SeatRun = campaign.run.seat_run(0)
+	var ledger: SeatRun.OwnedHeirloom = seat_run.add_heirloom("war_ledger")
+	ledger.counters["double_damage"] = 7
+	for heirloom_id: String in [
+		"breakers_maul", "burglars_roll", "iron_rations", "shaken_footing", "haunted",
+	]:
+		seat_run.add_heirloom(heirloom_id)
+	print("NOTE  runs gain no heirlooms yet (RN6): this run is given War Ledger (7 / 10),"
+			+ " Breaker's Maul, Burglar's Roll, Iron Rations, Shaken Footing and Haunted")
+
+
+# The heirloom bar's shot in the states it shows: War Ledger mid-count (7, copied in), Breaker's
+# Maul ready (4 of 5, set here), Burglar's Roll's use spent (here), and the first-only Iron
+# Rations and Shaken Footing spent by the battle's first Phase Start.
+func _heirloom_states(session: CombatSession) -> void:
+	var hud: BattleHud = current_scene.call(&"get_hud")
+	for icon: HeirloomIcon in hud.get_heirloom_bar().get_icons():
+		var view: HeirloomViewModel = icon.get_view()
+		if view.heirloom_id == "breakers_maul":
+			session.engine.get_instance(view.counter_instance_id).set_counter(
+					EffectTerms.Lane.COMBAT, 4
+			)
+		elif view.heirloom_id == "burglars_roll":
+			session.engine.get_instance(view.instance_ids[0]).spend_charge()
+	hud.refresh()
+	print("NOTE  heirloom bar shot: Breaker's Maul set to 4 / 5 (ready), Burglar's Roll's use spent")
 
 
 # Walks a unit to an enemy in reach and opens Attack, capturing the action menu and the forecast;

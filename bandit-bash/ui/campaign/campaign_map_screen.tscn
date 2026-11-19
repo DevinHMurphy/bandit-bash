@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://ui/common/screen_hints.gd" id="6_hints"]
 [ext_resource type="PackedScene" path="res://ui/battle/hud/control_hint_bar.tscn" id="7_bar"]
 [ext_resource type="PackedScene" path="res://ui/common/pause_menu.tscn" id="8_pause"]
+[ext_resource type="PackedScene" path="res://ui/common/heirlooms/heirloom_bar.tscn" id="9_heirlooms"]
 
 [node name="CampaignMapScreen" type="Control"]
 layout_mode = 3
@@ -39,6 +40,12 @@ mouse_filter = 2
 unique_name_in_owner = true
 layout_mode = 2
 title = "Campaign map"
+
+[node name="HeirloomBar" parent="Layout/Column" instance=ExtResource("9_heirlooms")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+handles_focus_input = true
 
 [node name="Body" type="HBoxContainer" parent="Layout/Column"]
 layout_mode = 2
@@ -81,7 +88,8 @@ autowrap_mode = 3
 unique_name_in_owner = true
 script = ExtResource("6_hints")
 actions = Dictionary[StringName, PackedStringArray]({
-&"MAP": PackedStringArray("ui_left", "ui_right", "ui_accept", "ui_cancel")
+&"MAP": PackedStringArray("ui_left", "ui_right", "ui_accept", "heirloom_bar_focus", "ui_cancel"),
+&"HEIRLOOMS": PackedStringArray("ui_left", "ui_right", "ui_cancel", "heirloom_bar_focus")
 })
 
 [node name="ControlHintBar" parent="." node_paths=PackedStringArray("controller", "device") instance=ExtResource("7_bar")]
@@ -93,10 +101,15 @@ right_margin = 8.0
 labels = Dictionary[String, String]({
 "MAP/ui_accept": "Choose",
 "MAP/ui_cancel": "Pause",
+"HEIRLOOMS/heirloom_bar_focus": "Close",
+"HEIRLOOMS/ui_cancel": "Close",
+"HEIRLOOMS/ui_left": "Choose",
+"HEIRLOOMS/ui_right": "Choose",
 "PAUSED/ui_cancel": "Resume",
 "PAUSED/ui_down": "Choose",
 "PAUSED/ui_up": "Choose",
 "ui_accept": "Select",
+"heirloom_bar_focus": "Heirlooms",
 "ui_cancel": "Back",
 "ui_down": "Move",
 "ui_left": "Move",

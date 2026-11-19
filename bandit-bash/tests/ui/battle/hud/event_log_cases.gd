@@ -6,7 +6,7 @@
 # File:     event_log_cases.gd
 # Author:
 # Created:  November 18, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -405,7 +405,8 @@ func _test_layout() -> void:
 
 
 # EVENT_LOG by key: focus on the header, out by cancel; hidden under End Turn's question; the
-# right stick: a slanted push scrolls and never focuses, a sideways one focuses once per push.
+# right stick: a slanted push scrolls and never focuses, one to the right focuses or closes once
+# per push, one to the left (the heirloom bar's) leaves the log as it is.
 func _test_controller() -> void:
 	var rig: Rig = _rig()
 	if rig == null:
@@ -450,13 +451,20 @@ func _test_controller() -> void:
 	var sideways: BattleController.Stage = h.controller.get_stage()
 	_push_axis(JOY_AXIS_RIGHT_X, 0.0)
 	_push_axis(JOY_AXIS_RIGHT_X, -1.0)
+	var left: BattleController.Stage = h.controller.get_stage()
+	_push_axis(JOY_AXIS_RIGHT_X, 0.0)
+	_push_axis(JOY_AXIS_RIGHT_X, 1.0)
 	var again: BattleController.Stage = h.controller.get_stage()
 	_push_axis(JOY_AXIS_RIGHT_X, 0.0)
-	_check.call("stick: a slanted push never focuses; sideways focuses, the next push closes", (
+	_check.call((
+			"stick: a slanted push never focuses; pushed right focuses, left (the heirloom bar's)"
+			+ " leaves it, right again closes"
+	), (
 			slanted == BattleController.Stage.IDLE
 			and sideways == BattleController.Stage.EVENT_LOG
+			and left == BattleController.Stage.EVENT_LOG
 			and again == BattleController.Stage.IDLE
-	), "slanted %d, sideways %d, again %d" % [slanted, sideways, again])
+	), "slanted %d, sideways %d, left %d, again %d" % [slanted, sideways, left, again])
 	rig.close()
 
 

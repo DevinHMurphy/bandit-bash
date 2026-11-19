@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/selectors/fact_actor.gd" id="5_actor"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/values/percent_of_fact.gd" id="6_percent"]
 [ext_resource type="Script" path="res://scripts/content/heirloom_definition.gd" id="9_def"]
+[ext_resource type="Texture2D" path="res://assets/sprites/heirlooms/heirloom_behavior.svg" id="20_icon"]
 
 [sub_resource type="Resource" id="Resource_healed"]
 script = ExtResource("5_actor")
@@ -35,3 +36,4 @@ kind = "behavior"
 id = "overflowing_cup"
 display_name = "Overflowing Cup"
 effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])
+icon = ExtResource("20_icon")

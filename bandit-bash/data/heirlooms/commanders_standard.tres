@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="6_const"]
 [ext_resource type="Resource" path="res://data/shapes/within_2_with_center.tres" id="10_shape"]
 [ext_resource type="Script" path="res://scripts/content/heirloom_definition.gd" id="9_def"]
+[ext_resource type="Texture2D" path="res://assets/sprites/heirlooms/heirloom_behavior.svg" id="20_icon"]
 
 [sub_resource type="Resource" id="Resource_near_commander"]
 script = ExtResource("5_area")
@@ -38,3 +39,4 @@ kind = "behavior"
 id = "commanders_standard"
 display_name = "Commander's Standard"
 effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])
+icon = ExtResource("20_icon")

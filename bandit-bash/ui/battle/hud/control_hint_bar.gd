@@ -46,6 +46,8 @@ enum Edge {
 ## written: which key an action has always comes from the [InputMap].
 const SHORT_KEY_NAMES: Dictionary[String, String] = {
 	"Escape": "Esc",
+	"PageUp": "PgUp",
+	"PageDown": "PgDn",
 	"Up": "↑",
 	"Down": "↓",
 	"Left": "←",
@@ -135,7 +137,7 @@ const UNBOUND_KEY: String = "(unbound)"
 
 # ASSUMPTION: the labels beyond the plan's examples (Danger zone, End turn, Target, Weapon, Fast,
 # Skip, Debug) have no basis: Move, Select, Back, Pause, Resume, Start, Units, Choose, Confirm,
-# Pick, Swap, Pick tile, Info, Scroll, Close, Runes, Discard, Log, Scroll log, Toggle.
+# Pick, Swap, Pick tile, Info, Scroll, Close, Runes, Discard, Log, Toggle, Heirlooms.
 ## What each action does, by action name, or by [code]CONTEXT/action[/code] where a context
 ## ([method HintSource.get_hint_context]) gives it another meaning; the context's key wins.
 ## [b]Missing:[/b] the action's own name shows.
@@ -155,8 +157,9 @@ const UNBOUND_KEY: String = "(unbound)"
 	"unit_detail": "Info",
 	"open_runes": "Runes",
 	"event_log_focus": "Log",
-	"event_log_scroll_up": "Scroll log",
-	"event_log_scroll_down": "Scroll log",
+	"heirloom_bar_focus": "Heirlooms",
+	"event_log_scroll_up": "Scroll",
+	"event_log_scroll_down": "Scroll",
 	"target_prev": "Target",
 	"target_next": "Target",
 	"SWAP/ui_accept": "Pick",
@@ -217,6 +220,10 @@ const UNBOUND_KEY: String = "(unbound)"
 	"EVENT_LOG/ui_accept": "Toggle",
 	"EVENT_LOG/ui_cancel": "Close",
 	"EVENT_LOG/event_log_focus": "Close",
+	"HEIRLOOM_BAR/ui_left": "Choose",
+	"HEIRLOOM_BAR/ui_right": "Choose",
+	"HEIRLOOM_BAR/ui_cancel": "Close",
+	"HEIRLOOM_BAR/heirloom_bar_focus": "Close",
 }
 
 @export_group("")

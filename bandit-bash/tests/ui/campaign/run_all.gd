@@ -13,7 +13,9 @@ extends "res://tests/ui/ui_suite.gd"
 ## Campaign screens suite: a solo run played through the real screens and the real router, from
 ## Loading to the map, into four nodes and back, by keyboard, mouse and pad in turn. The map
 ## (only the reachable nodes enabled and focusable, the route marked, left and right between the
-## choices, the header, legend and hints), the battle won and its victory sequence over the board
+## choices, the header, legend and hints; the heirloom bar on every visit, a staged War Ledger's
+## saved count included, reached by H and by the right stick and left by Esc and B), the battle
+## won and its victory sequence over the board
 ## (Grade, Recap filling and skipped, level-ups, Rewards, the item picker and placement: to the
 ## convoy, scrapped, equipped, Back by pad without the pause menu; Leave), a quit and Continue
 ## mid-recap reopening it on Grade with the same report and, once taken, on Rewards with the row
@@ -69,6 +71,12 @@ const HELPER_PATH: NodePath = ^"/root/InputHelper"
 
 const JOY_A: JoyButton = JOY_BUTTON_A
 const JOY_B: JoyButton = JOY_BUTTON_B
+
+# The heirloom staged at the run's start (runs gain none yet, RN6): War Ledger, its effect and its
+# saved campaign count, which every map visit's bar must show.
+const STAGED_HEIRLOOM: String = "war_ledger"
+const LEDGER_EFFECT: String = "double_damage"
+const LEDGER_COUNT: int = 7
 
 var _frame: int = 0
 var _wait: int = 0
@@ -179,6 +187,8 @@ func _begin_run() -> void:
 	if err != OK:
 		_end()
 		return
+	var ledger: SeatRun.OwnedHeirloom = _run().seat_run(0).add_heirloom(STAGED_HEIRLOOM)
+	ledger.counters[LEDGER_EFFECT] = LEDGER_COUNT
 	_router().call(&"goto_screen", SCREEN_LOADING)
 
 
@@ -221,6 +231,18 @@ func _on_map(scene: Node) -> void:
 				_check("map (keys): Esc opens the pause menu; closing it gives focus back", (
 						opened and not paused and view.get_node_button(reachable[0]).has_focus()
 				), "paused %s then %s" % [opened, paused])
+				var bar: HeirloomBar = scene.call(&"get_heirloom_bar")
+				_press_key(KEY_H)
+				var on_bar: bool = bar.get_icons()[0].has_focus()
+				var bar_hints: StringName = _hint_context(scene)
+				_press_key(KEY_ESCAPE)
+				_check("map (keys): H focuses the heirloom bar (HEIRLOOMS hints); Esc comes back", (
+						on_bar
+						and bar_hints == HeirloomBar.HINT_CONTEXT
+						and not paused
+						and view.get_node_button(reachable[0]).has_focus()
+						and _hint_context(scene) == &"MAP"
+				), "on bar %s, hints %s, paused %s" % [on_bar, bar_hints, paused])
 			if reachable.size() > 1:
 				_press_key(KEY_RIGHT)
 				var moved: bool = view.get_node_button(reachable[1]).has_focus()
@@ -241,6 +263,16 @@ func _on_map(scene: Node) -> void:
 			_check("map (pad): the hint bar draws pad glyphs", (
 					bar.get_markup().contains("[img")
 			), bar.get_markup())
+			var heirlooms: HeirloomBar = scene.call(&"get_heirloom_bar")
+			var focused: Control = scene.get_viewport().gui_get_focus_owner()
+			_press_axis(JOY_AXIS_RIGHT_X, -1.0)
+			var on_bar: bool = heirlooms.get_focused_index() >= 0
+			_press_pad(JOY_B)
+			_check("map (pad): RS left focuses the heirloom bar; B comes back, no pause menu", (
+					on_bar
+					and not paused
+					and scene.get_viewport().gui_get_focus_owner() == focused
+			), "on bar %s, paused %s" % [on_bar, paused])
 			for _step: int in target:
 				_press_pad(JOY_BUTTON_DPAD_RIGHT)
 			_check("map (pad): the d-pad moves focus to the node to choose", (
@@ -275,6 +307,21 @@ func _check_map(scene: Node, view: CampaignMapView, run: CampaignRunState) -> vo
 			and wrong.is_empty()
 			and view.get_node_button(reachable[0]).has_focus()
 	), "%s vs %s; %s" % [shown, expected, ", ".join(wrong)])
+	var heirlooms: HeirloomBar = scene.call(&"get_heirloom_bar")
+	var bar_shown: PackedStringArray = []
+	for icon: HeirloomIcon in heirlooms.get_icons():
+		bar_shown.append("%s=%s" % [icon.get_view().heirloom_id, icon.get_badge_text()])
+	var expected_bar: PackedStringArray = []
+	for owned: SeatRun.OwnedHeirloom in run.seat_run(0).heirlooms:
+		var badge: String = str(LEDGER_COUNT) if owned.heirloom_id == STAGED_HEIRLOOM else ""
+		expected_bar.append("%s=%s" % [owned.heirloom_id, badge])
+	_check("map %d: the heirloom bar shows the run's heirlooms, War Ledger's saved count" % [
+		_entered,
+	], (
+			heirlooms.visible
+			and bar_shown == expected_bar
+			and expected_bar.has("%s=%d" % [STAGED_HEIRLOOM, LEDGER_COUNT])
+	), "%s vs %s" % [bar_shown, expected_bar])
 	_check("map %d: the header shows the floor and gold; the hints show Choose" % [_entered], (
 			header.get_floor_text() == "Floor %d / %d" % [
 				run.floor_number, run.graph.get_floor_count(),
@@ -914,9 +961,9 @@ func _overlay_hints(overlay: Node) -> StringName:
 	return bar.get_context()
 
 
-# A pull and release of a joypad trigger or stick axis.
-func _press_axis(axis: JoyAxis) -> void:
-	for value: float in [1.0, 0.0]:
+# A pull and release of a joypad trigger or stick axis, pushed to pushed (-1.0 to 1.0).
+func _press_axis(axis: JoyAxis, pushed: float = 1.0) -> void:
+	for value: float in [pushed, 0.0]:
 		var event: InputEventJoypadMotion = InputEventJoypadMotion.new()
 		event.device = 0
 		event.axis = axis

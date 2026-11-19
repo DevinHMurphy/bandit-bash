@@ -6,7 +6,7 @@
 # File:     heirloom_definition.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 29, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 @tool
@@ -16,9 +16,10 @@ extends EffectCarrierDefinition
 ## (heirlooms.md).
 ##
 ## Lives in [code]res://data/heirlooms/[/code], starting and Commander Heirlooms included; curses
-## are [CurseDefinition]s. Its [member EffectCarrierDefinition.effects] use the Your Unit scope or
-## wider, never This unit. An heirloom whose effects reach other players' units carries the
-## [constant EffectDefinition.Tag.UNIQUE] tag on them: one owner per co-op campaign.
+## are [CurseDefinition]s, which share [member icon]. Its [member EffectCarrierDefinition.effects]
+## use the Your Unit scope or wider, never This unit. An heirloom whose effects reach other
+## players' units carries the [constant EffectDefinition.Tag.UNIQUE] tag on them: one owner per
+## co-op campaign.
 ##
 ## @tutorial(Heirlooms): docs/design/heirlooms.md
 
@@ -34,6 +35,11 @@ extends EffectCarrierDefinition
 
 ## Whether it is offered only in co-op campaigns, since it does nothing in solo (Brothers in Arms).
 @export var is_coop_only: bool = false
+
+## Its symbol on the heirloom bar ([HeirloomBar]): white on transparent, about 24 units square,
+## tinted by the bar ([code]accent[/code], a curse's [code]danger[/code]).[br]
+## [b]Unset:[/b] the bar shows its generic mark instead.
+@export var icon: Texture2D = null
 
 
 func _validate_property(property: Dictionary) -> void:

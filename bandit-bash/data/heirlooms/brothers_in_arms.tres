@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/conditions/while_position_condition.gd" id="6_position"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="7_const"]
 [ext_resource type="Script" path="res://scripts/content/heirloom_definition.gd" id="9_def"]
+[ext_resource type="Texture2D" path="res://assets/sprites/heirlooms/heirloom_behavior.svg" id="20_icon"]
 
 [sub_resource type="Resource" id="Resource_beside_partner"]
 script = ExtResource("6_position")
@@ -43,3 +44,4 @@ is_coop_only = true
 id = "brothers_in_arms"
 display_name = "Brothers in Arms"
 effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])
+icon = ExtResource("20_icon")

@@ -6,7 +6,7 @@
 # File:     battle_view_cases.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -80,15 +80,20 @@ func run() -> void:
 
 
 ## Begins the M1 battle for a new solo run, on [param catalog] with the M1 pack its only pack;
-## null, with the problem reported, when it can't.
+## null, with the problem reported, when it can't. [param extra_heirlooms]: heirloom ids the army
+## holds after the faction's own.
 static func begin_m1(
-		catalog: EffectCatalog.Index, map: CombatMapDefinition, run: CampaignSession
+		catalog: EffectCatalog.Index,
+		map: CombatMapDefinition,
+		run: CampaignSession,
+		extra_heirlooms: PackedStringArray = [],
 ) -> CombatEncounter:
 	var mercenary: StartingArmy = StartingArmy.build(catalog, "mercenary", run.ids)
 	var army: CampaignSession.Army = CampaignSession.Army.new()
 	army.unit_instances = mercenary.units
 	army.item_instances = mercenary.items
-	army.heirloom_ids = mercenary.heirloom_ids
+	army.heirloom_ids = mercenary.heirloom_ids.duplicate()
+	army.heirloom_ids.append_array(extra_heirlooms)
 	var request: CampaignSession.BattleRequest = CampaignSession.BattleRequest.new()
 	request.floor_number = FLOOR
 	request.node = NODE

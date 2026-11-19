@@ -158,6 +158,22 @@ func get_carrier(instance_id: String) -> EffectInstance:
 	return _carriers.get(instance_id, null)
 
 
+## Seat [param seat]'s held heirloom and curse copies that are carriers of the run, in the order
+## battles first named them (gain order), each as a new [HeirloomLane] whose
+## [member HeirloomLane.carrier_ids] are also its effects' instance ids in the battle in progress.
+## Read-only: changing the result changes nothing here. Empty before the first battle.
+func heirloom_copies(seat: int) -> Array[HeirloomLane]:
+	var copies: Array[HeirloomLane] = []
+	for key: String in _heirloom_carriers:
+		var held: HeirloomLane = _heirloom_carriers[key]
+		if held.seat != seat:
+			continue
+		var lane: HeirloomLane = HeirloomLane.new(held.seat, held.heirloom_id, held.copy)
+		lane.carrier_ids = held.carrier_ids.duplicate()
+		copies.append(lane)
+	return copies
+
+
 ## Registers [param run] for [param step] in every battle this run begins, after the steps
 ## registered before it ([method CombatEncounter.add_setup_step]).
 func add_setup_step(step: CombatEncounter.SetupStep, run: Callable) -> void:
