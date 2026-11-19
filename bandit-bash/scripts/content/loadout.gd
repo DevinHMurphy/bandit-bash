@@ -6,7 +6,7 @@
 # File:     loadout.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name Loadout
@@ -84,6 +84,11 @@ static func load_unit(
 	state.seat = seat
 	state.unit_type = unit_type.id
 	state.role = unit_type.role
+	state.level = maxi(unit.level, 1)
+	# A commander never uses a prefix, and an unknown one is reported below; neither is shown.
+	var is_prefixed: bool = not unit.prefix_id.is_empty() and not unit_type.is_commander
+	if is_prefixed and catalog.unit_prefix(unit.prefix_id) != null:
+		state.prefix_id = unit.prefix_id
 	state.movement_type = unit_type.movement_type
 	var tags: PackedStringArray = unit_type.tags.duplicate()
 	var weapon_types: PackedStringArray = unit_type.weapon_types.duplicate()

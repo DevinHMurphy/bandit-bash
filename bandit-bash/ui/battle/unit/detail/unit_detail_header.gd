@@ -42,6 +42,14 @@ signal close_pressed()
 ## [b]Empty:[/b] it isn't called out.
 @export var acted_text: String = "Has acted"
 
+## Added to an enemy's summary: [code]%d[/code] its level. A player unit's level shows with its
+## XP instead. [b]Empty:[/b] an enemy's level isn't shown.
+@export var enemy_level_format: String = "Lv %d"
+
+## Added to the summary of a unit with a prefix: [code]%s[/code] the prefix's name.
+## [b]Empty:[/b] the prefix isn't called out (it still leads the unit's name).
+@export var prefix_format: String = "Prefix: %s"
+
 ## The vitals line: [code]%d[/code] HP and its maximum, Stance and its maximum, then Block.
 @export var vitals_format: String = "HP %d/%d · Stance %d/%d · Block %d"
 
@@ -81,6 +89,10 @@ func show_header(view: UnitDetailViewModel) -> void:
 	]
 	if view.is_commander and not commander_text.is_empty():
 		summary += " · " + commander_text
+	if view.side == CombatFact.CombatSide.ENEMY and not enemy_level_format.is_empty():
+		summary += " · " + enemy_level_format % [view.level]
+	if not view.prefix_name.is_empty() and not prefix_format.is_empty():
+		summary += " · " + prefix_format % [view.prefix_name]
 	if view.has_acted and not acted_text.is_empty():
 		summary += " · " + acted_text
 	_summary_text = summary

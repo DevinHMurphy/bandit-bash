@@ -6,7 +6,7 @@
 # File:     combat_unit_state.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 30, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name CombatUnitState
@@ -50,6 +50,15 @@ var unit_type: String = ""
 ## What its unit type is for, from [constant ContentIds.ROLES], such as [code]shover[/code],
 ## which auto-deployment reads. [b]Empty:[/b] no role (commanders).
 var role: String = ""
+
+## Content id of its [UnitPrefixDefinition], as setup drew it for an elite, such as
+## [code]sturdy[/code]. Shown only (the unit detail): the prefix's stats are effects.
+## [b]Empty:[/b] no prefix, and always for a commander.
+var prefix_id: String = ""
+
+## Its level as [Loadout] built it (an enemy's from its step, a player unit's from the run).
+## Shown only (the unit detail): what a level adds is an effect.
+var level: int = 1
 
 ## Current HP.
 var hp: int = 0
@@ -119,6 +128,8 @@ func copy() -> CombatUnitState:
 	unit.tags = tags.duplicate()
 	unit.unit_type = unit_type
 	unit.role = role
+	unit.prefix_id = prefix_id
+	unit.level = level
 	unit.hp = hp
 	unit.block = block
 	unit.stance = stance
@@ -160,6 +171,8 @@ func capture() -> Dictionary:
 		"tags": Array(tags),
 		"unit_type": unit_type,
 		"role": role,
+		"prefix_id": prefix_id,
+		"level": level,
 		"hp": hp,
 		"block": block,
 		"stance": stance,
@@ -201,12 +214,15 @@ static func from_capture(data: Dictionary) -> CombatUnitState:
 		return null
 	var numbers: Dictionary[String, int] = {}
 	for field: String in [
-		"seat", "hp", "block", "stance", "tiles_moved", "movement_spent", "pouch_item_weight",
+		"seat", "level", "hp", "block", "stance", "tiles_moved", "movement_spent",
+		"pouch_item_weight",
 	]:
 		var number: Variant = _whole(data.get(field, null))
 		if number == null:
 			return null
 		numbers[field] = number
+	if numbers["level"] < 1:
+		return null
 	var flags: Dictionary[String, bool] = {}
 	for field: String in [
 		"has_acted",
@@ -220,8 +236,8 @@ static func from_capture(data: Dictionary) -> CombatUnitState:
 		flags[field] = data[field]
 	var texts: Dictionary[String, String] = {}
 	for field: String in [
-		"unit_type", "role", "equipped_weapon_id", "stowed_weapon_id", "equipment_id",
-		"pouch_item_id",
+		"unit_type", "role", "prefix_id", "equipped_weapon_id", "stowed_weapon_id",
+		"equipment_id", "pouch_item_id",
 	]:
 		if not data.get(field, null) is String:
 			return null
@@ -252,6 +268,7 @@ static func from_capture(data: Dictionary) -> CombatUnitState:
 		var stat_value: int = CombatValue.Stat[stat_name]
 		unit.growth_changes[stat_value] = points
 	unit.seat = numbers["seat"]
+	unit.level = numbers["level"]
 	unit.hp = numbers["hp"]
 	unit.block = numbers["block"]
 	unit.stance = numbers["stance"]
@@ -265,6 +282,7 @@ static func from_capture(data: Dictionary) -> CombatUnitState:
 	unit.is_defeated = flags["is_defeated"]
 	unit.unit_type = texts["unit_type"]
 	unit.role = texts["role"]
+	unit.prefix_id = texts["prefix_id"]
 	unit.equipped_weapon_id = texts["equipped_weapon_id"]
 	unit.stowed_weapon_id = texts["stowed_weapon_id"]
 	unit.equipment_id = texts["equipment_id"]

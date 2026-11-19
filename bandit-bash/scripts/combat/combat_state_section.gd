@@ -6,14 +6,15 @@
 # File:     combat_state_section.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 15, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name CombatStateSection
 extends SaveSection
 ## The battle in progress in the combat block: the [code]combat_state[/code] section, with its
-## partner [member effects], the [code]effects[/code] section; this one at version 2 (weapon records
-## gained [code]area_shape_id[/code] and [code]full_heal[/code], [method migrate]), effects at 1.
+## partner [member effects], the [code]effects[/code] section; this one at version 3 (weapon records
+## gained [code]area_shape_id[/code] and [code]full_heal[/code] at 2, units their prefix and
+## level at 3; [method migrate]), effects at 1.
 ##
 ## [code]CampaignService[/code] registers this section, then [member effects], and attaches both
 ## to the run's [CampaignSession]. Each capture reads the battle's [method CombatEncounter.snapshot]
@@ -34,7 +35,7 @@ extends SaveSection
 
 # Never change it: it is how saved data finds this section (save-system.md).
 const _KEY: String = "combat_state"
-const _VERSION: int = 2
+const _VERSION: int = 3
 
 ## The [code]effects[/code] section: register it after this one, in the same block.
 var effects: EffectsSection = null
@@ -73,25 +74,38 @@ func get_version() -> int:
 	return _VERSION
 
 
-## Upgrades [param data] from version 1 in place: every weapon record, on each map and on each
-## unit on its way between maps, gains [code]area_shape_id[/code] [code]""[/code] and
-## [code]full_heal[/code] false ([method CombatState.WeaponStats.capture]). That is how a
-## version 1 battle played: it saved no area and had no full-heal staff. Malformed parts are left
-## for [method restore] to refuse.
+## Upgrades [param data] from version 1 or 2 in place, on each map and on each unit on its way
+## between maps. From 1: every weapon record gains [code]area_shape_id[/code] [code]""[/code]
+## and [code]full_heal[/code] false (a version 1 battle saved no area and had no full-heal staff).
+## From 1 and 2: every unit gains [code]prefix_id[/code] [code]""[/code] and [code]level[/code] 1
+## ([method CombatUnitState.capture]); the battle plays the same, as both are shown only, but its
+## elites resume showing no prefix and level 1. Malformed parts are left for [method restore].
 func migrate(data: Dictionary, from_version: int) -> Error:
-	if from_version != 1:
+	if from_version != 1 and from_version != 2:
 		return super(data, from_version)
+	var is_v1: bool = from_version == 1
 	var encounter_part: Variant = data.get("encounter", null)
 	if encounter_part is Dictionary:
 		# Untyped: the parts come from JSON and are checked entry by entry.
 		for entry: Variant in _array_of(encounter_part as Dictionary, "in_transit"):
-			if entry is Dictionary:
+			if not entry is Dictionary:
+				continue
+			if is_v1:
 				_add_weapon_fields(entry as Dictionary)
+			var travelling: Variant = (entry as Dictionary).get("unit", null)
+			if travelling is Dictionary:
+				_add_unit_fields(travelling as Dictionary)
 	for entry: Variant in _array_of(data, "sessions"):
-		if entry is Dictionary:
-			var map_state: Variant = (entry as Dictionary).get("combat_state", null)
-			if map_state is Dictionary:
-				_add_weapon_fields(map_state as Dictionary)
+		if not entry is Dictionary:
+			continue
+		var map_state: Variant = (entry as Dictionary).get("combat_state", null)
+		if not map_state is Dictionary:
+			continue
+		if is_v1:
+			_add_weapon_fields(map_state as Dictionary)
+		for unit: Variant in _array_of(map_state as Dictionary, "units"):
+			if unit is Dictionary:
+				_add_unit_fields(unit as Dictionary)
 	return OK
 
 
@@ -249,6 +263,14 @@ static func _add_weapon_fields(holder: Dictionary) -> void:
 			fields["area_shape_id"] = ""
 		if not fields.has("full_heal"):
 			fields["full_heal"] = false
+
+
+# Adds version 3's unit fields to a unit's capture that lacks them: no prefix, level 1.
+static func _add_unit_fields(unit: Dictionary) -> void:
+	if not unit.has("prefix_id"):
+		unit["prefix_id"] = ""
+	if not unit.has("level"):
+		unit["level"] = 1
 
 
 ## The [code]effects[/code] section: [code]{"encounter": {"cross_map": [...]}, "sessions":

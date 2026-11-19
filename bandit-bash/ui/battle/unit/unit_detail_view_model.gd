@@ -115,8 +115,12 @@ var movement_name: String = ""
 var tags: PackedStringArray = []
 ## Whether it has taken its turn's action, with no second move left.
 var has_acted: bool = false
-## A player unit's level from its run record; 0 when there is none (an enemy, or no run).
-var level: int = 0
+## Its level: a player unit's from its run record when there is one, else the battle's
+## ([member CombatUnitState.level]).
+var level: int = 1
+## Its prefix's display name ("Sturdy"), from the battle's [member CombatUnitState.prefix_id];
+## empty for none.
+var prefix_name: String = ""
 ## A player unit's XP toward its next level; -1 when there is no run record.
 var xp: int = -1
 ## XP per level ([member CombatRewardRules.xp_per_level]); 0 when [member xp] isn't shown.
@@ -169,6 +173,11 @@ static func build(
 	view.stance_max = sheet.get_int(CombatValue.Key.STANCE_MAX)
 	view.block = unit.block
 	var catalog: EffectCatalog.Index = EffectCatalog.index()
+	view.level = unit.level
+	var prefix: UnitPrefixDefinition = (
+			catalog.unit_prefix(unit.prefix_id) if not unit.prefix_id.is_empty() else null
+	)
+	view.prefix_name = prefix.display_name if prefix != null else ""
 	view.stat_rows.append(_value_row(sheet, "HP", CombatValue.Key.HP))
 	for row: Array in HudViewModel.STAT_ROWS:
 		view.stat_names.append(row[0] as String)

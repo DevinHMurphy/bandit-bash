@@ -331,11 +331,11 @@ Save Impact):
 
 | Block | Key | Version | Holds |
 |-------|-----|---------|-------|
-| `COMBAT` | `combat_state` | 2 | Each map's units (`CombatUnitState`: tile, HP, Block, Stance, what it did this turn and phase, movement spent, a pending second move, slots, growth changes), weapon records (an area staff's shape by its id and a heal staff's full heal included; version 1 records migrate with neither), turn, phase side, ended and not-yet-started seats, rune slots, and the session part (seq, commanders, bases, finished and won); the encounter's seq, arrivals and units on their way between maps |
+| `COMBAT` | `combat_state` | 3 | Each map's units (`CombatUnitState`: tile, HP, Block, Stance, what it did this turn and phase, movement spent, a pending second move, slots, growth changes, and the prefix and level the unit detail shows; version 1 and 2 units migrate with no prefix and level 1), weapon records (an area staff's shape by its id and a heal staff's full heal included; version 1 records migrate with neither), turn, phase side, ended and not-yet-started seats, rune slots, and the session part (seq, commanders, bases, finished and won); the encounter's seq, arrivals and units on their way between maps |
 | `COMBAT` | `effects` | 1 | Each map's effect engine (instances with counters and charges, timed modifiers, bases and deltas, phase and attack counts) and the encounter's cross-map instances |
 
 ```json
-"combat_state": { "version": 2, "data": { "encounter": { }, "sessions": [ { "session": { }, "combat_state": { } } ] } },
+"combat_state": { "version": 3, "data": { "encounter": { }, "sessions": [ { "session": { }, "combat_state": { } } ] } },
 "effects": { "version": 1, "data": { "encounter": { "cross_map": [ ] }, "sessions": [ { } ] } }
 ```
 
