@@ -13,7 +13,10 @@ extends RefCounted
 ## Shared setup for the event cases: the loaded catalog plus test-only content (weapon prefixes,
 ## a standalone effect, a faction at the army-size ceiling), a fresh solo Mercenary run, one-
 ## option events built from blocks, and contexts drawing from the seat's EVENT_OUTCOME stream.
-## None of the test content is real content: CT12 authors the weapon prefix list.
+## For the draw: three test-only events built in code (a goblet with a chooser and a tier curse,
+## a shrine needing a fallen unit, a team-choice toll with a surprise combat), runs standing in an
+## Unknown node, and the commands EventNode builds, submitted to the session. None of the test
+## content is real content: CT12 authors the weapon prefix list, EV4 the 13 events.
 
 const RULES_PATH: String = "res://data/campaign/campaign_map_rules.tres"
 const RUN_SEED: int = 0x5EA7C0DE
@@ -34,6 +37,21 @@ const TEST_EFFECT: String = "test_infusion"
 const FULL_FACTION: String = "test_full_faction"
 const PREFIX_WEIGHT: int = 2
 const PREFIX_DAMAGE: int = 2
+
+## The test events' ids. The goblet: 0 "Drink Deep" (a chosen unit +2 MGT), 1 "Break the Ice"
+## (a random rare weapon and a minor curse), 2 "Walk Away". The shrine (a fallen unit in every
+## army): 0 "Offer a Prayer" (revive), 1 "Claim the Relic" (a rare heirloom). The toll (a team
+## choice): 0 "Pay" (-30 gold, needs 30), 1 "Fight" (a surprise combat), 2 "Intimidate" (+40 gold
+## and a minor curse).
+const GOBLET: String = "test_goblet"
+const SHRINE: String = "test_shrine"
+const TOLL: String = "test_toll"
+const MGT_GAIN: int = 2
+const TOLL_GOLD: int = 30
+const LOOT_GOLD: int = 40
+const MINOR: String = "minor"
+const RARE: String = "rare"
+const START_GOLD: int = 100
 
 var catalog: EffectCatalog.Index = null
 var map_rules: CampaignMapRules = null
@@ -159,6 +177,157 @@ func first_of(kind: EffectCatalog.Kind, rarity: ItemDefinition.Rarity) -> ItemDe
 		if item != null and item.rarity == rarity:
 			return item
 	return null
+
+
+## The goblet (see [constant GOBLET]).
+func goblet() -> EventDefinition:
+	var drink: StatOutcome = StatOutcome.new()
+	drink.target = EventOutcome.Target.CHOSEN
+	drink.stat = CombatValue.Stat.MGT
+	drink.amount = MGT_GAIN
+	var weapon: ItemGrantOutcome = ItemGrantOutcome.new()
+	weapon.random = ItemGrantOutcome.RandomItem.RARE_WEAPON
+	return _event(GOBLET, false, EventDefinition.Eligibility.ALWAYS, [
+		_option("Drink Deep", [drink]),
+		_option("Break the Ice", [weapon], null, MINOR),
+		_option("Walk Away", []),
+	])
+
+
+## The shrine (see [constant GOBLET]).
+func shrine() -> EventDefinition:
+	var needs: EventRequirements = EventRequirements.new()
+	needs.needs_fallen_unit = true
+	var relic: HeirloomOutcome = HeirloomOutcome.new()
+	relic.tier = RARE
+	return _event(SHRINE, false, EventDefinition.Eligibility.FALLEN_UNIT, [
+		_option("Offer a Prayer", [ReviveOutcome.new()], needs),
+		_option("Claim the Relic", [relic]),
+	])
+
+
+## The toll (see [constant GOBLET]).
+func toll() -> EventDefinition:
+	var pay: GoldOutcome = GoldOutcome.new()
+	pay.amount = -TOLL_GOLD
+	var needs: EventRequirements = EventRequirements.new()
+	needs.gold = TOLL_GOLD
+	var loot: GoldOutcome = GoldOutcome.new()
+	loot.amount = LOOT_GOLD
+	return _event(TOLL, true, EventDefinition.Eligibility.ALWAYS, [
+		_option("Pay", [pay], needs),
+		_option("Fight", [SurpriseCombatOutcome.new()]),
+		_option("Intimidate", [loot], null, MINOR),
+	])
+
+
+## A pool of [param events]; the three test events when empty.
+func pool(events: Array[EventDefinition] = []) -> EventPool:
+	if events.is_empty():
+		return EventPool.new([goblet(), shrine(), toll()])
+	return EventPool.new(events)
+
+
+## A new Mercenary run of [param seat_count] seats, inside a floor-1 node made an Unknown one.
+func unknown_session(seat_count: int = 1) -> CampaignSession:
+	var seat_numbers: PackedInt32Array = []
+	var factions: Dictionary[int, String] = {}
+	for seat: int in seat_count:
+		seat_numbers.append(seat)
+		factions[seat] = MERCENARY
+	var mode: CampaignData.Mode = (
+			CampaignData.Mode.SOLO if seat_count == 1 else CampaignData.Mode.MULTIPLAYER
+	)
+	var made: CampaignSession = CampaignSession.new(mode, RUN_SEED, seat_numbers)
+	var start: RunStart = RunStart.build(
+			map_rules,
+			made.rng.stream(RngKey.new(RngKey.RngPurpose.MAP_GENERATION)),
+			catalog,
+			factions,
+			made.ids
+	)
+	made.run = start.run
+	var first: int = made.run.graph.nodes_on_floor(1)[0]
+	made.run.graph.set_node_type(first, CampaignGraph.NodeType.UNKNOWN)
+	made.submit(ChooseNodeCommand.new(0, first))
+	return made
+
+
+## Leaves the run's node and enters its first child, made an Unknown node.
+func next_unknown(made: CampaignSession) -> void:
+	made.submit(LeaveNodeCommand.new(0))
+	var child: int = made.run.graph.children_of(made.run.node)[0]
+	made.run.graph.set_node_type(child, CampaignGraph.NodeType.UNKNOWN)
+	made.submit(ChooseNodeCommand.new(0, child))
+
+
+## Opens an event from [param events] at the run's node, as the Unknown node does.
+func open(made: CampaignSession, events: EventPool) -> CampaignBatch:
+	return made.submit(EventNode.open(made, events, catalog, rules))
+
+
+## Seat [param seat] opens option [param option]'s chooser (or closes it with -1).
+func chooser(made: CampaignSession, events: EventPool, seat: int, option: int) -> CampaignBatch:
+	return made.submit(EventNode.open_chooser(made, seat, option, events, catalog))
+
+
+## Seat [param seat] chooses option [param option] with [param choice].
+func choose(
+		made: CampaignSession,
+		events: EventPool,
+		seat: int,
+		option: int,
+		choice: EventChoice = null
+) -> CampaignBatch:
+	return made.submit(EventNode.choose(made, seat, option, choice, events, catalog))
+
+
+## The seat's living unit that isn't the commander, first in roster order.
+func soldier(seat_run: SeatRun) -> UnitInstance:
+	for unit: UnitInstance in seat_run.army:
+		if unit.instance_id != seat_run.commander_id:
+			return unit
+	return null
+
+
+## The sorted ids of every curse of [param tier] in the catalog.
+func curses_of(tier: String) -> PackedStringArray:
+	var found: PackedStringArray = []
+	for definition: Resource in catalog.all_of(EffectCatalog.Kind.CURSE):
+		var curse: CurseDefinition = definition as CurseDefinition
+		if curse != null and curse.tier == tier:
+			found.append(curse.id)
+	found.sort()
+	return found
+
+
+func _event(
+		id: String,
+		is_team: bool,
+		eligibility: EventDefinition.Eligibility,
+		options: Array[EventOption]
+) -> EventDefinition:
+	var event: EventDefinition = EventDefinition.new()
+	event.id = id
+	event.title = id
+	event.is_team_choice = is_team
+	event.eligibility = eligibility
+	event.options = options
+	return event
+
+
+func _option(
+		title: String,
+		outcomes: Array[EventOutcome],
+		requirements: EventRequirements = null,
+		curse_tier: String = ""
+) -> EventOption:
+	var option: EventOption = EventOption.new()
+	option.title = title
+	option.outcomes = outcomes
+	option.requirements = requirements
+	option.curse_tier = curse_tier
+	return option
 
 
 # The loaded catalog with the test-only content added, as a new index: the loaded one is never

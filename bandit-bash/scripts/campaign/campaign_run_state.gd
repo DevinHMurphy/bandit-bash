@@ -22,7 +22,7 @@ extends RefCounted
 ## to [member floor_number], each a child of the one before, [member node] its last
 ## ([constant CampaignGraph.NO_NODE] before the first). A combat node's battle comes from
 ## [method battle_request]; a won one pays each seat's rewards. Saved as [RunSaveSections]' six
-## sections.
+## sections and the [code]events[/code] section.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 ##
@@ -69,6 +69,10 @@ var flow: RunFlow = RunFlow.new()
 
 ## Each seat's part of the run, by seat.
 var seats: Dictionary[int, SeatRun] = {}
+
+## The run's events: those seen, and the one open at a node. Saved as the [code]events[/code]
+## section ([EventSaveSection]).
+var events: EventRunState = EventRunState.new()
 
 ## Every campaign fact recorded this session, in order. Not saved: like a battle's log, it
 ## starts empty when a run is continued.
@@ -193,21 +197,23 @@ func key_combats_before() -> int:
 ## ([method CombatMapPools.available]), and each seat's living army with its current HP, items and
 ## heirlooms, a repeated heirloom once per copy. The army's unit and item instances are the run's
 ## own, so the battle's write-back reaches them. Content from [param catalog] (null: the loaded
-## one). Returns null, with an error, outside a node or at its results, or for a node with no pool
-## or no map.
+## one). An Unknown node whose event chose a surprise combat fights on the Standard pool. Returns
+## null, with an error, outside a node or at its results, or for a node with no pool or no map.
 func battle_request(
 		pools: CombatMapPools, catalog: EffectCatalog.Index = null
 ) -> CampaignSession.BattleRequest:
 	if flow.stage != RunFlow.Stage.NODE or graph == null or not graph.has_node_id(node):
 		push_error("CampaignRunState: the run isn't inside a node's battle, so none can begin")
 		return null
-	var pool: CombatMapPool = (
-			null if pools == null else pools.pool_for(graph.type_of(node), floor_number)
+	var node_type: CampaignGraph.NodeType = (
+			CampaignGraph.NodeType.STANDARD if events.is_combat_pending_at(floor_number, node)
+			else graph.type_of(node)
 	)
+	var pool: CombatMapPool = null if pools == null else pools.pool_for(node_type, floor_number)
 	var maps: Array[CombatMapDefinition] = CombatMapPools.available(pool, flow.used_maps)
 	if maps.is_empty():
 		push_error("CampaignRunState: node %d on floor %d has no map to fight on (type %s)" % [
-			node, floor_number, CampaignGraph.NodeType.find_key(graph.type_of(node)),
+			node, floor_number, CampaignGraph.NodeType.find_key(node_type),
 		])
 		return null
 	var request: CampaignSession.BattleRequest = CampaignSession.BattleRequest.new()
@@ -352,6 +358,7 @@ func _copy() -> CampaignRunState:
 		):
 			return null
 		copied.seats[seat] = seat_run
+	copied.events = events.copy()
 	copied.fact_log = fact_log.duplicate()
 	return copied
 
