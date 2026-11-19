@@ -788,6 +788,15 @@ names the step that builds it; rules already written into a section above are li
 | R-N3 | Streams injected into the encounter and sessions | EB6 | [Sessions](#sessions) |
 | R-N4 | Run seed, build version and stream states in snapshots and dumps | EB7 | [Logging and debugging](#logging-and-debugging) |
 
+**N1–N10 are built** (checked against `dev` in P02 CC9, November 19, 2026): `ValueBreakdown.Rounding`
+(`HALF_UP`, `FLOOR`, `EXACT`) and `get_int()` (N1); the `DamageStage` and `CombatValue` keys, with
+the base stats appended (N2); the `CombatValue.Permission` keys (N5); `EffectContext`'s attack
+fields and flags (N3, N4); `AddTimedModifier.End`, `uses` and `EffectEngine.reach_boundary()`
+(N6); a fresh combat lane at `EffectEngine.register()` (N7); `RollSource.roll_hit_2rn()` and
+`roll_percent()` (N8); `SandboxState.copy_for_sandbox()`, implemented by `CombatState` (N9);
+`EffectEngine.gain_block()` as the one Block-gain path with its window (N10). The living reference
+is [event-bus.md](../design/event-bus.md).
+
 **Seeded keys (EB2).** EB2 creates the enums with the combat core's keys already in them, so EB2's
 tests run on real keys and P02 appends nothing later. Every key rounds `HALF_UP` unless noted.
 

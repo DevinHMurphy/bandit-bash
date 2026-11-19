@@ -41,9 +41,10 @@ Magic for casters.
 | Raider | Trampler | `axe_cavalier` | Javelin (Balance) | Mounted | Mounted | 2 | 21/6/4/5/1/7/12 | 85/40/27/25/10 |
 | Hound | Pack beast | `flesh_prowler` | Fangs (Nimble) | Mobile | — | 1 | 20/4/6/1/0/7/10 | 70/30/45/5/8 |
 
-Profiles across the triangle: Nimble 3, Balance 2, Power 3, None 2 (the healer, whose staff never
-attacks, and the Shieldbearer, whose Shieldmace is a Standoff against every profile: its DEF, not
-its weapon, is what the player has to read).
+Profiles across the triangle: Nimble 3, Balance 2, Power 2, None 3 (the healer, whose staff never
+attacks; the Crossbowman, whose Simple Bow is None like every player bow; and the Shieldbearer,
+whose Shieldmace is a Standoff against every profile: its DEF, not its weapon, is what the player
+has to read).
 
 The Shieldbearer's DEF comes mostly from its trait: base 1, +2 from the Iron Shield, +2 per point of
 current Stance. That is 9 at full Stance 3, then 7, 5, and 3 when Exposed. The DEF falls as Stance is
@@ -147,7 +148,7 @@ Normal, elites and bosses only) and usually a signature move. A Defeat the Leade
 an elite. Examples, first pass:
 
 - **Brigand Captain:** an elite Brute with "every 3rd Phase Start this combat: Command, every ally
-  gains 1 Stance".
+  gains 1 Stance, even above its maximum".
 - **Bloodhound:** an elite Hound with "Defeated an enemy: may move again".
 
 ## Mini-bosses and the boss
@@ -161,7 +162,7 @@ puzzle, to learn which are fun.
 
 | Mini-boss | Built on | Signature move (telegraphed as its intent) | The puzzle |
 |-----------|----------|---------------------------------------------|------------|
-| Brigand Captain | Brute | Every 3rd Phase Start this combat: Command, every ally gains 1 Stance | Break its pack's Stance before Command restores it |
+| Brigand Captain | Brute | Every 3rd Phase Start this combat: Command, every ally gains 1 Stance, even above its maximum | Command comes after the refresh, so its pack holds one Stance over its maximum until their next Phase Start: every break takes an extra hit. Strike between Commands, or take the Captain first |
 | Bloodhound | Hound | Defeated an enemy: may move again | Never leave a wounded unit in its reach |
 | Hex Matron | Hexer | Every 3rd Phase Start this combat: Hex Storm, every unit within 2 tiles of its target, friend or foe, loses 1 Stance | Bait it into catching its own pack, then crit them |
 | Iron Wall | Shieldbearer (keeps Braced, the Shieldmace and the Iron Shield) | Every 2nd Phase Start this combat: Fortify, adjacent units, friend or foe, gain 4 Block and +1 Parry until Phase End | Strip its Stance to open up its DEF, then break the formation, or stand in the wall and share it |

@@ -24,8 +24,9 @@ These are already decided or built:
 | Standard combats should take 2–5 minutes | game-vision.md |
 | The team travels one shared campaign map and votes on the route | game-vision.md |
 | The host resolves everything; clients send commands and replay events | effects-system.md, `Godot_FE` multiplayer plan |
-| One combat save file per campaign, holding one turn number and one phase | `combat_data.gd`, save-system.md |
-| Effect scopes include Any Ally Unit (co-op partners' units); phases are per map (event bus plan, question 11) | effect-triggers.md |
+| One combat save file per campaign. Its core holds one turn number and one phase; its `combat_state` section already holds each map's units, turn and phase side | `combat_data.gd`, `combat_state_section.gd`, save-system.md |
+| Effect scopes include Any Ally Unit (co-op partners' units). Phases are per map: every unit on a map, reinforcements included, shares its phases, and a map's player phase ends when every player with units on it has ended their turn (event bus plan, question 11) | effect-triggers.md |
+| Campaign effects are per player: heirloom triggers (Gained, Combat ended, Leveled up) and the campaign values (gold, XP %, prices, army size) are read for each player's own heirlooms (event bus plan, question 10) | effect-triggers.md, event-bus.md |
 | Each player gets their own combat Standout and their own Feast | game-vision.md, items.md |
 
 For scale: four players with typical armies field 16–24 units. A solo standard map holds 4–6.
