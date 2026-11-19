@@ -86,6 +86,8 @@ var _view: UnitDetailViewModel = null
 # The lines get_texts() reports, in its order, as the panel last drew them.
 var _texts: PackedStringArray = []
 
+# ASSUMPTION: the board dims to bg at 50% (battle_theme.tres ModalDim, the panel shadow's alpha);
+# no doc sets a modal's dim. The dim stops 56 units short of the bottom so the hint bar stays lit.
 @onready var _modal: CanvasLayer = %Modal
 @onready var _header: UnitDetailHeader = %Header
 @onready var _body: ScrollContainer = %Body
