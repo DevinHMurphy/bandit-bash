@@ -68,6 +68,7 @@ pacing, readability).
 | RF-024 | November 19, 2026 (AU1 report) | Audio | Feel | AU1's first-pass mix, marked ASSUMPTION: 4 voices per sound effect and 2 per UI sound, a 1 s crossfade, ducking at -10 dB over 0.25 s (unused), key combats on the standard battle tracks, Save Select / New Run / Lobby / the node placeholder on the menu track, the refused sound borrowing `menu_back.ogg`, a disabled campaign map node playing the refused sound. The agent couldn't listen; a probe confirmed playback | Listen and settle at the M2 exit playtest | Open | M2 | RB1 |
 | RF-025 | November 19, 2026 (UL2 report) | UI | Feel | The board has no elite marker: an elite (a prefixed enemy, a leader) shows only by name in the panels and the unit detail; the leader keeps its outline | Decide at the M2 exit playtest; a board marker would go in UL6 | Open | M2 | P15 UL6 |
 | RF-026 | November 19, 2026 (UL2 report) | UI | Feel | Side reads only by outline colour on the board (colour-blind check); no sprite is shared between sides, but nothing besides the colour marks a side | A shape per side on the token (base or HP bar), in UL6 | Open | M2 | P15 UL6 |
+| RF-027 | November 19, 2026 (UL6 estimate) | UI | Feel | Strike pacing follows Godot_FE: each hit or crit waits its number's full 1.0 s and a Miss or No damage 0.75 s, so a two-hit attack with a counter takes about 3 s at speed 1 and an enemy phase of five attackers 10–15 s (M1 used a 0.35 s hold) | Judge at the M2 exit playtest; the values are `@export`s | Open | M2 | RB1 |
 
 ## Entry notes
 
