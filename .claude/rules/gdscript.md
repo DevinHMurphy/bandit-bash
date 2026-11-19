@@ -98,7 +98,7 @@ A **structural change** is adding, removing, renaming or reparenting a node; att
 
 ### 8.5 Event bus and effects
 
-For combat, the campaign layer, effects, content definitions and their presentation. The design is in `docs/plans/2026-10-23-event-bus-and-effects.md`.
+For combat, the campaign layer, effects, content definitions and their presentation. The design is in `docs/design/event-bus.md`.
 
 - **Rules code is pure.** It never touches nodes, the scene tree, autoloads (except `NetLog`, on the main thread only), a bus, the global RNG or disk.
 - **Rules never `await`.** Commands resolve completely, then presentation plays the resulting facts. Presentation never drives rules.
