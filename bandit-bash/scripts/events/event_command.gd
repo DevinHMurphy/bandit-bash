@@ -13,7 +13,7 @@
 class_name EventCommand
 extends CampaignCommand
 ## A seat's command on the event open at the run's node ([EventChooserCommand],
-## [EventOptionCommand]): what both check first, and the content both read.
+## [EventVoteCommand], [EventOptionCommand]): what each checks first, and the content each reads.
 ##
 ## [EventNode] fills [member pool] and [member catalog] on the host before sending, so resolving
 ## stays pure: nothing here loads a file or reads an autoload.

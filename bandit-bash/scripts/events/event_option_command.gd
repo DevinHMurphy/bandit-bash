@@ -16,9 +16,11 @@ extends EventCommand
 ##
 ## An individual event resolves for the sending seat only. A team choice resolves once for every
 ## seat, each with its own rolls and picks ([member team_choices]), all or nothing: every seat
-## must be able to take it. For each seat, [constant CampaignFact.Kind.EVENT_CHOSEN] comes before
-## the option's own facts. A surprise combat marks [member EventRunState.is_combat_pending], so
-## the node's battle begins on the Standard pool. Built by [method EventNode.choose].
+## must be able to take it. With more than one seat, only the option the votes drew
+## ([EventVoteCommand]) can be chosen, and only after the draw. For each seat,
+## [constant CampaignFact.Kind.EVENT_CHOSEN] comes before the option's own facts. A surprise
+## combat marks [member EventRunState.is_combat_pending], so the node's battle begins on the
+## Standard pool. Built by [method EventNode.choose].
 ##
 ## @tutorial(Events and curses plan): docs/plans/2026-11-12-events-and-curses.md
 
@@ -58,10 +60,19 @@ func validate(run: CampaignRunState) -> String:
 	var event: EventDefinition = open_event(run)
 	if option_index < 0 or option_index >= event.options.size():
 		return "the event has no option %d" % [option_index]
-	for seat_number: int in _acting_seats(run, event):
+	var acting: PackedInt32Array = _acting_seats(run, event)
+	for seat_number: int in acting:
 		problem = EventCommand.seat_problem(run, seat_number)
-		if problem.is_empty():
-			problem = EventResolver.refusal(_context(run, event, seat_number))
+		if not problem.is_empty():
+			return problem
+	if event.is_team_choice and acting.size() > 1:
+		var drawn: int = run.events.drawn_option()
+		if drawn == EventRunState.NO_OPTION:
+			return "the team hasn't drawn its option yet"
+		if drawn != option_index:
+			return "the team drew option %d, not %d" % [drawn, option_index]
+	for seat_number: int in acting:
+		problem = EventResolver.refusal(_context(run, event, seat_number))
 		if not problem.is_empty():
 			return problem if run.seats.size() < 2 else "seat %d: %s" % [seat_number, problem]
 	return ""

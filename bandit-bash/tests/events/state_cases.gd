@@ -189,32 +189,13 @@ func _test_continue_after_choosing() -> void:
 	), twice.rejected_reason)
 
 
-# made's campaign block saved through every campaign section a resume needs, through JSON, then
-# loaded into a new session the way CampaignService builds one: rng, instance_ids, the run, then
-# the events. Null, reported, when any step fails.
+# made saved and loaded into a new session (Fixture.resume). Null, reported, when any step fails.
 func _resume(made: CampaignSession) -> CampaignSession:
-	var saving: Sections = Sections.new()
-	saving.attach(made)
-	var players: Array[CampaignData.PlayerRun] = _players(made.seats)
-	var block: Dictionary = saving.registry.capture(CAMPAIGN, {})
-	saving.registry.capture_players(players)
-	var player_data: Array = []
-	for player: CampaignData.PlayerRun in players:
-		player_data.append(player.to_dict())
-	var saved: Dictionary = _json({"sections": block, "players": player_data})
-
-	var loading: Sections = Sections.new()
-	var read_players: Array[CampaignData.PlayerRun] = []
-	for entry: Variant in saved.get("players", []) as Array:
-		read_players.append(CampaignData.PlayerRun.from_dict(entry as Dictionary))
-	var err: Error = loading.registry.restore(CAMPAIGN, saved.get("sections", {}) as Dictionary)
-	if err == OK:
-		err = loading.registry.restore_players(read_players)
-	var resumed: CampaignSession = CampaignSession.new(made.mode, Fixture.RUN_SEED, made.seats)
-	if err == OK:
-		err = loading.attach(resumed)
-	_check("continue: the save loads into a new session", err == OK, error_string(err))
-	return resumed if err == OK else null
+	var resumed: CampaignSession = _fx.resume(made)
+	_check("continue: the save loads into a new session", resumed != null, (
+			error_string(_fx.resume_error)
+	))
+	return resumed
 
 
 # What the seat's event screen would show, as text.
@@ -237,15 +218,6 @@ func _seat_text(made: CampaignSession) -> String:
 	])
 
 
-func _players(seats: PackedInt32Array) -> Array[CampaignData.PlayerRun]:
-	var players: Array[CampaignData.PlayerRun] = []
-	for seat: int in seats:
-		var player: CampaignData.PlayerRun = CampaignData.PlayerRun.new()
-		player.seat = seat
-		players.append(player)
-	return players
-
-
 # A deep copy of data with the value at path replaced.
 func _with(data: Dictionary, path: Array, value: Variant) -> Dictionary:
 	var copy: Dictionary = data.duplicate(true)
@@ -263,37 +235,3 @@ func _json(data: Dictionary) -> Dictionary:
 
 func _check(case_name: String, passed: bool, detail: String = "") -> void:
 	_report.call(case_name, passed, detail)
-
-
-# The campaign block's sections a continued run needs, registered as CampaignService registers
-# them, and attached to a session in its order.
-class Sections:
-	extends RefCounted
-
-	var registry: SaveSectionRegistry = SaveSectionRegistry.new()
-	var rng: RngSaveSection = RngSaveSection.new(SaveSection.Block.CAMPAIGN)
-	var ids: InstanceIdSaveSection = InstanceIdSaveSection.new(SaveSection.Block.CAMPAIGN)
-	var run: RunSaveSections = RunSaveSections.new()
-	var events: EventSaveSection = EventSaveSection.new()
-
-	func _init() -> void:
-		registry.register(SaveSection.Block.CAMPAIGN, rng)
-		registry.register(SaveSection.Block.CAMPAIGN, ids)
-		registry.register(SaveSection.Block.CAMPAIGN, run.map)
-		registry.register(SaveSection.Block.CAMPAIGN, run.flow)
-		for section: RunSaveSections.SeatSection in run.seat_sections:
-			registry.register_player(section)
-		registry.register(SaveSection.Block.CAMPAIGN, events)
-
-	## Attaches every section to session; the first error, else OK. A session that already has its
-	## run (one being saved) keeps it.
-	func attach(session: CampaignSession) -> Error:
-		var err: Error = rng.attach(session)
-		if err == OK:
-			err = ids.attach(session)
-		if err == OK:
-			var run_err: Error = run.attach(session)
-			err = OK if run_err == ERR_DOES_NOT_EXIST and session.run != null else run_err
-		if err == OK:
-			err = events.attach(session)
-		return err

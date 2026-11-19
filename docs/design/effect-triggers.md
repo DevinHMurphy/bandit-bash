@@ -4,7 +4,8 @@ The catalog of everything an effect can react to, and the words effect text uses
 the vocabulary for the [effects system](effects-system.md). Keep it small: add a trigger only when
 a real effect needs it.
 
-**Status:** designed October 15, 2026; not built yet.
+**Status:** built. The triggers are `EffectTerms.Trigger` and their text is generated from it;
+how the engine dispatches them is in [event-bus.md](event-bus.md).
 
 ## Reading effect text
 
@@ -75,26 +76,70 @@ phase ends when every player with units on it has ended their turn (event bus pl
 | Unit Turn End | For each unit of a side, at its side's Phase End, after the Phase End trigger; every unit gets it, acting or not |
 | Phase End | A side's phase ends |
 
-**Combat events.** Each event has a pair: one side does it, the other side has it done to them.
+No phase trigger has an inline window: each fires at a step boundary, after the step it ends.
 
-| Trigger | Fires when | Notes |
-|---------|------------|-------|
-| Attack made | A unit makes an attack, hit or miss | Each attack counts, so AtkX 2 is two attacks |
-| Hit dealt / Hit taken | The attack's hit roll succeeds | Counts even if the damage is fully countered (0) or absorbed by Block |
-| Missed / Dodged | The attack's hit roll fails | Missed is the attacker; Dodged is the defender |
-| Damage dealt / Damage taken | Real damage gets through, to Block or HP | The same test that costs the defender Stance |
-| Crit dealt / Crit taken | A hit is a critical hit | Only possible against an Exposed unit |
-| Exposed | A unit's Stance reaches 0 | Fires once each time it happens |
-| Defeated an enemy / Defeated | A unit defeats an enemy / a unit is defeated | |
-| Healed an ally / Healed | A unit restores an ally's HP / a unit regains HP | Includes overhealing; see effects-system.md |
-| Used a staff on an ally | A unit uses any staff (heal or Block) on an ally | |
-| Darkness damage taken | A unit takes damage from [the darkness](the-darkness.md) in the darkness phase at the end of the turn | Not an attack: it never fires Hit taken or Damage taken |
-| Object used | A unit uses a [map object](map-objects.md) (lights or douses, pulls, searches, passes through) | |
-| Shoved a unit / Shoved | A unit shoves another / a unit is shoved | Shove is described in game-vision.md |
-| Moved after acting | A unit makes its own move after acting, which a trait allows (Skirmisher) | Only its own walk: being shoved, Recalled or swapped doesn't count. Fires once the move is made, so Skirmisher+'s "gains 2 Block if it moves" lasts until its side's next Block refresh |
+**Combat events.** Each event has a pair: one side does it, the other side has it done to them.
+A trigger with an **inline window** fires before its amount is committed, so an effect on it can
+change *that* action ("that hit takes half damage", "that attack gains lifesteal"). On any other
+trigger an effect can only start a new action ("gain 2 Block"), which resolves after the current
+step. The content test fails an inline operation on a trigger without a window.
+
+| Trigger | Fires when | Inline window | Notes |
+|---------|------------|---------------|-------|
+| Attack made | A unit makes an attack, hit or miss | Yes: that attack's Hit, damage stages and flags (lifesteal) | Each attack counts, so AtkX 2 is two attacks |
+| Hit dealt / Hit taken | The attack's hit roll succeeds | Yes: every damage stage of that hit, through Stance loss | Counts even if the damage is fully countered (0) or absorbed by Block |
+| Missed / Dodged | The attack's hit roll fails | No | Missed is the attacker; Dodged is the defender |
+| Damage dealt / Damage taken | Real damage gets through, to Block or HP | No | The same test that costs the defender Stance |
+| Crit dealt / Crit taken | A hit is a critical hit | Yes: that hit, from the Critical stage on | Only possible against an Exposed unit |
+| Exposed | A unit's Stance reaches 0 | No | Fires once each time it happens |
+| Defeated an enemy / Defeated | A unit defeats an enemy / a unit is defeated | No | |
+| Healed an ally / Healed | A unit restores an ally's HP / a unit regains HP | Yes: that heal's amount | Includes overhealing; see effects-system.md |
+| Used a staff on an ally | A unit uses any staff (heal or Block) on an ally | No | |
+| Darkness damage taken | A unit takes damage from [the darkness](the-darkness.md) in the darkness phase at the end of the turn | Yes: that damage | Not an attack: it never fires Hit taken or Damage taken |
+| Object used | A unit uses a [map object](map-objects.md) (lights or douses, pulls, searches, passes through) | No | |
+| Shoved a unit / Shoved | A unit shoves another / a unit is shoved | No | Shove is described in game-vision.md |
+| Block gained | A unit gains Block from any source: an effect, a staff, a Guard Tonic, a Phase Start trait | Yes: that gain's amount (rounded half up, never below 0) | The Phase Start refresh to 0 is not a gain, and a loss (a negative gain, such as Haunted's) never fires it. A unit that can't gain Block (Haunted's ban) gains nothing and fires nothing |
+| Moved after acting | A unit makes its own move after acting, which a trait allows (Skirmisher) | No | Only its own walk: being shoved, Recalled or swapped doesn't count. Fires once the move is made, so Skirmisher+'s "gains 2 Block if it moves" lasts until its side's next Block refresh |
 
 Always-on effects have no trigger. They apply whenever their owner is involved, e.g. "Take 5 less
 damage".
+
+## Campaign
+
+Campaign triggers belong to heirlooms and items on the campaign layer, per player. All three are
+reaction-only: none has an inline window.
+
+| Trigger | Fires when |
+|---------|------------|
+| Gained | This heirloom or item is acquired |
+| Combat ended | A combat ends, for each player, won or lost |
+| Leveled up | A unit's level-up is committed ("When Your Unit levels up") |
+
+Node entered, Item scrapped and Shop opened are left out until content needs them.
+
+**As built:** the three triggers exist and have their text, but nothing dispatches campaign facts
+to effects yet, and no content uses them ([event-bus.md](event-bus.md#triggers)).
+
+**Steady numbers are values, not triggers.** Economy, XP and army-size effects modify a
+**campaign value** that the game reads when it needs the number:
+
+| Campaign value | Starts at | Content |
+|----------------|-----------|---------|
+| Combat gold | 0 | Bounty Ledger (+8) |
+| Grade bonus | 25 points | Gilded Purse (+25 points) |
+| Shared XP, a unit's own XP | 100% | Veteran's Medal (+20%), Family Ring (+25%, holder only) |
+| Scrap value | 20 points of the buy price | Scrapper's Tongs (+20 points) |
+| Armory stock, Guildhall recruits, shop prices, free rerolls | 0, 0, 100%, 0 | Merchant's Ledger, Guild Charter, Membership Seal, Tinker's Token |
+| Max army size (never past 8) | 0 | Muster Roll, Abundance, the Company Charter event |
+| Extra enemies | 0 | Hunted |
+| Healing received (both layers) | 100% | Cursed Blood, Cleansed Goblet |
+| Level-up gains: guaranteed, random, fewest stats raised; whether a stat may grow | 0, 0, 0; allowed | Training Weights, Resonant Ore, Royal Crest |
+| Enemy intents hidden (a permission) | Shown | Clouded Sight |
+| Darkness arrival offset, Pouch item weight (read at battle start) | 0 | Short Wick, Heavy Pack |
+
+Modifiers **add** to the starting value, so copies stack: two Gilded Purses make each grade bonus
++75%. Effect text says "instead of" only for a real override, a value that replaces the base
+("Scrapping pays 10% instead of 20%"); the engine keeps that mode for future trade-off heirlooms.
 
 ## Conditions
 

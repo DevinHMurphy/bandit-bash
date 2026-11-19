@@ -17,8 +17,8 @@ extends RefCounted
 ## really moves there (a far move reusing every decision, a move that hands a later enemy a kill
 ## moving it up the order), intents refresh after a player command and only then, the danger zone
 ## matches reach plus range for each M1 behavior, the same board gives the same intents, Phase End
-## effects (P06's darkness damage) are foreseen without touching the map, and the darkness's
-## switched rule reads "Nearest foe".
+## effects are foreseen without touching the map, and the darkness's switched rule reads "Nearest
+## foe".
 ## Reports each case through the check callable it is given.
 
 # The suite that runs this file; tests/case_files.gd finds it by this line.
@@ -84,8 +84,9 @@ func run() -> void:
 
 
 # The Brute's hit takes 15 of p1's 20 HP. A PHASE_END_EFFECTS registration that deals 5 to every
-# player unit at the player Phase End (as P06's darkness damage will) leaves 15: the intents
-# foresee the Brute's kill, the real map stays untouched, and the real phase plays it.
+# player unit at the player Phase End leaves 15: the intents foresee the Brute's kill, the real
+# map stays untouched, and the real phase plays it. Darkness damage is not a Phase End effect: it
+# lands in the darkness phase, after the enemy phase, so intents never include it.
 func _test_phase_end_effects_foreseen() -> void:
 	var plain: AiWorld = AiWorld.new(_catalog, PLAIN_8X8)
 	plain.add_enemy("e1", BRUTE, Vector2i(0, 0))
@@ -495,8 +496,8 @@ func _plan_text(plan: EnemyPlan) -> String:
 	]
 
 
-# A PHASE_END_EFFECTS registration standing in for P06's darkness damage: 5 splash to every player
-# unit at the player Phase End, recorded through the engine of the session it is handed.
+# A PHASE_END_EFFECTS registration: 5 splash to every player unit at the player Phase End,
+# recorded through the engine of the session it is handed.
 static func _scorch_players(session: CombatSession, side: CombatFact.CombatSide) -> void:
 	if side != CombatFact.CombatSide.PLAYER:
 		return

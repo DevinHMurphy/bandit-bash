@@ -40,7 +40,7 @@ Not a bug.
 | ID | Title | Area | Sev | Status | Found | Fix step |
 |----|-------|------|-----|--------|-------|----------|
 | [BUG-002](#bug-002-the-forecasts-crit-chance-ignores-current-stance) | The forecast's crit chance ignores current Stance | P02 / P07 | S2 | Fixed (BF1 merge, November 19, 2026) | November 6, 2026, user playtest | BF1 |
-| [BUG-003](#bug-003-save-systemmd-says-a-battle-retry-repeats-ids) | save-system.md says a battle retry repeats ids | P00 / P02 | S4 | Assigned (CC9; P02 question 22 accepted November 7, 2026) | November 5, 2026, CC10 report | CC9 |
+| [BUG-003](#bug-003-save-systemmd-says-a-battle-retry-repeats-ids) | save-system.md says a battle retry repeats ids | P00 / P02 | S4 | Fixed (CC9, dfad90b, merged November 19, 2026) | November 5, 2026, CC10 report | CC9 |
 | [BUG-004](#bug-004-an-enemy-with-an-attack-intent-moves-and-doesnt-attack) | An enemy with an attack intent moves and doesn't attack; the next enemy hits its target | P05 / P07 | S2 | Tabled (user, November 18, 2026; not in BF1) | November 6, 2026, user playtest | — |
 | [BUG-005](#bug-005-unit-detail-shows-the-type-id-not-its-name) | Unit detail shows the type id, not its name | P07 | S4 | Fixed (UL3 merge, November 19, 2026) | November 7, 2026, UI11 report | UL3 |
 | [BUG-006](#bug-006-netlog-raises-an-engine-error-once-the-peer-is-cleared) | NetLog raises an engine error once the peer is cleared | P00 / P10 | S3 | Fixed (BF1 merge, November 19, 2026) | November 9, 2026, O3 report | BF1 |
@@ -48,7 +48,7 @@ Not a bug.
 | [BUG-012](#bug-012-loading-the-map-pools-in-a-test-leaks-resources) | Loading `CombatMapPools.load_default()` inside the board suite's route case leaves 74 objects and 58 resources in use at exit | P04 (map pools) / tests | S4 | New | November 16, 2026, MP10a report | — (worked around in the test) |
 | [BUG-014](#bug-014-a-runs-runes-never-reach-the-battle) | A run's runes never reach the battle, and a cast or discard never reaches the run | P08 (battle bridge) | S2 (latent: no run grants runes yet) | Assigned (RN9) | November 18, 2026, UI14 report | RN9 |
 | [BUG-015](#bug-015-the-unit-panels-details-button-cant-be-clicked) | The unit panel's Details button can't be clicked: the panel follows the hovered unit, so moving the mouse to it changes or hides the panel | P07 (unit panel) | S2 | Fixed (UL3 merge, November 19, 2026) | November 18, 2026, user playtest | UL3 (ui-lift.md) |
-| [BUG-016](#bug-016-steamnetworklocal_peer_id-errors-once-the-peer-is-cleared) | `SteamNetwork.local_peer_id()` errors once the peer is cleared | P10 | S4 | Assigned (P10 NT1) | November 19, 2026, BF1 report | P10 NT1 |
+| [BUG-016](#bug-016-steamnetworklocal_peer_id-errors-once-the-peer-is-cleared) | `SteamNetwork.local_peer_id()` errors once the peer is cleared | P10 | S4 | Fixed (NT1 merge, November 19, 2026) | November 19, 2026, BF1 report | P10 NT1 |
 | [BUG-017](#bug-017-choosing-a-map-node-by-keyboard-logs-a-grab_focus-error) | Choosing a map node by keyboard logs `grab_focus: !is_inside_tree()` | P08 (campaign map) | S4 | New | November 19, 2026, UL7 report | — |
 
 ### BUG-001 No Block at the start of combat
@@ -85,6 +85,7 @@ Not a bug.
   because the campaign file keeps the counter after Begin minted the army and setup. Nothing
   reads ids for meaning.
 - **Recommended fix** (P02 question 22): correct the doc in CC9.
+- **Fixed** in CC9 (dfad90b, merged November 19, 2026): save-system.md's Instance ids section says a restarted battle mints new ids from the counter Begin saved after minting; only the rolls repeat. `InstanceIdSaveSection`'s class doc and the P01 plan (about line 516) still say "mints from Begin's value", true only read as "after minting".
 
 ### BUG-004 An enemy with an attack intent moves and doesn't attack
 
@@ -290,6 +291,7 @@ Not a bug.
 - **Harm today:** none. It is only called inside a lobby.
 - **Expected:** 1 with no error when there is no peer, or a guard at the call.
 - **Fix in P10 NT1** (net transport's contract and seats step), which owns `SteamNetwork`.
+- **Fixed** in P10 NT1 (merged November 19, 2026): the guard is in `local_peer_id()`. Regression: `tests/net/gate_cases.gd`; after `leave_lobby()`, `local_peer_id()` returns 1 with no engine error; with the fix reverted it returns 0 with the error.
 
 ### BUG-017 Choosing a map node by keyboard logs a grab_focus error
 

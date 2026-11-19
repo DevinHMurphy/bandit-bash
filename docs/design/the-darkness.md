@@ -262,10 +262,27 @@ them.
   [effect-triggers.md](effect-triggers.md); heirlooms, traits and equipment can answer the darkness.
 - **Save impact:** darkness state is battle state, saved in the `COMBAT` block: active sources, each
   wave's reach, each tile's layer, and each breakable's contact count. On parallel maps it is one
-  state per map, which joins the already-noted save change to one battle state per player. Section
-  keys and versions are chosen when the system is built.
+  state per map, which joins the already-noted save change to one battle state per player. Built
+  as the combat block's `darkness` section, version 1 ([save-system.md](save-system.md#darkness)).
 - **Determinism:** active sources and Rout drain ties come from the run's seeded stream; everything
   else is computed from the map, so every client derives the same flow.
+
+## In the code
+
+Paths are relative to `bandit-bash/scripts/map/`; the plan is the
+[darkness plan](../plans/2026-11-03-the-darkness.md).
+
+| Part | Where |
+|------|-------|
+| Which maps get the darkness, the source pick, the drain, the first release | `darkness_setup.gd` (setup step 3) |
+| Floodable tiles, heights, step and flow costs | `darkness_flow.gd` |
+| Sources, waves, layers, contact counts, the Brazier cap | `darkness_state.gd` |
+| The darkness phase (damage, then creep, release and erosion), arrival, the board's queries | `darkness.gd`, on the `AFTER_ENEMY_PHASE` hook |
+| The save section | `darkness_save_section.gd` |
+| The map rule (at least 2 candidates that can flood) | `map_check.gd`, rule `DARKNESS_SOURCES` |
+
+How to author source candidates and check them is in
+[map-authoring.md](map-authoring.md#darkness-sources).
 
 ## Authoring guidelines
 

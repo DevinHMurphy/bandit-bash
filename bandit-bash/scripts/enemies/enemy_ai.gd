@@ -6,7 +6,7 @@
 # File:     enemy_ai.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name EnemyAI
@@ -30,7 +30,6 @@ extends RefCounted
 ## @tutorial(Map objects): docs/design/map-objects.md
 ##
 ## @todo: TOD-001 - Block staves; no enemy class holds one, and an enemy holding one regroups.
-## @todo: TOD-003 - The Warcaller's War Horn, its signature move (EN7); until then it only rallies.
 ## @todo: TOD-005 - Levers off a Seize or Defend map: opening a route toward a foe, and sealing one
 ## on other objectives, once a map needs it.
 
@@ -168,7 +167,8 @@ static func decide(
 		EnemyClassDefinition.Behavior.SUPPORT:
 			options = _prefer_dry(board, _heals(board))
 			if options.is_empty() and board.rule == ContentIds.TARGET_MOST_ALLIES_NEAR:
-				# TODO(TOD-003): the War Horn, with EN7's signature moves.
+				# The Warcaller rallies; its War Horn needs no plan, since the trait fires on its
+				# own at its side's Phase Start.
 				options = _prefer_dry(board, _rallies(board))
 			elif options.is_empty():
 				options = _prefer_dry(board, _regroups(board))
