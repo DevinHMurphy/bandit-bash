@@ -53,7 +53,7 @@ Found November 18, 2026, in `bandit-bash/`:
 | **UL8 Heirloom bar** | The [heirloom bar](#heirloom-bar) on every campaign screen and in battle | P07, P08, P03 (an icon on heirlooms and curses) | UL1 |
 | **DK7 Darkness phase** (P06, not UI) | The [darkness phase](#darkness-phase) | P06, P07 | — |
 
-**Out of scope** (M5 polish or later): new art made from scratch, unit animations, audio, an
+**Out of scope** (M5 polish or later): new art made from scratch, unit animations, sound design (the audio layer is P16 AU1, [audio.md](audio.md)), an
 exchange cut-in, tutorials (P21). P08's shop and event screens (RN6+) are built on the new theme,
 so they need no second pass.
 
@@ -65,9 +65,10 @@ a pair is not listed):
 3. UL4 with UL1F: merged November 18, 2026.
 4. UL3 beside UL5: both merged November 19, 2026.
 5. UL8 beside BF1: issued November 19, 2026.
-6. UL6 beside UL7.
+6. UL2 beside P16 AU1 (the audio layer, [audio.md](audio.md)).
+7. UL6 beside UL7, both wiring their sounds onto AU1.
 
-BF1, P09 EV1 and P08 RN6 take the next free slots between waves (M3 steps that touch no UI-lift screen); CT11 joins the docs batch.
+P09 EV1 takes the slot beside the docs batch after round 7, and P08 RN6 the next free one (M3 steps that touch no UI-lift screen); CT11 joins the docs batch.
 
 ## Heirloom bar
 
