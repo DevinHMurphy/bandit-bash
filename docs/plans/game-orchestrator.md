@@ -75,7 +75,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P11 | Co-op combat (game-vision.md Multiplayer maps) | **Not started** | — | P01, P02, P04, P08, P10 |
 | P12 | Statistics and the Waystation war table (meta-progression.md) | **Not started** | — | P01, P08 |
 | P13 | [RNG streams](2026-10-26-rng-streams.md) | **Implemented** | — | P00 |
-| P15 | UI lift ([ui-lift.md](../design/ui-lift.md); its scope doc is the plan) | **In progress**: UL0 the style guide ([ui-style.md](../design/ui-style.md)) and UL1 the shared theme done | UL1F, UL2–UL8 | P07, P08 |
+| P15 | UI lift ([ui-lift.md](../design/ui-lift.md); its scope doc is the plan) | **In progress**: UL0 the style guide ([ui-style.md](../design/ui-style.md)) and UL1 the shared theme done; UL4 with UL1F issued November 18, 2026 | UL1F, UL2–UL8 | P07, P08 |
 | P14 | [Project organization](2026-11-09-project-organization.md) | **In progress** | O5 (deferred) | — |
 | P20–P24 | Meta progression, tutorials, dev console, status effects, shared co-op battles | Post-MVP | — | — |
 
@@ -108,7 +108,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 5. **M2's exit:** playtest a full M2 map set, folding in the deferred M1 tuning pass. Playtest notes go in the Inbox of [rebalance-and-features.md](../design/rebalance-and-features.md); the orchestrator triages them, and accepted M2 entries are built as rebalance passes (RB1, RB2...) before M2 is complete.
 6. **Later:** P04 MP11, a map authoring toolkit so the user can build maps by hand in the editor as in `Godot_FE` (after MP10 and MP9; P04 question 26); one public `Pathing.path_to` (P07 question 15 d); vision updates for the ideation thread.
 
-**Open questions for the user:** none.
+**Open questions for the user:** which rune art goes with which rune (UI14, RF-008); bonus XP for mini-bosses and the Powder Baron (RF-013, before EN11 merges); BUG-004's details (blocks BF1); whether CT12 weapon prefixes are in the MVP; RF-012 (show the Bloodhound's second move or not).
 
 ## Scope guardrails
 
