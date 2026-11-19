@@ -16,7 +16,8 @@ extends "res://tests/ui/ui_suite.gd"
 ## do nothing), unit detail (opened and closed by keys, mouse and pad), in the case files declaring
 ## this suite (run through the base; each one's class doc lists its checks); then the gameplay
 ## screen's pause menu, opened by Esc and closed by Esc or Resume, pausing the tree and the board's
-## playback and unpausing both, with the hint bar following over real frames. The shared helpers are [code]tests/ui/ui_suite.gd[/code]'s.
+## playback and unpausing both, with the hint bar following over real frames. The shared helpers
+## are [code]tests/ui/ui_suite.gd[/code]'s.
 ##
 ## Run from the repo root:
 ## [code]godot --headless --path bandit-bash --script res://tests/ui/input/run_all.gd[/code].
