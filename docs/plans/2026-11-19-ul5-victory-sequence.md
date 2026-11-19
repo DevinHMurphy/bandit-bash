@@ -2,6 +2,27 @@
 **Date:** November 19, 2026
 **Status:** Approved November 19, 2026 (user: "Proceed"); building on `feature/UL5`
 
+## As built: changes from the approved plan
+
+- **Two more elements, each its own scene:** `grade_row.tscn` (one line of the Grade stage) and
+  `reward_icon.tscn` (a reward row's icon, drawing the style guide's placeholder mark: "?" on a
+  `panel` circle, listed in RF-008, marked `# ASSUMPTION` until the art pass).
+- **The battle screen hides its whole `Hud` layer,** not only `BattleHud`: the turn, rune and hint
+  bars are its siblings there. That's one more `@onready` (`_hud_layer`) in `battle_screen.gd`.
+- **No theme change.** Every look uses an existing theme type (`RibbonPanel`, `RibbonLabel`,
+  `RowPanel`, `FloatingPanel`, `PrimaryButton`, the label types, `ProgressBar`). Recap and reward
+  rows are `Button`s, so they get the row looks, focus outline included. The backdrops take
+  `UiTokens` colours in code. That keeps `game_theme.tres` clear of UL3's edits.
+- **Suites and the capture tool reach the overlay and the item picker as `Node`s.** Their scripts
+  name autoloads, which a `--script` run can't compile (`ui_suite.gd`), so they're called through
+  `call()`, with the stage values as constants.
+- **The capture tool sets one unit a point short of a level** before the win (a throwaway run),
+  so the level-up card is captured. It waits 0.4 s of real time before each victory shot, past
+  the 250 ms fades.
+- **Constants:** `RunSaveSections.ECONOMY_VERSION` (2) beside `VERSION` (1). In `VictoryOverlay`,
+  `BACKDROP_ALPHA` (0.85, from ui-style.md) and `STAGE_FADE_TIME` (0.25 s, from ui-style.md). The
+  pickers' and dialog's backdrop alpha (0.6) matches `PlacementPanel`'s.
+
 ## Problem
 
 A won combat shows its results all at once on a separate screen, and the board is gone before

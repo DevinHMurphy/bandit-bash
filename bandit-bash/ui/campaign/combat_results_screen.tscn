@@ -1,16 +1,8 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://ui/campaign/combat_results_screen.gd" id="1_screen"]
-[ext_resource type="PackedScene" path="res://ui/campaign/run_header.tscn" id="2_header"]
-[ext_resource type="PackedScene" path="res://ui/campaign/grades_panel.tscn" id="3_grades"]
-[ext_resource type="PackedScene" path="res://ui/campaign/level_up_panel.tscn" id="4_levels"]
-[ext_resource type="PackedScene" path="res://ui/campaign/item_pick_panel.tscn" id="5_pick"]
-[ext_resource type="PackedScene" path="res://ui/campaign/xp_panel.tscn" id="6_xp"]
-[ext_resource type="PackedScene" path="res://ui/campaign/placement_panel.tscn" id="7_placement"]
-[ext_resource type="PackedScene" path="res://ui/battle/input/input_device_adapter.tscn" id="8_device"]
-[ext_resource type="Script" path="res://ui/common/screen_hints.gd" id="9_hints"]
-[ext_resource type="PackedScene" path="res://ui/battle/hud/control_hint_bar.tscn" id="10_bar"]
-[ext_resource type="PackedScene" path="res://ui/common/pause_menu.tscn" id="11_pause"]
+[ext_resource type="PackedScene" path="res://ui/campaign/victory/victory_overlay.tscn" id="2_overlay"]
+[ext_resource type="PackedScene" path="res://ui/common/pause_menu.tscn" id="3_pause"]
 
 [node name="CombatResultsScreen" type="Control"]
 layout_mode = 3
@@ -19,124 +11,19 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 script = ExtResource("1_screen")
 
-[node name="Layout" type="MarginContainer" parent="."]
+[node name="Backdrop" type="ColorRect" parent="."]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 2
-theme_override_constants/margin_left = 8
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 8
-theme_override_constants/margin_bottom = 56
 
-[node name="Column" type="VBoxContainer" parent="Layout"]
-layout_mode = 2
-mouse_filter = 2
-theme_override_constants/separation = 8
-
-[node name="RunHeader" parent="Layout/Column" instance=ExtResource("2_header")]
+[node name="VictoryOverlay" parent="." instance=ExtResource("2_overlay")]
 unique_name_in_owner = true
-layout_mode = 2
-title = "Victory"
 
-[node name="Scroll" type="ScrollContainer" parent="Layout/Column"]
-layout_mode = 2
-size_flags_vertical = 3
-follow_focus = true
-horizontal_scroll_mode = 0
-
-[node name="Sections" type="VBoxContainer" parent="Layout/Column/Scroll"]
-layout_mode = 2
-size_flags_horizontal = 3
-mouse_filter = 2
-theme_override_constants/separation = 16
-
-[node name="Top" type="HBoxContainer" parent="Layout/Column/Scroll/Sections"]
-layout_mode = 2
-mouse_filter = 2
-theme_override_constants/separation = 48
-
-[node name="GradesPanel" parent="Layout/Column/Scroll/Sections/Top" instance=ExtResource("3_grades")]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="LevelUpPanel" parent="Layout/Column/Scroll/Sections/Top" instance=ExtResource("4_levels")]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="ItemPickPanel" parent="Layout/Column/Scroll/Sections" instance=ExtResource("5_pick")]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="XpPanel" parent="Layout/Column/Scroll/Sections" instance=ExtResource("6_xp")]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="Footer" type="HBoxContainer" parent="Layout/Column"]
-layout_mode = 2
-mouse_filter = 2
-
-[node name="Status" type="Label" parent="Layout/Column/Footer"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-autowrap_mode = 3
-
-[node name="ContinueButton" type="Button" parent="Layout/Column/Footer"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(140, 36)
-layout_mode = 2
-disabled = true
-text = "Continue"
-
-[node name="PlacementPanel" parent="." instance=ExtResource("7_placement")]
-unique_name_in_owner = true
-layout_mode = 1
-
-[node name="InputDeviceAdapter" parent="." instance=ExtResource("8_device")]
-
-[node name="ScreenHints" type="Node" parent="."]
-unique_name_in_owner = true
-script = ExtResource("9_hints")
-actions = Dictionary[StringName, PackedStringArray]({
-&"BOSS": PackedStringArray("ui_accept", "ui_cancel"),
-&"DONE": PackedStringArray("ui_accept", "ui_cancel"),
-&"PICK": PackedStringArray("ui_left", "ui_right", "ui_accept", "ui_cancel"),
-&"PLACE": PackedStringArray("ui_up", "ui_down", "ui_accept", "ui_cancel")
-})
-
-[node name="ControlHintBar" parent="." node_paths=PackedStringArray("controller", "device") instance=ExtResource("10_bar")]
-unique_name_in_owner = true
-layout_mode = 1
-controller = NodePath("../ScreenHints")
-device = NodePath("../InputDeviceAdapter")
-right_margin = 8.0
-labels = Dictionary[String, String]({
-"BOSS/ui_accept": "End run",
-"BOSS/ui_cancel": "Pause",
-"DONE/ui_accept": "Continue",
-"DONE/ui_cancel": "Pause",
-"PAUSED/ui_cancel": "Resume",
-"PAUSED/ui_down": "Choose",
-"PAUSED/ui_up": "Choose",
-"PICK/ui_accept": "Choose",
-"PICK/ui_cancel": "Pause",
-"PLACE/ui_accept": "Choose",
-"PLACE/ui_cancel": "Back",
-"PLACE/ui_down": "Choose",
-"PLACE/ui_up": "Choose",
-"ui_accept": "Select",
-"ui_cancel": "Back",
-"ui_down": "Move",
-"ui_left": "Move",
-"ui_right": "Move",
-"ui_up": "Move"
-})
-
-[node name="PauseMenu" parent="." instance=ExtResource("11_pause")]
+[node name="PauseMenu" parent="." instance=ExtResource("3_pause")]

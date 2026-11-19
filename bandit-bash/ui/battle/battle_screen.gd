@@ -6,7 +6,7 @@
 # File:     battle_screen.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name BattleScreen
@@ -19,7 +19,8 @@ extends Node2D
 ## request, one already on shows as it stands, and a run anywhere else is sent to its own screen
 ## ([RunScreen]). Once the player's map has ended and settled, input stops, the banner shows for
 ## [member end_banner_time], then [code]CampaignService.end_battle()[/code] applies and saves the
-## result and all go on: to the combat's Results after a win, to the run's end after a loss.
+## result: a won solo combat's [VictoryOverlay] opens over the board, which stays; a loss goes on
+## to the run's end.
 ## [b]Commands only:[/b] its [BattleController] turns input into commands. Co-op and a multiplayer
 ## client keep the placeholder. The save debug panel hides while a battle shows, as it would take
 ## the map's clicks; toggle_save_debug shows it, and the debug fact log with it. A battle it
@@ -36,6 +37,8 @@ extends Node2D
 # banner's 1.0 s fade-in and 1.0 s fade-out.
 @export_range(0.0, 10.0, 0.1) var end_banner_time: float = 2.0
 
+const VICTORY_SCENE: PackedScene = preload("res://ui/campaign/victory/victory_overlay.tscn")
+
 # The player's map in the battle shown; null when the placeholder shows.
 var _session: CombatSession = null
 
@@ -47,6 +50,8 @@ var _is_resumed: bool = false
 @onready var _view: BattleView = %BattleView
 @onready var _controller: BattleController = %BattleController
 @onready var _hud: BattleHud = %BattleHud
+# Every HUD part (the HUD, the turn, rune and hint bars), hidden under the victory sequence.
+@onready var _hud_layer: CanvasLayer = $Hud
 @onready var _placeholder: Control = %CoopPlaceholder
 @onready var _placeholder_note: Label = %PlaceholderNote
 
@@ -157,9 +162,9 @@ func _show_end() -> void:
 	hold.timeout.connect(_end_battle)
 
 
-# Saves the battle's end and routes everyone on: a solo run still going to its stage's screen
-# (the combat's Results after a win), and a run that ended, or anything but a solo run, to
-# RESULTS. Called once, by _show_end().
+# Saves the battle's end, then shows a won solo combat's victory sequence over the board (the run
+# is at its results); otherwise routes everyone on: a solo run still going to its stage's screen,
+# and a run that ended, or anything but a solo run, to RESULTS. Called once, by _show_end().
 func _end_battle() -> void:
 	_controller.unbind()
 	_hud.unbind()
@@ -171,6 +176,14 @@ func _end_battle() -> void:
 	var next: SceneRouter.Screen = SceneRouter.Screen.RESULTS
 	if RunScreen.is_solo_run(run):
 		next = RunScreen.of(run)
+	if next == SceneRouter.Screen.COMBAT_RESULTS:
+		_hud_layer.visible = false
+		var overlay: VictoryOverlay = VICTORY_SCENE.instantiate()
+		overlay.playback_speed = _view.playback_speed
+		overlay.fast_forward_speed = _view.fast_forward_speed
+		add_child(overlay)
+		overlay.open(run.seats[0], false)
+		return
 	SceneRouter.goto_screen_for_everyone(next)
 
 
