@@ -108,7 +108,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 5. **M2's exit:** playtest a full M2 map set, folding in the deferred M1 tuning pass. Playtest notes go in the Inbox of [rebalance-and-features.md](../design/rebalance-and-features.md); the orchestrator triages them, and accepted M2 entries are built as rebalance passes (RB1, RB2...) before M2 is complete.
 6. **Later:** P04 MP11, a map authoring toolkit so the user can build maps by hand in the editor as in `Godot_FE` (after MP10 and MP9; P04 question 26); one public `Pathing.path_to` (P07 question 15 d); vision updates for the ideation thread.
 
-**Open questions for the user:** bonus XP for mini-bosses and the Powder Baron (RF-013; EN11 merged without it); RF-012 (show the Bloodhound's second move or not).
+**Open questions for the user:** none.
 
 ## Scope guardrails
 
