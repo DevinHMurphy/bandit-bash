@@ -6,13 +6,13 @@
 # File:     combat_map_section.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 7, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name CombatMapSection
 extends SaveSection
-## The battle's maps in the combat block: the [code]combat_map[/code] section, with its partner
-## [member entities], the [code]entities[/code] section, both at version 1.
+## The battle's maps in the combat block: the [code]combat_map[/code] section at version 1, with its
+## partner [member entities], the [code]entities[/code] section at version 2.
 ##
 ## [code]CampaignService[/code] registers this section, then [member entities], after
 ## [CombatStateSection]'s pair, and attaches both to the run's [CampaignSession]. Each capture
@@ -192,11 +192,14 @@ func load_into(battle: CombatEncounter) -> Error:
 	return OK
 
 
-# The spot indexes of the objects in an entities part, ascending.
+# The spot indexes of the authored objects in an entities part, ascending. A keg thrown during the
+# battle is on no spot of the map, so a rebuilt battle never has it; it comes back from the save.
 static func _spots_of(entities_part: Dictionary) -> PackedInt32Array:
 	var spots: PackedInt32Array = []
 	# Untyped: the parts come from JSON; restore() checked them.
 	for entry: Variant in entities_part.get("objects", []):
+		if (entry as Dictionary).get("is_thrown", false):
+			continue
 		var index: float = (entry as Dictionary)["index"]
 		spots.append(roundi(index))
 	spots.sort()
@@ -235,7 +238,8 @@ class EntitiesSection:
 
 	# Never change it: it is how saved data finds this section (save-system.md).
 	const _KEY: String = "entities"
-	const _VERSION: int = 1
+	# 2: every object has "is_thrown" and "fuse" (the Powder Baron's thrown kegs).
+	const _VERSION: int = 2
 
 	var _session: CampaignSession = null
 	var _held: Dictionary = {}
@@ -246,6 +250,22 @@ class EntitiesSection:
 
 	func get_version() -> int:
 		return _VERSION
+
+	## Version 1 to 2: each object gains [code]"is_thrown": false[/code] and
+	## [code]"fuse": -1[/code], since no version 1 battle could hold a thrown keg. Edits
+	## [param data] in place.
+	func migrate(data: Dictionary, from_version: int) -> Error:
+		if from_version != 1:
+			return super(data, from_version)
+		# Untyped: the parts come from JSON; restore() checks them after.
+		for entry: Variant in data.get("sessions", []):
+			if not entry is Dictionary:
+				continue
+			for placed: Variant in (entry as Dictionary).get("objects", []):
+				if placed is Dictionary:
+					(placed as Dictionary)["is_thrown"] = false
+					(placed as Dictionary)["fuse"] = -1
+		return OK
 
 	## The attached run's battle's map objects; with no battle, the held data, else empty.
 	func capture() -> Dictionary:

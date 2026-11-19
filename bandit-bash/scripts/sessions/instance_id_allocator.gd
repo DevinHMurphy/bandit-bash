@@ -6,7 +6,7 @@
 # File:     instance_id_allocator.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 30, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name InstanceIdAllocator
@@ -144,6 +144,14 @@ static func seat_subject_id(seat: int) -> String:
 ## [code]object:N[/code]. Named with [method set_label] when the object is placed.
 static func object_id(spot_index: int) -> String:
 	return "object:%d" % [spot_index]
+
+
+# Not minted: a thrown keg is made in intent sandboxes too, which share this allocator, so a
+# minted id would move the counter for a keg the real phase may never throw.
+## The id of the [param reaction]th own reaction of the map object on spot [param spot_index],
+## [code]effect:object:N:R[/code]: a powder keg thrown during the battle ([KegBarrage]).
+static func object_effect_id(spot_index: int, reaction: int) -> String:
+	return "effect:object:%d:%d" % [spot_index, reaction]
 
 
 # Not minted, for the same reason as object_id().

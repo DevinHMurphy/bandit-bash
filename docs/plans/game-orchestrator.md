@@ -36,7 +36,7 @@ Where the project is, what's next and what's out of scope. Start here.
 - **Milestones:** M0 and M1 are complete. **Current: M2 Combat complete,** with M3 started alongside.
 - **What runs today:** a solo run opens the M1 battle: the Mercenary army against the Brigand pack on the greybox map. All of M2's battle systems and functional UI work on keyboard, mouse and controller: targeting, forecast, intents, the darkness, every objective's HUD, unit detail, and Save & Quit with resume.
 - **What M2 still needs:** content, enemy AI, docs and bug fixes. No new systems.
-- **Tests:** 5,936 cases, all passing, and a clean headless launch (`sh bandit-bash/tools/run_tests.sh`).
+- **Tests:** 5,978 cases, all passing, and a clean headless launch (`sh bandit-bash/tools/run_tests.sh`).
 - **Not started:** P09 (approved) and P10–P12. P08 is in progress (RN1–RN5 merged).
 
 ## Milestones
@@ -47,7 +47,7 @@ The MVP is **one full run, start screen to boss, solo and co-op, on Normal** (ga
 |---|---|---|---|
 | **M0 Foundations** | The engine every system plugs into | P00, P01 | **Complete** October 30, 2026 |
 | **M1 First playable fight** | One greybox combat, start to finish | P02–P07 (subsets) | **Complete** November 5, 2026; its tuning pass is deferred |
-| **M2 Combat complete** | Every MVP combat feature and piece of content, with a functional UI | P02–P07 | **In progress.** Left: P03 CT11 and CT12, P05 EN11 and EN12, P04 MP10's last map (the boss map, with EN11), P15 UI lift UL1F and UL2–UL8 ([ui-lift.md](../design/ui-lift.md)), BF1, and the docs (EB8, CC9, MP9, DK6, CT11, EN12) |
+| **M2 Combat complete** | Every MVP combat feature and piece of content, with a functional UI | P02–P07 | **In progress.** Left: P03 CT11 and CT12, P05 EN12, P15 UI lift UL1F and UL2–UL8 ([ui-lift.md](../design/ui-lift.md)), BF1, and the docs (EB8, CC9, MP9, DK6, CT11, EN12) |
 | **M3 Solo run** | Start screen → campaign → boss, saved and resumable; 60–80 minutes | P08, P09 | **In progress.** RN1–RN5 merged (a run plays map → combat → Results → map on all three devices, headless) |
 | **M4 Co-op run** | The same run for 2–4 players, tested live on two machines | P10, P11 | Not started |
 | **M5 MVP** | Statistics, the Waystation war table, the MVP checklist | P12, polish | Not started |
@@ -65,8 +65,8 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P01 | [Event bus and effects](2026-10-23-event-bus-and-effects.md) | **In progress** | EB8 docs | P00 |
 | P02 | [Combat core](2026-10-26-combat-core.md) | **In progress** | CC9 docs | P01 |
 | P03 | [Content catalog](2026-10-29-content-catalog.md) | **In progress** | CT11, CT12 | P01 |
-| P04 | [Combat map](2026-10-27-combat-map.md) | **In progress** | MP9 docs; MP10 the M2 map set; MP11 map authoring toolkit (future) | P01, P02 |
-| P05 | [Enemies and AI](2026-10-30-enemies-and-ai.md) | **In progress** | EN11–EN16 | P02, P04 |
+| P04 | [Combat map](2026-10-27-combat-map.md) | **In progress** | MP9 docs; MP11 map authoring toolkit (future) | P01, P02 |
+| P05 | [Enemies and AI](2026-10-30-enemies-and-ai.md) | **In progress** | EN12–EN16 (EN11 the Powder Baron merged November 18, 2026) | P02, P04 |
 | P06 | [The darkness](2026-11-03-the-darkness.md) | **In progress** | DK6 docs | P02, P04 |
 | P07 | [Combat UI](2026-11-04-combat-ui.md) | **In progress** | Nothing for M2 | P02, P04, P05, P06 |
 | P08 | [Campaign and run flow](2026-10-24-campaign-run-flow.md) | **In progress** | RN6–RN12 | P01, P03 |
@@ -108,7 +108,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 5. **M2's exit:** playtest a full M2 map set, folding in the deferred M1 tuning pass. Playtest notes go in the Inbox of [rebalance-and-features.md](../design/rebalance-and-features.md); the orchestrator triages them, and accepted M2 entries are built as rebalance passes (RB1, RB2...) before M2 is complete.
 6. **Later:** P04 MP11, a map authoring toolkit so the user can build maps by hand in the editor as in `Godot_FE` (after MP10 and MP9; P04 question 26); one public `Pathing.path_to` (P07 question 15 d); vision updates for the ideation thread.
 
-**Open questions for the user:** which rune art goes with which rune (UI14, RF-008); bonus XP for mini-bosses and the Powder Baron (RF-013, before EN11 merges); BUG-004's details (blocks BF1); whether CT12 weapon prefixes are in the MVP; RF-012 (show the Bloodhound's second move or not).
+**Open questions for the user:** which rune art goes with which rune (UI14, RF-008); bonus XP for mini-bosses and the Powder Baron (RF-013; EN11 merged without it); BUG-004's details (blocks BF1); whether CT12 weapon prefixes are in the MVP; RF-012 (show the Bloodhound's second move or not).
 
 ## Scope guardrails
 

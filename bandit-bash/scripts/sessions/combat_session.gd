@@ -6,7 +6,7 @@
 # File:     combat_session.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 15, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name CombatSession
@@ -979,9 +979,14 @@ func _spawn_parts(record: Dictionary) -> Array:
 		var value: float = pair[1]
 		bases[key] = value
 	var instances: Array[EffectInstance] = []
+	# A thrown keg's own reactions are in no catalog (MapObjects.throw_keg).
+	var lookup: Callable = func(reference: String) -> EffectDefinition:
+		var own: EffectDefinition = MapObjects.map_definition(reference)
+		return own if own != null else EffectInstance.catalog_definition(reference)
 	for entry: Variant in instance_data:
 		var instance: EffectInstance = (
-				EffectInstance.from_capture(entry as Dictionary) if entry is Dictionary else null
+				EffectInstance.from_capture(entry as Dictionary, lookup)
+				if entry is Dictionary else null
 		)
 		if instance == null:
 			return []

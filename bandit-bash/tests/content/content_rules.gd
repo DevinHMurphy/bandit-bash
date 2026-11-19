@@ -91,9 +91,10 @@ const DOUBLE_USES: String = "double_uses"
 ## An [Area] with no shape, or whose shape isn't the tree's file of that id in
 ## [code]shapes/[/code]: areas reuse the shared shapes, never a copy of their own.
 const AREA_SHAPE: String = "area_shape"
-## A key pack's mini-boss that is no class built on a base class; a mini-boss that differs from its
-## base class (stats, growths, gear, behavior, target rule, movement, tags, Stance, trait), lacks
-## one of its base's trait effects or a signature move, or sits in a pack's units.
+## A key pack's mini-boss that is no class built on a base class; a mini-boss or boss that differs
+## from its base class (stats, growths, gear, behavior unless it holds its post, target rule,
+## movement, tags, Stance, trait), lacks one of its base's trait effects or a signature move, or
+## sits in a pack's units (a post-holding boss may lead an undrawn pack).
 const MINI_BOSS: String = "mini_boss"
 
 ## Every rule that fails the test.
@@ -700,7 +701,14 @@ func _check_pack_mini_boss(path: String, pack: PackDefinition) -> void:
 		])
 	for class_id: String in pack.class_ids():
 		var unit: EnemyClassDefinition = _index.enemy_class(class_id)
-		if unit != null and not unit.base_class_id.is_empty():
+		# A scripted map's boss stands in its undrawn pack as the leader (EnemySetup.draw).
+		var is_boss_leader: bool = (
+				unit != null
+				and unit.holds_post
+				and not pack.is_drawn()
+				and pack.leader_class_id == class_id
+		)
+		if unit != null and not unit.base_class_id.is_empty() and not is_boss_leader:
 			_fail(MINI_BOSS, path, "\"%s\" is built on a base class and never sits in a pack" % [
 				class_id,
 			])
@@ -730,7 +738,8 @@ func _check_mini_boss(path: String, enemy: EnemyClassDefinition) -> void:
 		differs.append("starting_weapon_id")
 	if enemy.starting_equipment_id != base.starting_equipment_id:
 		differs.append("starting_equipment_id")
-	if enemy.behavior != base.behavior:
+	# A post holder (the Powder Baron) guards its tile whatever its base class does.
+	if enemy.behavior != base.behavior and not enemy.holds_post:
 		differs.append("behavior")
 	if enemy.target_rule_id != base.target_rule_id:
 		differs.append("target_rule_id")

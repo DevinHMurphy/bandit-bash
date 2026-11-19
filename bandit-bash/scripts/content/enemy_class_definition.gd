@@ -72,8 +72,14 @@ enum Behavior {
 
 ## The class it is an elite of, by content id, such as the Brigand Captain's [code]brute[/code]:
 ## it carries that class's stats, growths, gear, behavior and trait, plus its own signature move.
-## The content test checks they match. [b]Empty:[/b] a standard class.
+## The content test checks they match, except a post holder's behavior. [b]Empty:[/b] a standard
+## class.
 @export var base_class_id: String = ""
+
+## [b]On:[/b] it holds the tile it starts on, as the Powder Baron holds the throne: it acts only
+## from there, never moves, and keeps its behavior after the darkness arrives (the-darkness.md,
+## Arrival). [b]Off:[/b] it moves as its behavior says, as every other class does.
+@export var holds_post: bool = false
 
 
 func _validate_property(property: Dictionary) -> void:

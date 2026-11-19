@@ -6,12 +6,13 @@
 # File:     combat_map_definition.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 28, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name CombatMapDefinition
 extends Resource
-## One hand-authored combat map's rules data: its scene, combat type, pool, objective and turn par.
+## One hand-authored combat map's rules data: its scene, combat type, pool, objective, turn par
+## and, for a scripted map, its fixed enemies.
 ##
 ## Content data, read-only at runtime. The scene holds the painted terrain and marker layers;
 ## this resource holds everything that isn't painted. [MapLoader] turns the pair into a pure
@@ -70,3 +71,20 @@ enum Objective {
 ## ends the combat. Ignored by the other objectives.[br]
 ## [b]Units:[/b] turns. [b]0:[/b] not set yet.
 @export_range(0, 99) var survive_turns: int = 0
+
+## A scripted map's enemies: the pack, by content id, setup places as it is instead of drawing one
+## ([method EnemySetup.draw]), its units in the enemy slots in order and its leader on the leader
+## slot, as the boss map's are (game-vision.md, Combat maps). [b]Empty:[/b] setup draws a pack.
+@export var fixed_pack_id: String = ""
+
+## The level of a scripted map's units other than its leader, before the difficulty ladder's
+## modifier. [b]Units:[/b] levels. [b]0:[/b] the floor's step sets it, as on drawn maps.
+@export_range(0, 20) var fixed_enemy_level: int = 0
+
+## The level of a scripted map's leader (the boss), before the difficulty ladder's modifier.
+## [b]Units:[/b] levels. [b]0:[/b] the leader's usual level, its step's +2.
+@export_range(0, 20) var fixed_leader_level: int = 0
+
+## The prefix a scripted map's leader carries, by content id, such as the Powder Baron's
+## [code]stalwart[/code]. [b]Empty:[/b] a positive prefix drawn as for any elite.
+@export var fixed_leader_prefix_id: String = ""

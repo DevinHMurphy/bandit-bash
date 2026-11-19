@@ -6,7 +6,7 @@
 # File:     map_save_cases.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 15, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -14,7 +14,8 @@ extends RefCounted
 ## [CombatMapSection] pair through a [SaveSectionRegistry], Save & Quit mid-phase then resume with
 ## broken, opened, lit and exploded objects, a closed point, waves left and waiting wave units, a
 ## chest's drawn item restored from the save before it is opened, a mirror following object and
-## reinforcement facts hash for hash, and a dump replayed through them; and the
+## reinforcement facts hash for hash, a dump replayed through them, a thrown keg's resume and the
+## entities section's version 1 migration; and the
 ## [DarknessSaveSection]'s versions, refusals and checks against the rebuilt battle
 ## (darkness plan, DK5).
 ##
@@ -26,6 +27,7 @@ extends RefCounted
 const WireCases = preload("res://tests/sessions/wire_cases.gd")
 const SaveCases = preload("res://tests/sessions/save_cases.gd")
 const ObjectiveCases = preload("res://tests/map/objective_cases.gd")
+const BossCases = preload("res://tests/enemies/boss_cases.gd")
 
 const TILE_SET: TileSet = preload("res://maps/greybox_tile_set.tres")
 
@@ -57,7 +59,64 @@ func run() -> void:
 	_test_mirror_follows_objects_and_points()
 	_test_dump_replays_objects_and_points()
 	_test_section_versions_and_pairing()
+	_test_thrown_keg_resume()
 	_test_darkness_section()
+
+
+# Save & Quit with a keg the Powder Baron threw, its fuse lit, then resume: the keg comes back on
+# its tile with its HP and fuse, though the rebuilt map has no spot for it, and it explodes on the
+# same phase as in the battle never saved. A version 1 save, before thrown kegs, still loads.
+func _test_thrown_keg_resume() -> void:
+	var host: Outpost = Outpost.new()
+	var tile: Vector2i = CombatFact.NO_TILE
+	var rect: Rect2i = host.session.layout.get_rect()
+	var state: CombatState = host.session.state
+	for y: int in range(rect.position.y, rect.end.y):
+		for x: int in range(rect.position.x, rect.end.x):
+			if tile == CombatFact.NO_TILE and MapObjects.can_land(state, Vector2i(x, y)):
+				tile = Vector2i(x, y)
+	var plain: Dictionary = host.save()
+	host.act(BossCases.ThrowFixture.new(tile))
+	var keg_id: String = host.session.state.occupant_at(tile)
+	var saved: Dictionary = host.save()
+	var saved_at: int = host.session.last_seq()
+	var resumed: Outpost = Outpost.new(saved)
+	var keg: MapState.ObjectState = resumed.session.state.map.object(keg_id)
+	_check.call("thrown keg: a resume brings it back lit, with its HP, on no spot of the map", (
+			resumed.load_error == OK
+			and keg != null
+			and keg.is_thrown
+			and keg.fuse == MapObjects.FUSE_PHASES + 1
+			and resumed.session.state.get_hp(keg_id) == host.session.state.get_hp(keg_id)
+			and resumed.session.state_hash() == host.session.state_hash()
+	), "%s, %s" % [error_string(resumed.load_error), tile])
+	for field: Outpost in [host, resumed]:
+		for _turn: int in MapObjects.FUSE_PHASES + 1:
+			field.act(EndTurnCommand.new(0))
+	var host_facts: Array = host.facts_after(saved_at)
+	_check.call("thrown keg: playing on, it explodes on the same phase as unsaved", (
+			not host_facts.is_empty()
+			and JSON.stringify(resumed.facts_after(saved_at)) == JSON.stringify(host_facts)
+			and host.session.state.map.object(keg_id).is_destroyed
+			and resumed.session.state.map.object(keg_id).is_destroyed
+	), "%d facts" % [host_facts.size()])
+
+	var old: Dictionary = plain.duplicate(true)
+	var old_entry: Dictionary = old["entities"]
+	old_entry["version"] = 1
+	var stripped: int = 0
+	for map: Variant in (old_entry["data"] as Dictionary)["sessions"]:
+		for placed: Variant in (map as Dictionary)["objects"]:
+			(placed as Dictionary).erase("is_thrown")
+			(placed as Dictionary).erase("fuse")
+			stripped += 1
+	var migrated: Outpost = Outpost.new(old)
+	var unsaved: Outpost = Outpost.new()
+	_check.call("thrown keg: a version 1 entities save migrates and loads", (
+			stripped > 0
+			and migrated.load_error == OK
+			and migrated.session.state_hash() == unsaved.session.state_hash()
+	), "%d objects, %s" % [stripped, error_string(migrated.load_error)])
 
 
 func _test_map_state_round_trip() -> void:
@@ -282,9 +341,9 @@ func _test_section_versions_and_pairing() -> void:
 	var map_entry: Dictionary = saved["combat_map"]
 	var map_data: Dictionary = map_entry["data"]
 	var first_map: Dictionary = (map_data["sessions"] as Array)[0]
-	_check.call("section: both keys at version 1, with the map id and its active spots", (
+	_check.call("section: combat_map at version 1, entities at 2, the map id and its spots", (
 			WireCases.Kit.as_int(map_entry["version"]) == 1
-			and WireCases.Kit.as_int((saved["entities"] as Dictionary)["version"]) == 1
+			and WireCases.Kit.as_int((saved["entities"] as Dictionary)["version"]) == 2
 			and first_map["map_id"] == Outpost.MAP_ID
 			and (first_map["object_spots"] as Array).size() == 6
 			and not JSON.stringify(saved["entities"]).contains("\"hp\"")
@@ -293,7 +352,7 @@ func _test_section_versions_and_pairing() -> void:
 	var newer_map: Dictionary = saved.duplicate(true)
 	(newer_map["combat_map"] as Dictionary)["version"] = 2
 	var newer_entities: Dictionary = saved.duplicate(true)
-	(newer_entities["entities"] as Dictionary)["version"] = 2
+	(newer_entities["entities"] as Dictionary)["version"] = 3
 	var zero_map: Dictionary = saved.duplicate(true)
 	(zero_map["combat_map"] as Dictionary)["version"] = 0
 	var zero_entities: Dictionary = saved.duplicate(true)

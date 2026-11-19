@@ -18,7 +18,8 @@ extends RefCounted
 ## staff previewed fresh from its tile with [ForecastRolls], and rates them in [EnemyPlan]'s order:
 ## a kill (target, splash or a keg's blast) first, then the class's target rule; each behavior's
 ## rules and object uses are in [method decide]. A flooded end tile is dropped when a dry one
-## serves the same goal; after the darkness every enemy plays Aggressive on the nearest foe.
+## serves the same goal; after the darkness every enemy but a post holder plays Aggressive on the
+## nearest foe.
 ## [method next_command] re-decides every enemy yet to act and gives the best plan, so each sees
 ## what the ones before it did. Rules code: pure, static, deterministic, no RNG or logging
 ## ([member EffectEngine.diagnostics]); on a sandbox no other thread touches it may run on a
@@ -29,7 +30,6 @@ extends RefCounted
 ## @tutorial(Map objects): docs/design/map-objects.md
 ##
 ## @todo: TOD-001 - Block staves; no enemy class holds one, and an enemy holding one regroups.
-## @todo: TOD-002 - A boss holding a fixed tile keeps its behavior after the darkness (EN7's mark).
 ## @todo: TOD-003 - The Warcaller's War Horn, its signature move (EN7); until then it only rallies.
 ## @todo: TOD-005 - Levers off a Seize or Defend map: opening a route toward a foe, and sealing one
 ## on other objectives, once a map needs it.
@@ -72,9 +72,11 @@ const _SEALED: int = 1 << 30
 
 
 ## Registers the AI on [param session]'s [constant CombatHooks.Hook.ENEMY_COMMANDS], reading each
-## enemy's class from [param catalog]. Once per session, before its battle opens.
+## enemy's class from [param catalog], and the Powder Baron's throw ([method KegBarrage.register]).
+## Once per session, before its battle opens.
 static func register(session: CombatSession, catalog: EffectCatalog.Index) -> void:
 	session.hooks.add(CombatHooks.Hook.ENEMY_COMMANDS, EnemyAI.next_command.bind(catalog))
+	KegBarrage.register(session)
 
 
 ## The [constant CombatHooks.Hook.ENEMY_COMMANDS] registration: the best plan of every enemy yet
@@ -122,16 +124,14 @@ static func next_plan(
 	return best
 
 
-## [param unit_id]'s best plan on [param engine]'s map, its class read from [param catalog]: the
-## options its behavior allows, rated in [EnemyPlan]'s order; a Wait with no option or no class.
-## Aggressive and Skirmisher: the best attack in reach, else advance on the nearest foe (a Hound,
-## on the foe nearest its pack). Hold: a kill, else from its own tile, else as Aggressive. Guard:
-## any attack in reach, else stay; a Shieldbearer first takes its place beside its back-line ally.
-## Support: heal the most wounded ally, else regroup; a Warcaller attacks only from where most
-## allies stay near. Any attacker blows a keg to kill; a looter loots unless it can kill; with
-## nothing to attack, the advancing ones seal the objective or douse a Brazier. Changes nothing.
-## [param flooded]: the darkness's ([method flooded_tiles]).
-## [param objective]: the tiles the player side must reach ([method objective_tiles]).
+## [param unit_id]'s best plan on [param engine]'s map, its class from [param catalog], rated in
+## [EnemyPlan]'s order; a Wait with no option or class. Aggressive, Skirmisher: the best attack in
+## reach, else advance (a Hound toward its pack's nearest foe). Hold: a kill, else from its tile,
+## else as Aggressive. Guard: any attack in reach, else stay (a Shieldbearer beside its back-line
+## ally). Support: heal, else regroup (a Warcaller near most allies). A post holder keeps its
+## behavior after the darkness. Attackers blow kegs to kill; looters loot; with nothing to attack
+## the advancing ones seal the objective or douse a Brazier. [param flooded]:
+## [method flooded_tiles]; [param objective]: [method objective_tiles]. Changes nothing.
 static func decide(
 		engine: EffectEngine,
 		catalog: EffectCatalog.Index,
@@ -150,7 +150,7 @@ static func decide(
 	board.catalog = catalog
 	board.behavior = definition.behavior
 	board.rule = definition.target_rule_id
-	if Reinforcements.has_darkness_arrived(state) and not _holds_fixed_tile(state, unit_id):
+	if Reinforcements.has_darkness_arrived(state) and not definition.holds_post:
 		board.behavior = EnemyClassDefinition.Behavior.AGGRESSIVE
 		# The target rule turns to the nearest foe with the behavior, as the-darkness.md
 		# (Arrival) words it: "moves toward and attacks the nearest reachable target".
@@ -216,7 +216,7 @@ static func decide_second_move(
 		board.catalog = catalog
 		board.behavior = definition.behavior
 		board.rule = definition.target_rule_id
-		if Reinforcements.has_darkness_arrived(state) and not _holds_fixed_tile(state, unit_id):
+		if Reinforcements.has_darkness_arrived(state) and not definition.holds_post:
 			board.behavior = EnemyClassDefinition.Behavior.AGGRESSIVE
 			board.rule = ContentIds.TARGET_NEAREST_FOE
 		var options: Array[EnemyPlan] = _prefer_dry(board, _advances(board))
@@ -925,12 +925,6 @@ static func _safety_of(board: Board, tile: Vector2i) -> int:
 				board.threats[target] = board.threats.get(target, 0) + 1
 	return board.threats.get(tile, 0)
 
-
-# Whether unit_id is a boss that holds a fixed tile, which keeps its behavior after the darkness
-# arrives (the-darkness.md, Arrival).
-static func _holds_fixed_tile(_state: CombatState, _unit_id: String) -> bool:
-	# TODO(TOD-002): EN7's boss mark answers; no boss exists before it.
-	return false
 
 
 # What the same goal means for the dry rule: the same kind of action, on the same target, with the

@@ -23,7 +23,8 @@ extends RefCounted
 ## each unit of the side has its Block cleared and Stance set to its maximum
 ## ([constant CombatFact.Kind.BLOCK_STANCE_REFRESHED]); terrain healing; one
 ## [constant CombatFact.Kind.PHASE_START]; [constant CombatFact.Kind.UNIT_TURN_START] for each unit
-## in placement order (roster, then spawn); the drain; then, for the player side,
+## in placement order (roster, then spawn); the drain;
+## [constant CombatHooks.Hook.PHASE_START_EFFECTS]; then, for the player side,
 ## [constant CombatHooks.Hook.INTENTS]. [b]Phase End[/b] mirrors it:
 ## [constant CombatFact.Kind.PHASE_END], [constant CombatFact.Kind.UNIT_TURN_END] for each unit,
 ## the drain, [constant CombatHooks.Hook.PHASE_END_EFFECTS], the drain again, then "until Phase
@@ -153,8 +154,9 @@ static func seats_with_units(session: CombatSession) -> PackedInt32Array:
 # A session for cross_to_enemy_phase on sandbox: the sandbox's state and engine with session's
 # hooks, map, setup, seats and commanders. Its own bus, playback and fact log are never used.
 static func _stand_in(session: CombatSession, sandbox: EffectEngine) -> CombatSession:
-	# NOTE: carries every session member a PHASE_END_EFFECTS, TERRAIN_HEALING_ALLOWED or
-	# AFTER_STEP registration reads; a registration reading another needs a line here.
+	# NOTE: carries every session member a PHASE_END_EFFECTS, PHASE_START_EFFECTS,
+	# TERRAIN_HEALING_ALLOWED or AFTER_STEP registration reads (KegBarrage reads run_seed); a
+	# registration reading another needs a line here.
 	var stand_in: CombatSession = CombatSession.new(
 			session.session_id,
 			session.seats,
@@ -217,6 +219,9 @@ static func _phase_start(session: CombatSession, side: CombatFact.CombatSide) ->
 		turn_start.tile = state.tile_of(unit_id)
 		engine.record(turn_start)
 	engine.drain()
+	for run: Callable in session.hooks.get_registered(CombatHooks.Hook.PHASE_START_EFFECTS):
+		run.call(session, side)
+		engine.drain()
 	if side == CombatFact.CombatSide.PLAYER:
 		for run: Callable in session.hooks.get_registered(CombatHooks.Hook.INTENTS):
 			run.call(session)

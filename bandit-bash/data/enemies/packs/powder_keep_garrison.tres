@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="PackDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/pack_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+pool = 3
+step_1_counts = Dictionary[String, int]({"shieldbearer": 2, "crossbowman": 2, "hedge_healer": 1, "brute": 1, "cutthroat": 2, "powder_baron": 1})
+step_2_counts = Dictionary[String, int]({"shieldbearer": 2, "crossbowman": 2, "hedge_healer": 1, "brute": 1, "cutthroat": 2, "powder_baron": 1})
+step_3_counts = Dictionary[String, int]({"shieldbearer": 2, "crossbowman": 2, "hedge_healer": 1, "brute": 1, "cutthroat": 2, "powder_baron": 1})
+leader_class_id = "powder_baron"
+id = "powder_keep_garrison"
+display_name = "Powder Keep Garrison"
