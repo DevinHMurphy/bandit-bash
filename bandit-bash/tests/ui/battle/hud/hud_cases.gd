@@ -27,6 +27,9 @@ extends RefCounted
 ## suite's object fixture ([code]tests/map/object_cases.gd[/code]), which has every usable kind,
 ## and on M1's one house through the menu.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "ui/display"
+
 const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
 const TurnInputCases = preload("res://tests/ui/battle/input/turn_input_cases.gd")
 const ObjectCases = preload("res://tests/map/object_cases.gd")
@@ -449,7 +452,7 @@ func _test_panel_area() -> void:
 	var left: Control = rig.hud.get_node(^"LeftColumn")
 	var covers: PackedStringArray = []
 	# The phase banner is left out: it shows for 2 s under the heirloom bar's row, over the map's
-	# top edge by design (P15 question 11); combat_feedback_cases.gd checks its place.
+	# top edge by design (ui-lift.md, UL6); combat_feedback_cases.gd checks its place.
 	var widgets: Dictionary[String, Rect2] = {
 		"panel area": area,
 		"left column": left.get_global_rect(),

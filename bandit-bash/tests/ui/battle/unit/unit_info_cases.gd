@@ -22,6 +22,9 @@ extends RefCounted
 ## Attack on its first target, from its first move tile that offers one, else waits; then End
 ## Turn. The same seed and commands give the same facts on every board, whatever its playback mode.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "ui/board"
+
 const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
 const TurnInputCases = preload("res://tests/ui/battle/input/turn_input_cases.gd")
 

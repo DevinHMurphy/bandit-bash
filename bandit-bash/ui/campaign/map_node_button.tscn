@@ -3,9 +3,9 @@
 [ext_resource type="Script" path="res://ui/campaign/map_node_button.gd" id="1_node"]
 
 [node name="MapNodeButton" type="Button"]
-custom_minimum_size = Vector2(26, 26)
-offset_right = 26.0
-offset_bottom = 26.0
+custom_minimum_size = Vector2(32, 32)
+offset_right = 32.0
+offset_bottom = 32.0
 theme_type_variation = &"MapNodeButton"
 text = "S"
 expand_icon = true

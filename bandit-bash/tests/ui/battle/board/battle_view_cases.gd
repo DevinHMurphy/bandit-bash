@@ -26,6 +26,9 @@ extends RefCounted
 ## [b]Twins:[/b] the fast-forward and skip cases begin the same battle more than once from the
 ## same seed, so the same command gives each board the same facts to compare their timing on.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "ui/board"
+
 # A preloaded script used as a type (gdscript.md, Naming): the helper has no class name.
 const PackCatalog = preload("res://tests/enemies/pack_catalog.gd")
 

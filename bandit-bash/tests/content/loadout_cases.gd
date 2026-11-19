@@ -6,7 +6,7 @@
 # File:     loadout_cases.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 14, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -25,6 +25,9 @@ extends RefCounted
 ## the real Thief's data) and the Drengr, enemy-roster.md's for the Brute and the Hedge Healer,
 ## a Minor Heal with 3 uses per map, and a Medic to hold it on the player side. Bad-data messages
 ## are pushed as errors on purpose.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "content"
 
 # Preloaded scripts used as types (gdscript.md, Naming): neither has a class name.
 const ContentRules = preload("res://tests/content/content_rules.gd")

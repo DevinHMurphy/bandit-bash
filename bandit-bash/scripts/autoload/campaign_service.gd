@@ -20,7 +20,8 @@ extends Node
 ## client has none until transport (P10).[br]
 ## [b]Save sections,[/b] each handed the new session before [signal session_started], campaign
 ## before combat: [code]rng[/code] and [code]instance_ids[/code] in both blocks, the campaign's
-## run sections ([RunSaveSections]), and the combat block's ([CombatStateSection],
+## run sections ([RunSaveSections]) and [code]events[/code] ([EventSaveSection], once the run is
+## built), and the combat block's ([CombatStateSection],
 ## [CombatMapSection], [DarknessSaveSection], [BattleTallySection]). A run whose save holds no run
 ## sections, a new one included, is built by [RunStart] and saved at once. Every save made here
 ## first sets [member CampaignData.floors_climbed] to the run's floor, for Save Select.
@@ -54,6 +55,7 @@ var _combat_map: CombatMapSection = CombatMapSection.new()
 var _darkness: DarknessSaveSection = DarknessSaveSection.new()
 var _battle_tally: BattleTallySection = BattleTallySection.new()
 var _run_sections: RunSaveSections = RunSaveSections.new()
+var _events: EventSaveSection = EventSaveSection.new()
 
 # The id counter the combat instance_ids section gave a session built to resume a battle, set
 # again once the saved battle has loaded (the rebuild mints throwaway ids first); empty otherwise.
@@ -74,6 +76,7 @@ func _ready() -> void:
 	SaveService.register_section(SaveSection.Block.CAMPAIGN, _run_sections.flow)
 	for seat_section: RunSaveSections.SeatSection in _run_sections.seat_sections:
 		SaveService.register_player_section(seat_section)
+	SaveService.register_section(SaveSection.Block.CAMPAIGN, _events)
 	_combat_state = CombatStateSection.new(_combat_core)
 	_combat_state.resolve = _find_definition
 	# The effects section restores after combat_state, which it needs (CombatStateSection).
@@ -245,11 +248,16 @@ func _replace_session(replacement: CampaignSession) -> void:
 	_darkness.detach()
 	_battle_tally.detach()
 	_run_sections.detach()
+	_events.detach()
 	_battle_ids = {}
 	if replacement != null:
 		_attach_rng_sections(replacement)
 		_attach_id_sections(replacement)
 		_attach_run_sections(replacement)
+		# After the run is built: the events go into it. A run that can't load keeps them held.
+		var events_err: Error = _events.attach(replacement)
+		if events_err != OK:
+			push_error("CampaignService: the events can't load - %s" % [error_string(events_err)])
 		# A saved battle stays held until resume_battle() loads it.
 		_combat_state.attach(replacement)
 		_combat_map.attach(replacement)

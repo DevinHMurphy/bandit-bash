@@ -6,7 +6,7 @@
 # File:     flow_cases.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -18,6 +18,9 @@ extends RefCounted
 ## Golden values are worked by hand from the-darkness.md's rules: height is the 4-directional
 ## walking distance to the drain; steps cost 1 downhill, 2 level (or either tile without height),
 ## 3 uphill.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "darkness"
 
 const DarknessWorld = preload("res://tests/darkness/darkness_world.gd")
 

@@ -6,13 +6,16 @@
 # File:     campaign_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 9, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends "res://tests/save/save_case_base.gd"
 ## [CampaignData] cases for tests/save/run_all.gd: a solo round trip, exact run seeds in JSON,
 ## the multiplayer shape and refused data.
 
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "save"
 
 func run() -> void:
 	_test_campaign_solo_round_trip()

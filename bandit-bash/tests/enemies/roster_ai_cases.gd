@@ -6,7 +6,7 @@
 # File:     roster_ai_cases.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -20,6 +20,9 @@ extends RefCounted
 ## Lance 7 + 2, the Warcaller's 7 + 6, the Cutthroat's Simple Dagger 2 + 5 (Backstab +2), the
 ## Raider's Javelin 5 + 6, the Hexer's Shade 7 + 8 magic, less DEF or RES; player units have
 ## 20 HP, DEF 2, RES 1.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "enemies/roster"
 
 # Preloaded scripts used as types (gdscript.md, Naming): the helpers have no class name.
 const AiWorld = preload("res://tests/enemies/ai_world.gd")

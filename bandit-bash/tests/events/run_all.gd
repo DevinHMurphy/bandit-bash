@@ -10,26 +10,25 @@
 # ==============================================================================
 
 extends SceneTree
-## Headless tests for event outcomes, a case file per topic (each one's class doc lists its
-## checks): every outcome block against a real run state (outcome_cases.gd), option requirements
-## and event data (requirement_cases.gd), the weapon modification with test-only prefixes
-## (weapon_prefix_cases.gd), and the resolver's all-or-nothing rule, curses and RNG use
-## (resolver_cases.gd). Shared setup is in event_fixture.gd. Touches no save files.
+## Headless tests for events: every outcome block against a real run state, option requirements
+## and event data, the weapon modification with test-only prefixes, the resolver's all-or-nothing
+## rule, curses and RNG use, the event draw and its rolls, choosing through the event commands
+## (a surprise combat through the battle bridge included), and the events section with quit and
+## Continue. They are the case files declaring this suite, which [code]tests/case_files.gd[/code]
+## finds and runs in path order; each one's class doc lists its checks. Shared setup is in
+## event_fixture.gd. Saves go through memory and JSON only; no file is written.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/events/run_all.gd[/code][br]
 ## Prints PASS or FAIL per case and exits with code 1 if any case fails. Refused options log
-## nothing; only FAIL lines mean a problem.
+## nothing; refused save data logs an error, as it should; only FAIL lines mean a problem.
 
 # The test report's line on this suite; tools/run_tests.sh reads it from this one line.
-const SUITE_DESCRIPTION: String = "Event outcome blocks, requirements, weapon prefixes, resolver"
+const SUITE_DESCRIPTION: String = "Event outcomes, resolver, the draw, choosing, the events section"
 
-# Preloaded scripts used as types (gdscript.md, Naming): the case scripts have no class name.
+# Preloaded scripts used as types (gdscript.md, Naming): they have no class name.
 const GroupClock = preload("res://tests/group_clock.gd")
-const OutcomeCases = preload("res://tests/events/outcome_cases.gd")
-const RequirementCases = preload("res://tests/events/requirement_cases.gd")
-const WeaponPrefixCases = preload("res://tests/events/weapon_prefix_cases.gd")
-const ResolverCases = preload("res://tests/events/resolver_cases.gd")
+const CaseFiles = preload("res://tests/case_files.gd")
 
 var _failures: int = 0
 var _passes: int = 0
@@ -37,15 +36,7 @@ var _passes: int = 0
 
 func _init() -> void:
 	print("--- Event tests. ---")
-
-	GroupClock.lap("outcome_cases")
-	OutcomeCases.new(_check).run()
-	GroupClock.lap("requirement_cases")
-	RequirementCases.new(_check).run()
-	GroupClock.lap("weapon_prefix_cases")
-	WeaponPrefixCases.new(_check).run()
-	GroupClock.lap("resolver_cases")
-	ResolverCases.new(_check).run()
+	CaseFiles.run(self, _check)
 	GroupClock.stop()
 
 	print("--- %d passed, %d failed ---" % [_passes, _failures])

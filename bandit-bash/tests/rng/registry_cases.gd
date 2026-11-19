@@ -6,13 +6,16 @@
 # File:     registry_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 9, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends "res://tests/rng/rng_case_base.gd"
 ## Registry cases for tests/rng/run_all.gd ([RngStreams]): lazy streams by key, seats and shared
 ## keys, independence between keys, dropping a node, and the two saved sections.
 
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "rng"
 
 func run() -> void:
 	_test_registry_creates_lazily_by_key()

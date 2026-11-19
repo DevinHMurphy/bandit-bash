@@ -28,6 +28,9 @@ extends RefCounted
 ## through [constant HOLD_UNTIL], so the darkness arrives at the end of turn 4 (par 5) and
 ## releases again; the same seed must still give the same fact log twice.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "enemies/ai"
+
 # A preloaded script used as a type (gdscript.md, Naming): the helper has no class name.
 const PackCatalog = preload("res://tests/enemies/pack_catalog.gd")
 

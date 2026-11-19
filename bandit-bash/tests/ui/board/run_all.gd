@@ -11,8 +11,8 @@
 
 extends "res://tests/ui/ui_suite.gd"
 ## Combat UI board suite (combat UI plan, P07): the board, the map object marks, enemy information
-## and the unit info layer, a cases file each in [code]tests/ui/battle/[/code] (preloaded below;
-## each one's class doc lists its checks); then the gameplay screen itself: a run saved
+## and the unit info layer, in the case files declaring this suite (run through the base; each
+## one's class doc lists its checks); then the gameplay screen itself: a run saved
 ## mid-battle and continued opens on the board at its saved state, its heirloom bar's counts and
 ## looks as they were; a new solo run's first battle played to its end, the
 ## control hints showing PLAYBACK through its final playback until the end banner, its Victory or
@@ -29,11 +29,8 @@ extends "res://tests/ui/ui_suite.gd"
 # The test report's line on this suite; tools/run_tests.sh reads it from this one line.
 const SUITE_DESCRIPTION: String = "Combat board, object marks, intents, unit info; continue, routing"
 
+# Preloaded script used as a type (gdscript.md, Naming): the screen cases settle the board with it.
 const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
-const ObjectMarkCases = preload("res://tests/ui/battle/board/object_mark_cases.gd")
-const IntentCases = preload("res://tests/ui/battle/intents/intent_cases.gd")
-const UnitInfoCases = preload("res://tests/ui/battle/unit/unit_info_cases.gd")
-const CombatFeedbackCases = preload("res://tests/ui/battle/board/combat_feedback_cases.gd")
 
 # SceneRouter.Screen.RESULTS: this script can't name the autoload (see the base's class doc).
 const SCREEN_RESULTS: int = 4
@@ -71,16 +68,7 @@ func _process(_delta: float) -> bool:
 	_frame += 1
 	if _frame == 1:
 		_start("Combat UI tests: board")
-		GroupClock.lap("battle_view_cases")
-		BattleViewCases.new(_check, root).run()
-		GroupClock.lap("object_mark_cases")
-		ObjectMarkCases.new(_check, root).run()
-		GroupClock.lap("intent_cases")
-		IntentCases.new(_check, root).run()
-		GroupClock.lap("unit_info_cases")
-		UnitInfoCases.new(_check, root).run()
-		GroupClock.lap("combat_feedback_cases")
-		CombatFeedbackCases.new(_check, root).run()
+		_run_case_files()
 		GroupClock.lap("continue case")
 		_run_continue_case()
 		# Open over the frames the route to Results takes.

@@ -15,6 +15,9 @@ extends RefCounted
 ## the cue resource reports a cue that can't play; and a missing cue is reported once and plays
 ## nothing.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "audio"
+
 # Every audio file AU1 brought over from Godot_FE: 54 sounds and 8 tracks.
 const AUDIO_ROOT: String = "res://assets/audio/"
 const EXPECTED_FILES: int = 62

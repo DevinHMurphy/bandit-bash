@@ -6,7 +6,7 @@
 # File:     object_ai_cases.gd
 # Author:
 # Created:  November 15, 2026
-# Modified: November 16, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -19,6 +19,9 @@ extends RefCounted
 ##
 ## Boards are plain, with walls where a case says. Every enemy has 5 movement. The Brute's Simple
 ## Axe hits a player unit (20 HP, DEF 2) for 12; a keg's blast deals 5 to every unit beside it.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "enemies/roster"
 
 # Preloaded scripts used as types (gdscript.md, Naming): the helpers have no class name.
 const AiWorld = preload("res://tests/enemies/ai_world.gd")

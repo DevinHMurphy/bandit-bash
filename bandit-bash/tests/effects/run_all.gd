@@ -6,15 +6,14 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 16, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends SceneTree
-## Headless tests for the event bus and effects layer, a case file per topic (each one's class
-## doc lists its checks): facts (fact_cases.gd), buses and the tracer (bus_cases.gd), value
-## queries (value_cases.gd), effect text (describe_cases.gd), and the effect engine
-## (engine_cases.gd, golden_cases.gd, sandbox_cases.gd, stats_cases.gd), run on the test-only map
-## in harness/.
+## Headless tests for the event bus and effects layer: facts, buses and the tracer, value queries,
+## effect text and the effect engine, run on the test-only map in harness/. They are the case
+## files declaring this suite, which [code]tests/case_files.gd[/code] finds and runs in path order;
+## each one's class doc lists its checks.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/effects/run_all.gd[/code][br]
@@ -27,16 +26,9 @@ extends SceneTree
 # The test report's line on this suite; tools/run_tests.sh reads it from this one line.
 const SUITE_DESCRIPTION: String = "Event bus, facts, value queries and the effect engine"
 
-# Preloaded scripts used as types (gdscript.md, Naming): the case scripts have no class name.
+# Preloaded scripts used as types (gdscript.md, Naming): they have no class name.
 const GroupClock = preload("res://tests/group_clock.gd")
-const FactCases = preload("res://tests/effects/fact_cases.gd")
-const BusCases = preload("res://tests/effects/bus_cases.gd")
-const ValueCases = preload("res://tests/effects/value_cases.gd")
-const DescribeCases = preload("res://tests/effects/describe_cases.gd")
-const EngineCases = preload("res://tests/effects/engine_cases.gd")
-const GoldenCases = preload("res://tests/effects/golden_cases.gd")
-const SandboxCases = preload("res://tests/effects/sandbox_cases.gd")
-const StatsCases = preload("res://tests/effects/stats_cases.gd")
+const CaseFiles = preload("res://tests/case_files.gd")
 
 var _failures: int = 0
 var _passes: int = 0
@@ -44,24 +36,7 @@ var _passes: int = 0
 
 func _init() -> void:
 	print("--- Event bus tests. Warnings from CombatFact and CampaignFact below are expected. ---")
-
-	GroupClock.lap("fact_cases")
-	FactCases.new(_check).run()
-	GroupClock.lap("bus_cases")
-	BusCases.new(_check).run()
-	GroupClock.lap("value_cases")
-	ValueCases.new(_check).run()
-	GroupClock.lap("describe_cases")
-	DescribeCases.new(_check).run()
-	GroupClock.lap("engine_cases")
-	EngineCases.new(_check).run()
-	GroupClock.lap("golden_cases")
-	GoldenCases.new(_check).run()
-	GroupClock.lap("sandbox_cases")
-	SandboxCases.new(_check).run()
-	GroupClock.lap("stats_cases")
-	StatsCases.new(_check).run()
-
+	CaseFiles.run(self, _check)
 	GroupClock.stop()
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)

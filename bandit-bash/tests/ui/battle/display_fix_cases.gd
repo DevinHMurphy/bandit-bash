@@ -6,7 +6,7 @@
 # File:     display_fix_cases.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 9, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -20,6 +20,9 @@ extends RefCounted
 ## [b]Hits[/b] are played as the facts [code]ExchangeResolver.attack[/code] and
 ## [code]DamagePipeline.apply[/code] record them, with the fixture's numbers worked through the
 ## pipeline's own sums (Block takes first, then HP up to what it has).
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "ui/display"
 
 const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
 

@@ -6,13 +6,16 @@
 # File:     save_file_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 9, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends "res://tests/save/save_case_base.gd"
 ## [SaveFile] and [SaveMigrations] cases for tests/save/run_all.gd: round trips, backup
 ## rotation, precision, crashes at each save step, corrupt and missing files, version checks,
 ## migrations and deletion. Empties the scratch folder first.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "save"
 
 # Text that can't parse as JSON, standing in for a write cut off by a crash.
 const TRUNCATED_JSON: String = "{\"schema_version\": 1, \"core\": {"

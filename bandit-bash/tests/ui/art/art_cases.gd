@@ -20,6 +20,9 @@ extends RefCounted
 ## [b]The battle:[/b] the Old Mill with the M1 pack, begun as the board cases begin M1
 ## ([method BattleViewCases.begin_m1]); a keg is thrown onto the first tile it can land on.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "ui/art"
+
 const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
 
 const SPRITE_TABLE: String = "res://assets/sprites/units/unit_sprites.tres"

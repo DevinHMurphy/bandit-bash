@@ -6,7 +6,7 @@
 # File:     step_cases.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 7, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -22,6 +22,9 @@ extends RefCounted
 ## Golden logs are worked by hand from the flow rules (heights from the drain; steps downhill 1,
 ## level 2, uphill 3) and written as [method DarknessWorld.lines] gives them. Each map's turn par
 ## is given as its [member DarknessState.first_release] (par − 1).
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "darkness"
 
 const DarknessWorld = preload("res://tests/darkness/darkness_world.gd")
 const AiWorld = preload("res://tests/enemies/ai_world.gd")

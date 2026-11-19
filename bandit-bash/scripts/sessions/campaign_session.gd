@@ -67,6 +67,11 @@ var ids: InstanceIdAllocator = InstanceIdAllocator.new()
 ## Presentation signals for campaign facts.
 var bus: CampaignBus = CampaignBus.new()
 
+## The [member CampaignFact.seq] of the last fact of [member run]'s log played on [member bus]
+## ([CampaignPlayback]); a later fact is still to play. [b]0:[/b] none played. Not saved: a
+## resumed run's log starts empty, so nothing from before the quit plays again.
+var played_seq: int = 0
+
 ## The battle in progress; null outside one.
 var encounter: CombatEncounter = null
 

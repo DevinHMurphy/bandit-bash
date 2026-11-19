@@ -6,15 +6,15 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 16, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends SceneTree
-## Headless tests for the RNG streams, a case file per topic (each one's class doc lists its
-## checks): keys and the SplitMix64 mixer (key_cases.gd), streams (stream_cases.gd), a run's
-## registry (registry_cases.gd), its save sections (rng_section_cases.gd) and the run seed
-## (run_seed_cases.gd). The save sections through the real [code]SaveService[/code] are in the
-## sessions suite's lifecycle cases.
+## Headless tests for the RNG streams: keys and the SplitMix64 mixer, streams, a run's registry,
+## its save sections and the run seed. They are the case files declaring this suite, which
+## [code]tests/case_files.gd[/code] finds and runs in path order; each one's class doc lists its
+## checks. The save sections through the real [code]SaveService[/code] are in the sessions suite's
+## lifecycle cases.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/rng/run_all.gd[/code][br]
@@ -24,13 +24,9 @@ extends SceneTree
 # The test report's line on this suite; tools/run_tests.sh reads it from this one line.
 const SUITE_DESCRIPTION: String = "Seeded random streams: keys, streams, registry, saves, seeds"
 
-# Preloaded scripts used as types (gdscript.md, Naming): the case scripts have no class name.
+# Preloaded scripts used as types (gdscript.md, Naming): they have no class name.
 const GroupClock = preload("res://tests/group_clock.gd")
-const KeyCases = preload("res://tests/rng/key_cases.gd")
-const StreamCases = preload("res://tests/rng/stream_cases.gd")
-const RegistryCases = preload("res://tests/rng/registry_cases.gd")
-const RngSectionCases = preload("res://tests/rng/rng_section_cases.gd")
-const RunSeedCases = preload("res://tests/rng/run_seed_cases.gd")
+const CaseFiles = preload("res://tests/case_files.gd")
 
 var _failures: int = 0
 var _passes: int = 0
@@ -41,18 +37,7 @@ func _init() -> void:
 			"--- RNG tests. Errors from RngStream, RngStreams, RngSaveSection and RunSeed below"
 			+ " are expected. ---"
 	)
-
-	GroupClock.lap("key_cases")
-	KeyCases.new(_check).run()
-	GroupClock.lap("stream_cases")
-	StreamCases.new(_check).run()
-	GroupClock.lap("registry_cases")
-	RegistryCases.new(_check).run()
-	GroupClock.lap("rng_section_cases")
-	RngSectionCases.new(_check).run()
-	GroupClock.lap("run_seed_cases")
-	RunSeedCases.new(_check).run()
-
+	CaseFiles.run(self, _check)
 	GroupClock.stop()
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)

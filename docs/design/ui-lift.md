@@ -49,7 +49,7 @@ Found November 18, 2026, in `bandit-bash/`:
 | **UL4 Event log** ✅ (merged November 18, 2026, with UL1F) | The [event log](#event-log) replaces the fact log. From UL1: `darkness` and `danger` fail contrast as text (2.06:1 and 2.79:1 on `panel`), so log lines need a lighter text form or an icon beside the colour | P07 | UL1 |
 | **UL5 Victory sequence** ✅ (merged November 19, 2026) | The [staged victory overlay](#victory-sequence) replaces the Results screen | P08, P07 | UL1 |
 | **UL6 Combat feedback** | Hit, crit, Block and Stance-break feedback, floating numbers, phase banners, playback pacing; tweens and existing art only. From UL8: the phase banner draws over the heirloom bar at phase start once it holds about 6 icons. From BF1 and AU1: `battle_screen.gd` declares an `@export` before a `const` (file order), and its class doc is over the 12-line budget. From UL2: RF-025 (an elite marker) and RF-026 (a side shape), if the user approves; the event log's generic "Powder Keg at (0, 7) changes" line when a thrown keg lands; long lines at `battle_view.gd:739` | P07 | UL2 |
-| **UL7 Campaign and menu pass** | The campaign map, level-up, item pick and placement, start, save and options screens on the new theme. From UL1: titles and headings are still body text and Continue is not yet a primary button (the styles exist); map nodes are 26×26 (floor 32); sliders show focus only by a brighter grabber | P08 | UL1 |
+| **UL7 Campaign and menu pass** ✅ (merged November 19, 2026; the map scrolls, P15 question 9; `VolumeRow` draws the slider focus outline and steps it by pad, since Godot's slider does neither) | The campaign map, level-up, item pick and placement, start, save and options screens on the new theme. From UL1: titles and headings are still body text and Continue is not yet a primary button (the styles exist); map nodes are 26×26 (floor 32); sliders show focus only by a brighter grabber | P08 | UL1 |
 | **UL8 Heirloom bar** ✅ (merged November 19, 2026) | The [heirloom bar](#heirloom-bar) on every campaign screen and in battle | P07, P08, P03 (an icon on heirlooms and curses) | UL1 |
 | **DK7 Darkness phase** (P06, not UI) | The [darkness phase](#darkness-phase) | P06, P07 | — |
 
@@ -66,7 +66,7 @@ a pair is not listed):
 4. UL3 beside UL5: both merged November 19, 2026.
 5. UL8 beside BF1: both merged November 19, 2026.
 6. UL2 beside P16 AU1 (the audio layer, [audio.md](audio.md)): both issued November 19, 2026.
-7. UL7 issued November 19, 2026 (Lane B, beside UL2, EV1 and O8); UL6 follows UL2.
+7. UL7 issued November 19, 2026 (Lane B, beside UL2, EV1 and O8); UL6 issued November 19, 2026 (Lane A) after UL2 merged.
 
 P09 EV1 takes the slot beside the docs batch after round 7, and P08 RN6 the next free one (M3 steps that touch no UI-lift screen); CT11 joins the docs batch.
 

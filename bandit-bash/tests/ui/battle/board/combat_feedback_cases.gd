@@ -19,6 +19,9 @@ extends RefCounted
 ## the right tokens; and the event log's thrown-keg lines. Strike facts are built as
 ## ExchangeResolver.attack and DamagePipeline.apply record them. No autoload is named or needed.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "ui/board"
+
 const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"

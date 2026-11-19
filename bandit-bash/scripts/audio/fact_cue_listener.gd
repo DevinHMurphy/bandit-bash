@@ -15,8 +15,8 @@ extends RefCounted
 ## [signal CampaignBus.fact_played] it finds the fact's rule in a [FactCueMap] and hands its cue
 ## id to the play callable. Facts reach a bus only during playback, so a sound plays when the
 ## board shows its fact, not when its batch arrives (as the event log writes its lines).[br]
-## [b]Presentation only:[/b] it reads facts and, for the shapes that need it, the side of an id
-## through the callable it was bound with; it never changes state.
+## [b]Presentation only:[/b] it reads facts and, for the shapes that need it, the side of an id or
+## the type of a node through the callable it was bound with; it never changes state.
 ##
 ## @tutorial(Audio scope): docs/design/audio.md
 
@@ -26,6 +26,8 @@ var _combat_bus: CombatBus = null
 var _campaign_bus: CampaignBus = null
 # Returns the CombatFact.CombatSide of an id, units and map objects alike (CombatState.side_of).
 var _side_of: Callable = Callable()
+# Returns the CampaignGraph.NodeType of a node id of the run, or -1 for none.
+var _node_type_of: Callable = Callable()
 
 
 ## A listener reading [param map] that calls [param play] with a cue id (a [StringName]).
@@ -49,12 +51,15 @@ func bind_combat(bus: CombatBus, side_of: Callable = Callable()) -> void:
 	_combat_bus.fact_played.connect(_on_combat_bus_fact_played)
 
 
-## Sounds [param bus]'s facts from now on. Replaces any bus bound before.
-func bind_campaign(bus: CampaignBus) -> void:
+## Sounds [param bus]'s facts from now on, reading node types through [param node_type_of]
+## ([code](node_id: int) -> int[/code], a [enum CampaignGraph.NodeType] or -1; invalid: the
+## [code]combat[/code] shape never matches). Replaces any bus bound before.
+func bind_campaign(bus: CampaignBus, node_type_of: Callable = Callable()) -> void:
 	unbind()
 	if bus == null:
 		return
 	_campaign_bus = bus
+	_node_type_of = node_type_of
 	_campaign_bus.fact_played.connect(_on_campaign_bus_fact_played)
 
 
@@ -70,6 +75,7 @@ func unbind() -> void:
 	_combat_bus = null
 	_campaign_bus = null
 	_side_of = Callable()
+	_node_type_of = Callable()
 
 
 ## Whether [param bus] is the bus bound.
@@ -87,12 +93,15 @@ func cue_for_combat(fact: CombatFact) -> StringName:
 	return &""
 
 
-## The cue id [param fact] sounds; empty for none. Campaign facts match the bare kind only.
+## The cue id [param fact] sounds; empty for none. Campaign facts match the bare kind or the
+## [code]combat[/code] shape; every other shape is combat's and never matches.
 func cue_for_campaign(fact: CampaignFact) -> StringName:
 	if _map == null or fact == null:
 		return &""
 	for rule: FactCueMap.Rule in _map.rules_for(fact.kind):
 		if rule.shape == FactCueMap.Shape.ANY:
+			return rule.cue_id
+		if rule.shape == FactCueMap.Shape.COMBAT_NODE and _is_combat_node(fact.amount):
 			return rule.cue_id
 	return &""
 
@@ -113,6 +122,8 @@ func _matches(shape: FactCueMap.Shape, fact: CombatFact) -> bool:
 			return fact.side == CombatFact.CombatSide.PLAYER
 		FactCueMap.Shape.ENEMY_SIDE:
 			return fact.side == CombatFact.CombatSide.ENEMY
+		FactCueMap.Shape.COMBAT_NODE:
+			return false
 	return true
 
 
@@ -122,6 +133,17 @@ func _side(id: String) -> CombatFact.CombatSide:
 		return CombatFact.CombatSide.NONE
 	var side: CombatFact.CombatSide = _side_of.call(id)
 	return side
+
+
+# Whether node_id is a combat node of the run, through the bound lookup; false without one.
+func _is_combat_node(node_id: int) -> bool:
+	if not _node_type_of.is_valid():
+		return false
+	var type: int = _node_type_of.call(node_id)
+	for combat: CampaignGraph.NodeType in FactCueMap.COMBAT_NODE_TYPES:
+		if type == combat:
+			return true
+	return false
 
 
 func _on_combat_bus_fact_played(fact: CombatFact) -> void:

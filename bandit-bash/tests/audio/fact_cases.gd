@@ -12,9 +12,14 @@
 extends RefCounted
 ## Facts to cues: the shipped maps compile and name only cues the catalog has (and music moments
 ## the music map has); a fact played on a [CombatBus] sounds its rule (each AU1 cue, every shape)
-## and a fact with no rule nothing; a [CampaignBus] level-up sounds; bad keys are reported; an
-## unbound listener is silent. Then the music map: screens, battle moments and the node-type
-## fallback. The listener here records instead of playing.
+## and a fact with no rule nothing; on a [CampaignBus] a level-up and the run's start sound, a
+## chosen node sounds battle_map_enter only when its type is a combat's (the combat shape, read
+## through the bound lookup; none bound: silent), and a bare rule is tried after a shape; bad keys
+## are reported; an unbound listener is silent. Then the music map: screens, battle moments and the
+## node-type fallback. The listener here records instead of playing.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "audio"
 
 const COMBAT_MAP_PATH: String = "res://data/audio/maps/combat_facts.tres"
 const CAMPAIGN_MAP_PATH: String = "res://data/audio/maps/campaign_facts.tres"
@@ -27,6 +32,13 @@ const OBJECT_ID: String = "object:3"
 
 # A hit's damage, any above 0.
 const SOME_DAMAGE: int = 5
+
+# Node ids the test's node-type lookup knows (_node_type), and one it doesn't.
+const COMBAT_NODE: int = 0
+const KEY_NODE: int = 1
+const BOSS_NODE: int = 2
+const CAMP_NODE: int = 3
+const MISSING_NODE: int = 99
 
 var _check: Callable
 var _root: Window
@@ -125,11 +137,70 @@ func _check_campaign(map: FactCueMap) -> void:
 			_text(),
 	)
 	_heard.clear()
-	bus.play(CampaignFact.new(CampaignFact.Kind.NODE_CHOSEN))
+	bus.play(CampaignFact.new(CampaignFact.Kind.NODE_LEFT))
 	_check.call("facts: a campaign fact with no rule is silent", _heard.is_empty(), _text())
 	_heard.clear()
+	bus.play(CampaignFact.new(CampaignFact.Kind.RUN_STARTED))
+	_check.call("facts: the run's start sounds begin_campaign", (
+			_heard == [&"begin_campaign"]
+	), _text())
+	_heard.clear()
+	bus.play(_node_chosen(COMBAT_NODE))
+	_check.call("facts: with no node lookup bound, a chosen node is silent", (
+			_heard.is_empty()
+	), _text())
+	_heard.clear()
 	_check.call("facts: the listener knows its bus", listener.is_bound_to(bus))
+	listener.bind_campaign(bus, _node_type)
+	for node_id: int in [COMBAT_NODE, KEY_NODE, BOSS_NODE, CAMP_NODE, MISSING_NODE]:
+		bus.play(_node_chosen(node_id))
+	_check.call("facts: a chosen combat, key or Boss node sounds battle_map_enter; others don't", (
+			_heard == [&"battle_map_enter", &"battle_map_enter", &"battle_map_enter"]
+	), _text())
+	_heard.clear()
 	listener.unbind()
+	_check_shape_order()
+
+
+# A map with both a bare NODE_CHOSEN rule and a combat one: the shape wins for a combat node, the
+# bare rule takes every other, whichever order the keys were written in.
+func _check_shape_order() -> void:
+	var map: FactCueMap = FactCueMap.new()
+	map.domain = FactCueMap.Domain.CAMPAIGN
+	map.cues = {"NODE_CHOSEN": "event_map_enter", "NODE_CHOSEN/combat": "battle_map_enter"}
+	var problems: PackedStringArray = map.compile()
+	var listener: FactCueListener = FactCueListener.new(map, _record)
+	var bus: CampaignBus = CampaignBus.new()
+	listener.bind_campaign(bus, _node_type)
+	bus.play(_node_chosen(COMBAT_NODE))
+	bus.play(_node_chosen(CAMP_NODE))
+	_check.call("facts: a shape is tried before the bare kind, which takes the rest", (
+			problems.is_empty()
+			and _heard == [&"battle_map_enter", &"event_map_enter"]
+	), "%s; %s" % [_text(), ", ".join(problems)])
+	_heard.clear()
+	listener.unbind()
+
+
+func _node_chosen(node_id: int) -> CampaignFact:
+	var fact: CampaignFact = CampaignFact.new(CampaignFact.Kind.NODE_CHOSEN, 0)
+	fact.amount = node_id
+	return fact
+
+
+# The test's map: COMBAT_NODE a Standard combat, KEY_NODE a Key, BOSS_NODE the Boss, CAMP_NODE a
+# Camp; any other id is no node (-1).
+func _node_type(node_id: int) -> int:
+	match node_id:
+		COMBAT_NODE:
+			return CampaignGraph.NodeType.STANDARD
+		KEY_NODE:
+			return CampaignGraph.NodeType.KEY
+		BOSS_NODE:
+			return CampaignGraph.NodeType.BOSS
+		CAMP_NODE:
+			return CampaignGraph.NodeType.CAMP
+	return -1
 
 
 func _check_bad_keys() -> void:

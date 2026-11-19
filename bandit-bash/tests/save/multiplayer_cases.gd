@@ -6,13 +6,16 @@
 # File:     multiplayer_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 9, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends "res://tests/save/save_case_base.gd"
 ## Multiplayer cases for tests/save/run_all.gd: seats and required Steam ids in [CampaignData],
 ## refused ids, and the lobby admission rules ([LobbyAdmission]).
 
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "save"
 
 func run() -> void:
 	_test_multiplayer_campaign()

@@ -6,7 +6,7 @@
 # File:     state_cases.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: November 5, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -15,6 +15,9 @@ extends RefCounted
 ## defeat), Stance past its maximum and what may bring it back, [SplashResolver] through the
 ## engine, dormancy, and the combat core's value keys and their default rule bases. Reports each
 ## case through the check callable it is given.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "combat"
 
 # Preloaded scripts used as types (gdscript.md, Naming): the test map and stub have no class name.
 const CombatWorld = preload("res://tests/combat/combat_world.gd")

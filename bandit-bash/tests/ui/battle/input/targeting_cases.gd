@@ -6,7 +6,7 @@
 # File:     targeting_cases.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -20,6 +20,9 @@ extends RefCounted
 ## The harness is [code]turn_input_cases.gd[/code]'s, with the forecast panel. The rune fixture
 ## gives seat 0 a Mend rune (heal 10) and a wounded unit, as [code]tests/combat/turn_cases.gd[/code]
 ## does (test setup only; the UI never does this).
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "ui/input"
 
 const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
 const TurnInputCases = preload("res://tests/ui/battle/input/turn_input_cases.gd")

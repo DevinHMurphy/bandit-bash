@@ -19,6 +19,9 @@ extends RefCounted
 ## press_down, then finish_scroll, a few frames apart). Never names the overlay or the item
 ## picker, whose scripts name autoloads.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "ui/victory"
+
 const RULES_PATH: String = "res://data/campaign/campaign_map_rules.tres"
 const RUN_SEED: int = 0x5EED
 const MERCENARY: String = "mercenary"

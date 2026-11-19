@@ -6,7 +6,7 @@
 # File:     deploy_cases.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: November 5, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -14,6 +14,9 @@ extends RefCounted
 ## army, a six-unit army and a Mage on a fixture zone, the commander's row, edges, ties by roster
 ## order, tiles a unit can't stand on, determinism, and the opening swap's legality. Reports each
 ## case through the check callable it is given.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "map"
 
 # Preloaded scripts used as types (gdscript.md, Naming): the test map has no class name.
 const MapWorld = preload("res://tests/map/map_world.gd")
