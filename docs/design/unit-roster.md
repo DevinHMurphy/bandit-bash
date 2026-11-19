@@ -48,6 +48,10 @@ Movement types and tags are defined under [Movement and tags](#movement-and-tags
 
 - Archer, Battle Medic and Hakkapel are the Mercenary starting army in game-vision.md. Battle
   Medic is the vision's name for `Godot_FE`'s Field Medic.
+- **The starting army's Pouch items** (first pass): a Potion on the Hakkapel, a Guard Tonic on the
+  Archer, and a Minor Heal staff stowed in the Battle Medic's Pouch. A starting relic offered at
+  the run's first node, before any combat (as in Slay the Spire), is to replace or join them
+  later.
 - The old Anima, Dark and Holy units used Nature, Dark and Light tomes.
 - Not ported: `Godot_FE`'s Lancer growths are identical to Lance Skeleton's (likely a copy-paste)
   and need fresh values. The Thief's broken tag is covered under
@@ -133,8 +137,10 @@ Bugs fixed from `Godot_FE`, not ported:
 - **Mounted movement.** `Godot_FE` gave its cavaliers and the Hakkapel the Default movement type
   with the Mounted tag. Every ground unit with the Mounted tag uses Mounted movement.
 - **Thief tag.** `Godot_FE`'s Thief carried a tag value outside the tag list, meant for lockpicking.
-  There is no lockpicking tag: lockpicks are Pouch consumables any unit can carry, so a unit
-  hunting for loot gives up its potion or trinket.
+  There is no lockpicking tag. The Thief (and Thief+) **picks locks** through a permission on its
+  unit type, not its trait text: only a lock picker can use a Lockpick, which is never used up;
+  any unit can open a lock with a Key (2 uses). A unit
+  hunting for loot still gives up its potion or trinket to carry either.
 
 ## Traits
 
@@ -153,7 +159,7 @@ Stance runs 1 (fragile or evasive), 2 (standard), 3 (bulky).
 | Archer | 1 | Volley | Hit dealt while at maximum range: +2 damage | Rewards positioning |
 | Brawler | 2 | Breaker | First Hit dealt this combat: the target loses 1 extra Stance | Doubles down on breaking Stance |
 | Thief | 1 | Opportunist | Always: +15 crit chance | Punishes Exposed foes |
-| Battle Medic | 1 | Triage | Used a staff on an ally: that ally gains 1 Stance | Support that guards against crits |
+| Battle Medic | 1 | Triage | Used a staff on an ally: that ally gains 1 Stance, even above its maximum, until that ally's side's next Phase Start | Support that guards against crits |
 | Hakkapel | 2 | Charge | While this unit moved 4+ tiles this turn: +2 damage | Mounted aggression |
 | Freewing | 1 | Skirmisher | After Combat: may use its remaining movement | Flier hit-and-run |
 | Lance Armor | 3 | Bulwark | Always: +1 Parry | Built-in bulk (the shield-role pattern) |
@@ -190,7 +196,7 @@ An upgraded unit is shown with a "+" ("Archer+"), like a Slay the Spire card. Ru
 | Archer+ | Volley+: Hit dealt while at maximum range: +4 damage | +2 MGT, +1 SPD | — |
 | Brawler+ | Breaker+: First Hit dealt this combat: the target loses 2 extra Stance | +4 HP, +1 MGT | — |
 | Thief+ | Opportunist+: Always: +25 crit chance | +1 SPD | Gains Sword and Sidearm (`Godot_FE`'s Cutthroat promoted to Bladehand, sword + dagger), for foes that aren't Exposed |
-| Battle Medic+ | Triage+: Used a staff on an ally: that ally gains 2 Stance | +1 MGT, +1 DEF, +1 RES | — |
+| Battle Medic+ | Triage+: Used a staff on an ally: that ally gains 2 Stance, even above its maximum, until that ally's side's next Phase Start | +1 MGT, +1 DEF, +1 RES | — |
 | Hakkapel+ | Charge+: While this unit moved 4+ tiles this turn: +4 damage | +2 MGT, +1 DEF | — |
 | Freewing+ | Skirmisher+: After Combat: may use its remaining movement, and gains 2 Block if it moves | +2 SPD, +1 RES | — |
 | Lance Armor+ | Bulwark+: Always: +1 Parry, +1 Stance | +4 HP, +1 DEF | — |

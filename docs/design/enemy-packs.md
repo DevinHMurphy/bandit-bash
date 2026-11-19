@@ -3,10 +3,10 @@
 A planning doc for the enemy groups a run fields: which packs exist, what size they are at each
 difficulty step, which pack goes with each mini-boss, and where the Duelist appears. It works out
 what [enemy-roster.md](enemy-roster.md) and [game-vision.md](game-vision.md#run-structure) leave
-open. Nothing here is decided until it is in [Decisions](#decisions), and the vision and
-enemy-roster.md are updated through the ideation thread.
+open. Nothing here is decided until it is in [Decisions](#decisions).
 
-**Status:** rules and pack lists decided November 15, 2026 (user). Feeds
+**Status:** rules and pack lists decided November 15, 2026 (user); written into game-vision.md and
+enemy-roster.md November 19, 2026. Feeds
 P05 EN17 (pack pools), EN7 (leaders), EN8 (mini-bosses) and P04 MP10 (the M2 map set).
 
 ## Where it stands

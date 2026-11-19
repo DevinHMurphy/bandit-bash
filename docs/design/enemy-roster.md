@@ -33,7 +33,7 @@ Magic for casters.
 | Cutthroat | Striker | `cutthroat` | Simple Dagger (Nimble) | Mobile | — | 1 | 21/5/5/3/2/5/8 | 90/40/45/22/20 |
 | Brute | Heavy hitter | `vandal` | Simple Axe (Power) | Default | — | 2 | 23/7/4/2/2/5/12 | 115/60/35/20/15 |
 | Duelist | Counter-fighter | `corsair` | Simple Sword (Nimble) | Mobile | — | 2 | 16/4/9/3/1/5/5 | 75/30/50/15/20 |
-| Crossbowman | Ranged | `crossbowman` | Heavy Crossbow (Power) | Default | — | 1 | 19/6/5/4/1/5/10 | 75/40/35/22/18 |
+| Crossbowman | Ranged | `crossbowman` | Simple Bow (None) | Default | — | 1 | 19/6/5/4/1/5/10 | 75/40/35/22/18 |
 | Shieldbearer | Tank | `ward` | Shieldmace (None) + Iron Shield | Heavy | Armored | 3 | 25/1/2/1/1/4/14 | 70/25/28/45/10 |
 | Hedge Healer | Healer | `healer` | Minor Heal staff (None) | Default | — | 1 | 12/8/5/1/7/5/5 | 50/40/30/8/35 |
 | Hexer | Debuffer | `shaman` | Dark (Shade) (Power, Magic) | Default | — | 1 | 17/8/3/3/4/5/12 | 75/65/22/18/30 |
@@ -110,19 +110,21 @@ Enemies play to kill:
 
 | Weapon | Dmg | AtkX | Profile | Range | Hit | Crit | CritX | Weight | Note |
 |--------|-----|------|---------|-------|-----|------|-------|--------|------|
-| Heavy Crossbow | 7 | 1 | Power | 2 | 85 | 0 | 3 | 10 | A bow: effective against Fliers, like every bow. Unlike player bows (profile None), heavy bolts are Power |
-| Javelin | 5 | 1 | Balance | 1–2 | 75 | 0 | 3 | 10 | Thrown lance |
 | Fangs | 3 | 2 | Nimble | 1 | 90 | 0 | 2 | 0 | Natural weapon, like gauntlets |
 | Shieldmace | 4 | 1 | None | 1 | 75 | 0 | 3 | 12 | The Shieldbearer's. A sword-type weapon outside the triangle: a Standoff against Nimble, Balance and Power, for both sides |
 
 No `Godot_FE` basis; first-pass values sized against the simple weapons. The Shieldmace keeps the
 Simple Lance's numbers except damage 4 and Hit 75 (user, November 18, 2026). The other classes carry
-the player's simple weapons, so player knowledge transfers. Enemies don't drop loot in the MVP.
+the player's weapons (the Crossbowman a Simple Bow, the Raider the shared Javelin), so player
+knowledge transfers. Enemy weapons and staves never run out; unique traits and signature moves have
+limited uses. Enemies don't drop loot in the MVP.
 
 ## Packs
 
-Standard combats field 3–5 enemies. Classes are meant to appear in packs whose parts cover each
-other:
+Standard combats field 3–5 enemies. Classes appear in packs whose parts cover each other. Every
+pack has a basic and a hard variant, each sized to its step (3 / 4 / 5), and each key combat draws
+the key pack built around its mini-boss; the full lists are in [enemy-packs.md](enemy-packs.md).
+The basic packs at step 1, with their puzzles:
 
 | Pack | Units | How it works |
 |------|-------|--------------|
@@ -130,7 +132,7 @@ other:
 | Hex and Knife | Hexer, 2 Cutthroats | The Hexer strips Stance; Cutthroats crit the Exposed target with Backstab |
 | Field Hospital | Hedge Healer, Brute, Shieldbearer | The healer keeps the Brute fighting; the Shieldbearer guards the healer, and a heal on it gives back 1 Stance through Field Dressing, and with it 2 DEF |
 | War Band | Warcaller, Brute, 2 Hounds | War Horn turns the pack's charge into a spike every other turn |
-| Hunting Party | Raider, 2–3 Hounds | The Hounds swarm a target; the Raider charges in and Tramples it, Hounds and all |
+| Hunting Party | Raider, 2 Hounds | The Hounds swarm a target; the Raider charges in and Tramples it, Hounds and all |
 
 The player's counterplay is built in: kill the healer or the Hexer first, break up a pack so Pack
 falls off, strip the Shieldbearer's Stance before hitting it, bait the Duelist with a unit that
@@ -165,8 +167,8 @@ puzzle, to learn which are fun.
 | Iron Wall | Shieldbearer (keeps Braced, the Shieldmace and the Iron Shield) | Every 2nd Phase Start this combat: Fortify, adjacent units, friend or foe, gain 4 Block and +1 Parry until Phase End | Strip its Stance to open up its DEF, then break the formation, or stand in the wall and share it |
 
 **The boss: the Powder Baron.** The MVP's one boss. The boss map is fully scripted (fixed enemies, placement
-and scripted beats), a developed level of 15–20 minutes; key maps field their step's standard count
-+1 to +3 enemies plus the mini-boss.
+and scripted beats), a developed level of 15–20 minutes; key maps field the key pack built around
+their mini-boss ([enemy-packs.md](enemy-packs.md#pack-lists)).
 
 - **Unit:** an elite Brute at level 8 with a +2 prefix and the **Unshovable** trait. It holds the
   throne (Guard behavior) and fights by every normal rule, Cleave included.

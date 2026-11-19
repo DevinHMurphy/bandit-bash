@@ -1,8 +1,8 @@
 # Multiplayer Combat Options
 
 **Status:** October 20, 2026. **Decided:** Option B (parallel maps) for the MVP, Option D (hybrid)
-as the target; reinforcing a teammate, with the sender choosing (R1 + R2); the team wins if anyone
-wins. **Decided October 20:** no retreat and no recovery mechanics in co-op: permadeath applies to
+as the target; reinforcing a teammate, with the sender choosing (R1 + R2); every map must be completed
+(L4, October 29). **Decided October 20:** no retreat and no recovery mechanics in co-op: permadeath applies to
 every unit as in solo (the only way back is a rare revive event), and the negative feedback loop is
 accepted; a commander that falls in co-op returns at critical health
 ([below](#when-a-commander-falls)). All recorded in [game-vision.md](game-vision.md#combat-maps).
@@ -150,9 +150,15 @@ without units: use their own runes there, or pick one small team buff per partne
 
 ### Losing a map
 
-**L1. The team wins if anyone wins.** *(Decided.)* The combat counts as won for the team when at
-least one player wins. A player who fails their map's objective gets no gold, XP or Standout for it, and
-their fallen units stay dead. Simple, and keeps the run moving.
+**L4. Every map must be completed.** *(Decided October 29, 2026; replaces L1.)* The combat ends
+when every map is won or failed. A player who fails their map's objective (a Defend tile taken)
+loses only that map: no gold, XP or Standout for it, and their fallen units stay dead. A map with
+no player units left **freezes** until help arrives, and a winner must send units to a teammate's
+frozen map. The run is lost when a map still being fought has no player units and no teammate has
+units left to send. A possible later rule: the darkness keeps rising on a frozen map.
+
+**Superseded October 29, 2026:** **L1. The team wins if anyone wins** (the combat counted as won
+for the team when at least one player won).
 
 **Rejected October 20, 2026** (no retreat or extra lives anywhere in the game):
 
@@ -166,9 +172,9 @@ their fallen units stay dead. Simple, and keeps the run moving.
 combat). A commander's fall is final, as in solo.
 
 **Decided October 20: C4. Back at critical health.** A commander that falls in co-op returns after
-the combat at critical health (first pass: 10% of max HP, at least 1), with no other cost. That
-player's map is lost and their fallen units stay dead; the run is lost only if every player's
-commander falls in the same combat. In solo, a fallen commander still ends the run.
+the combat at critical health (first pass: 10% of max HP, at least 1), with no other cost. Since
+October 29, 2026 (L4) its player keeps controlling their surviving units on that map, and the map
+goes on; the run is lost only as L4 says. In solo, a fallen commander still ends the run.
 
 Not chosen:
 
@@ -196,8 +202,9 @@ map ends before sent units arrive, they return unharmed.
 
 ### Recommendation
 
-For the MVP: **H1 (reinforce) + L1 (team wins if anyone wins)**, with R1 + R2 for choosing whom to
-reinforce. Decided October 17, revised October 20 to drop retreat (L2) and downed commanders (C1).
+For the MVP: **H1 (reinforce) + L4 (every map must be completed)**, with R1 + R2 for choosing whom
+to reinforce. Decided October 17, revised October 20 to drop retreat (L2) and downed commanders
+(C1), and October 29 to replace L1 with L4.
 
 - H1 prevents losses before they happen and is the most co-op answer that parallel maps can give
   without new map work. With permadeath final, it is now the main way the team protects a
@@ -208,12 +215,15 @@ reinforce. Decided October 17, revised October 20 to drop retreat (L2) and downe
 
 **Decided October 23, 2026** (recorded in [game-vision.md](game-vision.md#combat-maps)):
 
-- **Arrival:** reinforcements arrive at the start of the receiving map's next player phase, on dry
-  tiles next to the receiving player's **commander**; if those are taken, on the nearest dry tiles;
-  then on the darkness's fallback. The commander is the rally point, so no banner object is needed
-  and help lands where the fight is.
-- **Sending:** any subset of surviving units, at their current HP, including the commander. A sent
-  commander that falls counts toward "every commander fell" as normal.
+- **Arrival** (battle clock, October 29, 2026): units sent by a player who won on turn N arrive at
+  the receiving map's first player phase after its turn N, never sooner, so stalling gains nothing
+  and maps keep their own pace. They land on dry tiles next to the receiving player's
+  **commander**, else on the nearest free tiles, even in the darkness, where they take its damage
+  like any unit. The commander is the rally point, so no banner object is needed and help lands
+  where the fight is. A map that received help loses its speed bonus. Still open: a map with no
+  free tile at all (recommended: they wait a phase, like the enemy waves).
+- **Sending:** any subset of surviving units, at their current HP, including the commander, or
+  none. A sent commander that falls returns after the combat like any co-op commander.
 - **XP:** sent units earn personal bonus XP toward the same per-combat cap, not shared XP a second
   time; the Standout stays on each player's own map.
 - **Turns:** each parallel map runs on its own turn counter, so players never wait on each other's
@@ -236,9 +246,7 @@ The ideas that led here, kept for reference:
 - **Sending commanders:** an earlier draft forbade it, to keep downed-commander rules simple and
   to stop a player stranding their commander on a losing map. Downed commanders are gone, and a
   co-op commander that falls returns at critical health anyway, so that reason no longer holds.
-  Allowing it adds a choice (the commander is often the strongest unit). Open edge: whether a
-  commander falling on a teammate's map counts toward "every commander fell", the whole-team
-  loss.
+  Allowing it adds a choice (the commander is often the strongest unit).
 - **Two players on one map** (later shared battles): how the deployment zone is shared, e.g. one
   block per player, arranged at the same time in prep.
 

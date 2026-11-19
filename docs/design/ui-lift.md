@@ -7,7 +7,7 @@ and animation beyond tweens out of scope); this lifts it before M2 is marked com
 **Status:** scoped November 18, 2026 (user; every question answered as recommended, see
 [Decisions](#decisions)). The steps are plan **P15 UI lift**, an M2 exit item on the
 [orchestrator](../plans/game-orchestrator.md); DK7 belongs to P06. The darkness damage rule change
-goes to game-vision.md and the-darkness.md through the ideation thread.
+is written into game-vision.md and the-darkness.md (November 19, 2026).
 
 ## Where it stands
 

@@ -129,7 +129,7 @@ It is the Eye Greatshield of weapons.md and meta-progression.md.
 | Knight's Token | Uncommon | +2 HP, +2 Str, −3 SPD, +2 DEF | +1 MGT, +1 DEF, −1 SPD |
 | Loaded Die | Rare | +40 crit, −1 CritX | +30 crit, −1 CritX |
 | Null Sigil | Rare | Cannot be crit | +1 Stance |
-| Jester Mask | Rare (`Godot_FE` Mythical) | Crits ignore the target's Defense | Crits ignore the target's Defense |
+| Jester Mask | Rare (`Godot_FE` Mythical) | Crits ignore the target's Defense | Crits ignore the target's mitigation (Defense, or Resistance against magic) |
 | Royal Crest | Rare (`Godot_FE` Mythical) | +15% all growths | Every level-up gains at least 3 stats |
 | Ring of Favor | Legendary | +12 HP, +2 Str, Mag, DEF, RES, +1 Skl, SPD, +2 CON | +2 HP, +1 DEF, +1 RES |
 | Oak Wood Charm | Unique (Whispering Oak event) | +10 avoid | +10 avoid |
@@ -171,16 +171,15 @@ Block, which resets every combat anyway, carries more of the defensive load thro
 | Guard Tonic+ (new) | Uncommon | Gain 10 Block | 1 per map |
 | Emberglass Vial (Festival of Embers event) | Unique | Heal 12 HP | 2 per map |
 
-**Lockpicks.** Uses are total, not per map.
+**Keys and lockpicks.** Two items open chests and doors. Uses are total, not per map.
 
-| Lockpick | Rarity | Opens | Uses |
-|----------|--------|-------|------|
-| Chest Pick (`Godot_FE` Chest Key) | Common | Chests | 3 |
-| Door Pick (`Godot_FE` Door Key) | Common | Doors | 1 |
-| Master Pick (`Godot_FE` Skeleton Key) | Rare | Chests and doors | 5 |
+| Item | Rarity | Who can use it | Opens | Uses |
+|------|--------|----------------|-------|------|
+| Key | Common | Any unit | A chest or a door | 2 |
+| Lockpick | Common | Lock pickers only (the Thief and Thief+; the enemy Cutthroat) | A chest or a door | Never used up |
 
-These are the vision's **lockpicks**, renamed from `Godot_FE`'s keys to fit the bandit theme: any
-unit can carry one, at the cost of its Pouch.
+Either costs the carrier its Pouch. `Godot_FE`'s Chest, Door and Skeleton Keys (the earlier Chest,
+Door and Master Picks) are dropped.
 
 **Stat boosters** are single-use Pouch items that permanently raise one unit's stat: the holder's,
 or an adjacent ally's. `Godot_FE` had 35 stat boosters, five per stat: two raised a stat
@@ -261,8 +260,11 @@ its level-up lands.
 ## Runes
 
 Single-use abilities with their own 3-slot inventory, used on the player turn outside the action
-economy, targeting anything anywhere on the map (rules in
-[game-vision.md](game-vision.md#run-wide-resources)). First-pass pool, decided October 23, 2026:
+economy, anywhere on the map (rules in [game-vision.md](game-vision.md#run-wide-resources)). Most
+runes target a place and hit an area around it, as a shared target shape (tile, radius, square or
+cross), with a preview of the area and every unit hit before the cast; a rune whose text names its
+targets (Recall's two units) acts as written. Each rune's area is still to set, so for now every
+area rune covers the chosen tile only. First-pass pool, decided October 23, 2026:
 
 | Rune | Effect |
 |------|--------|

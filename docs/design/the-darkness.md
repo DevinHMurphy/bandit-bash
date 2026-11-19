@@ -22,8 +22,9 @@ October 23, 2026). It must be playtested; the alternatives below stay on the tab
 - Players who beat turn par never see it. That is the same line as the +25% grade bonus.
 - It flows from authored **sources** toward a **drain** set by the objective, deepening in three
   layers: Dusk, Gloom, Abyss.
-- A unit that **ends its side's phase** on a dark tile takes damage; passing through is free. No
-  unit is immune, bosses included. The damage model is a first pass, to be playtested.
+- A unit standing on a dark tile when the turn's **darkness phase** begins takes damage; passing
+  through is free. No unit is immune, bosses included. The damage model is a first pass, to be
+  playtested.
 - It eventually floods every tile, so every map is guaranteed to end. The map never ends early
   because of it: like fatigue in Hearthstone, it is a clock both sides play against, and outlasting
   it can be a deliberate plan. In co-op, nobody waits on a stalled teammate forever.
@@ -92,6 +93,9 @@ The drain is never shown; players read the flow from the darkness itself.
 - **Step cost** for the darkness moving from one floodable tile to an adjacent one: downhill (to a
   lower height) 1; level (same height, or either tile has no height) 2; uphill (to a greater height)
   3.
+- The spread is **terrain-blind**: movement costs never slow it, and only blocking tiles shape it.
+  On a 4-directional grid two neighbouring tiles never share a height, so the level cost applies
+  only next to a tile with no height, and sideways spread costs uphill (kept, and judged in play).
 - **Flow cost** of a tile for a source is the cheapest total step cost from any of that source's
   tiles to it.
 - A **wave** has a reach that starts at 0 when it is released and grows by the creep speed every
@@ -102,21 +106,27 @@ The drain is never shown; players read the flow from the darkness itself.
 - When a breakable breaks, flow costs are recalculated, and every wave enters any newly reachable
   tiles within its reach.
 
-### The darkness step
+### The darkness phase
 
-All changes to the darkness happen in one step at the end of every turn: after the enemy side's
-[Phase End](game-vision.md#combat), before the player side's next Phase Start (Block and Stance
-refresh, terrain healing, reinforcement arrival). In order:
+Everything the darkness does happens in a **darkness phase** of its own at the end of every turn:
+after the enemy side's [Phase End](game-vision.md#combat), before reinforcements arrive and the
+player side's next Phase Start (Block and Stance refresh, terrain healing). It is not a side's
+phase: no Phase Start or Phase End effects fire in it. In order:
 
-1. **Creep:** every existing wave's reach grows by the creep speed, and it enters the tiles now
+1. **Damage:** every unit standing on a flooded tile takes its layer's damage
+   ([Layers and damage](#layers-and-damage)), player units first, then enemies. A darkness kill
+   that ends the battle ends it here, before the creep.
+2. **Creep:** every existing wave's reach grows by the creep speed, and it enters the tiles now
    within its reach.
-2. **Release:** if a wave is due, every active source releases a new wave, which enters that
+3. **Release:** if a wave is due, every active source releases a new wave, which enters that
    source's own tiles.
-3. **Erosion:** each breakable next to a flooded tile adds one turn of contact; a breakable that
+4. **Erosion:** each breakable next to a flooded tile adds one turn of contact; a breakable that
    reaches the contact limit breaks and becomes floor.
 
-The first wave is released in the darkness step at the end of the turn before turn par, so the
-sources are dark when turn par begins. Further waves follow every wave interval.
+The phase shows its own banner and turn-bar entry, and plays the spread tile by tile. A phase that
+changes nothing shows nothing. The first wave is released in the darkness phase at the end of the
+turn before turn par, so the sources are dark when turn par begins. Further waves follow every wave
+interval.
 
 ### Arrival
 
@@ -133,22 +143,22 @@ When the first wave is released:
 lingering hurts, are fixed. How the hurt is dealt may change. Candidates:
 
 - **Percent of max HP by layer** (first pass, below): simple and scales with every unit.
-- **A status effect:** each phase ended in darkness adds stacks of a "Shrouded" status, deeper
-  layers adding more, using the [status stacking rules](game-vision.md#combat).
-- **Flat damage that grows** with how many phases in a row the unit has ended in darkness, so a
-  first linger is cheap and staying is not.
+- **A status effect:** each darkness phase spent in darkness adds stacks of a "Shrouded" status,
+  deeper layers adding more, using the [status stacking rules](game-vision.md#combat).
+- **Flat damage that grows** with how many darkness phases in a row the unit has spent in
+  darkness, so a first linger is cheap and staying is not.
 
-| Layer | Waves that have entered the tile | Damage to a unit that ends its side's phase on it (first pass) |
-|-------|----------------------------------|-----------------------------------------------------------------|
+| Layer | Waves that have entered the tile | Damage to a unit standing on it when the darkness phase begins (first pass) |
+|-------|----------------------------------|------------------------------------------------------------------------------|
 | Dusk | 1 | 10% of max HP |
 | Gloom | 2 | 25% of max HP |
 | Abyss | 3 or more | 50% of max HP |
 
-- Damage applies at each side's own **Phase End**, to that side's units on flooded tiles: player
-  units at the end of the player phase, enemy units at the end of the enemy phase. It applies after
-  that side's Phase End and Unit Turn End effects have resolved, so a Phase End heal lands first
-  (combat core plan, question 12).
-- Units that move through darkness without ending their side's phase in it take no damage.
+- Damage applies once a turn, in the [darkness phase](#the-darkness-phase), to both sides at once:
+  every unit on a flooded tile, wherever it stands when the phase begins. A player unit shoved into
+  the dark in the enemy phase is hurt that turn. Both sides' Phase End heals have already landed,
+  and "until Phase End" modifiers have already expired.
+- Units that move through darkness without standing in it when the phase begins take no damage.
 - Damage uses the tile's layer at the moment it applies, is rounded down with a minimum of 1, and
   can defeat a unit. Permadeath applies as always; a commander defeated by the darkness ends a solo
   run, or returns after the combat at critical health in co-op.
@@ -170,7 +180,7 @@ lingering hurts, are fixed. How the hurt is dealt may change. Candidates:
 - **Breakables** (walls, debris): contact with the darkness cracks them, and the cracks show the
   turns left until they break. When they break, the darkness flows through and a new lane opens for
   both sides.
-- **Locked doors don't erode.** They stay closed until opened with a lockpick or a lever, so the
+- **Locked doors don't erode.** They stay closed until opened with a Key, a lock picker's Lockpick or a lever, so the
   darkness can't open loot rooms for free; a closed door blocks the darkness like a wall.
 - **Healing terrain** (Fort, Castle Gate, Throne, Camp tiles) doesn't heal a unit while its tile is
   flooded.
@@ -191,7 +201,7 @@ lingering hurts, are fixed. How the hurt is dealt may change. Candidates:
 ### Guaranteed end
 
 New waves keep coming, so every floodable tile is eventually entered by at least three waves and
-becomes Abyss. A unit in Abyss is defeated within two of its own phases without healing, so every
+becomes Abyss. A unit in Abyss is defeated within two darkness phases without healing, so every
 map ends without a separate fail-safe.
 
 The map **never ends early** because of the darkness; there is no automatic loss once it covers
@@ -295,13 +305,13 @@ are designed.
 | Damage at the end of an allied NPC "other phase" | Two sides only | This design has no allied NPC phase |
 | Rescued (carried) units | Removed | This design has no rescue or carry action |
 | Units are "downed" | Units are defeated (permadeath); a fallen commander ends a solo run, or returns at critical health in co-op | Matches the army rules |
-| Doors erode like breakables | Locked doors don't erode; breakable walls still do | Doors gate the lockpick and loot economy |
+| Doors erode like breakables | Locked doors don't erode; breakable walls still do | Doors gate the Key, Lockpick and loot economy |
 | Bosses and mini-bosses are immune | No unit is immune | Outlasting the darkness can be a player's plan |
 | Damage model fixed at % of max HP | % of max HP is a first pass; a status or growing flat damage are candidates | Must be playtested |
 | "Villages" | Houses | This design's interactable |
 | Fog of War coexists | Only "if fog of war is added" | Fog of war isn't in this design |
 | Damage rules against combat unstated | Its own trigger; whether it counts as an attack (Block, Stance, on-hit triggers) is open | Fits the Block, Stance and effects systems |
-| Timing in generic phases | Placed in this design's turn phases (Phase End; before Phase Start) | Matches effect-triggers.md |
+| Timing in generic phases | A darkness phase of its own, after the enemy Phase End and before the player Phase Start | Matches effect-triggers.md |
 | "About 5 minutes" combats | Standard 2–5, key 5–10 minutes | This design's targets |
 | Replaces a "closing labyrinth" | Not mentioned as a replacement | This design never had one |
 

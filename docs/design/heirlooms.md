@@ -71,7 +71,7 @@ playtesting.
 | Tactical Map | Behavior | First Phase Start this combat: Your Units gain +1 Movement until Phase End |
 | Grave Candle | Behavior | Defeated, Your Unit: every other one of Your Units gains 4 Block |
 | Warlord's Spoils | Behavior | Defeated an enemy, by Your Unit: that unit heals 3 HP |
-| Burglar's Roll | Economy | Once per combat, Your Unit can open a chest or door without a lockpick (still its action) |
+| Burglar's Roll | Economy | Once per combat, Your Unit can open a chest or door without a Key or Lockpick (still its action) |
 | Veteran's Medal | Economy | Your Units earn +20% shared XP from combat |
 | Brothers in Arms | Behavior | *Unique, co-op.* Phase Start: Any Ally Unit adjacent to a unit of another player gains 2 Block |
 

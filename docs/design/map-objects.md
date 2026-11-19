@@ -28,7 +28,7 @@ under [Terrain candidates](#terrain-candidates).
 
 | Object | `Godot_FE` | Here |
 |--------|-----------|------|
-| **Chest** | Key opens it; loot rolled at load | A lockpick opens it; loot rolled from the run's seed. A Cutthroat can open one too and carries its loot until defeated, then drops it, so chests become a race |
+| **Chest** | Key opens it; loot rolled at load | A Key (any unit), or a Lockpick in a lock picker's hands (the Thief), opens it; loot rolled from the run's seed. A Cutthroat can open one too and carries its loot until defeated, then drops it, so chests become a race |
 | **Door** | Key or lever opens it; can span several tiles | Same. Locked doors block the darkness. Doors on a lever group can also be closed again (below) |
 | **Lever** | Opens every door in its group | **Toggles** its group open or closed, for anyone who pulls it: both sides can seal or open a route |
 | **Searchable** | "Search": house, food shelf, book shelf, weapon rack, each with a loot table | Keeps all four. A **house** gives 15–25 gold or one consumable, plus the personal-XP bonus (the vision's "looting houses"); a **food shelf** gives an [ingredient](items.md#consumables); a **book shelf** gives a rune; a **weapon rack** gives a weapon. One search each; a Cutthroat can search one first to deny it, and drops what it took when defeated |
@@ -52,7 +52,8 @@ second attack system. Their rules below stay for later.
 ## Rules
 
 - **Using** an object (Chest, Lever, Searchable, Passage, Ballista, War Drum, Brazier) takes the
-  unit's action for the turn, after moving. Chests need a lockpick in the Pouch; Cutthroats, the only
+  unit's action for the turn, after moving. Chests need a Key, or a Lockpick held by a lock picker,
+  in the Pouch; Cutthroats, the only
   enemies that loot, don't.
 - **Breaking** an object (Debris, Powder Keg) is an attack on it: the attacker hits its Defense or
   Resistance, the object never counters, and splash damages it.
@@ -61,6 +62,9 @@ second attack system. Their rules below stay for later.
 - **The darkness:** Debris and Powder Kegs are breakables, so darkness contact counts down and
   breaks them (a keg becomes a timed bomb). Locked doors don't erode. A lit Brazier holds its area
   at Dusk.
+- **Thrown kegs** (the Powder Baron's Keg Barrage): a thrown keg is **lit**. It explodes at the end
+  of the 2nd enemy phase after it lands, or at its first darkness contact (an authored keg takes 3),
+  or sooner if a hit, splash, Spark or a chain sets it off.
 - **Trigger:** using an object fires **Object used**, so traits and heirlooms can reward it later.
 - **Co-op:** each player's parallel map has its own copy of every object.
 

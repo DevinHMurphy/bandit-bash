@@ -75,7 +75,8 @@ Fliers, like every bow.
 
 Using a staff is the unit's action. Block and heal staves target an ally; attack staves target an
 enemy. Decided October 24, 2026: **more Block, fewer heals**, a few tightly limited attack staves,
-and stubs for status staves.
+and stubs for status staves. Every staff and weapon has a range: 0 means the user's own tile, and
+an area staff such as Everwall acts around it.
 
 | Staff | Rarity | Kind | Effect | Range | Uses | Weight |
 |-------|--------|------|--------|-------|------|--------|
@@ -83,7 +84,7 @@ and stubs for status staves.
 | Rampart (new) | Common | Block | Target ally gains 5 + Might Block | 1 | Unlimited | 1 |
 | Far Ward (new) | Uncommon | Block | Target ally gains 3 + Might Block | 1–3 | Unlimited | 1 |
 | Sanctuary (new) | Rare | Block | Target ally and every ally adjacent to it gain 3 + Might Block | 1–2 | 2 per map | 2 |
-| Everwall (new) | Legendary | Block | Every ally within 3 tiles of the user gains 5 + Might Block | — | 1 per map | 3 |
+| Everwall (new) | Legendary | Block | Every ally within 3 tiles of the user gains 5 + Might Block | 0 (self) | 1 per map | 3 |
 | Minor Heal (`Godot_FE` Minor Heal) | Common | Heal | Target ally heals 5 + Might HP | 1 | 3 per map | 0 |
 | Recover (`Godot_FE` Recover) | Uncommon | Heal | Target ally heals 15 + Might HP | 1 | 1 per map | 3 |
 | Everbloom (`Godot_FE` Everbloom) | Legendary | Heal | Target ally heals to full | 1–10 | 1 per map | 7 |
@@ -108,7 +109,7 @@ and stubs for status staves.
 | Woodsman's Axe (Slim Axe) | Axe | Nimble | 8 | 1 | 1 | 80 | 5 | 3 | 12 | — |
 | Throwing Hatchet (Hatchet) | Axe | Power | 6 | 1 | 1–2 | 70 | 0 | 3 | 10 | — |
 | Ash Spear (Slim Lance) | Lance | Nimble | 4 | 1 | 1 | 85 | 0 | 3 | 8 | — |
-| Pilum | Lance | Balance | 5 | 1 | 1–2 | 80 | 0 | 3 | 9 | — |
+| Javelin (was the Pilum; shared with enemies, the Raider carries it) | Lance | Balance | 5 | 1 | 1–2 | 80 | 0 | 3 | 9 | — |
 | Hunter's Bow (Reinforced Bow) | Bow | None | 9 | 1 | 2–3 | 100 | 0 | 3 | 5 | Effective vs Flier |
 | Butcher's Knife (Knife) | Dagger | Power | 6 | 1 | 1 | 100 | 0 | 5 | 9 | — |
 | Brass Knuckles | Gauntlets | None | 1 | 3 | 1 | 120 | 15 | 3 | 6 | — |
@@ -188,7 +189,7 @@ Left for later, with their themes free to reuse: the Sword Reaver, Tri-Edge, Tri
 Shotel (effective against weapon types), Devil Knuckles (Luck-based backfire), Soul Rip and
 Annihilate (defence-negating and no-counter specials), Bolting (siege range), the remaining
 Killer and Valor weapons, Great Sword, Great Axe, Great Lance, Great Bow, Long Bow, Heavy Knife,
-Kunai, Tanto, Spirit Dagger, Jousting Lance, Warpick, Javelin (now an enemy weapon), Evil Eye,
+Kunai, Tanto, Spirit Dagger, Jousting Lance, Warpick, Evil Eye,
 Dark Pulse, Ray, Holy Fire, Enchanted Bow and the monster claws. Commander signature weapons
 (Dawnbreak and the other four) are not ported.
 

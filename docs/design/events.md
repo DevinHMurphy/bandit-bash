@@ -42,7 +42,7 @@ informed trade, never a surprise:
 
 | Tier | Paired with | Curse (first pass) | Effect |
 |------|-------------|--------------------|--------|
-| Minor | Modest rewards (a trinket, a small stat gain, about 40 gold) | **Haunted** | Phase Start: a random unit in this army loses 2 Block |
+| Minor | Modest rewards (a trinket, a small stat gain, about 40 gold) | **Haunted** | Phase Start: a random unit in this army can't gain Block this turn (resolved before other Phase Start effects; revisit in playtests if it frustrates) |
 | Minor | | **Short Wick** | [The darkness](the-darkness.md) arrives one turn before turn par on this player's maps (the grade bonus still uses the real par) |
 | Minor | | **Shaken Footing** | On the first turn of each combat, this army's units have −1 Stance |
 | Minor | | **Heavy Pack** | Pouch items in this army weigh 2 each, counting toward Attack Speed |

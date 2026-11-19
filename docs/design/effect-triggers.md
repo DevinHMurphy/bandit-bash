@@ -72,7 +72,7 @@ phase ends when every player with units on it has ended their turn (event bus pl
 | Unit Turn Start | For each unit of a side, at its side's Phase Start, after Phase Start effects and before the side gets control |
 | Before Combat | A combat exchange begins, before the first attack |
 | After Combat | A combat exchange resolves, for each participant that survives |
-| Unit Turn End | For each unit of a side, at its side's Phase End, after the Phase End trigger and before darkness damage; every unit gets it, acting or not |
+| Unit Turn End | For each unit of a side, at its side's Phase End, after the Phase End trigger; every unit gets it, acting or not |
 | Phase End | A side's phase ends |
 
 **Combat events.** Each event has a pair: one side does it, the other side has it done to them.
@@ -88,7 +88,7 @@ phase ends when every player with units on it has ended their turn (event bus pl
 | Defeated an enemy / Defeated | A unit defeats an enemy / a unit is defeated | |
 | Healed an ally / Healed | A unit restores an ally's HP / a unit regains HP | Includes overhealing; see effects-system.md |
 | Used a staff on an ally | A unit uses any staff (heal or Block) on an ally | |
-| Darkness damage taken | A unit takes damage from [the darkness](the-darkness.md) at its side's Phase End | Not an attack: it never fires Hit taken or Damage taken |
+| Darkness damage taken | A unit takes damage from [the darkness](the-darkness.md) in the darkness phase at the end of the turn | Not an attack: it never fires Hit taken or Damage taken |
 | Object used | A unit uses a [map object](map-objects.md) (lights or douses, pulls, searches, passes through) | |
 | Shoved a unit / Shoved | A unit shoves another / a unit is shoved | Shove is described in game-vision.md |
 | Moved after acting | A unit makes its own move after acting, which a trait allows (Skirmisher) | Only its own walk: being shoved, Recalled or swapped doesn't count. Fires once the move is made, so Skirmisher+'s "gains 2 Block if it moves" lasts until its side's next Block refresh |
