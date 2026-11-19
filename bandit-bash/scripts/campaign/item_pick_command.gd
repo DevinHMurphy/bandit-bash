@@ -6,7 +6,7 @@
 # File:     item_pick_command.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 14, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name ItemPickCommand
@@ -77,8 +77,8 @@ func resolve(run: CampaignRunState) -> void:
 	pick.taken = ItemPick.NOT_TAKEN if index == SKIP else index
 	pick.store(seat_run)
 	if index == SKIP:
-		# ASSUMPTION: a skip records no fact; nothing is gained, and CampaignFact has no kind for a
-		# pick resolved without a gain.
+		# A skip records no fact: nothing is gained, and CampaignFact has no kind for a pick
+		# resolved without a gain.
 		return
 	var offer: ItemPick.Offer = pick.offers[index]
 	_placement().apply(

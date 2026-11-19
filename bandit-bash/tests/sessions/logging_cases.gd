@@ -6,12 +6,12 @@
 # File:     logging_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 9, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends "res://tests/sessions/sessions_case_base.gd"
-## Logging cases for tests/sessions/run_all.gd: the session logger's gating, and logging leaving
-## a battle unchanged.
+## Logging cases for tests/sessions/run_all.gd: the session logger's gating, logging leaving
+## a battle unchanged, and a line after leaving the lobby (no peer) raising no engine error.
 
 # NetLog's levels and categories through the script CombatSession preloads, for its logger().
 const ERROR_LEVEL: CombatSession.NetLogScript.Level = CombatSession.NetLogScript.Level.ERROR
@@ -26,9 +26,14 @@ const EFFECTS_CATEGORY: CombatSession.NetLogScript.Category = (
 )
 
 
+# The line the peer case logs, to find it among everything else printed.
+const PROBE_TEXT: String = "logging case probe after leaving the lobby"
+
+
 func run() -> void:
 	_run(_test_logger_gating)
 	_run(_test_logging_changes_nothing)
+	_run(_test_log_after_leaving)
 
 
 func _test_logger_gating() -> bool:
@@ -58,6 +63,34 @@ func _test_logging_changes_nothing() -> bool:
 	_check("logging: every level and the draw trace change no result", (
 			quiet.size() > 20 and loud == quiet
 	), "%d and %d lines" % [quiet.size(), loud.size()])
+	return true
+
+
+# BUG-006: SteamNetwork.leave_lobby() clears the multiplayer peer, as SceneRouter does on the
+# start, save select and main menu screens; a NetLog line after it raises no engine error and tags
+# this machine as peer 1, as in solo play. The peer from before is put back.
+func _test_log_after_leaving() -> bool:
+	var api: MultiplayerAPI = root.multiplayer
+	var peer_before: MultiplayerPeer = api.multiplayer_peer
+	var catcher: LineCatcher = LineCatcher.new()
+	_set_log_level(INFO_LEVEL)
+	OS.add_logger(catcher)
+	root.get_node(^"SteamNetwork").call(&"leave_lobby")
+	var is_cleared: bool = api.multiplayer_peer == null
+	root.get_node(^"NetLog").call(&"info", COMBAT_CATEGORY, PROBE_TEXT)
+	OS.remove_logger(catcher)
+	_set_log_level(LOG_WARN)
+	api.multiplayer_peer = peer_before
+	var line: String = ""
+	for message: String in catcher.get_messages():
+		if message.contains(PROBE_TEXT):
+			line = message.strip_edges()
+	var errors: PackedStringArray = catcher.get_errors()
+	_check("logging: after leave_lobby() a line raises no engine error and shows peer 1", (
+			is_cleared
+			and errors.is_empty()
+			and line.contains("[peer %d]" % [MultiplayerPeer.TARGET_PEER_SERVER])
+	), "peer cleared %s, line '%s', errors %s" % [is_cleared, line, errors])
 	return true
 
 
@@ -115,3 +148,48 @@ func _scripted_battle(is_tracing: bool) -> PackedStringArray:
 		lines.append(grant.describe())
 	run.end_battle()
 	return lines
+
+
+# Keeps every printed line and every engine or script error logged while it is added with
+# OS.add_logger. The engine may call a logger from any thread, so the lists are locked.
+class LineCatcher:
+	extends Logger
+
+	var _messages: PackedStringArray = []
+	var _errors: PackedStringArray = []
+	var _lock: Mutex = Mutex.new()
+
+	func _log_message(message: String, _is_error: bool) -> void:
+		_lock.lock()
+		_messages.append(message)
+		_lock.unlock()
+
+	func _log_error(
+			function: String,
+			file: String,
+			line: int,
+			code: String,
+			rationale: String,
+			_is_editor_notified: bool,
+			_error_type: int,
+			_backtraces: Array[ScriptBacktrace]
+	) -> void:
+		_lock.lock()
+		_errors.append("%s (%s:%d, %s)" % [
+			rationale if not rationale.is_empty() else code, file, line, function,
+		])
+		_lock.unlock()
+
+	## Every line printed while it was added.
+	func get_messages() -> PackedStringArray:
+		_lock.lock()
+		var copy: PackedStringArray = _messages.duplicate()
+		_lock.unlock()
+		return copy
+
+	## Every error logged while it was added.
+	func get_errors() -> PackedStringArray:
+		_lock.lock()
+		var copy: PackedStringArray = _errors.duplicate()
+		_lock.unlock()
+		return copy

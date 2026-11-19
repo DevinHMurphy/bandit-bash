@@ -6,7 +6,7 @@
 # File:     campaign_map_rules.gd
 # Author:
 # Created:  November 12, 2026
-# Modified: November 12, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name CampaignMapRules
@@ -76,7 +76,6 @@ const MAX_COLUMNS: int = 31
 ## [member target_boost]. [b]Units:[/b] nodes per path. [b]0:[/b] no target.
 @export var path_targets: Dictionary[CampaignGraph.NodeType, int] = {}
 
-# ASSUMPTION: the boost's value in the .tres is a measured proposal awaiting the user's approval.
 ## Weight added to a type with a target at a node where some path through it is still short of
 ## that target. Compare with [member weights] (the vision's total is 12).[br]
 ## [b]Units:[/b] relative weight. [b]0:[/b] targets have no effect.

@@ -6,7 +6,7 @@
 # File:     content_rules.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -26,12 +26,13 @@ extends RefCounted
 ## its own (enemies and AI plan, question 18 (d)), every [Area] reuses a shape file from
 ## [code]shapes/[/code] (question 17); and (event bus plan, question 50) no effect lacks
 ## operations but an opener (a key's or lockpick's use effect, Burglar's Roll), no faction lists
-## its commander among its starting units, and starting gear fits its slots. P05's rules (enemies and AI plan, EN1): enemy
-## classes live in enemies/ and packs in enemies/packs/, a pack names only enemy classes, each at
-## least once at every step, and an enemy class has target rule text and is never a commander or
-## given a role; and (EN17) a drawn pack fields its step's size at every step, a basic or hard
-## pack names a leader it fields at every step, and only a key pack names a mini-boss; and (EN8)
-## that mini-boss is a class built on a base class it matches, with a signature move, in no pack.
+## its commander among its starting units, and starting gear fits its slots. P05's rules (enemies
+## and AI plan, EN1): enemy classes live in enemies/ and packs in enemies/packs/, a pack names
+## only enemy classes, each at least once at every step, and an enemy class has target rule text
+## and is never a commander or given a role; and (EN17) a drawn pack fields its step's size at
+## every step, a basic or hard pack names a leader it fields at every step, and only a key pack
+## names a mini-boss; and (EN8) that mini-boss is a class built on a base class it matches, with
+## a signature move, in no pack.
 ## P02's rule (event bus plan, question 60): every effect inside a carrier has an id unique within
 ## it, which saves name it by. [constant LOAD] fails a file the catalog turned away.[br]
 ## The price rules read the price through a callable, so their fixtures can run against a table
@@ -230,9 +231,9 @@ func _check_folder(path: String, resource: Resource) -> void:
 	if resource is WeaponDefinition:
 		var weapon: WeaponDefinition = resource
 		expected = "items/weapons/%s/" % [weapon.weapon_type]
-		if kind == EffectCatalog.Kind.STAFF and weapon.weapon_type != "staff":
-			_fail(FOLDER, path, "a staff has weapon type \"staff\", not \"%s\"" % [
-				weapon.weapon_type,
+		if kind == EffectCatalog.Kind.STAFF and weapon.weapon_type != ContentIds.WEAPON_STAFF:
+			_fail(FOLDER, path, "a staff has weapon type \"%s\", not \"%s\"" % [
+				ContentIds.WEAPON_STAFF, weapon.weapon_type,
 			])
 	elif resource is WeaponPrefixDefinition:
 		var prefix: WeaponPrefixDefinition = resource

@@ -6,14 +6,15 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 16, 2026
-# Modified: November 16, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends SceneTree
 ## Map set suite, key part (combat map plan, MP10): a headless battle against the AI on each key
-## map at step 3, played twice to compare fact logs (map_set_battle_cases.gd). The maps' and
-## pools' checks and the standard maps' battles are the map_set/standard suite: a battle per map
-## takes minutes, the runner limits each suite's time, and suites run in parallel.
+## map but the Gatehouse at step 3, played twice to compare fact logs (map_set_battle_cases.gd).
+## The Gatehouse is map_set/key_gatehouse; the maps' and pools' checks and the standard maps'
+## battles are map_set/standard: a battle per map takes minutes, the runner limits each suite's
+## time, and suites run in parallel.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/map_set/key/run_all.gd[/code][br]
@@ -24,7 +25,7 @@ extends SceneTree
 ## them.
 
 # The test report's line on this suite; tools/run_tests.sh reads it from this one line.
-const SUITE_DESCRIPTION: String = "An AI battle on each key map at step 3, played twice"
+const SUITE_DESCRIPTION: String = "An AI battle on each key map but the Gatehouse, played twice"
 
 # Preloaded scripts used as types (gdscript.md, Naming): the cases have no class name.
 const GroupClock = preload("res://tests/group_clock.gd")

@@ -135,7 +135,7 @@ const UNBOUND_KEY: String = "(unbound)"
 
 # ASSUMPTION: the labels beyond the plan's examples (Danger zone, End turn, Target, Weapon, Fast,
 # Skip, Debug) have no basis: Move, Select, Back, Pause, Resume, Start, Units, Choose, Confirm,
-# Pick, Swap, Pick tile, Info, Scroll, Close, Runes, Discard, Log, Scroll log, Toggle.
+# Pick, Swap, Pick tile, Runes, Discard, Log, Scroll log, Toggle.
 ## What each action does, by action name, or by [code]CONTEXT/action[/code] where a context
 ## ([method HintSource.get_hint_context]) gives it another meaning; the context's key wins.
 ## [b]Missing:[/b] the action's own name shows.

@@ -6,7 +6,7 @@
 # File:     map_node_button.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name MapNodeButton
@@ -43,8 +43,8 @@ enum Mark {
 ## [code]block[/code] token (the player's side).
 @export var route_color: Color = UiTokens.color(UiTokens.BLOCK)
 
-# ASSUMPTION: greybox outline width; Godot_FE marked reachable rooms with a highlight animation
-# and visited rooms as selected, with no width to carry over.
+# A greybox outline width; Godot_FE marked reachable rooms with a highlight animation and visited
+# rooms as selected, with no width to carry over.
 
 ## How thick the outline of a reachable or route node is.[br]
 ## [b]Units:[/b] pixels at the base size. [b]0:[/b] no outline, only the colour shows the mark.

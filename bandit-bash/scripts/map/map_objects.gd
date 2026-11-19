@@ -6,7 +6,7 @@
 # File:     map_objects.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name MapObjects
@@ -601,8 +601,8 @@ static func roll(
 		MapLayout.ObjectKind.WEAPON_RACK:
 			contents = {"kind": "weapon"}
 			var weapon_kinds: Array[EffectCatalog.Kind] = [EffectCatalog.Kind.WEAPON]
-			# ASSUMPTION: a rack holds any weapon, staves and tomes included, as the vision words
-			# it; Godot_FE's racks held neither (its tomes were on book shelves, which hold runes).
+			# A rack holds any weapon, staves and tomes included, as the vision words it;
+			# Godot_FE's racks held neither (its tomes were on book shelves, which hold runes).
 			drawn = _draw_item(
 					stream, ItemPools.items_of(catalog, weapon_kinds), CHEST_RARITY_WEIGHTS
 			)

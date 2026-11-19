@@ -29,12 +29,12 @@ extends Node2D
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 
+# ASSUMPTION: Godot_FE has no end banner; 2.0 s is its turn transition's length, as the phase
+# banner's 1.0 s fade-in and 1.0 s fade-out.
 ## How long the Victory or Defeat banner shows before the route to Results, counted from when it
 ## appears; it pauses with the pause menu. Shorter than the banner's fade-in
 ## ([member PhaseBanner.fade_in_time]) routes before it is fully shown.[br]
 ## [b]Units:[/b] seconds. [b]0.0:[/b] routes at once, so the banner is never seen.
-# ASSUMPTION: Godot_FE has no end banner; 2.0 s is its turn transition's length, as the phase
-# banner's 1.0 s fade-in and 1.0 s fade-out.
 @export_range(0.0, 10.0, 0.1) var end_banner_time: float = 2.0
 
 const VICTORY_SCENE: PackedScene = preload("res://ui/campaign/victory/victory_overlay.tscn")

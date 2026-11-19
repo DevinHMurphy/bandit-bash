@@ -39,15 +39,16 @@ Not a bug.
 
 | ID | Title | Area | Sev | Status | Found | Fix step |
 |----|-------|------|-----|--------|-------|----------|
-| [BUG-002](#bug-002-the-forecasts-crit-chance-ignores-current-stance) | The forecast's crit chance ignores current Stance | P02 / P07 | S2 | Assigned (BF1) | November 6, 2026, user playtest | BF1 |
+| [BUG-002](#bug-002-the-forecasts-crit-chance-ignores-current-stance) | The forecast's crit chance ignores current Stance | P02 / P07 | S2 | Fixed (BF1 merge, November 19, 2026) | November 6, 2026, user playtest | BF1 |
 | [BUG-003](#bug-003-save-systemmd-says-a-battle-retry-repeats-ids) | save-system.md says a battle retry repeats ids | P00 / P02 | S4 | Assigned (CC9; P02 question 22 accepted November 7, 2026) | November 5, 2026, CC10 report | CC9 |
 | [BUG-004](#bug-004-an-enemy-with-an-attack-intent-moves-and-doesnt-attack) | An enemy with an attack intent moves and doesn't attack; the next enemy hits its target | P05 / P07 | S2 | Tabled (user, November 18, 2026; not in BF1) | November 6, 2026, user playtest | — |
 | [BUG-005](#bug-005-unit-detail-shows-the-type-id-not-its-name) | Unit detail shows the type id, not its name | P07 | S4 | Fixed (UL3 merge, November 19, 2026) | November 7, 2026, UI11 report | UL3 |
-| [BUG-006](#bug-006-netlog-raises-an-engine-error-once-the-peer-is-cleared) | NetLog raises an engine error once the peer is cleared | P00 / P10 | S3 | Assigned (BF1) | November 9, 2026, O3 report | BF1 |
-| [BUG-008](#bug-008-a-mirror-keeps-a-used-up-consumable) | A mirror keeps a used-up consumable, so its hash differs from the host's | P02 / P11 | S2 | Assigned (BF1) | November 13, 2026, CT5 report | BF1 |
+| [BUG-006](#bug-006-netlog-raises-an-engine-error-once-the-peer-is-cleared) | NetLog raises an engine error once the peer is cleared | P00 / P10 | S3 | Fixed (BF1 merge, November 19, 2026) | November 9, 2026, O3 report | BF1 |
+| [BUG-008](#bug-008-a-mirror-keeps-a-used-up-consumable) | A mirror keeps a used-up consumable, so its hash differs from the host's | P02 / P11 | S2 | Fixed (BF1 merge, November 19, 2026) | November 13, 2026, CT5 report | BF1 |
 | [BUG-012](#bug-012-loading-the-map-pools-in-a-test-leaks-resources) | Loading `CombatMapPools.load_default()` inside the board suite's route case leaves 74 objects and 58 resources in use at exit | P04 (map pools) / tests | S4 | New | November 16, 2026, MP10a report | — (worked around in the test) |
 | [BUG-014](#bug-014-a-runs-runes-never-reach-the-battle) | A run's runes never reach the battle, and a cast or discard never reaches the run | P08 (battle bridge) | S2 (latent: no run grants runes yet) | Assigned (RN9) | November 18, 2026, UI14 report | RN9 |
 | [BUG-015](#bug-015-the-unit-panels-details-button-cant-be-clicked) | The unit panel's Details button can't be clicked: the panel follows the hovered unit, so moving the mouse to it changes or hides the panel | P07 (unit panel) | S2 | Fixed (UL3 merge, November 19, 2026) | November 18, 2026, user playtest | UL3 (ui-lift.md) |
+| [BUG-016](#bug-016-steamnetworklocal_peer_id-errors-once-the-peer-is-cleared) | `SteamNetwork.local_peer_id()` errors once the peer is cleared | P10 | S4 | New (latent) | November 19, 2026, BF1 report | P10 |
 
 ### BUG-001 No Block at the start of combat
 
@@ -73,6 +74,7 @@ Not a bug.
   by 1. So the forecast's crit line follows each strike: shown for a defender already Exposed,
   shown from the strike that breaks the last Stance onward in a multi-strike exchange, and absent
   while Stance remains.
+- **Fixed** in BF1 (668da72, merged November 19, 2026): the Crit cell and each "Hit N" section read that strike's own rolled crit ("25%", "— · 25%", "—"). Regression: forecast cases for an Exposed defender, Stance 1 hit twice and Stance 2 hit once.
 - **To check:** `CombatForecast` (`defender_exposed`, the side's `crit_chance`, -1 when not
   rolled) and how `forecast_view_model.gd` shows it.
 
@@ -132,6 +134,7 @@ Not a bug.
   offline peer. `SceneRouter` calls `leave_lobby()` on entering the start, save select and main
   menu screens, so every solo session reaches this.
 - **Expected:** logging is silent with no peer and shows peer 1, as in solo play.
+- **Fixed** in BF1 (668da72, merged November 19, 2026) by a guard in NetLog (logging only; restoring an offline peer would change `is_server()` and `get_unique_id()` for every caller). Regression: a logging case after `leave_lobby()` reads `[peer 1]` with no engine error.
 - **To check:** whether `leave_lobby()` should restore an offline peer rather than null, or NetLog
   should guard the call. `steam_network.gd` guards on `multiplayer_peer != null` elsewhere.
 
@@ -145,6 +148,7 @@ Not a bug.
 - **Expected:** host and mirror drop the item at the same use, and the hashes match.
 - **Fix:** `return false` becomes `continue`, with a regression test comparing the mirror's hash
   after an Elixir's last use (CT5's Hit-booster test compares only Hit).
+- **Fixed** in BF1 (668da72, merged November 19, 2026). Regression: the mirror's hash matches the host's after an Elixir's last use; with the fix reverted, the mirror refuses the batch and keeps the Elixir.
 
 ### BUG-009 A second copy of a heirloom never reaches the battle
 
@@ -276,3 +280,12 @@ Not a bug.
   [ui-lift.md](../design/ui-lift.md#unit-detail-pop-up): right-click a unit opens it, and the panel
   stops following hover while the mouse is over it.
 - **Fix in UL3** (the UI lift's HUD and unit detail step).
+
+### BUG-016 SteamNetwork.local_peer_id() errors once the peer is cleared
+
+- **Found:** BF1's report (read, not run). After `leave_lobby()` sets the peer to null,
+  `local_peer_id()` returns 0 with an engine error, while its doc says 1 in solo play: the same flaw
+  as BUG-006. The kit's NetLog template carries the same wrong comment.
+- **Harm today:** none. It is only called inside a lobby.
+- **Expected:** 1 with no error when there is no peer, or a guard at the call.
+- **Fix in P10** (net transport), which owns `SteamNetwork`.

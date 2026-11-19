@@ -6,7 +6,7 @@
 # File:     campaign_map_view.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name CampaignMapView
@@ -41,8 +41,8 @@ const TYPE_NAMES: Dictionary[CampaignGraph.NodeType, String] = {
 	CampaignGraph.NodeType.TREASURE: "Treasure",
 }
 
-# ASSUMPTION: greybox colours and letters per node type, until the map has art; Godot_FE drew an
-# icon per room type, which type_icons takes once there are icons.
+# Greybox colours and letters per node type until the map has art; Godot_FE drew an icon per room
+# type, which type_icons takes once there are icons.
 ## Each node type's fill colour.
 @export var type_colors: Dictionary[CampaignGraph.NodeType, Color] = {
 	CampaignGraph.NodeType.STANDARD: Color(0.75, 0.75, 0.75),

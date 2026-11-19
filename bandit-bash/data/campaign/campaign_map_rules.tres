@@ -44,6 +44,4 @@ path_targets = Dictionary[int, int]({
 6: 2,
 7: 2
 })
-; ASSUMPTION: boost 3 is RN1's measured proposal (tests/bench/campaign_map_bench.gd), awaiting the
-; user's approval. Fragile: a re-save drops this comment.
 target_boost = 3

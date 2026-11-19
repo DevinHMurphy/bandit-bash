@@ -264,7 +264,7 @@ func apply_battle(
 		return next
 	for seat: int in next.seat_numbers():
 		var ended: CampaignFact = CampaignFact.new(CampaignFact.Kind.COMBAT_ENDED, seat)
-		# ASSUMPTION: COMBAT_ENDED's amount is 1 for a win, 0 for a loss; the fact names no field.
+		# COMBAT_ENDED's amount is 1 for a win, 0 for a loss; the fact names no field for it.
 		ended.amount = 1 if result.is_won else 0
 		next.record(ended)
 	var contents: EffectCatalog.Index = catalog if catalog != null else EffectCatalog.index()
@@ -536,8 +536,8 @@ static func _apply_units(
 			))
 		if outcome.is_fallen and not is_commander and seat_run.army.has(unit):
 			fell.append(unit)
-	# ASSUMPTION: units that fall in one battle join the fallen list in roster order; the battle's
-	# save keeps no fall order.
+	# Units that fall in one battle join the fallen list in roster order; the battle's save keeps
+	# no fall order.
 	for unit: UnitInstance in fell:
 		seat_run.army.erase(unit)
 		seat_run.fallen.append(unit)

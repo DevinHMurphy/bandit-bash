@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://ui/battle/board/tile_overlay.gd" id="1_overlay"]
 
-; ASSUMPTION: greybox colours with no basis in the vision or Godot_FE (UI11); teal, apart from move blue and support purple.
+; Greybox colours: teal, apart from move blue and support purple.
 [node name="DefendOverlay" type="Node2D"]
 script = ExtResource("1_overlay")
 fill_color = Color(0.2, 0.85, 0.75, 0.25)

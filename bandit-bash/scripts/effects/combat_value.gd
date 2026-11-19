@@ -6,7 +6,7 @@
 # File:     combat_value.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name CombatValue
@@ -129,8 +129,8 @@ const STAT_KEYS: Dictionary[int, int] = {
 
 ## The stat number a permanent Hit change records as its [constant CombatFact.Kind.STAT_CHANGED]
 ## key (a Hit stat booster or ingredient; items.md, Stat boosters). Hit is no [enum Stat]: it has
-## no base and no growth, so per-stat keys never name it.
-# ASSUMPTION: a number apart from the Stat values, so an appended stat never collides with it.
+## no base and no growth, so per-stat keys never name it. Set apart from the [enum Stat] values,
+## so an appended stat never collides with it.
 const HIT_STAT: int = 100
 
 ## The value key of each stat number a permanent change can raise ([ChangeBaseStat] in its base

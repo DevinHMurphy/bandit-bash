@@ -6,7 +6,7 @@
 # File:     m1_battle_cases.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 16, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -113,7 +113,7 @@ func run() -> void:
 	])
 
 
-## One battle on [param map] from Begin to its end, or to [constant MAX_TURNS], at node
+## One battle on [param map] from Begin to its end, or to [param phases] player phases, at node
 ## [constant NODE] of [param floor_number]. Through turn [param hold_until], the seat ends its turn
 ## without acting. Each army unit first levels up to [param army_level] through [LevelUp], drawn
 ## from the seed's [code]LEVEL_UPS[/code] stream in roster order. Also played by
@@ -122,7 +122,8 @@ func play(
 		map: CombatMapDefinition,
 		hold_until: int = 0,
 		floor_number: int = FLOOR,
-		army_level: int = 1
+		army_level: int = 1,
+		phases: int = MAX_TURNS
 ) -> Battle:
 	var played: Battle = Battle.new()
 	var run: CampaignSession = CampaignSession.new(
@@ -163,7 +164,7 @@ func play(
 		_send(session, StartCommand.new(0), played)
 	# Bounded by player phases played, not by the turn number, so a battle stuck short of a phase
 	# still stops.
-	for _phase: int in MAX_TURNS:
+	for _phase: int in phases:
 		if session.is_finished:
 			break
 		var acting: PackedStringArray = (
