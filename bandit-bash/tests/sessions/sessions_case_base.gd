@@ -6,7 +6,7 @@
 # File:     sessions_case_base.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 16, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -92,7 +92,8 @@ func _add_enemy(run: CampaignSession, session: CombatSession) -> String:
 	return enemy.id
 
 
-# "Hit dealt by Any Ally Unit: that unit gains 2 Block", every [param every]th hit this combat.
+# "When Any Ally Unit deals a hit: give that unit 2 Block"; with [param every] above 1, "Every
+# <every>th Hit dealt by Any Ally Unit this combat: give that unit 2 Block".
 func _every_hit_by_allies(every: int) -> EffectDefinition:
 	var definition: EffectDefinition = _hit_dealt_block("war_ledger", 2.0, every)
 	definition.scope = EffectTerms.Scope.ANY_ALLY_UNIT

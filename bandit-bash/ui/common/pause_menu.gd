@@ -6,26 +6,22 @@
 # File:     pause_menu.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: November 14, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends CanvasLayer
 ## In-game pause menu: Resume, Save & Quit, or Leave, under the run's seed.
 ##
-## Save & Quit saves through [code]SaveService.save_checkpoint()[/code], which is also the battle
-## save mid-battle, and only leaves for the Main Menu once the save succeeded; on failure it says
-## so and stays. With nothing to save (no active run) it offers Quit to Menu instead. A
-## multiplayer client gets Leave Match: clients never save a campaign.[br]
-## The seed line shows the run's seed as [method RunSeed.format] writes it, so a player can quote
-## it in a bug report (RNG streams plan, R4): the campaign's, or on a client the host's replica.
-## With no run it hides.[br]
-## Pauses the scene tree only in solo play. In a multiplayer session the host keeps simulating for
-## everyone, so the menu opens without pausing.[br]
-## Also asks "Save & Quit and join?" when a Steam invite arrives during a solo run
-## ([signal SceneRouter.invite_confirmation_requested]); declining drops the invite.[br]
-## [b]Focus:[/b] while open, one of its buttons always has focus, so a pad can always move: up and
-## down stay within its column, and focus a click took elsewhere comes back the next frame. On
-## close, the control focused before it opened has focus again.
+## Save & Quit saves through [code]SaveService.save_checkpoint()[/code] (the mid-battle save too)
+## and leaves for the Main Menu only once that succeeds; on failure it says so and stays. With no
+## active run it offers Quit to Menu; a multiplayer client gets Leave Match, as clients never save.
+## The seed line shows the run's seed by [method RunSeed.format] (on a client, the host's replica)
+## for bug reports, and hides with no run. It pauses the tree only in solo play: in a session the
+## host keeps simulating for everyone. A Steam invite during a solo run asks "Save & Quit and
+## join?" ([signal SceneRouter.invite_confirmation_requested]); declining drops the invite.[br]
+## [b]Focus:[/b] while open one of its buttons always has focus, so a pad can always move (up and
+## down stay in its column; focus a click took elsewhere returns the next frame). On close the
+## control focused before it opened has focus again.
 
 # ============================================================
 # INPUT MAP SETUP (built-in action, overridden in project.godot's [input] to add its pad buttons):

@@ -13,7 +13,7 @@ extends RefCounted
 ## The forecast's and move preview's cases for the ui/display suite (combat UI plan, UI3 and UI5F
 ## rows): forecast rows against [CombatForecast] for an attack, a staff and a shove; the counter
 ## and the defeat's chance when the all-hits line defeats the target; every hit of a multi-hit
-## attack in the Hits row; Hit 100 against a keg
+## attack in the Hits row; the crit only once Stance is 0 (BUG-002); Hit 100 against a keg
 ## (UI12); the staff's label; the forecast panel as the confirm, its breakdown toggle against
 ## explain's stages; weapon cycling with a Sidearm unit, the forecast and the command sent; the
 ## move preview against
@@ -79,6 +79,10 @@ const MAX_PHASES: int = 3
 # Hovers in the burst: more than one frame's worth, fewer than any unit's move tiles.
 const BURST: int = 12
 
+# Attack Speed the crit case takes from its sword user: past any fixture unit's, so it never takes
+# a bonus turn.
+const SLOW_BY: float = 50.0
+
 # The stowed weapon the cycling case gives the Hakkapel: game-vision.md's Simple Sword.
 const STOWED_ID: String = "test:stowed_sword"
 
@@ -114,6 +118,7 @@ func run() -> void:
 	_test_rows_match_forecast()
 	_test_counter_on_kill()
 	_test_multi_hit()
+	_test_crit_follows_stance()
 	_test_object_hit()
 	_test_staff_label()
 	_test_panel_confirms()
@@ -303,6 +308,107 @@ func _test_multi_hit() -> void:
 	_check.call("multi-hit forecast: one strike a side shows no Hits row", (
 			not is_single or single.row(ForecastViewModel.HITS_LABEL) == null
 	), "strikes by side %s" % [by_side])
+
+
+# BUG-002: a sword user beside a Brute on a fixture board, the Brute's Stance set after the battle
+# opens. A hit can crit only if Stance was 0 before it (game-vision.md, the damage stages), so the
+# Crit cell and the breakdowns follow each strike: Exposed at AtkX 1 shows the chance; Stance 1 at
+# AtkX 2 shows none for the strike that breaks it, then the chance, with a Hit 2 section that has
+# it; Stance 2 at AtkX 1 shows none.
+func _test_crit_follows_stance() -> void:
+	var catalog: EffectCatalog.Index = EffectCatalog.load_tree(FIXTURE_TREE)
+	var world: AiWorld = AiWorld.new(catalog, PLAIN_8X8)
+	world.add_enemy("e1", BRUTE, Vector2i(3, 2))
+	world.add_player("p1", Vector2i(2, 2))
+	# The fixture sword user outspeeds the Brute and takes a second turn; a test delta takes the
+	# bonus turn away, so p1 strikes exactly AtkX times, all in its first turn.
+	world.engine().add_delta("p1", Modifier.new(
+			CombatValue.Key.ATTACK_SPEED,
+			Modifier.Mode.ADD,
+			-SLOW_BY,
+			Modifier.SourceKind.UNIT_TRAIT,
+			"",
+			"test",
+	))
+	EnemyAI.register(world.session, catalog)
+	Intents.register(world.session, catalog)
+	world.session.open_battle()
+	var command: UnitTurnCommand = UnitTurnCommand.new(
+			0, "p1", UnitTurnCommand.Action.ATTACK, "e1"
+	)
+	var none: String = ForecastViewModel.NONE_TEXT
+	# [case name, Stance, AtkX]
+	var setups: Array[Array] = [
+		["an Exposed defender shows the crit chance", 0, 1],
+		["Stance 1 hit twice: no crit, then the chance", 1, 2],
+		["Stance 2 hit once shows no crit", 2, 1],
+	]
+	for setup: Array in setups:
+		var label: String = setup[0]
+		var stance: int = setup[1]
+		var atk_x: int = setup[2]
+		world.state().set_stance("e1", stance)
+		world.state().weapon("w:p1").atk_x = atk_x
+		world.state().load_bases(world.engine(), "p1")
+		var model: ForecastViewModel = ForecastViewModel.build(world.session, command)
+		var found: CombatForecast.ExchangeForecast = (
+				model.forecast as CombatForecast.ExchangeForecast
+		)
+		if found == null or not found.is_legal:
+			_check.call("crit follows Stance: %s (the attack is legal)" % [label], false, (
+					"" if found == null else found.reason
+			))
+			continue
+		var strikes: Array[CombatForecast.AttackForecast] = []
+		for attack: CombatForecast.AttackForecast in found.attacks:
+			if attack.attacker_id == "p1":
+				strikes.append(attack)
+		var cell: String = model.row("Crit").actor
+		var crit_sections: PackedInt32Array = []
+		for stages: ForecastViewModel.Breakdown in model.breakdowns:
+			if stages.unit_id != "p1":
+				continue
+			for line: String in stages.lines:
+				if line.begins_with("critical"):
+					crit_sections.append(stages.hit_number)
+		var passed: bool = false
+		var expected: String = ""
+		match stance:
+			0:
+				expected = "%d%%" % [strikes[0].crit_chance] if not strikes.is_empty() else "?"
+				passed = (
+						strikes.size() == 1
+						and strikes[0].crit_chance >= 0
+						and cell == expected
+						and crit_sections == PackedInt32Array([1])
+				)
+			1:
+				var chance: int = strikes[1].crit_chance if strikes.size() > 1 else -1
+				expected = ForecastViewModel.HIT_SEPARATOR.join([none, "%d%%" % [chance]])
+				passed = (
+						strikes.size() == 2
+						and strikes[0].hp_damage + strikes[0].block_damage > 0
+						and strikes[0].crit_chance < 0
+						and chance >= 0
+						and cell == expected
+						and crit_sections == PackedInt32Array([2])
+				)
+			2:
+				expected = none
+				passed = (
+						strikes.size() == 1
+						and strikes[0].crit_chance < 0
+						and cell == expected
+						and crit_sections.is_empty()
+				)
+		var chances: PackedInt32Array = []
+		for attack: CombatForecast.AttackForecast in strikes:
+			chances.append(attack.crit_chance)
+		_check.call("crit follows Stance: %s" % [label], passed, (
+				"Crit '%s' (expected '%s'), strikes' chances %s, crit lines in hits %s" % [
+					cell, expected, chances, crit_sections,
+				]
+		))
 
 
 # A sword user beside a powder keg on a fixture board: the Hit row's attacker cell reads 100, as
@@ -1195,7 +1301,9 @@ static func _row_problems(
 				landed = model.counter.defender
 			var damage: String = "%d" % [landed.damage] if landed.damage >= 0 else ""
 			damages.append(ForecastViewModel.NONE_TEXT if damage.is_empty() else damage)
-			crits.append("%d%%" % [side.crit_chance] if attacks else ForecastViewModel.NONE_TEXT)
+			crits.append(_expected_crit(
+					exchange if landed == side else model.counter, side.unit_id
+			))
 			strikes.append(
 					"%d × %d" % [side.attacks_per_turn, side.turns]
 					if attacks else ForecastViewModel.NONE_TEXT
@@ -1247,6 +1355,23 @@ static func _row_problems(
 				row_label, row.actor, row.target, cells[0], cells[1],
 			])
 	return problems
+
+
+# The Crit cell for unit_id's attacks in exchange: each attack's rolled crit chance, or "—" for one
+# not rolled (the other unit kept Stance before it); one value when all read alike.
+static func _expected_crit(exchange: CombatForecast.ExchangeForecast, unit_id: String) -> String:
+	var chances: PackedStringArray = []
+	for attack: CombatForecast.AttackForecast in exchange.attacks:
+		if attack.attacker_id == unit_id:
+			chances.append(
+					"%d%%" % [attack.crit_chance] if attack.crit_chance >= 0
+					else ForecastViewModel.NONE_TEXT
+			)
+	if chances.is_empty():
+		return ForecastViewModel.NONE_TEXT
+	if chances.count(chances[0]) == chances.size():
+		return chances[0]
+	return ForecastViewModel.HIT_SEPARATOR.join(chances)
 
 
 # What a unit-turn command would send: its action, target, weapon and path.

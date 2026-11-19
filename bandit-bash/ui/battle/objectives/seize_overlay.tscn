@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://ui/battle/board/tile_overlay.gd" id="1_overlay"]
 
-; ASSUMPTION: greybox colours with no basis in the vision or Godot_FE (UI11); gold, as the leader outline.
+; Greybox colours: gold, as the leader outline.
 [node name="SeizeOverlay" type="Node2D"]
 script = ExtResource("1_overlay")
 fill_color = Color(1, 0.8, 0.2, 0.25)

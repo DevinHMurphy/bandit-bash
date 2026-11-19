@@ -6,7 +6,7 @@
 # File:     effect_catalog.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 12, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name EffectCatalog
@@ -89,9 +89,8 @@ const PARENT_KINDS: Dictionary[Kind, Kind] = {
 	Kind.CURSE: Kind.HEIRLOOM,
 }
 
-# ASSUMPTION: rules data under res://data/ is skipped rather than kept out of data/; the campaign
-# plan puts the map rules in data/campaign/, and they have no id or kind.
 # Folders under DATA_ROOT that hold rules data, not content definitions, so the walk skips them.
+# The campaign plan puts the map rules in data/campaign/, and they have no id or kind.
 # tests/content/catalog_cases.gd skips the same folders when it counts files.
 const _RULES_FOLDERS: PackedStringArray = ["res://data/campaign/"]
 

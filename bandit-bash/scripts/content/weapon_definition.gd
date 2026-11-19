@@ -6,7 +6,7 @@
 # File:     weapon_definition.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 29, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 @tool
@@ -58,7 +58,9 @@ extends ItemDefinition
 ## [b]Units:[/b] percent. [b]0:[/b] the base chance only.
 @export_range(0, 100) var crit: int = 0
 
-## The crit multiplier. Gauntlets use 2, daggers 5; most weapons 3.
+## The crit multiplier at the Critical stage (weapons.md): most weapons 3, daggers 5 or more, and
+## some gauntlets 2.[br]
+## [b]Units:[/b] times the hit's damage. [b]1.0:[/b] a crit deals no extra damage.
 @export_range(1.0, 10.0, 0.5, "or_greater") var crit_x: float = 3.0
 
 @export_group("Range")

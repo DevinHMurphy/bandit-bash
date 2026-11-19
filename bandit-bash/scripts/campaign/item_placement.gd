@@ -6,7 +6,7 @@
 # File:     item_placement.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 16, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name ItemPlacement
@@ -130,8 +130,8 @@ func apply(
 	var seat_run: SeatRun = run.seat_run(seat)
 	var definition: ItemDefinition = catalog.item(item.definition_id)
 	if destination == Destination.SCRAP:
-		# ASSUMPTION: an item scrapped at pickup records ITEM_SCRAPPED alone, never GAINED: it
-		# never enters the roster, so nothing reacting to a gain sees it.
+		# An item scrapped at pickup records ITEM_SCRAPPED alone, never GAINED: it never enters
+		# the roster, so nothing reacting to a gain sees it.
 		_scrap(run, seat, item, catalog)
 		return
 	if not convoy_scrap_id.is_empty():

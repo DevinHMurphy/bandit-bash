@@ -645,8 +645,9 @@ class Kit:
 		}
 
 
-	# The real catalog without its packs: setup step 4 draws from every pack (EnemySetup.draw), so
-	# a battle on this draws no enemies and a case can place its own on the enemy slot.
+	# The real catalog without its packs: setup step 4 draws one pack from the catalog's pool for
+	# the map and step (EnemySetup.draw), so a battle on this draws no enemies and a case can place
+	# its own on the enemy slot.
 	static func catalog_without_packs() -> EffectCatalog.Index:
 		var real: EffectCatalog.Index = EffectCatalog.index()
 		var index: EffectCatalog.Index = EffectCatalog.Index.new()

@@ -30,8 +30,7 @@ signal scroll_range_changed()
 ## Previous ([param forward] false) or Next (true) was clicked: show the side's other unit.
 signal step_requested(forward: bool)
 
-# ASSUMPTION: about two lines of HUD text per press; no basis.
-## How far up and down scroll the body per press.[br]
+## How far up and down scroll the body per press: about two lines of HUD text.[br]
 ## [b]Units:[/b] pixels.
 @export_range(4.0, 400.0, 1.0) var scroll_step: float = 48.0
 

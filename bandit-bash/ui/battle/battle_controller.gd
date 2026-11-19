@@ -11,38 +11,18 @@
 
 class_name BattleController
 extends HintSource
-## Turns the player's input on the battle screen into commands: the tile cursor, selecting a
-## unit, its move and attack tiles and path, the action menu, the target picker, confirm, End
-## Turn, the opening swap window and Start (combat UI plan, question 6's flow, ported from
-## Godot_FE's player FSM).
-##
-## [b]Commands only:[/b] it never changes combat state. What it offers comes from
-## [TurnInputModel], whose every action already passed its command's own validation; confirming
-## submits that command to the encounter for the seat and resolves it. A rejection
-## ([signal CombatSession.command_rejected]) shows its reason in the [BattleMessage]. Panels go
-## through one [PanelHost]: each stage that opens a panel pushes one, and cancel pops exactly one.
-## Input waits while playback runs ([method BattleView.is_settled]), except fast-forward and the
-## skip.[br]
-## [b]Targeting[/b] (question 21): a chosen action's targets are one [TargetList]; its rows, Q / E,
-## the mouse and accept all move or pick its current target, so each sends the same command.
-## Targets are outlined ([TargetMark]); an attack, a staff or a shove confirms on a
-## [ForecastPanel], which cycles the target's weapons ([method cycle_weapon]) while the board
-## flashes the HP and Stance it predicts ([method BattleView.show_forecast_preview]).[br]
-## [b]Move then act[/b] (question 34 (3)): picking another tile walks the token there first
-## ([method BattleView.stage_walk]), locally; the action menu opens on arrival.[br]
-## [b]Move preview:[/b] hovering a move tile runs a [MovePreview] on a worker thread
-## ([method run_preview_frame]), drawn by [MovePreviewMarks] and the [IntentDisplay]; the picked
-## tile's, with its danger zone, stays through the action until Cancel (question 35 (1)).[br]
-## [b]Unit detail[/b] (ui-lift.md): unit_detail, a right click on a unit or the unit panel's Details
-## opens any unit's [UnitDetailPanel] from IDLE or MOVE ([method request_unit_detail]); Q / E and
-## the shoulder buttons step through its side ([method step_unit_detail]); Back closes it.[br]
-## [b]Enemy information[/b] (question 10): the [IntentDisplay] shows the intents once the board
-## settles, none while the seat's [constant CampaignValue.Permission.INTENTS_HIDDEN] holds
-## (Clouded Sight); [method toggle_danger_zone] draws [DangerZone] either way, support purple.[br]
-## [b]Hints and pads[/b] (questions 24, 25, 31): [constant LIVE_ACTIONS] lists each hint context's
-## actions, which [method get_live_actions] gives the [ControlHintBar] less what can do nothing
-## now; every action has a pad binding, held directions repeating through [member pad_repeat].[br]
-## [BattleScreen] binds it to the seat's map ([method bind]); its widgets are its exports' nodes.
+## Turns the player's input on the battle screen into commands (Godot_FE's player FSM): the tile
+## cursor, selecting a unit, its move and attack tiles and path, the action menu, the target
+## picker, confirm, End Turn, the opening swap window and Start. It never changes combat state:
+## what it offers comes from [TurnInputModel], whose actions already passed their commands' own
+## validation; confirming submits that command to the encounter for the seat, and a rejection
+## shows its reason in the [BattleMessage]. Panels go through one [PanelHost]: each stage that
+## opens one pushes it, and cancel pops exactly one.[br]
+## Picking another tile walks the token there locally first ([method BattleView.stage_walk]).
+## Targets are one [TargetList], however picked; an attack, a staff or a shove confirms on a
+## [ForecastPanel]. A hovered move tile's [MovePreview] runs on a worker thread
+## ([method run_preview_frame]). [BattleScreen] binds it ([method bind]); the blocks below give
+## every binding and stage, and [constant LIVE_ACTIONS] each stage's hints.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
@@ -157,11 +137,12 @@ extends HintSource
 #                                                it, a filter toggles, "↓ N new" returns to the
 #                                                newest line: the GUI's own, in any stage. A click
 #                                                on the board in EVENT_LOG closes it)
-# ASSUMPTION: Godot_FE bound none of end_turn, toggle_danger_zone, cycle_weapon, fast_forward,
-# skip_playback or unit_detail to a pad; their pad buttons above have no basis (unit_detail's L3
-# was the last pad button left free, so the event log took the right stick's axes). Every pad
-# input is bound to one action only, as this file reads them in one chain and the first match
-# wins. V for open_runes and L for event_log_focus have no basis either.
+# ASSUMPTION: Godot_FE bound none of end_turn, toggle_danger_zone, cycle_weapon, fast_forward or
+# skip_playback to a pad; their pad buttons above have no basis. V for open_runes and L for
+# event_log_focus have no basis either.
+# unit_detail took L3, the last pad button left free, so the event log took the right stick's
+# axes. Every pad input is bound to one action only, as this file reads them in one chain and the
+# first match wins.
 # While a command's playback runs, the token walks to its picked tile (WALK), the map's combat is
 # over, or the seat has no turn, every input but fast_forward, skip_playback, toggle_danger_zone,
 # the event log's scrolling and open_runes (which only says why it can't) is ignored: that guard
@@ -1188,8 +1169,8 @@ func step_back() -> bool:
 			move_cursor(_cursor)
 			# The snap back clears the picked tile's preview, so the session's intents and zone
 			# return (question 35 (1)).
-			# ASSUMPTION: the cursor stays on the picked tile and its hover preview isn't asked
-			# again until the cursor moves, so the session's intents stay shown after Cancel.
+			# The cursor stays on the picked tile and its hover preview isn't asked again until
+			# the cursor moves, so the session's intents stay shown after Cancel.
 			_clear_preview()
 		Stage.RUNE:
 			_action = null

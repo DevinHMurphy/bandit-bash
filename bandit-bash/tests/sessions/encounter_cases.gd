@@ -6,7 +6,7 @@
 # File:     encounter_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 9, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends "res://tests/sessions/sessions_case_base.gd"
@@ -392,7 +392,7 @@ func _test_positional_never_across() -> bool:
 	var e0: String = battle.add_unit(0, "Brute", ENEMY, -1, Vector2i(1, 3))
 	var a1: String = battle.add_unit(1, "Archer", PLAYER, 1, Vector2i(0, 2))
 	var e1: String = battle.add_unit(1, "Brute", ENEMY, -1, Vector2i(1, 2))
-	# "Hit dealt by Any Ally Unit, while an ally is within 1 tile of this unit: gain 1 Block".
+	# "When Any Ally Unit deals a hit, while within 1 tile of an ally: gain 1 Block".
 	var near: EffectDefinition = _every_hit_by_allies(1)
 	near.conditions.clear()
 	var within: WhilePositionCondition = WhilePositionCondition.new()

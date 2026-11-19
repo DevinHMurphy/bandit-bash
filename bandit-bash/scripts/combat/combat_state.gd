@@ -6,7 +6,7 @@
 # File:     combat_state.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name CombatState
@@ -763,7 +763,7 @@ static func _is_used_up(engine: EffectEngine, item_id: String) -> bool:
 	var totals: bool = false
 	for instance: EffectInstance in ItemUseResolver.use_effects(engine, item_id):
 		if instance.definition.charges <= 0:
-			return false
+			continue
 		if instance.definition.charge_lane != EffectTerms.Lane.CAMPAIGN:
 			return false
 		totals = true

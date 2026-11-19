@@ -6,7 +6,7 @@
 # File:     item_content_cases.gd
 # Author:
 # Created:  November 12, 2026
-# Modified: November 17, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -17,7 +17,8 @@ extends RefCounted
 ## loaded from the data: Training Weights' Speed cost and level-up rules, Spirit Coating's hits
 ## mitigated by Resistance, the Elixir healing to full and being used up, the Simple Quiver's
 ## damage at range, the Sunshard Band's rounded heal, Tungsten Ooze's Armored tag, a Hit booster's
-## permanent Hit on host and mirror, the Key opening a locked chest twice and being used up, and
+## permanent Hit on host and mirror, the Elixir's last use leaving a mirror's Pouch with the
+## host's hash, the Key opening a locked chest twice and being used up, and
 ## the Lockpick opening it only for a lock picker and being kept. Reports each case through the
 ## check callable it is given.
 ##
@@ -349,6 +350,7 @@ func run() -> void:
 	_test_sunshard_band()
 	_test_tungsten_ooze()
 	_test_hit_booster()
+	_test_elixir_mirror()
 	_test_key()
 	_test_lockpick()
 
@@ -632,8 +634,8 @@ func _test_tungsten_ooze() -> void:
 
 # The real Adept Anchovy used from a Hakkapel's Pouch as its action: +5 Hit for good, kept as a
 # delta for the campaign bridge to write back, the booster used up; a mirror applying the host's
-# batch follows the STAT_CHANGED to the same Hit and delta. Only the Hit is compared: the mirror's
-# Pouch is a separate matter (reported with CT5).
+# batch follows the STAT_CHANGED to the same Hit and delta. Only the Hit is compared; the mirror's
+# Pouch and hash are the Elixir mirror case's.
 func _test_hit_booster() -> void:
 	var host: CombatSession = _session()
 	var mirror: CombatSession = _session()
@@ -667,6 +669,36 @@ func _test_hit_booster() -> void:
 		mirror.engine.stats(who).get_int(CombatValue.Key.HIT) - before,
 		mirror.engine.get_deltas(who, CombatValue.Key.HIT).size(),
 	], "+5 1")
+
+
+# BUG-008: the real Elixir's last use, as a Hakkapel's action at 3 HP. Its heal carries no charges
+# and comes before the use the loadout counts, so a mirror that stopped at the heal kept the Elixir
+# in the Pouch. A mirror applying the host's batch drops it too, and the state hashes match.
+func _test_elixir_mirror() -> void:
+	var host: CombatSession = _session()
+	var mirror: CombatSession = _session()
+	var who: String = ""
+	for session: CombatSession in [host, mirror]:
+		who = _place(session, "hakkapel", PLAYER, 0, Vector2i(0, 0), "", "elixir")
+		if who.is_empty() or session.open_battle().is_rejected():
+			_ok("elixir mirror: the battle loads", false)
+			return
+		session.state.set_hp(who, 3)
+	var use: UnitTurnCommand = UnitTurnCommand.new(0, who, UnitTurnCommand.Action.ITEM, who)
+	use.item_id = host.state.unit(who).pouch_item_id
+	host.submit(use)
+	var batch: CombatSession.FactBatch = host.resolve_next()
+	_ok("elixir mirror: used up on the host", (
+			not batch.is_rejected() and host.state.unit(who).pouch_item_id.is_empty()
+	), batch.rejected_reason)
+	var applied: Error = mirror.apply_batch(batch)
+	_ok("elixir mirror: the mirror drops it too, and its hash is the host's", (
+			applied == OK
+			and mirror.state.unit(who).pouch_item_id.is_empty()
+			and mirror.state_hash() == host.state_hash()
+	), "applied %s, mirror's Pouch '%s'" % [
+		error_string(applied), mirror.state.unit(who).pouch_item_id,
+	])
 
 
 # The real Key, 2 total uses, held by a Hakkapel on a locked chest: it isn't a Pouch item to use

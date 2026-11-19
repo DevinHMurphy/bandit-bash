@@ -18,10 +18,11 @@ extends RefCounted
 ## [method build] and [method build_rune] run the command's own preview on the session's engine,
 ## so the rows are what it resolves to with every hit landing (FR-MATH-12). An exchange lists every
 ## hit of a multi-hit attack ([constant HITS_LABEL]) and keeps each side's first landed hit's
-## stages, and any later hit's that differ ([member breakdowns]), for the panel's toggle; it reads a
-## defeat as a chance ([constant DEFEAT_ON_HIT]), its counter from [member counter] (the actor's
-## strikes before it missing, [CounterRolls]). [member flashes] gives the board each unit's
-## predicted HP and Stance (question 34 (1)). Reading only: previews run on sandboxes.
+## stages, and any later hit's that differ ([member breakdowns]); a hit shows a crit chance only if
+## the other unit's Stance is 0 before it. It reads a defeat as a chance ([constant DEFEAT_ON_HIT]),
+## its counter from [member counter] (the actor's strikes before it missing, [CounterRolls]).
+## [member flashes] gives the board each unit's predicted HP and Stance. Reading only: previews
+## run on sandboxes.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
@@ -73,6 +74,9 @@ const COUNTER_NOTE: String = "If %s misses, %s counters: %s HP %s."
 
 # What separates [method CombatForecast.HitBreakdown.to_text]'s stages, one per line here.
 const HIT_BREAKDOWN_SEPARATOR: String = "; "
+
+# The breakdown line of a hit that can crit, in stage 3's place: %d the chance, in percent.
+const _CRIT_CHANCE_LINE: String = "critical %d%% chance (Exposed)"
 
 ## The row listing every hit of a multi-hit attack, under Damage; only shown when a side strikes
 ## more than once.
@@ -228,9 +232,9 @@ func _fill_flashes() -> void:
 		flashes.append(added)
 
 
-# An exchange's rows: both sides' weapon, triangle, effectiveness, Hit, damage, crit, strikes, and
-# HP, Block and Stance before and after. The target's damage, effectiveness and breakdown come from
-# the counter line when the all-hits line defeats it first.
+# An exchange's rows: both sides' weapon, triangle, effectiveness, Hit, damage, crit per strike,
+# strikes, and HP, Block and Stance before and after. The target's damage, crit, effectiveness and
+# breakdown come from the counter line when the all-hits line defeats it first.
 func _fill_exchange(session: CombatSession, found: CombatForecast.ExchangeForecast) -> void:
 	forecast = found
 	var state: CombatState = session.state
@@ -262,10 +266,13 @@ func _fill_exchange(session: CombatSession, found: CombatForecast.ExchangeForeca
 		var effective: String = NONE_TEXT
 		if hit_side.breakdown != null:
 			effective = "Yes" if hit_side.breakdown.stages.is_effective else "No"
+		var hits_from: CombatForecast.ExchangeForecast = (
+				found if i == 0 or counter == null else counter
+		)
 		cells.append(PackedStringArray([
 			"%d%%" % [side.hit] if attacks and side.hit >= 0 else NONE_TEXT,
 			"%d" % [hit_side.damage] if hit_side.damage >= 0 else NONE_TEXT,
-			"%d%%" % [side.crit_chance] if attacks and side.crit_chance >= 0 else NONE_TEXT,
+			_crit_cell(hits_from, side.unit_id),
 			"%d × %d" % [side.attacks_per_turn, side.turns] if attacks else NONE_TEXT,
 			effective,
 		]))
@@ -275,7 +282,7 @@ func _fill_exchange(session: CombatSession, found: CombatForecast.ExchangeForeca
 			stages.label = BattleText.name_of(session, hit_side.unit_id)
 			stages.lines = hit_side.breakdown.to_text().split(HIT_BREAKDOWN_SEPARATOR)
 			breakdowns.append(stages)
-			_add_later_breakdowns(stages, found if i == 0 or counter == null else counter)
+			_add_later_breakdowns(stages, hits_from)
 	var labels: PackedStringArray = ["Hit", "Damage", "Crit", "Strikes", "Effective"]
 	for i: int in labels.size():
 		_add_row(labels[i], cells[0][i], cells[1][i])
@@ -314,8 +321,26 @@ func _hit_damages(exchange: CombatForecast.ExchangeForecast, unit_id: String) ->
 	return damages
 
 
+# The Crit cell for unit_id's attacks in exchange. Each attack can crit only if the other unit's
+# Stance was 0 before it, which the attack's rolled crit chance records (-1 when not rolled); a
+# miss can't crit. One value when every attack reads alike, else each attack's, as the Hits row.
+func _crit_cell(exchange: CombatForecast.ExchangeForecast, unit_id: String) -> String:
+	var chances: PackedStringArray = []
+	for attack: CombatForecast.AttackForecast in exchange.attacks:
+		if attack.attacker_id == unit_id:
+			chances.append(_crit_text(attack))
+	if chances.is_empty():
+		return NONE_TEXT
+	if chances.count(chances[0]) == chances.size():
+		return chances[0]
+	# Per attack, lined up under the Hits row: "— · 25%".
+	return HIT_SEPARATOR.join(chances)
+
+
 # After first (a side's first landed hit's stages), each later hit of that side in exchange whose
-# stages differ from the hit before it, as its own Breakdown: hits that read alike show once.
+# stages differ from the hit before it, as its own Breakdown: hits that read alike show once. A
+# hit that can crit lists its chance where the critical stage goes, so the first hit after the last
+# Stance breaks gets its own section.
 func _add_later_breakdowns(first: Breakdown, exchange: CombatForecast.ExchangeForecast) -> void:
 	var previous: PackedStringArray = first.lines
 	var number: int = 0
@@ -326,11 +351,13 @@ func _add_later_breakdowns(first: Breakdown, exchange: CombatForecast.ExchangeFo
 		number += 1
 		if attack.breakdown == null:
 			continue
+		var lines: PackedStringArray = _strike_lines(attack)
 		if is_first_landed:
 			is_first_landed = false
 			first.hit_number = number
+			first.lines = lines
+			previous = lines
 			continue
-		var lines: PackedStringArray = attack.breakdown.to_text().split(HIT_BREAKDOWN_SEPARATOR)
 		if lines == previous:
 			continue
 		var later: Breakdown = Breakdown.new()
@@ -605,6 +632,21 @@ static func _tile_change(outcome: CombatForecast.UnitOutcome) -> String:
 	if outcome.tile_after == outcome.tile_before:
 		return "stays"
 	return "%s → %s" % [outcome.tile_before, outcome.tile_after]
+
+
+# attack's crit chance as the Crit cell shows it; NONE_TEXT when it isn't rolled.
+static func _crit_text(attack: CombatForecast.AttackForecast) -> String:
+	return "%d%%" % [attack.crit_chance] if attack.crit_chance >= 0 else NONE_TEXT
+
+
+# attack's stages, one per line, with _CRIT_CHANCE_LINE before the multipliers when it can crit and
+# the preview's hit didn't (ForecastRolls never crits, so this is every hit that can).
+static func _strike_lines(attack: CombatForecast.AttackForecast) -> PackedStringArray:
+	var lines: PackedStringArray = attack.breakdown.to_text().split(HIT_BREAKDOWN_SEPARATOR)
+	if attack.crit_chance >= 0 and not attack.is_crit:
+		# HitBreakdown.to_text ends with the multipliers and the damage; stage 3 sits before them.
+		lines.insert(maxi(lines.size() - 2, 0), _CRIT_CHANCE_LINE % [attack.crit_chance])
+	return lines
 
 
 ## One row of the forecast: a label and one cell per column.
