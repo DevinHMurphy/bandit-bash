@@ -74,6 +74,12 @@ enum Kind {
 	## The seat chose option [member amount] of the event [member definition_id]; the option's
 	## own facts follow.
 	EVENT_CHOSEN = 18,
+	## The seat voted for option [member amount] of the team-choice event [member definition_id],
+	## replacing any earlier vote of its own.
+	EVENT_VOTED = 19,
+	## The team's votes drew option [member amount] of the event [member definition_id]; it
+	## belongs to no seat.
+	TEAM_OPTION_DRAWN = 20,
 }
 
 ## [member seat] when a fact belongs to no single player.

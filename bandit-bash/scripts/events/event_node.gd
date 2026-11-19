@@ -14,8 +14,9 @@ extends RefCounted
 ## The hand-off between an Unknown node's event and the rest of the game, host side: the
 ## commands that open and drive it, filled from the run's session, and the view that shows it.
 ##
-## The Unknown node sends [method open]'s command; the event screen reads [method view] and sends
-## [method open_chooser]'s and [method choose]'s. Each command goes through
+## The Unknown node sends [method open]'s command; the event screen reads [method view] (the
+## team's tally included) and sends [method open_chooser]'s, [method vote]'s and
+## [method choose]'s. Each command goes through
 ## [code]CampaignService.submit_command()[/code], which resolves and saves it. Nothing here
 ## touches an autoload; a null pool, catalog or rules is the game's own
 ## ([method EventPool.load_default], [method EffectCatalog.index],
@@ -76,6 +77,29 @@ static func open_chooser(
 	var command: EventChooserCommand = EventChooserCommand.new(seat, option_index)
 	command.pool = _pool(pool)
 	command.catalog = _catalog(catalog)
+	return command
+
+
+## The command by which [param seat] votes for option [param option_index] of a team choice of
+## more than one seat, or changes its vote, with the node's shared [code]TEAM_CHOICE[/code]
+## stream for the draw the last vote makes. [method view] reads the tally and the drawn option,
+## which [method choose] then applies. Null, reported, with no run.
+static func vote(
+		session: CampaignSession,
+		seat: int,
+		option_index: int,
+		pool: EventPool = null,
+		catalog: EffectCatalog.Index = null
+) -> EventVoteCommand:
+	if not _has_run(session):
+		return null
+	var run: CampaignRunState = session.run
+	var command: EventVoteCommand = EventVoteCommand.new(seat, option_index)
+	command.pool = _pool(pool)
+	command.catalog = _catalog(catalog)
+	command.draw_stream = session.rng.stream(RngKey.new(
+			RngKey.RngPurpose.TEAM_CHOICE, run.floor_number, run.node
+	))
 	return command
 
 

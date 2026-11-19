@@ -15,8 +15,9 @@ extends RefCounted
 ## option events built from blocks, and contexts drawing from the seat's EVENT_OUTCOME stream.
 ## For the draw: three test-only events built in code (a goblet with a chooser and a tier curse,
 ## a shrine needing a fallen unit, a team-choice toll with a surprise combat), runs standing in an
-## Unknown node, and the commands EventNode builds, submitted to the session. None of the test
-## content is real content: CT12 authors the weapon prefix list, EV4 the 13 events.
+## Unknown node, and the commands EventNode builds (team votes included), submitted to the
+## session; and a quit and Continue through the campaign block's sections and JSON. None of the
+## test content is real content: CT12 authors the weapon prefix list, EV4 the 13 events.
 
 const RULES_PATH: String = "res://data/campaign/campaign_map_rules.tres"
 const RUN_SEED: int = 0x5EA7C0DE
@@ -56,6 +57,8 @@ const START_GOLD: int = 100
 var catalog: EffectCatalog.Index = null
 var map_rules: CampaignMapRules = null
 var rules: CombatRewardRules = null
+## The last [method resume]'s error: [constant OK] when it loaded.
+var resume_error: Error = OK
 
 
 func _init() -> void:
@@ -282,6 +285,42 @@ func choose(
 	return made.submit(EventNode.choose(made, seat, option, choice, events, catalog))
 
 
+## Seat [param seat] votes for option [param option] of the open team choice.
+func vote(made: CampaignSession, events: EventPool, seat: int, option: int) -> CampaignBatch:
+	return made.submit(EventNode.vote(made, seat, option, events, catalog))
+
+
+## [param made]'s campaign block saved through every campaign section a resume needs, through
+## JSON, then loaded into a new session the way CampaignService builds one: rng, instance_ids,
+## the run, then the events. Null when any step fails; [member resume_error] says which error.
+func resume(made: CampaignSession) -> CampaignSession:
+	var saving: Sections = Sections.new()
+	saving.attach(made)
+	var players: Array[CampaignData.PlayerRun] = _players(made.seats)
+	var block: Dictionary = saving.registry.capture(SaveSection.Block.CAMPAIGN, {})
+	saving.registry.capture_players(players)
+	var player_data: Array = []
+	for player: CampaignData.PlayerRun in players:
+		player_data.append(player.to_dict())
+	var parsed: Variant = JSON.parse_string(JSON.stringify(
+			{"sections": block, "players": player_data}
+	))
+	var saved: Dictionary = parsed as Dictionary if parsed is Dictionary else {}
+
+	var loading: Sections = Sections.new()
+	var read_players: Array[CampaignData.PlayerRun] = []
+	for entry: Variant in saved.get("players", []) as Array:
+		read_players.append(CampaignData.PlayerRun.from_dict(entry as Dictionary))
+	var sections: Dictionary = saved.get("sections", {}) as Dictionary
+	resume_error = loading.registry.restore(SaveSection.Block.CAMPAIGN, sections)
+	if resume_error == OK:
+		resume_error = loading.registry.restore_players(read_players)
+	var resumed: CampaignSession = CampaignSession.new(made.mode, RUN_SEED, made.seats)
+	if resume_error == OK:
+		resume_error = loading.attach(resumed)
+	return resumed if resume_error == OK else null
+
+
 ## The seat's living unit that isn't the commander, first in roster order.
 func soldier(seat_run: SeatRun) -> UnitInstance:
 	for unit: UnitInstance in seat_run.army:
@@ -367,3 +406,46 @@ func _prefix(
 	prefix.weight_delta = PREFIX_WEIGHT
 	prefix.damage_delta = PREFIX_DAMAGE
 	return prefix
+
+
+func _players(seats: PackedInt32Array) -> Array[CampaignData.PlayerRun]:
+	var players: Array[CampaignData.PlayerRun] = []
+	for seat: int in seats:
+		var player: CampaignData.PlayerRun = CampaignData.PlayerRun.new()
+		player.seat = seat
+		players.append(player)
+	return players
+
+
+# The campaign block's sections a continued run needs, registered as CampaignService registers
+# them, and attached to a session in its order.
+class Sections:
+	extends RefCounted
+
+	var registry: SaveSectionRegistry = SaveSectionRegistry.new()
+	var rng: RngSaveSection = RngSaveSection.new(SaveSection.Block.CAMPAIGN)
+	var ids: InstanceIdSaveSection = InstanceIdSaveSection.new(SaveSection.Block.CAMPAIGN)
+	var run: RunSaveSections = RunSaveSections.new()
+	var events: EventSaveSection = EventSaveSection.new()
+
+	func _init() -> void:
+		registry.register(SaveSection.Block.CAMPAIGN, rng)
+		registry.register(SaveSection.Block.CAMPAIGN, ids)
+		registry.register(SaveSection.Block.CAMPAIGN, run.map)
+		registry.register(SaveSection.Block.CAMPAIGN, run.flow)
+		for section: RunSaveSections.SeatSection in run.seat_sections:
+			registry.register_player(section)
+		registry.register(SaveSection.Block.CAMPAIGN, events)
+
+	## Attaches every section to session; the first error, else OK. A session that already has its
+	## run (one being saved) keeps it.
+	func attach(session: CampaignSession) -> Error:
+		var err: Error = rng.attach(session)
+		if err == OK:
+			err = ids.attach(session)
+		if err == OK:
+			var run_err: Error = run.attach(session)
+			err = OK if run_err == ERR_DOES_NOT_EXIST and session.run != null else run_err
+		if err == OK:
+			err = events.attach(session)
+		return err
