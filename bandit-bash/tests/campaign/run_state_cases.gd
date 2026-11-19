@@ -6,7 +6,7 @@
 # File:     run_state_cases.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -364,9 +364,9 @@ func _test_save_and_reload() -> void:
 			attached == ERR_DOES_NOT_EXIST
 	), error_string(attached))
 	var expected_versions: String = (
-			"campaign_map 1, run_flow 1; economy 1, heirlooms 1, roster 1, runes 1"
+			"campaign_map 1, run_flow 1; economy 2, heirlooms 1, roster 1, runes 1"
 	)
-	_check("save: every section is at version 1 in the campaign block", (
+	_check("save: every section is at its version in the campaign block, economy at 2", (
 			_versions(saved) == expected_versions
 	), _versions(saved))
 	_check("save: the run reloads identically, part by part", (
@@ -427,6 +427,7 @@ func _test_newer_and_zero_versions_refused() -> void:
 		"run_flow at 0": [_with_version(saved, "run_flow", -1, 0), ERR_INVALID_DATA],
 		"roster newer": [_with_version(saved, "roster", 1, 2), ERR_FILE_UNRECOGNIZED],
 		"economy at 0": [_with_version(saved, "economy", 0, 0), ERR_INVALID_DATA],
+		"economy newer": [_with_version(saved, "economy", 0, 3), ERR_FILE_UNRECOGNIZED],
 	}
 	for case_name: String in cases:
 		var fresh: RunSaveSections = RunSaveSections.new()
@@ -441,6 +442,19 @@ func _test_newer_and_zero_versions_refused() -> void:
 				and target.run == null
 				and attached == ERR_DOES_NOT_EXIST
 		), "%s, %s" % [error_string(err), error_string(attached)])
+
+	# economy version 1 (a combat report without stats) migrates as it is.
+	var old_economy: Dictionary = _with_version(saved, "economy", 0, 1)
+	var migrated: RunSaveSections = RunSaveSections.new()
+	var loaded: Error = _load(migrated, old_economy)
+	var into: CampaignSession = CampaignSession.new(CampaignData.Mode.MULTIPLAYER, RUN_SEED, SEATS)
+	var built: Error = migrated.attach(into)
+	_check("versions: economy at version 1 loads, and saves again at version 2", (
+			loaded == OK
+			and built == OK
+			and JSON.stringify(_save(migrated, into.run.seat_numbers())) == JSON.stringify(saved)
+			and ((saved["players"] as Array)[0]["sections"]["economy"]["version"] as int) == 2
+	), "%s, %s" % [error_string(loaded), error_string(built)])
 
 
 func _test_bad_data_refused() -> void:

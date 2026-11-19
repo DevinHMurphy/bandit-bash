@@ -6,7 +6,7 @@
 # File:     run_service_cases.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 13, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends "res://tests/sessions/sessions_case_base.gd"
@@ -41,7 +41,7 @@ func _test_new_run_saves_and_continues() -> bool:
 	var first: CampaignSession = service.get(&"session")
 	var built: String = RunStateCases.run_text(first.run) if first.run != null else ""
 	var file: CampaignData = _read_campaign(saves)
-	_check("run service: a new run is built and saved with every run section at version 1", (
+	_check("run service: a new run is built and saved with every run section at its version", (
 			first.run != null
 			and first.run.seat_run(0).army.size() == 4
 			and _holds_run(file)
@@ -204,25 +204,29 @@ func _skipped(case_name: String) -> bool:
 	return true
 
 
-# Whether every run section of the file, and every seat's, is at version 1 and holds a run.
+# Whether every run section of the file, and every seat's, is at its version (economy 2, the rest
+# 1) and holds a run.
 func _holds_run(file: CampaignData) -> bool:
 	for key: String in RUN_KEYS:
-		if not _is_filled(file.sections.get(key)):
+		if not _is_filled(file.sections.get(key), RunSaveSections.VERSION):
 			return false
 	for player: CampaignData.PlayerRun in file.players:
 		for key: String in SEAT_KEYS:
-			if not _is_filled(player.sections.get(key)):
+			var version: int = (
+					RunSaveSections.ECONOMY_VERSION if key == "economy" else RunSaveSections.VERSION
+			)
+			if not _is_filled(player.sections.get(key), version):
 				return false
 	return not file.players.is_empty()
 
 
-func _is_filled(entry: Variant) -> bool:
+func _is_filled(entry: Variant, version: int) -> bool:
 	if not entry is Dictionary:
 		return false
 	var section: Dictionary = entry
 	var data: Variant = section.get("data")
 	return (
-			ItemInstance.read_int(section.get("version"), 0) == 1
+			ItemInstance.read_int(section.get("version"), 0) == version
 			and data is Dictionary
 			and not (data as Dictionary).is_empty()
 	)

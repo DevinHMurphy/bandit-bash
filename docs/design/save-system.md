@@ -299,7 +299,7 @@ after `instance_ids`, the map before the flow
 | `roster` | Yes | 1 | `faction_id`, `commander_id`, `army` and `fallen` (units, `UnitInstance.capture()`), `convoy` (item ids), `items` (every item the seat holds, by id) |
 | `heirlooms` | Yes | 1 | `entries` in gain order: `heirloom_id`, `counters`, `charges`; a second copy (a repeated curse) is a second entry |
 | `runes` | Yes | 1 | `slots`: exactly 3, each `{}` or `{instance_id, definition_id}` |
-| `economy` | Yes | 1 | `gold` (0 or more), `rare_offset` (whole percentage points, -5 to +40, starting at -5), `pending_offers`: at a combat's results, `combat` (the report: `grades`, `xp` per unit, `level_ups`) and `item_pick` (`slot`, `offers` of `{definition_id, instance_id}`, `is_resolved`, `taken`), both cleared when the node is left |
+| `economy` | Yes | 2 | `gold` (0 or more), `rare_offset` (whole percentage points, -5 to +40, starting at -5), `pending_offers`: at a combat's results, `combat` (the report: `grades`, `xp` per unit, `level_ups`, and `stats`: each seat unit that fought, fallen ones too, by id, as `battle_stats` names them) and `item_pick` (`slot`, `offers` of `{definition_id, instance_id}`, `is_resolved`, `taken`), both cleared when the node is left |
 
 - **A part with no run is `{}`.** A new run's first save comes before its session exists, so it
   writes `{}` everywhere; `CampaignService` then builds the run (`RunStart`: the map from the
@@ -309,6 +309,9 @@ after `instance_ids`, the map before the flow
 - **Load order.** Like the `rng` sections, each section only checks and holds its data while the
   file loads (the flow against the held map); `RunSaveSections.attach()` builds the session's run
   from it. A file holding only some parts loads no run and is written back unchanged.
+- **Versions.** `economy` is at 2: version 2 added the combat report's `stats`. Its migration from
+  1 changes nothing, since a report without `stats` reads as one with no numbers (the recap shows
+  "—"). The other five are at 1.
 - **Validated:** a route that skips a floor or leaves the graph's edges, a stage inside a node
   before any node, an item in two places or in none, a commander outside the army, a repeated unit
   or rune, and out-of-range gold or offset each refuse the section and stop the load.
@@ -456,31 +459,38 @@ Impact):
 
 ## Battle tally
 
-The battle's XP actions and the grants it has received are two more `COMBAT` sections, one
-`BattleTallySection` and its partner, which `CampaignService` registers after the darkness
-([campaign and run flow plan](../plans/2026-10-24-campaign-run-flow.md), Save Impact):
+The battle's XP actions, the grants it has received and how each unit fought are three more
+`COMBAT` sections, one `BattleTallySection` and its two partners, which `CampaignService`
+registers after the darkness ([campaign and run flow plan](../plans/2026-10-24-campaign-run-flow.md)
+and [UL5 plan](../plans/2026-11-19-ul5-victory-sequence.md), Save Impact):
 
 | Block | Key | Per player | Version | Holds |
 |-------|-----|------------|---------|-------|
 | `COMBAT` | `battle_tally` | No | 1 | Each player unit's XP actions so far (`BattleTally`), counted from the battle's facts |
 | `COMBAT` | `battle_grants` | No | 1 | The grants the battle has received, in order, for the run to apply at its end |
+| `COMBAT` | `battle_stats` | No | 1 | Each player unit's kills, damage dealt and taken, and HP healed so far (`BattleStats`), for the victory recap |
 
 ```json
 "battle_tally": { "version": 1, "data": { "units": { "unit:57": { "hit": 3, "defeat": 1, "heal": 0, "block": 1, "non_combat": 1 } } } },
-"battle_grants": { "version": 1, "data": { "grants": [ { "seat": 0, "grant": "gold", "amount": 50, "definition_id": "", "source_effect_id": "effect:12" } ] } }
+"battle_grants": { "version": 1, "data": { "grants": [ { "seat": 0, "grant": "gold", "amount": 50, "definition_id": "", "source_effect_id": "effect:12" } ] } },
+"battle_stats": { "version": 1, "data": { "units": { "unit:57": { "kills": 1, "damage_dealt": 14, "damage_taken": 6, "healed": 0 } } } }
 ```
 
-- **Saved, not rebuilt:** a resumed battle's fact log starts empty, so neither could be rebuilt
-  from it. A unit with no action is left out; a listed unit names all five actions.
+- **Saved, not rebuilt:** a resumed battle's fact log starts empty, so none could be rebuilt
+  from it. A unit with no action (or no stat above 0) is left out; a listed unit names all five
+  actions (all four stats).
 - **Actions** by name: `hit`, `defeat` (against enemy-side units only; breakables don't count),
   `heal`, `block` (given to another player unit, above 0), `non_combat` (closing a reinforcement
   point, searching, opening a chest). Grants by name: `gold`, `heirloom`, `recruit`, `rune`.
-- **Load order.** Both only check and hold their data while the file loads. On a `BATTLE` resume
-  they load into the session last, after the combat checkpoint's id counter. A combat file without
-  them (from before them) resumes with an empty tally and no grants. Begin, the battle's end and
-  `BATTLE_RETRY` reset them, so a battle restarted from Begin counts from nothing.
-- **Refused:** an unknown action or grant, a count below 0, or a number that isn't whole. Like any
-  combat section, that stops the load and gives `BATTLE_RETRY`.
+- **Stats** by name: `kills` and `damage_dealt` (on enemy-side units only; a fact's whole amount,
+  Block and HP), `damage_taken` (every source, the darkness's own fact included), `healed` (HP
+  given to another player unit, overhealing included). They earn no XP.
+- **Load order.** All three only check and hold their data while the file loads. On a `BATTLE`
+  resume they load into the session last, after the combat checkpoint's id counter. A combat file
+  without one (from before it) resumes with it empty. Begin, the battle's end and `BATTLE_RETRY`
+  reset them, so a battle restarted from Begin counts from nothing.
+- **Refused:** an unknown action, grant or stat, a number below 0, or a number that isn't whole.
+  Like any combat section, that stops the load and gives `BATTLE_RETRY`.
 
 ## Multiplayer
 

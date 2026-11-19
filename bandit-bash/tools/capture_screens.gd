@@ -6,7 +6,7 @@
 # File:     capture_screens.gd
 # Author:
 # Created:  November 18, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -15,8 +15,10 @@ extends SceneTree
 ## router through a new solo run: boot, start, save select, main menu, new run, options, lobby,
 ## loading, the campaign map, the battle (swap window, HUD with the unit panel and rune bar,
 ## action menu, forecast, unit detail, runes, the event log after turns played into the first
-## darkness phase, pause), Results (grades, XP, level-ups, the item
-## pick), placement, and the run's end. Each shot is [code]<out>/<size>/<nn>_<name>.png[/code].
+## darkness phase, pause), the victory sequence over the board (Grade, Recap filling, a level-up,
+## Recap, Rewards, the item picker, placement, the leave dialog), the sequence resumed over its
+## backdrop (on Grade, then on Rewards once the pick is settled), and the run's end. Each shot is
+## [code]<out>/<size>/<nn>_<name>.png[/code].
 ## Each shot also lists visible text under [constant MIN_FONT_SIZE] base units and visible
 ## controls reaching outside the window, and the run ends with their count.[br]
 ## Run windowed (a headless run renders nothing), from the repo root, with a throwaway user folder
@@ -40,6 +42,10 @@ const SCREEN_NEW_RUN: int = 8
 const SCREEN_MAP: int = 9
 const SCREEN_COMBAT_RESULTS: int = 10
 
+# VictoryOverlay.Stage values: the script can't name the overlay, whose script names autoloads.
+const STAGE_RECAP_LEVEL_UPS: int = 2
+const STAGE_REWARDS: int = 4
+
 const BOOT_SCENE: String = "res://ui/screens/boot.tscn"
 
 ## The style guide's floor for text, in base units.
@@ -51,6 +57,10 @@ const SAVE_NUMBER: int = 1
 
 # Frames left after a scene change or an action for layout, focus and tweens to settle.
 const SETTLE_FRAMES: int = 20
+
+# Real time left before a victory shot, past its 250 ms fades: frames alone can run faster than
+# the fades in a windowed run.
+const FADE_WAIT: float = 0.4
 
 # Player phases the battle may wait through for a unit with an attack target.
 const TURNS_FOR_ATTACK: int = 4
@@ -176,6 +186,10 @@ func _battle() -> void:
 	pause.call(&"close")
 	await _frames(SETTLE_FRAMES)
 	current_scene.set(&"end_banner_time", 0.0)
+	# One unit a point short of a level, so the recap shows a level-up card.
+	var campaign: CampaignSession = _node(^"CampaignService").get(&"session")
+	var leveler: UnitInstance = campaign.run.seat_run(0).army[0]
+	leveler.xp = CombatRewardRules.load_default().xp_per_level - 1
 	var ended: CombatFact = CombatFact.new(CombatFact.Kind.COMBAT_ENDED)
 	ended.side = CombatFact.CombatSide.PLAYER
 	session.engine.record(ended)
@@ -283,22 +297,114 @@ func _find_attack(session: CombatSession) -> Array:
 	return []
 
 
-# Results as the battle left it, then the placement panel for the pick's first card.
+# The victory sequence over the board, stage by stage, the item picker, placement and the leave
+# dialog; then the sequence resumed over its backdrop, on Grade, and once the pick is skipped, on
+# Rewards; then Leave.
 func _results() -> void:
-	if _router_screen() != SCREEN_COMBAT_RESULTS:
-		print("FAIL  the won battle did not reach Results (screen %d)" % [_router_screen()])
+	var overlay: Node = _victory_overlay()
+	if _router_screen() != SCREEN_GAMEPLAY or overlay == null:
+		print("FAIL  the won battle showed no victory sequence (screen %d)" % [_router_screen()])
 		return
-	await _capture("results")
-	var pick: ItemPickPanel = current_scene.call(&"get_pick_panel")
-	var cards: Array[ItemOfferCard] = pick.get_offer_cards()
-	if cards.is_empty():
-		print("NOTE  Results offered no item: no placement shot")
-		return
-	cards[0].pressed.emit()
 	await _frames(SETTLE_FRAMES)
-	await _capture("placement")
-	var placement: PlacementPanel = current_scene.call(&"get_placement_panel")
-	placement.visible = false
+	await _fade_capture("victory_grade")
+	(overlay.call(&"get_primary_button") as Button).pressed.emit()
+	await _frames(SETTLE_FRAMES)
+	await _fade_capture("victory_recap_filling")
+	overlay.call(&"skip")
+	await _frames(SETTLE_FRAMES)
+	if (overlay.call(&"get_stage") as int) == STAGE_RECAP_LEVEL_UPS:
+		await _fade_capture("victory_level_up")
+	while (overlay.call(&"get_stage") as int) == STAGE_RECAP_LEVEL_UPS:
+		(overlay.call(&"get_primary_button") as Button).pressed.emit()
+		await process_frame
+	await _frames(SETTLE_FRAMES)
+	await _fade_capture("victory_recap")
+	(overlay.call(&"get_primary_button") as Button).pressed.emit()
+	await _frames(SETTLE_FRAMES)
+	await _fade_capture("victory_rewards")
+	var rows: Array[RewardRow] = _reward_rows(overlay)
+	if not rows.is_empty():
+		rows[0].pressed.emit()
+		await _frames(SETTLE_FRAMES)
+		await _fade_capture("victory_item_picker")
+		var picker: Control = overlay.call(&"get_picker") as Control
+		var cards: Array[ItemOfferCard] = _pick_panel(picker).get_offer_cards()
+		if not cards.is_empty():
+			cards[0].pressed.emit()
+			await _frames(SETTLE_FRAMES)
+			await _fade_capture("victory_placement")
+			(picker.call(&"get_placement_panel") as PlacementPanel).step_back()
+			await _frames(SETTLE_FRAMES)
+		(picker.call(&"get_back_button") as Button).pressed.emit()
+		await _frames(SETTLE_FRAMES)
+		(overlay.call(&"get_primary_button") as Button).pressed.emit()
+		await _frames(SETTLE_FRAMES)
+		await _fade_capture("victory_leave_confirm")
+		(overlay.call(&"get_confirm_dialog") as LeaveConfirmDialog).get_stay_button().pressed.emit()
+		await _frames(SETTLE_FRAMES)
+	await _resume_results("victory_resumed_grade")
+	overlay = _victory_overlay()
+	if overlay == null:
+		return
+	var open_rows: Array[RewardRow] = _reward_rows(overlay)
+	(overlay.call(&"get_primary_button") as Button).pressed.emit()
+	overlay.call(&"skip")
+	while (overlay.call(&"get_stage") as int) < STAGE_REWARDS:
+		(overlay.call(&"get_primary_button") as Button).pressed.emit()
+		await process_frame
+	open_rows = _reward_rows(overlay)
+	if not open_rows.is_empty():
+		open_rows[0].pressed.emit()
+		await _frames(SETTLE_FRAMES)
+		var resumed_picker: Control = overlay.call(&"get_picker") as Control
+		_pick_panel(resumed_picker).get_skip_button().pressed.emit()
+		await _frames(SETTLE_FRAMES)
+	await _resume_results("victory_resumed_rewards")
+	overlay = _victory_overlay()
+	if overlay != null:
+		(overlay.call(&"get_primary_button") as Button).pressed.emit()
+		await _frames(SETTLE_FRAMES)
+
+
+# Closes the save file and continues the run from it through Loading, as Save & Quit then
+# Continue Run do, and captures the sequence the Results screen reopens.
+func _resume_results(shot_name: String) -> void:
+	var saves: Node = _node(^"SaveService")
+	saves.call(&"close_save_file")
+	saves.call(&"open_save_file", SAVE_NUMBER)
+	var err: Error = saves.call(&"continue_solo_run")
+	if err != OK:
+		print("FAIL  the run did not continue: %s" % [error_string(err)])
+		return
+	await _goto(SCREEN_LOADING, "loading_resumed")
+	(current_scene.get_node(^"%ContinueButton") as Button).pressed.emit()
+	await _frames(SETTLE_FRAMES)
+	if _router_screen() != SCREEN_COMBAT_RESULTS:
+		print("FAIL  the continued run did not reopen Results (screen %d)" % [_router_screen()])
+		return
+	await _fade_capture(shot_name)
+
+
+func _reward_rows(overlay: Node) -> Array[RewardRow]:
+	var stage: VictoryRewardsStage = overlay.call(&"get_rewards_stage")
+	return stage.get_rows()
+
+
+func _pick_panel(picker: Control) -> ItemPickPanel:
+	var panel: ItemPickPanel = picker.call(&"get_pick_panel")
+	return panel
+
+
+# The victory sequence shown: the Results screen's, or the battle screen's over its board.
+func _victory_overlay() -> Node:
+	if current_scene == null:
+		return null
+	if current_scene.has_method(&"get_overlay"):
+		return current_scene.call(&"get_overlay") as Node
+	for child: Node in current_scene.get_children():
+		if child.has_method(&"get_rewards_stage"):
+			return child
+	return null
 
 
 func _goto(screen: int, shot_name: String) -> void:
@@ -392,3 +498,9 @@ func _node(path: NodePath) -> Node:
 func _end() -> void:
 	print("--- %d shots, %d issues ---" % [_shot, _issues])
 	quit(0)
+
+
+# Waits FADE_WAIT seconds of real time, then captures, so a victory stage's fade has ended.
+func _fade_capture(shot_name: String) -> void:
+	await create_timer(FADE_WAIT).timeout
+	await _capture(shot_name)

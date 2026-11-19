@@ -6,7 +6,7 @@
 # File:     campaign_session.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name CampaignSession
@@ -20,8 +20,9 @@ extends RefCounted
 ## curse, with its saved campaign lane) and each army loaded and deployed. [method resume_battle]
 ## rebuilds a saved battle the same way and loads the save into it. [method collect_battle] writes
 ## campaign lanes back and gathers the [BattleResult] with the battle still on;
-## [method end_battle] drops it. [member tally] and [member battle_grants] observe the battle and
-## are saved with it; the run applies both at its end ([method CampaignRunState.apply_battle]).
+## [method end_battle] drops it. [member tally], [member stats] and [member battle_grants] observe
+## the battle and are saved with it; the run applies them at its end
+## ([method CampaignRunState.apply_battle]).
 ##
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
@@ -84,6 +85,11 @@ var battle_grants: Array[Grant] = []
 ## The XP actions each player unit has taken in the battle in progress, counted from every fact
 ## its maps record. Cleared at Begin, saved with the battle ([BattleTallySection]).
 var tally: BattleTally = BattleTally.new()
+
+## How each player unit has fought in the battle in progress (kills, damage, heals), for the
+## victory recap. Counted from the same facts as [member tally], cleared at Begin, saved with the
+## battle ([BattleTallySection]).
+var stats: BattleStats = BattleStats.new()
 
 ## Whether [method close] was called: the run ended or its save file closed.
 var is_closed: bool = false
@@ -269,8 +275,8 @@ func write_back() -> void:
 ## [method write_back], then each player unit's HP, fall, permanent stat deltas, growth changes
 ## and reward values, each heirloom copy's campaign lane, the grants received, a copy of the
 ## tally, the map, whether every map was won, and each seat's [SeatOutcome]. Rewards read item
-## and heirloom values here, since they count only in battle. Calling it again returns the same
-## result. Returns null when no battle is on.
+## and heirloom values here, since they count only in battle. Copies [member stats] too. Calling it
+## again returns the same result. Returns null when no battle is on.
 func collect_battle() -> BattleResult:
 	if encounter == null:
 		return null
@@ -284,6 +290,7 @@ func collect_battle() -> BattleResult:
 	result.pool_ids = _battle_pool_ids.duplicate()
 	result.grants = battle_grants.duplicate()
 	result.tally.restore(tally.capture())
+	result.stats.restore(stats.capture())
 	var sessions: Array[CombatSession] = encounter.get_sessions()
 	result.is_finished = not sessions.is_empty()
 	result.is_won = not sessions.is_empty()
@@ -504,6 +511,7 @@ func _set_up_battle(request: BattleRequest, catalog: EffectCatalog.Index) -> Com
 	encounter = battle
 	battle_grants.clear()
 	tally.clear()
+	stats.clear()
 	_collected = null
 	_battle_pool_ids = []
 	for map: CombatMapDefinition in request.pool:
@@ -858,7 +866,7 @@ func _collect_heirlooms(result: BattleResult) -> void:
 		result.heirlooms.append(lane)
 
 
-# The battle's XP tally hears every fact of every map, on the map that holds its unit.
+# The battle's XP tally and stats hear every fact of every map, on the map that holds its unit.
 func _on_session_fact_recorded(fact: CombatFact) -> void:
 	if encounter == null:
 		return
@@ -872,6 +880,7 @@ func _on_session_fact_recorded(fact: CombatFact) -> void:
 	var holder: CombatSession = encounter.session_of_unit(unit_id)
 	if holder != null:
 		tally.record(fact, holder.state)
+		stats.record(fact, holder.state)
 
 
 # The seat's COMBAT_ROLLS stream for the battle, logged at DEBUG with its key and seed.
@@ -991,6 +1000,8 @@ class BattleResult:
 	var grants: Array[Grant] = []
 	## The XP actions each player unit took, a copy of [member CampaignSession.tally].
 	var tally: BattleTally = BattleTally.new()
+	## How each player unit fought, a copy of [member CampaignSession.stats].
+	var stats: BattleStats = BattleStats.new()
 	## Each seat's map at the battle's end, by seat; a seat with no map has no entry.
 	var seats: Dictionary[int, SeatOutcome] = {}
 

@@ -6,7 +6,7 @@
 # File:     campaign_service.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 14, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends Node
@@ -86,6 +86,7 @@ func _ready() -> void:
 	SaveService.register_section(SaveSection.Block.COMBAT, _darkness)
 	SaveService.register_section(SaveSection.Block.COMBAT, _battle_tally)
 	SaveService.register_section(SaveSection.Block.COMBAT, _battle_tally.grants)
+	SaveService.register_section(SaveSection.Block.COMBAT, _battle_tally.stats)
 	SaveService.campaign_activated.connect(_on_save_service_campaign_activated)
 	SaveService.run_ended.connect(_on_save_service_run_ended)
 	SaveService.save_file_closed.connect(_on_save_service_save_file_closed)

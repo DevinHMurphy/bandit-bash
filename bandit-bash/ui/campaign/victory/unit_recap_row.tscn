@@ -1,0 +1,65 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/victory/unit_recap_row.gd" id="1_row"]
+[ext_resource type="PackedScene" path="res://ui/campaign/victory/xp_bar.tscn" id="2_bar"]
+
+[node name="UnitRecapRow" type="Button"]
+custom_minimum_size = Vector2(0, 32)
+size_flags_horizontal = 3
+action_mode = 0
+script = ExtResource("1_row")
+
+[node name="Content" type="MarginContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 8
+
+[node name="Column" type="VBoxContainer" parent="Content"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Top" type="HBoxContainer" parent="Content/Column"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 12
+
+[node name="Name" type="Label" parent="Content/Column/Top"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"HeaderLabel"
+text = "Unit"
+text_overrun_behavior = 3
+
+[node name="Tag" type="Label" parent="Content/Column/Top"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"HeaderLabel"
+text = "Standout"
+
+[node name="Stats" type="Label" parent="Content/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BodyLabel"
+text = "Kills 0 · Damage dealt 0 · Damage taken 0 · Healed 0"
+autowrap_mode = 3
+
+[node name="Xp" type="Label" parent="Content/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+text = "+0 XP"
+
+[node name="XpBar" parent="Content/Column" instance=ExtResource("2_bar")]
+unique_name_in_owner = true
+layout_mode = 2

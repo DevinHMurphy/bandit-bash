@@ -6,24 +6,23 @@
 # File:     battle_tally_section.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 13, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name BattleTallySection
 extends SaveSection
 ## The battle's XP tally in the combat block: the [code]battle_tally[/code] section, version 1,
-## with its partner [member grants], the [code]battle_grants[/code] section, version 1. Neither is
-## per player: one tally and one grant list hold every seat's.
+## with its partners [member grants] ([code]battle_grants[/code], version 1) and [member stats]
+## ([code]battle_stats[/code], version 1). None is per player: each holds every seat's.
 ##
-## [code]CampaignService[/code] registers both after the darkness section and attaches them to the
-## run's [CampaignSession]. During a battle each capture reads [member CampaignSession.tally]
-## ([method BattleTally.capture]) and [member CampaignSession.battle_grants]; outside one, the held
-## data or nothing.[br]
+## [code]CampaignService[/code] registers all three after the darkness section and attaches them
+## to the run's [CampaignSession]. During a battle each capture reads the session's
+## [member CampaignSession.tally], [member CampaignSession.battle_grants] or
+## [member CampaignSession.stats]; outside one, the held data or nothing.[br]
 ## [b]Load order:[/b] [method restore] only checks the data and holds it. On a [code]BATTLE[/code]
-## resume, after the battle is rebuilt and its state loaded, [method load_into] hands the held
-## counts to the session. A combat file without the section (from before it) resumes with an empty
-## tally. [b]Resets:[/b] Begin, battle end and [code]BATTLE_RETRY[/code] drop held data only, so a
-## battle restarted from Begin counts from nothing, as the battle it replays did.
+## resume, after the battle is rebuilt and loaded, [method load_into] hands all three to the
+## session. A combat file without a section (from before it) resumes with it empty.
+## [b]Resets:[/b] Begin, battle end and [code]BATTLE_RETRY[/code] drop held data only.
 ##
 ## @tutorial(Save system design): docs/design/save-system.md
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
@@ -31,6 +30,7 @@ extends SaveSection
 # Never change them: they are how saved data finds these sections (save-system.md).
 const _KEY: String = "battle_tally"
 const _GRANTS_KEY: String = "battle_grants"
+const _STATS_KEY: String = "battle_stats"
 const _VERSION: int = 1
 
 # GrantsSection's data keys and grant ids. Never change them: saved battles are read by these names.
@@ -50,6 +50,10 @@ const _GRANT_IDS: Dictionary[CampaignGrant.Grant, String] = {
 ## The [code]battle_grants[/code] section: the grants the battle in progress has received
 ## ([member CampaignSession.battle_grants]), applied to the run when the battle ends.
 var grants: GrantsSection = GrantsSection.new()
+
+## The [code]battle_stats[/code] section: how each player unit has fought in the battle in progress
+## ([member CampaignSession.stats]), for the victory recap.
+var stats: StatsSection = StatsSection.new()
 
 # The run whose battle capture() reads; null until attach() and after detach().
 var _session: CampaignSession = null
@@ -94,8 +98,8 @@ func reset() -> void:
 	_is_holding = false
 
 
-## Reads [param session]'s battle in [method capture] from now on, and [member grants] does too.
-## Held data stays held until [method load_into]. Returns [constant OK], or
+## Reads [param session]'s battle in [method capture] from now on, and [member grants] and
+## [member stats] do too. Held data stays held until [method load_into]. Returns [constant OK], or
 ## [constant ERR_INVALID_PARAMETER] for null.
 func attach(session: CampaignSession) -> Error:
 	if session == null:
@@ -103,13 +107,16 @@ func attach(session: CampaignSession) -> Error:
 		return ERR_INVALID_PARAMETER
 	_session = session
 	grants.session = session
+	stats.session = session
 	return OK
 
 
-## Stops reading the attached run, and [member grants] too: it was closed or replaced.
+## Stops reading the attached run, and [member grants] and [member stats] too: it was closed or
+## replaced.
 func detach() -> void:
 	_session = null
 	grants.session = null
+	stats.session = null
 
 
 ## Whether it holds a saved battle's tally. False for a file from before this section.
@@ -117,9 +124,9 @@ func is_holding() -> bool:
 	return _is_holding
 
 
-## Hands the held tally and grants ([member grants]) to [param session], whose battle was just
-## resumed, and drops them. Holding nothing leaves the session's empty. Returns [constant OK], or
-## [constant ERR_INVALID_PARAMETER] for null.
+## Hands the held tally, grants ([member grants]) and stats ([member stats]) to [param session],
+## whose battle was just resumed, and drops them. Holding nothing leaves the session's empty.
+## Returns [constant OK], or [constant ERR_INVALID_PARAMETER] for null.
 func load_into(session: CampaignSession) -> Error:
 	if session == null:
 		return ERR_INVALID_PARAMETER
@@ -127,7 +134,10 @@ func load_into(session: CampaignSession) -> Error:
 		# Checked by restore(), so it can't be refused.
 		session.tally.restore(_held)
 	reset()
-	return grants.load_into(session)
+	var err: Error = grants.load_into(session)
+	if err != OK:
+		return err
+	return stats.load_into(session)
 
 
 ## The [code]battle_grants[/code] section:
@@ -214,3 +224,53 @@ class GrantsSection:
 	func _refuse(data: Dictionary) -> Error:
 		push_error("BattleTallySection: not a battle's grants - %s" % [data])
 		return ERR_INVALID_DATA
+
+
+## The [code]battle_stats[/code] section, as [method BattleStats.capture] writes it.
+class StatsSection:
+	extends SaveSection
+
+	## The run whose battle [method capture] reads; null when none is attached.
+	var session: CampaignSession = null
+
+	var _held: Dictionary = {}
+	var _is_holding: bool = false
+
+	func get_key() -> String:
+		return _STATS_KEY
+
+	func get_version() -> int:
+		return _VERSION
+
+	## The attached run's battle stats during a battle; outside one, the held data, else empty.
+	func capture() -> Dictionary:
+		if session != null and session.encounter != null:
+			return session.stats.capture()
+		return _held.duplicate(true) if _is_holding else {}
+
+	## Checks [param data] on a scratch [BattleStats] and holds it. Empty data holds nothing.
+	## Returns [constant ERR_INVALID_DATA], holding nothing, for data the stats refuse.
+	func restore(data: Dictionary) -> Error:
+		reset()
+		if data.is_empty():
+			return OK
+		if BattleStats.new().restore(data) != OK:
+			return ERR_INVALID_DATA
+		_held = data.duplicate(true)
+		_is_holding = true
+		return OK
+
+	func reset() -> void:
+		_held = {}
+		_is_holding = false
+
+	## Hands the held stats to [param target] as its battle's and drops them; holding nothing
+	## leaves its stats as they are.
+	func load_into(target: CampaignSession) -> Error:
+		if target == null:
+			return ERR_INVALID_PARAMETER
+		if _is_holding:
+			# Checked by restore(), so it can't be refused.
+			target.stats.restore(_held)
+		reset()
+		return OK

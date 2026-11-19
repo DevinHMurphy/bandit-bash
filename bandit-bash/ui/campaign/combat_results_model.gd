@@ -6,26 +6,38 @@
 # File:     combat_results_model.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 15, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name CombatResultsModel
 extends RefCounted
-## What Results shows for one seat after a won combat, read from the run as saved: its combat
-## report ([method CampaignRunState.read_combat_report]) and item pick, with units and items named.
+## What the victory sequence shows for one seat after a won combat, read from the run as saved:
+## its combat report ([method CampaignRunState.read_combat_report]) and item pick, with units and
+## items named, and each unit's XP and level before the combat, for the recap's bars.
 ##
-## Built afresh after every command the screen sends, so a quit and Continue shows the same
+## Built afresh after every command the sequence sends, so a quit and Continue shows the same
 ## report and offers. Units are named as the run minted them
 ## ([method InstanceIdAllocator.label_of]), else by type. Reading only; the text helpers are
 ## static so other screens can share them.
 ##
-## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
+## @tutorial(UL5 plan): docs/plans/2026-11-19-ul5-victory-sequence.md
 
 ## The grades and the gold they paid.
 var grades: CombatGrades = null
 
 ## Each standing unit's XP, in roster order.
 var xp_lines: Array[XpLine] = []
+
+## Each unit that fell this combat, in roster order: no award, its stats only. Empty for a report
+## saved before stats, which can't tell who fought.
+var fallen_lines: Array[XpLine] = []
+
+## Whether the report holds battle stats; false for one saved before them (the recap shows "—").
+var has_stats: bool = false
+
+## The seat's gold now, the combat's already added.[br]
+## [b]Units:[/b] gold.
+var gold_held: int = 0
 
 ## The Standout's name; empty when nobody was.
 var standout_name: String = ""
@@ -86,18 +98,30 @@ static func build(
 	model.grades = report.grades
 	model.is_boss = run.is_boss_beaten()
 	model.xp_per_level = reward_rules.xp_per_level
+	model.has_stats = not report.stats.is_empty()
+	model.gold_held = seat_run.gold
+	var reached_count: Dictionary[String, int] = {}
+	for reached: LevelUp in report.level_ups:
+		reached_count[reached.unit_id] = reached_count.get(reached.unit_id, 0) + 1
+	var awarded: Dictionary[String, bool] = {}
 	for award: XpAward in report.xp:
-		var line: XpLine = XpLine.new()
-		line.name = unit_name(session.ids, seat_run, award.unit_id, contents)
+		var line: XpLine = _line(session.ids, seat_run, award.unit_id, contents, report)
 		line.award = award
-		var unit: UnitInstance = seat_run.unit(award.unit_id)
-		line.level = unit.level if unit != null else 0
-		line.xp = unit.xp if unit != null else 0
+		var levels: int = reached_count.get(award.unit_id, 0)
+		line.level_before = maxi(line.level - levels, 0)
+		line.xp_before = maxi(line.xp + levels * model.xp_per_level - award.total, 0)
 		model.xp_lines.append(line)
+		awarded[award.unit_id] = true
 		if award.is_standout:
 			model.standout_name = line.name
+	for unit: UnitInstance in seat_run.army + seat_run.fallen:
+		if report.stats.has(unit.instance_id) and not awarded.has(unit.instance_id):
+			var fallen: XpLine = _line(session.ids, seat_run, unit.instance_id, contents, report)
+			fallen.is_fallen = true
+			model.fallen_lines.append(fallen)
 	for reached: LevelUp in report.level_ups:
 		var leveled: LevelUpLine = LevelUpLine.new()
+		leveled.unit_id = reached.unit_id
 		leveled.name = unit_name(session.ids, seat_run, reached.unit_id, contents)
 		leveled.level = reached.level
 		leveled.gains = gains_text(reached.gains)
@@ -168,24 +192,57 @@ static func gains_text(gains: Dictionary[int, int]) -> String:
 	return "no gains" if parts.is_empty() else ", ".join(parts)
 
 
-## One unit's XP line.
+# A line for unit_id of seat_run: its name, its level and XP now, and its stats from report.
+static func _line(
+		ids: InstanceIdAllocator,
+		seat_run: SeatRun,
+		unit_id: String,
+		catalog: EffectCatalog.Index,
+		report: CampaignRunState.CombatReport
+) -> XpLine:
+	var line: XpLine = XpLine.new()
+	line.unit_id = unit_id
+	line.name = unit_name(ids, seat_run, unit_id, catalog)
+	var unit: UnitInstance = seat_run.unit(unit_id)
+	line.level = unit.level if unit != null else 0
+	line.xp = unit.xp if unit != null else 0
+	line.level_before = line.level
+	line.xp_before = line.xp
+	line.stats = report.stats.get(unit_id, PackedInt32Array())
+	return line
+
+
+## One unit's recap line: its XP for a standing unit, its stats alone for a fallen one.
 class XpLine:
 	extends RefCounted
 
+	## Instance id of the unit.
+	var unit_id: String = ""
 	## The unit's name.
 	var name: String = ""
-	## What it earned.
+	## What it earned; null for a unit that fell, which earns none.
 	var award: XpAward = null
 	## Its level now, after any level-ups.
 	var level: int = 0
 	## Its XP toward the next level now.
 	var xp: int = 0
+	## Its level before this combat's XP; [member level] for a fallen unit.
+	var level_before: int = 0
+	## Its XP toward the next level before this combat's XP, worked out from the report: the rest
+	## carries and there is no level cap, so it is exact.
+	var xp_before: int = 0
+	## Its battle stats, indexed by [enum BattleStats.Stat]; empty when the report has none.
+	var stats: PackedInt32Array = []
+	## Whether it fell this combat.
+	var is_fallen: bool = false
 
 
 ## One level-up's line.
 class LevelUpLine:
 	extends RefCounted
 
+	## Instance id of the unit.
+	var unit_id: String = ""
 	## The unit's name.
 	var name: String = ""
 	## The level it reached.

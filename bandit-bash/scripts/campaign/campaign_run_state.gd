@@ -6,7 +6,7 @@
 # File:     campaign_run_state.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name CampaignRunState
@@ -33,7 +33,9 @@ extends RefCounted
 
 ## The key of a seat's combat report in [member SeatRun.pending_offers], from a won combat until
 ## the run leaves its node: [code]{"grades": CombatGrades.capture(), "xp": [XpAward.capture()],
-## "level_ups": [LevelUp.capture()]}[/code], the units in roster order.
+## "level_ups": [LevelUp.capture()], "stats": {unit_id: BattleStats.capture_unit()}}[/code], the
+## units in roster order; [code]stats[/code] covers every seat unit that fought, fallen ones too,
+## and is missing from a report saved before it.
 const COMBAT_REPORT_KEY: String = "combat"
 
 # capture_map()'s keys. Never change them: saved runs are read by these names.
@@ -46,6 +48,7 @@ const _KEY_NODE: String = "node"
 const _KEY_GRADES: String = "grades"
 const _KEY_XP: String = "xp"
 const _KEY_LEVEL_UPS: String = "level_ups"
+const _KEY_STATS: String = "stats"
 
 const _PERCENT: float = 100.0
 
@@ -439,7 +442,8 @@ static func _use_map(flow_state: RunFlow, map_id: String, pool_ids: PackedString
 
 # The seat's rewards from a won map of result: grades and gold, XP for each unit still standing,
 # their level-ups in roster order (one LEVELED_UP each), the item pick (none after a Boss), and
-# the combat report under COMBAT_REPORT_KEY. A seat whose map was lost gets nothing.
+# the combat report under COMBAT_REPORT_KEY, with every seat unit's battle stats for the recap.
+# A seat whose map was lost gets nothing.
 static func _reward_seat(
 		run: CampaignRunState,
 		seat: int,
@@ -467,6 +471,11 @@ static func _reward_seat(
 		if unit_outcome != null and unit_outcome.seat == seat and not unit_outcome.is_fallen:
 			standing.append(unit)
 			percents[unit.instance_id] = unit_outcome.xp_percent
+	var stats_data: Dictionary = {}
+	for unit: UnitInstance in seat_run.army + seat_run.fallen:
+		var fought: CampaignSession.UnitOutcome = result.units.get(unit.instance_id, null)
+		if fought != null and fought.seat == seat:
+			stats_data[unit.instance_id] = result.stats.capture_unit(unit.instance_id)
 	var awards: Array[XpAward] = XpAward.award(standing, result.tally, outcome, percents, rules)
 	var xp_data: Array = []
 	var level_data: Array = []
@@ -493,6 +502,7 @@ static func _reward_seat(
 		_KEY_GRADES: grades.capture(),
 		_KEY_XP: xp_data,
 		_KEY_LEVEL_UPS: level_data,
+		_KEY_STATS: stats_data,
 	}
 
 
@@ -588,14 +598,21 @@ class CombatReport:
 	var xp: Array[XpAward] = []
 	## Every level-up, in the order reached.
 	var level_ups: Array[LevelUp] = []
+	## Each seat unit's battle stats by unit id, indexed by [enum BattleStats.Stat]: every unit
+	## that fought, fallen ones too, in roster order. Empty for a report saved before stats.
+	var stats: Dictionary[String, PackedInt32Array] = {}
 
 	## The report [param data] describes, in the shape
 	## [constant CampaignRunState.COMBAT_REPORT_KEY] gives; null for a missing or unusable part.
+	## Stats may be missing (an older report); present, they must be usable.
 	static func restore(data: Dictionary, rules: CombatRewardRules) -> CombatReport:
 		var grade_data: Variant = data.get(_KEY_GRADES)
 		var xp_data: Variant = data.get(_KEY_XP)
 		var level_data: Variant = data.get(_KEY_LEVEL_UPS)
+		var stats_data: Variant = data.get(_KEY_STATS, {})
 		if not grade_data is Dictionary or not xp_data is Array or not level_data is Array:
+			return null
+		if not stats_data is Dictionary:
 			return null
 		var report: CombatReport = CombatReport.new()
 		report.grades = CombatGrades.restore(grade_data as Dictionary)
@@ -615,6 +632,14 @@ class CombatReport:
 			if reached == null:
 				return null
 			report.level_ups.append(reached)
+		for unit_id: Variant in stats_data as Dictionary:
+			var entry: Variant = (stats_data as Dictionary)[unit_id]
+			if not unit_id is String or (unit_id as String).is_empty() or not entry is Dictionary:
+				return null
+			var values: PackedInt32Array = BattleStats.read_unit(entry as Dictionary)
+			if values.is_empty():
+				return null
+			report.stats[unit_id as String] = values
 		return report
 
 	## The Standout's award; null when nobody was.
