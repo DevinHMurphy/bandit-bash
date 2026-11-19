@@ -58,7 +58,7 @@ playtesting.
 | Sapper's Fuse | Behavior | Object used, by Your Unit: that unit gains 3 Block |
 | Lantern Oil | Behavior | Darkness damage taken by Your Unit: take 50% less |
 | Bounty Ledger | Economy | Every combat won pays +8 gold |
-| Scrapper's Tongs | Economy | Scrapping pays 40% of an item's buy price instead of 20% |
+| Scrapper's Tongs | Economy | +20% scrap value: scrapping pays 40% of an item's buy price with one pair; copies stack |
 
 ## Uncommon (10)
 
@@ -85,7 +85,7 @@ playtesting.
 | Bloodhound's Collar | Behavior | Defeated an enemy, by Your Unit: that unit may use its remaining movement |
 | Champion's Belt | Behavior | Defeated an enemy, by Your Unit: that unit deals +1 damage for the rest of this combat (stacks) |
 | Commander's Standard | Behavior | Phase Start: Your Units within 2 tiles of your commander gain 2 Block |
-| Gilded Purse | Economy | Grade bonuses pay +50% instead of +25% |
+| Gilded Purse | Economy | +25% grade bonus: each grade bonus pays +50% with one Purse; copies stack |
 
 ## Shop (4)
 
@@ -125,6 +125,9 @@ from this pool of 7 by the run seed. They add variety without forcing a build.
   it wait until its damage model settles ([the-darkness.md](the-darkness.md)).
 - **Commander's Standard** pulls the army toward the commander, whose Vanguard trait wants it in
   front, so the army moves forward together.
+- **Economy heirlooms add.** Gilded Purse and Scrapper's Tongs add points to the base rate (grade
+  bonus 25, scrap value 20) rather than replace it, so a second copy stacks
+  ([campaign values](effect-triggers.md#campaign)).
 
 ## Save impact
 

@@ -154,7 +154,7 @@ Saves happen at checkpoints only, never on a timer:
 | New run: player presses Start | `start_new_solo_run()` / `start_new_multiplayer_run()` |
 | Room entered, other campaign progress | `save_checkpoint()` |
 | Battle: player presses Begin after prep | `begin_battle()` |
-| Battle: end of each player phase (multiplayer: once every player has ended their turn) | `save_checkpoint()` |
+| Battle: end of each player phase (multiplayer: phases are per map, so each map checkpoints at the end of its own player phase, once every player with units on it has ended their turn; the format change this needs belongs to the multiplayer-combat plan) | `save_checkpoint()` |
 | Battle ends | `end_battle()` |
 | Save & Quit (pause menu) | `save_checkpoint()` |
 | Run won, lost or abandoned | `end_run()` / `abandon_run()` |
@@ -280,8 +280,11 @@ counter is saved; a resumed enemy phase then mints the ids the first run minted.
   readable after a resume. Labels are text for people only; never read an id's meaning from them.
 - **Load order.** Like the `rng` sections, each holds what it restored until `CampaignService`
   builds the session, then applies it: campaign first, then combat, so a resumed battle's later
-  counter wins. **`BATTLE_RETRY`** resets the combat block, so a restarted battle mints from
-  Begin's counter and gets the same ids as the first time.
+  counter wins. **`BATTLE_RETRY`** resets the combat block, so a restarted battle mints on from
+  the counter the campaign file holds. Begin captured that counter after it minted the army and
+  the setup, so the restarted battle gets **new ids**; only its rolls repeat
+  ([RNG streams](#rng-streams)). Nothing reads an id for meaning, so new ids change nothing
+  that plays.
 - A save from before these sections resumes with a fresh counter. Nothing saved before them holds
   an instance id, so nothing can collide.
 

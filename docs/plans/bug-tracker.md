@@ -40,7 +40,7 @@ Not a bug.
 | ID | Title | Area | Sev | Status | Found | Fix step |
 |----|-------|------|-----|--------|-------|----------|
 | [BUG-002](#bug-002-the-forecasts-crit-chance-ignores-current-stance) | The forecast's crit chance ignores current Stance | P02 / P07 | S2 | Fixed (BF1 merge, November 19, 2026) | November 6, 2026, user playtest | BF1 |
-| [BUG-003](#bug-003-save-systemmd-says-a-battle-retry-repeats-ids) | save-system.md says a battle retry repeats ids | P00 / P02 | S4 | Assigned (CC9; P02 question 22 accepted November 7, 2026) | November 5, 2026, CC10 report | CC9 |
+| [BUG-003](#bug-003-save-systemmd-says-a-battle-retry-repeats-ids) | save-system.md says a battle retry repeats ids | P00 / P02 | S4 | Fixed (CC9, dfad90b, merged November 19, 2026) | November 5, 2026, CC10 report | CC9 |
 | [BUG-004](#bug-004-an-enemy-with-an-attack-intent-moves-and-doesnt-attack) | An enemy with an attack intent moves and doesn't attack; the next enemy hits its target | P05 / P07 | S2 | Tabled (user, November 18, 2026; not in BF1) | November 6, 2026, user playtest | — |
 | [BUG-005](#bug-005-unit-detail-shows-the-type-id-not-its-name) | Unit detail shows the type id, not its name | P07 | S4 | Fixed (UL3 merge, November 19, 2026) | November 7, 2026, UI11 report | UL3 |
 | [BUG-006](#bug-006-netlog-raises-an-engine-error-once-the-peer-is-cleared) | NetLog raises an engine error once the peer is cleared | P00 / P10 | S3 | Fixed (BF1 merge, November 19, 2026) | November 9, 2026, O3 report | BF1 |
@@ -85,6 +85,7 @@ Not a bug.
   because the campaign file keeps the counter after Begin minted the army and setup. Nothing
   reads ids for meaning.
 - **Recommended fix** (P02 question 22): correct the doc in CC9.
+- **Fixed** in CC9 (dfad90b, merged November 19, 2026): save-system.md's Instance ids section says a restarted battle mints new ids from the counter Begin saved after minting; only the rolls repeat. `InstanceIdSaveSection`'s class doc and the P01 plan (about line 516) still say "mints from Begin's value", true only read as "after minting".
 
 ### BUG-004 An enemy with an attack intent moves and doesn't attack
 

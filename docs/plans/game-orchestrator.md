@@ -47,7 +47,7 @@ The MVP is **one full run, start screen to boss, solo and co-op, on Normal** (ga
 |---|---|---|---|
 | **M0 Foundations** | The engine every system plugs into | P00, P01 | **Complete** October 30, 2026 |
 | **M1 First playable fight** | One greybox combat, start to finish | P02–P07 (subsets) | **Complete** November 5, 2026; its tuning pass is deferred |
-| **M2 Combat complete** | Every MVP combat feature and piece of content, with a functional UI | P02–P07 | **In progress.** Left: P03 CT11, P05 EN12, P15 UI lift UL6 ([ui-lift.md](../design/ui-lift.md)), and the docs (EB8, CC9, MP9, DK6, CT11, EN12) |
+| **M2 Combat complete** | Every MVP combat feature and piece of content, with a functional UI | P02–P07 | **In progress.** Left: P15 UI lift UL6 ([ui-lift.md](../design/ui-lift.md)), then the exit playtest and RB1 |
 | **M3 Solo run** | Start screen → campaign → boss, saved and resumable; 60–80 minutes | P08, P09 | **In progress.** RN1–RN5 merged (a run plays map → combat → Results → map on all three devices, headless) |
 | **M4 Co-op run** | The same run for 2–4 players, tested live on two machines | P10, P11 | Not started |
 | **M5 MVP** | Statistics, the Waystation war table, the MVP checklist | P12, polish | Not started |
@@ -62,12 +62,12 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | ID | Plan | Status | Left | Depends on |
 |---|---|---|---|---|
 | P00 | [Save system](2026-10-13-save-system.md) | **Implemented** | Multiplayer paths untested live | — |
-| P01 | [Event bus and effects](2026-10-23-event-bus-and-effects.md) | **In progress** | EB8 docs | P00 |
-| P02 | [Combat core](2026-10-26-combat-core.md) | **In progress** | CC9 docs | P01 |
-| P03 | [Content catalog](2026-10-29-content-catalog.md) | **In progress** | CT11; CT12 weapon modifications (M3, after P09 EV1; question 33) | P01 |
-| P04 | [Combat map](2026-10-27-combat-map.md) | **In progress** | MP9 docs; MP11 map authoring toolkit (future) | P01, P02 |
-| P05 | [Enemies and AI](2026-10-30-enemies-and-ai.md) | **In progress** | EN12–EN16 (EN11 the Powder Baron merged November 18, 2026) | P02, P04 |
-| P06 | [The darkness](2026-11-03-the-darkness.md) | **In progress** | DK6 docs | P02, P04 |
+| P01 | [Event bus and effects](2026-10-23-event-bus-and-effects.md) | **Implemented** (EB8 docs merged November 19, 2026: [event-bus.md](../design/event-bus.md)) | — | P00 |
+| P02 | [Combat core](2026-10-26-combat-core.md) | **Implemented** (CC9 docs merged November 19, 2026; vision question 4 checked against `BonusTurns`, N1–N10 recorded as built, BUG-003 fixed) | — | P01 |
+| P03 | [Content catalog](2026-10-29-content-catalog.md) | **In progress** | CT12 weapon modifications (CT11 docs merged November 19, 2026: [content-authoring.md](../design/content-authoring.md)) (M3, after P09 EV1; question 33) | P01 |
+| P04 | [Combat map](2026-10-27-combat-map.md) | **In progress** | MP11 map authoring toolkit (future; MP9 docs merged November 19, 2026: [map-authoring.md](../design/map-authoring.md)) | P01, P02 |
+| P05 | [Enemies and AI](2026-10-30-enemies-and-ai.md) | **In progress** | EN13–EN16 (EN11 merged November 18, 2026; EN12 docs merged November 19, 2026, in content-authoring.md) | P02, P04 |
+| P06 | [The darkness](2026-11-03-the-darkness.md) | **Implemented** (DK6 docs merged November 19, 2026) | — | P02, P04 |
 | P07 | [Combat UI](2026-11-04-combat-ui.md) | **In progress** | Nothing for M2 | P02, P04, P05, P06 |
 | P08 | [Campaign and run flow](2026-10-24-campaign-run-flow.md) | **In progress** | RN6–RN12 | P01, P03 |
 | P09 | [Narrative events and curses](2026-11-12-events-and-curses.md) | **In progress**: EV1 and EV2 merged November 19, 2026 | EV1F (after RN6), EV3–EV6 | P01, P03, P08 |
@@ -91,7 +91,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
    - **Wave B:** CT4 weapons and staves (merged November 15, 2026: all 70, Everbloom's full heal, the Short Quiver, one range read; `combat_state` v2), CT13F Skirmisher+ Block and the Haunted redesign (merged November 15, 2026; P03 question 29), CT9 heirlooms and curses (merged November 15, 2026: 35 pool heirlooms, 10 curses; follow-ups in P03 question 28), EN10 reinforcement groups and the Hunted extra enemy (merged November 15, 2026; P05 question 40), EN9 map-object AI (merged November 15, 2026: kegs, levers, Braziers, Cutthroat looting through `CAN_LOOT`; P05 question 41).
    - **Wave C:** MP10 the M2 map set (count and mix: P04 question 27; MP10a, the six standard maps, merged November 16, 2026; MP10b, the four key maps, merged November 16, 2026 (the generator is `tools/gen_maps.gd`); the Leader and mini-boss maps join the pools with EN7 and EN8), P07 UI14 runes at any time (merged November 18, 2026: a three-slot rune bar usable any time in the player phase, with discard; P07 questions 39–40; BUG-014 found), P04 MP12 reachable maps (merged November 18, 2026: every map object drawn on the board, the map check proves reachability without a key; BUG-013; P04 question 28), CT7 runes (merged November 15, 2026: seven runes by target kind, `CombatForecast.rune()`, the cast wire gains a tile; P03 question 32), P07 UI13 rune casting (merged November 16, 2026; P07 question 38), CT8 unit prefixes and pools (merged November 15, 2026: 12 prefixes, `ItemPools`, container items from the pools; P03 question 31), CT10 modified prices (merged November 16, 2026: P03 question 8; the Armory calls `held_scrap_value`), P07 UI12 curse display, trigger wording and the object intent (merged November 15, 2026; P07 question 37).
    - **Wave D:** EN17 pack pools (merged November 15, 2026: basic, hard and key pools by step; P05 question 42), then EN7 elites and bosses (merged November 17, 2026: leaders on the leader slot as elites with a positive prefix, War Horn shown as a SIGNATURE intent; P05 question 43); EN8 mini-bosses (merged November 18, 2026: four mini-bosses on the key maps' leader slot, a seeded no-repeat order, the Hall in the key pools; P05 question 44), EN18 Shieldbearer rework (merged November 18, 2026: Braced, the Shieldmace; P05 question 45; RF-010), P06 DK7 darkness phase (merged November 18, 2026: darkness damage moved into its own phase before the creep, with a banner and the spread played tile by tile; P06 question 16; RF-014), and EN11 is ready (marks leaders on the HUD; adds `bandit_camp` and `watch_post` to the standard pools, P04 question 27), EN8 mini-bosses (adds the mini-boss key map to the key pools), EN11 the Powder Baron and its map, CT12 weapon prefixes (waits on the vision's weapon-prefix rules).
-   - **Docs:** EB8, CC9, MP9, DK6, CT11 and EN12 as one batched step at the end of M2; **issued** November 19, 2026 (Lane F, `feature/DOCS`).
+   - **Docs:** EB8, CC9, MP9, DK6, CT11 and EN12 as one batched step at the end of M2; **merged** November 19, 2026.
 4. **Bugs** ([tracker](bug-tracker.md)), fix step **BF1**, merged November 19, 2026 (668da72) (BUG-002, BUG-006, BUG-008, the confirmed markers below, and splitting `map_set/key` and `map_set/boss` under the 300 s limit):
    - BUG-002 (S2): the forecast's crit ignores Stance; **fixed** in BF1.
    - BUG-004 (S2): an enemy with an attack intent moves and doesn't attack; tabled by the user November 18, 2026, so not in BF1.
