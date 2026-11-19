@@ -20,6 +20,9 @@ extends RefCounted
 ## (never the same, never a commander); the revive's fallen-unit rule; the surprise combat's
 ## descriptor; named curses repeating as copies. Touches no save files.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "events"
+
 const Fixture = preload("res://tests/events/event_fixture.gd")
 
 const STARTING_GOLD: int = 100

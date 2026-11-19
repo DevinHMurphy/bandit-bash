@@ -6,7 +6,7 @@
 # File:     turn_input_cases.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 9, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -26,6 +26,9 @@ extends RefCounted
 ## the first reachable tile, row-major, else walks to the reachable tile nearest an enemy and
 ## waits); after every command made by input, both sessions' [method CombatSession.state_hash]
 ## must agree, so input sent exactly the driver's command.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "ui/input"
 
 const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
 

@@ -15,6 +15,9 @@ extends RefCounted
 ## sequence and a run's streams, campaign and combat, exactly as they were; and no audio script
 ## calls the global RNG or names a run stream.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "audio"
+
 # Any fixed seeds.
 const GLOBAL_SEED: int = 0x5EED
 const RUN_SEED: int = 0xA0D10

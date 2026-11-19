@@ -6,16 +6,16 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: November 16, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends SceneTree
-## Headless tests for the combat core: its state and grid (state_cases.gd), the exchange
-## (exchange_cases.gd), Shove and splash (shove_cases.gd), and the support actions
-## (support_cases.gd), run on the stub grid and the real effect engine; and the turn loop and
-## commands (turn_cases.gd) and the forecast and AI summary (forecast_cases.gd), run in a
-## [CombatSession] on a small real map. Every catalog definition and loadout fixture is hashed
-## before the first case and after the last, and the run fails if any changed.
+## Headless tests for the combat core: its state and grid, the exchange, Shove and splash and the
+## support actions on the stub grid and the real effect engine, and the turn loop, commands,
+## forecast and AI summary in a [CombatSession] on a small real map. They are the case files
+## declaring this suite, which [code]tests/case_files.gd[/code] finds and runs in path order; each
+## one's class doc lists its checks. Every catalog definition and loadout fixture is hashed before
+## the first case and after the last, and the run fails if any changed.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/combat/run_all.gd[/code][br]
@@ -27,14 +27,10 @@ extends SceneTree
 # The test report's line on this suite; tools/run_tests.sh reads it from this one line.
 const SUITE_DESCRIPTION: String = "Combat rules: grid, exchanges, Shove, support, turns, forecasts"
 
-# Preloaded scripts used as types (gdscript.md, Naming): the case scripts have no class name.
+# Preloaded scripts used as types (gdscript.md, Naming): they have no class name. The content
+# suite's two give the definitions hash.
 const GroupClock = preload("res://tests/group_clock.gd")
-const StateCases = preload("res://tests/combat/state_cases.gd")
-const ExchangeCases = preload("res://tests/combat/exchange_cases.gd")
-const ShoveCases = preload("res://tests/combat/shove_cases.gd")
-const SupportCases = preload("res://tests/combat/support_cases.gd")
-const TurnCases = preload("res://tests/combat/turn_cases.gd")
-const ForecastCases = preload("res://tests/combat/forecast_cases.gd")
+const CaseFiles = preload("res://tests/case_files.gd")
 const CatalogCases = preload("res://tests/content/catalog_cases.gd")
 const LoadoutCases = preload("res://tests/content/loadout_cases.gd")
 
@@ -47,18 +43,7 @@ func _init() -> void:
 	# Hashed before the first case (event bus plan, question 50): combat reads definitions through
 	# the loadout, so no case may change one.
 	var before: Dictionary[String, String] = CatalogCases.hash_definitions([LoadoutCases.TREE])
-	GroupClock.lap("state_cases")
-	StateCases.new(_check).run()
-	GroupClock.lap("exchange_cases")
-	ExchangeCases.new(_check).run()
-	GroupClock.lap("shove_cases")
-	ShoveCases.new(_check).run()
-	GroupClock.lap("support_cases")
-	SupportCases.new(_check).run()
-	GroupClock.lap("turn_cases")
-	TurnCases.new(_check).run()
-	GroupClock.lap("forecast_cases")
-	ForecastCases.new(_check).run()
+	CaseFiles.run(self, _check)
 	GroupClock.lap("definitions check")
 	var changed: PackedStringArray = CatalogCases.changed_definitions(
 			before, CatalogCases.hash_definitions([LoadoutCases.TREE])

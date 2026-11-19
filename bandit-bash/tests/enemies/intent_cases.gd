@@ -6,7 +6,7 @@
 # File:     intent_cases.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 16, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -20,6 +20,9 @@ extends RefCounted
 ## effects (P06's darkness damage) are foreseen without touching the map, and the darkness's
 ## switched rule reads "Nearest foe".
 ## Reports each case through the check callable it is given.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "enemies/ai"
 
 # A preloaded script used as a type (gdscript.md, Naming): the world has no class name.
 const AiWorld = preload("res://tests/enemies/ai_world.gd")

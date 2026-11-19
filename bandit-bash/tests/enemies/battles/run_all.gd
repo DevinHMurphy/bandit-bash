@@ -6,14 +6,15 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 16, 2026
-# Modified: November 16, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends "res://tests/enemies/enemies_suite.gd"
 ## Enemies suite, battles part (enemies and AI plan, P05): the roster's five packs each played
-## headless to the end against the Mercenary army ([code]roster_battle_cases.gd[/code]), alone in
-## its part because these battles take about as long as each other part. The counters, the
-## summary and the definitions check are the base's.[br]
+## headless to the end against the Mercenary army, alone in its part because these battles take
+## about as long as each other part. They are the case files declaring this part, which
+## [code]tests/case_files.gd[/code] finds and runs in path order. The counters, the summary and the
+## definitions check are the base's.[br]
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/enemies/battles/run_all.gd[/code]
 ## [br]Prints one PASS or FAIL line per check and the summary line
@@ -22,12 +23,8 @@ extends "res://tests/enemies/enemies_suite.gd"
 # The test report's line on this suite; tools/run_tests.sh reads it from this one line.
 const SUITE_DESCRIPTION: String = "The enemy roster's five packs, each played to the end"
 
-# Preloaded script used as a type (gdscript.md, Naming): the cases have no class name.
-const RosterBattleCases = preload("res://tests/enemies/roster_battle_cases.gd")
-
 
 func _init() -> void:
 	_start("Enemies tests: the roster's battles")
-	GroupClock.lap("roster_battle_cases")
-	RosterBattleCases.new(_check).run()
+	CaseFiles.run(self, _check)
 	_finish()

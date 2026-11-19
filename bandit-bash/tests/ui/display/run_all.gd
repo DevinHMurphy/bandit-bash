@@ -10,15 +10,11 @@
 # ==============================================================================
 
 extends "res://tests/ui/ui_suite.gd"
-## Combat UI display suite (combat UI plan, P07): the forecast, the HUD, the event log (P15 UL4),
-## the heirloom bar (P15 UL8),
-## the unit display and the
-## display fixes of UI9 (pop-ups on the info layer, a hit's number past Block and its Block number,
-## gray only in a unit's own phase, the HP bar's maximum), UI10's exchange feedback (the
-## forecast's flash, outlined pips, move then act), and UI11's objective HUDs and the opening-swap
-## setting (Options, settings.json and the solo battle; with a test user folder only), a cases
-## file each in [code]tests/ui/battle/[/code] (preloaded below; each one's class doc lists its
-## checks); then the gameplay screen's layout: its save debug panel (hidden when the battle opens,
+## Combat UI display suite (combat UI plan, P07): the forecast, the HUD, the event log, the
+## heirloom bar, the unit display, the display fixes, the exchange feedback, the objective HUDs
+## and the opening-swap setting (with a test user folder only), in the case files declaring this
+## suite (run through the base; each one's class doc lists its checks); then the gameplay
+## screen's layout: its save debug panel (hidden when the battle opens,
 ## toggled by F3 and read afresh, clear of the M1 map at the 1280×720 base size, untouched by
 ## clicks on the deployment tiles); the HUD and the hint bar clear of the map at the base size and
 ## wider; the run seed on the pause screen; the unit panel keeping its unit under the mouse
@@ -34,16 +30,6 @@ extends "res://tests/ui/ui_suite.gd"
 
 # The test report's line on this suite; tools/run_tests.sh reads it from this one line.
 const SUITE_DESCRIPTION: String = "Forecast, HUD, heirloom bar, unit display, objectives, layout"
-
-const ForecastCases = preload("res://tests/ui/battle/forecast/forecast_cases.gd")
-const HudCases = preload("res://tests/ui/battle/hud/hud_cases.gd")
-const EventLogCases = preload("res://tests/ui/battle/hud/event_log_cases.gd")
-const HeirloomBarCases = preload("res://tests/ui/battle/hud/heirloom_bar_cases.gd")
-const UnitDisplayCases = preload("res://tests/ui/battle/unit/unit_display_cases.gd")
-const DisplayFixCases = preload("res://tests/ui/battle/display_fix_cases.gd")
-const ExchangeFeedbackCases = preload("res://tests/ui/battle/exchange_feedback_cases.gd")
-const ObjectiveHudCases = preload("res://tests/ui/battle/objectives/objective_hud_cases.gd")
-const OpeningSwapCases = preload("res://tests/ui/battle/menus/opening_swap_cases.gd")
 
 # Frames left for the save debug panel's layout and the camera to settle before its checks.
 const PANEL_FRAMES: int = 3
@@ -66,27 +52,7 @@ func _process(_delta: float) -> bool:
 	_frame += 1
 	if _frame == 1:
 		_start("Combat UI tests: display")
-		GroupClock.lap("forecast_cases")
-		ForecastCases.new(_check, root).run()
-		GroupClock.lap("hud_cases")
-		HudCases.new(_check, root).run()
-		GroupClock.lap("event_log_cases")
-		EventLogCases.new(_check, root).run()
-		GroupClock.lap("heirloom_bar_cases")
-		HeirloomBarCases.new(_check, root).run()
-		GroupClock.lap("unit_display_cases")
-		UnitDisplayCases.new(_check, root).run()
-		GroupClock.lap("display_fix_cases")
-		DisplayFixCases.new(_check, root).run()
-		GroupClock.lap("exchange_feedback_cases")
-		ExchangeFeedbackCases.new(_check, root).run()
-		GroupClock.lap("objective_hud_cases")
-		ObjectiveHudCases.new(_check, root).run()
-		if _has_test_user_dir():
-			GroupClock.lap("opening_swap_cases")
-			OpeningSwapCases.new(_check, root).run()
-		else:
-			_skip("opening swap", "the settings and gameplay screens need a test user folder")
+		_run_case_files()
 		# Open over the frames the panel, wide and detail cases take.
 		GroupClock.lap("gameplay screen layout")
 		if _start_panel_case():

@@ -6,7 +6,7 @@
 # File:     reward_cases.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 15, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -18,6 +18,9 @@ extends RefCounted
 ## rarity tables and the offset, its fallbacks, never Basic, Legendary or Unique, per seat and
 ## seeded, pinned offers, its save shape); the pick and leave commands; a fallen commander's return; a Boss win;
 ## and a real M1 battle paid end to end. Touches no save files.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "campaign"
 
 const RULES_PATH: String = "res://data/campaign/campaign_map_rules.tres"
 const M1_ID: String = "m1_greybox"

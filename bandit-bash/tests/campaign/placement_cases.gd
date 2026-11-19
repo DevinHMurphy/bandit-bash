@@ -6,7 +6,7 @@
 # File:     placement_cases.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 16, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -19,6 +19,9 @@ extends RefCounted
 ## convoy item scrapped for its own, higher value; the roster whole
 ## after each; the report classes read back as written, through JSON too, and bad data refused;
 ## the nodes the map can enter next; and the Boss's results. Touches no save files.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "campaign"
 
 const RULES_PATH: String = "res://data/campaign/campaign_map_rules.tres"
 const RUN_SEED: int = 0x5EA7C0DE

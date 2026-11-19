@@ -6,19 +6,14 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 16, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends SceneTree
-## Headless tests for the darkness: [DarknessFlow]'s floodable tiles, heights, step and flow costs
-## on fixture maps (flow_cases.gd); [DarknessState]'s waves and layers, the Brazier cap,
-## recalculation after a break or a door change, [method CombatState.darkness_layer] in a
-## forecast, and a timed full recalculation on the M1 map (state_cases.gd); [DarknessSetup]'s
-## candidates, active sources, drains, Short Wick and battles on the M1 map (setup_cases.gd);
-## [Darkness]'s step: golden fact logs of release, creep, erosion and doors, arrival stopping
-## reinforcements and turning the AI aggressive, stand-in safety and a timed step on M1
-## (step_cases.gd); darkness damage and its readers: the AI, dry-first arrivals, terrain healing,
-## the intents preview and the board's queries, timed on M1 (damage_cases.gd).
+## Headless tests for the darkness: [DarknessFlow], [DarknessState], [DarknessSetup], the
+## [Darkness] step and darkness damage, on fixture maps and the M1 map. They are the case files
+## declaring this suite, which [code]tests/case_files.gd[/code] finds and runs in path order; each
+## one's class doc lists its checks.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/darkness/run_all.gd[/code][br]
@@ -29,13 +24,9 @@ extends SceneTree
 # The test report's line on this suite; tools/run_tests.sh reads it from this one line.
 const SUITE_DESCRIPTION: String = "The darkness: its flow, waves, setup, step and damage"
 
-# Preloaded scripts used as types (gdscript.md, Naming): the case scripts have no class name.
+# Preloaded scripts used as types (gdscript.md, Naming): they have no class name.
 const GroupClock = preload("res://tests/group_clock.gd")
-const FlowCases = preload("res://tests/darkness/flow_cases.gd")
-const StateCases = preload("res://tests/darkness/state_cases.gd")
-const SetupCases = preload("res://tests/darkness/setup_cases.gd")
-const StepCases = preload("res://tests/darkness/step_cases.gd")
-const DamageCases = preload("res://tests/darkness/damage_cases.gd")
+const CaseFiles = preload("res://tests/case_files.gd")
 
 var _failures: int = 0
 var _passes: int = 0
@@ -43,16 +34,7 @@ var _passes: int = 0
 
 func _init() -> void:
 	print("--- Darkness tests ---")
-	GroupClock.lap("flow_cases")
-	FlowCases.new(_check).run()
-	GroupClock.lap("state_cases")
-	StateCases.new(_check).run()
-	GroupClock.lap("setup_cases")
-	SetupCases.new(_check).run()
-	GroupClock.lap("step_cases")
-	StepCases.new(_check).run()
-	GroupClock.lap("damage_cases")
-	DamageCases.new(_check).run()
+	CaseFiles.run(self, _check)
 	GroupClock.stop()
 	print("--- %d passed, %d failed ---" % [_passes, _failures])
 	quit(1 if _failures > 0 else 0)

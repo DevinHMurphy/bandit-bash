@@ -6,7 +6,7 @@
 # File:     rng_section_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 9, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends "res://tests/rng/rng_case_base.gd"
@@ -14,6 +14,9 @@ extends "res://tests/rng/rng_case_base.gd"
 ## through JSON into a new run, holding data until attached, resets and refused entries. The
 ## sections through the real [code]SaveService[/code] are in the sessions suite.
 
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "rng"
 
 func run() -> void:
 	_test_save_section_contract()

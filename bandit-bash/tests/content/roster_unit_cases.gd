@@ -23,6 +23,9 @@ extends RefCounted
 ##
 ## @tutorial(Unit roster): docs/design/unit-roster.md
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "content"
+
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
 const ATTACK: UnitTurnCommand.Action = UnitTurnCommand.Action.ATTACK

@@ -20,6 +20,9 @@ extends RefCounted
 ## fixtures it reuses. Every save goes through JSON, as a file would. Several cases feed in bad data
 ## on purpose, so warnings and errors from them are expected.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "sessions"
+
 # Preloaded scripts used as types (gdscript.md, Naming): the wire cases' fixtures (no class name).
 const WireCases = preload("res://tests/sessions/wire_cases.gd")
 

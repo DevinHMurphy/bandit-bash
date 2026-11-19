@@ -20,6 +20,9 @@ extends RefCounted
 ## their licence files; the row looks (rest, hover, focus, primary, disabled). No autoload is
 ## named or needed.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "ui/theme"
+
 const GAME_THEME: String = "res://ui/theme/game_theme.tres"
 const BATTLE_THEME: String = "res://ui/theme/battle_theme.tres"
 const SANS_FILE: String = "res://assets/fonts/source_sans_3/source_sans_3.ttf"

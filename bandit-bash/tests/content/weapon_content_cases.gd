@@ -6,7 +6,7 @@
 # File:     weapon_content_cases.gd
 # Author:
 # Created:  November 15, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -21,6 +21,9 @@ extends RefCounted
 ##
 ## The expected values are transcribed from weapons.md, never read from the data, so a changed
 ## .tres fails here until the doc and this file agree.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "content"
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY

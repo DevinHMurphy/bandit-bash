@@ -6,7 +6,7 @@
 # File:     engine_cases.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 15, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -17,6 +17,9 @@ extends RefCounted
 ##
 ## Runs on the test-only [code]fake_state.gd[/code] map, so no combat rules are involved. Reports
 ## each case through the check callable it is given.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "effects"
 
 # A preloaded script used as a type (gdscript.md, Naming): the fake state has no class name.
 const FakeState = preload("res://tests/effects/harness/fake_state.gd")

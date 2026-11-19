@@ -243,8 +243,9 @@ files it owns, the shared files it may only append to, and what it must not touc
 | **G** Audio and tooling | `scripts/audio/`, `data/audio/`, `tools/`, the runner | AU1, P14 O8 |
 | **F** Docs and plans | `docs/` only | the M2 docs batch, plans (P10, P11, P12), ideation |
 
-**Shared, append only:** `project.godot` (input actions, autoloads), the suites' `run_all.gd`
-(until O8 discovers case files), `capture_screens.gd` (until O8 splits it), `save-system.md` rows.
+**Shared, append only:** `project.godot` (input actions, autoloads), `capture_screens.gd` (until
+O8b splits it), `save-system.md` rows. Since O8 (November 19, 2026)
+no build edits a suite's `run_all.gd`: a new case file declares `const SUITE`.
 
 **Process rules:**
 
@@ -289,8 +290,8 @@ mark it **Open** here.
 | P05 EN13 Preview: measure | move-preview.md adopted ✅ (November 12, 2026) | Benchmarks and the equality suite only; no behavior change | **Open** November 12, 2026, alongside Wave A |
 | P05 EN14–EN16 Preview re-architecture | EN13; EN6 ✅ (November 13, 2026; Guard and Skirmisher, which the zones must cover); in order, EN15 and EN16 after EN14 | The cache and zones must cover every behavior; EN15 also stops re-planning the Shieldbearer on every move preview (EN6 report) | Waiting on EN13 |
 | P09 EV1 Outcomes | P09 approved ✅ (November 12, 2026); P08 RN2 | Outcomes apply to `CampaignRunState` | **Done**: merged November 19, 2026 (13 outcome blocks with the CT12 weapon-prefix block, `EventRequirements`, `EventResolver`; `CampaignFact.Kind` 10–15 appended, P09 question 7) |
-| P09 EV1F Recruit, upgrade and max army size blocks | EV1 ✅; P08 RN6 (builds those run operations in `scripts/campaign/`) | Both lanes needed the same operations. EV1 left four TOD-001 markers: the three blocks (`event_outcome.gd`), a revive into a full army (`revive_outcome.gd`, needs RN6's replace-a-unit), the per-seat max army size behind the Charter requirement (`event_requirements.gd`), the healing-received percent handed in (`event_context.gd`) | Waiting on RN6 |
-| P09 EV2, EV3, EV5 | EV1 ✅ (November 19, 2026); P08 RN5 ✅ | EV2 adds the `events` save section; it fills `EventRolls.curse_id` (the tier draw) and the rare heirloom, saves `EventRolls`, and calls `EventResolver.roll` when the event is made (EV1 report) | **Open** November 19, 2026; EV2 issued November 19, 2026 (Lane C) |
+| P09 EV1F Recruit, upgrade and max army size blocks | EV1 ✅; P08 RN6 (builds those run operations in `scripts/campaign/`) | Both lanes needed the same operations. EV1 left four TOD-001 markers: the three blocks (`event_outcome.gd`), a revive into a full army (`revive_outcome.gd`, needs RN6's replace-a-unit), the per-seat max army size behind the Charter requirement (`event_requirements.gd`), the healing-received percent handed in (`event_context.gd`; EV2 passes 100, so Cursed Blood doesn't halve event heals until the campaign layer reads heirloom values) | Waiting on RN6 |
+| P09 EV2, EV3, EV5 | EV1 ✅ (November 19, 2026); P08 RN5 ✅ | EV2 adds the `events` save section; it fills `EventRolls.curse_id` (the tier draw) and the rare heirloom, saves `EventRolls`, and calls `EventResolver.roll` when the event is made (EV1 report) | **Open** November 19, 2026; EV2 issued November 19, 2026 (Lane C; P09 questions 13–20). EV3 also takes `ui/campaign/run_screen.gd`'s routing of an Unknown node with a pending surprise combat to the battle screen (EV2 estimate) |
 | P09 EV4 Content, EV6 Docs | EV3; P03 CT4, CT5, CT8, CT9 (curse copies must stack), CT13 | The events name real items, prefixes, curses and units | Waiting |
 | P03 CT12 Weapon modifications | P09 EV1 (the outcome blocks); P03 question 33 | Weapons never generate with a prefix; only events and later run sources apply one | Waiting on EV1 |
 | P02 CC10 Battle resume | P02 CC8 ✅; P04 MP8 ✅ | Restores the saved sections into a rebuilt battle | **Open** November 3, 2026; built ✅ (November 5, 2026) |

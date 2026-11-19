@@ -6,13 +6,16 @@
 # File:     section_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 9, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends "res://tests/save/save_case_base.gd"
 ## [SaveSectionRegistry] cases for tests/save/run_all.gd: capture, restore, reset, migration,
 ## refusal, raw sections and per-seat player sections.
 
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "save"
 
 func run() -> void:
 	_test_sections_capture_keeps_unregistered()

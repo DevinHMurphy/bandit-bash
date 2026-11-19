@@ -20,7 +20,7 @@ extends "res://tests/ui/ui_suite.gd"
 ## convoy, scrapped, equipped, Back by pad without the pause menu; Leave), a quit and Continue
 ## mid-recap reopening it on Grade with the same report and, once taken, on Rewards with the row
 ## gone, the node placeholder, and the Boss's End run reaching the run's end. Pad glyphs show.
-## Campaign facts play ([CampaignPlayback], its own cases in playback_cases.gd first): the run's
+## Campaign facts play ([CampaignPlayback]; its unit cases, playback_cases.gd, run first): the run's
 ## start once on the first map, each chosen node once with its sound, each level-up card's own
 ## fact with one level_up voice. Every map node is 32 units or more, the choice scrolled in view.
 ##
@@ -33,7 +33,6 @@ extends "res://tests/ui/ui_suite.gd"
 # The test report's line on this suite; tools/run_tests.sh reads it from this one line.
 const SUITE_DESCRIPTION: String = "A run played through the campaign screens by key, mouse, pad"
 
-const PlaybackCases = preload("res://tests/ui/campaign/playback_cases.gd")
 
 # SceneRouter.Screen values: a suite can't name the autoload (see the base).
 const SCREEN_LOADING: int = 2
@@ -146,8 +145,8 @@ func _process(_delta: float) -> bool:
 	_frame += 1
 	if _frame == 1:
 		_start("Campaign screens tests")
-		GroupClock.lap("fact playback")
-		PlaybackCases.new(_check).run()
+		# Any case files declaring this suite, before the screens.
+		_run_case_files()
 		if not _has_test_user_dir():
 			_skip("campaign screens", "the screens need a test user folder (see the class doc)")
 			_finish()

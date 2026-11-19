@@ -17,6 +17,8 @@ extends RefCounted
 ## campaign map ([code]campaign_facts.tres[/code]): the run's start sounds begin_campaign, a
 ## chosen combat node battle_map_enter and any other node nothing, and a level-up level_up once.
 
+const SUITE: String = "ui/campaign"
+
 const CAMPAIGN_MAP_PATH: String = "res://data/audio/maps/campaign_facts.tres"
 
 const SEAT: int = 0

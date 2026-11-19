@@ -15,6 +15,9 @@ extends RefCounted
 ## volume of 0 mutes its buses and any other level unmutes them. Puts the settings in effect back
 ## at the end.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "audio"
+
 # Tolerance for comparing bus volumes. Units: dB.
 const DB_EPSILON: float = 0.001
 

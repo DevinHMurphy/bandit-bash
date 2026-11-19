@@ -15,6 +15,7 @@ extends SceneTree
 ## own part because its battle is the longest of the key maps, and the runner limits each suite's
 ## time; map_set/key plays the other key maps.
 ##
+## Case files declaring this part run first, through [code]tests/case_files.gd[/code].[br]
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script[/code]
 ## [code]res://tests/map_set/key_gatehouse/run_all.gd[/code][br]
@@ -27,6 +28,7 @@ const SUITE_DESCRIPTION: String = "An AI battle on the Gatehouse key map at step
 
 # Preloaded scripts used as types (gdscript.md, Naming): the cases have no class name.
 const GroupClock = preload("res://tests/group_clock.gd")
+const CaseFiles = preload("res://tests/case_files.gd")
 const MapSetBattleCases = preload("res://tests/map_set/map_set_battle_cases.gd")
 
 # The key map this part plays, one of MapSetBattleCases.OWN_PART_KEY_MAPS.
@@ -38,6 +40,7 @@ var _passes: int = 0
 
 func _init() -> void:
 	print("--- Map set tests: Gatehouse battle ---")
+	CaseFiles.run(self, _check)
 	# The battle cases time the map; this group is their catalog's load.
 	GroupClock.lap("map_set_battle_cases: catalog")
 	MapSetBattleCases.new(_check, CombatMapDefinition.CombatType.KEY, MAP_ID).run()

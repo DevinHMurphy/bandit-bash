@@ -27,6 +27,9 @@ extends RefCounted
 ## suite's object fixture ([code]tests/map/object_cases.gd[/code]), which has every usable kind,
 ## and on M1's one house through the menu.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "ui/display"
+
 const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
 const TurnInputCases = preload("res://tests/ui/battle/input/turn_input_cases.gd")
 const ObjectCases = preload("res://tests/map/object_cases.gd")

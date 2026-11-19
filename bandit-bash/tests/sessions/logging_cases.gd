@@ -13,6 +13,9 @@ extends "res://tests/sessions/sessions_case_base.gd"
 ## Logging cases for tests/sessions/run_all.gd: the session logger's gating, logging leaving
 ## a battle unchanged, and a line after leaving the lobby (no peer) raising no engine error.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "sessions"
+
 # NetLog's levels and categories through the script CombatSession preloads, for its logger().
 const ERROR_LEVEL: CombatSession.NetLogScript.Level = CombatSession.NetLogScript.Level.ERROR
 const WARN_LEVEL: CombatSession.NetLogScript.Level = CombatSession.NetLogScript.Level.WARN

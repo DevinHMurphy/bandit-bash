@@ -6,16 +6,15 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 16, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends SceneTree
-## Headless tests for the sessions layer, a case file per topic (each one's class doc lists its
-## checks): queue_cases.gd, encounter_cases.gd, bridge_cases.gd, service_cases.gd,
-## run_service_cases.gd, run_battle_cases.gd, run_reward_cases.gd, resume_cases.gd,
-## logging_cases.gd, wire_cases.gd,
-## save_cases.gd and map_save_cases.gd. Every catalog definition
-## and loadout fixture is hashed before the first case and after the last; any change fails.[br]
+## Headless tests for the sessions layer: the case files declaring this suite, which
+## [code]tests/case_files.gd[/code] finds and runs in path order, built with the root when they
+## take it; each one's class doc lists its checks, and a [code]sessions_case_base.gd[/code] file's
+## skips join the suite's. Every catalog definition and loadout fixture is hashed before the first
+## case and after the last; any change fails.[br]
 ## Run from the repo root:
 ## [code]godot --headless --path bandit-bash --script res://tests/sessions/run_all.gd[/code].
 ## Prints PASS or FAIL per case and exits with code 1 if any fails. The cases run on the first
@@ -29,23 +28,13 @@ extends SceneTree
 const SUITE_DESCRIPTION: String = "Commands, sessions, saving, resuming, logging, wire format"
 
 # Preloaded scripts used as types (gdscript.md, Naming): the content suite's hashing, the loadout
-# fixture tree the definitions hash covers, the group timer, and the case scripts (no class name).
+# fixture tree the definitions hash covers, the group timer, the case finder and the lifecycle
+# cases' base (no class name).
 const GroupClock = preload("res://tests/group_clock.gd")
+const CaseFiles = preload("res://tests/case_files.gd")
 const CatalogCases = preload("res://tests/content/catalog_cases.gd")
 const LoadoutCases = preload("res://tests/content/loadout_cases.gd")
 const SessionsCaseBase = preload("res://tests/sessions/sessions_case_base.gd")
-const QueueCases = preload("res://tests/sessions/queue_cases.gd")
-const EncounterCases = preload("res://tests/sessions/encounter_cases.gd")
-const BridgeCases = preload("res://tests/sessions/bridge_cases.gd")
-const ServiceCases = preload("res://tests/sessions/service_cases.gd")
-const RunServiceCases = preload("res://tests/sessions/run_service_cases.gd")
-const RunBattleCases = preload("res://tests/sessions/run_battle_cases.gd")
-const RunRewardCases = preload("res://tests/sessions/run_reward_cases.gd")
-const ResumeCases = preload("res://tests/sessions/resume_cases.gd")
-const LoggingCases = preload("res://tests/sessions/logging_cases.gd")
-const WireCases = preload("res://tests/sessions/wire_cases.gd")
-const SaveCases = preload("res://tests/sessions/save_cases.gd")
-const MapSaveCases = preload("res://tests/sessions/map_save_cases.gd")
 
 var _failures: int = 0
 var _passes: int = 0
@@ -62,31 +51,10 @@ func _process(_delta: float) -> bool:
 	# Hashed before any case loads a definition (event bus plan, question 50).
 	var before: Dictionary[String, String] = CatalogCases.hash_definitions([LoadoutCases.TREE])
 
-	GroupClock.lap("queue_cases")
-	_run_cases(QueueCases.new(_check, root))
-	GroupClock.lap("encounter_cases")
-	_run_cases(EncounterCases.new(_check, root))
-	GroupClock.lap("bridge_cases")
-	_run_cases(BridgeCases.new(_check, root))
-	GroupClock.lap("service_cases")
-	_run_cases(ServiceCases.new(_check, root))
-	GroupClock.lap("run_service_cases")
-	_run_cases(RunServiceCases.new(_check, root))
-	GroupClock.lap("run_battle_cases")
-	_run_cases(RunBattleCases.new(_check, root))
-	GroupClock.lap("run_reward_cases")
-	_run_cases(RunRewardCases.new(_check, root))
-	GroupClock.lap("resume_cases")
-	_run_cases(ResumeCases.new(_check, root))
-	GroupClock.lap("logging_cases")
-	_run_cases(LoggingCases.new(_check, root))
-
-	GroupClock.lap("wire_cases")
-	WireCases.new(_check).run()
-	GroupClock.lap("save_cases")
-	SaveCases.new(_check).run()
-	GroupClock.lap("map_save_cases")
-	MapSaveCases.new(_check).run()
+	for cases: RefCounted in CaseFiles.run(self, _check, root):
+		if cases is SessionsCaseBase:
+			var lifecycle: SessionsCaseBase = cases
+			_skips += lifecycle.skip_count()
 
 	GroupClock.lap("definitions check")
 	var changed: PackedStringArray = CatalogCases.changed_definitions(
@@ -100,12 +68,6 @@ func _process(_delta: float) -> bool:
 	print("--- %d passed, %d failed, %d skipped ---" % [_passes, _failures, _skips])
 	quit(1 if _failures > 0 else 0)
 	return false
-
-
-# Runs a case file and adds its skips to the suite's total.
-func _run_cases(cases: SessionsCaseBase) -> void:
-	cases.run()
-	_skips += cases.skip_count()
 
 
 func _check(case_name: String, passed: bool, detail: String = "") -> void:

@@ -33,6 +33,9 @@ enum Plays {
 	REPEAT = 2,
 }
 
+# Shared by the map_set parts, which build it with their own arguments; never run on its own.
+const SUITE: String = "map_set"
+
 # Preloaded scripts used as types (gdscript.md, Naming): the cases have no class name.
 const GroupClock = preload("res://tests/group_clock.gd")
 const M1BattleCases = preload("res://tests/enemies/m1_battle_cases.gd")

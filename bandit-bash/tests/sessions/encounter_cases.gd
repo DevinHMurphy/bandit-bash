@@ -14,6 +14,9 @@ extends "res://tests/sessions/sessions_case_base.gd"
 ## cross-map effects, routing, transfers and each map's end.
 
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "sessions"
+
 func run() -> void:
 	_run(_test_setup_order)
 	_run(_test_map_choice)

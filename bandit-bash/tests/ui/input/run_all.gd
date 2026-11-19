@@ -6,19 +6,18 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends "res://tests/ui/ui_suite.gd"
 ## Combat UI input suite (combat UI plan, P07): turn input, targeting, rune casting (each rune by
 ## keys, mouse and pad, from the rune bar; discards), the control hints and pads (joypad bindings,
-## the device adapter, glyphs,
-## focus navigation, the cursor's repeat, hints that hide when they can do nothing), unit detail
-## (opened and closed by keys, mouse and pad), a cases
-## file each in [code]tests/ui/battle/[/code] (preloaded below;
-## each one's class doc lists its checks); then the gameplay screen's pause menu, opened by Esc and
-## closed by Esc or Resume, pausing the tree and the board's playback and unpausing both, with the
-## hint bar following over real frames. The shared helpers are [code]tests/ui/ui_suite.gd[/code]'s.
+## the device adapter, glyphs, focus navigation, the cursor's repeat, hints that hide when they can
+## do nothing), unit detail (opened and closed by keys, mouse and pad), in the case files declaring
+## this suite (run through the base; each one's class doc lists its checks); then the gameplay
+## screen's pause menu, opened by Esc and closed by Esc or Resume, pausing the tree and the board's
+## playback and unpausing both, with the hint bar following over real frames. The shared helpers
+## are [code]tests/ui/ui_suite.gd[/code]'s.
 ##
 ## Run from the repo root:
 ## [code]godot --headless --path bandit-bash --script res://tests/ui/input/run_all.gd[/code].
@@ -30,14 +29,8 @@ extends "res://tests/ui/ui_suite.gd"
 # The test report's line on this suite; tools/run_tests.sh reads it from this one line.
 const SUITE_DESCRIPTION: String = "Input, targeting, runes, hints, pads, unit detail, pause menu"
 
+# Preloaded script used as a type (gdscript.md, Naming): the pause case settles the board with it.
 const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
-const TurnInputCases = preload("res://tests/ui/battle/input/turn_input_cases.gd")
-const TargetingCases = preload("res://tests/ui/battle/input/targeting_cases.gd")
-const RuneCases = preload("res://tests/ui/battle/input/rune_cases.gd")
-const RuneBarCases = preload("res://tests/ui/battle/input/rune_bar_cases.gd")
-const HintBarCases = preload("res://tests/ui/battle/hud/hint_bar_cases.gd")
-const PadCases = preload("res://tests/ui/battle/input/pad_cases.gd")
-const UnitDetailCases = preload("res://tests/ui/battle/unit/unit_detail_cases.gd")
 
 # How long the pause case holds the menu open, checking the board doesn't move meanwhile.
 const PAUSE_HOLD_MSEC: int = 300
@@ -54,20 +47,7 @@ func _process(_delta: float) -> bool:
 	_frame += 1
 	if _frame == 1:
 		_start("Combat UI tests: input")
-		GroupClock.lap("turn_input_cases")
-		TurnInputCases.new(_check, root).run()
-		GroupClock.lap("targeting_cases")
-		TargetingCases.new(_check, root).run()
-		GroupClock.lap("rune_cases")
-		RuneCases.new(_check, root).run()
-		GroupClock.lap("rune_bar_cases")
-		RuneBarCases.new(_check, root).run()
-		GroupClock.lap("hint_bar_cases")
-		HintBarCases.new(_check, root).run()
-		GroupClock.lap("pad_cases")
-		PadCases.new(_check, root).run()
-		GroupClock.lap("unit_detail_cases")
-		UnitDetailCases.new(_check, root).run()
+		_run_case_files()
 		return false
 	if not _is_pause_started:
 		_is_pause_started = true

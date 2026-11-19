@@ -20,6 +20,9 @@ extends RefCounted
 ## counting rules and both save sections; and the battle stats, their counting rules, their
 ## section and their place in the combat report. Touches no save files.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "campaign"
+
 const RULES_PATH: String = "res://data/campaign/campaign_map_rules.tres"
 const M1_ID: String = "m1_greybox"
 const RUN_SEED: int = 0x3F9A12C077E1A

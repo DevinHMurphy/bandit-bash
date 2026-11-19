@@ -17,6 +17,9 @@ extends RefCounted
 ## resolving touches the global RNG, while the same stream state rolls the same result.
 ## Touches no save files.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "events"
+
 const Fixture = preload("res://tests/events/event_fixture.gd")
 
 const GLOBAL_SEED: int = 4242
