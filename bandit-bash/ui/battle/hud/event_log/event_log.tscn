@@ -1,0 +1,65 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://ui/battle/hud/event_log/event_log.gd" id="1_log"]
+[ext_resource type="PackedScene" path="res://ui/battle/hud/event_log/event_log_line.tscn" id="2_line"]
+[ext_resource type="PackedScene" path="res://ui/battle/hud/event_log/event_log_header.tscn" id="3_header"]
+[ext_resource type="PackedScene" path="res://ui/battle/hud/event_log/event_log_filter_row.tscn" id="4_filters"]
+
+[node name="EventLog" type="VBoxContainer"]
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -308.0
+offset_top = 76.0
+offset_right = -8.0
+offset_bottom = -80.0
+grow_horizontal = 0
+mouse_filter = 2
+alignment = 2
+script = ExtResource("1_log")
+line_scene = ExtResource("2_line")
+header_scene = ExtResource("3_header")
+
+[node name="Frame" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+theme_type_variation = &"EventLogPanel"
+
+[node name="Column" type="VBoxContainer" parent="Frame"]
+layout_mode = 2
+
+[node name="Toggle" type="Button" parent="Frame/Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+focus_mode = 0
+theme_type_variation = &"EventLogToggle"
+text = "Event log  ·  Hide"
+alignment = 0
+
+[node name="FilterRow" parent="Frame/Column" instance=ExtResource("4_filters")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Scroll" type="ScrollContainer" parent="Frame/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+follow_focus = false
+horizontal_scroll_mode = 0
+
+[node name="Lines" type="VBoxContainer" parent="Frame/Column/Scroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="JumpButton" type="Button" parent="Frame/Column"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+focus_mode = 0
+theme_type_variation = &"EventLogToggle"
+text = "↓ 0 new"

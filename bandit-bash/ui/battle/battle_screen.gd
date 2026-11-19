@@ -6,7 +6,7 @@
 # File:     battle_screen.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 14, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name BattleScreen
@@ -22,7 +22,8 @@ extends Node2D
 ## result and all go on: to the combat's Results after a win, to the run's end after a loss.
 ## [b]Commands only:[/b] its [BattleController] turns input into commands. Co-op and a multiplayer
 ## client keep the placeholder. The save debug panel hides while a battle shows, as it would take
-## the map's clicks; toggle_save_debug shows it.
+## the map's clicks; toggle_save_debug shows it, and the debug fact log with it. A battle it
+## didn't begin (a resumed save, or one already on) starts its [EventLog] with "Battle resumed".
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
@@ -40,6 +41,9 @@ var _session: CombatSession = null
 
 var _is_ending: bool = false
 
+# Whether the battle shown was resumed or already on, not begun by this screen.
+var _is_resumed: bool = false
+
 @onready var _view: BattleView = %BattleView
 @onready var _controller: BattleController = %BattleController
 @onready var _hud: BattleHud = %BattleHud
@@ -52,6 +56,8 @@ var _is_ending: bool = false
 
 func _ready() -> void:
 	_placeholder.visible = false
+	if is_instance_valid(_save_debug_panel):
+		_save_debug_panel.visibility_changed.connect(_on_save_debug_panel_visibility_changed)
 	var run: CampaignSession = CampaignService.session
 	if run == null or run.mode != CampaignData.Mode.SOLO:
 		_show_placeholder("")
@@ -60,6 +66,7 @@ func _ready() -> void:
 		_show_placeholder("")
 		RunScreen.go()
 		return
+	_is_resumed = run.encounter != null
 	if run.encounter == null:
 		var err: Error = _begin_battle(run)
 		if err != OK:
@@ -99,7 +106,10 @@ func _begin_battle(run: CampaignSession) -> Error:
 	# window's saved state; a resume that falls back to Begin reads the setting again.
 	request.opening_swap[run.seats[0]] = SaveService.settings.is_opening_swap_on
 	if SaveService.combat != null:
-		return CampaignService.resume_battle(request)
+		var err: Error = CampaignService.resume_battle(request)
+		# A resume that fell back to Begin (BATTLE_RETRY) is a new battle.
+		_is_resumed = err == OK and SaveService.resume_point == CombatData.ResumePoint.BATTLE
+		return err
 	return CampaignService.begin_battle(request)
 
 
@@ -114,6 +124,8 @@ func _open(encounter: CombatEncounter, seat: int) -> void:
 	_view.bind(_session)
 	_controller.bind(encounter, _session, seat)
 	_hud.bind(_session, _controller, _view)
+	if _is_resumed:
+		_hud.get_event_log().add_resumed_line()
 	# The unit panel's Details button is the mouse's way to unit detail; the controller decides.
 	_hud.get_unit_panel().details_pressed.connect(_on_unit_panel_details_pressed)
 	_on_battle_view_settled()
@@ -169,3 +181,8 @@ func _on_battle_view_settled() -> void:
 
 func _on_unit_panel_details_pressed(unit_id: String) -> void:
 	_controller.request_unit_detail(unit_id)
+
+
+# The raw fact log shows only beside the save debug panel, and only while a battle shows.
+func _on_save_debug_panel_visibility_changed() -> void:
+	_hud.get_fact_log().visible = _save_debug_panel.visible and _session != null

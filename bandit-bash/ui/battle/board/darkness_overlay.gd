@@ -6,7 +6,7 @@
 # File:     darkness_overlay.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name DarknessOverlay
@@ -22,16 +22,16 @@ extends Node2D
 ## @tutorial(The darkness): docs/design/the-darkness.md
 
 ## The darkness's colour; each layer draws it at its own alpha ([member dusk_alpha],
-## [member gloom_alpha], [member abyss_alpha]). This colour's own alpha is ignored.
-# ASSUMPTION: greybox colour; no palette is set (combat UI plan, Design Basis, Gaps).
-@export var tint: Color = Color(0.08, 0.02, 0.15, 1.0):
+## [member gloom_alpha], [member abyss_alpha]). This colour's own alpha is ignored. Defaults to the
+## [code]darkness[/code] token (ui-style.md), so the darkness reads violet, never as a dim tile.
+@export var tint: Color = UiTokens.color(UiTokens.DARKNESS):
 	set(value):
 		tint = value
 		queue_redraw()
 
 ## How strongly a Dusk tile is covered.[br]
 ## [b]0.0:[/b] invisible. [b]1.0:[/b] the terrain is hidden.
-# ASSUMPTION: greybox value, as above.
+# ASSUMPTION: greybox value; no design doc sets the layers' opacities.
 @export_range(0.0, 1.0, 0.01) var dusk_alpha: float = 0.3:
 	set(value):
 		dusk_alpha = value
@@ -39,7 +39,7 @@ extends Node2D
 
 ## How strongly a Gloom tile is covered.[br]
 ## [b]0.0:[/b] invisible. [b]1.0:[/b] the terrain is hidden.
-# ASSUMPTION: greybox value, as above.
+# ASSUMPTION: greybox value; no design doc sets the layers' opacities.
 @export_range(0.0, 1.0, 0.01) var gloom_alpha: float = 0.5:
 	set(value):
 		gloom_alpha = value
@@ -47,7 +47,7 @@ extends Node2D
 
 ## How strongly an Abyss tile is covered.[br]
 ## [b]0.0:[/b] invisible. [b]1.0:[/b] the terrain is hidden.
-# ASSUMPTION: greybox value, as above.
+# ASSUMPTION: greybox value; no design doc sets the layers' opacities.
 @export_range(0.0, 1.0, 0.01) var abyss_alpha: float = 0.7:
 	set(value):
 		abyss_alpha = value

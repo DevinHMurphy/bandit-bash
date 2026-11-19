@@ -12,19 +12,12 @@
 extends RefCounted
 ## The scenes, scripts and project settings against the shared theme, for the ui/theme suite: no
 ## [code].tscn[/code] under [code]ui/[/code] sets a colour, font, font size or style box override,
-## or a theme of its own, except the three scenes the darkness phase (DK7) owns; no
-## [code].gd[/code] under [code]ui/[/code] writes a token's colour as a literal; the project's base
-## viewport, stretch, window, theme and pointer-focus settings; the red and blue tile overlays
-## drawing their tokens. Reads files as text, so no scene is loaded but the overlays.
+## or a theme of its own; no [code].gd[/code] under [code]ui/[/code] writes a token's colour as a
+## literal; the project's base viewport, stretch, window, theme and pointer-focus settings; the red
+## and blue tile overlays drawing their tokens. Reads files as text, so no scene is loaded but the
+## overlays.
 
 const UI_FOLDER: String = "res://ui/"
-
-# Scenes DK7 is changing on its own branch; their overrides wait for a follow-up after both merge.
-const EXEMPT_SCENES: PackedStringArray = [
-	"res://ui/battle/hud/phase_banner.tscn",
-	"res://ui/battle/hud/turn_bar.tscn",
-	"res://ui/battle/board/darkness_overlay.tscn",
-]
 
 # A scene line that sets a look outside the theme.
 const OVERRIDE_PREFIXES: PackedStringArray = [
@@ -63,8 +56,6 @@ func _test_scenes() -> void:
 	var scenes: PackedStringArray = files_under(UI_FOLDER, ".tscn")
 	var found: PackedStringArray = []
 	for path: String in scenes:
-		if EXEMPT_SCENES.has(path):
-			continue
 		var lines: PackedStringArray = FileAccess.get_file_as_string(path).split("\n")
 		for i: int in lines.size():
 			var line: String = lines[i]

@@ -132,15 +132,36 @@ extends HintSource
 #                                                out, as everywhere)
 #   ui_up / ui_down in DETAIL                 (scroll the detail's body while it overflows; the
 #                                                Close button keeps focus. Harmless otherwise)
+#   "event_log_focus"       -> L; RS pushed   (IDLE, MOVE: focuses the event log (EVENT_LOG) on its
+#                              left or right     header. EVENT_LOG: closes it, as cancel does.
+#                              [R stick]         Harmless elsewhere. The stick counts only when its
+#                                                horizontal push is past the deadzone and larger
+#                                                than its vertical one, so a slanted scroll never
+#                                                grabs focus; once per push, until it is let back)
+#   "event_log_scroll_up" / -> PageUp /       (any stage, even during playback, while the log shows:
+#   "event_log_scroll_down"    PageDown; RS      open and no panel over it. One page up or down; a
+#                              up / down         key repeats by its echo, the stick by pad_repeat's
+#                              [R stick]         delays while held, counted only while its vertical
+#                                                push is the larger. Back at the bottom, the log
+#                                                follows new lines again. Harmless while it fits)
+#   ui_up / ui_down /       in EVENT_LOG      (up and down scroll the log a line, read in _input
+#   ui_left / ui_right                           before the GUI; left and right move focus between
+#                                                the header and the filters, wrapping, by the log's
+#                                                own focus links; accept presses the focused one)
+#   (mouse on the event log)                  (the wheel scrolls it, its header collapses or opens
+#                                                it, a filter toggles, "↓ N new" returns to the
+#                                                newest line: the GUI's own, in any stage. A click
+#                                                on the board in EVENT_LOG closes it)
 # ASSUMPTION: Godot_FE bound none of end_turn, toggle_danger_zone, cycle_weapon, fast_forward,
 # skip_playback or unit_detail to a pad; their pad buttons above have no basis (unit_detail's L3
-# was the last pad button left free). Every pad input is bound to one action only, as this file
-# reads them in one chain and the first match wins. V for open_runes has no basis either.
+# was the last pad button left free, so the event log took the right stick's axes). Every pad
+# input is bound to one action only, as this file reads them in one chain and the first match
+# wins. V for open_runes and L for event_log_focus have no basis either.
 # While a command's playback runs, the token walks to its picked tile (WALK), the map's combat is
-# over, or the seat has no turn, every input but fast_forward, skip_playback, toggle_danger_zone
-# and open_runes (which only says why it can't) is ignored: that guard is deliberate, not a
-# missing check (Godot_FE took no input until a walk arrived either). skip_playback does nothing
-# in WALK, as no fact plays.
+# over, or the seat has no turn, every input but fast_forward, skip_playback, toggle_danger_zone,
+# the event log's scrolling and open_runes (which only says why it can't) is ignored: that guard
+# is deliberate, not a missing check (Godot_FE took no input until a walk arrived either).
+# skip_playback does nothing in WALK, as no fact plays.
 # pad_repeat still sees the d-pad and stick then, so a direction released during playback stops
 # repeating.
 # Control hints: LIVE_ACTIONS (below the state block) lists, per stage, the actions above that act
@@ -235,6 +256,11 @@ extends HintSource
 #              Close or unit_detail -> the stage it was opened from, with its selection and cursor
 #              as they were. Opened through _history like any panel, so it is never left open by
 #              a command (none can be sent from it).
+# EVENT_LOG:   the event log focused by event_log_focus from IDLE or MOVE (the selection, its
+#              overlays, path and cursor kept, the hover preview dropped and asked again on return).
+#              Up and down scroll it a line; left and right move focus between its header and
+#              filters; accept presses the focused one. The board is inert; a click on it, cancel
+#              or event_log_focus -> the stage it was opened from. No command is sent from it.
 # There is no separate forecast stage: the forecast is CONFIRM's panel, as Godot_FE's forecast
 # took the confirm. The walk before the action menu is the board's alone: the move and the action
 # are still one command, so the session changes only on Confirm, and its playback finds the token
@@ -246,8 +272,8 @@ extends HintSource
 # back to MOVE clears it, and the session's return. The forecast walks the command's path itself.
 # Cycling changes no state: each weapon has its own command (TargetOption.commands),
 # where Godot_FE equipped the weapon on the unit at each step and left it equipped on Back. Q / E
-# are inert in SWAP, SWAP_PICKED, MOVE, WALK, ACTION, RUNE, END_CONFIRM, DETAIL, RUNE_SLOTS and
-# DISCARD_CONFIRM: cycling units
+# are inert in SWAP, SWAP_PICKED, MOVE, WALK, ACTION, RUNE, END_CONFIRM, DETAIL, RUNE_SLOTS,
+# DISCARD_CONFIRM and EVENT_LOG: cycling units
 # there would drop the selection or the panel under way (Godot_FE's details screen cycled units on
 # its bumpers; not ported).
 # The rune bar (RuneBar) casts any held rune at any point of the player phase, outside the action
@@ -257,6 +283,8 @@ extends HintSource
 # and says why (rune_bar_reason). A rune from the bar or a discard returns, once its playback
 # settles, to the stage it was used from: IDLE, or MOVE with the same unit selected while it can
 # still act, the cursor where it was. A cast changes no unit's acted state (CastRuneCommand).
+# The event log (EventLog) shows whenever no panel is open (set_covered) and scrolls by
+# event_log_scroll_* in any stage it shows in, playback included; it takes focus only in EVENT_LOG.
 # Global: cancel pops exactly one stage (_history), and one panel with it; WALK is never on
 # _history. Sending a command flushes every panel, stage and mark but leaves a staged token where
 # it stands, hides the intents, and waits in INACTIVE; when its playback settles the stage, the
@@ -303,6 +331,8 @@ enum Stage {
 	RUNE_SLOTS = 13,
 	## The question before a rune is discarded from the bar.
 	DISCARD_CONFIRM = 14,
+	## The event log focused by event_log_focus, from IDLE or MOVE.
+	EVENT_LOG = 15,
 }
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
@@ -321,7 +351,10 @@ const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
 # danger zone in the final playback, unit_detail in IDLE and MOVE with no unit to show, RUNE's up
 # and down with one rune, FORECAST's up and down with no Breakdown or Next weapon (a staff, a
 # shove, a rune), DETAIL's up and down while its body fits, open_runes in IDLE and MOVE while the
-# bar is refused, and RUNE_SLOTS' left and right with one rune held.
+# bar is refused, RUNE_SLOTS' left and right with one rune held, the event log's scrolling (and
+# EVENT_LOG's up and down) while it fits or doesn't show, event_log_focus with no log shown, and
+# EVENT_LOG's left and right while collapsed to its header. The scroll actions are in exactly the
+# rows where no panel covers the log.
 # tests/ui/hint_bar_cases.gd presses every action in every context it
 # reaches, by key and by pad, and fails when one acts outside its row or a listed one does
 # nothing; change a row with the blocks above.
@@ -332,23 +365,33 @@ const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
 const LIVE_ACTIONS: Dictionary[StringName, Array] = {
 	&"SWAP": [
 		&"ui_up", &"ui_down", &"ui_left", &"ui_right", &"ui_accept", &"end_turn",
-		&"toggle_danger_zone", &"fast_forward", &"ui_cancel", &"toggle_save_debug",
+		&"event_log_scroll_up", &"event_log_scroll_down", &"toggle_danger_zone", &"fast_forward",
+		&"ui_cancel", &"toggle_save_debug",
 	],
 	&"SWAP_PICKED": [
 		&"ui_up", &"ui_down", &"ui_left", &"ui_right", &"ui_accept", &"ui_cancel", &"end_turn",
-		&"toggle_danger_zone", &"fast_forward", &"toggle_save_debug",
+		&"event_log_scroll_up", &"event_log_scroll_down", &"toggle_danger_zone", &"fast_forward",
+		&"toggle_save_debug",
 	],
 	&"IDLE": [
 		&"ui_up", &"ui_down", &"ui_left", &"ui_right", &"ui_accept", &"target_prev",
-		&"target_next", &"unit_detail", &"open_runes", &"end_turn", &"toggle_danger_zone",
+		&"target_next", &"unit_detail", &"open_runes", &"event_log_focus",
+		&"event_log_scroll_up", &"event_log_scroll_down", &"end_turn", &"toggle_danger_zone",
 		&"fast_forward", &"ui_cancel", &"toggle_save_debug",
 	],
 	&"MOVE": [
 		&"ui_up", &"ui_down", &"ui_left", &"ui_right", &"ui_accept", &"ui_cancel", &"unit_detail",
-		&"open_runes", &"end_turn", &"toggle_danger_zone", &"fast_forward", &"toggle_save_debug",
+		&"open_runes", &"event_log_focus", &"event_log_scroll_up", &"event_log_scroll_down",
+		&"end_turn", &"toggle_danger_zone", &"fast_forward", &"toggle_save_debug",
 	],
 	&"RUNE_SLOTS": [
 		&"ui_left", &"ui_right", &"ui_up", &"ui_down", &"ui_accept", &"ui_cancel", &"open_runes",
+		&"event_log_scroll_up", &"event_log_scroll_down", &"toggle_danger_zone", &"fast_forward",
+		&"toggle_save_debug",
+	],
+	&"EVENT_LOG": [
+		&"ui_up", &"ui_down", &"ui_left", &"ui_right", &"ui_accept", &"ui_cancel",
+		&"event_log_focus", &"event_log_scroll_up", &"event_log_scroll_down",
 		&"toggle_danger_zone", &"fast_forward", &"toggle_save_debug",
 	],
 	&"DISCARD_CONFIRM": [
@@ -388,12 +431,18 @@ const LIVE_ACTIONS: Dictionary[StringName, Array] = {
 		&"ui_left", &"ui_right", &"ui_accept", &"ui_cancel", &"toggle_danger_zone",
 		&"fast_forward", &"toggle_save_debug",
 	],
-	&"WALK": [&"toggle_danger_zone", &"fast_forward", &"ui_cancel", &"toggle_save_debug"],
-	&"PLAYBACK": [
-		&"fast_forward", &"skip_playback", &"toggle_danger_zone", &"ui_cancel",
-		&"toggle_save_debug",
+	&"WALK": [
+		&"event_log_scroll_up", &"event_log_scroll_down", &"toggle_danger_zone", &"fast_forward",
+		&"ui_cancel", &"toggle_save_debug",
 	],
-	&"INACTIVE": [&"toggle_danger_zone", &"fast_forward", &"ui_cancel", &"toggle_save_debug"],
+	&"PLAYBACK": [
+		&"fast_forward", &"skip_playback", &"event_log_scroll_up", &"event_log_scroll_down",
+		&"toggle_danger_zone", &"ui_cancel", &"toggle_save_debug",
+	],
+	&"INACTIVE": [
+		&"event_log_scroll_up", &"event_log_scroll_down", &"toggle_danger_zone", &"fast_forward",
+		&"ui_cancel", &"toggle_save_debug",
+	],
 	&"PAUSED": [&"ui_up", &"ui_down", &"ui_accept", &"ui_cancel"],
 }
 
@@ -500,6 +549,11 @@ const DISCARD_QUESTION: String = "Discard %s? It is gone for good."
 ## stick push steps once per motion event past the deadzone.
 @export var pad_repeat: PadRepeat = null
 
+## The battle's event log, which EVENT_LOG focuses and the scroll actions move; it hides while a
+## panel is open.[br]
+## [b]Unset:[/b] event_log_focus and the scroll actions do nothing.
+@export var event_log: EventLog = null
+
 @export_group("Danger zone")
 
 # ASSUMPTION: question 12's "the window shows the danger zone" read as on by default in the window,
@@ -519,7 +573,9 @@ var _stage: Stage = Stage.INACTIVE
 
 # The turn bar's status while playback plays a phase: each side's Phase Start and each darkness
 # phase as it plays; cleared when the board settles. Empty: the status comes from state.
+# _is_played_darkness: the phase playing is a darkness phase, so the bar shows its chip.
 var _played_status: String = ""
+var _is_played_darkness: bool = false
 
 # The stage to return to from each stage entered by a step forward; cancel pops one.
 var _history: Array[Stage] = []
@@ -616,6 +672,17 @@ var _resume_cursor: Vector2i = CombatFact.NO_TILE
 var _held: Array[TurnInputModel.HeldRune] = []
 var _held_seq: int = -2
 
+# The right stick as the event log's actions last reported it, from their motion events alone, so
+# events pushed into a viewport count: x the focus push, y the scroll push.
+var _log_stick: Vector2 = Vector2.ZERO
+
+# Whether the stick's sideways push has focused or closed the log and not yet been let back.
+var _is_log_focus_latched: bool = false
+
+# The page the held stick scrolls (-1 up, 1 down, 0 none), and seconds to its next repeat.
+var _log_scroll_held: int = 0
+var _log_scroll_left: float = 0.0
+
 
 func _ready() -> void:
 	_show_widgets(false)
@@ -628,6 +695,8 @@ func _ready() -> void:
 	if rune_bar != null:
 		rune_bar.rune_pressed.connect(_on_rune_bar_rune_pressed)
 		rune_bar.discard_pressed.connect(_on_rune_bar_discard_pressed)
+	if event_log != null:
+		event_log.scroll_range_changed.connect(_on_event_log_scroll_range_changed)
 
 
 func _exit_tree() -> void:
@@ -637,6 +706,9 @@ func _exit_tree() -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if _stage == Stage.EVENT_LOG and is_accepting_input() and _take_log_arrow(event):
+		get_viewport().set_input_as_handled()
+		return
 	if not _is_cancel(event) or not is_accepting_input():
 		return
 	if step_back():
@@ -657,6 +729,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed(&"open_runes"):
 		request_runes()
+		return
+	if _take_log_input(event):
 		return
 	if is_instance_valid(pad_repeat) and pad_repeat.take(event):
 		return
@@ -690,8 +764,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		_step_cursor(Vector2i.RIGHT)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	run_preview_frame()
+	_repeat_log_scroll(delta)
 
 
 ## Takes turn input for [param seat] on [param session], a map of [param encounter], and shows the
@@ -754,6 +829,13 @@ func unbind() -> void:
 		panel_host.flush()
 	if is_instance_valid(pad_repeat):
 		pad_repeat.release_all()
+	if is_instance_valid(event_log):
+		event_log.set_navigable(false)
+		event_log.set_covered(false)
+	_log_stick = Vector2.ZERO
+	_is_log_focus_latched = false
+	_log_scroll_held = 0
+	_is_played_darkness = false
 	_session = null
 	_encounter = null
 	_danger = null
@@ -1094,9 +1176,9 @@ func step_back() -> bool:
 			_forecast_panel = null
 			_confirm_dialog = null
 			_show_current_target()
-		Stage.DETAIL:
+		Stage.DETAIL, Stage.EVENT_LOG:
 			_detail_panel = null
-			# Asks MOVE's hover preview again, which DETAIL dropped.
+			# Asks MOVE's hover preview again, which DETAIL and EVENT_LOG dropped.
 			move_cursor(_cursor)
 		Stage.DISCARD_CONFIRM:
 			_discard = null
@@ -1163,6 +1245,31 @@ func request_runes() -> bool:
 	rune_bar.focus_rune(_bar_rune_id)
 	_redraw()
 	return true
+
+
+## event_log_focus: from IDLE or MOVE focuses the event log on its header (EVENT_LOG); in EVENT_LOG
+## closes it, as cancel does. Returns false, doing nothing, elsewhere, while input isn't taken, or
+## with no log showing (unset, hidden or under a panel; collapsed still focuses its header).
+func request_event_log() -> bool:
+	if not is_accepting_input() or not _can_focus_log():
+		return false
+	if _stage == Stage.EVENT_LOG:
+		return step_back()
+	if _stage != Stage.IDLE and _stage != Stage.MOVE:
+		return false
+	_advance(Stage.EVENT_LOG)
+	_redraw()
+	return true
+
+
+## The scroll actions: moves the event log [param pages] pages down (up when negative), in any
+## stage while it shows ([method EventLog.is_shown]), playback included. Returns whether it moved.
+func scroll_event_log(pages: int) -> bool:
+	if _session == null or event_log == null or not event_log.is_shown():
+		return false
+	var before: int = event_log.get_scroll()
+	event_log.scroll_pages(pages)
+	return event_log.get_scroll() != before
 
 
 ## A held rune picked on the bar (a click, or accept in RUNE_SLOTS): opens the target picker on its
@@ -1250,7 +1357,7 @@ func rune_bar_reason() -> String:
 	match _stage:
 		Stage.IDLE, Stage.MOVE, Stage.RUNE_SLOTS:
 			return ""
-		Stage.END_CONFIRM, Stage.DETAIL:
+		Stage.END_CONFIRM, Stage.DETAIL, Stage.EVENT_LOG:
 			return RUNES_PANEL_OPEN
 	if _bar_origin != Stage.INACTIVE:
 		return RUNES_RUNE_BUSY
@@ -1281,7 +1388,8 @@ func _read_mouse(mouse: InputEventMouse) -> void:
 		# board; a panel's rows keep theirs.
 		if panel_host.depth() == 0:
 			get_viewport().gui_release_focus()
-		if button.button_index == MOUSE_BUTTON_LEFT and _stage == Stage.RUNE_SLOTS:
+		var is_focused_away: bool = _stage == Stage.RUNE_SLOTS or _stage == Stage.EVENT_LOG
+		if button.button_index == MOUSE_BUTTON_LEFT and is_focused_away:
 			step_back()
 		elif button.button_index == MOUSE_BUTTON_LEFT and _follows_mouse():
 			move_cursor(tile)
@@ -1312,10 +1420,18 @@ func _can_act_now(context: StringName, action: StringName) -> bool:
 			return unit_detail_scene != null and not detail_unit().is_empty()
 		&"open_runes":
 			return context == &"RUNE_SLOTS" or (rune_bar != null and rune_bar_reason().is_empty())
+		&"event_log_focus":
+			return _can_focus_log()
+		&"event_log_scroll_up", &"event_log_scroll_down":
+			return event_log != null and event_log.can_scroll()
 		&"ui_left", &"ui_right":
 			if context == &"RUNE_SLOTS":
 				return get_held_runes().size() > 1
+			if context == &"EVENT_LOG":
+				return event_log != null and event_log.get_focusables().size() > 1
 		&"ui_up", &"ui_down":
+			if context == &"EVENT_LOG":
+				return event_log != null and event_log.can_scroll()
 			if context == &"DETAIL":
 				return is_instance_valid(_detail_panel) and _detail_panel.can_scroll()
 			if context == &"RUNE":
@@ -1373,6 +1489,94 @@ func _refuse_runes(reason: String) -> void:
 func _show_message(text: String) -> void:
 	if message != null:
 		message.show_message(text)
+
+
+# Whether event_log_focus can focus or close the log: set, in the tree and under no panel.
+func _can_focus_log() -> bool:
+	return (
+			event_log != null
+			and event_log.is_visible_in_tree()
+			and not event_log.is_covered()
+	)
+
+
+# The event log's actions, in any stage (see the input block); true when event was one of them.
+# Their stick motion goes to _read_log_stick(), so a push counts once, not per motion event.
+func _take_log_input(event: InputEvent) -> bool:
+	var actions: Array[StringName] = [
+		&"event_log_focus", &"event_log_scroll_up", &"event_log_scroll_down",
+	]
+	var motion: InputEventJoypadMotion = event as InputEventJoypadMotion
+	if motion != null:
+		for action: StringName in actions:
+			if motion.is_action(action):
+				_read_log_stick(motion, action == &"event_log_focus")
+				return true
+		return false
+	if event.is_action_pressed(&"event_log_scroll_up", true):
+		scroll_event_log(-1)
+		return true
+	if event.is_action_pressed(&"event_log_scroll_down", true):
+		scroll_event_log(1)
+		return true
+	if event.is_action_pressed(&"event_log_focus"):
+		request_event_log()
+		return true
+	return false
+
+
+# The stick's push on one axis: sideways (is_focus) focuses or closes the log once per push while
+# it is past the deadzone and larger than the vertical push; up or down, while the larger, scrolls
+# a page and repeats as pad_repeat's directions do (_repeat_log_scroll()).
+func _read_log_stick(motion: InputEventJoypadMotion, is_focus: bool) -> void:
+	var deadzone: float = InputMap.action_get_deadzone(&"event_log_focus")
+	if is_focus:
+		_log_stick.x = motion.axis_value
+	else:
+		_log_stick.y = motion.axis_value
+	var across: float = absf(_log_stick.x)
+	var along: float = absf(_log_stick.y)
+	if across < deadzone:
+		_is_log_focus_latched = false
+	elif across > along and not _is_log_focus_latched:
+		_is_log_focus_latched = true
+		request_event_log()
+	var held: int = 0
+	if along >= deadzone and along >= across:
+		held = 1 if _log_stick.y > 0.0 else -1
+	if held == _log_scroll_held:
+		return
+	_log_scroll_held = held
+	if held != 0:
+		_log_scroll_left = pad_repeat.first_delay if is_instance_valid(pad_repeat) else INF
+		scroll_event_log(held)
+
+
+# Repeats the held stick's page scroll at pad_repeat's interval; never without a pad_repeat.
+func _repeat_log_scroll(delta: float) -> void:
+	if _log_scroll_held == 0 or not is_instance_valid(pad_repeat):
+		return
+	_log_scroll_left -= delta
+	if _log_scroll_left > 0.0:
+		return
+	_log_scroll_left = pad_repeat.repeat_interval
+	scroll_event_log(_log_scroll_held)
+
+
+# EVENT_LOG's up and down, before the GUI's focus moves: a line each, a key by its echo, a pad's
+# d-pad or stick through pad_repeat (its steps reach _on_pad_repeat_stepped()). True when event
+# was one, pressed or not, so the GUI never moves focus up or down out of the log.
+func _take_log_arrow(event: InputEvent) -> bool:
+	if not event.is_action(&"ui_up") and not event.is_action(&"ui_down"):
+		return false
+	var is_pad: bool = event is InputEventJoypadButton or event is InputEventJoypadMotion
+	if is_pad and is_instance_valid(pad_repeat):
+		pad_repeat.take(event)
+	elif event.is_action_pressed(&"ui_up", true):
+		event_log.scroll_lines(-1)
+	elif event.is_action_pressed(&"ui_down", true):
+		event_log.scroll_lines(1)
+	return true
 
 
 func _follows_mouse() -> bool:
@@ -1949,7 +2153,7 @@ func _redraw() -> void:
 				support.show_tiles(tiles)
 			else:
 				attack.show_tiles(tiles)
-		Stage.END_CONFIRM, Stage.DETAIL, Stage.RUNE_SLOTS, Stage.DISCARD_CONFIRM:
+		Stage.END_CONFIRM, Stage.DETAIL, Stage.RUNE_SLOTS, Stage.DISCARD_CONFIRM, Stage.EVENT_LOG:
 			if not _unit_id.is_empty():
 				move.show_tiles(_move_tiles)
 				attack.show_tiles(_attack_tiles)
@@ -2053,6 +2257,10 @@ func _refresh_widgets() -> void:
 	if rune_bar != null:
 		rune_bar.set_navigable(_stage == Stage.RUNE_SLOTS)
 		rune_bar.show_runes(get_held_runes(), rune_bar_reason())
+	if is_instance_valid(event_log):
+		# Every stage that opens a panel pushes it before its stage is set, so depth is current.
+		event_log.set_covered(panel_host.depth() > 0)
+		event_log.set_navigable(_stage == Stage.EVENT_LOG)
 	var is_swapping: bool = TurnInputModel.is_swapping(_session, _seat)
 	if swap_window != null:
 		swap_window.visible = is_swapping and not _session.is_finished
@@ -2068,6 +2276,7 @@ func _refresh_widgets() -> void:
 			and TurnInputModel.end_turn_command(_session, _seat) != null
 	)
 	turn_bar.show_status(_status_text())
+	turn_bar.show_darkness(_is_played_darkness)
 
 
 # The turn bar's status: the opening swap, the battle's end, the phase playing, else state's phase.
@@ -2217,6 +2426,7 @@ func _on_session_command_rejected(seat: int, _arrival: int, reason: String) -> v
 # which the session checks when it is sent.
 func _on_view_settled() -> void:
 	_played_status = ""
+	_is_played_darkness = false
 	if _is_waiting:
 		_after_playback()
 		return
@@ -2230,10 +2440,13 @@ func _on_view_settled() -> void:
 
 # The turn bar follows the phases as they play, so the enemy and darkness phases show on it.
 func _on_flow_phase_started(fact: CombatFact) -> void:
+	_is_played_darkness = false
 	_show_played_status(_phase_status(fact.amount, _side_name(fact.side)))
 
 
+# The darkness phase's status also takes the bar's darkness chip, until the next phase or settle.
 func _on_view_darkness_phase_started(turn: int) -> void:
+	_is_played_darkness = true
 	_show_played_status(_phase_status(turn, "darkness"))
 
 
@@ -2241,6 +2454,7 @@ func _show_played_status(status: String) -> void:
 	_played_status = status
 	if turn_bar != null and _session != null:
 		turn_bar.show_status(_status_text())
+		turn_bar.show_darkness(_is_played_darkness)
 
 
 # WALK's walk arrived: the action menu opens with MOVE, not WALK, as the stage Cancel returns to.
@@ -2275,5 +2489,15 @@ func _on_swap_window_start_pressed() -> void:
 # A held d-pad direction or stick push stepped, or repeated: moves the cursor as an arrow key
 # would, while input is taken.
 func _on_pad_repeat_stepped(direction: Vector2i) -> void:
-	if is_accepting_input():
-		_step_cursor(direction)
+	if not is_accepting_input():
+		return
+	if _stage == Stage.EVENT_LOG:
+		if direction.x == 0 and is_instance_valid(event_log):
+			event_log.scroll_lines(direction.y)
+		return
+	_step_cursor(direction)
+
+
+# Whether the log can scroll, or whether it shows, changed: its actions' hints follow.
+func _on_event_log_scroll_range_changed() -> void:
+	live_actions_changed.emit()

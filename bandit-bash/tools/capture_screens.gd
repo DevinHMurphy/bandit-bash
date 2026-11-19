@@ -14,7 +14,8 @@ extends SceneTree
 ## guide: base 1280×720, shown at 1920×1080 and the Steam Deck's 1280×800). Drives the real
 ## router through a new solo run: boot, start, save select, main menu, new run, options, lobby,
 ## loading, the campaign map, the battle (swap window, HUD with the unit panel and rune bar,
-## action menu, forecast, unit detail, runes, pause), Results (grades, XP, level-ups, the item
+## action menu, forecast, unit detail, runes, the event log after turns played into the first
+## darkness phase, pause), Results (grades, XP, level-ups, the item
 ## pick), placement, and the run's end. Each shot is [code]<out>/<size>/<nn>_<name>.png[/code].
 ## Each shot also lists visible text under [constant MIN_FONT_SIZE] base units and visible
 ## controls reaching outside the window, and the run ends with their count.[br]
@@ -54,7 +55,13 @@ const SETTLE_FRAMES: int = 20
 # Player phases the battle may wait through for a unit with an attack target.
 const TURNS_FOR_ATTACK: int = 4
 
+# Phases played for the event log's shot at most: past the M1 darkness's arrival (end of turn 4).
+const LOG_PHASES: int = 6
+
 var _out_dir: String = ""
+
+# Darkness phases played since the event log's phases began.
+var _darkness_phases: int = 0
 var _size: Vector2i = Vector2i(1280, 720)
 var _shot: int = 0
 var _issues: int = 0
@@ -160,6 +167,8 @@ func _battle() -> void:
 		controller.step_back()
 		await _frames(SETTLE_FRAMES)
 	await _attack(view, controller, session)
+	await _play_for_log(view, session)
+	await _capture("battle_event_log")
 	var pause: Node = current_scene.get_node(^"PauseMenu")
 	pause.call(&"open")
 	await _frames(SETTLE_FRAMES)
@@ -224,6 +233,39 @@ func _attack(view: BattleView, controller: BattleController, session: CombatSess
 	print("NOTE  no unit had an attack target within %d turns: no forecast shot" % [
 		TURNS_FOR_ATTACK,
 	])
+
+
+# Whole phases, each unit attacking where it can while more than one enemy stands (so the battle
+# goes on) and waiting elsewhere, until a darkness phase has played or LOG_PHASES pass: the event
+# log then holds lines of every group.
+func _play_for_log(view: BattleView, session: CombatSession) -> void:
+	_darkness_phases = 0
+	view.darkness_phase_started.connect(_on_view_darkness_phase_started)
+	for _phase: int in LOG_PHASES:
+		if session.is_finished or _darkness_phases > 0:
+			break
+		for unit_id: String in TurnInputModel.acting_units(session, 0):
+			var command: Command = UnitTurnCommand.new(0, unit_id, UnitTurnCommand.Action.WAIT)
+			var pick: Array = _find_attack(session)
+			var enemies: int = session.state.units_of(CombatFact.CombatSide.ENEMY).size()
+			if not pick.is_empty() and pick[0] == unit_id and enemies > 1:
+				var option: TurnInputModel.ActionOption = pick[2]
+				command = option.targets[0].command
+			session.submit(command)
+			session.resolve_next()
+			_settle(view)
+			if session.is_finished:
+				break
+		if not session.is_finished:
+			session.submit(EndTurnCommand.new(0))
+			session.resolve_next()
+		_settle(view)
+		await _frames(SETTLE_FRAMES)
+	view.darkness_phase_started.disconnect(_on_view_darkness_phase_started)
+
+
+func _on_view_darkness_phase_started(_turn: int) -> void:
+	_darkness_phases += 1
 
 
 func _find_attack(session: CombatSession) -> Array:

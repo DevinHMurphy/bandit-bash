@@ -243,8 +243,11 @@ func _start_route_case() -> bool:
 		BattleViewCases.settle(view)
 	var end_turn: Button = controller.turn_bar.get_end_turn_button()
 	var hints: ControlHintBar = screen.get_node(^"%ControlHintBar")
-	# What the hints showed while the battle's final playback ran, and once it settled.
+	# What the hints showed while the battle's final playback ran, and once it settled; whether the
+	# event log could scroll then, which decides if its scroll actions were live.
 	var final_hints: PackedStringArray = []
+	var event_log: EventLog = (screen.call(&"get_hud") as BattleHud).get_event_log()
+	var could_scroll: bool = false
 	for _phase: int in MAX_PHASES:
 		if session.is_finished:
 			break
@@ -258,6 +261,7 @@ func _start_route_case() -> bool:
 			question.get_confirm_button().pressed.emit()
 		if session.is_finished:
 			hints.refresh()
+			could_scroll = event_log.can_scroll()
 			final_hints.append("%s %s %s" % [
 				hints.get_context(), hints.visible, hints.get_shown_actions(),
 			])
@@ -273,6 +277,9 @@ func _start_route_case() -> bool:
 	playing_actions.erase(&"toggle_danger_zone")
 	if not OS.is_debug_build():
 		playing_actions.erase(&"toggle_save_debug")
+	if not could_scroll:
+		playing_actions.erase(&"event_log_scroll_up")
+		playing_actions.erase(&"event_log_scroll_down")
 	_check("screen: the hints show PLAYBACK through the final playback, then hide at the banner", (
 			final_hints == PackedStringArray([
 				"PLAYBACK true %s" % [playing_actions], " false",

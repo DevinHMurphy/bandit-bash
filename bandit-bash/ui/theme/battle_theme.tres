@@ -201,6 +201,163 @@ border_width_right = 2
 border_width_bottom = 2
 border_color = Color(1, 1, 1, 1)
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_elpnl"]
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+bg_color = Color(0.16470589, 0.1882353, 0.21960784, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.2901961, 0.33333334, 0.3764706, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+shadow_color = Color(0.078431375, 0.09019608, 0.10980392, 0.5)
+shadow_size = 4
+shadow_offset = Vector2(0, 4)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_elfof"]
+content_margin_left = 4.0
+content_margin_top = 4.0
+content_margin_right = 4.0
+content_margin_bottom = 4.0
+bg_color = Color(0.16470589, 0.1882353, 0.21960784, 0)
+draw_center = false
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.2901961, 0.33333334, 0.3764706, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_elfon"]
+content_margin_left = 4.0
+content_margin_top = 4.0
+content_margin_right = 4.0
+content_margin_bottom = 4.0
+bg_color = Color(0.22745098, 0.2627451, 0.3019608, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.2901961, 0.33333334, 0.3764706, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_elfoc"]
+content_margin_left = 4.0
+content_margin_top = 4.0
+content_margin_right = 4.0
+content_margin_bottom = 4.0
+bg_color = Color(0, 0, 0, 0)
+draw_center = false
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.8509804, 0.7058824, 0.3529412, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_eltgn"]
+content_margin_left = 12.0
+content_margin_top = 4.0
+content_margin_right = 12.0
+content_margin_bottom = 4.0
+bg_color = Color(0.16470589, 0.1882353, 0.21960784, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.2901961, 0.33333334, 0.3764706, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_eltgh"]
+content_margin_left = 12.0
+content_margin_top = 4.0
+content_margin_right = 12.0
+content_margin_bottom = 4.0
+bg_color = Color(0.22745098, 0.2627451, 0.3019608, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.2901961, 0.33333334, 0.3764706, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_eltgf"]
+content_margin_left = 12.0
+content_margin_top = 4.0
+content_margin_right = 12.0
+content_margin_bottom = 4.0
+bg_color = Color(0.22745098, 0.2627451, 0.3019608, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.8509804, 0.7058824, 0.3529412, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_elhdr"]
+content_margin_left = 4.0
+content_margin_top = 4.0
+content_margin_right = 4.0
+content_margin_bottom = 4.0
+bg_color = Color(0.16470589, 0.1882353, 0.21960784, 0)
+draw_center = false
+border_width_bottom = 1
+border_color = Color(0.2901961, 0.33333334, 0.3764706, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dkrow"]
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+bg_color = Color(0.41960785, 0.30980393, 0.627451, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dkban"]
+content_margin_left = 12.0
+content_margin_top = 12.0
+content_margin_right = 12.0
+content_margin_bottom = 12.0
+bg_color = Color(0.41960785, 0.30980393, 0.627451, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.2901961, 0.33333334, 0.3764706, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+shadow_color = Color(0.078431375, 0.09019608, 0.10980392, 0.5)
+shadow_size = 4
+shadow_offset = Vector2(0, 4)
+
 [resource]
 BlockBadge/base_type = &"Panel"
 BlockBadge/styles/panel = SubResource("StyleBoxFlat_ar74w")
@@ -212,6 +369,45 @@ BlockBanMarkLabel/colors/font_color = Color(0.78431374, 0.27450982, 0.23529412, 
 BlockBanMarkLabel/colors/font_outline_color = Color(0.078431375, 0.09019608, 0.10980392, 1)
 BlockBanMarkLabel/constants/outline_size = 3
 BlockBanMarkLabel/font_sizes/font_size = 14
+DarknessBannerPanel/base_type = &"PanelContainer"
+DarknessBannerPanel/styles/panel = SubResource("StyleBoxFlat_dkban")
+DarknessRowPanel/base_type = &"PanelContainer"
+DarknessRowPanel/styles/panel = SubResource("StyleBoxFlat_dkrow")
+EventLogDarknessLabel/base_type = &"Label"
+EventLogDarknessLabel/colors/font_color = Color(0.9098039, 0.8862745, 0.83137256, 1)
+EventLogDarknessLabel/font_sizes/font_size = 14
+EventLogDarknessLabel/fonts/font = SubResource("FontVariation_lma5b")
+EventLogFilter/base_type = &"Button"
+EventLogFilter/colors/font_color = Color(0.6509804, 0.6862745, 0.7254902, 1)
+EventLogFilter/colors/font_focus_color = Color(0.6509804, 0.6862745, 0.7254902, 1)
+EventLogFilter/colors/font_hover_color = Color(0.9098039, 0.8862745, 0.83137256, 1)
+EventLogFilter/colors/font_hover_pressed_color = Color(0.9098039, 0.8862745, 0.83137256, 1)
+EventLogFilter/colors/font_pressed_color = Color(0.9098039, 0.8862745, 0.83137256, 1)
+EventLogFilter/font_sizes/font_size = 14
+EventLogFilter/styles/focus = SubResource("StyleBoxFlat_elfoc")
+EventLogFilter/styles/hover = SubResource("StyleBoxFlat_elfon")
+EventLogFilter/styles/hover_pressed = SubResource("StyleBoxFlat_elfon")
+EventLogFilter/styles/normal = SubResource("StyleBoxFlat_elfof")
+EventLogFilter/styles/pressed = SubResource("StyleBoxFlat_elfon")
+EventLogHeaderLabel/base_type = &"Label"
+EventLogHeaderLabel/colors/font_color = Color(0.8509804, 0.7058824, 0.3529412, 1)
+EventLogHeaderLabel/font_sizes/font_size = 14
+EventLogHeaderLabel/fonts/font = SubResource("FontVariation_lma5b")
+EventLogHeaderPanel/base_type = &"PanelContainer"
+EventLogHeaderPanel/styles/panel = SubResource("StyleBoxFlat_elhdr")
+EventLogPanel/base_type = &"PanelContainer"
+EventLogPanel/styles/panel = SubResource("StyleBoxFlat_elpnl")
+EventLogText/base_type = &"RichTextLabel"
+EventLogText/colors/default_color = Color(0.9098039, 0.8862745, 0.83137256, 1)
+EventLogText/font_sizes/bold_font_size = 14
+EventLogText/font_sizes/normal_font_size = 14
+EventLogToggle/base_type = &"Button"
+EventLogToggle/font_sizes/font_size = 14
+EventLogToggle/styles/focus = SubResource("StyleBoxFlat_eltgf")
+EventLogToggle/styles/hover = SubResource("StyleBoxFlat_eltgh")
+EventLogToggle/styles/hover_pressed = SubResource("StyleBoxFlat_eltgh")
+EventLogToggle/styles/normal = SubResource("StyleBoxFlat_eltgn")
+EventLogToggle/styles/pressed = SubResource("StyleBoxFlat_eltgh")
 DamageNumberBlockLabel/base_type = &"Label"
 DamageNumberBlockLabel/colors/font_color = Color(0.9098039, 0.8862745, 0.83137256, 1)
 DamageNumberBlockLabel/colors/font_outline_color = Color(0.078431375, 0.09019608, 0.10980392, 1)

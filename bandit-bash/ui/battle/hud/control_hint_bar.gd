@@ -135,7 +135,7 @@ const UNBOUND_KEY: String = "(unbound)"
 
 # ASSUMPTION: the labels beyond the plan's examples (Danger zone, End turn, Target, Weapon, Fast,
 # Skip, Debug) have no basis: Move, Select, Back, Pause, Resume, Start, Units, Choose, Confirm,
-# Pick, Swap, Pick tile, Info, Scroll, Close, Runes, Discard.
+# Pick, Swap, Pick tile, Info, Scroll, Close, Runes, Discard, Log, Scroll log, Toggle.
 ## What each action does, by action name, or by [code]CONTEXT/action[/code] where a context
 ## ([method HintSource.get_hint_context]) gives it another meaning; the context's key wins.
 ## [b]Missing:[/b] the action's own name shows.
@@ -154,6 +154,9 @@ const UNBOUND_KEY: String = "(unbound)"
 	"toggle_save_debug": "Debug",
 	"unit_detail": "Info",
 	"open_runes": "Runes",
+	"event_log_focus": "Log",
+	"event_log_scroll_up": "Scroll log",
+	"event_log_scroll_down": "Scroll log",
 	"target_prev": "Target",
 	"target_next": "Target",
 	"SWAP/ui_accept": "Pick",
@@ -205,6 +208,13 @@ const UNBOUND_KEY: String = "(unbound)"
 	"DISCARD_CONFIRM/ui_left": "Choose",
 	"DISCARD_CONFIRM/ui_right": "Choose",
 	"DISCARD_CONFIRM/ui_accept": "Confirm",
+	"EVENT_LOG/ui_up": "Scroll",
+	"EVENT_LOG/ui_down": "Scroll",
+	"EVENT_LOG/ui_left": "Choose",
+	"EVENT_LOG/ui_right": "Choose",
+	"EVENT_LOG/ui_accept": "Toggle",
+	"EVENT_LOG/ui_cancel": "Close",
+	"EVENT_LOG/event_log_focus": "Close",
 }
 
 @export_group("")

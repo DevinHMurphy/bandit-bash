@@ -1,0 +1,50 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/battle/hud/event_log/event_log_filter_row.gd" id="1_row"]
+
+[node name="EventLogFilterRow" type="HBoxContainer"]
+script = ExtResource("1_row")
+
+[node name="Combat" type="Button" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+theme_type_variation = &"EventLogFilter"
+toggle_mode = true
+button_pressed = true
+text = "Combat"
+
+[node name="Movement" type="Button" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+theme_type_variation = &"EventLogFilter"
+toggle_mode = true
+button_pressed = true
+text = "Movement"
+
+[node name="Events" type="Button" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+theme_type_variation = &"EventLogFilter"
+toggle_mode = true
+button_pressed = true
+text = "Events"
+
+[node name="Effects" type="Button" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+theme_type_variation = &"EventLogFilter"
+toggle_mode = true
+button_pressed = true
+text = "Effects"

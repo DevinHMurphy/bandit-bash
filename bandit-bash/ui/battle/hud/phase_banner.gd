@@ -19,9 +19,14 @@ extends PanelContainer
 ## [method show_darkness] as a darkness phase that does anything begins. Like Godot_FE's, it holds
 ## nothing up: playback goes on under it. [BattleScreen] calls [method show_result] once the battle
 ## has ended and settled. A new banner replaces one still showing. Its fade runs on the scene
-## tree, so it pauses with the pause menu and ignores fast-forward.
+## tree, so it pauses with the pause menu and ignores fast-forward.[br]
+## The darkness banner is [code]text[/code] on a [code]darkness[/code]-filled panel (5.00:1), as
+## [code]darkness[/code] text on [code]panel[/code] fails contrast (2.06:1, RF-017).
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
+
+# The panel's theme type for the darkness banner; every other banner uses the plain panel.
+const _DARKNESS_PANEL: StringName = &"DarknessBannerPanel"
 
 ## The player phase's text.
 @export var player_text: String = "Player Phase"
@@ -49,8 +54,9 @@ extends PanelContainer
 ## [code]danger[/code] token.
 @export var enemy_color: Color = UiTokens.color(UiTokens.DANGER)
 
-## The darkness phase's text colour. Defaults to the [code]darkness[/code] token.
-@export var darkness_color: Color = UiTokens.color(UiTokens.DARKNESS)
+## The darkness phase's text colour, drawn on the [code]DarknessBannerPanel[/code] fill. Defaults
+## to the [code]text[/code] token (5.00:1 on the [code]darkness[/code] fill).
+@export var darkness_color: Color = UiTokens.color(UiTokens.TEXT)
 
 ## How long the banner takes to fade in (Godot_FE's [code]new_turn[/code] animation: 1.0 of its
 ## 2.0 s).[br]
@@ -79,6 +85,7 @@ func show_phase(side: CombatFact.CombatSide, turn: int) -> void:
 	if not is_player and side != CombatFact.CombatSide.ENEMY:
 		return
 	var turn_line: String = turn_format % [turn] if is_player and not turn_format.is_empty() else ""
+	theme_type_variation = &""
 	_fade_through(
 			player_text if is_player else enemy_text,
 			player_color if is_player else enemy_color,
@@ -86,15 +93,17 @@ func show_phase(side: CombatFact.CombatSide, turn: int) -> void:
 	)
 
 
-## Shows the darkness phase's banner, [member darkness_text] in [member darkness_color], fading in
-## and out as a side's does.
+## Shows the darkness phase's banner, [member darkness_text] in [member darkness_color] on the
+## darkness-filled panel, fading in and out as a side's does.
 func show_darkness() -> void:
+	theme_type_variation = _DARKNESS_PANEL
 	_fade_through(darkness_text, darkness_color, "")
 
 
 ## Shows the battle's end: [member victory_text] when [param is_won], else [member defeat_text].
 ## It fades in over [member fade_in_time] and stays until hidden or replaced.
 func show_result(is_won: bool) -> void:
+	theme_type_variation = &""
 	_text.text = victory_text if is_won else defeat_text
 	_text.add_theme_color_override(&"font_color", player_color if is_won else enemy_color)
 	_turn.text = ""

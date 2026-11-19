@@ -13,8 +13,8 @@ extends RefCounted
 ## The HUD's cases for the ui/display suite (combat UI plan, UI5 row): the tile info and the unit
 ## panel against state and [method CombatSession.stats]; the turn counter and its colour past par;
 ## a banner per phase change, the darkness phase's included, and the turn bar naming each; the
-## darkness banner's text and colour; the objective's text; the darkness counter against
-## [method Darkness.source_counters] before and after arrival; the fact log against
+## darkness banner's text on its darkness-filled panel; the objective's text; the darkness
+## counter against [method Darkness.source_counters] before and after arrival; the fact log against
 ## [method CombatSession.describe_batch]; target labels by name; the panel area clear of the turn
 ## bar and the map; and Use, listed exactly where the validator accepts it and sending the command
 ## it accepted. No autoload is named or needed.
@@ -44,6 +44,7 @@ const FORECAST_SCENE: PackedScene = preload("res://ui/battle/forecast/forecast_p
 const HUD_SCENE: PackedScene = preload("res://ui/battle/hud/battle_hud.tscn")
 const TURN_COUNTER_SCENE: PackedScene = preload("res://ui/battle/hud/turn_counter.tscn")
 const BANNER_SCENE: PackedScene = preload("res://ui/battle/hud/phase_banner.tscn")
+const ThemeCases = preload("res://tests/ui/theme/theme_cases.gd")
 
 # turn_input_cases.gd's seed: no case compares golden numbers.
 const SEED: int = 0x0C0FFEE
@@ -271,8 +272,9 @@ func _test_turns_and_darkness() -> void:
 	rig.close()
 
 
-# The banner on its own: the darkness phase's shows darkness_text in ui-style.md's darkness colour,
-# with no turn line, and fades out as a side's does.
+# The banner on its own: the darkness phase's shows darkness_text in the text token on a panel
+# filled with the darkness token (#6b4fa0), 4.5:1 or more, with no turn line; a side's banner
+# after it is back on the plain panel.
 func _test_darkness_banner() -> void:
 	var banner: PhaseBanner = BANNER_SCENE.instantiate()
 	_root.add_child(banner)
@@ -281,14 +283,25 @@ func _test_darkness_banner() -> void:
 	var text_label: Label = banner.get_node(^"%Text")
 	var turn_label: Label = banner.get_node(^"%TurnLine")
 	var color: Color = text_label.get_theme_color(&"font_color")
-	_check.call("darkness banner: 'Darkness' in #6b4fa0, no turn line, shown", (
+	var fill: Color = (banner.get_theme_stylebox(&"panel") as StyleBoxFlat).bg_color
+	var ratio: float = ThemeCases.contrast(color, fill)
+	_check.call("darkness banner: 'Darkness' in text on a #6b4fa0 panel (%.2f:1), no turn line" % [
+		ratio,
+	], (
 			texts[0] == "Darkness"
-			and color == Color("#6b4fa0")
+			and color == UiTokens.color(UiTokens.TEXT)
 			and color == banner.darkness_color
+			and fill == Color("#6b4fa0")
+			and ratio >= ThemeCases.MIN_CONTRAST
 			and not turn_label.visible
 			and banner.visible
 			and banner.get_shown_count() == 1
-	), "%s, %s" % [texts, color])
+	), "%s, %s on %s" % [texts, color, fill])
+	banner.show_phase(PLAYER, 2)
+	var side_fill: Color = (banner.get_theme_stylebox(&"panel") as StyleBoxFlat).bg_color
+	_check.call("darkness banner: the next side's banner is on the plain panel again", (
+			side_fill == UiTokens.color(UiTokens.PANEL)
+	), str(side_fill))
 	banner.free()
 
 
@@ -400,6 +413,7 @@ func _test_panel_area() -> void:
 		"panel area": area,
 		"left column": left.get_global_rect(),
 		"phase banner": rig.hud.get_phase_banner().get_global_rect(),
+		"event log": rig.hud.get_event_log().get_global_rect(),
 		"turn bar": bar,
 		"swap window": rig.h.swap.get_global_rect(),
 		"message": rig.h.message.get_global_rect(),

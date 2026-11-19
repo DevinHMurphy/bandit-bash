@@ -18,7 +18,9 @@ extends RefCounted
 ## reaches, by the actions' keys, then again by their joypad bindings with the bar drawing the Xbox
 ## family, with a third walking the rune bar (RUNE_SLOTS, DISCARD_CONFIRM), the rune menu (RUNE)
 ## and Recall's second pick
-## (PAIR_TARGET); and the hints left out while they can do nothing (one target, one weapon).[br]
+## (PAIR_TARGET); and the hints left out while they can do nothing (one target, one weapon). Each
+## rig has an [EventLog] long enough to scroll, so its scroll actions act wherever it shows, and
+## the turn walk focuses it (EVENT_LOG).[br]
 ## [b]The pad walk[/b] presses each action's first joypad event (a button, or an axis pushed and
 ## let back) where the key walk sends the action, through a [PadRepeat] on the controller; and in
 ## every context with a panel or the pause menu open it presses the d-pad every way, checking
@@ -61,6 +63,10 @@ const HUD_SCENE: PackedScene = preload("res://ui/battle/hud/battle_hud.tscn")
 const PAD_REPEAT_SCENE: PackedScene = preload("res://ui/battle/input/pad_repeat.tscn")
 const ADAPTER_SCENE: PackedScene = preload("res://ui/battle/input/input_device_adapter.tscn")
 const DETAIL_SCENE: PackedScene = preload("res://ui/battle/unit/unit_detail_panel.tscn")
+const EVENT_LOG_SCENE: PackedScene = preload("res://ui/battle/hud/event_log/event_log.tscn")
+
+# Lines the rig's event log starts with, so it can scroll in every context it shows in.
+const LOG_FILLER_LINES: int = 60
 
 # The Input Helper addon's autoload, which the pad walk's adapter listens to.
 const HELPER_PATH: NodePath = ^"/root/InputHelper"
@@ -96,10 +102,14 @@ const OPPOSITE: Dictionary[StringName, StringName] = {
 	&"ui_right": &"ui_left",
 	&"target_next": &"target_prev",
 	&"target_prev": &"target_next",
+	&"event_log_scroll_up": &"event_log_scroll_down",
+	&"event_log_scroll_down": &"event_log_scroll_up",
 }
 
 # Actions a second press undoes.
-const TOGGLES: Array[StringName] = [&"toggle_danger_zone", &"toggle_save_debug"]
+const TOGGLES: Array[StringName] = [
+	&"toggle_danger_zone", &"toggle_save_debug", &"event_log_focus",
+]
 
 # Actions with no pad binding: the pad walk can't press them, and the bar leaves them out on a pad.
 const KEYBOARD_ONLY: Array[StringName] = [&"toggle_save_debug"]
@@ -505,6 +515,15 @@ func _test_turn() -> void:
 	_expect_acts(rig, &"end_turn", &"END_CONFIRM")
 	_expect_context(rig, &"END_CONFIRM")
 	_expect_acts(rig, &"ui_cancel", &"IDLE")
+	# The event log: focused by event_log_focus, its header collapsing and opening it by accept,
+	# closed by Back and by event_log_focus.
+	_expect_acts(rig, &"event_log_focus", &"EVENT_LOG")
+	_expect_context(rig, &"EVENT_LOG")
+	_expect_acts(rig, &"ui_accept", &"EVENT_LOG")
+	_expect_acts(rig, &"ui_accept", &"EVENT_LOG")
+	_expect_acts(rig, &"ui_cancel", &"IDLE")
+	_expect_acts(rig, &"event_log_focus", &"EVENT_LOG")
+	_expect_acts(rig, &"event_log_focus", &"IDLE")
 	# Unit detail: opened by unit_detail on the unit, closed by Back, by unit_detail and by accept
 	# on its Close.
 	_expect_acts(rig, &"unit_detail", &"DETAIL")
@@ -934,6 +953,9 @@ func _snapshot(rig: Rig) -> String:
 		"paused %s" % [_root.get_tree().paused],
 		"debug %s" % [is_instance_valid(rig.debug) and rig.debug.visible],
 		"sent %d" % [h.batches.size()],
+		"log %s" % ["-" if rig.log == null else "%d %s %s" % [
+			rig.log.get_scroll(), rig.log.is_open(), rig.log.get_filter_row().get_shown_mask(),
+		]],
 	]
 	return ", ".join(parts)
 
@@ -1069,6 +1091,9 @@ func _rig() -> Rig:
 	var repeat: PadRepeat = PAD_REPEAT_SCENE.instantiate()
 	h.controller.add_child(repeat)
 	h.controller.pad_repeat = repeat
+	rig.log = EVENT_LOG_SCENE.instantiate()
+	h.hud.add_child(rig.log)
+	h.controller.event_log = rig.log
 	_root.add_child(h.controller)
 	rig.bar = HINT_BAR_SCENE.instantiate()
 	rig.bar.controller = h.controller
@@ -1080,6 +1105,12 @@ func _rig() -> Rig:
 	rig.pause = (load(PAUSE_MENU_SCENE) as PackedScene).instantiate()
 	_root.add_child(rig.pause)
 	h.view.bind(h.session)
+	rig.log.bind(h.session)
+	for i: int in LOG_FILLER_LINES:
+		var filler: EventLogWriter.Entry = EventLogWriter.Entry.new()
+		filler.id = 1000000 + i
+		filler.group = EventLogWriter.Group.EVENTS
+		rig.log.add_entry(filler.add("Filler line %d" % [i]))
 	h.controller.bind(h.battle, h.session, 0)
 	h.session.batch_resolved.connect(h.record)
 	rig.h = h
@@ -1227,6 +1258,8 @@ class Rig:
 	var debug: Control = null
 	## The pause menu, which Esc opens and closes.
 	var pause: Node = null
+	## The event log, which EVENT_LOG focuses and the scroll actions move.
+	var log: EventLog = null
 
 	## Frees the nodes, unpausing, and closes the run.
 	func close() -> void:
