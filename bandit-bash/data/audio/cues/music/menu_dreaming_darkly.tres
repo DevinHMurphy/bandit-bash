@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="AudioCue" format=3]
+
+[ext_resource type="Script" path="res://scripts/audio/audio_cue.gd" id="1_p2236"]
+[ext_resource type="AudioStream" path="res://assets/audio/music/Menu_-_Dreaming_Darkly.ogg" id="2_cki6k"]
+
+[resource]
+script = ExtResource("1_p2236")
+id = &"menu_dreaming_darkly"
+streams = Array[AudioStream]([ExtResource("2_cki6k")])
+bus = 2
+voice_limit = 1

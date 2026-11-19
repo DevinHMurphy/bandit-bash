@@ -131,6 +131,7 @@ func _open(encounter: CombatEncounter, seat: int) -> void:
 	_controller.run_units = _run_units_of(seat)
 	_hud.bind(_session, _controller, _view)
 	_hud.bind_heirlooms(CampaignService.session, seat)
+	AudioService.follow_battle(_session)
 	if _is_resumed:
 		_hud.get_event_log().add_resumed_line()
 	# The unit panel's Details button is the mouse's way to unit detail; the controller decides.

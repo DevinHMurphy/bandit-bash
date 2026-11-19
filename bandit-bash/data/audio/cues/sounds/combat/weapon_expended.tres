@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="AudioCue" format=3]
+
+[ext_resource type="Script" path="res://scripts/audio/audio_cue.gd" id="1_k3odh"]
+[ext_resource type="AudioStream" path="res://assets/audio/sounds/combat/weapon_expended.ogg" id="2_hasl0"]
+
+[resource]
+script = ExtResource("1_k3odh")
+id = &"weapon_expended"
+streams = Array[AudioStream]([ExtResource("2_hasl0")])

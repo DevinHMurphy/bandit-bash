@@ -89,10 +89,11 @@ const PARENT_KINDS: Dictionary[Kind, Kind] = {
 	Kind.CURSE: Kind.HEIRLOOM,
 }
 
-# Folders under DATA_ROOT that hold rules data, not content definitions, so the walk skips them.
-# The campaign plan puts the map rules in data/campaign/, and they have no id or kind.
+# Folders under DATA_ROOT that hold rules or audio data, not content definitions, so the walk
+# skips them. The campaign plan puts the map rules in data/campaign/, with no id or kind; sound
+# cues and their maps in data/audio/ are presentation, loaded by AudioCueCatalog.
 # tests/content/catalog_cases.gd skips the same folders when it counts files.
-const _RULES_FOLDERS: PackedStringArray = ["res://data/campaign/"]
+const _RULES_FOLDERS: PackedStringArray = ["res://data/campaign/", "res://data/audio/"]
 
 # The catalog of DATA_ROOT once loaded; null until then.
 static var _index: Index = null

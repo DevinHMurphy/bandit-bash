@@ -6,7 +6,7 @@
 # File:     settings_data.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: November 7, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name SettingsData
@@ -18,13 +18,12 @@ extends RefCounted
 ## are clamped, and a value of the wrong type falls back to its default.[br]
 ## Volumes keep the old build's 0-10 scale and dB mapping
 ## ([code]Godot_FE/options/options_config.gd[/code]), except that SFX now reads
-## [member sfx_volume]; the old build read the music volume for SFX.[br]
+## [member sfx_volume]; the old build read the music volume for SFX. [method apply] sets them on
+## the audio buses ([code]res://data/audio/bus_layout.tres[/code]); the UI bus follows SFX.[br]
 ## [member is_opening_swap_on] is the opening-swap setting (combat core plan, question 17): a solo
 ## battle reads it when it begins.
 ##
 ## @tutorial(Save system design): docs/design/save-system.md
-##
-## @todo: TOD-001 - Apply volumes to audio buses in [method apply] once an audio system exists.
 
 ## A volume setting.
 enum Channel {
@@ -118,11 +117,14 @@ func get_volume_db(channel: Channel) -> float:
 	return float(level) + _OFFSET_DB[channel]
 
 
-## Applies these settings to the game. A stub: there is no audio system yet, and the opening swap
-## is read when a battle begins.
+## Applies these settings to the game: each channel's [method get_volume_db] on its audio buses
+## (Master, Music, and SFX with UI), a channel at 0 also muted. The opening swap is read when a
+## battle begins instead. A bus missing from the layout is reported.
 func apply() -> void:
-	# TODO(TOD-001): Set each audio bus to get_volume_db() once the audio system adds the buses.
-	pass
+	_apply_bus(AudioCue.MASTER_BUS_NAME, Channel.MASTER)
+	_apply_bus(AudioCue.MUSIC_BUS_NAME, Channel.MUSIC)
+	_apply_bus(AudioCue.SFX_BUS_NAME, Channel.SFX)
+	_apply_bus(AudioCue.UI_BUS_NAME, Channel.SFX)
 
 
 ## Returns an independent copy, for screens that edit settings before applying them.
@@ -159,6 +161,16 @@ func load_envelope(envelope: Dictionary) -> Error:
 		set_volume(channel, _read_volume(core.get(_KEYS[channel])))
 	is_opening_swap_on = _read_bool(core.get(OPENING_SWAP_KEY), DEFAULT_OPENING_SWAP)
 	return OK
+
+
+# Sets bus bus_name to channel's volume, muted at 0 (the old build muted Master with the flag too).
+func _apply_bus(bus_name: StringName, channel: Channel) -> void:
+	var index: int = AudioServer.get_bus_index(bus_name)
+	if index < 0:
+		push_error("SettingsData: no audio bus %s" % [bus_name])
+		return
+	AudioServer.set_bus_volume_db(index, get_volume_db(channel))
+	AudioServer.set_bus_mute(index, get_volume(channel) == MIN_VOLUME)
 
 
 # Fractional values round to the nearest step; anything that isn't a number is the default.

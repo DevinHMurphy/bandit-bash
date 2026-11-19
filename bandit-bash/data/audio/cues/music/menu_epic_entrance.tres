@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="AudioCue" format=3]
+
+[ext_resource type="Script" path="res://scripts/audio/audio_cue.gd" id="1_g6hr1"]
+[ext_resource type="AudioStream" path="res://assets/audio/music/Menu_-_Epic_Entrance.ogg" id="2_evy5l"]
+
+[resource]
+script = ExtResource("1_g6hr1")
+id = &"menu_epic_entrance"
+streams = Array[AudioStream]([ExtResource("2_evy5l")])
+bus = 2
+voice_limit = 1

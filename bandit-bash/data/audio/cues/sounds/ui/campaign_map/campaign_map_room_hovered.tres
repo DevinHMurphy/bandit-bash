@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="AudioCue" format=3]
+
+[ext_resource type="Script" path="res://scripts/audio/audio_cue.gd" id="1_1lmxh"]
+[ext_resource type="AudioStream" path="res://assets/audio/sounds/ui/campaign_map/campaign_map_room_hovered.ogg" id="2_tpssk"]
+
+[resource]
+script = ExtResource("1_1lmxh")
+id = &"campaign_map_room_hovered"
+streams = Array[AudioStream]([ExtResource("2_tpssk")])
+bus = 1
+voice_limit = 2

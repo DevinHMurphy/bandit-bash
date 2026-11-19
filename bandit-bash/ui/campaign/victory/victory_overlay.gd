@@ -85,6 +85,12 @@ const BACKDROP_ALPHA: float = 0.85
 ## [b]Units:[/b] seconds, not scaled by playback speed.
 const STAGE_FADE_TIME: float = 0.25
 
+# The Grade stage's gold, and each level-up card (Godot_FE's reward and level-up panels).
+# NOTE: the level-up sounds here because nothing plays CampaignBus facts yet; once something does,
+# data/audio/maps/campaign_facts.tres sounds LEVELED_UP and this one goes.
+const _GOLD_CUE: StringName = &"gold_rewarded"
+const _LEVEL_UP_CUE: StringName = &"level_up"
+
 ## How fast the XP fills play: 1.0 is the bar's own timing, 2.0 twice as fast. The battle screen
 ## sets it to its board's [member BattleView.playback_speed].[br]
 ## [b]Units:[/b] times real time.
@@ -248,6 +254,7 @@ func _enter(stage: Stage) -> void:
 			_grade_stage.show_grades(_model)
 			_show_stage(_grade_stage)
 			_set_primary("Continue")
+			Sound.play(_GOLD_CUE)
 		Stage.RECAP_FILLING, Stage.RECAP_LEVEL_UPS, Stage.RECAP_DONE:
 			_ribbon_label.text = "Battle report"
 			_show_stage(_recap_stage)
@@ -327,6 +334,7 @@ func _begin_recap() -> void:
 func _after_fill() -> void:
 	_level_up_index = 0
 	if _recap_stage.show_level_up(_level_up_index):
+		Sound.play(_LEVEL_UP_CUE)
 		_enter(Stage.RECAP_LEVEL_UPS)
 	else:
 		_enter(Stage.RECAP_DONE)
@@ -336,6 +344,8 @@ func _next_level_up() -> void:
 	_level_up_index += 1
 	if not _recap_stage.show_level_up(_level_up_index):
 		_enter(Stage.RECAP_DONE)
+		return
+	Sound.play(_LEVEL_UP_CUE)
 
 
 func _submit(command: CampaignCommand) -> bool:

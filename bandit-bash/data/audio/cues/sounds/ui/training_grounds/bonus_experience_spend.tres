@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="AudioCue" format=3]
+
+[ext_resource type="Script" path="res://scripts/audio/audio_cue.gd" id="1_aakpq"]
+[ext_resource type="AudioStream" path="res://assets/audio/sounds/ui/training_grounds/bonus_experience_spend.ogg" id="2_101yx"]
+
+[resource]
+script = ExtResource("1_aakpq")
+id = &"bonus_experience_spend"
+streams = Array[AudioStream]([ExtResource("2_101yx")])
+bus = 1
+voice_limit = 2

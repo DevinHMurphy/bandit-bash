@@ -6,7 +6,7 @@
 # File:     options_screen.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: November 7, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends Control
@@ -15,8 +15,9 @@ extends Control
 ## Edits a copy of [code]SaveService.settings[/code]. Apply writes only the open save file's
 ## settings file ([code]SaveService.save_settings()[/code]); Back discards anything not applied.
 ## [br]
-## One slider row per [enum SettingsData.Channel] is built in code. Volumes are saved but not yet
-## heard: [method SettingsData.apply] is a stub until an audio system exists. The opening-swap
+## One slider row per [enum SettingsData.Channel] is built in code. A volume is heard as its
+## slider moves ([method SettingsData.apply] on the copy); leaving the screen any way applies the
+## settings in effect again, so an unapplied change goes with Back. The opening-swap
 ## toggle ([code]%OpeningSwapToggle[/code], a [SettingToggle] scene) edits
 ## [member SettingsData.is_opening_swap_on], which the next battle to begin reads.[br]
 ## Every control takes focus, so the arrows and a pad's d-pad move between them and accept or A
@@ -29,14 +30,14 @@ const _CHANNEL_NAMES: Dictionary[SettingsData.Channel, String] = {
 }
 
 # Shown while there are no unapplied changes.
-const _IDLE_TEXT: String = "Volumes are saved, but there is no audio yet."
+const _IDLE_TEXT: String = "Volume changes are heard at once; Apply keeps them."
 
 # Width of the channel name column, so the sliders line up. Units: pixels.
 const _NAME_COLUMN_WIDTH: float = 120.0
 # Slider width. Units: pixels.
 const _SLIDER_WIDTH: float = 200.0
 
-# The settings being edited; applied only by the Apply button.
+# The settings being edited: heard at once, saved only by the Apply button.
 var _edited: SettingsData = null
 var _value_labels: Dictionary[SettingsData.Channel, Label] = {}
 var _first_slider: HSlider = null
@@ -63,6 +64,11 @@ func _ready() -> void:
 		_status_label.text = "Open a save file to change settings."
 	if _first_slider != null:
 		_first_slider.grab_focus.call_deferred()
+
+
+# The volumes heard here were the edited copy's; the settings in effect take over again.
+func _exit_tree() -> void:
+	SaveService.settings.apply()
 
 
 func _build_row(channel: SettingsData.Channel) -> Control:
@@ -95,6 +101,7 @@ func _build_row(channel: SettingsData.Channel) -> Control:
 
 func _on_slider_value_changed(value: float, channel: SettingsData.Channel) -> void:
 	_edited.set_volume(channel, roundi(value))
+	_edited.apply()
 	_value_labels[channel].text = str(_edited.get_volume(channel))
 	_status_label.text = "Unapplied changes. Press Apply to keep them."
 
