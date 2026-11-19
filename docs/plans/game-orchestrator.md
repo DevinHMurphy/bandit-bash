@@ -75,7 +75,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P11 | Co-op combat (game-vision.md Multiplayer maps) | **Not started** | — | P01, P02, P04, P08, P10 |
 | P12 | Statistics and the Waystation war table (meta-progression.md) | **Not started** | — | P01, P08 |
 | P13 | [RNG streams](2026-10-26-rng-streams.md) | **Implemented** | — | P00 |
-| P15 | UI lift ([ui-lift.md](../design/ui-lift.md); its scope doc is the plan) | **In progress**: UL0 the style guide ([ui-style.md](../design/ui-style.md)) , UL1 the shared theme, and UL4 the event log (with UL1F) done | UL2, UL3, UL5–UL8 | P07, P08 |
+| P15 | UI lift ([ui-lift.md](../design/ui-lift.md); its scope doc is the plan) | **In progress**: UL0 the style guide ([ui-style.md](../design/ui-style.md)) , UL1 the shared theme, and UL4 the event log (with UL1F) done; UL3 and UL5 issued November 19, 2026 | UL2, UL3, UL5–UL8 | P07, P08 |
 | P14 | [Project organization](2026-11-09-project-organization.md) | **In progress** | O5 (deferred) | — |
 | P20–P24 | Meta progression, tutorials, dev console, status effects, shared co-op battles | Post-MVP | — | — |
 
@@ -94,7 +94,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 4. **Bugs** ([tracker](bug-tracker.md)), fix step **BF1** once the user's engine bugs are in:
    - BUG-002 (S2): the forecast's crit ignores Stance.
    - BUG-004 (S2): an enemy with an attack intent moves and doesn't attack; tabled by the user November 18, 2026, so not in BF1.
-   - BUG-005 (S4): unit detail shows the type id.
+   - BUG-005 (S4): unit detail shows the type id; moved to **UL3**, which rebuilds the unit detail pop-up (November 19, 2026).
    - BUG-006 (S3): NetLog raises an engine error once the peer is cleared.
    - BUG-008 (S2): a client mirror keeps a used-up consumable, so its hash differs from the host's (a one-line fix).
    - BUG-009 (S2) and BUG-010 (S4): **fixed** in RN3, merged November 13, 2026.

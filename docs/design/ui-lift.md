@@ -63,7 +63,7 @@ a pair is not listed):
 1. UL0 with the user: done November 18, 2026 ([ui-style.md](ui-style.md)).
 2. UL1: merged November 18, 2026. Its follow-up UL1F puts DK7's turn bar and darkness overlay on the tokens (the phase banner's colours were moved at the merge) and clears the theme test's exempt list.
 3. UL4 with UL1F: merged November 18, 2026.
-4. UL3 beside UL5.
+4. UL3 beside UL5: issued November 19, 2026.
 5. UL8 beside UL2.
 6. UL6 beside UL7.
 
