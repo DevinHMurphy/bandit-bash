@@ -39,16 +39,18 @@ extends Node2D
 
 ## How strongly a Gloom tile is covered.[br]
 ## [b]0.0:[/b] invisible. [b]1.0:[/b] the terrain is hidden.
-# ASSUMPTION: greybox value; no design doc sets the layers' opacities.
-@export_range(0.0, 1.0, 0.01) var gloom_alpha: float = 0.5:
+# ASSUMPTION: a first-pass tuning value, stepped evenly from Dusk; to settle in playtesting
+# (RF-023).
+@export_range(0.0, 1.0, 0.01) var gloom_alpha: float = 0.6:
 	set(value):
 		gloom_alpha = value
 		queue_redraw()
 
 ## How strongly an Abyss tile is covered.[br]
 ## [b]0.0:[/b] invisible. [b]1.0:[/b] the terrain is hidden.
-# ASSUMPTION: greybox value; no design doc sets the layers' opacities.
-@export_range(0.0, 1.0, 0.01) var abyss_alpha: float = 0.7:
+# ASSUMPTION: a first-pass tuning value, stepped evenly from Dusk; to settle in playtesting
+# (RF-023).
+@export_range(0.0, 1.0, 0.01) var abyss_alpha: float = 0.75:
 	set(value):
 		abyss_alpha = value
 		queue_redraw()

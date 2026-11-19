@@ -20,7 +20,6 @@ extends HBoxContainer
 ## Added to the text of an effect with limited charges: [code]%d[/code] the charges left.
 @export var charges_format: String = " (%d left)"
 
-# ASSUMPTION: " (heirloom)" marks the army's effects, curses included; no doc words it.
 ## Added to the name of one of the army's effects, so a heirloom reads apart from a trait.[br]
 ## [b]Empty:[/b] heirlooms and traits read alike.
 @export var army_suffix: String = " (heirloom)"

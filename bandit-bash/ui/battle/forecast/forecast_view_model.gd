@@ -81,7 +81,6 @@ const HITS_LABEL: String = "Hits"
 ## What separates the hits' damage in the [constant HITS_LABEL] row, such as "2 · 4 · 6".
 const HIT_SEPARATOR: String = " · "
 
-# ASSUMPTION: the Hits row's wording ("Hits", "·", "miss"); no doc words it.
 ## A missed hit in the [constant HITS_LABEL] row (the counter line's actor misses before it).
 const MISS_TEXT: String = "miss"
 

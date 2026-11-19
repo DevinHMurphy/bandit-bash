@@ -42,7 +42,6 @@ const WEAPON_ROWS: Array[Array] = [
 	["Crit", CombatValue.Key.CRIT_CHANCE],
 ]
 
-# ASSUMPTION: the verbs' wording; no doc words the intents as text.
 ## Each [enum EnemyIntent.Kind]'s verb in the intent line, by value.
 const INTENT_TEXT: Array[String] = [
 	"Attack", "Heal", "Guard", "Advance", "Use an object", "Signature move",
