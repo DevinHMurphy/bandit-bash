@@ -10,7 +10,8 @@
 # ==============================================================================
 
 extends "res://tests/ui/ui_suite.gd"
-## Combat UI display suite (combat UI plan, P07): the forecast, the HUD, the unit display and the
+## Combat UI display suite (combat UI plan, P07): the forecast, the HUD, the event log (P15 UL4),
+## the unit display and the
 ## display fixes of UI9 (pop-ups on the info layer, a hit's number past Block and its Block number,
 ## gray only in a unit's own phase, the HP bar's maximum), UI10's exchange feedback (the
 ## forecast's flash, outlined pips, move then act), and UI11's objective HUDs and the opening-swap
@@ -34,6 +35,7 @@ const SUITE_DESCRIPTION: String = "Forecast, HUD, unit display, objectives and s
 
 const ForecastCases = preload("res://tests/ui/battle/forecast/forecast_cases.gd")
 const HudCases = preload("res://tests/ui/battle/hud/hud_cases.gd")
+const EventLogCases = preload("res://tests/ui/battle/hud/event_log_cases.gd")
 const UnitDisplayCases = preload("res://tests/ui/battle/unit/unit_display_cases.gd")
 const DisplayFixCases = preload("res://tests/ui/battle/display_fix_cases.gd")
 const ExchangeFeedbackCases = preload("res://tests/ui/battle/exchange_feedback_cases.gd")
@@ -65,6 +67,8 @@ func _process(_delta: float) -> bool:
 		ForecastCases.new(_check, root).run()
 		GroupClock.lap("hud_cases")
 		HudCases.new(_check, root).run()
+		GroupClock.lap("event_log_cases")
+		EventLogCases.new(_check, root).run()
 		GroupClock.lap("unit_display_cases")
 		UnitDisplayCases.new(_check, root).run()
 		GroupClock.lap("display_fix_cases")
@@ -301,6 +305,7 @@ func _hud_over_map() -> PackedStringArray:
 	var widgets: Array[Control] = [
 		hud.get_turn_counter(), hud.get_objective(), hud.get_darkness_counter(),
 		hud.get_tile_info(), hud.get_unit_panel(), hud.get_fact_log(), hud.get_phase_banner(),
+		hud.get_event_log(),
 		_panel_screen.get_node(^"%TurnBar") as Control,
 		_panel_screen.get_node(^"%ControlHintBar") as Control,
 		_panel_screen.get_node(^"%SwapWindow") as Control,

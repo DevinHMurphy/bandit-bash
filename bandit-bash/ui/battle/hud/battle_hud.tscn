@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://ui/battle/hud/battle_hud.gd" id="1_hud"]
 [ext_resource type="Theme" path="res://ui/theme/battle_theme.tres" id="2_theme"]
@@ -9,6 +9,7 @@
 [ext_resource type="PackedScene" path="res://ui/battle/unit/unit_panel.tscn" id="7_unit"]
 [ext_resource type="PackedScene" path="res://ui/battle/hud/fact_log.tscn" id="8_log"]
 [ext_resource type="PackedScene" path="res://ui/battle/hud/phase_banner.tscn" id="9_banner"]
+[ext_resource type="PackedScene" path="res://ui/battle/hud/event_log/event_log.tscn" id="10_event_log"]
 
 [node name="BattleHud" type="Control"]
 layout_mode = 3
@@ -59,7 +60,12 @@ mouse_filter = 2
 
 [node name="FactLog" parent="LeftColumn" instance=ExtResource("8_log")]
 unique_name_in_owner = true
+visible = false
 layout_mode = 2
+
+[node name="EventLog" parent="." instance=ExtResource("10_event_log")]
+unique_name_in_owner = true
+layout_mode = 1
 
 [node name="MapArea" type="Control" parent="."]
 unique_name_in_owner = true

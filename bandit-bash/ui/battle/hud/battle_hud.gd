@@ -13,8 +13,9 @@ class_name BattleHud
 extends Control
 ## The battle screen's HUD (combat UI plan, question 11; Godot_FE FR-UI-3 minus XP): the
 ## [TurnCounter], [ObjectivePanel], [DarknessCounter], [TileInfo] and [UnitPanel] down the left,
-## the [FactLog] under them, the [PhaseBanner] at the top, and the [code]%MapArea[/code] it leaves
-## free for the map ([member BattleView.map_area]).
+## the debug [FactLog] under them (hidden; [BattleScreen] shows it with the F3 panel), the
+## [EventLog] at the foot of the right column, the [PhaseBanner] at the top, and the
+## [code]%MapArea[/code] it leaves free for the map ([member BattleView.map_area]).
 ##
 ## [b]Reading only:[/b] it draws [HudViewModel] views of the session and never changes combat
 ## state or turn input. What it reads, and when:[br]
@@ -28,7 +29,8 @@ extends Control
 ## - each Phase Start fact as it plays: the banner, and the turn counter's turn; a darkness phase
 ## as it begins to play ([signal BattleView.darkness_phase_started]): its banner;[br]
 ## - [method show_result], called by the screen once the battle has ended: the end banner;[br]
-## - each batch the session sends ([signal CombatSession.batch_resolved]): a fact log line.[br]
+## - each batch the session sends ([signal CombatSession.batch_resolved]): a fact log line;[br]
+## - each fact as it plays: the event log's lines, which it writes itself once bound.[br]
 ## [b]Layout:[/b] the columns and the map area are set in the scene; at the 1280×720 base size and
 ## wider nothing here covers the map, because the camera frames it inside the map area. The panel
 ## stack ([PanelHost]) and the turn bar are the screen's, laid out in their own scenes to match.
@@ -49,6 +51,7 @@ var _shown_unit: String = ""
 @onready var _tile_info: TileInfo = %TileInfo
 @onready var _unit_panel: UnitPanel = %UnitPanel
 @onready var _fact_log: FactLog = %FactLog
+@onready var _event_log: EventLog = %EventLog
 @onready var _banner: PhaseBanner = %PhaseBanner
 @onready var _map_area: Control = %MapArea
 
@@ -84,6 +87,7 @@ func bind(session: CombatSession, controller: BattleController, view: BattleView
 		_view.settled.connect(_on_view_settled)
 		_view.darkness_phase_started.connect(_on_view_darkness_phase_started)
 	_fact_log.clear()
+	_event_log.bind(session)
 	_show_widgets(true)
 	refresh()
 
@@ -105,6 +109,7 @@ func unbind() -> void:
 		_view.darkness_phase_started.disconnect(_on_view_darkness_phase_started)
 	if is_instance_valid(_view):
 		_view.show_objective(null)
+	_event_log.unbind()
 	_session = null
 	_controller = null
 	_view = null
@@ -161,9 +166,14 @@ func get_unit_panel() -> UnitPanel:
 	return _unit_panel
 
 
-## The fact log, for tests.
+## The debug fact log, hidden unless [BattleScreen] shows it with the save debug panel.
 func get_fact_log() -> FactLog:
 	return _fact_log
+
+
+## The event log: [BattleController] takes its input, [BattleScreen] adds its resume note.
+func get_event_log() -> EventLog:
+	return _event_log
 
 
 ## The phase banner, for tests.
@@ -202,14 +212,16 @@ func _unit_to_show(tile: Vector2i) -> String:
 	return ""
 
 
+# The fact log is only hidden here: BattleScreen shows it with the save debug panel.
 func _show_widgets(is_shown: bool) -> void:
 	var widgets: Array[Control] = [
-		_turn_counter, _objective, _darkness, _tile_info, _unit_panel, _fact_log,
+		_turn_counter, _objective, _darkness, _tile_info, _unit_panel, _event_log,
 	]
 	for widget: Control in widgets:
 		widget.visible = is_shown
 	if not is_shown:
 		_banner.visible = false
+		_fact_log.visible = false
 
 
 func _on_view_settled() -> void:

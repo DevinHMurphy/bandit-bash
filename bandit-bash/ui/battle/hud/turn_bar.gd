@@ -6,12 +6,14 @@
 # File:     turn_bar.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name TurnBar
 extends PanelContainer
-## The strip along the bottom of the battle screen: a status line and End Turn.
+## The strip along the bottom of the battle screen: a status line and End Turn. During a darkness
+## phase a "Darkness" chip, [code]text[/code] on a [code]darkness[/code]-filled row (5.00:1), leads
+## the status ("Turn 3 · darkness phase"), as the phase banner shows it ([method show_darkness]).
 ##
 ## It only reports the press; [BattleController] turns it into an [EndTurnCommand], asking first
 ## while units can still act, and says when it can be pressed ([method set_can_end_turn]).
@@ -21,6 +23,7 @@ extends PanelContainer
 ## End Turn was pressed.
 signal end_turn_pressed()
 
+@onready var _darkness_chip: Control = %DarknessChip
 @onready var _status_label: Label = %Status
 @onready var _end_turn_button: Button = %EndTurnButton
 
@@ -37,6 +40,16 @@ func show_status(text: String) -> void:
 ## The status line shown.
 func get_status() -> String:
 	return _status_label.text
+
+
+## Shows the darkness chip before the status while [param is_darkness] (a darkness phase plays).
+func show_darkness(is_darkness: bool) -> void:
+	_darkness_chip.visible = is_darkness
+
+
+## Whether the darkness chip shows.
+func is_darkness_shown() -> bool:
+	return _darkness_chip.visible
 
 
 ## Whether End Turn can be pressed.

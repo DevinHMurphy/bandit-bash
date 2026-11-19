@@ -21,6 +21,19 @@ script = ExtResource("1_bar")
 layout_mode = 2
 theme_override_constants/separation = 12
 
+[node name="DarknessChip" type="PanelContainer" parent="Row"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+theme_type_variation = &"DarknessRowPanel"
+
+[node name="Text" type="Label" parent="Row/DarknessChip"]
+layout_mode = 2
+theme_type_variation = &"SmallLabel"
+text = "Darkness"
+
 [node name="Status" type="Label" parent="Row"]
 unique_name_in_owner = true
 layout_mode = 2
