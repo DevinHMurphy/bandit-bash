@@ -6,14 +6,14 @@
 # File:     unit_info.gd
 # Author:
 # Created:  November 6, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name UnitInfo
 extends Control
 ## One unit's bars, numbers and icons on the screen-space [UnitInfoLayer]: its [HpBar] with the
-## HP inside, its [StancePips], its [BlockBadge], the [BlockBanMark] while it can't gain Block
-## and the range-tracked icon (combat UI plan, question 29 (2); UI12).
+## HP inside, its [StancePips], its [BlockBadge], the [BlockBanMark] while it can't gain Block,
+## the range-tracked icon (combat UI plan, question 29 (2); UI12) and a lit keg's [FuseBadge].
 ##
 ## Its origin is the unit's centre on screen; the layout is authored in screen pixels, around a
 ## tile drawn about 59 px wide (M1 at the 1280 × 720 base draws about 71). [UnitToken] gives it
@@ -29,6 +29,7 @@ extends Control
 @onready var _block_badge: BlockBadge = %BlockBadge
 @onready var _block_ban: BlockBanMark = %BlockBanMark
 @onready var _range_icon: Control = %RangeTrackedIcon
+@onready var _fuse_badge: FuseBadge = %FuseBadge
 
 
 ## Shows [param current] HP of [param maximum] on the bar and in its number.
@@ -76,6 +77,16 @@ func show_block_ban(is_banned: bool) -> void:
 ## Shows or hides the range-tracked icon.
 func show_range_tracked(is_tracked: bool) -> void:
 	_range_icon.visible = is_tracked
+
+
+## Shows a lit keg's [param fuse] on the [FuseBadge]; below 0 hides it.
+func show_fuse(fuse: int) -> void:
+	_fuse_badge.show_fuse(fuse)
+
+
+## The fuse badge.
+func get_fuse_badge() -> FuseBadge:
+	return _fuse_badge
 
 
 ## The HP bar.

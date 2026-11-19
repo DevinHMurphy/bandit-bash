@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="4_prlr5"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="5_x3mw0"]
 [ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="6_y6n8u"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/equipment/equipment_icon.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_x8fvp"]
 script = ExtResource("3_ajmed")
@@ -24,6 +25,7 @@ operations = Array[ExtResource("4_prlr5")]([SubResource("Resource_8kcyw")])
 
 [resource]
 script = ExtResource("6_y6n8u")
+icon = ExtResource("icon_1")
 category = "coating"
 rarity = 1
 tags = PackedStringArray()

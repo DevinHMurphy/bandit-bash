@@ -98,11 +98,15 @@ var weapon: WeaponLine = null
 var stowed: WeaponLine = null
 ## The Equipment slot's name; empty for none.
 var equipment_name: String = ""
+## The Equipment's icon ([method BattleText.item_icon]); null for none.
+var equipment_icon: Texture2D = null
 ## The Equipment's effect lines.
 var equipment_effects: Array[EffectLine] = []
 ## The Pouch item's name (a consumable or trinket); empty for none or a stowed weapon, which is
 ## [member stowed].
 var pouch_name: String = ""
+## The Pouch item's icon; null for none or a stowed weapon.
+var pouch_icon: Texture2D = null
 ## The Pouch item's effect lines.
 var pouch_effects: Array[EffectLine] = []
 ## The unit type's traits.
@@ -270,9 +274,11 @@ static func _add_gear(
 			view.stowed.range_max = reach.y
 	if not unit.equipment_id.is_empty():
 		view.equipment_name = BattleText.name_of(session, unit.equipment_id)
+		view.equipment_icon = BattleText.item_icon(session, unit.equipment_id)
 		view.equipment_effects = _lines_of(effects, unit.equipment_id)
 	if not unit.pouch_item_id.is_empty() and unit.pouch_item_id != unit.stowed_weapon_id:
 		view.pouch_name = BattleText.name_of(session, unit.pouch_item_id)
+		view.pouch_icon = BattleText.item_icon(session, unit.pouch_item_id)
 		view.pouch_effects = _lines_of(effects, unit.pouch_item_id)
 	view.traits = _lines_of(effects, unit.id)
 	view.heirlooms = _lines_of(effects, _ARMY_KEY)
@@ -389,6 +395,7 @@ static func _weapon_line(
 	var line: WeaponLine = WeaponLine.new()
 	line.weapon_id = held.id
 	line.name = BattleText.name_of(session, held.id)
+	line.icon = BattleText.item_icon(session, held.id)
 	line.weapon_type = held.weapon_type.capitalize()
 	line.profile = (WeaponTriangle.Profile.find_key(held.profile) as String).capitalize()
 	line.is_staff = held.is_staff()
@@ -435,6 +442,8 @@ class WeaponLine:
 	var weapon_id: String = ""
 	## Its name.
 	var name: String = ""
+	## Its icon ([method BattleText.item_icon]); null when it has none.
+	var icon: Texture2D = null
 	## Its weapon type, readable ("Sword").
 	var weapon_type: String = ""
 	## Its triangle profile, readable ("Nimble"; "None" outside the triangle).

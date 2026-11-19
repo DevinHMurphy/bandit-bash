@@ -5,6 +5,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_a6khc"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_62oi0"]
 [ext_resource type="Script" path="res://scripts/content/trinket_definition.gd" id="5_u5dek"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/trinkets/ring_of_favor.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_3841g"]
 script = ExtResource("4_62oi0")
@@ -28,6 +29,7 @@ operations = Array[ExtResource("3_a6khc")]([SubResource("Resource_3841g"), SubRe
 
 [resource]
 script = ExtResource("5_u5dek")
+icon = ExtResource("icon_1")
 rarity = 4
 tags = PackedStringArray()
 id = "ring_of_favor"

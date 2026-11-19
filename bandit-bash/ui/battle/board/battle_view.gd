@@ -6,7 +6,7 @@
 # File:     battle_view.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name BattleView
@@ -1457,8 +1457,14 @@ func _on_world_darkness_advanced(fact: CombatFact) -> void:
 
 
 # A door opened or closed, a container opened or searched, a brazier lit or doused: its mark shows
-# the fact's change (MapObjects.Change) at once, with no wait. Other changes draw no mark.
+# the fact's change (MapObjects.Change) at once, with no wait. A thrown keg's fuse burning down
+# shows on its token's fuse badge. Other changes draw nothing.
 func _on_world_object_state_changed(fact: CombatFact) -> void:
+	if fact.key == MapObjects.Change.FUSE_BURNED:
+		var keg: UnitToken = token_of(fact.actor_id)
+		if keg != null:
+			keg.show_fuse(fact.amount)
+		return
 	var mark: MapObjectMark = object_mark_of(fact.actor_id)
 	if mark == null or mark.view == null:
 		return

@@ -382,6 +382,18 @@ shadow_offset = Vector2(0, 4)
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mddim"]
 bg_color = Color(0.078431375, 0.09019608, 0.10980392, 0.5)
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fusebd"]
+bg_color = Color(0.61960787, 0.20784314, 0.18039216, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.078431375, 0.09019608, 0.10980392, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
 [resource]
 ModalHostPanel/base_type = &"PanelContainer"
 ModalHostPanel/styles/panel = SubResource("StyleBoxEmpty_mdhst")
@@ -394,6 +406,11 @@ BlockBadge/styles/panel = SubResource("StyleBoxFlat_ar74w")
 BlockBadgeLabel/base_type = &"Label"
 BlockBadgeLabel/colors/font_color = Color(0.078431375, 0.09019608, 0.10980392, 1)
 BlockBadgeLabel/font_sizes/font_size = 14
+FuseBadge/base_type = &"Panel"
+FuseBadge/styles/panel = SubResource("StyleBoxFlat_fusebd")
+FuseBadgeLabel/base_type = &"Label"
+FuseBadgeLabel/colors/font_color = Color(0.9098039, 0.8862745, 0.83137256, 1)
+FuseBadgeLabel/font_sizes/font_size = 14
 BlockBanMarkLabel/base_type = &"Label"
 BlockBanMarkLabel/colors/font_color = Color(0.78431374, 0.27450982, 0.23529412, 1)
 BlockBanMarkLabel/colors/font_outline_color = Color(0.078431375, 0.09019608, 0.10980392, 1)

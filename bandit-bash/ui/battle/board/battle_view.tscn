@@ -33,6 +33,7 @@ object_mark_scene = ExtResource("22_object_mark")
 
 [node name="MapHolder" type="Node2D" parent="."]
 unique_name_in_owner = true
+texture_filter = 1
 
 [node name="DarknessOverlay" parent="." instance=ExtResource("4_overlay")]
 unique_name_in_owner = true

@@ -5,6 +5,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ub2hd"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_31vtm"]
 [ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="5_3fvfx"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/equipment/iron_greatshield.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_fxwff"]
 script = ExtResource("4_31vtm")
@@ -23,6 +24,7 @@ operations = Array[ExtResource("3_ub2hd")]([SubResource("Resource_fxwff"), SubRe
 
 [resource]
 script = ExtResource("5_3fvfx")
+icon = ExtResource("icon_1")
 category = "shield"
 rarity = 1
 weight = 6

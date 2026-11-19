@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="5_gbirl"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="6_rur4x"]
 [ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="7_pip62"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/consumables/elixir.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_bojna"]
 script = ExtResource("5_gbirl")
@@ -32,6 +33,7 @@ operations = Array[ExtResource("3_hcbuv")]([SubResource("Resource_860n1")])
 
 [resource]
 script = ExtResource("7_pip62")
+icon = ExtResource("icon_1")
 use_kind = "full_heal"
 uses_lane = 1
 rarity = 3

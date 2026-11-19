@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="6_u8i5n"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/change_base_stat.gd" id="7_lgdbh"]
 [ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="8_4q83e"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/consumables/brawn_prawn.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_2hv3i"]
 script = ExtResource("4_08o60")
@@ -39,6 +40,7 @@ operations = Array[ExtResource("3_qtp3x")]([SubResource("Resource_8lr7l"), SubRe
 
 [resource]
 script = ExtResource("8_4q83e")
+icon = ExtResource("icon_1")
 use_kind = "ingredient"
 amount = 10
 uses_lane = 1

@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="6_8lugw"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/change_base_stat.gd" id="7_oxd4v"]
 [ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="8_swvh8"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/consumables/cave_carrot.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_libyi"]
 script = ExtResource("4_g3en2")
@@ -39,6 +40,7 @@ operations = Array[ExtResource("3_lnkek")]([SubResource("Resource_0k5ep"), SubRe
 
 [resource]
 script = ExtResource("8_swvh8")
+icon = ExtResource("icon_1")
 use_kind = "ingredient"
 amount = 5
 uses_lane = 1

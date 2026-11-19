@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="6_02xdp"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/change_base_stat.gd" id="7_ijn2t"]
 [ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="8_m6vyv"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/consumables/stonebark_blossom.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_sfpu0"]
 script = ExtResource("4_keqfy")
@@ -39,6 +40,7 @@ operations = Array[ExtResource("3_o2ri5")]([SubResource("Resource_i0miw"), SubRe
 
 [resource]
 script = ExtResource("8_m6vyv")
+icon = ExtResource("icon_1")
 use_kind = "ingredient"
 amount = 5
 uses_lane = 1

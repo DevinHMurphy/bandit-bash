@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="5_uo1qj"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="6_ftufl"]
 [ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="7_s13wo"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/consumables/refillable_potion.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_36yqv"]
 script = ExtResource("4_75mh7")
@@ -27,6 +28,7 @@ operations = Array[ExtResource("3_8tvnf")]([SubResource("Resource_c27tq")])
 
 [resource]
 script = ExtResource("7_s13wo")
+icon = ExtResource("icon_1")
 use_kind = "block"
 amount = 10
 rarity = 2

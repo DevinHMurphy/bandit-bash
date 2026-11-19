@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="5_w6dve"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="6_kllsq"]
 [ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="7_4dga1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/consumables/large_potion+.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_r1jbr"]
 script = ExtResource("4_jlefm")
@@ -28,6 +29,7 @@ operations = Array[ExtResource("3_caghb")]([SubResource("Resource_ry45y")])
 
 [resource]
 script = ExtResource("7_4dga1")
+icon = ExtResource("icon_1")
 use_kind = "heal"
 amount = 12
 uses = 2

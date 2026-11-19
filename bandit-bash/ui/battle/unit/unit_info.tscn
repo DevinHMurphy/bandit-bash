@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://ui/battle/unit/unit_info.gd" id="1_info"]
 [ext_resource type="Theme" uid="uid://bi25fbqd4wl3o" path="res://ui/theme/battle_theme.tres" id="2_theme"]
@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" path="res://ui/battle/unit/stance_pips.tscn" id="4_pips"]
 [ext_resource type="PackedScene" uid="uid://bgmxqllrpuh84" path="res://ui/battle/unit/block_badge.tscn" id="5_badge"]
 [ext_resource type="PackedScene" path="res://ui/battle/unit/block_ban_mark.tscn" id="6_ban"]
+[ext_resource type="PackedScene" path="res://ui/battle/unit/fuse_badge.tscn" id="7_fuse"]
 
 [node name="UnitInfo" type="Control"]
 layout_mode = 3
@@ -59,3 +60,11 @@ offset_left = -26.0
 offset_top = -16.0
 offset_right = -11.0
 offset_bottom = -2.0
+
+[node name="FuseBadge" parent="." instance=ExtResource("7_fuse")]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 12.0
+offset_top = -28.0
+offset_right = 26.0
+offset_bottom = -10.0

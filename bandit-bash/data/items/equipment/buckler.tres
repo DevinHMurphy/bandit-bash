@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="5_ogt5m"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="6_ncvui"]
 [ext_resource type="Script" path="res://scripts/content/equipment_definition.gd" id="7_a4gnv"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/equipment/buckler.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_sgafm"]
 script = ExtResource("4_dbxai")
@@ -39,6 +40,7 @@ operations = Array[ExtResource("3_tt0y4")]([SubResource("Resource_lfchd")])
 
 [resource]
 script = ExtResource("7_a4gnv")
+icon = ExtResource("icon_1")
 category = "shield"
 rarity = 2
 weight = 4

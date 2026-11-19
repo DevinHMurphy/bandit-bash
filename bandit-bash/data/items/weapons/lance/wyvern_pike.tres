@@ -1,9 +1,11 @@
 [gd_resource type="Resource" script_class="WeaponDefinition" format=3]
 
 [ext_resource type="Script" path="res://scripts/content/weapon_definition.gd" id="9_def"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/weapons/great_lance.png" id="icon_1"]
 
 [resource]
 script = ExtResource("9_def")
+icon = ExtResource("icon_1")
 weapon_type = "lance"
 profile = 1
 damage = 15

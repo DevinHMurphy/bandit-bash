@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/selectors/command_target.gd" id="6_i1kne"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/change_base_stat.gd" id="7_avfdi"]
 [ext_resource type="Script" path="res://scripts/content/consumable_definition.gd" id="8_e25m0"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/consumables/moonclam_pearl.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_ptget"]
 script = ExtResource("4_eowk1")
@@ -39,6 +40,7 @@ operations = Array[ExtResource("3_siut1")]([SubResource("Resource_h7nvc"), SubRe
 
 [resource]
 script = ExtResource("8_e25m0")
+icon = ExtResource("icon_1")
 use_kind = "ingredient"
 amount = 10
 uses_lane = 1

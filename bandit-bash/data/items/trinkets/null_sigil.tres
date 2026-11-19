@@ -5,6 +5,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_f74ht"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_qtb3k"]
 [ext_resource type="Script" path="res://scripts/content/trinket_definition.gd" id="5_chiow"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/trinkets/null_sigil.png" id="icon_1"]
 
 [sub_resource type="Resource" id="Resource_gcbpe"]
 script = ExtResource("4_qtb3k")
@@ -18,6 +19,7 @@ operations = Array[ExtResource("3_f74ht")]([SubResource("Resource_gcbpe")])
 
 [resource]
 script = ExtResource("5_chiow")
+icon = ExtResource("icon_1")
 rarity = 3
 tags = PackedStringArray()
 id = "null_sigil"
