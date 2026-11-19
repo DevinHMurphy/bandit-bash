@@ -59,6 +59,9 @@ A fact is one thing that happened, in the past tense, carrying ids and never obj
   | 13 | `ITEM_MODIFIED` | Event outcomes: a granted effect, stat deltas or a weapon prefix |
   | 14 | `UNIT_REVIVED` | Event outcomes (the revive shrine) |
   | 15 | `RUNE_DISCARDED` | Event outcomes: a rune left its slot to make room |
+  | 16 | `EVENT_DRAWN` | `OpenEventCommand`: the run drew an event at a node (no seat) |
+  | 17 | `EVENT_CHOOSING` | `EventChooserCommand`: a seat opened or closed an option's chooser |
+  | 18 | `EVENT_CHOSEN` | `EventOptionCommand`: a seat chose an option; the option's own facts follow |
 
 - **Paired triggers are two facts.** A hit records `HIT_DEALT`, then `HIT_TAKEN`. `actor_id` is
   always the unit the kind is about, the one an effect's scope tests; `target_id` is the other
@@ -83,10 +86,15 @@ listen to one.
   `fact_played(fact)` fires after it for every fact. Connect as
   `bus.action.hit_taken.connect(...)`.
 - **`CampaignBus`** ([scripts/bus/campaign_bus.gd](../../bandit-bash/scripts/bus/campaign_bus.gd)):
-  one per run, held by `CampaignSession.bus`, with the channels `run`, `army` and `effect`.
-  `AudioService` binds a cue listener to it. On `dev`, nothing plays campaign facts on it yet:
-  campaign commands announce their facts through `CampaignSession.campaign_batch_resolved`, and
-  event outcomes record theirs in the run's fact log.
+  one per run, held by `CampaignSession.bus`, with the channels `run` (the run, nodes, events,
+  combats ending), `army` and `effect`. `AudioService` binds the campaign sounds' listener to it.
+  [CampaignPlayback](../../bandit-bash/ui/campaign/campaign_playback.gd) plays the run's fact log
+  on it when a campaign screen shows the facts: everything past `CampaignSession.played_seq`, so
+  each fact plays once, in seq order, whether a command recorded it or not (the run's start, a
+  battle's end, level-ups). The campaign map plays what is waiting when it opens and after each
+  command; the victory sequence plays each level-up as its card shows. `played_seq` isn't saved,
+  so a resumed run plays nothing from before the quit. Commands also announce their batch through
+  `CampaignSession.campaign_batch_resolved`.
 - **Playback.** [FactPlayback](../../bandit-bash/scripts/sessions/fact_playback.gd) plays a combat
   batch on its bus in fact order, at the game's speed, waiting each fact's duration; fast-forward
   stops before a fact its pause hook marks. Presentation may hold it on a `PresentationRequest`.
@@ -115,7 +123,8 @@ listen to one.
   `UnitTurnCommand` (path plus action, one command), `EndTurnCommand`, `StartCommand` (the opening
   swap), `CastRuneCommand`, `DiscardRuneCommand`. Campaign commands extend
   [CampaignCommand](../../bandit-bash/scripts/campaign/campaign_command.gd): `ChooseNodeCommand`,
-  `LeaveNodeCommand`, `ItemPickCommand`. Both are checked against the state at resolve time, so the
+  `LeaveNodeCommand`, `ItemPickCommand`, `OpenEventCommand`, and the `EventCommand`s
+  `EventChooserCommand` and `EventOptionCommand`. Both kinds are checked against the state at resolve time, so the
   first arrival wins and a rejected command changes nothing and costs nothing. An attack, staff or
   shove command is stale, and rejected, if any fact on its map follows the `seq` its forecast was
   based on.
