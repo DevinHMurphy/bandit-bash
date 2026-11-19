@@ -399,10 +399,13 @@ func _test_popups_synthetic() -> void:
 	var defender: String = board.session.state.units_of(ENEMY)[0]
 	var missed: CombatFact = CombatFact.new(CombatFact.Kind.MISSED, attacker, defender)
 	var dodged: CombatFact = CombatFact.new(CombatFact.Kind.DODGED, defender, attacker)
-	_play(board, [missed, dodged])
-	var miss_ok: bool = (
-			str(shown) == str([[defender, MISS]]) and _last_number(board.view).get_text() == "Miss"
-	)
+	# Read as the strike plays: playback's wait (miss_hold) lasts as long as the Miss itself.
+	board.session.playback.enqueue([missed, dodged])
+	board.view.advance(0.0)
+	var miss: DamageNumber = _last_number(board.view)
+	var miss_text: String = miss.get_text() if miss != null else ""
+	BattleViewCases.settle(board.view)
+	var miss_ok: bool = str(shown) == str([[defender, MISS]]) and miss_text == "Miss"
 	shown.clear()
 
 	var crit: CombatFact = CombatFact.new(CombatFact.Kind.CRIT_TAKEN, defender, attacker)
@@ -486,6 +489,10 @@ func _test_strike_in_mode(mode: Mode, mode_name: String) -> void:
 	var d: String = board.session.state.units_of(ENEMY)[0]
 	var crit_taken: CombatFact = CombatFact.new(CombatFact.Kind.CRIT_TAKEN, d, a)
 	crit_taken.amount = 6
+	# ExchangeResolver.attack gives a hit's Hit taken its damage too; 0 would read as a hit
+	# fully countered ("No damage").
+	var hit_taken: CombatFact = CombatFact.new(CombatFact.Kind.HIT_TAKEN, d, a)
+	hit_taken.amount = 6
 	var damage: CombatFact = CombatFact.new(CombatFact.Kind.DAMAGE_TAKEN, d, a)
 	damage.amount = 6
 	damage.hp_amount = 6
@@ -495,7 +502,7 @@ func _test_strike_in_mode(mode: Mode, mode_name: String) -> void:
 		CombatFact.new(CombatFact.Kind.DODGED, d, a),
 		CombatFact.new(CombatFact.Kind.ATTACK_MADE, a, d),
 		CombatFact.new(CombatFact.Kind.HIT_DEALT, a, d),
-		CombatFact.new(CombatFact.Kind.HIT_TAKEN, d, a),
+		hit_taken,
 		CombatFact.new(CombatFact.Kind.CRIT_DEALT, a, d),
 		crit_taken,
 		CombatFact.new(CombatFact.Kind.DAMAGE_DEALT, a, d),

@@ -12,24 +12,16 @@
 class_name UnitToken
 extends Node2D
 ## One unit on the battle board: its sprite, or its type's letters when it has none, in the world;
-## its HP, Stance, Block, range-tracked icon and a lit keg's fuse on its [UnitInfo] (combat UI
-## plan, questions 22, 23 and 29).
+## its HP, Stance, Block, range-tracked icon, a lit keg's fuse, its side's shape and an elite's
+## mark on its [UnitInfo] (combat UI plan, questions 22, 23 and 29; RF-025, RF-026).
 ##
-## [BattleView] places one per unit, moves it and gives it each value as the facts play
-## ([method show_unit], [method show_hp], [method show_stance], [method show_block],
-## [method show_block_ban], [method show_turn], [method show_range_tracked]); the token keeps the
-## values shown and passes them to [member info], which the [UnitInfoLayer] keeps over it on
-## screen. It holds no rules.
-## Its origin is the tile's centre; the layout is authored in the scene for 32 px tiles.[br]
-## [b]The sprite[/b] is [member sprites]'s texture for the unit's type, drawn by
-## [code]unit_sprite.gdshader[/code] (Godot_FE's [code]StrokeShader[/code], rewritten): outlined
-## in its side's colour, gray while [method is_grayed], tinted by [member range_tracked_tint] while
-## its range is tracked (white by default: the icon on its info shows it), and flashed by a
-## critical hit ([method flash]). A type with no sprite shows its letters on a square of its
-## side's colour, gray while grayed.[br]
-## [b]Gray only in its own phase[/b] (question 28 (f)): a spent unit grays only while it is its
-## side's phase ([method show_phase]), so in your turn an enemy never looks disabled.[br]
-## [b]Target outlines[/b] stay [TargetMark]s, which also mark map objects and lettered units.
+## [BattleView] places one per unit, moves it and gives it each value as the facts play; the token
+## keeps the values shown and passes them to [member info], which the [UnitInfoLayer] keeps over
+## it on screen. It holds no rules. Its origin is the tile's centre, laid out for 32 px tiles.[br]
+## [b]The sprite[/b] ([member sprites], drawn by [code]unit_sprite.gdshader[/code]) is outlined in
+## its side's colour, gray while [method is_grayed] (spent, in its own side's phase only), tinted
+## while its range is tracked, and flashed by a strike ([method flash]); a type with no sprite
+## shows its letters on a square of its side's colour.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
@@ -150,6 +142,9 @@ var is_phase_side: bool = true
 ## A lit powder keg's fuse as shown: the enemy Phase Ends left; -1 for none.
 var fuse: int = -1
 
+## Whether the token is marked as an elite ([member BoardViewModel.UnitView.is_elite]).
+var is_elite: bool = false
+
 ## Its bars, numbers and icons on the [UnitInfoLayer], which sets this; null draws none of them.
 var info: UnitInfo = null
 
@@ -167,12 +162,17 @@ var _flash_color: Color = Color.WHITE
 @onready var _letter: Label = %Letter
 
 
-## Draws [param view]: its sprite or letters, its side's outline or colour, its HP, Stance, Block,
-## Block ban, turn and a lit keg's fuse. Whether its range is tracked is left as it is.
+## Draws [param view]: its sprite or letters, its side's outline or colour and shape, its HP,
+## Stance, Block, Block ban, turn, a lit keg's fuse and an elite's mark. Whether its range is
+## tracked is left as it is.
 func show_unit(view: BoardViewModel.UnitView) -> void:
 	unit_id = view.id
 	tile = view.tile
 	side = view.side
+	is_elite = view.is_elite
+	if is_instance_valid(info):
+		info.show_side(side)
+		info.show_elite(is_elite)
 	_letter.text = letters_for(view.unit_type)
 	var texture: Texture2D = sprite_for(view.unit_type)
 	_sprite.texture = texture
@@ -277,9 +277,9 @@ func show_range_tracked(is_tracked: bool) -> void:
 	_set_param(TINT_PARAM, range_tracked_tint if is_tracked else Color.WHITE)
 
 
-## Starts a flash toward [param color] that fades over [param seconds] (a critical hit), on the
-## sprite or the letters' body, and returns it, paused for the caller to step; null when
-## [param seconds] is 0.
+## Starts a flash toward [param color] that fades over [param seconds] (a strike's look,
+## [StrikeFeedback]), on the sprite or the letters' body, and returns it, paused for the caller to
+## step; null when [param seconds] is 0.
 func flash(color: Color, seconds: float) -> Tween:
 	if seconds <= 0.0:
 		return null

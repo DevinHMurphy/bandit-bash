@@ -50,6 +50,8 @@ keep whatever plays.
 | `sounds/combat/attack/no_damage.ogg` | same | `no_damage` | A hit for 0 (`HIT_DEALT/no_damage`) |
 | `sounds/combat/attack/Entity_hit.ogg` | same | `entity_hit` | A hit on a map object (`HIT_DEALT/on_object`) |
 | `sounds/combat/attack/crit_sound.ogg` | same | `crit_sound` | A critical hit, over the hit's impact (`CRIT_DEALT`) |
+| `sounds/combat/weapon_break.ogg` | same | `weapon_break` | A unit's Stance broken, Exposed (`EXPOSED`; weapon durability, its first use, isn't in the game) |
+| `sounds/ui/inventory/shield_equip.ogg` | same | `block_gained` | Block gained outside a refresh (`BLOCK_GAINED`), on the SFX bus: a second cue on the shield's file, as combat sounds stay off the UI bus |
 | `sounds/combat/heal.wav` | same | `unit_heal` | A unit healed (`HEALED`) |
 | `sounds/combat/Friendly_unit_die.ogg` | same | `friendly_unit_die` | A player unit defeated (`DEFEATED/player_actor`) |
 | `sounds/combat/level_win.ogg` | same | `level_win` | The battle won (`COMBAT_ENDED/player_side`) |
@@ -66,11 +68,10 @@ The fact rules are `res://data/audio/maps/combat_facts.tres` and `campaign_facts
 
 | File | Source | Cue id | Where it plays |
 |------|--------|--------|----------------|
-| `sounds/combat/attack/sword_swing_heavy.ogg` | same | `sword_swing_heavy` | Unmapped: waits for UL6 (Godot_FE never played it) |
+| `sounds/combat/attack/sword_swing_heavy.ogg` | same | `sword_swing_heavy` | Unmapped: UL6 found no use for it (Godot_FE never played it) |
 | `sounds/combat/attack/fire_spell_hit.wav` | same | `fire_spell_hit` | Unmapped: waits for UL6's magic hits (Godot_FE never played it) |
 | `sounds/combat/attack/wind_spell_hit.wav` | same | `wind_spell_hit` | Unmapped: waits for UL6's magic hits (Godot_FE never played it) |
 | `sounds/combat/walk_stone.wav` | same | `walk_stone` | Unmapped: waits for UL6's unit walk (Godot_FE never played it) |
-| `sounds/combat/weapon_break.ogg` | same | `weapon_break` | Unmapped: waits for weapon durability (not in the game) |
 | `sounds/combat/weapon_expended.ogg` | same | `weapon_expended` | Unmapped: waits for weapon durability (not in the game) |
 | `sounds/combat/rewards/bonus_experience_rewarded.ogg` | same | `bonus_experience_rewarded` | Unmapped: waits for a bonus-XP reward (none today) |
 | `sounds/ui/level_up/level_up_point.ogg` | same | `level_up_point` | Unmapped: waits for a level-up card that reveals gains one by one |
@@ -90,7 +91,7 @@ The fact rules are `res://data/audio/maps/combat_facts.tres` and `campaign_facts
 | `sounds/ui/inventory/fist_equip.ogg` | same | `fist_equip` | Unmapped: waits for the equip screen |
 | `sounds/ui/inventory/lance_equip.ogg` | same | `lance_equip` | Unmapped: waits for the equip screen |
 | `sounds/ui/inventory/magic_equip.ogg` | same | `magic_equip` | Unmapped: waits for the equip screen |
-| `sounds/ui/inventory/shield_equip.ogg` | same | `shield_equip` | Unmapped: waits for the equip screen |
+| `sounds/ui/inventory/shield_equip.ogg` | same | `shield_equip` | Unmapped: waits for the equip screen (`block_gained` plays the file in battle) |
 | `sounds/ui/inventory/staff_equip.ogg` | same | `staff_equip` | Unmapped: waits for the equip screen |
 | `sounds/ui/inventory/sword_equip.ogg` | same | `sword_equip` | Unmapped: waits for the equip screen |
 | `sounds/ui/inventory/item_from_convoy.ogg` | same | `item_from_convoy` | Unmapped: waits for the convoy screen |
@@ -99,5 +100,5 @@ The fact rules are `res://data/audio/maps/combat_facts.tres` and `campaign_facts
 | `sounds/ui/graveyard/resurrect.ogg` | same | `resurrect` | Unmapped: waits for resurrection |
 | `sounds/ui/promotion/promotion.ogg` | same | `promotion` | Unmapped: waits for promotion |
 
-Summary: 62 files, 63 cues (`ui_refused` reuses `menu_back.ogg`). In use: 7 tracks and 23 sound
-cues (22 files). Unmapped: 1 track and 32 sounds.
+Summary: 62 files, 64 cues (`ui_refused` reuses `menu_back.ogg`, `block_gained` `shield_equip.ogg`). In use: 7
+tracks and 25 sound cues (24 files). Unmapped: 1 track and 31 sounds.

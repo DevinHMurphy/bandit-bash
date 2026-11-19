@@ -1,4 +1,4 @@
-[gd_scene load_steps=23 format=3]
+[gd_scene load_steps=24 format=3]
 
 [ext_resource type="Script" path="res://ui/battle/board/battle_view.gd" id="1_view"]
 [ext_resource type="PackedScene" path="res://ui/battle/unit/unit_token.tscn" id="2_token"]
@@ -22,6 +22,7 @@
 [ext_resource type="PackedScene" path="res://ui/battle/objectives/reinforcement_overlay.tscn" id="20_points"]
 [ext_resource type="PackedScene" path="res://ui/battle/objectives/leader_mark.tscn" id="21_leader_mark"]
 [ext_resource type="PackedScene" path="res://ui/battle/board/map_object_mark.tscn" id="22_object_mark"]
+[ext_resource type="PackedScene" path="res://ui/battle/board/strike_feedback.tscn" id="23_feedback"]
 
 [node name="BattleView" type="Node2D"]
 script = ExtResource("1_view")
@@ -90,4 +91,7 @@ unique_name_in_owner = true
 unique_name_in_owner = true
 
 [node name="SkipFade" parent="." instance=ExtResource("11_skip_fade")]
+unique_name_in_owner = true
+
+[node name="StrikeFeedback" parent="." instance=ExtResource("23_feedback")]
 unique_name_in_owner = true

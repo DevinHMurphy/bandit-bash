@@ -138,6 +138,7 @@ static func unit_view(session: CombatSession, unit_id: String) -> UnitView:
 		view.stance = unit.stance
 		view.has_acted = unit.has_acted
 		view.is_second_move_pending = unit.is_second_move_pending
+		view.is_elite = view.side == CombatFact.CombatSide.ENEMY and not unit.prefix_id.is_empty()
 	# A breakable's unit id is its object id, so a thrown keg finds its fuse there.
 	var placed: MapState.ObjectState = (
 			null if state.map == null else state.map.objects.get(unit_id, null)
@@ -221,6 +222,9 @@ class UnitView:
 	## A thrown powder keg's lit fuse: the enemy Phase Ends left until it explodes
 	## ([member MapState.ObjectState.fuse]); -1 for anything else.
 	var fuse: int = -1
+	## Whether it is an elite: an enemy with a prefix ([member CombatUnitState.prefix_id]), which
+	## its token marks (RF-025). A leader's outline is the objective's, apart from this.
+	var is_elite: bool = false
 
 
 ## One map object as its [MapObjectMark] draws it.

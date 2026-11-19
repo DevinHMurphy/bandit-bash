@@ -13,31 +13,25 @@ class_name BattleScreen
 extends Node2D
 ## The gameplay screen: a solo run's battle, from Begin to its results.
 ##
-## With the run inside a combat node and no battle on, it begins that node's battle from the run's
-## request ([method CampaignRunState.battle_request]), opening in the swap window only while
-## [member SettingsData.is_opening_swap_on]; a battle saved mid-fight resumes from the same
-## request, one already on shows as it stands, and a run anywhere else is sent to its own screen
-## ([RunScreen]). Once the player's map has ended and settled, input stops, the banner shows for
-## [member end_banner_time], then [code]CampaignService.end_battle()[/code] applies and saves the
-## result: a won solo combat's [VictoryOverlay] opens over the board, which stays; a loss goes on
-## to the run's end.
-## [b]Commands only:[/b] its [BattleController] turns input into commands. Co-op and a multiplayer
-## client keep the placeholder. The save debug panel hides while a battle shows, as it would take
-## the map's clicks; toggle_save_debug shows it, and the debug fact log with it. A battle it
-## didn't begin (a resumed save, or one already on) starts its [EventLog] with "Battle resumed".
+## It begins the run's combat node from [method CampaignRunState.battle_request] (in the swap
+## window only while [member SettingsData.is_opening_swap_on]), resumes one saved mid-fight or
+## shows one already on (its [EventLog] starting "Battle resumed"), and sends any other run to
+## [RunScreen]. Once the map has ended and settled, input stops, the end banner shows for
+## [member end_banner_time], and the result is saved: a won solo combat's [VictoryOverlay] opens
+## over the board; a loss goes on. Co-op and clients keep the placeholder; the save debug panel
+## (F3, with the debug fact log) hides while a battle shows.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 
-# ASSUMPTION: Godot_FE has no end banner; 2.0 s is its turn transition's length, as the phase
-# banner's 1.0 s fade-in and 1.0 s fade-out.
+const VICTORY_SCENE: PackedScene = preload("res://ui/campaign/victory/victory_overlay.tscn")
+
+# ASSUMPTION: Godot_FE has no end banner; 2.0 s is its turn transition's length.
 ## How long the Victory or Defeat banner shows before the route to Results, counted from when it
 ## appears; it pauses with the pause menu. Shorter than the banner's fade-in
 ## ([member PhaseBanner.fade_in_time]) routes before it is fully shown.[br]
 ## [b]Units:[/b] seconds. [b]0.0:[/b] routes at once, so the banner is never seen.
 @export_range(0.0, 10.0, 0.1) var end_banner_time: float = 2.0
-
-const VICTORY_SCENE: PackedScene = preload("res://ui/campaign/victory/victory_overlay.tscn")
 
 # The player's map in the battle shown; null when the placeholder shows.
 var _session: CombatSession = null
