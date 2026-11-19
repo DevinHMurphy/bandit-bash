@@ -1,6 +1,6 @@
 # Plan: Net Transport
 **Date:** November 19, 2026
-**Status:** Draft — awaiting approval. Orchestrator ID **P10**
+**Status:** Approved November 19, 2026. Orchestrator ID **P10**
 
 ## Problem
 
@@ -38,8 +38,9 @@ layer is ready for it (one host resolves, clients mirror), but nothing carries i
 
 ## Open Questions
 
-Questions 1–14 are open in [decisions/P10-net-transport.md](decisions/P10-net-transport.md). The
-Approach below is written as recommended; each place a question decides is marked **(Q n)**.
+None open. Questions 1–14 are answered in
+[decisions/P10-net-transport.md](decisions/P10-net-transport.md), all as recommended; each place
+an answer decides is marked **(Q n)**.
 
 ## Scope
 
@@ -314,18 +315,18 @@ NT6 (its rules need pause and rejoin), and M4's live test runs after P11.
 
 ## Breaking Changes
 
-| Change | Kind | Current | Proposed | Status | Places to check | Risk |
+| Change | Kind | Current | Accepted | Status | Places to check | Risk |
 |---|---|---|---|---|---|---|
-| `LobbyAdmission.decide()` | Public method signature | Version, Steam ids | Gains the joiner's contract fingerprint | Proposed | `steam_network.gd`, `tests/save/multiplayer_cases.gd` | 🔴 |
-| `LobbyAdmission.Refusal` | Network enum | 0–2 | Appends `BUILD_MISMATCH = 3` | Proposed | `describe()`, `lobby_screen.gd` | 🟢 |
-| `SteamNetwork._request_admission` | RPC contract | `(game_version)` | `(game_version, contract)` | Proposed | Old builds are refused anyway | 🔴 |
-| `SteamNetwork.local_peer_id()` | Behavior | 0 and an engine error with no peer | 1, no error (BUG-016) | Proposed | Callers outside a lobby | 🟢 |
-| Disconnect during a run | Behavior | Member forgotten; client goes to the menu | Seat kept, game paused, client reconnects | Proposed | `scene_router.gd`, `lobby_screen.gd` | 🔴 |
-| `NetRelay` | New autoload | — | After `CampaignService` | Proposed (Q 3) | `project.godot` (append-only) | 🟡 |
-| `CombatEncounter.batch_resolved` | New signal | — | Encounter facts as batches | Proposed | — | 🟢 |
-| `CampaignCommand` wire methods | New public methods | None | `get_wire_type`, `to_wire`, `from_wire` | Proposed | Every campaign command | 🔴 |
-| `CampaignService.submit_combat()`, `CampaignSession.is_mirror` | New public members | — | The one combat route; the mirror flag | Proposed | `battle_controller.gd` | 🟡 |
-| `FactBatch` wire doc | Contract wording | "Append at the end" | Plus "readers are strict; peers are one build" | Proposed | — | 🟢 |
+| `LobbyAdmission.decide()` | Public method signature | Version, Steam ids | Gains the joiner's contract fingerprint | Accepted | `steam_network.gd`, `tests/save/multiplayer_cases.gd` | 🔴 |
+| `LobbyAdmission.Refusal` | Network enum | 0–2 | Appends `BUILD_MISMATCH = 3` | Accepted | `describe()`, `lobby_screen.gd` | 🟢 |
+| `SteamNetwork._request_admission` | RPC contract | `(game_version)` | `(game_version, contract)` | Accepted | Old builds are refused anyway | 🔴 |
+| `SteamNetwork.local_peer_id()` | Behavior | 0 and an engine error with no peer | 1, no error (BUG-016) | Accepted | Callers outside a lobby | 🟢 |
+| Disconnect during a run | Behavior | Member forgotten; client goes to the menu | Seat kept, game paused, client reconnects | Accepted | `scene_router.gd`, `lobby_screen.gd` | 🔴 |
+| `NetRelay` | New autoload | — | After `CampaignService` | Accepted (Q 3) | `project.godot` (append-only) | 🟡 |
+| `CombatEncounter.batch_resolved` | New signal | — | Encounter facts as batches | Accepted | — | 🟢 |
+| `CampaignCommand` wire methods | New public methods | None | `get_wire_type`, `to_wire`, `from_wire` | Accepted | Every campaign command | 🔴 |
+| `CampaignService.submit_combat()`, `CampaignSession.is_mirror` | New public members | — | The one combat route; the mirror flag | Accepted | `battle_controller.gd` | 🟡 |
+| `FactBatch` wire doc | Contract wording | "Append at the end" | Plus "readers are strict; peers are one build" | Accepted | — | 🟢 |
 
 ## Verification
 
