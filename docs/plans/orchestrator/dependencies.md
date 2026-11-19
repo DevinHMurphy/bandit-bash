@@ -117,6 +117,7 @@ flowchart LR
     CT5 --> CT8
     CT8 --> CT12[CT12 weapon prefixes]
     CT4 --> CT12
+    EV1[P09 EV1 outcomes] --> CT12
     CT2 --> CT9[CT9 heirlooms, curses]
   end
   subgraph P05[P05 Enemies and AI]
@@ -248,6 +249,7 @@ mark it **Open** here.
 | P09 EV1 Outcomes | P09 approved ✅ (November 12, 2026); P08 RN2 | Outcomes apply to `CampaignRunState` | **Open** November 13, 2026 (RN2 merged) |
 | P09 EV2, EV3, EV5 | EV1; P08 RN5 (EV2 uses the battle bridge and the loop) | EV2 adds the `events` save section | Waiting |
 | P09 EV4 Content, EV6 Docs | EV3; P03 CT4, CT5, CT8, CT9 (curse copies must stack), CT13 | The events name real items, prefixes, curses and units | Waiting |
+| P03 CT12 Weapon modifications | P09 EV1 (the outcome blocks); P03 question 33 | Weapons never generate with a prefix; only events and later run sources apply one | Waiting on EV1 |
 | P02 CC10 Battle resume | P02 CC8 ✅; P04 MP8 ✅ | Restores the saved sections into a rebuilt battle | **Open** November 3, 2026; built ✅ (November 5, 2026) |
 | P04 MP1–MP3, MP6 | P04 approved ✅ (October 27, 2026) | — | **Open** October 27, 2026; MP1–MP3 built October 28, 2026; MP6 built October 29, 2026, so MP7 may start; MP7 built October 29, 2026 |
 | P04 MP4 Objectives | P02 CC6 (the `AFTER_STEP` hook) | The checks run on the turn loop's hook; built with CC6 | **Open** October 28, 2026 (EB6 implemented, so CC6 may start); implemented with CC6 October 28, 2026, so MP5 may start |

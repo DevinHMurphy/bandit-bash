@@ -33,8 +33,6 @@ signal discard_pressed(rune_id: String)
 ## [b]Unset:[/b] no slots are shown and an error is reported.
 @export var slot_scene: PackedScene = null
 
-# ASSUMPTION: the provided art is numbered, not named; its files are matched to the seven runes
-# alphabetically (aegis rune_02 through spark rune_08, rune_09 unused) until the user assigns them.
 ## Each rune's icon, by its [RuneDefinition] id ([code]mend[/code]).[br]
 ## [b]Missing:[/b] the slot shows the rune's name instead.
 @export var icons: Dictionary[String, Texture2D] = {}

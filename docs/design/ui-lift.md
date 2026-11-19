@@ -57,7 +57,7 @@ Found November 18, 2026, in `bandit-bash/`:
 exchange cut-in, tutorials (P21). P08's shop and event screens (RN6+) are built on the new theme,
 so they need no second pass.
 
-**Order** (two prompts at a time; content steps EN18, EN11, CT11, CT12 take the other slot where
+**Order** (two prompts at a time; content steps take the other slot where
 a pair is not listed):
 
 1. UL0 with the user: done November 18, 2026 ([ui-style.md](ui-style.md)).
@@ -67,7 +67,7 @@ a pair is not listed):
 5. UL8 beside UL2.
 6. UL6 beside UL7.
 
-EN11, CT11, CT12 and BF1 take the next free slot between waves.
+BF1, P09 EV1 and P08 RN6 take the next free slots between waves (M3 steps that touch no UI-lift screen); CT11 joins the docs batch.
 
 ## Heirloom bar
 

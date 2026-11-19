@@ -47,7 +47,7 @@ The MVP is **one full run, start screen to boss, solo and co-op, on Normal** (ga
 |---|---|---|---|
 | **M0 Foundations** | The engine every system plugs into | P00, P01 | **Complete** October 30, 2026 |
 | **M1 First playable fight** | One greybox combat, start to finish | P02–P07 (subsets) | **Complete** November 5, 2026; its tuning pass is deferred |
-| **M2 Combat complete** | Every MVP combat feature and piece of content, with a functional UI | P02–P07 | **In progress.** Left: P03 CT11 and CT12, P05 EN12, P15 UI lift UL1F and UL2–UL8 ([ui-lift.md](../design/ui-lift.md)), BF1, and the docs (EB8, CC9, MP9, DK6, CT11, EN12) |
+| **M2 Combat complete** | Every MVP combat feature and piece of content, with a functional UI | P02–P07 | **In progress.** Left: P03 CT11, P05 EN12, P15 UI lift UL1F and UL2–UL8 ([ui-lift.md](../design/ui-lift.md)), BF1, and the docs (EB8, CC9, MP9, DK6, CT11, EN12) |
 | **M3 Solo run** | Start screen → campaign → boss, saved and resumable; 60–80 minutes | P08, P09 | **In progress.** RN1–RN5 merged (a run plays map → combat → Results → map on all three devices, headless) |
 | **M4 Co-op run** | The same run for 2–4 players, tested live on two machines | P10, P11 | Not started |
 | **M5 MVP** | Statistics, the Waystation war table, the MVP checklist | P12, polish | Not started |
@@ -64,7 +64,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P00 | [Save system](2026-10-13-save-system.md) | **Implemented** | Multiplayer paths untested live | — |
 | P01 | [Event bus and effects](2026-10-23-event-bus-and-effects.md) | **In progress** | EB8 docs | P00 |
 | P02 | [Combat core](2026-10-26-combat-core.md) | **In progress** | CC9 docs | P01 |
-| P03 | [Content catalog](2026-10-29-content-catalog.md) | **In progress** | CT11, CT12 | P01 |
+| P03 | [Content catalog](2026-10-29-content-catalog.md) | **In progress** | CT11; CT12 weapon modifications (M3, after P09 EV1; question 33) | P01 |
 | P04 | [Combat map](2026-10-27-combat-map.md) | **In progress** | MP9 docs; MP11 map authoring toolkit (future) | P01, P02 |
 | P05 | [Enemies and AI](2026-10-30-enemies-and-ai.md) | **In progress** | EN12–EN16 (EN11 the Powder Baron merged November 18, 2026) | P02, P04 |
 | P06 | [The darkness](2026-11-03-the-darkness.md) | **In progress** | DK6 docs | P02, P04 |
@@ -93,7 +93,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
    - **Docs:** EB8, CC9, MP9, DK6, CT11 and EN12 as one batched step at the end of M2.
 4. **Bugs** ([tracker](bug-tracker.md)), fix step **BF1** once the user's engine bugs are in:
    - BUG-002 (S2): the forecast's crit ignores Stance.
-   - BUG-004 (S2): an enemy with an attack intent moves and doesn't attack; details still asked of the user.
+   - BUG-004 (S2): an enemy with an attack intent moves and doesn't attack; tabled by the user November 18, 2026, so not in BF1.
    - BUG-005 (S4): unit detail shows the type id.
    - BUG-006 (S3): NetLog raises an engine error once the peer is cleared.
    - BUG-008 (S2): a client mirror keeps a used-up consumable, so its hash differs from the host's (a one-line fix).
@@ -108,7 +108,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 5. **M2's exit:** playtest a full M2 map set, folding in the deferred M1 tuning pass. Playtest notes go in the Inbox of [rebalance-and-features.md](../design/rebalance-and-features.md); the orchestrator triages them, and accepted M2 entries are built as rebalance passes (RB1, RB2...) before M2 is complete.
 6. **Later:** P04 MP11, a map authoring toolkit so the user can build maps by hand in the editor as in `Godot_FE` (after MP10 and MP9; P04 question 26); one public `Pathing.path_to` (P07 question 15 d); vision updates for the ideation thread.
 
-**Open questions for the user:** which rune art goes with which rune (UI14, RF-008); bonus XP for mini-bosses and the Powder Baron (RF-013; EN11 merged without it); BUG-004's details (blocks BF1); whether CT12 weapon prefixes are in the MVP; RF-012 (show the Bloodhound's second move or not).
+**Open questions for the user:** bonus XP for mini-bosses and the Powder Baron (RF-013; EN11 merged without it); RF-012 (show the Bloodhound's second move or not).
 
 ## Scope guardrails
 
