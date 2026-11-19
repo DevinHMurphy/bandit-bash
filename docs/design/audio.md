@@ -54,8 +54,12 @@ screens (P08 RN6 onward, P09) do the same.
 - **Facts to cues:** one listener pattern on `CombatBus` and `CampaignBus` that maps fact kinds to
   cues as they play, proved with a handful (hit, miss, crit, level-up, phase banner). UL6 adds
   the rest.
-- **Placeholders:** Godot_FE's sounds and music copied into `bandit-bash/assets/audio/`, the same
-  rule as its art (RF-008).
+- **Godot_FE's audio is the sound set** (user, November 19, 2026): all 8 tracks in
+  `resources/music/` and every current sound in `resources/sounds/` (52 files), copied into
+  `bandit-bash/assets/audio/` in Godot_FE's folder layout, each with a cue. The 7 superseded `old`
+  files stay behind, except `combat/attack/old/miss.wav`, the only miss sound. Each cue is mapped
+  to its use where the game has one today; the rest wait for their screen (shop, Guildhall,
+  equip, the campaign map's node types). Placeholders under RF-008 until AU2.
 - **Tests:** suites run with the dummy audio driver; cases cover cue lookup, bus volumes from
   settings, the voice limit, the UI hook and the fact listener.
 - **Co-op and saves:** local only, nothing networked; no save change.
@@ -74,5 +78,6 @@ Decided by the user, November 19, 2026, as recommended:
    round after UL6 and UL7.
 2. **Buses:** Master, Music, SFX and UI; UI follows the SFX slider for now (no settings change);
    Ambience joins in AU2.
-3. **Godot_FE's sounds and music** are the placeholders, as its art is.
+3. **Godot_FE's sounds and music** are the placeholders, as its art is: the whole current set, not
+   a sample.
 4. **A new autoload,** `AudioService`, is approved.
