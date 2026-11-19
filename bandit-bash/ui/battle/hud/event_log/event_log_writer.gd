@@ -337,6 +337,7 @@ func _strike_line(outcome: String) -> Entry:
 func _flush_strike() -> Entry:
 	if _strike_attacker.is_empty():
 		return null
+	# ASSUMPTION: "no damage" for a hit that took nothing through; the approved examples have none.
 	var entry: Entry = _strike_line("no damage, crit" if _strike_crit else "no damage")
 	_strike_attacker = ""
 	return entry
@@ -393,9 +394,9 @@ func _movement_line(fact: CombatFact) -> Entry:
 			_tiles[fact.actor_id] = fact.tile
 			entry.add("%s appears at " % [_name(fact.actor_id)]).add_tile(fact.tile)
 		CombatFact.Kind.REINFORCEMENT_INCOMING:
-			entry.add("Reinforcements reach ").add_tile(fact.tile)
+			entry.add("Reinforcements at ").add_tile(fact.tile)
 			if fact.amount <= 1:
-				entry.add(" after this turn")
+				entry.add(" next turn")
 			else:
 				entry.add(" in %d turns" % [fact.amount])
 			if not fact.unit_types.is_empty():
@@ -445,6 +446,8 @@ func _event_line(fact: CombatFact) -> Entry:
 
 
 # A map object's change: the object is the actor, what caused it the target.
+# ASSUMPTION: the approved examples word opening, looting and exploding; closing, searching,
+# lighting, dousing, breaking, a point's closing and the darkness's touch and erosion follow them.
 func _object_line(fact: CombatFact, entry: Entry) -> void:
 	var object_name: String = _name(fact.actor_id)
 	var by: String = ""
@@ -550,6 +553,7 @@ func _activation_line(fact: CombatFact) -> Entry:
 			EffectOwner.Kind.RUNE, EffectOwner.Kind.MAP_OBJECT:
 				return null
 			EffectOwner.Kind.ARMY:
+				# ASSUMPTION: an heirloom or curse has no unit, so the army stands first.
 				return _line(Group.EFFECTS).add("The army's %s activates" % [effect_name])
 	if not _session.state.has_unit(fact.actor_id):
 		return _line(Group.EFFECTS).add("%s activates" % [effect_name])
@@ -557,6 +561,7 @@ func _activation_line(fact: CombatFact) -> Entry:
 
 
 # "Drengr gains +2 MGT until Phase End (Battle Cry)", "Drengr's Battle Cry wears off (+2 MGT)".
+# ASSUMPTION: the duration is the effect text's (AddTimedModifier), not "for 2 turns".
 func _modifier_line(fact: CombatFact) -> Entry:
 	var actor: String = _name(fact.actor_id)
 	var effect_name: String = _effect_name(fact.source_effect_id)
@@ -584,6 +589,7 @@ func _modifier_line(fact: CombatFact) -> Entry:
 
 func _darkness_line(fact: CombatFact, written: Array[Entry]) -> void:
 	if _is_release(fact):
+		# ASSUMPTION: a release's wording; the approved example words only the spread.
 		var arrived: bool = (fact.flags & CombatFact.Flag.DARKNESS_ARRIVED) != 0
 		_append(written, _line(Group.EFFECTS).add(
 				"The darkness arrives" if arrived else "A darkness wave rises"
