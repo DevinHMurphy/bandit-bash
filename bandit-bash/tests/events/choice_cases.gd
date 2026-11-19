@@ -13,8 +13,9 @@ extends RefCounted
 ## Choosing in an open event, through the commands EventNode builds: an event opens only in an
 ## Unknown node; the chooser stage opens, closes and is refused for an option with nothing to
 ## pick; a fallen unit can't be chosen, except by the shrine; an option resolves once, after its
-## EVENT_CHOSEN, with its item placed and its drawn curse given; a team choice applies to every
-## seat and needs every seat to meet it; the view greys options with their reasons; and a surprise
+## EVENT_CHOSEN, with its item placed and its drawn curse given; a team choice, voted on (see
+## vote_cases.gd), applies to every seat and needs every seat to meet it; the view greys options
+## with their reasons; and a surprise
 ## combat begins through the battle bridge on the Standard pool, then returns to the map.
 ## Touches no save files.
 
@@ -202,12 +203,14 @@ func _test_team_choice() -> void:
 			view.options[PAY].unmet_reason.begins_with("seat 1")
 			and view.options[INTIMIDATE].is_available()
 	), view.options[PAY].unmet_reason)
-	var paid: CampaignBatch = _fx.choose(team, events, 0, PAY)
-	_check("team: it can't be chosen, and nothing changes", (
+	var paid: CampaignBatch = _fx.vote(team, events, 0, PAY)
+	_check("team: it can't be voted for, and nothing changes", (
 			paid.is_rejected() and paid.rejected_reason.begins_with("seat 1")
 			and team.run.seat_run(0).gold == Fixture.START_GOLD
-			and team.run.events.seat_event(0).chosen == NO_OPTION
+			and team.run.events.votes.is_empty()
 	), paid.rejected_reason)
+	_fx.vote(team, events, 0, INTIMIDATE)
+	_fx.vote(team, events, 1, INTIMIDATE)
 	var looted: CampaignBatch = _fx.choose(team, events, 0, INTIMIDATE)
 	var every: bool = not looted.is_rejected() and team.run.events.is_finished()
 	for seat: int in [0, 1]:

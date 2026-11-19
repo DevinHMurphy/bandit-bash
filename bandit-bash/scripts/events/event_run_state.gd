@@ -16,11 +16,11 @@ extends RefCounted
 ## combat.
 ##
 ## Held by [member CampaignRunState.events] and changed only by the event commands
-## ([OpenEventCommand], [EventChooserCommand], [EventOptionCommand]). Plain data with ids only,
-## saved as the [code]events[/code] section ([EventSaveSection]) through [method capture] and
-## [method restore]; a restore checks everything first and changes nothing on error. The open
-## event stays after every seat has chosen, until the next one opens, so a continued run shows
-## the same outcome.
+## ([OpenEventCommand], [EventChooserCommand], [EventVoteCommand], [EventOptionCommand]). Plain
+## data with ids only, saved as the [code]events[/code] section ([EventSaveSection]) through
+## [method capture] and [method restore]; a restore checks everything first and changes nothing
+## on error. The open event stays after every seat has chosen, until the next one opens, so a
+## continued run shows the same outcome.
 ##
 ## @tutorial(Events and curses plan): docs/plans/2026-11-12-events-and-curses.md
 ## @tutorial(Save system design): docs/design/save-system.md
@@ -57,8 +57,9 @@ var node: int = CampaignGraph.NO_NODE
 ## Each seat's part of the open event, by seat.
 var seats: Dictionary[int, SeatEvent] = {}
 
-## Each seat's vote in a team choice, by seat: an option index. Filled by the team vote.
-## [b]Empty:[/b] no votes.
+## Each seat's vote in a team choice of more than one seat, by seat: an option index, set by
+## [EventVoteCommand] and kept after the draw until the next event opens, so the tally still
+## shows. [b]Empty:[/b] no votes.
 var votes: Dictionary[int, int] = {}
 
 ## Whether the open event chose a surprise combat its node hasn't fought yet, which
@@ -89,6 +90,41 @@ func is_finished() -> bool:
 		if seats[seat].chosen == NO_OPTION:
 			return false
 	return true
+
+
+## Whether every seat of the open event has voted; false with no event open.
+func has_every_vote() -> bool:
+	if seats.is_empty():
+		return false
+	for seat: int in seats:
+		if not votes.has(seat):
+			return false
+	return true
+
+
+## The votes for each of [param option_count] options, by option index. A vote outside them
+## counts for none.
+func tally(option_count: int) -> PackedInt32Array:
+	var counts: PackedInt32Array = []
+	counts.resize(maxi(option_count, 0))
+	for seat: int in votes:
+		var option: int = votes[seat]
+		if option >= 0 and option < counts.size():
+			counts[option] += 1
+	return counts
+
+
+## The option a team choice's votes drew, waiting for the team's [EventOptionCommand]: every
+## seat's [member SeatEvent.choosing], which a team choice uses for nothing else.
+## [constant NO_OPTION] before the draw, once it applies, or when the seats disagree.
+func drawn_option() -> int:
+	var drawn: int = NO_OPTION
+	for seat: int in seats:
+		var choosing: int = seats[seat].choosing
+		if choosing == NO_OPTION or (drawn != NO_OPTION and choosing != drawn):
+			return NO_OPTION
+		drawn = choosing
+	return drawn
 
 
 ## Opens event [param id] at floor [param at_floor], node [param at_node] for [param seat_numbers],
@@ -235,7 +271,8 @@ class SeatEvent:
 
 	## One [EventRolls] per option of the event, in option order.
 	var rolls: Array[EventRolls] = []
-	## The option whose unit or weapon chooser is open; [constant NO_OPTION] for none.
+	## The option whose unit or weapon chooser is open; in a team choice, the option the votes
+	## drew ([method EventRunState.drawn_option]). [constant NO_OPTION] for none.
 	var choosing: int = NO_OPTION
 	## The option the seat chose and resolved; [constant NO_OPTION] before it chooses.
 	var chosen: int = NO_OPTION
