@@ -84,6 +84,12 @@ references, November 18, 2026: relics under the top bar, items in a row).
   else), and its counter where it has one ("every 7th").
 - **Live in battle:** a counter shows as a small number on the icon (`COUNTER_CHANGED`), and the icon
   pulses when it fires (`EFFECT_ACTIVATED`), with the matching event log line (UL4).
+- **State on the icon** (user, November 19, 2026; Slay the Spire's Pen Nib): each icon shows its
+  heirloom's current state, read from the effect's own counters and charges, never recounted by
+  the UI. The count toward its period ("every 10th"), in battle and, for campaign-lane counters
+  (War Ledger), on campaign screens too; a **ready** look when the next qualifying event fires it;
+  uses left where it has charges, and a spent look once they run out. A resumed battle shows the
+  same state.
 - **Input:** a key and pad button move focus onto the bar, as the rune bar does (UI14); left and
   right move between icons; Back leaves.
 - **Data:** an `icon` export on `HeirloomDefinition` and `CurseDefinition` (P03 content), with
@@ -201,3 +207,5 @@ Decided by the user, November 18, 2026: every question as recommended.
 6. **The unit detail pop-up** opens by right-clicking a unit, plus the existing key and pad button.
 7. **A heirloom bar** (UL8) below the top header on campaign screens and in battle: low-opacity
    icons with a tooltip on hover (user, with the questions).
+8. **Heirloom icons show their state** (user, November 19, 2026): counter, ready, uses left and
+   spent, as Slay the Spire's Pen Nib does ([Heirloom bar](#heirloom-bar)).
