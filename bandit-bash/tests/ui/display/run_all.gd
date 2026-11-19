@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends "res://tests/ui/ui_suite.gd"
@@ -20,8 +20,9 @@ extends "res://tests/ui/ui_suite.gd"
 ## checks); then the gameplay screen's layout: its save debug panel (hidden when the battle opens,
 ## toggled by F3 and read afresh, clear of the M1 map at the 1280×720 base size, untouched by
 ## clicks on the deployment tiles); the HUD and the hint bar clear of the map at the base size and
-## wider; the run seed on the pause screen; a real click on the unit panel's Details opening unit
-## detail. The shared helpers are [code]tests/ui/ui_suite.gd[/code]'s.
+## wider; the run seed on the pause screen; the unit panel keeping its unit under the mouse
+## (BUG-015) and a real click on its Details opening unit detail. The shared helpers are
+## [code]tests/ui/ui_suite.gd[/code]'s.
 ##
 ## Run from the repo root:
 ## [code]godot --headless --path bandit-bash --script res://tests/ui/display/run_all.gd[/code].
@@ -259,14 +260,39 @@ func _settle(view: BattleView) -> void:
 		view.advance(1.0 / 60.0)
 
 
-# A real left click on the laid-out unit panel's Details opens the detail of the unit under the
-# cursor; a right click closes it.
+# BUG-015: the mouse moves onto the laid-out unit panel, then the board's cursor moves to an
+# enemy, as the mouse crossing the board would move it: the panel keeps its unit. A real left
+# click on its Details then opens that unit's detail; a right click closes it.
 func _finish_detail_click_case() -> void:
 	var controller: BattleController = _panel_screen.call(&"get_controller")
 	var hud: BattleHud = _panel_screen.call(&"get_hud")
-	var button: Button = hud.get_unit_panel().get_details_button()
+	var view: BattleView = _panel_screen.call(&"get_view")
+	var unit_panel: UnitPanel = hud.get_unit_panel()
+	var button: Button = unit_panel.get_details_button()
 	var shown: String = controller.detail_unit()
 	var rect: Rect2 = button.get_global_rect()
+	# Through Input, which keeps the mouse position a headless run reads (the root viewport's own
+	# push_input doesn't move it).
+	var motion: InputEventMouseMotion = InputEventMouseMotion.new()
+	motion.position = rect.get_center()
+	motion.global_position = rect.get_center()
+	Input.parse_input_event(motion)
+	Input.flush_buffered_events()
+	var enemy: String = view.get_session().state.units_of(CombatFact.CombatSide.ENEMY)[0]
+	controller.move_cursor(view.get_session().state.tile_of(enemy))
+	# Stands for the frame in which the HUD would follow the cursor.
+	hud.call(&"_process", 0.0)
+	var held: bool = (
+			unit_panel.is_mouse_over()
+			and unit_panel.get_view() != null
+			and unit_panel.get_view().unit_id == shown
+	)
+	_check("unit panel (BUG-015): it keeps its unit while the mouse is over it", held, (
+			"over %s, shows %s, expected %s" % [
+				unit_panel.is_mouse_over(),
+				unit_panel.get_view().unit_id if unit_panel.get_view() != null else "-", shown,
+			]
+	))
 	_click(rect.get_center())
 	var panel: UnitDetailPanel = controller.get_detail_panel()
 	var opened: bool = (

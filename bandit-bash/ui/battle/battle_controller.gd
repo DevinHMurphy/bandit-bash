@@ -6,7 +6,7 @@
 # File:     battle_controller.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name BattleController
@@ -33,8 +33,9 @@ extends HintSource
 ## [b]Move preview:[/b] hovering a move tile runs a [MovePreview] on a worker thread
 ## ([method run_preview_frame]), drawn by [MovePreviewMarks] and the [IntentDisplay]; the picked
 ## tile's, with its danger zone, stays through the action until Cancel (question 35 (1)).[br]
-## [b]Unit detail[/b] (UI11): unit_detail or the unit panel's Details opens any unit's
-## [UnitDetailPanel] from IDLE or MOVE ([method request_unit_detail]); Back closes it.[br]
+## [b]Unit detail[/b] (ui-lift.md): unit_detail, a right click on a unit or the unit panel's Details
+## opens any unit's [UnitDetailPanel] from IDLE or MOVE ([method request_unit_detail]); Q / E and
+## the shoulder buttons step through its side ([method step_unit_detail]); Back closes it.[br]
 ## [b]Enemy information[/b] (question 10): the [IntentDisplay] shows the intents once the board
 ## settles, none while the seat's [constant CampaignValue.Permission.INTENTS_HIDDEN] holds
 ## (Clouded Sight); [method toggle_danger_zone] draws [DangerZone] either way, support purple.[br]
@@ -73,6 +74,8 @@ extends HintSource
 #                                                CONFIRM the forecast
 #                                                or question follows. IDLE: the cursor and camera
 #                                                go to the next of the seat's units that can act.
+#                                                DETAIL: the detail shows the next unit of its
+#                                                side, wrapping (Godot_FE's details screen did).
 #                                                Deliberate reuse by stage, as Godot_FE's bumpers.
 #                                                Harmless elsewhere and with one target)
 #   "target_prev"           -> Q; LB [L1]     (as target_next, backwards)
@@ -84,8 +87,10 @@ extends HintSource
 #                                                deliberate reuse of one key by stage. From ACTION
 #                                                it snaps the walked token back. B is Godot_FE's
 #                                                back and Menu its pause; both act as Escape does)
-#   (Right Mouse Button)                      (step back one stage, as ui_cancel; nothing in IDLE,
-#                                                SWAP and WALK)
+#   (Right Mouse Button)                      (IDLE, MOVE on a unit, no HUD control under the
+#                                                mouse: opens its detail (DETAIL), the selection
+#                                                kept. Elsewhere: step back one stage, as
+#                                                ui_cancel; nothing in IDLE, SWAP and WALK)
 #   "end_turn"              -> T; Y           (IDLE, MOVE: End Turn, asking first while units can
 #                              [Triangle]        act. SWAP, SWAP_PICKED: Start -- deliberate reuse,
 #                                                the keyboard's and pad's way to Start. Harmless
@@ -127,9 +132,9 @@ extends HintSource
 #                                                cursor, else of the selected one (DETAIL); with
 #                                                neither, harmless. DETAIL: closes it, as Back
 #                                                does. Godot_FE's "details" key; its Square went
-#                                                to cycle_weapon. The unit panel's Details button
-#                                                is the mouse's way in, Right Mouse Button its way
-#                                                out, as everywhere)
+#                                                to cycle_weapon. A right click on a unit and the
+#                                                unit panel's Details button are the mouse's ways
+#                                                in, Right Mouse Button its way out, as everywhere)
 #   ui_up / ui_down in DETAIL                 (scroll the detail's body while it overflows; the
 #                                                Close button keeps focus. Harmless otherwise)
 #   "event_log_focus"       -> L; RS pushed   (IDLE, MOVE: focuses the event log (EVENT_LOG) on its
@@ -252,10 +257,11 @@ extends HintSource
 # DETAIL:      a unit's detail panel (UnitDetailPanel) over IDLE or MOVE, for the unit under the
 #              cursor, else the selected one, either side. The board is inert: no cursor, no
 #              clicks; MOVE's overlays and path stay drawn, its hover preview is dropped and asked
-#              again on return. Up and down scroll the panel; accept presses its Close. Cancel,
+#              again on return. Up and down scroll the panel; accept presses its Close; Q / E, the
+#              shoulder buttons and its Previous and Next show its side's other units. Cancel,
 #              Close or unit_detail -> the stage it was opened from, with its selection and cursor
-#              as they were. Opened through _history like any panel, so it is never left open by
-#              a command (none can be sent from it).
+#              as they were, whichever unit it ended on. Opened through _history like any panel,
+#              so it is never left open by a command (none can be sent from it).
 # EVENT_LOG:   the event log focused by event_log_focus from IDLE or MOVE (the selection, its
 #              overlays, path and cursor kept, the hover preview dropped and asked again on return).
 #              Up and down scroll it a line; left and right move focus between its header and
@@ -272,10 +278,10 @@ extends HintSource
 # back to MOVE clears it, and the session's return. The forecast walks the command's path itself.
 # Cycling changes no state: each weapon has its own command (TargetOption.commands),
 # where Godot_FE equipped the weapon on the unit at each step and left it equipped on Back. Q / E
-# are inert in SWAP, SWAP_PICKED, MOVE, WALK, ACTION, RUNE, END_CONFIRM, DETAIL, RUNE_SLOTS,
-# DISCARD_CONFIRM and EVENT_LOG: cycling units
-# there would drop the selection or the panel under way (Godot_FE's details screen cycled units on
-# its bumpers; not ported).
+# are inert in SWAP, SWAP_PICKED, MOVE, WALK, ACTION, RUNE, END_CONFIRM, RUNE_SLOTS,
+# DISCARD_CONFIRM and EVENT_LOG: cycling units there would drop the selection or the panel under
+# way. In DETAIL they step the detail through its side, as Godot_FE's details screen did.
+
 # The rune bar (RuneBar) casts any held rune at any point of the player phase, outside the action
 # economy: from IDLE and MOVE, by a click on a rune or by open_runes then accept, with no unit
 # needed and after every unit has acted. Elsewhere (WALK to CONFIRM, END_CONFIRM, DETAIL, a rune
@@ -341,7 +347,7 @@ const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
 # --- Live actions by hint context: the hint bar's one source ---------------------------------
 # Each row is what acts in that context, read from the state and input blocks above: the arrows
 # where they move the cursor or a panel's focus (a menu's and the picker's rows go up and down
-# only; the forecast's and the dialogs' buttons sit side by side), Q / E in IDLE, TARGET,
+# only; the forecast's and the dialogs' buttons sit side by side), Q / E in IDLE, DETAIL, TARGET,
 # PAIR_TARGET and CONFIRM, accept wherever it picks, presses or confirms, cycle_weapon on the
 # forecast only. ui_cancel is the pause menu's in SWAP, IDLE, PLAYBACK and INACTIVE (this node
 # leaves Esc to it there), and toggle_save_debug is the save debug panel's. Order is the bar's
@@ -350,7 +356,8 @@ const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
 # with one target and C with one weapon in TARGET, PAIR_TARGET, CONFIRM and FORECAST, the
 # danger zone in the final playback, unit_detail in IDLE and MOVE with no unit to show, RUNE's up
 # and down with one rune, FORECAST's up and down with no Breakdown or Next weapon (a staff, a
-# shove, a rune), DETAIL's up and down while its body fits, open_runes in IDLE and MOVE while the
+# shove, a rune), DETAIL's up and down while its body fits and its Q / E while its side has one
+# unit, open_runes in IDLE and MOVE while the
 # bar is refused, RUNE_SLOTS' left and right with one rune held, the event log's scrolling (and
 # EVENT_LOG's up and down) while it fits or doesn't show, event_log_focus with no log shown, and
 # EVENT_LOG's left and right while collapsed to its header. The scroll actions are in exactly the
@@ -399,8 +406,8 @@ const LIVE_ACTIONS: Dictionary[StringName, Array] = {
 		&"fast_forward", &"toggle_save_debug",
 	],
 	&"DETAIL": [
-		&"ui_up", &"ui_down", &"ui_accept", &"ui_cancel", &"unit_detail", &"toggle_danger_zone",
-		&"fast_forward", &"toggle_save_debug",
+		&"ui_up", &"ui_down", &"target_prev", &"target_next", &"ui_accept", &"ui_cancel",
+		&"unit_detail", &"toggle_danger_zone", &"fast_forward", &"toggle_save_debug",
 	],
 	&"ACTION": [
 		&"ui_up", &"ui_down", &"ui_accept", &"ui_cancel", &"toggle_danger_zone", &"fast_forward",
@@ -565,6 +572,10 @@ const DISCARD_QUESTION: String = "Discard %s? It is gone for good."
 
 @export_group("")
 
+## The run's units by instance id, so the unit detail shows a player unit's level, XP and
+## growths; [BattleScreen] fills it from the seat's roster. [b]Empty:[/b] the detail shows none.
+var run_units: Dictionary[String, UnitInstance] = {}
+
 var _encounter: CombatEncounter = null
 var _session: CombatSession = null
 var _seat: int = -1
@@ -707,6 +718,9 @@ func _exit_tree() -> void:
 
 func _input(event: InputEvent) -> void:
 	if _stage == Stage.EVENT_LOG and is_accepting_input() and _take_log_arrow(event):
+		get_viewport().set_input_as_handled()
+		return
+	if _opens_detail_by_click(event):
 		get_viewport().set_input_as_handled()
 		return
 	if not _is_cancel(event) or not is_accepting_input():
@@ -946,11 +960,8 @@ func move_cursor(tile: Vector2i) -> bool:
 func detail_unit() -> String:
 	if _session == null or (_stage != Stage.IDLE and _stage != Stage.MOVE):
 		return ""
-	var occupant: String = _session.state.occupant_at(_cursor)
-	# A standing breakable occupies its tile too, but it is on neither side and has no detail.
-	if not occupant.is_empty() and _session.state.side_of(occupant) != CombatFact.CombatSide.NONE:
-		return occupant
-	return _unit_id
+	var occupant: String = _unit_at(_cursor)
+	return occupant if not occupant.is_empty() else _unit_id
 
 
 ## unit_detail, or the unit panel's Details button: opens [param unit_id]'s [UnitDetailPanel]
@@ -960,7 +971,7 @@ func request_unit_detail(unit_id: String = "") -> bool:
 	if not is_accepting_input() or (_stage != Stage.IDLE and _stage != Stage.MOVE):
 		return false
 	var shown: String = unit_id if not unit_id.is_empty() else detail_unit()
-	var detail: UnitDetailViewModel = UnitDetailViewModel.build(_session, shown)
+	var detail: UnitDetailViewModel = _detail_view(shown)
 	if detail == null:
 		return false
 	var panel: BattlePanel = _open_panel(Stage.DETAIL, unit_detail_scene, detail)
@@ -970,7 +981,30 @@ func request_unit_detail(unit_id: String = "") -> bool:
 	panel.cancelled.connect(_on_panel_cancelled)
 	if _detail_panel != null:
 		_detail_panel.scroll_range_changed.connect(_on_detail_panel_scroll_range_changed)
+		_detail_panel.step_requested.connect(step_unit_detail)
 	_redraw()
+	return true
+
+
+## target_next / target_prev in DETAIL, or the pop-up's Next and Previous: shows the next (or
+## previous, [param forward] false) unit of the shown unit's side, in the order the state lists
+## them, wrapping, without closing. Returns false, changing nothing, outside DETAIL or with one.
+func step_unit_detail(forward: bool) -> bool:
+	if _stage != Stage.DETAIL or not is_instance_valid(_detail_panel):
+		return false
+	var shown: UnitDetailViewModel = _detail_panel.get_view()
+	if shown == null:
+		return false
+	var units: PackedStringArray = _session.state.units_of(shown.side)
+	if units.size() < 2:
+		return false
+	var at: int = maxi(units.find(shown.unit_id), 0)
+	var next: int = posmod(at + (1 if forward else -1), units.size())
+	var view: UnitDetailViewModel = _detail_view(units[next])
+	if view == null:
+		return false
+	_detail_panel.show_detail(view)
+	live_actions_changed.emit()
 	return true
 
 
@@ -1413,6 +1447,11 @@ func _can_act_now(context: StringName, action: StringName) -> bool:
 		&"target_prev", &"target_next":
 			if context == &"IDLE":
 				return true
+			if context == &"DETAIL":
+				var shown: UnitDetailViewModel = (
+						_detail_panel.get_view() if is_instance_valid(_detail_panel) else null
+				)
+				return shown != null and shown.side_count > 1
 			return _targets != null and _targets.targets().size() > 1
 		&"unit_detail":
 			if context == &"DETAIL":
@@ -1591,12 +1630,46 @@ func _is_targeting(stage: Stage) -> bool:
 	return stage == Stage.TARGET or stage == Stage.PAIR_TARGET
 
 
-# target_next / target_prev: units in IDLE, targets in TARGET and CONFIRM (see the input block).
+# target_next / target_prev: units in IDLE, the detail's unit in DETAIL, targets in TARGET and
+# CONFIRM (see the input block).
 func _cycle(forward: bool) -> void:
 	if _stage == Stage.IDLE:
 		cycle_unit(forward)
+	elif _stage == Stage.DETAIL:
+		step_unit_detail(forward)
 	else:
 		cycle_target(forward)
+
+
+# The unit on tile that has a detail; empty for none. A standing breakable occupies its tile too,
+# but it is on neither side and has no detail.
+func _unit_at(tile: Vector2i) -> String:
+	var occupant: String = _session.state.occupant_at(tile)
+	if occupant.is_empty() or _session.state.side_of(occupant) == CombatFact.CombatSide.NONE:
+		return ""
+	return occupant
+
+
+# unit_id's detail: the session's view, its run record's level, XP and growths, and its intent
+# unless the seat's intents are hidden. Null for a unit not on the map.
+func _detail_view(unit_id: String) -> UnitDetailViewModel:
+	var record: UnitInstance = run_units.get(unit_id, null) as UnitInstance
+	return UnitDetailViewModel.build(_session, unit_id, record, not are_intents_hidden())
+
+
+# A right click on a unit in IDLE or MOVE opens its detail, keeping the selection, and returns
+# true; anywhere else (a HUD control under the mouse, an empty tile, another stage) it stays Back.
+func _opens_detail_by_click(event: InputEvent) -> bool:
+	var button: InputEventMouseButton = event as InputEventMouseButton
+	if button == null or not button.pressed or button.button_index != MOUSE_BUTTON_RIGHT:
+		return false
+	if not is_accepting_input() or (_stage != Stage.IDLE and _stage != Stage.MOVE):
+		return false
+	if get_viewport().gui_get_hovered_control() != null:
+		return false
+	var local: InputEventMouse = view.make_input_local(button) as InputEventMouse
+	var unit_id: String = _unit_at(view.tile_at(local.position))
+	return not unit_id.is_empty() and request_unit_detail(unit_id)
 
 
 func _step_cursor(direction: Vector2i) -> void:

@@ -6,7 +6,7 @@
 # File:     unit_panel.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name UnitPanel
@@ -17,10 +17,11 @@ extends PanelContainer
 ##
 ## Draws a [HudViewModel.UnitView]; [BattleHud] picks the unit (the one under the cursor, else the
 ## selected one) and builds the view. Holds no rules. With no unit it hides.[br]
-## Its Details button is the mouse's way to the unit's [UnitDetailPanel]
-## ([signal details_pressed]; [BattleScreen] hands it to
-## [method BattleController.request_unit_detail]). It never takes focus, so a click leaves accept
-## with the board.
+## Its Details button is a mouse way to the unit's [UnitDetailPanel] ([signal details_pressed];
+## [BattleScreen] hands it to [method BattleController.request_unit_detail]); while the mouse is
+## over the panel ([method is_mouse_over]) [BattleHud] keeps it on its unit, so the button can be
+## reached. It never takes focus, so a click leaves accept with the board. An enemy's name is
+## [code]text[/code] with an "Enemy" chip beside it, as [code]danger[/code] text fails contrast.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
@@ -50,16 +51,22 @@ signal details_pressed(unit_id: String)
 ## The line under the name once the unit has acted this phase; empty hides it.
 @export var acted_text: String = "Has acted"
 
-## The name's colour for each side: player units. Defaults to the [code]block[/code] token.
+## The name's colour for player units. Defaults to the [code]block[/code] token (5.01:1 on
+## [code]panel[/code]).
 @export var player_color: Color = UiTokens.color(UiTokens.BLOCK)
 
 ## The name's colour for enemy units; anything else (a breakable) keeps the theme's. Defaults to
-## the [code]danger[/code] token.
-@export var enemy_color: Color = UiTokens.color(UiTokens.DANGER)
+## the [code]text[/code] token: the side shows in the chip ([member enemy_chip_text]).
+@export var enemy_color: Color = UiTokens.color(UiTokens.TEXT)
+
+## The chip beside an enemy's name, [code]text[/code] on [code]danger_fill[/code] (5.42:1).[br]
+## [b]Empty:[/b] no chip; the side shows only in the token on the board.
+@export var enemy_chip_text: String = "Enemy"
 
 var _view: HudViewModel.UnitView = null
 
 @onready var _name: Label = %UnitName
+@onready var _side_chip: Label = %SideChip
 @onready var _status: Label = %Status
 @onready var _hp_bar: ProgressBar = %HpBar
 @onready var _hp: Label = %Hp
@@ -71,9 +78,9 @@ var _view: HudViewModel.UnitView = null
 
 
 func _ready() -> void:
-	# ASSUMPTION: Godot_FE had no mouse way to its details screen; a Details button on this panel
-	# (the hovered unit's) is the mouse's.
 	_details.pressed.connect(_on_details_button_pressed)
+	_side_chip.text = enemy_chip_text
+	_side_chip.visible = false
 
 
 ## Shows [param view]; hides for null.
@@ -90,6 +97,8 @@ func show_unit(view: HudViewModel.UnitView) -> void:
 			_name.add_theme_color_override(&"font_color", enemy_color)
 		_:
 			_name.remove_theme_color_override(&"font_color")
+	var is_enemy: bool = view.side == CombatFact.CombatSide.ENEMY
+	_side_chip.visible = is_enemy and not enemy_chip_text.is_empty()
 	_status.text = acted_text if view.has_acted else ""
 	_status.visible = not _status.text.is_empty()
 	_hp_bar.max_value = maxf(float(view.max_hp), 1.0)
@@ -112,6 +121,16 @@ func show_unit(view: HudViewModel.UnitView) -> void:
 		gear.append("Pouch: %s" % [view.pouch_name])
 	_gear.text = " · ".join(gear)
 	_gear.visible = not gear.is_empty()
+
+
+## Whether the mouse is over the panel while it shows, so [BattleHud] keeps it on its unit.
+func is_mouse_over() -> bool:
+	return is_visible_in_tree() and get_global_rect().has_point(get_global_mouse_position())
+
+
+## Whether the "Enemy" chip shows, for tests.
+func is_enemy_chip_shown() -> bool:
+	return _side_chip.visible
 
 
 ## The Details button, for tests and the mouse.
@@ -145,3 +164,4 @@ func _weapon_text(view: HudViewModel.UnitView) -> String:
 func _on_details_button_pressed() -> void:
 	if _view != null:
 		details_pressed.emit(_view.unit_id)
+

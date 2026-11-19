@@ -1,0 +1,30 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ui/battle/unit/detail/detail_progress.gd" id="1_progress"]
+[ext_resource type="Theme" path="res://ui/theme/battle_theme.tres" id="2_theme"]
+
+[node name="DetailProgress" type="HBoxContainer"]
+mouse_filter = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_progress")
+
+[node name="Level" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HudText"
+text = "Lv 1"
+
+[node name="XpBar" type="ProgressBar" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 8)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+step = 1.0
+show_percentage = false
+
+[node name="Xp" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HudNote"
+text = "XP 0 / 100"

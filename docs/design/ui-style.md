@@ -7,6 +7,7 @@ theme's tokens.
 **Status:** decided November 18, 2026 (user; P15 UL0, [ui-lift.md](ui-lift.md)). Revised the same
 day with UL1 (user): `text_muted` lightened from `#9aa3ad` so it meets the contrast line on
 `panel_raised`, the row looks set state by state, the 14-unit floor applied to the board.
+Revised November 19, 2026 with UL3 (user): the `danger_fill` token for danger chips.
 Placeholder art stays until the art pass; this guide sets the frame it fits in.
 
 ## Mood
@@ -33,6 +34,7 @@ Every colour comes from a token. Names are the theme's: the colours of the `Pale
 | `accent` | `#d9b45a` | Focus, highlights, gold amounts, headers on dark |
 | `parchment` | `#d8c9a3` | The ribbon header's fill (its text is `bg`) |
 | `danger` | `#c8463c` | Damage, enemy intents, lethal warnings, the danger zone |
+| `danger_fill` | `#9e352e` | The fill of danger chips under `text`: warnings, the turn counter past par, the "Enemy" chip, the enemy phase banner |
 | `heal` | `#5fae6b` | Healing, positive changes |
 | `block` | `#6fa3d8` | Block, the player side's colour |
 | `darkness` | `#6b4fa0` | The darkness's layers, its phase banner and its log lines |
@@ -43,6 +45,9 @@ Every colour comes from a token. Names are the theme's: the colours of the `Pale
   `text` 10.30:1 on `panel` and 7.78:1 on `panel_raised`, `text_muted` 5.99:1 and 4.52:1
   (`tests/ui/theme/` measures them). Colour is never the only signal: an icon, word or shape goes
   with it.
+- **Chips:** `danger` and `darkness` fail as text on `panel` (2.79:1 and 2.06:1), so text that
+  carries them is `text` on a filled chip: `danger_fill` (5.42:1) or `darkness` (5.00:1). Plain
+  `danger` under `text` is only 3.70:1, which is why danger chips have their own fill.
 
 ## Fonts
 

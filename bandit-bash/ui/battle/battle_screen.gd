@@ -6,7 +6,7 @@
 # File:     battle_screen.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name BattleScreen
@@ -123,12 +123,27 @@ func _open(encounter: CombatEncounter, seat: int) -> void:
 	_view.settled.connect(_on_battle_view_settled)
 	_view.bind(_session)
 	_controller.bind(encounter, _session, seat)
+	_controller.run_units = _run_units_of(seat)
 	_hud.bind(_session, _controller, _view)
 	if _is_resumed:
 		_hud.get_event_log().add_resumed_line()
 	# The unit panel's Details button is the mouse's way to unit detail; the controller decides.
 	_hud.get_unit_panel().details_pressed.connect(_on_unit_panel_details_pressed)
 	_on_battle_view_settled()
+
+
+# The seat's army by instance id, for the unit detail's level, XP and growths; empty off a run.
+func _run_units_of(seat: int) -> Dictionary[String, UnitInstance]:
+	var units: Dictionary[String, UnitInstance] = {}
+	var run: CampaignSession = CampaignService.session
+	var seat_run: SeatRun = null
+	if run != null and run.run != null:
+		seat_run = run.run.seat_run(seat)
+	if seat_run == null:
+		return units
+	for unit: UnitInstance in seat_run.army:
+		units[unit.instance_id] = unit
+	return units
 
 
 # Hides the battle and shows the co-op placeholder; a non-empty note replaces its text.

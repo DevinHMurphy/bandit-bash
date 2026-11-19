@@ -6,13 +6,14 @@
 # File:     forecast_cases.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 15, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
 ## The forecast's and move preview's cases for the ui/display suite (combat UI plan, UI3 and UI5F
 ## rows): forecast rows against [CombatForecast] for an attack, a staff and a shove; the counter
-## and the defeat's chance when the all-hits line defeats the target; Hit 100 against a keg
+## and the defeat's chance when the all-hits line defeats the target; every hit of a multi-hit
+## attack in the Hits row; Hit 100 against a keg
 ## (UI12); the staff's label; the forecast panel as the confirm, its breakdown toggle against
 ## explain's stages; weapon cycling with a Sidearm unit, the forecast and the command sent; the
 ## move preview against
@@ -112,6 +113,7 @@ func run() -> void:
 		return
 	_test_rows_match_forecast()
 	_test_counter_on_kill()
+	_test_multi_hit()
 	_test_object_hit()
 	_test_staff_label()
 	_test_panel_confirms()
@@ -237,6 +239,70 @@ func _test_counter_on_kill() -> void:
 			and is_equal_approx(ForecastViewModel.defeat_chance(100, 1, 1), 1.0)
 			and is_equal_approx(ForecastViewModel.defeat_chance(0, 1, 2), 0.0)
 	))
+
+
+# A sword user at AtkX 2 beside a Brute on a fixture board: the Hits row, under Damage, lists each
+# of its strikes' damage in order, as the forecast's attacks record them; at AtkX 1 with one strike
+# a side there is no Hits row. Each side's breakdowns are its first landed hit, then later hits in
+# order.
+func _test_multi_hit() -> void:
+	var catalog: EffectCatalog.Index = EffectCatalog.load_tree(FIXTURE_TREE)
+	var world: AiWorld = AiWorld.new(catalog, PLAIN_8X8)
+	world.add_enemy("e1", BRUTE, Vector2i(3, 2))
+	world.add_player("p1", Vector2i(2, 2))
+	world.state().weapon("w:p1").atk_x = 2
+	world.state().load_bases(world.engine(), "p1")
+	EnemyAI.register(world.session, catalog)
+	Intents.register(world.session, catalog)
+	world.session.open_battle()
+	var command: UnitTurnCommand = UnitTurnCommand.new(
+			0, "p1", UnitTurnCommand.Action.ATTACK, "e1"
+	)
+	var model: ForecastViewModel = ForecastViewModel.build(world.session, command)
+	var found: CombatForecast.ExchangeForecast = model.forecast as CombatForecast.ExchangeForecast
+	if found == null or not found.is_legal:
+		_check.call("multi-hit forecast: the fixture attack is legal", false, (
+				"" if found == null else found.reason
+		))
+		return
+	var damages: PackedStringArray = []
+	var target_count: int = 0
+	for attack: CombatForecast.AttackForecast in found.attacks:
+		if attack.attacker_id == "p1":
+			damages.append("%d" % [attack.damage])
+		else:
+			target_count += 1
+	var hits: ForecastViewModel.Row = model.row(ForecastViewModel.HITS_LABEL)
+	var damage_at: int = model.rows.find(model.row("Damage"))
+	_check.call("multi-hit forecast: the Hits row lists every strike's damage, under Damage", (
+			damages.size() >= 2
+			and hits != null
+			and hits.actor == ForecastViewModel.HIT_SEPARATOR.join(damages)
+			and model.rows.find(hits) == damage_at + 1
+	), "strikes %s, row %s" % [damages, "none" if hits == null else hits.actor])
+	var numbers: PackedInt32Array = []
+	for stages: ForecastViewModel.Breakdown in model.breakdowns:
+		if stages.unit_id == "p1":
+			numbers.append(stages.hit_number)
+	var ordered: bool = not numbers.is_empty()
+	for i: int in range(1, numbers.size()):
+		ordered = ordered and numbers[i] > numbers[i - 1]
+	_check.call("multi-hit forecast: a side's breakdowns run from its first landed hit, in order", (
+			ordered
+	), "hit numbers %s" % [numbers])
+	world.state().weapon("w:p1").atk_x = 1
+	world.state().load_bases(world.engine(), "p1")
+	var single: ForecastViewModel = ForecastViewModel.build(world.session, command)
+	var single_found: CombatForecast.ExchangeForecast = (
+			single.forecast as CombatForecast.ExchangeForecast
+	)
+	var by_side: Dictionary[String, int] = {}
+	for attack: CombatForecast.AttackForecast in single_found.attacks:
+		by_side[attack.attacker_id] = by_side.get(attack.attacker_id, 0) + 1
+	var is_single: bool = by_side.values().all(func(count: int) -> bool: return count <= 1)
+	_check.call("multi-hit forecast: one strike a side shows no Hits row", (
+			not is_single or single.row(ForecastViewModel.HITS_LABEL) == null
+	), "strikes by side %s" % [by_side])
 
 
 # A sword user beside a powder keg on a fixture board: the Hit row's attacker cell reads 100, as

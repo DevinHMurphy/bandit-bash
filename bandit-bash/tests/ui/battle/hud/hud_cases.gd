@@ -6,7 +6,7 @@
 # File:     hud_cases.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -44,6 +44,7 @@ const FORECAST_SCENE: PackedScene = preload("res://ui/battle/forecast/forecast_p
 const HUD_SCENE: PackedScene = preload("res://ui/battle/hud/battle_hud.tscn")
 const TURN_COUNTER_SCENE: PackedScene = preload("res://ui/battle/hud/turn_counter.tscn")
 const BANNER_SCENE: PackedScene = preload("res://ui/battle/hud/phase_banner.tscn")
+const UNIT_PANEL_SCENE: PackedScene = preload("res://ui/battle/unit/unit_panel.tscn")
 const ThemeCases = preload("res://tests/ui/theme/theme_cases.gd")
 
 # turn_input_cases.gd's seed: no case compares golden numbers.
@@ -89,6 +90,7 @@ func run() -> void:
 	_test_turns_and_darkness()
 	_test_darkness_banner()
 	_test_turn_colour()
+	_test_danger_chips()
 	_test_objective()
 	_test_target_labels()
 	_test_panel_area()
@@ -305,7 +307,43 @@ func _test_darkness_banner() -> void:
 	banner.free()
 
 
-# The counter on its own: within par it keeps the theme's colour, past par it takes past_par_color.
+# danger as text fails contrast, so the enemy side reads as text on the danger chip: the enemy
+# phase and Defeat on EnemyBannerPanel in the text colour (the player's on the plain panel), and
+# the unit panel's enemy name in the text colour with its "Enemy" chip, none for a player unit.
+func _test_danger_chips() -> void:
+	var banner: PhaseBanner = BANNER_SCENE.instantiate()
+	_root.add_child(banner)
+	banner.show_phase(ENEMY, 2)
+	var enemy_type: StringName = banner.theme_type_variation
+	banner.show_phase(PLAYER, 3)
+	var player_type: StringName = banner.theme_type_variation
+	banner.show_result(false)
+	var defeat_type: StringName = banner.theme_type_variation
+	banner.free()
+	var panel: UnitPanel = UNIT_PANEL_SCENE.instantiate()
+	_root.add_child(panel)
+	var view: HudViewModel.UnitView = HudViewModel.UnitView.new()
+	view.name = "Brute"
+	view.side = ENEMY
+	panel.show_unit(view)
+	var enemy_chip: bool = panel.is_enemy_chip_shown()
+	view.side = PLAYER
+	panel.show_unit(view)
+	var player_chip: bool = panel.is_enemy_chip_shown()
+	panel.free()
+	_check.call("danger chips: the enemy banner, Defeat and the enemy chip carry the danger fill", (
+			enemy_type == &"EnemyBannerPanel"
+			and defeat_type == &"EnemyBannerPanel"
+			and player_type == &""
+			and enemy_chip
+			and not player_chip
+	), "banners %s / %s / %s, chip %s / %s" % [
+		enemy_type, player_type, defeat_type, enemy_chip, player_chip,
+	])
+
+
+# The counter on its own: within par it keeps the scene's theme type, past par it takes
+# past_par_type, text on the danger chip.
 func _test_turn_colour() -> void:
 	var counter: TurnCounter = TURN_COUNTER_SCENE.instantiate()
 	_root.add_child(counter)
@@ -317,11 +355,12 @@ func _test_turn_colour() -> void:
 	var at_par_text: String = counter.get_text()
 	view.turn = 6
 	counter.show_turn(view)
-	_check.call("turn counter: turn 5 of par 5 is plain, turn 6 takes the past-par colour", (
+	_check.call("turn counter: turn 5 of par 5 is plain, turn 6 takes the past-par chip", (
 			not at_par
 			and at_par_text == "Turn 5 of par 5"
 			and counter.is_past_par_shown()
-			and counter.get_text_color() == counter.past_par_color
+			and counter.get_text_type() == counter.past_par_type
+			and counter.get_text_color().is_equal_approx(UiTokens.color(UiTokens.TEXT))
 	), "%s %s, then %s" % [at_par_text, at_par, counter.get_text()])
 	counter.free()
 

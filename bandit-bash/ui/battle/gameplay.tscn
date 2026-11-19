@@ -116,6 +116,8 @@ target_screen = 4
 unique_name_in_owner = true
 
 [node name="SaveIndicator" parent="Hud" instance=ExtResource("4_save_indicator")]
+offset_left = -316.0
+offset_right = -316.0
 
 [node name="BattleController" type="Node" parent="." node_paths=PackedStringArray("view", "panel_host", "turn_bar", "swap_window", "message", "move_preview_marks", "intent_display", "rune_bar", "pad_repeat", "event_log")]
 unique_name_in_owner = true

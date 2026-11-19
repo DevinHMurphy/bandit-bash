@@ -6,7 +6,7 @@
 # File:     phase_banner.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name PhaseBanner
@@ -19,14 +19,16 @@ extends PanelContainer
 ## [method show_darkness] as a darkness phase that does anything begins. Like Godot_FE's, it holds
 ## nothing up: playback goes on under it. [BattleScreen] calls [method show_result] once the battle
 ## has ended and settled. A new banner replaces one still showing. Its fade runs on the scene
-## tree, so it pauses with the pause menu and ignores fast-forward.[br]
-## The darkness banner is [code]text[/code] on a [code]darkness[/code]-filled panel (5.00:1), as
-## [code]darkness[/code] text on [code]panel[/code] fails contrast (2.06:1, RF-017).
+## tree, so it pauses with the pause menu and ignores fast-forward. Darkness, the enemy phase and
+## Defeat are [code]text[/code] on a filled panel (ui-style.md, Chips), as those colours fail as
+## text on [code]panel[/code].
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
-# The panel's theme type for the darkness banner; every other banner uses the plain panel.
+# The panel's theme types for the darkness banner and the enemy side's (its phase, Defeat); the
+# player's banners use the plain panel.
 const _DARKNESS_PANEL: StringName = &"DarknessBannerPanel"
+const _ENEMY_PANEL: StringName = &"EnemyBannerPanel"
 
 ## The player phase's text.
 @export var player_text: String = "Player Phase"
@@ -43,16 +45,17 @@ const _DARKNESS_PANEL: StringName = &"DarknessBannerPanel"
 ## The text when the player side wins. It shows in [member player_color].
 @export var victory_text: String = "Victory"
 
-## The text when the player side loses. It shows in [member enemy_color].
+## The text when the player side loses. It shows in [member enemy_color] on the enemy panel.
 @export var defeat_text: String = "Defeat"
 
 ## The player phase's text colour (Godot_FE tints its player banner blue). Defaults to the
 ## [code]block[/code] token, the player side's colour.
 @export var player_color: Color = UiTokens.color(UiTokens.BLOCK)
 
-## The enemy phase's text colour (Godot_FE tints its enemy banner red). Defaults to the
-## [code]danger[/code] token.
-@export var enemy_color: Color = UiTokens.color(UiTokens.DANGER)
+## The enemy phase's and Defeat's text colour, drawn on the [code]EnemyBannerPanel[/code] fill
+## (Godot_FE tints its enemy banner red; here the fill carries it). Defaults to the
+## [code]text[/code] token (5.42:1 on the [code]danger_fill[/code] fill).
+@export var enemy_color: Color = UiTokens.color(UiTokens.TEXT)
 
 ## The darkness phase's text colour, drawn on the [code]DarknessBannerPanel[/code] fill. Defaults
 ## to the [code]text[/code] token (5.00:1 on the [code]darkness[/code] fill).
@@ -85,7 +88,7 @@ func show_phase(side: CombatFact.CombatSide, turn: int) -> void:
 	if not is_player and side != CombatFact.CombatSide.ENEMY:
 		return
 	var turn_line: String = turn_format % [turn] if is_player and not turn_format.is_empty() else ""
-	theme_type_variation = &""
+	theme_type_variation = &"" if is_player else _ENEMY_PANEL
 	_fade_through(
 			player_text if is_player else enemy_text,
 			player_color if is_player else enemy_color,
@@ -103,7 +106,7 @@ func show_darkness() -> void:
 ## Shows the battle's end: [member victory_text] when [param is_won], else [member defeat_text].
 ## It fades in over [member fade_in_time] and stays until hidden or replaced.
 func show_result(is_won: bool) -> void:
-	theme_type_variation = &""
+	theme_type_variation = &"" if is_won else _ENEMY_PANEL
 	_text.text = victory_text if is_won else defeat_text
 	_text.add_theme_color_override(&"font_color", player_color if is_won else enemy_color)
 	_turn.text = ""

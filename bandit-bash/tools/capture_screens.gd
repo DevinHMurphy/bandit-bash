@@ -6,7 +6,7 @@
 # File:     capture_screens.gd
 # Author:
 # Created:  November 18, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -14,8 +14,9 @@ extends SceneTree
 ## guide: base 1280×720, shown at 1920×1080 and the Steam Deck's 1280×800). Drives the real
 ## router through a new solo run: boot, start, save select, main menu, new run, options, lobby,
 ## loading, the campaign map, the battle (swap window, HUD with the unit panel and rune bar,
-## action menu, forecast, unit detail, runes, the event log after turns played into the first
-## darkness phase, pause), Results (grades, XP, level-ups, the item
+## action menu, forecast and a multi-hit forecast, unit detail for a player unit and an enemy
+## (an elite where there is one), runes, the event log after turns played into the first darkness
+## phase, the darkness's three layers side by side, pause), Results (grades, XP, level-ups, the item
 ## pick), placement, and the run's end. Each shot is [code]<out>/<size>/<nn>_<name>.png[/code].
 ## Each shot also lists visible text under [constant MIN_FONT_SIZE] base units and visible
 ## controls reaching outside the window, and the run ends with their count.[br]
@@ -161,6 +162,11 @@ func _battle() -> void:
 		await _capture("battle_unit_detail")
 		controller.step_back()
 		await _frames(SETTLE_FRAMES)
+	if controller.request_unit_detail(_elite_or_first_enemy(session)):
+		await _frames(SETTLE_FRAMES)
+		await _capture("battle_unit_detail_enemy")
+		controller.step_back()
+		await _frames(SETTLE_FRAMES)
 	if controller.request_runes():
 		await _frames(SETTLE_FRAMES)
 		await _capture("battle_runes")
@@ -169,6 +175,7 @@ func _battle() -> void:
 	await _attack(view, controller, session)
 	await _play_for_log(view, session)
 	await _capture("battle_event_log")
+	await _darkness_layers(view, session)
 	var pause: Node = current_scene.get_node(^"PauseMenu")
 	pause.call(&"open")
 	await _frames(SETTLE_FRAMES)
@@ -218,6 +225,7 @@ func _attack(view: BattleView, controller: BattleController, session: CombatSess
 				controller.confirm_tile(option.targets[0].tile)
 				await _frames(SETTLE_FRAMES)
 				await _capture("battle_forecast")
+				await _multi_hit_forecast(controller, session, unit_id, option.targets[0].tile)
 			while controller.step_back():
 				await process_frame
 			_settle(view)
@@ -266,6 +274,62 @@ func _play_for_log(view: BattleView, session: CombatSession) -> void:
 
 func _on_view_darkness_phase_started(_turn: int) -> void:
 	_darkness_phases += 1
+
+
+# The forecast open in CONFIRM, shot again as a multi-hit attack: as it is when it already lists
+# its hits, else with the attacker's weapon at AtkX 2 in this throwaway run (said in a NOTE), the
+# forecast reopened on the same target.
+func _multi_hit_forecast(
+		controller: BattleController, session: CombatSession, unit_id: String, tile: Vector2i
+) -> void:
+	var host: PanelHost = current_scene.get_node(^"%PanelHost")
+	var panel: ForecastPanel = host.top() as ForecastPanel
+	if panel == null:
+		return
+	if panel.get_model().row(ForecastViewModel.HITS_LABEL) == null:
+		var held: CombatState.WeaponStats = session.state.equipped_weapon(unit_id)
+		if held == null:
+			return
+		print("NOTE  multi-hit forecast: %s's weapon set to AtkX 2 for the shot" % [unit_id])
+		held.atk_x = 2
+		session.state.load_bases(session.engine, unit_id)
+		controller.step_back()
+		await _frames(SETTLE_FRAMES)
+		controller.confirm_tile(tile)
+		await _frames(SETTLE_FRAMES)
+	await _capture("battle_forecast_multi_hit")
+
+
+# The board with its darkness drawn in three bands, Dusk, Gloom and Abyss, from the map's left
+# edge, for judging each layer's opacity by eye; the board's own darkness is drawn again after.
+# Drawing only: the session's darkness is untouched.
+func _darkness_layers(view: BattleView, session: CombatSession) -> void:
+	var overlay: DarknessOverlay = view.get_darkness()
+	var kept: Dictionary[Vector2i, int] = {}
+	for tile: Vector2i in overlay.drawn_tiles():
+		kept[tile] = overlay.layer_at(tile)
+	var rect: Rect2i = session.layout.get_rect()
+	var band: int = maxi(floori(rect.size.x / 4.0), 1)
+	var bands: Dictionary[Vector2i, int] = {}
+	for y: int in range(rect.position.y, rect.end.y):
+		for x: int in range(rect.position.x, mini(rect.position.x + band * 3, rect.end.x)):
+			var across: int = floori(float(x - rect.position.x) / band)
+			var layer: int = WhileLayerCondition.Layer.DUSK + across
+			bands[Vector2i(x, y)] = mini(layer, WhileLayerCondition.Layer.ABYSS)
+	overlay.show_layers(bands)
+	await _frames(SETTLE_FRAMES)
+	await _capture("battle_darkness_layers")
+	overlay.show_layers(kept)
+
+
+# The enemy whose name isn't its class's alone (a prefixed elite), else the first enemy.
+func _elite_or_first_enemy(session: CombatSession) -> String:
+	var enemies: PackedStringArray = session.state.units_of(CombatFact.CombatSide.ENEMY)
+	for enemy_id: String in enemies:
+		var type_id: String = session.state.unit_type_of(enemy_id)
+		if BattleText.name_of(session, enemy_id) != BattleText.type_name(type_id):
+			return enemy_id
+	return enemies[0] if not enemies.is_empty() else ""
 
 
 func _find_attack(session: CombatSession) -> Array:

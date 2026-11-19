@@ -6,7 +6,7 @@
 # File:     unit_detail_cases.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 9, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -17,8 +17,11 @@ extends RefCounted
 ## drawing it; opening it from IDLE by Ctrl and closing it by Esc and by Ctrl again; from MOVE on
 ## an enemy by the pad's L3 and closing by B, the selection, cursor and overlays as they were;
 ## by the mouse through the unit panel's Details button, closed by a right click and by its Close
-## button; focus on Close while it is open and back where it was after; and the hints:
-## unit_detail listed in IDLE and MOVE only while there is a unit to show, and DETAIL's row.[br]
+## button; focus on Close while it is open and back where it was after; the hints: unit_detail
+## listed in IDLE and MOVE only while there is a unit to show, and DETAIL's row; each value's
+## sources against [method StatSheet.explain]; catalog type names (BUG-005); level, XP and
+## growths from a run record; an enemy's intent, target rule and signature move; stepping through
+## a side by Q / E, LB / RB and Next; and a right click on a unit opening its detail.[br]
 ## [b]The rig[/b] is turn_input_cases.gd's harness on the M1 battle past Start, with the
 ## [BattleHud] (for the unit panel's button, wired to the controller as [BattleScreen] wires it)
 ## and the detail scene set. Keys and pad buttons go through the root viewport. No autoload is
@@ -81,6 +84,12 @@ func run() -> void:
 	_test_pad(rig)
 	_test_mouse(rig)
 	_test_hints(rig)
+	_test_sources(rig)
+	_test_names(rig)
+	_test_run_record(rig)
+	_test_enemy_section(rig)
+	_test_stepping(rig)
+	_test_right_click(rig)
 	rig.close()
 
 
@@ -236,6 +245,268 @@ func _test_hints(rig: Rig) -> void:
 			and live.has(&"ui_cancel")
 			and live.has(&"unit_detail")
 	), "on unit %s, on empty %s, %s %s" % [on_unit, on_empty, context, live])
+
+
+# Every stat and combat value of the Drengr and an enemy is the session's, its sources the
+# applied lines of StatSheet.explain (base first) when anything changes it and none otherwise, and
+# the panel's rows show them as the view has them.
+func _test_sources(rig: Rig) -> void:
+	var session: CombatSession = rig.h.session
+	var problems: PackedStringArray = []
+	var drengr: String = _unit_of_type(session, "drengr")
+	for unit_id: String in [drengr, session.state.units_of(ENEMY)[0]]:
+		var view: UnitDetailViewModel = UnitDetailViewModel.build(session, unit_id)
+		var sheet: StatSheet = session.stats(unit_id)
+		var rows: Array[UnitDetailViewModel.ValueRow] = view.stat_rows + view.combat_rows
+		for row: UnitDetailViewModel.ValueRow in rows:
+			if row.key < 0:
+				continue
+			var answer: ValueBreakdown = sheet.explain(row.key)
+			var is_changed: bool = false
+			for line: ValueBreakdown.Line in answer.lines:
+				is_changed = is_changed or (line.applied and line.modifier != null)
+			var shown: String = " ".join(row.sources)
+			if row.value != answer.get_int():
+				problems.append("%s %s is %d" % [unit_id, row.label, row.value])
+			elif is_changed and "%s = %s" % [shown, answer.to_text().get_slice(" = ", 1)] != (
+					answer.to_text()
+			):
+				problems.append("%s %s sources '%s', explain '%s'" % [
+					unit_id, row.label, shown, answer.to_text(),
+				])
+			elif not is_changed and not row.sources.is_empty():
+				problems.append("%s %s lists '%s' with nothing changing it" % [
+					unit_id, row.label, shown,
+				])
+	var panel: UnitDetailPanel = DETAIL_SCENE.instantiate()
+	rig.h.hud.add_child(panel)
+	var player_view: UnitDetailViewModel = UnitDetailViewModel.build(session, drengr)
+	panel.open_with(player_view)
+	var drawn: Array[DetailStatRow] = panel.get_value_rows()
+	var expected: Array[UnitDetailViewModel.ValueRow] = (
+			player_view.stat_rows + player_view.combat_rows
+	)
+	if drawn.size() != expected.size():
+		problems.append("%d rows drawn for %d values" % [drawn.size(), expected.size()])
+	else:
+		for i: int in drawn.size():
+			var cells: PackedStringArray = drawn[i].get_texts()
+			if cells[0] != expected[i].label or cells[1] != "%d" % [expected[i].value]:
+				problems.append("row %d draws %s" % [i, cells])
+			elif cells[2] != " ".join(expected[i].sources):
+				problems.append("row %d sources '%s'" % [i, cells[2]])
+	panel.free()
+	_check.call("unit detail (sources): each value's sources are the session's breakdown", (
+			problems.is_empty()
+	), "; ".join(problems))
+
+
+# Every unit's type shows as the catalog's display name (BUG-005), the capitalised id only for a
+# type the catalog lacks; the panel's summary starts with it.
+func _test_names(rig: Rig) -> void:
+	var session: CombatSession = rig.h.session
+	var wrong: PackedStringArray = []
+	for side: CombatFact.CombatSide in [PLAYER, ENEMY]:
+		for unit_id: String in session.state.units_of(side):
+			var type_id: String = session.state.unit_type_of(unit_id)
+			var definition: UnitTypeDefinition = _catalog.enemy_class(type_id)
+			if definition == null:
+				definition = _catalog.unit_type(type_id)
+			var view: UnitDetailViewModel = UnitDetailViewModel.build(session, unit_id)
+			if definition == null or view.type_name != definition.display_name:
+				wrong.append("%s: '%s'" % [type_id, view.type_name])
+	_check.call("unit detail (names): unit types show the catalog's display names", (
+			wrong.is_empty()
+			and BattleText.type_name("no_such_type") == "No Such Type"
+			and BattleText.type_name("") == ""
+	), "; ".join(wrong))
+
+
+# With the Drengr's run record (level 3, 40 XP) the view carries its level, XP, XP per level and
+# each growing stat's growth, and the header shows "Lv 3" and the XP; without one, none shows.
+# Through the controller, run_units hands the record over.
+func _test_run_record(rig: Rig) -> void:
+	var h: TurnInputCases.Harness = rig.h
+	var drengr: String = _unit_of_type(h.session, "drengr")
+	var record: UnitInstance = UnitInstance.new(drengr, "drengr")
+	record.level = 3
+	record.xp = 40
+	var rules: CombatRewardRules = CombatRewardRules.load_default()
+	var view: UnitDetailViewModel = UnitDetailViewModel.build(h.session, drengr, record)
+	var growths: PackedStringArray = []
+	var unit_type: UnitTypeDefinition = _catalog.unit_type("drengr")
+	for row: UnitDetailViewModel.ValueRow in view.stat_rows:
+		for stat: int in CombatValue.STAT_KEYS:
+			if CombatValue.STAT_KEYS[stat] != row.key or not unit_type.growths.has(stat):
+				continue
+			if row.growth != record.growth(_catalog, stat):
+				growths.append("%s %d" % [row.label, row.growth])
+	var plain: UnitDetailViewModel = UnitDetailViewModel.build(h.session, drengr)
+	var panel: UnitDetailPanel = DETAIL_SCENE.instantiate()
+	h.hud.add_child(panel)
+	panel.open_with(view)
+	var with_record: PackedStringArray = panel.get_header().get_texts()
+	panel.show_detail(plain)
+	var without: PackedStringArray = panel.get_header().get_texts()
+	panel.free()
+	h.controller.run_units = {drengr: record}
+	h.controller.move_cursor(h.session.state.tile_of(drengr))
+	h.controller.request_unit_detail()
+	var opened: UnitDetailPanel = h.controller.get_detail_panel()
+	var through_controller: bool = opened != null and opened.get_view().level == 3
+	h.controller.step_back()
+	h.controller.run_units = {}
+	_check.call("unit detail (run record): level, XP and growths show from the run's unit", (
+			view.level == 3
+			and view.xp == 40
+			and rules != null
+			and view.xp_per_level == rules.xp_per_level
+			and growths.is_empty()
+			and with_record[3] == "Lv 3"
+			and with_record[4] == "XP 40 / %d" % [view.xp_per_level]
+			and plain.xp == -1
+			and without[3].is_empty()
+			and through_controller
+	), "level %d, xp %d / %d, growths off %s, header %s / %s, controller %s" % [
+		view.level, view.xp, view.xp_per_level, growths, with_record, without, through_controller,
+	])
+
+
+# An enemy's view carries its intent as the intents show it and its target rule, none while the
+# intents are hidden; the panel's enemy section shows them and hides for a player unit. A signature
+# move, when an M1 enemy has one, carries its name and its counter.
+func _test_enemy_section(rig: Rig) -> void:
+	var session: CombatSession = rig.h.session
+	var enemy: String = session.state.units_of(ENEMY)[0]
+	var intent: EnemyIntent = session.intents.intent_of(enemy) if session.intents != null else null
+	var view: UnitDetailViewModel = UnitDetailViewModel.build(session, enemy)
+	var hidden: UnitDetailViewModel = UnitDetailViewModel.build(session, enemy, null, false)
+	var panel: UnitDetailPanel = DETAIL_SCENE.instantiate()
+	rig.h.hud.add_child(panel)
+	panel.open_with(view)
+	var shown: PackedStringArray = panel.get_enemy_section().get_texts()
+	var enemy_visible: bool = panel.get_enemy_section().visible
+	panel.show_detail(UnitDetailViewModel.build(session, _unit_of_type(session, "drengr")))
+	var player_hidden: bool = not panel.get_enemy_section().visible
+	panel.free()
+	var expected: String = ""
+	if intent != null:
+		expected = UnitDetailViewModel.INTENT_TEXT[intent.kind]
+	_check.call("unit detail (enemy): intent and target rule as the intents show them", (
+			intent != null
+			and view.intent_text.begins_with(expected)
+			and view.target_rule_text == intent.target_rule_text
+			and hidden.intent_text.is_empty()
+			and hidden.target_rule_text.is_empty()
+			and enemy_visible
+			and shown[0] == "Intent: %s" % [view.intent_text]
+			and player_hidden
+	), "intent '%s' (expected '%s…'), hidden '%s', section %s / %s, lines %s" % [
+		view.intent_text, expected, hidden.intent_text, enemy_visible, player_hidden, shown,
+	])
+	for unit_id: String in session.state.units_of(ENEMY):
+		var enemy_class: EnemyClassDefinition = _catalog.enemy_class(
+				session.state.unit_type_of(unit_id)
+		)
+		if enemy_class == null or enemy_class.signature_move == null:
+			continue
+		var signed: UnitDetailViewModel = UnitDetailViewModel.build(session, unit_id)
+		_check.call("unit detail (enemy): a signature move shows its name and text", (
+				not signed.signature_name.is_empty() and not signed.signature_text.is_empty()
+		), "%s: '%s'" % [unit_id, signed.signature_name])
+		return
+	print("      (no M1 enemy has a signature move; the capture shows one in play)")
+
+
+# DETAIL on the first player unit: E and RB step to the next of its side, Q and LB back, wrapping
+# from the first to the last; the pop-up's Next steps too; focus stays on Close, the hints list
+# Q / E, and Back returns to IDLE as it was. An enemy's detail steps through enemies only.
+func _test_stepping(rig: Rig) -> void:
+	var h: TurnInputCases.Harness = rig.h
+	var players: PackedStringArray = h.session.state.units_of(PLAYER)
+	var enemies: PackedStringArray = h.session.state.units_of(ENEMY)
+	h.controller.move_cursor(h.session.state.tile_of(players[0]))
+	var before: String = _state_line(rig)
+	h.controller.request_unit_detail()
+	var seen: PackedStringArray = [_shown(rig)]
+	_press_key(KEY_E)
+	seen.append(_shown(rig))
+	_press_pad(JOY_BUTTON_LEFT_SHOULDER)
+	seen.append(_shown(rig))
+	_press_key(KEY_Q)
+	seen.append(_shown(rig))
+	_press_pad(JOY_BUTTON_RIGHT_SHOULDER)
+	seen.append(_shown(rig))
+	var panel: UnitDetailPanel = h.controller.get_detail_panel()
+	if panel != null:
+		panel.get_header().get_step_buttons()[1].pressed.emit()
+	seen.append(_shown(rig))
+	var focus_kept: String = _open_problem(rig, seen[-1])
+	var live: Array[StringName] = h.controller.get_live_actions()
+	h.controller.step_back()
+	var after: String = _state_line(rig)
+	var last: String = players[players.size() - 1]
+	var second: String = players[1 % players.size()]
+	var expected: PackedStringArray = [players[0], second, players[0], last, players[0], second]
+	h.controller.move_cursor(h.session.state.tile_of(enemies[0]))
+	h.controller.request_unit_detail()
+	_press_key(KEY_E)
+	var enemy_next: String = _shown(rig)
+	h.controller.step_back()
+	_check.call("unit detail (stepping): Q / E, LB / RB and Next walk its side, wrapping", (
+			players.size() > 1
+			and seen == expected
+			and focus_kept.is_empty()
+			and live.has(&"target_prev")
+			and live.has(&"target_next")
+			and after == before
+			and (enemies.size() < 2 or enemy_next == enemies[1])
+	), "saw %s, expected %s; %s; live %s; before %s, after %s; enemy next %s" % [
+		seen, expected, focus_kept, live, before, after, enemy_next,
+	])
+
+
+# IDLE: a right click on a player unit's tile opens its detail; in MOVE, a right click on an empty
+# tile still steps back to IDLE, and one on an enemy opens its detail, the selection kept.
+func _test_right_click(rig: Rig) -> void:
+	var h: TurnInputCases.Harness = rig.h
+	var players: PackedStringArray = h.session.state.units_of(PLAYER)
+	var enemy: String = h.session.state.units_of(ENEMY)[0]
+	h.controller.move_cursor(_empty_tile(h.session))
+	_click(_screen_point(h, h.session.state.tile_of(players[1])), MOUSE_BUTTON_RIGHT)
+	var opened: String = _open_problem(rig, players[1])
+	h.controller.step_back()
+	var unit_id: String = TurnInputModel.acting_units(h.session, 0)[0]
+	h.controller.confirm_tile(h.session.state.tile_of(unit_id))
+	_click(_screen_point(h, h.session.state.tile_of(enemy)), MOUSE_BUTTON_RIGHT)
+	var on_enemy: String = _open_problem(rig, enemy)
+	var kept: bool = h.controller.get_selected_unit() == unit_id
+	h.controller.step_back()
+	var in_move: bool = h.controller.get_stage() == MOVE
+	_click(_screen_point(h, _empty_tile(h.session)), MOUSE_BUTTON_RIGHT)
+	var back_to_idle: bool = h.controller.get_stage() == IDLE
+	_check.call("unit detail (right click): on a unit it opens its detail; elsewhere it is Back", (
+			opened.is_empty()
+			and on_enemy.is_empty()
+			and kept
+			and in_move
+			and back_to_idle
+	), "%s; %s; selection kept %s, MOVE %s, IDLE %s" % [
+		opened, on_enemy, kept, in_move, back_to_idle,
+	])
+
+
+# The unit the open detail shows; empty when none is open.
+func _shown(rig: Rig) -> String:
+	var panel: UnitDetailPanel = rig.h.controller.get_detail_panel()
+	if panel == null or panel.get_view() == null:
+		return ""
+	return panel.get_view().unit_id
+
+
+# tile's centre on screen, through the board's camera.
+func _screen_point(h: TurnInputCases.Harness, tile: Vector2i) -> Vector2:
+	return h.view.get_global_transform_with_canvas() * h.view.tile_to_position(tile)
 
 
 # Why the detail isn't open on unit_id with Close focused; empty when it is.

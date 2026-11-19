@@ -6,7 +6,7 @@
 # File:     darkness_overlay.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name DarknessOverlay
@@ -30,9 +30,9 @@ extends Node2D
 		queue_redraw()
 
 ## How strongly a Dusk tile is covered.[br]
-## [b]0.0:[/b] invisible. [b]1.0:[/b] the terrain is hidden.
-# ASSUMPTION: greybox value; no design doc sets the layers' opacities.
-@export_range(0.0, 1.0, 0.01) var dusk_alpha: float = 0.3:
+## [b]0.0:[/b] invisible. [b]1.0:[/b] the terrain is hidden. Set by the user's playtest, so a Dusk
+## tile reads as darkness over the brightest terrain.
+@export_range(0.0, 1.0, 0.01) var dusk_alpha: float = 0.45:
 	set(value):
 		dusk_alpha = value
 		queue_redraw()

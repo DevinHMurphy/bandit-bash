@@ -6,7 +6,7 @@
 # File:     forecast_view_model.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 16, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name ForecastViewModel
@@ -16,8 +16,9 @@ extends RefCounted
 ## after (combat UI plan, question 7; Godot_FE FR-UI-4 plus Block and Stance).
 ##
 ## [method build] and [method build_rune] run the command's own preview on the session's engine,
-## so the rows are what it resolves to with every hit landing (FR-MATH-12). An exchange keeps each
-## side's first landed hit's stages ([member breakdowns]) for the panel's toggle, and reads a
+## so the rows are what it resolves to with every hit landing (FR-MATH-12). An exchange lists every
+## hit of a multi-hit attack ([constant HITS_LABEL]) and keeps each side's first landed hit's
+## stages, and any later hit's that differ ([member breakdowns]), for the panel's toggle; it reads a
 ## defeat as a chance ([constant DEFEAT_ON_HIT]), its counter from [member counter] (the actor's
 ## strikes before it missing, [CounterRolls]). [member flashes] gives the board each unit's
 ## predicted HP and Stance (question 34 (1)). Reading only: previews run on sandboxes.
@@ -72,6 +73,16 @@ const COUNTER_NOTE: String = "If %s misses, %s counters: %s HP %s."
 
 # What separates [method CombatForecast.HitBreakdown.to_text]'s stages, one per line here.
 const HIT_BREAKDOWN_SEPARATOR: String = "; "
+
+## The row listing every hit of a multi-hit attack, under Damage; only shown when a side strikes
+## more than once.
+const HITS_LABEL: String = "Hits"
+
+## What separates the hits' damage in the [constant HITS_LABEL] row, such as "2 · 4 · 6".
+const HIT_SEPARATOR: String = " · "
+
+## A missed hit in the [constant HITS_LABEL] row (the counter line's actor misses before it).
+const MISS_TEXT: String = "miss"
 
 ## Which preview this is.
 var kind: Kind = Kind.EXCHANGE
@@ -264,9 +275,22 @@ func _fill_exchange(session: CombatSession, found: CombatForecast.ExchangeForeca
 			stages.label = BattleText.name_of(session, hit_side.unit_id)
 			stages.lines = hit_side.breakdown.to_text().split(HIT_BREAKDOWN_SEPARATOR)
 			breakdowns.append(stages)
+			_add_later_breakdowns(stages, found if i == 0 or counter == null else counter)
 	var labels: PackedStringArray = ["Hit", "Damage", "Crit", "Strikes", "Effective"]
 	for i: int in labels.size():
 		_add_row(labels[i], cells[0][i], cells[1][i])
+	# Every hit of a multi-hit attack, as later ones can differ (a Braced unit stripped of Stance
+	# takes more): the target's from the counter line when there is one, as its Damage cell.
+	var actor_hits: PackedStringArray = _hit_damages(found, found.attacker.unit_id)
+	var target_hits: PackedStringArray = _hit_damages(
+			found if counter == null else counter, found.defender.unit_id
+	)
+	if actor_hits.size() > 1 or target_hits.size() > 1:
+		var hits: Row = Row.new()
+		hits.label = HITS_LABEL
+		hits.actor = HIT_SEPARATOR.join(actor_hits) if not actor_hits.is_empty() else NONE_TEXT
+		hits.target = HIT_SEPARATOR.join(target_hits) if not target_hits.is_empty() else NONE_TEXT
+		rows.insert(rows.find(row("Damage")) + 1, hits)
 	_add_outcome_rows(found.attacker.outcome, found.defender.outcome, found)
 	if not found.can_counter and found.is_legal:
 		notes.append("%s can't counter." % [target_label])
@@ -278,6 +302,44 @@ func _fill_exchange(session: CombatSession, found: CombatForecast.ExchangeForeca
 	for chance: CombatForecast.ChanceLine in found.chances:
 		notes.append("Chance %s" % [chance.to_text()])
 	_note_others(session, found)
+
+
+# Each of unit_id's attacks in exchange, in order, as its damage after stage 5; a miss as
+# MISS_TEXT (only the counter line has them).
+func _hit_damages(exchange: CombatForecast.ExchangeForecast, unit_id: String) -> PackedStringArray:
+	var damages: PackedStringArray = []
+	for attack: CombatForecast.AttackForecast in exchange.attacks:
+		if attack.attacker_id == unit_id:
+			damages.append("%d" % [attack.damage] if attack.is_hit else MISS_TEXT)
+	return damages
+
+
+# After first (a side's first landed hit's stages), each later hit of that side in exchange whose
+# stages differ from the hit before it, as its own Breakdown: hits that read alike show once.
+func _add_later_breakdowns(first: Breakdown, exchange: CombatForecast.ExchangeForecast) -> void:
+	var previous: PackedStringArray = first.lines
+	var number: int = 0
+	var is_first_landed: bool = true
+	for attack: CombatForecast.AttackForecast in exchange.attacks:
+		if attack.attacker_id != first.unit_id:
+			continue
+		number += 1
+		if attack.breakdown == null:
+			continue
+		if is_first_landed:
+			is_first_landed = false
+			first.hit_number = number
+			continue
+		var lines: PackedStringArray = attack.breakdown.to_text().split(HIT_BREAKDOWN_SEPARATOR)
+		if lines == previous:
+			continue
+		var later: Breakdown = Breakdown.new()
+		later.unit_id = first.unit_id
+		later.label = first.label
+		later.lines = lines
+		later.hit_number = number
+		breakdowns.append(later)
+		previous = lines
 
 
 # A staff's rows: the staff and its amount, then both units' HP, Block and Stance.
@@ -591,6 +653,9 @@ class Breakdown:
 	var label: String = ""
 	## One line per stage, as [method CombatForecast.HitBreakdown.to_text] lists them.
 	var lines: PackedStringArray = []
+	## Which of the unit's attacks in the exchange it is, from 1: its first landed hit, or a later
+	## one whose stages differ.
+	var hit_number: int = 1
 
 
 ## The counter line's rolls ([member ForecastViewModel.counter]): the first hit rolls miss, as

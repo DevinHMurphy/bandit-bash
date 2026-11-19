@@ -6,7 +6,7 @@
 # File:     control_hint_bar.gd
 # Author:
 # Created:  November 6, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name ControlHintBar
@@ -198,6 +198,8 @@ const UNBOUND_KEY: String = "(unbound)"
 	"DETAIL/ui_accept": "Close",
 	"DETAIL/ui_cancel": "Close",
 	"DETAIL/unit_detail": "Close",
+	"DETAIL/target_prev": "Units",
+	"DETAIL/target_next": "Units",
 	"RUNE_SLOTS/ui_left": "Choose",
 	"RUNE_SLOTS/ui_right": "Choose",
 	"RUNE_SLOTS/ui_up": "Discard",
