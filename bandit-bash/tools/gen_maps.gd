@@ -27,6 +27,7 @@ extends SceneTree
 const TILE_SET_PATH: String = "res://maps/greybox_tile_set.tres"
 const STANDARD_FOLDER: String = "res://maps/standard"
 const KEY_FOLDER: String = "res://maps/key"
+const BOSS_FOLDER: String = "res://maps/boss"
 
 ## The terrain id of each character in a map's terrain rows.
 const TERRAIN_CHARS: Dictionary[String, String] = {
@@ -174,6 +175,10 @@ func _build(tile_set: TileSet, spec: MapSpec) -> bool:
 	definition.objective = spec.objective
 	definition.turn_par = spec.turn_par
 	definition.survive_turns = spec.survive_turns
+	definition.fixed_pack_id = spec.fixed_pack_id
+	definition.fixed_enemy_level = spec.fixed_enemy_level
+	definition.fixed_leader_level = spec.fixed_leader_level
+	definition.fixed_leader_prefix_id = spec.fixed_leader_prefix_id
 	error = ResourceSaver.save(definition, definition_path)
 	if error == OK:
 		error = _write_notes(definition_path, spec.notes)
@@ -319,6 +324,7 @@ func _maps() -> Array[MapSpec]:
 	var maps: Array[MapSpec] = []
 	maps.append_array(_standard_maps())
 	maps.append_array(_key_maps())
+	maps.append_array(_boss_maps())
 	return maps
 
 
@@ -617,6 +623,57 @@ func _key_maps() -> Array[MapSpec]:
 	return [hall, gatehouse, hilltop, village]
 
 
+# The Powder Baron's keep (P05 question 46): a pillared hall with the throne on the leader slot,
+# two gates and two side doors, a courtyard below. Slots fill in row-major order, so the garrison's
+# order puts the Shieldbearers beside the throne, the Crossbowmen on the hall's flanks, the Hedge
+# Healer and Brute mid-hall and the Cutthroats outside.
+func _boss_maps() -> Array[MapSpec]:
+	var keep: MapSpec = MapSpec.boss("powder_keep", "PowderKeep", 14, PackedStringArray([
+		"ASSUMPTION: turn par 14, the low end of game-vision.md's boss target (14-18), until",
+		"playtesting measures a clean clear (par = its turns + 1).",
+	]))
+	keep.terrain = PackedStringArray([
+		"..W___________W.",
+		"F.W__P__Y__P__W.",
+		"...___________..",
+		"..W__P_____P__W.",
+		"..W___________W.",
+		".TWWW__WWW__WWW.",
+		"..F...,,,,...F..",
+		"T....T....T....T",
+		"..F..........F..",
+		"................",
+		"F..............F",
+		"................",
+	])
+	keep.markers = PackedStringArray([
+		"................",
+		"........L.......",
+		"................",
+		"................",
+		"......k...k.....",
+		"................",
+		"................",
+		"................",
+		"................",
+		"................",
+		"......dddd......",
+		"......dddd......",
+	])
+	keep.slots([[7, 1, ""], [9, 1, ""], [4, 2, ""], [12, 2, ""], [7, 3, ""], [9, 3, ""],
+			[1, 6, ""], [14, 6, ""]])
+	keep.sources([[0, 10, 0], [0, 11, 0], [15, 10, 1], [15, 11, 1], [3, 11, 2], [12, 11, 2]])
+	keep.fixed_pack_id = "powder_keep_garrison"
+	keep.fixed_enemy_level = 6
+	keep.fixed_leader_level = 8
+	keep.fixed_leader_prefix_id = "stalwart"
+	keep.notes["fixed_enemy_level"] = PackedStringArray([
+		"ASSUMPTION: the guards at level 6, step 3's 5 + 1 as in a key combat (P05 question 46);",
+		"game-vision.md gives the boss level only.",
+	])
+	return [keep]
+
+
 ## One map's data: what [method _build] writes.
 class MapSpec:
 	extends RefCounted
@@ -640,6 +697,12 @@ class MapSpec:
 	var nodes: Array[MarkerSpec] = []
 	## Comment lines written above a definition property, by property name.
 	var notes: Dictionary[String, PackedStringArray] = {}
+	## A scripted map's fixed enemies ([member CombatMapDefinition.fixed_pack_id] and the rest);
+	## empty and 0 on a map that draws.
+	var fixed_pack_id: String = ""
+	var fixed_enemy_level: int = 0
+	var fixed_leader_level: int = 0
+	var fixed_leader_prefix_id: String = ""
 
 	## A standard map in maps/standard.
 	static func standard(
@@ -669,6 +732,17 @@ class MapSpec:
 		var spec: MapSpec = MapSpec.standard(map_id, root_name, goal, par, par_note)
 		spec.folder = KEY_FOLDER
 		spec.combat_type = CombatMapDefinition.CombatType.KEY
+		return spec
+
+	## A boss map in maps/boss: Defeat the boss.
+	static func boss(
+			map_id: String, root_name: String, par: int, par_note: PackedStringArray
+	) -> MapSpec:
+		var spec: MapSpec = MapSpec.standard(
+				map_id, root_name, CombatMapDefinition.Objective.DEFEAT_BOSS, par, par_note
+		)
+		spec.folder = BOSS_FOLDER
+		spec.combat_type = CombatMapDefinition.CombatType.BOSS
 		return spec
 
 	## Survive and Defend: the turns to hold, with its note.

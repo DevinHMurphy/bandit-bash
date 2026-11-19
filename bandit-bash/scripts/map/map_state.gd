@@ -6,7 +6,7 @@
 # File:     map_state.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: November 7, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name MapState
@@ -154,7 +154,8 @@ func copy() -> MapState:
 
 
 ## This state as plain JSON values in three parts: [code]entities[/code] (every object by spot
-## index with its state, kind by name and tile as [code][x, y][/code]; contents by container index;
+## index with its state, kind by name, tile as [code][x, y][/code], whether it was thrown and its
+## fuse; contents by container index;
 ## the loot found, by seat; the loot carried, by unit id), [code]combat_map[/code] (every point by
 ## index with its waves, how many arrived and its waiting units; the flags; [member leader_ids])
 ## and [code]darkness[/code] ([method DarknessState.capture]). Keys are written in order, so equal
@@ -378,6 +379,8 @@ static func _capture_object(placed: ObjectState) -> Dictionary:
 		"is_lit": placed.is_lit,
 		"is_used": placed.is_used,
 		"is_destroyed": placed.is_destroyed,
+		"is_thrown": placed.is_thrown,
+		"fuse": placed.fuse,
 	}
 
 
@@ -386,7 +389,7 @@ static func _object_from(data: Dictionary) -> ObjectState:
 	var id: Variant = data.get("id", null)
 	var kind_name: String = str(data.get("kind", ""))
 	var numbers: Array = []
-	for field: String in ["index", "group_id", "pair_id", "container_index"]:
+	for field: String in ["index", "group_id", "pair_id", "container_index", "fuse"]:
 		numbers.append(_whole(data.get(field, null)))
 	var tile: Vector2i = _tile_from(data.get("tile", null))
 	if (
@@ -398,7 +401,7 @@ static func _object_from(data: Dictionary) -> ObjectState:
 			or tile == CombatFact.NO_TILE
 	):
 		return null
-	for flag: String in ["is_open", "is_lit", "is_used", "is_destroyed"]:
+	for flag: String in ["is_open", "is_lit", "is_used", "is_destroyed", "is_thrown"]:
 		if not data.get(flag, null) is bool:
 			return null
 	var placed: ObjectState = ObjectState.new()
@@ -406,6 +409,8 @@ static func _object_from(data: Dictionary) -> ObjectState:
 	placed.is_lit = data["is_lit"]
 	placed.is_used = data["is_used"]
 	placed.is_destroyed = data["is_destroyed"]
+	placed.is_thrown = data["is_thrown"]
+	placed.fuse = numbers[4]
 	placed.id = id
 	placed.index = numbers[0]
 	var kind_value: int = MapLayout.ObjectKind[kind_name]
@@ -495,6 +500,12 @@ class ObjectState:
 	var is_used: bool = false
 	## A breakable broken: it is off the map and its tile is clear.
 	var is_destroyed: bool = false
+	## A powder keg thrown during the battle ([KegBarrage]), not authored on a spot: its
+	## [member index] is [constant MapObjects.THROWN_INDEX_BASE] or more.
+	var is_thrown: bool = false
+	## A thrown keg's lit fuse: the enemy Phase Ends left until it explodes, the one of the phase
+	## it landed in included ([method MapObjects.burn_fuses]); -1 for no fuse.
+	var fuse: int = -1
 
 	## A copy sharing nothing mutable.
 	func copy() -> ObjectState:
@@ -510,6 +521,8 @@ class ObjectState:
 		state_copy.is_lit = is_lit
 		state_copy.is_used = is_used
 		state_copy.is_destroyed = is_destroyed
+		state_copy.is_thrown = is_thrown
+		state_copy.fuse = fuse
 		return state_copy
 
 

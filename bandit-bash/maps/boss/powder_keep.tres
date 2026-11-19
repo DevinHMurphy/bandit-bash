@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="CombatMapDefinition" format=3]
+
+[ext_resource type="PackedScene" path="res://maps/boss/powder_keep.tscn" id="1_075yt"]
+[ext_resource type="Script" path="res://scripts/map/combat_map_definition.gd" id="2_uf86b"]
+
+[resource]
+script = ExtResource("2_uf86b")
+id = "powder_keep"
+scene = ExtResource("1_075yt")
+combat_type = 2
+objective = 2
+; ASSUMPTION: turn par 14, the low end of game-vision.md's boss target (14-18), until
+; playtesting measures a clean clear (par = its turns + 1).
+turn_par = 14
+fixed_pack_id = "powder_keep_garrison"
+; ASSUMPTION: the guards at level 6, step 3's 5 + 1 as in a key combat (P05 question 46);
+; game-vision.md gives the boss level only.
+fixed_enemy_level = 6
+fixed_leader_level = 8
+fixed_leader_prefix_id = "stalwart"

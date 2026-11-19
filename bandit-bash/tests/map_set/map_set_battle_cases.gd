@@ -10,15 +10,13 @@
 # ==============================================================================
 
 extends RefCounted
-## Headless battles on the M2 map set, for the map_set/standard and map_set/key suites (combat map
-## plan, MP10 row): on each map of one combat type, the Mercenary army at its step's expected
-## level (the step's enemy level, 1, 3 or 5) against a pack setup draws from the real catalog,
-## with seeded rolls and the AI playing the enemies, through m1_battle_cases.gd's driver
-## ([method M1BattleCases.play]): standard maps at steps 1 and 3, key maps at step 3 only, since
-## a key battle takes minutes. Each fields its step's full pack and runs to
-## [constant CombatFact.Kind.COMBAT_ENDED] with no command rejected; at step 3 the same seed gives
-## the same fact log twice. Reports each case through the check callable it is given, and times
-## each map as a test group.[br]
+## Headless battles on the M2 map set and the boss map, for the map_set/standard, map_set/key and
+## map_set/boss suites (combat map plan, MP10 row; Powder Baron plan): on each map of one combat
+## type, the Mercenary army at its step's expected level against setup's pack from the real
+## catalog, seeded, the AI playing the enemies, through [method M1BattleCases.play]: standard maps
+## at steps 1 and 3, key maps at step 3, the boss map at floor 18 against its fixed garrison. Each
+## runs to [constant CombatFact.Kind.COMBAT_ENDED] with no command rejected; at step 3 and on the
+## boss map the same seed gives the same fact log twice. Each map is timed as a test group.[br]
 ## [b]Either side may win:[/b] the driver is simple. A Leader map's leader stands on its leader
 ## slot and counts toward the pack; a key map's mini-boss stands on its leader slot on top of its
 ## escort, and on the mini-boss map its fall ends the battle.
@@ -28,12 +26,17 @@ const GroupClock = preload("res://tests/group_clock.gd")
 const M1BattleCases = preload("res://tests/enemies/m1_battle_cases.gd")
 const MapSetCases = preload("res://tests/map_set/map_set_cases.gd")
 
-# The first floor of each step a map is played at (game-vision.md, Run structure).
+# The first floor of each step a map is played at (game-vision.md, Run structure); the boss's.
 const STANDARD_FLOORS: Array[int] = [1, 12]
 const KEY_FLOORS: Array[int] = [12]
+const BOSS_FLOORS: Array[int] = [18]
 
-# The floor whose battle is played twice to compare fact logs.
-const REPEAT_FLOOR: int = 12
+# The floors whose battle is played twice to compare fact logs.
+const REPEAT_FLOORS: Array[int] = [12, 18]
+
+# The one boss map and its fixed garrison's size: 8 guards and the Powder Baron.
+const BOSS_MAP: String = "res://maps/boss/powder_keep.tres"
+const BOSS_ENEMIES: int = 9
 
 const STARTING_ARMY_SIZE: int = 4
 
@@ -43,8 +46,8 @@ var _combat_type: CombatMapDefinition.CombatType = CombatMapDefinition.CombatTyp
 
 
 ## [param check]: called as check(case_name: String, passed: bool, detail: String).
-## [param combat_type]: whose maps to play, standard or key; each type is its own suite, as a
-## battle per map takes minutes and the runner limits each suite's time.
+## [param combat_type]: whose maps to play, standard, key or boss; each type is its own suite, as
+## a battle per map takes minutes and the runner limits each suite's time.
 func _init(check: Callable, combat_type: CombatMapDefinition.CombatType) -> void:
 	_check = check
 	_combat_type = combat_type
@@ -53,6 +56,9 @@ func _init(check: Callable, combat_type: CombatMapDefinition.CombatType) -> void
 
 ## Runs every case.
 func run() -> void:
+	if _combat_type == CombatMapDefinition.CombatType.BOSS:
+		_test_map(BOSS_MAP, BOSS_FLOORS)
+		return
 	if _combat_type == CombatMapDefinition.CombatType.KEY:
 		for map_id: String in MapSetCases.KEY_MAPS:
 			_test_map("res://maps/key/%s.tres" % [map_id], KEY_FLOORS)
@@ -79,6 +85,8 @@ func _test_battle(map: CombatMapDefinition, floor_number: int) -> void:
 	var size: int = PackDefinition.STEP_SIZES[EnemySetup.step_of(floor_number) - 1]
 	if map.combat_type == CombatMapDefinition.CombatType.KEY:
 		size += 1
+	elif map.combat_type == CombatMapDefinition.CombatType.BOSS:
+		size = BOSS_ENEMIES
 	_check.call("%s: the army against its step's full pack" % [label], (
 			played.problems.is_empty()
 			and played.players == STARTING_ARMY_SIZE
@@ -93,7 +101,7 @@ func _test_battle(map: CombatMapDefinition, floor_number: int) -> void:
 		label, played.pack_id, played.outcome, played.turns, played.facts.size(),
 		played.enemy_actions,
 	])
-	if floor_number != REPEAT_FLOOR:
+	if not REPEAT_FLOORS.has(floor_number):
 		return
 	var again: M1BattleCases.Battle = _battles.play(map, 0, floor_number, level)
 	_check.call("%s: the same seed gives the same fact log twice" % [label], (

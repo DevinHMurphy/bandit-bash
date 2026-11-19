@@ -15,8 +15,9 @@ extends "res://tests/enemies/enemies_suite.gd"
 ## enemies (steps 5 and 6, [code]reinforcement_setup_cases.gd[/code]), the roster's behaviors and
 ## packs ([code]roster_ai_cases.gd[/code]), the AI's map objects ([code]object_ai_cases.gd[/code]),
 ## elites: leaders, their prefixes and marks, and War Horn's intent ([code]elite_cases.gd[/code]),
-## and mini-bosses: the no-repeat order, key-map placement and each signature move
-## ([code]mini_boss_cases.gd[/code]). The counters, the summary and the definitions check are the
+## mini-bosses: the no-repeat order, key-map placement and each signature move
+## ([code]mini_boss_cases.gd[/code]), and the Powder Baron: its keep, Keg Barrage and thrown kegs
+## ([code]boss_cases.gd[/code]). The counters, the summary and the definitions check are the
 ## base's.[br]
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/enemies/roster/run_all.gd[/code]
@@ -25,10 +26,11 @@ extends "res://tests/enemies/enemies_suite.gd"
 
 # The test report's line on this suite; tools/run_tests.sh reads it from this one line.
 const SUITE_DESCRIPTION: String = (
-		"Enemy setup, reinforcement waves, roster AI, map objects, elites and mini-bosses"
+		"Enemy setup, reinforcement waves, roster AI, map objects, elites, mini-bosses and the boss"
 )
 
 # Preloaded scripts used as types (gdscript.md, Naming): the cases have no class name.
+const BossCases = preload("res://tests/enemies/boss_cases.gd")
 const EliteCases = preload("res://tests/enemies/elite_cases.gd")
 const MiniBossCases = preload("res://tests/enemies/mini_boss_cases.gd")
 const EnemySetupCases = preload("res://tests/enemies/enemy_setup_cases.gd")
@@ -51,4 +53,6 @@ func _init() -> void:
 	EliteCases.new(_check).run()
 	GroupClock.lap("mini_boss_cases")
 	MiniBossCases.new(_check).run()
+	GroupClock.lap("boss_cases")
+	BossCases.new(_check).run()
 	_finish()

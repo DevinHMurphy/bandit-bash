@@ -61,6 +61,10 @@ enum RngPurpose {
 	## The run's order of mini-bosses, one per key combat ([method EnemySetup.mini_boss_for]). Run
 	## key, shared; re-derived from its key at every key combat and never held or saved.
 	MINI_BOSS_DRAW = 14,
+	## The Powder Baron's tie-break among equally good Keg Barrage tiles
+	## ([method KegBarrage.pick_tile]). Run key, shared, with the turn as [member index]; made fresh
+	## for each throw, also in intent sandboxes, so a shown tile is the thrown one. Never saved.
+	KEG_BARRAGE = 15,
 }
 
 # SplitMix64's golden-ratio increment and finalizer multipliers, as signed decimals: GDScript can't

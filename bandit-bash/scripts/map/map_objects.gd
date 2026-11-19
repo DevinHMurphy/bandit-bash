@@ -6,29 +6,22 @@
 # File:     map_objects.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 15, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name MapObjects
 extends RefCounted
-## The rules of map objects in a battle: placing them, using them, breaking them, powder kegs
-## exploding, Cutthroat loot, container contents, and what the darkness (P06) asks of them
-## (map-objects.md; combat map plan, Map objects).
+## The rules of map objects in a battle: placing, using and breaking them, powder kegs, Cutthroat
+## loot, container contents, and what the darkness asks of them (map-objects.md).
 ##
-## Objects are neutral. Their state is [member CombatState.map]; breakables (debris, powder kegs)
-## are also units of side [constant CombatFact.CombatSide.NONE] holding their HP, attacked through
-## [ExchangeResolver] like any defender and broken through [method CombatState.defeat], which hands
-## them to [method broken]. [b]Using[/b] an object is a unit's action ([method use]): a chest,
-## searchable, lever or passage end from its own tile, a door or brazier from next to it. It records
-## [constant CombatFact.Kind.OBJECT_USED], then one [constant CombatFact.Kind.OBJECT_STATE_CHANGED]
-## per object that changed, whose [member CombatFact.key] is a [enum Change].[br]
-## [b]Powder kegs[/b] explode on any hit or splash (a reaction owned by
-## [constant EffectOwner.Kind.MAP_OBJECT], exempt from the reaction caps), on breaking, on the
-## darkness's erosion or on Spark: splash to every unit within 1 tile through [SplashResolver], and
-## every breakable within 1 tile breaks, so kegs chain with no limit.[br]
-## [b]The darkness[/b] flows anew after every break and every door change
-## ([method Darkness.recalculate]); a closed door keeps its layer and stops the flow.[br]
-## Pure and static rules code, run unchanged in a sandbox; the caller starts the resolution step.
+## Objects are neutral, in [member CombatState.map]; breakables are also side-NONE units holding
+## their HP, broken through [method CombatState.defeat] ([method broken]). Using one is a unit's
+## action ([method use]), recording [constant CombatFact.Kind.OBJECT_USED] and one
+## [constant CombatFact.Kind.OBJECT_STATE_CHANGED] per change, keyed by a [enum Change].
+## [b]Powder kegs[/b] explode on any hit, splash, break, erosion or Spark (their own reactions,
+## exempt from the caps): splash within 1 tile, breaking the breakables there, so kegs chain. The
+## Powder Baron's are thrown mid-battle with a lit fuse ([method throw_keg], [method burn_fuses]).
+## The darkness flows anew after every break and door change. Pure, static rules code.
 ##
 ## @tutorial(Map objects): docs/design/map-objects.md
 ## @tutorial(Combat map plan): docs/plans/2026-10-27-combat-map.md
@@ -59,6 +52,13 @@ enum Change {
 	## A breakable's contact reached the limit, so the darkness breaks it: amount the count, no
 	## target; its [constant DESTROYED] follows.
 	ERODED = 8,
+	## A powder keg thrown by the unit named as the target landed on the fact's tile, lit: amount
+	## its spot index ([method throw_keg]). Its unit's [constant CombatFact.Kind.UNIT_SPAWNED]
+	## follows.
+	LANDED = 9,
+	## A thrown keg's fuse burned down at an enemy Phase End: amount the Phase Ends left; at 0 its
+	## [constant DESTROYED] follows ([method burn_fuses]). No target.
+	FUSE_BURNED = 10,
 }
 
 ## HP, DEF and RES of each breakable (map-objects.md, from Godot_FE's entity data).
@@ -86,6 +86,20 @@ const KEG_EFFECT_IDS: Dictionary[EffectTerms.Trigger, String] = {
 	EffectTerms.Trigger.HIT_TAKEN: "powder_keg_hit",
 	EffectTerms.Trigger.DAMAGE_TAKEN: "powder_keg_splash",
 }
+
+## The first spot index of a keg thrown during the battle; each throw takes the next one. Far above
+## any map's spot count, so a thrown keg's id never meets an authored object's. Saves hold these
+## indexes: never change it.
+const THROWN_INDEX_BASE: int = 1000
+
+## The enemy Phase Ends a thrown keg's lit fuse burns, after the one of the phase it lands in: it
+## explodes at the end of the 2nd enemy phase after it lands (enemy-roster.md, Keg Barrage). First
+## pass, to tune (rebalance-and-features.md).
+const FUSE_PHASES: int = 2
+
+## Turns of darkness contact that break a thrown keg: the darkness meets its lit fuse at once
+## (P05 question 46). Authored breakables keep [constant Darkness.CONTACT_LIMIT].
+const LIT_CONTACT_LIMIT: int = 1
 
 ## The objects a unit uses standing on their tile (Godot_FE: chests, levers and searchables; a
 ## passage from its end).
@@ -169,11 +183,13 @@ static var _keg_effects: Array[EffectDefinition] = []
 
 
 ## Places every object of [param session]'s map on its state and registers the map's
-## [constant CombatHooks.Hook.OBJECT_OPERATIONS] ([method operate]). Call once per session, after
-## it opens and before any unit is placed, so no breakable's tile is taken.
+## [constant CombatHooks.Hook.OBJECT_OPERATIONS] ([method operate]) and the thrown kegs' fuses
+## ([method burn_fuses]). Call once per session, after it opens and before any unit is placed, so
+## no breakable's tile is taken.
 static func place(session: CombatSession) -> void:
 	place_objects(session.engine, session.state, session.layout, session.ids)
 	session.hooks.add(CombatHooks.Hook.OBJECT_OPERATIONS, MapObjects.operate_hook)
+	session.hooks.add(CombatHooks.Hook.PHASE_END_EFFECTS, MapObjects.burn_fuses)
 
 
 ## Places the objects of [param layout]'s object spots on [param state]: every spot's state in
@@ -398,6 +414,113 @@ static func detonate(
 	if keg == null or keg.is_destroyed or keg.kind != MapLayout.ObjectKind.POWDER_KEG:
 		return
 	state.defeat(engine, object_id, by_id, _keg_effect_id(engine, object_id))
+
+
+## Whether a thrown keg may land on [param tile]: on the map, standable by some movement type but
+## Flier, with no unit and no object still there. A flooded tile may take one.
+static func can_land(state: CombatState, tile: Vector2i) -> bool:
+	if state.grid.step(tile, Vector2i.ZERO) == CombatFact.NO_TILE:
+		return false
+	if not state.occupant_at(tile).is_empty() or not state.map.objects_at(tile).is_empty():
+		return false
+	return not blocks_darkness(state, tile)
+
+
+## Throws a lit powder keg onto [param tile] of [param session]'s map, for [param by_id]
+## ([KegBarrage]): a keg as authored ones are, on the next spot index from
+## [constant THROWN_INDEX_BASE], with a [member MapState.ObjectState.fuse] of
+## [constant FUSE_PHASES] + 1. Records [constant Change.LANDED], then its unit's
+## [constant CombatFact.Kind.UNIT_SPAWNED] ([method CombatSession.add_unit]), and lets the
+## darkness flow anew. Its ids are derived, never minted, so a sandbox throw moves no counter.
+## Returns its object id; empty, changing nothing, when [method can_land] refuses the tile.
+static func throw_keg(session: CombatSession, tile: Vector2i, by_id: String) -> String:
+	var state: CombatState = session.state
+	var engine: EffectEngine = session.engine
+	if not can_land(state, tile):
+		return ""
+	var index: int = THROWN_INDEX_BASE
+	for object_id: String in state.map.objects:
+		if state.map.objects[object_id].is_thrown:
+			index += 1
+	var keg: MapState.ObjectState = thrown_keg(InstanceIdAllocator.object_id(index), index, tile)
+	state.map.objects[keg.id] = keg
+	var landed: CombatFact = CombatFact.new(CombatFact.Kind.OBJECT_STATE_CHANGED, keg.id, by_id)
+	landed.tile = tile
+	landed.key = Change.LANDED
+	landed.amount = index
+	engine.record(landed)
+	var label: String = (MapLayout.ObjectKind.find_key(keg.kind) as String).capitalize()
+	var definitions: Array[EffectDefinition] = _keg_definitions()
+	for reaction: int in definitions.size():
+		# A keg's own rule, like a trait: the closest source kind there is.
+		engine.register(EffectInstance.new(
+				InstanceIdAllocator.object_effect_id(index, reaction),
+				definitions[reaction],
+				EffectOwner.for_object(keg.id),
+				Modifier.SourceKind.UNIT_TRAIT,
+				label
+		))
+	var stats: Array = BREAKABLE_STATS[keg.kind]
+	var unit: CombatUnitState = CombatUnitState.new()
+	unit.id = keg.id
+	unit.side = CombatFact.CombatSide.NONE
+	unit.seat = -1
+	unit.tile = tile
+	unit.unit_type = label
+	unit.hp = stats[0]
+	var bases: Dictionary = {
+		CombatValue.Key.HP: float(stats[0] as int),
+		CombatValue.Key.DEF: float(stats[1] as int),
+		CombatValue.Key.RES: float(stats[2] as int),
+		CombatValue.Key.SPD: float(ATTACK_SPEED),
+		CombatValue.Key.STANCE_MAX: 0.0,
+	}
+	# Checked by can_land(), so the tile is free.
+	session.add_unit(unit, bases)
+	state.map.set_blocking(tile, MapState.Blocking.ALL_BUT_FLIERS)
+	Darkness.recalculate(engine, state)
+	return keg.id
+
+
+## The state of a keg thrown onto [param tile], lit, with id [param object_id] on spot
+## [param index]: what [method throw_keg] places and what a mirror makes from its
+## [constant Change.LANDED].
+static func thrown_keg(object_id: String, index: int, tile: Vector2i) -> MapState.ObjectState:
+	var keg: MapState.ObjectState = MapState.ObjectState.new()
+	keg.id = object_id
+	keg.index = index
+	keg.kind = MapLayout.ObjectKind.POWDER_KEG
+	keg.tile = tile
+	keg.is_thrown = true
+	keg.fuse = FUSE_PHASES + 1
+	return keg
+
+
+## [constant CombatHooks.Hook.PHASE_END_EFFECTS]: at the enemy Phase End, each lit thrown keg on
+## [param session]'s map, in spot order, burns one Phase End off its fuse
+## ([constant Change.FUSE_BURNED]); one at 0 breaks and explodes, by no unit. A keg a blast broke
+## earlier in the loop is skipped. Does nothing for [param side] other than the enemy's.
+static func burn_fuses(session: CombatSession, side: CombatFact.CombatSide) -> void:
+	if side != CombatFact.CombatSide.ENEMY:
+		return
+	var state: CombatState = session.state
+	for keg: MapState.ObjectState in state.map.objects_of(MapLayout.ObjectKind.POWDER_KEG):
+		if not keg.is_thrown or keg.is_destroyed or keg.fuse <= 0:
+			continue
+		keg.fuse -= 1
+		var burned: CombatFact = CombatFact.new(CombatFact.Kind.OBJECT_STATE_CHANGED, keg.id)
+		burned.tile = keg.tile
+		burned.key = Change.FUSE_BURNED
+		burned.amount = keg.fuse
+		session.engine.record(burned)
+		if keg.fuse == 0:
+			state.defeat(session.engine, keg.id, "", _keg_effect_id(session.engine, keg.id))
+
+
+## The turns of darkness contact that break breakable [param placed]: a thrown keg's
+## [constant LIT_CONTACT_LIMIT], else [constant Darkness.CONTACT_LIMIT].
+static func contact_limit(placed: MapState.ObjectState) -> int:
+	return LIT_CONTACT_LIMIT if placed.is_thrown else Darkness.CONTACT_LIMIT
 
 
 ## [constant CombatHooks.Hook.OBJECT_OPERATIONS] for a session: [method operate] on its state.

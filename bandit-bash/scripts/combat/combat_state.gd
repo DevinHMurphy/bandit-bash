@@ -688,12 +688,17 @@ func _follow_move(id: String, tile: Vector2i) -> void:
 
 # An OBJECT_STATE_CHANGED as MapObjects and Reinforcements changed the map: the object (the actor)
 # changed by the unit named as the target. A broken breakable leaves the map as defeat() takes it
-# off, recording no DEFEATED.
+# off, recording no DEFEATED. A landed keg is new: its spot index is the fact's amount, and its
+# unit arrives with the UNIT_SPAWNED after it.
 func _follow_object_change(fact: CombatFact) -> void:
 	if fact.key == MapObjects.Change.POINT_CLOSED:
 		var closed: MapState.PointState = map.point(fact.actor_id)
 		if closed != null:
 			closed.is_closed = true
+		return
+	if fact.key == MapObjects.Change.LANDED and map.object(fact.actor_id) == null:
+		map.objects[fact.actor_id] = MapObjects.thrown_keg(fact.actor_id, fact.amount, fact.tile)
+		map.set_blocking(fact.tile, MapState.Blocking.ALL_BUT_FLIERS)
 		return
 	var changed: MapState.ObjectState = map.object(fact.actor_id)
 	if changed == null:
@@ -722,6 +727,8 @@ func _follow_object_change(fact: CombatFact) -> void:
 				_occupancy.erase(changed.tile)
 		MapObjects.Change.CONTACTED, MapObjects.Change.ERODED:
 			map.darkness.contacts[changed.id] = fact.amount
+		MapObjects.Change.FUSE_BURNED:
+			changed.fuse = fact.amount
 
 
 # A DARKNESS_ADVANCED as Darkness recorded it: a release adds its source's wave, at reach 0 with no

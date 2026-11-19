@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://scripts/campaign/combat_map_pools.gd" id="1_pools"]
 [ext_resource type="Script" path="res://scripts/campaign/combat_map_pool.gd" id="2_pool"]
 [ext_resource type="Script" path="res://scripts/map/combat_map_definition.gd" id="3_map"]
-[ext_resource type="Resource" path="res://maps/standard/m1_greybox.tres" id="4_m1"]
+[ext_resource type="Resource" path="res://maps/boss/powder_keep.tres" id="4_powder_keep"]
 [ext_resource type="Resource" path="res://maps/standard/crossroads.tres" id="5_crossroads"]
 [ext_resource type="Resource" path="res://maps/standard/river_ford.tres" id="6_river_ford"]
 [ext_resource type="Resource" path="res://maps/standard/old_mill.tres" id="7_old_mill"]
@@ -21,7 +21,7 @@
 ; watch_post): a map isn't drawn again until its pool is used up, counted across the whole run,
 ; so a run rarely repeats one. Both key pools hold the same four key maps, the Defeat the
 ; mini-boss map (hall) among them, since setup places the mini-boss on the leader slot. The boss pool
-; keeps m1_greybox until the Powder Baron's map (P05 EN11).
+; holds the Powder Baron's keep, the one boss map (powder_keep).
 [sub_resource type="Resource" id="Resource_standard_1"]
 script = ExtResource("2_pool")
 node_type = 0
@@ -62,7 +62,7 @@ script = ExtResource("2_pool")
 node_type = 2
 first_floor = 18
 last_floor = 18
-maps = Array[ExtResource("3_map")]([ExtResource("4_m1")])
+maps = Array[ExtResource("3_map")]([ExtResource("4_powder_keep")])
 
 [resource]
 script = ExtResource("1_pools")

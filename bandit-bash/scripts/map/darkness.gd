@@ -44,7 +44,8 @@ const MINIMUM_DAMAGE: int = 1
 ## Turns between one wave and the next (the-darkness.md, Values: every 2 turns).
 const WAVE_INTERVAL: int = 2
 
-## Turns of contact that break a breakable (the-darkness.md, Values: breakable contact limit 3).
+## Turns of contact that break an authored breakable (the-darkness.md, Values: breakable contact
+## limit 3). A thrown keg's lit fuse has its own, [constant MapObjects.LIT_CONTACT_LIMIT].
 const CONTACT_LIMIT: int = 3
 
 ## The earliest turn whose darkness step may release the first wave: the darkness can't arrive
@@ -230,29 +231,34 @@ static func _release(engine: EffectEngine, state: CombatState) -> void:
 
 
 # Each standing breakable next to a flooded tile, in spot order, gains a turn of contact; one at
-# the limit erodes and breaks, which lets the darkness flow through (MapObjects.broken).
+# its limit (MapObjects.contact_limit) erodes and breaks, which lets the darkness flow through
+# (MapObjects.broken). A thrown keg also touches through its own tile, if it landed on a flooded
+# one.
 static func _erode(engine: EffectEngine, state: CombatState) -> void:
 	var darkness: DarknessState = state.map.darkness
 	# ASSUMPTION: contact is read once, before any break this step, so a lane a break opens
 	# erodes the breakables beyond it from the next step; the-darkness.md doesn't order them.
 	var touching: Array[MapState.ObjectState] = []
 	for placed: MapState.ObjectState in _breakables(state):
-		if _is_touching(state, placed.tile):
+		var is_under: bool = (
+				placed.is_thrown
+				and darkness.layer_at(placed.tile) != WhileLayerCondition.Layer.DRY
+		)
+		if is_under or _is_touching(state, placed.tile):
 			touching.append(placed)
 	for placed: MapState.ObjectState in touching:
 		# A keg's blast earlier this step may have broken it.
 		if placed.is_destroyed:
 			continue
 		var count: int = darkness.contacts.get(placed.id, 0) + 1
+		var limit: int = MapObjects.contact_limit(placed)
 		darkness.contacts[placed.id] = count
 		var contact: CombatFact = CombatFact.new(CombatFact.Kind.OBJECT_STATE_CHANGED, placed.id)
 		contact.tile = placed.tile
 		contact.amount = count
-		contact.key = (
-				MapObjects.Change.ERODED if count >= CONTACT_LIMIT else MapObjects.Change.CONTACTED
-		)
+		contact.key = MapObjects.Change.ERODED if count >= limit else MapObjects.Change.CONTACTED
 		engine.record(contact)
-		if count >= CONTACT_LIMIT:
+		if count >= limit:
 			MapObjects.erode(engine, state, placed.id)
 
 

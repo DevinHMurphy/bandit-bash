@@ -185,7 +185,7 @@ func _test_service_combat_map() -> bool:
 	_check("service combat map: a checkpoint writes both sections", (
 			begun == OK
 			and saved == OK
-			and versions == [1, 1]
+			and versions == [1, 2]
 			and house.is_used
 			and (session.state.map.found.get(0, []) as Array).size() == 1
 	), "%s, versions %s" % [error_string(saved), versions])

@@ -91,16 +91,12 @@ const _STEP_LAST_FLOORS: Array[int] = [5, 11, 17]
 const _STEP_LEVELS: Array[int] = [1, 3, 5]
 
 
-## Setup step 4: draws one pack evenly from [param catalog]'s packs of [method pool_for] the drawn
-## map and [param standard_combats] (those entered earlier in this step), in id order, with
-## [param ctx]'s shared stream, and assigns its units at the floor's step to the enemy slots, at
-## [method level_for] [param floor_number] plus [param level_modifier]. On a map with a leader
-## slot, the first unit of the pack's [member PackDefinition.leader_class_id] takes it instead, at
-## the leader's level, with a prefix drawn next ([method UnitPrefixDefinition.roll_elite]), so it
-## counts toward the step's count. On a key map the pack is one naming [param mini_boss_id] (any
-## key pack when it is empty or none does), and its mini-boss stands on the leader slot at the
-## leader's level with a prefix drawn right after the pack, on top of the escort. An empty pool
-## draws nothing. Register it bound:
+## Setup step 4: one pack drawn from [param catalog]'s [method pool_for] pool with [param ctx]'s
+## shared stream, its units at the floor's step given the enemy slots in order at
+## [method level_for] plus [param level_modifier]; the pack's leader takes the leader slot at the
+## leader's level with a drawn elite prefix. On a key map the pack escorts [param mini_boss_id],
+## who stands on the leader slot. A scripted map ([member CombatMapDefinition.fixed_pack_id])
+## takes its pack undrawn, with its fixed levels and leader prefix. Register it bound:
 ## [code]draw.bind(catalog, floor_number, level_modifier, standard_combats, mini_boss_id)[/code].
 static func draw(
 		ctx: CombatEncounter.SetupContext,
@@ -110,17 +106,23 @@ static func draw(
 		standard_combats: int = 0,
 		mini_boss_id: String = ""
 ) -> void:
-	var is_key: bool = _is_key(ctx.setup.map)
+	var map: CombatMapDefinition = ctx.setup.map
+	var is_key: bool = _is_key(map)
+	var is_fixed: bool = map != null and not map.fixed_pack_id.is_empty()
 	var pool: PackDefinition.Pool = pool_for(is_key, standard_combats)
 	var pack: PackDefinition = null
-	if is_key and not mini_boss_id.is_empty():
+	if is_fixed:
+		pack = catalog.definition(map.fixed_pack_id) as PackDefinition
+	elif is_key and not mini_boss_id.is_empty():
 		pack = _pick_pack(catalog, pool, ctx.stream, mini_boss_id)
-	if pack == null:
+	if pack == null and not is_fixed:
 		pack = _pick_pack(catalog, pool, ctx.stream)
 	if pack == null:
 		return
 	var classes: PackedStringArray = pack.units(step_of(floor_number))
 	var level: int = level_for(floor_number, is_key, false, level_modifier)
+	if is_fixed and map.fixed_enemy_level > 0:
+		level = maxi(map.fixed_enemy_level + level_modifier, 1)
 	var slots: Array[Vector2i] = ctx.setup.layout.tiles_of(MapLayout.MarkerKind.ENEMY_SLOT)
 	var leader_slots: Array[Vector2i] = ctx.setup.layout.tiles_of(
 			MapLayout.MarkerKind.LEADER_SLOT
@@ -150,11 +152,19 @@ static func draw(
 		var class_id: String = classes[index]
 		if index == leader_at:
 			var leader_tile: Vector2i = leader_slots[0]
+			var leader_level: int = level_for(floor_number, is_key, true, level_modifier)
+			var prefix_id: String = ""
+			if is_fixed and map.fixed_leader_level > 0:
+				leader_level = maxi(map.fixed_leader_level + level_modifier, 1)
+			if is_fixed and not map.fixed_leader_prefix_id.is_empty():
+				prefix_id = map.fixed_leader_prefix_id
+			else:
+				prefix_id = UnitPrefixDefinition.roll_elite(ctx.stream, catalog)
 			units.append({
 				CLASS_KEY: class_id,
-				LEVEL_KEY: level_for(floor_number, is_key, true, level_modifier),
+				LEVEL_KEY: leader_level,
 				TILE_KEY: [leader_tile.x, leader_tile.y],
-				PREFIX_KEY: UnitPrefixDefinition.roll_elite(ctx.stream, catalog),
+				PREFIX_KEY: prefix_id,
 			})
 			continue
 		if filled >= slots.size():
@@ -227,8 +237,8 @@ static func extra_enemies(
 
 ## Ids of the standard enemy classes in [param catalog], in id order: every class some pack setup
 ## can draw ([method PackDefinition.is_drawn]) fields at any step. Mini-bosses and the boss never
-## sit in a pack's units, so they are left out without a mark of their own; so is a class a pack
-## names that the catalog lacks.
+## sit in a drawn pack's units (the boss leads only its map's undrawn pack), so they are left out
+## without a mark of their own; so is a class a pack names that the catalog lacks.
 static func standard_classes(catalog: EffectCatalog.Index) -> PackedStringArray:
 	var found: Dictionary[String, bool] = {}
 	for resource: Resource in catalog.all_of(EffectCatalog.Kind.PACK):

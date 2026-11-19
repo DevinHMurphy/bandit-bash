@@ -20,7 +20,8 @@ extends RefCounted
 ## never awaits, and it records any change as a fact through [member CombatSession.engine]. Each
 ## hook's doc gives its call signature.[br]
 ## [b]Sandboxed runs:[/b] [constant Hook.TERRAIN_HEALING_ALLOWED],
-## [constant Hook.PHASE_END_EFFECTS] and [constant Hook.AFTER_STEP] also run on a sandbox's
+## [constant Hook.PHASE_END_EFFECTS], [constant Hook.PHASE_START_EFFECTS] and
+## [constant Hook.AFTER_STEP] also run on a sandbox's
 ## stand-in session when [Intents] foresees the enemy phase
 ## ([method PhaseRunner.cross_to_enemy_phase]). A registration there reads and changes only the
 ## session it is handed, never one it holds, so nothing reaches the real map.
@@ -62,6 +63,11 @@ enum Hook {
 	## When a rune or effect acts on a map object (P04 MP6: Spark detonates a powder keg).
 	## [code]func(session, source_id: String, object_id: String) -> bool[/code].
 	OBJECT_OPERATIONS = 7,
+	## At each side's Phase Start, after its Phase Start and Unit Turn Start effects resolve and
+	## before the side's turns or intents (P05: [method KegBarrage.throw_hook], the Powder Baron's
+	## throw, which needs the session's run seed). A sandbox crossing runs it too.
+	## [code]func(session, side: CombatFact.CombatSide) -> void[/code].
+	PHASE_START_EFFECTS = 8,
 }
 
 var _registered: Dictionary[int, Array] = {}

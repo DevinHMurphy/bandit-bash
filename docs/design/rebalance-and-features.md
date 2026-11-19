@@ -33,7 +33,20 @@ unit-roster.md) and the tests that check it, in one change, as the November 17 r
 
 Raw playtest notes, newest first. The orchestrator empties this into Entries.
 
-- *(empty)*
+- **November 18, 2026, EN11 (the Powder Baron, `powder_keep`), first values to tune:**
+  - **Keg Barrage:** every 2nd enemy phase (first on enemy phase 2), reach 5 by grid distance,
+    walls ignored (`KegBarrage.REACH`); fuse 2 enemy phases after landing (`MapObjects.FUSE_PHASES`).
+  - **A lit keg and the darkness:** a thrown keg blows at its first darkness contact, or at the next
+    darkness phase if it lands on a flooded tile (`MapObjects.LIT_CONTACT_LIMIT` = 1; authored kegs
+    keep 3). This rule differs from map-objects.md's single contact limit (a design item for the
+    ideation thread).
+  - **The keep:** 8 guards at level 6 (`# ASSUMPTION`: step 3's 5 + 1, as in a key combat), the
+    Baron at 8 with Stalwart always, turn par 14 (`# ASSUMPTION`, the low end of 14–18).
+  - **Scripted beats:** none beyond the barrage and the darkness. Godot_FE's boss map sent waves on
+    turns 4, 7 and 11; a half-HP second phase is another candidate.
+  - **Readability:** a lit keg's fuse count isn't shown on the board (P07 / UI).
+  - **Headless battle:** the level 5 test army lost on turn 6 (its driver walks the commander in);
+    one battle takes about 98 s headless, so `map_set/boss` runs about 200 s for its two plays.
 
 ## Entries
 

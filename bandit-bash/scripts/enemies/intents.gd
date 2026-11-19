@@ -457,8 +457,35 @@ static func _signatures_fired(
 		var signature: Signature = Signature.new()
 		signature.name = instance.label
 		signature.area = _covered_by(state, instance.definition, state.tile_of(owner_id))
+		if KegBarrage.is_barrage(instance.definition):
+			signature.area = _barrage_blast(engine, from, owner_id)
 		fired[owner_id] = signature
 	return fired
+
+
+# The tiles on engine's map the blast of the keg thrower_id threw from fact from on covers (its
+# LANDED fact; KegBarrage throws at the crossed Phase Start), in row-major order; empty when it
+# threw none.
+static func _barrage_blast(
+		engine: EffectEngine, from: int, thrower_id: String
+) -> Array[Vector2i]:
+	var tiles: Array[Vector2i] = []
+	var state: CombatState = engine.state
+	for index: int in range(from, engine.fact_log.size()):
+		var fact: CombatFact = engine.fact_log[index]
+		var is_landing: bool = (
+				fact.kind == CombatFact.Kind.OBJECT_STATE_CHANGED
+				and fact.key == MapObjects.Change.LANDED
+				and fact.target_id == thrower_id
+		)
+		if not is_landing:
+			continue
+		for tile: Vector2i in MapObjects.KEG_BLAST.tiles(fact.tile):
+			if state.grid.step(tile, Vector2i.ZERO) != CombatFact.NO_TILE:
+				tiles.append(tile)
+		tiles.sort_custom(EnemyPlan.tile_precedes)
+		break
+	return tiles
 
 
 # The tiles on state's map the Area targets of definition's operations cover around its owner's

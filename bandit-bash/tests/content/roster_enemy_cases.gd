@@ -116,8 +116,16 @@ const HARD: PackDefinition.Pool = PackDefinition.Pool.HARD
 const KEY: PackDefinition.Pool = PackDefinition.Pool.KEY
 const NONE: PackDefinition.Pool = PackDefinition.Pool.NONE
 
+# The boss map's fixed garrison and the Baron, in slot order (P05 question 46): the same at every
+# step, since only the keep fields it.
+const GARRISON: String = (
+		"shieldbearer, shieldbearer, crossbowman, crossbowman, hedge_healer, brute, cutthroat, "
+		+ "cutthroat, powder_baron"
+)
+
 # enemy-packs.md's Pack lists, every pack in the catalog: pool, the units at steps 1, 2 and 3 in
-# setup order, the leader class and the mini-boss. The M1 Pack is from M1 (enemy-roster.md).
+# setup order, the leader class and the mini-boss. The M1 Pack is from M1 (enemy-roster.md); the
+# Powder Keep Garrison is the boss map's.
 const PACKS: Dictionary[String, Array] = {
 	"shield_and_bolt": [BASIC,
 		"shieldbearer, crossbowman, crossbowman",
@@ -199,6 +207,11 @@ const PACKS: Dictionary[String, Array] = {
 		"brute, crossbowman, hedge_healer",
 		"brute, crossbowman, hedge_healer",
 		"", ""],
+	"powder_keep_garrison": [NONE,
+		GARRISON,
+		GARRISON,
+		GARRISON,
+		"powder_baron", ""],
 }
 
 # Units a drawn pack fields at steps 1, 2 and 3 (game-vision.md, Run structure).

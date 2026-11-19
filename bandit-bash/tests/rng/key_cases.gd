@@ -64,6 +64,7 @@ const PURPOSE_VALUES: Dictionary[String, int] = {
 	"MAP_LOOT": 12,
 	"COMBAT_ROLLS": 13,
 	"MINI_BOSS_DRAW": 14,
+	"KEG_BARRAGE": 15,
 }
 
 
