@@ -59,7 +59,9 @@ screens (P08 RN6 onward, P09) do the same.
   `bandit-bash/assets/audio/` in Godot_FE's folder layout, each with a cue. The 7 superseded `old`
   files stay behind, except `combat/attack/old/miss.wav`, the only miss sound. Each cue is mapped
   to its use where the game has one today; the rest wait for their screen (shop, Guildhall,
-  equip, the campaign map's node types). Placeholders under RF-008 until AU2.
+  equip, the campaign map's node types). Placeholders under RF-008 until AU2. **Licensed:** the user
+  holds the licence for this set (November 19, 2026), so it may ship; the aim is still to replace
+  it in AU2 before release.
 - **Tests:** suites run with the dummy audio driver; cases cover cue lookup, bus volumes from
   settings, the voice limit, the UI hook and the fact listener.
 - **Co-op and saves:** local only, nothing networked; no save change.
