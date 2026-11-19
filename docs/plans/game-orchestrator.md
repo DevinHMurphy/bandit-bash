@@ -76,13 +76,13 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P12 | Statistics and the Waystation war table (meta-progression.md) | **Not started** | — | P01, P08 |
 | P13 | [RNG streams](2026-10-26-rng-streams.md) | **Implemented** | — | P00 |
 | P15 | UI lift ([ui-lift.md](../design/ui-lift.md); its scope doc is the plan) | **In progress**: UL0 the style guide ([ui-style.md](../design/ui-style.md)) , UL1 the shared theme, UL4 the event log (with UL1F) , UL3 the HUD and unit detail, and UL5 the victory sequence done | UL2, UL6–UL8 | P07, P08 |
-| P14 | [Project organization](2026-11-09-project-organization.md) | **In progress** | O5 (deferred) | — |
+| P14 | [Project organization](2026-11-09-project-organization.md) | **In progress** | O8 concurrency tooling (case-file discovery in every `run_all.gd`, `capture_screens.gd` split into `tools/captures/`, a `--quick` runner tier without map_set; queued for the first free Lane G slot after AU1); O5 (deferred) | — |
 | P16 | Audio ([audio.md](../design/audio.md); its scope doc is the plan) | **In progress**: AU1 issued November 19, 2026 | AU1 (M2); AU2+ sound design (M5, after the audio direction) | P07, P15 |
 | P20–P24 | Meta progression, tutorials, dev console, status effects, shared co-op battles | Post-MVP | — | — |
 
 ## Next actions
 
-**Build prompts resumed** November 12, 2026 (user), two at a time, once planning caught up.
+**Build prompts resumed** November 12, 2026 (user), two at a time, once planning caught up. **From November 19, 2026: up to four builds, one per lane, plus docs and planning sessions** ([concurrency lanes](orchestrator/dependencies.md#concurrency-lanes)).
 
 1. **P14 (priority, user, November 16, 2026):** O6 faster suites (merged November 16, 2026: every suite in parallel, enemies in three parts, BUG-011 fixed; a full run 248 s → 140 s before MP10b, 215 s after it, with `map_set/key` at 201 s), then O7 the live test report (merged November 16, 2026: `report.html` in each run's log folder, refreshed live; `tools/run_tests.cmd` or `--open` opens it; history in `%LOCALAPPDATA%BanditBash	estshistory.tsv`; a full run 159–166 s, set by `map_set/standard`); both change `run_tests.sh`, so one at a time. O1–O4 done (O4 merged November 12, 2026). O5 waits until a step needs those files.
 2. **Plans:** P08 approved November 12, 2026; RN1 (the map) merged November 12, 2026; RN2 (run state as `CampaignRunState`) merged November 13, 2026; RN3 (the battle bridge, with BUG-009 and BUG-010) merged November 13, 2026; RN4 (rewards, plus a fallen commander kept at critical health, P08 question 19) merged November 14, 2026 (P08 question 20); RN5 (the loop screens: the campaign map, Results, new-item placement, the run's end) merged November 15, 2026 (P08 question 21). P09 approved November 12, 2026; EV1 is open now that RN2 is in. The move-preview re-architecture is adopted ([move-preview.md](../design/move-preview.md)) as P05 EN13–EN16. **Planning is caught up.**

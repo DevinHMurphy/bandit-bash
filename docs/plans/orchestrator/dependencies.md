@@ -222,6 +222,36 @@ flowchart LR
 
 `CC6 --- MP4`: built together; MP4's objective checks run on CC6's `AFTER_STEP` hook.
 
+## Concurrency lanes
+
+Adopted November 19, 2026 (user). Up to **four builds** run at once, **one per lane**, plus any
+number of Lane F sessions (docs and plans, no full test run). Every prompt names its lane, the
+files it owns, the shared files it may only append to, and what it must not touch.
+
+| Lane | Owns | Steps |
+|------|------|-------|
+| **A** Battle UI | `ui/battle/**`, `battle_controller.gd`, `battle_screen.gd`, the hint bar, `gameplay.tscn` | UL2, UL6 |
+| **B** Campaign and run | `scripts/campaign/`, `campaign_session.gd`, `ui/campaign/` (not `events/`), `SceneRouter` | RN6, UL7, RN7, RN8, RN9, RN10, RN11 |
+| **C** Events | `scripts/events/`, `data/events/`, `ui/campaign/events/`, `tests/events/` | EV1–EV6 |
+| **D** Engine, AI, content | `scripts/enemies/`, `scripts/effects/`, `data/` content | EN13–EN16, CT12 |
+| **E** Network | the net scripts and `SteamNetwork` | P10 |
+| **G** Audio and tooling | `scripts/audio/`, `data/audio/`, `tools/`, the runner | AU1, P14 O8 |
+| **F** Docs and plans | `docs/` only | the M2 docs batch, plans (P10, P11, P12), ideation |
+
+**Shared, append only:** `project.godot` (input actions, autoloads), the suites' `run_all.gd`
+(until O8 discovers case files), `capture_screens.gd` (until O8 splits it), `save-system.md` rows.
+
+**Process rules:**
+
+- **Records are the orchestrator's.** Build agents don't edit `game-orchestrator.md`,
+  `orchestrator/*`, the bug tracker, `rebalance-and-features.md` or `ui-lift.md`; they put proposed
+  entries in their report. A prompt that expects a decision row assigns its question number.
+- **Agents merge `dev` into their branch** before their final full run and resolve their own
+  conflicts; the orchestrator's full run at merge stays the gate.
+- **Shared cores (16):** while iterating, agents run only the suites they touch. The final full
+  run uses `JOBS=8 SUITE_TIMEOUT=450` while other builds are active.
+- **Merges** go one at a time, in the order reports arrive.
+
 ## Gates
 
 Implementation steps that must wait for another plan. A gate opens when its condition is met;
