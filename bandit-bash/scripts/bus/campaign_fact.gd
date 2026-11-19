@@ -6,7 +6,7 @@
 # File:     campaign_fact.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 14, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name CampaignFact
@@ -46,6 +46,25 @@ enum Kind {
 	## The seat scrapped the item [member actor_id] (content id [member definition_id]) for
 	## [member amount] gold: it left the roster, or never entered it when scrapped at pickup.
 	ITEM_SCRAPPED = 9,
+	## The seat's gold changed by [member amount] (negative: paid), for the reason named by
+	## [member definition_id], such as an event's id.
+	GOLD_CHANGED = 10,
+	## The unit [member actor_id]'s current HP changed by [member amount] (negative: damage), by
+	## [member definition_id], such as an event's id.
+	HP_CHANGED = 11,
+	## The unit [member actor_id] changed outside battle: a stat, its max HP, a pending level-up
+	## gain or its prefix, by [member definition_id]. [member amount] is a stat change's points,
+	## else 0; its state holds the rest.
+	UNIT_CHANGED = 12,
+	## The item [member actor_id] was modified: a granted effect, stat deltas or a weapon prefix,
+	## by [member definition_id], such as an event's id.
+	ITEM_MODIFIED = 13,
+	## The fallen unit [member actor_id] rejoined the army with [member amount] HP, by
+	## [member definition_id], such as the revive shrine's id.
+	UNIT_REVIVED = 14,
+	## The rune [member actor_id] (content id [member definition_id]) left rune slot
+	## [member amount] to make room for a new one.
+	RUNE_DISCARDED = 15,
 }
 
 ## [member seat] when a fact belongs to no single player.

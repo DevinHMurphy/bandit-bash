@@ -6,7 +6,7 @@
 # File:     campaign_bus.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 14, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name CampaignBus
@@ -27,7 +27,8 @@ signal fact_played(fact: CampaignFact)
 ## The run's progress: the run starting, nodes chosen and left, combats ending.
 var run: RunChannel = RunChannel.new()
 
-## A player's army: heirlooms and items gained, equipped and scrapped, level-ups.
+## A player's army: heirlooms, items and runes gained, equipped, modified, scrapped or discarded;
+## gold, HP and unit changes; revivals; level-ups.
 var army: ArmyChannel = ArmyChannel.new()
 
 ## Effect activations and counters.
@@ -77,7 +78,8 @@ class RunChannel:
 		_route(CampaignFact.Kind.NODE_LEFT, node_left)
 
 
-## A player's army: heirlooms and items gained, equipped and scrapped, level-ups.
+## A player's army: heirlooms, items and runes gained, equipped, modified, scrapped or discarded;
+## gold, HP and unit changes; revivals; level-ups.
 class ArmyChannel:
 	extends BusChannel
 
@@ -89,12 +91,30 @@ class ArmyChannel:
 	signal item_equipped(fact: CampaignFact)
 	## [constant CampaignFact.ITEM_SCRAPPED].
 	signal item_scrapped(fact: CampaignFact)
+	## [constant CampaignFact.GOLD_CHANGED].
+	signal gold_changed(fact: CampaignFact)
+	## [constant CampaignFact.HP_CHANGED].
+	signal hp_changed(fact: CampaignFact)
+	## [constant CampaignFact.UNIT_CHANGED].
+	signal unit_changed(fact: CampaignFact)
+	## [constant CampaignFact.ITEM_MODIFIED].
+	signal item_modified(fact: CampaignFact)
+	## [constant CampaignFact.UNIT_REVIVED].
+	signal unit_revived(fact: CampaignFact)
+	## [constant CampaignFact.RUNE_DISCARDED].
+	signal rune_discarded(fact: CampaignFact)
 
 	func _init() -> void:
 		_route(CampaignFact.Kind.GAINED, gained)
 		_route(CampaignFact.Kind.LEVELED_UP, leveled_up)
 		_route(CampaignFact.Kind.ITEM_EQUIPPED, item_equipped)
 		_route(CampaignFact.Kind.ITEM_SCRAPPED, item_scrapped)
+		_route(CampaignFact.Kind.GOLD_CHANGED, gold_changed)
+		_route(CampaignFact.Kind.HP_CHANGED, hp_changed)
+		_route(CampaignFact.Kind.UNIT_CHANGED, unit_changed)
+		_route(CampaignFact.Kind.ITEM_MODIFIED, item_modified)
+		_route(CampaignFact.Kind.UNIT_REVIVED, unit_revived)
+		_route(CampaignFact.Kind.RUNE_DISCARDED, rune_discarded)
 
 
 ## Effect activations and counters.
