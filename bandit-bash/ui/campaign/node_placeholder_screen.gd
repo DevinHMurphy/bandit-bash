@@ -6,7 +6,7 @@
 # File:     node_placeholder_screen.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 15, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends Control
@@ -17,7 +17,8 @@ extends Control
 ## and returns to the map; the node stays visited and its floor locked, and its rules never run.
 ## It exists so a route through the fixed Treasure and Camp floors still reaches the Boss (Godot_FE
 ## sent its unbuilt rooms to a placeholder scene the same way). Opened at any other stage, it
-## sends the run on at once.
+## sends the run on at once. The [HeirloomBar] under the header shows the seat's heirlooms as the
+## run saved them.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 ##
@@ -27,8 +28,12 @@ extends Control
 # ============================================================
 # INPUT MAP SETUP (built-in ui_* actions; read through the GUI, not here):
 #   "ui_accept" -> Enter, Space; pad A [Cross]               (press Continue, which has focus)
-#   "ui_cancel" -> Esc; pad B [Circle], Menu [Options]       (the pause menu, which reads it)
-#   Mouse: a click on Continue.
+#   "ui_cancel" -> Esc; pad B [Circle], Menu [Options]       (the pause menu, which reads it;
+#                  on the heirloom bar the bar reads it, closing itself)
+#   "heirloom_bar_focus" -> H; RS pushed left [R stick]      (read by the HeirloomBar: focuses
+#                  it, then back to Continue; left and right move between its icons, and the
+#                  hints are HEIRLOOMS meanwhile)
+#   Mouse: a click on Continue; hovering an heirloom shows its tooltip.
 # ============================================================
 
 ## The hint context while the placeholder shows.
@@ -41,6 +46,7 @@ var _is_leaving: bool = false
 @onready var _status_label: Label = %Status
 @onready var _continue_button: Button = %ContinueButton
 @onready var _hints: ScreenHints = %ScreenHints
+@onready var _heirlooms: HeirloomBar = %HeirloomBar
 
 
 func _ready() -> void:
@@ -51,6 +57,9 @@ func _ready() -> void:
 		return
 	var run: CampaignRunState = session.run
 	_header.show_run(run, session.seats[0])
+	_heirlooms.show_views(HeirloomViewModel.for_run(run.seat_run(session.seats[0])))
+	_heirlooms.navigation_started.connect(_on_heirloom_bar_navigation_started)
+	_heirlooms.navigation_ended.connect(_on_heirloom_bar_navigation_ended)
 	# TODO(TOD-001): each node type's own screen (RN7-RN10) replaces this one for that type.
 	var type_name: String = CampaignMapView.TYPE_NAMES.get(run.graph.type_of(run.node), "?")
 	_header.title = type_name
@@ -79,3 +88,11 @@ func _on_continue_button_pressed() -> void:
 		return
 	_is_leaving = true
 	RunScreen.go()
+
+
+func _on_heirloom_bar_navigation_started() -> void:
+	_hints.context = HeirloomBar.HINT_CONTEXT
+
+
+func _on_heirloom_bar_navigation_ended() -> void:
+	_hints.context = HINT_CONTEXT

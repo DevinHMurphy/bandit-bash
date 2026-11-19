@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/conditions/while_attack_condition.gd" id="4_attack"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="5_value"]
 [ext_resource type="Script" path="res://scripts/content/heirloom_definition.gd" id="9_def"]
+[ext_resource type="Texture2D" path="res://assets/sprites/heirlooms/heirloom_behavior.svg" id="20_icon"]
 
 [sub_resource type="Resource" id="Resource_armored"]
 script = ExtResource("4_attack")
@@ -31,3 +32,4 @@ kind = "behavior"
 id = "hammerhead_charm"
 display_name = "Hammerhead Charm"
 effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])
+icon = ExtResource("20_icon")

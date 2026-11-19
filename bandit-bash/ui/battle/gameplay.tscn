@@ -119,7 +119,7 @@ unique_name_in_owner = true
 offset_left = -316.0
 offset_right = -316.0
 
-[node name="BattleController" type="Node" parent="." node_paths=PackedStringArray("view", "panel_host", "turn_bar", "swap_window", "message", "move_preview_marks", "intent_display", "rune_bar", "pad_repeat", "event_log")]
+[node name="BattleController" type="Node" parent="." node_paths=PackedStringArray("view", "panel_host", "turn_bar", "swap_window", "message", "move_preview_marks", "intent_display", "rune_bar", "pad_repeat", "event_log", "heirloom_bar")]
 unique_name_in_owner = true
 script = ExtResource("12_controller")
 action_menu_scene = ExtResource("13_action_menu")
@@ -138,6 +138,7 @@ intent_display = NodePath("../BattleView/IntentDisplay")
 rune_bar = NodePath("../Hud/RuneBar")
 pad_repeat = NodePath("PadRepeat")
 event_log = NodePath("../Hud/BattleHud/EventLog")
+heirloom_bar = NodePath("../Hud/BattleHud/HeirloomBar")
 
 [node name="PadRepeat" parent="BattleController" instance=ExtResource("22_pad_repeat")]
 unique_name_in_owner = true

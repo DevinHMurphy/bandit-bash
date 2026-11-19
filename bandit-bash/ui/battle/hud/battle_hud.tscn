@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://ui/battle/hud/battle_hud.gd" id="1_hud"]
 [ext_resource type="Theme" path="res://ui/theme/battle_theme.tres" id="2_theme"]
@@ -10,6 +10,7 @@
 [ext_resource type="PackedScene" path="res://ui/battle/hud/fact_log.tscn" id="8_log"]
 [ext_resource type="PackedScene" path="res://ui/battle/hud/phase_banner.tscn" id="9_banner"]
 [ext_resource type="PackedScene" path="res://ui/battle/hud/event_log/event_log.tscn" id="10_event_log"]
+[ext_resource type="PackedScene" path="res://ui/common/heirlooms/heirloom_bar.tscn" id="11_heirlooms"]
 
 [node name="BattleHud" type="Control"]
 layout_mode = 3
@@ -80,6 +81,15 @@ offset_bottom = -72.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+
+[node name="HeirloomBar" parent="." instance=ExtResource("11_heirlooms")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+offset_left = 248.0
+offset_top = 8.0
+offset_right = 280.0
+offset_bottom = 40.0
 
 [node name="PhaseBanner" parent="." instance=ExtResource("9_banner")]
 unique_name_in_owner = true

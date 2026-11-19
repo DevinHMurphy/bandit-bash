@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/selectors/random_of.gd" id="5_random"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/selectors/all_of_scope.gd" id="6_scope"]
 [ext_resource type="Script" path="res://scripts/content/curse_definition.gd" id="9_def"]
+[ext_resource type="Texture2D" path="res://assets/sprites/heirlooms/curse.svg" id="20_icon"]
 
 [sub_resource type="Resource" id="Resource_your_units"]
 script = ExtResource("6_scope")
@@ -38,3 +39,4 @@ tier = "minor"
 id = "haunted"
 display_name = "Haunted"
 effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])
+icon = ExtResource("20_icon")

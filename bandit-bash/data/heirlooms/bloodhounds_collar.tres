@@ -5,6 +5,7 @@
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/add_timed_modifier.gd" id="4_timed"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/selectors/fact_actor.gd" id="5_actor"]
 [ext_resource type="Script" path="res://scripts/content/heirloom_definition.gd" id="9_def"]
+[ext_resource type="Texture2D" path="res://assets/sprites/heirlooms/heirloom_behavior.svg" id="20_icon"]
 
 [sub_resource type="Resource" id="Resource_killer"]
 script = ExtResource("5_actor")
@@ -31,3 +32,4 @@ kind = "behavior"
 id = "bloodhounds_collar"
 display_name = "Bloodhound's Collar"
 effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])
+icon = ExtResource("20_icon")

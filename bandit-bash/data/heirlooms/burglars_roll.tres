@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
 [ext_resource type="Script" path="res://scripts/content/heirloom_definition.gd" id="9_def"]
+[ext_resource type="Texture2D" path="res://assets/sprites/heirlooms/heirloom_economy.svg" id="20_icon"]
 
 [sub_resource type="Resource" id="Resource_effect"]
 script = ExtResource("1_eff")
@@ -17,3 +18,4 @@ kind = "economy"
 id = "burglars_roll"
 display_name = "Burglar's Roll"
 effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])
+icon = ExtResource("20_icon")

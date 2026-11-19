@@ -11,6 +11,7 @@
 
 extends "res://tests/ui/ui_suite.gd"
 ## Combat UI display suite (combat UI plan, P07): the forecast, the HUD, the event log (P15 UL4),
+## the heirloom bar (P15 UL8),
 ## the unit display and the
 ## display fixes of UI9 (pop-ups on the info layer, a hit's number past Block and its Block number,
 ## gray only in a unit's own phase, the HP bar's maximum), UI10's exchange feedback (the
@@ -32,11 +33,12 @@ extends "res://tests/ui/ui_suite.gd"
 ## so the layout and the camera settle. It needs a test user folder (see the base).
 
 # The test report's line on this suite; tools/run_tests.sh reads it from this one line.
-const SUITE_DESCRIPTION: String = "Forecast, HUD, unit display, objectives and screen layout"
+const SUITE_DESCRIPTION: String = "Forecast, HUD, heirloom bar, unit display, objectives, layout"
 
 const ForecastCases = preload("res://tests/ui/battle/forecast/forecast_cases.gd")
 const HudCases = preload("res://tests/ui/battle/hud/hud_cases.gd")
 const EventLogCases = preload("res://tests/ui/battle/hud/event_log_cases.gd")
+const HeirloomBarCases = preload("res://tests/ui/battle/hud/heirloom_bar_cases.gd")
 const UnitDisplayCases = preload("res://tests/ui/battle/unit/unit_display_cases.gd")
 const DisplayFixCases = preload("res://tests/ui/battle/display_fix_cases.gd")
 const ExchangeFeedbackCases = preload("res://tests/ui/battle/exchange_feedback_cases.gd")
@@ -70,6 +72,8 @@ func _process(_delta: float) -> bool:
 		HudCases.new(_check, root).run()
 		GroupClock.lap("event_log_cases")
 		EventLogCases.new(_check, root).run()
+		GroupClock.lap("heirloom_bar_cases")
+		HeirloomBarCases.new(_check, root).run()
 		GroupClock.lap("unit_display_cases")
 		UnitDisplayCases.new(_check, root).run()
 		GroupClock.lap("display_fix_cases")

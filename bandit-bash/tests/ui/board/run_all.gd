@@ -6,14 +6,15 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends "res://tests/ui/ui_suite.gd"
 ## Combat UI board suite (combat UI plan, P07): the board, the map object marks, enemy information
 ## and the unit info layer, a cases file each in [code]tests/ui/battle/[/code] (preloaded below;
-## each one's class doc lists its checks); then the gameplay screen itself: a run saved mid-battle and continued
-## opens on the board at its saved state; a new solo run's first battle played to its end, the
+## each one's class doc lists its checks); then the gameplay screen itself: a run saved
+## mid-battle and continued opens on the board at its saved state, its heirloom bar's counts and
+## looks as they were; a new solo run's first battle played to its end, the
 ## control hints showing PLAYBACK through its final playback until the end banner, its Victory or
 ## Defeat banner, and the route to Results. The shared helpers are
 ## [code]tests/ui/ui_suite.gd[/code]'s.
@@ -48,6 +49,12 @@ const ROUTE_BANNER_TIME: float = 0.2
 
 # How long the routing case waits for the route to Results after the banner shows.
 const ROUTE_TIMEOUT_MSEC: int = 5000
+
+# The continue case's staged heirlooms: War Ledger's effect and saved campaign count, and Breaker's
+# Maul's count one Hit before its 5th (ready).
+const LEDGER_EFFECT: String = "double_damage"
+const LEDGER_COUNT: int = 7
+const MAUL_READY: int = 4
 
 var _frame: int = 0
 var _route_frame: int = -1
@@ -96,7 +103,8 @@ func _process(_delta: float) -> bool:
 
 # A new solo run's gameplay screen past Start, one unit's move and Wait, Save & Quit's checkpoint
 # and a quit; then Continue and the gameplay screen again: it opens the battle on the board at its
-# saved state (CampaignService.resume_battle), not the placeholder, ready for input.
+# saved state (CampaignService.resume_battle), not the placeholder, ready for input, the staged
+# heirlooms' counts, ready and spent looks on the bar as before the quit.
 func _run_continue_case() -> void:
 	if not _has_test_user_dir():
 		_skips += 1
@@ -107,6 +115,13 @@ func _run_continue_case() -> void:
 	SaveFile.delete_folder("user://saves/")
 	saves.call(&"open_save_file", SAVE_NUMBER)
 	saves.call(&"start_new_solo_run", RUN_SEED)
+	# Runs gain no heirloom yet (RN6), so these are staged, War Ledger's campaign count saved.
+	var staged: CampaignSession = service.get(&"session")
+	if staged != null and staged.run != null:
+		var ledger: SeatRun.OwnedHeirloom = staged.run.seat_run(0).add_heirloom("war_ledger")
+		ledger.counters[LEDGER_EFFECT] = LEDGER_COUNT
+		staged.run.seat_run(0).add_heirloom("breakers_maul")
+		staged.run.seat_run(0).add_heirloom("burglars_roll")
 	_enter_first_node()
 	var screen: Node = (load(GAMEPLAY_SCENE) as PackedScene).instantiate()
 	root.add_child(screen)
@@ -122,6 +137,16 @@ func _run_continue_case() -> void:
 	if controller.swap_window.visible:
 		controller.swap_window.get_start_button().pressed.emit()
 		BattleViewCases.settle(view)
+	# Mid-battle heirloom state: Breaker's Maul ready (one Hit from its 5th), the Roll's use spent.
+	var bar: HeirloomBar = (screen.call(&"get_hud") as BattleHud).get_heirloom_bar()
+	for icon: HeirloomIcon in bar.get_icons():
+		var held: HeirloomViewModel = icon.get_view()
+		if held.heirloom_id == "breakers_maul":
+			session.engine.get_instance(held.counter_instance_id).set_counter(
+					EffectTerms.Lane.COMBAT, MAUL_READY
+			)
+		elif held.heirloom_id == "burglars_roll":
+			session.engine.get_instance(held.instance_ids[0]).spend_charge()
 	var unit_id: String = TurnInputModel.acting_units(session, 0)[0]
 	var goal: Vector2i = TurnInputModel.move_tiles(session, unit_id)[0]
 	var walk: Array[Vector2i] = TurnInputModel.path_to(session, unit_id, goal)
@@ -135,6 +160,8 @@ func _run_continue_case() -> void:
 	var saved_hash: int = session.state_hash()
 	var saved_tile: Vector2i = session.state.tile_of(unit_id)
 	var saved_turn: int = session.state.turn
+	(screen.call(&"get_hud") as BattleHud).refresh()
+	var saved_bar: PackedStringArray = _bar_state(bar)
 	screen.free()
 	saves.call(&"close_save_file")
 
@@ -171,8 +198,31 @@ func _run_continue_case() -> void:
 			and again.intents != null
 			and not TurnInputModel.can_act(again, unit_id)
 	))
+	var resumed_bar: PackedStringArray = _bar_state(
+			(screen.call(&"get_hud") as BattleHud).get_heirloom_bar()
+	)
+	var expected_bar: PackedStringArray = [
+		"iron_heart 0", "war_ledger %d" % [LEDGER_COUNT], "breakers_maul %d ready" % [MAUL_READY],
+		"burglars_roll 0 spent",
+	]
+	_check("continue: the heirloom bar shows the saved counts, ready and spent looks as before", (
+			saved_bar == expected_bar and resumed_bar == saved_bar
+	), "before %s, resumed %s" % [saved_bar, resumed_bar])
 	screen.free()
 	_end_continue_case()
+
+
+# Each icon's copy and look, as one line each: id, number, ready, spent.
+static func _bar_state(bar: HeirloomBar) -> PackedStringArray:
+	var lines: PackedStringArray = []
+	for icon: HeirloomIcon in bar.get_icons():
+		var line: String = "%s %s" % [icon.get_view().heirloom_id, icon.get_badge_text()]
+		if icon.is_ready_look():
+			line += " ready"
+		if icon.is_spent_look():
+			line += " spent"
+		lines.append(line)
+	return lines
 
 
 func _end_continue_case() -> void:

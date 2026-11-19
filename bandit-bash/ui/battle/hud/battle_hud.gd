@@ -14,14 +14,16 @@ extends Control
 ## The battle screen's HUD (combat UI plan, question 11; Godot_FE FR-UI-3 minus XP): the
 ## [TurnCounter], [ObjectivePanel], [DarknessCounter], [TileInfo] and [UnitPanel] down the left,
 ## the debug [FactLog] under them (hidden; [BattleScreen] shows it with the F3 panel), the
-## [EventLog] at the foot of the right column, the [PhaseBanner] at the top, and the
-## [code]%MapArea[/code] it leaves free for the map ([member BattleView.map_area]).
+## [EventLog] at the foot of the right column, the [PhaseBanner] at the top, the seat's
+## [HeirloomBar] in the top strip over the map, and the [code]%MapArea[/code] it leaves free for
+## the map ([member BattleView.map_area]).
 ##
 ## [b]Reading only:[/b] it draws [HudViewModel] views of the session and never changes combat
 ## state or turn input. What it reads, and when:[br]
 ## - the board settling ([signal BattleView.settled]): every widget, from state, the objective's
 ## progress included, which it also hands the board to draw ([method BattleView.show_objective]:
-## seize and defend tiles, open reinforcement points, marked enemies);[br]
+## seize and defend tiles, open reinforcement points, marked enemies), and the heirloom bar once
+## [method bind_heirlooms] named the run;[br]
 ## - the cursor's tile and the selected unit changing ([BattleController]'s getters, compared each
 ## frame while the board is settled): the tile info and the unit panel, for the unit under the
 ## cursor, else the selected one. While playback runs nothing redraws from state, which already
@@ -30,7 +32,8 @@ extends Control
 ## as it begins to play ([signal BattleView.darkness_phase_started]): its banner;[br]
 ## - [method show_result], called by the screen once the battle has ended: the end banner;[br]
 ## - each batch the session sends ([signal CombatSession.batch_resolved]): a fact log line;[br]
-## - each fact as it plays: the event log's lines, which it writes itself once bound.[br]
+## - each fact as it plays: the event log's lines, which it writes itself once bound, and the
+## heirloom bar's counts and pulses.[br]
 ## [b]Layout:[/b] the columns and the map area are set in the scene; at the 1280×720 base size and
 ## wider nothing here covers the map, because the camera frames it inside the map area. The panel
 ## stack ([PanelHost]) and the turn bar are the screen's, laid out in their own scenes to match.
@@ -40,6 +43,10 @@ extends Control
 var _session: CombatSession = null
 var _controller: BattleController = null
 var _view: BattleView = null
+
+# The run whose heirlooms the bar shows, and the seat; null until bind_heirlooms().
+var _campaign: CampaignSession = null
+var _seat: int = -1
 
 # The cursor tile and the unit the panels last drew; redrawn when either changes.
 var _shown_tile: Vector2i = CombatFact.NO_TILE
@@ -54,6 +61,9 @@ var _shown_unit: String = ""
 @onready var _event_log: EventLog = %EventLog
 @onready var _banner: PhaseBanner = %PhaseBanner
 @onready var _map_area: Control = %MapArea
+# ASSUMPTION: "the battle HUD's top strip" (ui-lift.md) read as the band above the map area, the
+# bar at its left edge, under the phase banner; the scene sets its place.
+@onready var _heirloom_bar: HeirloomBar = %HeirloomBar
 
 
 func _ready() -> void:
@@ -91,8 +101,19 @@ func bind(session: CombatSession, controller: BattleController, view: BattleView
 		_view.darkness_phase_started.connect(_on_view_darkness_phase_started)
 	_fact_log.clear()
 	_event_log.bind(session)
+	_heirloom_bar.bind(session)
 	_show_widgets(true)
 	refresh()
+
+
+## Shows seat [param seat]'s heirlooms and curses of [param campaign], the run the bound battle
+## belongs to, on the heirloom bar, from the battle's live effects
+## ([method HeirloomViewModel.for_battle]); null: none show. Call after [method bind]; unbinding
+## forgets it.
+func bind_heirlooms(campaign: CampaignSession, seat: int) -> void:
+	_campaign = campaign
+	_seat = seat
+	_show_heirlooms()
 
 
 ## Stops drawing and hides the widgets. Does nothing when nothing is bound.
@@ -113,9 +134,13 @@ func unbind() -> void:
 	if is_instance_valid(_view):
 		_view.show_objective(null)
 	_event_log.unbind()
+	_heirloom_bar.unbind()
 	_session = null
 	_controller = null
 	_view = null
+	_campaign = null
+	_seat = -1
+	_show_heirlooms()
 	_show_widgets(false)
 
 
@@ -130,6 +155,7 @@ func refresh() -> void:
 	_objective.show_view(objective)
 	if is_instance_valid(_view):
 		_view.show_objective(objective)
+	_show_heirlooms()
 	_draw_cursor()
 
 
@@ -182,6 +208,16 @@ func get_event_log() -> EventLog:
 ## The phase banner, for tests.
 func get_phase_banner() -> PhaseBanner:
 	return _banner
+
+
+## The heirloom bar: [BattleController] takes its input; tests read it.
+func get_heirloom_bar() -> HeirloomBar:
+	return _heirloom_bar
+
+
+# The bar from the battle's live effects, once bind_heirlooms() named the run; empty otherwise.
+func _show_heirlooms() -> void:
+	_heirloom_bar.show_views(HeirloomViewModel.for_battle(_campaign, _session, _seat))
 
 
 # The tile info and unit panel for the cursor's tile.
