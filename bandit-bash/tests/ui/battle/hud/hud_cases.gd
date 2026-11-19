@@ -6,7 +6,7 @@
 # File:     hud_cases.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 16, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -54,7 +54,7 @@ const MAX_PHASES: int = 10
 const MAX_WAIT_PHASES: int = 4
 
 # The screen size the layout case lays out at: the project's base size.
-const BASE_SCREEN_SIZE: Vector2i = Vector2i(1152, 648)
+const BASE_SCREEN_SIZE: Vector2i = Vector2i(1280, 720)
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
@@ -370,7 +370,7 @@ func _test_panel_area() -> void:
 	for widget_name: String in widgets:
 		if widgets[widget_name].intersects(map):
 			covers.append("%s %s" % [widget_name, widgets[widget_name]])
-	_check.call("layout: at 1152×648 no HUD widget's area covers the M1 map", (
+	_check.call("layout: at 1280×720 no HUD widget's area covers the M1 map", (
 			map.has_area() and covers.is_empty()
 	), "map %s; %s" % [map, "; ".join(covers)])
 

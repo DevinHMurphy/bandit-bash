@@ -6,7 +6,7 @@
 # File:     tile_overlay.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 7, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name TileOverlay
@@ -27,10 +27,18 @@ extends Node2D
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
-## The fill of each tile. Its alpha is how strongly the terrain is covered. Each scene sets
-## Godot_FE's [code]CController.gd[/code] value: move BLUE at 0.5, attack CRIMSON at 0.5
-## ([code]draw_hover_movement_ranges[/code]), enemy range CRIMSON at 0.35
-## ([code]draw_enemy_ranges[/code]); each support twin PURPLE at its red twin's alpha.[br]
+## The style guide's colour token ([UiTokens]) the fill and outline take, each keeping the alpha
+## of [member fill_color] and [member edge_color]: [code]block[/code] for move, [code]danger[/code]
+## for attack, enemy range and the danger zone.[br]
+## [b]Empty:[/b] [member fill_color] and [member edge_color] are drawn as they are.
+@export var color_token: StringName = &"":
+	set(value):
+		color_token = value
+		queue_redraw()
+
+## The fill of each tile. Its alpha is how strongly the terrain is covered: Godot_FE's
+## [code]CController.gd[/code] values, move and attack 0.5, enemy range 0.35; each support twin
+## at its red twin's alpha. Its colour counts only while [member color_token] is empty.[br]
 ## [b]Alpha 0.0:[/b] invisible. [b]1.0:[/b] the terrain is hidden.
 @export var fill_color: Color = Color(0.0, 0.0, 1.0, 0.5):
 	set(value):
@@ -41,7 +49,7 @@ extends Node2D
 # ASSUMPTION: the support twins' opaque lavender 2 px edge, for readability (plan, question 27).
 ## The outline of each tile, drawn inside it. The purple support twins draw an opaque lavender
 ## one, which red ranges lack, so purple over grass isn't read as gray, nor red over water as
-## purple.[br]
+## purple. Its colour counts only while [member color_token] is empty.[br]
 ## [b]Alpha 0.0:[/b] no outline.
 @export var edge_color: Color = Color(0.0, 0.0, 1.0, 0.8):
 	set(value):
@@ -68,11 +76,29 @@ var _tiles: Array[Vector2i] = []
 
 
 func _draw() -> void:
+	var fill: Color = drawn_fill_color()
+	var edge: Color = drawn_edge_color()
 	for tile: Vector2i in _tiles:
 		var rect: Rect2 = Rect2(origin + Vector2(tile) * tile_size, tile_size)
-		draw_rect(rect, fill_color)
-		if edge_width > 0.0 and edge_color.a > 0.0:
-			draw_rect(rect.grow(-edge_width * 0.5), edge_color, false, edge_width)
+		draw_rect(rect, fill)
+		if edge_width > 0.0 and edge.a > 0.0:
+			draw_rect(rect.grow(-edge_width * 0.5), edge, false, edge_width)
+
+
+## The fill drawn: [member color_token]'s colour at [member fill_color]'s alpha, else
+## [member fill_color].
+func drawn_fill_color() -> Color:
+	if color_token.is_empty():
+		return fill_color
+	return UiTokens.with_alpha(color_token, fill_color.a)
+
+
+## The outline drawn: [member color_token]'s colour at [member edge_color]'s alpha, else
+## [member edge_color].
+func drawn_edge_color() -> Color:
+	if color_token.is_empty():
+		return edge_color
+	return UiTokens.with_alpha(color_token, edge_color.a)
 
 
 ## Draws [param tiles] in place of what was drawn.

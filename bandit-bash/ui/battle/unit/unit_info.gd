@@ -6,7 +6,7 @@
 # File:     unit_info.gd
 # Author:
 # Created:  November 6, 2026
-# Modified: November 15, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name UnitInfo
@@ -16,7 +16,7 @@ extends Control
 ## and the range-tracked icon (combat UI plan, question 29 (2); UI12).
 ##
 ## Its origin is the unit's centre on screen; the layout is authored in screen pixels, around a
-## tile drawn about 59 px wide (M1 framed in the default 1152 × 648 window). [UnitToken] gives it
+## tile drawn about 59 px wide (M1 at the 1280 × 720 base draws about 71). [UnitToken] gives it
 ## each value as the facts play and holds the values; this only draws them and holds no rules.
 ## [UnitInfoLayer] places it over its token whenever the camera or the token moves.[br]
 ## [b]The pips[/b] are a child of the HP bar, anchored along its bottom edge, so they span the

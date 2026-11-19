@@ -13,7 +13,7 @@ extends RefCounted
 ## Control hints' cases for tests/ui/input/run_all.gd (combat UI plan, UI8 and UI9 rows; questions
 ## 24, 25, 31 and 32; UI11's unit detail): the [ControlHintBar] against
 ## [constant BattleController.LIVE_ACTIONS]; its layout from its exports, clear of the HUD's map
-## area at the 1152×648 base size; a rebound key changing its label; two M1 battles walked by
+## area at the 1280×720 base size; a rebound key changing its label; two M1 battles walked by
 ## input through every hint context a solo battle (unit detail's DETAIL included)
 ## reaches, by the actions' keys, then again by their joypad bindings with the bar drawing the Xbox
 ## family, with a third walking the rune bar (RUNE_SLOTS, DISCARD_CONFIRM), the rune menu (RUNE)
@@ -81,7 +81,7 @@ const SEED: int = 0x0C0FFEE
 const MAX_PHASES: int = 6
 
 # The screen size the bar is checked at: Godot's default window, the canvas_items base size.
-const BASE_SCREEN_SIZE: Vector2i = Vector2i(1152, 648)
+const BASE_SCREEN_SIZE: Vector2i = Vector2i(1280, 720)
 
 # The ui_* actions the controller's input block names; project.godot's own come from its [input].
 const BUILTIN_ACTIONS: Array[StringName] = [
@@ -268,7 +268,7 @@ func _test_layout() -> void:
 	)
 	var at: Rect2 = bar.get_global_rect()
 	var map_area: Rect2 = hud.get_map_area().get_global_rect()
-	_check.call(_tag() + ": at 1152×648 the bar is the strip its exports set, off the map area", (
+	_check.call(_tag() + ": at 1280×720 the bar is the strip its exports set, off the map area", (
 			at.is_equal_approx(expected)
 			and map_area.has_area()
 			and not at.intersects(map_area)

@@ -6,7 +6,7 @@
 # File:     battle_hud.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 7, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name BattleHud
@@ -28,7 +28,7 @@ extends Control
 ## - each Phase Start fact as it plays: the banner, and the turn counter's turn;[br]
 ## - [method show_result], called by the screen once the battle has ended: the end banner;[br]
 ## - each batch the session sends ([signal CombatSession.batch_resolved]): a fact log line.[br]
-## [b]Layout:[/b] the columns and the map area are set in the scene; at the 1152×648 base size and
+## [b]Layout:[/b] the columns and the map area are set in the scene; at the 1280×720 base size and
 ## wider nothing here covers the map, because the camera frames it inside the map area. The panel
 ## stack ([PanelHost]) and the turn bar are the screen's, laid out in their own scenes to match.
 ##

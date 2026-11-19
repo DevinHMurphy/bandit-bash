@@ -6,7 +6,7 @@
 # File:     damage_number.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 7, 2026
+# Modified: November 18, 2026
 # ==============================================================================
 
 class_name DamageNumber
@@ -40,23 +40,24 @@ enum Style {
 	BLOCK = 4,
 }
 
-# ASSUMPTION: greybox colour; no palette is set (combat UI plan, Design Basis, Gaps).
-## Colour of a damage number.
-@export var damage_color: Color = Color(1.0, 0.85, 0.3, 1.0)
+## Colour of a damage number. Defaults to the [code]danger[/code] token.
+@export var damage_color: Color = UiTokens.color(UiTokens.DANGER)
 
-# ASSUMPTION: greybox colour, as above.
-## Colour of a heal number.
-@export var heal_color: Color = Color(0.45, 1.0, 0.5, 1.0)
+## Colour of a heal number. Defaults to the [code]heal[/code] token.
+@export var heal_color: Color = UiTokens.color(UiTokens.HEAL)
 
-## Colour of a "Miss" (Godot_FE's [code]DamageNumbers.miss[/code], white).
-@export var miss_color: Color = Color(1.0, 1.0, 1.0, 1.0)
+## Colour of a "Miss" (Godot_FE's [code]DamageNumbers.miss[/code] was white). Defaults to the
+## [code]text[/code] token.
+@export var miss_color: Color = UiTokens.color(UiTokens.TEXT)
 
-## Colour of a "Critical" (Godot_FE's crit number, [code]#B22[/code]).
-@export var critical_color: Color = Color(0.733333, 0.133333, 0.133333, 1.0)
+# ASSUMPTION: a Critical's label (the theme's DamageNumberCriticalLabel) is the guide's big-number
+# size, 28, as damage's is; the guide sets no larger size for it.
+## Colour of a "Critical": damage, so the [code]danger[/code] token by default, told apart by its
+## word and its own label style.
+@export var critical_color: Color = UiTokens.color(UiTokens.DANGER)
 
-# ASSUMPTION: question 30 (c) asks for a blue number; the shade is a greybox choice.
-## Colour of the Block-absorbed number.
-@export var block_color: Color = Color(0.45, 0.7, 1.0, 1.0)
+## Colour of the Block-absorbed number. Defaults to the [code]block[/code] token.
+@export var block_color: Color = UiTokens.color(UiTokens.BLOCK)
 
 # ASSUMPTION: no basis; set beside and below the hit's number so the two never overlap.
 ## Where the Block-absorbed number's label sits from where the other styles' label sits, so it
