@@ -33,6 +33,7 @@ const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.g
 const ObjectMarkCases = preload("res://tests/ui/battle/board/object_mark_cases.gd")
 const IntentCases = preload("res://tests/ui/battle/intents/intent_cases.gd")
 const UnitInfoCases = preload("res://tests/ui/battle/unit/unit_info_cases.gd")
+const CombatFeedbackCases = preload("res://tests/ui/battle/board/combat_feedback_cases.gd")
 
 # SceneRouter.Screen.RESULTS: this script can't name the autoload (see the base's class doc).
 const SCREEN_RESULTS: int = 4
@@ -78,6 +79,8 @@ func _process(_delta: float) -> bool:
 		IntentCases.new(_check, root).run()
 		GroupClock.lap("unit_info_cases")
 		UnitInfoCases.new(_check, root).run()
+		GroupClock.lap("combat_feedback_cases")
+		CombatFeedbackCases.new(_check, root).run()
 		GroupClock.lap("continue case")
 		_run_continue_case()
 		# Open over the frames the route to Results takes.

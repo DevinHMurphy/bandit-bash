@@ -6,9 +6,11 @@
 script = ExtResource("1_thax3")
 cues = Dictionary[String, String]({
 "ATTACK_MADE": "sword_swing_light",
+"BLOCK_GAINED": "block_gained",
 "COMBAT_ENDED/player_side": "level_win",
 "CRIT_DEALT": "crit_sound",
 "DEFEATED/player_actor": "friendly_unit_die",
+"EXPOSED": "weapon_break",
 "HEALED": "unit_heal",
 "HIT_DEALT": "flesh_impact",
 "HIT_DEALT/no_damage": "no_damage",

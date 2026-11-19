@@ -332,10 +332,11 @@ func _hud_over_map() -> PackedStringArray:
 		return found
 	var hud: BattleHud = _panel_screen.call(&"get_hud")
 	var host: PanelHost = _panel_screen.get_node(^"%PanelHost")
+	# The phase banner is left out: it shows for 2 s under the heirloom bar's row, over the map's
+	# top edge by design (P15 question 11); combat_feedback_cases.gd checks its place.
 	var widgets: Array[Control] = [
 		hud.get_turn_counter(), hud.get_objective(), hud.get_darkness_counter(),
-		hud.get_tile_info(), hud.get_unit_panel(), hud.get_fact_log(), hud.get_phase_banner(),
-		hud.get_event_log(),
+		hud.get_tile_info(), hud.get_unit_panel(), hud.get_fact_log(), hud.get_event_log(),
 		_panel_screen.get_node(^"%TurnBar") as Control,
 		_panel_screen.get_node(^"%ControlHintBar") as Control,
 		_panel_screen.get_node(^"%SwapWindow") as Control,

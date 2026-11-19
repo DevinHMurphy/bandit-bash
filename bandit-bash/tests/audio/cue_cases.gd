@@ -18,8 +18,8 @@ extends RefCounted
 # Every audio file AU1 brought over from Godot_FE: 54 sounds and 8 tracks.
 const AUDIO_ROOT: String = "res://assets/audio/"
 const EXPECTED_FILES: int = 62
-# The files plus ui_refused, a second cue on menu_back.ogg.
-const EXPECTED_CUES: int = 63
+# The files plus ui_refused, a second cue on menu_back.ogg, and block_gained on shield_equip.ogg.
+const EXPECTED_CUES: int = 64
 
 var _check: Callable
 var _root: Window
