@@ -80,6 +80,17 @@ corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dgchp"]
+content_margin_left = 8.0
+content_margin_top = 0.0
+content_margin_right = 8.0
+content_margin_bottom = 0.0
+bg_color = Color(0.61960787, 0.20784314, 0.18039216, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ct6ne"]
 content_margin_left = 12.0
 content_margin_top = 12.0
@@ -349,17 +360,6 @@ opentype_features = {
 1953396077: 1
 }
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dgchp"]
-content_margin_left = 8.0
-content_margin_top = 0.0
-content_margin_right = 8.0
-content_margin_bottom = 0.0
-bg_color = Color(0.61960787, 0.20784314, 0.18039216, 1)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-
 [resource]
 default_font = SubResource("FontVariation_qnfuf")
 default_font_size = 16
@@ -419,6 +419,10 @@ ControlHintText/base_type = &"RichTextLabel"
 ControlHintText/colors/default_color = Color(0.9098039, 0.8862745, 0.83137256, 1)
 ControlHintText/font_sizes/bold_font_size = 14
 ControlHintText/font_sizes/normal_font_size = 14
+EnemyChip/base_type = &"Label"
+EnemyChip/colors/font_color = Color(0.9098039, 0.8862745, 0.83137256, 1)
+EnemyChip/font_sizes/font_size = 14
+EnemyChip/styles/normal = SubResource("StyleBoxFlat_dgchp")
 FactLogText/base_type = &"RichTextLabel"
 FactLogText/font_sizes/bold_font_size = 14
 FactLogText/font_sizes/normal_font_size = 14
@@ -467,10 +471,6 @@ HudWarningHeading/colors/font_color = Color(0.9098039, 0.8862745, 0.83137256, 1)
 HudWarningHeading/font_sizes/font_size = 18
 HudWarningHeading/fonts/font = SubResource("FontVariation_lma5b")
 HudWarningHeading/styles/normal = SubResource("StyleBoxFlat_dgchp")
-EnemyChip/base_type = &"Label"
-EnemyChip/colors/font_color = Color(0.9098039, 0.8862745, 0.83137256, 1)
-EnemyChip/font_sizes/font_size = 14
-EnemyChip/styles/normal = SubResource("StyleBoxFlat_dgchp")
 IntentRuleLabel/base_type = &"Label"
 IntentRuleLabel/colors/font_color = Color(0.9098039, 0.8862745, 0.83137256, 1)
 IntentRuleLabel/font_sizes/font_size = 14
