@@ -44,12 +44,19 @@ extends CanvasLayer
 ## [b]1.0:[/b] one screen pixel per pixel of the info scene.
 @export_range(0.1, 8.0, 0.05) var max_scale: float = 1.0
 
-# ASSUMPTION: no basis in Godot_FE (its numbers overlapped); the big-number size, 28, so stacked
-# rows of 28-unit digits never touch.
+# ASSUMPTION: no basis in Godot_FE (its numbers overlapped); 32, on the 4-unit grid, so a 28-unit
+# number under the "Exposed" chip doesn't touch it (28 did, in the captures).
 ## How far apart a unit's stacked pop-ups sit ([method add_popup]): each new one pushes the ones
 ## still showing up by this much.[br]
 ## [b]Units:[/b] screen pixels at info scale 1.0. [b]0.0:[/b] pop-ups don't stack.
-@export_range(0.0, 128.0, 1.0) var popup_row_height: float = 28.0
+@export_range(0.0, 128.0, 1.0) var popup_row_height: float = 32.0
+
+# ASSUMPTION: measured from damage_number.tscn: its label ends 6 above its point, stands 41 tall at
+# the Critical's size and rises 24; change it with that scene's layout or rise.
+## How far above its point a pop-up may draw at most, its rise included. A unit's stack whose top
+## row would pass the screen's top edge moves down by the difference, rows kept apart.[br]
+## [b]Units:[/b] screen pixels at info scale 1.0. [b]0.0:[/b] stacks are never moved.
+@export_range(0.0, 256.0, 1.0) var popup_reach: float = 72.0
 
 # Each unit's info and the token it follows, by unit id.
 var _infos: Dictionary[String, UnitInfo] = {}
@@ -207,18 +214,35 @@ func _place(unit_id: String, scale_now: float) -> void:
 		info.visible = token.visible
 
 
-# Puts the pop-up at index over its board point, raised by its row.
+# Puts the pop-up at index over its board point, raised by its row, and its stack moved down as
+# far as keeps the stack's top row on screen (popup_reach).
 func _place_popup(index: int, scale_now: float) -> void:
 	var popup: Node2D = _popups[index]
 	if not is_instance_valid(popup):
 		return
 	var raise: Vector2 = Vector2(0.0, -popup_row_height * _popup_rows[index] * scale_now)
 	var at: Vector2 = _to_screen * _popup_points[index] + raise
+	if popup_reach > 0.0:
+		var top_row: int = _top_row_of(_popup_keys[index], _popup_rows[index])
+		var base_y: float = (_to_screen * _popup_points[index]).y
+		var stack_top: float = base_y - (popup_row_height * top_row + popup_reach) * scale_now
+		at.y += maxf(-stack_top, 0.0)
 	if popup.position != at:
 		popup.position = at
 	var size_now: Vector2 = Vector2(scale_now, scale_now)
 	if popup.scale != size_now:
 		popup.scale = size_now
+
+
+# The highest row in stack_key's stack; row itself for a pop-up in no stack.
+func _top_row_of(stack_key: String, row: int) -> int:
+	if stack_key.is_empty():
+		return row
+	var top: int = row
+	for index: int in _popups.size():
+		if _popup_keys[index] == stack_key and is_instance_valid(_popups[index]):
+			top = maxi(top, _popup_rows[index])
+	return top
 
 
 func _drop_freed_popups() -> void:

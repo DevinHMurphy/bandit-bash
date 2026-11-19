@@ -76,6 +76,7 @@ func run() -> void:
 		return
 	_test_kinds()
 	_test_only_when_played()
+	_test_beat_ends_with_batch()
 	_test_multi_hit()
 	_test_splash()
 	_test_stance_break_stack()
@@ -175,6 +176,31 @@ func _test_only_when_played() -> void:
 	_check.call("only when played: the beats are Godot_FE's, 1.0 s a hit and 0.75 s a miss", (
 			is_equal_approx(view.strike_hold, 1.0) and is_equal_approx(view.miss_hold, 0.75)
 	), "strike %.2f, miss %.2f" % [view.strike_hold, view.miss_hold])
+	board.close()
+
+
+# A batch ending on a strike (its beat waiting for a Stance fact that never comes) leaves nothing
+# waiting: the next batch's strike plays as soon as it is queued, not a beat after its first fact.
+func _test_beat_ends_with_batch() -> void:
+	var board: BattleViewCases.Board = _board("beat at a batch's end: the M1 battle begins")
+	if board == null:
+		return
+	var view: BattleView = board.view
+	var a: String = board.session.state.units_of(PLAYER)[0]
+	var d: String = board.session.state.units_of(ENEMY)[0]
+	board.session.playback.enqueue(_strike(a, d, SMALL_HIT, false))
+	BattleViewCases.settle(view)
+	var fired: Array[int] = []
+	var on_played: Callable = func(_unit_id: String, kind: StrikeFeedback.Kind) -> void:
+		fired.append(kind)
+	view.feedback_played.connect(on_played)
+	board.session.playback.enqueue(_strike(a, d, SMALL_HIT, false))
+	view.advance(0.0)
+	view.feedback_played.disconnect(on_played)
+	BattleViewCases.settle(view)
+	_check.call("beat at a batch's end: the next batch's strike plays at once", (
+			fired == [StrikeFeedback.Kind.HIT]
+	), str(fired))
 	board.close()
 
 
@@ -497,7 +523,8 @@ func _board(case_name: String) -> BattleViewCases.Board:
 	return board
 
 
-# Each live pop-up on unit_id should stand on its own row, rows popup_row_height apart on screen;
+# Each live pop-up on unit_id should stand on its own row, rows popup_row_height apart on screen,
+# none reaching past the screen's top (popup_reach);
 # returns what's wrong, empty when expected pop-ups do.
 func _stack_problems(view: BattleView, unit_id: String, expected: int) -> PackedStringArray:
 	var layer: UnitInfoLayer = view.get_info_layer()
@@ -515,6 +542,10 @@ func _stack_problems(view: BattleView, unit_id: String, expected: int) -> Packed
 		problems.append("%d pop-ups live over %s, expected %d" % [ys.size(), point, expected])
 		return problems
 	var gap: float = layer.popup_row_height * layer.info_scale()
+	var reach: float = layer.popup_reach * layer.info_scale()
+	for y: float in ys:
+		if y - reach < -0.5:
+			problems.append("a pop-up at y %.1f reaches past the screen's top" % [y])
 	for i: int in ys.size():
 		for j: int in range(i + 1, ys.size()):
 			if rows[i] == rows[j] or absf(ys[i] - ys[j]) < gap - 0.5:

@@ -389,6 +389,10 @@ func advance(delta: float) -> void:
 	# setting, the same for every peer) untouched.
 	var scaled: float = real * (fast_forward_speed if _is_fast_forward else 1.0)
 	_session.playback.advance(scaled)
+	# A strike's beat still waiting when the queue runs out has no tail left to follow, so it is
+	# dropped rather than given to the next batch's first fact.
+	if not _beat_unit.is_empty() and _session.playback.pending() == 0:
+		_release_beat(null)
 	var step: float = scaled * _session.playback.speed
 	_step_tweens(_holding, step)
 	_step_tweens(_cosmetic, step)
