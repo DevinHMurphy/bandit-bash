@@ -118,6 +118,8 @@ flowchart LR
     CT8 --> CT12[CT12 weapon prefixes]
     CT4 --> CT12
     EV1[P09 EV1 outcomes] --> CT12
+    EV1 --> EV1F[P09 EV1F run-operation blocks]
+    RN6[P08 RN6 run start] --> EV1F
     CT2 --> CT9[CT9 heirlooms, curses]
   end
   subgraph P05[P05 Enemies and AI]
@@ -216,7 +218,9 @@ flowchart LR
   class UL7 ready
   class UL2 active
 
-  class CT12,MP11,UL6,AU2 waiting
+  class CT12,MP11,UL6,AU2,EV1F waiting
+  class EV1 active
+  class RN6 ready
 
 ```
 
@@ -283,7 +287,8 @@ mark it **Open** here.
 | P08 RN6–RN11 Nodes and full run | RN5 ✅ (November 15, 2026); the M2 content each row of P08's Work Breakdown names (CT4, CT5, CT7, CT8, CT9, CT13, and CT13F ✅ (November 15, 2026) before RN7; RN11 also EN7, EN8, EN11 and P04 MP10, the M2 map set) | Offers need real pools | Waiting |
 | P05 EN13 Preview: measure | move-preview.md adopted ✅ (November 12, 2026) | Benchmarks and the equality suite only; no behavior change | **Open** November 12, 2026, alongside Wave A |
 | P05 EN14–EN16 Preview re-architecture | EN13; EN6 ✅ (November 13, 2026; Guard and Skirmisher, which the zones must cover); in order, EN15 and EN16 after EN14 | The cache and zones must cover every behavior; EN15 also stops re-planning the Shieldbearer on every move preview (EN6 report) | Waiting on EN13 |
-| P09 EV1 Outcomes | P09 approved ✅ (November 12, 2026); P08 RN2 | Outcomes apply to `CampaignRunState` | **Open** November 13, 2026 (RN2 merged) |
+| P09 EV1 Outcomes | P09 approved ✅ (November 12, 2026); P08 RN2 | Outcomes apply to `CampaignRunState` | **Open** November 13, 2026 (RN2 merged); **issued** November 19, 2026 (Lane C), with the CT12 weapon modification block on a test-only prefix |
+| P09 EV1F Recruit, upgrade and max army size blocks | EV1; P08 RN6 (builds those run operations in `scripts/campaign/`) | Both lanes needed the same operations; EV1 left these three blocks out (a TODO marker) | Waiting on EV1 and RN6 |
 | P09 EV2, EV3, EV5 | EV1; P08 RN5 (EV2 uses the battle bridge and the loop) | EV2 adds the `events` save section | Waiting |
 | P09 EV4 Content, EV6 Docs | EV3; P03 CT4, CT5, CT8, CT9 (curse copies must stack), CT13 | The events name real items, prefixes, curses and units | Waiting |
 | P03 CT12 Weapon modifications | P09 EV1 (the outcome blocks); P03 question 33 | Weapons never generate with a prefix; only events and later run sources apply one | Waiting on EV1 |
