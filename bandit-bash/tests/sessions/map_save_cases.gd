@@ -6,7 +6,7 @@
 # File:     map_save_cases.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -22,6 +22,9 @@ extends RefCounted
 ## Run by [code]tests/sessions/run_all.gd[/code] on its first frame, after the save cases, whose
 ## [code]Registry[/code] it reuses. Every save goes through JSON, as a file would. Several cases
 ## feed in bad data on purpose, so errors from them are expected.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "sessions"
 
 # Preloaded scripts used as types (gdscript.md, Naming): fixtures of other case files.
 const WireCases = preload("res://tests/sessions/wire_cases.gd")

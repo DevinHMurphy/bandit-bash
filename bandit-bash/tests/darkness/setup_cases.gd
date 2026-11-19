@@ -6,7 +6,7 @@
 # File:     setup_cases.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 4, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -18,6 +18,9 @@ extends RefCounted
 ##
 ## Fixture maps are plain rows built here; the battles use the loadout fixture tree with no packs,
 ## so no enemy is drawn, and an empty army.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "darkness"
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
 const TREE: String = "res://tests/content/fixtures/loadout/"

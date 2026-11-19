@@ -14,6 +14,9 @@ extends "res://tests/sessions/sessions_case_base.gd"
 ## [code]SaveService[/code]: the combat state and map sections, resuming a battle, after the
 ## darkness's arrival too, and the fallback. Skipped without a test user folder.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "sessions"
+
 # The battle the gameplay screen begins (gameplay.tscn's BattleScreen): M1 on floor 1, node 1.
 # A preloaded script used as a type (gdscript.md, Naming): the helper has no class name.
 const PackCatalog = preload("res://tests/enemies/pack_catalog.gd")

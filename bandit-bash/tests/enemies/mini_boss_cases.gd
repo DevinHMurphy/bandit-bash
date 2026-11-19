@@ -6,7 +6,7 @@
 # File:     mini_boss_cases.gd
 # Author:
 # Created:  November 18, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -19,6 +19,9 @@ extends RefCounted
 ## Reports each case through the check callable it is given.
 ##
 ## @tutorial(Enemy packs): docs/design/enemy-packs.md
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "enemies/roster"
 
 const AiWorld = preload("res://tests/enemies/ai_world.gd")
 

@@ -6,13 +6,16 @@
 # File:     service_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 13, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends "res://tests/sessions/sessions_case_base.gd"
 ## [code]CampaignService[/code] cases for tests/sessions/run_all.gd: its lifecycle, its
 ## [RngSaveSection]s and [InstanceIdSaveSection]s. They drive the real [code]SaveService[/code],
 ## so they run only with a test user folder and are skipped otherwise.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "sessions"
 
 # A second run seed for the debug panel's seed restart.
 const OTHER_SEED: int = 0x123456789ABCD

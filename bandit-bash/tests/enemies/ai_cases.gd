@@ -6,7 +6,7 @@
 # File:     ai_cases.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 16, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -24,6 +24,9 @@ extends RefCounted
 ## Simple Axe hits for 10 + 7 Might less DEF at Hit 65; the Crossbowman's Simple Bow for 6 + 6
 ## less DEF at Hit 100, range 2–3, so a sword can't answer it. Player bows can't counter at
 ## range 1.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "enemies/ai"
 
 # A preloaded script used as a type (gdscript.md, Naming): the world has no class name.
 const AiWorld = preload("res://tests/enemies/ai_world.gd")

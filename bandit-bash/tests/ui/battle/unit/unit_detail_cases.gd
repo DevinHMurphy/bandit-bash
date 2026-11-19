@@ -27,6 +27,9 @@ extends RefCounted
 ## and the detail scene set. Keys and pad buttons go through the root viewport. No autoload is
 ## named or needed.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "ui/input"
+
 const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
 const TurnInputCases = preload("res://tests/ui/battle/input/turn_input_cases.gd")
 

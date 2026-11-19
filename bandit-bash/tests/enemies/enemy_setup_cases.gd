@@ -6,7 +6,7 @@
 # File:     enemy_setup_cases.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -19,6 +19,9 @@ extends RefCounted
 ##
 ## Content is the loadout fixture tree (EN1's Brute and Hedge Healer, and an Archer for the army)
 ## plus packs built here; the pool cases on the real catalog run setup alone.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "enemies/roster"
 
 const PackCatalog = preload("res://tests/enemies/pack_catalog.gd")
 

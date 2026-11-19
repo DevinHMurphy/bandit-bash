@@ -20,6 +20,9 @@ extends RefCounted
 ## every heirloom and curse having art; another seat sees none; campaign screens' view from the
 ## saved copies; focus by key and by pad, in battle (HEIRLOOM_BAR) and on a campaign screen.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "ui/display"
+
 const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
 const TurnInputCases = preload("res://tests/ui/battle/input/turn_input_cases.gd")
 const PackCatalog = preload("res://tests/enemies/pack_catalog.gd")

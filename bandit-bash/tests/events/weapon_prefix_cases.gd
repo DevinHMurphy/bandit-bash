@@ -17,6 +17,9 @@ extends RefCounted
 ## unknown prefix, a fallen unit's weapon, and no weapon chosen, each changing nothing.
 ## Touches no save files.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "events"
+
 const Fixture = preload("res://tests/events/event_fixture.gd")
 
 var _report: Callable

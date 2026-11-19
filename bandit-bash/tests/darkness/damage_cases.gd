@@ -6,7 +6,7 @@
 # File:     damage_cases.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -20,6 +20,9 @@ extends RefCounted
 ## [method CampaignSession.begin_battle] registration; and the M1 queries timed (NOTE).
 ##
 ## Layers are set on the tiles directly ([method DarknessWorld.flood]) where no wave is needed.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "darkness"
 
 const DarknessWorld = preload("res://tests/darkness/darkness_world.gd")
 const AiWorld = preload("res://tests/enemies/ai_world.gd")

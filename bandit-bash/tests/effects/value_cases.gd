@@ -6,13 +6,16 @@
 # File:     value_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends "res://tests/effects/effects_case_base.gd"
 ## Value query cases for tests/effects/run_all.gd ([Modifier], [ValueBreakdown], [StatSheet]):
 ## source order, modes, clamps, overrides, permissions, rounding, keys and caching.
 
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "effects"
 
 func run() -> void:
 	_test_value_source_order_never_changes_total()

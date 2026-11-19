@@ -6,7 +6,7 @@
 # File:     exchange_feedback_cases.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 9, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -24,6 +24,9 @@ extends RefCounted
 ## multi-strike weapon), a target wounded to 1 HP (the kill), and a Battle Medic holding its
 ## stowed Minor Heal with the Hakkapel wounded (the heal); each also sets the token, so the board
 ## still matches the state.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "ui/display"
 
 const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
 const TurnInputCases = preload("res://tests/ui/battle/input/turn_input_cases.gd")

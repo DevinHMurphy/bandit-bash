@@ -7,7 +7,7 @@
 # File:     run_tests.sh
 # Author:
 # Created:  October 29, 2026
-# Modified: November 16, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 # Runs the headless test suites, parse checks and a launch check, and prints one verdict line per
 # run, so a result reads in a few lines instead of the full Godot output. Works from any folder.
@@ -16,7 +16,9 @@
 #   tools/run_tests.sh map enemies ui/input  only these suites (no launch); a top folder with
 #                                            parts, such as enemies or ui, runs all its parts
 #   tools/run_tests.sh --open ...            also opens the live report in the browser
-#   tools/run_tests.sh --check <git ref>     parse-check every .gd changed since <git ref>
+#   tools/run_tests.sh --quick ...           skips every map_set part (see Quick runs)
+#   tools/run_tests.sh --check <git ref>     parse-check every .gd changed since <git ref>; with
+#                                            suite names or --quick after it, then runs those
 #   tools/run_tests.sh --check-file res://scripts/a.gd ...
 #
 # Suites are found, not listed: every tests/<name>/run_all.gd is a suite named <name>, and a
@@ -25,6 +27,14 @@
 # must print a summary line "--- N passed, M failed ---" (", K skipped" may follow), and should
 # declare a one-line const SUITE_DESCRIPTION for the report and time its test groups with
 # tests/group_clock.gd. A tests/ folder with no suite at either level is named in a note and not run.
+# Case files are found too: each *_cases.gd under tests/ declares the suite that runs it, as
+# const SUITE: String = "<suite as printed here>", and tests/case_files.gd runs a suite's own in
+# path order; every suite fails a file with no declaration, or one naming no suite.
+#
+# Quick runs: --quick leaves out every map_set/<part> (the seeded battles, the slowest suites) and
+# says so in its output and the report; the history keeps it as "quick", never compared with a
+# full run. Use it while iterating, alone, with suite names or after --check <ref>. Never for the
+# final run of a task or before a merge: those are full runs.
 #
 # Suites run in parallel, at most JOBS Godot processes at once (default: the machine's core count;
 # JOBS=1 runs them one after another, in the order found). Verdicts print once every suite has
@@ -75,19 +85,23 @@ NO_USER_FOLDER='needs a test user folder'
 LAUNCH_DESCRIPTION="The game started headless for 60 frames, with no error or warning"
 # Runs the history file keeps; older ones are dropped as a run is added.
 HISTORY_RUNS=50
+# The top folder whose parts --quick leaves out.
+QUICK_SKIP=map_set
 failed=0
 status=""
 open_report=0
+quick=0
+quick_skipped=""
 REPORT=""
 
-# --open may come anywhere; the rest keep their order.
+# --open and --quick may come anywhere; the rest keep their order.
 for arg in "$@"; do
 	shift
-	if [ "$arg" = --open ]; then
-		open_report=1
-	else
-		set -- "$@" "$arg"
-	fi
+	case "$arg" in
+	--open) open_report=1 ;;
+	--quick) quick=1 ;;
+	*) set -- "$@" "$arg" ;;
+	esac
 done
 
 if [ -z "$GODOT" ]; then
@@ -299,7 +313,8 @@ write_report() {
 	fi
 	awk -v logs="$LOGS" -v now="$(date +%s)" -v started="$RUN_START" \
 		-v started_text="$STARTED_TEXT" -v phase="$1" -v history="$HISTORY" -v run_id="$RUN_ID" \
-		-v full="$run_launch" -v broken="$BROKEN|$NO_USER_FOLDER" -v rows_out="$rows_out" \
+		-v full="$full_run" -v quick="$quick" -v quick_skipped="$quick_skipped" \
+		-v broken="$BROKEN|$NO_USER_FOLDER" -v rows_out="$rows_out" \
 		-v iso="$STARTED_TEXT" -f "$PROJECT/tools/test_report.awk" "$LOGS/suites.tsv" \
 		>"$REPORT.tmp" 2>"$LOGS/report.err" && mv -f "$REPORT.tmp" "$REPORT"
 }
@@ -409,17 +424,21 @@ $LIMIT "$GODOT" --headless --path "$PROJECT" --import >"$LOGS/import.log" 2>&1
 case "$1" in
 --check)
 	base="${2:?--check needs a git ref}"
+	shift 2
 	files=$(git -C "$PROJECT" diff --name-only --relative --diff-filter=AMR "$base" -- '*.gd' |
 		sed 's|^|res://|')
 	if [ -z "$files" ]; then
 		echo "No changed .gd files since $base."
-		exit 0
+	else
+		# Word splitting is wanted: res:// paths have no spaces.
+		# shellcheck disable=SC2086
+		check_scripts $files
 	fi
-	# Word splitting is wanted: res:// paths have no spaces.
-	# shellcheck disable=SC2086
-	check_scripts $files
-	echo "Logs: $LOGS"
-	exit $failed
+	# Alone, a parse check; with suite names or --quick, the suites run next.
+	if [ $# -eq 0 ] && [ $quick -eq 0 ]; then
+		echo "Logs: $LOGS"
+		exit $failed
+	fi
 	;;
 --check-file)
 	shift
@@ -451,6 +470,28 @@ else
 		fi
 	done
 	run_launch=1
+fi
+if [ $quick -eq 1 ]; then
+	kept=""
+	for suite in $suites; do
+		case "$suite" in
+		"$QUICK_SKIP"/*) quick_skipped="$quick_skipped $suite" ;;
+		*) kept="$kept $suite" ;;
+		esac
+	done
+	suites=$kept
+	# shellcheck disable=SC2086
+	quick_skipped=$(echo $quick_skipped)
+	echo "quick: skipped the $QUICK_SKIP parts: ${quick_skipped:-none were selected}"
+	if [ -z "$(echo "$suites" | tr -d ' ')" ]; then
+		echo "--quick left nothing to run: every suite named is a $QUICK_SKIP part."
+		exit 2
+	fi
+fi
+# A full run is every suite and the launch; only a full run is compared with the last full pass.
+full_run=0
+if [ $run_launch -eq 1 ] && [ $quick -eq 0 ]; then
+	full_run=1
 fi
 # Word splitting is wanted: suite names have no spaces, and suites_in prints one per line.
 # shellcheck disable=SC2086
@@ -537,5 +578,8 @@ write_report done
 record_history
 echo "Report: $REPORT"
 echo "Logs: $LOGS"
+if [ $quick -eq 1 ]; then
+	echo "QUICK RUN: skipped ${quick_skipped:-no suites}; not a final or merge run"
+fi
 if [ $failed -eq 0 ]; then echo "ALL PASS"; else echo "FAILURES ABOVE"; fi
 exit $failed

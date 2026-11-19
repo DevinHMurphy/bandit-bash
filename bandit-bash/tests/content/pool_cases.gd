@@ -6,7 +6,7 @@
 # File:     pool_cases.gd
 # Author:
 # Created:  November 15, 2026
-# Modified: November 15, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -22,6 +22,9 @@ extends RefCounted
 ## adding an item or prefix of a pool's kind changes them, and they are then re-recorded.
 ##
 ## @tutorial(Unit roster, Prefixes): docs/design/unit-roster.md
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "content"
 
 const COMMON: ItemDefinition.Rarity = ItemDefinition.Rarity.COMMON
 const UNCOMMON: ItemDefinition.Rarity = ItemDefinition.Rarity.UNCOMMON

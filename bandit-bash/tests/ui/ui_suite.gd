@@ -6,7 +6,7 @@
 # File:     ui_suite.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -15,9 +15,9 @@ extends SceneTree
 ## ([code]tests/ui/display/run_all.gd[/code]), and the campaign screens
 ## ([code]tests/ui/campaign/run_all.gd[/code]). Each extends this script: the check counters and
 ## the summary line the runner reads, the definitions hash checked at the end, the group timer
-## (each suite laps it before each case file or phase; [method _finish] stops it), the test user
-## folder guard, pressing keys and clicking on the root viewport, and entering a new run's first
-## node. The combat cases stay in [code]tests/ui/battle/[/code], one file each.[br]
+## (laps per case file and phase; [method _finish] stops it), running the case files that declare
+## the suite, the test user folder guard, pressing keys and clicking on the root viewport, and
+## entering a new run's first node. The combat cases stay in [code]tests/ui/battle/[/code].[br]
 ## Never names an autoload, or a class whose script does (the screens', [RunScreen]): a suite
 ## compiles before autoloads are registered, so it reaches them as nodes and loads screens at run
 ## time.[br]
@@ -25,6 +25,7 @@ extends SceneTree
 ## only with a test user folder ([code]tools/run_tests.sh[/code] makes one; see
 ## [code]tests/sessions/run_all.gd[/code]) and are skipped otherwise.
 
+const CaseFiles = preload("res://tests/case_files.gd")
 const CatalogCases = preload("res://tests/content/catalog_cases.gd")
 const GroupClock = preload("res://tests/group_clock.gd")
 
@@ -72,6 +73,13 @@ func _finish() -> void:
 	GroupClock.stop()
 	print("--- %d passed, %d failed, %d skipped ---" % [_passes, _failures, _skips])
 	quit(1 if _failures > 0 else 0)
+
+
+# Runs the case files declaring this suite, in path order (tests/case_files.gd), built with the
+# root when they take it; one declaring NEEDS_TEST_USER_FOLDER is skipped without one. Returns
+# the built files in that order.
+func _run_case_files() -> Array[RefCounted]:
+	return CaseFiles.run(self, _check, root, _has_test_user_dir(), _skip)
 
 
 # Counts a skipped case, printing why.

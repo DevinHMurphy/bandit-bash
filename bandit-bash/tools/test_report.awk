@@ -6,7 +6,7 @@
 # File:     test_report.awk
 # Author:
 # Created:  November 16, 2026
-# Modified: November 16, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 # Writes the test report, one HTML page, to standard output. tools/run_tests.sh runs it about every
 # 2 seconds while suites run and once at the end, and swaps the page in whole, so a browser never
@@ -18,8 +18,10 @@
 #
 # Variables (-v): logs, the log folder; now, started (epoch seconds) and started_text; phase,
 # running, done or interrupted; history, the history file (may be missing); run_id; full, 1 for a
-# full run; broken, the runner's regex for lines that break a run; rows_out, where the done phase
-# writes this run's history rows; iso, this run's date for those rows.
+# full run; quick, 1 for a --quick run, and quick_skipped, the suites it left out; broken, the
+# runner's regex for lines that break a run; rows_out, where the done phase writes this run's
+# history rows; iso, this run's date for those rows. A run's history kind is full, quick or
+# partial; only a full run's total is compared with the last full pass.
 #
 # Reads from the suites: the summary line "--- N passed, M failed[, K skipped] ---", PASS, FAIL
 # and SKIP lines while a suite runs, and the group timer's "TIME  <ms> ms  <group>" lines
@@ -316,6 +318,7 @@ function page_head() {
 	print ".card{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--fail);"
 	print "border-radius:8px;padding:10px 14px;margin:0 0 12px}"
 	print ".card h3{margin:0 0 6px;font-size:15px;display:flex;gap:10px;align-items:center}"
+	print ".card.notice{border-left-color:var(--warn);background:var(--warn-bg);margin:12px 0 0}"
 	print "pre{margin:0;background:var(--code);padding:10px;border-radius:6px;overflow-x:auto;"
 	print "font:12px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-word}"
 	print "a{color:var(--run)}"
@@ -326,6 +329,11 @@ function page_head() {
 function page_header(    text) {
 	print "<h1>Bandit Bash tests</h1>"
 	print "<div class=\"meta\">Started " esc(started_text) " &middot; logs " esc(logs) "</div>"
+	if (quick == 1) {
+		print "<div class=\"card notice\"><b>Quick run (--quick).</b> Skipped: " \
+			esc(quick_skipped == "" ? "no suites" : quick_skipped) \
+			". Fine while iterating; a task's final run and a merge are full runs.</div>"
+	}
 	print "<div class=\"head\">"
 	text = verdict
 	if (phase == "running") {
@@ -443,7 +451,7 @@ function page_foot() {
 
 # This run's rows for the history file: one per row, then the run's TOTAL.
 function write_history_rows(    i, kind) {
-	kind = full == 1 ? "full" : "partial"
+	kind = full == 1 ? "full" : (quick == 1 ? "quick" : "partial")
 	for (i = 1; i <= rows; i++) {
 		if (status[i] == "") {
 			continue

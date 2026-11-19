@@ -6,7 +6,7 @@
 # File:     grid_cases.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: November 15, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -14,6 +14,9 @@ extends RefCounted
 ## terrain for every movement type, golden reach per movement type, path checks against units and
 ## objects, [MapState] blocking and its sandbox copy, the nearest free tile, and the resolvers
 ## asking [CombatState]. Reports each case through the check callable it is given.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "map"
 
 # Preloaded scripts used as types (gdscript.md, Naming): the test map and cases have no class name.
 const MapWorld = preload("res://tests/map/map_world.gd")

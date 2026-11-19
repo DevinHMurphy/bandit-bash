@@ -6,7 +6,7 @@
 # File:     run_battle_cases.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 16, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends "res://tests/sessions/sessions_case_base.gd"
@@ -18,6 +18,9 @@ extends "res://tests/sessions/sessions_case_base.gd"
 ## tally and the grant survive the quit, and nothing is applied or rolled twice. A solo loss ends
 ## the run; choosing a node moves Save Select's floor (BUG-010).
 ## Skipped without a test user folder.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "sessions"
 
 # The campaign suite's run_text(), which turns a run into comparable text.
 const RunStateCases = preload("res://tests/campaign/run_state_cases.gd")

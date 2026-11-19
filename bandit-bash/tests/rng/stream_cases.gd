@@ -6,13 +6,16 @@
 # File:     stream_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 9, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends "res://tests/rng/rng_case_base.gd"
 ## Stream cases for tests/rng/run_all.gd ([RngStream]): golden draws, capture and restore, JSON
 ## survival, and the rolls and picks built on the stream.
 
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "rng"
 
 func run() -> void:
 	_test_stream_golden_first_draws()

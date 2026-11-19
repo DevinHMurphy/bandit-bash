@@ -6,7 +6,7 @@
 # File:     wire_cases.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -18,6 +18,9 @@ extends RefCounted
 ## several sessions in one process: a mirror is built the way its host was, then follows the host
 ## only through snapshots and batches that went through JSON, as a client's would. Several cases
 ## feed in bad data on purpose, so warnings and errors from them are expected.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "sessions"
 
 const FIXTURE_SCENE: PackedScene = preload("res://tests/map/fixture_map.tscn")
 

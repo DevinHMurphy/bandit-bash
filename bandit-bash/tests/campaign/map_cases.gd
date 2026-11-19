@@ -6,7 +6,7 @@
 # File:     map_cases.gd
 # Author:
 # Created:  November 12, 2026
-# Modified: November 12, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -15,6 +15,9 @@ extends RefCounted
 ## global generator does, [CampaignGraph]'s save data round-trips (through JSON too) and rejects
 ## bad data, the generator refuses unusable rules, and map_checks.gd catches broken maps.
 ## The 10,000-seed check and the target miss rates are in tests/bench/campaign_map_bench.gd.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "campaign"
 
 # A preloaded script used as a type (gdscript.md, Naming): the checks have no class name.
 const MapChecks = preload("res://tests/campaign/map_checks.gd")

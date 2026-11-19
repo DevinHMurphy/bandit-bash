@@ -17,6 +17,9 @@ extends RefCounted
 ## changing nothing; an event's data problems (option count, mixed picks, an individual combat,
 ## an unknown curse tier); and the revive shrine's eligibility. Touches no save files.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "events"
+
 const Fixture = preload("res://tests/events/event_fixture.gd")
 
 var _report: Callable

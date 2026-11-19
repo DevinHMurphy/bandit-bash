@@ -6,13 +6,16 @@
 # File:     layout_cases.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 27, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
 ## The layout cases for tests/map/run_all.gd: every terrain definition against unit-roster.md's
 ## table, the fixture map scene against its expected [MapLayout], stable marker ids, and the
 ## problems the loader collects. Reports each case through the check callable it is given.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "map"
 
 const FIXTURE_SCENE: PackedScene = preload("res://tests/map/fixture_map.tscn")
 

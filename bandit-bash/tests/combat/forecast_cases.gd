@@ -6,7 +6,7 @@
 # File:     forecast_cases.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 15, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -21,6 +21,9 @@ extends RefCounted
 ## Each case runs a real [CombatSession] on a small hand-built map, so the real side of every
 ## comparison is the command resolving through the session's queue. Every case also asserts that
 ## the engines reported no diagnostics.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "combat"
 
 # A preloaded script used as a type (gdscript.md, Naming): its give_rune() registers catalog runes.
 const CombatWorld = preload("res://tests/combat/combat_world.gd")

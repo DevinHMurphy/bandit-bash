@@ -16,6 +16,9 @@ extends "res://tests/sessions/sessions_case_base.gd"
 ## rejected one doesn't; a save holding no run (a crash between a new run's two writes) continues
 ## as the same new run; a multiplayer run has a part per seat. Skipped without a test user folder.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "sessions"
+
 # The campaign suite's run_text(), which turns a run into comparable text.
 const RunStateCases = preload("res://tests/campaign/run_state_cases.gd")
 

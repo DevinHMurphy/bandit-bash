@@ -6,7 +6,7 @@
 # File:     boss_cases.gd
 # Author:
 # Created:  November 18, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -20,6 +20,9 @@ extends RefCounted
 ## check callable it is given.
 ##
 ## @tutorial(Powder Baron plan): docs/plans/2026-11-18-powder-baron.md
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "enemies/roster"
 
 const AiWorld = preload("res://tests/enemies/ai_world.gd")
 const DarknessWorld = preload("res://tests/darkness/darkness_world.gd")

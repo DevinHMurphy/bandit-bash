@@ -25,6 +25,9 @@ extends RefCounted
 ## The expected values are transcribed from items.md, never read from the data, so a changed .tres
 ## fails here until the doc and this file agree.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "content"
+
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
 const ATTACK: UnitTurnCommand.Action = UnitTurnCommand.Action.ATTACK

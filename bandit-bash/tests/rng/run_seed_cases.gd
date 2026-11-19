@@ -6,12 +6,15 @@
 # File:     run_seed_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 9, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends "res://tests/rng/rng_case_base.gd"
 ## Run seed cases for tests/rng/run_all.gd ([RunSeed]): generation range, the display format and
 ## parsing, and a typed seed reproducing a run's streams.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "rng"
 
 # Generated seeds checked per run-seed case: enough to catch a bad mask, quick to run.
 const RUN_SEED_SAMPLES: int = 1000

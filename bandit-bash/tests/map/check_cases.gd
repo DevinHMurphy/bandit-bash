@@ -6,7 +6,7 @@
 # File:     check_cases.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -20,6 +20,9 @@ extends RefCounted
 ## par, so no darkness; the darkness cases give it a par and source candidates. Each bad fixture
 ## changes one thing. The reachability cases wall in a one-tile room at (8, 2) and change how it
 ## is entered.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "map"
 
 const M1_DEFINITION: String = "res://maps/standard/m1_greybox.tres"
 

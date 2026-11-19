@@ -16,6 +16,7 @@ extends SceneTree
 ## battles are map_set/standard: a battle per map takes minutes, the runner limits each suite's
 ## time, and suites run in parallel.
 ##
+## Case files declaring this part run first, through [code]tests/case_files.gd[/code].[br]
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/map_set/key/run_all.gd[/code][br]
 ## Prints one PASS or FAIL line per check and the summary line
@@ -29,6 +30,7 @@ const SUITE_DESCRIPTION: String = "An AI battle on each key map but the Gatehous
 
 # Preloaded scripts used as types (gdscript.md, Naming): the cases have no class name.
 const GroupClock = preload("res://tests/group_clock.gd")
+const CaseFiles = preload("res://tests/case_files.gd")
 const MapSetBattleCases = preload("res://tests/map_set/map_set_battle_cases.gd")
 
 var _failures: int = 0
@@ -37,6 +39,7 @@ var _passes: int = 0
 
 func _init() -> void:
 	print("--- Map set tests: key battles ---")
+	CaseFiles.run(self, _check)
 	# The battle cases time each map; this group is their catalog's load.
 	GroupClock.lap("map_set_battle_cases: catalog")
 	MapSetBattleCases.new(_check, CombatMapDefinition.CombatType.KEY).run()

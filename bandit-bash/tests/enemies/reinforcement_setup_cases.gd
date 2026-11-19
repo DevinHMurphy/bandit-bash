@@ -6,7 +6,7 @@
 # File:     reinforcement_setup_cases.gd
 # Author:
 # Created:  November 15, 2026
-# Modified: November 15, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -21,6 +21,9 @@ extends RefCounted
 ## content from the loadout fixture tree plus packs built here (and the real Hunted curse); the
 ## catalog cases read the real catalog. Waves send Hedge Healers, which never attack, so ending
 ## turn 1 depends on no roll that could end the battle.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "enemies/roster"
 
 const PackCatalog = preload("res://tests/enemies/pack_catalog.gd")
 

@@ -6,7 +6,7 @@
 # File:     run_reward_cases.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 14, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends "res://tests/sessions/sessions_case_base.gd"
@@ -17,6 +17,9 @@ extends "res://tests/sessions/sessions_case_base.gd"
 ## leaving. Every play ends in the same run; a Continue at the results brings back the same report,
 ## pick, rare offset and level-up, and a taken pick stays taken, its item in the convoy once. A
 ## skipped pick stays skipped. Skipped without a test user folder.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "sessions"
 
 # The campaign suite's run_text(), which turns a run into comparable text.
 const RunStateCases = preload("res://tests/campaign/run_state_cases.gd")

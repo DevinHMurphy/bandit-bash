@@ -76,7 +76,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P12 | Statistics and the Waystation war table (meta-progression.md) | **Not started** | — | P01, P08 |
 | P13 | [RNG streams](2026-10-26-rng-streams.md) | **Implemented** | — | P00 |
 | P15 | UI lift ([ui-lift.md](../design/ui-lift.md); its scope doc is the plan) | **In progress**: UL0 the style guide ([ui-style.md](../design/ui-style.md)) , UL1 the shared theme, UL4 the event log (with UL1F) , UL3 the HUD and unit detail, and UL5 the victory sequence done | UL2, UL6–UL8 | P07, P08 |
-| P14 | [Project organization](2026-11-09-project-organization.md) | **In progress** | O8 concurrency tooling (case-file discovery in every `run_all.gd` and a `--quick` tier without map_set; issued November 19, 2026, Lane G); O8b splits `capture_screens.gd` into `tools/captures/` after UL2 and UL7 merge; O5 (deferred) | — |
+| P14 | [Project organization](2026-11-09-project-organization.md) | **In progress** | O8 concurrency tooling **merged** November 19, 2026 (every case file declares `const SUITE`, `tests/case_files.gd` finds it; `--quick` skips the map_set parts); O8b splits `capture_screens.gd` into `tools/captures/` after UL2 and UL7 merge; O5 (deferred) | — |
 | P16 | Audio ([audio.md](../design/audio.md); its scope doc is the plan) | **In progress**: AU1 the audio layer merged November 19, 2026 | AU1 done; AU2+ sound design (M5, after the audio direction) | P07, P15 |
 | P20–P24 | Meta progression, tutorials, dev console, status effects, shared co-op battles | Post-MVP | — | — |
 

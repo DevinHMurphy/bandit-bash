@@ -27,6 +27,9 @@ extends RefCounted
 ## through its public methods and the panels' own buttons; cycle_weapon goes through the root
 ## viewport as an input action.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "ui/display"
+
 const BattleViewCases = preload("res://tests/ui/battle/board/battle_view_cases.gd")
 const TurnInputCases = preload("res://tests/ui/battle/input/turn_input_cases.gd")
 const AiWorld = preload("res://tests/enemies/ai_world.gd")

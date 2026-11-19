@@ -6,7 +6,7 @@
 # File:     roster_battle_cases.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 16, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -17,6 +17,9 @@ extends RefCounted
 ## same seed gives the same fact log twice. At step 1 setup's Hunting Party fields its fixed 2
 ## Hounds on every seed (enemy-packs.md: a pack's count is fixed per step). Reports each case
 ## through the check callable it is given.
+
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "enemies/battles"
 
 # Preloaded scripts used as types (gdscript.md, Naming): the helpers have no class name.
 const M1BattleCases = preload("res://tests/enemies/m1_battle_cases.gd")

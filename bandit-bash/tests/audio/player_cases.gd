@@ -17,6 +17,9 @@ extends RefCounted
 ## check reads state right after the play. [method release] stops everything for the suite to
 ## wait out before it quits.
 
+# The suite that runs this file; tests/case_files.gd finds it by this line.
+const SUITE: String = "audio"
+
 # A UI cue (2 voices), a sound effect with random pitch (4 voices), a fixed-pitch one, and tracks.
 const UI_CUE: StringName = &"menu_cursor"
 const RANDOM_CUE: StringName = &"flesh_impact"
