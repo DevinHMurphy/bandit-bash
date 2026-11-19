@@ -6,28 +6,22 @@
 # File:     steam_network.gd
 # Author:
 # Created:  October 9, 2026
-# Modified: October 27, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends Node
 ## Steam lobby host and join, and the bridge from a Steam lobby to Godot's MultiplayerAPI.
 ##
-## Registered as autoload [code]SteamNetwork[/code], after [code]SteamManager[/code]. Once
-## [code]multiplayer.multiplayer_peer[/code] is a [code]SteamMultiplayerPeer[/code], every
-## [code]@rpc[/code] in the project behaves as it would over ENet; nothing else needs to know
-## Steam is underneath.[br]
-## [b]Session helpers:[/b] gameplay code asks [method has_active_session],
-## [method is_authoritative] and [method local_peer_id] here, so solo play (no lobby) and hosting
-## share one code path.[br]
-## [b]No separate "am I host" flag:[/b] [code]@rpc("authority")[/code] checks
-## [code]multiplayer.is_server()[/code], and a parallel flag can disagree with it.[br]
-## [b]Admission:[/b] a client that connects asks to be admitted with its game version; the host
-## checks it with [LobbyAdmission], using the Steam id of the connection, and refuses with a
-## reason the client shows. Only admitted machines are lobby members with a Ready flag. The member
-## list is built on the host and broadcast (kit P15); clients never build it.[br]
-## [b]Invites:[/b] an accepted Steam invite, while running or at launch, is held in
-## [member pending_invite_lobby_id] and announced with [signal invite_received];
-## [code]SceneRouter[/code] decides when to act on it.
+## Registered as autoload [code]SteamNetwork[/code], after [code]SteamManager[/code]. Once the
+## peer is a [code]SteamMultiplayerPeer[/code], every [code]@rpc[/code] works as over ENet.[br]
+## [b]Session helpers:[/b] [method has_active_session], [method is_authoritative] and
+## [method local_peer_id] answer for solo play and hosting alike, through [NetGate]. No "am I
+## host" flag: one could disagree with [code]multiplayer.is_server()[/code].[br]
+## [b]Admission:[/b] a connecting client sends its game version and build fingerprint
+## ([NetContract]); the host checks them with [LobbyAdmission] and the connection's Steam id.
+## Only admitted machines are members; the host builds the list and broadcasts it (kit P15).[br]
+## [b]Invites:[/b] held in [member pending_invite_lobby_id], announced by
+## [signal invite_received]; [code]SceneRouter[/code] decides when to act on them.
 ##
 ## @tutorial(Save system design): docs/design/save-system.md
 
@@ -126,25 +120,38 @@ func _ready() -> void:
 	multiplayer.connection_failed.connect(_on_multiplayer_connection_failed)
 	multiplayer.server_disconnected.connect(_on_multiplayer_server_disconnected)
 
+	# The fingerprint hashes every content file, so it is paid once here, not during a join.
+	var contract: int = NetContract.fingerprint()
+	NetLog.info(
+			NetLog.Category.LOBBY,
+			"Build fingerprint %d, computed in %.1f ms."
+			% [contract, NetContract.build_usec() / 1000.0]
+	)
+
 
 ## True only with a real lobby and an attached peer.
 ##
 ## Guard every [code].rpc()[/code] and every [code]multiplayer.multiplayer_peer[/code] touch
 ## behind this.
 func has_active_session() -> bool:
-	return current_lobby_id != 0 and multiplayer.multiplayer_peer != null
+	return current_lobby_id != 0 and NetGate.has_session(multiplayer)
 
 
 ## True on the host, and always true in solo play.
 ##
 ## The single gate for "may this machine decide shared state?": spawning, validation, scoring and
-## round flow.
+## round flow. [method NetGate.is_authoritative] on the scene tree's API, inside a lobby.
 func is_authoritative() -> bool:
-	return not has_active_session() or multiplayer.is_server()
+	return not has_active_session() or NetGate.is_authoritative(multiplayer)
 
 
 ## This machine's Godot peer id: 1 on the host and in solo play, a large random int on clients.
+##
+## With no peer at all ([method leave_lobby] clears it) this machine is alone, so 1, with no
+## engine error: [code]get_unique_id()[/code] would raise one and return 0.
 func local_peer_id() -> int:
+	if multiplayer.multiplayer_peer == null:
+		return MultiplayerPeer.TARGET_PEER_SERVER
 	return multiplayer.get_unique_id()
 
 
@@ -395,9 +402,10 @@ func _disconnect_refused_peer(peer_id: int) -> void:
 	multiplayer.multiplayer_peer.disconnect_peer(peer_id)
 
 
-# A client asks to be admitted. Every argument is untrusted.
+# A client asks to be admitted with its game version and NetContract fingerprint. Every argument
+# is untrusted; any int is a valid fingerprint to compare.
 @rpc("any_peer", "reliable", "call_remote")
-func _request_admission(game_version: String) -> void:
+func _request_admission(game_version: String, contract: int) -> void:
 	if not multiplayer.is_server():
 		return
 	var sender: int = multiplayer.get_remote_sender_id()
@@ -408,6 +416,8 @@ func _request_admission(game_version: String) -> void:
 	var decision: int = LobbyAdmission.decide(
 			SaveFile.get_running_version(),
 			game_version,
+			NetContract.fingerprint(),
+			contract,
 			steam_id,
 			_required_steam_ids,
 			_member_steam_ids
@@ -555,7 +565,7 @@ func _on_multiplayer_connected_to_server() -> void:
 			NetLog.Category.LOBBY,
 			"Connected to host (my unique_id=%d)." % [multiplayer.get_unique_id()]
 	)
-	_request_admission.rpc_id(1, SaveFile.get_running_version())
+	_request_admission.rpc_id(1, SaveFile.get_running_version(), NetContract.fingerprint())
 
 
 func _on_multiplayer_connection_failed() -> void:
