@@ -32,6 +32,10 @@ extends RewardPicker
 # Hint contexts: PICK while the offers show, PLACE while the placement panel shows.
 # ============================================================
 
+# A taken item, and a scrapped one's gold (Godot_FE's item-obtained and gold-reward sounds).
+const _TAKE_CUE: StringName = &"item_obtained"
+const _SCRAP_CUE: StringName = &"gold_rewarded"
+
 ## How dark the backdrop over the Rewards stage is.[br]
 ## [b]0.0:[/b] no dimming; [b]1.0:[/b] the stage hidden. 0.6 matches the [PlacementPanel]'s.
 @export_range(0.0, 1.0, 0.05) var backdrop_alpha: float = 0.6
@@ -183,6 +187,8 @@ func _on_placement_panel_placement_chosen(placement: ItemPlacement) -> void:
 	if not _submit(ItemPickCommand.new(_seat, index, placement)):
 		return
 	var note: String = _placement_note(index, placement)
+	var is_scrapped: bool = placement.destination == ItemPlacement.Destination.SCRAP
+	Sound.play(_SCRAP_CUE if is_scrapped else _TAKE_CUE)
 	_offer_index = ItemPickCommand.SKIP
 	_close()
 	resolved.emit(note)

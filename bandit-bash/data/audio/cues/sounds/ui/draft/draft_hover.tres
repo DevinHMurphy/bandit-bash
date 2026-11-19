@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="AudioCue" format=3]
+
+[ext_resource type="Script" path="res://scripts/audio/audio_cue.gd" id="1_s8o64"]
+[ext_resource type="AudioStream" path="res://assets/audio/sounds/ui/draft/draft_hover.ogg" id="2_4mgjk"]
+
+[resource]
+script = ExtResource("1_s8o64")
+id = &"draft_hover"
+streams = Array[AudioStream]([ExtResource("2_4mgjk")])
+bus = 1
+voice_limit = 2

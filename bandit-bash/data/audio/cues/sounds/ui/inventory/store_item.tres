@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="AudioCue" format=3]
+
+[ext_resource type="Script" path="res://scripts/audio/audio_cue.gd" id="1_rance"]
+[ext_resource type="AudioStream" path="res://assets/audio/sounds/ui/inventory/store_item.ogg" id="2_ldwvj"]
+
+[resource]
+script = ExtResource("1_rance")
+id = &"store_item"
+streams = Array[AudioStream]([ExtResource("2_ldwvj")])
+bus = 1
+voice_limit = 2

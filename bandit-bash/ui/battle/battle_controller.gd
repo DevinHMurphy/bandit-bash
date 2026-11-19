@@ -466,6 +466,13 @@ const RUNES_RUNE_BUSY: String = "Finish or cancel this rune first."
 ## The discard question: [code]%s[/code] the rune's name.
 const DISCARD_QUESTION: String = "Discard %s? It is gone for good."
 
+# The board input's sounds (Godot_FE's CController): the cursor stepping to a new tile, a unit
+# picked, a move tile accepted, and a staged move snapped back by Cancel.
+const _CURSOR_CUE: StringName = &"move_tile"
+const _SELECT_CUE: StringName = &"unit_select"
+const _CONFIRM_CUE: StringName = &"unit_confirm"
+const _RETURN_CUE: StringName = &"unit_return"
+
 @export_group("Panels")
 
 ## The action menu scene ([ActionMenu]).[br]
@@ -921,6 +928,8 @@ func is_accepting_input() -> bool:
 func move_cursor(tile: Vector2i) -> bool:
 	if _session == null or not _is_on_map(tile):
 		return false
+	if tile != _cursor:
+		Sound.play(_CURSOR_CUE)
 	_cursor = tile
 	view.get_cursor().show_at(tile, view.tile_to_position(tile))
 	if _stage == Stage.MOVE:
@@ -1118,6 +1127,7 @@ func confirm_tile(tile: Vector2i) -> void:
 	match _stage:
 		Stage.SWAP:
 			if not occupant.is_empty() and _session.state.seat_of(occupant) == _seat:
+				Sound.play(_SELECT_CUE)
 				_pick_swap_unit(occupant)
 		Stage.SWAP_PICKED:
 			if _targets_by_tile.has(tile):
@@ -1129,11 +1139,13 @@ func confirm_tile(tile: Vector2i) -> void:
 					_session.state.seat_of(occupant) == _seat
 					and TurnInputModel.can_act(_session, occupant)
 			):
+				Sound.play(_SELECT_CUE)
 				_select(occupant)
 			elif _session.state.side_of(occupant) == ENEMY:
 				_toggle_enemy_range(occupant)
 		Stage.MOVE:
 			if _is_move_tile.has(tile):
+				Sound.play(_CONFIRM_CUE)
 				_pick_tile(tile)
 		Stage.TARGET, Stage.PAIR_TARGET:
 			var index: int = _targets.index_at(tile)
@@ -1162,6 +1174,7 @@ func step_back() -> bool:
 		Stage.SWAP_PICKED, Stage.MOVE:
 			_clear_selection()
 		Stage.ACTION, Stage.WALK:
+			Sound.play(_RETURN_CUE)
 			view.unstage_walk()
 			_walk_options.clear()
 			_action = null

@@ -30,6 +30,9 @@ enum Mark {
 	CURRENT = 3,
 }
 
+# What focus on a node sounds (Godot_FE's campaign_map_room.gd).
+const _FOCUS_CUE: StringName = &"campaign_map_room_hovered"
+
 ## How a node off the route and out of reach is tinted (Godot_FE drew its unfocused rooms at
 ## [code]#828282[/code]).[br]
 ## [b]White:[/b] no dimming.
@@ -58,6 +61,11 @@ var node_type: CampaignGraph.NodeType = CampaignGraph.NodeType.STANDARD
 
 var _mark: Mark = Mark.OTHER
 var _fill: Color = Color.GRAY
+
+
+# Focus on a node sounds Godot_FE's room-hover cue, not the menu cursor ([UiSoundHook]).
+func _ready() -> void:
+	set_meta(UiSoundHook.FOCUS_CUE_META, _FOCUS_CUE)
 
 
 ## Shows node [param id] of [param type]: its [param fill] colour, its [param node_icon] when

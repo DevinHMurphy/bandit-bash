@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="AudioCue" format=3]
+
+[ext_resource type="Script" path="res://scripts/audio/audio_cue.gd" id="1_qauj3"]
+[ext_resource type="AudioStream" path="res://assets/audio/music/Menu_-_Noble_Kingdom.ogg" id="2_fln5d"]
+
+[resource]
+script = ExtResource("1_qauj3")
+id = &"menu_noble_kingdom"
+streams = Array[AudioStream]([ExtResource("2_fln5d")])
+bus = 2
+voice_limit = 1

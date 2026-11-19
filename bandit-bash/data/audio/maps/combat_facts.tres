@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="FactCueMap" format=3]
+
+[ext_resource type="Script" path="res://scripts/audio/fact_cue_map.gd" id="1_thax3"]
+
+[resource]
+script = ExtResource("1_thax3")
+cues = Dictionary[String, String]({
+"ATTACK_MADE": "sword_swing_light",
+"COMBAT_ENDED/player_side": "level_win",
+"CRIT_DEALT": "crit_sound",
+"DEFEATED/player_actor": "friendly_unit_die",
+"HEALED": "unit_heal",
+"HIT_DEALT": "flesh_impact",
+"HIT_DEALT/no_damage": "no_damage",
+"HIT_DEALT/on_object": "entity_hit",
+"MISSED": "unit_miss",
+"PHASE_START/enemy_side": "music:enemy",
+"PHASE_START/player_side": "music:player"
+})

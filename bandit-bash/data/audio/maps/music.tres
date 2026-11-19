@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="MusicCueMap" format=3]
+
+[ext_resource type="Script" path="res://scripts/audio/music_cue_map.gd" id="1_ve0ha"]
+
+[resource]
+script = ExtResource("1_ve0ha")
+by_screen = Dictionary[String, String]({
+"CAMPAIGN_MAP": "menu_dreaming_darkly",
+"LOBBY": "menu_dreaming_darkly",
+"MAIN_MENU": "menu_dreaming_darkly",
+"NEW_RUN": "menu_dreaming_darkly",
+"NODE_PLACEHOLDER": "menu_dreaming_darkly",
+"OPTIONS": "menu_dreaming_darkly",
+"SAVE_SELECT": "menu_dreaming_darkly",
+"START": "menu_dreaming_darkly"
+})
+by_battle = Dictionary[String, String]({
+"BOSS/enemy": "action_surge_forward",
+"BOSS/player": "boss_perilous_prince",
+"BOSS/prep": "menu_epic_entrance",
+"STANDARD/enemy": "action_knightly_fighting",
+"STANDARD/player": "menu_noble_kingdom",
+"STANDARD/prep": "menu_adventures_await"
+})

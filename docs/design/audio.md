@@ -6,11 +6,38 @@ the sound design and music that fill it later (M5). This scope doc is plan **P16
 
 **Status:** scoped November 19, 2026 (user; the four questions answered as recommended, see
 [Decisions](#decisions)). AU1 is an M2 item, built beside P15 UL2 so UL6 and UL7 wire their
-sounds in as they build. The audio direction is open, for an ideation pass before AU2.
+sounds in as they build; built November 19, 2026 on `feature/AU1`, awaiting merge. The audio
+direction is open, for an ideation pass before AU2.
 
 ## Where it stands
 
-Found November 19, 2026:
+**AU1 built** November 19, 2026 (`feature/AU1`, not merged yet):
+
+- **The layer:** buses Master, Music, SFX and UI (`data/audio/bus_layout.tres`); the
+  `AudioService` autoload (cues by id with a voice limit, music with a crossfade, stop and duck);
+  cues as `AudioCue` resources in `data/audio/cues/`, loaded by `AudioCueCatalog`, its own walk
+  of that folder, which `EffectCatalog` now skips; `SettingsData.apply()` sets the buses, closing
+  `TOD-001`, and the Options sliders are heard live (leaving Options puts the saved levels back).
+- **UI sounds:** a tree-wide hook (`UiSoundHook`), not a component in the shared scenes. It plays
+  focus, press, Back and refused for every button, slider and focus change, with the
+  `ui_sound_off` group to opt out, so no scene has sound code. Focus moves sound; a screen's first
+  focus and a click's don't. An Esc that goes back without pressing a button is silent until UL7.
+- **Facts to cues:** one `FactCueListener` per bus reads a `FactCueMap`, one line per rule
+  (`"HIT_DEALT/no_damage": "no_damage"`). Combat: swing on every attack, miss, hit, no damage, hit
+  on an object, crit, heal, a player unit's death, victory, and the phase banner's music change.
+  Nothing plays `CampaignBus` facts yet, so its `LEVELED_UP` rule is silent and the victory recap
+  plays the level-up itself.
+- **The sound set:** 62 files from Godot_FE (8 tracks, 53 current sounds and the old `miss.wav`)
+  in `bandit-bash/assets/audio/`, Godot_FE's folder layout, 63 cues (`ui_refused` reuses
+  `menu_back.ogg`). In use today: 7 tracks (menus and campaign map; prep, player and enemy phase
+  per battle, the boss set on the Powder Baron's map) and 21 sound cues (UI hook, campaign map
+  nodes, board input, combat facts, victory sequence). Unmapped: `Action_-_Treasure_Hunters` and
+  34 sounds waiting for their screen (shop, Guildhall training, equip and convoy, draft, the map's
+  node-type enter sounds, run start, resurrect, promotion, weapon durability, UL6's magic hits and
+  walk). The full table is [assets/audio/README.md](../../bandit-bash/assets/audio/README.md).
+  Placeholders under RF-008.
+
+Found November 19, 2026, before AU1:
 
 - **Nothing plays.** `bandit-bash/` has no audio bus layout, no players and no sound files.
 - **Settings are ready.** `settings.json` saves `master_volume`, `music_volume` and `sfx_volume`
@@ -49,8 +76,10 @@ screens (P08 RN6 onward, P09) do the same.
   global RNG or a run stream, so a sound can never change a seed.
 - **Settings:** `SettingsData.apply()` sets the bus volumes (0 mutes), closing `TOD-001`; the
   Options sliders take effect live.
-- **UI hook:** one reusable component the shared button and focus scenes use, for focus, press,
-  back and refused (a disabled option says why, ui-style.md). No per-scene sound code.
+- **UI hook:** one hook on the whole scene tree (the viewport's focus changes, and each button and
+  slider as it enters the tree) for focus, press, back and refused (a disabled option says why,
+  ui-style.md), with an opt-out group. No per-scene sound code. (User, November 19, 2026: the
+  tree-wide hook instead of a component the shared scenes use.)
 - **Facts to cues:** one listener pattern on `CombatBus` and `CampaignBus` that maps fact kinds to
   cues as they play, proved with a handful (hit, miss, crit, level-up, phase banner). UL6 adds
   the rest.
@@ -59,7 +88,8 @@ screens (P08 RN6 onward, P09) do the same.
   `bandit-bash/assets/audio/` in Godot_FE's folder layout, each with a cue. The 7 superseded `old`
   files stay behind, except `combat/attack/old/miss.wav`, the only miss sound. Each cue is mapped
   to its use where the game has one today; the rest wait for their screen (shop, Guildhall,
-  equip, the campaign map's node types). Placeholders under RF-008 until AU2. **Licensed:** the user
+  equip, the campaign map's node types). As built: 53 current sounds plus `miss.wav` (decision
+  12). Placeholders under RF-008 until AU2. **Licensed:** the user
   holds the licence for this set (November 19, 2026), so it may ship; the aim is still to replace
   it in AU2 before release.
 - **Tests:** suites run with the dummy audio driver; cases cover cue lookup, bus volumes from
@@ -83,3 +113,22 @@ Decided by the user, November 19, 2026, as recommended:
 3. **Godot_FE's sounds and music** are the placeholders, as its art is: the whole current set, not
    a sample.
 4. **A new autoload,** `AudioService`, is approved.
+
+AU1's build questions, decided by the user November 19, 2026, as recommended:
+
+5. **The UI hook is tree-wide,** with an opt-out group; Back is a `NavButton` set to Go Back or a
+   button in `ui_sound_back`.
+6. **Refused** plays `menu_back.ogg` as `ui_refused` until AU2 (Godot_FE had no refused sound).
+7. **Attack cues layer as Godot_FE's did:** the swing on every attack, then the impact, no-damage
+   or object sound, a crit's sound over its impact; a miss adds `miss.wav`, which Godot_FE never
+   played.
+8. **Music follows Godot_FE:** the menu track on menus and the campaign map; in battle a prep
+   track before turn 1, then the player and enemy phase tracks as each Phase Start plays (the
+   phase banner's cue); the boss set on the Powder Baron's map; key combats use the standard set.
+9. **Level-up and rewards:** the `CampaignBus` listener carries the level-up rule, silent until
+   campaign facts play; until then the victory recap plays it per card, the Grade stage plays
+   the gold sound and the item pick the item or scrap sound.
+10. **Board input** (select, confirm, return, the cursor's step) plays from `BattleController`.
+11. **Options sliders** are heard live; leaving Options puts the saved levels back.
+12. **The whole current set** is copied, `walk_stone.wav` included: 53 current sounds and
+    `miss.wav`, not the 52 first counted; the `.m4a` duplicate stays behind.

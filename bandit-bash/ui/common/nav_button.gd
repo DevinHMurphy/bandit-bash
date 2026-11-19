@@ -6,7 +6,7 @@
 # File:     nav_button.gd
 # Author:
 # Created:  October 9, 2026
-# Modified: October 9, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name NavButton
@@ -37,6 +37,12 @@ enum Action {
 ## Read only when [member action] is [constant GOTO_SCREEN] or [constant GOTO_SCREEN_FOR_EVERYONE];
 ## ignored for the other actions.
 @export var target_screen: SceneRouter.Screen = SceneRouter.Screen.START
+
+
+# A Go Back press sounds as Back, not as a confirm ([UiSoundHook]).
+func _ready() -> void:
+	if action == Action.GO_BACK:
+		add_to_group(UiSoundHook.BACK_GROUP)
 
 
 func _pressed() -> void:

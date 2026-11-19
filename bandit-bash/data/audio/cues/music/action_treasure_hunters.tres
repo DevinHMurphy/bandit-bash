@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="AudioCue" format=3]
+
+[ext_resource type="Script" path="res://scripts/audio/audio_cue.gd" id="1_v5u85"]
+[ext_resource type="AudioStream" path="res://assets/audio/music/Action_-_Treasure_Hunters.ogg" id="2_c2k6k"]
+
+[resource]
+script = ExtResource("1_v5u85")
+id = &"action_treasure_hunters"
+streams = Array[AudioStream]([ExtResource("2_c2k6k")])
+bus = 2
+voice_limit = 1
