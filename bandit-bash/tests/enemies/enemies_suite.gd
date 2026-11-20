@@ -6,14 +6,15 @@
 # File:     enemies_suite.gd
 # Author:
 # Created:  November 16, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 extends SceneTree
 ## What the enemies suites share: the AI and intents
 ## ([code]tests/enemies/ai/run_all.gd[/code]), the setup and the roster's AI
-## ([code]tests/enemies/roster/run_all.gd[/code]) and the roster's battles
-## ([code]tests/enemies/battles/run_all.gd[/code]). Each extends this script: the check counters,
+## ([code]tests/enemies/roster/run_all.gd[/code]), the roster's battles
+## ([code]tests/enemies/battles/run_all.gd[/code]) and the move preview's equality
+## ([code]tests/enemies/preview/run_all.gd[/code]). Each extends this script: the check counters,
 ## the summary line the runner reads, the definitions hash checked at the end, the group timer
 ## ([method _finish] stops it) and the case finder. The case files stay in
 ## [code]tests/enemies/[/code], one per topic, each declaring the part that runs it; the parts are

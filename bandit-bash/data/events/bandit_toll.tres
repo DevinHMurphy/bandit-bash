@@ -1,0 +1,53 @@
+[gd_resource type="Resource" script_class="EventDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/events/event_definition.gd" id="1_def"]
+[ext_resource type="Script" path="res://scripts/events/event_option.gd" id="2_opt"]
+[ext_resource type="Script" path="res://scripts/events/event_outcome.gd" id="3_out"]
+[ext_resource type="Script" path="res://scripts/events/event_requirements.gd" id="4_req"]
+[ext_resource type="Script" path="res://scripts/events/outcomes/gold_outcome.gd" id="5_gold"]
+[ext_resource type="Script" path="res://scripts/events/outcomes/surprise_combat_outcome.gd" id="6_combat"]
+
+[sub_resource type="Resource" id="Resource_thirty_gold"]
+script = ExtResource("4_req")
+gold = 30
+
+[sub_resource type="Resource" id="Resource_toll"]
+script = ExtResource("5_gold")
+amount = -30
+
+[sub_resource type="Resource" id="Resource_pay"]
+script = ExtResource("2_opt")
+title = "Pay the Toll"
+text = "Each player loses 30 gold."
+requirements = SubResource("Resource_thirty_gold")
+outcomes = Array[ExtResource("3_out")]([SubResource("Resource_toll")])
+
+[sub_resource type="Resource" id="Resource_combat"]
+script = ExtResource("6_combat")
+
+[sub_resource type="Resource" id="Resource_fight"]
+script = ExtResource("2_opt")
+title = "Fight"
+text = "A surprise standard combat for the whole team, each on their own map, with normal rewards."
+outcomes = Array[ExtResource("3_out")]([SubResource("Resource_combat")])
+
+[sub_resource type="Resource" id="Resource_loot"]
+script = ExtResource("5_gold")
+amount = 40
+
+[sub_resource type="Resource" id="Resource_intimidate"]
+script = ExtResource("2_opt")
+title = "Intimidate"
+text = "The bandits flee and leave their loot: each player gains 40 gold and a minor curse."
+outcomes = Array[ExtResource("3_out")]([SubResource("Resource_loot")])
+curse_tier = "minor"
+
+; the scene text is events.md's line for the event; it has no Godot_FE scene of its
+; own, and no art, so the screen shows its placeholder.
+[resource]
+script = ExtResource("1_def")
+id = "bandit_toll"
+title = "Bandit Toll"
+text = "Brigands block the road."
+is_team_choice = true
+options = Array[ExtResource("2_opt")]([SubResource("Resource_pay"), SubResource("Resource_fight"), SubResource("Resource_intimidate")])

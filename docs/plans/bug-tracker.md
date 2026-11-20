@@ -53,7 +53,8 @@ Not a bug.
 | [BUG-018](#bug-018-fact-playback-holds-the-next-batch-for-the-last-facts-full-wait) | Fact playback holds the next batch for the last fact's full wait | P07 (playback) | S3 | Fixed (BF3 merge, November 19, 2026) | November 19, 2026, UL6 report | BF3 |
 | [BUG-019](#bug-019-player-units-cant-attack-breakable-map-objects) | Player units can't attack breakable map objects (debris, powder kegs) | P07 (target list) | S2 | Fixed (BF4 merge, November 20, 2026) | November 19, 2026, user | BF4 |
 | [BUG-020](#bug-020-a-broken-breakables-token-stayed-on-the-board) | A broken breakable's token stayed on the board | P07 (board) | S3 | Fixed (BF4 merge, November 20, 2026) | November 19, 2026, BF4 report | BF4 |
-| [BUG-021](#bug-021-an-infused-basic-weapon-scraps-for-0-gold) | An Infused Basic weapon scraps (and trades in) for 0 gold | P08 (prices) | S3 | Open (cause found in data) | November 20, 2026, RN8 report | EV4 (the effects its events grant) |
+| [BUG-021](#bug-021-an-infused-basic-weapon-scraps-for-0-gold) | An Infused Basic weapon scraps (and trades in) for 0 gold | P08 (prices) | S3 | Fixed (EV4 merge, November 20, 2026) | November 20, 2026, RN8 report | EV4 (note sent November 20, 2026) |
+| [BUG-022](#bug-022-an-enemys-second-move-ending-in-a-wait-crashes-the-enemy-phase) | An enemy's second move ending in a Wait crashes the enemy phase (the Bloodhound after a kill) | P05 (enemy plans) | S1 | Open | November 20, 2026, EN13 report | BF5 |
 
 ### BUG-001 No Block at the start of combat
 
@@ -354,3 +355,18 @@ Not a bug.
   therefore worth its base price (0 for Basic). Fix in data: each effect an infusion or event can
   grant carries its hand-set points (items.md, Points). EV4 sets them for the effects its events
   grant, where items.md gives a value, and asks for the rest.
+- **Fixed** in EV4 (merged November 20, 2026): Infuse's "Hit dealt: heal 2" is now its own effect,
+  `data/effects/goblet_infusion.tres`, with `item_points` 1 (items.md). It is the only effect an
+  event grants to an item; the other examples are whole-option totals that Prices works out from
+  the stat deltas. A case in `tests/events/content_cases.gd` checks an Infused Basic weapon scraps
+  for 2, Upgrade Gear for 5 and Forge Resonance for 8.
+
+### BUG-022 An enemy's second move ending in a Wait crashes the enemy phase
+
+- **Found** by EN13 on the Hall key board during an enemy phase: `EnemyPlan.to_command()`
+  (`scripts/enemies/enemy_plan.gd`, the `is_second_move` branch) passes an untyped `[]` as the
+  path when the second move is a Wait. `UnitTurnCommand.new` expects a typed path, so it raises a
+  script error, returns null, and `next_command` crashes.
+- **Who hits it:** any enemy with a second move whose second move ends in a Wait; the Bloodhound
+  after a kill. The key combat's mini-boss, so it can occur in the M2 exit playtest.
+- **Fix in BF5,** before the exit playtest, with a regression case.

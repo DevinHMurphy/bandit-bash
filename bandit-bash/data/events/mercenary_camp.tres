@@ -1,0 +1,65 @@
+[gd_resource type="Resource" script_class="EventDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/events/event_definition.gd" id="1_def"]
+[ext_resource type="Script" path="res://scripts/events/event_option.gd" id="2_opt"]
+[ext_resource type="Script" path="res://scripts/events/event_outcome.gd" id="3_out"]
+[ext_resource type="Script" path="res://scripts/events/event_requirements.gd" id="4_req"]
+[ext_resource type="Script" path="res://scripts/events/outcomes/gold_outcome.gd" id="5_gold"]
+[ext_resource type="Script" path="res://scripts/events/outcomes/recruit_outcome.gd" id="6_recruit"]
+[ext_resource type="Script" path="res://scripts/events/outcomes/army_size_outcome.gd" id="7_army"]
+
+[sub_resource type="Resource" id="Resource_fifty_gold"]
+script = ExtResource("4_req")
+gold = 50
+
+[sub_resource type="Resource" id="Resource_pay"]
+script = ExtResource("5_gold")
+amount = -50
+
+; "a unit" is any recruitable unit type, drawn evenly as the option applies (no
+; unit_type_id), at the army's average level (level 0).
+[sub_resource type="Resource" id="Resource_elite"]
+script = ExtResource("6_recruit")
+prefix_roll = 1
+
+[sub_resource type="Resource" id="Resource_hire"]
+script = ExtResource("2_opt")
+title = "Hire the Best"
+text = "Pay 50 gold: recruit a unit with a +1 or +2 prefix, at the army's average level."
+requirements = SubResource("Resource_fifty_gold")
+outcomes = Array[ExtResource("3_out")]([SubResource("Resource_pay"), SubResource("Resource_elite")])
+
+; as Hire the Best, a type drawn evenly at the army's average level, with no prefix.
+[sub_resource type="Resource" id="Resource_plain"]
+script = ExtResource("6_recruit")
+
+[sub_resource type="Resource" id="Resource_volunteer"]
+script = ExtResource("2_opt")
+title = "Take a Volunteer"
+text = "Recruit a unit with no prefix, for free, and take a minor curse."
+outcomes = Array[ExtResource("3_out")]([SubResource("Resource_plain")])
+curse_tier = "minor"
+
+[sub_resource type="Resource" id="Resource_room"]
+script = ExtResource("4_req")
+needs_army_room = true
+
+[sub_resource type="Resource" id="Resource_grow"]
+script = ExtResource("7_army")
+
+[sub_resource type="Resource" id="Resource_charter"]
+script = ExtResource("2_opt")
+title = "Sign a Company Charter"
+text = "+1 max army size and a major curse."
+requirements = SubResource("Resource_room")
+outcomes = Array[ExtResource("3_out")]([SubResource("Resource_grow")])
+curse_tier = "major"
+
+; the scene text is events.md's line for the event; it has no Godot_FE scene of its
+; own, and no art, so the screen shows its placeholder.
+[resource]
+script = ExtResource("1_def")
+id = "mercenary_camp"
+title = "Mercenary Camp"
+text = "A band of sellswords for hire."
+options = Array[ExtResource("2_opt")]([SubResource("Resource_hire"), SubResource("Resource_volunteer"), SubResource("Resource_charter")])
