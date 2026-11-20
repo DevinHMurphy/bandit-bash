@@ -10,13 +10,13 @@
 # ==============================================================================
 
 extends "res://tests/ui/battle/input/rune_cases.gd"
-## Attacking breakable map objects for the ui/input suite (BUG-019): debris and powder kegs in the
-## Attack list, enemies first then objects in spot order, exactly what the validator accepts, and
-## a broken one gone; by keys, mouse and pad, each of wooden debris, stone debris and a keg
-## targeted (outlined, the cursor, the HUD's unit view on it), its forecast (no counter, crit or
-## Stance; DEF and RES; a keg's chain of blasts drawn and its splash on friendly units flashed)
-## matching the exchange once confirmed; and breaking each: the event log's line, the board's
-## feedback, the token gone. The harness and device drivers are rune_cases.gd's.
+## Demolishing breakable map objects for the ui/input suite (BUG-019): debris and powder kegs on
+## Demolish, in spot order, exactly the attacks on objects the validator accepts, never on Attack,
+## which lists exactly those on enemies; a broken one gone; by keys, mouse and pad, each of wooden
+## debris, stone debris and a keg targeted (outlined, the cursor, the HUD's unit view on it), its
+## forecast ("Demolish", no counter, crit or Stance; DEF and RES; a keg's chain of blasts drawn,
+## its splash on friendly units flashed) matching the exchange once confirmed; and breaking each:
+## the event log's line, the board's feedback, the token gone. Harness and drivers: rune_cases.gd.
 ##
 ## Its fixture replaces rune_cases.gd's keg chain: next to seat 0's units, a keg (with a second in
 ## its blast) beside a melee unit, then wooden and stone debris, each in another unit's reach and
@@ -36,6 +36,7 @@ const OBJECT_INDEX: int = 950
 const LOW_HP: int = 1
 
 const ATTACK_KIND: TurnInputModel.ActionKind = TurnInputModel.ActionKind.ATTACK
+const DEMOLISH_KIND: TurnInputModel.ActionKind = TurnInputModel.ActionKind.DEMOLISH
 const NONE_SIDE: CombatFact.CombatSide = CombatFact.CombatSide.NONE
 
 # The last fixture's objects by kind (the keg is the one attacked), its chain keg, and who attacks
@@ -61,9 +62,10 @@ func run() -> void:
 	_test_break_feedback()
 
 
-# Every acting unit's Attack lists exactly what the validator accepts on every unit and object on
-# the map, enemies first in state order, then objects in spot order; each fixture object is
-# listed for its attacker.
+# Every acting unit's Demolish lists exactly the attacks on objects the validator accepts, in
+# spot order, and its Attack exactly those on other units, enemies in state order, no object
+# among them; each fixture object is on its attacker's Demolish, right after Attack and Staff in
+# the menu.
 func _test_attack_list() -> void:
 	var h: TurnInputCases.Harness = _object_harness("list")
 	if h == null:
@@ -72,41 +74,53 @@ func _test_attack_list() -> void:
 	var state: CombatState = session.state
 	var problems: PackedStringArray = []
 	for unit_id: String in TurnInputModel.acting_units(session, 0):
-		var attack: TurnInputModel.ActionOption = _attack_option(session, unit_id)
-		var listed: PackedStringArray = _listed_attacks(attack)
-		var accepted: PackedStringArray = _accepted_attacks(session, unit_id)
-		if listed != accepted:
-			problems.append("%s: listed %s, accepted %s" % [unit_id, listed, accepted])
-		if attack == null:
+		var attack: TurnInputModel.ActionOption = _option_of(session, unit_id, ATTACK_KIND)
+		var demolish: TurnInputModel.ActionOption = _option_of(session, unit_id, DEMOLISH_KIND)
+		for pair: Array in [[attack, false, "Attack"], [demolish, true, "Demolish"]]:
+			var option: TurnInputModel.ActionOption = pair[0]
+			var on_objects: bool = pair[1]
+			var listed: PackedStringArray = _listed_attacks(option)
+			var accepted: PackedStringArray = _accepted_attacks(session, unit_id, on_objects)
+			if listed != accepted:
+				problems.append("%s's %s: listed %s, accepted %s" % [
+					unit_id, pair[2], listed, accepted,
+				])
+		if attack != null:
+			for target: TurnInputModel.TargetOption in attack.targets:
+				if state.side_of(target.target_id) == NONE_SIDE:
+					problems.append("%s: object %s on Attack" % [unit_id, target.target_id])
+		if demolish == null:
 			continue
-		var seen_object: bool = false
 		var last_index: int = -1
-		for target: TurnInputModel.TargetOption in attack.targets:
-			var is_object: bool = state.side_of(target.target_id) == NONE_SIDE
-			if not is_object and seen_object:
-				problems.append("%s: enemy %s after an object" % [unit_id, target.target_id])
-			if is_object:
-				seen_object = true
-				var index: int = state.map.object(target.target_id).index
-				if index < last_index:
-					problems.append("%s: %s out of spot order" % [unit_id, target.target_id])
-				last_index = index
-				if target.tile != state.map.object(target.target_id).tile:
-					problems.append("%s: %s's tile" % [unit_id, target.target_id])
+		for target: TurnInputModel.TargetOption in demolish.targets:
+			var placed: MapState.ObjectState = state.map.object(target.target_id)
+			if placed == null:
+				problems.append("%s: unit %s on Demolish" % [unit_id, target.target_id])
+				continue
+			if placed.index < last_index:
+				problems.append("%s: %s out of spot order" % [unit_id, target.target_id])
+			last_index = placed.index
+			if target.tile != placed.tile:
+				problems.append("%s: %s's tile" % [unit_id, target.target_id])
 	for kind: MapLayout.ObjectKind in ATTACK_ORDER:
 		var object_id: String = _placed.get(kind, "")
 		var attacker: String = _attacker_of.get(object_id, "")
-		var attack: TurnInputModel.ActionOption = _attack_option(session, attacker)
-		if attack == null or _index_of(attack, object_id) < 0:
-			problems.append("%s isn't in its attacker's Attack" % [object_id])
-	_check.call("list: Attack lists debris and kegs as the validator accepts, enemies first", (
+		var demolish: TurnInputModel.ActionOption = _option_of(session, attacker, DEMOLISH_KIND)
+		if demolish == null or _index_of(demolish, object_id) < 0:
+			problems.append("%s isn't on its attacker's Demolish" % [object_id])
+	var order: Array[TurnInputModel.ActionKind] = TurnInputModel.MENU_ORDER
+	var demolish_at: int = order.find(DEMOLISH_KIND)
+	var expected_at: int = order.find(TurnInputModel.ActionKind.STAFF) + 1
+	_check.call("list: Demolish lists debris and kegs, Attack only units, both as validated", (
 			problems.is_empty() and _placed.size() == ATTACK_ORDER.size()
-	), "; ".join(problems))
+			and demolish_at == expected_at
+			and TurnInputModel.ACTION_LABELS[DEMOLISH_KIND] == "Demolish"
+	), "menu place %d (expected %d); %s" % [demolish_at, expected_at, "; ".join(problems)])
 	h.close()
 
 
 # Wooden debris broken off the map (the darkness's erosion, a rule that breaks it without an
-# action) leaves its attacker's Attack, and no unit lists it.
+# action) leaves its attacker's Demolish, and no unit lists it.
 func _test_broken_gone() -> void:
 	var h: TurnInputCases.Harness = _object_harness("broken")
 	if h == null:
@@ -114,15 +128,15 @@ func _test_broken_gone() -> void:
 	var session: CombatSession = h.session
 	var object_id: String = _placed[WOODEN]
 	var attacker: String = _attacker_of[object_id]
-	var before: TurnInputModel.ActionOption = _attack_option(session, attacker)
+	var before: TurnInputModel.ActionOption = _option_of(session, attacker, DEMOLISH_KIND)
 	var was_listed: bool = before != null and _index_of(before, object_id) >= 0
 	var broke: bool = MapObjects.erode(session.engine, session.state, object_id)
 	var still: PackedStringArray = []
 	for unit_id: String in TurnInputModel.acting_units(session, 0):
-		var attack: TurnInputModel.ActionOption = _attack_option(session, unit_id)
-		if attack != null and _index_of(attack, object_id) >= 0:
+		var demolish: TurnInputModel.ActionOption = _option_of(session, unit_id, DEMOLISH_KIND)
+		if demolish != null and _index_of(demolish, object_id) >= 0:
 			still.append(unit_id)
-	_check.call("broken: a broken debris leaves every Attack list", (
+	_check.call("broken: a broken debris leaves every Demolish list", (
 			was_listed and broke and still.is_empty()
 	), "listed before %s, broke %s, still listed by %s" % [was_listed, broke, still])
 	h.close()
@@ -171,12 +185,11 @@ func _test_break_feedback() -> void:
 		var splashed: PackedStringArray = []
 		if kind == KEG:
 			splashed = _units_in_blasts(state, _kegs_of(object_id))
-		var attack: TurnInputModel.ActionOption = _attack_option(
-				session, _attacker_of[object_id]
-		)
+		var attacker: String = _attacker_of[object_id]
+		var attack: TurnInputModel.ActionOption = _option_of(session, attacker, DEMOLISH_KIND)
 		var at: int = -1 if attack == null else _index_of(attack, object_id)
 		if at < 0:
-			_check.call("break: %s is a target" % [name], false)
+			_check.call("break: %s is a Demolish target" % [name], false)
 			continue
 		fired.clear()
 		_send(h, attack.targets[at].command)
@@ -212,9 +225,9 @@ func _test_break_feedback() -> void:
 # --- Driving the screen --------------------------------------------------------------------
 
 
-# attacker_id attacks object_id by device from its own tile: selected, Attack picked, the object
-# made current and picked (TARGET checked there), the forecast checked (CONFIRM), then confirmed
-# and the outcome checked against it. Returns every problem; empty when all held.
+# attacker_id demolishes object_id by device from its own tile: selected, Demolish picked, the
+# object made current and picked (TARGET checked there), the forecast checked (CONFIRM), then
+# confirmed and the outcome checked against it. Returns every problem; empty when all held.
 func _attack_object(
 		h: TurnInputCases.Harness, device: Device, attacker_id: String, object_id: String
 ) -> PackedStringArray:
@@ -222,8 +235,8 @@ func _attack_object(
 	var c: BattleController = h.controller
 	var session: CombatSession = h.session
 	var state: CombatState = session.state
-	if not _open_attack(h, device, attacker_id):
-		problems.append("Attack didn't open its targets (stage %d)" % [c.get_stage()])
+	if not _open_demolish(h, device, attacker_id):
+		problems.append("Demolish didn't open its targets (stage %d)" % [c.get_stage()])
 		return problems
 	var list: TargetList = c.get_target_list()
 	var index: int = -1 if list == null else list.index_of(object_id)
@@ -291,10 +304,10 @@ func _attack_object(
 	return problems
 
 
-# Selects unit_id on its own tile and picks Attack in its menu by device: a click on the tile
+# Selects unit_id on its own tile and picks Demolish in its menu by device: a click on the tile
 # twice and on the row, or accept twice and up / down to the row (the keys when the tile is
-# covered, for the mouse). Returns whether TARGET opened on Attack.
-func _open_attack(h: TurnInputCases.Harness, device: Device, unit_id: String) -> bool:
+# covered, for the mouse). Returns whether TARGET opened on Demolish.
+func _open_demolish(h: TurnInputCases.Harness, device: Device, unit_id: String) -> bool:
 	var c: BattleController = h.controller
 	var tile: Vector2i = h.session.state.tile_of(unit_id)
 	if device == Device.MOUSE and _is_clear(h, tile):
@@ -310,7 +323,7 @@ func _open_attack(h: TurnInputCases.Harness, device: Device, unit_id: String) ->
 		return false
 	var options: Array[TurnInputModel.ActionOption] = menu.get_options()
 	for i: int in options.size():
-		if options[i].kind == ATTACK_KIND:
+		if options[i].kind == DEMOLISH_KIND:
 			_pick_row(h, device, menu.get_rows(), i)
 			break
 	return c.get_stage() == TARGET
@@ -383,8 +396,11 @@ func _expect_object_rows(
 	for label: String in ["Hit", "Crit", "Strikes", "Stance", "HP"]:
 		var shown: ForecastViewModel.Row = model.row(label)
 		cells[label] = "none" if shown == null else "%s | %s" % [shown.actor, shown.target]
+	var title: String = "%s %s" % [
+		ForecastViewModel.DEMOLISH_TITLE, BattleText.name_of(session, object_id),
+	]
 	var held: bool = (
-			model.kind == ForecastViewModel.Kind.EXCHANGE
+			model.kind == ForecastViewModel.Kind.EXCHANGE and model.title == title
 			and found.is_legal and not found.can_counter
 			and model.row("Hit").actor == "100%" and model.row("Hit").target == none
 			and model.row("Crit").actor == none and model.row("Strikes").target == none
@@ -394,7 +410,9 @@ func _expect_object_rows(
 			and model.notes.has(note)
 	)
 	if not held:
-		problems.append("rows %s, notes %s (expected '%s')" % [cells, model.notes, note])
+		problems.append("title '%s', rows %s, notes %s (expected '%s')" % [
+			model.title, cells, model.notes, note,
+		])
 
 
 # A keg's forecast: its tiles hold every blast tile, and every unit in the blasts flashes its HP
@@ -590,14 +608,14 @@ static func _reach_of(session: CombatSession, unit_id: String) -> Vector2i:
 # --- Reading --------------------------------------------------------------------------------
 
 
-# unit_id's Attack on its own tile; null when it has none.
-static func _attack_option(
-		session: CombatSession, unit_id: String
+# unit_id's action of kind on its own tile; null when it has none.
+static func _option_of(
+		session: CombatSession, unit_id: String, kind: TurnInputModel.ActionKind
 ) -> TurnInputModel.ActionOption:
 	if unit_id.is_empty():
 		return null
 	for option: TurnInputModel.ActionOption in TurnInputModel.actions_at(session, unit_id, []):
-		if option.kind == ATTACK_KIND:
+		if option.kind == kind:
 			return option
 	return null
 
@@ -621,10 +639,12 @@ static func _listed_attacks(option: TurnInputModel.ActionOption) -> PackedString
 	return keys
 
 
-# Every attack of unit_id from its own tile the validator accepts, on every other unit and object,
-# with each weapon it holds, in _listed_attacks's order: enemies in state order, then objects in
-# spot order, the weapon in hand first.
-static func _accepted_attacks(session: CombatSession, unit_id: String) -> PackedStringArray:
+# Every attack of unit_id from its own tile the validator accepts, with each weapon it holds, in
+# _listed_attacks's order, the weapon in hand first: on_objects, on every object in spot order;
+# else on every other unit, enemies in state order first.
+static func _accepted_attacks(
+		session: CombatSession, unit_id: String, on_objects: bool
+) -> PackedStringArray:
 	var state: CombatState = session.state
 	var unit: CombatUnitState = state.unit(unit_id)
 	var weapons: PackedStringArray = [""]
@@ -643,14 +663,16 @@ static func _accepted_attacks(session: CombatSession, unit_id: String) -> Packed
 		return a.index < b.index
 	)
 	var ordered: PackedStringArray = []
-	for enemy_id: String in state.units_of(ENEMY):
-		if defenders.has(enemy_id):
-			ordered.append(enemy_id)
-	for other: String in defenders:
-		if not ordered.has(other):
-			ordered.append(other)
-	for placed: MapState.ObjectState in objects:
-		ordered.append(placed.id)
+	if on_objects:
+		for placed: MapState.ObjectState in objects:
+			ordered.append(placed.id)
+	else:
+		for enemy_id: String in state.units_of(ENEMY):
+			if defenders.has(enemy_id):
+				ordered.append(enemy_id)
+		for other: String in defenders:
+			if not ordered.has(other):
+				ordered.append(other)
 	var keys: PackedStringArray = []
 	for defender_id: String in ordered:
 		for weapon_id: String in weapons:

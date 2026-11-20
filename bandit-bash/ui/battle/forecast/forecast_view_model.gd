@@ -78,6 +78,10 @@ const COUNTER_NOTE: String = "If %s misses, %s counters: %s HP %s."
 ## counter is said by the "can't counter" note.
 const OBJECT_NOTE: String = "%s: DEF %d · RES %d. No crit, no Stance."
 
+## The heading's action for an exchange on a map object, the menu's Demolish
+## ([constant TurnInputModel.ActionKind.DEMOLISH]): "Demolish Wooden Debris".
+const DEMOLISH_TITLE: String = "Demolish"
+
 # What separates [method CombatForecast.HitBreakdown.to_text]'s stages, one per line here.
 const HIT_BREAKDOWN_SEPARATOR: String = "; "
 
@@ -179,7 +183,10 @@ func _init(
 			notes.append("No forecast for this action.")
 			return
 	var action_name: String = "Attack"
-	if kind != Kind.EXCHANGE:
+	var is_on_object: bool = session.state.side_of(command.target_id) == CombatFact.CombatSide.NONE
+	if kind == Kind.EXCHANGE and is_on_object:
+		action_name = DEMOLISH_TITLE
+	elif kind != Kind.EXCHANGE:
 		action_name = (Kind.find_key(kind) as String).capitalize()
 	title = "%s %s" % [action_name, target_label]
 	if not forecast.is_legal:

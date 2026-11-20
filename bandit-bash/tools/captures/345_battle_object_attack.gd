@@ -10,11 +10,11 @@
 # ==============================================================================
 
 extends "res://tools/captures/capture_group.gd"
-## Attacks on breakable map objects: wooden debris and a powder keg (with a second keg in its
-## blast) staged beside the seat's units in this throwaway run (said in a NOTE), then Attack opened
-## on each from the unit's own tile: the debris targeted and its forecast, the keg targeted with
-## its chain of blasts drawn and its forecast with the splash on friendly units. Backs out of every
-## panel after; the objects stay in the run.[br]
+## Demolishing breakable map objects: wooden debris and a powder keg (a second keg in its blast)
+## staged beside the seat's units in this throwaway run (said in a NOTE), then Demolish opened on
+## each from the unit's own tile: the action menu listing it, the debris targeted and its forecast,
+## the keg targeted with its chain of blasts drawn and its forecast with the splash on friendly
+## units. Backs out of every panel after; the objects stay in the run.[br]
 ## Needs: the battle started and idle, its units yet to act (300_battle_start; 340_battle_attack
 ## backs out without acting).
 
@@ -54,8 +54,9 @@ func run() -> bool:
 	return true
 
 
-# Opens attacker_id's Attack on its own tile, makes object_id the current target, and shoots
-# TARGET and the forecast as battle_target_<shot> and battle_forecast_<shot>; then backs out.
+# Opens attacker_id's action menu on its own tile (shot for the debris, as battle_menu_demolish),
+# picks Demolish, makes object_id the current target, and shoots TARGET and the forecast as
+# battle_target_<shot> and battle_forecast_<shot>; then backs out.
 func _attack_shots(
 		view: BattleView,
 		controller: BattleController,
@@ -71,15 +72,17 @@ func _attack_shots(
 	await frames(SETTLE_FRAMES)
 	var host: PanelHost = scene().get_node(^"%PanelHost")
 	var menu: ActionMenu = host.top() as ActionMenu
+	if menu != null and shot == "debris":
+		await capture("battle_menu_demolish")
 	if menu != null:
 		var options: Array[TurnInputModel.ActionOption] = menu.get_options()
 		for i: int in options.size():
-			if options[i].kind == TurnInputModel.ActionKind.ATTACK:
+			if options[i].kind == TurnInputModel.ActionKind.DEMOLISH:
 				menu.get_rows()[i].pressed.emit()
 				break
 	var list: TargetList = controller.get_target_list()
 	if list == null or list.index_of(object_id) < 0:
-		fail("object attack: %s isn't an Attack target of %s" % [object_id, attacker_id])
+		fail("object attack: %s isn't a Demolish target of %s" % [object_id, attacker_id])
 	else:
 		for _i: int in MAX_CYCLES:
 			if list.current().target_id == object_id:

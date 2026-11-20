@@ -30,8 +30,7 @@ extends RefCounted
 ## The actions a unit's menu can list (combat UI plan, questions 6 and 15 f). The menu lists them
 ## in [constant MENU_ORDER], not by value: values are only appended.
 enum ActionKind {
-	## An exchange with an enemy or a breakable map object
-	## ([constant UnitTurnCommand.Action.ATTACK]).
+	## An exchange with an enemy ([constant UnitTurnCommand.Action.ATTACK]).
 	ATTACK = 0,
 	## The Block or heal staff in the Weapon slot ([constant UnitTurnCommand.Action.STAFF]).
 	STAFF = 1,
@@ -50,6 +49,10 @@ enum ActionKind {
 	## A map object at the tile picked: visit a house, open a chest or door, pull a lever, take a
 	## passage, light a brazier ([constant UnitTurnCommand.Action.USE_OBJECT]).
 	USE = 7,
+	## An exchange with a standing breakable, debris or a powder keg: the same
+	## [constant UnitTurnCommand.Action.ATTACK], kept apart from Attack (Godot_FE's Demolish) so a
+	## misclick on Attack never hits an object.
+	DEMOLISH = 8,
 }
 
 ## The menu label of each [enum ActionKind], by value.
@@ -62,14 +65,17 @@ const ACTION_LABELS: Array[String] = [
 	"Rune",
 	"Wait",
 	"Use",
+	"Demolish",
 ]
 
 # ASSUMPTION: Use goes after Shove, as game-vision.md's action table lists map objects after Shove;
 # the plan's question 6 order names no Use.
-## The order the menu lists actions in.
+## The order the menu lists actions in. Demolish follows Staff, as Godot_FE listed Attack,
+## Support, Demolish.
 const MENU_ORDER: Array[ActionKind] = [
 	ActionKind.ATTACK,
 	ActionKind.STAFF,
+	ActionKind.DEMOLISH,
 	ActionKind.ITEM,
 	ActionKind.SHOVE,
 	ActionKind.USE,
@@ -355,10 +361,10 @@ static func path_to(session: CombatSession, unit_id: String, tile: Vector2i) -> 
 ## Every action [param unit_id] can take after walking [param path] ([method path_to]; empty to
 ## stay), in [constant MENU_ORDER], each with at least one legal command. A unit with a second
 ## move pending gets only Wait, which ends that move ([constant UnitTurnCommand.Action.MOVE], or
-## a Wait where it stands). Attack lists each enemy, then each standing breakable in spot order,
-## each with every weapon accepted. Use lists each object usable from the path's end, with no item
-## or else the Pouch item (a key or lockpick). Rune, on the unit's own tile only, lists the runes
-## that can be cast on the unit ([method runes_for_unit]). Empty when it can't act.
+## a Wait where it stands). Attack lists each enemy, Demolish each standing breakable in spot
+## order, both with every weapon accepted. Use lists each object usable from the path's end, with
+## no item or the Pouch item (a key or lockpick). Rune, on the unit's own tile only, lists the
+## runes that can be cast on the unit ([method runes_for_unit]). Empty when it can't act.
 static func actions_at(
 		session: CombatSession, unit_id: String, path: Array[Vector2i]
 ) -> Array[ActionOption]:
@@ -380,22 +386,7 @@ static func actions_at(
 		return options
 	var unit: CombatUnitState = state.unit(unit_id)
 	var attack: ActionOption = ActionOption.new(ActionKind.ATTACK)
-	var weapons: PackedStringArray = [""]
-	if not unit.stowed_weapon_id.is_empty() and unit.stowed_weapon_id != unit.equipped_weapon_id:
-		weapons.append(unit.stowed_weapon_id)
-	for defender_id: String in _attack_candidates(state):
-		var found: TargetOption = null
-		for weapon_id: String in weapons:
-			var command: UnitTurnCommand = _turn(
-					session, unit_id, UnitTurnCommand.Action.ATTACK, defender_id, path, weapon_id
-			)
-			if command == null:
-				continue
-			if found == null:
-				found = _target(session, defender_id, command)
-				attack.targets.append(found)
-			else:
-				found.commands.append(command)
+	_fill_exchanges(session, unit_id, path, state.units_of(ENEMY), attack)
 	_add_targeted(options, attack)
 
 	var staff: ActionOption = ActionOption.new(ActionKind.STAFF)
@@ -411,6 +402,10 @@ static func actions_at(
 		if command != null:
 			staff.targets.append(_target(session, target_id, command))
 	_add_targeted(options, staff)
+
+	var demolish: ActionOption = ActionOption.new(ActionKind.DEMOLISH)
+	_fill_exchanges(session, unit_id, path, _breakables(state), demolish)
+	_add_targeted(options, demolish)
 
 	var item: ActionOption = ActionOption.new(ActionKind.ITEM)
 	if not unit.pouch_item_id.is_empty():
@@ -687,11 +682,39 @@ static func _fill_object_rune(session: CombatSession, seat: int, option: RuneOpt
 			option.targets.append(target)
 
 
-# Who an Attack is tried on: every enemy in state order, then every standing breakable (debris, a
-# powder keg) in spot order, the map objects ExchangeResolver takes as a defender. Enemies come
-# first so the first target stays a foe. The validator says which the unit can attack.
-static func _attack_candidates(state: CombatState) -> PackedStringArray:
-	var found: PackedStringArray = state.units_of(ENEMY)
+# Fills option's targets with each of defenders, in order, that unit_id can attack after walking
+# path: one target per defender, holding one command per weapon the session accepts (the one in
+# hand first, then the stowed one through Sidearm's free swap).
+static func _fill_exchanges(
+		session: CombatSession,
+		unit_id: String,
+		path: Array[Vector2i],
+		defenders: PackedStringArray,
+		option: ActionOption
+) -> void:
+	var unit: CombatUnitState = session.state.unit(unit_id)
+	var weapons: PackedStringArray = [""]
+	if not unit.stowed_weapon_id.is_empty() and unit.stowed_weapon_id != unit.equipped_weapon_id:
+		weapons.append(unit.stowed_weapon_id)
+	for defender_id: String in defenders:
+		var found: TargetOption = null
+		for weapon_id: String in weapons:
+			var command: UnitTurnCommand = _turn(
+					session, unit_id, UnitTurnCommand.Action.ATTACK, defender_id, path, weapon_id
+			)
+			if command == null:
+				continue
+			if found == null:
+				found = _target(session, defender_id, command)
+				option.targets.append(found)
+			else:
+				found.commands.append(command)
+
+
+# Every standing breakable (debris, a powder keg) in spot order: the map objects ExchangeResolver
+# takes as a defender, which Demolish is tried on. The validator says which the unit can reach.
+static func _breakables(state: CombatState) -> PackedStringArray:
+	var found: PackedStringArray = []
 	for placed: MapState.ObjectState in _standing_objects(state):
 		if MapObjects.BREAKABLE_STATS.has(placed.kind) and state.has_unit(placed.id):
 			found.append(placed.id)
@@ -794,8 +817,8 @@ class ActionOption:
 class TargetOption:
 	extends RefCounted
 
-	## The target's instance id: a unit's, or a map object's for Use, Spark and an attacked
-	## breakable (whose unit has the same id).
+	## The target's instance id: a unit's, or a map object's for Use, Spark and Demolish (a
+	## breakable's unit has its object's id).
 	var target_id: String = ""
 	## Its tile, where the cursor shows it.
 	var tile: Vector2i = CombatFact.NO_TILE
@@ -804,7 +827,7 @@ class TargetOption:
 	## The command sent when this target is confirmed: the first of [member commands]. Null for
 	## Recall's first unit, whose command is a partner's, and for a refused unit.
 	var command: Command = null
-	## Every command that aims the action here: for an attack, one per weapon the session accepts
+	## Every command that aims the action here: for an exchange, one per weapon the session accepts
 	## (the one in hand first, then the stowed one through Sidearm's free swap), which the forecast
 	## cycles; otherwise only [member command].
 	var commands: Array[Command] = []

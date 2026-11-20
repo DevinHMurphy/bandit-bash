@@ -226,21 +226,22 @@ extends HintSource
 #              target's tile opens the confirm for that target (CONFIRM); Recall's opens its
 #              partners (PAIR_TARGET). A rune's picker lists its refused units greyed, with why,
 #              after its targets; a click on any tile that isn't a target puts the rune's refusal
-#              in the message (TurnInputModel.rune_refusal). Spark's current keg, and an Attack's
+#              in the message (TurnInputModel.rune_refusal). Spark's current keg, and Demolish's
 #              current target when it is a powder keg, also draw the keg's whole chain of blasts
-#              (its preview's tiles). Attack lists enemies, then standing debris and kegs, which
-#              take marks, clicks and Q / E as units do. Cancel -> ACTION, or for a rune from
+#              (its preview's tiles). Attack lists only enemies; Demolish lists standing debris
+#              and kegs, which take marks, clicks and Q / E as units do, drawn red as Attack's.
+#              Cancel -> ACTION, or for a rune from
 #              the bar the stage the bar was used from (IDLE, MOVE or RUNE_SLOTS), cursor back.
 # PAIR_TARGET: Recall's second unit: as TARGET, on the first unit's partners, with the first unit
 #              outlined as picked (TargetMark.Spec.is_picked). A row, accept or a click on a
 #              partner opens the confirm (CONFIRM). Cancel -> TARGET, on the first unit; RUNE when
 #              the unit menu's Recall picked the unit itself.
-# CONFIRM:     Attack, Staff, Shove, Rune: the forecast panel (with forecast_panel_scene set),
+# CONFIRM:     Attack, Demolish, Staff, Shove, Rune: the forecast panel (forecast_panel_scene set),
 #              whose Confirm sends the command of the weapon shown; cycle_weapon and Next weapon
 #              move to the target's next weapon. While it is open the board flashes the HP and
 #              Stance its forecast predicts on every unit it changes, following each target and
 #              weapon change, cleared when it closes; a rune's also draws the tiles its cast acts
-#              on, Spark's chain included, and an attack's the blasts of every keg it sets off.
+#              on, Spark's chain included, and an exchange's the blasts of every keg it sets off.
 #              Item, or no forecast scene: the confirm dialog, whose
 #              Confirm sends the command. Q / E move to the next target and the panel follows; the
 #              outlines stay. Cancel or Back -> TARGET (PAIR_TARGET for Recall), on the target
@@ -1862,8 +1863,8 @@ func _forecast_model() -> ForecastViewModel:
 
 
 # Puts the cursor, the outlines and the picker's focus on the target list's current target, and
-# in CONFIRM shows it on the open panel. In TARGET, Spark's current keg, or an attacked keg, has
-# its chain of blasts redrawn.
+# in CONFIRM shows it on the open panel. In TARGET, Spark's current keg, or Demolish's, has its
+# chain of blasts redrawn.
 func _show_current_target() -> void:
 	if _targets == null or _targets.is_empty():
 		return
@@ -1875,7 +1876,7 @@ func _show_current_target() -> void:
 	if _stage == Stage.TARGET and _rune != null and _rune.target_kind == ContentIds.RUNE_OBJECT:
 		_target_preview = _forecast_model()
 		_redraw()
-	elif _stage == Stage.TARGET and _rune == null and _is_attack_on_keg():
+	elif _stage == Stage.TARGET and _rune == null and _is_demolishing_keg():
 		_target_preview = _forecast_model()
 		_redraw()
 	elif _stage == Stage.TARGET and _target_preview != null:
@@ -2348,9 +2349,9 @@ func _with_preview_tiles(target_tiles: Array[Vector2i]) -> Array[Vector2i]:
 	return tiles
 
 
-# Whether the chosen action is an Attack and its current target a standing powder keg.
-func _is_attack_on_keg() -> bool:
-	if _action == null or _action.kind != TurnInputModel.ActionKind.ATTACK or _targets == null:
+# Whether the chosen action is Demolish and its current target a standing powder keg.
+func _is_demolishing_keg() -> bool:
+	if _action == null or _action.kind != TurnInputModel.ActionKind.DEMOLISH or _targets == null:
 		return false
 	var target: TurnInputModel.TargetOption = _targets.current()
 	if target == null:
