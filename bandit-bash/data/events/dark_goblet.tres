@@ -1,0 +1,58 @@
+[gd_resource type="Resource" script_class="EventDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/events/event_definition.gd" id="1_def"]
+[ext_resource type="Script" path="res://scripts/events/event_option.gd" id="2_opt"]
+[ext_resource type="Script" path="res://scripts/events/event_outcome.gd" id="3_out"]
+[ext_resource type="Script" path="res://scripts/events/outcomes/stat_outcome.gd" id="4_stat"]
+[ext_resource type="Script" path="res://scripts/events/outcomes/item_modification_outcome.gd" id="5_mod"]
+[ext_resource type="Script" path="res://scripts/events/outcomes/item_grant_outcome.gd" id="6_grant"]
+[ext_resource type="Texture2D" path="res://assets/sprites/events/dark_goblet_background.png" id="20_art"]
+
+[sub_resource type="Resource" id="Resource_mgt"]
+script = ExtResource("4_stat")
+stat = 1
+amount = 2
+
+[sub_resource type="Resource" id="Resource_max_hp"]
+script = ExtResource("4_stat")
+stat = 0
+amount = -4
+
+[sub_resource type="Resource" id="Resource_drink"]
+script = ExtResource("2_opt")
+title = "Drink Deep"
+text = "A chosen unit gains +2 MGT and loses 4 max HP, permanently."
+outcomes = Array[ExtResource("3_out")]([SubResource("Resource_mgt"), SubResource("Resource_max_hp")])
+
+[sub_resource type="Resource" id="Resource_infusion"]
+script = ExtResource("5_mod")
+effect_ids = PackedStringArray("goblet_infusion")
+stat_deltas = Dictionary[int, float]({
+1: 2.0
+})
+
+[sub_resource type="Resource" id="Resource_infuse"]
+script = ExtResource("2_opt")
+title = "Infuse"
+text = "A chosen weapon gains \"Hit dealt: heal 2\" and +2 weight."
+outcomes = Array[ExtResource("3_out")]([SubResource("Resource_infusion")])
+
+[sub_resource type="Resource" id="Resource_goblet"]
+script = ExtResource("6_grant")
+item_id = "cleansed_goblet"
+
+[sub_resource type="Resource" id="Resource_pour"]
+script = ExtResource("2_opt")
+title = "Pour It Away"
+text = "Gain the Cleansed Goblet."
+outcomes = Array[ExtResource("3_out")]([SubResource("Resource_goblet")])
+
+; ASSUMPTION: the scene text is Godot_FE's dark_goblet.tres description with its BBCode removed
+; (the event screen shows plain text).
+[resource]
+script = ExtResource("1_def")
+id = "dark_goblet"
+title = "Dark Goblet"
+text = "A goblet is resting on a stone pedestal, its surface pulsing with a faint crimson glow. As you draw near, a whisper curls through the air like smoke: “One sip, and strength beyond mortal limits will be yours.”"
+art = ExtResource("20_art")
+options = Array[ExtResource("2_opt")]([SubResource("Resource_drink"), SubResource("Resource_infuse"), SubResource("Resource_pour")])

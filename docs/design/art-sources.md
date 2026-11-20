@@ -225,3 +225,22 @@ UL8's heirloom placeholders stay. Godot_FE icons no item uses that would fit, fo
 | Brittle Guard | `items/equipment/ironwood_fragment.png` |
 | Shaken Footing, Leaden Boots | `items/equipment/bounce_boots.png` |
 | Others | `items/equipment/gale_feather`, `runed_quartz`, `shadecap_band`, `bridge_support`; `stat_boosters/strength/power_rune`; `items/treasure/spices` |
+
+## Event art
+
+`assets/sprites/events/`, set as each event's `art` ([events.md](events.md)). All 384 × 256, copied
+under their Godot_FE names from `events/`, each the background its Godot_FE event used (P09 EV4,
+decision 50). Bandit Toll, Cursed Hoard, Mercenary Camp and The Black Altar have no Godot_FE
+scene, so no art: the event screen shows its placeholder.
+
+| Event | File | Basis |
+|-------|------|-------|
+| `broken_shrine_of_valor` | `broken_shrine_of_valor_background.png` | name |
+| `cavern_of_echoing_steel` | `cavern_of_echoing_steel_background.png` | name |
+| `clockwork_hermit` | `clockwerk_hermit_background.png` | Godot_FE event's file |
+| `dark_goblet` | `dark_goblet_background.png` | name |
+| `festival_of_embers` | `festival_of_embers_background.png` | name |
+| `frozen_armory` | `frozen_armory_background.png` | name |
+| `ghastly_library` | `whispering_library_background.png` | Godot_FE event's file |
+| `mirror_of_doubt` | `mirror_of_doubt_background.png` | name |
+| `whispering_oak` | `whispering_oak_background.png` | name |
