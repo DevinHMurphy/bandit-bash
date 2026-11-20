@@ -35,14 +35,19 @@ extends RefCounted
 ##
 ## @tutorial(Enemies and AI plan): docs/plans/2026-10-30-enemies-and-ai.md
 ##
-## @todo: TOD-001 [MEDIUM] - The move preview meets its 50 ms target on M1 (P05 question 10;
-## per hover on M1 turn 1: 17-18 ms median and 33-40 ms p95 in debug on a worker thread, 14 ms
-## median in release on the main thread), but its cost grows with enemies × attack options
-## (~1.9 ms each), so it is re-architected before larger maps: see the orchestrator's design item
-## 'Re-architect the move preview'.
+## @todo: TOD-001 [MEDIUM] - The move preview meets its 50 ms target only on M1: per hover in
+## debug on a worker thread, median / p95, M1 turn 1 18 / 29 ms, M1 engaged 28 / 46 ms, the
+## 9-enemy key board 205 / 300 ms, the boss board 618 / 970 ms (release 13 / 25, 24 / 40,
+## 156 / 226, 449 / 707). Attack forecasts are reused; most of the rest is decisions re-made at
+## every step, which move-preview.md's zones and sweep (layers 3 to 5) take on.
 
 ## The text a checking-mode difference starts with in [member diagnostics].
 const CHECK_PREFIX: String = "check: "
+
+# How many attack forecasts previews may add to the latest intents' store, for later previews to
+# reuse, the oldest dropped first: about 60 to 90 MB in debug on the 9-enemy bench boards, kept
+# until the next fact. The computation's own are kept besides.
+const _PREVIEW_FORECASTS: int = 2000
 
 ## Checking mode, as [member EffectEngine.verify] is for stat sheets: a preview also decides
 ## afresh every decision it keeps from the latest intents, and reports each that differs in
@@ -70,9 +75,14 @@ var moved_to: Vector2i = CombatFact.NO_TILE
 ## Enemy decisions ([method EnemyAI.decide]) this computation made; a preview reuses the rest.
 var decisions: int = 0
 
-## Kept decisions that checking mode ([member is_checking]) decided afresh and compared; 0 when it
-## is off. Not counted in [member decisions].
+## Kept decisions and reused attack forecasts that checking mode ([member is_checking]) made afresh
+## and compared; 0 when it is off. Not counted in [member decisions].
 var checked: int = 0
+
+## Attack forecasts this computation's decisions reused from its store ([EnemyAI.ForecastStore]),
+## and made afresh.
+var forecasts_reused: int = 0
+var forecasts_made: int = 0
 
 ## The sandbox's diagnostics, for the main thread to log.
 var diagnostics: PackedStringArray = []
@@ -98,6 +108,10 @@ var _ends_of: Dictionary[String, Dictionary] = {}
 # Each effect definition's positional reach (_reach_in), filled as margins are taken: definitions
 # are read-only at runtime, so a reach never changes. Main thread only.
 var _reaches: Dictionary[EffectDefinition, int] = {}
+
+# The attack forecasts compute made, which every preview built on these intents reuses and adds
+# to; dropped with them, when a fact makes them stale.
+var _forecasts: EnemyAI.ForecastStore = null
 
 
 ## The intent of [param unit_id]; null for an enemy that doesn't act (one defeated first).
@@ -154,16 +168,30 @@ static func compute(session: CombatSession, catalog: EffectCatalog.Index) -> Int
 	found._signatures = _signatures_fired(sandbox.engine, catalog, crossed_from)
 	var no_move: Array[Vector2i] = []
 	var margin: int = _effect_margin(sandbox.engine, found._reaches)
-	_play(found, sandbox.engine, EnemyAI.flooded_tiles(session.state), null, no_move, margin)
+	found._forecasts = EnemyAI.ForecastStore.new(_PREVIEW_FORECASTS)
+	var forecasts: EnemyAI.Forecasts = EnemyAI.Forecasts.new(
+			found._forecasts, margin, is_checking and OS.is_debug_build(), true
+	)
+	_play(
+			found,
+			sandbox.engine,
+			EnemyAI.flooded_tiles(session.state),
+			null,
+			no_move,
+			margin,
+			false,
+			forecasts
+	)
+	_take_forecasts(found, sandbox.engine, forecasts)
 	found.diagnostics = sandbox.engine.diagnostics
 	return found
 
 
-# TODO(TOD-001): [MEDIUM] The move preview meets its 50 ms target on M1 (P05 question 10;
-# per hover on M1 turn 1: 17-18 ms median and 33-40 ms p95 in debug on a worker thread, 14 ms
-# median in release on the main thread), but its cost grows with enemies × attack options
-# (~1.9 ms each), so it is re-architected before larger maps: see the orchestrator's design item
-# 'Re-architect the move preview'.
+# TODO(TOD-001): [MEDIUM] The move preview meets its 50 ms target only on M1: per hover in
+# debug on a worker thread, median / p95, M1 turn 1 18 / 29 ms, M1 engaged 28 / 46 ms, the
+# 9-enemy key board 205 / 300 ms, the boss board 618 / 970 ms (release 13 / 25, 24 / 40,
+# 156 / 226, 449 / 707). Attack forecasts are reused; most of the rest is decisions re-made at
+# every step, which move-preview.md's zones and sweep (layers 3 to 5) take on.
 ## The intents if player unit [param unit_id] moved to [param tile] now, before any action, built
 ## on [member CombatSession.intents] (computed afresh first when stale, not stored). The latest
 ## intents for the unit's own tile; null when nothing keeps intents on [param session], or the unit
@@ -224,6 +252,7 @@ static func prepare_preview(session: CombatSession, unit_id: String, tile: Vecto
 	job._touched = [origin, tile]
 	job._margin = _effect_margin(engine, base._reaches)
 	job._is_checking = is_checking and OS.is_debug_build()
+	job._forecasts = base._forecasts
 	return job
 
 
@@ -231,6 +260,7 @@ static func prepare_preview(session: CombatSession, unit_id: String, tile: Vecto
 # decides them, then the best carried out. With base, each enemy decision base made at that step
 # is kept while none of touched lies in its options, until a plan other than base's acts. margin:
 # _effect_margin of engine as it starts. checking: also decide each kept one afresh (_check_kept).
+# forecasts: the attack forecasts every decision reuses and adds to, across steps.
 # Pure on engine: PreviewJob.run calls it on a worker.
 static func _play(
 		found: Intents,
@@ -239,7 +269,8 @@ static func _play(
 		base: Intents,
 		touched: Array[Vector2i],
 		margin: int,
-		checking: bool = false
+		checking: bool = false,
+		forecasts: EnemyAI.Forecasts = null
 ) -> void:
 	var state: CombatState = engine.state
 	var is_reusing: bool = base != null and margin >= 0
@@ -262,7 +293,13 @@ static func _play(
 					_check_kept(found, engine, unit_id, step, decision, flooded, margin)
 			if decision == null:
 				decision = _decide(
-						engine, found._catalog, unit_id, flooded, margin, found._objective
+						engine,
+						found._catalog,
+						unit_id,
+						flooded,
+						margin,
+						found._objective,
+						forecasts
 				)
 				found.decisions += 1
 			round_of.decisions[unit_id] = decision
@@ -294,8 +331,9 @@ static func _play(
 
 
 # Checking mode for one decision kept at step: decides unit_id afresh on engine, as a preview
-# would without reuse, and adds a CHECK_PREFIX line to engine's diagnostics when the plans differ
-# (_plan_text). Counts it in found.checked, never in found.decisions; changes no result.
+# would without reuse (no kept forecasts either), and adds a CHECK_PREFIX line to engine's
+# diagnostics when the plans differ (_plan_text). Counts it in found.checked, never in
+# found.decisions; changes no result.
 static func _check_kept(
 		found: Intents,
 		engine: EffectEngine,
@@ -315,6 +353,18 @@ static func _check_kept(
 		engine.diagnostics.append("%sstep %d, %s kept [%s], a re-plan gives [%s]" % [
 			CHECK_PREFIX, step, unit_id, was, now,
 		])
+
+
+# Takes forecasts' counts into found, and each forecast checking mode found changed into engine's
+# diagnostics as a CHECK_PREFIX line.
+static func _take_forecasts(
+		found: Intents, engine: EffectEngine, forecasts: EnemyAI.Forecasts
+) -> void:
+	found.forecasts_reused = forecasts.reused
+	found.forecasts_made = forecasts.made
+	found.checked += forecasts.checked
+	for mismatch: String in forecasts.mismatches:
+		engine.diagnostics.append("%sforecast %s" % [CHECK_PREFIX, mismatch])
 
 
 # plan as one line holding everything a re-plan must reproduce: its kind, target, weapon, path,
@@ -338,16 +388,18 @@ static func _plan_text(plan: EnemyPlan) -> String:
 
 # unit_id's decision on engine's board, with the tiles a moved player unit would have to touch to
 # change it. objective: the tiles the player side must reach (EnemyAI.objective_tiles).
+# forecasts: the attack forecasts it may reuse; null makes each afresh.
 static func _decide(
 		engine: EffectEngine,
 		catalog: EffectCatalog.Index,
 		unit_id: String,
 		flooded: Dictionary[Vector2i, bool],
 		margin: int,
-		objective: Array[Vector2i]
+		objective: Array[Vector2i],
+		forecasts: EnemyAI.Forecasts = null
 ) -> Decision:
 	var decision: Decision = Decision.new()
-	decision.plan = EnemyAI.decide(engine, catalog, unit_id, flooded, objective)
+	decision.plan = EnemyAI.decide(engine, catalog, unit_id, flooded, objective, forecasts)
 	var plan: EnemyPlan = decision.plan
 	if plan.kind == EnemyPlan.Kind.WAIT and plan.target_rule_id.is_empty():
 		return decision
@@ -647,20 +699,31 @@ class PreviewJob:
 	var _margin: int = 0
 	# Intents.is_checking in a debug build when prepare_preview built the job.
 	var _is_checking: bool = false
+	# The base intents' attack forecasts, reused and added to (a locked store).
+	var _forecasts: EnemyAI.ForecastStore = null
 
 	## The previewed intents, re-planning the enemies on the first call; later calls return the
 	## same. Pure rules code on the job's own sandbox, reading only the base intents and content
 	## definitions: no session, node, autoload or log, so it may run on a worker thread, one call
-	## at a time. The sandbox's diagnostics are in [member Intents.diagnostics].
+	## at a time. It reuses the base's forecasts and adds its own to them as it ends (a locked
+	## store). The sandbox's diagnostics are in [member Intents.diagnostics].
 	func run() -> Intents:
 		if _found == null:
 			return _result
-		Intents._play(_found, _engine, _flooded, _base, _touched, _margin, _is_checking)
+		var forecasts: EnemyAI.Forecasts = EnemyAI.Forecasts.new(
+				_forecasts, _margin, _is_checking
+		)
+		Intents._play(
+				_found, _engine, _flooded, _base, _touched, _margin, _is_checking, forecasts
+		)
+		forecasts.add_overlay_to_store()
+		Intents._take_forecasts(_found, _engine, forecasts)
 		_found.diagnostics = _engine.diagnostics
 		_result = _found
 		_found = null
 		_engine = null
 		_base = null
+		_forecasts = null
 		return _result
 
 

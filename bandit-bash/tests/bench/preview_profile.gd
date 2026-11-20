@@ -15,16 +15,30 @@ extends RefCounted
 ## Each is timed whole ([method Intents.prepare_preview], then [method Intents.PreviewJob.run]),
 ## then its preparation is rebuilt phase by phase with the same calls (sandbox copy, walk, danger
 ## zone, phase crossing) and, on the crossed board, every enemy's first-round decision is timed
-## with its parts: the two floods of its board, each attack forecast it would weigh, and the flood
-## of its reuse zone. A decision's forecasts are counted and timed by enumerating its options as
-## [method EnemyAI.decide] does, outside it, so the parts are estimates that a remainder line
-## balances. Measures only.
+## with no forecast cache, with its parts: its board's two floods, each attack forecast it weighs,
+## its reuse zone's flood. Forecasts are counted and timed by enumerating the options as
+## [method EnemyAI.decide] does, outside it, so the parts are estimates a remainder balances. Every
+## [constant PARTS_EVERY]th hover takes each of those forecasts apart step by step. Measures only.
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
 
 # Hovers profiled per board, spread evenly over every move tile but the units' own.
 const SAMPLES: int = 24
+
+# One profiled hover in this many also takes every attack forecast of its first round apart
+# (_take_apart), which repeats each forecast once more: SAMPLES / PARTS_EVERY hovers per board.
+const PARTS_EVERY: int = 8
+
+# The steps of one forecast, in the order CombatForecast runs them.
+const PARTS: Array[String] = [
+	"state copy (CombatState.copy_for_sandbox)",
+	"engine copy (instances, sheets, run state)",
+	"outcomes before, recorder",
+	"walk the path",
+	"exchange (swap, resolve, drain)",
+	"outcomes after",
+]
 
 # Behaviors whose decision weighs every attack in reach (EnemyAI.decide: Aggressive, Skirmisher,
 # Hold, and Guard through its attacks).
@@ -45,6 +59,17 @@ var _phases: Dictionary[String, int] = {}
 var _classes: Dictionary[String, PackedInt64Array] = {}
 var _decisions: int = 0
 var _hovers: int = 0
+# Attack forecasts the profiled previews made afresh, and reused from the latest intents' store.
+var _made: int = 0
+var _reused: int = 0
+
+# Each forecast taken apart: the sums of its PARTS, in microseconds; how many; their facts; and
+# the instances and units on the boards they ran on.
+var _parts: Dictionary[String, int] = {}
+var _parted: int = 0
+var _parted_facts: int = 0
+var _parted_instances: int = 0
+var _parted_units: int = 0
 
 
 func _init(session: CombatSession, catalog: EffectCatalog.Index) -> void:
@@ -54,15 +79,17 @@ func _init(session: CombatSession, catalog: EffectCatalog.Index) -> void:
 
 ## Profiles the samples and prints the per-phase table and the per-class decision table.
 func run() -> void:
-	for sample: Array in _samples():
-		var unit_id: String = sample[0]
-		var tile: Vector2i = sample[1]
-		_profile_hover(unit_id, tile)
+	var samples: Array[Array] = _samples()
+	for index: int in samples.size():
+		var unit_id: String = samples[index][0]
+		var tile: Vector2i = samples[index][1]
+		_profile_hover(unit_id, tile, index % PARTS_EVERY == 0)
 	if _hovers == 0:
 		print("\n-- Profile: no hover to profile --")
 		return
 	_print_phases()
 	_print_classes()
+	_print_parts()
 
 
 # SAMPLES (unit id, tile) pairs at even steps through every acting unit's move tiles in turn,
@@ -83,7 +110,8 @@ func _samples() -> Array[Array]:
 	return picked
 
 
-func _profile_hover(unit_id: String, tile: Vector2i) -> void:
+# One hover whole, then its phases; with takes_parts, every first-round forecast taken apart too.
+func _profile_hover(unit_id: String, tile: Vector2i, takes_parts: bool) -> void:
 	var started: int = Time.get_ticks_usec()
 	var job: Intents.PreviewJob = Intents.prepare_preview(_session, unit_id, tile)
 	_add("prepare", Time.get_ticks_usec() - started)
@@ -94,6 +122,8 @@ func _profile_hover(unit_id: String, tile: Vector2i) -> void:
 		return
 	_hovers += 1
 	_decisions += found.decisions
+	_made += found.forecasts_made
+	_reused += found.forecasts_reused
 	var path: Array[Vector2i] = EnemyAI.Board.new(_session.engine, unit_id, {}).path_to(tile)
 	started = Time.get_ticks_usec()
 	var sandbox: Sandbox = Sandbox.new(_session.engine, ForecastRolls.new())
@@ -113,6 +143,8 @@ func _profile_hover(unit_id: String, tile: Vector2i) -> void:
 	PhaseRunner.cross_to_enemy_phase(_session, engine)
 	_add("cross", Time.get_ticks_usec() - started)
 	_profile_enemies(engine)
+	if takes_parts:
+		_parts_of_round(engine)
 
 
 # Every enemy's first-round decision on engine, the crossed board, with its parts.
@@ -154,10 +186,70 @@ func _behavior_of(state: CombatState, enemy_id: String) -> EnemyClassDefinition.
 	return definition.behavior
 
 
-# Each attack forecast board's enemy weighs, as EnemyAI's attacks enumerate them: each weapon that
-# attacks, each end tile, each player unit or unbroken keg in range. Returns (forecasts, their
-# total time in microseconds).
-func _time_forecasts(engine: EffectEngine, board: EnemyAI.Board) -> Vector2i:
+# Every attack forecast each attacking enemy on engine weighs in its first-round decision, each
+# taken apart (_take_apart).
+func _parts_of_round(engine: EffectEngine) -> void:
+	var state: CombatState = engine.state
+	var flooded: Dictionary[Vector2i, bool] = EnemyAI.flooded_tiles(_session.state)
+	for enemy_id: String in state.units_of(ENEMY):
+		if state.unit(enemy_id).has_acted or not ATTACKERS.has(_behavior_of(state, enemy_id)):
+			continue
+		var board: EnemyAI.Board = EnemyAI.Board.new(engine, enemy_id, flooded)
+		for command: UnitTurnCommand in _attack_commands(board):
+			_take_apart(engine, command)
+
+
+# One attack forecast rebuilt step by step with CombatForecast's own calls (_simulate, without
+# breakdowns), each step timed into _parts. The state copy is timed alone first, then again inside
+# the whole sandbox copy, whose remainder is the engine's own copy.
+func _take_apart(engine: EffectEngine, command: UnitTurnCommand) -> void:
+	var started: int = Time.get_ticks_usec()
+	engine.state.copy_for_sandbox()
+	var state_copy: int = Time.get_ticks_usec() - started
+	_part(PARTS[0], state_copy)
+	started = Time.get_ticks_usec()
+	var trial: EffectEngine = Sandbox.new(engine, ForecastRolls.new()).engine
+	_part(PARTS[1], Time.get_ticks_usec() - started - state_copy)
+	var state: CombatState = trial.state
+	var actor: String = command.actor_id
+	started = Time.get_ticks_usec()
+	var before: Array[CombatForecast.UnitOutcome] = []
+	for unit_id: String in state.unit_ids():
+		before.append(CombatForecast.UnitOutcome.before(state, unit_id))
+	var recorder: CombatForecast.Recorder = CombatForecast.Recorder.new(
+			trial, actor, command.target_id, false
+	)
+	trial.add_context_observer(recorder.observe)
+	_part(PARTS[2], Time.get_ticks_usec() - started)
+	started = Time.get_ticks_usec()
+	trial.begin_step()
+	UnitTurnCommand.walk_path(trial, state, actor, command.path)
+	_part(PARTS[3], Time.get_ticks_usec() - started)
+	started = Time.get_ticks_usec()
+	if not command.weapon_id.is_empty() and command.weapon_id != state.equipped_weapon_id(actor):
+		WeaponSwap.resolve(trial, state, actor, true)
+	ExchangeResolver.resolve(trial, state, actor, command.target_id)
+	trial.drain()
+	_part(PARTS[4], Time.get_ticks_usec() - started)
+	started = Time.get_ticks_usec()
+	for outcome: CombatForecast.UnitOutcome in before:
+		outcome.finish(state)
+	_part(PARTS[5], Time.get_ticks_usec() - started)
+	_parted += 1
+	_parted_facts += trial.fact_log.size()
+	_parted_instances += engine.get_instances().size()
+	_parted_units += engine.state.unit_ids().size()
+
+
+func _part(part: String, spent: int) -> void:
+	var total: int = _parts.get(part, 0)
+	_parts[part] = total + spent
+
+
+# Every attack command board's enemy weighs, as EnemyAI's attacks enumerate them: each weapon that
+# attacks, each end tile, each player unit or unbroken keg in range.
+func _attack_commands(board: EnemyAI.Board) -> Array[UnitTurnCommand]:
+	var commands: Array[UnitTurnCommand] = []
 	var state: CombatState = board.state
 	var holder: CombatUnitState = state.unit(board.unit_id)
 	var weapon_ids: Array[String] = [holder.equipped_weapon_id, holder.stowed_weapon_id]
@@ -165,13 +257,11 @@ func _time_forecasts(engine: EffectEngine, board: EnemyAI.Board) -> Vector2i:
 	for keg: MapState.ObjectState in state.map.objects_of(MapLayout.ObjectKind.POWDER_KEG):
 		if not keg.is_destroyed:
 			targets.append(keg.id)
-	var count: int = 0
-	var spent: int = 0
 	for order: int in weapon_ids.size():
 		var held: CombatState.WeaponStats = state.weapon(weapon_ids[order])
 		if held == null or (held.is_staff() and held.staff != CombatState.WeaponStats.Staff.ATTACK):
 			continue
-		var span: Vector2i = ExchangeResolver.weapon_range(engine, board.unit_id, held.id)
+		var span: Vector2i = ExchangeResolver.weapon_range(board.engine, board.unit_id, held.id)
 		for tile: Vector2i in board.reach:
 			var path: Array[Vector2i] = board.path_to(tile)
 			for target: String in targets:
@@ -183,10 +273,20 @@ func _time_forecasts(engine: EffectEngine, board: EnemyAI.Board) -> Vector2i:
 				)
 				if order == 1:
 					command.weapon_id = held.id
-				var started: int = Time.get_ticks_usec()
-				CombatForecast.exchange(engine, command, ForecastRolls.new(), false)
-				spent += Time.get_ticks_usec() - started
-				count += 1
+				commands.append(command)
+	return commands
+
+
+# Each attack forecast board's enemy weighs (_attack_commands). Returns (forecasts, their total
+# time in microseconds).
+func _time_forecasts(engine: EffectEngine, board: EnemyAI.Board) -> Vector2i:
+	var count: int = 0
+	var spent: int = 0
+	for command: UnitTurnCommand in _attack_commands(board):
+		var started: int = Time.get_ticks_usec()
+		CombatForecast.exchange(engine, command, ForecastRolls.new(), false)
+		spent += Time.get_ticks_usec() - started
+		count += 1
 	return Vector2i(count, spent)
 
 
@@ -235,11 +335,13 @@ func _print_phases() -> void:
 	_line("  phase crossing (Phase End, enemy Phase Start)", _mean("cross"), whole)
 	_line("  the rest (path, checks, signatures, margin)", prepare - parts, whole)
 	_line("PreviewJob.run (worker in play)", job, whole)
-	var first: float = _mean("round1")
-	_line("  first round: every enemy decides (%.0f each)" % [decide], first, whole)
-	_line("  later rounds, zones, carrying out (%.1f decisions in all)" % [decisions], (
-			job - first
-	), whole)
+	print("  %.1f decisions; attack forecasts made %.1f, reused %.1f (the store as the sweep" % [
+		decisions, _made / hovers, _reused / hovers,
+	] + " left it)")
+	# Timed outside the preview, with no forecast reused: what one round costs without the cache.
+	print("Reference: every enemy's first-round decision with no cache, %.0f each, %.0f in all" % [
+		decide, _mean("round1"),
+	])
 
 
 func _print_classes() -> void:
@@ -265,6 +367,24 @@ func _print_classes() -> void:
 	print("decide: the whole decision; floods: its board's reach and walk; forecasts: counted per")
 	print("decision, each timed; rest: decide less floods and forecasts (rating, staves, safety")
 	print("floods); zone: the reuse zone's flood, outside decide.")
+
+
+func _print_parts() -> void:
+	if _parted == 0:
+		return
+	var count: float = float(_parted)
+	var whole: float = 0.0
+	for part: String in PARTS:
+		var spent: int = _parts.get(part, 0)
+		whole += spent / count
+	print("\n-- Profile: one attack forecast taken apart, mean over %d --" % [_parted])
+	for part: String in PARTS:
+		var spent: int = _parts.get(part, 0)
+		_line(part, spent / count, whole)
+	_line("forecast (the parts' sum)", whole, whole)
+	print("Per forecast: %.1f facts; the board held %.1f effect instances and %.1f units" % [
+		_parted_facts / count, _parted_instances / count, _parted_units / count,
+	])
 
 
 func _mean_decide() -> float:

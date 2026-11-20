@@ -6,7 +6,7 @@
 # File:     effect_engine.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 15, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name EffectEngine
@@ -1120,9 +1120,10 @@ func _follow_attack(attacker_id: String) -> void:
 # key (its index among the definition's operations).
 func _follow_modifier_gained(fact: CombatFact) -> void:
 	var instance: EffectInstance = get_instance(fact.source_effect_id)
-	var operations: Array[EffectOperation] = (
-			[] if instance == null else instance.definition.operations
-	)
+	# Typed, not a bare [] in a ternary: an untyped Array fails Array[EffectOperation] at runtime.
+	var operations: Array[EffectOperation] = []
+	if instance != null:
+		operations = instance.definition.operations
 	var operation: AddTimedModifier = (
 			operations[fact.key] as AddTimedModifier
 			if fact.key >= 0 and fact.key < operations.size() else null

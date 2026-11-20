@@ -15,7 +15,8 @@ extends RefCounted
 ## unit can end its move on is previewed ([method Intents.preview], checking mode on) and re-planned
 ## in full ([method Intents.compute] on a copy with the unit walked there). Each intent's enemy,
 ## kind, target, tile, order, path, weapon, area, kills and forecast must match, so must the danger
-## zone, and checking mode must find no kept decision a re-plan changes. Then checking mode itself:
+## zone, and checking mode must find no kept decision or reused attack forecast changed, in the
+## preview or the re-plan, which reuses forecasts across its own steps. Then checking mode itself:
 ## it reports a kept decision made stale behind the intents' back, and changes no result. New
 ## content joins the draw on its own. Reports each case through the check callable it is given.
 ##
@@ -108,6 +109,8 @@ func _test_random_boards() -> void:
 	Intents.is_checking = true
 	var kept_total: int = 0
 	var tiles_total: int = 0
+	var reused_total: int = 0
+	var made_total: int = 0
 	for board: int in BOARDS:
 		var board_seed: int = BASE_SEED + board
 		var world: AiWorld = _board(board_seed)
@@ -133,9 +136,15 @@ func _test_random_boards() -> void:
 				var expected: String = _intents_text(full)
 				if mismatch.is_empty() and seen != expected:
 					mismatch = "%s to %s: preview %s / full %s" % [unit_id, tile, seen, expected]
-				if preview != null:
-					checked += preview.checked
-					var flags: String = _check_lines(preview)
+				# The full re-plan reuses forecasts across its own steps, so checking mode checks
+				# it too.
+				for shown: Intents in [preview, full]:
+					if shown == null:
+						continue
+					checked += shown.checked
+					reused_total += shown.forecasts_reused
+					made_total += shown.forecasts_made
+					var flags: String = _check_lines(shown)
 					if flagged.is_empty() and not flags.is_empty():
 						flagged = "%s to %s: %s" % [unit_id, tile, flags]
 		kept_total += checked
@@ -144,13 +153,16 @@ func _test_random_boards() -> void:
 		_check.call("equality: %s, %d tiles, every preview equals a full re-plan" % [
 			about, tiles,
 		], tiles > 0 and mismatch.is_empty(), mismatch)
-		_check.call("equality: %s, checking mode finds none of %d kept decisions changed" % [
+		_check.call("equality: %s, checking mode finds none of %d kept decisions and reused" % [
 			about, checked,
-		], flagged.is_empty(), flagged)
+		] + " forecasts changed", flagged.is_empty(), flagged)
 	Intents.is_checking = false
 	_check.call("equality: previews kept decisions and checking mode checked them", (
 			kept_total > 0
-	), "%d tiles, %d kept decisions checked" % [tiles_total, kept_total])
+	), "%d tiles, %d kept decisions and reused forecasts checked" % [tiles_total, kept_total])
+	_check.call("equality: the previews and re-plans reused attack forecasts", (
+			reused_total > 0
+	), "%d reused, %d made" % [reused_total, made_total])
 
 
 # A far move keeps the Brute's decision to strike p1; p1 then drops to 1 HP with no fact, so the
