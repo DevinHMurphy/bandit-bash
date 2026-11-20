@@ -6,7 +6,7 @@
 # File:     leave_node_command.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name LeaveNodeCommand
@@ -16,8 +16,9 @@ extends CampaignCommand
 ##
 ## Valid only inside a node, and only once every seat has settled what the node waits on: at a
 ## combat's results its [ItemPick] and a Key combat's [KeyHeirloom]; at a Treasure its rolled
-## [TreasureChest]; at a Camp its choice ([Camp]). It runs no node rules: each node's screen
-## settles them and then sends it. Leaving clears those offers from every seat's pending offers.
+## [TreasureChest]; at a Camp its choice ([Camp]); an Armory never waits. It runs no node rules:
+## each node's screen settles them and then sends it. Leaving clears those offers from every
+## seat's pending offers, and the Armory's [ArmoryStock] from the run's shop stock.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 
@@ -57,6 +58,7 @@ func resolve(run: CampaignRunState) -> void:
 			offers.erase(KeyHeirloom.OFFER_KEY)
 		offers.erase(TreasureChest.OFFER_KEY)
 		offers.erase(Camp.OFFER_KEY)
+	run.flow.shop_stock.erase(ArmoryStock.OFFER_KEY)
 	run.flow.stage = RunFlow.Stage.MAP
 	var left: CampaignFact = CampaignFact.new(CampaignFact.Kind.NODE_LEFT, seat)
 	left.amount = run.node

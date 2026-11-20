@@ -6,7 +6,7 @@
 # File:     fact_cue_map.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name FactCueMap
@@ -14,8 +14,9 @@ extends Resource
 ## Which cue a played fact sounds, as data: one line of [member cues] per rule.
 ##
 ## A key is a fact kind's name, [code]"HIT_DEALT"[/code], or a kind and a [enum Shape],
-## [code]"HIT_DEALT/no_damage"[/code]; its value is a cue id, or [code]music:<moment>[/code] for
-## the service's battle music ([MusicCueMap]). A fact sounds at most one rule: its kind's first
+## [code]"HIT_DEALT/no_damage"[/code]; its value is a cue id, [code]music:<moment>[/code] for
+## the service's battle music ([MusicCueMap]), or empty to keep the facts it matches silent
+## ([constant SILENT]). A fact sounds at most one rule: its kind's first
 ## matching shape in [enum Shape] order, [code]any[/code] (the bare kind) last. Read by
 ## [FactCueListener]; [method compile] reports keys that name no kind or shape.
 ## Lives in [code]res://data/audio/maps/[/code]: one map for [CombatFact], one for [CampaignFact].
@@ -53,6 +54,9 @@ enum Shape {
 	## [code]treasure[/code]: a campaign fact whose [member CampaignFact.amount] is a Treasure
 	## node, such as [code]NODE_CHOSEN[/code].
 	TREASURE_NODE = 7,
+	## [code]bought[/code]: a campaign fact carrying [constant CampaignFact.FLAG_BOUGHT], a
+	## purchase's [code]GAINED[/code], which its [code]ITEM_BOUGHT[/code] already sounds.
+	BOUGHT = 8,
 }
 
 ## The [enum CampaignGraph.NodeType]s a [code]combat[/code] rule matches: the nodes that open a
@@ -66,6 +70,10 @@ const COMBAT_NODE_TYPES: Array[CampaignGraph.NodeType] = [
 ## The prefix of a value naming a battle music moment instead of a cue id.
 const MUSIC_PREFIX: String = "music:"
 
+## A rule's value that sounds nothing: the facts it matches stay silent instead of falling
+## through to the bare kind's rule.
+const SILENT: String = ""
+
 # Each shape's word in a key, after the "/".
 const _SHAPE_WORDS: Dictionary[String, Shape] = {
 	"no_damage": Shape.NO_DAMAGE,
@@ -75,6 +83,7 @@ const _SHAPE_WORDS: Dictionary[String, Shape] = {
 	"enemy_side": Shape.ENEMY_SIDE,
 	"combat": Shape.COMBAT_NODE,
 	"treasure": Shape.TREASURE_NODE,
+	"bought": Shape.BOUGHT,
 }
 
 ## Which kinds the keys name.

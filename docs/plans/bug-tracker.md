@@ -53,6 +53,7 @@ Not a bug.
 | [BUG-018](#bug-018-fact-playback-holds-the-next-batch-for-the-last-facts-full-wait) | Fact playback holds the next batch for the last fact's full wait | P07 (playback) | S3 | Fixed (BF3 merge, November 19, 2026) | November 19, 2026, UL6 report | BF3 |
 | [BUG-019](#bug-019-player-units-cant-attack-breakable-map-objects) | Player units can't attack breakable map objects (debris, powder kegs) | P07 (target list) | S2 | Fixed (BF4 merge, November 20, 2026) | November 19, 2026, user | BF4 |
 | [BUG-020](#bug-020-a-broken-breakables-token-stayed-on-the-board) | A broken breakable's token stayed on the board | P07 (board) | S3 | Fixed (BF4 merge, November 20, 2026) | November 19, 2026, BF4 report | BF4 |
+| [BUG-021](#bug-021-an-infused-basic-weapon-scraps-for-0-gold) | An Infused Basic weapon scraps (and trades in) for 0 gold | P08 (prices) | S3 | Open (unconfirmed) | November 20, 2026, RN8 report | to confirm; then a small fix step |
 
 ### BUG-001 No Block at the start of combat
 
@@ -337,3 +338,13 @@ Not a bug.
 - **Found and fixed** in BF4 (merged November 20, 2026): breaking debris or a keg left its token
   drawn on the board after the object was gone from the map. It now fades out with the
   `defeat_time` fade (a marked assumption).
+
+### BUG-021 An Infused Basic weapon scraps for 0 gold
+
+- **Reported** by RN8 (unconfirmed): in the Armory captures, the starting "Infused Simple Sword"
+  (Basic) traded in for 0 gold.
+- **Expected** (items.md, Rarity and prices): a modified item's price is its base price plus net
+  points × the kind's step value, and it scraps at 20% of that. Infuse is 0.5 points, so an
+  Infused Basic weapon is priced 10 and scraps for 2.
+- **Likely cause** (RN8's guess): the infusion's `item_points` is 0 or unset, in RN7's scrapping
+  or the event data, not in the Armory. Confirm with a case on `Prices.item_scrap_value` first.

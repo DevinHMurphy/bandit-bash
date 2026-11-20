@@ -133,7 +133,7 @@ static func join_problem(ctx: EventContext) -> String:
 	if seat_run.army.size() < limit:
 		if replaced_id.is_empty():
 			return ""
-		# ASSUMPTION: with room, naming a unit to dismiss is refused rather than ignored.
+		# With room, naming a unit to dismiss is refused rather than ignored.
 		return "the army has room (%d of %d), so no unit is dismissed" % [
 			seat_run.army.size(), limit,
 		]
