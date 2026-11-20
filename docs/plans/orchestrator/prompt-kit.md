@@ -84,7 +84,7 @@ before writing a prompt and name it in the LANE block.
   `docs/design/event-bus.md` lists every kind with what records it.
 - `SceneRouter.Screen`: ends at `ARMORY = 16` (RN8).
 - `FactCueMap.Shape`: ends at `BOUGHT = 8` (RN8).
-- `capture` group numbers in `tools/captures/`: 100 to 700 used; EV3 took 450, RN7 460, RN8 470; EV1G is taking 455.
+- `capture` group numbers in `tools/captures/`: 100 to 700 used; EV3 took 450, RN7 460, RN8 470; EV1G 455.
 
 ## Reviewing a report
 
@@ -116,9 +116,9 @@ before writing a prompt and name it in the LANE block.
 
 | Lane | Next | Then | Gated on |
 |------|------|------|----------|
-| A Battle UI | EV1G (event-screen replace pick) | RB1 after the M2 exit playtest; UL9 (reward cards, RF-031, RF-032) after RN8; EN16 | RB1: the playtest; UL9: RN8 merged |
+| A Battle UI | UL9 (reward cards, RF-031, RF-032) | RB1 after the M2 exit playtest; EN16 | RB1: the playtest |
 | B Campaign and run | RN9 Guildhall | RN10 Unknown, RN11 full run, RN12 docs | one at a time; NT3 (Lane E) waits while RN9 builds |
-| C Events | EV4 (the 13 events) | EV6 docs | — |
+| C Events | EV6 docs | — | — |
 | D Engine, AI, content | EN13 measure | EN14, EN15; CT12 after the weapon modification design | EN13 first |
 | E Network | NT3 campaign wire | NT4–NT8 | NT3 when RN9 has merged |
 | G Audio and tooling | — | AU2 after the audio direction (M5) | — |

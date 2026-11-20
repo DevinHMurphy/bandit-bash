@@ -6,7 +6,7 @@
 # File:     catalog_cases.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -31,9 +31,13 @@ const ContentRules = preload("res://tests/content/content_rules.gd")
 ## The folder holding one data root per rule fixture.
 const RULES_DIR: String = "res://tests/content/fixtures/rules/"
 
-# Folders under res://data/ that EffectCatalog's walk skips (its _RULES_FOLDERS): they hold rules
-# or audio data, not content definitions, so file counts leave them out too.
-const _NOT_CONTENT_FOLDERS: PackedStringArray = ["res://data/campaign/", "res://data/audio/"]
+# Folders under res://data/ that EffectCatalog's walk skips (its _RULES_FOLDERS): they hold rules,
+# audio or event data, not content definitions, so file counts leave them out too.
+const _NOT_CONTENT_FOLDERS: PackedStringArray = [
+	"res://data/campaign/",
+	"res://data/audio/",
+	"res://data/events/",
+]
 
 # Each bad tree and the one rule it breaks, checked against the real price table.
 const BAD_TREES: Dictionary[String, String] = {
