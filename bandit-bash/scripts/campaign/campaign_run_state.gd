@@ -6,7 +6,7 @@
 # File:     campaign_run_state.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name CampaignRunState
@@ -192,11 +192,11 @@ func key_combats_before() -> int:
 ## [member node], the standard combats before it in its step ([method standard_combats_in_step]),
 ## the key combats before it ([method key_combats_before]),
 ## the maps of its pool in [param pools] that [member RunFlow.used_maps] hasn't used
-## ([method CombatMapPools.available]), and each seat's living army with its current HP, items and
-## heirlooms, a repeated heirloom once per copy. The army's unit and item instances are the run's
-## own, so the battle's write-back reaches them. Content from [param catalog] (null: the loaded
-## one). An Unknown node whose event chose a surprise combat fights on the Standard pool. Returns
-## null, with an error, outside a node or at its results, or for a node with no pool or no map.
+## ([method CombatMapPools.available]), and each seat's living army with its current HP, items,
+## heirlooms (once per copy) and runes. Its unit and item instances are the run's own, so the
+## battle's write-back reaches them. Content from [param catalog] (null: the loaded one). An
+## Unknown node whose event chose a surprise combat fights on the Standard pool. Null, with an
+## error, outside a node or at its results, or for a node with no pool or no map.
 func battle_request(
 		pools: CombatMapPools, catalog: EffectCatalog.Index = null
 ) -> CampaignSession.BattleRequest:
@@ -227,14 +227,17 @@ func battle_request(
 		army.unit_instances = seat_run.army.duplicate()
 		army.item_instances = seat_run.items.duplicate()
 		army.heirloom_ids = seat_run.heirloom_ids()
+		for slot: SeatRun.RuneSlot in seat_run.rune_slots:
+			if not slot.is_empty():
+				army.rune_slots.append(SeatRun.RuneSlot.new(slot.instance_id, slot.definition_id))
 		request.armies[seat] = army
 	return request
 
 
-## A copy of this run with [param result] applied; this run is left unchanged, so the caller
-## swaps the copy in, saves, and keeps this one if the save fails. Each unit's HP, permanent
-## deltas and growth changes; fallen units to [member SeatRun.fallen] with their items, but a
-## fallen commander stays in the army at critical HP; each heirloom copy's campaign lane; the
+## A copy of this run with [param result] applied, this run unchanged, so the caller swaps it in,
+## saves, and keeps this one if the save fails. Each unit's HP, deltas and growth changes; fallen
+## units to [member SeatRun.fallen] with their items (a fallen commander stays at critical HP);
+## each heirloom copy's campaign lane; each rune cast or discarded gone from its slot; then the
 ## grants, minted from [param ids]. For the node's own finished battle: the map counts as used,
 ## each seat whose map was won is paid by [param rules] from [param rolls] (see
 ## [constant COMBAT_REPORT_KEY]), and a battle won on every map moves the run to its results.
@@ -256,6 +259,8 @@ func apply_battle(
 		var seat_run: SeatRun = next.seat_run(seat)
 		_apply_units(seat_run, result, rules)
 		_apply_heirlooms(seat_run, result)
+		if result.runes.has(seat):
+			_apply_runes(seat_run, result.runes[seat])
 	for grant: CampaignSession.Grant in result.grants:
 		_apply_grant(next, grant, ids)
 	var is_node_battle: bool = (
@@ -568,6 +573,16 @@ static func _apply_heirlooms(seat_run: SeatRun, result: CampaignSession.BattleRe
 				owned.charges = lane.charges.duplicate()
 				break
 			seen += 1
+
+
+# Empties each of the seat's rune slots whose rune isn't in left (the runes its map still holds):
+# a rune cast or discarded in battle is gone from the run. Slots keep their places. Records no
+# fact, as HP and falls applied here record none.
+static func _apply_runes(seat_run: SeatRun, left: PackedStringArray) -> void:
+	for index: int in seat_run.rune_slots.size():
+		var slot: SeatRun.RuneSlot = seat_run.rune_slots[index]
+		if not slot.is_empty() and not left.has(slot.instance_id):
+			seat_run.rune_slots[index] = SeatRun.RuneSlot.new()
 
 
 # The index of the seat's first empty rune slot; -1 when every slot holds a rune.

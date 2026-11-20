@@ -6,7 +6,7 @@
 # File:     campaign_session.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name CampaignSession
@@ -188,11 +188,11 @@ func add_setup_step(step: CombatEncounter.SetupStep, run: Callable) -> void:
 ## Begins the battle [param request] describes: the encounter with its enemy draw
 ## ([method EnemySetup.draw]) and setup from fresh streams (a restart from Begin rolls the same),
 ## [signal combat_encounter_opened], one session per seat on its [code]COMBAT_ROLLS[/code] stream,
-## then per map its objects, enemies, darkness phase, reinforcement points, AI and intents (each
-## one's [code]place[/code] or [code]register[/code]), carrier copies, its darkness
-## ([method DarknessSetup.place], so Short Wick counts), each army deployed, and
-## [method CombatSession.open_battle] as [member BattleRequest.opening_swap] says. Returns the
-## encounter; null, with nothing begun, when a battle is on, the run is closed, or setup fails.
+## then per map its objects, enemies, darkness phase, reinforcement points, AI and intents, carrier
+## copies, its darkness ([method DarknessSetup.place], so Short Wick counts), each army's runes
+## ([member Army.rune_slots]) and deployment, and [method CombatSession.open_battle] as
+## [member BattleRequest.opening_swap] says. Returns the encounter; null, with nothing begun, when
+## a battle is on, the run is closed, or setup fails.
 func begin_battle(request: BattleRequest) -> CombatEncounter:
 	if not _can_open_battle(request):
 		return null
@@ -225,6 +225,7 @@ func begin_battle(request: BattleRequest) -> CombatEncounter:
 			bases[loaded.state.id] = loaded.bases
 			if commander_id.is_empty() and catalog.commander(loaded.state.unit_type) != null:
 				commander_id = loaded.state.id
+		_give_runes(session, catalog, seat, army.rune_slots)
 		session.deploy(units, bases, commander_id)
 		session.flush("deployment")
 	for session: CombatSession in battle.get_sessions():
@@ -295,9 +296,9 @@ func write_back() -> void:
 ## Gathers what the battle in progress leaves for the run, with the battle still on: first
 ## [method write_back], then each player unit's HP, fall, permanent stat deltas, growth changes
 ## and reward values, each heirloom copy's campaign lane, the grants received, a copy of the
-## tally, the map, whether every map was won, and each seat's [SeatOutcome]. Rewards read item
-## and heirloom values here, since they count only in battle. Copies [member stats] too. Calling it
-## again returns the same result. Returns null when no battle is on.
+## tally, the map, whether every map was won, each seat's [SeatOutcome] and the runes it has left.
+## Rewards read item and heirloom values here, since they count only in battle. Copies
+## [member stats] too. Calling it again returns the same result; null when no battle is on.
 func collect_battle() -> BattleResult:
 	if encounter == null:
 		return null
@@ -327,6 +328,8 @@ func collect_battle() -> BattleResult:
 		var map: CombatSession = encounter.session_of_seat(seat)
 		if map != null:
 			result.seats[seat] = _collect_seat(result, map, seat)
+			var left: PackedStringArray = map.state.rune_slots.get(seat, PackedStringArray())
+			result.runes[seat] = left.duplicate()
 	_collect_heirlooms(result)
 	_collected = result
 	return result
@@ -804,6 +807,30 @@ func _add_heirlooms(
 		_heirloom_carriers[key] = lane
 
 
+# Puts each of the seat's runes in its map's rune slots, in order, and registers its rune's effects
+# owned by the rune (RuneResolver finds a rune's definition through them), ids from the run's
+# allocator. A rune not in the catalog is reported and left out. A resume reads both from its save.
+func _give_runes(
+		session: CombatSession,
+		catalog: EffectCatalog.Index,
+		seat: int,
+		rune_slots: Array[SeatRun.RuneSlot]
+) -> void:
+	var slots: PackedStringArray = session.state.rune_slots.get(seat, PackedStringArray())
+	for slot: SeatRun.RuneSlot in rune_slots:
+		var rune: RuneDefinition = catalog.rune(slot.definition_id)
+		if rune == null:
+			push_error("CampaignSession: rune \"%s\" is not in the catalog" % [slot.definition_id])
+			continue
+		for effect: EffectDefinition in rune.effects:
+			session.engine.register(EffectInstance.new(
+					ids.next_effect_id(), effect, EffectOwner.for_rune(slot.instance_id, seat),
+					Modifier.SourceKind.RUNE, rune.display_name
+			))
+		slots.append(slot.instance_id)
+	session.state.rune_slots[seat] = slots
+
+
 # The run's copy-th held copy of heirloom_id for seat; null when the run holds no such copy.
 func _owned_copy(seat: int, heirloom_id: String, copy: int) -> SeatRun.OwnedHeirloom:
 	var seat_run: SeatRun = null if run == null else run.seat_run(seat)
@@ -1000,6 +1027,10 @@ class Army:
 	## time a battle names it, so its campaign lane lasts the run
 	## ([method Loadout.heirloom_effects]). [b]Empty:[/b] none.
 	var heirloom_ids: PackedStringArray = []
+	## The seat's runes in slot order, empty slots left out: Begin puts each in
+	## [member CombatState.rune_slots] with its effects, and the battle's end reports those left
+	## ([member BattleResult.runes]). [b]Empty:[/b] none.
+	var rune_slots: Array[SeatRun.RuneSlot] = []
 
 
 ## What a battle leaves for the run to apply ([method CampaignRunState.apply_battle]).
@@ -1034,6 +1065,9 @@ class BattleResult:
 	var stats: BattleStats = BattleStats.new()
 	## Each seat's map at the battle's end, by seat; a seat with no map has no entry.
 	var seats: Dictionary[int, SeatOutcome] = {}
+	## The rune instance ids each seat still holds at the battle's end, by seat: a cast or discarded
+	## rune is gone. A seat with no entry keeps its runes as they are.
+	var runes: Dictionary[int, PackedStringArray] = {}
 
 
 ## One seat's map at a battle's end, and the reward values its heirlooms set, for the rewards.

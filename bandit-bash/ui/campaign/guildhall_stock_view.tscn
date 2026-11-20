@@ -1,0 +1,23 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/guildhall_stock_view.gd" id="1_view"]
+[ext_resource type="Texture2D" path="res://assets/sprites/runes/rune_02.png" id="2_aegis"]
+[ext_resource type="Texture2D" path="res://assets/sprites/runes/rune_03.png" id="3_clarity"]
+[ext_resource type="Texture2D" path="res://assets/sprites/runes/rune_04.png" id="4_haste"]
+[ext_resource type="Texture2D" path="res://assets/sprites/runes/rune_05.png" id="5_mend"]
+[ext_resource type="Texture2D" path="res://assets/sprites/runes/rune_06.png" id="6_recall"]
+[ext_resource type="Texture2D" path="res://assets/sprites/runes/rune_07.png" id="7_shatter"]
+[ext_resource type="Texture2D" path="res://assets/sprites/runes/rune_08.png" id="8_spark"]
+
+[node name="GuildhallStockView" type="VBoxContainer"]
+theme_override_constants/separation = 6
+script = ExtResource("1_view")
+rune_icons = Dictionary[String, Texture2D]({
+"aegis": ExtResource("2_aegis"),
+"clarity": ExtResource("3_clarity"),
+"haste": ExtResource("4_haste"),
+"mend": ExtResource("5_mend"),
+"recall": ExtResource("6_recall"),
+"shatter": ExtResource("7_shatter"),
+"spark": ExtResource("8_spark")
+})

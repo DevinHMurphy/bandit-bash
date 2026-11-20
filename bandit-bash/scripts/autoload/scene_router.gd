@@ -41,20 +41,20 @@ signal invite_confirmation_requested()
 #   OPTIONS     -> back to whichever screen opened it (only MAIN_MENU links to it)
 #   LOBBY       -> LOADING (everyone, host's Start or Resume), MAIN_MENU
 #   LOADING     -> the solo run's screen by its stage (RunScreen.of): STARTING_HEIRLOOM,
-#                  CAMPAIGN_MAP, GAMEPLAY, TREASURE, CAMP, ARMORY, EVENT, NODE_PLACEHOLDER or
-#                  COMBAT_RESULTS; GAMEPLAY (everyone) outside a solo run
+#                  CAMPAIGN_MAP, GAMEPLAY, TREASURE, CAMP, ARMORY, GUILDHALL, EVENT,
+#                  NODE_PLACEHOLDER or COMBAT_RESULTS; GAMEPLAY (everyone) outside a solo run
 #   STARTING_HEIRLOOM -> CAMPAIGN_MAP (once the heirloom is taken: the first node comes after)
-#   CAMPAIGN_MAP     -> GAMEPLAY (a combat node chosen), TREASURE, CAMP, ARMORY,
+#   CAMPAIGN_MAP     -> GAMEPLAY (a combat node chosen), TREASURE, CAMP, ARMORY, GUILDHALL,
 #                       NODE_PLACEHOLDER (any other node)
 #   TREASURE, CAMP   -> CAMPAIGN_MAP (Leave, once the chest or the choice is settled)
-#   ARMORY           -> CAMPAIGN_MAP (Leave, at any time: buying is optional)
+#   ARMORY, GUILDHALL -> CAMPAIGN_MAP (Leave, at any time: buying is optional)
 #   NODE_PLACEHOLDER -> CAMPAIGN_MAP (Continue leaves the node)
 #   EVENT            -> CAMPAIGN_MAP (Leave, once chosen), GAMEPLAY (Fight: a surprise combat)
 #   GAMEPLAY    -> COMBAT_RESULTS (a solo battle won), RESULTS (lost, or outside a solo run;
 #                  everyone); a solo run elsewhere is sent to its stage's screen at once
 #   COMBAT_RESULTS -> CAMPAIGN_MAP (Continue leaves the node), RESULTS (End run, after the Boss)
 #   RESULTS     -> LOADING (everyone, next round), MAIN_MENU
-#   STARTING_HEIRLOOM, CAMPAIGN_MAP, TREASURE, CAMP, ARMORY, EVENT, NODE_PLACEHOLDER,
+#   STARTING_HEIRLOOM, CAMPAIGN_MAP, TREASURE, CAMP, ARMORY, GUILDHALL, EVENT, NODE_PLACEHOLDER,
 #                  COMBAT_RESULTS, GAMEPLAY -> MAIN_MENU (pause menu)
 #   any screen  -> LOBBY on an accepted invite (accept_pending_invite); during a solo run only
 #                  after the player chose Save & Quit
@@ -87,6 +87,7 @@ enum Screen {
 	TREASURE = 14,
 	CAMP = 15,
 	ARMORY = 16,
+	GUILDHALL = 17,
 }
 
 ## [enum Screen] -> scene path. Every [enum Screen] value needs an entry.
@@ -108,6 +109,7 @@ const SCREEN_PATHS: Dictionary[Screen, String] = {
 	Screen.TREASURE: "res://ui/campaign/treasure_screen.tscn",
 	Screen.CAMP: "res://ui/campaign/camp_screen.tscn",
 	Screen.ARMORY: "res://ui/campaign/armory_screen.tscn",
+	Screen.GUILDHALL: "res://ui/campaign/guildhall_screen.tscn",
 }
 
 # The screens a run is played on, where an invite asks to Save & Quit first and a lost host sends
@@ -122,6 +124,7 @@ const _RUN_SCREENS: Array[Screen] = [
 	Screen.TREASURE,
 	Screen.CAMP,
 	Screen.ARMORY,
+	Screen.GUILDHALL,
 ]
 
 ## Screen this machine is showing. [constant Screen.START] until the first [method goto_screen].

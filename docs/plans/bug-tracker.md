@@ -46,7 +46,7 @@ Not a bug.
 | [BUG-006](#bug-006-netlog-raises-an-engine-error-once-the-peer-is-cleared) | NetLog raises an engine error once the peer is cleared | P00 / P10 | S3 | Fixed (BF1 merge, November 19, 2026) | November 9, 2026, O3 report | BF1 |
 | [BUG-008](#bug-008-a-mirror-keeps-a-used-up-consumable) | A mirror keeps a used-up consumable, so its hash differs from the host's | P02 / P11 | S2 | Fixed (BF1 merge, November 19, 2026) | November 13, 2026, CT5 report | BF1 |
 | [BUG-012](#bug-012-loading-the-map-pools-in-a-test-leaks-resources) | Loading `CombatMapPools.load_default()` inside the board suite's route case leaves 74 objects and 58 resources in use at exit | P04 (map pools) / tests | S4 | New | November 16, 2026, MP10a report | — (worked around in the test) |
-| [BUG-014](#bug-014-a-runs-runes-never-reach-the-battle) | A run's runes never reach the battle, and a cast or discard never reaches the run | P08 (battle bridge) | S2 (latent: no run grants runes yet) | Assigned (RN9) | November 18, 2026, UI14 report | RN9 |
+| [BUG-014](#bug-014-a-runs-runes-never-reach-the-battle) | A run's runes never reach the battle, and a cast or discard never reaches the run | P08 (battle bridge) | S2 (latent: no run grants runes yet) | Fixed (RN9 merge, November 20, 2026) | November 18, 2026, UI14 report | RN9 |
 | [BUG-015](#bug-015-the-unit-panels-details-button-cant-be-clicked) | The unit panel's Details button can't be clicked: the panel follows the hovered unit, so moving the mouse to it changes or hides the panel | P07 (unit panel) | S2 | Fixed (UL3 merge, November 19, 2026) | November 18, 2026, user playtest | UL3 (ui-lift.md) |
 | [BUG-016](#bug-016-steamnetworklocal_peer_id-errors-once-the-peer-is-cleared) | `SteamNetwork.local_peer_id()` errors once the peer is cleared | P10 | S4 | Fixed (NT1 merge, November 19, 2026) | November 19, 2026, BF1 report | P10 NT1 |
 | [BUG-017](#bug-017-choosing-a-map-node-by-keyboard-logs-a-grab_focus-error) | Choosing a map node by keyboard logs `grab_focus: !is_inside_tree()` | P08 (campaign map) | S4 | Fixed (RN7 merge, November 19, 2026) | November 19, 2026, UL7 report | — |
@@ -274,6 +274,10 @@ Not a bug.
 - **Expected:** the battle bridge (RN3's `BattleRequest`) carries the player's runes in, and the
   battle's end writes the remaining runes back, in the save order RN3 set.
 - **Fix in P08 RN9.**
+- **Fixed** in RN9 (merged November 20, 2026): `CampaignSession.Army.rune_slots` carries the run's
+  runes into `CombatState.rune_slots` at Begin, and `BattleResult.runes` writes the remaining ones
+  back before grants apply; a cast or discarded rune is gone from the run, and a discard survives
+  a quit mid-battle (`rune_bridge_cases`, `rune_resume_cases`).
 
 ### BUG-015 The unit panel's Details button can't be clicked
 

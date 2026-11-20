@@ -6,7 +6,7 @@
 # File:     recruit_offer.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name RecruitOffer
@@ -48,6 +48,32 @@ func capture() -> Dictionary:
 	return {_KEY_UNIT: unit.capture(), _KEY_ITEMS: item_data}
 
 
+## A copy of this level-1 recruit, its ids kept, at [param level] ([method make]'s levels: its
+## average growths, rounded down); the copy shares no instance with this one. Null when its data
+## won't copy or its type isn't in [param catalog].
+func leveled(level: int, catalog: EffectCatalog.Index) -> RecruitOffer:
+	var copy: RecruitOffer = RecruitOffer.restore(capture())
+	var unit_type: UnitTypeDefinition = catalog.unit_type(unit.unit_type_id)
+	if copy == null or unit_type == null:
+		return null
+	copy._raise_to(level, catalog, unit_type)
+	return copy
+
+
+# Sets the unit's level to level (at least 1), with a stat delta per stat for the levels above 1
+# from its average growths, as enemies grow. Call on a level-1 recruit only.
+func _raise_to(level: int, catalog: EffectCatalog.Index, unit_type: UnitTypeDefinition) -> void:
+	unit.level = maxi(level, 1)
+	var levels_gained: int = unit.level - 1
+	for stat: int in unit_type.growths:
+		var gain: int = floori(float(unit.growth(catalog, stat) * levels_gained) / _PERCENT)
+		if gain != 0:
+			unit.stat_deltas.append(ItemInstance.StatDelta.new(
+					CombatValue.STAT_KEYS[stat], float(gain), _LEVEL_SOURCE,
+					"Level %d" % [unit.level]
+			))
+
+
 ## A new recruit of the unit type [param type_id] with [param prefix_id] (empty: none) at
 ## [param level], ids from [param ids]; null for a type [param catalog] lacks or a commander's.
 static func make(
@@ -63,15 +89,6 @@ static func make(
 	var made: RecruitOffer = RecruitOffer.new()
 	made.unit = UnitInstance.new(ids.next_unit_id(unit_type.display_name), type_id)
 	made.unit.prefix_id = prefix_id
-	made.unit.level = maxi(level, 1)
-	var levels_gained: int = made.unit.level - 1
-	for stat: int in unit_type.growths:
-		var gain: int = floori(float(made.unit.growth(catalog, stat) * levels_gained) / _PERCENT)
-		if gain != 0:
-			made.unit.stat_deltas.append(ItemInstance.StatDelta.new(
-					CombatValue.STAT_KEYS[stat], float(gain), _LEVEL_SOURCE,
-					"Level %d" % [made.unit.level]
-			))
 	var weapon: ItemDefinition = catalog.item(unit_type.starting_weapon_id)
 	if weapon != null:
 		var item: ItemInstance = ItemInstance.new(
@@ -79,6 +96,7 @@ static func make(
 		)
 		made.items[item.instance_id] = item
 		made.unit.weapon_id = item.instance_id
+	made._raise_to(level, catalog, unit_type)
 	return made
 
 

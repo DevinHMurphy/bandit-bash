@@ -6,7 +6,7 @@
 # File:     recruit_offer_card.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name RecruitOfferCard
@@ -15,9 +15,11 @@ extends Button
 ## Recruiting): its name with its prefix and the prefix's tier, its level, trait, stats and the
 ## weapon it brings.
 ##
-## The stats are [method UnitInstance.stats], so they are what the unit joins with. Pressing it
-## (click, or accept while focused) asks to recruit it; [StartingOfferView] passes that on. It
-## reads no input action itself.
+## The stats are [method UnitInstance.stats], so they are what the unit joins with. At a shop
+## ([method show_price]) it adds its price, and a recruit the seat can't buy says why and is
+## disabled and out of the focus order. Pressing it (click, or accept while focused) asks to
+## recruit it; [StartingOfferView] or [GuildhallStockView] passes that on. It reads no input
+## action itself.
 
 ## Stats the preview lists, in order, each with its short name.
 const SHOWN_STATS: Dictionary[int, String] = {
@@ -40,6 +42,11 @@ const SHOWN_STATS: Dictionary[int, String] = {
 
 ## The unit's name as shown, by [method show_recruit]; empty before it.
 var unit_title: String = ""
+
+## Why the seat can't buy it, by [method show_price]. [b]Empty:[/b] it can, or it isn't sold.
+var problem: String = ""
+
+var _preview: String = ""
 
 
 func _ready() -> void:
@@ -67,7 +74,20 @@ func show_recruit(offer: RecruitOffer, catalog: EffectCatalog.Index) -> void:
 		" · ".join(stats),
 		"Brings %s" % [weapon_name],
 	]
+	_preview = "\n".join(lines)
+	text = _preview
+
+
+## Adds [param price] under the preview [method show_recruit] showed, refused for
+## [param refusal] when that isn't empty: the card then says why and can't be pressed or focused.
+func show_price(price: String, refusal: String) -> void:
+	problem = refusal
+	var lines: PackedStringArray = [_preview, price]
+	if not refusal.is_empty():
+		lines.append("Can't buy: %s." % [refusal])
 	text = "\n".join(lines)
+	disabled = not refusal.is_empty()
+	focus_mode = Control.FOCUS_NONE if disabled else Control.FOCUS_ALL
 
 
 ## [param unit]'s name as the roster shows it: its prefix with its tier, its type, and "+" once

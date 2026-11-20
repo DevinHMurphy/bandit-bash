@@ -1,0 +1,20 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/hand_over_row.gd" id="1_row"]
+
+[node name="HandOverRow" type="HBoxContainer"]
+theme_override_constants/separation = 8
+script = ExtResource("1_row")
+
+[node name="ItemName" type="Label" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(300, 0)
+layout_mode = 2
+size_flags_vertical = 4
+text = "Item (unit's)"
+autowrap_mode = 3
+
+[node name="Places" type="HBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 6
