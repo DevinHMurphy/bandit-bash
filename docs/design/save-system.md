@@ -318,8 +318,9 @@ after `instance_ids`, the map before the flow
   nothing, since a section without them reads as a seat with none. The other four are at 1.
 - **Validated:** a route that skips a floor or leaves the graph's edges, a stage inside a node
   before any node, an item in two places or in none, a commander outside the army, a repeated unit
-  or rune, out-of-range gold or offset, and a value change whose key isn't a campaign value or
-  whose amount isn't a number each refuse the section and stop the load.
+  or rune, out-of-range gold or offset, and a value change whose key isn't a campaign value, whose
+  amount isn't a number, or whose `source_id` or `label` isn't a string each refuse the section and
+  stop the load.
 - **Saved when:** every resolved campaign command (`CampaignService.submit_command()`) saves at
   once; a rejected one saves nothing. A battle's end saves its result applied
   ([Battles](#battles)): HP, fallen units in `fallen` with their items (a fallen commander stays in
@@ -339,7 +340,7 @@ The run's events (`CampaignRunState.events`, an `EventRunState`) are one more `C
 
 | Block | Key | Per player | Version | Holds |
 |-------|-----|------------|---------|-------|
-| `CAMPAIGN` | `events` | No | 1 | `seen` event ids since the pool last refilled; `current`, the event open at a node (`{}` with none): `event`, `floor`, `node`, `seats` (by seat: `rolls` per option, each block's drawn id in `picks` and the tier's `curse`; `choosing`, the option whose chooser is open; `chosen`, -1 for none), `votes` (by seat, an option index; empty until the team vote), `combat_pending` |
+| `CAMPAIGN` | `events` | No | 1 | `seen` event ids since the pool last refilled, in draw order; `current`, the event open at a node (`{}` with none): `event`, `floor`, `node`, `seats` (by seat as a decimal string: `rolls`, one per option, each with `picks`, the content id each block drew by block index as a decimal string, `""` for a block whose pool was empty, and `curse`, the tier's curse or `""`; `choosing`, the option whose chooser is open, or in a team choice the option the votes drew, -1 for none; `chosen`, -1 for none), `votes` (by seat, an option index; empty until the team vote), `combat_pending` |
 
 ```json
 "events": { "version": 1, "data": { "seen": ["dark_goblet"], "current": { "event": "dark_goblet", "floor": 3, "node": 7, "seats": { "0": { "rolls": [ { "picks": {}, "curse": "" }, { "picks": { "0": "frost_blade" }, "curse": "haunted" } ], "choosing": -1, "chosen": -1 } }, "votes": {}, "combat_pending": false } } }
@@ -350,17 +351,25 @@ The run's events (`CampaignRunState.events`, an `EventRunState`) are one more `C
   event, curses and items; a node never draws a second event. The prefix re-roll and a random
   recruit's type and prefix draw when their option applies, from the seat's `EVENT_OUTCOME`
   stream, saved in `rng`.
-- **The chooser stage is saved;** item placements and a rune to discard are not, since they come
-  with the choice itself. A quit mid-placement resumes at the chooser or the options.
-- **What an option changes** lands in the run sections: curses, heirlooms and max army size
-  changes in `heirlooms`, units (recruits, upgrades, dismissals) and items in `roster`, gold in
-  `economy`. A pending surprise combat makes the node's battle a
-  Standard one (`CampaignRunState.battle_request()`), saved like any battle from Begin.
+- **The chooser stage is saved;** the unit that leaves a full army, item placements and a rune to
+  discard are not, since they come with the choice itself. A quit during those steps resumes at
+  the chooser or the options.
+- **Team choices** add no key: the votes go in `votes`, and the option they draw is every seat's
+  `choosing` until the team's choice applies it. Votes stay saved after that, until the next event
+  opens, so the tally still shows.
+- **After every seat has chosen,** the event stays saved until the next one opens, so Continue
+  shows the same outcome.
+- **What an option changes** lands in the run sections: curses and heirlooms in `heirlooms`, a max
+  army size change in its `value_changes`; units (stat changes, pending level-up gains, recruits,
+  revives, upgrades, dismissals) and items in `roster`; gold in `economy`. A pending surprise combat
+  makes the node's battle a Standard one (`CampaignRunState.battle_request()`), saved like any
+  battle from Begin.
 - **Load order.** Like the run sections, it only checks and holds its data while the file loads;
   once the run is built, `CampaignService` puts it into the run, and the section reads the run from
   then on, the copy a battle's end swaps in included.
-- **Refused:** an empty id, a seat key or number that isn't whole, a choice or vote outside the
-  seat's options, a vote for a seat not in the event, and a seat both choosing and chosen. A
+- **Refused:** a missing field, an empty id, a seat key or number that isn't whole, a block index
+  that isn't a whole number from 0, a pick or curse that isn't a string, a choice or vote outside
+  the seat's options, a vote for a seat not in the event, and a seat both choosing and chosen. A
   saved event id the event pool doesn't hold loads, and the event screen reports it.
 
 ## Combat state
