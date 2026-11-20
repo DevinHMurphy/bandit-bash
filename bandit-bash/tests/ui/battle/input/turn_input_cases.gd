@@ -841,7 +841,7 @@ static func _check_unit(
 
 # Why actions_at for unit_id after path isn't exactly the legal actions in menu order; empty when
 # it is. Each listed command is checked again, and each action not listed is tried against every
-# unit on the map and found illegal.
+# unit on the map and found illegal (an attack on a breakable counts as Demolish).
 static func _menu_mismatch(
 		session: CombatSession, unit_id: String, path: Array[Vector2i]
 ) -> String:
@@ -872,6 +872,7 @@ static func _menu_mismatch(
 	var tries: Dictionary[int, UnitTurnCommand.Action] = {
 		ATTACK_ACTION: UnitTurnCommand.Action.ATTACK,
 		TurnInputModel.ActionKind.STAFF: UnitTurnCommand.Action.STAFF,
+		TurnInputModel.ActionKind.DEMOLISH: UnitTurnCommand.Action.ATTACK,
 		TurnInputModel.ActionKind.ITEM: UnitTurnCommand.Action.ITEM,
 		TurnInputModel.ActionKind.SHOVE: UnitTurnCommand.Action.SHOVE,
 		TurnInputModel.ActionKind.SWAP: UnitTurnCommand.Action.SWAP_WEAPON,
@@ -882,6 +883,15 @@ static func _menu_mismatch(
 		if listed.has(kind):
 			continue
 		for target_id: String in targets:
+			# An attack on a breakable (side NONE) is Demolish's; on anything else, Attack's.
+			var is_object: bool = (
+					not target_id.is_empty()
+					and state.side_of(target_id) == CombatFact.CombatSide.NONE
+			)
+			if kind == ATTACK_ACTION and is_object:
+				continue
+			if kind == TurnInputModel.ActionKind.DEMOLISH and not is_object:
+				continue
 			var command: UnitTurnCommand = UnitTurnCommand.new(
 					0, unit_id, tries[kind], target_id, path
 			)

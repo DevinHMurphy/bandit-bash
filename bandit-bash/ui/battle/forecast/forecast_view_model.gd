@@ -72,6 +72,16 @@ const DEFEAT_ON_HITS: String = " (defeated on %d hits, %d%%)"
 ## The note naming [member counter]: the actor, the target, then the actor's HP cell.
 const COUNTER_NOTE: String = "If %s misses, %s counters: %s HP %s."
 
+# ASSUMPTION: the wording; map-objects.md gives the rule (DEF or RES, no counter, no crit, no
+# Stance) but no text.
+## The note on an attacked map object: its name, then the DEF and RES its hits go through. Its
+## counter is said by the "can't counter" note.
+const OBJECT_NOTE: String = "%s: DEF %d · RES %d. No crit, no Stance."
+
+## The heading's action for an exchange on a map object, the menu's Demolish
+## ([constant TurnInputModel.ActionKind.DEMOLISH]): "Demolish Wooden Debris".
+const DEMOLISH_TITLE: String = "Demolish"
+
 # What separates [method CombatForecast.HitBreakdown.to_text]'s stages, one per line here.
 const HIT_BREAKDOWN_SEPARATOR: String = "; "
 
@@ -100,9 +110,10 @@ var command: UnitTurnCommand = null
 ## A rune preview's command, the one Confirm sends; null for every other kind.
 var rune_command: CastRuneCommand = null
 
-## A rune preview's tiles on the map, in the order the cast reaches them
-## ([member CombatForecast.RuneForecast.tiles]): Spark's whole chain of blasts. Empty for every
-## other kind, and for an illegal cast.
+## The preview's tiles on the map, in the order reached: a rune's
+## ([member CombatForecast.RuneForecast.tiles], Spark's whole chain of blasts), an exchange's every
+## powder keg blast it sets off, down the chain, which the board draws as its splash. Empty for a
+## staff or a shove, and for an illegal preview.
 var tiles: Array[Vector2i] = []
 
 ## The preview itself, for readers that need more than the rows.
@@ -172,7 +183,10 @@ func _init(
 			notes.append("No forecast for this action.")
 			return
 	var action_name: String = "Attack"
-	if kind != Kind.EXCHANGE:
+	var is_on_object: bool = session.state.side_of(command.target_id) == CombatFact.CombatSide.NONE
+	if kind == Kind.EXCHANGE and is_on_object:
+		action_name = DEMOLISH_TITLE
+	elif kind != Kind.EXCHANGE:
 		action_name = (Kind.find_key(kind) as String).capitalize()
 	title = "%s %s" % [action_name, target_label]
 	if not forecast.is_legal:
@@ -234,7 +248,8 @@ func _fill_flashes() -> void:
 
 # An exchange's rows: both sides' weapon, triangle, effectiveness, Hit, damage, crit per strike,
 # strikes, and HP, Block and Stance before and after. The target's damage, crit, effectiveness and
-# breakdown come from the counter line when the all-hits line defeats it first.
+# breakdown come from the counter line when the all-hits line defeats it first. A map object shows
+# no Stance and its DEF and RES in OBJECT_NOTE; the kegs it sets off fill tiles.
 func _fill_exchange(session: CombatSession, found: CombatForecast.ExchangeForecast) -> void:
 	forecast = found
 	var state: CombatState = session.state
@@ -303,8 +318,17 @@ func _fill_exchange(session: CombatSession, found: CombatForecast.ExchangeForeca
 		hits.target = HIT_SEPARATOR.join(target_hits) if not target_hits.is_empty() else NONE_TEXT
 		rows.insert(rows.find(row("Damage")) + 1, hits)
 	_add_outcome_rows(found.attacker.outcome, found.defender.outcome, found)
+	var is_on_object: bool = state.side_of(found.target_id) == CombatFact.CombatSide.NONE
+	if is_on_object:
+		# An object has no Stance: its 0 is not Exposed, and nothing breaks.
+		row("Stance").target = NONE_TEXT
 	if not found.can_counter and found.is_legal:
 		notes.append("%s can't counter." % [target_label])
+	if is_on_object and found.is_legal:
+		var sheet: StatSheet = session.stats(found.target_id)
+		notes.append(OBJECT_NOTE % [
+			target_label, sheet.get_int(CombatValue.Key.DEF), sheet.get_int(CombatValue.Key.RES),
+		])
 	if counter != null and counter.attacker.outcome != null:
 		notes.append(COUNTER_NOTE % [
 			actor_label, target_label, actor_label,
@@ -313,6 +337,27 @@ func _fill_exchange(session: CombatSession, found: CombatForecast.ExchangeForeca
 	for chance: CombatForecast.ChanceLine in found.chances:
 		notes.append("Chance %s" % [chance.to_text()])
 	_note_others(session, found)
+	if found.is_legal:
+		_add_blast_tiles(session, found)
+
+
+# The on-map tiles of every powder keg blast found sets off ([constant MapObjects.KEG_BLAST]), each
+# once, in the order the kegs break: the attacked keg's, then each keg its chain reaches.
+func _add_blast_tiles(session: CombatSession, found: CombatForecast.Forecast) -> void:
+	var state: CombatState = session.state
+	for fact: CombatFact in found.facts:
+		if (
+				fact.kind != CombatFact.Kind.OBJECT_STATE_CHANGED
+				or fact.key != MapObjects.Change.DESTROYED
+		):
+			continue
+		var broken: MapState.ObjectState = state.map.object(fact.actor_id)
+		if broken == null or broken.kind != MapLayout.ObjectKind.POWDER_KEG:
+			continue
+		for covered: Vector2i in MapObjects.KEG_BLAST.tiles(broken.tile):
+			var is_on_map: bool = state.grid.step(covered, Vector2i.ZERO) != CombatFact.NO_TILE
+			if is_on_map and not tiles.has(covered):
+				tiles.append(covered)
 
 
 # Each of unit_id's attacks in exchange, in order, as its damage after stage 5; a miss as
