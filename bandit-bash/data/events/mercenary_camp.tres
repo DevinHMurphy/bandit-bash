@@ -16,7 +16,7 @@ gold = 50
 script = ExtResource("5_gold")
 amount = -50
 
-; ASSUMPTION: "a unit" is any recruitable unit type, drawn evenly as the option applies (no
+; "a unit" is any recruitable unit type, drawn evenly as the option applies (no
 ; unit_type_id), at the army's average level (level 0).
 [sub_resource type="Resource" id="Resource_elite"]
 script = ExtResource("6_recruit")
@@ -29,7 +29,7 @@ text = "Pay 50 gold: recruit a unit with a +1 or +2 prefix, at the army's averag
 requirements = SubResource("Resource_fifty_gold")
 outcomes = Array[ExtResource("3_out")]([SubResource("Resource_pay"), SubResource("Resource_elite")])
 
-; ASSUMPTION: as Hire the Best, a type drawn evenly at the army's average level, with no prefix.
+; as Hire the Best, a type drawn evenly at the army's average level, with no prefix.
 [sub_resource type="Resource" id="Resource_plain"]
 script = ExtResource("6_recruit")
 
@@ -55,7 +55,7 @@ requirements = SubResource("Resource_room")
 outcomes = Array[ExtResource("3_out")]([SubResource("Resource_grow")])
 curse_tier = "major"
 
-; ASSUMPTION: the scene text is events.md's line for the event; it has no Godot_FE scene of its
+; the scene text is events.md's line for the event; it has no Godot_FE scene of its
 ; own, and no art, so the screen shows its placeholder.
 [resource]
 script = ExtResource("1_def")

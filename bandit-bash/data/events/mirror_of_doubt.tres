@@ -32,7 +32,7 @@ script = ExtResource("2_opt")
 title = "Walk Away"
 text = "Nothing happens."
 
-; ASSUMPTION: the scene text is Godot_FE's mirror_of_doubt.tres description with its BBCode
+; the scene text is Godot_FE's mirror_of_doubt.tres description with its BBCode
 ; removed (the event screen shows plain text).
 [resource]
 script = ExtResource("1_def")
