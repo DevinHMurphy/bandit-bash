@@ -6,7 +6,7 @@
 # File:     event_screen_fixture.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -63,6 +63,17 @@ const MIRROR: String = "test_mirror"
 ## "Walk Away". Needs the base fixture's catalog.
 const FORGE: String = "test_forge"
 
+## The camp: 0 "Hire an Archer" (recruit an archer with no prefix), 1 "Hire and Arm" (the archer
+## and a random rare weapon), 2 "Walk Away". A new Mercenary army is full, so both hires ask
+## which unit leaves.
+const CAMP: String = "test_camp"
+const HIRE: int = 0
+const HIRE_ARMED: int = 1
+const RECRUIT_TYPE: String = "archer"
+
+## An Equipment item the catalog holds, for a unit that carries two items.
+const EQUIPMENT_ID: String = "buckler"
+
 const MINOR: String = "minor"
 const RARE: String = "rare"
 
@@ -115,6 +126,26 @@ func fill_rune_slots(made: CampaignSession, seat_run: SeatRun) -> void:
 	for index: int in seat_run.rune_slots.size():
 		var rune: RuneDefinition = runes[index % runes.size()] as RuneDefinition
 		seat_run.rune_slots[index] = SeatRun.RuneSlot.new(made.ids.next_rune_id(rune.id), rune.id)
+
+
+## Recruits archers into [param seat_run]'s army until it is full, as the Guildhall would.
+func fill_army(made: CampaignSession, seat_run: SeatRun) -> void:
+	while seat_run.army.size() < RunOperations.max_army_size(seat_run, base.catalog):
+		var joining: RecruitOffer = RecruitOffer.make(base.catalog, RECRUIT_TYPE, "", 1, made.ids)
+		RunOperations.recruit(made.run, seat_run.seat, joining, "test")
+
+
+## Gives [param unit] of [param made]'s seat 0 one more item, in its empty Equipment slot, and
+## fills the convoy until [param unit]'s items are one too many for it: a unit carrying one item
+## fewer (a starting unit's weapon and Pouch item) can still leave, [param unit] can't.
+func overload_convoy(made: CampaignSession, unit: UnitInstance) -> void:
+	var seat_run: SeatRun = made.run.seat_run(0)
+	var item: ItemInstance = ItemInstance.new(made.ids.next_item_id(EQUIPMENT_ID), EQUIPMENT_ID)
+	seat_run.items[item.instance_id] = item
+	ItemPlacement.put_item(unit, Loadout.Slot.EQUIPMENT, item.instance_id)
+	var capacity: int = ItemPlacement.convoy_capacity(seat_run, base.catalog)
+	while seat_run.convoy.size() < capacity - unit.item_ids().size() + 1:
+		base.add_to_convoy(made, EQUIPMENT_ID)
 
 
 ## A panel on [param seat]'s part of [param made]'s open event ([member pool], the base catalog),
@@ -307,6 +338,19 @@ static func forge() -> EventDefinition:
 	])
 
 
+## The camp (see [constant CAMP]).
+static func camp() -> EventDefinition:
+	var prize: ItemGrantOutcome = ItemGrantOutcome.new()
+	prize.random = ItemGrantOutcome.RandomItem.RARE_WEAPON
+	return _event(CAMP, "A Mercenary Camp", false, [
+		_option("Hire an Archer", "An archer joins the army.", [_archer()]),
+		_option("Hire and Arm", "An archer joins, and a rare weapon with it.", [
+			_archer(), prize,
+		]),
+		_option("Walk Away", "Nothing happens.", []),
+	])
+
+
 func _on_panel_command_ready(
 		command: CampaignCommand, panel: EventPanel, made: CampaignSession
 ) -> void:
@@ -330,6 +374,12 @@ static func _event(
 	event.is_team_choice = is_team
 	event.options = options
 	return event
+
+
+static func _archer() -> RecruitOutcome:
+	var hire: RecruitOutcome = RecruitOutcome.new()
+	hire.unit_type_id = RECRUIT_TYPE
+	return hire
 
 
 static func _option(

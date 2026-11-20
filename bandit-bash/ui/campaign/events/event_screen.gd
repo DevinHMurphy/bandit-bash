@@ -6,7 +6,7 @@
 # File:     event_screen.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 extends Control
@@ -26,13 +26,14 @@ extends Control
 # INPUT MAP SETUP (built-in ui_* actions, read through the GUI and the panel; the panel's own block
 # lists what it reads):
 #   "ui_left" / "ui_right" -> arrows; d-pad, left stick      (along the option cards)
-#   "ui_up" / "ui_down"    -> arrows; d-pad, left stick      (along a chooser or a placement)
+#   "ui_up" / "ui_down"    -> arrows; d-pad, left stick      (along a chooser, the unit that
+#                             leaves, or a placement)
 #   "ui_accept"            -> Enter, Space; pad A [Cross]    (choose or vote for the focused card,
 #                             the focused choice, or Leave / Fight)
-#   "ui_cancel"            -> Esc; pad B [Circle], Menu [Options] (Back in a chooser or the rune
-#                             discard, read by the panel; in a placement the placement panel reads
-#                             it; on the cards and the outcome the pause menu reads it; on the
-#                             heirloom bar the bar reads it, closing itself)
+#   "ui_cancel"            -> Esc; pad B [Circle], Menu [Options] (Back in a chooser, the unit
+#                             that leaves or the rune discard, read by the panel; in a placement
+#                             the placement panel reads it; on the cards and the outcome the pause
+#                             menu reads it; on the heirloom bar the bar reads it, closing itself)
 #   "heirloom_bar_focus"   -> H; RS pushed left [R stick]    (read by the HeirloomBar: focuses it,
 #                             then back; hints HEIRLOOMS meanwhile)
 #   Mouse: a click on a card, choice or Leave presses it; hovering an heirloom shows its tooltip.
@@ -49,6 +50,7 @@ const HINT_CONTEXTS: Dictionary[EventPanel.Step, StringName] = {
 	EventPanel.Step.PLACEMENT: &"CHOOSE",
 	EventPanel.Step.RUNE: &"CHOOSE",
 	EventPanel.Step.OUTCOME: &"DONE",
+	EventPanel.Step.LEAVING: &"CHOOSE",
 }
 
 ## The outcome's hint context while a surprise combat waits.
