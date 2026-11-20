@@ -1,0 +1,211 @@
+# ==============================================================================
+# Bandit Bash
+# Copyright (c) 2026 Derc Development
+# Licensed under the MIT License. See LICENSE.
+#
+# File:     armory_screen.gd
+# Author:
+# Created:  November 20, 2026
+# Modified: November 20, 2026
+# ==============================================================================
+
+extends Control
+## An Armory node: the shared stock ([StockView]) under the run's header and [HeirloomBar], priced
+## for the seat, with Leave.
+##
+## On entry, a stock not yet rolled is rolled and saved first ([OpenArmoryCommand]), so a quit and
+## Continue shows the same stock. A card opens the [PurchasePanel]: an item's unit and deal with
+## its before/after comparison, or an heirloom's price; the deal sends [ArmoryPurchaseCommand].
+## Leave sends [LeaveNodeCommand] at any time, buying being optional. Every command goes through
+## [method CampaignService.submit_command], which saves; a rejection shows its reason and changes
+## nothing. The run's facts play ([CampaignPlayback]) as each resolves, so a purchase sounds once.
+## Opened at any other stage, it sends the run on at once.
+##
+## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
+
+# ============================================================
+# INPUT MAP SETUP (built-in ui_* actions, read through the GUI; the panel reads its own ui_cancel
+# first):
+#   "ui_left" / "ui_right" / "ui_up" / "ui_down"
+#                          -> arrows; d-pad, left stick      (between the stock's cards and Leave;
+#                             the panel's column)
+#   "ui_accept"            -> Enter, Space; pad A [Cross]    (press the focused card or choice)
+#   "ui_cancel"            -> Esc; pad B [Circle], Menu [Options] (the pause menu reads it; in the
+#                             panel, back a step)
+#   "heirloom_bar_focus"   -> H; RS pushed left [R stick]    (read by the HeirloomBar: focuses
+#                             it, then back; hints HEIRLOOMS meanwhile)
+#   Mouse: clicks on the cards, choices and Leave; hovering an heirloom shows its tooltip.
+# ============================================================
+
+## The hint context while the stock shows.
+const HINT_STOCK: StringName = &"STOCK"
+
+## The hint context while the purchase panel asks.
+const HINT_BUY: StringName = &"BUY"
+
+var _is_leaving: bool = false
+var _seat: int = 0
+var _context: StringName = HINT_STOCK
+var _buying: int = -1
+
+@onready var _header: RunHeader = %RunHeader
+@onready var _heirlooms: HeirloomBar = %HeirloomBar
+@onready var _stock_view: StockView = %StockView
+@onready var _status_label: Label = %Status
+@onready var _leave_button: Button = %LeaveButton
+@onready var _purchase_panel: PurchasePanel = %PurchasePanel
+@onready var _hints: ScreenHints = %ScreenHints
+
+
+func _ready() -> void:
+	var session: CampaignSession = CampaignService.session
+	if RunScreen.of(session) != SceneRouter.Screen.ARMORY:
+		_is_leaving = true
+		RunScreen.go()
+		return
+	_seat = session.seats[0]
+	_header.title = "Armory"
+	_heirlooms.navigation_started.connect(_on_heirloom_bar_navigation_started)
+	_heirlooms.navigation_ended.connect(_on_heirloom_bar_navigation_ended)
+	_stock_view.entry_pressed.connect(_on_stock_view_entry_pressed)
+	_leave_button.pressed.connect(_on_leave_button_pressed)
+	_purchase_panel.purchase_chosen.connect(_on_purchase_panel_purchase_chosen)
+	_purchase_panel.cancelled.connect(_on_purchase_panel_cancelled)
+	if ArmoryStock.pending(session.run) == null:
+		var opened: CampaignBatch = CampaignService.submit_command(
+				OpenArmoryCommand.for_session(session)
+		)
+		if opened == null or opened.is_rejected():
+			_status_label.text = "The Armory couldn't open: %s." % [
+				opened.rejected_reason if opened != null else "no run in progress",
+			]
+	_refresh()
+	_set_context(HINT_STOCK)
+	CampaignPlayback.play_pending(session)
+	_focus_default.call_deferred()
+
+
+## The stock shown, for tests and captures.
+func get_stock_view() -> StockView:
+	return _stock_view
+
+
+## The purchase panel, for tests and captures.
+func get_purchase_panel() -> PurchasePanel:
+	return _purchase_panel
+
+
+## The Leave button, for tests.
+func get_leave_button() -> Button:
+	return _leave_button
+
+
+## The status line's text, for tests.
+func get_status_text() -> String:
+	return _status_label.text
+
+
+# Shows the run as saved: the header (its gold), the bar and the stock priced for the seat.
+func _refresh() -> void:
+	var run: CampaignRunState = CampaignService.session.run
+	_header.show_run(run, _seat)
+	_heirlooms.show_views(HeirloomViewModel.for_run(run.seat_run(_seat)))
+	_stock_view.show_stock(run, _seat, EffectCatalog.index())
+
+
+# The first card that can be bought, else Leave. Deferred, so the screen may be gone.
+func _focus_default() -> void:
+	if not is_inside_tree() or _is_leaving:
+		return
+	var card: StockCard = _stock_view.first_enabled()
+	if card != null:
+		card.grab_focus()
+	else:
+		_leave_button.grab_focus()
+
+
+func _set_context(context: StringName) -> void:
+	_context = context
+	_hints.context = context
+
+
+func _submit(command: CampaignCommand) -> bool:
+	var batch: CampaignBatch = CampaignService.submit_command(command)
+	if batch == null or batch.is_rejected():
+		var reason: String = batch.rejected_reason if batch != null else "no run in progress"
+		if _purchase_panel.visible:
+			_purchase_panel.show_problem("Can't do that: %s." % [reason])
+		else:
+			_status_label.text = "Can't do that: %s." % [reason]
+		return false
+	CampaignPlayback.play_pending(CampaignService.session)
+	return true
+
+
+# What the purchase just made did, for the status line, from its ITEM_BOUGHT fact.
+func _bought_note(batch_facts: Array[CampaignFact]) -> String:
+	var catalog: EffectCatalog.Index = EffectCatalog.index()
+	for fact: CampaignFact in batch_facts:
+		if fact.kind != CampaignFact.Kind.ITEM_BOUGHT:
+			continue
+		var heirloom: HeirloomDefinition = catalog.heirloom(fact.definition_id)
+		var item: ItemDefinition = catalog.item(fact.definition_id)
+		var bought_name: String = (
+				heirloom.display_name if heirloom != null
+				else CombatResultsModel.item_name(item, fact.definition_id)
+		)
+		if fact.amount < 0:
+			return "Bought %s and got %d gold back." % [bought_name, -fact.amount]
+		return "Bought %s for %d gold." % [bought_name, fact.amount]
+	return ""
+
+
+func _on_stock_view_entry_pressed(index: int) -> void:
+	if _is_leaving:
+		return
+	var session: CampaignSession = CampaignService.session
+	_buying = index
+	_status_label.text = ""
+	_purchase_panel.open(session.run, _seat, index, EffectCatalog.index(), session.ids)
+	_set_context(HINT_BUY)
+
+
+func _on_purchase_panel_purchase_chosen(unit_id: String, is_traded_in: bool) -> void:
+	var session: CampaignSession = CampaignService.session
+	var first: int = session.run.fact_log.size()
+	var command: ArmoryPurchaseCommand = ArmoryPurchaseCommand.for_session(
+			session, _seat, _buying, unit_id, is_traded_in
+	)
+	if not _submit(command):
+		return
+	_purchase_panel.close()
+	_set_context(HINT_STOCK)
+	_status_label.text = _bought_note(session.run.fact_log.slice(first))
+	_refresh()
+	_focus_default()
+
+
+func _on_purchase_panel_cancelled() -> void:
+	_set_context(HINT_STOCK)
+	var card: StockCard = _stock_view.card_for(_buying)
+	if card != null and not card.disabled:
+		card.grab_focus()
+	else:
+		_focus_default()
+
+
+func _on_leave_button_pressed() -> void:
+	if _is_leaving:
+		return
+	if not _submit(LeaveNodeCommand.new(_seat)):
+		return
+	_is_leaving = true
+	RunScreen.go()
+
+
+func _on_heirloom_bar_navigation_started() -> void:
+	_hints.context = HeirloomBar.HINT_CONTEXT
+
+
+func _on_heirloom_bar_navigation_ended() -> void:
+	_hints.context = _context

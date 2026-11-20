@@ -6,7 +6,7 @@
 # File:     campaign_bus.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name CampaignBus
@@ -96,8 +96,9 @@ class RunChannel:
 		_route(CampaignFact.Kind.TEAM_OPTION_DRAWN, team_option_drawn)
 
 
-## A player's army: heirlooms, items and runes gained, equipped, modified, scrapped or discarded;
-## gold, HP and unit changes; recruits, dismissals and upgrades; army size; revivals; level-ups.
+## A player's army: heirlooms, items and runes gained, bought, equipped, modified, scrapped,
+## traded in or discarded; gold, HP and unit changes; recruits, dismissals and upgrades; army size;
+## revivals; level-ups.
 class ArmyChannel:
 	extends BusChannel
 
@@ -133,6 +134,10 @@ class ArmyChannel:
 	signal feast_held(fact: CampaignFact)
 	## [constant CampaignFact.ITEM_GIFTED].
 	signal item_gifted(fact: CampaignFact)
+	## [constant CampaignFact.ITEM_BOUGHT].
+	signal item_bought(fact: CampaignFact)
+	## [constant CampaignFact.ITEM_TRADED_IN].
+	signal item_traded_in(fact: CampaignFact)
 
 	func _init() -> void:
 		_route(CampaignFact.Kind.GAINED, gained)
@@ -151,6 +156,8 @@ class ArmyChannel:
 		_route(CampaignFact.Kind.ARMY_SIZE_CHANGED, army_size_changed)
 		_route(CampaignFact.Kind.FEAST_HELD, feast_held)
 		_route(CampaignFact.Kind.ITEM_GIFTED, item_gifted)
+		_route(CampaignFact.Kind.ITEM_BOUGHT, item_bought)
+		_route(CampaignFact.Kind.ITEM_TRADED_IN, item_traded_in)
 
 
 ## Effect activations and counters.

@@ -79,10 +79,12 @@ screen or system with many parts).
 When two branches append, the second to merge renumbers its own. Check the last value on `dev`
 before writing a prompt and name it in the LANE block.
 
-- `CampaignFact.Kind` (`scripts/bus/campaign_fact.gd`): ends at 26 (RN7) on November 20, 2026.
+- `CampaignFact.Kind` (`scripts/bus/campaign_fact.gd`): ends at 28 (RN8) on November 20, 2026;
+  `CampaignFact.flags` defines `FLAG_BOUGHT = 1` (RN8).
   `docs/design/event-bus.md` lists every kind with what records it.
-- `SceneRouter.Screen`: ends at `CAMP = 15` (RN7).
-- `capture` group numbers in `tools/captures/`: 100 to 700 used; EV3 took 450, RN7 460.
+- `SceneRouter.Screen`: ends at `ARMORY = 16` (RN8).
+- `FactCueMap.Shape`: ends at `BOUGHT = 8` (RN8).
+- `capture` group numbers in `tools/captures/`: 100 to 700 used; EV3 took 450, RN7 460, RN8 470; EV1G is taking 455.
 
 ## Reviewing a report
 
@@ -115,7 +117,7 @@ before writing a prompt and name it in the LANE block.
 | Lane | Next | Then | Gated on |
 |------|------|------|----------|
 | A Battle UI | EV1G (event-screen replace pick) | RB1 after the M2 exit playtest; UL9 (reward cards, RF-031, RF-032) after RN8; EN16 | RB1: the playtest; UL9: RN8 merged |
-| B Campaign and run | RN8 Armory | RN9 Guildhall, RN10 Unknown, RN11 full run, RN12 docs | one at a time |
+| B Campaign and run | RN9 Guildhall | RN10 Unknown, RN11 full run, RN12 docs | one at a time; NT3 first if it is sent |
 | C Events | EV4 (the 13 events) | EV6 docs | — |
 | D Engine, AI, content | EN13 measure | EN14, EN15; CT12 after the weapon modification design | EN13 first |
 | E Network | NT3 campaign wire | NT4–NT8 | NT3 when Lanes B and C aren't editing campaign or event commands |

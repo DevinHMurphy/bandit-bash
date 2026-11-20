@@ -6,7 +6,7 @@
 # File:     fact_cue_listener.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name FactCueListener
@@ -94,14 +94,16 @@ func cue_for_combat(fact: CombatFact) -> StringName:
 	return &""
 
 
-## The cue id [param fact] sounds; empty for none. Campaign facts match the bare kind or the
-## [code]combat[/code] and [code]treasure[/code] shapes; every other shape is combat's and never
-## matches.
+## The cue id [param fact] sounds; empty for none, or for a [constant FactCueMap.SILENT] rule.
+## Campaign facts match the bare kind or the [code]combat[/code], [code]treasure[/code] and
+## [code]bought[/code] shapes; every other shape is combat's and never matches.
 func cue_for_campaign(fact: CampaignFact) -> StringName:
 	if _map == null or fact == null:
 		return &""
 	for rule: FactCueMap.Rule in _map.rules_for(fact.kind):
 		if rule.shape == FactCueMap.Shape.ANY:
+			return rule.cue_id
+		if rule.shape == FactCueMap.Shape.BOUGHT and (fact.flags & CampaignFact.FLAG_BOUGHT) != 0:
 			return rule.cue_id
 		if rule.shape == FactCueMap.Shape.COMBAT_NODE and _is_combat_node(fact.amount):
 			return rule.cue_id
@@ -126,7 +128,7 @@ func _matches(shape: FactCueMap.Shape, fact: CombatFact) -> bool:
 			return fact.side == CombatFact.CombatSide.PLAYER
 		FactCueMap.Shape.ENEMY_SIDE:
 			return fact.side == CombatFact.CombatSide.ENEMY
-		FactCueMap.Shape.COMBAT_NODE, FactCueMap.Shape.TREASURE_NODE:
+		FactCueMap.Shape.COMBAT_NODE, FactCueMap.Shape.TREASURE_NODE, FactCueMap.Shape.BOUGHT:
 			return false
 	return true
 
