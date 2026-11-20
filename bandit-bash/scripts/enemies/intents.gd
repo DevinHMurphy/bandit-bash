@@ -6,7 +6,7 @@
 # File:     intents.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 18, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name Intents
@@ -41,6 +41,16 @@ extends RefCounted
 ## (~1.9 ms each), so it is re-architected before larger maps: see the orchestrator's design item
 ## 'Re-architect the move preview'.
 
+## The text a checking-mode difference starts with in [member diagnostics].
+const CHECK_PREFIX: String = "check: "
+
+## Checking mode, as [member EffectEngine.verify] is for stat sheets: a preview also decides
+## afresh every decision it keeps from the latest intents, and reports each that differs in
+## [member diagnostics], starting [constant CHECK_PREFIX]. Results never change. Off by default
+## and ignored outside debug builds; [method prepare_preview] reads it, so a running job keeps the
+## value it started with. Tests and debug runs set it on the main thread.
+static var is_checking: bool = false
+
 ## Every enemy that would act, in order ([member EnemyIntent.order]).
 var enemies: Array[EnemyIntent] = []
 
@@ -59,6 +69,10 @@ var moved_to: Vector2i = CombatFact.NO_TILE
 
 ## Enemy decisions ([method EnemyAI.decide]) this computation made; a preview reuses the rest.
 var decisions: int = 0
+
+## Kept decisions that checking mode ([member is_checking]) decided afresh and compared; 0 when it
+## is off. Not counted in [member decisions].
+var checked: int = 0
 
 ## The sandbox's diagnostics, for the main thread to log.
 var diagnostics: PackedStringArray = []
@@ -209,20 +223,23 @@ static func prepare_preview(session: CombatSession, unit_id: String, tile: Vecto
 	job._base = base
 	job._touched = [origin, tile]
 	job._margin = _effect_margin(engine, base._reaches)
+	job._is_checking = is_checking and OS.is_debug_build()
 	return job
 
 
 # The phase on engine, one step per enemy: every enemy yet to act decided, as EnemyAI.next_plan
 # decides them, then the best carried out. With base, each enemy decision base made at that step
 # is kept while none of touched lies in its options, until a plan other than base's acts. margin:
-# _effect_margin of engine as it starts. Pure on engine: PreviewJob.run calls it on a worker.
+# _effect_margin of engine as it starts. checking: also decide each kept one afresh (_check_kept).
+# Pure on engine: PreviewJob.run calls it on a worker.
 static func _play(
 		found: Intents,
 		engine: EffectEngine,
 		flooded: Dictionary[Vector2i, bool],
 		base: Intents,
 		touched: Array[Vector2i],
-		margin: int
+		margin: int,
+		checking: bool = false
 ) -> void:
 	var state: CombatState = engine.state
 	var is_reusing: bool = base != null and margin >= 0
@@ -241,6 +258,8 @@ static func _play(
 				decision = known.decisions[unit_id]
 				if decision.touches(touched):
 					decision = null
+				elif checking:
+					_check_kept(found, engine, unit_id, step, decision, flooded, margin)
 			if decision == null:
 				decision = _decide(
 						engine, found._catalog, unit_id, flooded, margin, found._objective
@@ -272,6 +291,49 @@ static func _play(
 			)
 			if on_action != null:
 				intent.show_signature(on_action.name, on_action.area)
+
+
+# Checking mode for one decision kept at step: decides unit_id afresh on engine, as a preview
+# would without reuse, and adds a CHECK_PREFIX line to engine's diagnostics when the plans differ
+# (_plan_text). Counts it in found.checked, never in found.decisions; changes no result.
+static func _check_kept(
+		found: Intents,
+		engine: EffectEngine,
+		unit_id: String,
+		step: int,
+		kept: Decision,
+		flooded: Dictionary[Vector2i, bool],
+		margin: int
+) -> void:
+	var fresh: Decision = _decide(
+			engine, found._catalog, unit_id, flooded, margin, found._objective
+	)
+	found.checked += 1
+	var was: String = _plan_text(kept.plan)
+	var now: String = _plan_text(fresh.plan)
+	if was != now:
+		engine.diagnostics.append("%sstep %d, %s kept [%s], a re-plan gives [%s]" % [
+			CHECK_PREFIX, step, unit_id, was, now,
+		])
+
+
+# plan as one line holding everything a re-plan must reproduce: its kind, target, weapon, path,
+# rating and the outcome of its forecast for every unit.
+static func _plan_text(plan: EnemyPlan) -> String:
+	var parts: PackedStringArray = [
+		plan.actor_id, EnemyPlan.Kind.find_key(plan.kind), plan.target_id, plan.weapon_id,
+		str(plan.path), str(plan.tile), str(plan.is_kill), str(plan.kill_chance),
+		str(plan.target_rule_key), str(plan.value), str(plan.safety), str(plan.progress),
+		EnemyPlan.Step.find_key(plan.decided_by),
+	]
+	if plan.forecast != null:
+		for outcome: CombatForecast.UnitOutcome in plan.forecast.units:
+			parts.append("%s %d>%d b%d>%d s%d>%d %s>%s %s" % [
+				outcome.unit_id, outcome.hp_before, outcome.hp_after, outcome.block_before,
+				outcome.block_after, outcome.stance_before, outcome.stance_after,
+				outcome.tile_before, outcome.tile_after, outcome.is_defeated,
+			])
+	return " ".join(parts)
 
 
 # unit_id's decision on engine's board, with the tiles a moved player unit would have to touch to
@@ -583,6 +645,8 @@ class PreviewJob:
 	var _base: Intents = null
 	var _touched: Array[Vector2i] = []
 	var _margin: int = 0
+	# Intents.is_checking in a debug build when prepare_preview built the job.
+	var _is_checking: bool = false
 
 	## The previewed intents, re-planning the enemies on the first call; later calls return the
 	## same. Pure rules code on the job's own sandbox, reading only the base intents and content
@@ -591,7 +655,7 @@ class PreviewJob:
 	func run() -> Intents:
 		if _found == null:
 			return _result
-		Intents._play(_found, _engine, _flooded, _base, _touched, _margin)
+		Intents._play(_found, _engine, _flooded, _base, _touched, _margin, _is_checking)
 		_found.diagnostics = _engine.diagnostics
 		_result = _found
 		_found = null

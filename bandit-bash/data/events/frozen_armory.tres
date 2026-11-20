@@ -43,7 +43,7 @@ title = "Stay Warm"
 text = "Every unit heals 20% of its max HP."
 outcomes = Array[ExtResource("3_out")]([SubResource("Resource_heal")])
 
-; ASSUMPTION: the scene text is Godot_FE's frozen_armory.tres description with its BBCode removed
+; the scene text is Godot_FE's frozen_armory.tres description with its BBCode removed
 ; (the event screen shows plain text).
 [resource]
 script = ExtResource("1_def")

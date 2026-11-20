@@ -40,7 +40,7 @@ title = "Perform for the Crowd"
 text = "Gain 40 gold."
 outcomes = Array[ExtResource("3_out")]([SubResource("Resource_gold")])
 
-; ASSUMPTION: the scene text is Godot_FE's festival_of_embers.tres description with its BBCode
+; the scene text is Godot_FE's festival_of_embers.tres description with its BBCode
 ; removed (the event screen shows plain text).
 [resource]
 script = ExtResource("1_def")

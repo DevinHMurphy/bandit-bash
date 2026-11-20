@@ -44,7 +44,7 @@ title = "Bow in Reverence"
 text = "Every unit heals 20% of its max HP."
 outcomes = Array[ExtResource("3_out")]([SubResource("Resource_heal")])
 
-; ASSUMPTION: the scene text is Godot_FE's whispering_oak.tres description with its BBCode removed
+; the scene text is Godot_FE's whispering_oak.tres description with its BBCode removed
 ; (the event screen shows plain text), and "a low, humm" read as "a low hum".
 [resource]
 script = ExtResource("1_def")

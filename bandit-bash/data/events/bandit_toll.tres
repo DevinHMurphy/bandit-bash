@@ -42,7 +42,7 @@ text = "The bandits flee and leave their loot: each player gains 40 gold and a m
 outcomes = Array[ExtResource("3_out")]([SubResource("Resource_loot")])
 curse_tier = "minor"
 
-; ASSUMPTION: the scene text is events.md's line for the event; it has no Godot_FE scene of its
+; the scene text is events.md's line for the event; it has no Godot_FE scene of its
 ; own, and no art, so the screen shows its placeholder.
 [resource]
 script = ExtResource("1_def")
