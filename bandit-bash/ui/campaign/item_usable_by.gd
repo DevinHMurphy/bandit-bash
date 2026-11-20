@@ -11,7 +11,7 @@
 
 class_name ItemUsableBy
 extends HBoxContainer
-## Who can use an offered item, at the bottom right of its [ItemOfferCard]. For a weapon: an
+## Who can use an item, at the bottom right of its [ItemOfferCard] or [StockCard]. For a weapon: an
 ## [ItemUserIcon] for each of the seat's living units that can wield it ([method wielders]), in
 ## army order, at most [member max_icons], then "+n"; [member no_unit_text] when none can.
 ## Equipment and Pouch items fit any unit, so they show [member any_unit_text] instead.[br]
@@ -46,9 +46,14 @@ const ICON_SCENE: PackedScene = preload("res://ui/campaign/item_user_icon.tscn")
 @export var names_title: String = "Can wield it"
 
 # The gap (P15 question 24): the heirloom bar's; ui-style.md sets no distance.
-## The space between the row's bottom edge and its tooltip.[br]
+## The space between the row's edge on [member tooltip_side] and its tooltip.[br]
 ## [b]Units:[/b] base units. [b]0.0:[/b] the tooltip touches the row. 4 matches the heirloom bar's.
 @export_range(0.0, 32.0, 1.0) var tooltip_gap: float = 4.0
+
+## Which side of the row its tooltip opens on: above or below it, left edges lined up; beside
+## it, bottom edges lined up, so it rises beside the card. Kept on screen on any side.
+## [ChestView] opens it to the right, so it doesn't cover the chest's gold line.
+@export var tooltip_side: Side = SIDE_BOTTOM
 
 # Every wielder's name in army order; empty for an item any unit uses, or none can wield.
 var _names: PackedStringArray = []
@@ -183,7 +188,18 @@ func _place_tip() -> void:
 	if not is_instance_valid(_tooltip) or not _tooltip.visible:
 		return
 	var screen: Vector2 = get_viewport_rect().size
-	var at: Vector2 = global_position + Vector2(0.0, size.y + tooltip_gap)
+	var at: Vector2 = global_position
+	match tooltip_side:
+		SIDE_TOP:
+			at.y -= _tooltip.size.y + tooltip_gap
+		SIDE_LEFT:
+			at.x -= _tooltip.size.x + tooltip_gap
+			at.y += size.y - _tooltip.size.y
+		SIDE_RIGHT:
+			at.x += size.x + tooltip_gap
+			at.y += size.y - _tooltip.size.y
+		_:
+			at.y += size.y + tooltip_gap
 	at.x = clampf(at.x, 0.0, maxf(screen.x - _tooltip.size.x, 0.0))
 	at.y = clampf(at.y, 0.0, maxf(screen.y - _tooltip.size.y, 0.0))
 	_tooltip.global_position = at

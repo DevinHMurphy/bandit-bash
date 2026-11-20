@@ -57,6 +57,8 @@ Not a bug.
 | [BUG-022](#bug-022-an-enemys-second-move-ending-in-a-wait-crashes-the-enemy-phase) | An enemy's second move ending in a Wait crashes the enemy phase (the Bloodhound after a kill) | P05 (enemy plans) | S2 | Fixed (BF5 merge, November 20, 2026) | November 20, 2026, EN13 report | BF5 |
 | [BUG-023](#bug-023-an-untyped-empty-literal-from-a-ternary-fails-in-a-typed-slot) | An untyped `[]` from a ternary fails at runtime in a typed Array slot (three latent places) | P01 / P08 / tests | S3 (latent) | Open | November 20, 2026, BF5 report | EN14 (effect_engine.gd), UL10 (the other two) |
 | [BUG-024](#bug-024-battles-dont-save-at-the-end-of-a-player-phase) | Battles don't save at the end of a player phase: a crash loses every move since Begin | P00 / P07 (battle checkpoints) | S2 | Open | November 20, 2026, P11 plan report | BF6 (Lane A, after UL10) |
+| [BUG-025](#bug-025-openeventcommand-accepts-an-unknown-that-rolled-a-shop) | `OpenEventCommand` accepts an Unknown that rolled a shop, Treasure or combat | P09 (event commands) | S3 (latent) | Open | November 20, 2026, RN10 report | a Lane C step (CO9) |
+| [BUG-026](#bug-026-the-event-panels-deferred-focus-has-no-in-tree-guard) | The event panel's deferred focus has no in-tree guard (BUG-017's pattern) | P09 (event screen) | S4 | Open | November 20, 2026, RN10 report | a Lane C step (CO12) |
 
 ### BUG-001 No Block at the start of combat
 
@@ -404,3 +406,17 @@ Not a bug.
 - **Fix in BF6** before M3 (a solo run must be resumable): save at the end of each player phase.
   P11 CO2 then extends it to co-op, where each map checkpoints at the end of its own player phase
   (P11 question 39).
+
+### BUG-025 OpenEventCommand accepts an Unknown that rolled a shop
+
+- **Found** by RN10: `OpenEventCommand.validate` (`scripts/events/`) checks only the map's node
+  type, not `CampaignRunState.node_type()`, so it would accept an Unknown that rolled an Armory,
+  a Guildhall, a Treasure or a combat. Only the routing keeps it from being sent. Latent; on the
+  network (NT3 onward) a forged command could reach it.
+- **Fix:** validate against `node_type()`, with a case.
+
+### BUG-026 The event panel's deferred focus has no in-tree guard
+
+- **Found** by RN10's walk: `event_panel.gd` calls `focus_first.call_deferred()` without checking
+  it is still in the tree (BUG-017's pattern), so leaving in the same frame the outcome shows logs
+  a `grab_focus` error. The walk now defers its press. Fix as BUG-017 was.

@@ -110,7 +110,7 @@ func _refresh() -> void:
 	var run: CampaignRunState = CampaignService.session.run
 	_header.show_run(run, _seat)
 	_heirlooms.show_views(HeirloomViewModel.for_run(run.seat_run(_seat)))
-	_stock_view.show_stock(run, _seat, EffectCatalog.index())
+	_stock_view.show_stock(run, _seat, EffectCatalog.index(), CampaignService.session.ids)
 
 
 # The first card that can be bought, else Leave. Deferred, so the screen may be gone.

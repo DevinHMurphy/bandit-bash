@@ -84,12 +84,12 @@ screen or system with many parts).
 When two branches append, the second to merge renumbers its own. Check the last value on `dev`
 before writing a prompt and name it in the LANE block.
 
-- `CampaignFact.Kind` (`scripts/bus/campaign_fact.gd`): ends at 31 (RN9) on November 20, 2026;
+- `CampaignFact.Kind` (`scripts/bus/campaign_fact.gd`): ends at 32 (RN10) on November 20, 2026;
   `CampaignFact.flags` defines `FLAG_BOUGHT = 1` (RN8).
   `docs/design/event-bus.md` lists every kind with what records it.
 - `SceneRouter.Screen`: ends at `GUILDHALL = 17` (RN9).
 - `FactCueMap.Shape`: ends at `GUILDHALL_NODE = 9` (RN9).
-- `capture` group numbers in `tools/captures/`: 100 to 700 used; EV3 took 450, RN7 460, RN8 470, RN9 480, EV1G 455, UL9 405.
+- `capture` group numbers in `tools/captures/`: 100 to 700 used; EV3 took 450, RN7 460, RN8 470, RN9 480, EV1G 455, UL9 405, UL10 475.
 
 ## Reviewing a report
 
@@ -121,8 +121,8 @@ before writing a prompt and name it in the LANE block.
 
 | Lane | Next | Then | Gated on |
 |------|------|------|----------|
-| A Battle UI | BF6 (BUG-024, the end-of-phase battle save) after UL10 | EN16 after EN14; RB1 in M3; CO13 after CO2 | RB1: RN10 merged and a full-run playtest (user, November 20, 2026) |
-| B Campaign and run | RN10 Unknown | RN11 full run, RN12 docs | one at a time; NT3 (Lane E) goes between RN10 and RN11 |
+| A Battle UI | BF6 (BUG-024, the end-of-phase battle save) | EN16 after EN14; RB1 in M3; CO13 after CO2 | RB1: RN10 merged and a full-run playtest (user, November 20, 2026) |
+| B Campaign and run | RN11 full run | RN12 docs; then P11 CO10, CO5, CO7, CO8, CO11, CO14 | NT3 before or after RN11: the user's call |
 | C Events | CO9 (team choices per seat) | CO12 (co-op event screen) | P11 approved |
 | D Engine, AI, content | EN14 (forecast cache) | EN15, EN16; CT12 after the weapon modification design | — |
 | E Network | NT3 campaign wire | NT4–NT8 | NT3 when RN10 has merged |

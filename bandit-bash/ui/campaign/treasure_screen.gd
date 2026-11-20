@@ -19,6 +19,7 @@ extends Control
 ## ([LeaveConfirmDialog]) and gives it up, then [LeaveNodeCommand] returns to the map. Every
 ## command goes through [method CampaignService.submit_command], which saves; a rejection shows
 ## its reason and changes nothing. The run's facts play ([CampaignPlayback]) as each resolves.
+## While Open has focus, the chest names its weapon's wielders ([method ChestView.show_names_tip]).
 ## Opened at any other stage, it sends the run on at once.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
@@ -72,6 +73,8 @@ func _ready() -> void:
 	_heirlooms.navigation_started.connect(_on_heirloom_bar_navigation_started)
 	_heirlooms.navigation_ended.connect(_on_heirloom_bar_navigation_ended)
 	_open_button.pressed.connect(_on_open_button_pressed)
+	_open_button.focus_entered.connect(_chest_view.show_names_tip)
+	_open_button.focus_exited.connect(_chest_view.hide_names_tip)
 	_leave_button.pressed.connect(_on_leave_button_pressed)
 	_placement_panel.placement_chosen.connect(_on_placement_panel_placement_chosen)
 	_placement_panel.cancelled.connect(_on_placement_panel_cancelled)
