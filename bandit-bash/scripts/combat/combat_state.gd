@@ -588,6 +588,10 @@ func get_stance(id: String) -> int:
 	return _units[id].stance if _units.has(id) else 0
 
 
+func level_of(id: String) -> int:
+	return _units[id].level if _units.has(id) else 1
+
+
 func tiles_moved(id: String) -> int:
 	return _units[id].tiles_moved if _units.has(id) else 0
 
