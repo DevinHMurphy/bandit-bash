@@ -11,7 +11,8 @@
 
 class_name ArmyView
 extends Control
-## The army and its convoy, over the screen that opened it: a [UnitGearRow] per unit and the
+## The army and its convoy, over the screen that opened it: the army's size against its max
+## ([method RunOperations.max_army_size], so Muster Roll shows), a [UnitGearRow] per unit and the
 ## [ConvoyPanel]. Gear changes only where it is gained and when re-gearing at a Camp; elsewhere
 ## the army can only be viewed and items scrapped (game-vision.md, Inventory), so it has two modes
 ## ([enum Mode]).
@@ -60,6 +61,7 @@ var _carrying: String = ""
 
 @onready var _backdrop: ColorRect = %Backdrop
 @onready var _title_label: Label = %Title
+@onready var _size_label: Label = %ArmySize
 @onready var _note_label: Label = %Note
 @onready var _rows: VBoxContainer = %Rows
 @onready var _convoy: ConvoyPanel = %ConvoyPanel
@@ -112,6 +114,9 @@ func refresh() -> void:
 	_status_label.text = ""
 	var seat_run: SeatRun = _session.run.seat_run(_seat)
 	var catalog: EffectCatalog.Index = EffectCatalog.index()
+	_size_label.text = "Army %d / %d" % [
+		seat_run.army.size(), RunOperations.max_army_size(seat_run, catalog),
+	]
 	for child: Node in _rows.get_children():
 		_rows.remove_child(child)
 		child.queue_free()

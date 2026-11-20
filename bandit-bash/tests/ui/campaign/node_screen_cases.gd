@@ -353,6 +353,11 @@ func _test_map_army_view() -> void:
 	var hints: ScreenHints = screen.get_node(^"%ScreenHints")
 	_press_key(KEY_I)
 	var opened: bool = army.visible and army.get_mode() == ArmyView.Mode.VIEW
+	var size_label: Label = army.get_node(^"%ArmySize")
+	var max_size: int = RunOperations.max_army_size(seat_run, _catalog)
+	_check.call("map army: it shows the army's size against its max (Muster Roll counts)", (
+			size_label.text == "Army %d / %d" % [seat_run.army.size(), max_size]
+	), size_label.text)
 	var rows: Array[UnitGearRow] = army.get_rows()
 	var slots_locked: bool = not rows.is_empty() and rows[0].get_slot_button(
 			Loadout.Slot.WEAPON
