@@ -6,7 +6,7 @@
 # File:     campaign_map_screen.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 extends Control
@@ -37,8 +37,8 @@ extends Control
 #                             reads it; on the heirloom bar the bar reads it, closing itself)
 #   "heirloom_bar_focus"   -> H; RS pushed left [R stick]               (read by the HeirloomBar:
 #                             focuses it, then back to the node; hints HEIRLOOMS meanwhile)
-# ASSUMPTION: the army view opens on battle's unit_detail (no pad button is left free, and a
-# map-only action's pad binding would act in battle); "view details" reads the same on both.
+# The army view opens on battle's unit_detail: no pad button is free, and a map-only action's pad
+# binding would act in battle; "view details" reads the same on both.
 #   "unit_detail"          -> Ctrl; LS [L3]                             (read here in
 #                             _unhandled_input: opens the army view; inside it the view reads
 #                             ui_cancel, closing it, and the GUI moves between its Scrap buttons)
