@@ -1,0 +1,40 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/item_usable_by.gd" id="1_row"]
+[ext_resource type="Resource" path="res://assets/sprites/units/unit_sprites.tres" id="2_sprites"]
+[ext_resource type="PackedScene" path="res://ui/common/game_tooltip.tscn" id="3_tooltip"]
+
+[node name="ItemUsableBy" type="HBoxContainer"]
+mouse_filter = 2
+theme_override_constants/separation = 4
+alignment = 2
+script = ExtResource("1_row")
+sprites = ExtResource("2_sprites")
+
+[node name="Icons" type="HBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="More" type="Label" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 1
+theme_type_variation = &"MutedLabel"
+text = "+1"
+
+[node name="Note" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+theme_type_variation = &"MutedLabel"
+text = "Any unit"
+
+[node name="Tooltip" parent="." instance=ExtResource("3_tooltip")]
+unique_name_in_owner = true
+visible = false
+top_level = true
+layout_mode = 0

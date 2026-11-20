@@ -6,7 +6,7 @@
 # File:     item_reward_picker.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name ItemRewardPicker
@@ -79,7 +79,10 @@ func open(reward: VictoryReward, seat: int) -> void:
 		_status_label.text = "This item pick couldn't be read; see the log."
 		_back_button.grab_focus()
 		return
-	_pick_panel.show_pick(_model)
+	var session: CampaignSession = CampaignService.session
+	_pick_panel.show_pick(
+			_model, "", session.run.seat_run(seat), EffectCatalog.index(), session.ids
+	)
 	_link_back()
 	if not _pick_panel.focus_first():
 		_back_button.grab_focus()

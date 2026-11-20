@@ -6,7 +6,7 @@
 # File:     item_pick_panel.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 15, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name ItemPickPanel
@@ -45,7 +45,15 @@ func _ready() -> void:
 
 ## Shows [param model]'s pick: the offers to choose from while it is open, else its outcome
 ## ([method CombatResultsModel.pick_outcome]) and [param note] when not empty. Hidden with no pick.
-func show_pick(model: CombatResultsModel, note: String = "") -> void:
+## Each card shows who of [param seat_run]'s living units can use it, read from [param catalog]
+## and named through [param ids]; [param seat_run] null shows no one.
+func show_pick(
+		model: CombatResultsModel,
+		note: String = "",
+		seat_run: SeatRun = null,
+		catalog: EffectCatalog.Index = null,
+		ids: InstanceIdAllocator = null,
+) -> void:
 	for child: Node in _cards.get_children():
 		_cards.remove_child(child)
 		child.queue_free()
@@ -64,7 +72,9 @@ func show_pick(model: CombatResultsModel, note: String = "") -> void:
 	for index: int in pick.offers.size():
 		var card: ItemOfferCard = CARD_SCENE.instantiate()
 		_cards.add_child(card)
-		card.show_item(model.offers[index], pick.offers[index].definition_id)
+		card.show_item(
+				model.offers[index], pick.offers[index].definition_id, seat_run, catalog, ids
+		)
 		card.pressed.connect(_on_card_pressed.bind(index))
 	_link_focus()
 

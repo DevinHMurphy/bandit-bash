@@ -6,7 +6,7 @@
 # File:     treasure_screen.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 extends Control
@@ -133,7 +133,9 @@ func _refresh() -> void:
 	_header.show_run(run, _seat)
 	_heirlooms.show_views(HeirloomViewModel.for_run(run.seat_run(_seat)))
 	var chest: TreasureChest = _chest()
-	_chest_view.show_chest(chest, EffectCatalog.index())
+	_chest_view.show_chest(
+			chest, EffectCatalog.index(), run.seat_run(_seat), CampaignService.session.ids
+	)
 	var is_open: bool = chest != null and not chest.is_resolved
 	_open_button.visible = is_open
 	_open_button.text = "Open the chest"
