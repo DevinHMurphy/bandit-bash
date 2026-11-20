@@ -435,7 +435,7 @@ func _test_target_labels() -> void:
 	rig.close()
 
 
-# At the base size: the panel area, the HUD's left column and banner, and the turn bar cover none
+# At the base size: the panel area, the HUD's left column and the turn bar cover none
 # of the map; the panel area clips and stops above the turn bar, so the forecast with its
 # breakdown open stays off the turn bar and End Turn, scrolling instead; it fits the area's width.
 func _test_panel_area() -> void:
@@ -451,10 +451,11 @@ func _test_panel_area() -> void:
 	var bar: Rect2 = rig.h.bar.get_global_rect()
 	var left: Control = rig.hud.get_node(^"LeftColumn")
 	var covers: PackedStringArray = []
+	# The phase banner is left out: it shows for 2 s under the heirloom bar's row, over the map's
+	# top edge by design (ui-lift.md, UL6); combat_feedback_cases.gd checks its place.
 	var widgets: Dictionary[String, Rect2] = {
 		"panel area": area,
 		"left column": left.get_global_rect(),
-		"phase banner": rig.hud.get_phase_banner().get_global_rect(),
 		"event log": rig.hud.get_event_log().get_global_rect(),
 		"turn bar": bar,
 		"swap window": rig.h.swap.get_global_rect(),

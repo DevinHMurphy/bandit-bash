@@ -36,7 +36,9 @@ func run() -> bool:
 	var objective: HudViewModel.ObjectiveView = HudViewModel.ObjectiveView.new()
 	objective.marked_left_ids = PackedStringArray([elite_id])
 	view.show_objective(objective)
-	note("elite board shot: %s outlined as a leader; the board has no elite mark" % [elite_id])
+	note("elite board shot: %s outlined as a leader; its elite mark shows once rebuilt" % [
+		elite_id,
+	])
 	await frames(SETTLE_FRAMES)
 	await capture("battle_board_elite")
 	view.show_objective(null)

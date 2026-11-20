@@ -445,8 +445,9 @@ func _event_line(fact: CombatFact) -> Entry:
 
 
 # A map object's change: the object is the actor, what caused it the target.
-# Closing, searching, lighting, dousing, breaking, a point's closing and the darkness's touch and
-# erosion are worded as opening, looting and exploding are.
+# Closing, searching, lighting, dousing, breaking, a point's closing, the darkness's touch and
+# erosion, and a thrown keg's landing (the target its thrower) and fuse are worded as opening,
+# looting and exploding are.
 func _object_line(fact: CombatFact, entry: Entry) -> void:
 	var object_name: String = _name(fact.actor_id)
 	var by: String = ""
@@ -492,6 +493,15 @@ func _object_line(fact: CombatFact, entry: Entry) -> void:
 			entry.add(" (%d %s)" % [fact.amount, "turn" if fact.amount == 1 else "turns"], true)
 		MapObjects.Change.ERODED:
 			entry.add("The darkness erodes %s at " % [object_name]).add_tile(fact.tile)
+		MapObjects.Change.LANDED:
+			if by.is_empty():
+				entry.add("%s lands at " % [object_name])
+			else:
+				entry.add("%s throws %s: it lands at " % [by, object_name])
+			entry.add_tile(fact.tile).add(", lit")
+		MapObjects.Change.FUSE_BURNED:
+			entry.add("%s's fuse burns down" % [object_name])
+			entry.add(" (%d left)" % [fact.amount], true)
 		_:
 			entry.add("%s at " % [object_name]).add_tile(fact.tile).add(" changes")
 

@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://ui/battle/unit/unit_info.gd" id="1_info"]
 [ext_resource type="Theme" uid="uid://bi25fbqd4wl3o" path="res://ui/theme/battle_theme.tres" id="2_theme"]
@@ -7,6 +7,8 @@
 [ext_resource type="PackedScene" uid="uid://bgmxqllrpuh84" path="res://ui/battle/unit/block_badge.tscn" id="5_badge"]
 [ext_resource type="PackedScene" path="res://ui/battle/unit/block_ban_mark.tscn" id="6_ban"]
 [ext_resource type="PackedScene" path="res://ui/battle/unit/fuse_badge.tscn" id="7_fuse"]
+[ext_resource type="PackedScene" path="res://ui/battle/unit/elite_mark.tscn" id="8_elite"]
+[ext_resource type="PackedScene" path="res://ui/battle/unit/side_shape.tscn" id="9_side"]
 
 [node name="UnitInfo" type="Control"]
 layout_mode = 3
@@ -68,3 +70,19 @@ offset_left = 12.0
 offset_top = -28.0
 offset_right = 26.0
 offset_bottom = -10.0
+
+[node name="EliteMark" parent="." instance=ExtResource("8_elite")]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 12.0
+offset_top = -28.0
+offset_right = 28.0
+offset_bottom = -12.0
+
+[node name="SideShape" parent="." instance=ExtResource("9_side")]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = -35.0
+offset_top = 12.5
+offset_right = -23.0
+offset_bottom = 24.5

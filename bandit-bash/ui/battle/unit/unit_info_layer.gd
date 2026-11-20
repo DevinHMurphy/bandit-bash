@@ -6,7 +6,7 @@
 # File:     unit_info_layer.gd
 # Author:
 # Created:  November 6, 2026
-# Modified: November 7, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name UnitInfoLayer
@@ -18,10 +18,10 @@ extends CanvasLayer
 ## and grayscale stay in the world. [BattleView] adds an info per token ([method add_info]) and
 ## calls [method follow] with the camera's transform whenever the camera or a token can have moved;
 ## nothing runs per frame by itself. An info follows its token's fade and is freed with it.[br]
-## [b]Pop-ups[/b] (the [DamageNumber]s, question 30 (a)) live here too ([method add_popup]), kept
-## on the board point they rose from as the camera moves and drawn above every info by their
-## [member CanvasItem.z_index], so a neighbour's panel never covers one. A pop-up outlives its
-## unit's info: a killing blow's number keeps rising while the unit fades.[br]
+## [b]Pop-ups[/b] (the [DamageNumber]s) live here too ([method add_popup]), kept on the board
+## point they rose from as the camera moves, a unit's own stacked a row apart, and drawn above
+## every info by their [member CanvasItem.z_index]. A pop-up outlives its unit's info: a killing
+## blow's number keeps rising while the unit fades.[br]
 ## [b]Layer order:[/b] [member CanvasLayer.layer] 1, above the board and below the HUD (layer 2 in
 ## [code]gameplay.tscn[/code]); two canvas layers on one number draw in no set order.
 ##
@@ -44,6 +44,20 @@ extends CanvasLayer
 ## [b]1.0:[/b] one screen pixel per pixel of the info scene.
 @export_range(0.1, 8.0, 0.05) var max_scale: float = 1.0
 
+# ASSUMPTION: no basis in Godot_FE (its numbers overlapped); 32, on the 4-unit grid, so a 28-unit
+# number under the "Exposed" chip doesn't touch it (28 did, in the captures).
+## How far apart a unit's stacked pop-ups sit ([method add_popup]): each new one pushes the ones
+## still showing up by this much.[br]
+## [b]Units:[/b] screen pixels at info scale 1.0. [b]0.0:[/b] pop-ups don't stack.
+@export_range(0.0, 128.0, 1.0) var popup_row_height: float = 32.0
+
+# ASSUMPTION: measured from damage_number.tscn: its label ends 6 above its point, stands 41 tall at
+# the Critical's size and rises 24; change it with that scene's layout or rise.
+## How far above its point a pop-up may draw at most, its rise included. A unit's stack whose top
+## row would pass the screen's top edge moves down by the difference, rows kept apart.[br]
+## [b]Units:[/b] screen pixels at info scale 1.0. [b]0.0:[/b] stacks are never moved.
+@export_range(0.0, 256.0, 1.0) var popup_reach: float = 72.0
+
 # Each unit's info and the token it follows, by unit id.
 var _infos: Dictionary[String, UnitInfo] = {}
 var _tokens: Dictionary[String, UnitToken] = {}
@@ -51,9 +65,12 @@ var _tokens: Dictionary[String, UnitToken] = {}
 # The board-to-screen transform of the last follow().
 var _to_screen: Transform2D = Transform2D.IDENTITY
 
-# Each live pop-up and, at the same index, the board point it rose from.
+# Each live pop-up and, at the same index, the board point it rose from, its stack's key (empty:
+# none) and its row in that stack (0 the newest).
 var _popups: Array[Node2D] = []
 var _popup_points: PackedVector2Array = []
+var _popup_keys: PackedStringArray = []
+var _popup_rows: PackedInt32Array = []
 
 
 ## Places an info for [param token], the token of [param unit_id], links it as the token's
@@ -93,17 +110,32 @@ func clear() -> void:
 			popup.queue_free()
 	_popups.clear()
 	_popup_points.clear()
+	_popup_keys.clear()
+	_popup_rows.clear()
 
 
 ## Adds [param popup], a pop-up such as a [DamageNumber], over [param board_point] (a point on the
 ## board in its global coordinates, such as a token's [member Node2D.global_position]), scaled as
-## the infos are, and keeps it there through each [method follow] until it frees itself. Its
+## the infos are, and keeps it there through each [method follow] until it frees itself. Pop-ups
+## sharing a [param stack_key] (a unit id) stack: the new one takes the bottom row and pushes the
+## live ones up by [member popup_row_height]; one [param is_beside] the newest shares its row. Its
 ## scene's [member CanvasItem.z_index] must be above the infos' 0.
-func add_popup(popup: Node2D, board_point: Vector2) -> void:
+func add_popup(
+		popup: Node2D, board_point: Vector2, stack_key: String = "", is_beside: bool = false,
+) -> void:
+	_drop_freed_popups()
+	if not stack_key.is_empty() and not is_beside:
+		for index: int in _popups.size():
+			if _popup_keys[index] == stack_key:
+				_popup_rows[index] += 1
 	add_child(popup)
 	_popups.append(popup)
 	_popup_points.append(board_point)
-	_place_popup(popup, board_point, info_scale())
+	_popup_keys.append(stack_key)
+	_popup_rows.append(0)
+	var scale_now: float = info_scale()
+	for index: int in _popups.size():
+		_place_popup(index, scale_now)
 
 
 ## The pop-ups still on the layer, oldest first.
@@ -113,6 +145,12 @@ func get_popups() -> Array[Node2D]:
 		if is_instance_valid(popup) and not popup.is_queued_for_deletion():
 			live.append(popup)
 	return live
+
+
+## [param popup]'s row in its stack, 0 the newest; -1 when the layer doesn't hold it.
+func popup_row_of(popup: Node2D) -> int:
+	var index: int = _popups.find(popup)
+	return -1 if index < 0 else _popup_rows[index]
 
 
 ## Puts every info over its token, as [param to_screen] (the camera's board-to-screen transform,
@@ -128,10 +166,9 @@ func follow(to_screen: Transform2D) -> void:
 	while index < _popups.size():
 		var popup: Node2D = _popups[index]
 		if not is_instance_valid(popup) or popup.is_queued_for_deletion():
-			_popups.remove_at(index)
-			_popup_points.remove_at(index)
+			_remove_popup_at(index)
 			continue
-		_place_popup(popup, _popup_points[index], scale_now)
+		_place_popup(index, scale_now)
 		index += 1
 
 
@@ -177,13 +214,52 @@ func _place(unit_id: String, scale_now: float) -> void:
 		info.visible = token.visible
 
 
-func _place_popup(popup: Node2D, board_point: Vector2, scale_now: float) -> void:
-	var at: Vector2 = _to_screen * board_point
+# Puts the pop-up at index over its board point, raised by its row, and its stack moved down as
+# far as keeps the stack's top row on screen (popup_reach).
+func _place_popup(index: int, scale_now: float) -> void:
+	var popup: Node2D = _popups[index]
+	if not is_instance_valid(popup):
+		return
+	var raise: Vector2 = Vector2(0.0, -popup_row_height * _popup_rows[index] * scale_now)
+	var at: Vector2 = _to_screen * _popup_points[index] + raise
+	if popup_reach > 0.0:
+		var top_row: int = _top_row_of(_popup_keys[index], _popup_rows[index])
+		var base_y: float = (_to_screen * _popup_points[index]).y
+		var stack_top: float = base_y - (popup_row_height * top_row + popup_reach) * scale_now
+		at.y += maxf(-stack_top, 0.0)
 	if popup.position != at:
 		popup.position = at
 	var size_now: Vector2 = Vector2(scale_now, scale_now)
 	if popup.scale != size_now:
 		popup.scale = size_now
+
+
+# The highest row in stack_key's stack; row itself for a pop-up in no stack.
+func _top_row_of(stack_key: String, row: int) -> int:
+	if stack_key.is_empty():
+		return row
+	var top: int = row
+	for index: int in _popups.size():
+		if _popup_keys[index] == stack_key and is_instance_valid(_popups[index]):
+			top = maxi(top, _popup_rows[index])
+	return top
+
+
+func _drop_freed_popups() -> void:
+	var index: int = 0
+	while index < _popups.size():
+		var popup: Node2D = _popups[index]
+		if is_instance_valid(popup) and not popup.is_queued_for_deletion():
+			index += 1
+		else:
+			_remove_popup_at(index)
+
+
+func _remove_popup_at(index: int) -> void:
+	_popups.remove_at(index)
+	_popup_points.remove_at(index)
+	_popup_keys.remove_at(index)
+	_popup_rows.remove_at(index)
 
 
 func _on_token_tree_exiting(unit_id: String, token: UnitToken) -> void:

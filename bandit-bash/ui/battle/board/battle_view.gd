@@ -11,37 +11,17 @@
 
 class_name BattleView
 extends Node2D
-## The battle board: the map scene for terrain, a [MapObjectMark] per map object that isn't a
-## token, a [UnitToken] per unit with its [UnitInfo] on the [UnitInfoLayer], the
-## [DarknessOverlay], turn input's overlays, path and cursor, and the [CameraRig], drawn from one
-## [CombatSession] and animated by its facts.
-##
-## [method bind] builds the board from state ([BoardViewModel]); after that, facts reach it only
-## through the session's [member CombatSession.playback], which [method advance] steps each frame:
-## moves walk their path, damage, heal, Miss and Critical pop-ups rise on the info layer, a crit
-## flashes its unit, defeated units fade out, tokens' HP, Stance, Block, Block ban (Haunted) and
-## turn follow their facts, spent units gray only in their side's phase, a tile the darkness
-## deepens is redrawn, and an object's mark follows its door, container or brazier changes.
-## A hit's number is its damage past Block, overkill included, with a small Block number beside
-## it for what Block absorbed (question 30 (c)). Each fact's wait is the time its animation
-## takes. The board steps its own tweens with the same time, so a test can drive it frame by frame
-## without a tree, and keeps each unit's info on its token whenever the camera or a token
-## moves.[br]
-## [b]Reading only:[/b] it never changes combat state and submits no command; turn input does
-## ([BattleController]), and tells it which forecast to flash ([method show_forecast_preview])
-## and which walk to stage before its command ([method stage_walk]: the token walks ahead, and its
-## move's fact later plays without a second walk; question 34 (3)).
-## Facts already queued at [method bind] are skipped: the board is built from where they led.[br]
-## [b]Turn input's pieces[/b] (the move, attack, enemy range and danger zone [TileOverlay]s, each
-## red one with a purple support twin, the [PathPreview], the [TargetMark]s and the [TileCursor])
-## share the board's space and camera; [BattleController] says what they show.[br]
-## [b]The objective on the board[/b] ([method show_objective], from the [BattleHud] on each settle):
-## the seize and defend tiles and the open reinforcement points as overlays under turn input's,
-## and a [LeaderMark] on each marked enemy's token, so it moves and fades with it.[br]
-## [b]Faster playback:[/b] held fast-forward ([method set_fast_forward]) runs waits and animations
-## [member fast_forward_speed] times faster, in order; [method skip_playback] plays everything
-## queued at once behind the [SkipFade].[br]
-## [b]Framing:[/b] the camera fits the map into [member map_area], the space the HUD leaves free.
+## The battle board, drawn from one [CombatSession]: terrain, [MapObjectMark]s, a [UnitToken] per
+## unit with its [UnitInfo] on the [UnitInfoLayer], the [DarknessOverlay], turn input's overlays,
+## path, marks and cursor, the objective's tiles and [LeaderMark]s, and the [CameraRig] framing
+## the map in [member map_area].[br]
+## [method bind] builds it from state ([BoardViewModel]), skipping facts already queued; then
+## facts reach it only through [member CombatSession.playback], which [method advance] steps each
+## frame. Each fact plays its animation as it plays, never before: walks, pop-ups
+## ([DamageNumber]), the [StrikeFeedback] look of each strike result, fades, values on tokens and
+## the darkness. A fact's wait is its beat ([member strike_hold] and the rest of Pacing); the board
+## steps its own tweens with the same time, so fast-forward and [method skip_playback] apply.[br]
+## [b]Reading only:[/b] it changes no state and submits no command ([BattleController] does).
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
@@ -52,6 +32,10 @@ signal settled()
 ## A pop-up was placed on [param unit_id]'s token: a damage or heal number, a Miss or a Critical
 ## ([param style]), once per fact it shows, in every playback mode (a skip finishes it at once).
 signal number_shown(unit_id: String, style: DamageNumber.Style)
+
+## A strike result's look ([StrikeFeedback]) played on [param unit_id]'s token as its fact played:
+## once per result, in every playback mode, even where the look does nothing.
+signal feedback_played(unit_id: String, kind: StrikeFeedback.Kind)
 
 ## The walk [method stage_walk] started reached its last tile: [param unit_id]'s token stands
 ## there. Not emitted for a walk [method unstage_walk] or a bind cut short.
@@ -131,9 +115,19 @@ const _ACTION_KINDS: Array[CombatFact.Kind] = [
 ## [b]Units:[/b] seconds. [b]0.0:[/b] no pause.
 @export_range(0.0, 2.0, 0.01) var ai_action_pause: float = 0.1
 
-## How long playback waits on a damage or heal number before the next fact; the number itself
-## stays for its own [member DamageNumber.lifetime].[br]
-## [b]Units:[/b] seconds.
+## How long playback waits after a strike that hits or crits, before the next fact: Godot_FE
+## waited out each strike's number (its [code]DamageNumbers[/code], 1.0 s).[br]
+## [b]Units:[/b] seconds at playback speed 1.0. [b]0.0:[/b] strikes don't hold playback.
+@export_range(0.0, 3.0, 0.05) var strike_hold: float = 1.0
+
+## How long playback waits after a strike that misses or deals 0 (Godot_FE's Miss and No Damage
+## text, 0.75 s).[br]
+## [b]Units:[/b] seconds at playback speed 1.0. [b]0.0:[/b] they don't hold playback.
+@export_range(0.0, 3.0, 0.05) var miss_hold: float = 0.75
+
+## How long playback waits on a number that isn't a strike's: a heal, darkness damage, or damage
+## with no roll (splash, bump, spike); the number stays for its own lifetime.[br]
+## [b]Units:[/b] seconds at playback speed 1.0.
 # ASSUMPTION: no basis in Godot_FE or the vision; for M1's tuning pass (plan, question 5).
 @export_range(0.0, 2.0, 0.01) var number_hold: float = 0.35
 
@@ -171,9 +165,10 @@ const _ACTION_KINDS: Array[CombatFact.Kind] = [
 ## [b]Units:[/b] seconds at playback speed 1.0. [b]0.0:[/b] no flash.
 @export_range(0.0, 1.0, 0.01) var crit_flash_time: float = 0.1
 
+# ASSUMPTION: no basis (Godot_FE never shook the screen); a firm jolt, for the M2 exit playtest.
 ## How far the screen shakes on a critical hit, dying away over [member crit_shake_time].[br]
-## [b]Units:[/b] screen pixels. [b]0.0:[/b] no shake (the default); 4.0 is a firm jolt.
-@export_range(0.0, 32.0, 0.5) var crit_shake_strength: float = 0.0
+## [b]Units:[/b] screen pixels. [b]0.0:[/b] no shake.
+@export_range(0.0, 32.0, 0.5) var crit_shake_strength: float = 4.0
 
 ## How long a critical hit's screen shake lasts (the addon's shake example, 0.3 s).[br]
 ## [b]Units:[/b] seconds at playback speed 1.0. Unused while [member crit_shake_strength] is 0.
@@ -222,6 +217,15 @@ var _crit_shown: Dictionary[String, bool] = {}
 # Damage taken (that carries only what Block took and what HP lost) reads to show the overkill;
 # cleared at every Attack made.
 var _hit_damage: Dictionary[String, int] = {}
+
+# A strike's beat, moved from its Damage taken to the end of its tail: the struck unit's Stance
+# loss and Exposed follow its damage, and a fact's wait plays after it, so the beat waits for
+# them (_defer_beat()). _beat_next is the tail fact expected next; _beat_fact the fact that set
+# it. _beat_unit is empty when no beat waits.
+var _beat_unit: String = ""
+var _beat_time: float = 0.0
+var _beat_next: CombatFact.Kind = CombatFact.Kind.STANCE_CHANGED
+var _beat_fact: CombatFact = null
 
 # The side whose phase it is, as played: spent units gray only on this side.
 var _phase_side: CombatFact.CombatSide = CombatFact.CombatSide.NONE
@@ -298,6 +302,7 @@ var _object_marks: Dictionary[String, MapObjectMark] = {}
 @onready var _cursor: TileCursor = %TileCursor
 @onready var _skip_fade: SkipFade = %SkipFade
 @onready var _info_layer: UnitInfoLayer = %UnitInfoLayer
+@onready var _feedback: StrikeFeedback = %StrikeFeedback
 
 
 func _ready() -> void:
@@ -343,6 +348,7 @@ func bind(session: CombatSession) -> void:
 	_open_exchange = ""
 	_crit_shown.clear()
 	_hit_damage.clear()
+	_release_beat(null)
 	_follow_info()
 
 
@@ -383,6 +389,10 @@ func advance(delta: float) -> void:
 	# setting, the same for every peer) untouched.
 	var scaled: float = real * (fast_forward_speed if _is_fast_forward else 1.0)
 	_session.playback.advance(scaled)
+	# A strike's beat still waiting when the queue runs out has no tail left to follow, so it is
+	# dropped rather than given to the next batch's first fact.
+	if not _beat_unit.is_empty() and _session.playback.pending() == 0:
+		_release_beat(null)
 	var step: float = scaled * _session.playback.speed
 	_step_tweens(_holding, step)
 	_step_tweens(_cosmetic, step)
@@ -413,6 +423,16 @@ func set_fast_forward(is_held: bool) -> void:
 ## Whether fast-forward is held ([method set_fast_forward]).
 func is_fast_forward() -> bool:
 	return _is_fast_forward
+
+
+## How many times faster than real time the board's animations run now: the game speed, times
+## [member fast_forward_speed] while fast-forward is held. Other timed pieces (the phase banner)
+## read it to keep pace. 1.0 before [method bind].
+func time_scale() -> float:
+	if _session == null:
+		return 1.0
+	var speed: float = _session.playback.speed if _session.playback.speed > 0.0 else 1.0
+	return speed * (fast_forward_speed if _is_fast_forward else 1.0)
 
 
 ## Skips the playback running: the screen fades to black ([SkipFade]), every queued fact then
@@ -736,9 +756,10 @@ func map_rect() -> Rect2:
 ## How the board differs from the session's state, one line per difference: a unit with no token
 ## or a token with no unit, a token on the wrong tile or position, or showing the wrong HP, Stance,
 ## Block, turn or phase, or its info drawing other HP or Stance than the token holds; a drawn map
-## object with no mark, or a mark off its tile or showing another state. Empty when they agree. A staged walk's token ([method stage_walk]) is placed right on its staged tile once
-## it stands there, and anywhere while it walks; its tile must still be the unit's. For tests and
-## debugging; meaningful once [method is_settled].
+## object with no mark, or a mark off its tile or showing another state. Empty when they agree.
+## A staged walk's token ([method stage_walk]) is placed right on its staged tile once it stands
+## there, and anywhere while it walks; its tile must still be the unit's. For tests and debugging;
+## meaningful once [method is_settled].
 func mismatches() -> PackedStringArray:
 	var found: PackedStringArray = []
 	if _session == null:
@@ -938,6 +959,7 @@ func _bus_links(bus: CombatBus) -> Array[Array]:
 		[bus.unit.block_gained, _on_unit_block_gained],
 		[bus.unit.block_lost, _on_unit_block_lost],
 		[bus.unit.stance_changed, _on_unit_stance_changed],
+		[bus.unit.exposed, _on_unit_exposed],
 		[bus.unit.block_stance_refreshed, _on_unit_block_stance_refreshed],
 		[bus.action.hit_taken, _on_action_hit_taken],
 		[bus.action.damage_taken, _on_action_damage_taken],
@@ -1008,6 +1030,8 @@ func _flush_playback() -> void:
 	playback.is_fast_forward = true
 	playback.play_all()
 	playback.is_fast_forward = false
+	# Waits are skipped, so a strike's beat still waiting has nothing left to hold.
+	_release_beat(null)
 	_skip_stopped = playback.is_paused and not was_paused
 	_step_tweens(_holding, INF)
 	_step_tweens(_cosmetic, INF)
@@ -1131,18 +1155,31 @@ func _end_staged_walk() -> void:
 	_staged_left = 0.0
 
 
-# A pop-up of style over token on the info layer; a damage, heal or Block number only when
-# amount is above 0.
-func _show_number(token: UnitToken, amount: int, style: DamageNumber.Style) -> void:
+# A pop-up of style over token on the info layer, stacked on the unit's others (beside the newest
+# when is_beside); an amount style only when amount is above 0, a Stance change when it isn't 0.
+func _show_number(
+		token: UnitToken, amount: int, style: DamageNumber.Style, is_beside: bool = false,
+) -> void:
 	var is_amount: bool = style in [
 		DamageNumber.Style.DAMAGE, DamageNumber.Style.HEAL, DamageNumber.Style.BLOCK,
+		DamageNumber.Style.BLOCK_GAINED, DamageNumber.Style.BLOCK_LOST,
 	]
 	if damage_number_scene == null or (is_amount and amount <= 0):
 		return
+	if style == DamageNumber.Style.STANCE and amount == 0:
+		return
 	var number: DamageNumber = damage_number_scene.instantiate()
-	_info_layer.add_popup(number, token.global_position)
+	_info_layer.add_popup(number, token.global_position, token.unit_id, is_beside)
 	_cosmetic.append(number.show_style(style, amount))
 	number_shown.emit(token.unit_id, style)
+
+
+# Plays kind's look on token ([StrikeFeedback]) with the board's other cosmetic tweens.
+func _play_feedback(token: UnitToken, kind: StrikeFeedback.Kind) -> void:
+	if is_instance_valid(_feedback):
+		for tween: Tween in _feedback.play(kind, token, _camera):
+			_cosmetic.append(tween)
+	feedback_played.emit(token.unit_id, kind)
 
 
 # A cosmetic tween (a Stance drop's lag, a flash, a shake), stepped with the board's animations.
@@ -1261,63 +1298,86 @@ func _on_unit_darkness_damage_taken(fact: CombatFact) -> void:
 
 
 # A struck unit's Hit taken: its amount is the hit's damage before Block and before HP runs out,
-# which the Damage taken that follows lacks (see _on_action_damage_taken()).
+# which the Damage taken that follows lacks (see _on_action_damage_taken()). A hit for 0 (fully
+# countered) has no Damage taken, so it shows "No damage" here and holds for miss_hold, as
+# Godot_FE's No Damage did.
 func _on_action_hit_taken(fact: CombatFact) -> void:
 	_hit_damage[fact.actor_id] = fact.amount
+	var token: UnitToken = token_of(fact.actor_id)
+	if token == null or fact.amount > 0:
+		return
+	_show_number(token, 0, DamageNumber.Style.NO_DAMAGE)
+	_play_feedback(token, StrikeFeedback.Kind.NO_DAMAGE)
+	_hold_for(fact, miss_hold)
 
 
 # One rule for every hit's numbers (question 30 (c)): the number is the damage past Block,
 # overkill included (the Hit taken's damage less what Block absorbed), as a Critical pop-up after
-# a crit and a plain number otherwise; then a small Block number when Block absorbed any. Damage
-# with no Hit taken before it (splash) shows what reached HP.
+# a crit and a plain number otherwise; then a small Block number beside it when Block absorbed
+# any. A strike holds for strike_hold. Damage with no Hit taken before it (splash, a bump, a
+# spike, an effect) shows what reached HP, plays the splash look and holds for number_hold.
 func _on_action_damage_taken(fact: CombatFact) -> void:
 	var token: UnitToken = token_of(fact.actor_id)
 	if token == null:
 		return
 	token.show_hp(token.hp - fact.hp_amount, _max_hp_of(fact.actor_id, token.max_hp))
 	token.show_block(token.block - fact.block_amount)
+	var is_strike: bool = _hit_damage.has(fact.actor_id)
+	var is_crit: bool = _crit_shown.has(fact.actor_id)
 	# ASSUMPTION: splash facts carry no damage before HP runs out (SplashResolver records only
 	# what Block took and HP lost), so a splash's overkill can't show; HP's loss stands for it.
 	var past_block: int = fact.hp_amount
-	if _hit_damage.has(fact.actor_id):
+	if is_strike:
 		past_block = maxi(_hit_damage[fact.actor_id] - fact.block_amount, 0)
-	if _crit_shown.has(fact.actor_id):
+	if is_crit:
 		# ASSUMPTION: a crit Block took whole still shows "Critical 0", as a crit is news even
 		# when Block takes it; a plain hit Block took whole shows only the Block number.
 		_show_number(token, past_block, DamageNumber.Style.CRITICAL)
 	else:
 		_show_number(token, past_block, DamageNumber.Style.DAMAGE)
-	_show_number(token, fact.block_amount, DamageNumber.Style.BLOCK)
+	var is_beside: bool = is_crit or past_block > 0
+	_show_number(token, fact.block_amount, DamageNumber.Style.BLOCK, is_beside)
+	if not is_strike:
+		_play_feedback(token, StrikeFeedback.Kind.SPLASH)
+	elif not is_crit and past_block > 0:
+		_play_feedback(token, StrikeFeedback.Kind.HIT)
+	if fact.block_amount > 0:
+		_play_feedback(token, StrikeFeedback.Kind.BLOCK_ABSORBED)
 	_crit_shown.erase(fact.actor_id)
 	_hit_damage.erase(fact.actor_id)
-	_hold_for(fact, number_hold)
+	if is_strike:
+		_defer_beat(fact, token, strike_hold)
+	else:
+		_hold_for(fact, number_hold)
 
 
 # One fact per missed strike: the attacker's Missed (its Dodged twin is the same strike), so the
-# Miss rises over the unit that dodged, as Godot_FE drew it.
+# Miss rises over the unit that dodged, as Godot_FE drew it, and holds for miss_hold.
 func _on_action_missed(fact: CombatFact) -> void:
 	var token: UnitToken = token_of(fact.target_id)
 	if token == null:
 		return
 	_show_number(token, 0, DamageNumber.Style.MISS)
-	_hold_for(fact, number_hold)
+	_play_feedback(token, StrikeFeedback.Kind.MISS)
+	_hold_for(fact, miss_hold)
 
 
 # One fact per critical hit: the struck unit's Crit taken (Crit dealt is the same strike). It
-# flashes the unit; its Critical pop-up waits for the Damage taken that follows at once, which
-# knows what Block absorbed. A crit fully countered (0 damage) has no Damage taken, so it shows
-# "Critical 0" and holds playback itself.
+# flashes, shakes and pops at once; its Critical pop-up waits for the Damage taken that follows,
+# which knows what Block absorbed. A crit fully countered (0 damage) has no Damage taken, so it
+# shows "Critical 0" over the hit's "No damage" and holds for strike_hold itself.
 func _on_action_crit_taken(fact: CombatFact) -> void:
 	var token: UnitToken = token_of(fact.actor_id)
 	if token == null:
 		return
 	_add_cosmetic(token.flash(crit_flash_color, crit_flash_time))
 	_add_cosmetic(_camera.shake(crit_shake_strength, crit_shake_time))
+	_play_feedback(token, StrikeFeedback.Kind.CRIT)
 	if fact.amount > 0:
 		_crit_shown[fact.actor_id] = true
 		return
 	_show_number(token, 0, DamageNumber.Style.CRITICAL)
-	_hold_for(fact, number_hold)
+	_hold_for(fact, strike_hold)
 
 
 # A side's Phase Start: its spent units gray from now on, the other side's show in colour.
@@ -1368,25 +1428,81 @@ func _count_block_ban(fact: CombatFact, change: int) -> void:
 	token.show_block_ban(bans > 0)
 
 
+# A gain's word ("+2 Block") rises with no wait; a refresh's clearing is not a loss.
 func _on_unit_block_gained(fact: CombatFact) -> void:
 	var token: UnitToken = token_of(fact.actor_id)
-	if token != null:
-		token.show_block(token.block + fact.amount)
+	if token == null:
+		return
+	token.show_block(token.block + fact.amount)
+	_show_number(token, fact.amount, DamageNumber.Style.BLOCK_GAINED)
 
 
 func _on_unit_block_lost(fact: CombatFact) -> void:
 	var token: UnitToken = token_of(fact.actor_id)
-	if token != null:
-		token.show_block(token.block - fact.amount)
+	if token == null:
+		return
+	token.show_block(token.block - fact.amount)
+	_show_number(token, fact.amount, DamageNumber.Style.BLOCK_LOST)
 
 
-# Its amount is the change, never taking Stance below 0.
+# Its amount is the change, never taking Stance below 0. Its word rises with no wait (the hit's
+# own beat holds playback), and a loss plays the Stance-lost look.
 func _on_unit_stance_changed(fact: CombatFact) -> void:
 	var token: UnitToken = token_of(fact.actor_id)
 	if token == null:
 		return
 	var stance_max: int = _stance_max_of(fact.actor_id, token.stance_max)
 	_add_cosmetic(token.show_stance(token.stance + fact.amount, stance_max))
+	_show_number(token, fact.amount, DamageNumber.Style.STANCE)
+	if fact.amount < 0:
+		_play_feedback(token, StrikeFeedback.Kind.STANCE_LOST)
+	if _is_beat_tail(fact):
+		if token.stance == 0:
+			_beat_next = CombatFact.Kind.EXPOSED
+			_beat_fact = fact
+		else:
+			_release_beat(fact)
+
+
+# Stance reached 0: the "Exposed" chip and the Stance-broken look, with no wait of its own.
+func _on_unit_exposed(fact: CombatFact) -> void:
+	var token: UnitToken = token_of(fact.actor_id)
+	if token == null:
+		return
+	_show_number(token, 0, DamageNumber.Style.EXPOSED)
+	_play_feedback(token, StrikeFeedback.Kind.STANCE_BROKEN)
+	if _is_beat_tail(fact):
+		_release_beat(fact)
+
+
+# Holds seconds after fact (a strike's Damage taken), or after its tail when one follows: a unit
+# left standing with Stance loses Stance next (DamagePipeline.apply), and one brought to 0 is
+# Exposed after that (EffectEngine.change_stance). A fact off that forecast releases the beat.
+func _defer_beat(fact: CombatFact, token: UnitToken, seconds: float) -> void:
+	_release_beat(null)
+	if token.hp <= 0 or token.stance <= 0:
+		_hold_for(fact, seconds)
+		return
+	_hold_for(fact, 0.0)
+	_beat_unit = fact.actor_id
+	_beat_time = seconds
+	_beat_next = CombatFact.Kind.STANCE_CHANGED
+	_beat_fact = fact
+
+
+func _is_beat_tail(fact: CombatFact) -> bool:
+	return not _beat_unit.is_empty() and fact.kind == _beat_next and fact.actor_id == _beat_unit
+
+
+# Gives the waiting beat to fact's wait (none when fact is null) and clears it.
+func _release_beat(fact: CombatFact) -> void:
+	if _beat_unit.is_empty():
+		return
+	if fact != null:
+		var own: float = _last_duration if fact == _last_fact else 0.0
+		_hold_for(fact, maxf(own, _beat_time))
+	_beat_unit = ""
+	_beat_fact = null
 
 
 # Block to 0 and Stance to its maximum, at the unit's side's Phase Start; _on_fact_played clears
@@ -1404,6 +1520,9 @@ func _on_unit_block_stance_refreshed(fact: CombatFact) -> void:
 # rules as CombatState.follow() (see _ACTION_KINDS). The exchange is tracked whoever has a token.
 func _on_fact_played(fact: CombatFact) -> void:
 	_note_darkness_phase(fact)
+	# A strike's beat still waiting past a fact that isn't its tail plays after that fact.
+	if not _beat_unit.is_empty() and fact != _beat_fact:
+		_release_beat(fact)
 	if fact.kind == CombatFact.Kind.ATTACK_MADE:
 		_crit_shown.clear()
 		_hit_damage.clear()

@@ -16,12 +16,12 @@ extends PanelContainer
 ## questions 11 and 18 (f); ui-lift.md, Darkness phase; Godot_FE's turn transition).
 ##
 ## [BattleHud] calls [method show_phase] as each side's Phase Start fact plays, and
-## [method show_darkness] as a darkness phase that does anything begins. Like Godot_FE's, it holds
-## nothing up: playback goes on under it. [BattleScreen] calls [method show_result] once the battle
-## has ended and settled. A new banner replaces one still showing. Its fade runs on the scene
-## tree, so it pauses with the pause menu and ignores fast-forward. Darkness, the enemy phase and
-## Defeat are [code]text[/code] on a filled panel (ui-style.md, Chips), as those colours fail as
-## text on [code]panel[/code].
+## [method show_darkness] as a darkness phase that does anything begins; like Godot_FE's, it holds
+## nothing up. [BattleScreen] calls [method show_result] once the battle has ended and settled. A
+## new banner replaces one still showing, so a skip shows the last. Its fades run on the scene
+## tree (they pause with the pause menu) at the board's pace ([method set_speed_scale]).
+## Darkness, the enemy phase and Defeat are [code]text[/code] on a filled panel (ui-style.md,
+## Chips). The HUD scene places it under the heirloom bar's row, so the two never meet.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
@@ -61,17 +61,24 @@ const _ENEMY_PANEL: StringName = &"EnemyBannerPanel"
 ## to the [code]text[/code] token (5.00:1 on the [code]darkness[/code] fill).
 @export var darkness_color: Color = UiTokens.color(UiTokens.TEXT)
 
-## How long the banner takes to fade in (Godot_FE's [code]new_turn[/code] animation: 1.0 of its
-## 2.0 s).[br]
-## [b]Units:[/b] seconds. [b]0.0:[/b] it appears at once.
-@export_range(0.0, 3.0, 0.05) var fade_in_time: float = 1.0
+## How long the banner takes to fade in (ui-style.md, Motion: stage changes over 250 ms).[br]
+## [b]Units:[/b] seconds at speed scale 1.0. [b]0.0:[/b] it appears at once.
+@export_range(0.0, 3.0, 0.05) var fade_in_time: float = 0.25
 
-## How long the banner takes to fade out once fully shown (Godot_FE: the other 1.0 s).[br]
-## [b]Units:[/b] seconds. [b]0.0:[/b] it vanishes at once.
-@export_range(0.0, 3.0, 0.05) var fade_out_time: float = 1.0
+## How long a phase's banner stays fully shown between its fades: Godot_FE's
+## [code]new_turn[/code] animation lasted 2.0 s, fades included.[br]
+## [b]Units:[/b] seconds at speed scale 1.0. [b]0.0:[/b] it fades out as soon as it is in.
+@export_range(0.0, 5.0, 0.05) var hold_time: float = 1.5
+
+## How long the banner takes to fade out (ui-style.md, Motion: 250 ms).[br]
+## [b]Units:[/b] seconds at speed scale 1.0. [b]0.0:[/b] it vanishes at once.
+@export_range(0.0, 3.0, 0.05) var fade_out_time: float = 0.25
 
 var _tween: Tween = null
 var _shown_count: int = 0
+
+# How many times faster than real time the fades run (set_speed_scale()).
+var _speed_scale: float = 1.0
 
 @onready var _text: Label = %Text
 @onready var _turn: Label = %TurnLine
@@ -118,7 +125,22 @@ func show_result(is_won: bool) -> void:
 	modulate.a = 0.0 if fade_in_time > 0.0 else 1.0
 	if fade_in_time > 0.0:
 		_tween = create_tween()
+		_tween.set_speed_scale(_speed_scale)
 		_tween.tween_property(self, ^"modulate:a", 1.0, fade_in_time)
+
+
+## Runs the fades [param scale] times faster than real time, the one showing included: the board's
+## [method BattleView.time_scale], so held fast-forward and the game speed pace them too. Values
+## at or below 0 count as 1.0.
+func set_speed_scale(scale: float) -> void:
+	_speed_scale = scale if scale > 0.0 else 1.0
+	if _tween != null and _tween.is_valid():
+		_tween.set_speed_scale(_speed_scale)
+
+
+## How long a phase's banner shows from start to hidden at speed scale 1.0.
+func phase_time() -> float:
+	return fade_in_time + hold_time + fade_out_time
 
 
 ## How many banners have been shown since the scene loaded.
@@ -143,7 +165,10 @@ func _fade_through(text: String, color: Color, turn_line: String) -> void:
 	visible = true
 	modulate.a = 0.0 if fade_in_time > 0.0 else 1.0
 	_tween = create_tween()
+	_tween.set_speed_scale(_speed_scale)
 	if fade_in_time > 0.0:
 		_tween.tween_property(self, ^"modulate:a", 1.0, fade_in_time)
+	if hold_time > 0.0:
+		_tween.tween_interval(hold_time)
 	_tween.tween_property(self, ^"modulate:a", 0.0, fade_out_time)
 	_tween.tween_callback(hide)
