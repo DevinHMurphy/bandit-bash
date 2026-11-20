@@ -6,7 +6,7 @@
 # File:     boss_cases.gd
 # Author:
 # Created:  November 18, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -309,7 +309,9 @@ func _test_cadence_and_intent() -> void:
 		for fact: CombatFact in _changes(world.session, from, LANDED):
 			landed.append("%d %s" % [turn, fact.tile])
 			var blast: Array[Vector2i] = MapObjects.KEG_BLAST.tiles(fact.tile)
-			var area: Array[Vector2i] = [] if not is_signature else intent.area
+			var area: Array[Vector2i] = []
+			if is_signature:
+				area = intent.area
 			for tile: Vector2i in blast:
 				if world.state().grid.step(tile, Vector2i.ZERO) != CombatFact.NO_TILE:
 					matches = matches and area.has(tile)

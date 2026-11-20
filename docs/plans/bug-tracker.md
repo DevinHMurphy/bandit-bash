@@ -54,7 +54,8 @@ Not a bug.
 | [BUG-019](#bug-019-player-units-cant-attack-breakable-map-objects) | Player units can't attack breakable map objects (debris, powder kegs) | P07 (target list) | S2 | Fixed (BF4 merge, November 20, 2026) | November 19, 2026, user | BF4 |
 | [BUG-020](#bug-020-a-broken-breakables-token-stayed-on-the-board) | A broken breakable's token stayed on the board | P07 (board) | S3 | Fixed (BF4 merge, November 20, 2026) | November 19, 2026, BF4 report | BF4 |
 | [BUG-021](#bug-021-an-infused-basic-weapon-scraps-for-0-gold) | An Infused Basic weapon scraps (and trades in) for 0 gold | P08 (prices) | S3 | Fixed (EV4 merge, November 20, 2026) | November 20, 2026, RN8 report | EV4 (note sent November 20, 2026) |
-| [BUG-022](#bug-022-an-enemys-second-move-ending-in-a-wait-crashes-the-enemy-phase) | An enemy's second move ending in a Wait crashes the enemy phase (the Bloodhound after a kill) | P05 (enemy plans) | S1 | Open (BF5 issued November 20, 2026) | November 20, 2026, EN13 report | BF5 |
+| [BUG-022](#bug-022-an-enemys-second-move-ending-in-a-wait-crashes-the-enemy-phase) | An enemy's second move ending in a Wait crashes the enemy phase (the Bloodhound after a kill) | P05 (enemy plans) | S2 | Fixed (BF5 merge, November 20, 2026) | November 20, 2026, EN13 report | BF5 |
+| [BUG-023](#bug-023-an-untyped-empty-literal-from-a-ternary-fails-in-a-typed-slot) | An untyped `[]` from a ternary fails at runtime in a typed Array slot (three latent places) | P01 / P08 / tests | S3 (latent) | Open | November 20, 2026, BF5 report | each owner's next step |
 
 ### BUG-001 No Block at the start of combat
 
@@ -374,3 +375,20 @@ Not a bug.
 - **Who hits it:** any enemy with a second move whose second move ends in a Wait; the Bloodhound
   after a kill. The key combat's mini-boss, so it can occur in the M2 exit playtest.
 - **Fix in BF5,** before the exit playtest, with a regression case.
+- **Fixed** in BF5 (merged November 20, 2026): `to_command()` builds a second move's path as a
+  typed `Array[Vector2i]`, filled only for a Move. Before the fix the phase still ended, but the
+  enemy never took its Wait: a null command reads as "every enemy has acted". Severity lowered to
+  S2 for that reason. Regression: `mini_boss_cases.gd` `_test_blood_scent_wait` and
+  `_test_second_move_commands`. BF5 also fixed the same pattern in `boss_cases.gd`.
+
+### BUG-023 An untyped empty literal from a ternary fails in a typed slot
+
+- **Found** by BF5 (tested on 4.7.1): an untyped `[]` or `{}` coming out of a ternary fails at
+  runtime when the empty branch is taken and the result goes into a typed Array or Dictionary (a
+  typed argument, a typed variable's initial value or a typed return). `PackedStringArray`
+  targets convert fine.
+- **Latent places,** each behind a null guard:
+  - `scripts/effects/effect_engine.gd:1124` (a missing effect instance; Lane D);
+  - `ui/campaign/starting_offer_view.gd:210` (no offer; Lane A or B);
+  - `tests/ui/victory/victory_cases.gd:96` (a null model shows as a script error, not a failed check).
+- **Fix:** a typed local, assigned in an `if`, as BF5 did. Each goes in its owner's next step.
