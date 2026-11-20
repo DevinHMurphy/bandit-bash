@@ -6,27 +6,28 @@
 # File:     event_panel.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name EventPanel
 extends Control
 ## The event open at the run's node, asked over its steps ([enum Step]): the [EventStory], its
 ## options ([EventOptionCard]) with the team's [EventVoteStatus], then whatever the option chosen
-## needs (the unit, fallen unit or weapon from an [EventChooser], where each new item goes from
-## the [PlacementPanel], a rune to discard), and last the [EventOutcomeSummary] and Leave.
+## needs (the unit, fallen unit or weapon, then the unit that leaves a full army for a recruit or
+## a revived unit, each from an [EventChooser]; where each new item goes from the
+## [PlacementPanel]; a rune to discard), and last the [EventOutcomeSummary] and Leave.
 ##
 ## Each step comes from the saved [EventView] ([method refresh]), so a continued run opens where
-## it was saved; placements and the rune discard aren't saved and start over. Each command is
-## built with [EventNode] and emitted ([signal command_ready]); the screen sends it and calls
-## [method refresh], or [method show_problem] on a rejection. Names no autoload.
+## it was saved; the leaving unit, placements and the rune discard aren't saved and start over.
+## Each command is built with [EventNode] and emitted ([signal command_ready]); the screen sends
+## it and calls [method refresh], or [method show_problem] on a rejection. Names no autoload.
 ##
 ## @tutorial(Events and curses plan): docs/plans/2026-11-12-events-and-curses.md
 
 # ============================================================
 # INPUT MAP SETUP:
-#   "ui_cancel" -> Esc; pad B [Circle], Menu [Options]   (read in _input in CHOOSER and RUNE:
-#                  Back, taken first so the pause menu doesn't open; in PLACEMENT the
+#   "ui_cancel" -> Esc; pad B [Circle], Menu [Options]   (read in _input in CHOOSER, LEAVING and
+#                  RUNE: Back, taken first so the pause menu doesn't open; in PLACEMENT the
 #                  PlacementPanel reads it; in the other steps it is left to the pause menu)
 #   "ui_left" / "ui_right" / "ui_up" / "ui_down" / "ui_accept"   (not read here: the GUI moves
 #                  focus along the cards or a chooser's column and presses the focused one, by
@@ -55,8 +56,10 @@ const CARD_SCENE: PackedScene = preload("res://ui/campaign/events/event_option_c
 # DRAWN:     only the drawn card can be pressed: on to its picks, sent with this seat's only.
 # CHOOSER:   the unit, fallen unit or weapon. Back closes the saved chooser (or returns to the
 #            cards for a team choice). Choosing goes on to the picks.
+# LEAVING:   which living unit leaves, when the option recruits or revives into a full army
+#            (unsaved). Back returns to CHOOSER, or to the cards for an option with no chooser.
 # PLACEMENT: where each new item goes, in block order (the PlacementPanel). Back from its first
-#            step returns to CHOOSER, or to the cards for an option with no chooser.
+#            step returns to LEAVING when it was asked, else as from LEAVING.
 # RUNE:      which rune makes room, when every slot is full. Back as from PLACEMENT.
 # OUTCOME:   the summary, and Leave (Fight with a combat pending), once the seat has chosen.
 # The last pick sends EventOptionCommand and the step stays put until the screen refreshes, so a
@@ -79,6 +82,8 @@ enum Step {
 	RUNE = 6,
 	## What the option did.
 	OUTCOME = 7,
+	## Which unit leaves a full army for the one the option brings in.
+	LEAVING = 8,
 }
 
 var _step: Step = Step.CLOSED
@@ -113,7 +118,7 @@ func _ready() -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if not is_visible_in_tree() or (_step != Step.CHOOSER and _step != Step.RUNE):
+	if not is_visible_in_tree() or not _chooser.visible:
 		return
 	if not event.is_action_pressed(&"ui_cancel"):
 		return
@@ -164,9 +169,10 @@ func show_problem(problem: String) -> void:
 	_status_label.text = problem
 
 
-## Goes back one step: from the chooser to the cards (closing the saved chooser), from a
-## placement or the rune discard to the chooser, or to the cards with none. Does nothing on the
-## cards or the outcome.
+## Goes back one step: from the chooser to the cards (closing the saved chooser); from the
+## leaving unit to the chooser, or to the cards with none; from a placement or the rune discard
+## to the leaving unit when it was asked, else as from it. Does nothing on the cards or the
+## outcome.
 func step_back() -> void:
 	match _step:
 		Step.CHOOSER:
@@ -176,12 +182,15 @@ func step_back() -> void:
 			command_ready.emit(EventNode.open_chooser(
 					_session, _seat, EventRunState.NO_OPTION, _pool, _catalog
 			))
+		Step.LEAVING:
+			_back_before_leaving()
 		Step.PLACEMENT, Step.RUNE:
 			_placement.close()
-			if _view.event.options[_option].chooser() != EventOutcome.Chooser.NONE:
-				_show_chooser()
+			var option: EventOption = _view.event.options[_option]
+			if EventScreenModel.needs_leaving_unit(option, _session.run.seat_run(_seat), _catalog):
+				_show_leaving()
 			else:
-				_show_saved_cards()
+				_back_before_leaving()
 
 
 ## The step shown.
@@ -326,11 +335,44 @@ func _show_chooser() -> void:
 	)
 
 
-# The next pick the option needs (a placement per new item, then a rune to discard), or the
-# command once nothing more is needed.
+# Asks which living unit leaves the full army for the one the option brings in, with no picks
+# after it made yet.
+func _show_leaving() -> void:
+	var seat_run: SeatRun = _session.run.seat_run(_seat)
+	var title: String = _view.event.options[_option].title
+	_choice.replaced_id = ""
+	_choice.placements.clear()
+	_choice.rune_discard_slot = EventChoice.NO_SLOT
+	_next_block = 0
+	_story.show_event(_view.event)
+	_votes.show_votes(_view, _seat_count())
+	_enter(Step.LEAVING)
+	_chooser.show_entries(
+			EventScreenModel.leaving_question(title, seat_run, _catalog),
+			EventScreenModel.leaving_entries(_session.run, _seat, _catalog)
+	)
+
+
+# Back from the leaving unit, or from a later pick when it wasn't asked: to the chooser, or to
+# the cards for an option with none.
+func _back_before_leaving() -> void:
+	if _view.event.options[_option].chooser() != EventOutcome.Chooser.NONE:
+		_show_chooser()
+	else:
+		_show_saved_cards()
+
+
+# The next pick the option needs (the unit that leaves a full army, a placement per new item,
+# then a rune to discard), or the command once nothing more is needed.
 func _next_pick() -> void:
 	var seat_run: SeatRun = _session.run.seat_run(_seat)
 	var option: EventOption = _view.event.options[_option]
+	if (
+			_choice.replaced_id.is_empty()
+			and EventScreenModel.needs_leaving_unit(option, seat_run, _catalog)
+	):
+		_show_leaving()
+		return
 	if _next_block < _item_blocks.size():
 		var block: int = _item_blocks[_next_block]
 		var item_id: String = EventScreenModel.granted_item(
@@ -373,7 +415,7 @@ func _enter(step: Step) -> void:
 	_status_label.text = ""
 	var is_cards: bool = step == Step.OPTIONS or step == Step.VOTE or step == Step.DRAWN
 	_cards.visible = is_cards
-	_chooser.visible = step == Step.CHOOSER or step == Step.RUNE
+	_chooser.visible = step == Step.CHOOSER or step == Step.LEAVING or step == Step.RUNE
 	_summary.visible = step == Step.OUTCOME
 	_leave_button.visible = step == Step.OUTCOME or step == Step.CLOSED
 	if step == Step.CLOSED:
@@ -423,6 +465,10 @@ func _on_card_pressed(index: int) -> void:
 func _on_event_chooser_entry_chosen(entry_id: String) -> void:
 	if _step == Step.RUNE:
 		_choice.rune_discard_slot = entry_id.to_int()
+		_next_pick()
+		return
+	if _step == Step.LEAVING:
+		_choice.replaced_id = entry_id
 		_next_pick()
 		return
 	match _view.event.options[_option].chooser():
