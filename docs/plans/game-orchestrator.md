@@ -47,7 +47,7 @@ The MVP is **one full run, start screen to boss, solo and co-op, on Normal** (ga
 |---|---|---|---|
 | **M0 Foundations** | The engine every system plugs into | P00, P01 | **Complete** October 30, 2026 |
 | **M1 First playable fight** | One greybox combat, start to finish | P02–P07 (subsets) | **Complete** November 5, 2026; its tuning pass is deferred |
-| **M2 Combat complete** | Every MVP combat feature and piece of content, with a functional UI | P02–P07 | **In progress.** Every build is in (BF3 merged November 19, 2026). Left: the exit playtest, then RB1 |
+| **M2 Combat complete** | Every MVP combat feature and piece of content, with a functional UI | P02–P07 | **In progress.** Every build is in (BF3 merged November 19, 2026). Left: BF4 (BUG-019, attacking breakables; issued November 19, 2026), then the exit playtest and RB1 |
 | **M3 Solo run** | Start screen → campaign → boss, saved and resumable; 60–80 minutes | P08, P09 | **In progress.** RN1–RN5 merged (a run plays map → combat → Results → map on all three devices, headless) |
 | **M4 Co-op run** | The same run for 2–4 players, tested live on two machines | P10, P11 | Not started |
 | **M5 MVP** | Statistics, the Waystation war table, the MVP checklist | P12, polish | Not started |
@@ -76,7 +76,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P12 | Statistics and the Waystation war table (meta-progression.md) | **Not started** | — | P01, P08 |
 | P13 | [RNG streams](2026-10-26-rng-streams.md) | **Implemented** | — | P00 |
 | P15 | UI lift ([ui-lift.md](../design/ui-lift.md); its scope doc is the plan) | **Implemented** November 19, 2026: UL0–UL8 and UL1F merged | — | P07, P08 |
-| P14 | [Project organization](2026-11-09-project-organization.md) | **In progress** | O8 concurrency tooling **merged** November 19, 2026 (every case file declares `const SUITE`, `tests/case_files.gd` finds it; `--quick` skips the map_set parts); O8b splits `capture_screens.gd` into `tools/captures/` (issued November 19, 2026, Lane G); O5 (deferred) | — |
+| P14 | [Project organization](2026-11-09-project-organization.md) | **In progress** | O8 concurrency tooling **merged** November 19, 2026 (every case file declares `const SUITE`, `tests/case_files.gd` finds it; `--quick` skips the map_set parts); O8b **merged** November 19, 2026 (`capture_screens.gd` is a runner over `tools/captures/<number>_<name>.gd` groups); O5 (deferred) | — |
 | P16 | Audio ([audio.md](../design/audio.md); its scope doc is the plan) | **In progress**: AU1 the audio layer merged November 19, 2026 | AU1 done; AU2+ sound design (M5, after the audio direction) | P07, P15 |
 | P20–P24 | Meta progression, tutorials, dev console, status effects, shared co-op battles | Post-MVP | — | — |
 
