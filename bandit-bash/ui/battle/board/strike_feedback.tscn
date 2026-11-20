@@ -1,0 +1,41 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://ui/battle/board/strike_feedback.gd" id="1_feedback"]
+[ext_resource type="Script" path="res://ui/battle/board/strike_look.gd" id="2_look"]
+
+[sub_resource type="Resource" id="Resource_hit"]
+script = ExtResource("2_look")
+flash_time = 0.1
+pop_scale = 1.15
+pop_time = 0.15
+
+[sub_resource type="Resource" id="Resource_crit"]
+script = ExtResource("2_look")
+pop_scale = 1.25
+pop_time = 0.15
+
+[sub_resource type="Resource" id="Resource_block"]
+script = ExtResource("2_look")
+flash_token = &"block"
+flash_time = 0.1
+pop_time = 0.15
+badge_pulse_scale = 1.3
+
+[sub_resource type="Resource" id="Resource_splash"]
+script = ExtResource("2_look")
+flash_token = &"danger"
+flash_time = 0.1
+
+[sub_resource type="Resource" id="Resource_none"]
+script = ExtResource("2_look")
+
+[node name="StrikeFeedback" type="Node"]
+script = ExtResource("1_feedback")
+hit_look = SubResource("Resource_hit")
+miss_look = SubResource("Resource_none")
+crit_look = SubResource("Resource_crit")
+no_damage_look = SubResource("Resource_none")
+block_absorbed_look = SubResource("Resource_block")
+stance_lost_look = SubResource("Resource_none")
+stance_broken_look = SubResource("Resource_none")
+splash_look = SubResource("Resource_splash")

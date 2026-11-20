@@ -394,6 +394,34 @@ corner_radius_top_right = 2
 corner_radius_bottom_right = 2
 corner_radius_bottom_left = 2
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ul6exp"]
+content_margin_left = 6.0
+content_margin_top = 1.0
+content_margin_right = 6.0
+content_margin_bottom = 1.0
+bg_color = Color(0.61960787, 0.20784314, 0.18039216, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.078431375, 0.09019608, 0.10980392, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ul6eli"]
+bg_color = Color(0.16470589, 0.1882353, 0.21960784, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.2901961, 0.33333334, 0.3764706, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
 [resource]
 ModalHostPanel/base_type = &"PanelContainer"
 ModalHostPanel/styles/panel = SubResource("StyleBoxEmpty_mdhst")
@@ -598,3 +626,16 @@ TokenLetter/colors/font_color = Color(0.9098039, 0.8862745, 0.83137256, 1)
 TokenLetter/colors/font_outline_color = Color(0.078431375, 0.09019608, 0.10980392, 1)
 TokenLetter/constants/outline_size = 4
 TokenLetter/font_sizes/font_size = 14
+DamageNumberWordLabel/base_type = &"Label"
+DamageNumberWordLabel/colors/font_color = Color(0.9098039, 0.8862745, 0.83137256, 1)
+DamageNumberWordLabel/colors/font_outline_color = Color(0.078431375, 0.09019608, 0.10980392, 1)
+DamageNumberWordLabel/constants/outline_size = 4
+DamageNumberWordLabel/font_sizes/font_size = 18
+DamageNumberWordLabel/fonts/font = SubResource("FontVariation_dtkdr")
+DamageNumberExposedLabel/base_type = &"Label"
+DamageNumberExposedLabel/colors/font_color = Color(0.9098039, 0.8862745, 0.83137256, 1)
+DamageNumberExposedLabel/font_sizes/font_size = 18
+DamageNumberExposedLabel/fonts/font = SubResource("FontVariation_dtkdr")
+DamageNumberExposedLabel/styles/normal = SubResource("StyleBoxFlat_ul6exp")
+EliteMark/base_type = &"Panel"
+EliteMark/styles/panel = SubResource("StyleBoxFlat_ul6eli")

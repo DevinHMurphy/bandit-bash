@@ -6,7 +6,7 @@
 # File:     lobby_admission.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: October 14, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name LobbyAdmission
@@ -30,6 +30,8 @@ enum Refusal {
 	NOT_IN_CAMPAIGN = 1,
 	## This Steam account is already in the lobby.
 	ALREADY_JOINED = 2,
+	## The joiner runs the same version but another build: its [NetContract] fingerprint differs.
+	BUILD_MISMATCH = 3,
 }
 
 ## Returned by [method decide] when the joiner may enter.
@@ -40,22 +42,26 @@ const ADMIT: int = -1
 const MAX_VERSION_LENGTH: int = 32
 
 
-## Decides whether a joining machine may enter. Checks run in the order of [enum Refusal].
-##
-## [param host_version]: the host's game version. [param joiner_version]: the version the joiner
-## reported. [param joiner_steam_id]: from the Steam connection, not the joiner's message.
+## Decides whether a joining machine may enter. Checks run version, build, campaign, membership,
+## so a version bump shows its own text. [param host_version], [param joiner_version]: game
+## versions; [param host_contract], [param joiner_contract]: [method NetContract.fingerprint]s,
+## the joiner's as reported. [param joiner_steam_id]: from the Steam connection, not the message.
 ## [param required_steam_ids]: the campaign's players when resuming; empty admits anyone.
-## [param member_steam_ids]: Steam ids already in the lobby.
-## Returns [constant ADMIT] or a [enum Refusal] value.
+## [param member_steam_ids]: Steam ids already in the lobby. Returns [constant ADMIT] or a
+## [enum Refusal] value.
 static func decide(
 		host_version: String,
 		joiner_version: String,
+		host_contract: int,
+		joiner_contract: int,
 		joiner_steam_id: int,
 		required_steam_ids: PackedInt64Array,
 		member_steam_ids: PackedInt64Array
 ) -> int:
 	if joiner_version.length() > MAX_VERSION_LENGTH or joiner_version != host_version:
 		return Refusal.VERSION_MISMATCH
+	if joiner_contract != host_contract:
+		return Refusal.BUILD_MISMATCH
 	if not required_steam_ids.is_empty() and not required_steam_ids.has(joiner_steam_id):
 		return Refusal.NOT_IN_CAMPAIGN
 	if member_steam_ids.has(joiner_steam_id):
@@ -73,4 +79,6 @@ static func describe(refusal: int) -> String:
 			return "This campaign belongs to other players."
 		Refusal.ALREADY_JOINED:
 			return "You're already in this lobby."
+		Refusal.BUILD_MISMATCH:
+			return "The host runs a different build of the game."
 	return "The host refused the join."

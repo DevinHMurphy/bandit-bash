@@ -12,8 +12,9 @@
 class_name UnitInfo
 extends Control
 ## One unit's bars, numbers and icons on the screen-space [UnitInfoLayer]: its [HpBar] with the
-## HP inside, its [StancePips], its [BlockBadge], the [BlockBanMark] while it can't gain Block,
-## the range-tracked icon (combat UI plan, question 29 (2); UI12) and a lit keg's [FuseBadge].
+## HP inside and its side's [SideShape] at the bar's end, its [StancePips], its [BlockBadge], the
+## [BlockBanMark] while it can't gain Block, the range-tracked icon (combat UI plan, question
+## 29 (2); UI12), a lit keg's [FuseBadge] and an elite's [EliteMark] in that same corner.
 ##
 ## Its origin is the unit's centre on screen; the layout is authored in screen pixels, around a
 ## tile drawn about 59 px wide (M1 at the 1280 × 720 base draws about 71). [UnitToken] gives it
@@ -30,6 +31,9 @@ extends Control
 @onready var _block_ban: BlockBanMark = %BlockBanMark
 @onready var _range_icon: Control = %RangeTrackedIcon
 @onready var _fuse_badge: FuseBadge = %FuseBadge
+# A keg (the fuse's owner) is never prefixed, so the elite mark shares the fuse's corner.
+@onready var _elite_mark: EliteMark = %EliteMark
+@onready var _side_shape: SideShape = %SideShape
 
 
 ## Shows [param current] HP of [param maximum] on the bar and in its number.
@@ -84,9 +88,29 @@ func show_fuse(fuse: int) -> void:
 	_fuse_badge.show_fuse(fuse)
 
 
+## Shows the [EliteMark] while [param is_elite]: an enemy with a prefix.
+func show_elite(is_elite: bool) -> void:
+	_elite_mark.show_elite(is_elite)
+
+
+## Shows [param side]'s shape at the HP bar's end ([SideShape]).
+func show_side(side: CombatFact.CombatSide) -> void:
+	_side_shape.show_side(side)
+
+
 ## The fuse badge.
 func get_fuse_badge() -> FuseBadge:
 	return _fuse_badge
+
+
+## The elite mark.
+func get_elite_mark() -> EliteMark:
+	return _elite_mark
+
+
+## The side shape.
+func get_side_shape() -> SideShape:
+	return _side_shape
 
 
 ## The HP bar.

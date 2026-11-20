@@ -62,7 +62,7 @@ var _shown_unit: String = ""
 @onready var _banner: PhaseBanner = %PhaseBanner
 @onready var _map_area: Control = %MapArea
 # ASSUMPTION: "the battle HUD's top strip" (ui-lift.md) read as the band above the map area, the
-# bar at its left edge, under the phase banner; the scene sets its place.
+# bar at its left edge; the scene sets its place, and the phase banner's below its row.
 @onready var _heirloom_bar: HeirloomBar = %HeirloomBar
 
 
@@ -75,7 +75,11 @@ func _exit_tree() -> void:
 
 
 func _process(_delta: float) -> void:
-	if _session == null or not is_instance_valid(_view) or not _view.is_settled():
+	if _session == null or not is_instance_valid(_view):
+		return
+	# The banner's fades keep the board's pace: the game speed, and held fast-forward.
+	_banner.set_speed_scale(_view.time_scale())
+	if not _view.is_settled():
 		return
 	# The unit panel holds its unit while the mouse is over it, so its Details button is reachable.
 	if _unit_panel.is_mouse_over():
