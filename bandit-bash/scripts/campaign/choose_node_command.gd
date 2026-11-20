@@ -6,7 +6,7 @@
 # File:     choose_node_command.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 13, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name ChooseNodeCommand
@@ -15,9 +15,11 @@ extends CampaignCommand
 ## ([method CampaignRunState.enter_node]), recording [constant CampaignFact.Kind.NODE_CHOSEN].
 ##
 ## Valid only on the map, for a node on the floor above the current one that the current node leads
-## to (any node on floor 1 before the first). Once one resolves the run is inside a node, so a
-## second choice for the same floor, from any seat, is rejected: the first arrival wins. In co-op
-## this carries the route the host drew from the votes. The node's own rules are not run here.
+## to (any node on floor 1 before the first), once every seat has resolved its [StartingOffer]
+## (heirlooms.md: the pick comes before the first node). Once one resolves the run is inside a
+## node, so a second choice for the same floor, from any seat, is rejected: the first arrival
+## wins. In co-op this carries the route the host drew from the votes. The node's own rules are
+## not run here.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 
@@ -37,6 +39,9 @@ func get_label() -> String:
 func validate(run: CampaignRunState) -> String:
 	if not run.is_on_map():
 		return "the run is inside node %d" % [run.node]
+	for waiting: int in run.seat_numbers():
+		if StartingOffer.is_open(run.seat_run(waiting)):
+			return "seat %d hasn't taken its starting heirloom" % [waiting]
 	if not run.graph.has_node_id(node_id):
 		return "the map has no node %d" % [node_id]
 	if run.graph.floor_of(node_id) != run.floor_number + 1:

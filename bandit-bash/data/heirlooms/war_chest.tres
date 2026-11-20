@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StartingHeirloomDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/starting_heirloom_definition.gd" id="9_def"]
+[ext_resource type="Texture2D" path="res://assets/sprites/heirlooms/heirloom_economy.svg" id="20_icon"]
+
+[resource]
+script = ExtResource("9_def")
+bonus = 4
+gold = 100
+tier = "starting"
+id = "war_chest"
+display_name = "War Chest"
+icon = ExtResource("20_icon")

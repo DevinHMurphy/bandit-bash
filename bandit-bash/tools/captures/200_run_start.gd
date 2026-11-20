@@ -10,8 +10,8 @@
 # ==============================================================================
 
 extends "res://tools/captures/capture_group.gd"
-## Starts the throwaway solo run, gives it heirlooms, and shoots Loading on the way to the map;
-## ends the whole run if the run doesn't start.[br]
+## Starts the throwaway solo run, gives it heirlooms, and shoots Loading on the way to the
+## starting heirloom offer; ends the whole run if the run doesn't start.[br]
 ## Needs: save file [constant SAVE_NUMBER] open (100_boot_menus).
 
 
@@ -27,9 +27,9 @@ func run() -> bool:
 	return true
 
 
-# Runs gain no heirloom yet (RN6), so this throwaway run is given some before the map, said in a
-# NOTE: War Ledger with its campaign count at 7, Breaker's Maul, Burglar's Roll, Iron Rations, and
-# two curses, Shaken Footing and Haunted.
+# Besides the starting heirloom it takes, this throwaway run is given heirlooms before the map for
+# the battle's heirloom bar, said in a NOTE: War Ledger with its campaign count at 7, Breaker's
+# Maul, Burglar's Roll, Iron Rations, and two curses, Shaken Footing and Haunted.
 func _stage_heirlooms() -> void:
 	var seat_run: SeatRun = campaign().run.seat_run(0)
 	var ledger: SeatRun.OwnedHeirloom = seat_run.add_heirloom("war_ledger")
@@ -38,5 +38,5 @@ func _stage_heirlooms() -> void:
 		"breakers_maul", "burglars_roll", "iron_rations", "shaken_footing", "haunted",
 	]:
 		seat_run.add_heirloom(heirloom_id)
-	note("runs gain no heirlooms yet (RN6): this run is given War Ledger (7 / 10),"
+	note("besides its starting heirloom, this run is given War Ledger (7 / 10),"
 			+ " Breaker's Maul, Burglar's Roll, Iron Rations, Shaken Footing and Haunted")

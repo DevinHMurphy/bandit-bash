@@ -30,6 +30,7 @@ const SCREEN_SAVE_SELECT: int = 7
 const SCREEN_NEW_RUN: int = 8
 const SCREEN_MAP: int = 9
 const SCREEN_COMBAT_RESULTS: int = 10
+const SCREEN_STARTING_HEIRLOOM: int = 12
 
 # Any fixed run seed, and the save file the throwaway run is written to.
 const RUN_SEED: int = 0x51A7E

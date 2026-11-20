@@ -11,7 +11,8 @@
 
 extends "res://tests/ui/ui_suite.gd"
 ## Campaign screens suite: a solo run played through the real screens and the real router, from
-## Loading to the map, into four nodes and back, by keyboard, mouse and pad in turn. The map
+## Loading through the starting heirloom offer (by keyboard) to the map, into four nodes and back,
+## by keyboard, mouse and pad in turn. The map
 ## (only the reachable nodes enabled and focusable, the route marked, left and right between the
 ## choices, the header, legend and hints; the heirloom bar on every visit, a staged War Ledger's
 ## saved count included, reached by H and by the right stick and left by Esc and B), the battle
@@ -41,6 +42,10 @@ const SCREEN_RESULTS: int = 4
 const SCREEN_MAP: int = 9
 const SCREEN_COMBAT_RESULTS: int = 10
 const SCREEN_PLACEHOLDER: int = 11
+const SCREEN_STARTING: int = 12
+
+# Key presses the starting heirloom offer may take, sub-choices included, before it counts as stuck.
+const STARTING_PRESSES: int = 8
 
 # VictoryOverlay.Stage values and its backdrop's opacity: a suite can't name the overlay, whose
 # script names autoloads (see the base).
@@ -82,7 +87,7 @@ const MIN_TARGET: float = 32.0
 const JOY_A: JoyButton = JOY_BUTTON_A
 const JOY_B: JoyButton = JOY_BUTTON_B
 
-# The heirloom staged at the run's start (runs gain none yet, RN6): War Ledger, its effect and its
+# The heirloom staged at the run's start, beside the offer's: War Ledger, its effect and its
 # saved campaign count, which every map visit's bar must show.
 const STAGED_HEIRLOOM: String = "war_ledger"
 const LEDGER_EFFECT: String = "double_damage"
@@ -190,6 +195,8 @@ func _process(_delta: float) -> bool:
 	match screen:
 		SCREEN_LOADING:
 			_on_loading(scene)
+		SCREEN_STARTING:
+			_on_starting(scene)
 		SCREEN_MAP:
 			_on_map(scene)
 		SCREEN_GAMEPLAY:
@@ -279,6 +286,44 @@ func _on_loading(scene: Node) -> void:
 	var button: Button = scene.get_node(^"%ContinueButton")
 	_check("loading: Continue has focus, for a pad", button.has_focus())
 	_press_key(KEY_ENTER)
+
+
+# The starting heirloom offer on the real screen, by keyboard: the first heirloom that asks
+# nothing more when there is one (so the walk's army stays the faction's), else the first that
+# can be taken, then Enter on each sub-choice's first choice until the offer resolves.
+func _on_starting(scene: Node) -> void:
+	GroupClock.lap("starting heirloom")
+	var view: StartingOfferView = scene.call(&"get_view")
+	var cards: Array[Button] = view.get_cards()
+	_check("starting: three heirlooms are offered, one focused", (
+			cards.size() == StartingOffer.OFFER_SIZE and view.focus_first()
+	), str(cards.size()))
+	var offer: StartingOffer = StartingOffer.pending(_run().seat_run(0))
+	var chosen: Button = null
+	for index: int in cards.size():
+		var definition: StartingHeirloomDefinition = StartingOffer.definition_of(
+				offer.options[index], EffectCatalog.index()
+		)
+		var asks_nothing: bool = (
+				definition.bonus == StartingHeirloomDefinition.Bonus.NONE
+				or definition.bonus == StartingHeirloomDefinition.Bonus.GOLD
+				or definition.bonus == StartingHeirloomDefinition.Bonus.HEIRLOOM
+		)
+		if not cards[index].disabled and (chosen == null or asks_nothing):
+			chosen = cards[index]
+			if asks_nothing:
+				break
+	if chosen != null:
+		chosen.grab_focus()
+	for _press: int in STARTING_PRESSES:
+		if not StartingOffer.is_open(_run().seat_run(0)):
+			break
+		_press_key(KEY_ENTER)
+		view.focus_first()
+	_check("starting: Enter took an heirloom, saved before the map", (
+			not StartingOffer.is_open(_run().seat_run(0))
+			and _run().seat_run(0).heirloom_ids().size() >= 3
+	), str(_run().seat_run(0).heirloom_ids()))
 
 
 func _on_map(scene: Node) -> void:
@@ -449,7 +494,7 @@ func _check_map(scene: Node, view: CampaignMapView, run: CampaignRunState) -> vo
 		var cue: StringName = (
 				_cue_reader.cue_for_campaign(started[0]) if started.size() == 1 else &""
 		)
-		_check("map: a new run's first map plays its start once, sounding begin_campaign", (
+		_check("map: the run's start has played once by its first map, sounding begin_campaign", (
 				started.size() == 1 and cue == &"begin_campaign"
 		), "%d played; cue %s" % [started.size(), cue])
 

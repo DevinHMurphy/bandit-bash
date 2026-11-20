@@ -329,7 +329,8 @@ func _build_new_run(built: CampaignSession) -> CampaignRunState:
 		factions[seat] = DEFAULT_FACTION_ID
 	var map_stream: RngStream = built.rng.stream(RngKey.new(RngKey.RngPurpose.MAP_GENERATION))
 	var start: RunStart = RunStart.build(
-			rules, map_stream, EffectCatalog.index(), factions, built.ids
+			rules, map_stream, EffectCatalog.index(), factions, built.ids,
+			built.starting_offer_streams()
 	)
 	for problem: String in start.problems:
 		push_error("CampaignService: new run - %s" % [problem])

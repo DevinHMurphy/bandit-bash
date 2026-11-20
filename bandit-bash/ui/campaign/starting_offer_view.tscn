@@ -1,0 +1,89 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/starting_offer_view.gd" id="1_view"]
+[ext_resource type="PackedScene" path="res://ui/campaign/unit_choice_panel.tscn" id="2_units"]
+[ext_resource type="PackedScene" path="res://ui/campaign/placement_panel.tscn" id="3_placement"]
+
+[node name="StartingOfferView" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_view")
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Box" type="VBoxContainer" parent="Center"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="Center/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"TitleLabel"
+text = "Choose a starting heirloom"
+horizontal_alignment = 1
+
+[node name="Question" type="Label" parent="Center/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+text = "Pick 1 of 3."
+horizontal_alignment = 1
+
+[node name="Row" type="HBoxContainer" parent="Center/Box"]
+layout_mode = 2
+size_flags_horizontal = 4
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="Cards" type="HBoxContainer" parent="Center/Box/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="BackButton" type="Button" parent="Center/Box/Row"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(120, 48)
+layout_mode = 2
+size_flags_vertical = 4
+text = "Back"
+
+[node name="SkipButton" type="Button" parent="Center/Box/Row"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(120, 48)
+layout_mode = 2
+size_flags_vertical = 4
+text = "Skip"
+
+[node name="UnitChoicePanel" parent="Center/Box" instance=ExtResource("2_units")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="Status" type="Label" parent="Center/Box"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(640, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="PlacementPanel" parent="." instance=ExtResource("3_placement")]
+unique_name_in_owner = true
+layout_mode = 1

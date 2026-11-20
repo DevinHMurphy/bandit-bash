@@ -24,9 +24,8 @@ extends RefCounted
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 ##
-## @todo: TOD-001 - Read the convoy's size from CampaignValue.Key.MAX_ARMY_SIZE and the scrap rate
-## from SCRAP_PERCENT once the campaign layer reads its values; the faction's max army size and
-## the default rate stand in.
+## @todo: TOD-001 - Read the scrap rate from CampaignValue.Key.SCRAP_PERCENT once the campaign
+## layer reads it (Scrapper's Tongs); the default rate stands in.
 
 ## Where the new item goes.
 enum Destination {
@@ -253,12 +252,11 @@ static func equip_problem(
 	return ""
 
 
-## How many items [param seat_run]'s convoy holds: one per unit of the faction's maximum army
-## size (game-vision.md, Run-wide resources). 0 for a faction not in [param catalog].
+## How many items [param seat_run]'s convoy holds: one per unit of its max army size
+## ([method RunOperations.max_army_size]; game-vision.md, Run-wide resources), so Abundance and
+## Muster Roll grow it too. 0 for a faction not in [param catalog].
 static func convoy_capacity(seat_run: SeatRun, catalog: EffectCatalog.Index) -> int:
-	# TODO(TOD-001): MAX_ARMY_SIZE through the campaign's values, once the campaign reads them.
-	var faction: FactionDefinition = catalog.faction(seat_run.faction_id)
-	return 0 if faction == null else faction.max_army_size
+	return RunOperations.max_army_size(seat_run, catalog)
 
 
 ## Whether [param seat_run]'s convoy is at or over [method convoy_capacity].

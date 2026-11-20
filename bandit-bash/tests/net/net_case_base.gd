@@ -10,11 +10,13 @@
 # ==============================================================================
 
 extends RefCounted
-## Shared by the net suite's case files: reporting through the runner's check, the scene tree's
-## root for the cases that reach autoloads, and a logger that keeps engine errors.
+## Shared by the net suite's case files: reporting through the runner's check, skips counted for
+## the summary line, the scene tree's root for the cases that reach autoloads or build harness
+## branches, and a logger that keeps engine errors.
 
 var _report: Callable
 var _root: Window
+var _skips: int = 0
 
 
 func _init(check: Callable, root: Window) -> void:
@@ -22,8 +24,19 @@ func _init(check: Callable, root: Window) -> void:
 	_root = root
 
 
+## How many cases this file skipped, for the suite's summary line.
+func skip_count() -> int:
+	return _skips
+
+
 func _check(case_name: String, passed: bool, detail: String = "") -> void:
 	_report.call(case_name, passed, detail)
+
+
+# A case that can't run here, with why; counted, neither passed nor failed.
+func _skip(case_name: String, reason: String) -> void:
+	_skips += 1
+	print("SKIP  %s: %s" % [case_name, reason])
 
 
 # Keeps every engine or script error logged while it is added with OS.add_logger. The engine may

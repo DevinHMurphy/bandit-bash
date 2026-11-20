@@ -109,6 +109,8 @@ func _test_solo_loss_ends_run() -> bool:
 	saves.call(&"open_save_file", 1)
 	saves.call(&"start_new_solo_run", RUN_SEED)
 	var run: CampaignSession = service.get(&"session")
+	# These cases start past the starting heirloom offer, with nothing taken from it.
+	run.run.seat_run(0).pending_offers.erase(StartingOffer.OFFER_KEY)
 	service.call(&"submit_command", ChooseNodeCommand.new(0, run.run.graph.nodes_on_floor(1)[0]))
 	var begun: int = service.call(&"begin_battle", _node_request(run))
 	if begun == OK:
@@ -148,6 +150,8 @@ func _test_save_select_floor() -> bool:
 	saves.call(&"start_new_solo_run", RUN_SEED)
 	var run: CampaignSession = service.get(&"session")
 	var before: SaveFileSummary = saves.call(&"get_summary", 1)
+	# These cases start past the starting heirloom offer, with nothing taken from it.
+	run.run.seat_run(0).pending_offers.erase(StartingOffer.OFFER_KEY)
 	service.call(&"submit_command", ChooseNodeCommand.new(0, run.run.graph.nodes_on_floor(1)[0]))
 	var after: SaveFileSummary = saves.call(&"get_summary", 1)
 	_check("run battle: choosing a node moves Save Select's floor to the run's (BUG-010)", (
@@ -171,6 +175,8 @@ func _play(saves: Node, service: Node, quit: Quit) -> Play:
 	saves.call(&"start_new_solo_run", RUN_SEED)
 	var run: CampaignSession = service.get(&"session")
 	played.start_gold = run.run.seat_run(0).gold
+	# These cases start past the starting heirloom offer, with nothing taken from it.
+	run.run.seat_run(0).pending_offers.erase(StartingOffer.OFFER_KEY)
 	service.call(&"submit_command", ChooseNodeCommand.new(0, run.run.graph.nodes_on_floor(1)[0]))
 	if service.call(&"begin_battle", _node_request(run)) != OK:
 		played.errors.append("begin")

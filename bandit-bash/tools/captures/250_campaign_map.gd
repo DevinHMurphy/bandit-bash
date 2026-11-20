@@ -12,7 +12,7 @@
 extends "res://tools/captures/capture_group.gd"
 ## The campaign map with its heirloom bar, then its first reachable Standard combat node entered;
 ## ends the whole run if no battle opens.[br]
-## Needs: the run's map open (200_run_start).
+## Needs: the run's map open (220_starting_heirloom).
 
 
 func run() -> bool:

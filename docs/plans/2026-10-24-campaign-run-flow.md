@@ -149,6 +149,13 @@ Steps through RN5 give a playable loop on M1's data. Later steps need content fr
 | `CampaignFact.Kind` | Enum, appended (network contract) | Ends at `NODE_LEFT=7` | `ITEM_EQUIPPED=8`, `ITEM_SCRAPPED=9`; `CampaignBus.ArmyChannel` gains `item_equipped`, `item_scrapped` | Applied (RN5) | Fact logs, bus observers | 🔴 |
 | `ItemPickCommand` | Constructor and behaviour | `_init(sender, offer_index)`; an uncapped convoy | Takes `item_placement` and `catalog`; a full convoy rejects the default placement | Applied (RN5) | Callers of the take | 🔴 |
 | `ControlHintBar.controller`, `BattleController` | `@export` type, base class | `BattleController`; `Node` | `HintSource` for both | Applied (RN5) | `gameplay.tscn` | 🟡 |
+| `CampaignFact.Kind` | Enum, appended (network contract) | Ends at `TEAM_OPTION_DRAWN=20` | `UNIT_RECRUITED=21`, `UNIT_DISMISSED=22`, `UNIT_UPGRADED=23`, `ARMY_SIZE_CHANGED=24`; `CampaignBus.ArmyChannel` gains `unit_recruited`, `unit_dismissed`, `unit_upgraded`, `army_size_changed` | Applied (RN6) | Fact logs, bus observers, event-bus.md | 🔴 |
+| `SceneRouter.Screen` | Enum, appended | Ends at `NODE_PLACEHOLDER=11` | `STARTING_HEIRLOOM=12`; `RunScreen.of` sends a run with an open offer there | Applied (RN6) | `SCREEN_PATHS`, the UI walk, `capture_screens.gd` | 🟡 |
+| `RunStart.build()` | Signature | `(rules, map_stream, catalog, factions, ids)` | `+ offer_streams: Dictionary[int, RngStream] = {}` (empty: no offer) | Applied (RN6) | `CampaignService._build_new_run`, campaign tests | 🟡 |
+| `ChooseNodeCommand` | Behaviour | Valid on the map | Also refused while any seat's starting offer is open | Applied (RN6) | Tests that start a run through `SaveService` clear the offer first | 🟡 |
+| `ItemPlacement.convoy_capacity()` | Behaviour | The faction's max army size | `RunOperations.max_army_size()` (heirlooms and curses count) | Applied (RN6) | Placement cases | 🟢 |
+| New public classes and members | Public API | — | `RunOperations`, `RecruitOffer`, `StartingOffer`, `StartingHeirloomCommand`, `StartingHeirloomDefinition`, `TriangleChange`; `CampaignSession.starting_offer_streams()`; the offer's UI elements | Applied (RN6) | — | 🟡 |
+| `economy.pending_offers` | Save format (free-form JSON, no version change) | `combat`, `item_pick` | `+ starting_heirloom` | Applied (RN6) | save-system.md | 🟡 |
 
 ## Verification
 
