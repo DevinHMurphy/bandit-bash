@@ -58,8 +58,10 @@ own army. The combat ends when everyone has finished.
 - **Design cost:** the lowest. Every map is authored once, at solo size, and solo balance carries
   over unchanged.
 - **Pacing:** every player keeps the solo pace. Whoever finishes first waits for the others.
-- **Save and network:** a **save-format change**: the combat block holds one turn and phase; this
-  needs one battle state per seat. The host runs one simulation per player.
+- **Save and network:** a **save-format change**: the combat block's core holds one turn and
+  phase. Its `combat_state` section already holds each map's (see the table above); what remains,
+  the co-op battle state and per-map checkpoints, is the co-op combat plan's (P11). The host runs
+  one simulation per player.
 - **Effects:** Any Ally Unit only reaches partner maps for effects that aren't positional; the
   shared player phase becomes one phase per map.
 - **Light links** can add co-op feel at low cost, for example:

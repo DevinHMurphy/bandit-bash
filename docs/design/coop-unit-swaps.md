@@ -14,9 +14,9 @@ M3; it lands with co-op (P11). The vision update goes through the ideation threa
 - **Parallel maps** (game-vision.md, Combat maps; [multiplayer-combat-options.md](multiplayer-combat-options.md)):
   in co-op each player fights their own map at once.
 - **H1 Reinforce** already puts a player's units on a teammate's map: a player who wins their map
-  sends surviving units, which arrive at the next player phase on the deployment edge or a
-  reinforcement point, **and their owner controls them there**. A swap is the same idea, decided
-  before the battle instead of after a win.
+  sends surviving units, which arrive by the battle clock next to the receiving player's commander
+  (game-vision.md, Multiplayer maps), **and their owner controls them there**. A swap is the same
+  idea, decided before the battle instead of after a win.
 - **Phases are per map:** every unit on a map shares its phases, and a map's player phase ends
   when every player with units on it has ended their turn (effect-triggers.md; P01 question 11).
   So a player with a swapped unit acts on two maps each round.
@@ -52,8 +52,9 @@ next node is already chosen, so players know what kind of fight is coming.
 
 ### 3. Who can be swapped
 
-- Never the commander: a map with no commander is lost under the commander rules, and its owner's
-  defeat condition would sit on another player's map (recommended).
+- Never the commander: each player's commander stays on their own map, where they lead the fight
+  (recommended). (An earlier reason, that a map with no commander is lost, no longer holds: since
+  L4 a co-op commander's fall loses no map.)
 - Only living units in the army.
 
 ### 4. Deployment and control
