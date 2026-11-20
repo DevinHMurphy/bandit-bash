@@ -247,9 +247,10 @@ files it owns, the shared files it may only append to, and what it must not touc
 | **G** Audio and tooling | `scripts/audio/`, `data/audio/`, `tools/`, the runner | AU1, P14 O8 |
 | **F** Docs and plans | `docs/` only | the M2 docs batch, plans (P10, P11, P12), ideation |
 
-**Shared, append only:** `project.godot` (input actions, autoloads), `capture_screens.gd` (until
-O8b splits it), `save-system.md` rows. Since O8 (November 19, 2026)
-no build edits a suite's `run_all.gd`: a new case file declares `const SUITE`.
+**Shared, append only:** `project.godot` (input actions, autoloads), `save-system.md` rows. Since
+O8 (November 19, 2026) no build edits a suite's `run_all.gd`: a new case file declares
+`const SUITE`. Since O8b (November 19, 2026) no build edits `capture_screens.gd`: a UI step adds
+its own `tools/captures/<number>_<name>.gd` group.
 
 **Process rules:**
 
