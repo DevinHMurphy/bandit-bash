@@ -1,39 +1,39 @@
-[gd_resource type="Resource" script_class="UnitSpriteTable" load_steps=34 format=3]
+[gd_resource type="Resource" script_class="UnitSpriteTable" format=3 uid="uid://c74hmyitwk5ff"]
 
-[ext_resource type="Script" path="res://ui/battle/unit/unit_sprite_table.gd" id="1_table"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/archer.png" id="2_archer"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/field_medic.png" id="3_field_medic"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/vandal.png" id="4_vandal"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/crossbowman.png" id="5_crossbowman"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/drengr.png" id="6_drengr"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/hakkapel.png" id="7_hakkapel"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/healer.png" id="8_healer"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/brawler.png" id="9_brawler"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/fighter.png" id="10_fighter"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/freewing.png" id="11_freewing"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/lance_armor.png" id="12_lance_armor"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/lancer.png" id="13_lancer"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/mage.png" id="14_mage"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/sellsword.png" id="15_sellsword"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/shaman.png" id="16_shaman"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/suncaster.png" id="17_suncaster"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/thief.png" id="18_thief"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/ward.png" id="19_ward"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/duelist.png" id="20_duelist"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/bladehand.png" id="21_bladehand"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/sea_witch.png" id="22_sea_witch"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/hound.png" id="23_hound"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/axe_cavalier.png" id="24_axe_cavalier"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/bulwark.png" id="25_bulwark"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/banner_bearer.png" id="26_banner_bearer"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/destroyer.png" id="27_destroyer"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/flesh_prowler.png" id="28_flesh_prowler"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/herbalist.png" id="29_herbalist"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/sword_armor.png" id="30_sword_armor"]
-[ext_resource type="Texture2D" path="res://assets/sprites/units/gunner.png" id="31_gunner"]
-[ext_resource type="Texture2D" path="res://assets/sprites/objects/wood_debris.png" id="32_wood_debris"]
-[ext_resource type="Texture2D" path="res://assets/sprites/objects/stone_debris_1.png" id="33_stone_debris"]
-[ext_resource type="Texture2D" path="res://assets/sprites/objects/powder_keg.png" id="34_powder_keg"]
+[ext_resource type="Script" uid="uid://bwh585omrxnvl" path="res://ui/battle/unit/unit_sprite_table.gd" id="1_table"]
+[ext_resource type="Texture2D" uid="uid://dyn0yegmqygaj" path="res://assets/sprites/units/archer.png" id="2_archer"]
+[ext_resource type="Texture2D" uid="uid://caawyrefv0jeb" path="res://assets/sprites/units/field_medic.png" id="3_field_medic"]
+[ext_resource type="Texture2D" uid="uid://dm46r36xo8e1o" path="res://assets/sprites/units/vandal.png" id="4_vandal"]
+[ext_resource type="Texture2D" uid="uid://bov2o6dxtu3sj" path="res://assets/sprites/units/crossbowman.png" id="5_crossbowman"]
+[ext_resource type="Texture2D" uid="uid://d18md2bb2dn3s" path="res://assets/sprites/units/drengr.png" id="6_drengr"]
+[ext_resource type="Texture2D" uid="uid://k24y6f88ayt0" path="res://assets/sprites/units/blood_hound.png" id="7_5su87"]
+[ext_resource type="Texture2D" uid="uid://bo37w7nvmurnd" path="res://assets/sprites/units/hakkapel.png" id="7_hakkapel"]
+[ext_resource type="Texture2D" uid="uid://d0c34dshuq1ii" path="res://assets/sprites/units/healer.png" id="8_healer"]
+[ext_resource type="Texture2D" uid="uid://mq5v3e8rvmhl" path="res://assets/sprites/units/brawler.png" id="9_brawler"]
+[ext_resource type="Texture2D" uid="uid://cfcy2is2hf72k" path="res://assets/sprites/units/fighter.png" id="10_fighter"]
+[ext_resource type="Texture2D" uid="uid://bn8dh42x3maah" path="res://assets/sprites/units/freewing.png" id="11_freewing"]
+[ext_resource type="Texture2D" uid="uid://bfw6ynl3fl3pl" path="res://assets/sprites/units/lance_armor.png" id="12_lance_armor"]
+[ext_resource type="Texture2D" uid="uid://cfky0c1ed3rr6" path="res://assets/sprites/units/lancer.png" id="13_lancer"]
+[ext_resource type="Texture2D" uid="uid://d0kayhn2o6lvf" path="res://assets/sprites/units/mage.png" id="14_mage"]
+[ext_resource type="Texture2D" uid="uid://bj4m8dgrvpbew" path="res://assets/sprites/units/sellsword.png" id="15_sellsword"]
+[ext_resource type="Texture2D" uid="uid://b7maaxcnix57j" path="res://assets/sprites/units/shaman.png" id="16_shaman"]
+[ext_resource type="Texture2D" uid="uid://bdw8bx4ppim1r" path="res://assets/sprites/units/suncaster.png" id="17_suncaster"]
+[ext_resource type="Texture2D" uid="uid://6xw0b80m7cx1" path="res://assets/sprites/units/thief.png" id="18_thief"]
+[ext_resource type="Texture2D" uid="uid://wshug5v47ecl" path="res://assets/sprites/units/ward.png" id="19_ward"]
+[ext_resource type="Texture2D" uid="uid://c3hk26tdb08hd" path="res://assets/sprites/units/duelist.png" id="20_duelist"]
+[ext_resource type="Texture2D" uid="uid://dkuvntxwsw2jh" path="res://assets/sprites/units/bladehand.png" id="21_bladehand"]
+[ext_resource type="Texture2D" uid="uid://b4rvqqt2mbuyi" path="res://assets/sprites/units/sea_witch.png" id="22_sea_witch"]
+[ext_resource type="Texture2D" uid="uid://dwl01xst8851t" path="res://assets/sprites/units/hound.png" id="23_hound"]
+[ext_resource type="Texture2D" uid="uid://n787yms1a16e" path="res://assets/sprites/units/axe_cavalier.png" id="24_axe_cavalier"]
+[ext_resource type="Texture2D" uid="uid://r5b60jk7iphb" path="res://assets/sprites/units/bulwark.png" id="25_bulwark"]
+[ext_resource type="Texture2D" uid="uid://c5w5ynan8bn8k" path="res://assets/sprites/units/banner_bearer.png" id="26_banner_bearer"]
+[ext_resource type="Texture2D" uid="uid://d2fplj8n35wsw" path="res://assets/sprites/units/destroyer.png" id="27_destroyer"]
+[ext_resource type="Texture2D" uid="uid://cmu08p1jukmpf" path="res://assets/sprites/units/herbalist.png" id="29_herbalist"]
+[ext_resource type="Texture2D" uid="uid://crxkeqnvbhqfc" path="res://assets/sprites/units/sword_armor.png" id="30_sword_armor"]
+[ext_resource type="Texture2D" uid="uid://xp77lny4ghg1" path="res://assets/sprites/units/gunner.png" id="31_gunner"]
+[ext_resource type="Texture2D" uid="uid://cuxuuwyfg7b3f" path="res://assets/sprites/objects/wood_debris.png" id="32_wood_debris"]
+[ext_resource type="Texture2D" uid="uid://cx2ur0kbbrymv" path="res://assets/sprites/objects/stone_debris_1.png" id="33_stone_debris"]
+[ext_resource type="Texture2D" uid="uid://df52yboher1c8" path="res://assets/sprites/objects/powder_keg.png" id="34_powder_keg"]
 
 [resource]
 script = ExtResource("1_table")
@@ -43,7 +43,7 @@ sprites = Dictionary[String, Texture2D]({
 "Wooden Debris": ExtResource("32_wood_debris"),
 "archer": ExtResource("2_archer"),
 "battle_medic": ExtResource("3_field_medic"),
-"bloodhound": ExtResource("28_flesh_prowler"),
+"bloodhound": ExtResource("7_5su87"),
 "brawler": ExtResource("9_brawler"),
 "brigand_captain": ExtResource("27_destroyer"),
 "brute": ExtResource("4_vandal"),
@@ -69,6 +69,6 @@ sprites = Dictionary[String, Texture2D]({
 "shieldbearer": ExtResource("25_bulwark"),
 "suncaster": ExtResource("17_suncaster"),
 "thief": ExtResource("18_thief"),
-"ward": ExtResource("19_ward"),
-"warcaller": ExtResource("26_banner_bearer")
+"warcaller": ExtResource("26_banner_bearer"),
+"ward": ExtResource("19_ward")
 })

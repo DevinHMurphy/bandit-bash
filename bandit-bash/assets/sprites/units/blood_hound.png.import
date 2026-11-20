@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bxbefblqaxpi5"
-path="res://.godot/imported/flesh_prowler.png-27d9da124a0c1dcf94079e4dbe38b336.ctex"
+uid="uid://k24y6f88ayt0"
+path="res://.godot/imported/blood_hound.png-a2f3e3d0c829f3d10fa7487456b17264.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/units/flesh_prowler.png"
-dest_files=["res://.godot/imported/flesh_prowler.png-27d9da124a0c1dcf94079e4dbe38b336.ctex"]
+source_file="res://assets/sprites/units/blood_hound.png"
+dest_files=["res://.godot/imported/blood_hound.png-a2f3e3d0c829f3d10fa7487456b17264.ctex"]
 
 [params]
 

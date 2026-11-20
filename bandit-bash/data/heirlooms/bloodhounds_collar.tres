@@ -1,11 +1,12 @@
-[gd_resource type="Resource" script_class="HeirloomDefinition" format=3]
+[gd_resource type="Resource" script_class="HeirloomDefinition" format=3 uid="uid://dvbe8kgy5dqv8"]
 
-[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
-[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
-[ext_resource type="Script" path="res://scripts/effects/blocks/operations/add_timed_modifier.gd" id="4_timed"]
-[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/fact_actor.gd" id="5_actor"]
-[ext_resource type="Script" path="res://scripts/content/heirloom_definition.gd" id="9_def"]
-[ext_resource type="Texture2D" path="res://assets/sprites/heirlooms/heirloom_behavior.svg" id="20_icon"]
+[ext_resource type="Script" uid="uid://byepgna7t0dmt" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" uid="uid://ck5y8rpbfh5tu" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_jrnkp"]
+[ext_resource type="Script" uid="uid://dkasulxltr5jk" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
+[ext_resource type="Script" uid="uid://cuf145rourdkq" path="res://scripts/effects/blocks/operations/add_timed_modifier.gd" id="4_timed"]
+[ext_resource type="Script" uid="uid://dty5alvo2if64" path="res://scripts/effects/blocks/selectors/fact_actor.gd" id="5_actor"]
+[ext_resource type="Script" uid="uid://dr712ult16tn2" path="res://scripts/content/heirloom_definition.gd" id="9_def"]
+[ext_resource type="Texture2D" uid="uid://7txryjdsjdvo" path="res://assets/sprites/heirlooms/heirloom_behavior.svg" id="20_icon"]
 
 [sub_resource type="Resource" id="Resource_killer"]
 script = ExtResource("5_actor")
@@ -16,7 +17,6 @@ target = SubResource("Resource_killer")
 key = 3002
 mode = 6
 end = 1
-uses = 0
 
 [sub_resource type="Resource" id="Resource_effect"]
 script = ExtResource("1_eff")
@@ -29,7 +29,7 @@ operations = Array[ExtResource("3_ops")]([SubResource("Resource_may_move")])
 script = ExtResource("9_def")
 tier = "rare"
 kind = "behavior"
+icon = ExtResource("20_icon")
 id = "bloodhounds_collar"
 display_name = "Bloodhound's Collar"
 effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])
-icon = ExtResource("20_icon")
