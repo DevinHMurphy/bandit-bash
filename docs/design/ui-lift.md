@@ -69,6 +69,7 @@ a pair is not listed):
 6. UL2 beside P16 AU1 (the audio layer, [audio.md](audio.md)): both issued November 19, 2026.
 7. UL7 issued November 19, 2026 (Lane B, beside UL2, EV1 and O8); UL6 issued November 19, 2026 (Lane A) after UL2 merged.
 8. UL9 issued November 20, 2026 (Lane A, beside RN9, EN13 and EV6).
+9. UL10 issued November 20, 2026 (Lane A, beside RN10 and EN14): RF-034 and the 455 capture group.
 
 P09 EV1 takes the slot beside the docs batch after round 7, and P08 RN6 the next free one (M3 steps that touch no UI-lift screen); CT11 joins the docs batch.
 

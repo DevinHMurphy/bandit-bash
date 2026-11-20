@@ -47,7 +47,7 @@ The MVP is **one full run, start screen to boss, solo and co-op, on Normal** (ga
 |---|---|---|---|
 | **M0 Foundations** | The engine every system plugs into | P00, P01 | **Complete** October 30, 2026 |
 | **M1 First playable fight** | One greybox combat, start to finish | P02–P07 (subsets) | **Complete** November 5, 2026; its tuning pass is deferred |
-| **M2 Combat complete** | Every MVP combat feature and piece of content, with a functional UI | P02–P07 | **In progress.** Every build is in (BF3 merged November 19, 2026). Left: the exit playtest, then RB1 (BF4 merged November 20, 2026) |
+| **M2 Combat complete** | Every MVP combat feature and piece of content, with a functional UI | P02–P07 | **In progress.** Every build is in (BF3 merged November 19, 2026). Left: the exit playtest (BF4 merged November 20, 2026). RB1 moved to M3 (user, November 20, 2026): balancing needs events and every node working |
 | **M3 Solo run** | Start screen → campaign → boss, saved and resumable; 60–80 minutes | P08, P09 | **In progress.** RN1–RN5 merged (a run plays map → combat → Results → map on all three devices, headless) |
 | **M4 Co-op run** | The same run for 2–4 players, tested live on two machines | P10, P11 | Not started |
 | **M5 MVP** | Statistics, the Waystation war table, the MVP checklist | P12, polish | Not started |
@@ -72,7 +72,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P08 | [Campaign and run flow](2026-10-24-campaign-run-flow.md) | **In progress**: RN6 and RN7 merged November 19, 2026; RN8 and RN9 November 20 | RN10–RN12 | P01, P03 |
 | P09 | [Narrative events and curses](2026-11-12-events-and-curses.md) | **Done**: EV1, EV2, EV3 and EV5 merged November 19, 2026; EV1F, EV1G, EV4 and EV6 November 20 | — | P01, P03, P08 |
 | P10 | [Net transport](2026-11-19-net-transport.md) | **In progress**: NT1 and NT2 merged November 19, 2026 | NT3 (after RN6), then NT4–NT8 (Lane E) | P00, P01 |
-| P11 | Co-op combat (game-vision.md Multiplayer maps) | **Not started** | — | P01, P02, P04, P08, P10 |
+| P11 | Co-op combat (game-vision.md Multiplayer maps) | **Plan issued** November 20, 2026 (Lane F) | the plan, then CO steps | P01, P02, P04, P08, P10 |
 | P12 | Statistics and the Waystation war table (meta-progression.md) | **Not started** | — | P01, P08 |
 | P13 | [RNG streams](2026-10-26-rng-streams.md) | **Implemented** | — | P00 |
 | P15 | UI lift ([ui-lift.md](../design/ui-lift.md); its scope doc is the plan) | **Implemented** November 19, 2026: UL0–UL8 and UL1F merged | — | P07, P08 |
@@ -107,7 +107,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
    - BUG-015 (S2, user, November 18, 2026): the unit panel's Details button can't be clicked (the panel follows hover); fixed in the UI lift's **UL3**.
    - BUG-007 (S3), shared test user folder: **fixed** in BF2, merged November 12, 2026. Each run now has its own folder.
    - BF1 also removed (done) the confirmed `# ASSUMPTION` markers of UI11 (P07 question 36) and RN1 (P08 questions 14 and 15: `effect_catalog.gd`, `campaign_map_rules.gd`, the `;` comment in `campaign_map_rules.tres`) and RN3 and RN4 (P08 questions 19 (2) and 20: `campaign_run_state.gd`'s `COMBAT_ENDED` amount and fallen-list order; `item_pick_command.gd`'s skipped pick with no fact), RN5's (P08 question 21: `campaign_map_view.gd`, `map_node_button.gd`, `item_placement.gd`), and settles CT5's `HIT_STAT = 100` marker in `combat_value.gd`. It also moves the `# ASSUMPTION` line in `battle_screen.gd` that sits between `end_banner_time`'s doc and its declaration (Godot drops the doc), and brings `pause_menu.gd`'s and `battle_controller.gd`'s class docs to budget (found by RN5), plus CT4's (P03 question 30): the `"staff"` literal at `content_rules.gd:215`, `WeaponDefinition`'s gauntlet CritX doc, and the confirmed staff-Magic markers in `shelter.tres` and `minor_heal.tres`, and CT8's confirmed weapon-rack marker in `MapObjects.roll` (P03 question 31), and updates the old wording quoted in `tests/sessions/encounter_cases.gd:395` and `sessions_case_base.gd:95` (P07 question 37), and wraps `content_rules.gd:29`'s 122-character line (P03 question 32), and fixes the `wire_cases.gd` comment that says setup draws from every pack (P05 question 42).
-5. **M2's exit:** playtest a full M2 map set, folding in the deferred M1 tuning pass. Playtest notes go in the Inbox of [rebalance-and-features.md](../design/rebalance-and-features.md); the orchestrator triages them, and accepted M2 entries are built as rebalance passes (RB1, RB2...) before M2 is complete.
+5. **M2's exit:** playtest a full M2 map set, folding in the deferred M1 tuning pass. Playtest notes go in the Inbox of [rebalance-and-features.md](../design/rebalance-and-features.md); the orchestrator triages them. Rebalance passes (RB1, RB2...) run in M3, after RN10, over full runs (user, November 20, 2026): balancing needs events and every node working.
 6. **Later:** P04 MP11, a map authoring toolkit so the user can build maps by hand in the editor as in `Godot_FE` (after MP10 and MP9; P04 question 26); one public `Pathing.path_to` (P07 question 15 d); vision updates for the ideation thread.
 
 **Open questions for the user:** none.

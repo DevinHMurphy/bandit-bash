@@ -11,7 +11,7 @@ End every update with the **lanes table**: one row per lane (A, B, C, D, E, G, F
 columns (user, November 20, 2026):
 
 - **Now:** what is building, or "free" / "waiting" (and on what).
-- **Queue:** the steps after it, in order, each with its gate in brackets (`RB1 [your playtest]`),
+- **Queue:** the steps after it, in order, each with its gate in brackets (`EN16 [EN14]`),
   taken from the queue below.
 - **Ready to send:** the step that can go out now, or "—".
 
@@ -20,9 +20,14 @@ Then offer or give the prompts that fill the free lanes, at most four builds at 
 ## Prompt skeleton
 
 Each prompt goes in a code block, with "Written for: a fresh build agent session in this repo."
-outside it, under the heading `## <ID> prompt - Expected Effort (low/medium/high)`.
+outside it, under the heading `## <ID> prompt - Expected Effort (low/medium/high)`. Its first line
+is `<ID>: <scope>` (for example `EN14: Preview diff and cache`), so the session tab is named
+after the step (user, November 20, 2026). Paste-ready notes to a running agent start the same
+way (`EV4 note: ...`).
 
 ```
+<ID>: <scope in a few words>
+
 You are building <plan> <ID>, <what>, for Bandit Bash (Godot 4.7.1).
 
 SETUP
@@ -116,10 +121,10 @@ before writing a prompt and name it in the LANE block.
 
 | Lane | Next | Then | Gated on |
 |------|------|------|----------|
-| A Battle UI | RB1 after the M2 exit playtest | EN16; RF-034 after RN9 | RB1: the playtest |
+| A Battle UI | — | EN16 after EN14; RB1 in M3 | RB1: RN10 merged and a full-run playtest (user, November 20, 2026) |
 | B Campaign and run | RN10 Unknown | RN11 full run, RN12 docs | one at a time; NT3 (Lane E) goes between RN10 and RN11 |
 | C Events | — (P09 done) | P11 co-op event mirrors when planned | — |
 | D Engine, AI, content | EN14 (forecast cache) | EN15, EN16; CT12 after the weapon modification design | — |
 | E Network | NT3 campaign wire | NT4–NT8 | NT3 when RN10 has merged |
 | G Audio and tooling | — | AU2 after the audio direction (M5) | — |
-| F Docs and plans | P11 and P12 plans when wanted | ideation write-ups | — |
+| F Docs and plans | P11 plan (issued November 20, 2026) | P12 plan when wanted; ideation write-ups | — |
