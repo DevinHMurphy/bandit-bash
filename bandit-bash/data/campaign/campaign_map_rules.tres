@@ -45,3 +45,6 @@ path_targets = Dictionary[int, int]({
 7: 2
 })
 target_boost = 3
+unknown_combat_chance = 10
+unknown_shop_chance = 3
+unknown_treasure_chance = 2

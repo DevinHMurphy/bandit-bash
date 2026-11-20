@@ -55,7 +55,12 @@ Not a bug.
 | [BUG-020](#bug-020-a-broken-breakables-token-stayed-on-the-board) | A broken breakable's token stayed on the board | P07 (board) | S3 | Fixed (BF4 merge, November 20, 2026) | November 19, 2026, BF4 report | BF4 |
 | [BUG-021](#bug-021-an-infused-basic-weapon-scraps-for-0-gold) | An Infused Basic weapon scraps (and trades in) for 0 gold | P08 (prices) | S3 | Fixed (EV4 merge, November 20, 2026) | November 20, 2026, RN8 report | EV4 (note sent November 20, 2026) |
 | [BUG-022](#bug-022-an-enemys-second-move-ending-in-a-wait-crashes-the-enemy-phase) | An enemy's second move ending in a Wait crashes the enemy phase (the Bloodhound after a kill) | P05 (enemy plans) | S2 | Fixed (BF5 merge, November 20, 2026) | November 20, 2026, EN13 report | BF5 |
-| [BUG-023](#bug-023-an-untyped-empty-literal-from-a-ternary-fails-in-a-typed-slot) | An untyped `[]` from a ternary fails at runtime in a typed Array slot (three latent places) | P01 / P08 / tests | S3 (latent) | Open | November 20, 2026, BF5 report | each owner's next step |
+| [BUG-023](#bug-023-an-untyped-empty-literal-from-a-ternary-fails-in-a-typed-slot) | An untyped `[]` from a ternary fails at runtime in a typed Array slot (three latent places) | P01 / P08 / tests | S3 (latent) | Open | November 20, 2026, BF5 report | EN14 (effect_engine.gd), UL10 (the other two) |
+| [BUG-024](#bug-024-battles-dont-save-at-the-end-of-a-player-phase) | Battles don't save at the end of a player phase: a crash loses every move since Begin | P00 / P07 (battle checkpoints) | S2 | Open (BF6 issued November 20, 2026) | November 20, 2026, P11 plan report | BF6 (Lane A, after UL10) |
+| [BUG-025](#bug-025-openeventcommand-accepts-an-unknown-that-rolled-a-shop) | `OpenEventCommand` accepts an Unknown that rolled a shop, Treasure or combat | P09 (event commands) | S3 (latent) | Open | November 20, 2026, RN10 report | a Lane C step (CO9) |
+| [BUG-026](#bug-026-the-event-panels-deferred-focus-has-no-in-tree-guard) | The event panel's deferred focus has no in-tree guard (BUG-017's pattern) | P09 (event screen) | S4 | Open | November 20, 2026, RN10 report | a Lane C step (CO12) |
+| [BUG-027](#bug-027-burglars-roll-shows-no-effect-text) | Burglar's Roll shows no effect text, only "(1 use this combat)" | P03 / P07 (effect text) | S3 | Open (TX1 issued November 20, 2026) | November 20, 2026, user | TX1 |
+| [BUG-028](#bug-028-a-weapons-own-effects-dont-show-in-unit-detail) | A weapon's own effects (lifesteal, extra strikes) don't show in unit detail's gear row | P07 (unit detail) | S3 | Open (TX1 issued November 20, 2026) | November 20, 2026, user | TX1 |
 
 ### BUG-001 No Block at the start of combat
 
@@ -392,3 +397,44 @@ Not a bug.
   - `ui/campaign/starting_offer_view.gd:210` (no offer; Lane A or B);
   - `tests/ui/victory/victory_cases.gd:96` (a null model shows as a script error, not a failed check).
 - **Fix:** a typed local, assigned in an `if`, as BF5 did. Each goes in its owner's next step.
+
+### BUG-024 Battles don't save at the end of a player phase
+
+- **Found** by the P11 plan session, confirmed by the orchestrator: save-system.md's checkpoint
+  table lists "Battle: end of each player phase" (`save_checkpoint()`), but in real play only
+  Begin and Save & Quit (`ui/common/pause_menu.gd`) write a battle. The end-of-phase checkpoint
+  is called only from the debug panel (`save_debug_panel.gd`). A crash mid-battle loses every
+  move since Begin, solo included.
+- **Fix in BF6** before M3 (a solo run must be resumable): save at the end of each player phase.
+  P11 CO2 then extends it to co-op, where each map checkpoints at the end of its own player phase
+  (P11 question 39).
+
+### BUG-025 OpenEventCommand accepts an Unknown that rolled a shop
+
+- **Found** by RN10: `OpenEventCommand.validate` (`scripts/events/`) checks only the map's node
+  type, not `CampaignRunState.node_type()`, so it would accept an Unknown that rolled an Armory,
+  a Guildhall, a Treasure or a combat. Only the routing keeps it from being sent. Latent; on the
+  network (NT3 onward) a forged command could reach it.
+- **Fix:** validate against `node_type()`, with a case.
+
+### BUG-026 The event panel's deferred focus has no in-tree guard
+
+- **Found** by RN10's walk: `event_panel.gd` calls `focus_first.call_deferred()` without checking
+  it is still in the tree (BUG-017's pattern), so leaving in the same frame the outcome shows logs
+  a `grab_focus` error. The walk now defers its press. Fix as BUG-017 was.
+
+### BUG-027 Burglar's Roll shows no effect text
+
+- **Reported** by the user (heirloom bar tooltip): "Always: (1 use this combat)", so the player
+  can't tell what it does.
+- **Cause:** its effect (`burglar`) has charges and no operations; `map_objects.gd` reads it by id
+  to open a chest or door without a Key or Lockpick. `describe()` builds text from operations, so
+  only the charge note is left.
+- **Expected** (heirlooms.md): "Once per combat, Your Unit can open a chest or door without a Key
+  or Lockpick (still its action)".
+
+### BUG-028 A weapon's own effects don't show in unit detail
+
+- **Reported** by the user: a weapon's specials (lifesteal, multiple strikes) aren't on the unit
+  detail panel. `DetailGearRow` shows a weapon's profile *or* an item's effect text, so a weapon's
+  effects never show. Check that a weapon's strike count (AtkX) is in its profile as well.

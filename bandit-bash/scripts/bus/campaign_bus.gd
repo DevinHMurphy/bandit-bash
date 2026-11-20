@@ -24,8 +24,8 @@ extends RefCounted
 ## Emitted for every fact, after its domain signal. Used by [BusTracer].
 signal fact_played(fact: CampaignFact)
 
-## The run's progress: the run starting, nodes chosen and left, events drawn, voted on and chosen,
-## combats ending.
+## The run's progress: the run starting, nodes chosen and left, Unknown nodes resolved, events
+## drawn, voted on and chosen, combats ending.
 var run: RunChannel = RunChannel.new()
 
 ## A player's army: heirlooms, items and runes gained, equipped, modified, scrapped, gifted or
@@ -60,8 +60,8 @@ func play(fact: CampaignFact) -> void:
 	fact_played.emit(fact)
 
 
-## The run's progress: the run starting, nodes chosen and left, events drawn, voted on and chosen,
-## combats ending.
+## The run's progress: the run starting, nodes chosen and left, Unknown nodes resolved, events
+## drawn, voted on and chosen, combats ending.
 class RunChannel:
 	extends BusChannel
 
@@ -83,6 +83,8 @@ class RunChannel:
 	signal event_voted(fact: CampaignFact)
 	## [constant CampaignFact.TEAM_OPTION_DRAWN].
 	signal team_option_drawn(fact: CampaignFact)
+	## [constant CampaignFact.UNKNOWN_RESOLVED].
+	signal unknown_resolved(fact: CampaignFact)
 
 	func _init() -> void:
 		_route(CampaignFact.Kind.COMBAT_ENDED, combat_ended)
@@ -94,6 +96,7 @@ class RunChannel:
 		_route(CampaignFact.Kind.EVENT_CHOSEN, event_chosen)
 		_route(CampaignFact.Kind.EVENT_VOTED, event_voted)
 		_route(CampaignFact.Kind.TEAM_OPTION_DRAWN, team_option_drawn)
+		_route(CampaignFact.Kind.UNKNOWN_RESOLVED, unknown_resolved)
 
 
 ## A player's army: heirlooms, items and runes gained, bought, equipped, modified, scrapped,

@@ -52,6 +52,7 @@ Found November 18, 2026, in `bandit-bash/`:
 | **UL7 Campaign and menu pass** ✅ (merged November 19, 2026; the map scrolls, P15 question 9; `VolumeRow` draws the slider focus outline and steps it by pad, since Godot's slider does neither) | The campaign map, level-up, item pick and placement, start, save and options screens on the new theme. From UL1: titles and headings are still body text and Continue is not yet a primary button (the styles exist); map nodes are 26×26 (floor 32); sliders show focus only by a brighter grabber | P08 | UL1 |
 | **UL8 Heirloom bar** ✅ (merged November 19, 2026) | The [heirloom bar](#heirloom-bar) on every campaign screen and in battle | P07, P08, P03 (an icon on heirlooms and curses) | UL1 |
 | **UL9 Reward cards** ✅ (merged November 20, 2026; the chest's pad gap and the Armory's cards are RF-034) | Item offer cards show each effect's text and who can use the item: unit sprite icons for a weapon (at most four, then "+n"), "Any unit" for equipment and pouch items ([RF-031, RF-032](rebalance-and-features.md#entries)); the victory item pick, Treasure chest and starting offer | P15, P08 | UL5 |
+| **UL10 Armory cards** ✅ (merged November 20, 2026) | The who-can-use row on the Armory's item cards; the chest names wielders while Open has focus; 455 off the test fixture (RF-034) | P15, P08 | UL9 |
 | **DK7 Darkness phase** (P06, not UI) | The [darkness phase](#darkness-phase) | P06, P07 | — |
 
 **Out of scope** (M5 polish or later): new art made from scratch, unit animations, sound design (the audio layer is P16 AU1, [audio.md](audio.md)), an
@@ -69,6 +70,7 @@ a pair is not listed):
 6. UL2 beside P16 AU1 (the audio layer, [audio.md](audio.md)): both issued November 19, 2026.
 7. UL7 issued November 19, 2026 (Lane B, beside UL2, EV1 and O8); UL6 issued November 19, 2026 (Lane A) after UL2 merged.
 8. UL9 issued November 20, 2026 (Lane A, beside RN9, EN13 and EV6).
+9. UL10 merged November 20, 2026: RF-034 and the 455 capture group.
 
 P09 EV1 takes the slot beside the docs batch after round 7, and P08 RN6 the next free one (M3 steps that touch no UI-lift screen); CT11 joins the docs batch.
 

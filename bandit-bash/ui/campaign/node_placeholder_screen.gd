@@ -10,20 +10,18 @@
 # ==============================================================================
 
 extends Control
-## Stands in for the screen of a node that isn't fought and has none of its own yet (an Unknown
-## with no event open): names the node and lets the run move on.
+## The fallback for an Unknown node with no event open: one that became an event when no event
+## can be drawn there ([OpenEventCommand] refused), or one not rolled. Names the node and lets the
+## run move on.
 ##
 ## Continue sends [LeaveNodeCommand] through [method CampaignService.submit_command], which saves,
-## and returns to the map; the node stays visited and its floor locked, and its rules never run.
-## It exists so a route through those nodes still reaches the Boss (Godot_FE sent its unbuilt
-## rooms to a placeholder scene the same way). Opened at any other stage, it
-## sends the run on at once. The [HeirloomBar] under the header shows the seat's heirlooms as the
-## run saved them. The run's facts still to play ([CampaignPlayback]) play once Continue resolves.
+## and returns to the map; the node stays visited and its floor locked. It keeps a route through
+## such a node reaching the Boss; with the game's events it never shows in play, as only the
+## shrine has an eligibility rule. Opened at any other stage, it sends the run on at once. The
+## [HeirloomBar] under the header shows the seat's heirlooms as the run saved them. The run's facts
+## still to play ([CampaignPlayback]) play once Continue resolves.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
-##
-## @todo: TOD-001 - Route an Unknown node by its resolution (RN10) from [method RunScreen.of], so
-## no node type opens this screen.
 
 # ============================================================
 # INPUT MAP SETUP (built-in ui_* actions; read through the GUI, not here):
@@ -60,7 +58,6 @@ func _ready() -> void:
 	_heirlooms.show_views(HeirloomViewModel.for_run(run.seat_run(session.seats[0])))
 	_heirlooms.navigation_started.connect(_on_heirloom_bar_navigation_started)
 	_heirlooms.navigation_ended.connect(_on_heirloom_bar_navigation_ended)
-	# TODO(TOD-001): an Unknown node's resolution (RN10) replaces this screen for the last type.
 	var type_name: String = CampaignMapView.TYPE_NAMES.get(run.graph.type_of(run.node), "?")
 	_header.title = type_name
 	_title_label.text = type_name

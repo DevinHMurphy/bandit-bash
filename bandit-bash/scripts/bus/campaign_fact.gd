@@ -121,6 +121,10 @@ enum Kind {
 	## [member definition_id] (empty: none) for [member amount] gold (0: a free re-roll); its gold
 	## changed by -[member amount] alone. A current-HP change follows as [constant HP_CHANGED].
 	PREFIX_REROLLED = 31,
+	## The Unknown node [member amount] became [member definition_id], an [UnknownResolution]
+	## outcome id ([code]"combat"[/code], [code]"armory"[/code], [code]"guildhall"[/code],
+	## [code]"treasure"[/code] or [code]"event"[/code]); it belongs to no seat.
+	UNKNOWN_RESOLVED = 32,
 }
 
 ## A [member flags] bit: this [constant Kind.GAINED] was a purchase, whose

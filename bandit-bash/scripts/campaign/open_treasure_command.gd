@@ -6,7 +6,7 @@
 # File:     open_treasure_command.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name OpenTreasureCommand
@@ -80,10 +80,11 @@ static func for_session(
 	return command
 
 
-## Whether [param run] is inside a Treasure node.
+## Whether [param run] is inside a Treasure node, or an Unknown node that became one
+## ([method CampaignRunState.node_type]).
 static func is_at_treasure(run: CampaignRunState) -> bool:
 	return (
 			run.flow.stage == RunFlow.Stage.NODE
 			and run.graph != null and run.graph.has_node_id(run.node)
-			and run.graph.type_of(run.node) == CampaignGraph.NodeType.TREASURE
+			and run.node_type() == CampaignGraph.NodeType.TREASURE
 	)
