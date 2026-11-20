@@ -30,4 +30,4 @@ Numbers are stable.
 | 21 | UL9: naming the wielders | Icons focusable / a tooltip | Icons take no focus; card focus shows a tooltip naming every wielder; the mouse names each icon, and "+n" names the rest | **Answered** (user, November 20, 2026): as recommended. |
 | 22 | UL9: sizes and scenes | — | Cards 296 wide (were 240), icons 32; `ItemUserIcon` its own scene, the type's initial when it has no sprite | **Answered** (user, November 20, 2026): as recommended. |
 | 23 | UL9: plan doc | Plan / straight to code | Straight to code | **Answered** (user, November 20, 2026): straight to code. |
-| 24 | UL9: the assumed wording | Accept / change | "No unit can wield it"; the tooltip heading "Can wield it"; a 4-unit tooltip gap, as the heirloom bar's (marked in `item_usable_by.gd`) | **Open** |
+| 24 | UL9: the assumed wording | Accept / change | "No unit can wield it"; the tooltip heading "Can wield it"; a 4-unit tooltip gap, as the heirloom bar's (marked in `item_usable_by.gd`) | **Answered** (user, November 20, 2026): as built; markers removed. |

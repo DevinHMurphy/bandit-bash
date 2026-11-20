@@ -127,4 +127,4 @@ before writing a prompt and name it in the LANE block.
 | D Engine, AI, content | EN14 (forecast cache) | EN15, EN16; CT12 after the weapon modification design | — |
 | E Network | NT3 campaign wire | NT4–NT8 | NT3 when RN10 has merged |
 | G Audio and tooling | — | AU2 after the audio direction (M5) | — |
-| F Docs and plans | P11 and P12 plans when wanted | ideation write-ups | — |
+| F Docs and plans | P11 plan (issued November 20, 2026) | P12 plan when wanted; ideation write-ups | — |
