@@ -53,7 +53,7 @@ Not a bug.
 | [BUG-018](#bug-018-fact-playback-holds-the-next-batch-for-the-last-facts-full-wait) | Fact playback holds the next batch for the last fact's full wait | P07 (playback) | S3 | Fixed (BF3 merge, November 19, 2026) | November 19, 2026, UL6 report | BF3 |
 | [BUG-019](#bug-019-player-units-cant-attack-breakable-map-objects) | Player units can't attack breakable map objects (debris, powder kegs) | P07 (target list) | S2 | Fixed (BF4 merge, November 20, 2026) | November 19, 2026, user | BF4 |
 | [BUG-020](#bug-020-a-broken-breakables-token-stayed-on-the-board) | A broken breakable's token stayed on the board | P07 (board) | S3 | Fixed (BF4 merge, November 20, 2026) | November 19, 2026, BF4 report | BF4 |
-| [BUG-021](#bug-021-an-infused-basic-weapon-scraps-for-0-gold) | An Infused Basic weapon scraps (and trades in) for 0 gold | P08 (prices) | S3 | Open (unconfirmed) | November 20, 2026, RN8 report | to confirm; then a small fix step |
+| [BUG-021](#bug-021-an-infused-basic-weapon-scraps-for-0-gold) | An Infused Basic weapon scraps (and trades in) for 0 gold | P08 (prices) | S3 | Open (cause found in data) | November 20, 2026, RN8 report | EV4 (the effects its events grant) |
 
 ### BUG-001 No Block at the start of combat
 
@@ -348,3 +348,9 @@ Not a bug.
   Infused Basic weapon is priced 10 and scraps for 2.
 - **Likely cause** (RN8's guess): the infusion's `item_points` is 0 or unset, in RN7's scrapping
   or the event data, not in the Armory. Confirm with a case on `Prices.item_scrap_value` first.
+- **Orchestrator check** (November 20, 2026): `Prices.modification_points` sums stat deltas plus
+  each granted effect's `EffectDefinition.item_points`, and no `.tres` in `data/` sets
+  `item_points`, so every granted effect counts 0 points. An infusion that grants an effect is
+  therefore worth its base price (0 for Basic). Fix in data: each effect an infusion or event can
+  grant carries its hand-set points (items.md, Points). EV4 sets them for the effects its events
+  grant, where items.md gives a value, and asks for the rest.
