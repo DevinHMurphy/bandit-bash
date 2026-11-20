@@ -6,7 +6,7 @@
 # File:     fact_cases.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -78,6 +78,8 @@ func _check_maps(
 	for map: FactCueMap in [combat_map, campaign_map]:
 		for key: String in map.cues:
 			var value: String = map.cues[key]
+			if value == FactCueMap.SILENT:
+				continue
 			if value.begins_with(FactCueMap.MUSIC_PREFIX):
 				var moment: String = value.trim_prefix(FactCueMap.MUSIC_PREFIX)
 				if music_map.for_battle(MusicCueMap.FALLBACK_NODE_TYPE, moment).is_empty():

@@ -6,7 +6,7 @@
 # File:     run_screen.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name RunScreen
@@ -16,8 +16,8 @@ extends RefCounted
 ## where it was saved.
 ##
 ## On the map: the starting heirloom offer while the seat's is open ([StartingOffer]), else the
-## campaign map. Inside a combat node (Standard, Key, Boss): the battle screen. Inside a Treasure
-## or a Camp: its own screen. Inside an Unknown node with an event open: the event screen, or the
+## campaign map. Inside a combat node (Standard, Key, Boss): the battle screen. Inside a Treasure,
+## a Camp or an Armory: its own screen. Inside an Unknown node with an event open: the event screen, or the
 ## battle screen once the event chose a surprise combat. Inside any other node: the placeholder,
 ## until its own screen exists. At a combat's results: Results. Outside a solo run (none, or
 ## co-op): the battle screen, which shows the co-op
@@ -57,6 +57,8 @@ static func of(session: CampaignSession) -> SceneRouter.Screen:
 			return SceneRouter.Screen.TREASURE
 		if type == CampaignGraph.NodeType.CAMP:
 			return SceneRouter.Screen.CAMP
+		if type == CampaignGraph.NodeType.ARMORY:
+			return SceneRouter.Screen.ARMORY
 		if (
 				type == CampaignGraph.NodeType.UNKNOWN
 				and run.events.is_open_at(run.floor_number, run.node)

@@ -298,7 +298,7 @@ after `instance_ids`, the map before the flow
 | Key | Per player | Version | Holds |
 |-----|------------|---------|-------|
 | `campaign_map` | No | 1 | `graph` (`CampaignGraph.to_dict()`), `visited` node ids from floor 1, `floor` (0 before the first node), `node` (-1 before it) |
-| `run_flow` | No | 1 | `stage` (`"map"`, `"node"` or `"results"`, a won combat's rewards waiting), `unknown_odds` (percent by outcome id), `used_maps`, `shop_stock`; empty means base odds, none used, nothing rolled |
+| `run_flow` | No | 1 | `stage` (`"map"`, `"node"` or `"results"`, a won combat's rewards waiting), `unknown_odds` (percent by outcome id), `used_maps`, `shop_stock`; empty means base odds, none used, nothing rolled. Inside an Armory, `shop_stock.armory` is the stock every seat shares, rolled on entry and cleared when the node is left: `entries` of `{category` (`"weapon"`, `"equipment"`, `"trinket"`, `"consumable"` or `"heirloom"`), `definition_id`, `instance_id` (empty for an heirloom), `is_shop_slot`, `buyer` (the seat that bought it, -1 while for sale)`}`. No version change: the stock is free-form JSON |
 | `roster` | Yes | 1 | `faction_id`, `commander_id`, `army` and `fallen` (units, `UnitInstance.capture()`), `convoy` (item ids), `items` (every item the seat holds, by id) |
 | `heirlooms` | Yes | 1 | `entries` in gain order: `heirloom_id`, `counters`, `charges`; a second copy (a repeated curse) is a second entry |
 | `runes` | Yes | 1 | `slots`: exactly 3, each `{}` or `{instance_id, definition_id}` |

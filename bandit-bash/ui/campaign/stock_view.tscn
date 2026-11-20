@@ -1,0 +1,7 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/stock_view.gd" id="1_view"]
+
+[node name="StockView" type="VBoxContainer"]
+theme_override_constants/separation = 6
+script = ExtResource("1_view")
