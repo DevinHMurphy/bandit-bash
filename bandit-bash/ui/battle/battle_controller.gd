@@ -226,8 +226,10 @@ extends HintSource
 #              target's tile opens the confirm for that target (CONFIRM); Recall's opens its
 #              partners (PAIR_TARGET). A rune's picker lists its refused units greyed, with why,
 #              after its targets; a click on any tile that isn't a target puts the rune's refusal
-#              in the message (TurnInputModel.rune_refusal). Spark's current keg also draws its
-#              whole chain of blasts (its preview's tiles). Cancel -> ACTION, or for a rune from
+#              in the message (TurnInputModel.rune_refusal). Spark's current keg, and an Attack's
+#              current target when it is a powder keg, also draw the keg's whole chain of blasts
+#              (its preview's tiles). Attack lists enemies, then standing debris and kegs, which
+#              take marks, clicks and Q / E as units do. Cancel -> ACTION, or for a rune from
 #              the bar the stage the bar was used from (IDLE, MOVE or RUNE_SLOTS), cursor back.
 # PAIR_TARGET: Recall's second unit: as TARGET, on the first unit's partners, with the first unit
 #              outlined as picked (TargetMark.Spec.is_picked). A row, accept or a click on a
@@ -238,7 +240,8 @@ extends HintSource
 #              move to the target's next weapon. While it is open the board flashes the HP and
 #              Stance its forecast predicts on every unit it changes, following each target and
 #              weapon change, cleared when it closes; a rune's also draws the tiles its cast acts
-#              on, Spark's chain included. Item, or no forecast scene: the confirm dialog, whose
+#              on, Spark's chain included, and an attack's the blasts of every keg it sets off.
+#              Item, or no forecast scene: the confirm dialog, whose
 #              Confirm sends the command. Q / E move to the next target and the panel follows; the
 #              outlines stay. Cancel or Back -> TARGET (PAIR_TARGET for Recall), on the target
 #              shown, back to its first weapon; RUNE for the unit menu's unit rune.
@@ -629,8 +632,9 @@ var _rune: TurnInputModel.RuneOption = null
 var _first_targets: TargetList = null
 var _first_picker: TargetPicker = null
 
-# In TARGET for Spark, the current keg's preview, whose tiles draw its chain; null elsewhere.
-var _rune_preview: ForecastViewModel = null
+# In TARGET for Spark, or an Attack on a powder keg, the current keg's preview, whose tiles draw
+# its chain of blasts; null elsewhere.
+var _target_preview: ForecastViewModel = null
 
 # The panel open in CONFIRM: the forecast panel, or the confirm dialog; null outside CONFIRM.
 var _forecast_panel: ForecastPanel = null
@@ -1222,7 +1226,7 @@ func step_back() -> bool:
 			_targets = null
 			_picker = null
 			_rune = null
-			_rune_preview = null
+			_target_preview = null
 			move_cursor(_end_tile)
 		Stage.PAIR_TARGET:
 			_targets = _first_targets
@@ -1858,7 +1862,8 @@ func _forecast_model() -> ForecastViewModel:
 
 
 # Puts the cursor, the outlines and the picker's focus on the target list's current target, and
-# in CONFIRM shows it on the open panel. For Spark in TARGET, the current keg's chain is redrawn.
+# in CONFIRM shows it on the open panel. In TARGET, Spark's current keg, or an attacked keg, has
+# its chain of blasts redrawn.
 func _show_current_target() -> void:
 	if _targets == null or _targets.is_empty():
 		return
@@ -1868,7 +1873,13 @@ func _show_current_target() -> void:
 	if is_instance_valid(_picker) and _is_targeting(_stage):
 		_picker.focus_row(_targets.current_index())
 	if _stage == Stage.TARGET and _rune != null and _rune.target_kind == ContentIds.RUNE_OBJECT:
-		_rune_preview = _forecast_model()
+		_target_preview = _forecast_model()
+		_redraw()
+	elif _stage == Stage.TARGET and _rune == null and _is_attack_on_keg():
+		_target_preview = _forecast_model()
+		_redraw()
+	elif _stage == Stage.TARGET and _target_preview != null:
+		_target_preview = null
 		_redraw()
 	if _stage != Stage.CONFIRM:
 		return
@@ -2153,7 +2164,7 @@ func _clear_selection() -> void:
 	_rune = null
 	_first_targets = null
 	_first_picker = null
-	_rune_preview = null
+	_target_preview = null
 	_forecast_panel = null
 	_confirm_dialog = null
 	_picker = null
@@ -2286,7 +2297,7 @@ func _redraw() -> void:
 			elif TurnInputModel.is_support_action(_action.kind):
 				support.show_tiles(tiles)
 			else:
-				attack.show_tiles(tiles)
+				attack.show_tiles(_with_preview_tiles(tiles))
 		Stage.END_CONFIRM, Stage.DETAIL, Stage.RUNE_SLOTS, Stage.DISCARD_CONFIRM, Stage.EVENT_LOG, \
 				Stage.HEIRLOOM_BAR:
 			if not _unit_id.is_empty():
@@ -2304,20 +2315,28 @@ func _redraw() -> void:
 
 
 # A rune's tiles, on its overlay (RuneOption.is_support purple, Recall the move colour, else red):
-# its targets' tiles, Recall's first unit's, and the tiles its preview acts on (Spark's chain), the
-# confirm's in CONFIRM and the current keg's in TARGET.
+# its targets' tiles, Recall's first unit's, and the tiles its preview acts on (Spark's chain).
 func _draw_rune_tiles(target_tiles: Array[Vector2i]) -> void:
 	var overlay: TileOverlay = view.get_attack_overlay()
 	if _rune.target_kind == ContentIds.RUNE_PAIR:
 		overlay = view.get_move_overlay()
 	elif _rune.is_support:
 		overlay = view.get_support_overlay()
+	var tiles: Array[Vector2i] = []
+	tiles.assign(target_tiles)
+	if _first_targets != null and _first_targets.current() != null:
+		tiles.append(_first_targets.current().tile)
+	overlay.show_tiles(_with_preview_tiles(tiles))
+
+
+# target_tiles with the tiles the shown preview acts on (a keg's chain of blasts), each once, in
+# row-major order: the confirm's preview in CONFIRM, the current target's in TARGET, none in
+# PAIR_TARGET.
+func _with_preview_tiles(target_tiles: Array[Vector2i]) -> Array[Vector2i]:
 	var shown: Dictionary[Vector2i, bool] = {}
 	for tile: Vector2i in target_tiles:
 		shown[tile] = true
-	if _first_targets != null and _first_targets.current() != null:
-		shown[_first_targets.current().tile] = true
-	var preview: ForecastViewModel = _rune_preview
+	var preview: ForecastViewModel = _target_preview
 	if _stage == Stage.CONFIRM and is_instance_valid(_forecast_panel):
 		preview = _forecast_panel.get_model()
 	if preview != null and _stage != Stage.PAIR_TARGET:
@@ -2326,7 +2345,18 @@ func _draw_rune_tiles(target_tiles: Array[Vector2i]) -> void:
 	var tiles: Array[Vector2i] = []
 	tiles.assign(shown.keys())
 	tiles.sort_custom(MapLayout.is_before)
-	overlay.show_tiles(tiles)
+	return tiles
+
+
+# Whether the chosen action is an Attack and its current target a standing powder keg.
+func _is_attack_on_keg() -> bool:
+	if _action == null or _action.kind != TurnInputModel.ActionKind.ATTACK or _targets == null:
+		return false
+	var target: TurnInputModel.TargetOption = _targets.current()
+	if target == null:
+		return false
+	var placed: MapState.ObjectState = _session.state.map.object(target.target_id)
+	return placed != null and placed.kind == MapLayout.ObjectKind.POWDER_KEG
 
 
 func _draw_path() -> void:
@@ -2491,7 +2521,7 @@ func _drop_rune_targeting() -> void:
 	_picker = null
 	_first_targets = null
 	_first_picker = null
-	_rune_preview = null
+	_target_preview = null
 
 
 func _on_target_picker_confirmed(result: Variant) -> void:

@@ -6,7 +6,7 @@
 # File:     turn_input_model.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 18, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name TurnInputModel
@@ -30,7 +30,8 @@ extends RefCounted
 ## The actions a unit's menu can list (combat UI plan, questions 6 and 15 f). The menu lists them
 ## in [constant MENU_ORDER], not by value: values are only appended.
 enum ActionKind {
-	## An exchange with an enemy ([constant UnitTurnCommand.Action.ATTACK]).
+	## An exchange with an enemy or a breakable map object
+	## ([constant UnitTurnCommand.Action.ATTACK]).
 	ATTACK = 0,
 	## The Block or heal staff in the Weapon slot ([constant UnitTurnCommand.Action.STAFF]).
 	STAFF = 1,
@@ -353,11 +354,11 @@ static func path_to(session: CombatSession, unit_id: String, tile: Vector2i) -> 
 
 ## Every action [param unit_id] can take after walking [param path] ([method path_to]; empty to
 ## stay), in [constant MENU_ORDER], each with at least one legal command. A unit with a second
-## move pending gets only Wait, which ends that move: the move to the path's end
-## ([constant UnitTurnCommand.Action.MOVE]), or a Wait where it stands.
-## Use lists each map object whose use the session accepts from the path's end, with no item or
-## else the unit's Pouch item (a key or lockpick). Rune, on the unit's own tile only, lists the
-## runes that can be cast on the unit ([method runes_for_unit]). Empty when it can't act.
+## move pending gets only Wait, which ends that move ([constant UnitTurnCommand.Action.MOVE], or
+## a Wait where it stands). Attack lists each enemy, then each standing breakable in spot order,
+## each with every weapon accepted. Use lists each object usable from the path's end, with no item
+## or else the Pouch item (a key or lockpick). Rune, on the unit's own tile only, lists the runes
+## that can be cast on the unit ([method runes_for_unit]). Empty when it can't act.
 static func actions_at(
 		session: CombatSession, unit_id: String, path: Array[Vector2i]
 ) -> Array[ActionOption]:
@@ -367,7 +368,7 @@ static func actions_at(
 	var state: CombatState = session.state
 	var seat: int = state.seat_of(unit_id)
 	if is_second_move(session, unit_id):
-		# The session refuses a move that ends where the unit stands (combat core plan, question 21).
+		# The session refuses a move that ends where the unit stands, so staying is a Wait.
 		var stays: bool = path.is_empty() or path[path.size() - 1] == state.tile_of(unit_id)
 		_add_untargeted(options, ActionKind.WAIT, _turn(
 				session,
@@ -382,16 +383,16 @@ static func actions_at(
 	var weapons: PackedStringArray = [""]
 	if not unit.stowed_weapon_id.is_empty() and unit.stowed_weapon_id != unit.equipped_weapon_id:
 		weapons.append(unit.stowed_weapon_id)
-	for enemy_id: String in state.units_of(ENEMY):
+	for defender_id: String in _attack_candidates(state):
 		var found: TargetOption = null
 		for weapon_id: String in weapons:
 			var command: UnitTurnCommand = _turn(
-					session, unit_id, UnitTurnCommand.Action.ATTACK, enemy_id, path, weapon_id
+					session, unit_id, UnitTurnCommand.Action.ATTACK, defender_id, path, weapon_id
 			)
 			if command == null:
 				continue
 			if found == null:
-				found = _target(session, enemy_id, command)
+				found = _target(session, defender_id, command)
 				attack.targets.append(found)
 			else:
 				found.commands.append(command)
@@ -686,6 +687,17 @@ static func _fill_object_rune(session: CombatSession, seat: int, option: RuneOpt
 			option.targets.append(target)
 
 
+# Who an Attack is tried on: every enemy in state order, then every standing breakable (debris, a
+# powder keg) in spot order, the map objects ExchangeResolver takes as a defender. Enemies come
+# first so the first target stays a foe. The validator says which the unit can attack.
+static func _attack_candidates(state: CombatState) -> PackedStringArray:
+	var found: PackedStringArray = state.units_of(ENEMY)
+	for placed: MapState.ObjectState in _standing_objects(state):
+		if MapObjects.BREAKABLE_STATS.has(placed.kind) and state.has_unit(placed.id):
+			found.append(placed.id)
+	return found
+
+
 # The map's objects not broken off it, in spot order: what a Use is tried on. The validator says
 # which of them the unit can use.
 static func _standing_objects(state: CombatState) -> Array[MapState.ObjectState]:
@@ -782,7 +794,8 @@ class ActionOption:
 class TargetOption:
 	extends RefCounted
 
-	## The target's instance id: a unit's, or a map object's for Use and Spark.
+	## The target's instance id: a unit's, or a map object's for Use, Spark and an attacked
+	## breakable (whose unit has the same id).
 	var target_id: String = ""
 	## Its tile, where the cursor shows it.
 	var tile: Vector2i = CombatFact.NO_TILE
