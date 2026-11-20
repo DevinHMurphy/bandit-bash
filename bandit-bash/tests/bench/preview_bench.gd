@@ -45,13 +45,13 @@ const NODE: int = 3
 # move-preview.md's benchmark size (its question 3).
 const BENCH_ENEMIES: int = 9
 const BENCH_UNITS: int = 6
-# ASSUMPTION: a key map draws at most 5 escorts and its mini-boss; the 3 more the benchmark size
+# a key map draws at most 5 escorts and its mini-boss; the 3 more the benchmark size
 # needs are one of each M1 behavior (Aggressive, Hold, Support), at the key level.
 const KEY_EXTRA_CLASSES: Array[String] = ["brute", "crossbowman", "hedge_healer"]
-# ASSUMPTION: the Mercenary army (4 units) plus two recruits with their starting weapons.
+# the Mercenary army (4 units) plus two recruits with their starting weapons.
 const RECRUITS: Array[String] = ["fighter", "mage"]
 
-# ASSUMPTION: "engaged" is the first player phase in which at least a third of the enemies show an
+# "engaged" is the first player phase in which at least a third of the enemies show an
 # attack intent; until then every unit walks to the tile nearest an enemy outside the danger zone.
 const MAX_ENGAGE_TURNS: int = 10
 

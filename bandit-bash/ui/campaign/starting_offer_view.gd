@@ -6,7 +6,7 @@
 # File:     starting_offer_view.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name StartingOfferView
@@ -251,7 +251,10 @@ func _show_weapons() -> void:
 		var weapon: ItemPick.Offer = option.weapons[index]
 		var card: ItemOfferCard = ITEM_CARD_SCENE.instantiate()
 		_cards.add_child(card)
-		card.show_item(_catalog.item(weapon.definition_id), weapon.definition_id)
+		card.show_item(
+				_catalog.item(weapon.definition_id), weapon.definition_id,
+				_session.run.seat_run(_seat), _catalog, _session.ids
+		)
 		card.pressed.connect(_on_weapon_card_pressed.bind(index))
 	_enter(Step.WEAPON, true)
 

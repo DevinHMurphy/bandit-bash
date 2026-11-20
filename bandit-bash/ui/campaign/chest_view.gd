@@ -6,7 +6,7 @@
 # File:     chest_view.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name ChestView
@@ -40,8 +40,15 @@ func _ready() -> void:
 		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
-## Shows [param chest] from [param catalog]; nothing for null.
-func show_chest(chest: TreasureChest, catalog: EffectCatalog.Index) -> void:
+## Shows [param chest] from [param catalog]; nothing for null. Its item's card shows who of
+## [param seat_run]'s living units can use it, named through [param ids]; [param seat_run] null
+## shows no one.
+func show_chest(
+		chest: TreasureChest,
+		catalog: EffectCatalog.Index,
+		seat_run: SeatRun = null,
+		ids: InstanceIdAllocator = null,
+) -> void:
 	if chest == null:
 		_size_label.text = "No chest"
 		_heirloom_card.visible = false
@@ -55,7 +62,10 @@ func show_chest(chest: TreasureChest, catalog: EffectCatalog.Index) -> void:
 		_heirloom_card.show_heirloom(catalog.heirloom(chest.heirloom_id), chest.heirloom_id, "")
 	_item_card.visible = chest.item != null
 	if chest.item != null:
-		_item_card.show_item(catalog.item(chest.item.definition_id), chest.item.definition_id)
+		_item_card.show_item(
+				catalog.item(chest.item.definition_id), chest.item.definition_id, seat_run, catalog,
+				ids
+		)
 	_gold_label.visible = chest.gold > 0
 	_gold_label.text = "+%d gold" % [chest.gold]
 	if not chest.is_resolved:

@@ -54,7 +54,7 @@ Not a bug.
 | [BUG-019](#bug-019-player-units-cant-attack-breakable-map-objects) | Player units can't attack breakable map objects (debris, powder kegs) | P07 (target list) | S2 | Fixed (BF4 merge, November 20, 2026) | November 19, 2026, user | BF4 |
 | [BUG-020](#bug-020-a-broken-breakables-token-stayed-on-the-board) | A broken breakable's token stayed on the board | P07 (board) | S3 | Fixed (BF4 merge, November 20, 2026) | November 19, 2026, BF4 report | BF4 |
 | [BUG-021](#bug-021-an-infused-basic-weapon-scraps-for-0-gold) | An Infused Basic weapon scraps (and trades in) for 0 gold | P08 (prices) | S3 | Fixed (EV4 merge, November 20, 2026) | November 20, 2026, RN8 report | EV4 (note sent November 20, 2026) |
-| [BUG-022](#bug-022-an-enemys-second-move-ending-in-a-wait-crashes-the-enemy-phase) | An enemy's second move ending in a Wait crashes the enemy phase (the Bloodhound after a kill) | P05 (enemy plans) | S1 | Open | November 20, 2026, EN13 report | BF5 |
+| [BUG-022](#bug-022-an-enemys-second-move-ending-in-a-wait-crashes-the-enemy-phase) | An enemy's second move ending in a Wait crashes the enemy phase (the Bloodhound after a kill) | P05 (enemy plans) | S1 | Open (BF5 issued November 20, 2026) | November 20, 2026, EN13 report | BF5 |
 
 ### BUG-001 No Block at the start of combat
 
