@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StartingHeirloomDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/starting_heirloom_definition.gd" id="9_def"]
+[ext_resource type="Texture2D" path="res://assets/sprites/heirlooms/heirloom_unknown.svg" id="20_icon"]
+
+[resource]
+script = ExtResource("9_def")
+bonus = 5
+heirloom_tier = "uncommon"
+tier = "starting"
+id = "family_relic"
+display_name = "Family Relic"
+icon = ExtResource("20_icon")

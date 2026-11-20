@@ -144,6 +144,8 @@ func _open_battle() -> Node:
 	# The battle screen begins a battle only inside a combat node: enter the first, a Standard one.
 	var service: Node = _root.get_node(^"CampaignService")
 	var run: CampaignSession = service.get(&"session")
+	# These cases start past the starting heirloom offer, with nothing taken from it.
+	run.run.seat_run(0).pending_offers.erase(StartingOffer.OFFER_KEY)
 	service.call(&"submit_command", ChooseNodeCommand.new(0, run.run.graph.nodes_on_floor(1)[0]))
 	var scene: PackedScene = load(GAMEPLAY_SCENE)
 	var screen: Node = scene.instantiate()

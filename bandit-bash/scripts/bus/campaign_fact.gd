@@ -80,6 +80,19 @@ enum Kind {
 	## The team's votes drew option [member amount] of the event [member definition_id]; it
 	## belongs to no seat.
 	TEAM_OPTION_DRAWN = 20,
+	## The unit [member actor_id] joined the seat's army with its starting gear, in place of
+	## [member target_id] when it replaced one (empty: none), by [member definition_id], such as
+	## a starting heirloom's id.
+	UNIT_RECRUITED = 21,
+	## The living unit [member actor_id] left the seat's army for good (not fallen), for
+	## [member target_id] when it was replaced (empty: none), by [member definition_id]; its items
+	## went to the convoy first ([constant ITEM_EQUIPPED] each).
+	UNIT_DISMISSED = 22,
+	## The unit [member actor_id] was upgraded ("Archer+"), by [member definition_id].
+	UNIT_UPGRADED = 23,
+	## The seat's max army size changed by [member amount] units, by [member definition_id], such
+	## as a gained heirloom's id; the convoy's size follows it.
+	ARMY_SIZE_CHANGED = 24,
 }
 
 ## [member seat] when a fact belongs to no single player.

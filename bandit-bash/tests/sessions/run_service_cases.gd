@@ -58,7 +58,7 @@ func _test_new_run_saves_and_continues() -> bool:
 			continued != null
 			and continued != first
 			and continued.run != null
-			and RunStateCases.run_text(continued.run) == built
+			and _as_saved(RunStateCases.run_text(continued.run)) == _as_saved(built)
 	))
 
 	saves.call(&"abandon_run", CampaignData.Mode.SOLO)
@@ -86,6 +86,8 @@ func _test_commands_save() -> bool:
 	var seq_before: int = _read_campaign(saves).checkpoint_seq
 	var rejected: CampaignBatch = service.call(&"submit_command", LeaveNodeCommand.new(0))
 	var seq_rejected: int = _read_campaign(saves).checkpoint_seq
+	# These cases start past the starting heirloom offer, with nothing taken from it.
+	session.run.seat_run(0).pending_offers.erase(StartingOffer.OFFER_KEY)
 	var chosen: CampaignBatch = service.call(
 			&"submit_command", ChooseNodeCommand.new(0, node_id)
 	)
@@ -240,6 +242,12 @@ func _section_summary(file: CampaignData) -> String:
 	for player: CampaignData.PlayerRun in file.players:
 		keys.append("seat %d: %s" % [player.seat, PackedStringArray(player.sections.keys())])
 	return ", ".join(keys)
+
+
+# text (a run_text()) as a save's JSON gives it back: pending offers keep their numbers as the
+# file read them, so a whole number reads back as a whole float on one side only.
+func _as_saved(text: String) -> String:
+	return JSON.stringify(JSON.parse_string(text))
 
 
 # The open save file 1's campaign of slot_mode as written on disk.

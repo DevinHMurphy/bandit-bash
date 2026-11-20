@@ -13,7 +13,8 @@ extends SceneTree
 ## Screenshots every screen at one window size, for checking the UI's layout by eye (UI style
 ## guide: base 1280×720, shown at 1920×1080 and the Steam Deck's 1280×800). Drives the real
 ## router through a new solo run: boot, start, save select, main menu, new run, options, lobby,
-## loading, the campaign map with its heirloom bar, the battle (swap window, HUD with the unit
+## loading, the starting heirloom offer and one of its sub-choices, the campaign map with its
+## heirloom bar, the battle (swap window, HUD with the unit
 ## panel and rune bar, the board with an elite, the heirloom bar with a count, a ready and spent
 ## icons, and its tooltip, action menu, forecast and a multi-hit forecast, unit detail for a
 ## player unit and an enemy (an elite where there is one), runes, the event log after turns played
@@ -46,6 +47,7 @@ const SCREEN_SAVE_SELECT: int = 7
 const SCREEN_NEW_RUN: int = 8
 const SCREEN_MAP: int = 9
 const SCREEN_COMBAT_RESULTS: int = 10
+const SCREEN_STARTING: int = 12
 
 # VictoryOverlay.Stage values: the script can't name the overlay, whose script names autoloads.
 const STAGE_RECAP_LEVEL_UPS: int = 2
@@ -146,6 +148,9 @@ func _run() -> void:
 	await _goto(SCREEN_LOADING, "loading")
 	(current_scene.get_node(^"%ContinueButton") as Button).pressed.emit()
 	await _frames(SETTLE_FRAMES)
+	if not await _starting_heirloom():
+		_end()
+		return
 	if not await _campaign_map():
 		_end()
 		return
@@ -155,6 +160,60 @@ func _run() -> void:
 	await _contact_sheets()
 	await _goto(SCREEN_RESULTS, "run_end")
 	_end()
+
+
+# Captures the starting heirloom offer and the first sub-choice it offers (Back from it), then
+# takes the first heirloom that asks nothing more, else the first it can, pressing each sub-choice's
+# focused choice until the map opens. Returns whether it did.
+func _starting_heirloom() -> bool:
+	if _router_screen() != SCREEN_STARTING:
+		print("FAIL  the new run opened screen %d, not the starting heirloom offer" % [
+			_router_screen(),
+		])
+		return false
+	await _capture("starting_heirloom")
+	var view: StartingOfferView = current_scene.call(&"get_view")
+	var campaign: CampaignSession = _node(^"CampaignService").get(&"session")
+	var offer: StartingOffer = StartingOffer.pending(campaign.run.seat_run(0))
+	var cards: Array[Button] = view.get_cards()
+	var simple: int = -1
+	var asking: int = -1
+	for index: int in cards.size():
+		var bonus: StartingHeirloomDefinition.Bonus = StartingOffer.definition_of(
+				offer.options[index], EffectCatalog.index()
+		).bonus
+		var asks: bool = (
+				bonus != StartingHeirloomDefinition.Bonus.NONE
+				and bonus != StartingHeirloomDefinition.Bonus.GOLD
+				and bonus != StartingHeirloomDefinition.Bonus.HEIRLOOM
+		)
+		if cards[index].disabled:
+			continue
+		if asks and asking < 0:
+			asking = index
+		elif not asks and simple < 0:
+			simple = index
+	if asking >= 0:
+		cards[asking].pressed.emit()
+		await _frames(SETTLE_FRAMES)
+		await _capture("starting_choice")
+		view.step_back()
+		await _frames(SETTLE_FRAMES)
+	else:
+		print("NOTE  this seed's offer asks no sub-choice, so starting_choice isn't shot")
+	var taken: int = simple if simple >= 0 else asking
+	if taken < 0:
+		print("FAIL  no starting heirloom can be taken")
+		return false
+	view.get_cards()[taken].pressed.emit()
+	for _press: int in 8:
+		await _frames(SETTLE_FRAMES)
+		if _router_screen() != SCREEN_STARTING:
+			break
+		var focused: Button = root.gui_get_focus_owner() as Button
+		if focused != null:
+			focused.pressed.emit()
+	return _router_screen() == SCREEN_MAP
 
 
 # Captures the map, then enters its first reachable combat node. Returns whether the battle opened.
@@ -245,7 +304,7 @@ func _stage_heirlooms() -> void:
 		"breakers_maul", "burglars_roll", "iron_rations", "shaken_footing", "haunted",
 	]:
 		seat_run.add_heirloom(heirloom_id)
-	print("NOTE  runs gain no heirlooms yet (RN6): this run is given War Ledger (7 / 10),"
+	print("NOTE  besides its starting heirloom, this run is given War Ledger (7 / 10),"
 			+ " Breaker's Maul, Burglar's Roll, Iron Rations, Shaken Footing and Haunted")
 
 

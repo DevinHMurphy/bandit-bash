@@ -112,6 +112,8 @@ func _play(saves: Node, service: Node, quit: Quit, take: int) -> Play:
 	var leveller: UnitInstance = run.run.seat_run(0).army[1]
 	played.leveller_id = leveller.instance_id
 	leveller.xp = XP_BEFORE
+	# These cases start past the starting heirloom offer, with nothing taken from it.
+	run.run.seat_run(0).pending_offers.erase(StartingOffer.OFFER_KEY)
 	# Saved by the choice's checkpoint, before the battle begins.
 	service.call(&"submit_command", ChooseNodeCommand.new(0, run.run.graph.nodes_on_floor(1)[0]))
 	var request: CampaignSession.BattleRequest = run.run.battle_request(

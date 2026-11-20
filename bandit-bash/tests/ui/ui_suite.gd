@@ -105,6 +105,8 @@ func _enter_first_node() -> void:
 	var run: CampaignSession = service.get(&"session")
 	if run == null or run.run == null:
 		return
+	# These cases start past the starting heirloom offer, with nothing taken from it.
+	run.run.seat_run(0).pending_offers.erase(StartingOffer.OFFER_KEY)
 	service.call(&"submit_command", ChooseNodeCommand.new(0, run.run.graph.nodes_on_floor(1)[0]))
 
 

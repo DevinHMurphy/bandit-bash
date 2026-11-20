@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/recruit_offer_card.gd" id="1_card"]
+
+[node name="RecruitOfferCard" type="Button"]
+custom_minimum_size = Vector2(300, 160)
+text = "Unit · level 1
+Trait
+Stats
+Brings a weapon"
+alignment = 0
+autowrap_mode = 3
+script = ExtResource("1_card")

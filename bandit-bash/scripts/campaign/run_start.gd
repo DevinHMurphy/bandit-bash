@@ -6,7 +6,7 @@
 # File:     run_start.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 13, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name RunStart
@@ -15,11 +15,13 @@ extends RefCounted
 ## order, the faction's starting army ([StartingArmy]), its starting gold, its Commander Heirloom,
 ## three empty rune slots and the rare offset at its start.
 ##
-## Pure: it draws only from the map stream and mints only from the allocator it is given, so the
-## same seed and the same counter give the same run (the run's [code]MAP_GENERATION[/code] stream
-## and its [InstanceIdAllocator] as a new run has them). Records
-## [constant CampaignFact.Kind.RUN_STARTED] once per seat. Bad content is reported in
-## [member problems], never guessed at; a map that can't be made leaves [member run] null.
+## Pure: it draws only from the streams and mints only from the allocator it is given, so the
+## same seed and the same counter give the same run (the run's [code]MAP_GENERATION[/code] and
+## [code]STARTING_OFFER[/code] streams and its [InstanceIdAllocator] as a new run has them).
+## Records [constant CampaignFact.Kind.RUN_STARTED] once per seat, then rolls each seat's
+## [StartingOffer] into its pending offers, so the run's first save holds it. Bad content is
+## reported in [member problems], never guessed at; a map that can't be made leaves [member run]
+## null.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 
@@ -31,13 +33,16 @@ var problems: PackedStringArray = []
 
 
 ## A new run on [param rules], its map drawn from [param map_stream], for every seat of
-## [param factions] (seat to faction content id), from [param catalog], ids from [param ids].
+## [param factions] (seat to faction content id), from [param catalog], ids from [param ids]. Each
+## seat in [param offer_streams] (its [code]STARTING_OFFER[/code] stream) gets its starting
+## heirloom offer; [b]empty:[/b] none, so the run can choose its first node at once.
 static func build(
 		rules: CampaignMapRules,
 		map_stream: RngStream,
 		catalog: EffectCatalog.Index,
 		factions: Dictionary[int, String],
-		ids: InstanceIdAllocator
+		ids: InstanceIdAllocator,
+		offer_streams: Dictionary[int, RngStream] = {}
 ) -> RunStart:
 	var start: RunStart = RunStart.new()
 	var graph: CampaignGraph = CampaignMapGenerator.generate(rules, map_stream)
@@ -54,6 +59,12 @@ static func build(
 		var started: CampaignFact = CampaignFact.new(CampaignFact.Kind.RUN_STARTED, seat)
 		started.definition_id = factions[seat]
 		built.record(started)
+	var is_coop: bool = factions.size() > 1
+	for seat: int in seat_order:
+		var stream: RngStream = offer_streams.get(seat, null)
+		if stream != null:
+			var seat_run: SeatRun = built.seats[seat]
+			StartingOffer.roll(stream, seat_run, catalog, ids, is_coop).store(seat_run)
 	start.run = built
 	return start
 

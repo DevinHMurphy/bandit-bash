@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/heirloom_offer_card.gd" id="1_card"]
+
+[node name="HeirloomOfferCard" type="Button"]
+custom_minimum_size = Vector2(300, 200)
+text = "Heirloom
+Its effect"
+alignment = 0
+autowrap_mode = 3
+vertical_icon_alignment = 0
+expand_icon = false
+script = ExtResource("1_card")

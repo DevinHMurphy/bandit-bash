@@ -29,7 +29,7 @@ signal fact_played(fact: CampaignFact)
 var run: RunChannel = RunChannel.new()
 
 ## A player's army: heirlooms, items and runes gained, equipped, modified, scrapped or discarded;
-## gold, HP and unit changes; revivals; level-ups.
+## gold, HP and unit changes; recruits, dismissals and upgrades; army size; revivals; level-ups.
 var army: ArmyChannel = ArmyChannel.new()
 
 ## Effect activations and counters.
@@ -96,7 +96,7 @@ class RunChannel:
 
 
 ## A player's army: heirlooms, items and runes gained, equipped, modified, scrapped or discarded;
-## gold, HP and unit changes; revivals; level-ups.
+## gold, HP and unit changes; recruits, dismissals and upgrades; army size; revivals; level-ups.
 class ArmyChannel:
 	extends BusChannel
 
@@ -120,6 +120,14 @@ class ArmyChannel:
 	signal unit_revived(fact: CampaignFact)
 	## [constant CampaignFact.RUNE_DISCARDED].
 	signal rune_discarded(fact: CampaignFact)
+	## [constant CampaignFact.UNIT_RECRUITED].
+	signal unit_recruited(fact: CampaignFact)
+	## [constant CampaignFact.UNIT_DISMISSED].
+	signal unit_dismissed(fact: CampaignFact)
+	## [constant CampaignFact.UNIT_UPGRADED].
+	signal unit_upgraded(fact: CampaignFact)
+	## [constant CampaignFact.ARMY_SIZE_CHANGED].
+	signal army_size_changed(fact: CampaignFact)
 
 	func _init() -> void:
 		_route(CampaignFact.Kind.GAINED, gained)
@@ -132,6 +140,10 @@ class ArmyChannel:
 		_route(CampaignFact.Kind.ITEM_MODIFIED, item_modified)
 		_route(CampaignFact.Kind.UNIT_REVIVED, unit_revived)
 		_route(CampaignFact.Kind.RUNE_DISCARDED, rune_discarded)
+		_route(CampaignFact.Kind.UNIT_RECRUITED, unit_recruited)
+		_route(CampaignFact.Kind.UNIT_DISMISSED, unit_dismissed)
+		_route(CampaignFact.Kind.UNIT_UPGRADED, unit_upgraded)
+		_route(CampaignFact.Kind.ARMY_SIZE_CHANGED, army_size_changed)
 
 
 ## Effect activations and counters.
