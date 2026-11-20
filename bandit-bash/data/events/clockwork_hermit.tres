@@ -10,7 +10,7 @@
 [ext_resource type="Script" path="res://scripts/events/outcomes/upgrade_outcome.gd" id="8_upgrade"]
 [ext_resource type="Texture2D" path="res://assets/sprites/events/clockwerk_hermit_background.png" id="20_art"]
 
-; ASSUMPTION: "+1 damage" adds to the Attack damage stage (1000), as a weapon prefix's damage does
+; "+1 damage" adds to the Attack damage stage (1000), as a weapon prefix's damage does
 ; in Loadout; "+5 crit" is 5 points of Crit chance (6). Godot_FE's +5 durability is dropped.
 [sub_resource type="Resource" id="Resource_gear"]
 script = ExtResource("6_mod")
@@ -55,7 +55,7 @@ title = "Analyze the Mechanisms"
 text = "A chosen unit gains +10 Hit, permanently."
 outcomes = Array[ExtResource("3_out")]([SubResource("Resource_hit")])
 
-; ASSUMPTION: the scene text is Godot_FE's clockwork_hermit.tres description with its BBCode
+; the scene text is Godot_FE's clockwork_hermit.tres description with its BBCode
 ; removed (the event screen shows plain text).
 [resource]
 script = ExtResource("1_def")

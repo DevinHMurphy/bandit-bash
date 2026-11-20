@@ -8,7 +8,7 @@
 [ext_resource type="Script" path="res://scripts/events/outcomes/heirloom_outcome.gd" id="6_heirloom"]
 [ext_resource type="Texture2D" path="res://assets/sprites/events/broken_shrine_of_valor_background.png" id="20_art"]
 
-; ASSUMPTION: the prayer also needs a fallen unit, so it greys out with its reason if the shrine is
+; the prayer also needs a fallen unit, so it greys out with its reason if the shrine is
 ; ever shown without one (its eligibility normally keeps it from being drawn then).
 [sub_resource type="Resource" id="Resource_fallen"]
 script = ExtResource("4_req")
@@ -34,7 +34,7 @@ title = "Claim the Relic"
 text = "Gain a rare heirloom."
 outcomes = Array[ExtResource("3_out")]([SubResource("Resource_heirloom")])
 
-; ASSUMPTION: the scene text is Godot_FE's broken_shrine_of_valor.tres description with its
+; the scene text is Godot_FE's broken_shrine_of_valor.tres description with its
 ; BBCode removed (the event screen shows plain text).
 [resource]
 script = ExtResource("1_def")

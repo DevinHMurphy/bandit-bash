@@ -58,7 +58,7 @@ title = "Ethereal Infusion"
 text = "Gain a random rune."
 outcomes = Array[ExtResource("3_out")]([SubResource("Resource_rune")])
 
-; ASSUMPTION: the scene text is Godot_FE's ghastly_library.tres description, with "an" added
+; the scene text is Godot_FE's ghastly_library.tres description, with "an" added
 ; before "ancient library". Its art is the file that event used, whispering_library_background.
 [resource]
 script = ExtResource("1_def")

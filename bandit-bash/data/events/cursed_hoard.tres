@@ -31,7 +31,7 @@ script = ExtResource("2_opt")
 title = "Leave It"
 text = "Nothing happens."
 
-; ASSUMPTION: the scene text is events.md's line for the event; it has no Godot_FE scene of its
+; the scene text is events.md's line for the event; it has no Godot_FE scene of its
 ; own, and no art, so the screen shows its placeholder.
 [resource]
 script = ExtResource("1_def")
