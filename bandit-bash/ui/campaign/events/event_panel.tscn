@@ -1,0 +1,81 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/events/event_panel.gd" id="1_panel"]
+[ext_resource type="PackedScene" path="res://ui/campaign/events/event_story.tscn" id="2_story"]
+[ext_resource type="PackedScene" path="res://ui/campaign/events/event_vote_status.tscn" id="3_votes"]
+[ext_resource type="PackedScene" path="res://ui/campaign/events/event_chooser.tscn" id="4_chooser"]
+[ext_resource type="PackedScene" path="res://ui/campaign/events/event_outcome_summary.tscn" id="5_summary"]
+[ext_resource type="PackedScene" path="res://ui/campaign/placement_panel.tscn" id="6_placement"]
+
+[node name="EventPanel" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_panel")
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Box" type="VBoxContainer" parent="Center"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 12
+
+[node name="EventStory" parent="Center/Box" instance=ExtResource("2_story")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="EventVoteStatus" parent="Center/Box" instance=ExtResource("3_votes")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Cards" type="HBoxContainer" parent="Center/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="EventChooser" parent="Center/Box" instance=ExtResource("4_chooser")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="EventOutcomeSummary" parent="Center/Box" instance=ExtResource("5_summary")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="LeaveButton" type="Button" parent="Center/Box"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(200, 48)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_type_variation = &"PrimaryButton"
+text = "Leave"
+
+[node name="Status" type="Label" parent="Center/Box"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(640, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="PlacementPanel" parent="." instance=ExtResource("6_placement")]
+unique_name_in_owner = true
+layout_mode = 1
