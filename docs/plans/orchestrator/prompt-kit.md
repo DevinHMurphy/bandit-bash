@@ -119,7 +119,7 @@ before writing a prompt and name it in the LANE block.
 | A Battle UI | UL9 (reward cards, RF-031, RF-032) | RB1 after the M2 exit playtest; EN16 | RB1: the playtest |
 | B Campaign and run | RN9 Guildhall | RN10 Unknown, RN11 full run, RN12 docs | one at a time; NT3 (Lane E) waits while RN9 builds |
 | C Events | EV6 docs | — | — |
-| D Engine, AI, content | EN13 measure | EN14, EN15; CT12 after the weapon modification design | EN13 first |
+| D Engine, AI, content | BF5 (BUG-022, before the playtest) | EN14 (forecast cache), EN15, EN16; CT12 after the weapon modification design | BF5 first |
 | E Network | NT3 campaign wire | NT4–NT8 | NT3 when RN9 has merged |
 | G Audio and tooling | — | AU2 after the audio direction (M5) | — |
 | F Docs and plans | P11 and P12 plans when wanted | ideation write-ups | — |
