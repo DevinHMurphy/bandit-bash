@@ -211,6 +211,7 @@ func _test_multi_hit() -> void:
 	if board == null:
 		return
 	var view: BattleView = board.view
+	_clear_popups(view)
 	view.strike_hold = SHORT_HOLD
 	var a: String = board.session.state.units_of(PLAYER)[0]
 	var d: String = board.session.state.units_of(ENEMY)[0]
@@ -292,6 +293,7 @@ func _test_stance_break_stack() -> void:
 	if board == null:
 		return
 	var view: BattleView = board.view
+	_clear_popups(view)
 	var a: String = board.session.state.units_of(PLAYER)[0]
 	var d: String = board.session.state.units_of(ENEMY)[0]
 	var token: UnitToken = view.token_of(d)
@@ -553,6 +555,16 @@ func _stack_problems(view: BattleView, unit_id: String, expected: int) -> Packed
 					rows[i], rows[j], ys[i], ys[j],
 				])
 	return problems
+
+
+# Steps view a frame at a time until no pop-up is left on its info layer, such as the Drengr's
+# Vanguard Block from the opening Phase Start, which the stacking cases would count with their own.
+static func _clear_popups(view: BattleView) -> void:
+	var layer: UnitInfoLayer = view.get_info_layer()
+	for _frame: int in BattleViewCases.MAX_SETTLE_FRAMES:
+		if layer.get_popups().is_empty():
+			return
+		view.advance(FRAME)
 
 
 # Settles view a frame at a time; returns the frames it took.

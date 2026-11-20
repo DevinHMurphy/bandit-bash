@@ -156,6 +156,9 @@ func _test_values_follow_facts() -> void:
 	var hp: int = token.hp
 	var badge: BlockBadge = token.get_block_badge()
 	var problems: PackedStringArray = []
+	# The commander opens with Vanguard's Block; spend it first, so the case starts from none.
+	if token.block > 0:
+		_play(board, [_fact(CombatFact.Kind.BLOCK_LOST, unit_id, token.block)])
 
 	_play(board, [_fact(CombatFact.Kind.BLOCK_GAINED, unit_id, 4)])
 	if token.block != 4 or not badge.visible or badge.get_text() != "4":

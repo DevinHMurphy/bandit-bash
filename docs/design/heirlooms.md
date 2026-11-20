@@ -123,8 +123,8 @@ from this pool of 7 by the run seed. They add variety without forcing a build.
 - **No extra lives.** No heirloom revives a unit or prevents a death; permadeath stays absolute.
 - **No darkness rewards yet.** Lantern Oil answers the darkness; heirlooms that reward standing in
   it wait until its damage model settles ([the-darkness.md](the-darkness.md)).
-- **Commander's Standard** pulls the army toward the commander, whose Vanguard trait wants it in
-  front, so the army moves forward together.
+- **Commander's Standard** pulls the army toward the commander, whose Vanguard Block (2 × its
+  level each Phase Start) lets it lead, so the army moves forward together.
 - **Economy heirlooms add.** Gilded Purse and Scrapper's Tongs add points to the base rate (grade
   bonus 25, scrap value 20) rather than replace it, so a second copy stacks
   ([campaign values](effect-triggers.md#campaign)).

@@ -1145,6 +1145,7 @@ are moved to [Superseded decisions](#superseded-decisions), so every row here is
 | November 18, 2026 | Darkness phase | The darkness gets a phase of its own at the end of each turn, after the enemy Phase End and before reinforcements and the player Phase Start: damage first, to every unit standing on a dark tile, both sides at once, then the creep. It has its own banner and turn-bar entry, and plays the spread tile by tile. | Darkness damage at each side's own Phase End; October 26, 2026, Phase End order |
 | November 18, 2026 | Lit kegs | A keg thrown by the Powder Baron is lit: it explodes at the end of the 2nd enemy phase after it lands, or at its first darkness contact (an authored keg takes 3), or sooner if set off. | Unstated |
 | November 18, 2026 | Weapon modifications | Weapons never generate with a prefix; events and later sources modify a weapon during the run (for example a Standard Sword made Heavy: +2 weight, +2 MGT). The list, budgets, stacking and price effect are still open. | Weapon prefixes rolled on generation (October 29, 2026) |
+| November 19, 2026 | Vanguard (Drengr) | Phase Start: gain Block equal to 2 × the Drengr's current level, always (unit-roster.md). First pass, to tune (RF-030) | 3 Block at Phase Start while no ally stood closer to an enemy |
 
 ### Superseded decisions
 

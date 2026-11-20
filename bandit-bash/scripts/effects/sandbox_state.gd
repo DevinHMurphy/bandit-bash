@@ -6,7 +6,7 @@
 # File:     sandbox_state.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 15, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 @abstract
@@ -61,6 +61,11 @@ extends RefCounted
 
 ## Current Stance of [param id]. 0 is Exposed.
 @abstract func get_stance(id: String) -> int
+
+
+## The level of [param id] as it was loaded for this battle, at least 1; 1 for a map object or an
+## unknown id. Fixed for the battle: levels change only between battles.
+@abstract func level_of(id: String) -> int
 
 
 ## Tiles [param id] has moved during its current unit turn.

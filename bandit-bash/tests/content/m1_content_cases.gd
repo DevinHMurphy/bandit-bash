@@ -104,7 +104,7 @@ const CONSUMABLES: Dictionary[String, Array] = {
 
 # Reviewed effect text, one line per effect, in each list's order.
 const TEXT: Dictionary[String, Array] = {
-	"drengr": ["Phase Start, while no ally is closer to an enemy than this unit: gain 3 Block"],
+	"drengr": ["Phase Start: gain Block equal to 2 × this unit's level"],
 	"archer": ["Hit dealt, while at maximum range: +2 Attack for that hit"],
 	"archer+": ["Hit dealt, while at maximum range: +4 Attack for that hit"],
 	"battle_medic": ["Used a staff on an ally: give the other unit 1 Stance, even above its maximum"],
@@ -458,7 +458,7 @@ func _test_bow_forecast() -> void:
 # The Drengr's Simple Sword (Nimble) against an enemy Hakkapel's Simple Lance (Balance), adjacent
 # on Plain: Disadvantage. Drengr Hit 80 - 15 - 5 = 60; damage 5 + 5 MGT - round(5 / 4) = 9, - 4 DEF
 # = 5. Hakkapel Hit 80 + 15 - 5 = 90; damage 7 + 4 MGT + round(7 / 4) = 13, - 3 DEF = 10, of which
-# Vanguard's 3 Block (Phase Start, no ally nearer an enemy) takes 3. Attack Speed 6 (weight 8 under
+# Vanguard's Block (Phase Start, 2 × level 1) takes 2. Attack Speed 6 (weight 8 under
 # CON 13) against 5 - (12 - 10) = 3: a gap of 3, under the first bonus turn's 4.
 func _test_sword_forecast() -> void:
 	var forecast: CombatForecast.ExchangeForecast = _forecast(
@@ -479,7 +479,7 @@ func _test_sword_forecast() -> void:
 		-1 if attacker == null else attacker.hp_after,
 		-1 if attacker == null else attacker.block_after,
 		-1 if defender == null else defender.hp_after,
-	], "%d 0 / %d" % [ROSTER["drengr"][0] - 7, ROSTER["hakkapel"][0] - 5])
+	], "%d 0 / %d" % [ROSTER["drengr"][0] - 8, ROSTER["hakkapel"][0] - 5])
 
 
 # A battle on a row of Plain with the player's [param attacker_type] at (0, 0) and an enemy

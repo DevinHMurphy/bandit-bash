@@ -225,7 +225,7 @@ flowchart LR
 
   class CT12,MP11,AU2 waiting
   class EV1F ready
-  class EV3 ready
+  class EV3 active
 
 ```
 
@@ -247,9 +247,10 @@ files it owns, the shared files it may only append to, and what it must not touc
 | **G** Audio and tooling | `scripts/audio/`, `data/audio/`, `tools/`, the runner | AU1, P14 O8 |
 | **F** Docs and plans | `docs/` only | the M2 docs batch, plans (P10, P11, P12), ideation |
 
-**Shared, append only:** `project.godot` (input actions, autoloads), `capture_screens.gd` (until
-O8b splits it), `save-system.md` rows. Since O8 (November 19, 2026)
-no build edits a suite's `run_all.gd`: a new case file declares `const SUITE`.
+**Shared, append only:** `project.godot` (input actions, autoloads), `save-system.md` rows. Since
+O8 (November 19, 2026) no build edits a suite's `run_all.gd`: a new case file declares
+`const SUITE`. Since O8b (November 19, 2026) no build edits `capture_screens.gd`: a UI step adds
+its own `tools/captures/<number>_<name>.gd` group.
 
 **Process rules:**
 
@@ -290,7 +291,8 @@ mark it **Open** here.
 | P14 O3 UI layout | P14 O2 done; no open feature branches or worktrees; a clean tree | About 165 files move, so any open branch would conflict | **Open** November 9, 2026; built ✅ (November 9, 2026) |
 | P14 O4 Tests | P14 O3 ✅ (November 9, 2026); no open branch touching `tests/` or `tools/run_tests.sh` | Test files move and the runner changes | **Open** November 9, 2026; built ✅ (November 12, 2026) |
 | P08 RN1–RN5 Run loop | P08 approved ✅ (November 12, 2026); built in order | Runs on M1's data; RN2 and RN3 change the save format | **Open** November 12, 2026; RN1 built ✅ (November 12, 2026); RN2 built ✅ (November 13, 2026); RN3 built ✅ (November 13, 2026); RN4 built ✅ (November 14, 2026); RN5 built ✅ (November 15, 2026) |
-| P08 RN6–RN11 Nodes and full run | RN5 ✅ (November 15, 2026); **RN6 ✅** (merged November 19, 2026: the starting heirloom offer, the seven starting heirlooms, `RunOperations`). RN7's Train is `RunOperations.upgrade`; RN9 closes `campaign_run_state.gd` TOD-001's recruit grants with `RunOperations.recruit`; RN7 and RN8 read `SCRAP_PERCENT` and the shop keys on the campaign layer (docs batch: today they're read only in battle); RN10 calls `EventNode.open()` when the Unknown roll is an event and falls back to the placeholder on a rejection (EV2); the M2 content each row of P08's Work Breakdown names (CT4, CT5, CT7, CT8, CT9, CT13, and CT13F ✅ (November 15, 2026) before RN7; RN11 also EN7, EN8, EN11 and P04 MP10, the M2 map set) | Offers need real pools | Waiting |
+| P08 RN6–RN11 Nodes and full run | RN5 ✅ (November 15, 2026); **RN6 ✅** (merged November 19, 2026: the starting heirloom offer, the seven starting heirlooms, `RunOperations`). RN7's Train is `RunOperations.upgrade`; RN9 closes `campaign_run_state.gd` TOD-001's recruit grants with `RunOperations.recruit`, and is the first place a raised max army size (Muster Roll, Abundance's +1) can be filled after run start (user noticed Muster Roll has no visible effect, November 19, 2026; RN7's army view shows "Army n / max"); RN7 and RN8 read `SCRAP_PERCENT` and the shop keys on the campaign layer (docs batch: today they're read only in battle); RN10 calls `EventNode.open()` when the Unknown roll is an event and falls back to the placeholder on a rejection (EV2); the M2 content each row of P08's Work Breakdown names (CT4, CT5, CT7, CT8, CT9, CT13, and CT13F ✅ (November 15, 2026) before RN7; RN11 also EN7, EN8, EN11 and P04 MP10, the M2 map set) | Offers need real pools | Waiting |
+| P03 CT14 Vanguard rework | The user's change (November 19, 2026; RF-030) | A new `LevelOf` value source (`subject`, `per_level`); `SandboxState.level_of()`; the Drengr's data | **Done**: merged November 19, 2026 (P03 question 34 answered: the "×" text and the `per_level` name) |
 | P05 EN13 Preview: measure | move-preview.md adopted ✅ (November 12, 2026) | Benchmarks and the equality suite only; no behavior change | **Open** November 12, 2026, alongside Wave A |
 | P05 EN14–EN16 Preview re-architecture | EN13; EN6 ✅ (November 13, 2026; Guard and Skirmisher, which the zones must cover); in order, EN15 and EN16 after EN14 | The cache and zones must cover every behavior; EN15 also stops re-planning the Shieldbearer on every move preview (EN6 report) | Waiting on EN13 |
 | P09 EV1 Outcomes | P09 approved ✅ (November 12, 2026); P08 RN2 | Outcomes apply to `CampaignRunState` | **Done**: merged November 19, 2026 (13 outcome blocks with the CT12 weapon-prefix block, `EventRequirements`, `EventResolver`; `CampaignFact.Kind` 10–15 appended, P09 question 7) |

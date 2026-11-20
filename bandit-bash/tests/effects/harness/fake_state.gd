@@ -6,7 +6,7 @@
 # File:     fake_state.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 14, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 extends SandboxState
@@ -73,6 +73,7 @@ func copy_for_sandbox() -> SandboxState:
 		unit_copy.hp = original.hp
 		unit_copy.block = original.block
 		unit_copy.stance = original.stance
+		unit_copy.level = original.level
 		unit_copy.moved = original.moved
 		unit_copy.layer = original.layer
 		unit_copy.weapon = original.weapon
@@ -117,6 +118,10 @@ func get_block(id: String) -> int:
 
 func get_stance(id: String) -> int:
 	return _units[id].stance if _units.has(id) else 0
+
+
+func level_of(id: String) -> int:
+	return _units[id].level if _units.has(id) else 1
 
 
 func tiles_moved(id: String) -> int:
@@ -227,6 +232,8 @@ class FakeUnit:
 	var block: int = 0
 	## Current Stance.
 	var stance: int = 2
+	## Its level, at least 1.
+	var level: int = 1
 	## Tiles moved this turn.
 	var moved: int = 0
 	## Darkness layer of its tile.
@@ -252,6 +259,7 @@ class FakeUnit:
 		unit.hp = hp
 		unit.block = block
 		unit.stance = stance
+		unit.level = level
 		unit.moved = moved
 		unit.layer = layer
 		unit.weapon = weapon

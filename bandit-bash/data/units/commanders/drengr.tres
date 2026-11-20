@@ -3,18 +3,13 @@
 [ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_cond"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
-[ext_resource type="Script" path="res://scripts/effects/blocks/conditions/while_position_condition.gd" id="4_pos"]
 [ext_resource type="Script" path="res://scripts/effects/blocks/operations/gain_resource.gd" id="5_gain"]
-[ext_resource type="Script" path="res://scripts/effects/blocks/values/constant.gd" id="6_con"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/values/level_of.gd" id="6_lvl"]
 [ext_resource type="Script" path="res://scripts/content/unit_type_definition.gd" id="9_def"]
 
-[sub_resource type="Resource" id="Resource_in_front"]
-script = ExtResource("4_pos")
-kind = 3
-
 [sub_resource type="Resource" id="Resource_amount"]
-script = ExtResource("6_con")
-value = 3.0
+script = ExtResource("6_lvl")
+per_level = 2.0
 
 [sub_resource type="Resource" id="Resource_block"]
 script = ExtResource("5_gain")
@@ -25,7 +20,7 @@ amount = SubResource("Resource_amount")
 script = ExtResource("1_eff")
 id = "vanguard"
 trigger = 1
-conditions = Array[ExtResource("2_cond")]([SubResource("Resource_in_front")])
+conditions = Array[ExtResource("2_cond")]([])
 operations = Array[ExtResource("3_ops")]([SubResource("Resource_block")])
 
 [resource]

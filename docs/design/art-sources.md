@@ -15,6 +15,7 @@ tile sheet one 32 px cell at a time.
 ## Licences
 
 - **Godot_FE's art** is the project's own earlier build.
+- **`blood_hound.png`** is the user's own art (November 19, 2026).
 - **`hound.png`** is from the user's `assests/32rogues` pack (Seth Boyles, 2024; the wolf,
   `animals.txt` 6.g). Its licence allows commercial use but forbids redistributing the pack and
   any use "in conjunction with generative artificial intelligence projects". Copied on the user's
@@ -37,7 +38,7 @@ tile sheet one 32 px cell at a time.
 | raider | `axe_cavalier.png` | `units/axe_cavalier.png` | *Assumption*: mounted, as the class; marauder rejected (on foot) |
 | shieldbearer | `bulwark.png` | `units/Bulwark.png` | *Assumption*: tower shield; sword_armor went to the Iron Wall |
 | warcaller | `banner_bearer.png` | `units/banner_bearer.png` | *Assumption*; sanctioner rejected |
-| bloodhound | `flesh_prowler.png` | `units/flesh_prowler.png` | *Assumption*: its own sprite, so no tint |
+| bloodhound | `blood_hound.png` | the user's own art (November 19, 2026) | The user's pick; replaced Godot_FE's `flesh_prowler.png` |
 | brigand_captain | `destroyer.png` | `units/Destroyer.png` | *Assumption*; a tinted vandal and `tier4/captain.png` rejected |
 | hex_matron | `herbalist.png` | `units/tier1/herbalist.png` | *Assumption*: crooked staff, earthy greens, so it reads apart from the pale, purple player Shaman and the Hexer (user, at review: bone_mancer read too close to the Shaman); dark_imp (purple again), bishop and Cleric (priests), goblin_caster (not human) and a tinted sea_witch rejected |
 | iron_wall | `sword_armor.png` | `units/sword_armor.png` | *Assumption*; a tinted Bulwark rejected |

@@ -29,7 +29,7 @@ extends Resource
 # ASSUMPTION: raider - axe_cavalier (mounted, as the class); marauder rejected (on foot).
 # ASSUMPTION: shieldbearer - Bulwark (tower shield); sword_armor went to the Iron Wall.
 # ASSUMPTION: warcaller - banner_bearer; sanctioner rejected.
-# ASSUMPTION: bloodhound - flesh_prowler, its own sprite, so no tint of the hound's.
+# bloodhound - the user's own blood_hound.png, the user's pick.
 # ASSUMPTION: brigand_captain - Destroyer; a tinted vandal and tier4/captain rejected.
 # ASSUMPTION: hex_matron - tier1/herbalist (crooked staff, earthy greens), apart from the pale,
 # purple Shaman and the Hexer; bone_mancer, dark_imp, bishop, Cleric and goblin_caster rejected.
