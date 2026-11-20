@@ -19,7 +19,7 @@ extends Control
 ## none). A rejected choice shows its reason and changes nothing. Opened at any other stage, it
 ## sends the run on at once. The info line describes the node hovered or focused. The
 ## [HeirloomBar] under the header shows the seat's heirlooms as the run saved them. Army (its
-## button, or the army_view action) opens the [ArmyView] to view the army and scrap convoy items;
+## button, or the unit_detail action) opens the [ArmyView] to view the army and scrap convoy items;
 ## gear changes only at Camps. The run's facts still to play ([CampaignPlayback]) play as it opens
 ## (a new run's start), once a choice resolves, before the screen changes, and after a scrap.
 ##
@@ -37,8 +37,9 @@ extends Control
 #                             reads it; on the heirloom bar the bar reads it, closing itself)
 #   "heirloom_bar_focus"   -> H; RS pushed left [R stick]               (read by the HeirloomBar:
 #                             focuses it, then back to the node; hints HEIRLOOMS meanwhile)
-# ASSUMPTION: army_view binds I and pad Y: both free on the map (Y is end_turn in battle only).
-#   "army_view"            -> I; pad Y [Triangle]                       (read here in
+# ASSUMPTION: the army view opens on battle's unit_detail (no pad button is left free, and a
+# map-only action's pad binding would act in battle); "view details" reads the same on both.
+#   "unit_detail"          -> Ctrl; LS [L3]                             (read here in
 #                             _unhandled_input: opens the army view; inside it the view reads
 #                             ui_cancel, closing it, and the GUI moves between its Scrap buttons)
 #   Mouse: a click on a reachable node chooses it, on Army opens the army view; hovering any node
@@ -52,7 +53,7 @@ const HINT_CONTEXT: StringName = &"MAP"
 const HINT_ARMY: StringName = &"ARMY"
 
 ## The input action that opens the army view.
-const ARMY_ACTION: StringName = &"army_view"
+const ARMY_ACTION: StringName = &"unit_detail"
 
 var _is_leaving: bool = false
 # Whether the choices have been scrolled into view since the screen opened.

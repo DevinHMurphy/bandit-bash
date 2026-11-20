@@ -109,7 +109,7 @@ layout_mode = 1
 unique_name_in_owner = true
 script = ExtResource("6_hints")
 actions = Dictionary[StringName, PackedStringArray]({
-&"MAP": PackedStringArray("ui_left", "ui_right", "ui_accept", "army_view", "heirloom_bar_focus", "ui_cancel"),
+&"MAP": PackedStringArray("ui_left", "ui_right", "ui_accept", "unit_detail", "heirloom_bar_focus", "ui_cancel"),
 &"ARMY": PackedStringArray("ui_up", "ui_down", "ui_accept", "ui_cancel"),
 &"HEIRLOOMS": PackedStringArray("ui_left", "ui_right", "ui_cancel", "heirloom_bar_focus")
 })
@@ -125,7 +125,7 @@ labels = Dictionary[String, String]({
 "MAP/ui_cancel": "Pause",
 "ARMY/ui_accept": "Scrap",
 "ARMY/ui_cancel": "Close",
-"army_view": "Army",
+"MAP/unit_detail": "Army",
 "HEIRLOOMS/heirloom_bar_focus": "Close",
 "HEIRLOOMS/ui_cancel": "Close",
 "HEIRLOOMS/ui_left": "Choose",

@@ -16,8 +16,9 @@ extends RefCounted
 ## entry and taken by Enter, a Legendary placed by clicks, Leave's question answered by B without
 ## the pause menu; the Feast cooking by keys, Train by clicks (the commander greyed out), re-gearing
 ## and a bare Feast by pad, refused choices saying why; the heirloom taken by Enter and by click,
-## B backing out; the army viewed from the map by I, a click and Y, a convoy item scrapped in one
-## press. Leaving for the map is the walk's (run_all.gd), which routes; nothing here changes scene.
+## B backing out; the army viewed from the map by Ctrl, a click and L3 (unit_detail), its size
+## shown, a convoy item scrapped in one press. Leaving for the map is the walk's (run_all.gd),
+## which routes; nothing here changes scene.
 ## Writes save files, so it runs only with a test user folder; it deletes user://saves/ before
 ## and after. It never names an autoload: they are reached as nodes.
 
@@ -351,7 +352,7 @@ func _test_map_army_view() -> void:
 	var screen: Control = _add(MAP_SCENE)
 	var army: ArmyView = screen.call(&"get_army_view")
 	var hints: ScreenHints = screen.get_node(^"%ScreenHints")
-	_press_key(KEY_I)
+	_press_key(KEY_CTRL)
 	var opened: bool = army.visible and army.get_mode() == ArmyView.Mode.VIEW
 	var size_label: Label = army.get_node(^"%ArmySize")
 	var max_size: int = RunOperations.max_army_size(seat_run, _catalog)
@@ -367,7 +368,7 @@ func _test_map_army_view() -> void:
 	var scrap: Array[Button] = army.get_convoy_panel().get_scrap_buttons()
 	var first_focused: bool = not scrap.is_empty() and scrap[0].has_focus()
 	_press_key(KEY_ENTER)
-	_check.call("map army (keys): I opens it to view only; Enter on Scrap scraps in one press", (
+	_check.call("map army (keys): Ctrl opens it to view only; Enter on Scrap scraps in one press", (
 			opened and slots_locked and first_focused and hints.context == &"ARMY"
 			and seat_run.convoy.size() == held - 1 and seat_run.gold > gold_before
 			and (screen.get_node(^"%RunHeader") as RunHeader).get_gold_text()
@@ -384,10 +385,10 @@ func _test_map_army_view() -> void:
 	_check.call("map army (mouse): the Army button opens it; a click scraps; Close closes", (
 			clicked_open and seat_run.convoy.size() == held - 2 and not army.visible
 	), "%d left" % [seat_run.convoy.size()])
-	_press_pad(JOY_BUTTON_Y)
+	_press_pad(JOY_BUTTON_LEFT_STICK)
 	var pad_open: bool = army.visible
 	_press_pad(JOY_BUTTON_B)
-	_check.call("map army (pad): Y opens it; B closes it, no pause menu", (
+	_check.call("map army (pad): L3 opens it; B closes it, no pause menu", (
 			pad_open and not army.visible and not _root.get_tree().paused
 	))
 	_remove(screen)
