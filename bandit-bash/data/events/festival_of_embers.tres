@@ -1,0 +1,51 @@
+[gd_resource type="Resource" script_class="EventDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/events/event_definition.gd" id="1_def"]
+[ext_resource type="Script" path="res://scripts/events/event_option.gd" id="2_opt"]
+[ext_resource type="Script" path="res://scripts/events/event_outcome.gd" id="3_out"]
+[ext_resource type="Script" path="res://scripts/events/outcomes/stat_outcome.gd" id="4_stat"]
+[ext_resource type="Script" path="res://scripts/events/outcomes/item_grant_outcome.gd" id="5_grant"]
+[ext_resource type="Script" path="res://scripts/events/outcomes/gold_outcome.gd" id="6_gold"]
+[ext_resource type="Texture2D" path="res://assets/sprites/events/festival_of_embers_background.png" id="20_art"]
+
+[sub_resource type="Resource" id="Resource_max_hp"]
+script = ExtResource("4_stat")
+target = 1
+stat = 0
+amount = 2
+
+[sub_resource type="Resource" id="Resource_merry"]
+script = ExtResource("2_opt")
+title = "Be Merry"
+text = "Every unit gains +2 max HP."
+outcomes = Array[ExtResource("3_out")]([SubResource("Resource_max_hp")])
+
+[sub_resource type="Resource" id="Resource_vial"]
+script = ExtResource("5_grant")
+item_id = "emberglass_vial"
+
+[sub_resource type="Resource" id="Resource_embers"]
+script = ExtResource("2_opt")
+title = "Collect Embers"
+text = "Gain the Emberglass Vial, a Unique consumable that heals 12 HP, twice per map."
+outcomes = Array[ExtResource("3_out")]([SubResource("Resource_vial")])
+
+[sub_resource type="Resource" id="Resource_gold"]
+script = ExtResource("6_gold")
+amount = 40
+
+[sub_resource type="Resource" id="Resource_perform"]
+script = ExtResource("2_opt")
+title = "Perform for the Crowd"
+text = "Gain 40 gold."
+outcomes = Array[ExtResource("3_out")]([SubResource("Resource_gold")])
+
+; the scene text is Godot_FE's festival_of_embers.tres description with its BBCode
+; removed (the event screen shows plain text).
+[resource]
+script = ExtResource("1_def")
+id = "festival_of_embers"
+title = "Festival of Embers"
+text = "Lanterns sway gently above a crowded square. Music and laughter fill the night, but beneath the joy lingers a quiet reverence, a shared wish that the fire will never fade."
+art = ExtResource("20_art")
+options = Array[ExtResource("2_opt")]([SubResource("Resource_merry"), SubResource("Resource_embers"), SubResource("Resource_perform")])

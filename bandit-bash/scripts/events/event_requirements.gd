@@ -6,7 +6,7 @@
 # File:     event_requirements.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name EventRequirements
@@ -20,9 +20,6 @@ extends Resource
 ## nothing. In co-op an option needs every seat to meet it; that check is the caller's.
 ##
 ## @tutorial(Events): docs/design/events.md
-##
-## @todo: TOD-001 - Read max army size from the seat's own value (RN6) and
-## CampaignValue.Key.MAX_ARMY_SIZE; the faction's stands in until then.
 
 ## The most units an army may ever hold (game-vision.md, Army: the hard ceiling).[br]
 ## [b]Units:[/b] units.
@@ -86,12 +83,10 @@ func _holds_item(seat_run: SeatRun) -> bool:
 	return false
 
 
-## [param seat_run]'s max army size: its faction's, for now (see the class doc's todo). 0 for a
-## faction not in [param catalog].
+## [param seat_run]'s own max army size ([method RunOperations.max_army_size]: its faction's, its
+## heirlooms' and curses', and its event changes). 0 for a faction not in [param catalog].
 static func max_army_size(seat_run: SeatRun, catalog: EffectCatalog.Index) -> int:
-	# TODO(TOD-001): the seat's own max army size once RN6 adds it.
-	var faction: FactionDefinition = catalog.faction(seat_run.faction_id)
-	return 0 if faction == null else faction.max_army_size
+	return RunOperations.max_army_size(seat_run, catalog)
 
 
 static func _name_of(catalog: EffectCatalog.Index, id: String) -> String:

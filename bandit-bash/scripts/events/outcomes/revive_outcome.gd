@@ -6,7 +6,7 @@
 # File:     revive_outcome.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name ReviveOutcome
@@ -16,12 +16,12 @@ extends EventOutcome
 ##
 ## The unit leaves the fallen list for the end of the army, keeping the items it still holds, at
 ## [member hp_percent] of its max HP, halves up, at least 1. The only block whose chosen unit is a
-## fallen one. Records [constant CampaignFact.Kind.UNIT_REVIVED] with its HP.
+## fallen one. Into a full army it works like recruiting past the max: the living unit the player
+## names ([member EventChoice.replaced_id]) is dismissed first, its items to the convoy
+## ([method EventOutcome.join_problem]). Records [constant CampaignFact.Kind.UNIT_DISMISSED] for
+## that, then [constant CampaignFact.Kind.UNIT_REVIVED] with its HP.
 ##
 ## @tutorial(Events): docs/design/events.md
-##
-## @todo: TOD-001 - Into a full army, replace a unit as recruiting past the max does (RN6's
-## operation, EV1F); refused until then.
 
 ## The fewest HP a revived unit returns with.
 const MIN_HP: int = 1
@@ -41,15 +41,13 @@ func validate(ctx: EventContext, _index: int) -> String:
 		return "choose a fallen unit"
 	if _fallen(seat_run, ctx.choice.unit_id) == null:
 		return "%s isn't a fallen unit of the army" % [ctx.choice.unit_id]
-	# TODO(TOD-001): replace a unit instead, once RN6's recruit-past-the-max operation exists.
-	if seat_run.army.size() >= EventRequirements.max_army_size(seat_run, ctx.catalog):
-		return "the army is full"
-	return ""
+	return EventOutcome.join_problem(ctx)
 
 
 func apply(ctx: EventContext, _index: int) -> void:
 	var seat_run: SeatRun = ctx.seat_run()
 	var unit: UnitInstance = _fallen(seat_run, ctx.choice.unit_id)
+	EventOutcome.make_room(ctx, unit.instance_id)
 	seat_run.fallen.erase(unit)
 	seat_run.army.append(unit)
 	var unit_max: int = EventOutcome.max_hp(unit, ctx.catalog)

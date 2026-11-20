@@ -6,7 +6,7 @@
 # File:     effect_catalog.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name EffectCatalog
@@ -89,11 +89,15 @@ const PARENT_KINDS: Dictionary[Kind, Kind] = {
 	Kind.CURSE: Kind.HEIRLOOM,
 }
 
-# Folders under DATA_ROOT that hold rules or audio data, not content definitions, so the walk
-# skips them. The campaign plan puts the map rules in data/campaign/, with no id or kind; sound
-# cues and their maps in data/audio/ are presentation, loaded by AudioCueCatalog.
-# tests/content/catalog_cases.gd skips the same folders when it counts files.
-const _RULES_FOLDERS: PackedStringArray = ["res://data/campaign/", "res://data/audio/"]
+# Folders under DATA_ROOT that hold rules, audio or event data, not content definitions, so the
+# walk skips them. The campaign plan puts the map rules in data/campaign/, with no id or kind;
+# sound cues and their maps in data/audio/ are presentation, loaded by AudioCueCatalog; events in
+# data/events/ are loaded by EventPool. tests/content/catalog_cases.gd skips the same folders.
+const _RULES_FOLDERS: PackedStringArray = [
+	"res://data/campaign/",
+	"res://data/audio/",
+	"res://data/events/",
+]
 
 # The catalog of DATA_ROOT once loaded; null until then.
 static var _index: Index = null

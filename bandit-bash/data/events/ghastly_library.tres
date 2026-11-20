@@ -1,0 +1,69 @@
+[gd_resource type="Resource" script_class="EventDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/events/event_definition.gd" id="1_def"]
+[ext_resource type="Script" path="res://scripts/events/event_option.gd" id="2_opt"]
+[ext_resource type="Script" path="res://scripts/events/event_outcome.gd" id="3_out"]
+[ext_resource type="Script" path="res://scripts/events/event_requirements.gd" id="4_req"]
+[ext_resource type="Script" path="res://scripts/events/outcomes/stat_outcome.gd" id="5_stat"]
+[ext_resource type="Script" path="res://scripts/events/outcomes/item_grant_outcome.gd" id="6_grant"]
+[ext_resource type="Script" path="res://scripts/events/outcomes/rune_outcome.gd" id="7_rune"]
+[ext_resource type="Texture2D" path="res://assets/sprites/events/whispering_library_background.png" id="20_art"]
+
+[sub_resource type="Resource" id="Resource_commander"]
+script = ExtResource("4_req")
+needs_commander = true
+
+[sub_resource type="Resource" id="Resource_mgt"]
+script = ExtResource("5_stat")
+target = 2
+stat = 1
+amount = 2
+
+[sub_resource type="Resource" id="Resource_def"]
+script = ExtResource("5_stat")
+target = 2
+stat = 3
+amount = -1
+
+[sub_resource type="Resource" id="Resource_res"]
+script = ExtResource("5_stat")
+target = 2
+stat = 4
+amount = -1
+
+[sub_resource type="Resource" id="Resource_answer"]
+script = ExtResource("2_opt")
+title = "Answer the Voices"
+text = "The commander gains +2 MGT and loses 1 DEF and 1 RES."
+requirements = SubResource("Resource_commander")
+outcomes = Array[ExtResource("3_out")]([SubResource("Resource_mgt"), SubResource("Resource_def"), SubResource("Resource_res")])
+
+[sub_resource type="Resource" id="Resource_tome"]
+script = ExtResource("6_grant")
+random = 2
+
+[sub_resource type="Resource" id="Resource_take"]
+script = ExtResource("2_opt")
+title = "Take a Tome"
+text = "Gain a random rare magic tome."
+outcomes = Array[ExtResource("3_out")]([SubResource("Resource_tome")])
+
+[sub_resource type="Resource" id="Resource_rune"]
+script = ExtResource("7_rune")
+is_random = true
+
+[sub_resource type="Resource" id="Resource_infusion"]
+script = ExtResource("2_opt")
+title = "Ethereal Infusion"
+text = "Gain a random rune."
+outcomes = Array[ExtResource("3_out")]([SubResource("Resource_rune")])
+
+; the scene text is Godot_FE's ghastly_library.tres description, with "an" added
+; before "ancient library". Its art is the file that event used, whispering_library_background.
+[resource]
+script = ExtResource("1_def")
+id = "ghastly_library"
+title = "Ghastly Library"
+text = "Voices echo down the halls of an ancient library."
+art = ExtResource("20_art")
+options = Array[ExtResource("2_opt")]([SubResource("Resource_answer"), SubResource("Resource_take"), SubResource("Resource_infusion")])

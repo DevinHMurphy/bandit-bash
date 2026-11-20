@@ -1,0 +1,46 @@
+[gd_resource type="Resource" script_class="EventDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/events/event_definition.gd" id="1_def"]
+[ext_resource type="Script" path="res://scripts/events/event_option.gd" id="2_opt"]
+[ext_resource type="Script" path="res://scripts/events/event_outcome.gd" id="3_out"]
+[ext_resource type="Script" path="res://scripts/events/outcomes/heirloom_outcome.gd" id="4_heirloom"]
+
+[sub_resource type="Resource" id="Resource_first"]
+script = ExtResource("4_heirloom")
+tier = "rare"
+
+[sub_resource type="Resource" id="Resource_second"]
+script = ExtResource("4_heirloom")
+tier = "rare"
+
+[sub_resource type="Resource" id="Resource_accept"]
+script = ExtResource("2_opt")
+title = "Accept the Pact"
+text = "Gain two rare heirlooms and a severe curse."
+outcomes = Array[ExtResource("3_out")]([SubResource("Resource_first"), SubResource("Resource_second")])
+curse_tier = "severe"
+
+[sub_resource type="Resource" id="Resource_one"]
+script = ExtResource("4_heirloom")
+tier = "rare"
+
+[sub_resource type="Resource" id="Resource_token"]
+script = ExtResource("2_opt")
+title = "Take a Token"
+text = "Gain one rare heirloom and a major curse."
+outcomes = Array[ExtResource("3_out")]([SubResource("Resource_one")])
+curse_tier = "major"
+
+[sub_resource type="Resource" id="Resource_refuse"]
+script = ExtResource("2_opt")
+title = "Refuse"
+text = "Nothing happens."
+
+; the scene text is events.md's line for the event; it has no Godot_FE scene of its
+; own, and no art, so the screen shows its placeholder.
+[resource]
+script = ExtResource("1_def")
+id = "black_altar"
+title = "The Black Altar"
+text = "A pact offered in the dark."
+options = Array[ExtResource("2_opt")]([SubResource("Resource_accept"), SubResource("Resource_token"), SubResource("Resource_refuse")])

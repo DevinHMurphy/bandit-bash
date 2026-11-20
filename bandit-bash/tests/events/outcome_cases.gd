@@ -6,7 +6,7 @@
 # File:     outcome_cases.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -29,6 +29,7 @@ const STARTING_GOLD: int = 100
 const LOW_HP: int = 1
 const HEAL_PERCENT: int = 20
 const CURSED_BLOOD_PERCENT: int = 50
+const CURSED_BLOOD: String = "cursed_blood"
 const REVIVE_PERCENT: int = 10
 
 var _report: Callable
@@ -99,14 +100,13 @@ func _test_heal_and_damage() -> void:
 	), "%d of %d, %s" % [hurt.hp, hurt_max, _fx.kinds(heal.facts)])
 
 	hurt.hp = LOW_HP
-	var ctx: EventContext = _fx.context(made, _fx.event_of([
-		_hp(EventOutcome.Target.EVERY, HEAL_PERCENT),
-	]))
-	ctx.healing_percent = CURSED_BLOOD_PERCENT
-	EventResolver.resolve(ctx)
+	seat_run.add_heirloom(CURSED_BLOOD)
+	var cursed: EventResult = _resolve(made, [_hp(EventOutcome.Target.EVERY, HEAL_PERCENT)])
+	seat_run.heirlooms.pop_back()
 	var halved: int = EventOutcome.percent_of(hurt_max, HEAL_PERCENT * CURSED_BLOOD_PERCENT / 100.0)
-	_check("heal: Cursed Blood's 50% healing received halves it, rounded at the end", (
-			hurt.hp == LOW_HP + halved and halved < healed
+	_check("heal: the seat's Cursed Blood (50% healing received) halves it, rounded at the end", (
+			not cursed.is_rejected() and hurt.hp == LOW_HP + halved and halved < healed
+			and cursed.facts[0].amount == halved
 	), "%d, expected %d" % [hurt.hp, LOW_HP + halved])
 
 	hurt.hp = hurt_max - 1
@@ -457,7 +457,7 @@ func _test_revive() -> void:
 	_fx.fell(seat_run, other)
 	seat_run.army.append(UnitInstance.new(made.ids.next_unit_id("archer"), "archer"))
 	var full: EventResult = _resolve(made, [revive], EventChoice.new(other.instance_id))
-	_check("revive: into a full army it is refused for now", (
+	_check("revive: into a full army with no unit named to dismiss it is refused", (
 			full.is_rejected() and full.rejected_reason.contains("full")
 			and seat_run.fallen.has(other)
 	), full.rejected_reason)

@@ -1,0 +1,46 @@
+[gd_resource type="Resource" script_class="EventDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/events/event_definition.gd" id="1_def"]
+[ext_resource type="Script" path="res://scripts/events/event_option.gd" id="2_opt"]
+[ext_resource type="Script" path="res://scripts/events/event_outcome.gd" id="3_out"]
+[ext_resource type="Script" path="res://scripts/events/event_requirements.gd" id="4_req"]
+[ext_resource type="Script" path="res://scripts/events/outcomes/revive_outcome.gd" id="5_revive"]
+[ext_resource type="Script" path="res://scripts/events/outcomes/heirloom_outcome.gd" id="6_heirloom"]
+[ext_resource type="Texture2D" path="res://assets/sprites/events/broken_shrine_of_valor_background.png" id="20_art"]
+
+; the prayer also needs a fallen unit, so it greys out with its reason if the shrine is
+; ever shown without one (its eligibility normally keeps it from being drawn then).
+[sub_resource type="Resource" id="Resource_fallen"]
+script = ExtResource("4_req")
+needs_fallen_unit = true
+
+[sub_resource type="Resource" id="Resource_revive"]
+script = ExtResource("5_revive")
+
+[sub_resource type="Resource" id="Resource_prayer"]
+script = ExtResource("2_opt")
+title = "Offer a Prayer"
+text = "One fallen unit returns at critical health (10% of max HP, at least 1)."
+requirements = SubResource("Resource_fallen")
+outcomes = Array[ExtResource("3_out")]([SubResource("Resource_revive")])
+
+[sub_resource type="Resource" id="Resource_heirloom"]
+script = ExtResource("6_heirloom")
+tier = "rare"
+
+[sub_resource type="Resource" id="Resource_relic"]
+script = ExtResource("2_opt")
+title = "Claim the Relic"
+text = "Gain a rare heirloom."
+outcomes = Array[ExtResource("3_out")]([SubResource("Resource_heirloom")])
+
+; the scene text is Godot_FE's broken_shrine_of_valor.tres description with its
+; BBCode removed (the event screen shows plain text).
+[resource]
+script = ExtResource("1_def")
+id = "broken_shrine_of_valor"
+title = "Broken Shrine of Valor"
+text = "A shrine sits in a forest, light flickers across shattered stone, revealing the lower half of a once-heroic statue still gripping its greatsword in eternal vigilance. Around you, the fractured arches and leaning pillars rise like wounded sentinels, while the encroaching forest threatens to swallow the last memory of those honored here."
+art = ExtResource("20_art")
+eligibility = 1
+options = Array[ExtResource("2_opt")]([SubResource("Resource_prayer"), SubResource("Resource_relic")])

@@ -1,0 +1,55 @@
+[gd_resource type="Resource" script_class="EventDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/events/event_definition.gd" id="1_def"]
+[ext_resource type="Script" path="res://scripts/events/event_option.gd" id="2_opt"]
+[ext_resource type="Script" path="res://scripts/events/event_outcome.gd" id="3_out"]
+[ext_resource type="Script" path="res://scripts/events/outcomes/stat_outcome.gd" id="4_stat"]
+[ext_resource type="Script" path="res://scripts/events/outcomes/pending_gain_outcome.gd" id="5_pending"]
+[ext_resource type="Script" path="res://scripts/events/outcomes/item_grant_outcome.gd" id="6_grant"]
+[ext_resource type="Script" path="res://scripts/events/outcomes/hp_percent_outcome.gd" id="7_hp"]
+[ext_resource type="Texture2D" path="res://assets/sprites/events/whispering_oak_background.png" id="20_art"]
+
+[sub_resource type="Resource" id="Resource_max_hp"]
+script = ExtResource("4_stat")
+stat = 0
+amount = -2
+
+[sub_resource type="Resource" id="Resource_growth"]
+script = ExtResource("5_pending")
+level_ups = 2
+
+[sub_resource type="Resource" id="Resource_sap"]
+script = ExtResource("2_opt")
+title = "Drink the Sap"
+text = "A chosen unit loses 2 max HP; its next two level-ups each gain +1 MGT."
+outcomes = Array[ExtResource("3_out")]([SubResource("Resource_max_hp"), SubResource("Resource_growth")])
+
+[sub_resource type="Resource" id="Resource_charm"]
+script = ExtResource("6_grant")
+item_id = "oak_wood_charm"
+
+[sub_resource type="Resource" id="Resource_carve"]
+script = ExtResource("2_opt")
+title = "Carve a Token"
+text = "Gain the Oak Wood Charm."
+outcomes = Array[ExtResource("3_out")]([SubResource("Resource_charm")])
+
+[sub_resource type="Resource" id="Resource_heal"]
+script = ExtResource("7_hp")
+percent = 20
+
+[sub_resource type="Resource" id="Resource_bow"]
+script = ExtResource("2_opt")
+title = "Bow in Reverence"
+text = "Every unit heals 20% of its max HP."
+outcomes = Array[ExtResource("3_out")]([SubResource("Resource_heal")])
+
+; the scene text is Godot_FE's whispering_oak.tres description with its BBCode removed
+; (the event screen shows plain text), and "a low, humm" read as "a low hum".
+[resource]
+script = ExtResource("1_def")
+id = "whispering_oak"
+title = "The Whispering Oak"
+text = "An ancient oak looms over you, its branches swaying in a rhythm that almost sounds like words. As you draw closer, the bark trembles with a low hum that invokes old memories. Leaves spiral around the trunk in a slow whorl of whispering voices, each telling stories of the long past."
+art = ExtResource("20_art")
+options = Array[ExtResource("2_opt")]([SubResource("Resource_sap"), SubResource("Resource_carve"), SubResource("Resource_bow")])

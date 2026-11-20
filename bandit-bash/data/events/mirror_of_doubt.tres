@@ -1,0 +1,43 @@
+[gd_resource type="Resource" script_class="EventDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/events/event_definition.gd" id="1_def"]
+[ext_resource type="Script" path="res://scripts/events/event_option.gd" id="2_opt"]
+[ext_resource type="Script" path="res://scripts/events/event_outcome.gd" id="3_out"]
+[ext_resource type="Script" path="res://scripts/events/outcomes/prefix_reroll_outcome.gd" id="4_reroll"]
+[ext_resource type="Script" path="res://scripts/events/outcomes/item_grant_outcome.gd" id="5_grant"]
+[ext_resource type="Texture2D" path="res://assets/sprites/events/mirror_of_doubt_background.png" id="20_art"]
+
+[sub_resource type="Resource" id="Resource_reroll"]
+script = ExtResource("4_reroll")
+
+[sub_resource type="Resource" id="Resource_face"]
+script = ExtResource("2_opt")
+title = "Face Yourself"
+text = "Re-roll a chosen unit's prefix for free. It can come out worse, never the same."
+outcomes = Array[ExtResource("3_out")]([SubResource("Resource_reroll")])
+
+[sub_resource type="Resource" id="Resource_trinket"]
+script = ExtResource("5_grant")
+random = 3
+
+[sub_resource type="Resource" id="Resource_shatter"]
+script = ExtResource("2_opt")
+title = "Shatter the Mirror"
+text = "Gain a random trinket and a minor curse."
+outcomes = Array[ExtResource("3_out")]([SubResource("Resource_trinket")])
+curse_tier = "minor"
+
+[sub_resource type="Resource" id="Resource_walk"]
+script = ExtResource("2_opt")
+title = "Walk Away"
+text = "Nothing happens."
+
+; the scene text is Godot_FE's mirror_of_doubt.tres description with its BBCode
+; removed (the event screen shows plain text).
+[resource]
+script = ExtResource("1_def")
+id = "mirror_of_doubt"
+title = "Mirror of Doubt"
+text = "A tall silver mirror shows distorted reflections."
+art = ExtResource("20_art")
+options = Array[ExtResource("2_opt")]([SubResource("Resource_face"), SubResource("Resource_shatter"), SubResource("Resource_walk")])

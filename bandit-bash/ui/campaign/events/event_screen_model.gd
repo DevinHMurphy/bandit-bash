@@ -6,15 +6,15 @@
 # File:     event_screen_model.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name EventScreenModel
 extends RefCounted
 ## The words and choices the event screen shows, read from an [EventView] and the run: each
-## option's rolled parts and named curse, the steps a chosen option asks for (a pick, item
-## placements, a rune to discard), every chooser's entries with why each is greyed out, and the
-## outcome summary.
+## option's rolled parts and named curse, the steps a chosen option asks for (a pick, the unit
+## that leaves a full army, item placements, a rune to discard), every chooser's entries with why
+## each is greyed out, and the outcome summary.
 ##
 ## Static and read-only: it reads only what it is handed and changes nothing. The summary is
 ## built from saved state alone (the option, its rolls and the team's votes), so the one shown
@@ -129,7 +129,8 @@ static func chooser_question(kind: EventOutcome.Chooser, option_title: String) -
 
 ## The entries the chooser of option [param option_index] of [param event] lists for
 ## [param seat] of [param run], each greyed out with its own block's reason: the living units,
-## the fallen ones, or the weapons on living units then in the convoy. Empty for no chooser.
+## the fallen ones, or the weapons on living units then in the convoy. A full army greys no fallen
+## unit: [method leaving_entries] asks which unit makes room next. Empty for no chooser.
 static func chooser_entries(
 		run: CampaignRunState,
 		seat: int,
@@ -162,6 +163,55 @@ static func chooser_entries(
 						reason.replace(item_id, item_name)
 				))
 	return entries
+
+
+## Whether choosing [param option] asks [param seat_run] which unit leaves the army: a block
+## brings a unit in (a recruit, a revived unit) and the army is full
+## ([method RunOperations.max_army_size], read with [param catalog]).
+static func needs_leaving_unit(
+		option: EventOption, seat_run: SeatRun, catalog: EffectCatalog.Index
+) -> bool:
+	if seat_run.army.size() < RunOperations.max_army_size(seat_run, catalog):
+		return false
+	for outcome: EventOutcome in option.outcomes:
+		if outcome is RecruitOutcome or outcome is ReviveOutcome:
+			return true
+	return false
+
+
+## The question the leaving step asks for the option [param option_title], with
+## [param seat_run]'s army size: the leaving unit's items go to the convoy
+## ([method RunOperations.dismiss]).
+static func leaving_question(
+		option_title: String, seat_run: SeatRun, catalog: EffectCatalog.Index
+) -> String:
+	return "%s: the army is full (%d of %d). Which unit leaves? Its items go to the convoy." % [
+		option_title, seat_run.army.size(), RunOperations.max_army_size(seat_run, catalog),
+	]
+
+
+## The living units of [param seat] of [param run] that the leaving step lists, in roster order,
+## each with its level and HP ([method leaving_text]); one that can't leave (the commander, one
+## whose items the convoy can't take) is greyed out with [method RunOperations.dismiss_problem].
+static func leaving_entries(
+		run: CampaignRunState, seat: int, catalog: EffectCatalog.Index
+) -> Array[Entry]:
+	var entries: Array[Entry] = []
+	var seat_run: SeatRun = run.seat_run(seat)
+	for unit: UnitInstance in seat_run.army:
+		var reason: String = RunOperations.dismiss_problem(run, seat, unit.instance_id, catalog)
+		entries.append(Entry.new(unit.instance_id, leaving_text(unit, catalog), reason.replace(
+				unit.instance_id, title_of(unit, catalog)
+		)))
+	return entries
+
+
+## [param unit] as the leaving step lists it: [code]Steady (+1) Archer, level 3, HP 14 / 18[/code].
+static func leaving_text(unit: UnitInstance, catalog: EffectCatalog.Index) -> String:
+	var unit_max: int = EventOutcome.max_hp(unit, catalog)
+	return "%s, level %d, HP %d / %d" % [
+		title_of(unit, catalog), unit.level, EventOutcome.current_hp(unit, unit_max), unit_max,
+	]
 
 
 ## [param seat_run]'s rune slots as a chooser lists them to discard one, by slot index.
@@ -224,8 +274,9 @@ static func title_of(unit: UnitInstance, catalog: EffectCatalog.Index) -> String
 
 
 # Why choice can't be picked for the option: the first refusal among the option's blocks that ask
-# for a pick, nothing else. Changes nothing. The stream is never drawn from (validation draws
-# nothing); the prefix re-roll only checks that one is there.
+# for a pick, nothing else. A full army isn't one (the revive validates its join last): the
+# leaving step names the unit that makes room. Changes nothing. The stream is never drawn from
+# (validation draws nothing); the prefix re-roll only checks that one is there.
 static func _pick_reason(
 		run: CampaignRunState,
 		seat: int,
@@ -237,12 +288,13 @@ static func _pick_reason(
 	var ctx: EventContext = EventContext.of(
 			run, seat, event, option_index, catalog, null, RngStream.new(0), choice
 	)
+	var full_army: String = EventOutcome.join_problem(ctx)
 	var option: EventOption = event.options[option_index]
 	for index: int in option.outcomes.size():
 		var outcome: EventOutcome = option.outcomes[index]
 		if outcome != null and outcome.chooser() != EventOutcome.Chooser.NONE:
 			var problem: String = outcome.validate(ctx, index)
-			if not problem.is_empty():
+			if not problem.is_empty() and problem != full_army:
 				return problem
 	return ""
 

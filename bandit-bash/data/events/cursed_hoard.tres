@@ -1,0 +1,41 @@
+[gd_resource type="Resource" script_class="EventDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/events/event_definition.gd" id="1_def"]
+[ext_resource type="Script" path="res://scripts/events/event_option.gd" id="2_opt"]
+[ext_resource type="Script" path="res://scripts/events/event_outcome.gd" id="3_out"]
+[ext_resource type="Script" path="res://scripts/events/outcomes/gold_outcome.gd" id="4_gold"]
+
+[sub_resource type="Resource" id="Resource_hoard"]
+script = ExtResource("4_gold")
+amount = 80
+
+[sub_resource type="Resource" id="Resource_all"]
+script = ExtResource("2_opt")
+title = "Take It All"
+text = "Gain 80 gold and a major curse."
+outcomes = Array[ExtResource("3_out")]([SubResource("Resource_hoard")])
+curse_tier = "major"
+
+[sub_resource type="Resource" id="Resource_handful"]
+script = ExtResource("4_gold")
+amount = 20
+
+[sub_resource type="Resource" id="Resource_little"]
+script = ExtResource("2_opt")
+title = "Take a Little"
+text = "Gain 20 gold."
+outcomes = Array[ExtResource("3_out")]([SubResource("Resource_handful")])
+
+[sub_resource type="Resource" id="Resource_leave"]
+script = ExtResource("2_opt")
+title = "Leave It"
+text = "Nothing happens."
+
+; the scene text is events.md's line for the event; it has no Godot_FE scene of its
+; own, and no art, so the screen shows its placeholder.
+[resource]
+script = ExtResource("1_def")
+id = "cursed_hoard"
+title = "Cursed Hoard"
+text = "A chest of gold on a bed of bones."
+options = Array[ExtResource("2_opt")]([SubResource("Resource_all"), SubResource("Resource_little"), SubResource("Resource_leave")])
