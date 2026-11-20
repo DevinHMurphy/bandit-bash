@@ -225,7 +225,7 @@ flowchart LR
 
   class CT12,MP11,AU2 waiting
   class EV1F ready
-  class EV3 ready
+  class EV3 active
 
 ```
 
