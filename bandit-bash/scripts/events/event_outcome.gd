@@ -6,13 +6,14 @@
 # File:     event_outcome.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name EventOutcome
 extends Resource
 ## One block of an event option's outcome on the campaign layer: gold, a heal, a stat change, an
-## item, a curse. Each kind is its own subclass in [code]scripts/events/outcomes/[/code].
+## item, a recruit, a curse. Each kind is its own subclass in [code]scripts/events/outcomes/[/code];
+## the ones that change the army go through [RunOperations].
 ##
 ## [EventResolver] drives every block of an option in three passes: [method roll] before the
 ## option shows (its random parts, saved by the caller), [method validate] against the seat's
@@ -21,8 +22,6 @@ extends Resource
 ## autoloads, no global RNG. Read-only at runtime, like every content definition.
 ##
 ## @tutorial(Events and curses plan): docs/plans/2026-11-12-events-and-curses.md
-##
-## @todo: TOD-001 - Recruit, upgrade and max army size blocks (EV1F), on RN6's run operations.
 
 ## Which units a block acts on.
 enum Target {
@@ -47,8 +46,6 @@ enum Chooser {
 }
 
 const _PERCENT: float = 100.0
-
-# TODO(TOD-001): EV1F's recruit, upgrade and max army size blocks extend this class here.
 
 
 ## What the player must pick for this block. [constant Chooser.NONE] by default.
@@ -124,6 +121,35 @@ static func target_problem(ctx: EventContext, target: Target) -> String:
 			if living_unit(seat_run, seat_run.commander_id) == null:
 				return "the army has no living commander"
 	return ""
+
+
+## Why one more unit can't join [param ctx]'s army now (a recruit, a revived unit). With room, no
+## unit may be named to dismiss ([member EventChoice.replaced_id]); in a full army one must be,
+## and it must be able to leave ([method RunOperations.dismiss_problem]). Empty when it can join.
+static func join_problem(ctx: EventContext) -> String:
+	var seat_run: SeatRun = ctx.seat_run()
+	var limit: int = RunOperations.max_army_size(seat_run, ctx.catalog)
+	var replaced_id: String = ctx.choice.replaced_id
+	if seat_run.army.size() < limit:
+		if replaced_id.is_empty():
+			return ""
+		# ASSUMPTION: with room, naming a unit to dismiss is refused rather than ignored.
+		return "the army has room (%d of %d), so no unit is dismissed" % [
+			seat_run.army.size(), limit,
+		]
+	if replaced_id.is_empty():
+		return "the army is full (%d of %d): choose a unit to dismiss" % [
+			seat_run.army.size(), limit,
+		]
+	return RunOperations.dismiss_problem(ctx.run, ctx.seat, replaced_id, ctx.catalog)
+
+
+## Dismisses the unit [param ctx]'s player named to make room ([method join_problem]) for
+## [param joining_id], by the event, its items to the convoy; nothing when none was named.
+static func make_room(ctx: EventContext, joining_id: String) -> void:
+	if ctx.choice.replaced_id.is_empty():
+		return
+	RunOperations.dismiss(ctx.run, ctx.seat, ctx.choice.replaced_id, ctx.event_id(), joining_id)
 
 
 ## The unit [param unit_id] in [param seat_run]'s living army; null for a fallen or unknown one.

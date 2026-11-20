@@ -6,7 +6,7 @@
 # File:     event_context.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name EventContext
@@ -19,13 +19,6 @@ extends RefCounted
 ## only through it. Nothing here is global.
 ##
 ## @tutorial(Events and curses plan): docs/plans/2026-11-12-events-and-curses.md
-##
-## @todo: TOD-001 - Read the seat's healing-received percent from the campaign's values (Cursed
-## Blood, Cleansed Goblet) once the campaign layer reads them; the caller hands it in until then.
-
-## A seat's healing received with nothing changing it.[br]
-## [b]Units:[/b] percent.
-const FULL_HEALING_PERCENT: int = 100
 
 ## The run the option changes.
 var run: CampaignRunState = null
@@ -55,11 +48,6 @@ var ids: InstanceIdAllocator = null
 ## re-roll).
 var stream: RngStream = null
 
-# TODO(TOD-001): from the campaign's HEALING_RECEIVED_PERCENT once the campaign reads its values.
-## Healing the seat's units receive, which scales event heals (Cursed Blood: 50).[br]
-## [b]Units:[/b] percent. [b]100:[/b] unchanged. [b]0:[/b] event heals restore nothing.
-var healing_percent: int = FULL_HEALING_PERCENT
-
 ## Filled in by [EventResolver] as the option applies.
 var result: EventResult = EventResult.new()
 
@@ -67,6 +55,13 @@ var result: EventResult = EventResult.new()
 ## The seat's part of the run; null for a seat not in it.
 func seat_run() -> SeatRun:
 	return null if run == null else run.seat_run(seat)
+
+
+## The share of a heal the seat's [param unit] receives, which scales event heals
+## ([method RunOperations.healing_received_percent]: Cursed Blood halves it, the unit's Cleansed
+## Goblet changes it). [b]Units:[/b] percent; 100 unchanged, 0 an event heal restores nothing.
+func healing_received_percent(unit: UnitInstance) -> float:
+	return RunOperations.healing_received_percent(seat_run(), unit, catalog)
 
 
 ## The chosen option; null for an index outside the event's options.
