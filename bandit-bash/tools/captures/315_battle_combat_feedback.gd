@@ -97,8 +97,9 @@ func _strikes(
 
 
 # Plays facts on the board alone, steps it FEEDBACK_STEP into their animations, and captures;
-# then clears the last fact's wait (FactPlayback keeps it until the next fact is queued), which
-# would otherwise hold the next shot's first fact.
+# then clears the last fact's wait. FactPlayback counts it down only as frames advance it, and
+# settle() stops once the queue is empty, so the next shot, a frame later, would find most of it
+# left and its first fact would miss the FEEDBACK_STEP point.
 func _feedback_shot(view: BattleView, facts: Array[CombatFact], shot_name: String) -> void:
 	view.get_session().playback.enqueue(facts)
 	view.advance(0.0)
