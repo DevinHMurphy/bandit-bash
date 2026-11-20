@@ -29,7 +29,7 @@ extends PanelContainer
 			return
 		custom_minimum_size.x = panel_width
 
-# ASSUMPTION: beside the card; RF-034 says only that the tooltip shows. Below, it would cover
+# Beside the card (P15 question 26); RF-034 says only that the tooltip shows. Below, it would cover
 # the gold line while Open has focus, which it has on entry.
 ## Which side of the item card's who-can-use row the wielders' names open on
 ## ([member ItemUsableBy.tooltip_side]). [b]Bottom:[/b] over the gold and state lines.

@@ -1,6 +1,6 @@
 # Plan: Co-op Combat
 **Date:** November 20, 2026
-**Status:** Draft — awaiting approval. Orchestrator ID **P11**
+**Status:** Approved (user, November 20, 2026), with CO6 moved to Lane C. Orchestrator ID **P11**
 
 ## Problem
 
