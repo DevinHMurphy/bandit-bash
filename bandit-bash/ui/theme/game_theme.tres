@@ -120,6 +120,20 @@ variation_opentype = {
 bg_color = Color(0.2901961, 0.33333334, 0.3764706, 1)
 border_color = Color(0.2901961, 0.33333334, 0.3764706, 0)
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ul7sf"]
+draw_center = false
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.8509804, 0.7058824, 0.3529412, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+expand_margin_left = 8.0
+expand_margin_right = 8.0
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fh0ds"]
 content_margin_left = 0.0
 content_margin_top = 3.0
@@ -359,20 +373,6 @@ variation_opentype = {
 opentype_features = {
 1953396077: 1
 }
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ul7sf"]
-draw_center = false
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.8509804, 0.7058824, 0.3529412, 1)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-expand_margin_left = 8.0
-expand_margin_right = 8.0
 
 [resource]
 default_font = SubResource("FontVariation_qnfuf")
