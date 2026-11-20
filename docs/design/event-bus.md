@@ -75,6 +75,7 @@ A fact is one thing that happened, in the past tense, carrying ids and never obj
   | 29 | `UNIT_BOUGHT` | `Guildhall.buy_recruit`: a recruit bought for `amount` gold; `UNIT_RECRUITED` and any dismissal and hand-over facts follow |
   | 30 | `RUNE_BOUGHT` | `Guildhall.buy_rune`: a rune bought for `amount` gold; any `RUNE_DISCARDED`, then its `GAINED` with `FLAG_BOUGHT`, follow |
   | 31 | `PREFIX_REROLLED` | `Guildhall.reroll`: a unit's prefix re-rolled to `definition_id` for `amount` gold (0: free); an `HP_CHANGED` may follow |
+  | 32 | `UNKNOWN_RESOLVED` | `ResolveUnknownCommand`: the Unknown node `amount` became `definition_id` (`combat`, `armory`, `guildhall`, `treasure` or `event`); belongs to no seat; silent |
 
 - **Paired triggers are two facts.** A hit records `HIT_DEALT`, then `HIT_TAKEN`. `actor_id` is
   always the unit the kind is about, the one an effect's scope tests; `target_id` is the other

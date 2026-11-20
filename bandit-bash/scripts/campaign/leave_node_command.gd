@@ -18,8 +18,9 @@ extends CampaignCommand
 ## combat's results its [ItemPick] and a Key combat's [KeyHeirloom]; at a Treasure its rolled
 ## [TreasureChest]; at a Camp its choice ([Camp]); an Armory or a Guildhall never waits. It runs
 ## no node rules: each node's screen settles them and then sends it. Leaving clears those offers
-## from every seat's pending offers, and the Armory's [ArmoryStock] and the Guildhall's
-## [GuildhallStock] from the run's shop stock.
+## from every seat's pending offers, the Armory's [ArmoryStock] and the Guildhall's
+## [GuildhallStock] from the run's shop stock, and an Unknown node's outcome
+## ([member RunFlow.unknown]); the Unknown odds stay for the next one.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 
@@ -61,6 +62,7 @@ func resolve(run: CampaignRunState) -> void:
 		offers.erase(Camp.OFFER_KEY)
 	run.flow.shop_stock.erase(ArmoryStock.OFFER_KEY)
 	run.flow.shop_stock.erase(GuildhallStock.OFFER_KEY)
+	run.flow.unknown = ""
 	run.flow.stage = RunFlow.Stage.MAP
 	var left: CampaignFact = CampaignFact.new(CampaignFact.Kind.NODE_LEFT, seat)
 	left.amount = run.node

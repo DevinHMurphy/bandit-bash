@@ -6,19 +6,19 @@
 # File:     run_flow.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 14, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name RunFlow
 extends RefCounted
 ## Where a run stands between its map and its nodes, and the run-wide state every seat shares:
-## the Unknown odds, the maps already used and the shop stock.
+## the Unknown odds and outcome, the maps already used and the shop stock.
 ##
 ## Pure data held by [CampaignRunState], saved as the [code]run_flow[/code] section through
 ## [method capture] and [method restore]. The node the run is at is
-## [member CampaignRunState.node]; this holds only the stage within it. The Unknown odds, used maps
-## and shop stock start empty, which means the base odds, no map used and no stock rolled; the
-## node rules that roll them fill them.
+## [member CampaignRunState.node]; this holds only the stage within it. The Unknown odds and
+## outcome, used maps and shop stock start empty, which means the base odds, nothing rolled, no
+## map used and no stock rolled; the node rules that roll them fill them.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 
@@ -28,7 +28,8 @@ extends RefCounted
 # NODE     the run is inside CampaignRunState.node; a combat node's battle begins and ends here.
 #          ChooseNodeCommand is rejected; LeaveNodeCommand goes back to MAP with the node still
 #          visited and its floor still locked. A won battle moves to RESULTS
-#          (CampaignRunState.apply_battle); a lost one stays.
+#          (CampaignRunState.apply_battle); a lost one stays. An Unknown node's outcome is rolled
+#          here (ResolveUnknownCommand) and kept in unknown until the node is left.
 # RESULTS  a combat node's battle is won and paid: each seat's report and item pick wait in its
 #          pending offers. ItemPickCommand takes or skips a seat's pick; LeaveNodeCommand goes back
 #          to MAP once every pick is resolved, clearing both. No battle begins here.
@@ -58,13 +59,19 @@ const _KEY_STAGE: String = "stage"
 const _KEY_UNKNOWN_ODDS: String = "unknown_odds"
 const _KEY_USED_MAPS: String = "used_maps"
 const _KEY_SHOP_STOCK: String = "shop_stock"
+const _KEY_UNKNOWN: String = "unknown"
 
 ## Where the run is.
 var stage: Stage = Stage.MAP
 
-## The current chance of each thing an Unknown node can become, by outcome id.[br]
+## The current chance of each typed thing an Unknown node can become, by
+## [UnknownResolution]'s odds key; an event takes the rest.[br]
 ## [b]Units:[/b] percent. [b]Empty:[/b] every outcome at its base chance.
 var unknown_odds: Dictionary[String, int] = {}
+
+## What the Unknown node the run is in became, an [UnknownResolution] outcome id, cleared when the
+## node is left. [b]Empty:[/b] not rolled yet, or not inside an Unknown node.
+var unknown: String = ""
 
 ## Combat map ids the run has used since its pool last refilled, oldest first. [b]Empty:[/b] none.
 var used_maps: PackedStringArray = []
@@ -91,19 +98,27 @@ func capture() -> Dictionary:
 		_KEY_UNKNOWN_ODDS: unknown_odds.duplicate(),
 		_KEY_USED_MAPS: Array(used_maps),
 		_KEY_SHOP_STOCK: shop_stock.duplicate(true),
+		_KEY_UNKNOWN: unknown,
 	}
 
 
 ## Takes [param data], as [method capture] wrote it, numbers as whole floats too. Returns
-## [constant ERR_INVALID_DATA], changing nothing, for an unknown stage, a missing field or an odds
-## value that isn't a whole number.
+## [constant ERR_INVALID_DATA], changing nothing, for an unknown stage, a missing field, an odds
+## value that isn't a whole number or an Unknown outcome that isn't one. A missing Unknown outcome
+## (a run saved before it was kept) reads as not rolled.
 func restore(data: Dictionary) -> Error:
 	var stage_key: Variant = _STAGE_IDS.find_key(data.get(_KEY_STAGE))
 	var odds: Variant = data.get(_KEY_UNKNOWN_ODDS)
 	var maps: Variant = data.get(_KEY_USED_MAPS)
 	var stock: Variant = data.get(_KEY_SHOP_STOCK)
+	var resolved: Variant = data.get(_KEY_UNKNOWN, "")
 	if stage_key == null or not odds is Dictionary or not maps is Array or not stock is Dictionary:
 		push_error("RunFlow: not a run flow's data - %s" % [data])
+		return ERR_INVALID_DATA
+	if not resolved is String or not (
+			(resolved as String).is_empty() or UnknownResolution.OUTCOMES.has(resolved as String)
+	):
+		push_error("RunFlow: bad Unknown outcome - %s" % [resolved])
 		return ERR_INVALID_DATA
 	var read_odds: Dictionary[String, int] = {}
 	var odds_data: Dictionary = odds
@@ -124,4 +139,5 @@ func restore(data: Dictionary) -> Error:
 	unknown_odds = read_odds
 	used_maps = read_maps
 	shop_stock = (stock as Dictionary).duplicate(true)
+	unknown = resolved as String
 	return OK

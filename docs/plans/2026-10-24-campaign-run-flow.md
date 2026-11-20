@@ -68,7 +68,7 @@ Tuning values carried over: 7 columns and 6 paths (`map_generator.gd`), 100 XP p
 - **Combat:** `CampaignRunState` builds the real `BattleRequest`, with the army from the roster and the map drawn from the pool for the node's combat type and step. On a win, Results shows grades and gold, the item pick (and a Key combat's heirloom), XP, the Standout and level-ups together, then returns to the map.
 - **Loss:** in solo, the run ends at once through `end_run(false)`.
 - **Treasure, Camp, Armory, Guildhall:** as the vision and question 6 say. Hand-over screens follow unit-roster.md.
-- **Unknown:** rolled on entry with the vision's rising odds, kept in `CampaignRunState`. An event hands off to P09; until P09 lands, a placeholder continues to the map.
+- **Unknown:** rolled on entry with the vision's rising odds, kept in `CampaignRunState` (`run_flow.unknown`, RN10). A combat, shop or Treasure plays as that node; an event hands off to P09 (`EventNode.open()`), and with no event to draw the placeholder continues to the map.
 - **Boss:** a win pays the boss's shared XP and personal bonuses, with level-ups shown as after any combat, then the run ends, and Results shows the seed.
 - **Maps:** no map repeats in a run until every map in its pool has been used; then the pool refills. With few maps in the MVP, repeats will come sooner.
 
@@ -165,7 +165,11 @@ Steps through RN5 give a playable loop on M1's data. Later steps need content fr
 | Audio map, `FactCueMap.Shape` | Data, enum appended | `GAINED`, `ITEM_SCRAPPED` unmapped; the item picker sounds the take and scrap itself | `GAINED` `item_obtained`, `ITEM_SCRAPPED` `gold_rewarded`, `FEAST_HELD` `unit_heal`, `UNIT_UPGRADED` `promotion`, `NODE_CHOSEN/treasure` `treasure_map_enter` (`TREASURE_NODE=7`); the picker's direct calls gone | Applied (RN7) | assets/audio/README.md | 🟢 |
 | `unit_detail` on the campaign map | Behaviour | Battle only | Also opens the army view on the map (Ctrl, pad L3); no new action, as no pad button is free | Applied (RN7) | Map hints | 🟢 |
 | New public classes and members | Public API | — | `HeirloomDraw`, `TreasureChest`, `OpenTreasureCommand`, `TreasureCommand`, `KeyHeirloom`, `KeyHeirloomCommand`, `Camp`, `FeastCommand`, `TrainCommand`, `Regear`, `RegearCommand`, `ScrapItemCommand`, `GiftItemCommand`; `RunOperations.campaign_value`, `scrap_percent`, `healing_received_percent`, `scrap_problem`, `scrap`; `ItemPlacement.pay_scrap`; `CombatResultsModel.key_heirloom`; the screens' UI elements | Applied (RN7) | — | 🟡 |
-
+| `CampaignFact.Kind` | Enum, appended (network contract) | Ends at `PREFIX_REROLLED=31` | `UNKNOWN_RESOLVED=32`; `CampaignBus.RunChannel` gains `unknown_resolved` | Applied (RN10) | Fact logs, bus observers, event-bus.md | 🔴 |
+| `run_flow.unknown` | Save format (optional key, no version change) | — | The current Unknown node's outcome id; missing reads as not rolled | Applied (RN10) | save-system.md | 🟡 |
+| `RunScreen.go()`, `RunScreen.of()` | Behaviour | An Unknown routes to the event screen with an event open, else the placeholder | `go()` first rolls the Unknown and opens an event outcome's event (each saved); `of()` routes by `CampaignRunState.node_type()` | Applied (RN10) | Every screen that calls `go()`; the UI walk | 🟡 |
+| `Armory.is_at_armory`, `Guildhall.is_at_guildhall`, `OpenTreasureCommand.is_at_treasure`, `battle_request()` | Behaviour | The map's node type | The type the node plays as: an Unknown that became one counts | Applied (RN10) | Shop, Treasure and gifting commands | 🟢 |
+| New public classes and members (RN10) | Public API | — | `UnknownResolution`, `ResolveUnknownCommand`, `CampaignRunState.node_type()`, `RunFlow.unknown`, `RunScreen.enter_unknown()`, `CampaignMapRules.unknown_combat_chance` / `unknown_shop_chance` / `unknown_treasure_chance` (`@export`s), `DEFAULT_PATH`, `load_default()` | Applied (RN10) | — | 🟡 |
 ## Verification
 
 Each step's Done when column, in `tests/campaign/`, and the full runner. RN1 validates every hard map rule across 10,000 seeds and reports how often each soft target is missed. RN11 runs a seeded whole run headless and compares a mid-run resume with an uninterrupted one. M3's exit is a played solo run inside the 60–80 minute target.

@@ -67,12 +67,13 @@ const NO_SLOT: int = -1
 const _PERCENT: float = 100.0
 
 
-## Whether [param run] is inside a Guildhall node.
+## Whether [param run] is inside a Guildhall node, or an Unknown node that became one
+## ([method CampaignRunState.node_type]).
 static func is_at_guildhall(run: CampaignRunState) -> bool:
 	return (
 			run != null and run.flow.stage == RunFlow.Stage.NODE
 			and run.graph != null and run.graph.has_node_id(run.node)
-			and run.graph.type_of(run.node) == CampaignGraph.NodeType.GUILDHALL
+			and run.node_type() == CampaignGraph.NodeType.GUILDHALL
 	)
 
 
