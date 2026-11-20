@@ -15,8 +15,8 @@ extends RefCounted
 ## and saved on entry, a card per entry priced for the seat, the same after a Save & Quit and
 ## Continue; a recruit bought by keys into an army with room; a full army's recruit by clicks (the
 ## unit replaced, the hand-over rows, Best fit, the price); a rune by pad, B backing out with no
-## pause menu, and a full slot's discard; a re-roll by keys with its price rising; and a refused card
-## saying why. Leaving is the walk's (run_all.gd), which routes; nothing here changes scene.
+## pause menu, and a full slot's discard; a re-roll by keys with its price rising; and a refused
+## card saying why. Leaving is the walk's (run_all.gd), which routes; nothing here changes scene.
 ## Writes save files, so it runs only with a test user folder; it deletes user://saves/ before and
 ## after. It never names an autoload: they are reached as nodes.
 
@@ -163,7 +163,7 @@ func _test_replace_by_mouse() -> void:
 	var confirm: Button = _starting(panel.get_choice_buttons(), "Recruit for")
 	if confirm != null:
 		_click(confirm)
-	_check.call("mouse: a place pressed changes it; Best fit restores the suggestion; it recruits", (
+	_check.call("mouse: a place pressed changes it; Best fit restores it; it recruits", (
 			scrapped and refit and confirm != null and not panel.visible
 			and seat_run.unit(leaving.instance_id) == null
 			and Fixture.is_whole(seat_run)
@@ -232,7 +232,7 @@ func _test_reroll_by_key() -> void:
 	for button: Button in panel.get_choice_buttons():
 		if button.disabled and button.text.contains("commander"):
 			commander = button
-	_check.call("keys: Re-roll lists the units with prices; a re-roll stays open, the price rises", (
+	_check.call("keys: Re-roll lists units with prices; it stays open and the price rises", (
 			panel.visible and panel.get_step() == GuildhallPanel.Step.REROLL
 			and first.ends_with("13 gold") and second.ends_with("20 gold")
 			and commander != null
@@ -260,7 +260,8 @@ func _test_refused() -> void:
 func _new_run() -> CampaignSession:
 	var err: Error = _saves.call(&"start_new_solo_run", RUN_SEED)
 	var session: CampaignSession = _session()
-	_check.call("guildhall: a new solo run starts", err == OK and session != null, error_string(err))
+	var started: bool = err == OK and session != null
+	_check.call("guildhall: a new solo run starts", started, error_string(err))
 	if session == null:
 		return null
 	session.run.seat_run(0).pending_offers.erase(StartingOffer.OFFER_KEY)

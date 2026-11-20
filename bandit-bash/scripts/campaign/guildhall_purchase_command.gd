@@ -11,10 +11,10 @@
 
 class_name GuildhallPurchaseCommand
 extends CampaignCommand
-## A seat buys one entry of the Guildhall's shared stock: a recruit ([method Guildhall.buy_recruit]),
-## replacing [member replaced_id] with its items settled by [member hand_over] when the army is
-## full, or a rune ([method Guildhall.buy_rune]), discarding the one in [member discard_slot] when
-## every slot is full.
+## A seat buys one entry of the Guildhall's shared stock: a recruit
+## ([method Guildhall.buy_recruit]), replacing [member replaced_id] with its items settled by
+## [member hand_over] when the army is full, or a rune ([method Guildhall.buy_rune]), discarding
+## the one in [member discard_slot] when every slot is full.
 ##
 ## Checked against the stock as it is on arrival, so of two seats buying one entry the first
 ## confirmed purchase gets it and the second is refused, costing nothing (game-vision.md, Co-op

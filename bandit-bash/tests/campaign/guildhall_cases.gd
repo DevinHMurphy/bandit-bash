@@ -361,7 +361,7 @@ func _test_hand_over_refusals() -> void:
 				session.run, 0, index, leaving.instance_id, two, _catalog
 		)
 	var wield_case: bool = problem.contains("both go") or problem.contains("can't wield")
-	_check("hand-over: two items for the recruit's Weapon slot, or an unwieldable weapon, refused", (
+	_check("hand-over: two items for one Weapon slot, or an unwieldable weapon, refused", (
 			wield_case
 	), problem)
 
