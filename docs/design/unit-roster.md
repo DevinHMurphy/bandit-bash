@@ -67,9 +67,10 @@ and can't be replaced by a recruit.
 |----------------------------|---------|----------|------|--------|---------------------------------|------------------------------|
 | Drengr (`drengr`) | Axe, sword | Default | — | 3 | 40/5/6/3/2/5/13 | 85/55/40/35/15 |
 
-- **Trait: Vanguard.** Phase Start, while no ally is closer to an enemy than this unit: gain 3
-  Block. It rewards leading from the front, and because the commander's fall ends a solo run, that
-  Block is a real trade, not a free bonus. "Closer" is tile distance; a tie still counts.
+- **Trait: Vanguard.** Phase Start: gain Block equal to 2 × this unit's current level, always
+  (user, November 19, 2026; it was 3 Block while no ally stood closer to an enemy). It scales with
+  the commander through the run, and because the commander's fall ends a solo run, the commander
+  can afford to lead. First-pass value, to tune in playtesting (RF-030).
 - **Commander Heirloom: Iron Heart.** Every 7th Attack made by Your Unit this combat: that attack
   heals the attacker for the damage it deals to HP.
 - **Starting weapon:** Simple Sword (the Simple Axe until the user's rebalance of November 17,
