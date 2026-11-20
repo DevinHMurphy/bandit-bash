@@ -109,7 +109,7 @@ All new sections sit in existing blocks, so no schema version changes; each sect
 | `roster` | `CAMPAIGN` | Yes | Unit and item instances: army, convoy, fallen units' items |
 | `heirlooms` | `CAMPAIGN` | Yes | Owned heirlooms and curses with campaign-lane counters |
 | `runes` | `CAMPAIGN` | Yes | The 3 rune slots |
-| `economy` | `CAMPAIGN` | Yes | Gold, the rare offset; this seat's pending offers (item pick, starting heirloom, Treasure) |
+| `economy` | `CAMPAIGN` | Yes | Gold, the rare offset; this seat's pending offers (item pick, Key combat heirloom, starting heirloom, Treasure, the Camp's choice) |
 | `battle_tally` | `COMBAT` | No | Each unit's XP actions so far in this battle |
 
 Quitting mid-node resumes at the same stage with the same offers. Purchases are saved as they happen.
@@ -156,6 +156,15 @@ Steps through RN5 give a playable loop on M1's data. Later steps need content fr
 | `ItemPlacement.convoy_capacity()` | Behaviour | The faction's max army size | `RunOperations.max_army_size()` (heirlooms and curses count) | Applied (RN6) | Placement cases | 🟢 |
 | New public classes and members | Public API | — | `RunOperations`, `RecruitOffer`, `StartingOffer`, `StartingHeirloomCommand`, `StartingHeirloomDefinition`, `TriangleChange`; `CampaignSession.starting_offer_streams()`; the offer's UI elements | Applied (RN6) | — | 🟡 |
 | `economy.pending_offers` | Save format (free-form JSON, no version change) | `combat`, `item_pick` | `+ starting_heirloom` | Applied (RN6) | save-system.md | 🟡 |
+| `CampaignFact.Kind` | Enum, appended (network contract) | Ends at `ARMY_SIZE_CHANGED=24` | `FEAST_HELD=25`, `ITEM_GIFTED=26`; `CampaignBus.ArmyChannel` gains `feast_held`, `item_gifted` | Applied (RN7) | Fact logs, bus observers, event-bus.md | 🔴 |
+| `economy.pending_offers` | Save format (free-form JSON, no version change) | `combat`, `item_pick`, `starting_heirloom` | `+ key_heirloom`, `treasure`, `camp` | Applied (RN7) | save-system.md | 🟡 |
+| `SceneRouter.Screen` | Enum, appended | Ends at `STARTING_HEIRLOOM=12` | `TREASURE=13`, `CAMP=14`; `RunScreen.of` sends Treasure and Camp nodes there | Applied (RN7) | `SCREEN_PATHS`, the UI walk, `capture_screens.gd` | 🟡 |
+| `LeaveNodeCommand` | Behaviour | Refused only at results with an open item pick | Also refused with an open Key combat heirloom, an open Treasure chest, or a Camp choice not made | Applied (RN7) | Callers that leave a Treasure or Camp | 🟡 |
+| `ItemPlacement.scrap_value()`, `held_scrap_value()` | Signature (appended optional parameters) and behaviour | The default 20% | `+ seat_run` (and `catalog` for `scrap_value`): the seat's `SCRAP_PERCENT`, so Scrapper's Tongs counts; every scrap the placement pays uses it | Applied (RN7) | Placement panel, item picker | 🟢 |
+| `HeirloomOfferCard.show_heirloom()` | Signature (widened) | `StartingHeirloomDefinition` | `HeirloomDefinition` | Applied (RN7) | Starting offer view | 🟢 |
+| Audio map, `FactCueMap.Shape` | Data, enum appended | `GAINED`, `ITEM_SCRAPPED` unmapped; the item picker sounds the take and scrap itself | `GAINED` `item_obtained`, `ITEM_SCRAPPED` `gold_rewarded`, `FEAST_HELD` `unit_heal`, `UNIT_UPGRADED` `promotion`, `NODE_CHOSEN/treasure` `treasure_map_enter` (`TREASURE_NODE=7`); the picker's direct calls gone | Applied (RN7) | assets/audio/README.md | 🟢 |
+| New input action | `project.godot` | — | `army_view` (I, pad Y) on the campaign map | Applied (RN7) | Map hints | 🟢 |
+| New public classes and members | Public API | — | `HeirloomDraw`, `TreasureChest`, `OpenTreasureCommand`, `TreasureCommand`, `KeyHeirloom`, `KeyHeirloomCommand`, `Camp`, `FeastCommand`, `TrainCommand`, `Regear`, `RegearCommand`, `ScrapItemCommand`, `GiftItemCommand`; `RunOperations.campaign_value`, `scrap_percent`, `healing_received_percent`, `scrap_problem`, `scrap`; `ItemPlacement.pay_scrap`; `CombatResultsModel.key_heirloom`; the screens' UI elements | Applied (RN7) | — | 🟡 |
 
 ## Verification
 

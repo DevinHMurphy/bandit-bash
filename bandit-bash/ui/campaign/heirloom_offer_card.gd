@@ -11,13 +11,14 @@
 
 class_name HeirloomOfferCard
 extends Button
-## One starting heirloom on offer: a pressable card with its icon, name and every line of its
-## text, its run-start bonus included ([method StartingHeirloomDefinition.describe]).
+## One heirloom on offer: a pressable card with its icon, name and every line of its text
+## ([method HeirloomDefinition.describe]; a starting heirloom's run-start bonus included).
 ##
 ## A refused heirloom ([method StartingOffer.option_problem]) says why on the card, and is
 ## disabled and out of the focus order, as [PlacementPanel] treats a choice it can't take.
-## Pressing it (click, or accept while focused) asks to take it; [StartingOfferView] passes that
-## on. It reads no input action itself.
+## Pressing it (click, or accept while focused) asks to take it; the view holding it
+## ([StartingOfferView], [KeyHeirloomPicker]) passes that on, and [ChestView] shows it unpressable.
+## It reads no input action itself.
 
 ## The card's width and least height, so three sit in a row at 1280×720 with room to spare.[br]
 ## [b]Units:[/b] base units. [b]0:[/b] sized by its text alone.
@@ -42,7 +43,7 @@ func _ready() -> void:
 ## Shows the heirloom [param definition] (content id [param heirloom_id], its name when the
 ## catalog lacks it), refused for [param refusal] when that isn't empty.
 func show_heirloom(
-		definition: StartingHeirloomDefinition, heirloom_id: String, refusal: String
+		definition: HeirloomDefinition, heirloom_id: String, refusal: String
 ) -> void:
 	heirloom_name = heirloom_id if definition == null else definition.display_name
 	problem = refusal

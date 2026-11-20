@@ -10,20 +10,20 @@
 # ==============================================================================
 
 extends Control
-## Stands in for the screen of a node that isn't fought (Treasure, Camp, Armory, Guildhall,
-## Unknown) until its own exists: names the node and lets the run move on.
+## Stands in for the screen of a node that isn't fought and has none of its own yet (Armory,
+## Guildhall, Unknown): names the node and lets the run move on.
 ##
 ## Continue sends [LeaveNodeCommand] through [method CampaignService.submit_command], which saves,
 ## and returns to the map; the node stays visited and its floor locked, and its rules never run.
-## It exists so a route through the fixed Treasure and Camp floors still reaches the Boss (Godot_FE
-## sent its unbuilt rooms to a placeholder scene the same way). Opened at any other stage, it
+## It exists so a route through those nodes still reaches the Boss (Godot_FE sent its unbuilt
+## rooms to a placeholder scene the same way). Opened at any other stage, it
 ## sends the run on at once. The [HeirloomBar] under the header shows the seat's heirlooms as the
 ## run saved them. The run's facts still to play ([CampaignPlayback]) play once Continue resolves.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 ##
-## @todo: TOD-001 - Give Treasure, Camp, Armory, Guildhall and Unknown their own screens
-## (RN7-RN10), and route each there from [method RunScreen.of].
+## @todo: TOD-001 - Give the Armory, Guildhall and Unknown their own screens (RN8-RN10), and
+## route each there from [method RunScreen.of].
 
 # ============================================================
 # INPUT MAP SETUP (built-in ui_* actions; read through the GUI, not here):
@@ -60,7 +60,7 @@ func _ready() -> void:
 	_heirlooms.show_views(HeirloomViewModel.for_run(run.seat_run(session.seats[0])))
 	_heirlooms.navigation_started.connect(_on_heirloom_bar_navigation_started)
 	_heirlooms.navigation_ended.connect(_on_heirloom_bar_navigation_ended)
-	# TODO(TOD-001): each node type's own screen (RN7-RN10) replaces this one for that type.
+	# TODO(TOD-001): each remaining node type's own screen replaces this one for that type.
 	var type_name: String = CampaignMapView.TYPE_NAMES.get(run.graph.type_of(run.node), "?")
 	_header.title = type_name
 	_title_label.text = type_name

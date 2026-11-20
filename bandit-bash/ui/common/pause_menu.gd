@@ -104,7 +104,7 @@ func open() -> void:
 	if not SteamNetwork.has_active_session():
 		get_tree().paused = true
 	_link_focus()
-	_first_button().grab_focus.call_deferred()
+	_focus_first_button.call_deferred()
 
 
 ## Hides the menu and unpauses, giving focus back to the control that had it when it opened.
@@ -127,6 +127,15 @@ func keep_focus() -> bool:
 		return false
 	_first_button().grab_focus()
 	return true
+
+
+# Focuses the first button, deferred from open() so the button is laid out first; by then the
+# menu may be closed again or its screen gone (change_scene_to_file takes the old scene out of the
+# tree at once), and then it does nothing.
+func _focus_first_button() -> void:
+	if not is_inside_tree() or not _root.visible:
+		return
+	_first_button().grab_focus()
 
 
 # The button focused when the menu opens: Save & Quit when shown, else Resume.

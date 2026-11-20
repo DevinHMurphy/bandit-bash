@@ -22,7 +22,9 @@ extends SceneTree
 ## and a lit keg, pause), the victory sequence over the board (Grade, Recap filling, a level-up,
 ## Recap, Rewards, the item picker, placement, the leave dialog), the sequence resumed over its
 ## backdrop (on Grade, then on Rewards once the pick is settled), the map's pause menu, a node
-## placeholder where one is reachable, contact sheets of every unit sprite and item icon, and the
+## placeholder where one is reachable, the map's army view, a Treasure and its leave question, a
+## Camp (the Feast's ingredients, Train's units, re-gearing, an item being moved), a Key combat's
+## Rewards and heirloom offer, contact sheets of every unit sprite and item icon, and the
 ## run's end (the run ended as lost, so it shows a lost run and its seed). Each shot is
 ## [code]<out>/<size>/<nn>_<name>.png[/code]. After the elite board come combat feedback's: the
 ## elite's mark and side shapes, a hit, a crit on an Exposed unit, Block absorbing and a Stance
@@ -50,6 +52,8 @@ const SCREEN_NEW_RUN: int = 8
 const SCREEN_MAP: int = 9
 const SCREEN_COMBAT_RESULTS: int = 10
 const SCREEN_STARTING: int = 12
+const SCREEN_TREASURE: int = 13
+const SCREEN_CAMP: int = 14
 
 # VictoryOverlay.Stage values: the script can't name the overlay, whose script names autoloads.
 const STAGE_RECAP_LEVEL_UPS: int = 2
@@ -998,16 +1002,142 @@ func _campaign_after_battle() -> void:
 	var view: CampaignMapView = current_scene.call(&"get_map_view")
 	for node_id: int in view.get_reachable():
 		var button: MapNodeButton = view.get_node_button(node_id)
-		if not FactCueMap.COMBAT_NODE_TYPES.has(button.node_type):
+		if _is_placeholder_type(button.node_type):
 			button.pressed.emit()
 			await _frames(SETTLE_FRAMES)
 			await _capture("node_placeholder")
 			(current_scene.call(&"get_continue_button") as Button).pressed.emit()
 			await _frames(SETTLE_FRAMES)
 			break
+	await _treasure_and_camp()
 	var err: Error = _node(^"SaveService").call(&"end_run", false)
 	if err != OK:
 		print("FAIL  the run did not end as lost for the run's end: %s" % [error_string(err)])
+
+
+# Whether a node of type opens the placeholder: not a combat, a Treasure or a Camp.
+func _is_placeholder_type(type: CampaignGraph.NodeType) -> bool:
+	return (
+			not FactCueMap.COMBAT_NODE_TYPES.has(type)
+			and type != CampaignGraph.NodeType.TREASURE
+			and type != CampaignGraph.NodeType.CAMP
+	)
+
+
+# From the map: the army view; a Treasure (its chest, the leave question); a Camp (its choices,
+# the Feast's ingredients, Train's units, re-gearing and an item being moved); a Key combat's
+# Results at Rewards and its heirloom offer. Each node is staged on the run (the screens route by
+# the run's stage), then left again for the map.
+func _treasure_and_camp() -> void:
+	if _router_screen() != SCREEN_MAP:
+		print("FAIL  the treasure and camp shots need the map (screen %d)" % [_router_screen()])
+		return
+	(current_scene.call(&"get_army_button") as Button).pressed.emit()
+	await _frames(SETTLE_FRAMES)
+	await _capture("map_army_view")
+	(current_scene.call(&"get_army_view") as ArmyView).close()
+	await _frames(SETTLE_FRAMES)
+	var campaign: CampaignSession = _node(^"CampaignService").get(&"session")
+	var run: CampaignRunState = campaign.run
+	if _stage_node(run, CampaignGraph.NodeType.TREASURE):
+		await _goto(SCREEN_TREASURE, "treasure")
+		(current_scene.call(&"get_leave_button") as Button).pressed.emit()
+		await _frames(SETTLE_FRAMES)
+		await _capture("treasure_leave_confirm")
+		(current_scene.call(&"get_confirm_dialog") as LeaveConfirmDialog).confirmed.emit()
+		await _frames(SETTLE_FRAMES)
+	if _stage_node(run, CampaignGraph.NodeType.CAMP):
+		var seat_run: SeatRun = run.seat_run(0)
+		var beet: String = campaign.ids.next_item_id("Heartbeet")
+		seat_run.items[beet] = ItemInstance.new(beet, "heartbeet")
+		seat_run.convoy.append(beet)
+		await _goto(SCREEN_CAMP, "camp")
+		(current_scene.call(&"get_feast_card") as Button).pressed.emit()
+		await _frames(SETTLE_FRAMES)
+		await _capture("camp_feast")
+		(current_scene.call(&"get_ingredient_panel") as IngredientPanel).cancelled.emit()
+		await _frames(SETTLE_FRAMES)
+		(current_scene.call(&"get_train_card") as Button).pressed.emit()
+		await _frames(SETTLE_FRAMES)
+		await _capture("camp_train")
+		(current_scene.call(&"get_unit_choice") as UnitChoicePanel).cancelled.emit()
+		await _frames(SETTLE_FRAMES)
+		(current_scene.call(&"get_army_button") as Button).pressed.emit()
+		await _frames(SETTLE_FRAMES)
+		await _capture("camp_army")
+		var army: ArmyView = current_scene.call(&"get_army_view")
+		army.get_rows()[0].get_slot_button(Loadout.Slot.WEAPON).pressed.emit()
+		await _frames(SETTLE_FRAMES)
+		await _capture("camp_army_moving")
+		army.close()
+		await _frames(SETTLE_FRAMES)
+		_node(^"CampaignService").call(&"submit_command", FeastCommand.new(0))
+		(current_scene.call(&"get_leave_button") as Button).pressed.emit()
+		await _frames(SETTLE_FRAMES)
+	await _key_heirloom(campaign)
+
+
+# A Key combat's Results, staged at Rewards with its heirloom offered, and the offer opened.
+func _key_heirloom(campaign: CampaignSession) -> void:
+	var run: CampaignRunState = campaign.run
+	if not _stage_node(run, CampaignGraph.NodeType.KEY):
+		return
+	var seat_run: SeatRun = run.seat_run(0)
+	run.flow.stage = RunFlow.Stage.RESULTS
+	var grades: CombatGrades = CombatGrades.new()
+	grades.base_gold = 60
+	grades.gold = 60
+	seat_run.pending_offers[CampaignRunState.COMBAT_REPORT_KEY] = {
+		"grades": grades.capture(), "xp": [], "level_ups": [],
+	}
+	var offer: KeyHeirloom = KeyHeirloom.roll(
+			RngStream.new(RUN_SEED), seat_run, EffectCatalog.index(), false
+	)
+	if offer == null:
+		print("NOTE  no heirloom is left to offer, so key_heirloom isn't shot")
+		return
+	offer.store(seat_run)
+	_node(^"SceneRouter").call(&"goto_screen", SCREEN_COMBAT_RESULTS)
+	await _frames(SETTLE_FRAMES)
+	var overlay: Node = _victory_overlay()
+	if overlay == null:
+		print("FAIL  the staged Key combat's Results showed no victory sequence")
+		return
+	overlay.call(&"skip")
+	while (overlay.call(&"get_stage") as int) < STAGE_REWARDS:
+		(overlay.call(&"get_primary_button") as Button).pressed.emit()
+		await process_frame
+	await _frames(SETTLE_FRAMES)
+	await _fade_capture("key_heirloom_rewards")
+	var rows: Array[RewardRow] = _reward_rows(overlay)
+	if not rows.is_empty():
+		rows[rows.size() - 1].pressed.emit()
+		await _frames(SETTLE_FRAMES)
+		await _fade_capture("key_heirloom_offer")
+
+
+# Puts run inside the first node of type reached from its map's floor 1, one node per floor, as
+# choosing each would (the screens route by the run's stage). Returns false, changing nothing,
+# for a map with none.
+func _stage_node(run: CampaignRunState, type: CampaignGraph.NodeType) -> bool:
+	var routes: Array[PackedInt32Array] = []
+	for start: int in run.graph.nodes_on_floor(1):
+		routes.append(PackedInt32Array([start]))
+	while not routes.is_empty():
+		var route: PackedInt32Array = routes.pop_front()
+		var last: int = route[route.size() - 1]
+		if run.graph.type_of(last) == type:
+			run.visited = route
+			run.floor_number = route.size()
+			run.node = last
+			run.flow.stage = RunFlow.Stage.NODE
+			return true
+		for child: int in run.graph.children_of(last):
+			var longer: PackedInt32Array = route.duplicate()
+			longer.append(child)
+			routes.append(longer)
+	print("NOTE  the map has no %s node to stage" % [CampaignGraph.NodeType.find_key(type)])
+	return false
 
 
 # Waits FADE_WAIT seconds of real time, then captures, so a victory stage's fade has ended.

@@ -1,0 +1,31 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/convoy_panel.gd" id="1_convoy"]
+
+[node name="ConvoyPanel" type="VBoxContainer"]
+theme_override_constants/separation = 4
+script = ExtResource("1_convoy")
+
+[node name="ConvoyTitle" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HeaderLabel"
+text = "Convoy 0 / 4"
+
+[node name="ToConvoyButton" type="Button" parent="."]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+text = "Put it in the convoy"
+
+[node name="EmptyLabel" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+text = "Empty."
+
+[node name="Rows" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4

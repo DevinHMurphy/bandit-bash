@@ -1,0 +1,204 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/camp_screen.gd" id="1_screen"]
+[ext_resource type="PackedScene" path="res://ui/campaign/run_header.tscn" id="2_header"]
+[ext_resource type="PackedScene" path="res://ui/battle/input/input_device_adapter.tscn" id="3_device"]
+[ext_resource type="Script" path="res://ui/common/screen_hints.gd" id="4_hints"]
+[ext_resource type="PackedScene" path="res://ui/battle/hud/control_hint_bar.tscn" id="5_bar"]
+[ext_resource type="PackedScene" path="res://ui/common/pause_menu.tscn" id="6_pause"]
+[ext_resource type="PackedScene" path="res://ui/campaign/camp_choice_card.tscn" id="7_card"]
+[ext_resource type="PackedScene" path="res://ui/campaign/ingredient_panel.tscn" id="8_ingredients"]
+[ext_resource type="PackedScene" path="res://ui/common/heirlooms/heirloom_bar.tscn" id="9_heirlooms"]
+[ext_resource type="PackedScene" path="res://ui/campaign/unit_choice_panel.tscn" id="10_units"]
+[ext_resource type="PackedScene" path="res://ui/campaign/army_view.tscn" id="11_army"]
+
+[node name="CampScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_screen")
+
+[node name="Layout" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 56
+
+[node name="Column" type="VBoxContainer" parent="Layout"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="RunHeader" parent="Layout/Column" instance=ExtResource("2_header")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="HeirloomBar" parent="Layout/Column" instance=ExtResource("9_heirlooms")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+handles_focus_input = true
+
+[node name="Center" type="CenterContainer" parent="Layout/Column"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+
+[node name="Box" type="VBoxContainer" parent="Layout/Column/Center"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="Layout/Column/Center/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"TitleLabel"
+text = "Camp"
+horizontal_alignment = 1
+
+[node name="Note" type="Label" parent="Layout/Column/Center/Box"]
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+text = "Choose one: Feast or Train. Re-gear the army freely alongside."
+horizontal_alignment = 1
+
+[node name="Choices" type="HBoxContainer" parent="Layout/Column/Center/Box"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="FeastCard" parent="Layout/Column/Center/Box/Choices" instance=ExtResource("7_card")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="TrainCard" parent="Layout/Column/Center/Box/Choices" instance=ExtResource("7_card")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Status" type="Label" parent="Layout/Column/Center/Box"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(616, 0)
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Buttons" type="HBoxContainer" parent="Layout/Column/Center/Box"]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="ArmyButton" type="Button" parent="Layout/Column/Center/Box/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 36)
+layout_mode = 2
+text = "Re-gear the army"
+
+[node name="LeaveButton" type="Button" parent="Layout/Column/Center/Box/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 36)
+layout_mode = 2
+theme_type_variation = &"PrimaryButton"
+text = "Leave"
+
+[node name="IngredientPanel" parent="." instance=ExtResource("8_ingredients")]
+unique_name_in_owner = true
+layout_mode = 1
+
+[node name="TrainOverlay" type="Control" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TrainBackdrop" type="ColorRect" parent="TrainOverlay"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Center" type="CenterContainer" parent="TrainOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Panel" type="PanelContainer" parent="TrainOverlay/Center"]
+layout_mode = 2
+theme_type_variation = &"FloatingPanel"
+
+[node name="Margin" type="MarginContainer" parent="TrainOverlay/Center/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="UnitChoicePanel" parent="TrainOverlay/Center/Panel/Margin" instance=ExtResource("10_units")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ArmyView" parent="." instance=ExtResource("11_army")]
+unique_name_in_owner = true
+layout_mode = 1
+
+[node name="InputDeviceAdapter" parent="." instance=ExtResource("3_device")]
+
+[node name="ScreenHints" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("4_hints")
+actions = Dictionary[StringName, PackedStringArray]({
+&"CHOOSE": PackedStringArray("ui_left", "ui_right", "ui_accept", "heirloom_bar_focus", "ui_cancel"),
+&"ASK": PackedStringArray("ui_up", "ui_down", "ui_accept", "ui_cancel"),
+&"ARMY": PackedStringArray("ui_up", "ui_down", "ui_accept", "ui_cancel"),
+&"HEIRLOOMS": PackedStringArray("ui_left", "ui_right", "ui_cancel", "heirloom_bar_focus")
+})
+
+[node name="ControlHintBar" parent="." node_paths=PackedStringArray("controller", "device") instance=ExtResource("5_bar")]
+unique_name_in_owner = true
+layout_mode = 1
+controller = NodePath("../ScreenHints")
+device = NodePath("../InputDeviceAdapter")
+right_margin = 8.0
+labels = Dictionary[String, String]({
+"CHOOSE/ui_accept": "Choose",
+"CHOOSE/ui_cancel": "Pause",
+"ASK/ui_accept": "Choose",
+"ASK/ui_cancel": "Back",
+"ARMY/ui_accept": "Pick up / Put down",
+"ARMY/ui_cancel": "Back",
+"HEIRLOOMS/heirloom_bar_focus": "Close",
+"HEIRLOOMS/ui_cancel": "Close",
+"HEIRLOOMS/ui_left": "Choose",
+"HEIRLOOMS/ui_right": "Choose",
+"PAUSED/ui_cancel": "Resume",
+"PAUSED/ui_down": "Choose",
+"PAUSED/ui_up": "Choose",
+"ui_accept": "Select",
+"heirloom_bar_focus": "Heirlooms",
+"ui_cancel": "Back",
+"ui_down": "Move",
+"ui_left": "Move",
+"ui_right": "Move",
+"ui_up": "Move"
+})
+
+[node name="PauseMenu" parent="." instance=ExtResource("6_pause")]

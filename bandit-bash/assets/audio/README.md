@@ -52,14 +52,16 @@ keep whatever plays.
 | `sounds/combat/attack/crit_sound.ogg` | same | `crit_sound` | A critical hit, over the hit's impact (`CRIT_DEALT`) |
 | `sounds/combat/weapon_break.ogg` | same | `weapon_break` | A unit's Stance broken, Exposed (`EXPOSED`; weapon durability, its first use, isn't in the game) |
 | `sounds/ui/inventory/shield_equip.ogg` | same | `block_gained` | Block gained outside a refresh (`BLOCK_GAINED`), on the SFX bus: a second cue on the shield's file, as combat sounds stay off the UI bus |
-| `sounds/combat/heal.wav` | same | `unit_heal` | A unit healed (`HEALED`) |
+| `sounds/combat/heal.wav` | same | `unit_heal` | A unit healed (`HEALED`); a Camp's Feast, once for the whole army (`FEAST_HELD`) |
 | `sounds/combat/Friendly_unit_die.ogg` | same | `friendly_unit_die` | A player unit defeated (`DEFEATED/player_actor`) |
 | `sounds/combat/level_win.ogg` | same | `level_win` | The battle won (`COMBAT_ENDED/player_side`) |
-| `sounds/combat/rewards/gold_rewarded.ogg` | same | `gold_rewarded` | The victory's Grade stage (gold collected); scrapping the item pick |
-| `sounds/combat/rewards/item_obtained.ogg` | same | `item_obtained` | Taking the item pick, equipped or to the convoy |
+| `sounds/combat/rewards/gold_rewarded.ogg` | same | `gold_rewarded` | The victory's Grade stage (gold collected); every scrap (`ITEM_SCRAPPED`: an item at pickup, a convoy item) |
+| `sounds/combat/rewards/item_obtained.ogg` | same | `item_obtained` | An item, heirloom or rune gained (`GAINED`): the item pick, a Treasure chest, a Key combat's heirloom, the starting heirloom |
 | `sounds/ui/level_up/level_up.ogg` | same | `level_up` | Each level-up card in the victory recap: the card plays its `LEVELED_UP` fact (`CampaignPlayback`), which the campaign listener sounds once. A resumed recap's cards are silent (the fact log isn't saved) |
 | `sounds/ui/campaign_map/battle_map_enter.ogg` | same | `battle_map_enter` | Choosing a combat node, Standard, Key or Boss (`NODE_CHOSEN/combat`, as Godot_FE's battle rooms) |
 | `sounds/ui/overworld/begin_campaign.ogg` | same | `begin_campaign` | A new run's map first showing (`RUN_STARTED`, Godot_FE's campaign start); a continued run doesn't sound it |
+| `sounds/ui/campaign_map/treasure_map_enter.ogg` | same | `treasure_map_enter` | Choosing a Treasure node (`NODE_CHOSEN/treasure`, as Godot_FE's treasure room) |
+| `sounds/ui/promotion/promotion.ogg` | same | `promotion` | A unit upgraded (`UNIT_UPGRADED`): a Camp's Train, Veteran Company (Godot_FE's promotion) |
 
 The fact rules are `res://data/audio/maps/combat_facts.tres` and `campaign_facts.tres`. The music is
 `res://data/audio/maps/music.tres`.
@@ -77,7 +79,6 @@ The fact rules are `res://data/audio/maps/combat_facts.tres` and `campaign_facts
 | `sounds/ui/level_up/level_up_point.ogg` | same | `level_up_point` | Unmapped: waits for a level-up card that reveals gains one by one |
 | `sounds/ui/level_up/experience_point.ogg` | same | `experience_point` | Unmapped: UL5 dropped the XP tick |
 | `sounds/ui/campaign_map/event_map_enter.ogg` | same | `event_map_enter` | Unmapped: waits for the ? node's events (P09) |
-| `sounds/ui/campaign_map/treasure_map_enter.ogg` | same | `treasure_map_enter` | Unmapped: waits for the Treasure node (RN7) |
 | `sounds/ui/campaign_map/recruit_map_enter.ogg` | same | `recruit_map_enter` | Unmapped: waits for recruiting (the Guildhall, RN9) |
 | `sounds/ui/draft/draft_hover.ogg` | same | `draft_hover` | Unmapped: waits for a draft screen |
 | `sounds/ui/draft/draft_confirm.ogg` | same | `draft_confirm` | Unmapped: waits for a draft screen |
@@ -98,7 +99,6 @@ The fact rules are `res://data/audio/maps/combat_facts.tres` and `campaign_facts
 | `sounds/ui/inventory/store_item.ogg` | same | `store_item` | Unmapped: waits for the convoy screen |
 | `sounds/ui/inventory/potion_use.ogg` | same | `potion_use` | Unmapped: waits for UL6's Pouch item use |
 | `sounds/ui/graveyard/resurrect.ogg` | same | `resurrect` | Unmapped: waits for resurrection |
-| `sounds/ui/promotion/promotion.ogg` | same | `promotion` | Unmapped: waits for promotion |
 
 Summary: 62 files, 64 cues (`ui_refused` reuses `menu_back.ogg`, `block_gained` `shield_equip.ogg`). In use: 7
-tracks and 25 sound cues (24 files). Unmapped: 1 track and 31 sounds.
+tracks and 27 sound cues (26 files). Unmapped: 1 track and 29 sounds.

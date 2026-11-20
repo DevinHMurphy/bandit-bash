@@ -9,6 +9,7 @@
 [ext_resource type="PackedScene" path="res://ui/battle/hud/control_hint_bar.tscn" id="7_bar"]
 [ext_resource type="PackedScene" path="res://ui/common/pause_menu.tscn" id="8_pause"]
 [ext_resource type="PackedScene" path="res://ui/common/heirlooms/heirloom_bar.tscn" id="9_heirlooms"]
+[ext_resource type="PackedScene" path="res://ui/campaign/army_view.tscn" id="10_army"]
 
 [node name="CampaignMapScreen" type="Control"]
 layout_mode = 3
@@ -91,13 +92,25 @@ unique_name_in_owner = true
 layout_mode = 2
 autowrap_mode = 3
 
+[node name="ArmyButton" type="Button" parent="Layout/Column/Body/Side"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+focus_mode = 0
+text = "Army"
+
+[node name="ArmyView" parent="." instance=ExtResource("10_army")]
+unique_name_in_owner = true
+layout_mode = 1
+
 [node name="InputDeviceAdapter" parent="." instance=ExtResource("5_device")]
 
 [node name="ScreenHints" type="Node" parent="."]
 unique_name_in_owner = true
 script = ExtResource("6_hints")
 actions = Dictionary[StringName, PackedStringArray]({
-&"MAP": PackedStringArray("ui_left", "ui_right", "ui_accept", "heirloom_bar_focus", "ui_cancel"),
+&"MAP": PackedStringArray("ui_left", "ui_right", "ui_accept", "army_view", "heirloom_bar_focus", "ui_cancel"),
+&"ARMY": PackedStringArray("ui_up", "ui_down", "ui_accept", "ui_cancel"),
 &"HEIRLOOMS": PackedStringArray("ui_left", "ui_right", "ui_cancel", "heirloom_bar_focus")
 })
 
@@ -110,6 +123,9 @@ right_margin = 8.0
 labels = Dictionary[String, String]({
 "MAP/ui_accept": "Choose",
 "MAP/ui_cancel": "Pause",
+"ARMY/ui_accept": "Scrap",
+"ARMY/ui_cancel": "Close",
+"army_view": "Army",
 "HEIRLOOMS/heirloom_bar_focus": "Close",
 "HEIRLOOMS/ui_cancel": "Close",
 "HEIRLOOMS/ui_left": "Choose",

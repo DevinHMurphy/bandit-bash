@@ -1,0 +1,39 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/unit_gear_row.gd" id="1_row"]
+
+[node name="UnitGearRow" type="HBoxContainer"]
+theme_override_constants/separation = 8
+script = ExtResource("1_row")
+
+[node name="NameLabel" type="Label" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(210, 0)
+layout_mode = 2
+theme_type_variation = &"BodyLabel"
+text = "Unit · HP 20/20"
+clip_text = true
+
+[node name="WeaponSlot" type="Button" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(190, 36)
+layout_mode = 2
+text = "Weapon: —"
+alignment = 0
+clip_text = true
+
+[node name="EquipmentSlot" type="Button" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(190, 36)
+layout_mode = 2
+text = "Equipment: —"
+alignment = 0
+clip_text = true
+
+[node name="PouchSlot" type="Button" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(190, 36)
+layout_mode = 2
+text = "Pouch: —"
+alignment = 0
+clip_text = true

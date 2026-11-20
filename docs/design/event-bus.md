@@ -52,10 +52,10 @@ A fact is one thing that happened, in the past tense, carrying ids and never obj
   | 2 | `LEVELED_UP` | The battle's results ([CampaignRunState.apply_battle](../../bandit-bash/scripts/campaign/campaign_run_state.gd)) |
   | 3, 4 | `EFFECT_ACTIVATED`, `COUNTER_CHANGED` | Reserved: no campaign engine records them yet |
   | 5–7 | `RUN_STARTED`, `NODE_CHOSEN`, `NODE_LEFT` | The run's start and the campaign commands |
-  | 8, 9 | `ITEM_EQUIPPED`, `ITEM_SCRAPPED` | Item placement and the item pick; `ITEM_EQUIPPED` also `RunOperations.dismiss` (no `target_id`: to the convoy) |
-  | 10 | `GOLD_CHANGED` | Event outcomes (`definition_id` is the event), `RunOperations.grant_gold` (War Chest) |
-  | 11 | `HP_CHANGED` | Event outcomes, `RunOperations.upgrade` (a hurt unit's max-HP gain) |
-  | 12 | `UNIT_CHANGED` | Event outcomes: a stat, max HP, a pending level-up gain or a prefix |
+  | 8, 9 | `ITEM_EQUIPPED`, `ITEM_SCRAPPED` | Item placement and the item pick; `ITEM_EQUIPPED` also `RunOperations.dismiss` (no `target_id`: to the convoy) and re-gearing at a Camp (`Regear`), `ITEM_SCRAPPED` also `RunOperations.scrap` (a convoy item) |
+  | 10 | `GOLD_CHANGED` | Event outcomes (`definition_id` is the event), `RunOperations.grant_gold` (War Chest; a Treasure chest's gold, `treasure`) |
+  | 11 | `HP_CHANGED` | Event outcomes, `RunOperations.upgrade` (a hurt unit's max-HP gain), a Camp's Feast (`camp_feast`) |
+  | 12 | `UNIT_CHANGED` | Event outcomes: a stat, max HP, a pending level-up gain or a prefix; a Feast's cooked ingredient (`amount` its Hit) |
   | 13 | `ITEM_MODIFIED` | Event outcomes: a granted effect, stat deltas or a weapon prefix |
   | 14 | `UNIT_REVIVED` | Event outcomes (the revive shrine) |
   | 15 | `RUNE_DISCARDED` | Event outcomes: a rune left its slot to make room |
@@ -66,8 +66,10 @@ A fact is one thing that happened, in the past tense, carrying ids and never obj
   | 20 | `TEAM_OPTION_DRAWN` | `EventVoteCommand`, on the vote that completes the set: the votes drew the option (`amount`); belongs to no seat |
   | 21 | `UNIT_RECRUITED` | `RunOperations.recruit` and `replace` (Abundance, Mercenary Contract); `target_id` the unit replaced |
   | 22 | `UNIT_DISMISSED` | `RunOperations.dismiss` and `replace`: a living unit left for good, its items to the convoy first (`ITEM_EQUIPPED` each) |
-  | 23 | `UNIT_UPGRADED` | `RunOperations.upgrade` (Veteran Company) |
+  | 23 | `UNIT_UPGRADED` | `RunOperations.upgrade` (Veteran Company; a Camp's Train, `camp_train`) |
   | 24 | `ARMY_SIZE_CHANGED` | `RunOperations.grant_heirloom` when the heirloom moved max army size (Abundance); `amount` the change |
+  | 25 | `FEAST_HELD` | `FeastCommand`: a seat held a Camp's Feast, cooking the actor (empty: none); the heals and cooked gains follow |
+  | 26 | `ITEM_GIFTED` | `GiftItemCommand`: a seat gave a convoy item to the convoy of seat `amount` (co-op, at a Camp) |
 
 - **Paired triggers are two facts.** A hit records `HIT_DEALT`, then `HIT_TAKEN`. `actor_id` is
   always the unit the kind is about, the one an effect's scope tests; `target_id` is the other
