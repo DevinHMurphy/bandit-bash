@@ -6,7 +6,7 @@
 # File:     mini_boss_cases.gd
 # Author:
 # Created:  November 18, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -68,6 +68,8 @@ func run() -> void:
 	_test_fortify()
 	_test_hex_storm()
 	_test_blood_scent()
+	_test_blood_scent_wait()
+	_test_second_move_commands()
 
 
 func _test_catalog_mini_bosses() -> void:
@@ -370,6 +372,67 @@ func _test_blood_scent() -> void:
 	_check.call("blood scent: with no kill in reach, no signature", (
 			turn_2 != null and turn_2.kind != EnemyIntent.Kind.SIGNATURE
 	), "" if turn_2 == null else turn_2.describe())
+
+
+# Blood Scent with no better tile than its own: the Bloodhound kills from where it stands, already
+# beside its next foe, so its second move is a Wait. The Wait's command builds, it waits, and the
+# enemy phase carries on into turn 2's player phase with no fault.
+func _test_blood_scent_wait() -> void:
+	var world: AiWorld = _world(_rows(3, 1), ForecastRolls.new())
+	world.add_player("p2", Vector2i(0, 0), "sword", STURDY)
+	world.add_enemy("e1", "bloodhound", Vector2i(1, 0))
+	world.add_player("p1", Vector2i(2, 0), "sword", {CombatValue.Key.HP: 1.0})
+	world.session.open_battle()
+	var before: int = world.engine().fact_log.size()
+	var diagnostics: int = world.engine().diagnostics.size()
+	_send(world.session, EndTurnCommand.new(0))
+	var moves: int = 0
+	var waits: int = 0
+	for index: int in range(before, world.engine().fact_log.size()):
+		var fact: CombatFact = world.engine().fact_log[index]
+		if fact.actor_id != "e1":
+			continue
+		if fact.kind == CombatFact.Kind.UNIT_MOVED:
+			moves += 1
+		elif fact.kind == CombatFact.Kind.UNIT_WAITED:
+			waits += 1
+	var faults: PackedStringArray = world.engine().diagnostics.slice(diagnostics)
+	_check.call("blood scent: a second move that ends in a Wait waits, and the phase carries on", (
+			not world.state().has_unit("p1")
+			and world.state().tile_of("e1") == Vector2i(1, 0)
+			and moves == 0
+			and waits == 1
+			and world.state().turn == 2
+			and world.state().phase_side == PLAYER
+			and faults.is_empty()
+	), "turn %d, %d moves, %d waits; %s" % [world.state().turn, moves, waits, faults])
+
+
+# A second move's plan as its command: a Wait builds with an empty path, an advance as a Move along
+# the plan's path; neither names a target.
+func _test_second_move_commands() -> void:
+	var wait_plan: EnemyPlan = EnemyPlan.new()
+	wait_plan.actor_id = "e1"
+	wait_plan.is_second_move = true
+	var waits: UnitTurnCommand = wait_plan.to_command()
+	_check.call("second move: a Wait plan builds a Wait command with an empty path", (
+			waits != null
+			and waits.action == UnitTurnCommand.Action.WAIT
+			and waits.path.is_empty()
+			and waits.target_id.is_empty()
+	), "null" if waits == null else "%s, %s" % [waits.get_label(), waits.path])
+	var move_plan: EnemyPlan = EnemyPlan.new()
+	move_plan.actor_id = "e1"
+	move_plan.kind = EnemyPlan.Kind.ADVANCE
+	move_plan.path = [Vector2i(1, 0), Vector2i(2, 0)]
+	move_plan.is_second_move = true
+	var moves: UnitTurnCommand = move_plan.to_command()
+	_check.call("second move: an advance builds a Move command along its path", (
+			moves != null
+			and moves.action == UnitTurnCommand.Action.MOVE
+			and moves.path == move_plan.path
+			and moves.target_id.is_empty()
+	), "null" if moves == null else "%s, %s" % [moves.get_label(), moves.path])
 
 
 # The mini-bosses of a run's key combats from index from to index to - 1, as the campaign session

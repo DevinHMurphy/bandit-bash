@@ -6,7 +6,7 @@
 # File:     enemy_plan.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 18, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name EnemyPlan
@@ -172,11 +172,13 @@ func to_command() -> UnitTurnCommand:
 	var action: UnitTurnCommand.Action = UnitTurnCommand.Action.WAIT
 	var command_target: String = ""
 	if is_second_move:
+		# Typed, not a bare [] in a ternary: an untyped Array fails the constructor's
+		# Array[Vector2i] at runtime, and the command comes back null.
+		var walk: Array[Vector2i] = []
 		if kind == Kind.ADVANCE and not path.is_empty():
 			action = UnitTurnCommand.Action.MOVE
-		return UnitTurnCommand.new(
-				-1, actor_id, action, "", path if action == UnitTurnCommand.Action.MOVE else []
-		)
+			walk = path
+		return UnitTurnCommand.new(-1, actor_id, action, "", walk)
 	if kind == Kind.ATTACK:
 		action = UnitTurnCommand.Action.ATTACK
 		command_target = target_id
