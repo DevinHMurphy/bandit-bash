@@ -6,13 +6,14 @@
 # File:     event_choice.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name EventChoice
 extends RefCounted
 ## What a player picked after choosing an event option: the unit or weapon its blocks act on,
-## where each new item goes, and the rune slot to free when every slot is full.
+## where each new item goes, the rune slot to free when every slot is full, and the unit to
+## dismiss when a recruit or a revived unit joins a full army.
 ##
 ## Plain data with ids only, filled in by the event screen's choosers and checked by
 ## [EventResolver] against the run as it stands.
@@ -36,6 +37,11 @@ var placements: Dictionary[int, ItemPlacement] = {}
 ## The rune slot emptied for a new rune when every slot holds one; [constant NO_SLOT] when a slot
 ## is free.
 var rune_discard_slot: int = NO_SLOT
+
+## Instance id of the living unit that leaves the army for good, its items to the convoy, so a
+## recruit or a revived unit can join a full army (recruiting past the max). Never the commander.
+## [b]Empty:[/b] none; needed exactly when the army is full.
+var replaced_id: String = ""
 
 
 func _init(chosen_unit_id: String = "", chosen_weapon_id: String = "") -> void:

@@ -6,7 +6,7 @@
 # File:     run_state_cases.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -367,9 +367,10 @@ func _test_save_and_reload() -> void:
 			attached == ERR_DOES_NOT_EXIST
 	), error_string(attached))
 	var expected_versions: String = (
-			"campaign_map 1, run_flow 1; economy 2, heirlooms 1, roster 1, runes 1"
+			"campaign_map 1, run_flow 1; economy 2, heirlooms 2, roster 1, runes 1"
 	)
-	_check("save: every section is at its version in the campaign block, economy at 2", (
+	_check("save: every section is at its version in the campaign block, economy and heirlooms "
+			+ "at 2", (
 			_versions(saved) == expected_versions
 	), _versions(saved))
 	_check("save: the run reloads identically, part by part", (

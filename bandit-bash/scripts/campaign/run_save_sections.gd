@@ -6,7 +6,7 @@
 # File:     run_save_sections.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name RunSaveSections
@@ -14,8 +14,8 @@ extends RefCounted
 ## The save sections of a run's [CampaignRunState] in the [code]CAMPAIGN[/code] block:
 ## [code]campaign_map[/code] and [code]run_flow[/code] ([SaveSection]s), and per seat
 ## [code]roster[/code], [code]heirlooms[/code], [code]runes[/code] and [code]economy[/code]
-## ([PlayerSaveSection]s): [code]economy[/code] at [constant ECONOMY_VERSION], the rest at
-## [constant VERSION].
+## ([PlayerSaveSection]s): [code]economy[/code] at [constant ECONOMY_VERSION],
+## [code]heirlooms[/code] at [constant HEIRLOOMS_VERSION], the rest at [constant VERSION].
 ## [code]CampaignService[/code] registers them, map before flow.[br]
 ## [b]Load order:[/b] sections restore before the run's session exists, so each only checks its data
 ## and holds it; [method attach] builds the session's [member CampaignSession.run] from it.
@@ -42,8 +42,13 @@ enum Part {
 	ECONOMY,
 }
 
-## The data version of every section but [code]economy[/code] ([constant ECONOMY_VERSION]).
+## The data version of every section but [code]economy[/code] ([constant ECONOMY_VERSION]) and
+## [code]heirlooms[/code] ([constant HEIRLOOMS_VERSION]).
 const VERSION: int = 1
+
+## The [code]heirlooms[/code] section's data version. 2: it carries the seat's value changes
+## ([member SeatRun.value_changes]); a version 1 section has none and reads as it is.
+const HEIRLOOMS_VERSION: int = 2
 
 ## The [code]economy[/code] section's data version. 2: the combat report in its pending offers
 ## carries each unit's battle stats ([constant CampaignRunState.COMBAT_REPORT_KEY]); a version 1
@@ -262,12 +267,18 @@ class SeatSection:
 		return _KEYS[_part]
 
 	func get_version() -> int:
-		return ECONOMY_VERSION if _part == Part.ECONOMY else VERSION
+		match _part:
+			Part.ECONOMY:
+				return ECONOMY_VERSION
+			Part.HEIRLOOMS:
+				return HEIRLOOMS_VERSION
+		return VERSION
 
-	## [code]economy[/code] from version 1 needs no change: a combat report without stats reads
-	## as one with none. Every other part has no older version.
+	## [code]economy[/code] and [code]heirlooms[/code] from version 1 need no change: a combat
+	## report without stats reads as one with none, and heirlooms without value changes as a seat
+	## with none. Every other part has no older version.
 	func migrate(data: Dictionary, from_version: int) -> Error:
-		if _part == Part.ECONOMY and from_version == 1:
+		if (_part == Part.ECONOMY or _part == Part.HEIRLOOMS) and from_version == 1:
 			return OK
 		return super(data, from_version)
 

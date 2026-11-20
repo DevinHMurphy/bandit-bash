@@ -6,7 +6,7 @@
 # File:     seat_run.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 13, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name SeatRun
@@ -16,7 +16,8 @@ extends RefCounted
 ## ([CampaignRunState], [RunFlow]).
 ##
 ## Pure data with ids only, saved per player as four sections: [code]roster[/code],
-## [code]heirlooms[/code], [code]runes[/code] and [code]economy[/code], each through its
+## [code]heirlooms[/code] (with the seat's [member value_changes]), [code]runes[/code] and
+## [code]economy[/code], each through its
 ## [code]capture_*[/code] and [code]restore_*[/code] pair. A restore checks everything first and
 ## changes nothing on error. [b]Roster invariant:[/b] [member items] holds exactly the items in the
 ## army's and fallen units' slots and the convoy, each in one place; a fallen unit keeps its items
@@ -54,6 +55,11 @@ const _KEY_DEFINITION: String = "definition_id"
 const _KEY_GOLD: String = "gold"
 const _KEY_RARE_OFFSET: String = "rare_offset"
 const _KEY_PENDING_OFFERS: String = "pending_offers"
+const _KEY_VALUE_CHANGES: String = "value_changes"
+const _KEY_VALUE_KEY: String = "key"
+const _KEY_AMOUNT: String = "amount"
+const _KEY_SOURCE: String = "source_id"
+const _KEY_LABEL: String = "label"
 
 ## The seat this belongs to; solo is 0.
 var seat: int = 0
@@ -80,6 +86,11 @@ var items: Dictionary[String, ItemInstance] = {}
 ## Heirlooms and curses the seat owns, in the order gained. A second copy is a second entry, and
 ## both apply.
 var heirlooms: Array[OwnedHeirloom] = []
+
+## Permanent changes to the seat's own campaign values that no heirloom carries, in the order made,
+## such as an event's +1 max army size (the Company Charter). [RunOperations] adds each to the
+## seat's value reads. Saved with the heirlooms.
+var value_changes: Array[ValueChange] = []
 
 ## The rune slots, always [constant RUNE_SLOT_COUNT] of them; an empty slot has empty ids.
 var rune_slots: Array[RuneSlot] = []
@@ -180,7 +191,18 @@ func restore_roster(data: Dictionary) -> Error:
 	return OK
 
 
-## The heirlooms as plain JSON, for the [code]heirlooms[/code] section.
+## Adds a permanent change of [param amount] to the seat's campaign value [param key]
+## ([enum CampaignValue.Key]), sourced to [param source_id] and named [param label] in breakdowns.
+func add_value_change(
+		key: int, amount: float, source_id: String, label: String
+) -> ValueChange:
+	var change: ValueChange = ValueChange.new(key, amount, source_id, label)
+	value_changes.append(change)
+	return change
+
+
+## The heirlooms and [member value_changes] as plain JSON, for the [code]heirlooms[/code]
+## section; each change names its key as saved data does ([method Modifier.key_id]).
 func capture_heirlooms() -> Dictionary:
 	var entries: Array = []
 	for owned: OwnedHeirloom in heirlooms:
@@ -189,14 +211,25 @@ func capture_heirlooms() -> Dictionary:
 			_KEY_COUNTERS: owned.counters.duplicate(),
 			_KEY_CHARGES: owned.charges.duplicate(),
 		})
-	return {_KEY_ENTRIES: entries}
+	var changes: Array = []
+	for change: ValueChange in value_changes:
+		changes.append({
+			_KEY_VALUE_KEY: Modifier.key_id(change.key),
+			_KEY_AMOUNT: change.amount,
+			_KEY_SOURCE: change.source_id,
+			_KEY_LABEL: change.label,
+		})
+	return {_KEY_ENTRIES: entries, _KEY_VALUE_CHANGES: changes}
 
 
-## Takes the heirloom [param data], as [method capture_heirlooms] wrote it, copies included.
-## Returns [constant ERR_INVALID_DATA], changing nothing, for an entry without a content id.
+## Takes the heirloom [param data], as [method capture_heirlooms] wrote it, copies included; data
+## without value changes (a version 1 section) has none. Returns [constant ERR_INVALID_DATA],
+## changing nothing, for an entry without a content id, or a change whose key isn't a campaign
+## value or whose amount isn't a number.
 func restore_heirlooms(data: Dictionary) -> Error:
 	var entries: Variant = data.get(_KEY_ENTRIES)
-	if not entries is Array:
+	var change_data: Variant = data.get(_KEY_VALUE_CHANGES, [])
+	if not entries is Array or not change_data is Array:
 		return _refuse("heirlooms", data)
 	var read: Array[OwnedHeirloom] = []
 	for entry: Variant in entries as Array:
@@ -210,7 +243,16 @@ func restore_heirlooms(data: Dictionary) -> Error:
 		owned.counters = ItemInstance.read_counts(entry_data.get(_KEY_COUNTERS, {}))
 		owned.charges = ItemInstance.read_counts(entry_data.get(_KEY_CHARGES, {}))
 		read.append(owned)
+	var read_changes: Array[ValueChange] = []
+	for entry: Variant in change_data as Array:
+		var change: ValueChange = (
+				ValueChange.restore(entry as Dictionary) if entry is Dictionary else null
+		)
+		if change == null:
+			return _refuse("heirlooms", data)
+		read_changes.append(change)
 	heirlooms = read
+	value_changes = read_changes
 	return OK
 
 
@@ -381,6 +423,48 @@ class OwnedHeirloom:
 
 	func _init(id: String = "") -> void:
 		heirloom_id = id
+
+
+## One permanent change to a seat's campaign value, made by an event rather than carried by an
+## heirloom: added to the value, as a modifier named after its source.
+class ValueChange:
+	extends RefCounted
+
+	## The [enum CampaignValue.Key] changed, such as [constant CampaignValue.Key.MAX_ARMY_SIZE].
+	var key: int = CampaignValue.Key.MAX_ARMY_SIZE
+	## The change, added to the value; negative lowers it. [b]Units:[/b] the key's own.
+	var amount: float = 0.0
+	## Content id of what made it, such as an event's id. Never parsed.
+	var source_id: String = ""
+	## Display name of what made it, as breakdowns name it.
+	var label: String = ""
+
+	func _init(
+			value_key: int = CampaignValue.Key.MAX_ARMY_SIZE,
+			change: float = 0.0,
+			source: String = "",
+			source_label: String = ""
+	) -> void:
+		key = value_key
+		amount = change
+		source_id = source
+		label = source_label
+
+	## The change [param data] describes, as [method SeatRun.capture_heirlooms] wrote it; null
+	## when its key isn't a campaign value, its amount isn't a number, or a name isn't text.
+	static func restore(data: Dictionary) -> ValueChange:
+		var value_key: int = Modifier.key_from_id(str(data.get(_KEY_VALUE_KEY, "")))
+		var number: Variant = data.get(_KEY_AMOUNT)
+		var source: Variant = data.get(_KEY_SOURCE)
+		var source_label: Variant = data.get(_KEY_LABEL)
+		if (
+				not CampaignValue.Key.values().has(value_key)
+				or not (number is float or number is int)
+				or not source is String or not source_label is String
+		):
+			return null
+		var change: float = number
+		return ValueChange.new(value_key, change, source as String, source_label as String)
 
 
 ## One rune slot: the rune's instance id and content id, both empty when the slot is.

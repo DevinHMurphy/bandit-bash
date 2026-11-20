@@ -300,7 +300,7 @@ after `instance_ids`, the map before the flow
 | `campaign_map` | No | 1 | `graph` (`CampaignGraph.to_dict()`), `visited` node ids from floor 1, `floor` (0 before the first node), `node` (-1 before it) |
 | `run_flow` | No | 1 | `stage` (`"map"`, `"node"` or `"results"`, a won combat's rewards waiting), `unknown_odds` (percent by outcome id), `used_maps`, `shop_stock`; empty means base odds, none used, nothing rolled. Inside an Armory, `shop_stock.armory` is the stock every seat shares, rolled on entry and cleared when the node is left: `entries` of `{category` (`"weapon"`, `"equipment"`, `"trinket"`, `"consumable"` or `"heirloom"`), `definition_id`, `instance_id` (empty for an heirloom), `is_shop_slot`, `buyer` (the seat that bought it, -1 while for sale)`}`. No version change: the stock is free-form JSON |
 | `roster` | Yes | 1 | `faction_id`, `commander_id`, `army` and `fallen` (units, `UnitInstance.capture()`), `convoy` (item ids), `items` (every item the seat holds, by id) |
-| `heirlooms` | Yes | 1 | `entries` in gain order: `heirloom_id`, `counters`, `charges`; a second copy (a repeated curse) is a second entry |
+| `heirlooms` | Yes | 2 | `entries` in gain order: `heirloom_id`, `counters`, `charges`; a second copy (a repeated curse) is a second entry. `value_changes` in the order made: the seat's own campaign value changes that no heirloom carries, each `{key, amount, source_id, label}` (`key` as `Modifier.key_id()` names it, a `campaign.` key; `amount` added to the value), such as an event's `campaign.MAX_ARMY_SIZE` +1 (the Company Charter), which `RunOperations` adds to the seat's reads |
 | `runes` | Yes | 1 | `slots`: exactly 3, each `{}` or `{instance_id, definition_id}` |
 | `economy` | Yes | 2 | `gold` (0 or more), `rare_offset` (whole percentage points, -5 to +40, starting at -5), `pending_offers`: at a combat's results, `combat` (the report: `grades`, `xp` per unit, `level_ups`, and `stats`: each seat unit that fought, fallen ones too, by id, as `battle_stats` names them) and `item_pick` (`slot`, `offers` of `{definition_id, instance_id}`, `is_resolved`, `taken`), and after a Key combat `key_heirloom` (`heirloom_id`, `is_resolved`, `is_taken`), all cleared when the node is left; inside a Treasure, `treasure` (`tier`, `gold` 0 or 20-60, `heirloom_id`, `item` `{definition_id, instance_id}` or `{}`, `is_resolved`, `is_taken`), rolled on entry; inside a Camp, `camp` (`choice`: `""`, `"feast"` or `"train"`); both cleared when the node is left; from run start, `starting_heirloom` (`options` of `{heirloom_id, recruits, weapons, drawn_heirloom_id}`, each recruit `{unit, items}` as `roster` writes them, each weapon `{definition_id, instance_id}`; `is_resolved`; `taken`, -1 while open or after a skip), kept after it is taken or skipped. No version change: pending offers are free-form JSON |
 
@@ -314,10 +314,12 @@ after `instance_ids`, the map before the flow
   from it. A file holding only some parts loads no run and is written back unchanged.
 - **Versions.** `economy` is at 2: version 2 added the combat report's `stats`. Its migration from
   1 changes nothing, since a report without `stats` reads as one with no numbers (the recap shows
-  "—"). The other five are at 1.
+  "—"). `heirlooms` is at 2: version 2 added `value_changes`. Its migration from 1 changes
+  nothing, since a section without them reads as a seat with none. The other four are at 1.
 - **Validated:** a route that skips a floor or leaves the graph's edges, a stage inside a node
   before any node, an item in two places or in none, a commander outside the army, a repeated unit
-  or rune, and out-of-range gold or offset each refuse the section and stop the load.
+  or rune, out-of-range gold or offset, and a value change whose key isn't a campaign value or
+  whose amount isn't a number each refuse the section and stop the load.
 - **Saved when:** every resolved campaign command (`CampaignService.submit_command()`) saves at
   once; a rejected one saves nothing. A battle's end saves its result applied
   ([Battles](#battles)): HP, fallen units in `fallen` with their items (a fallen commander stays in
@@ -345,12 +347,14 @@ The run's events (`CampaignRunState.events`, an `EventRunState`) are one more `C
 
 - **Rolled before shown:** opening an event draws it and every seat's random parts (items, runes,
   heirlooms, tier curses) in one command, saved at once, so a quit and Continue shows the same
-  event, curses and items; a node never draws a second event. The prefix re-roll draws when its
-  option applies, from the seat's `EVENT_OUTCOME` stream, saved in `rng`.
+  event, curses and items; a node never draws a second event. The prefix re-roll and a random
+  recruit's type and prefix draw when their option applies, from the seat's `EVENT_OUTCOME`
+  stream, saved in `rng`.
 - **The chooser stage is saved;** item placements and a rune to discard are not, since they come
   with the choice itself. A quit mid-placement resumes at the chooser or the options.
-- **What an option changes** lands in the run sections: curses and heirlooms in `heirlooms`, units
-  and items in `roster`, gold in `economy`. A pending surprise combat makes the node's battle a
+- **What an option changes** lands in the run sections: curses, heirlooms and max army size
+  changes in `heirlooms`, units (recruits, upgrades, dismissals) and items in `roster`, gold in
+  `economy`. A pending surprise combat makes the node's battle a
   Standard one (`CampaignRunState.battle_request()`), saved like any battle from Begin.
 - **Load order.** Like the run sections, it only checks and holds its data while the file loads;
   once the run is built, `CampaignService` puts it into the run, and the section reads the run from

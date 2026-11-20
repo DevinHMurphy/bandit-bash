@@ -7,9 +7,15 @@ each lane takes next.
 
 ## Every status update
 
-End every update with the **lanes table**: one row per lane (A, B, C, D, E, G, F), with what is
-building, what is free and the step that fits it, and what waits and on what (user, November 20,
-2026). Then offer or give the prompts that fill the free lanes, at most four builds at once.
+End every update with the **lanes table**: one row per lane (A, B, C, D, E, G, F) and three
+columns (user, November 20, 2026):
+
+- **Now:** what is building, or "free" / "waiting" (and on what).
+- **Queue:** the steps after it, in order, each with its gate in brackets (`RB1 [your playtest]`),
+  taken from the queue below.
+- **Ready to send:** the step that can go out now, or "—".
+
+Then offer or give the prompts that fill the free lanes, at most four builds at once.
 
 ## Prompt skeleton
 
@@ -108,9 +114,9 @@ before writing a prompt and name it in the LANE block.
 
 | Lane | Next | Then | Gated on |
 |------|------|------|----------|
-| A Battle UI | RB1, after the M2 exit playtest | EN16 (move preview sweep) | the user's playtest |
+| A Battle UI | EV1G (event-screen replace pick) | RB1 after the M2 exit playtest; UL9 (reward cards, RF-031, RF-032) after RN8; EN16 | RB1: the playtest; UL9: RN8 merged |
 | B Campaign and run | RN8 Armory | RN9 Guildhall, RN10 Unknown, RN11 full run, RN12 docs | one at a time |
-| C Events | EV1F | EV4 (the 13 events), EV6 docs | EV1F before EV4 |
+| C Events | EV4 (the 13 events) | EV6 docs | — |
 | D Engine, AI, content | EN13 measure | EN14, EN15; CT12 after the weapon modification design | EN13 first |
 | E Network | NT3 campaign wire | NT4–NT8 | NT3 when Lanes B and C aren't editing campaign or event commands |
 | G Audio and tooling | — | AU2 after the audio direction (M5) | — |

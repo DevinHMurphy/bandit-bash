@@ -6,16 +6,16 @@
 # File:     run_operations.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name RunOperations
 extends RefCounted
 ## The changes campaign rules make to a seat's part of a run, shared by everything that makes
 ## them: the starting heirloom offer, Treasure, the Camp, the Guildhall and event outcomes.
-## Recruit a unit, dismiss or replace one, upgrade one, grant gold, an heirloom or an item, scrap
-## a convoy item, and read the seat's campaign values outside battle: its max army size (the
-## convoy's size follows), scrap rate and healing received.
+## Recruit a unit, dismiss or replace one, upgrade one, grant gold, an heirloom or an item, grow
+## the army's max size, scrap a convoy item, and read the seat's campaign values outside battle:
+## its max army size (the convoy's size follows), scrap rate and healing received.
 ##
 ## Each change has a [code]*_problem[/code] check, empty when it may be made, which changes
 ## nothing; call it first. The change itself records a [CampaignFact] for every state change, on
@@ -27,8 +27,8 @@ extends RefCounted
 
 
 ## [param seat_run]'s max army size: its faction's, plus [constant CampaignValue.Key.MAX_ARMY_SIZE]
-## from its heirlooms and curses (Abundance, Muster Roll), never above the rule's ceiling of 8.
-## Read on a throwaway engine holding their effects with fresh lanes, as no battle is on.[br]
+## from its heirlooms and curses (Abundance, Muster Roll) and its saved value changes (the Company
+## Charter), never above the rule's ceiling of 8. Read on a throwaway engine: no battle is on.[br]
 ## [param also_held]: heirloom ids counted as if held too, such as an offered one. [b]Units:[/b]
 ## units, the commander included. 0 for a faction not in [param catalog].
 static func max_army_size(
@@ -49,8 +49,8 @@ static func max_army_size(
 
 
 ## [param seat_run]'s campaign value [param key] ([enum CampaignValue.Key]): its default base plus
-## its heirlooms' and curses' modifiers, read on a throwaway engine as [method max_army_size]
-## reads, since no battle is on. Exact, unrounded.
+## its heirlooms' and curses' modifiers and its value changes, read on a throwaway engine as
+## [method max_army_size] reads, since no battle is on. Exact, unrounded.
 static func campaign_value(seat_run: SeatRun, catalog: EffectCatalog.Index, key: int) -> float:
 	var engine: EffectEngine = _seat_engine(seat_run, catalog, PackedStringArray())
 	return engine.stats(InstanceIdAllocator.seat_subject_id(seat_run.seat)).get_value(key)
@@ -310,6 +310,46 @@ static func grant_heirloom(
 	run.record(resized)
 
 
+## Why seat [param seat]'s max army size can't grow by [param amount] now: no seat, an amount
+## below 1, or its max army size at the ceiling of 8 already. Empty when it can, even when only
+## part of [param amount] fits.
+static func army_size_problem(
+		run: CampaignRunState, seat: int, amount: int, catalog: EffectCatalog.Index
+) -> String:
+	var seat_run: SeatRun = run.seat_run(seat)
+	if seat_run == null:
+		return "seat %d isn't in the run" % [seat]
+	if amount < 1:
+		return "max army size can't grow by %d" % [amount]
+	var ceiling: int = _army_size_ceiling()
+	# At the ceiling the growth is refused (the option applies all or nothing), and
+	# below it only the part that fits is added.
+	if max_army_size(seat_run, catalog) >= ceiling:
+		return "the army is already at its largest (%d)" % [ceiling]
+	return ""
+
+
+## Grows seat [param seat]'s max army size by [param amount], once [method army_size_problem]
+## passed, never past the ceiling of 8: a saved value change ([member SeatRun.value_changes]) of
+## what fits, sourced to [param source_id] and named [param label], and
+## [constant CampaignFact.Kind.ARMY_SIZE_CHANGED] by that much. The convoy grows with it.
+static func grow_army(
+		run: CampaignRunState,
+		seat: int,
+		amount: int,
+		catalog: EffectCatalog.Index,
+		source_id: String,
+		label: String
+) -> void:
+	var seat_run: SeatRun = run.seat_run(seat)
+	var grown: int = mini(amount, _army_size_ceiling() - max_army_size(seat_run, catalog))
+	seat_run.add_value_change(CampaignValue.Key.MAX_ARMY_SIZE, float(grown), source_id, label)
+	var resized: CampaignFact = CampaignFact.new(CampaignFact.Kind.ARMY_SIZE_CHANGED, seat)
+	resized.amount = grown
+	resized.definition_id = source_id
+	run.record(resized)
+
+
 ## Why the new item of [param definition] can't go to seat [param seat] by [param placement]
 ## now ([method ItemPlacement.validate]). Empty when it can.
 static func item_problem(
@@ -364,7 +404,7 @@ static func scrap(
 
 
 # A throwaway engine holding seat_run's heirloom and curse effects (and also_held's) with fresh
-# lanes, for a campaign value read outside battle.
+# lanes, and its value changes on the seat, for a campaign value read outside battle.
 static func _seat_engine(
 		seat_run: SeatRun, catalog: EffectCatalog.Index, also_held: PackedStringArray
 ) -> EffectEngine:
@@ -378,7 +418,19 @@ static func _seat_engine(
 				catalog, heirloom_id, seat_run.seat, scratch
 		):
 			engine.register(instance)
+	var subject: String = InstanceIdAllocator.seat_subject_id(seat_run.seat)
+	for change: SeatRun.ValueChange in seat_run.value_changes:
+		# NOTE: sourced as an heirloom, the seat-level carrier kind; only overrides read it.
+		engine.add_delta(subject, Modifier.new(
+				change.key, Modifier.Mode.ADD, change.amount, Modifier.SourceKind.HEIRLOOM,
+				change.source_id, change.label
+		))
 	return engine
+
+
+# The most units an army may ever hold: the rule's bound on MAX_ARMY_SIZE (game-vision.md, Army).
+static func _army_size_ceiling() -> int:
+	return roundi(CampaignValue.RULE_MAX[CampaignValue.Key.MAX_ARMY_SIZE])
 
 
 # Why joining can't be added to seat_run (seat): no seat, no unit, or an id it already holds.
