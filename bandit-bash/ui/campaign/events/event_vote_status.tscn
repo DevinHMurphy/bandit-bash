@@ -1,0 +1,25 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/events/event_vote_status.gd" id="1_votes"]
+
+[node name="EventVoteStatus" type="VBoxContainer"]
+visible = false
+mouse_filter = 2
+theme_override_constants/separation = 4
+script = ExtResource("1_votes")
+
+[node name="Heading" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HeaderLabel"
+text = "Team choice"
+horizontal_alignment = 1
+
+[node name="Detail" type="Label" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(640, 0)
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+text = "0 of 2 votes cast."
+horizontal_alignment = 1
+autowrap_mode = 3

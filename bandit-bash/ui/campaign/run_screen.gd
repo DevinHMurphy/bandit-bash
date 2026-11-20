@@ -17,9 +17,10 @@ extends RefCounted
 ##
 ## On the map: the starting heirloom offer while the seat's is open ([StartingOffer]), else the
 ## campaign map. Inside a combat node (Standard, Key, Boss): the battle screen. Inside a Treasure
-## or a Camp: its own screen. Inside any other node: the placeholder, until its own screen
-## exists. At a combat's results:
-## Results. Outside a solo run (none, or co-op): the battle screen, which shows the co-op
+## or a Camp: its own screen. Inside an Unknown node with an event open: the event screen, or the
+## battle screen once the event chose a surprise combat. Inside any other node: the placeholder,
+## until its own screen exists. At a combat's results: Results. Outside a solo run (none, or
+## co-op): the battle screen, which shows the co-op
 ## placeholder. Each campaign screen opened at the wrong stage sends the run on with [method go].
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
@@ -56,6 +57,13 @@ static func of(session: CampaignSession) -> SceneRouter.Screen:
 			return SceneRouter.Screen.TREASURE
 		if type == CampaignGraph.NodeType.CAMP:
 			return SceneRouter.Screen.CAMP
+		if (
+				type == CampaignGraph.NodeType.UNKNOWN
+				and run.events.is_open_at(run.floor_number, run.node)
+		):
+			if run.events.is_combat_pending_at(run.floor_number, run.node):
+				return SceneRouter.Screen.GAMEPLAY
+			return SceneRouter.Screen.EVENT
 		if not is_combat(type):
 			return SceneRouter.Screen.NODE_PLACEHOLDER
 	return SceneRouter.Screen.GAMEPLAY

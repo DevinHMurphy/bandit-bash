@@ -1,0 +1,51 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/events/event_story.gd" id="1_story"]
+
+[node name="EventStory" type="HBoxContainer"]
+mouse_filter = 2
+theme_override_constants/separation = 16
+script = ExtResource("1_story")
+
+[node name="ArtFrame" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 150)
+layout_mode = 2
+size_flags_vertical = 0
+mouse_filter = 2
+theme_type_variation = &"RowPanel"
+
+[node name="Art" type="TextureRect" parent="ArtFrame"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ArtPlaceholder" type="Label" parent="ArtFrame"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+text = "Event art"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Words" type="VBoxContainer" parent="."]
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="Words"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"TitleLabel"
+text = "Event"
+
+[node name="Text" type="Label" parent="Words"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(620, 0)
+layout_mode = 2
+theme_type_variation = &"BodyLabel"
+text = "What the player reads before choosing."
+autowrap_mode = 3

@@ -3,7 +3,7 @@
 # Copyright (c) 2026 Derc Development
 # Licensed under the MIT License. See LICENSE.
 #
-# File:     450_treasure_and_camp.gd
+# File:     460_treasure_and_camp.gd
 # Author:
 # Created:  November 19, 2026
 # Modified: November 19, 2026
@@ -17,8 +17,8 @@ extends "res://tools/captures/capture_group.gd"
 ## Needs: the map reached by the victory's Leave (400_victory).
 
 # SceneRouter.Screen values the base doesn't list (see the base's class doc).
-const SCREEN_TREASURE: int = 13
-const SCREEN_CAMP: int = 14
+const SCREEN_TREASURE: int = 14
+const SCREEN_CAMP: int = 15
 
 # VictoryOverlay.Stage's Rewards: the script can't name the overlay, whose script names autoloads.
 const STAGE_REWARDS: int = 4

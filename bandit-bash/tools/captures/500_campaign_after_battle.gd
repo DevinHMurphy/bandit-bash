@@ -45,7 +45,7 @@ func run() -> bool:
 
 
 # Whether a node of type opens the placeholder: not a combat, and not a Treasure or a Camp, which
-# have their own screens (450_treasure_and_camp shoots them).
+# have their own screens (460_treasure_and_camp shoots them).
 func _is_placeholder_type(type: CampaignGraph.NodeType) -> bool:
 	return (
 			not FactCueMap.COMBAT_NODE_TYPES.has(type)

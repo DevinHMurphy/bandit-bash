@@ -46,7 +46,7 @@ const SCREEN_MAP: int = 9
 const SCREEN_COMBAT_RESULTS: int = 10
 const SCREEN_PLACEHOLDER: int = 11
 const SCREEN_STARTING: int = 12
-const SCREEN_TREASURE: int = 13
+const SCREEN_TREASURE: int = 14
 
 # Key presses the starting heirloom offer may take, sub-choices included, before it counts as stuck.
 const STARTING_PRESSES: int = 8
