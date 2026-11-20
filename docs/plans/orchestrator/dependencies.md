@@ -125,6 +125,7 @@ flowchart LR
     EV2 --> EV5[P09 EV5 team choice]
     EV3 --> EV4[P09 EV4 the 13 events]
     RN6[P08 RN6 run start] --> EV1F
+    EV1F --> EV1G[P09 EV1G replace pick on the event screen]
     RN6 --> RN7[P08 RN7 Treasure and Camp]
     RN7 --> RN8[P08 RN8 Armory]
     RN7 --> RN9[P08 RN9 Guildhall]
@@ -227,8 +228,8 @@ flowchart LR
   class RN9 ready
 
   class CT12,MP11,AU2 waiting
-  class EV1F active
-  class EV4 ready
+  class EV1F done
+  class EV4,EV1G ready
 
 ```
 
@@ -299,9 +300,10 @@ mark it **Open** here.
 | P05 EN13 Preview: measure | move-preview.md adopted ✅ (November 12, 2026) | Benchmarks and the equality suite only; no behavior change | **Issued** November 20, 2026 (Lane D); **Open** November 12, 2026, alongside Wave A |
 | P05 EN14–EN16 Preview re-architecture | EN13; EN6 ✅ (November 13, 2026; Guard and Skirmisher, which the zones must cover); in order, EN15 and EN16 after EN14 | The cache and zones must cover every behavior; EN15 also stops re-planning the Shieldbearer on every move preview (EN6 report) | Waiting on EN13 |
 | P09 EV1 Outcomes | P09 approved ✅ (November 12, 2026); P08 RN2 | Outcomes apply to `CampaignRunState` | **Done**: merged November 19, 2026 (13 outcome blocks with the CT12 weapon-prefix block, `EventRequirements`, `EventResolver`; `CampaignFact.Kind` 10–15 appended, P09 question 7) |
-| P09 EV1F Recruit, upgrade and max army size blocks | EV1 ✅; P08 RN6 (builds those run operations in `scripts/campaign/`, and the army-size read; P08 question 29). EV1F also adds the saved seat-level value changes for event army-size changes (Company Charter): a list in the `heirlooms` section, version 1 → 2 with a no-op migration (🔴 save) | Both lanes needed the same operations. EV1 left four TOD-001 markers: the three blocks (`event_outcome.gd`), a revive into a full army (`revive_outcome.gd`, needs RN6's replace-a-unit), the per-seat max army size behind the Charter requirement (`event_requirements.gd`), the healing-received percent handed in (`event_context.gd`; EV2 passes 100, so Cursed Blood doesn't halve event heals until the campaign layer reads heirloom values) | **Issued** November 20, 2026 (Lane C). Build on `RunOperations` (`recruit`, `dismiss` for a revive into a full army, `replace`, `upgrade`, `max_army_size`), and switch `EventRequirements.max_army_size` and `revive_outcome.gd` to the new read |
+| P09 EV1F Recruit, upgrade and max army size blocks | EV1 ✅; P08 RN6 (builds those run operations in `scripts/campaign/`, and the army-size read; P08 question 29). EV1F also adds the saved seat-level value changes for event army-size changes (Company Charter): a list in the `heirlooms` section, version 1 → 2 with a no-op migration (🔴 save) | Both lanes needed the same operations. EV1 left four TOD-001 markers: the three blocks (`event_outcome.gd`), a revive into a full army (`revive_outcome.gd`, needs RN6's replace-a-unit), the per-seat max army size behind the Charter requirement (`event_requirements.gd`), the healing-received percent handed in (`event_context.gd`; EV2 passes 100, so Cursed Blood doesn't halve event heals until the campaign layer reads heirloom values) | **Done**: merged November 20, 2026 (6,893 cases): the recruit, upgrade and max army size blocks; `EventChoice.replaced_id` for a recruit or revive into a full army; event heals read `RunOperations.healing_received_percent` (Cursed Blood halves them); `heirlooms` v2 with `SeatRun.value_changes`, which `max_army_size` reads (so RN9's room check sees event growth); P09 questions 37–42 |
+| P09 EV1G Replace pick on the event screen | EV1F ✅; EV3 ✅ | EV1F added `EventChoice.replaced_id` but the screen has no "which unit leaves?" step: a recruit into a full army is refused with its reason, and the fallen chooser greys every unit while the army is full (question 35) | **Ready** (Lane A, as Lane C takes EV4): the screen asks which unit leaves when a recruit or revive meets a full army, and sets `replaced_id` |
 | P09 EV2, EV3, EV5 | EV1 ✅ (November 19, 2026); P08 RN5 ✅; **EV2 ✅** (merged November 19, 2026: the `events` section, CAMPAIGN v1; `EventNode.open()` for RN10, `EventNode.view()` / `open_chooser()` / `choose()` for EV3; `CampaignFact.Kind` 16–18) | EV2 adds the `events` save section; it fills `EventRolls.curse_id` (the tier draw) and the rare heirloom, saves `EventRolls`, and calls `EventResolver.roll` when the event is made (EV1 report) | **Open**: EV5 ✅ (merged November 19, 2026: votes, the weighted TEAM_CHOICE draw, every-seat requirements; `EventNode.vote()`, the view's `is_team_vote`, `votes`, `drawn`, `vote_count`; `CampaignFact.Kind` 19–20). **EV3 ✅** (merged November 19, 2026: the event screen, `Screen.EVENT = 13`, the routing gaps closed; P09 questions 27–36). **EV4 ready** (Lane C): an option's `text` is what its card shows as its outcomes. EV3 also routes an open event to the event screen in `run_screen.gd` (today both go to the placeholder), and takes `ui/campaign/run_screen.gd`'s routing of an Unknown node with a pending surprise combat to the battle screen (EV2 estimate) |
-| P09 EV4 Content, EV6 Docs | EV3; P03 CT4, CT5, CT8, CT9 (curse copies must stack), CT13 | The events name real items, prefixes, curses and units | Waiting |
+| P09 EV4 Content, EV6 Docs | EV3; P03 CT4, CT5, CT8, CT9 (curse copies must stack), CT13 | The events name real items, prefixes, curses and units | **Ready** (Lane C): EV1F ✅ gives the recruit, upgrade and army size blocks (Mercenary Camp, Clockwork Hermit, Company Charter) |
 | P03 CT12 Weapon modifications | P09 EV1 (the outcome blocks); P03 question 33 | Weapons never generate with a prefix; only events and later run sources apply one | Waiting on EV1 |
 | P02 CC10 Battle resume | P02 CC8 ✅; P04 MP8 ✅ | Restores the saved sections into a rebuilt battle | **Open** November 3, 2026; built ✅ (November 5, 2026) |
 | P04 MP1–MP3, MP6 | P04 approved ✅ (October 27, 2026) | — | **Open** October 27, 2026; MP1–MP3 built October 28, 2026; MP6 built October 29, 2026, so MP7 may start; MP7 built October 29, 2026 |
