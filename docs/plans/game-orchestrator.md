@@ -78,6 +78,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P15 | UI lift ([ui-lift.md](../design/ui-lift.md); its scope doc is the plan) | **Implemented** November 19, 2026: UL0–UL8 and UL1F merged | — | P07, P08 |
 | P14 | [Project organization](2026-11-09-project-organization.md) | **In progress** | O8 concurrency tooling **merged** November 19, 2026 (every case file declares `const SUITE`, `tests/case_files.gd` finds it; `--quick` skips the map_set parts); O8b **merged** November 19, 2026 (`capture_screens.gd` is a runner over `tools/captures/<number>_<name>.gd` groups); O5 (deferred) | — |
 | P16 | Audio ([audio.md](../design/audio.md); its scope doc is the plan) | **In progress**: AU1 the audio layer merged November 19, 2026 | AU1 done; AU2+ sound design (M5, after the audio direction) | P07, P15 |
+| P17 | Localization: written, translatable descriptions; every string through Godot's translation; layouts that survive longer text and other scripts | **Scoping** (user, November 20, 2026): plan prompt offered (Lane F) | the plan | P03, P07, P08, P09, P15 |
 | P20–P24 | Meta progression, tutorials, dev console, status effects, shared co-op battles | Post-MVP | — | — |
 
 ## Next actions
