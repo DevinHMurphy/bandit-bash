@@ -1,0 +1,105 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/army_view.gd" id="1_view"]
+[ext_resource type="PackedScene" path="res://ui/campaign/convoy_panel.tscn" id="2_convoy"]
+
+[node name="ArmyView" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_view")
+
+[node name="Backdrop" type="ColorRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Panel" type="PanelContainer" parent="Center"]
+layout_mode = 2
+theme_type_variation = &"FloatingPanel"
+
+[node name="Margin" type="MarginContainer" parent="Center/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="Column" type="VBoxContainer" parent="Center/Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="Center/Panel/Margin/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HeaderLabel"
+text = "Army"
+
+[node name="ArmySize" type="Label" parent="Center/Panel/Margin/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BodyLabel"
+text = "Army 4 / 4"
+
+[node name="Note" type="Label" parent="Center/Panel/Margin/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+text = "Gear changes at a Camp."
+
+[node name="Body" type="HBoxContainer" parent="Center/Panel/Margin/Column"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="UnitScroll" type="ScrollContainer" parent="Center/Panel/Margin/Column/Body"]
+custom_minimum_size = Vector2(850, 300)
+layout_mode = 2
+horizontal_scroll_mode = 0
+follow_focus = true
+
+[node name="Rows" type="VBoxContainer" parent="Center/Panel/Margin/Column/Body/UnitScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="ConvoyScroll" type="ScrollContainer" parent="Center/Panel/Margin/Column/Body"]
+custom_minimum_size = Vector2(330, 300)
+layout_mode = 2
+horizontal_scroll_mode = 0
+follow_focus = true
+
+[node name="ConvoyPanel" parent="Center/Panel/Margin/Column/Body/ConvoyScroll" instance=ExtResource("2_convoy")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Status" type="Label" parent="Center/Panel/Margin/Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(1180, 0)
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+autowrap_mode = 3
+
+[node name="CloseButton" type="Button" parent="Center/Panel/Margin/Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 36)
+layout_mode = 2
+size_flags_horizontal = 0
+text = "Close"

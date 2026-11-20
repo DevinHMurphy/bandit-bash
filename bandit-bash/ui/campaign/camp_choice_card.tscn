@@ -1,0 +1,11 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/camp_choice_card.gd" id="1_card"]
+
+[node name="CampChoiceCard" type="Button"]
+custom_minimum_size = Vector2(300, 150)
+text = "Feast
+What it does"
+alignment = 0
+autowrap_mode = 3
+script = ExtResource("1_card")

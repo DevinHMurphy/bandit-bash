@@ -12,10 +12,10 @@
 class_name RunOperations
 extends RefCounted
 ## The changes campaign rules make to a seat's part of a run, shared by everything that makes
-## them: the starting heirloom offer, the Camp's Train, the Guildhall and event outcomes. Recruit
-## a unit, dismiss or replace one, upgrade one, grant gold, an heirloom or an item, and read the
-## seat's max army size, which only heirlooms and curses change
-## ([constant CampaignValue.Key.MAX_ARMY_SIZE]) and the convoy's size follows.
+## them: the starting heirloom offer, Treasure, the Camp, the Guildhall and event outcomes.
+## Recruit a unit, dismiss or replace one, upgrade one, grant gold, an heirloom or an item, scrap
+## a convoy item, and read the seat's campaign values outside battle: its max army size (the
+## convoy's size follows), scrap rate and healing received.
 ##
 ## Each change has a [code]*_problem[/code] check, empty when it may be made, which changes
 ## nothing; call it first. The change itself records a [CampaignFact] for every state change, on
@@ -39,22 +39,65 @@ static func max_army_size(
 	var faction: FactionDefinition = catalog.faction(seat_run.faction_id)
 	if faction == null:
 		return 0
-	var engine: EffectEngine = EffectEngine.new(
-			CombatState.new(), ForcedRolls.new(PackedInt32Array())
-	)
+	var engine: EffectEngine = _seat_engine(seat_run, catalog, also_held)
 	var subject: String = InstanceIdAllocator.seat_subject_id(seat_run.seat)
 	engine.set_base(
 			subject, CampaignValue.Key.MAX_ARMY_SIZE, float(faction.max_army_size),
 			faction.display_name
 	)
-	# NOTE: a fresh allocator, so the scratch effects' ids are minted outside the run's.
+	return engine.stats(subject).get_int(CampaignValue.Key.MAX_ARMY_SIZE)
+
+
+## [param seat_run]'s campaign value [param key] ([enum CampaignValue.Key]): its default base plus
+## its heirlooms' and curses' modifiers, read on a throwaway engine as [method max_army_size]
+## reads, since no battle is on. Exact, unrounded.
+static func campaign_value(seat_run: SeatRun, catalog: EffectCatalog.Index, key: int) -> float:
+	var engine: EffectEngine = _seat_engine(seat_run, catalog, PackedStringArray())
+	return engine.stats(InstanceIdAllocator.seat_subject_id(seat_run.seat)).get_value(key)
+
+
+## The share of an item's value scrapping pays [param seat_run]
+## ([constant CampaignValue.Key.SCRAP_PERCENT]: 20 plus Scrapper's Tongs); the default rate for
+## no seat. [b]Units:[/b] percent.
+static func scrap_percent(seat_run: SeatRun, catalog: EffectCatalog.Index) -> float:
+	if seat_run == null or catalog == null:
+		return Prices.default_scrap_percent()
+	return campaign_value(seat_run, catalog, CampaignValue.Key.SCRAP_PERCENT)
+
+
+## The share of a heal [param unit] of [param seat_run] receives
+## ([constant CampaignValue.Key.HEALING_RECEIVED_PERCENT]): 100, changed by its own items
+## (Cleansed Goblet) and its seat's heirlooms and curses (Cursed Blood). Read on a throwaway engine
+## with the unit loaded and placed, as battle reads it. [b]Units:[/b] percent; never below 0.
+static func healing_received_percent(
+		seat_run: SeatRun, unit: UnitInstance, catalog: EffectCatalog.Index
+) -> float:
+	var state: CombatState = CombatState.new()
+	var engine: EffectEngine = EffectEngine.new(state, ForcedRolls.new(PackedInt32Array()))
 	var scratch: InstanceIdAllocator = InstanceIdAllocator.new()
-	for heirloom_id: String in seat_run.heirloom_ids() + also_held:
+	var loaded: Loadout.LoadedUnit = Loadout.load_unit(
+			catalog, unit, seat_run.items, CombatFact.CombatSide.PLAYER, seat_run.seat, scratch
+	)
+	if loaded.is_loaded():
+		for weapon: CombatState.WeaponStats in loaded.weapons:
+			state.add_weapon(weapon)
+		# A tile only so it can be placed: the throwaway state has no map.
+		loaded.state.tile = Vector2i.ZERO
+		state.place_unit(engine, loaded.state)
+		for instance: EffectInstance in loaded.effects:
+			engine.register(instance)
+	for heirloom_id: String in seat_run.heirloom_ids():
 		for instance: EffectInstance in Loadout.heirloom_effects(
 				catalog, heirloom_id, seat_run.seat, scratch
 		):
 			engine.register(instance)
-	return engine.stats(subject).get_int(CampaignValue.Key.MAX_ARMY_SIZE)
+	var subject: String = (
+			unit.instance_id if loaded.is_loaded()
+			else InstanceIdAllocator.seat_subject_id(seat_run.seat)
+	)
+	return maxf(
+			engine.stats(subject).get_value(CampaignValue.Key.HEALING_RECEIVED_PERCENT), 0.0
+	)
 
 
 ## Why [param joining] can't join seat [param seat]'s army now: no seat, an unusable recruit, an
@@ -294,6 +337,48 @@ static func grant_item(
 		catalog: EffectCatalog.Index
 ) -> void:
 	placement.apply(run, seat, item, catalog)
+
+
+## Why seat [param seat] can't scrap its item [param item_id] now: no seat, or the item isn't in
+## its convoy (army management scraps convoy items; items.md, Scrapping). Empty when it can.
+static func scrap_problem(run: CampaignRunState, seat: int, item_id: String) -> String:
+	var seat_run: SeatRun = run.seat_run(seat)
+	if seat_run == null:
+		return "seat %d isn't in the run" % [seat]
+	if not seat_run.convoy.has(item_id):
+		return "the convoy holds no %s" % [item_id]
+	return ""
+
+
+## Scraps seat [param seat]'s convoy item [param item_id], once [method scrap_problem] passed:
+## it leaves the roster and pays [method ItemPlacement.held_scrap_value] at the seat's rate
+## ([constant CampaignFact.Kind.ITEM_SCRAPPED]).
+static func scrap(
+		run: CampaignRunState, seat: int, item_id: String, catalog: EffectCatalog.Index
+) -> void:
+	var seat_run: SeatRun = run.seat_run(seat)
+	var item: ItemInstance = seat_run.items[item_id]
+	seat_run.convoy.remove_at(seat_run.convoy.find(item_id))
+	seat_run.items.erase(item_id)
+	ItemPlacement.pay_scrap(run, seat, item, catalog)
+
+
+# A throwaway engine holding seat_run's heirloom and curse effects (and also_held's) with fresh
+# lanes, for a campaign value read outside battle.
+static func _seat_engine(
+		seat_run: SeatRun, catalog: EffectCatalog.Index, also_held: PackedStringArray
+) -> EffectEngine:
+	var engine: EffectEngine = EffectEngine.new(
+			CombatState.new(), ForcedRolls.new(PackedInt32Array())
+	)
+	# NOTE: a fresh allocator, so the scratch effects' ids are minted outside the run's.
+	var scratch: InstanceIdAllocator = InstanceIdAllocator.new()
+	for heirloom_id: String in seat_run.heirloom_ids() + also_held:
+		for instance: EffectInstance in Loadout.heirloom_effects(
+				catalog, heirloom_id, seat_run.seat, scratch
+		):
+			engine.register(instance)
+	return engine
 
 
 # Why joining can't be added to seat_run (seat): no seat, no unit, or an id it already holds.

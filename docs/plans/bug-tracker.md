@@ -49,7 +49,7 @@ Not a bug.
 | [BUG-014](#bug-014-a-runs-runes-never-reach-the-battle) | A run's runes never reach the battle, and a cast or discard never reaches the run | P08 (battle bridge) | S2 (latent: no run grants runes yet) | Assigned (RN9) | November 18, 2026, UI14 report | RN9 |
 | [BUG-015](#bug-015-the-unit-panels-details-button-cant-be-clicked) | The unit panel's Details button can't be clicked: the panel follows the hovered unit, so moving the mouse to it changes or hides the panel | P07 (unit panel) | S2 | Fixed (UL3 merge, November 19, 2026) | November 18, 2026, user playtest | UL3 (ui-lift.md) |
 | [BUG-016](#bug-016-steamnetworklocal_peer_id-errors-once-the-peer-is-cleared) | `SteamNetwork.local_peer_id()` errors once the peer is cleared | P10 | S4 | Fixed (NT1 merge, November 19, 2026) | November 19, 2026, BF1 report | P10 NT1 |
-| [BUG-017](#bug-017-choosing-a-map-node-by-keyboard-logs-a-grab_focus-error) | Choosing a map node by keyboard logs `grab_focus: !is_inside_tree()` | P08 (campaign map) | S4 | New | November 19, 2026, UL7 report | — |
+| [BUG-017](#bug-017-choosing-a-map-node-by-keyboard-logs-a-grab_focus-error) | Choosing a map node by keyboard logs `grab_focus: !is_inside_tree()` | P08 (campaign map) | S4 | Fixed (RN7 merge, November 19, 2026) | November 19, 2026, UL7 report | — |
 | [BUG-018](#bug-018-fact-playback-holds-the-next-batch-for-the-last-facts-full-wait) | Fact playback holds the next batch for the last fact's full wait | P07 (playback) | S3 | Fixed (BF3 merge, November 19, 2026) | November 19, 2026, UL6 report | BF3 |
 | [BUG-019](#bug-019-player-units-cant-attack-breakable-map-objects) | Player units can't attack breakable map objects (debris, powder kegs) | P07 (target list) | S2 | Assigned (BF4, issued November 19, 2026) | November 19, 2026, user | BF4 |
 
@@ -303,6 +303,7 @@ Not a bug.
 - **Likely cause** (not checked): focus is asked of a control that is leaving or not yet in the
   tree as the screen changes.
 - **Fix:** with the next campaign-map step (RN7 or RN10), or a bug-fix step.
+- **Fixed** in RN7 (merged November 19, 2026): `PauseMenu.open()` queued a focus grab that ran after the scene change had taken the menu out of the tree; the grab now does nothing unless the menu is still open and in the tree. Regression: a logger in the campaign walk fails on any `grab_focus` error. `node_placeholder_screen.gd` has the same deferred pattern (a design item).
 
 ### BUG-018 Fact playback holds the next batch for the last fact's full wait
 

@@ -20,7 +20,10 @@ extends "res://tests/ui/ui_suite.gd"
 ## (Grade, Recap filling and skipped, level-ups, Rewards, the item picker and placement: to the
 ## convoy, scrapped, equipped, Back by pad without the pause menu; Leave), a quit and Continue
 ## mid-recap reopening it on Grade with the same report and, once taken, on Rewards with the row
-## gone, the node placeholder, and the Boss's End run reaching the run's end. Pad glyphs show.
+## gone, the node placeholder, a Treasure (its chest rolled before it shows, a quit and Continue
+## showing the same chest, taken by the device of its turn, its gains sounding once), and the
+## Boss's End run reaching the run's end. Pad glyphs show. No control asks for focus outside the
+## tree (BUG-017).
 ## Campaign facts play ([CampaignPlayback]; its cases, playback_cases.gd, run first): the run's
 ## start once on the first map, each chosen node once with its sound, each level-up card's own
 ## fact with one level_up voice. Every map node is 32 units or more, the choice scrolled in view.
@@ -43,6 +46,7 @@ const SCREEN_MAP: int = 9
 const SCREEN_COMBAT_RESULTS: int = 10
 const SCREEN_PLACEHOLDER: int = 11
 const SCREEN_STARTING: int = 12
+const SCREEN_TREASURE: int = 14
 
 # Key presses the starting heirloom offer may take, sub-choices included, before it counts as stuck.
 const STARTING_PRESSES: int = 8
@@ -145,6 +149,15 @@ var _placeholder_with: Dictionary[String, bool] = {}
 # The Boss case: 0 not begun, 1 its Results shown, 2 the run's end reached.
 var _boss_step: int = 0
 
+# The first Treasure's quit and Continue: 0 not yet, 1 quit with the chest open, 2 done; the
+# chest as first shown; the devices that answered a Treasure.
+var _treasure_step: int = 0
+var _treasure_snapshot: String = ""
+var _treasure_with: Dictionary[String, bool] = {}
+
+# Every grab_focus error the engine logs during the walk (BUG-017).
+var _focus_errors: FocusErrorCatcher = FocusErrorCatcher.new()
+
 
 func _process(_delta: float) -> bool:
 	_frame += 1
@@ -205,6 +218,8 @@ func _process(_delta: float) -> bool:
 			_on_results(scene)
 		SCREEN_PLACEHOLDER:
 			_on_placeholder(scene)
+		SCREEN_TREASURE:
+			_on_treasure(scene)
 		SCREEN_RESULTS:
 			_on_run_end(scene)
 		_:
@@ -216,6 +231,7 @@ func _process(_delta: float) -> bool:
 # A new solo run, opened through Loading as the New Run screen does.
 func _begin_run() -> void:
 	GroupClock.lap("new run")
+	OS.add_logger(_focus_errors)
 	_old_root_size = root.size
 	root.size = BASE_SCREEN_SIZE
 	var saves: Node = root.get_node(^"SaveService")
@@ -265,15 +281,15 @@ func _node_type_of_run(node_id: int) -> int:
 	return run.graph.type_of(node_id)
 
 
-# The node chosen last was played on the bus once per choice, sounding battle_map_enter for a
-# combat node and nothing for any other (campaign_facts.tres, through the real listener's rules).
-func _check_node_chosen(where: String, is_combat: bool) -> void:
+# The node chosen last was played on the bus once per choice, sounding expected: battle_map_enter
+# for a combat node, treasure_map_enter for a Treasure, nothing for any other (campaign_facts.tres,
+# through the real listener's rules).
+func _check_node_chosen(where: String, expected: StringName) -> void:
 	var chosen: Array[CampaignFact] = _played(CampaignFact.Kind.NODE_CHOSEN)
 	var last: CampaignFact = chosen[chosen.size() - 1] if not chosen.is_empty() else null
 	var cue: StringName = _cue_reader.cue_for_campaign(last) if last != null else &""
-	var expected: StringName = &"battle_map_enter" if is_combat else &""
 	_check("%s %d: the choice played once on the run's bus, sounding %s" % [
-		where, _entered, "battle_map_enter" if is_combat else "nothing",
+		where, _entered, expected if not expected.is_empty() else &"nothing",
 	], (
 			chosen.size() == _entered
 			and last != null
@@ -319,7 +335,9 @@ func _on_starting(scene: Node) -> void:
 		if not StartingOffer.is_open(_run().seat_run(0)):
 			break
 		_press_key(KEY_ENTER)
-		view.focus_first()
+		# The take leaves for the map at once, taking the view out of the tree.
+		if view.is_inside_tree():
+			view.focus_first()
 	_check("starting: Enter took an heirloom, saved before the map", (
 			not StartingOffer.is_open(_run().seat_run(0))
 			and _run().seat_run(0).heirloom_ids().size() >= 3
@@ -510,7 +528,7 @@ func _on_battle(scene: Node) -> void:
 	if session == null:
 		_end()
 		return
-	_check_node_chosen("battle", true)
+	_check_node_chosen("battle", &"battle_map_enter")
 	scene.set(&"end_banner_time", 0.0)
 	var ended: CombatFact = CombatFact.new(CombatFact.Kind.COMBAT_ENDED)
 	ended.side = CombatFact.CombatSide.PLAYER
@@ -961,11 +979,81 @@ func _on_placeholder(scene: Node) -> void:
 			and button.has_focus()
 			and _hint_context(scene) == &"NODE"
 	), title.text)
-	_check_node_chosen("placeholder", false)
+	_check_node_chosen("placeholder", &"")
 	_placeholder_with[device] = true
 	match device:
 		"mouse":
 			_click(button.get_global_rect().get_center())
+		"pad":
+			_press_pad(JOY_A)
+		_:
+			_press_key(KEY_ENTER)
+
+
+# A Treasure on the route: its chest rolled and saved before it shows, Open focused; the first
+# one quits and Continues with the chest open and shows the same chest. Then the device of its
+# turn opens it (a Legendary to the convoy), the take sounding item_obtained once, and leaves on
+# Continue.
+func _on_treasure(scene: Node) -> void:
+	var device: String = DEVICES[(_entered - 1) % DEVICES.size()]
+	var chest: TreasureChest = TreasureChest.pending(_run().seat_run(0))
+	var open_button: Button = scene.call(&"get_open_button")
+	var view: ChestView = scene.call(&"get_chest_view")
+	if _treasure_step == 1:
+		_check("treasure: a quit and Continue with the chest open shows the same chest", (
+				chest != null and JSON.stringify(chest.capture()) == _treasure_snapshot
+				and open_button.has_focus()
+		), _treasure_snapshot)
+		_treasure_step = 2
+	else:
+		_check_node_chosen("treasure", &"treasure_map_enter")
+		_check("treasure %d: the chest is rolled and saved before it shows; Open focused" % [
+			_entered,
+		], (
+				chest != null and not chest.is_resolved
+				and view.get_size_text().begins_with(chest.size_name())
+				and open_button.has_focus()
+				and _hint_context(scene) == &"CHEST"
+		), "%s; %s" % [view.get_size_text(), _hint_context(scene)])
+	if _treasure_step == 0:
+		_treasure_step = 1
+		_treasure_snapshot = JSON.stringify(chest.capture()) if chest != null else ""
+		_quit_and_continue()
+		return
+	_treasure_with[device] = true
+	var gains_before: int = _played(CampaignFact.Kind.GAINED).size()
+	var panel: PlacementPanel = scene.call(&"get_placement_panel")
+	match device:
+		"mouse":
+			_click(open_button.get_global_rect().get_center())
+		"pad":
+			_use_pad()
+			_press_pad(JOY_A)
+		_:
+			_press_key(KEY_ENTER)
+	if panel.visible:
+		var convoy: int = _enabled_index(panel, "Send it to the convoy")
+		_enabled(panel)[maxi(convoy, 0)].grab_focus()
+		_press_key(KEY_ENTER)
+	var gains: Array[CampaignFact] = _played(CampaignFact.Kind.GAINED).slice(gains_before)
+	var cues: Array[StringName] = []
+	for fact: CampaignFact in gains:
+		cues.append(_cue_reader.cue_for_campaign(fact))
+	var expected_gains: int = (0 if chest.heirloom_id.is_empty() else 1) + (
+			0 if chest.item == null else 1
+	)
+	var leave: Button = scene.call(&"get_leave_button")
+	_check("treasure %d (%s): the chest is taken, each gain sounding item_obtained once" % [
+		_entered, device,
+	], (
+			not TreasureChest.is_open(_run().seat_run(0))
+			and gains.size() == expected_gains
+			and cues.count(&"item_obtained") == expected_gains
+			and leave.has_focus() and leave.text == "Continue"
+	), "%d gains, cues %s; focus %s" % [gains.size(), cues, leave.has_focus()])
+	match device:
+		"mouse":
+			_click(leave.get_global_rect().get_center())
 		"pad":
 			_press_pad(JOY_A)
 		_:
@@ -984,6 +1072,12 @@ func _finish_walk() -> void:
 	])
 	if _placeholder_with.is_empty():
 		_skip("placeholder", "the seed's route reached no node that isn't a combat")
+	if _treasure_with.is_empty():
+		_skip("treasure", "the seed's route reached no Treasure")
+	var focus_errors: PackedStringArray = _focus_errors.get_errors()
+	_check("walk: no control asked for focus outside the tree (BUG-017)", (
+			focus_errors.is_empty()
+	), "; ".join(focus_errors))
 	if _level_up_cards_checked == 0:
 		_skip("level-up sound", "no victory on the seed's route reached a level-up card")
 
@@ -1074,11 +1168,12 @@ func _enabled(panel: PlacementPanel) -> Array[Button]:
 
 
 # A route of NODES_TO_PLAY nodes from floor 1 with at least COMBATS_WANTED combats and a node that
-# isn't one, so every device answers a Results and a placeholder shows; without one, the route
-# with the most combats.
+# isn't one, so every device answers a Results and a placeholder shows, and a Treasure too when
+# one fits; failing that, any such route; without one, the route with the most combats.
 func _plan_route(graph: CampaignGraph) -> PackedInt32Array:
 	var best: PackedInt32Array = []
 	var best_combats: int = -1
+	var fallback: PackedInt32Array = []
 	var routes: Array[PackedInt32Array] = []
 	for start: int in graph.nodes_on_floor(1):
 		routes.append(PackedInt32Array([start]))
@@ -1091,14 +1186,19 @@ func _plan_route(graph: CampaignGraph) -> PackedInt32Array:
 				routes.append(longer)
 			continue
 		var combats: int = 0
+		var treasures: int = 0
 		for node_id: int in route:
 			combats += 1 if _is_combat(graph.type_of(node_id)) else 0
-		if combats >= COMBATS_WANTED and combats < route.size():
+			treasures += 1 if graph.type_of(node_id) == CampaignGraph.NodeType.TREASURE else 0
+		var placeholders: int = route.size() - combats - treasures
+		if combats >= COMBATS_WANTED and placeholders > 0 and treasures > 0:
 			return route
+		if combats >= COMBATS_WANTED and placeholders > 0 and fallback.is_empty():
+			fallback = route
 		if combats > best_combats:
 			best = route
 			best_combats = combats
-	return best
+	return fallback if not fallback.is_empty() else best
 
 
 func _is_combat(type: CampaignGraph.NodeType) -> bool:
@@ -1200,6 +1300,7 @@ func _router() -> Node:
 # Drops the run and its save file, gives the root its size back, and finishes.
 func _end() -> void:
 	_is_done = true
+	OS.remove_logger(_focus_errors)
 	var saves: Node = root.get_node(^"SaveService")
 	saves.call(&"close_save_file")
 	SaveFile.delete_folder("user://saves/")
@@ -1210,3 +1311,36 @@ func _end() -> void:
 		current_scene.queue_free()
 	root.size = _old_root_size
 	_finish()
+
+
+# Keeps every grab_focus error the engine logs while it is added with OS.add_logger: a control
+# asked for focus while not inside the tree (BUG-017). The engine may call a logger from any
+# thread, so the list is locked.
+class FocusErrorCatcher:
+	extends Logger
+
+	var _errors: PackedStringArray = []
+	var _lock: Mutex = Mutex.new()
+
+	func _log_error(
+			function: String,
+			file: String,
+			line: int,
+			code: String,
+			rationale: String,
+			_is_editor_notified: bool,
+			_error_type: int,
+			_backtraces: Array[ScriptBacktrace]
+	) -> void:
+		if function != "grab_focus":
+			return
+		_lock.lock()
+		_errors.append("%s (%s:%d)" % [rationale if not rationale.is_empty() else code, file, line])
+		_lock.unlock()
+
+	## Every grab_focus error logged while it was added.
+	func get_errors() -> PackedStringArray:
+		_lock.lock()
+		var copy: PackedStringArray = _errors.duplicate()
+		_lock.unlock()
+		return copy

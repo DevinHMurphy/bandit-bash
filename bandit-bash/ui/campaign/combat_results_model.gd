@@ -51,6 +51,12 @@ var pick: ItemPick = null
 ## The definition of each of [member pick]'s offers, in order; null for one not in the catalog.
 var offers: Array[ItemDefinition] = []
 
+## A Key combat's heirloom offer ([KeyHeirloom]); null after any other combat.
+var key_heirloom: KeyHeirloom = null
+
+## The definition of [member key_heirloom]'s heirloom; null with none or one not in the catalog.
+var key_heirloom_definition: HeirloomDefinition = null
+
 ## Whether this is the Boss's Results, after which the run ends.
 var is_boss: bool = false
 
@@ -130,6 +136,9 @@ static func build(
 	if model.pick != null:
 		for offer: ItemPick.Offer in model.pick.offers:
 			model.offers.append(contents.item(offer.definition_id))
+	model.key_heirloom = KeyHeirloom.pending(seat_run)
+	if model.key_heirloom != null:
+		model.key_heirloom_definition = contents.heirloom(model.key_heirloom.heirloom_id)
 	return model
 
 

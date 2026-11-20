@@ -11,8 +11,9 @@
 
 extends "res://tools/captures/capture_group.gd"
 ## Back on the map after the victory: the pause menu over it (with the run's seed), a node
-## placeholder when a node that isn't a combat is reachable, then the run ended as lost (as a lost
-## battle ends it), so the run's end shot shows a lost run and its seed.[br]
+## placeholder when a node that isn't a combat, a Treasure or a Camp is reachable, then the run
+## ended as lost (as a lost battle ends it), so the run's end shot shows a lost run and its
+## seed.[br]
 ## Needs: the map reached by the victory's Leave (400_victory).
 
 
@@ -30,7 +31,7 @@ func run() -> bool:
 	var view: CampaignMapView = scene().call(&"get_map_view")
 	for node_id: int in view.get_reachable():
 		var button: MapNodeButton = view.get_node_button(node_id)
-		if not FactCueMap.COMBAT_NODE_TYPES.has(button.node_type):
+		if _is_placeholder_type(button.node_type):
 			button.pressed.emit()
 			await frames(SETTLE_FRAMES)
 			await capture("node_placeholder")
@@ -41,3 +42,13 @@ func run() -> bool:
 	if err != OK:
 		fail("the run did not end as lost for the run's end: %s" % [error_string(err)])
 	return true
+
+
+# Whether a node of type opens the placeholder: not a combat, and not a Treasure or a Camp, which
+# have their own screens (460_treasure_and_camp shoots them).
+func _is_placeholder_type(type: CampaignGraph.NodeType) -> bool:
+	return (
+			not FactCueMap.COMBAT_NODE_TYPES.has(type)
+			and type != CampaignGraph.NodeType.TREASURE
+			and type != CampaignGraph.NodeType.CAMP
+	)

@@ -53,7 +53,8 @@ func bind_combat(bus: CombatBus, side_of: Callable = Callable()) -> void:
 
 ## Sounds [param bus]'s facts from now on, reading node types through [param node_type_of]
 ## ([code](node_id: int) -> int[/code], a [enum CampaignGraph.NodeType] or -1; invalid: the
-## [code]combat[/code] shape never matches). Replaces any bus bound before.
+## [code]combat[/code] and [code]treasure[/code] shapes never match). Replaces any bus bound
+## before.
 func bind_campaign(bus: CampaignBus, node_type_of: Callable = Callable()) -> void:
 	unbind()
 	if bus == null:
@@ -94,7 +95,8 @@ func cue_for_combat(fact: CombatFact) -> StringName:
 
 
 ## The cue id [param fact] sounds; empty for none. Campaign facts match the bare kind or the
-## [code]combat[/code] shape; every other shape is combat's and never matches.
+## [code]combat[/code] and [code]treasure[/code] shapes; every other shape is combat's and never
+## matches.
 func cue_for_campaign(fact: CampaignFact) -> StringName:
 	if _map == null or fact == null:
 		return &""
@@ -102,6 +104,8 @@ func cue_for_campaign(fact: CampaignFact) -> StringName:
 		if rule.shape == FactCueMap.Shape.ANY:
 			return rule.cue_id
 		if rule.shape == FactCueMap.Shape.COMBAT_NODE and _is_combat_node(fact.amount):
+			return rule.cue_id
+		if rule.shape == FactCueMap.Shape.TREASURE_NODE and _is_treasure_node(fact.amount):
 			return rule.cue_id
 	return &""
 
@@ -122,7 +126,7 @@ func _matches(shape: FactCueMap.Shape, fact: CombatFact) -> bool:
 			return fact.side == CombatFact.CombatSide.PLAYER
 		FactCueMap.Shape.ENEMY_SIDE:
 			return fact.side == CombatFact.CombatSide.ENEMY
-		FactCueMap.Shape.COMBAT_NODE:
+		FactCueMap.Shape.COMBAT_NODE, FactCueMap.Shape.TREASURE_NODE:
 			return false
 	return true
 
@@ -133,6 +137,14 @@ func _side(id: String) -> CombatFact.CombatSide:
 		return CombatFact.CombatSide.NONE
 	var side: CombatFact.CombatSide = _side_of.call(id)
 	return side
+
+
+# Whether node_id is a Treasure node of the run, through the bound lookup; false without one.
+func _is_treasure_node(node_id: int) -> bool:
+	if not _node_type_of.is_valid():
+		return false
+	var type: int = _node_type_of.call(node_id)
+	return type == CampaignGraph.NodeType.TREASURE
 
 
 # Whether node_id is a combat node of the run, through the bound lookup; false without one.

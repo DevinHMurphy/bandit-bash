@@ -12,14 +12,14 @@
 class_name VictoryRewards
 extends RefCounted
 ## The rewards of a won combat for the Rewards stage, read from the saved run through a
-## [CombatResultsModel]: today the item pick, while the combat offered one. Static; never
-## instanced.
+## [CombatResultsModel]: the item pick, while the combat offered one, then a Key combat's
+## heirloom. Static; never instanced.
 ##
 ## Gold is not a reward here: it is granted as the combat ends and shows as collected in the
 ## Grade stage (ui-lift.md, decision 4).
 ##
 ## @tutorial(UL5 plan): docs/plans/2026-11-19-ul5-victory-sequence.md
-## @todo: TOD-001 - List the key combat's heirloom (RN7) and rune rewards once they are rolled.
+## @todo: TOD-001 - List rune rewards once they are rolled.
 
 ## Every reward of [param model], taken ones included, in the order shown; empty for null. The
 ## item pick's row shows its first offer's icon (the placeholder when no offer has one).
@@ -36,7 +36,9 @@ static func build(model: CombatResultsModel) -> Array[VictoryReward]:
 				item_pick.icon = definition.icon
 				break
 		rewards.append(item_pick)
-	# TODO(TOD-001): the key combat's heirloom (RN7) and runes join here.
+	if model.key_heirloom != null:
+		rewards.append(KeyHeirloomReward.new(model.key_heirloom, model.key_heirloom_definition))
+	# TODO(TOD-001): rune rewards join here.
 	return rewards
 
 

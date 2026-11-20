@@ -1,0 +1,51 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/chest_view.gd" id="1_chest"]
+[ext_resource type="PackedScene" path="res://ui/campaign/heirloom_offer_card.tscn" id="2_heirloom"]
+[ext_resource type="PackedScene" path="res://ui/campaign/item_offer_card.tscn" id="3_item"]
+
+[node name="ChestView" type="PanelContainer"]
+custom_minimum_size = Vector2(360, 0)
+theme_type_variation = &"FloatingPanel"
+script = ExtResource("1_chest")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="Column" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SizeLabel" type="Label" parent="Margin/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HeaderLabel"
+text = "Small chest (Common)"
+horizontal_alignment = 1
+
+[node name="HeirloomCard" parent="Margin/Column" instance=ExtResource("2_heirloom")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="ItemCard" parent="Margin/Column" instance=ExtResource("3_item")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="GoldLabel" type="Label" parent="Margin/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BodyLabel"
+horizontal_alignment = 1
+
+[node name="StateLabel" type="Label" parent="Margin/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+horizontal_alignment = 1
