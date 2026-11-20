@@ -6,7 +6,7 @@
 # File:     campaign_fact.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name CampaignFact
@@ -100,7 +100,20 @@ enum Kind {
 	## The seat gave its convoy item [member actor_id] (content id [member definition_id]) to the
 	## convoy of seat [member amount].
 	ITEM_GIFTED = 26,
+	## The seat bought the item [member actor_id] (empty for an heirloom), content id
+	## [member definition_id], at the Armory for [member amount] gold after any trade-in (negative:
+	## the trade-in was worth more, and the seat gained the difference). Its gold changed by
+	## -[member amount] alone; its [constant GAINED] (with [constant FLAG_BOUGHT]) follows.
+	ITEM_BOUGHT = 27,
+	## The seat traded its item [member actor_id] (content id [member definition_id]) in at the
+	## Armory: it left the roster, and its scrap value, [member amount] gold, came off the price of
+	## the [constant ITEM_BOUGHT] that follows.
+	ITEM_TRADED_IN = 28,
 }
+
+## A [member flags] bit: this [constant Kind.GAINED] was a purchase, whose
+## [constant Kind.ITEM_BOUGHT] comes first. Part of the network contract: never reuse the bit.
+const FLAG_BOUGHT: int = 1
 
 ## [member seat] when a fact belongs to no single player.
 const NO_SEAT: int = -1
@@ -137,7 +150,7 @@ var amount: int = 0
 ## or [constant COUNTER_CHANGED] fact is about. Empty when no effect is involved.
 var source_effect_id: String = ""
 
-## Bit set of extra details. No bits are defined yet.
+## Bit set of extra details: [constant FLAG_BOUGHT]. 0 when none.
 var flags: int = 0
 
 

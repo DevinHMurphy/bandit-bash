@@ -113,7 +113,7 @@ func _gear_problem(catalog: EffectCatalog.Index) -> String:
 # drawn from ctx's stream when not named.
 func _make(ctx: EventContext) -> RecruitOffer:
 	var type_id: String = unit_type_id
-	# ASSUMPTION: drawn as the option applies, so not shown before choosing (the events section
+	# Drawn as the option applies, so not shown before choosing (the events section
 	# keeps one id per block, and a type with its prefix needs two).
 	if type_id.is_empty():
 		var pool: PackedStringArray = RecruitOffer.pool(ctx.catalog)
