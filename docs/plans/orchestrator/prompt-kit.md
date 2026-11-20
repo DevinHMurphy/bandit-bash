@@ -20,9 +20,14 @@ Then offer or give the prompts that fill the free lanes, at most four builds at 
 ## Prompt skeleton
 
 Each prompt goes in a code block, with "Written for: a fresh build agent session in this repo."
-outside it, under the heading `## <ID> prompt - Expected Effort (low/medium/high)`.
+outside it, under the heading `## <ID> prompt - Expected Effort (low/medium/high)`. Its first line
+is `<ID>: <scope>` (for example `EN14: Preview diff and cache`), so the session tab is named
+after the step (user, November 20, 2026). Paste-ready notes to a running agent start the same
+way (`EV4 note: ...`).
 
 ```
+<ID>: <scope in a few words>
+
 You are building <plan> <ID>, <what>, for Bandit Bash (Godot 4.7.1).
 
 SETUP
@@ -122,4 +127,4 @@ before writing a prompt and name it in the LANE block.
 | D Engine, AI, content | EN14 (forecast cache) | EN15, EN16; CT12 after the weapon modification design | — |
 | E Network | NT3 campaign wire | NT4–NT8 | NT3 when RN10 has merged |
 | G Audio and tooling | — | AU2 after the audio direction (M5) | — |
-| F Docs and plans | P11 and P12 plans when wanted | ideation write-ups | — |
+| F Docs and plans | P11 plan (issued November 20, 2026) | P12 plan when wanted; ideation write-ups | — |

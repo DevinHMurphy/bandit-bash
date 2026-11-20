@@ -72,7 +72,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P08 | [Campaign and run flow](2026-10-24-campaign-run-flow.md) | **In progress**: RN6 and RN7 merged November 19, 2026; RN8 and RN9 November 20 | RN10–RN12 | P01, P03 |
 | P09 | [Narrative events and curses](2026-11-12-events-and-curses.md) | **Done**: EV1, EV2, EV3 and EV5 merged November 19, 2026; EV1F, EV1G, EV4 and EV6 November 20 | — | P01, P03, P08 |
 | P10 | [Net transport](2026-11-19-net-transport.md) | **In progress**: NT1 and NT2 merged November 19, 2026 | NT3 (after RN6), then NT4–NT8 (Lane E) | P00, P01 |
-| P11 | Co-op combat (game-vision.md Multiplayer maps) | **Not started** | — | P01, P02, P04, P08, P10 |
+| P11 | Co-op combat (game-vision.md Multiplayer maps) | **Plan issued** November 20, 2026 (Lane F) | the plan, then CO steps | P01, P02, P04, P08, P10 |
 | P12 | Statistics and the Waystation war table (meta-progression.md) | **Not started** | — | P01, P08 |
 | P13 | [RNG streams](2026-10-26-rng-streams.md) | **Implemented** | — | P00 |
 | P15 | UI lift ([ui-lift.md](../design/ui-lift.md); its scope doc is the plan) | **Implemented** November 19, 2026: UL0–UL8 and UL1F merged | — | P07, P08 |

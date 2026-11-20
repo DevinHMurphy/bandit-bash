@@ -34,18 +34,18 @@ const ICON_SCENE: PackedScene = preload("res://ui/campaign/item_user_icon.tscn")
 ## Shown instead of icons for an item every unit can use (Equipment, Pouch items).
 @export var any_unit_text: String = "Any unit"
 
-# ASSUMPTION: the wording; RF-032 says only that such a weapon says so.
+# The wording (P15 question 24); RF-032 says only that such a weapon says so.
 ## Shown instead of icons for a weapon none of the seat's living units can wield.
 @export var no_unit_text: String = "No unit can wield it"
 
 ## The count after the icons: [code]%d[/code] the units not shown.
 @export var more_format: String = "+%d"
 
-# ASSUMPTION: the wording; RF-032 sets none.
+# The wording (P15 question 24); RF-032 sets none.
 ## The tooltip's heading over a list of names, on the card's focus or over "+n".
 @export var names_title: String = "Can wield it"
 
-# ASSUMPTION: the gap; ui-style.md places tooltips but sets no distance (the heirloom bar's own).
+# The gap (P15 question 24): the heirloom bar's; ui-style.md sets no distance.
 ## The space between the row's bottom edge and its tooltip.[br]
 ## [b]Units:[/b] base units. [b]0.0:[/b] the tooltip touches the row. 4 matches the heirloom bar's.
 @export_range(0.0, 32.0, 1.0) var tooltip_gap: float = 4.0
