@@ -50,7 +50,7 @@ Not a bug.
 | [BUG-015](#bug-015-the-unit-panels-details-button-cant-be-clicked) | The unit panel's Details button can't be clicked: the panel follows the hovered unit, so moving the mouse to it changes or hides the panel | P07 (unit panel) | S2 | Fixed (UL3 merge, November 19, 2026) | November 18, 2026, user playtest | UL3 (ui-lift.md) |
 | [BUG-016](#bug-016-steamnetworklocal_peer_id-errors-once-the-peer-is-cleared) | `SteamNetwork.local_peer_id()` errors once the peer is cleared | P10 | S4 | Fixed (NT1 merge, November 19, 2026) | November 19, 2026, BF1 report | P10 NT1 |
 | [BUG-017](#bug-017-choosing-a-map-node-by-keyboard-logs-a-grab_focus-error) | Choosing a map node by keyboard logs `grab_focus: !is_inside_tree()` | P08 (campaign map) | S4 | New | November 19, 2026, UL7 report | — |
-| [BUG-018](#bug-018-fact-playback-holds-the-next-batch-for-the-last-facts-full-wait) | Fact playback holds the next batch for the last fact's full wait | P07 (playback) | S3 | Assigned (BF3, issued November 19, 2026) | November 19, 2026, UL6 report | BF3 |
+| [BUG-018](#bug-018-fact-playback-holds-the-next-batch-for-the-last-facts-full-wait) | Fact playback holds the next batch for the last fact's full wait | P07 (playback) | S3 | Fixed (BF3 merge, November 19, 2026) | November 19, 2026, UL6 report | BF3 |
 
 ### BUG-001 No Block at the start of combat
 
@@ -313,3 +313,4 @@ Not a bug.
   plain, and it would skew the exit playtest's pacing judgement.
 - **Expected:** a wait counts down in real (playback) time whether or not more facts are queued.
 - **Fix in BF3,** a small fix step before the M2 exit playtest.
+- **Fixed** in BF3 (8a0c59b, merged November 19, 2026): `FactPlayback.advance()` counts the wait down before checking the queue, so the last fact's wait runs out while nothing is queued; a batch arriving mid-wait waits only what is left. Regression: `tests/sessions/playback_wait_cases.gd` (7 cases failed on the old code).
