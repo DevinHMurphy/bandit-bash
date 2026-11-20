@@ -68,6 +68,7 @@ The class doc follows `extends` directly, with no blank line.
 - Float literals have a decimal point. Division needs a float operand for a fractional result.
 - Use `minf`/`mini`, `maxf`/`maxi`, `clampf`/`clampi`, `lerpf`, `absf`/`absi`, and the like, not the Variant versions.
 - Type collections: `Array[Node2D]`, `Dictionary[int, Unit]`. They can't nest.
+- Never pass an untyped `[]` or `{}` from a ternary into a typed Array or Dictionary (an argument, a typed `var`'s initial value or a return): it fails at runtime when that branch runs (BUG-023). Use a typed local, assigned in an `if`.
 - Prefer a typed declaration to `as`; if you use `as`, null-check on the next line.
 
 Re-read new numeric declarations and divisions before finishing: this is the most common error here.

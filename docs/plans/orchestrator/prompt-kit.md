@@ -20,9 +20,14 @@ Then offer or give the prompts that fill the free lanes, at most four builds at 
 ## Prompt skeleton
 
 Each prompt goes in a code block, with "Written for: a fresh build agent session in this repo."
-outside it, under the heading `## <ID> prompt - Expected Effort (low/medium/high)`.
+outside it, under the heading `## <ID> prompt - Expected Effort (low/medium/high)`. Its first line
+is `<ID>: <scope>` (for example `EN14: Preview diff and cache`), so the session tab is named
+after the step (user, November 20, 2026). Paste-ready notes to a running agent start the same
+way (`EV4 note: ...`).
 
 ```
+<ID>: <scope in a few words>
+
 You are building <plan> <ID>, <what>, for Bandit Bash (Godot 4.7.1).
 
 SETUP
