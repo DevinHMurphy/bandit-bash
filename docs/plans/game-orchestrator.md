@@ -72,12 +72,13 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P08 | [Campaign and run flow](2026-10-24-campaign-run-flow.md) | **In progress**: RN6 and RN7 merged November 19, 2026; RN8, RN9 and RN10 November 20 | RN11, RN12 | P01, P03 |
 | P09 | [Narrative events and curses](2026-11-12-events-and-curses.md) | **Done**: EV1, EV2, EV3 and EV5 merged November 19, 2026; EV1F, EV1G, EV4 and EV6 November 20 | — | P01, P03, P08 |
 | P10 | [Net transport](2026-11-19-net-transport.md) | **In progress**: NT1 and NT2 merged November 19, 2026 | NT3 (after RN6), then NT4–NT8 (Lane E) | P00, P01 |
-| P11 | [Co-op combat](2026-11-20-coop-combat.md) | **Draft**, awaiting approval (November 20, 2026); 41 open questions in [decisions](decisions/P11-coop-combat.md) | CO1–CO21 | P01, P02, P04, P08, P10 |
+| P11 | [Co-op combat](2026-11-20-coop-combat.md) | **Approved** (user, November 20, 2026; CO6 to Lane C); the first steps' 18 questions answered, 23 open in [decisions](decisions/P11-coop-combat.md) | CO1–CO21 | P01, P02, P04, P08, P10 |
 | P12 | Statistics and the Waystation war table (meta-progression.md) | **Not started** | — | P01, P08 |
 | P13 | [RNG streams](2026-10-26-rng-streams.md) | **Implemented** | — | P00 |
 | P15 | UI lift ([ui-lift.md](../design/ui-lift.md); its scope doc is the plan) | **Implemented** November 19, 2026: UL0–UL8 and UL1F merged | — | P07, P08 |
 | P14 | [Project organization](2026-11-09-project-organization.md) | **In progress** | O8 concurrency tooling **merged** November 19, 2026 (every case file declares `const SUITE`, `tests/case_files.gd` finds it; `--quick` skips the map_set parts); O8b **merged** November 19, 2026 (`capture_screens.gd` is a runner over `tools/captures/<number>_<name>.gd` groups); O5 (deferred) | — |
 | P16 | Audio ([audio.md](../design/audio.md); its scope doc is the plan) | **In progress**: AU1 the audio layer merged November 19, 2026 | AU1 done; AU2+ sound design (M5, after the audio direction) | P07, P15 |
+| P17 | Localization: written, translatable descriptions; every string through Godot's translation; layouts that survive longer text and other scripts | **Scoping** (user, November 20, 2026): plan prompt offered (Lane F) | the plan | P03, P07, P08, P09, P15 |
 | P20–P24 | Meta progression, tutorials, dev console, status effects, shared co-op battles | Post-MVP | — | — |
 
 ## Next actions
