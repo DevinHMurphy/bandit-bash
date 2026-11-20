@@ -12,7 +12,8 @@
 class_name StockView
 extends VBoxContainer
 ## The Armory's stock as rows of categories ([member row_layout]), each a label over its
-## [StockCard]s, priced for one seat; a sold or refused entry says why on its card.
+## [StockCard]s, priced for one seat; a sold or refused entry says why on its card, and an item's
+## card shows who of the seat's living units can use it ([ItemUsableBy]).
 ##
 ## Pressing a card asks to buy its entry ([signal entry_pressed]); the screen opens the purchase.
 ## Focus moves between the enabled cards by the GUI's own neighbours (key, d-pad, stick), so a
@@ -39,8 +40,14 @@ var _cards: Array[StockCard] = []
 
 
 ## Shows the stock of [param run]'s Armory for seat [param seat], from [param catalog]: each
-## entry's card, refused for [method Armory.entry_problem]. Nothing for no stock.
-func show_stock(run: CampaignRunState, seat: int, catalog: EffectCatalog.Index) -> void:
+## entry's card, refused for [method Armory.entry_problem], an item's naming its users through
+## [param ids] (null: by unit type). Nothing for no stock. Call it once the view is in the tree.
+func show_stock(
+		run: CampaignRunState,
+		seat: int,
+		catalog: EffectCatalog.Index,
+		ids: InstanceIdAllocator = null,
+) -> void:
 	for child: Node in get_children():
 		remove_child(child)
 		child.queue_free()
@@ -52,14 +59,15 @@ func show_stock(run: CampaignRunState, seat: int, catalog: EffectCatalog.Index) 
 	for categories: PackedStringArray in row_layout:
 		var row: HBoxContainer = HBoxContainer.new()
 		row.add_theme_constant_override(&"separation", roundi(gap))
+		# In the tree before its cards are, as a card shows its entry only once it is ready.
+		add_child(row)
 		for category: String in categories:
 			var indexes: PackedInt32Array = stock.indexes_of(category)
 			if indexes.is_empty():
 				continue
-			row.add_child(_section(category, indexes, stock, run, seat, seat_run, catalog))
-		if row.get_child_count() > 0:
-			add_child(row)
-		else:
+			_add_section(row, category, indexes, stock, run, seat, seat_run, catalog, ids)
+		if row.get_child_count() == 0:
+			remove_child(row)
 			row.free()
 
 
@@ -84,16 +92,20 @@ func first_enabled() -> StockCard:
 	return null
 
 
-func _section(
+# Adds to row the section of category: its label over the cards of its entries, at indexes.
+func _add_section(
+		row: HBoxContainer,
 		category: String,
 		indexes: PackedInt32Array,
 		stock: ArmoryStock,
 		run: CampaignRunState,
 		seat: int,
 		seat_run: SeatRun,
-		catalog: EffectCatalog.Index
-) -> VBoxContainer:
+		catalog: EffectCatalog.Index,
+		ids: InstanceIdAllocator
+) -> void:
 	var section: VBoxContainer = VBoxContainer.new()
+	row.add_child(section)
 	var label: Label = Label.new()
 	label.theme_type_variation = &"HeaderLabel"
 	label.text = ArmoryModel.CATEGORY_NAMES.get(category, category.capitalize())
@@ -113,9 +125,10 @@ func _section(
 				ArmoryModel.entry_icon(entry, catalog),
 				Armory.entry_problem(run, seat, index, catalog)
 		)
+		if not entry.is_heirloom():
+			card.show_users(catalog.item(entry.definition_id), seat_run, catalog, ids)
 		card.pressed.connect(_on_card_pressed.bind(index))
 		_cards.append(card)
-	return section
 
 
 func _on_card_pressed(index: int) -> void:

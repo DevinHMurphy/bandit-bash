@@ -84,7 +84,7 @@ func _test_entry_and_resume() -> void:
 	var view: StockView = screen.call(&"get_stock_view")
 	_check.call("armory: the stock is rolled and saved on entry, a card per entry, priced", (
 			stock != null and view.get_cards().size() == stock.entries.size()
-			and view.get_cards()[0].text.contains("gold")
+			and "\n".join(view.get_cards()[0].get_lines()).contains("gold")
 	), "%d cards" % [view.get_cards().size()])
 	var before: String = JSON.stringify(stock.capture())
 	_remove(screen)
@@ -223,10 +223,11 @@ func _test_refused() -> void:
 	seat_run.gold = 0
 	var poor: Control = _add(ARMORY_SCENE)
 	var card: StockCard = (poor.call(&"get_stock_view") as StockView).card_for(0)
+	var card_text: String = "\n".join(card.get_lines())
 	_check.call("refused: a card the seat can't afford says why and takes no focus", (
 			card.disabled and card.focus_mode == Control.FOCUS_NONE
-			and card.text.contains("Can't buy: too little gold")
-	), card.text)
+			and card_text.contains("Can't buy: too little gold")
+	), card_text)
 	_remove(poor)
 	seat_run.gold = RICH
 	while not ItemPlacement.is_convoy_full(seat_run, _catalog):

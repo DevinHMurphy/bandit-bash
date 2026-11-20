@@ -1,13 +1,95 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://ui/campaign/stock_card.gd" id="1_card"]
+[ext_resource type="PackedScene" path="res://ui/campaign/item_usable_by.tscn" id="2_usable"]
 
 [node name="StockCard" type="Button"]
 custom_minimum_size = Vector2(296, 72)
-text = "Item
-Common weapon
-40 gold"
-alignment = 0
-autowrap_mode = 3
-expand_icon = false
 script = ExtResource("1_card")
+
+[node name="Content" type="MarginContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 8
+
+[node name="Layout" type="HBoxContainer" parent="Content"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 12
+
+[node name="EntryIcon" type="TextureRect" parent="Content/Layout"]
+unique_name_in_owner = true
+texture_filter = 1
+custom_minimum_size = Vector2(32, 32)
+layout_mode = 2
+size_flags_vertical = 0
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Text" type="VBoxContainer" parent="Content/Layout"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="EntryName" type="Label" parent="Content/Layout/Text"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HeaderLabel"
+text = "Item"
+autowrap_mode = 3
+
+[node name="Details" type="Label" parent="Content/Layout/Text"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BodyLabel"
+text = "Common weapon"
+autowrap_mode = 3
+
+[node name="Spacer" type="Control" parent="Content/Layout/Text"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+
+[node name="Bottom" type="HBoxContainer" parent="Content/Layout/Text"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="Lines" type="VBoxContainer" parent="Content/Layout/Text/Bottom"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 8
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="Price" type="Label" parent="Content/Layout/Text/Bottom/Lines"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BodyLabel"
+text = "40 gold"
+autowrap_mode = 3
+
+[node name="Problem" type="Label" parent="Content/Layout/Text/Bottom/Lines"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"BodyLabel"
+autowrap_mode = 3
+
+[node name="UsableBy" parent="Content/Layout/Text/Bottom" instance=ExtResource("2_usable")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 8
+size_flags_vertical = 8
