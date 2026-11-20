@@ -13,9 +13,9 @@ class_name GiftItemCommand
 extends CampaignCommand
 ## Co-op gifting (unit-roster.md, Recruiting and item transfer: "convoy-to-convoy at any Camp or
 ## shop, where the whole team is together"): a seat gives one of its convoy items to another
-## seat's convoy, keeping its instance id and state. Valid inside a Camp or an Armory; refused
-## when the receiving convoy is full ([method ItemPlacement.is_convoy_full]). Records
-## [constant CampaignFact.Kind.ITEM_GIFTED]. The Guildhall adds gifting with its own step.
+## seat's convoy, keeping its instance id and state. Valid inside a Camp, an Armory or a
+## Guildhall; refused when the receiving convoy is full ([method ItemPlacement.is_convoy_full]).
+## Records [constant CampaignFact.Kind.ITEM_GIFTED].
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 
@@ -40,8 +40,11 @@ func get_label() -> String:
 
 
 func validate(run: CampaignRunState) -> String:
-	if not Camp.is_at_camp(run) and not Armory.is_at_armory(run):
-		return "items are given only at a Camp or an Armory"
+	if (
+			not Camp.is_at_camp(run) and not Armory.is_at_armory(run)
+			and not Guildhall.is_at_guildhall(run)
+	):
+		return "items are given only at a Camp, an Armory or a Guildhall"
 	var giver: SeatRun = run.seat_run(seat)
 	var receiver: SeatRun = run.seat_run(to_seat)
 	if receiver == null or to_seat == seat:

@@ -15,8 +15,12 @@ cues = Dictionary[String, String]({
 "ITEM_TRADED_IN": "item_sell",
 "LEVELED_UP": "level_up",
 "NODE_CHOSEN/combat": "battle_map_enter",
+"NODE_CHOSEN/guildhall": "recruit_map_enter",
 "NODE_CHOSEN/treasure": "treasure_map_enter",
+"PREFIX_REROLLED": "item_buy",
+"RUNE_BOUGHT": "item_buy",
 "RUN_STARTED": "begin_campaign",
+"UNIT_BOUGHT": "item_buy",
 "UNIT_REVIVED": "resurrect",
 "UNIT_UPGRADED": "promotion"
 })

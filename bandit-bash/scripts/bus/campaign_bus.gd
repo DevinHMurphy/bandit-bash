@@ -97,8 +97,8 @@ class RunChannel:
 
 
 ## A player's army: heirlooms, items and runes gained, bought, equipped, modified, scrapped,
-## traded in or discarded; gold, HP and unit changes; recruits, dismissals and upgrades; army size;
-## revivals; level-ups.
+## traded in or discarded; gold, HP and unit changes; recruits bought, recruited, dismissed,
+## upgraded or re-rolled; army size; revivals; level-ups.
 class ArmyChannel:
 	extends BusChannel
 
@@ -138,6 +138,12 @@ class ArmyChannel:
 	signal item_bought(fact: CampaignFact)
 	## [constant CampaignFact.ITEM_TRADED_IN].
 	signal item_traded_in(fact: CampaignFact)
+	## [constant CampaignFact.UNIT_BOUGHT].
+	signal unit_bought(fact: CampaignFact)
+	## [constant CampaignFact.RUNE_BOUGHT].
+	signal rune_bought(fact: CampaignFact)
+	## [constant CampaignFact.PREFIX_REROLLED].
+	signal prefix_rerolled(fact: CampaignFact)
 
 	func _init() -> void:
 		_route(CampaignFact.Kind.GAINED, gained)
@@ -158,6 +164,9 @@ class ArmyChannel:
 		_route(CampaignFact.Kind.ITEM_GIFTED, item_gifted)
 		_route(CampaignFact.Kind.ITEM_BOUGHT, item_bought)
 		_route(CampaignFact.Kind.ITEM_TRADED_IN, item_traded_in)
+		_route(CampaignFact.Kind.UNIT_BOUGHT, unit_bought)
+		_route(CampaignFact.Kind.RUNE_BOUGHT, rune_bought)
+		_route(CampaignFact.Kind.PREFIX_REROLLED, prefix_rerolled)
 
 
 ## Effect activations and counters.

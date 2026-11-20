@@ -6,12 +6,12 @@
 # File:     node_placeholder_screen.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 extends Control
-## Stands in for the screen of a node that isn't fought and has none of its own yet (Armory,
-## Guildhall, Unknown): names the node and lets the run move on.
+## Stands in for the screen of a node that isn't fought and has none of its own yet (an Unknown
+## with no event open): names the node and lets the run move on.
 ##
 ## Continue sends [LeaveNodeCommand] through [method CampaignService.submit_command], which saves,
 ## and returns to the map; the node stays visited and its floor locked, and its rules never run.
@@ -22,8 +22,8 @@ extends Control
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 ##
-## @todo: TOD-001 - Give the Armory, Guildhall and Unknown their own screens (RN8-RN10), and
-## route each there from [method RunScreen.of].
+## @todo: TOD-001 - Route an Unknown node by its resolution (RN10) from [method RunScreen.of], so
+## no node type opens this screen.
 
 # ============================================================
 # INPUT MAP SETUP (built-in ui_* actions; read through the GUI, not here):
@@ -60,7 +60,7 @@ func _ready() -> void:
 	_heirlooms.show_views(HeirloomViewModel.for_run(run.seat_run(session.seats[0])))
 	_heirlooms.navigation_started.connect(_on_heirloom_bar_navigation_started)
 	_heirlooms.navigation_ended.connect(_on_heirloom_bar_navigation_ended)
-	# TODO(TOD-001): each remaining node type's own screen replaces this one for that type.
+	# TODO(TOD-001): an Unknown node's resolution (RN10) replaces this screen for the last type.
 	var type_name: String = CampaignMapView.TYPE_NAMES.get(run.graph.type_of(run.node), "?")
 	_header.title = type_name
 	_title_label.text = type_name

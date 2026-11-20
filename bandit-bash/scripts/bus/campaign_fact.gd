@@ -109,10 +109,23 @@ enum Kind {
 	## Armory: it left the roster, and its scrap value, [member amount] gold, came off the price of
 	## the [constant ITEM_BOUGHT] that follows.
 	ITEM_TRADED_IN = 28,
+	## The seat bought the recruit [member actor_id] (unit type [member definition_id]) at the
+	## Guildhall for [member amount] gold; its gold changed by -[member amount] alone. Its
+	## [constant UNIT_RECRUITED], and any dismissal and hand-over facts, follow.
+	UNIT_BOUGHT = 29,
+	## The seat bought the rune [member actor_id] (content id [member definition_id]) at the
+	## Guildhall for [member amount] gold; its gold changed by -[member amount] alone. Any
+	## [constant RUNE_DISCARDED], then its [constant GAINED] (with [constant FLAG_BOUGHT]), follow.
+	RUNE_BOUGHT = 30,
+	## The seat re-rolled the prefix of its unit [member actor_id] at the Guildhall to
+	## [member definition_id] (empty: none) for [member amount] gold (0: a free re-roll); its gold
+	## changed by -[member amount] alone. A current-HP change follows as [constant HP_CHANGED].
+	PREFIX_REROLLED = 31,
 }
 
 ## A [member flags] bit: this [constant Kind.GAINED] was a purchase, whose
-## [constant Kind.ITEM_BOUGHT] comes first. Part of the network contract: never reuse the bit.
+## [constant Kind.ITEM_BOUGHT] or [constant Kind.RUNE_BOUGHT] comes first. Part of the network
+## contract: never reuse the bit.
 const FLAG_BOUGHT: int = 1
 
 ## [member seat] when a fact belongs to no single player.

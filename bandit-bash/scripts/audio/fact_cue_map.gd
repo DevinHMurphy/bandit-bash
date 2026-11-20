@@ -33,7 +33,7 @@ enum Domain {
 
 ## What else a fact must be for a rule to match, tried in this order with [constant ANY] last. A
 ## shape that needs the battle's or run's state ([code]on_object[/code], [code]player_actor[/code],
-## [code]combat[/code], [code]treasure[/code]) never matches without it.
+## [code]combat[/code], [code]treasure[/code], [code]guildhall[/code]) never matches without it.
 enum Shape {
 	## [code]no_damage[/code]: [member CombatFact.amount] is 0, a hit fully countered.
 	NO_DAMAGE = 0,
@@ -57,6 +57,9 @@ enum Shape {
 	## [code]bought[/code]: a campaign fact carrying [constant CampaignFact.FLAG_BOUGHT], a
 	## purchase's [code]GAINED[/code], which its [code]ITEM_BOUGHT[/code] already sounds.
 	BOUGHT = 8,
+	## [code]guildhall[/code]: a campaign fact whose [member CampaignFact.amount] is a Guildhall
+	## node, such as [code]NODE_CHOSEN[/code].
+	GUILDHALL_NODE = 9,
 }
 
 ## The [enum CampaignGraph.NodeType]s a [code]combat[/code] rule matches: the nodes that open a
@@ -84,6 +87,7 @@ const _SHAPE_WORDS: Dictionary[String, Shape] = {
 	"combat": Shape.COMBAT_NODE,
 	"treasure": Shape.TREASURE_NODE,
 	"bought": Shape.BOUGHT,
+	"guildhall": Shape.GUILDHALL_NODE,
 }
 
 ## Which kinds the keys name.

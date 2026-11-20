@@ -79,10 +79,10 @@ The fact rules are `res://data/audio/maps/combat_facts.tres` and `campaign_facts
 | `sounds/ui/level_up/level_up_point.ogg` | same | `level_up_point` | Unmapped: waits for a level-up card that reveals gains one by one |
 | `sounds/ui/level_up/experience_point.ogg` | same | `experience_point` | Unmapped: UL5 dropped the XP tick |
 | `sounds/ui/campaign_map/event_map_enter.ogg` | same | `event_map_enter` | An event opening at an Unknown node: the event screen plays its `EVENT_DRAWN` fact (`CampaignPlayback`); a continued run doesn't sound it |
-| `sounds/ui/campaign_map/recruit_map_enter.ogg` | same | `recruit_map_enter` | Unmapped: waits for recruiting (the Guildhall, RN9) |
+| `sounds/ui/campaign_map/recruit_map_enter.ogg` | same | `recruit_map_enter` | Entering a Guildhall (`NODE_CHOSEN/guildhall`) |
 | `sounds/ui/draft/draft_hover.ogg` | same | `draft_hover` | Unmapped: waits for a draft screen |
 | `sounds/ui/draft/draft_confirm.ogg` | same | `draft_confirm` | Unmapped: waits for a draft screen |
-| `sounds/ui/shop/item_buy.ogg` | same | `item_buy` | Unmapped: waits for the shop |
+| `sounds/ui/shop/item_buy.ogg` | same | `item_buy` | A purchase: `ITEM_BOUGHT` at the Armory; `UNIT_BOUGHT`, `RUNE_BOUGHT` and `PREFIX_REROLLED` at the Guildhall |
 | `sounds/ui/shop/item_sell.ogg` | same | `item_sell` | Unmapped: waits for the shop |
 | `sounds/ui/training_grounds/bonus_experience_point.ogg` | same | `bonus_experience_point` | Unmapped: waits for Guildhall training |
 | `sounds/ui/training_grounds/bonus_experience_spend.ogg` | same | `bonus_experience_spend` | Unmapped: waits for Guildhall training |

@@ -1,0 +1,131 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/guildhall_screen.gd" id="1_screen"]
+[ext_resource type="PackedScene" path="res://ui/campaign/run_header.tscn" id="2_header"]
+[ext_resource type="PackedScene" path="res://ui/battle/input/input_device_adapter.tscn" id="3_device"]
+[ext_resource type="Script" path="res://ui/common/screen_hints.gd" id="4_hints"]
+[ext_resource type="PackedScene" path="res://ui/battle/hud/control_hint_bar.tscn" id="5_bar"]
+[ext_resource type="PackedScene" path="res://ui/common/pause_menu.tscn" id="6_pause"]
+[ext_resource type="PackedScene" path="res://ui/campaign/guildhall_stock_view.tscn" id="7_stock"]
+[ext_resource type="PackedScene" path="res://ui/campaign/guildhall_panel.tscn" id="8_purchase"]
+[ext_resource type="PackedScene" path="res://ui/common/heirlooms/heirloom_bar.tscn" id="9_heirlooms"]
+
+[node name="GuildhallScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_screen")
+
+[node name="Layout" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 56
+
+[node name="Column" type="VBoxContainer" parent="Layout"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="RunHeader" parent="Layout/Column" instance=ExtResource("2_header")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="HeirloomBar" parent="Layout/Column" instance=ExtResource("9_heirlooms")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+handles_focus_input = true
+
+[node name="Center" type="CenterContainer" parent="Layout/Column"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+
+[node name="Box" type="VBoxContainer" parent="Layout/Column/Center"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="GuildhallStockView" parent="Layout/Column/Center/Box" instance=ExtResource("7_stock")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(980, 0)
+layout_mode = 2
+
+[node name="Footer" type="HBoxContainer" parent="Layout/Column/Center/Box"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="RerollButton" type="Button" parent="Layout/Column/Center/Box/Footer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 36)
+layout_mode = 2
+text = "Re-roll a prefix"
+
+[node name="LeaveButton" type="Button" parent="Layout/Column/Center/Box/Footer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 36)
+layout_mode = 2
+theme_type_variation = &"PrimaryButton"
+text = "Leave"
+
+[node name="Status" type="Label" parent="Layout/Column/Center/Box/Footer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(480, 0)
+layout_mode = 2
+size_flags_vertical = 4
+theme_type_variation = &"MutedLabel"
+autowrap_mode = 3
+
+[node name="GuildhallPanel" parent="." instance=ExtResource("8_purchase")]
+unique_name_in_owner = true
+layout_mode = 1
+
+[node name="InputDeviceAdapter" parent="." instance=ExtResource("3_device")]
+
+[node name="ScreenHints" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("4_hints")
+actions = Dictionary[StringName, PackedStringArray]({
+&"STOCK": PackedStringArray("ui_left", "ui_right", "ui_up", "ui_down", "ui_accept", "heirloom_bar_focus", "ui_cancel"),
+&"BUY": PackedStringArray("ui_left", "ui_right", "ui_up", "ui_down", "ui_accept", "ui_cancel"),
+&"HEIRLOOMS": PackedStringArray("ui_left", "ui_right", "ui_cancel", "heirloom_bar_focus")
+})
+
+[node name="ControlHintBar" parent="." node_paths=PackedStringArray("controller", "device") instance=ExtResource("5_bar")]
+unique_name_in_owner = true
+layout_mode = 1
+controller = NodePath("../ScreenHints")
+device = NodePath("../InputDeviceAdapter")
+right_margin = 8.0
+labels = Dictionary[String, String]({
+"STOCK/ui_accept": "Buy",
+"STOCK/ui_cancel": "Pause",
+"BUY/ui_accept": "Choose",
+"BUY/ui_cancel": "Back",
+"HEIRLOOMS/heirloom_bar_focus": "Close",
+"HEIRLOOMS/ui_cancel": "Close",
+"HEIRLOOMS/ui_left": "Choose",
+"HEIRLOOMS/ui_right": "Choose",
+"PAUSED/ui_cancel": "Resume",
+"PAUSED/ui_down": "Choose",
+"PAUSED/ui_up": "Choose",
+"ui_accept": "Select",
+"heirloom_bar_focus": "Heirlooms",
+"ui_cancel": "Back",
+"ui_down": "Move",
+"ui_left": "Move",
+"ui_right": "Move",
+"ui_up": "Move"
+})
+
+[node name="PauseMenu" parent="." instance=ExtResource("6_pause")]

@@ -69,7 +69,12 @@ A fact is one thing that happened, in the past tense, carrying ids and never obj
   | 23 | `UNIT_UPGRADED` | `RunOperations.upgrade` (Veteran Company; a Camp's Train, `camp_train`) |
   | 24 | `ARMY_SIZE_CHANGED` | `RunOperations.grant_heirloom` when the heirloom moved max army size (Abundance); `amount` the change |
   | 25 | `FEAST_HELD` | `FeastCommand`: a seat held a Camp's Feast, cooking the actor (empty: none); the heals and cooked gains follow |
-  | 26 | `ITEM_GIFTED` | `GiftItemCommand`: a seat gave a convoy item to the convoy of seat `amount` (co-op, at a Camp) |
+  | 26 | `ITEM_GIFTED` | `GiftItemCommand`: a seat gave a convoy item to the convoy of seat `amount` (co-op, at a Camp, an Armory or a Guildhall) |
+  | 27 | `ITEM_BOUGHT` | `Armory.buy`: an item (or, with no actor, an heirloom) bought for `amount` gold after any trade-in; its `GAINED` carries `FLAG_BOUGHT` |
+  | 28 | `ITEM_TRADED_IN` | `Armory.buy`: the replaced item traded in for `amount` gold off the price |
+  | 29 | `UNIT_BOUGHT` | `Guildhall.buy_recruit`: a recruit bought for `amount` gold; `UNIT_RECRUITED` and any dismissal and hand-over facts follow |
+  | 30 | `RUNE_BOUGHT` | `Guildhall.buy_rune`: a rune bought for `amount` gold; any `RUNE_DISCARDED`, then its `GAINED` with `FLAG_BOUGHT`, follow |
+  | 31 | `PREFIX_REROLLED` | `Guildhall.reroll`: a unit's prefix re-rolled to `definition_id` for `amount` gold (0: free); an `HP_CHANGED` may follow |
 
 - **Paired triggers are two facts.** A hit records `HIT_DEALT`, then `HIT_TAKEN`. `actor_id` is
   always the unit the kind is about, the one an effect's scope tests; `target_id` is the other
