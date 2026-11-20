@@ -57,7 +57,8 @@ var role: String = ""
 var prefix_id: String = ""
 
 ## Its level as [Loadout] built it (an enemy's from its step, a player unit's from the run).
-## Shown only (the unit detail): what a level adds is an effect.
+## Shown in the unit detail, and read by [LevelOf] (Vanguard's Block); the stats a level adds are
+## effects.
 var level: int = 1
 
 ## Current HP.
