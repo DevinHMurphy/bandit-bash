@@ -810,7 +810,7 @@ func _changes_text(changes: Dictionary) -> String:
 		var named: Variant = CombatValue.Key.find_key(key)
 		if named == null:
 			named = DamageStage.Key.find_key(key)
-		var amount: float = float(changes[key])
+		var amount: float = changes[key]
 		parts.append("%+d %s" % [roundi(amount), "?" if named == null else named as String])
 	return ", ".join(parts)
 
