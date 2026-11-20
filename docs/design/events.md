@@ -36,9 +36,12 @@ informed trade, never a surprise:
 - **Grouped by power level:** curses come in three tiers, and an option's curse tier matches the
   size of its reward, so a small reward never costs a crippling curse.
 - **Never the economy:** no curse reduces gold, prices or rewards; they all act on combat.
-- **Generation:** when an event is generated, each cursed option draws its curse from the right
-  tier, among curses the player doesn't already hold (from the run's seeded stream). In co-op, a
-  curse belongs to the player who took it.
+- **Generation:** when an event opens, each cursed option draws its curse evenly from its tier,
+  from the player's seeded event stream. The draw is saved before the options show.
+- **Curses may repeat.** A tier draws from the whole tier, curses the player already holds
+  included. An option that names a curse gives it even if the player holds it. A repeat adds a
+  copy, and copies stack ([heirlooms.md](heirlooms.md#the-short-version)). So a cursed option is
+  never greyed out for want of a curse. In co-op, a curse belongs to the player who took it.
 
 | Tier | Paired with | Curse (first pass) | Effect |
 |------|-------------|--------------------|--------|
@@ -59,7 +62,9 @@ informed trade, never a surprise:
 
 **Dark Goblet** (`dark_goblet`): a crimson goblet on a pedestal.
 - *Drink Deep:* a chosen unit gains +2 MGT and loses 4 max HP, permanently.
-- *Infuse:* a chosen weapon gains "Hit dealt: heal 2" and +2 weight.
+- *Infuse:* a chosen weapon gains "Hit dealt: heal 2" and +2 weight. "Hit dealt: heal 2" is its
+  own effect (`goblet_infusion`): the weapon's holder heals 2. It is worth 1 item point, items.md's
+  hand-set value ([Modified items](items.md#modified-items)).
 - *Pour It Away:* gain the Cleansed Goblet trinket.
 
 **Cavern of Echoing Steel** (`cavern_of_echoing_steel`): walls that hum with metal.
@@ -68,8 +73,11 @@ informed trade, never a surprise:
 - *Harvest Ore:* gain the Resonant Ore trinket.
 
 **The Clockwork Hermit** (`clockwork_hermit`): a tinkerer's workshop.
-- *Upgrade Gear:* a chosen weapon gains +1 damage, +5 crit and +1 weight.
+- *Upgrade Gear:* a chosen weapon gains +1 damage, +5 crit and +1 weight. The damage is added to
+  the Attack damage stage, as a weapon prefix's damage is. The crit is 5 points of Crit chance.
+  `Godot_FE`'s +5 durability is dropped: there is no durability.
 - *Augment Unit:* pay 40 gold: upgrade a chosen unit, as a Camp's Train. *(Requires 40 gold.)*
+  Train's rules apply, so the commander can't be chosen.
 - *Analyze the Mechanisms:* a chosen unit gains +10 Hit, permanently.
 
 **Festival of Embers** (`festival_of_embers`): a lantern-lit square.
@@ -87,7 +95,7 @@ informed trade, never a surprise:
 **Ghastly Library** (`ghastly_library`): voices in the stacks.
 - *Answer the Voices:* the commander gains +2 MGT and loses 1 DEF and 1 RES. *(Requires the
   commander.)*
-- *Take a Tome:* gain a random rare magic tome.
+- *Take a Tome:* gain a random rare magic tome: a Rare anima, holy or dark weapon.
 - *Ethereal Infusion:* gain a random rune.
 
 **The Whispering Oak** (`whispering_oak`): an ancient, murmuring tree.
@@ -97,6 +105,7 @@ informed trade, never a surprise:
 
 **Mirror of Doubt** (`mirror_of_doubt`): a mirror of warped reflections.
 - *Face Yourself:* re-roll a chosen unit's prefix for free (it can come out worse, never the same).
+  The new prefix is drawn as the option applies. A commander's prefix can't be re-rolled.
 - *Shatter the Mirror:* gain a random trinket and a **minor** curse (named before choosing).
 - *Walk Away:* nothing.
 
@@ -104,23 +113,27 @@ informed trade, never a surprise:
 
 **Broken Shrine of Valor:** the **revive shrine** (settled in game-vision.md), using `Godot_FE`'s
 shrine theme (`broken_shrine_of_valor`). Appears only if at least one unit in the army has fallen,
-so it is never a free heirloom. Once eligible, it is drawn like any other event (no special odds).
+so it is never a free heirloom. In co-op, every player must have a fallen unit. Once eligible, it
+is drawn like any other event (no special odds).
 - *Offer a Prayer:* one fallen unit returns at critical health (10% of max HP, at least 1).
+  *(Requires a fallen unit.)* Eligibility keeps the shrine from showing without one, so this never
+  greys out in play. The revived unit keeps the items it still holds. Into a full army it works
+  like recruiting past the max: the player names a unit that leaves.
 - *Claim the Relic:* gain a rare heirloom.
 
-**Bandit Toll** *(team choice)*: brigands block the road. Built on `Godot_FE`'s scripted bandit
-outcomes (bribe, fight, intimidate). In solo, "each player" is just you.
+**Bandit Toll** (`bandit_toll`) *(team choice)*: brigands block the road. Built on `Godot_FE`'s
+scripted bandit outcomes (bribe, fight, intimidate). In solo, "each player" is just you.
 - *Pay the Toll:* each player loses 30 gold. *(Requires every player to have 30 gold.)*
 - *Fight:* a surprise standard combat for the whole team, on parallel maps, with normal rewards.
 - *Intimidate:* the bandits flee and leave their loot: each player gains 40 gold and a **minor**
   curse (named before choosing).
 
-**Cursed Hoard:** a chest of gold on a bed of bones.
+**Cursed Hoard** (`cursed_hoard`): a chest of gold on a bed of bones.
 - *Take It All:* gain 80 gold and a **major** curse (named before choosing).
 - *Take a Little:* gain 20 gold.
 - *Leave It:* nothing.
 
-**Mercenary Camp:** a band of sellswords for hire.
+**Mercenary Camp** (`mercenary_camp`): a band of sellswords for hire.
 - *Hire the Best:* pay 50 gold: recruit a unit with a guaranteed +1 or +2 prefix, at the army's
   average level. *(Requires 50 gold.)*
 - *Take a Volunteer:* recruit a unit with no prefix, for free, and take a **minor** curse (named
@@ -128,7 +141,12 @@ outcomes (bribe, fight, intimidate). In solo, "each player" is just you.
 - *Sign a Company Charter:* +1 max army size and a **major** curse (named before choosing).
   *(Requires max army size below the ceiling of 8.)*
 
-**The Black Altar:** a pact offered in the dark. The one event with a severe curse.
+Both recruits are any recruitable unit type, drawn evenly as the option applies, so the player
+doesn't see the recruit before choosing. Into a full army, each asks which unit leaves; a new
+Mercenary army starts full (4 of 4).
+
+**The Black Altar** (`black_altar`): a pact offered in the dark. The one event with a severe curse.
+The id drops the leading "The"; the title keeps it.
 - *Accept the Pact:* gain two rare heirlooms and a **severe** curse (named before choosing).
 - *Take a Token:* gain one rare heirloom and a **major** curse (named before choosing).
 - *Refuse:* nothing.
@@ -136,13 +154,46 @@ outcomes (bribe, fight, intimidate). In solo, "each player" is just you.
 ## Rules
 
 - **Choosing a unit or weapon:** options that say "a chosen unit" or "a chosen weapon" let the
-  player pick after choosing the option. Dead units can't be chosen, except by the shrine.
-- **Requirements** grey an option out, with the reason shown, as in `Godot_FE`.
+  player pick after choosing the option. Dead units can't be chosen, except by the shrine. A chosen
+  weapon is a weapon or staff on a living unit or in the convoy, never a fallen unit's. A unit or
+  weapon the option can't take shows greyed, with its reason.
+- **"Every unit"** means the living army.
+- **Requirements** grey an option out, with the reason shown, as in `Godot_FE`. One check covers
+  the whole army.
+- **All or nothing:** an option applies completely or not at all.
+- **Damage:** percent damage rounds halves up and never kills: it leaves at least 1 HP.
+- **Healing:** percent heals round halves up. Healing received follows the player's curses and the
+  unit's own items, so Cursed Blood halves event healing.
+- **Max HP:** a gain raises current HP by as much. A loss lowers current HP only where it is above
+  the new max, and never takes max HP below 1.
+- **Rolled before shown:** when an event opens, each option's random parts are drawn and saved:
+  items, runes, heirlooms and tier curses. The player sees the exact result before choosing, and a
+  quit and resume shows the same event. A prefix re-roll and a random recruit are drawn as the
+  option applies instead.
+- **Random items:** a rare weapon or tome is from a type the army can use 75% of the time, as in a
+  combat's Weapon pick ([campaign and run flow plan](../plans/2026-10-24-campaign-run-flow.md)). A
+  trinket rolls its rarity on a Standard combat's odds, without the rare offset. A rune is drawn
+  evenly.
+- **Rare heirlooms** are drawn evenly from the tier's heirlooms the player doesn't own, never the
+  same one twice for one option. Co-op-only heirlooms appear only in co-op. An empty pool greys
+  the option out.
+- **Runes:** a rune gained with every slot full asks which rune to discard. The option is never
+  greyed out for full slots, so runes are always on offer.
 - **Recruits** from events follow the normal recruiting rules: they join at the army's average
   level, and past max army size they replace a unit ([unit-roster.md](unit-roster.md#recruiting-and-item-transfer)).
-- **Surprise combats** are standard combats on the run's standard map pool, with normal gold and XP.
+  The level is the average before any unit leaves. The player names the unit that leaves after the
+  chooser, before placing items. The commander can't leave, nor a unit whose items the convoy
+  can't take. If no unit can leave, all show greyed and the option stays on offer.
+- **Upgrades** follow Train's rules. An upgrade of every unit skips the commander and units already
+  upgraded, and is refused only when none can upgrade.
+- **Max army size:** a gain adds only the part that fits below the ceiling of 8.
+- **Surprise combats** are standard combats on the run's standard map pool, with a Standard
+  combat's full rewards: gold, XP and the item pick. After choosing one, the outcome's Fight goes
+  to the battle; the map follows its results.
 - **Pool:** an Unknown that rolls an event draws one this run hasn't seen yet, from the run's
-  seeded stream.
+  seeded stream. A node draws once; a continued run shows the same event. When every eligible
+  event has been seen, the seen list clears and all eligible events return, as maps do. If no
+  event is eligible at all, the node holds no event.
 
 ## Co-op
 
@@ -155,6 +206,11 @@ team. Each event is marked; events without a mark are individual.
   votes, and the option is drawn at random weighted by votes (2 votes against 1 gives a 2-in-3
   chance); the host draws. The chosen option applies to every player: each gets its reward, its
   curse, or its cost. An option is only available if every player meets its requirement.
+  - Voting again replaces a player's vote; a vote can't be withdrawn.
+  - The last vote draws the option. The team then applies it, each player making their own picks
+    (a unit, item placements, a rune to discard).
+  - The votes stay on show until the next event opens.
+  - In solo there is no vote: you choose directly.
 - **Combat options are always team choices.** If the team picks a surprise combat, everyone fights
   it, each on their own parallel map, so nobody waits while a teammate fights alone.
 
