@@ -51,6 +51,7 @@ Not a bug.
 | [BUG-016](#bug-016-steamnetworklocal_peer_id-errors-once-the-peer-is-cleared) | `SteamNetwork.local_peer_id()` errors once the peer is cleared | P10 | S4 | Fixed (NT1 merge, November 19, 2026) | November 19, 2026, BF1 report | P10 NT1 |
 | [BUG-017](#bug-017-choosing-a-map-node-by-keyboard-logs-a-grab_focus-error) | Choosing a map node by keyboard logs `grab_focus: !is_inside_tree()` | P08 (campaign map) | S4 | New | November 19, 2026, UL7 report | — |
 | [BUG-018](#bug-018-fact-playback-holds-the-next-batch-for-the-last-facts-full-wait) | Fact playback holds the next batch for the last fact's full wait | P07 (playback) | S3 | Fixed (BF3 merge, November 19, 2026) | November 19, 2026, UL6 report | BF3 |
+| [BUG-019](#bug-019-player-units-cant-attack-breakable-map-objects) | Player units can't attack breakable map objects (debris, powder kegs) | P07 (target list) | S2 | Assigned (BF4, issued November 19, 2026) | November 19, 2026, user | BF4 |
 
 ### BUG-001 No Block at the start of combat
 
@@ -314,3 +315,16 @@ Not a bug.
 - **Expected:** a wait counts down in real (playback) time whether or not more facts are queued.
 - **Fix in BF3,** a small fix step before the M2 exit playtest.
 - **Fixed** in BF3 (8a0c59b, merged November 19, 2026): `FactPlayback.advance()` counts the wait down before checking the queue, so the last fact's wait runs out while nothing is queued; a batch arriving mid-wait waits only what is left. Regression: `tests/sessions/playback_wait_cases.gd` (7 cases failed on the old code).
+
+### BUG-019 Player units can't attack breakable map objects
+
+- **Reported** (user, November 19, 2026): kegs and walls aren't targetable.
+- **Cause** (read): the rules support it. `ExchangeResolver` takes a map object as the defender
+  (no counter, Stance or crit; `MapObjects.broken`), and the validator accepts "the defender an
+  enemy or a map object". But `ui/battle/input/turn_input_model.gd` builds the Attack option's
+  targets from `state.units_of(ENEMY)` only, so standing debris and powder kegs never appear.
+  Enemies attack kegs through EN9's AI. "Walls" here are debris (breakable walls were folded into
+  it); spiked walls are terrain and never breakable.
+- **Expected** (map-objects.md, Rules): breaking an object is an attack on it; the attacker hits
+  its Defense or Resistance, the object never counters, and splash damages it.
+- **Fix in BF4,** before the M2 exit playtest.
