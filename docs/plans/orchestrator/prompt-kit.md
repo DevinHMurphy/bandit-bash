@@ -121,9 +121,9 @@ before writing a prompt and name it in the LANE block.
 
 | Lane | Next | Then | Gated on |
 |------|------|------|----------|
-| A Battle UI | — | EN16 after EN14; RB1 in M3 | RB1: RN10 merged and a full-run playtest (user, November 20, 2026) |
+| A Battle UI | BF6 (BUG-024, the end-of-phase battle save) after UL10 | EN16 after EN14; RB1 in M3; CO13 after CO2 | RB1: RN10 merged and a full-run playtest (user, November 20, 2026) |
 | B Campaign and run | RN10 Unknown | RN11 full run, RN12 docs | one at a time; NT3 (Lane E) goes between RN10 and RN11 |
-| C Events | — (P09 done) | P11 co-op event mirrors when planned | — |
+| C Events | CO9 (team choices per seat) | CO12 (co-op event screen) | P11 approved |
 | D Engine, AI, content | EN14 (forecast cache) | EN15, EN16; CT12 after the weapon modification design | — |
 | E Network | NT3 campaign wire | NT4–NT8 | NT3 when RN10 has merged |
 | G Audio and tooling | — | AU2 after the audio direction (M5) | — |

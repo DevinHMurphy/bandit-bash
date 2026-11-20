@@ -219,6 +219,31 @@ flowchart LR
   UL1 --> AU1
   AU1 --> UL6
   AU1 --> UL7
+    NT3[P10 NT3 campaign wire] --> NT4[P10 NT4 relay] --> NT5[P10 NT5] --> NT6[P10 NT6 pause and rejoin] --> NT8[P10 NT8 live matrix]
+    CO1[P11 CO1 every map completed] --> CO2[P11 CO2 sending, aid, v4] --> CO3[P11 CO3 units on a partner's map]
+    CO4[P11 CO4 darkness on mirrors]
+    CO1 --> CO8[P11 CO8 battle end, rewards]
+    CO2 --> CO8
+    CO5[P11 CO5 swaps] --> CO8
+    CO10[P11 CO10 campaign screens, own seat] --> CO11[P11 CO11 co-op campaign map]
+    CO5 --> CO11
+    CO6[P11 CO6 route votes] --> CO11
+    CO7[P11 CO7 unique claims]
+    CO9[P11 CO9 team choices per seat] --> CO12[P11 CO12 event screen]
+    CO10 --> CO12
+    CO2 --> CO13[P11 CO13 co-op battle screen]
+    CO8 --> CO14[P11 CO14 forfeit rules, save] --> CO18[P11 CO18 forfeit on the net] --> CO19[P11 CO19 co-op pause menu]
+    NT4 --> CO15[P11 CO15 settings, fast-forward]
+    NT5 --> CO16[P11 CO16 clients: campaign, events]
+    CO11 --> CO16
+    CO12 --> CO16
+    NT5 --> CO17[P11 CO17 clients: battles]
+    CO13 --> CO17
+    NT6 --> CO18
+    NT8 --> CO21[P11 CO21 live co-op check]
+    CO16 --> CO21
+    CO17 --> CO21
+    CO19 --> CO21
 
   classDef done fill:#c8e6c9,stroke:#2e7d32,color:#1b1b1b
   classDef active fill:#bbdefb,stroke:#1565c0,color:#1b1b1b
@@ -234,6 +259,7 @@ flowchart LR
   class EV1F done
   class EV4,EV1G done
   class EV6,UL9 done
+  class NT3,NT4,NT5,NT6,NT8,CO1,CO2,CO3,CO4,CO5,CO6,CO7,CO8,CO9,CO10,CO11,CO12,CO13,CO14,CO15,CO16,CO17,CO18,CO19,CO21 waiting
 
 ```
 
@@ -314,7 +340,11 @@ mark it **Open** here.
 | P04 MP4 Objectives | P02 CC6 (the `AFTER_STEP` hook) | The checks run on the turn loop's hook; built with CC6 | **Open** October 28, 2026 (EB6 implemented, so CC6 may start); implemented with CC6 October 28, 2026, so MP5 may start |
 | P04 MP8 Save sections | P01 EB7, P02 CC8 | `entities` and `combat_map` follow the session snapshot and `combat_state` | **Open** October 31, 2026 (CC8 merged) |
 | P10 NT1–NT8 Net transport | P10 approved ✅ (November 19, 2026); in order NT1, then NT2 and NT3 in parallel, then NT4–NT8 | Cross-lane edits per the plan's "Other lanes' files" column (P10 question 12): NT3 touches Lanes B and C, NT5 `battle_controller.gd` (Lane A), NT6 `scene_router.gd` (Lane B); schedule each when those lanes are quiet | **Open**: NT1 ✅ (merged November 19, 2026: `NetGate`, `NetContract` (the build fingerprint, about 164 ms at boot), `BUILD_MISMATCH = 3`, `SeatDirectory`, the `tests/net/` suite; P10 questions 15–18). NT2 ✅ (merged November 19, 2026: the loopback harness, `tests/net/harness/net_harness.gd`, plus one ENet case; P10 questions 19–21 answered as recommended). NT3 ready (Lane E; RN8 and EV1F merged November 20, 2026, RN9 merged November 20, 2026; NT3 gives every campaign and event command a wire form, so send it after RN10 (small, adds the last node routing) and before RN11; EV4 is event data and EV1G event UI, neither edits commands); NT4 needs NT3 |
-| P11 implementation | P10 NT6 (pause and rejoin; not the live check), P01 EB7, the per-map battle save format | Co-op needs transport, snapshots and saves. M4's live two-machine test (P10 NT8's matrix) runs after P11 | Closed; **the plan issued** November 20, 2026 (Lane F): it marks which CO steps can be built before NT6 |
+| P11 CO1–CO14 | P11 approved; each step's questions answered; no NT step (CO10 and CO12 rely on P11 questions 2 and 3 (a)) | Lane plan: D CO1 → CO2 → CO3, CO4 any time; B CO10 → CO6 → CO5 → CO7 → CO8 → CO11 → CO14; C CO9 → CO12; A CO13 after CO2 | Closed (plan drafted November 20, 2026, awaiting approval) |
+| P11 CO15 | P10 NT4 | Seat settings and fast-forward on the network (Lane E) | Closed |
+| P11 CO16, CO17 | P10 NT5 | Clients in the harness: campaign and events (CO16), battles (CO17) | Closed |
+| P11 CO18, CO19 | P10 NT6 | Forfeit and removal on the network; the co-op pause menu | Closed |
+| P11 CO21 | P10 NT8; CO16–CO19 | The live co-op check (M4) | Closed |
 
 ## Unowned and cross-cutting dependencies
 
@@ -327,8 +357,8 @@ plan that depends on it is approved.
 | RNG streams manager (reserved `rng` save keys in campaign and combat) | P01 EB4/EB6, P02, P04–P06, P08, P09, P11 | **P13** (its own plan; answers P08 question 2) | Owned October 26, 2026, not started |
 | Modified-item price and scrap formula (from deltas) | P03, P08, P09 | **P03** (P03 question 8; step CT10) | **Owned** October 29, 2026 |
 | Exit crash and leak around the effects engine (found building P03 CT1; fixed October 29, 2026). **Cause:** Godot engine issue godotengine/godot#117975: `GDScriptLanguage::finish()` reads an already-freed script at exit (access violation, exit 139), fixed by PR #117991 in 4.8 only; 4.7.2 still has it (#124935). Blocks reading `EffectDefinition`'s enums and helpers triggered it, not the reference cycle as such (still 16 scripts). **Fix:** P01 amendment F18 moves those into the `EffectTerms` leaf (31 scripts naming `EffectDefinition` → 6): 0 crashes in 50 `--check-only` runs on each of two scripts that crashed 30–45% before, 0/20 content-suite runs, no leak | Every step's verification: a crashing run still exits 139 after a failed check, so verification reads the output for errors, not only the exit code | P01 (question 51): new code names `EffectTerms`; revisit only if a 4.8 upgrade is chosen | **Resolved** October 29, 2026 |
-| Per-map battle save format (one battle state per map) | P11 | P11 | Owned, not started |
-| Forfeit save change (a campaign's player count can shrink) | P10, P11 | P11 | Owned, not started |
+| Per-map battle save format (one battle state per map) | P11 | P11 CO2 (`combat_state` 3 → 4; P11 questions 15 and 40): the battle save already holds every map's units, turn and phase | Owned, not started |
+| Forfeit save change (a campaign's player count can shrink) | P10, P11 | P11 CO14 and CO18; the archive bump to schema 2 is ordered with P12's planned bump | Owned, not started |
 | Archive record gains run score and ladder level (schema bump and migration) | P12, P20 | P12 (score), P20 (ladder) | Owned, not started |
 | Map authoring checks (≥ 8 deployment tiles, ≥ 2 darkness source candidates, ≤ 3 powder kegs) | P04, P06 | P04 (P06 adds its check) | Owned, not started |
 | Design-doc updates from P01 (EB8: Campaign triggers, Block gained, inline windows) | P01 | P01 EB8 | Owned (per-map phases already written into the design docs October 24, 2026) |

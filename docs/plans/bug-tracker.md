@@ -56,6 +56,7 @@ Not a bug.
 | [BUG-021](#bug-021-an-infused-basic-weapon-scraps-for-0-gold) | An Infused Basic weapon scraps (and trades in) for 0 gold | P08 (prices) | S3 | Fixed (EV4 merge, November 20, 2026) | November 20, 2026, RN8 report | EV4 (note sent November 20, 2026) |
 | [BUG-022](#bug-022-an-enemys-second-move-ending-in-a-wait-crashes-the-enemy-phase) | An enemy's second move ending in a Wait crashes the enemy phase (the Bloodhound after a kill) | P05 (enemy plans) | S2 | Fixed (BF5 merge, November 20, 2026) | November 20, 2026, EN13 report | BF5 |
 | [BUG-023](#bug-023-an-untyped-empty-literal-from-a-ternary-fails-in-a-typed-slot) | An untyped `[]` from a ternary fails at runtime in a typed Array slot (three latent places) | P01 / P08 / tests | S3 (latent) | Open | November 20, 2026, BF5 report | EN14 (effect_engine.gd), UL10 (the other two) |
+| [BUG-024](#bug-024-battles-dont-save-at-the-end-of-a-player-phase) | Battles don't save at the end of a player phase: a crash loses every move since Begin | P00 / P07 (battle checkpoints) | S2 | Open | November 20, 2026, P11 plan report | BF6 (Lane A, after UL10) |
 
 ### BUG-001 No Block at the start of combat
 
@@ -392,3 +393,14 @@ Not a bug.
   - `ui/campaign/starting_offer_view.gd:210` (no offer; Lane A or B);
   - `tests/ui/victory/victory_cases.gd:96` (a null model shows as a script error, not a failed check).
 - **Fix:** a typed local, assigned in an `if`, as BF5 did. Each goes in its owner's next step.
+
+### BUG-024 Battles don't save at the end of a player phase
+
+- **Found** by the P11 plan session, confirmed by the orchestrator: save-system.md's checkpoint
+  table lists "Battle: end of each player phase" (`save_checkpoint()`), but in real play only
+  Begin and Save & Quit (`ui/common/pause_menu.gd`) write a battle. The end-of-phase checkpoint
+  is called only from the debug panel (`save_debug_panel.gd`). A crash mid-battle loses every
+  move since Begin, solo included.
+- **Fix in BF6** before M3 (a solo run must be resumable): save at the end of each player phase.
+  P11 CO2 then extends it to co-op, where each map checkpoints at the end of its own player phase
+  (P11 question 39).
