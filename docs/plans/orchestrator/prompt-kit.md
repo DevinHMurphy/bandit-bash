@@ -7,9 +7,15 @@ each lane takes next.
 
 ## Every status update
 
-End every update with the **lanes table**: one row per lane (A, B, C, D, E, G, F), with what is
-building, what is free and the step that fits it, and what waits and on what (user, November 20,
-2026). Then offer or give the prompts that fill the free lanes, at most four builds at once.
+End every update with the **lanes table**: one row per lane (A, B, C, D, E, G, F) and three
+columns (user, November 20, 2026):
+
+- **Now:** what is building, or "free" / "waiting" (and on what).
+- **Queue:** the steps after it, in order, each with its gate in brackets (`RB1 [your playtest]`),
+  taken from the queue below.
+- **Ready to send:** the step that can go out now, or "—".
+
+Then offer or give the prompts that fill the free lanes, at most four builds at once.
 
 ## Prompt skeleton
 
