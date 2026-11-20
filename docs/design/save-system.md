@@ -191,8 +191,8 @@ the whole enemy phase, the hooks after it (the darkness phase, reinforcements) a
 Phase Start, intents included, so the save holds the start of the next player phase. A resume
 re-runs none of it: no Phase Start fires twice, and the enemy phase's playback isn't shown again.
 A phase end that finishes the battle writes no checkpoint; the battle's end saves it. A failed
-save is logged and play goes on, the previous save kept. Solo only for now: co-op saves each map
-at the end of its own player phase (P11 question 39).
+save is logged and play goes on, the previous save kept. Solo only for now: P11 extends it so any
+map's player phase end saves the whole battle (P11 question 39).
 
 On continue, `SaveService.resume_point` says where to pick up:
 
