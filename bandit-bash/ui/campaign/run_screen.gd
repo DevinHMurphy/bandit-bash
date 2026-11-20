@@ -6,7 +6,7 @@
 # File:     run_screen.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 15, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name RunScreen
@@ -15,7 +15,8 @@ extends RefCounted
 ## gate, the battle screen and every campaign screen route alike, and a continued run reopens
 ## where it was saved.
 ##
-## On the map: the campaign map. Inside a combat node (Standard, Key, Boss): the battle screen.
+## On the map: the starting heirloom offer while the seat's is open ([StartingOffer]), else the
+## campaign map. Inside a combat node (Standard, Key, Boss): the battle screen.
 ## Inside any other node: the placeholder, until its own screen exists. At a combat's results:
 ## Results. Outside a solo run (none, or co-op): the battle screen, which shows the co-op
 ## placeholder. Each campaign screen opened at the wrong stage sends the run on with [method go].
@@ -43,6 +44,8 @@ static func of(session: CampaignSession) -> SceneRouter.Screen:
 	var run: CampaignRunState = session.run
 	match run.flow.stage:
 		RunFlow.Stage.MAP:
+			if StartingOffer.is_open(run.seat_run(session.seats[0])):
+				return SceneRouter.Screen.STARTING_HEIRLOOM
 			return SceneRouter.Screen.CAMPAIGN_MAP
 		RunFlow.Stage.RESULTS:
 			return SceneRouter.Screen.COMBAT_RESULTS

@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="StartingHeirloomDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="3_ops"]
+[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="4_value"]
+[ext_resource type="Script" path="res://scripts/content/starting_heirloom_definition.gd" id="9_def"]
+[ext_resource type="Texture2D" path="res://assets/sprites/heirlooms/heirloom_army.svg" id="20_icon"]
+
+[sub_resource type="Resource" id="Resource_size"]
+script = ExtResource("4_value")
+key = 2009
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_effect"]
+script = ExtResource("1_eff")
+id = "army_size"
+scope = 1
+operations = Array[ExtResource("3_ops")]([SubResource("Resource_size")])
+
+[resource]
+script = ExtResource("9_def")
+bonus = 1
+offer_count = 2
+tier = "starting"
+id = "abundance"
+display_name = "Abundance"
+effects = Array[ExtResource("1_eff")]([SubResource("Resource_effect")])
+icon = ExtResource("20_icon")

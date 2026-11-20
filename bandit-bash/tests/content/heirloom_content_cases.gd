@@ -15,8 +15,9 @@ extends RefCounted
 ## curse's tier against heirlooms.md and events.md, each folder holding exactly the listed files,
 ## effect text snapshots, a battle case for every combat-side effect (loaded through [Loadout] as
 ## an army's carriers, the way a campaign registers them), how copies stack, and golden fact logs
-## for a profile, a behavior, an economy and army value, and a curse. Reports each case through
-## the check callable it is given.
+## for a profile, a behavior, an economy and army value, and a curse; Tactician's Manual doubling
+## your units' triangle both ways (Hit and damage, through the forecast) and leaving enemies'
+## alone. Reports each case through the check callable it is given.
 ##
 ## The expected values are transcribed from the design docs, never read from the data, so a
 ## changed .tres fails here until the doc and this file agree.
@@ -34,6 +35,12 @@ const CURSE_DIR: String = "res://data/curses/"
 
 # The Commander Heirloom already in heirlooms/, outside the pool (CT13's Drengr).
 const COMMANDER_HEIRLOOMS: PackedStringArray = ["iron_heart"]
+
+# The seven starting heirlooms in heirlooms/, outside the pool (heirlooms.md, Starting heirlooms).
+const STARTING_HEIRLOOMS: PackedStringArray = [
+	"abundance", "ancestral_weapon", "family_relic", "mercenary_contract", "tacticians_manual",
+	"veteran_company", "war_chest",
+]
 
 # Any fixed seed; the cases that need a hit force it with _sure_hit().
 const SEED: int = 0xC7_0009
@@ -310,6 +317,7 @@ func run() -> void:
 	_test_haunted()
 	_test_shaken_footing()
 	_test_seat_values()
+	_test_tacticians_manual()
 	_test_value_readers()
 
 
@@ -375,7 +383,9 @@ func _test_curses() -> void:
 # Every file in the two folders is listed, so none goes untested.
 func _test_folders() -> void:
 	var listed: Dictionary[String, PackedStringArray] = {
-		HEIRLOOM_DIR: PackedStringArray(HEIRLOOMS.keys()) + COMMANDER_HEIRLOOMS,
+		HEIRLOOM_DIR: (
+				PackedStringArray(HEIRLOOMS.keys()) + COMMANDER_HEIRLOOMS + STARTING_HEIRLOOMS
+		),
 		CURSE_DIR: PackedStringArray(CURSES.keys()),
 	}
 	for folder: String in listed:
@@ -1117,6 +1127,50 @@ func _golden_whetstone() -> void:
 
 # The damage [param attacker_type] would deal per hit to [param defender_type] at
 # [param distance], owning [param heirloom_id] (empty for none), by the forecast.
+# Tactician's Manual (heirlooms.md, Starting heirlooms): a Fighter's Simple Axe (Power, 10) has
+# Advantage on a Lance Armor's Simple Lance (Balance; it survives, so it counters): +15 Hit more
+# and its change of 3 again; a Lancer's Simple Lance (7) attacking the Fighter loses 15 Hit more
+# and its change of 2 again. The enemy's counter keeps the normal triangle either way, and a
+# Standoff changes nothing.
+func _test_tacticians_manual() -> void:
+	var rows: PackedStringArray = []
+	for row: Array in [["fighter", "lance_armor"], ["lancer", "fighter"], ["fighter", "fighter"]]:
+		var attacker: String = row[0]
+		var defender: String = row[1]
+		var plain: PackedInt32Array = _exchange_numbers("", attacker, defender)
+		var manual: PackedInt32Array = _exchange_numbers("tacticians_manual", attacker, defender)
+		var deltas: PackedStringArray = []
+		for index: int in plain.size():
+			deltas.append("%+d" % [manual[index] - plain[index]])
+		rows.append("%s on %s: %s" % [attacker, defender, " ".join(deltas)])
+	_same("tacticians_manual: attacker damage and Hit, defender damage and Hit", ", ".join(rows), (
+			"fighter on lance_armor: +3 +15 +0 +0, lancer on fighter: -2 -15 +0 +0,"
+			+ " fighter on fighter: +0 +0 +0 +0"
+	))
+
+
+# The forecast of a player unit of attacker_type attacking an adjacent enemy of defender_type,
+# seat 0 owning heirloom_id (empty: none): attacker damage and Hit, then the counter's.
+func _exchange_numbers(
+		heirloom_id: String, attacker_type: String, defender_type: String
+) -> PackedInt32Array:
+	var session: CombatSession = _session()
+	_own(session, heirloom_id)
+	var who: String = _place(session, attacker_type, PLAYER, 0, Vector2i(0, 0))
+	var foe: String = _place(session, defender_type, ENEMY, -1, Vector2i(1, 0))
+	if who.is_empty() or foe.is_empty() or session.open_battle().is_rejected():
+		_ok("%s: the battle loads" % [heirloom_id], false)
+		return PackedInt32Array([0, 0, 0, 0])
+	session.state.unit(who).has_acted = false
+	var forecast: CombatForecast.ExchangeForecast = CombatForecast.exchange(
+			session.engine, UnitTurnCommand.new(0, who, ATTACK, foe)
+	)
+	return PackedInt32Array([
+		forecast.attacker.damage, forecast.attacker.hit,
+		forecast.defender.damage, forecast.defender.hit,
+	])
+
+
 func _forecast_damage(
 		heirloom_id: String, attacker_type: String, defender_type: String, distance: int
 ) -> int:

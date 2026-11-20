@@ -47,14 +47,14 @@ A fact is one thing that happened, in the past tense, carrying ids and never obj
 
   | Value | Kind | Recorded by |
   |-------|------|-------------|
-  | 0 | `GAINED` | Item placement, the battle's grants, event outcomes (heirloom, curse, rune) |
+  | 0 | `GAINED` | Item placement, the battle's grants, event outcomes (heirloom, curse, rune), `RunOperations.grant_heirloom` (the starting heirloom) |
   | 1 | `COMBAT_ENDED` | The battle's results, one per seat; `amount` 1 for a win, 0 for a loss |
   | 2 | `LEVELED_UP` | The battle's results ([CampaignRunState.apply_battle](../../bandit-bash/scripts/campaign/campaign_run_state.gd)) |
   | 3, 4 | `EFFECT_ACTIVATED`, `COUNTER_CHANGED` | Reserved: no campaign engine records them yet |
   | 5–7 | `RUN_STARTED`, `NODE_CHOSEN`, `NODE_LEFT` | The run's start and the campaign commands |
-  | 8, 9 | `ITEM_EQUIPPED`, `ITEM_SCRAPPED` | Item placement and the item pick |
-  | 10 | `GOLD_CHANGED` | Event outcomes (`definition_id` is the event) |
-  | 11 | `HP_CHANGED` | Event outcomes |
+  | 8, 9 | `ITEM_EQUIPPED`, `ITEM_SCRAPPED` | Item placement and the item pick; `ITEM_EQUIPPED` also `RunOperations.dismiss` (no `target_id`: to the convoy) |
+  | 10 | `GOLD_CHANGED` | Event outcomes (`definition_id` is the event), `RunOperations.grant_gold` (War Chest) |
+  | 11 | `HP_CHANGED` | Event outcomes, `RunOperations.upgrade` (a hurt unit's max-HP gain) |
   | 12 | `UNIT_CHANGED` | Event outcomes: a stat, max HP, a pending level-up gain or a prefix |
   | 13 | `ITEM_MODIFIED` | Event outcomes: a granted effect, stat deltas or a weapon prefix |
   | 14 | `UNIT_REVIVED` | Event outcomes (the revive shrine) |
@@ -62,6 +62,12 @@ A fact is one thing that happened, in the past tense, carrying ids and never obj
   | 16 | `EVENT_DRAWN` | `OpenEventCommand`: the run drew an event at a node (no seat) |
   | 17 | `EVENT_CHOOSING` | `EventChooserCommand`: a seat opened or closed an option's chooser |
   | 18 | `EVENT_CHOSEN` | `EventOptionCommand`: a seat chose an option; the option's own facts follow |
+  | 19 | `EVENT_VOTED` | `EventVoteCommand`: a seat voted (or changed its vote) on a team-choice option |
+  | 20 | `TEAM_OPTION_DRAWN` | `EventVoteCommand`, on the vote that completes the set: the votes drew the option (`amount`); belongs to no seat |
+  | 21 | `UNIT_RECRUITED` | `RunOperations.recruit` and `replace` (Abundance, Mercenary Contract); `target_id` the unit replaced |
+  | 22 | `UNIT_DISMISSED` | `RunOperations.dismiss` and `replace`: a living unit left for good, its items to the convoy first (`ITEM_EQUIPPED` each) |
+  | 23 | `UNIT_UPGRADED` | `RunOperations.upgrade` (Veteran Company) |
+  | 24 | `ARMY_SIZE_CHANGED` | `RunOperations.grant_heirloom` when the heirloom moved max army size (Abundance); `amount` the change |
 
 - **Paired triggers are two facts.** A hit records `HIT_DEALT`, then `HIT_TAKEN`. `actor_id` is
   always the unit the kind is about, the one an effect's scope tests; `target_id` is the other

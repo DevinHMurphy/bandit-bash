@@ -350,6 +350,15 @@ func reward_rolls(result: BattleResult) -> RewardRolls:
 	return rolls
 
 
+## Each seat's [code]STARTING_OFFER[/code] stream, by seat: run-level, per seat, saved with the
+## campaign ([RngKey]). [method RunStart.build] rolls each seat's starting heirloom offer from it.
+func starting_offer_streams() -> Dictionary[int, RngStream]:
+	var streams: Dictionary[int, RngStream] = {}
+	for seat: int in seats:
+		streams[seat] = rng.stream(RngKey.new(RngKey.RngPurpose.STARTING_OFFER, -1, -1, seat))
+	return streams
+
+
 ## Ends the battle in progress: its result is collected ([method collect_battle]) if it wasn't
 ## yet, the encounter closed and [signal combat_encounter_closed] emitted; every combat lane is
 ## dropped with it. Apply the result to the run and save it first
