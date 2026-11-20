@@ -41,17 +41,18 @@ signal invite_confirmation_requested()
 #   OPTIONS     -> back to whichever screen opened it (only MAIN_MENU links to it)
 #   LOBBY       -> LOADING (everyone, host's Start or Resume), MAIN_MENU
 #   LOADING     -> the solo run's screen by its stage (RunScreen.of): STARTING_HEIRLOOM,
-#                  CAMPAIGN_MAP, GAMEPLAY, NODE_PLACEHOLDER or COMBAT_RESULTS; GAMEPLAY
+#                  CAMPAIGN_MAP, GAMEPLAY, NODE_PLACEHOLDER, EVENT or COMBAT_RESULTS; GAMEPLAY
 #                  (everyone) outside a solo run
 #   STARTING_HEIRLOOM -> CAMPAIGN_MAP (once the heirloom is taken: the first node comes after)
 #   CAMPAIGN_MAP     -> GAMEPLAY (a combat node chosen), NODE_PLACEHOLDER (any other node)
 #   NODE_PLACEHOLDER -> CAMPAIGN_MAP (Continue leaves the node)
+#   EVENT            -> CAMPAIGN_MAP (Leave, once chosen), GAMEPLAY (Fight: a surprise combat)
 #   GAMEPLAY    -> COMBAT_RESULTS (a solo battle won), RESULTS (lost, or outside a solo run;
 #                  everyone); a solo run elsewhere is sent to its stage's screen at once
 #   COMBAT_RESULTS -> CAMPAIGN_MAP (Continue leaves the node), RESULTS (End run, after the Boss)
 #   RESULTS     -> LOADING (everyone, next round), MAIN_MENU
-#   STARTING_HEIRLOOM, CAMPAIGN_MAP, NODE_PLACEHOLDER, COMBAT_RESULTS, GAMEPLAY -> MAIN_MENU
-#                  (pause menu)
+#   STARTING_HEIRLOOM, CAMPAIGN_MAP, NODE_PLACEHOLDER, EVENT, COMBAT_RESULTS, GAMEPLAY
+#                  -> MAIN_MENU (pause menu)
 #   any screen  -> LOBBY on an accepted invite (accept_pending_invite); during a solo run only
 #                  after the player chose Save & Quit
 #   LOADING and every in-run screen -> MAIN_MENU on a client whose host left (session_ended)
@@ -79,6 +80,7 @@ enum Screen {
 	COMBAT_RESULTS = 10,
 	NODE_PLACEHOLDER = 11,
 	STARTING_HEIRLOOM = 12,
+	EVENT = 13,
 }
 
 ## [enum Screen] -> scene path. Every [enum Screen] value needs an entry.
@@ -96,6 +98,7 @@ const SCREEN_PATHS: Dictionary[Screen, String] = {
 	Screen.COMBAT_RESULTS: "res://ui/campaign/combat_results_screen.tscn",
 	Screen.NODE_PLACEHOLDER: "res://ui/campaign/node_placeholder_screen.tscn",
 	Screen.STARTING_HEIRLOOM: "res://ui/campaign/starting_heirloom_screen.tscn",
+	Screen.EVENT: "res://ui/campaign/events/event_screen.tscn",
 }
 
 # The screens a run is played on, where an invite asks to Save & Quit first and a lost host sends
@@ -106,6 +109,7 @@ const _RUN_SCREENS: Array[Screen] = [
 	Screen.COMBAT_RESULTS,
 	Screen.NODE_PLACEHOLDER,
 	Screen.STARTING_HEIRLOOM,
+	Screen.EVENT,
 ]
 
 ## Screen this machine is showing. [constant Screen.START] until the first [method goto_screen].

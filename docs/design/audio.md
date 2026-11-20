@@ -29,16 +29,18 @@ direction is open, for an ideation pass before AU2.
   Campaign facts play from P15 UL7: the campaign screens play the run's facts on its
   `CampaignBus` as they show them (`CampaignPlayback`), so `LEVELED_UP` sounds the level-up once
   per recap card, `NODE_CHOSEN` on a combat node `battle_map_enter` (the `combat` shape, the
-  node's type read through a lookup the service binds), and `RUN_STARTED` `begin_campaign`. The
+  node's type read through a lookup the service binds), `RUN_STARTED` `begin_campaign`, and from
+  P09 EV3 the event screen's `EVENT_DRAWN` `event_map_enter` and `UNIT_REVIVED` `resurrect`. The
   run's fact log isn't saved, so a resumed run replays none of them.
 - **The sound set:** 62 files from Godot_FE (8 tracks, 53 current sounds and the old `miss.wav`)
   in `bandit-bash/assets/audio/`, Godot_FE's folder layout, 63 cues (`ui_refused` reuses
   `menu_back.ogg`). In use today: 7 tracks (menus and campaign map; prep, player and enemy phase
-  per battle, the boss set on the Powder Baron's map) and 23 sound cues (UI hook, campaign map
-  nodes, board input, combat facts, victory sequence, and from UL7 a combat node chosen and the
-  run's start). Unmapped: `Action_-_Treasure_Hunters` and 32 sounds waiting for their screen
-  (shop, Guildhall training, equip and convoy, draft, the Treasure, event and recruit nodes' enter
-  sounds, resurrect, promotion, weapon durability, UL6's magic hits and walk). The full table is [assets/audio/README.md](../../bandit-bash/assets/audio/README.md).
+  per battle, the boss set on the Powder Baron's map) and 25 sound cues (UI hook, campaign map
+  nodes, board input, combat facts, victory sequence, from UL7 a combat node chosen and the
+  run's start, and from EV3 an event drawn and a unit revived). Unmapped:
+  `Action_-_Treasure_Hunters` and 30 sounds waiting for their screen (shop, Guildhall training,
+  equip and convoy, draft, the Treasure and recruit nodes' enter sounds, promotion, weapon
+  durability, UL6's magic hits and walk). The full table is [assets/audio/README.md](../../bandit-bash/assets/audio/README.md).
   Placeholders under RF-008.
 
 Found November 19, 2026, before AU1:

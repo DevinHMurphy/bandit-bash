@@ -1,0 +1,100 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/events/event_screen.gd" id="1_screen"]
+[ext_resource type="PackedScene" path="res://ui/campaign/run_header.tscn" id="2_header"]
+[ext_resource type="PackedScene" path="res://ui/battle/input/input_device_adapter.tscn" id="3_device"]
+[ext_resource type="Script" path="res://ui/common/screen_hints.gd" id="4_hints"]
+[ext_resource type="PackedScene" path="res://ui/battle/hud/control_hint_bar.tscn" id="5_bar"]
+[ext_resource type="PackedScene" path="res://ui/common/pause_menu.tscn" id="6_pause"]
+[ext_resource type="PackedScene" path="res://ui/campaign/events/event_panel.tscn" id="7_panel"]
+[ext_resource type="PackedScene" path="res://ui/common/heirlooms/heirloom_bar.tscn" id="8_heirlooms"]
+
+[node name="EventScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_screen")
+
+[node name="Layout" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 56
+
+[node name="Column" type="VBoxContainer" parent="Layout"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="RunHeader" parent="Layout/Column" instance=ExtResource("2_header")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="HeirloomBar" parent="Layout/Column" instance=ExtResource("8_heirlooms")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+handles_focus_input = true
+
+[node name="EventPanel" parent="Layout/Column" instance=ExtResource("7_panel")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="InputDeviceAdapter" parent="." instance=ExtResource("3_device")]
+
+[node name="ScreenHints" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("4_hints")
+actions = Dictionary[StringName, PackedStringArray]({
+&"OPTIONS": PackedStringArray("ui_left", "ui_right", "ui_accept", "heirloom_bar_focus", "ui_cancel"),
+&"VOTE": PackedStringArray("ui_left", "ui_right", "ui_accept", "heirloom_bar_focus", "ui_cancel"),
+&"CHOOSE": PackedStringArray("ui_up", "ui_down", "ui_accept", "ui_cancel"),
+&"DONE": PackedStringArray("ui_accept", "heirloom_bar_focus", "ui_cancel"),
+&"FIGHT": PackedStringArray("ui_accept", "heirloom_bar_focus", "ui_cancel"),
+&"HEIRLOOMS": PackedStringArray("ui_left", "ui_right", "ui_cancel", "heirloom_bar_focus")
+})
+
+[node name="ControlHintBar" parent="." node_paths=PackedStringArray("controller", "device") instance=ExtResource("5_bar")]
+unique_name_in_owner = true
+layout_mode = 1
+controller = NodePath("../ScreenHints")
+device = NodePath("../InputDeviceAdapter")
+right_margin = 8.0
+labels = Dictionary[String, String]({
+"OPTIONS/ui_accept": "Choose",
+"OPTIONS/ui_cancel": "Pause",
+"VOTE/ui_accept": "Vote",
+"VOTE/ui_cancel": "Pause",
+"CHOOSE/ui_accept": "Choose",
+"CHOOSE/ui_cancel": "Back",
+"DONE/ui_accept": "Leave",
+"DONE/ui_cancel": "Pause",
+"FIGHT/ui_accept": "Fight",
+"FIGHT/ui_cancel": "Pause",
+"HEIRLOOMS/heirloom_bar_focus": "Close",
+"HEIRLOOMS/ui_cancel": "Close",
+"HEIRLOOMS/ui_left": "Choose",
+"HEIRLOOMS/ui_right": "Choose",
+"PAUSED/ui_cancel": "Resume",
+"PAUSED/ui_down": "Choose",
+"PAUSED/ui_up": "Choose",
+"ui_accept": "Select",
+"heirloom_bar_focus": "Heirlooms",
+"ui_cancel": "Back",
+"ui_down": "Move",
+"ui_left": "Move",
+"ui_right": "Move",
+"ui_up": "Move"
+})
+
+[node name="PauseMenu" parent="." instance=ExtResource("6_pause")]

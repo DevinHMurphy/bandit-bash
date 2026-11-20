@@ -76,7 +76,7 @@ The fact rules are `res://data/audio/maps/combat_facts.tres` and `campaign_facts
 | `sounds/combat/rewards/bonus_experience_rewarded.ogg` | same | `bonus_experience_rewarded` | Unmapped: waits for a bonus-XP reward (none today) |
 | `sounds/ui/level_up/level_up_point.ogg` | same | `level_up_point` | Unmapped: waits for a level-up card that reveals gains one by one |
 | `sounds/ui/level_up/experience_point.ogg` | same | `experience_point` | Unmapped: UL5 dropped the XP tick |
-| `sounds/ui/campaign_map/event_map_enter.ogg` | same | `event_map_enter` | Unmapped: waits for the ? node's events (P09) |
+| `sounds/ui/campaign_map/event_map_enter.ogg` | same | `event_map_enter` | An event opening at an Unknown node: the event screen plays its `EVENT_DRAWN` fact (`CampaignPlayback`); a continued run doesn't sound it |
 | `sounds/ui/campaign_map/treasure_map_enter.ogg` | same | `treasure_map_enter` | Unmapped: waits for the Treasure node (RN7) |
 | `sounds/ui/campaign_map/recruit_map_enter.ogg` | same | `recruit_map_enter` | Unmapped: waits for recruiting (the Guildhall, RN9) |
 | `sounds/ui/draft/draft_hover.ogg` | same | `draft_hover` | Unmapped: waits for a draft screen |
@@ -97,7 +97,7 @@ The fact rules are `res://data/audio/maps/combat_facts.tres` and `campaign_facts
 | `sounds/ui/inventory/item_from_convoy.ogg` | same | `item_from_convoy` | Unmapped: waits for the convoy screen |
 | `sounds/ui/inventory/store_item.ogg` | same | `store_item` | Unmapped: waits for the convoy screen |
 | `sounds/ui/inventory/potion_use.ogg` | same | `potion_use` | Unmapped: waits for UL6's Pouch item use |
-| `sounds/ui/graveyard/resurrect.ogg` | same | `resurrect` | Unmapped: waits for resurrection |
+| `sounds/ui/graveyard/resurrect.ogg` | same | `resurrect` | A fallen unit returning (`UNIT_REVIVED`: the revive shrine's prayer, played by the event screen) |
 | `sounds/ui/promotion/promotion.ogg` | same | `promotion` | Unmapped: waits for promotion |
 
 Summary: 62 files, 64 cues (`ui_refused` reuses `menu_back.ogg`, `block_gained` `shield_equip.ogg`). In use: 7
