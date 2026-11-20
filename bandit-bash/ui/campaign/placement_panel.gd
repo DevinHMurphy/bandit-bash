@@ -172,7 +172,8 @@ func _show_destination() -> void:
 			"Send it to the convoy (%s)" % [_convoy_text()], true, _on_convoy_chosen
 	)
 	_add_choice(
-			"Scrap it for %d gold" % [ItemPlacement.scrap_value(_definition)], true,
+			"Scrap it for %d gold" % [ItemPlacement.scrap_value(_definition, _seat_run, _catalog)],
+			true,
 			_on_scrap_chosen
 	)
 	_finish_column()
@@ -286,10 +287,11 @@ func _held_name(item_id: String) -> String:
 	return CombatResultsModel.item_name(_held_definition(item_id), item_id)
 
 
-# The gold scrapping the held item item_id pays: its own value, so a modified item pays more.
+# The gold scrapping the held item item_id pays at the seat's rate: its own value, so a modified
+# item pays more.
 func _scrap_gold(item_id: String) -> int:
 	var item: ItemInstance = _seat_run.items.get(item_id, null)
-	return ItemPlacement.held_scrap_value(item, _catalog)
+	return ItemPlacement.held_scrap_value(item, _catalog, _seat_run)
 
 
 func _on_equip_chosen(unit_id: String) -> void:

@@ -93,6 +93,13 @@ enum Kind {
 	## The seat's max army size changed by [member amount] units, by [member definition_id], such
 	## as a gained heirloom's id; the convoy's size follows it.
 	ARMY_SIZE_CHANGED = 24,
+	## The seat held a Camp's Feast, cooking the ingredient [member actor_id] (content id
+	## [member definition_id]; both empty when it cooked none), which is used up. The heals
+	## ([constant HP_CHANGED]) and the cooked gains ([constant UNIT_CHANGED]) follow.
+	FEAST_HELD = 25,
+	## The seat gave its convoy item [member actor_id] (content id [member definition_id]) to the
+	## convoy of seat [member amount].
+	ITEM_GIFTED = 26,
 }
 
 ## [member seat] when a fact belongs to no single player.

@@ -32,7 +32,7 @@ enum Domain {
 
 ## What else a fact must be for a rule to match, tried in this order with [constant ANY] last. A
 ## shape that needs the battle's or run's state ([code]on_object[/code], [code]player_actor[/code],
-## [code]combat[/code]) never matches without it.
+## [code]combat[/code], [code]treasure[/code]) never matches without it.
 enum Shape {
 	## [code]no_damage[/code]: [member CombatFact.amount] is 0, a hit fully countered.
 	NO_DAMAGE = 0,
@@ -50,6 +50,9 @@ enum Shape {
 	## [code]combat[/code]: a campaign fact whose [member CampaignFact.amount] is a node of a
 	## combat type ([constant COMBAT_NODE_TYPES]), such as [code]NODE_CHOSEN[/code].
 	COMBAT_NODE = 6,
+	## [code]treasure[/code]: a campaign fact whose [member CampaignFact.amount] is a Treasure
+	## node, such as [code]NODE_CHOSEN[/code].
+	TREASURE_NODE = 7,
 }
 
 ## The [enum CampaignGraph.NodeType]s a [code]combat[/code] rule matches: the nodes that open a
@@ -71,6 +74,7 @@ const _SHAPE_WORDS: Dictionary[String, Shape] = {
 	"player_side": Shape.PLAYER_SIDE,
 	"enemy_side": Shape.ENEMY_SIDE,
 	"combat": Shape.COMBAT_NODE,
+	"treasure": Shape.TREASURE_NODE,
 }
 
 ## Which kinds the keys name.

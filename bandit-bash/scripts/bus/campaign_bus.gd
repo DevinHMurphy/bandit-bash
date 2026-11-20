@@ -28,8 +28,9 @@ signal fact_played(fact: CampaignFact)
 ## combats ending.
 var run: RunChannel = RunChannel.new()
 
-## A player's army: heirlooms, items and runes gained, equipped, modified, scrapped or discarded;
-## gold, HP and unit changes; recruits, dismissals and upgrades; army size; revivals; level-ups.
+## A player's army: heirlooms, items and runes gained, equipped, modified, scrapped, gifted or
+## discarded; gold, HP and unit changes; recruits, dismissals and upgrades; army size; revivals;
+## level-ups; Feasts.
 var army: ArmyChannel = ArmyChannel.new()
 
 ## Effect activations and counters.
@@ -128,6 +129,10 @@ class ArmyChannel:
 	signal unit_upgraded(fact: CampaignFact)
 	## [constant CampaignFact.ARMY_SIZE_CHANGED].
 	signal army_size_changed(fact: CampaignFact)
+	## [constant CampaignFact.FEAST_HELD].
+	signal feast_held(fact: CampaignFact)
+	## [constant CampaignFact.ITEM_GIFTED].
+	signal item_gifted(fact: CampaignFact)
 
 	func _init() -> void:
 		_route(CampaignFact.Kind.GAINED, gained)
@@ -144,6 +149,8 @@ class ArmyChannel:
 		_route(CampaignFact.Kind.UNIT_DISMISSED, unit_dismissed)
 		_route(CampaignFact.Kind.UNIT_UPGRADED, unit_upgraded)
 		_route(CampaignFact.Kind.ARMY_SIZE_CHANGED, army_size_changed)
+		_route(CampaignFact.Kind.FEAST_HELD, feast_held)
+		_route(CampaignFact.Kind.ITEM_GIFTED, item_gifted)
 
 
 ## Effect activations and counters.

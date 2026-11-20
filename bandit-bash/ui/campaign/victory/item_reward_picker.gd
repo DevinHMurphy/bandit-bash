@@ -14,8 +14,8 @@ extends RewardPicker
 ## The item pick's picker: the offers and Skip ([ItemPickPanel]) in a modal, then where a taken
 ## item goes ([PlacementPanel]). A take with its placement goes as one [ItemPickCommand], Skip as
 ## another; either resolves the pick, so its row leaves the list, and its facts play
-## ([CampaignPlayback]). A rejection shows its reason and changes nothing. Back, or ui_cancel,
-## closes it untouched.
+## ([CampaignPlayback]), which sound the take and the scrap (GAINED, ITEM_SCRAPPED). A rejection
+## shows its reason and changes nothing. Back, or ui_cancel, closes it untouched.
 ##
 ## @tutorial(UL5 plan): docs/plans/2026-11-19-ul5-victory-sequence.md
 
@@ -32,10 +32,6 @@ extends RewardPicker
 #   Mouse: clicks on the same buttons; the backdrop takes clicks outside the panel.
 # Hint contexts: PICK while the offers show, PLACE while the placement panel shows.
 # ============================================================
-
-# A taken item, and a scrapped one's gold (Godot_FE's item-obtained and gold-reward sounds).
-const _TAKE_CUE: StringName = &"item_obtained"
-const _SCRAP_CUE: StringName = &"gold_rewarded"
 
 ## How dark the backdrop over the Rewards stage is.[br]
 ## [b]0.0:[/b] no dimming; [b]1.0:[/b] the stage hidden. 0.6 matches the [PlacementPanel]'s.
@@ -157,7 +153,7 @@ func _placement_note(index: int, placement: ItemPlacement) -> String:
 			return "%s equipped %s." % [unit_name, item]
 		ItemPlacement.Destination.SCRAP:
 			return "Scrapped %s for %d gold." % [
-				item, ItemPlacement.scrap_value(_model.offers[index]),
+				item, ItemPlacement.scrap_value(_model.offers[index], seat_run),
 			]
 	return "%s went to the convoy." % [item]
 
@@ -189,8 +185,6 @@ func _on_placement_panel_placement_chosen(placement: ItemPlacement) -> void:
 	if not _submit(ItemPickCommand.new(_seat, index, placement)):
 		return
 	var note: String = _placement_note(index, placement)
-	var is_scrapped: bool = placement.destination == ItemPlacement.Destination.SCRAP
-	Sound.play(_SCRAP_CUE if is_scrapped else _TAKE_CUE)
 	_offer_index = ItemPickCommand.SKIP
 	_close()
 	resolved.emit(note)

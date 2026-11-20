@@ -28,8 +28,6 @@ extends RefCounted
 ##
 ## @todo: TOD-001 - Apply recruit grants, unnamed heirloom and rune grants, and a rune with every
 ## slot full (the discard choice); each is reported and dropped (RN9, P09).
-## @todo: TOD-002 - Roll a Key combat's heirloom from the seat's REWARD stream, after its item
-## pick (RN7, with Treasure's heirloom draw).
 
 ## The key of a seat's combat report in [member SeatRun.pending_offers], from a won combat until
 ## the run leaves its node: [code]{"grades": CombatGrades.capture(), "xp": [XpAward.capture()],
@@ -448,9 +446,9 @@ static func _use_map(flow_state: RunFlow, map_id: String, pool_ids: PackedString
 
 
 # The seat's rewards from a won map of result: grades and gold, XP for each unit still standing,
-# their level-ups in roster order (one LEVELED_UP each), the item pick (none after a Boss), and
-# the combat report under COMBAT_REPORT_KEY, with every seat unit's battle stats for the recap.
-# A seat whose map was lost gets nothing.
+# their level-ups in roster order (one LEVELED_UP each), the item pick (none after a Boss), a Key
+# combat's heirloom from the same stream after it, and the combat report under COMBAT_REPORT_KEY,
+# with every seat unit's battle stats for the recap. A seat whose map was lost gets nothing.
 static func _reward_seat(
 		run: CampaignRunState,
 		seat: int,
@@ -504,7 +502,12 @@ static func _reward_seat(
 	)
 	if pick != null:
 		pick.store(seat_run)
-	# TODO(TOD-002): RN7 rolls a Key combat's heirloom here, from the same REWARD stream.
+	if outcome.combat_type == CombatMapDefinition.CombatType.KEY:
+		var heirloom: KeyHeirloom = KeyHeirloom.roll(
+				reward_stream, seat_run, catalog, run.seat_numbers().size() > 1
+		)
+		if heirloom != null:
+			heirloom.store(seat_run)
 	seat_run.pending_offers[COMBAT_REPORT_KEY] = {
 		_KEY_GRADES: grades.capture(),
 		_KEY_XP: xp_data,
