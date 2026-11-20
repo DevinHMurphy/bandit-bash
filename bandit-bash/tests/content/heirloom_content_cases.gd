@@ -904,7 +904,8 @@ func _test_champions_belt() -> void:
 # Deployment as a campaign does it ([method CombatSession.deploy]), with the army's carriers
 # registered first: Ill Omen takes 1 Stance from the commander alone, from placement on; Heavy
 # Pack makes a Hakkapel's Potion weigh 2; Commander's Standard gives 2 Block at Phase Start to the
-# commander and Your Units within 2 tiles of it.
+# commander and Your Units within 2 tiles of it. The commander's 4 is the Standard's 2 and
+# Vanguard's 2 (2 × level 1).
 func _test_commander_and_pouch() -> void:
 	var results: Dictionary[String, String] = {}
 	for cursed: bool in [false, true]:
@@ -956,7 +957,7 @@ func _test_commander_and_pouch() -> void:
 		results["weight false"], results["weight true"],
 	], "%d %d" % [LANCE_WEIGHT, LANCE_WEIGHT + 2])
 	_same("commanders_standard: commander, 2 tiles away, 3 tiles away", results["block false"], (
-			"2 2 0"
+			"4 2 0"
 	))
 
 

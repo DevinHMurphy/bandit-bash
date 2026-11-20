@@ -1,12 +1,13 @@
-[gd_resource type="Resource" script_class="EnemyClassDefinition" format=3]
+[gd_resource type="Resource" script_class="EnemyClassDefinition" format=3 uid="uid://frv8e5fikulm"]
 
-[ext_resource type="Script" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
-[ext_resource type="Script" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="2_ops"]
-[ext_resource type="Script" path="res://scripts/effects/blocks/operations/modify_value.gd" id="3_mod"]
-[ext_resource type="Script" path="res://scripts/effects/blocks/values/count_of.gd" id="4_count"]
-[ext_resource type="Script" path="res://scripts/effects/blocks/selectors/area.gd" id="5_area"]
-[ext_resource type="Script" path="res://scripts/effects/blocks/operations/add_timed_modifier.gd" id="6_timed"]
-[ext_resource type="Script" path="res://scripts/content/enemy_class_definition.gd" id="9_def"]
+[ext_resource type="Script" uid="uid://byepgna7t0dmt" path="res://scripts/effects/effect_definition.gd" id="1_eff"]
+[ext_resource type="Script" uid="uid://ck5y8rpbfh5tu" path="res://scripts/effects/blocks/conditions/effect_condition.gd" id="2_kx56e"]
+[ext_resource type="Script" uid="uid://dkasulxltr5jk" path="res://scripts/effects/blocks/operations/effect_operation.gd" id="2_ops"]
+[ext_resource type="Script" uid="uid://bu7mtoabsn5kt" path="res://scripts/effects/blocks/operations/modify_value.gd" id="3_mod"]
+[ext_resource type="Script" uid="uid://7in6tqn178p0" path="res://scripts/effects/blocks/values/count_of.gd" id="4_count"]
+[ext_resource type="Script" uid="uid://d2nb8vd6lypot" path="res://scripts/effects/blocks/selectors/area.gd" id="5_area"]
+[ext_resource type="Script" uid="uid://cuf145rourdkq" path="res://scripts/effects/blocks/operations/add_timed_modifier.gd" id="6_timed"]
+[ext_resource type="Script" uid="uid://5op1ui67andk" path="res://scripts/content/enemy_class_definition.gd" id="9_def"]
 [ext_resource type="Resource" path="res://data/shapes/adjacent.tres" id="10_shape"]
 
 [sub_resource type="Resource" id="Resource_adjacent_allies"]
@@ -33,7 +34,6 @@ script = ExtResource("6_timed")
 key = 3002
 mode = 6
 end = 1
-uses = 0
 
 [sub_resource type="Resource" id="Resource_blood_scent"]
 script = ExtResource("1_eff")
@@ -43,7 +43,6 @@ operations = Array[ExtResource("2_ops")]([SubResource("Resource_may_move")])
 
 [resource]
 script = ExtResource("9_def")
-behavior = 0
 target_rule_id = "pack_lowest_hp"
 target_rule_text = "Lowest HP"
 signature_move = SubResource("Resource_blood_scent")
@@ -55,14 +54,24 @@ movement_type = 2
 tags = PackedStringArray()
 stance = 1
 starting_weapon_id = "fangs"
-innate_effects = Array[ExtResource("1_eff")]([])
-base_stats = Dictionary[int, int]({0: 20, 1: 4, 2: 6, 3: 1, 4: 0, 5: 10, 6: 7})
-growths = Dictionary[int, int]({0: 70, 1: 30, 2: 45, 3: 5, 4: 8})
-upgraded_effects = Array[ExtResource("1_eff")]([])
-upgrade_stat_gains = Dictionary[int, int]({})
+base_stats = Dictionary[int, int]({
+0: 20,
+1: 4,
+2: 6,
+3: 1,
+4: 0,
+5: 10,
+6: 7
+})
+growths = Dictionary[int, int]({
+0: 70,
+1: 30,
+2: 45,
+3: 5,
+4: 8
+})
 upgrade_weapon_types = PackedStringArray()
 upgrade_tags = PackedStringArray()
-is_commander = false
 id = "bloodhound"
 display_name = "Bloodhound"
 effects = Array[ExtResource("1_eff")]([SubResource("Resource_pack"), SubResource("Resource_blood_scent")])
