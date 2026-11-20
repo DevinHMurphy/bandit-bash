@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 15, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 extends "res://tests/ui/ui_suite.gd"
@@ -20,8 +20,10 @@ extends "res://tests/ui/ui_suite.gd"
 ## (Grade, Recap filling and skipped, level-ups, Rewards, the item picker and placement: to the
 ## convoy, scrapped, equipped, Back by pad without the pause menu; Leave), a quit and Continue
 ## mid-recap reopening it on Grade with the same report and, once taken, on Rewards with the row
-## gone, the node placeholder, a Treasure (its chest rolled before it shows, a quit and Continue
-## showing the same chest, taken by the device of its turn, its gains sounding once), and the
+## gone, an Unknown node that became an event (rolled and drawn before it shows, an option taken,
+## Leave; the placeholder if no event can be drawn), a Treasure (its chest rolled before it
+## shows, a quit and Continue showing the same chest, taken by the device of its turn, its gains
+## sounding once), and the
 ## Boss's End run reaching the run's end. Pad glyphs show. No control asks for focus outside the
 ## tree (BUG-017).
 ## Campaign facts play ([CampaignPlayback]; its cases, playback_cases.gd, run first): the run's
@@ -46,6 +48,7 @@ const SCREEN_MAP: int = 9
 const SCREEN_COMBAT_RESULTS: int = 10
 const SCREEN_PLACEHOLDER: int = 11
 const SCREEN_STARTING: int = 12
+const SCREEN_EVENT: int = 13
 const SCREEN_TREASURE: int = 14
 
 # Key presses the starting heirloom offer may take, sub-choices included, before it counts as stuck.
@@ -62,8 +65,8 @@ const STAGE_PICKING: int = 5
 const STAGE_CONFIRM_LEAVE: int = 6
 const BACKDROP_ALPHA: float = 0.85
 
-# The devices in turn: each node is chosen with the next, each Results and placeholder answered
-# with the next of its own turn.
+# The devices in turn: each node is chosen with the next, each Results, event and placeholder
+# answered with the next of its own turn.
 const DEVICES: PackedStringArray = ["keyboard", "mouse", "pad"]
 
 # Nodes the walk enters, and how many of them must be combats; at least one other is wanted too.
@@ -141,10 +144,11 @@ var _victory_device: String = ""
 var _checked_stages: Dictionary[int, bool] = {}
 var _is_on_board: bool = false
 
-# The devices that chose a node, answered Results and answered a placeholder.
+# The devices that chose a node, answered Results, answered a placeholder and left an event.
 var _chose_with: Dictionary[String, bool] = {}
 var _results_with: Dictionary[String, bool] = {}
 var _placeholder_with: Dictionary[String, bool] = {}
+var _event_with: Dictionary[String, bool] = {}
 
 # The Boss case: 0 not begun, 1 its Results shown, 2 the run's end reached.
 var _boss_step: int = 0
@@ -218,6 +222,8 @@ func _process(_delta: float) -> bool:
 			_on_results(scene)
 		SCREEN_PLACEHOLDER:
 			_on_placeholder(scene)
+		SCREEN_EVENT:
+			_on_event(scene)
 		SCREEN_TREASURE:
 			_on_treasure(scene)
 		SCREEN_RESULTS:
@@ -1070,8 +1076,8 @@ func _finish_walk() -> void:
 	), "chose %s; results %s; resume %d" % [
 		_chose_with.keys(), _results_with.keys(), _resume_step,
 	])
-	if _placeholder_with.is_empty():
-		_skip("placeholder", "the seed's route reached no node that isn't a combat")
+	if _placeholder_with.is_empty() and _event_with.is_empty():
+		_skip("event", "the seed's route reached no Unknown that became an event")
 	if _treasure_with.is_empty():
 		_skip("treasure", "the seed's route reached no Treasure")
 	var focus_errors: PackedStringArray = _focus_errors.get_errors()
@@ -1159,6 +1165,85 @@ func _enabled_index(panel: PlacementPanel, prefix: String) -> int:
 	return -1
 
 
+# An Unknown node that became an event: rolled and drawn, both saved, before the screen shows,
+# the draw sounding once. The device of its turn takes the first option asking nothing more (no
+# pick, placement, recruit or fight), then Leave returns to the map.
+func _on_event(scene: Node) -> void:
+	var device: String = DEVICES[(_entered - 1) % DEVICES.size()]
+	var run: CampaignRunState = _run()
+	var panel: EventPanel = scene.call(&"get_panel")
+	var resolved: Array[CampaignFact] = _played(CampaignFact.Kind.UNKNOWN_RESOLVED)
+	var drawn: Array[CampaignFact] = _played(CampaignFact.Kind.EVENT_DRAWN)
+	var draw_cue: StringName = (
+			_cue_reader.cue_for_campaign(drawn[drawn.size() - 1]) if not drawn.is_empty() else &""
+	)
+	_check_node_chosen("event", &"")
+	_check("event %d: the Unknown became an event on entry, drawn and saved before it shows" % [
+		_entered,
+	], (
+			not resolved.is_empty()
+			and resolved[resolved.size() - 1].definition_id == UnknownResolution.EVENT
+			and resolved[resolved.size() - 1].amount == _expected_node
+			and run.flow.unknown == UnknownResolution.EVENT
+			and run.events.is_open_at(run.floor_number, run.node)
+			and panel.get_view().is_open()
+			and drawn.size() == 1 and draw_cue == &"event_map_enter"
+	), "%d resolved; %d drawn, cue %s" % [resolved.size(), drawn.size(), draw_cue])
+	var card: EventOptionCard = _plain_option(panel)
+	if card == null:
+		_check("event %d: an option asks nothing more" % [_entered], false)
+		_end()
+		return
+	_event_with[device] = true
+	_answer(device, card)
+	var leave: Button = panel.get_leave_button()
+	_check("event %d (%s): the option resolves at once and Leave shows" % [_entered, device], (
+			panel.get_view().chosen == card.option_index
+			and leave.visible and not leave.disabled and leave.text == "Leave"
+	), "chosen %d; leave %s" % [panel.get_view().chosen, leave.text])
+	# Deferred, so the outcome's own deferred focus runs first, while the panel is in the tree:
+	# a player never presses Leave in the frame the outcome shows.
+	_answer.call_deferred(device, leave)
+
+
+# The first available option card of panel whose option asks nothing after it is chosen: no
+# chooser, nothing rolled to place, no recruit, revive or fight. Null for none.
+func _plain_option(panel: EventPanel) -> EventOptionCard:
+	var view: EventView = panel.get_view()
+	for card: EventOptionCard in panel.get_cards():
+		if card.disabled or card.option_index < 0 or card.option_index >= view.options.size():
+			continue
+		var option: EventView.OptionView = view.options[card.option_index]
+		var is_plain: bool = (
+				option.is_available()
+				and option.chooser() == EventOutcome.Chooser.NONE
+				and option.rolls.picks.is_empty()
+		)
+		for outcome: EventOutcome in option.option.outcomes:
+			is_plain = is_plain and not (
+					outcome is SurpriseCombatOutcome or outcome is ItemGrantOutcome
+					or outcome is RuneOutcome or outcome is RecruitOutcome
+					or outcome is ReviveOutcome
+			)
+		if is_plain:
+			return card
+	return null
+
+
+# Presses button by device: a click, or focus and the pad's A or Enter.
+func _answer(device: String, button: Button) -> void:
+	match device:
+		"mouse":
+			_click(button.get_global_rect().get_center())
+		"pad":
+			button.grab_focus()
+			_use_pad()
+			_press_pad(JOY_A)
+		_:
+			button.grab_focus()
+			_press_key(KEY_ENTER)
+
+
 func _enabled(panel: PlacementPanel) -> Array[Button]:
 	var choices: Array[Button] = []
 	for button: Button in panel.get_choice_buttons():
@@ -1168,8 +1253,9 @@ func _enabled(panel: PlacementPanel) -> Array[Button]:
 
 
 # A route of NODES_TO_PLAY nodes from floor 1 with at least COMBATS_WANTED combats and a node that
-# isn't one, so every device answers a Results and a placeholder shows, and a Treasure too when
-# one fits; failing that, any such route; without one, the route with the most combats.
+# isn't one, so every device answers a Results and another node shows (on the seed's route, an
+# Unknown that becomes an event), and a Treasure too when one fits; failing that, any such route;
+# without one, the route with the most combats.
 func _plan_route(graph: CampaignGraph) -> PackedInt32Array:
 	var best: PackedInt32Array = []
 	var best_combats: int = -1

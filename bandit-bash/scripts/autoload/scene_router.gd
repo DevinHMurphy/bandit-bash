@@ -44,8 +44,9 @@ signal invite_confirmation_requested()
 #                  CAMPAIGN_MAP, GAMEPLAY, TREASURE, CAMP, ARMORY, GUILDHALL, EVENT,
 #                  NODE_PLACEHOLDER or COMBAT_RESULTS; GAMEPLAY (everyone) outside a solo run
 #   STARTING_HEIRLOOM -> CAMPAIGN_MAP (once the heirloom is taken: the first node comes after)
-#   CAMPAIGN_MAP     -> GAMEPLAY (a combat node chosen), TREASURE, CAMP, ARMORY, GUILDHALL,
-#                       NODE_PLACEHOLDER (any other node)
+#   CAMPAIGN_MAP     -> GAMEPLAY (a combat node chosen), TREASURE, CAMP, ARMORY, GUILDHALL; an
+#                       Unknown node by what it became (RunScreen.go rolls it first): GAMEPLAY,
+#                       TREASURE, ARMORY, GUILDHALL or EVENT, NODE_PLACEHOLDER with no event to draw
 #   TREASURE, CAMP   -> CAMPAIGN_MAP (Leave, once the chest or the choice is settled)
 #   ARMORY, GUILDHALL -> CAMPAIGN_MAP (Leave, at any time: buying is optional)
 #   NODE_PLACEHOLDER -> CAMPAIGN_MAP (Continue leaves the node)

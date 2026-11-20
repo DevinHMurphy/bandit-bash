@@ -94,6 +94,19 @@ func is_on_map() -> bool:
 	return flow.is_on_map()
 
 
+## The type the node the run is in plays as: an Unknown node's rolled outcome
+## ([member RunFlow.unknown], [method UnknownResolution.type_of]), else its type on the map. An
+## Unknown not rolled yet, or rolled an event, stays [constant CampaignGraph.NodeType.UNKNOWN].
+## The map's own types decide everything else, such as the route rules and the step counts.
+func node_type() -> CampaignGraph.NodeType:
+	if graph == null:
+		return CampaignGraph.NodeType.STANDARD
+	var type: CampaignGraph.NodeType = graph.type_of(node)
+	if type == CampaignGraph.NodeType.UNKNOWN and not flow.unknown.is_empty():
+		return UnknownResolution.type_of(flow.unknown)
+	return type
+
+
 ## The nodes the run can enter next, in id order: on the map, the children of [member node], or
 ## every floor-1 node before the first; empty inside a node. [ChooseNodeCommand] accepts exactly
 ## these.
@@ -195,23 +208,24 @@ func key_combats_before() -> int:
 ## ([method CombatMapPools.available]), and each seat's living army with its current HP, items,
 ## heirlooms (once per copy) and runes. Its unit and item instances are the run's own, so the
 ## battle's write-back reaches them. Content from [param catalog] (null: the loaded one). An
-## Unknown node whose event chose a surprise combat fights on the Standard pool. Null, with an
-## error, outside a node or at its results, or for a node with no pool or no map.
+## Unknown node that became a combat, or whose event chose a surprise combat, fights on the
+## Standard pool ([method node_type]). Null, with an error, outside a node or at its results, or
+## for a node with no pool or no map.
 func battle_request(
 		pools: CombatMapPools, catalog: EffectCatalog.Index = null
 ) -> CampaignSession.BattleRequest:
 	if flow.stage != RunFlow.Stage.NODE or graph == null or not graph.has_node_id(node):
 		push_error("CampaignRunState: the run isn't inside a node's battle, so none can begin")
 		return null
-	var node_type: CampaignGraph.NodeType = (
+	var pool_type: CampaignGraph.NodeType = (
 			CampaignGraph.NodeType.STANDARD if events.is_combat_pending_at(floor_number, node)
-			else graph.type_of(node)
+			else node_type()
 	)
-	var pool: CombatMapPool = null if pools == null else pools.pool_for(node_type, floor_number)
+	var pool: CombatMapPool = null if pools == null else pools.pool_for(pool_type, floor_number)
 	var maps: Array[CombatMapDefinition] = CombatMapPools.available(pool, flow.used_maps)
 	if maps.is_empty():
 		push_error("CampaignRunState: node %d on floor %d has no map to fight on (type %s)" % [
-			node, floor_number, CampaignGraph.NodeType.find_key(node_type),
+			node, floor_number, CampaignGraph.NodeType.find_key(pool_type),
 		])
 		return null
 	var request: CampaignSession.BattleRequest = CampaignSession.BattleRequest.new()

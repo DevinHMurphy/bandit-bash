@@ -6,13 +6,14 @@
 # File:     campaign_map_rules.gd
 # Author:
 # Created:  November 12, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name CampaignMapRules
 extends Resource
 ## The campaign map's shape and node rules, read by [CampaignMapGenerator]: grid size, rolled
-## weights, fixed rows, floor limits, per-path caps and soft targets.
+## weights, fixed rows, floor limits, per-path caps and soft targets; and the Unknown node's base
+## odds, read by [UnknownResolution].
 ##
 ## The run's copy lives in [code]res://data/campaign/campaign_map_rules.tres[/code]; values come
 ## from game-vision.md (Run structure, Node placement), with the grid and path count from
@@ -24,6 +25,9 @@ extends Resource
 
 ## Most columns the generator can track: it keeps each floor's edges as bits of one int.
 const MAX_COLUMNS: int = 31
+
+## Where the game's map rules live; [method load_default] reads them.
+const DEFAULT_PATH: String = "res://data/campaign/campaign_map_rules.tres"
 
 @export_group("Shape")
 
@@ -81,6 +85,23 @@ const MAX_COLUMNS: int = 31
 ## [b]Units:[/b] relative weight. [b]0:[/b] targets have no effect.
 @export_range(0, 100, 1) var target_boost: int = 0
 
+@export_group("Unknown odds")
+
+## An Unknown node's chance to become a Standard combat at a run's start, and what that chance
+## gains each time an Unknown becomes something else ([UnknownResolution]).[br]
+## [b]Units:[/b] percent. [b]0:[/b] an Unknown never becomes a combat.
+@export_range(0, 100, 1) var unknown_combat_chance: int = 0
+
+## An Unknown node's chance to become a shop (an Armory or a Guildhall, evenly) at a run's start,
+## and what that chance gains each time an Unknown becomes something else.[br]
+## [b]Units:[/b] percent. [b]0:[/b] an Unknown never becomes a shop.
+@export_range(0, 100, 1) var unknown_shop_chance: int = 0
+
+## An Unknown node's chance to become a Treasure at a run's start, and what that chance gains each
+## time an Unknown becomes something else. An event takes what the three chances leave of 100.[br]
+## [b]Units:[/b] percent. [b]0:[/b] an Unknown never becomes a Treasure.
+@export_range(0, 100, 1) var unknown_treasure_chance: int = 0
+
 @export_group("")
 
 
@@ -120,3 +141,11 @@ func fixed_count(type: CampaignGraph.NodeType, from_floor: int = 1) -> int:
 		if floor_number >= from_floor and fixed_rows[floor_number] == type:
 			count += 1
 	return count
+
+
+## The game's map rules, from [constant DEFAULT_PATH]; null, reported, when they don't load.
+static func load_default() -> CampaignMapRules:
+	var rules: CampaignMapRules = load(DEFAULT_PATH) as CampaignMapRules
+	if rules == null:
+		push_error("CampaignMapRules: no map rules at %s" % [DEFAULT_PATH])
+	return rules
