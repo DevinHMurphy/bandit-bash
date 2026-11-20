@@ -51,7 +51,7 @@ func validate(ctx: EventContext, _index: int) -> String:
 
 func apply(ctx: EventContext, _index: int) -> void:
 	for unit: UnitInstance in EventOutcome.targets(ctx, target):
-		# ASSUMPTION: "every unit" skips the commander and units upgraded already.
+		# "Every unit" skips the commander and units upgraded already.
 		if _problem(ctx, unit).is_empty():
 			RunOperations.upgrade(ctx.run, ctx.seat, unit.instance_id, ctx.catalog, ctx.event_id())
 

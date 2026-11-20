@@ -322,7 +322,7 @@ static func army_size_problem(
 	if amount < 1:
 		return "max army size can't grow by %d" % [amount]
 	var ceiling: int = _army_size_ceiling()
-	# ASSUMPTION: at the ceiling the growth is refused (the option applies all or nothing), and
+	# At the ceiling the growth is refused (the option applies all or nothing), and
 	# below it only the part that fits is added.
 	if max_army_size(seat_run, catalog) >= ceiling:
 		return "the army is already at its largest (%d)" % [ceiling]
