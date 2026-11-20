@@ -223,7 +223,7 @@ func has_pending() -> bool:
 
 # The peers a packet goes to: a client reaches only the host; a host reaches one linked peer, all
 # of them (0), or all but one (-id).
-# ASSUMPTION: a star with the host relaying, as ENet's; the Steam peer's shape is checked live.
+# A star with the host relaying, as ENet's; the Steam peer's shape is checked live.
 func _receivers() -> PackedInt32Array:
 	var receivers: PackedInt32Array = []
 	if not _is_server():

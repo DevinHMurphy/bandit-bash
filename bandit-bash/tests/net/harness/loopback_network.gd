@@ -120,7 +120,7 @@ func in_flight_count() -> int:
 ## to announce it leaving at their next poll, as it announces them. Dropping the host cuts every
 ## client. False when it isn't on the network.
 func drop(peer_id: int) -> bool:
-	# ASSUMPTION: both sides hear a drop at once; no silent cut waiting on a timeout is modelled.
+	# Both sides hear a drop at once; no silent cut waiting on a timeout is modelled.
 	for client: LoopbackPeer in _joining:
 		if client.get_unique_id() == peer_id:
 			_joining.erase(client)

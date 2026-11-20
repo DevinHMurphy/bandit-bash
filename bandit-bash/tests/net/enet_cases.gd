@@ -25,7 +25,7 @@ const LOCALHOST: String = "127.0.0.1"
 # Port 0: the system picks a free one, read back from the host.
 const ANY_PORT: int = 0
 const ONE_CLIENT: int = 1
-# ASSUMPTION: a link or reply not seen within this limit is a failure, not a skip; localhost
+# A link or reply not seen within this limit is a failure, not a skip; localhost
 # links in milliseconds, so the limit only stops a hang, well inside the runner's suite limit.
 const WAIT_LIMIT_MSEC: int = 5000
 # The pause between polls while waiting, so the wait doesn't spin a core.
