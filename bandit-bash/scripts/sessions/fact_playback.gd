@@ -6,7 +6,7 @@
 # File:     fact_playback.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: October 28, 2026
+# Modified: November 19, 2026
 # ==============================================================================
 
 class_name FactPlayback
@@ -16,8 +16,9 @@ extends RefCounted
 ##
 ## Rules resolve a whole command before any of it is shown; this queue shows it afterwards. Each
 ## fact plays on the bus, then playback waits that fact's duration ([member duration_hook], divided
-## by [member speed]) before the next. Fast-forward plays without waiting and stops before any fact
-## [member pause_hook] marks (a boss combat, a player unit's death), so the player sees it.
+## by [member speed]) before the next, counting down whether or not the next is queued yet.
+## Fast-forward plays without waiting and stops before any fact [member pause_hook] marks (a boss
+## combat, a player unit's death), so the player sees it.
 ## Presentation can hold playback on a [PresentationRequest] until it completes. Nothing here
 ## changes rules state. Spectating is a second playback attached to another session's facts.
 ##
@@ -45,10 +46,11 @@ var duration_hook: Callable = Callable()
 ## [b]Invalid:[/b] fast-forward never stops.
 var pause_hook: Callable = Callable()
 
-# Playback state (meaningful while facts are queued; an empty queue plays nothing in any state):
+# Playback state (an empty queue plays nothing in any state):
 #   PLAYING: advance() plays the next fact on the bus, then starts that fact's wait.
-#   WAITING: _wait > 0; advance() counts it down by delta and plays nothing until it runs out.
-#            Leftover delta carries on to the next fact, so a long frame never loses time.
+#   WAITING: _wait > 0; advance() counts it down by delta, facts queued or not, and plays nothing
+#            until it runs out. Leftover delta carries on to the next fact, so a long frame never
+#            loses time, and a batch queued after the last fact's wait ran out plays at once.
 #   HELD:    _held is a PresentationRequest not yet done; advance() plays nothing and counts no
 #            wait down. When it completes, the next advance() goes on as WAITING or PLAYING.
 #   PAUSED:  is_paused; advance() does nothing until resume(). Fast-forward reaching a fact
@@ -80,23 +82,28 @@ func pending() -> int:
 
 
 ## Plays every fact that is due after [param delta] more seconds have passed, and returns how many
-## played. Call it once per frame from presentation.
+## played. Call it once per frame from presentation, queue empty or not: the last fact's wait
+## counts down meanwhile.
 func advance(delta: float) -> int:
 	var played: int = 0
 	# Waits are kept in seconds at normal speed, so a speed change also applies to a wait already
 	# running.
 	var time_left: float = maxf(delta, 0.0) * (speed if speed > 0.0 else 1.0)
-	while not is_paused and _next < _queue.size():
+	while not is_paused:
 		if _held != null:
 			if not _held.is_done:
 				break
 			_held = null
+		# The wait runs before the queue is checked, so the last fact's wait runs out while the
+		# player decides, and the next batch's first fact isn't held for it again.
 		if _wait > 0.0:
 			if time_left < _wait:
 				_wait -= time_left
 				break
 			time_left -= _wait
 			_wait = 0.0
+		if _next >= _queue.size():
+			break
 		var fact: CombatFact = _queue[_next]
 		if is_fast_forward and _stops_before(fact):
 			is_fast_forward = false
