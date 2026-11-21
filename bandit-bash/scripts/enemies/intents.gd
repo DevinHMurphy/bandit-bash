@@ -6,7 +6,7 @@
 # File:     intents.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name Intents
@@ -22,10 +22,10 @@ extends RefCounted
 ## a kill that exposes a unit shows the follow-up that punishes it. The real phase decides again
 ## after each resolved action, so a miss changes what follows (question 8).[br]
 ## [b]Preview[/b] ([method preview]): the same with one player unit moved to a hovered tile, built
-## on the latest intents. An enemy whose options the unit's old and new tiles don't touch keeps
-## its decision from them; the rest decide again, so a move that hands a later enemy a kill moves
-## it up the order. Once a different plan acts, every later step decides afresh (question 10).
-## [method prepare_preview] reads the session; [method PreviewJob.run] re-plans, on any thread.[br]
+## on the latest intents. An enemy keeps its decision while no tile where the boards differ can
+## change what it read ([EnemyAI.Footprint]); the rest decide again, so a move handing a later
+## enemy a kill moves it up the order; once a different plan acts, later steps decide afresh
+## (question 10). [method prepare_preview] reads the session; [method PreviewJob.run] re-plans.[br]
 ## [b]When[/b] ([method register]): after every player Phase Start and every step of the player
 ## phase that recorded a fact, into [member CombatSession.intents], announced by
 ## [signal CombatSession.intents_changed]; P07 draws it. Not saved: derived from the battle state.
@@ -113,6 +113,13 @@ var _reaches: Dictionary[EffectDefinition, int] = {}
 # to; dropped with them, when a fact makes them stale.
 var _forecasts: EnemyAI.ForecastStore = null
 
+# What compute's crossing of the phase boundary recorded, each fact with its line (_fact_line),
+# and the tile of every unit and object on the board it crossed to (_board_tiles): a preview
+# finds what its move changed by comparing its own walk and crossing with these.
+var _crossing: Array[CombatFact] = []
+var _crossing_lines: PackedStringArray = []
+var _crossed_tiles: Dictionary[String, Vector2i] = {}
+
 
 ## The intent of [param unit_id]; null for an enemy that doesn't act (one defeated first).
 func intent_of(unit_id: String) -> EnemyIntent:
@@ -166,6 +173,12 @@ static func compute(session: CombatSession, catalog: EffectCatalog.Index) -> Int
 	var crossed_from: int = sandbox.engine.fact_log.size()
 	PhaseRunner.cross_to_enemy_phase(session, sandbox.engine)
 	found._signatures = _signatures_fired(sandbox.engine, catalog, crossed_from)
+	for index: int in range(crossed_from, sandbox.engine.fact_log.size()):
+		var fact: CombatFact = sandbox.engine.fact_log[index]
+		found._crossing.append(fact)
+		found._crossing_lines.append(_fact_line(fact))
+	var crossed: CombatState = sandbox.engine.state
+	found._crossed_tiles = _board_tiles(crossed)
 	var no_move: Array[Vector2i] = []
 	var margin: int = _effect_margin(sandbox.engine, found._reaches)
 	found._forecasts = EnemyAI.ForecastStore.new(_PREVIEW_FORECASTS)
@@ -230,6 +243,7 @@ static func prepare_preview(session: CombatSession, unit_id: String, tile: Vecto
 	# of a preview's time; it changes no result, and the session's own reads keep it.
 	engine.verify = false
 	var moved_state: CombatState = engine.state
+	var walked_from: int = engine.fact_log.size()
 	engine.begin_step()
 	var check: CombatGrid.PathCheck = UnitTurnCommand.walk_path(engine, moved_state, unit_id, path)
 	engine.drain()
@@ -241,7 +255,7 @@ static func prepare_preview(session: CombatSession, unit_id: String, tile: Vecto
 	found.based_on_seq = base.based_on_seq
 	found.moved_unit_id = unit_id
 	found.moved_to = tile
-	found.danger = DangerZone.compute(engine)
+	found.danger = _danger_after_walk(session, engine, base, walked_from)
 	var crossed_from: int = engine.fact_log.size()
 	PhaseRunner.cross_to_enemy_phase(session, engine)
 	found._signatures = _signatures_fired(engine, base._catalog, crossed_from)
@@ -249,7 +263,7 @@ static func prepare_preview(session: CombatSession, unit_id: String, tile: Vecto
 	job._engine = engine
 	job._flooded = EnemyAI.flooded_tiles(session.state)
 	job._base = base
-	job._touched = [origin, tile]
+	job._changed_from = walked_from
 	job._margin = _effect_margin(engine, base._reaches)
 	job._is_checking = is_checking and OS.is_debug_build()
 	job._forecasts = base._forecasts
@@ -258,10 +272,11 @@ static func prepare_preview(session: CombatSession, unit_id: String, tile: Vecto
 
 # The phase on engine, one step per enemy: every enemy yet to act decided, as EnemyAI.next_plan
 # decides them, then the best carried out. With base, each enemy decision base made at that step
-# is kept while none of touched lies in its options, until a plan other than base's acts. margin:
-# _effect_margin of engine as it starts. checking: also decide each kept one afresh (_check_kept).
-# forecasts: the attack forecasts every decision reuses and adds to, across steps.
-# Pure on engine: PreviewJob.run calls it on a worker.
+# is kept while no tile of touched (where engine's board differs from base's, _changed_tiles) can
+# change it (Decision.touches), until a plan other than base's acts or a second move goes
+# elsewhere. margin: _effect_margin of engine as it starts. checking: also decide each kept one
+# afresh (_check_kept). forecasts: the attack forecasts every decision reuses and adds to, across
+# steps. Pure on engine: PreviewJob.run calls it on a worker.
 static func _play(
 		found: Intents,
 		engine: EffectEngine,
@@ -287,7 +302,7 @@ static func _play(
 			var decision: Decision = null
 			if known != null and known.decisions.has(unit_id):
 				decision = known.decisions[unit_id]
-				if decision.touches(touched):
+				if decision.touches(touched, engine, found.moved_unit_id, margin):
 					decision = null
 				elif checking:
 					_check_kept(found, engine, unit_id, step, decision, flooded, margin)
@@ -307,7 +322,6 @@ static func _play(
 				best = decision
 		if best == null:
 			return
-		is_reusing = known != null and best == known.winner
 		round_of.winner = best
 		found._rounds.append(round_of)
 		var definition: EnemyClassDefinition = null
@@ -319,7 +333,14 @@ static func _play(
 			intent.show_signature(fired.name, fired.area)
 		found.enemies.append(intent)
 		var acted_from: int = engine.fact_log.size()
-		_carry_out(engine, best.plan, found, flooded)
+		round_of.second_path = _carry_out(engine, best.plan, found, flooded)
+		# A kept plan acts as it did on base's board, but its second move is decided afresh: one
+		# that goes elsewhere leaves the boards differing past touched.
+		is_reusing = (
+				known != null
+				and best == known.winner
+				and round_of.second_path == known.second_path
+		)
 		# A signature move that fires while it acts (the Bloodhound's, on a kill) shows on the
 		# action that sets it off.
 		if fired == null:
@@ -386,9 +407,108 @@ static func _plan_text(plan: EnemyPlan) -> String:
 	return " ".join(parts)
 
 
-# unit_id's decision on engine's board, with the tiles a moved player unit would have to touch to
-# change it. objective: the tiles the player side must reach (EnemyAI.objective_tiles).
-# forecasts: the attack forecasts it may reuse; null makes each afresh.
+# Where a preview's board, engine with its walk and crossing recorded from fact from on, differs
+# from base's crossed board (move-preview.md, layer 1): each fact one recorded and the other didn't
+# (compared as _fact_line, in any order) adds its tile and the tiles, on both boards, of the units
+# and objects it names. Rules code records a fact for every change, so a tile not returned holds
+# the same unit in the same state on both. Returns [CombatFact.NO_TILE] when such a fact names
+# something else, such as an effect with no holder, which can reach every unit.
+static func _changed_tiles(base: Intents, engine: EffectEngine, from: int) -> Array[Vector2i]:
+	var unmatched: Dictionary[String, int] = {}
+	for line: String in base._crossing_lines:
+		unmatched[line] = unmatched.get(line, 0) + 1
+	var differing: Array[CombatFact] = []
+	for index: int in range(from, engine.fact_log.size()):
+		var fact: CombatFact = engine.fact_log[index]
+		var line: String = _fact_line(fact)
+		if unmatched.get(line, 0) > 0:
+			unmatched[line] -= 1
+		else:
+			differing.append(fact)
+	for index: int in base._crossing.size():
+		var line: String = base._crossing_lines[index]
+		if unmatched.get(line, 0) > 0:
+			unmatched[line] -= 1
+			differing.append(base._crossing[index])
+	var touched: Dictionary[Vector2i, bool] = {}
+	var state: CombatState = engine.state
+	var now: Dictionary[String, Vector2i] = _board_tiles(state)
+	var everywhere: Array[Vector2i] = [CombatFact.NO_TILE]
+	for fact: CombatFact in differing:
+		if not _add_named(fact, now, base._crossed_tiles, touched):
+			return everywhere
+	var tiles: Array[Vector2i] = []
+	tiles.assign(touched.keys())
+	return tiles
+
+
+# The preview's danger zone on engine's board, session's with one unit walked (its facts recorded
+# from fact from on): base's, each enemy whose reach covers a tile the walk changed recomputed
+# (DangerZone.compute). Every enemy afresh when a walk fact names a map object, whose blast
+# reaches past any enemy's walk, or something off the board.
+static func _danger_after_walk(
+		session: CombatSession, engine: EffectEngine, base: Intents, from: int
+) -> DangerZone:
+	var touched: Dictionary[Vector2i, bool] = {}
+	var walked: CombatState = engine.state
+	var now: Dictionary[String, Vector2i] = _board_tiles(walked)
+	var was: Dictionary[String, Vector2i] = _board_tiles(session.state)
+	var objects: Dictionary[String, MapState.ObjectState] = session.state.map.objects
+	for index: int in range(from, engine.fact_log.size()):
+		var fact: CombatFact = engine.fact_log[index]
+		var names_object: bool = objects.has(fact.actor_id) or objects.has(fact.target_id)
+		if names_object or not _add_named(fact, now, was, touched):
+			return DangerZone.compute(engine)
+	var tiles: Array[Vector2i] = []
+	tiles.assign(touched.keys())
+	return DangerZone.compute(engine, base.danger, tiles, _effect_margin(engine, base._reaches))
+
+
+# Adds to touched fact's tile and the tiles in now and was (two boards' _board_tiles) of the units
+# and objects it names. Returns false when it names an id neither board holds.
+static func _add_named(
+		fact: CombatFact,
+		now: Dictionary[String, Vector2i],
+		was: Dictionary[String, Vector2i],
+		touched: Dictionary[Vector2i, bool]
+) -> bool:
+	if fact.tile != CombatFact.NO_TILE:
+		touched[fact.tile] = true
+	for id: String in [fact.actor_id, fact.target_id]:
+		if id.is_empty():
+			continue
+		if not now.has(id) and not was.has(id):
+			return false
+		for tiles: Dictionary[String, Vector2i] in [now, was]:
+			var tile: Vector2i = tiles.get(id, CombatFact.NO_TILE)
+			if tile != CombatFact.NO_TILE:
+				touched[tile] = true
+	return true
+
+
+# The tile of every unit and map object on state's map, by id.
+static func _board_tiles(state: CombatState) -> Dictionary[String, Vector2i]:
+	var tiles: Dictionary[String, Vector2i] = {}
+	for unit_id: String in state.unit_ids():
+		tiles[unit_id] = state.tile_of(unit_id)
+	for object_id: String in state.map.objects:
+		var spot: MapState.ObjectState = state.map.objects[object_id]
+		tiles[object_id] = spot.tile
+	return tiles
+
+
+# fact as one line holding every field but its seq and session id.
+static func _fact_line(fact: CombatFact) -> String:
+	return "%d %s %s %d %d %d %d %d %s %s %d %d %s %d %s" % [
+		fact.kind, fact.actor_id, fact.target_id, fact.amount, fact.hp_amount, fact.block_amount,
+		fact.damage_type, fact.source, fact.source_effect_id, fact.tile, fact.flags, fact.side,
+		fact.item_id, fact.key, fact.unit_types,
+	]
+
+
+# unit_id's decision on engine's board, with what it read (EnemyAI.Footprint), so a preview can
+# tell the tiles a change must touch to change it. objective: the tiles the player side must reach
+# (EnemyAI.objective_tiles). forecasts: the attack forecasts it may reuse; null makes each afresh.
 static func _decide(
 		engine: EffectEngine,
 		catalog: EffectCatalog.Index,
@@ -399,50 +519,15 @@ static func _decide(
 		forecasts: EnemyAI.Forecasts = null
 ) -> Decision:
 	var decision: Decision = Decision.new()
-	decision.plan = EnemyAI.decide(engine, catalog, unit_id, flooded, objective, forecasts)
-	var plan: EnemyPlan = decision.plan
-	if plan.kind == EnemyPlan.Kind.WAIT and plan.target_rule_id.is_empty():
-		return decision
-	# Support rates every end tile by every player unit's reach, an advance follows the nearest foe
-	# anywhere on the map, and a Wait with a class had no foe in reach: any move can change them.
-	# A Shieldbearer's posts beside its ally can follow a path anywhere on the map too, and a lever
-	# reads every player unit's route to the objective; a loot and a douse count as global too.
-	decision.is_global = (
-			margin < 0
-			or plan.behavior == EnemyClassDefinition.Behavior.SUPPORT
-			or plan.kind != EnemyPlan.Kind.ATTACK
-			or plan.target_rule_id == ContentIds.TARGET_BACK_LINE_ALLY
+	var footprint: EnemyAI.Footprint = EnemyAI.Footprint.new()
+	decision.plan = EnemyAI.decide(
+			engine, catalog, unit_id, flooded, objective, forecasts, footprint
 	)
-	if not decision.is_global:
-		decision.zone = _zone_of(engine, unit_id, margin)
+	decision.footprint = footprint
+	decision.margin = margin
+	# An effect reading the whole map can change any decision.
+	decision.is_global = margin < 0 or footprint.is_whole
 	return decision
-
-
-# The tiles whose occupant can change an attacking enemy's options: every tile it can walk
-# through, and every tile within its longest range plus margin of one, so the units it could
-# attack, whoever blocks or frees its path, and whoever the effects around a target or its splash
-# reach all fall inside.
-static func _zone_of(
-		engine: EffectEngine, unit_id: String, margin: int
-) -> Dictionary[Vector2i, bool]:
-	var state: CombatState = engine.state
-	var mover: CombatUnitState = state.unit(unit_id)
-	var walked: Dictionary[Vector2i, int] = Pathing.flood(
-			state,
-			mover.tile,
-			Pathing.budget_of(engine, state, unit_id),
-			mover.movement_type,
-			mover.side
-	)
-	var longest: int = 1
-	for span: Vector2i in DangerZone.attack_ranges(engine, unit_id):
-		longest = maxi(longest, span.y)
-	var around: Vector2i = Vector2i(0, longest + margin)
-	var zone: Dictionary[Vector2i, bool] = {}
-	for tile: Vector2i in walked:
-		for near: Vector2i in DangerZone.tiles_within(tile, around):
-			zone[near] = true
-	return zone
 
 
 # How far any effect on engine's map reaches from a unit by position: the largest Area shape and
@@ -509,10 +594,12 @@ static func _reach_in(block: Object) -> int:
 # Carries plan out on engine as UnitTurnCommand.resolve would: the walk, then the action. A plan
 # that resolves to no action becomes a Wait, as EnemyAI.next_command makes a rejected one. When
 # the action leaves it free to move again, its second move follows at once, as
-# EnemyAI.next_plan plays it, decided with found's catalog and objective and flooded.
+# EnemyAI.next_plan plays it, decided with found's catalog and objective and flooded. Returns the
+# second move's path; empty for none.
 static func _carry_out(
 		engine: EffectEngine, plan: EnemyPlan, found: Intents, flooded: Dictionary[Vector2i, bool]
-) -> void:
+) -> Array[Vector2i]:
+	var second_path: Array[Vector2i] = []
 	var state: CombatState = engine.state
 	var actor: String = plan.actor_id
 	engine.begin_step()
@@ -543,6 +630,8 @@ static func _carry_out(
 			engine.begin_step()
 			UnitTurnCommand.walk_path(engine, state, actor, second.path)
 			engine.drain()
+			second_path = second.path
+	return second_path
 
 
 # Every signature move engine fired from fact from on (the crossed enemy Phase Start), by the
@@ -661,25 +750,38 @@ func _path_to(engine: EffectEngine, unit_id: String, tile: Vector2i) -> Array[Ve
 	return path
 
 
-## One enemy's decision at one step, with what a moved player unit must touch to change it.
+## One enemy's decision at one step, with what a change must touch to change it.
 class Decision:
 	extends RefCounted
 
 	## The plan [method EnemyAI.decide] gave.
 	var plan: EnemyPlan = null
-	## Whether any move can change it: Support, a move or a Wait, or an effect reading the map.
+	## Whether any change can change it: a lever's seal, or an effect reading the whole map.
 	var is_global: bool = false
-	## Otherwise, the tiles whose occupant can change it; empty for an enemy with no class.
-	var zone: Dictionary[Vector2i, bool] = {}
+	## What it read of the board; it reads nothing for an enemy with no class.
+	var footprint: EnemyAI.Footprint = null
+	## The effect margin it was decided with: the largest positional reach of any effect on the map.
+	var margin: int = 0
 
-	## Whether a unit leaving or entering any of [param tiles] can change this decision.
-	func touches(tiles: Array[Vector2i]) -> bool:
+	## Whether a change on any of [param tiles] can change this decision: a unit entering, leaving
+	## or changing there. [param engine]: the board it is asked for, with player unit
+	## [param moved_id] moved, whose threat counts it compares; without it, any decision counting
+	## threats is touched. [param board_margin]: that board's effect margin, when larger.
+	func touches(
+			tiles: Array[Vector2i],
+			engine: EffectEngine = null,
+			moved_id: String = "",
+			board_margin: int = 0
+	) -> bool:
 		if is_global:
 			return true
+		if footprint == null:
+			return false
+		var widest: int = maxi(margin, board_margin)
 		for tile: Vector2i in tiles:
-			if zone.has(tile):
+			if footprint.can_change(tile, widest):
 				return true
-		return false
+		return footprint.threat_changed(engine, tiles, moved_id)
 
 
 ## A move preview between [method Intents.prepare_preview], on the main thread, and [method run],
@@ -695,7 +797,8 @@ class PreviewJob:
 	var _engine: EffectEngine = null
 	var _flooded: Dictionary[Vector2i, bool] = {}
 	var _base: Intents = null
-	var _touched: Array[Vector2i] = []
+	# The first fact of the walk on _engine, from which its board is compared with _base's.
+	var _changed_from: int = 0
 	var _margin: int = 0
 	# Intents.is_checking in a debug build when prepare_preview built the job.
 	var _is_checking: bool = false
@@ -713,8 +816,12 @@ class PreviewJob:
 		var forecasts: EnemyAI.Forecasts = EnemyAI.Forecasts.new(
 				_forecasts, _margin, _is_checking
 		)
+		var touched: Array[Vector2i] = Intents._changed_tiles(_base, _engine, _changed_from)
+		var reused: Intents = _base
+		if touched.has(CombatFact.NO_TILE):
+			reused = null
 		Intents._play(
-				_found, _engine, _flooded, _base, _touched, _margin, _is_checking, forecasts
+				_found, _engine, _flooded, reused, touched, _margin, _is_checking, forecasts
 		)
 		forecasts.add_overlay_to_store()
 		Intents._take_forecasts(_found, _engine, forecasts)
@@ -735,6 +842,8 @@ class Round:
 	var decisions: Dictionary[String, Decision] = {}
 	## The one that acted.
 	var winner: Decision = null
+	## The path of the second move it took after acting; empty for none.
+	var second_path: Array[Vector2i] = []
 
 
 ## A signature move the coming enemy Phase Start fires: its name and the tiles it covers.

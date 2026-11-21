@@ -6,7 +6,7 @@
 # File:     danger_zone.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 15, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name DangerZone
@@ -20,7 +20,9 @@ extends RefCounted
 ## keg those tiles reach, chained through the kegs it breaks (map-objects.md: a keg an enemy can
 ## use shows in the danger zone). Heal and Block staves attack nothing, so a Hedge Healer has no
 ## tiles. Only tiles on the map count. Built by [Intents]; P07
-## draws it. Plain data, pure to build: it reads the board and changes nothing.
+## draws it. Plain data, pure to build: it reads the board and changes nothing.[br]
+## A move preview rebuilds it from the latest zone ([method compute] with a base), recomputing
+## only the enemies indexed at a changed tile (move-preview.md, layer 4).
 ##
 ## @tutorial(Enemies and AI plan): docs/plans/2026-10-30-enemies-and-ai.md
 
@@ -30,8 +32,18 @@ var combined: Dictionary[Vector2i, PackedStringArray] = {}
 ## Every enemy on the map when it was built, in state order, those with no tiles included.
 var enemy_ids: PackedStringArray = []
 
-# Each enemy's tiles, in row-major order (an Array[Vector2i] per enemy id).
+# Each enemy's tiles, in row-major order (an Array[Vector2i] per enemy id); shared with the zones
+# built on this one, so never changed once built.
 var _by_enemy: Dictionary[String, Array] = {}
+
+# Each enemy's tile and MOVEMENT when built, as (x, y, movement): its tiles depend only on who
+# stands within its movement (Godot_FE's absolute range) and on its own stats.
+var _reaches: Dictionary[String, Vector3i] = {}
+
+# From each tile to the enemies whose movement, or _index_margin, covers it; built on first use
+# with that margin, on the main thread only.
+var _index: Dictionary[Vector2i, PackedStringArray] = {}
+var _index_margin: int = -1
 
 
 ## The tiles [param enemy_id] could attack, in row-major order; empty for an enemy with none or
@@ -48,13 +60,39 @@ func is_threatened(tile: Vector2i) -> bool:
 	return combined.has(tile)
 
 
-## The danger zone of every enemy on [param engine]'s map as it stands now.
-static func compute(engine: EffectEngine) -> DangerZone:
+## The danger zone of every enemy on [param engine]'s map as it stands now. With [param base], the
+## zone of a board [param engine]'s differs from only on [param touched] (a unit entering,
+## leaving or changing there): an enemy keeps its tiles from [param base] unless its movement, or
+## [param margin] (the effect margin, how far an effect reads positions), reaches a touched tile;
+## a negative margin, or a different set of enemies, recomputes every one. The result equals a
+## full rebuild. Call it with a base on the main thread only.
+static func compute(
+		engine: EffectEngine,
+		base: DangerZone = null,
+		touched: Array[Vector2i] = [],
+		margin: int = 0
+) -> DangerZone:
 	var zone: DangerZone = DangerZone.new()
 	var state: CombatState = engine.state
-	for enemy_id: String in state.units_of(CombatFact.CombatSide.ENEMY):
+	var enemies: PackedStringArray = state.units_of(CombatFact.CombatSide.ENEMY)
+	var redone: Dictionary[String, bool] = {}
+	var keeps: bool = base != null and margin >= 0 and base.enemy_ids == enemies
+	if keeps:
+		for tile: Vector2i in touched:
+			for enemy_id: String in base._enemies_at(tile, margin):
+				redone[enemy_id] = true
+	for enemy_id: String in enemies:
 		zone.enemy_ids.append(enemy_id)
-		var tiles: Array[Vector2i] = tiles_for(engine, enemy_id)
+		var tiles: Array[Vector2i] = []
+		if keeps and not redone.has(enemy_id):
+			tiles = base._by_enemy[enemy_id]
+			zone._reaches[enemy_id] = base._reaches[enemy_id]
+		else:
+			tiles = tiles_for(engine, enemy_id)
+			var at: Vector2i = state.tile_of(enemy_id)
+			zone._reaches[enemy_id] = Vector3i(
+					at.x, at.y, engine.stats(enemy_id).get_int(CombatValue.Key.MOVEMENT)
+			)
 		zone._by_enemy[enemy_id] = tiles
 		for tile: Vector2i in tiles:
 			if not zone.combined.has(tile):
@@ -126,6 +164,23 @@ static func tiles_within(center: Vector2i, span: Vector2i) -> Array[Vector2i]:
 			if absi(dx) + absi(dy) >= span.x:
 				found.append(center + Vector2i(dx, dy))
 	return found
+
+
+# The enemies whose tiles a change on tile can change: those within their movement of it, whose
+# walk it can block or free, or within margin, where an effect can change their stats. The index
+# is built with the first margin asked, then again for a larger one.
+func _enemies_at(tile: Vector2i, margin: int) -> PackedStringArray:
+	if margin > _index_margin:
+		_index.clear()
+		_index_margin = margin
+		for enemy_id: String in enemy_ids:
+			var reach: Vector3i = _reaches[enemy_id]
+			var center: Vector2i = Vector2i(reach.x, reach.y)
+			for near: Vector2i in tiles_within(center, Vector2i(0, maxi(reach.z, margin))):
+				if not _index.has(near):
+					_index[near] = PackedStringArray()
+				_index[near].append(enemy_id)
+	return _index.get(tile, PackedStringArray())
 
 
 # Adds to covered the blast of every unbroken powder keg on a covered tile, then of every keg

@@ -65,17 +65,16 @@ starting from `Godot_FE`'s absolute-range check.
 1. **On the main thread** (`Intents.prepare_preview`):
    - copy the session into a sandbox;
    - walk the unit to the tile;
-   - compute the whole danger zone;
+   - rebuild the danger zone from the latest one (layer 4);
    - cross the player Phase End and the enemy Phase Start (every Phase End effect; darkness damage
      comes later, in the darkness phase).
 2. **On a worker** (`PreviewJob.run`), play the enemy phase step by step. At each step every enemy
    yet to act decides, and the best one acts.
-3. **Reuse.** An enemy keeps its decision from the latest intents while neither the unit's old tile
-   nor its new tile lies in that decision's zone. The zone is the tiles the enemy can walk through,
-   plus its longest range plus the effect margin (the largest positional reach of any effect on the
-   map).
+3. **Reuse.** An enemy keeps its decision from the latest intents while no touched tile can change
+   it (layer 3, as built), until a different enemy acts first; its attack forecasts are reused by
+   key (layer 2). The effect margin is the largest positional reach of any effect on the map.
 
-The reuse misses in four ways:
+Before EN14 and EN15, the reuse missed in four ways:
 
 - **It works per decision.** One touched option re-decides the whole enemy, every end tile × target
   × weapon, though most of those forecasts didn't change.
@@ -169,8 +168,7 @@ enemy"), the key holds every unit's signature. Nothing is reused, which is today
   worked out first, and is left for later.
 
 The board diff of layer 1 is the signatures: two boards differ, for a forecast, exactly where its
-key's signatures differ. The decision-level reuse (`Decision.touches`) still uses the moved
-unit's two tiles.
+key's signatures differ. For decisions, the diff compares facts (layer 3, as built).
 
 ### 3. Bounded zones for the decisions that are global today
 
@@ -191,11 +189,65 @@ terrain-free distances, the absolute range in `Godot_FE`'s sense, which never un
 - **Wait with a class.** The enemy had no foe in reach. The decision changes only if a touched tile
   lies within the enemy's absolute range.
 
+**As built (EN15):** `EnemyAI.Footprint`, filled by `EnemyAI.decide` through an optional
+`footprint` argument (null records nothing) with what the decision read, as it read it. Every
+decision has one; none counts as touched by any move any more. A touched tile can change the
+decision when one of these readings covers it. Distances are terrain-free: impassable terrain is
+the only cost-0 tile, so every step costs at least 1 and a route never costs less than its grid
+distance.
+
+- **The walk:** every tile it can walk through, and the units within its longest attack or staff
+  range of them (at least 1, since a unit beside the walk can block it), plus the margin. This is
+  the attack zone of before, now tested on the touched tiles against the board's own flood
+  instead of built as a set from a second flood per decision.
+- **Units it reads:** each option's target-rule subject, and a Shieldbearer's candidate allies
+  (their ranges), within the margin; the Hexer's subjects within 2 more (its rule counts the foes
+  around them).
+- **An advance** on a foe whose nearest stand tile costs C: a foe within C plus its range of the
+  enemy (it could be as near), or for a Hound within K of a pack ally (K: the target's distance
+  to the pack); and every route from an end tile r to the target's stand tiles costing no more
+  than r's cost left: a tile x with dist(r, x) + max(0, dist(x, target) − range) ≤ left(r) can
+  block a cheapest route or open a cheaper one.
+- **A Shieldbearer short of a post:** the same routes to the tiles beside its ally, each bound by
+  the least cost left of any end tile.
+- **A lit Brazier beside an end tile:** the units within its light.
+- **No foe reachable** (an advancing class's Wait): its whole-map flood, within its range. The
+  absolute range above fits a Guard's Wait (the walk reading); an advancing enemy waits only when
+  no foe is reachable anywhere.
+- **Support's threats** (Godot_FE's absolute range): the moved unit's movement plus range from
+  where it stood (its stats then) and where it stands (its stats now), and every other player
+  unit's range around each touched tile (a tile it can now end on, or no longer can). A player
+  unit whose MOVEMENT or range differs on the preview's board changes them anywhere: those are
+  compared on that board.
+- **Every move:** a lever that can seal the objective (its seal reads every route), and an end
+  tile with no route at all (one of any length can open).
+
+**The touched tiles** come from layer 1, applied to decisions: the preview compares the facts of
+its walk and phase crossing with those of the latest intents' crossing. Each fact one recorded
+and the other didn't adds its tile and the tiles, on both boards, of the units and objects it
+names: the moved unit's two tiles, a Phase End heal reaching a third unit, a Powder Baron's keg
+landing elsewhere because the move changed its best tile. Rules code records a fact for every
+change, so an untouched tile holds the same unit in the same state on both boards. A fact naming
+anything else (an effect with no holder) re-decides every enemy.
+
+A kept decision that acts is carried out afresh, and its second move (the Bloodhound's) is decided
+afresh. When that second move goes elsewhere than the latest intents', the boards differ past the
+touched tiles, so the later steps decide afresh.
+
 ### 4. An incremental danger zone
 
 Keep the danger zone per enemy, with `Godot_FE`'s index from tiles to the enemies whose absolute
 range covers them. A preview recomputes only the enemies indexed at the touched tiles and merges the
 result.
+
+**As built (EN15):** `DangerZone.compute` takes the latest zone, the touched tiles and the margin
+as optional trailing arguments. An enemy's tiles depend only on who stands within its MOVEMENT (its
+walk) and on its own stats, so each enemy keeps its tiles from the latest zone unless its MOVEMENT
+or the margin, from its tile, reaches a touched tile. The index from tiles to enemies is built
+once per zone, on the first preview. The preview builds its zone on the main thread from the walk's
+facts. A walk fact naming a map object (a keg's blast reaches past any walk), a negative margin or
+a different set of enemies rebuilds every enemy. The result equals a full rebuild, the merged tiles
+in the same order.
 
 ### 5. Precompute during playback, so a hover is a lookup
 
@@ -282,12 +334,15 @@ The preview must equal a full re-plan, so every layer ships with checks that com
 |---|---|---|
 | A Measure | Benchmark boards: M1 turn 1, M1 engaged, a 9-enemy, 6-unit key-combat board. A per-phase profile of a hover. The equality suite and checking mode, run against today's preview | Baseline median and p95, debug and release, per hover and per sweep; equality passes |
 | B Diff and cache | Layers 1 and 2, the shared flood (left out: under 2% of a hover) | Equality passes; the benchmark is measured before and after. **Built in EN14** (Where it stands) |
-| C Zones | Layers 3 and 4 | Same |
+| C Zones | Layers 3 and 4 | Same. **Built in EN15** (Where it stands) |
 | D Precompute | Layer 5: the sweep during playback, in `MovePreview.Queue` | A hover on a done tile shows on the next frame; the sweep's time per turn is reported |
 
 Steps A–C change only the internals of `intents.gd`, `enemy_ai.gd` and `danger_zone.gd`. Step D
 changes the queue inside `move_preview.gd` and the controller's calls into it. No public signature
-changes, except EN14's optional `forecasts` argument on `EnemyAI.decide` (P05 question 48). Step D goes ahead whatever B and C measure, because the user wants hover work at a minimum.
+changes, except optional trailing arguments: EN14's `forecasts` on `EnemyAI.decide` (P05 question
+48), and EN15's `footprint` on it and `base`, `touched` and `margin` on `DangerZone.compute` (P05
+question 49). Step D goes ahead whatever B and C measure, because the user wants hover work at a
+minimum.
 
 ## Decisions
 
