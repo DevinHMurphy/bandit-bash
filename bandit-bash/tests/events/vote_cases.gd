@@ -6,16 +6,16 @@
 # File:     vote_cases.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 extends RefCounted
 ## Team choice through the commands EventNode builds: solo and individual events take no vote; a
 ## vote records EVENT_VOTED, shows in the view's tally and can change until the draw; an option a
 ## seat can't meet can't be voted for; the last vote draws from TEAM_CHOICE and records
-## TEAM_OPTION_DRAWN, after which only the drawn option applies, to every seat; 2 votes against 1
-## draw 2 in 3 over many seeds; a quit and Continue mid-vote and after the draw keeps the votes
-## and the draw; and a combat option is always a team choice. Touches no save files.
+## TEAM_OPTION_DRAWN, after which only the drawn option applies, by each seat in turn; 2 votes
+## against 1 draw 2 in 3 over many seeds; a quit and Continue mid-vote and after the draw keeps
+## the votes and the draw; and a combat option is always a team choice. Touches no save files.
 
 const SUITE: String = "events"
 
@@ -162,8 +162,8 @@ func _test_draw_and_apply() -> void:
 			and other.is_rejected() and other.rejected_reason.contains("drew option 2")
 			and team.run.events.votes[0] == INTIMIDATE
 	), "%s / %s" % [late.rejected_reason, other.rejected_reason])
-	var applied: CampaignBatch = _fx.choose(team, _toll, 1, INTIMIDATE)
-	var every: bool = not applied.is_rejected() and team.run.events.is_finished()
+	var problem: String = _fx.choose_every(team, _toll, INTIMIDATE)
+	var every: bool = problem.is_empty() and team.run.events.is_finished()
 	for seat: int in TEAM_SIZE:
 		var seat_run: SeatRun = team.run.seat_run(seat)
 		var curse: String = team.run.events.seat_event(seat).rolls_of(INTIMIDATE).curse_id
@@ -173,10 +173,10 @@ func _test_draw_and_apply() -> void:
 				and team.run.events.seat_event(seat).chosen == INTIMIDATE
 		)
 	view = EventNode.view(team, 2, _toll, _fx.catalog)
-	_check("draw: the drawn option applies to every seat; the tally and draw still show", (
+	_check("draw: each seat applies the drawn option; the tally and draw still show", (
 			every and view.drawn == INTIMIDATE and view.chosen == INTIMIDATE
 			and _counts(view) == [0, 0, TEAM_SIZE] and view.is_finished
-	), applied.rejected_reason)
+	), problem)
 
 
 func _test_vote_odds() -> void:
@@ -240,11 +240,11 @@ func _test_continue_mid_vote() -> void:
 	if again == null:
 		_check("continue after the draw: the save loads", false, error_string(_fx.resume_error))
 		return
-	var applied: CampaignBatch = _fx.choose(again, _toll, 0, drawn)
-	_check("continue after the draw: the drawn option is kept and applies to every seat", (
-			EventNode.view(again, 0, _toll, _fx.catalog).drawn == drawn
-			and not applied.is_rejected() and again.run.events.is_finished()
-	), applied.rejected_reason)
+	var kept: bool = EventNode.view(again, 0, _toll, _fx.catalog).drawn == drawn
+	var problem: String = _fx.choose_every(again, _toll, drawn)
+	_check("continue after the draw: the drawn option is kept and every seat applies it", (
+			kept and problem.is_empty() and again.run.events.is_finished()
+	), problem)
 
 
 func _test_combat_is_a_team_choice() -> void:
@@ -260,12 +260,11 @@ func _test_combat_is_a_team_choice() -> void:
 	var alone: CampaignBatch = _fx.choose(team, _toll, 0, FIGHT)
 	for seat: int in TEAM_SIZE:
 		_fx.vote(team, _toll, seat, FIGHT)
-	var fought: CampaignBatch = _fx.choose(team, _toll, 0, FIGHT)
+	var problem: String = _fx.choose_every(team, _toll, FIGHT)
 	_check("combat: one seat can't start the fight alone; the team's draw starts it for all", (
-			alone.is_rejected() and team.run.events.drawn_option() == NO_OPTION
-			and not fought.is_rejected() and team.run.events.is_combat_pending
+			alone.is_rejected() and problem.is_empty() and team.run.events.is_combat_pending
 			and team.run.events.is_finished()
-	), "%s / %s" % [alone.rejected_reason, fought.rejected_reason])
+	), "%s / %s" % [alone.rejected_reason, problem])
 
 
 # The view's vote count per option, in option order.
