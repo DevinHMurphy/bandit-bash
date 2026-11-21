@@ -185,6 +185,15 @@ writes the combat file and the campaign with the same `checkpoint_seq`. While a 
 campaign writes keep the sections captured at Begin: everything the battle changes lives only in
 `COMBAT` sections. That is what lets a battle restart from Begin if its combat file is lost.
 
+**The end of each player phase** is saved by the battle screen (`BattleScreen`) as the phase's
+last End Turn resolves, before its playback plays. That one command resolves the player Phase End,
+the whole enemy phase, the hooks after it (the darkness phase, reinforcements) and the next player
+Phase Start, intents included, so the save holds the start of the next player phase. A resume
+re-runs none of it: no Phase Start fires twice, and the enemy phase's playback isn't shown again.
+A phase end that finishes the battle writes no checkpoint; the battle's end saves it. A failed
+save is logged and play goes on, the previous save kept. Solo only for now: P11 extends it so any
+map's player phase end saves the whole battle (P11 question 39).
+
 On continue, `SaveService.resume_point` says where to pick up:
 
 | Campaign | Combat file | `resume_point` |

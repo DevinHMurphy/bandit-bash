@@ -104,7 +104,8 @@ var is_closed: bool = false
 var is_tracing_draws: bool = false
 
 # The run's effect carriers on the campaign layer (unit traits, items, heirlooms, curses), by
-# instance id: the side that keeps campaign-lane values between battles.
+# instance id: the side that keeps campaign-lane values between battles. Held heirlooms' and
+# curses' are in it only during a battle (_heirloom_carriers).
 var _carriers: Dictionary[String, EffectInstance] = {}
 
 # The copies registered in the battle in progress, by instance id.
@@ -113,8 +114,11 @@ var _battle_copies: Dictionary[String, EffectInstance] = {}
 # The units the battle in progress loaded from instances, for write_back().
 var _loaded: Array[Loadout.LoadedUnit] = []
 
-# Each held heirloom or curse copy already made carriers, by _copy_key(), so a second battle
-# doesn't add them again. A seat's k-th copy of an id is its k-th SeatRun entry of that id.
+# Each held heirloom or curse copy made carriers for the battle in progress, by _copy_key(). A
+# seat's k-th copy of an id is its k-th SeatRun entry of that id. Dropped with their carriers when
+# the battle ends (abandon_battle): each Begin makes them again from the run's saved lanes, so a
+# continued run mints the ids an uninterrupted one does, and the engine's tie-break by instance id
+# orders their reactions alike.
 var _heirloom_carriers: Dictionary[String, HeirloomLane] = {}
 
 # Setup steps other plans registered, applied to every battle: [step, Callable] pairs.
@@ -149,8 +153,9 @@ func _init(run_mode: CampaignData.Mode, run_seed: int, run_seats: PackedInt32Arr
 
 
 ## Adds [param instance] to the run's carriers: a unit trait, an item's effect, a heirloom or a
-## curse, with its owner. Its campaign-lane counter and charges live here between battles. Returns
-## false for an instance already added.
+## curse, with its owner. Its campaign-lane counter and charges live here between battles, except
+## a held heirloom's or curse's, made at Begin and dropped at the battle's end. Returns false for
+## an instance already added.
 func add_carrier(instance: EffectInstance) -> bool:
 	if instance == null or _carriers.has(instance.instance_id):
 		return false
@@ -166,7 +171,7 @@ func get_carrier(instance_id: String) -> EffectInstance:
 ## Seat [param seat]'s held heirloom and curse copies that are carriers of the run, in the order
 ## battles first named them (gain order), each as a new [HeirloomLane] whose
 ## [member HeirloomLane.carrier_ids] are also its effects' instance ids in the battle in progress.
-## Read-only: changing the result changes nothing here. Empty before the first battle.
+## Read-only: changing the result changes nothing here. Empty outside a battle.
 func heirloom_copies(seat: int) -> Array[HeirloomLane]:
 	var copies: Array[HeirloomLane] = []
 	for key: String in _heirloom_carriers:
@@ -439,7 +444,8 @@ func receive_grant(
 
 ## Drops the battle in progress without writing anything back and emits
 ## [signal combat_encounter_closed]: for a battle whose Begin save failed, or a run that ends
-## mid-battle. Does nothing outside a battle.
+## mid-battle; [method end_battle] ends through it. The heirloom and curse carriers go with it, as
+## their lanes live in the run between battles. Does nothing outside a battle.
 func abandon_battle() -> void:
 	if encounter == null:
 		return
@@ -448,6 +454,10 @@ func abandon_battle() -> void:
 	_battle_copies.clear()
 	_loaded.clear()
 	_collected = null
+	for key: String in _heirloom_carriers:
+		for carrier_id: String in _heirloom_carriers[key].carrier_ids:
+			_carriers.erase(carrier_id)
+	_heirloom_carriers.clear()
 	for session: CombatSession in closed.get_sessions():
 		if session.grant_received.is_connected(receive_grant):
 			session.grant_received.disconnect(receive_grant)

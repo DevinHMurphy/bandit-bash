@@ -6,7 +6,7 @@
 # File:     stat_sheet.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 30, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name StatSheet
@@ -171,15 +171,20 @@ func explain_static_permission(
 	return _cache[slot]
 
 
-## A copy with the same bases and modifiers, linked to [param engine] (a sandbox's engine).
-## Modifiers are shared: they are never changed once added.
+## A copy with the same bases, modifiers and static answers, linked to [param engine] (a sandbox's
+## engine). Modifiers and answers are shared: neither is changed once made. Every sandbox copies
+## each sheet, so the copy takes the dictionaries whole: through [method set_base] and
+## [method add_modifier] their cache drops cost most of a sandbox's copy, and its reads rebuilt
+## every answer.
 func copy_for(engine: EffectEngine) -> StatSheet:
 	var copy: StatSheet = StatSheet.new(subject_id, engine)
-	for key: int in _bases:
-		copy.set_base(key, _bases[key], _base_labels.get(key, "") as String)
+	copy._bases = _bases.duplicate()
+	copy._base_labels = _base_labels.duplicate()
 	for key: int in _modifiers:
-		for modifier: Modifier in _modifiers[key]:
-			copy.add_modifier(modifier)
+		var list: Array[Modifier] = []
+		list.assign(_modifiers[key])
+		copy._modifiers[key] = list
+	copy._cache = _cache.duplicate()
 	return copy
 
 

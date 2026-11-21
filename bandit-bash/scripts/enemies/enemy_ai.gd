@@ -6,7 +6,7 @@
 # File:     enemy_ai.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name EnemyAI
@@ -130,13 +130,15 @@ static func next_plan(
 ## ally). Support: heal, else regroup (a Warcaller near most allies). A post holder keeps its
 ## behavior after the darkness. Attackers blow kegs to kill; looters loot; with nothing to attack
 ## the advancing ones seal the objective or douse a Brazier. [param flooded]:
-## [method flooded_tiles]; [param objective]: [method objective_tiles]. Changes nothing.
+## [method flooded_tiles]; [param objective]: [method objective_tiles]. [param forecasts]: reuses
+## attack forecasts other decisions made ([Forecasts]); null makes each afresh. Changes nothing.
 static func decide(
 		engine: EffectEngine,
 		catalog: EffectCatalog.Index,
 		unit_id: String,
 		flooded: Dictionary[Vector2i, bool] = {},
-		objective: Array[Vector2i] = []
+		objective: Array[Vector2i] = [],
+		forecasts: Forecasts = null
 ) -> EnemyPlan:
 	var state: CombatState = engine.state
 	var definition: EnemyClassDefinition = null
@@ -147,6 +149,7 @@ static func decide(
 	var board: Board = Board.new(engine, unit_id, flooded)
 	board.objective = objective
 	board.catalog = catalog
+	board.forecasts = forecasts
 	board.behavior = definition.behavior
 	board.rule = definition.target_rule_id
 	if Reinforcements.has_darkness_arrived(state) and not definition.holds_post:
@@ -296,10 +299,7 @@ static func _attacks(board: Board) -> Array[EnemyPlan]:
 				)
 				if order == 1:
 					command.weapon_id = held.id
-				# Without hit breakdowns: no rating step reads them.
-				var forecast: CombatForecast.ExchangeForecast = CombatForecast.exchange(
-						board.engine, command, ForecastRolls.new(), false
-				)
+				var forecast: CombatForecast.ExchangeForecast = _exchange(board, command)
 				if not forecast.is_legal:
 					continue
 				var plan: EnemyPlan = _attack_plan(board, tile, forecast, command.weapon_id, order)
@@ -307,6 +307,14 @@ static func _attacks(board: Board) -> Array[EnemyPlan]:
 				if plan.is_kill or not kegs.has(target):
 					options.append(plan)
 	return options
+
+
+# command's attack forecast on board's engine, without hit breakdowns (no rating step reads them):
+# from board's forecasts when it has them, else made afresh.
+static func _exchange(board: Board, command: UnitTurnCommand) -> CombatForecast.ExchangeForecast:
+	if board.forecasts != null:
+		return board.forecasts.exchange(board.engine, command)
+	return CombatForecast.exchange(board.engine, command, ForecastRolls.new(), false)
 
 
 # Every powder keg still on state's map, as the units that hold its HP, in spot order.
@@ -1059,6 +1067,8 @@ class Board:
 	## The least path cost any player unit has to [member objective] on this board; -1 until the
 	## first lever asks.
 	var objective_cost: int = -1
+	## The attack forecasts its decision may reuse ([method EnemyAI.decide]); null for none.
+	var forecasts: Forecasts = null
 
 	# The flood reach is cut from, every tile it can walk through: the paths.
 	var _walked: Dictionary[Vector2i, int] = {}
@@ -1102,3 +1112,361 @@ class Board:
 			path.push_front(came_from)
 			at = came_from
 		return path
+
+
+## Attack forecasts one computation of the intents made, for its later steps and every preview
+## built on those intents to reuse (move-preview.md, layer 2), each under the key [Forecasts]
+## builds. The computation fills it; a preview keeps its own in an overlay and adds them when it
+## ends, the oldest previews' dropped first past [member limit], since a hover's neighbours share
+## most forecasts (a forecast holds about 37 KB in debug). Every board that reads it starts from
+## the same session state: [Intents] drops it with those intents. Safe on any thread: a lock
+## guards every read and write.
+class ForecastStore:
+	extends RefCounted
+
+	## The most forecasts previews' additions keep; the computation's are always kept.
+	## [b]0:[/b] previews add nothing.
+	var limit: int = 0
+
+	var _lock: Mutex = Mutex.new()
+	var _entries: Dictionary[String, CombatForecast.ExchangeForecast] = {}
+	# The keys previews added, oldest first from _first_added; the earlier ones are dropped.
+	var _added: PackedStringArray = []
+	var _first_added: int = 0
+	# Each signature text a kept key names, by a short number, so keys stay small.
+	var _numbers: Dictionary[String, int] = {}
+	# Whether each effect definition reads past any positional reach (_reads_whole_board).
+	var _whole: Dictionary[EffectDefinition, bool] = {}
+
+	func _init(most: int = 0) -> void:
+		limit = most
+
+	## The forecasts kept.
+	func size() -> int:
+		_lock.lock()
+		var count: int = _entries.size()
+		_lock.unlock()
+		return count
+
+	## Keeps each of [param overlay]'s forecasts by its key, as a preview ends, dropping the
+	## oldest kept by previews while more than [member limit] are.
+	func keep_all(overlay: Dictionary[String, CombatForecast.ExchangeForecast]) -> void:
+		if limit <= 0:
+			return
+		_lock.lock()
+		for key: String in overlay:
+			if _entries.has(key):
+				continue
+			_entries[key] = overlay[key]
+			_added.append(key)
+		while _added.size() - _first_added > limit:
+			_entries.erase(_added[_first_added])
+			_first_added += 1
+		# Compacts the dropped keys away once they are most of the list.
+		if _first_added > limit:
+			_added = _added.slice(_first_added)
+			_first_added = 0
+		_lock.unlock()
+
+	## The forecast kept under [param key]; null when none is.
+	func find(key: String) -> CombatForecast.ExchangeForecast:
+		_lock.lock()
+		var found: CombatForecast.ExchangeForecast = _entries.get(key, null)
+		_lock.unlock()
+		return found
+
+	## Keeps [param forecast] under [param key]. Kept forecasts are shared by every plan that
+	## reuses them, so nothing may change one; their facts keep the seq of the board that made
+	## them, which no plan or intent reads.
+	func keep(key: String, forecast: CombatForecast.ExchangeForecast) -> void:
+		_lock.lock()
+		_entries[key] = forecast
+		_lock.unlock()
+
+	## The short number standing for [param signature], the same for equal texts, from 0 up.
+	## Unknown: a new number when [param may_add], else -1.
+	func number_of(signature: String, may_add: bool) -> int:
+		_lock.lock()
+		var number: int = _numbers.get(signature, -1)
+		if number < 0 and may_add:
+			number = _numbers.size()
+			_numbers[signature] = number
+		_lock.unlock()
+		return number
+
+	## Whether [param definition] can change an exchange anywhere on the map, whoever it belongs
+	## to: it fires outside the phase triggers and selects a whole scope, runs a custom script (a
+	## keg's blast, counted in the margin, aside) or tests "no ally closer".
+	func reads_whole_board(definition: EffectDefinition) -> bool:
+		_lock.lock()
+		var known: bool = _whole.has(definition)
+		var whole: bool = _whole.get(definition, false)
+		_lock.unlock()
+		if known:
+			return whole
+		var phase_only: bool = (
+				definition.trigger == EffectTerms.Trigger.PHASE_START
+				or definition.trigger == EffectTerms.Trigger.PHASE_END
+		)
+		whole = not phase_only and _reads_whole(definition)
+		_lock.lock()
+		_whole[definition] = whole
+		_lock.unlock()
+		return whole
+
+	# Whether block, or any resource it stores, reads past a positional reach.
+	static func _reads_whole(block: Object) -> bool:
+		if block is AllOfScope and not (block as AllOfScope).is_owner():
+			return true
+		if block is CustomOperation and not block is KegExplosion:
+			return true
+		if block is WhilePositionCondition:
+			var position: WhilePositionCondition = block
+			if position.kind == WhilePositionCondition.Kind.NO_ALLY_CLOSER_TO_ENEMY:
+				return true
+		for property: Dictionary in block.get_property_list():
+			var usage: int = property["usage"]
+			var kind: int = property["type"]
+			if usage & PROPERTY_USAGE_STORAGE == 0 or (kind != TYPE_OBJECT and kind != TYPE_ARRAY):
+				continue
+			var property_name: StringName = property["name"]
+			var value: Variant = block.get(property_name)
+			var children: Array = value if value is Array else [value]
+			for child: Variant in children:
+				if child is Resource and not child is Script and _reads_whole(child as Resource):
+					return true
+		return false
+
+
+## One play of the enemy phase's view of a [ForecastStore] ([method EnemyAI.decide]): an attack
+## forecast is reused when its key matches. The key holds the option (attacker, weapon, path,
+## target), the effect margin, each unit on the path or within the margin of the attacker's tile,
+## its end tile and the target's tile with its signature, and what the whole board shares (the
+## turn, the darkness, map objects, army effects). A signature is a unit's whole state, its
+## effects' counters and charges, its timed modifiers and its stat changes. The filling view adds
+## what it makes to the store; any other keeps it in its own overlay, dropped with the view. Use
+## one per board timeline, on one thread.
+## @tutorial(The move preview): docs/design/move-preview.md
+class Forecasts:
+	extends RefCounted
+
+	## Forecasts reused (from the store or the overlay), and made afresh, through this view.
+	var reused: int = 0
+	var made: int = 0
+	## Reused forecasts made afresh again by checking mode and compared.
+	var checked: int = 0
+	## For each reused forecast that differs from a fresh one, in checking mode: what was kept and
+	## what a fresh one gives.
+	var mismatches: PackedStringArray = []
+
+	var _store: ForecastStore = null
+	var _margin: int = 0
+	var _is_checking: bool = false
+	var _fills_store: bool = false
+	# What this view made, when it doesn't fill the store; and the numbers of signatures the store
+	# doesn't know, below 0 so they never match a kept key.
+	var _overlay: Dictionary[String, CombatForecast.ExchangeForecast] = {}
+	var _local_numbers: Dictionary[String, int] = {}
+	# The board the signatures below were read from: its engine and fact count. Rules code records
+	# a fact for every change, so a board with the same count is unchanged.
+	var _engine: EffectEngine = null
+	var _facts: int = -1
+	# Each unit's signature number and tile, in state order; the whole board's signature number;
+	# whether an effect reads the whole board, so every key holds every unit.
+	var _units: Dictionary[String, int] = {}
+	var _tiles: Dictionary[String, Vector2i] = {}
+	var _shared: int = -1
+	var _is_whole: bool = false
+
+	## [param margin]: the board's effect margin ([method Intents.preview]); below 0, an effect
+	## reads the whole map and nothing is reused. [param is_checking]: make each reused forecast
+	## afresh too and list a difference in [member mismatches]. [param fills_store]: add what it
+	## makes to [param store], for one computation of the intents only; otherwise to the overlay.
+	func _init(
+			store: ForecastStore,
+			margin: int,
+			is_checking: bool = false,
+			fills_store: bool = false
+	) -> void:
+		_store = store
+		_margin = margin
+		_is_checking = is_checking
+		_fills_store = fills_store
+
+	## [param command]'s attack forecast on [param engine]'s board, as
+	## [method CombatForecast.exchange] makes it with [ForecastRolls] and no breakdowns: kept from
+	## the overlay or the store when its key matches, else made and kept.
+	func exchange(
+			engine: EffectEngine, command: UnitTurnCommand
+	) -> CombatForecast.ExchangeForecast:
+		if _store == null or _margin < 0:
+			made += 1
+			return CombatForecast.exchange(engine, command, ForecastRolls.new(), false)
+		_read(engine)
+		var key: String = _key_of(command)
+		var kept: CombatForecast.ExchangeForecast = _overlay.get(key, null)
+		if kept == null:
+			kept = _store.find(key)
+		if kept == null:
+			kept = CombatForecast.exchange(engine, command, ForecastRolls.new(), false)
+			if _fills_store:
+				_store.keep(key, kept)
+			else:
+				_overlay[key] = kept
+			made += 1
+			return kept
+		reused += 1
+		if _is_checking:
+			checked += 1
+			var fresh: CombatForecast.ExchangeForecast = CombatForecast.exchange(
+					engine, command, ForecastRolls.new(), false
+			)
+			var was: String = Forecasts.text_of(kept)
+			var now: String = Forecasts.text_of(fresh)
+			if was != now:
+				mismatches.append("%s on %s from %s kept [%s], a fresh one gives [%s]" % [
+					command.actor_id, command.target_id, command.path, was, now,
+				])
+		return kept
+
+	## Adds the overlay to the store, as a preview ends ([method ForecastStore.keep_all]).
+	func add_overlay_to_store() -> void:
+		if _store != null and not _overlay.is_empty():
+			_store.keep_all(_overlay)
+
+	# Reads every signature from engine's board unless it is the board last read.
+	func _read(engine: EffectEngine) -> void:
+		if engine == _engine and engine.fact_log.size() == _facts:
+			return
+		_engine = engine
+		_facts = engine.fact_log.size()
+		var state: CombatState = engine.state
+		var parts: Dictionary[String, PackedStringArray] = {}
+		_tiles.clear()
+		for unit_id: String in state.unit_ids():
+			parts[unit_id] = PackedStringArray([str(state.unit(unit_id).capture())])
+			_tiles[unit_id] = state.tile_of(unit_id)
+		var shared: PackedStringArray = [
+			str(state.turn), str(state.phase_side), str(state.is_phase_ended),
+			str(state.map.has_darkness_arrived), str(state.map.darkness.layers),
+		]
+		_is_whole = false
+		for instance: EffectInstance in engine.get_instances():
+			# An effect firing only at a phase boundary never fires in an exchange, and only its
+			# own instance reads its counters and charges (CounterCondition, CounterValue).
+			var trigger: int = instance.definition.trigger
+			var is_phase_only: bool = (
+					trigger == EffectTerms.Trigger.PHASE_START
+					or trigger == EffectTerms.Trigger.PHASE_END
+			)
+			if is_phase_only:
+				continue
+			var holder: String = instance.owner.holder_id
+			var text: String = "%s %d %d %d" % [
+				instance.instance_id, instance.charges_left,
+				instance.get_counter(EffectTerms.Lane.COMBAT),
+				instance.get_counter(EffectTerms.Lane.CAMPAIGN),
+			]
+			if parts.has(holder):
+				parts[holder].append(text)
+			else:
+				shared.append(text)
+			if _is_whole or engine.is_dormant(instance):
+				continue
+			# A unit's effect reaching other units by scope (an aura) reads its holder anywhere.
+			var is_aura: bool = (
+					parts.has(holder) and instance.definition.scope != EffectTerms.Scope.THIS_UNIT
+			)
+			_is_whole = is_aura or _store.reads_whole_board(instance.definition)
+		for unit_id: String in parts:
+			for timed: TimedModifier in engine.get_timed_modifiers(unit_id):
+				parts[unit_id].append(str(timed.capture()))
+		for fact: CombatFact in engine.fact_log:
+			if fact.kind == CombatFact.Kind.STAT_CHANGED and parts.has(fact.actor_id):
+				parts[fact.actor_id].append("stat %d %d %s" % [
+					fact.key, fact.amount, fact.source_effect_id,
+				])
+		var object_ids: Array[String] = []
+		object_ids.assign(state.map.objects.keys())
+		object_ids.sort()
+		for object_id: String in object_ids:
+			var spot: MapState.ObjectState = state.map.objects[object_id]
+			shared.append("%s %s %s %s %s %s %s %d" % [
+				spot.id, spot.tile, spot.is_open, spot.is_lit, spot.is_used, spot.is_destroyed,
+				spot.is_thrown, spot.fuse,
+			])
+		_shared = _number_of(" ".join(shared))
+		_units.clear()
+		for unit_id: String in parts:
+			_units[unit_id] = _number_of(" ".join(parts[unit_id]))
+
+	# The store's number for signature, added when the store keeps anything of this view's.
+	# Otherwise one of this view's own, below 0, which never matches a kept key.
+	func _number_of(signature: String) -> int:
+		var number: int = _store.number_of(signature, _fills_store or _store.limit > 0)
+		if number >= 0:
+			return number
+		if not _local_numbers.has(signature):
+			_local_numbers[signature] = -1 - _local_numbers.size()
+		return _local_numbers[signature]
+
+	# The key of command's forecast on the board last read: every unit within the margin of the
+	# attacker's tile (its movement), its end tile and the target's tile (the exchange), and every
+	# unit on its path. NOTE: the walk reads only the path's own tiles and records a move that
+	# fires nothing before the unit acts (EffectEngine's trigger of a move, Pathing.check_path).
+	func _key_of(command: UnitTurnCommand) -> String:
+		var actor: String = command.actor_id
+		var target: String = command.target_id
+		var origin: Vector2i = _tiles.get(actor, CombatFact.NO_TILE)
+		var path: Array[Vector2i] = command.path
+		var anchors: Array[Vector2i] = [
+			origin,
+			origin if path.is_empty() else path[path.size() - 1],
+			_tiles.get(target, CombatFact.NO_TILE),
+		]
+		var parts: PackedStringArray = [
+			actor, command.weapon_id, str(path), target, str(_margin), str(_shared),
+		]
+		for unit_id: String in _units:
+			var is_read: bool = (
+					_is_whole
+					or unit_id == actor
+					or unit_id == target
+					or path.has(_tiles[unit_id])
+					or _is_near(_tiles[unit_id], anchors)
+			)
+			if is_read:
+				parts.append("%s=%d" % [unit_id, _units[unit_id]])
+		return "|".join(parts)
+
+	# Whether tile lies within the margin of any of anchors, by grid distance.
+	func _is_near(tile: Vector2i, anchors: Array[Vector2i]) -> bool:
+		for anchor: Vector2i in anchors:
+			if absi(tile.x - anchor.x) + absi(tile.y - anchor.y) <= _margin:
+				return true
+		return false
+
+	## [param forecast] as one line holding everything a plan or an intent reads of it: legality,
+	## every unit's outcome, every attack and every fact but its seq.
+	static func text_of(forecast: CombatForecast.ExchangeForecast) -> String:
+		var parts: PackedStringArray = [
+			str(forecast.is_legal), forecast.reason, forecast.actor_id, forecast.target_id,
+		]
+		for outcome: CombatForecast.UnitOutcome in forecast.units:
+			parts.append("%s %d>%d b%d>%d s%d>%d %s>%s %s" % [
+				outcome.unit_id, outcome.hp_before, outcome.hp_after, outcome.block_before,
+				outcome.block_after, outcome.stance_before, outcome.stance_after,
+				outcome.tile_before, outcome.tile_after, outcome.is_defeated,
+			])
+		for attack: CombatForecast.AttackForecast in forecast.attacks:
+			parts.append("%s>%s %d %s %s %d %d %d %d %s" % [
+				attack.attacker_id, attack.defender_id, attack.hit, attack.hit_probability,
+				attack.is_hit, attack.crit_chance, attack.damage, attack.hp_damage,
+				attack.block_damage, attack.defeated,
+			])
+		for fact: CombatFact in forecast.facts:
+			parts.append("%d %s %s %s %s %d %d" % [
+				fact.kind, fact.actor_id, fact.target_id, fact.source_effect_id, fact.tile,
+				fact.amount, fact.key,
+			])
+		return " ".join(parts)

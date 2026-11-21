@@ -6,7 +6,7 @@
 # File:     resume_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 extends "res://tests/sessions/sessions_case_base.gd"
@@ -417,16 +417,14 @@ func _play_arrival_script(saves: Node, service: Node, quits: bool) -> ResumeRun:
 	return result
 
 
-# How many values the resume script set (7) a write-back brought back: in a unit or item instance's
-# counters, or a carrier's campaign lane.
+# How many values the resume script set (7) a write-back brought back: in a unit, item or held
+# heirloom's counters.
 func _written_count(written: Dictionary) -> int:
 	var found: int = 0
-	# Untyped: an instance's entry is [counters, charges], a carrier's its count.
+	# Untyped: each entry is [counters, charges].
 	for key: Variant in written:
 		var entry: Variant = written[key]
-		if entry is int and entry == 7:
-			found += 1
-		elif entry is Array:
+		if entry is Array:
 			for count: Variant in ((entry as Array)[0] as Dictionary).values():
 				if count is int and count == 7:
 					found += 1
@@ -580,10 +578,13 @@ func _play_resume_script(saves: Node, service: Node, quits: bool) -> ResumeRun:
 	for item_id: String in built.items:
 		var item: ItemInstance = built.items[item_id]
 		result.written[item_id] = [item.counters.duplicate(), item.charges.duplicate()]
-	for instance_id: String in result.counted:
-		var carrier: EffectInstance = run.get_carrier(instance_id)
-		if carrier != null:
-			result.written[instance_id] = carrier.get_counter(EffectTerms.Lane.CAMPAIGN)
+	# A heirloom's carriers last one battle, so its lane is read where the battle's end saved it.
+	var heirlooms: Array[SeatRun.OwnedHeirloom] = run.run.seat_run(0).heirlooms
+	for index: int in heirlooms.size():
+		var owned: SeatRun.OwnedHeirloom = heirlooms[index]
+		result.written["heirloom %d %s" % [index, owned.heirloom_id]] = [
+			owned.counters.duplicate(), owned.charges.duplicate(),
+		]
 	saves.call(&"abandon_run", CampaignData.Mode.SOLO)
 	saves.call(&"close_save_file")
 	SaveFile.delete_folder("user://saves/")
@@ -673,6 +674,6 @@ class ResumeRun:
 	# The id minted after the last command, and the counter after it.
 	var minted: String = ""
 	var next_after: int = 0
-	# After the battle's end: [counters, charges] by unit or item id, and each counted carrier's
-	# campaign lane by id.
+	# After the battle's end: [counters, charges] by unit or item id, and by held heirloom as the
+	# run saved it.
 	var written: Dictionary = {}
