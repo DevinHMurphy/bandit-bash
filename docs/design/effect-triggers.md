@@ -9,29 +9,55 @@ how the engine dispatches them is in [event-bus.md](event-bus.md).
 
 ## Reading effect text
 
-Every triggered effect reads the same way:
+Effect text is short, plain sentences, in the style of Slay the Spire 2's relic text (P01
+question 61). Every effect reads the same way:
 
 ```
-<trigger head> [this combat | this campaign]: <operation>
+<head>, <conditions>, <operations>.
 ```
 
-- With scope This unit, the head is the trigger's name: "**Before Combat**: gain 2 Block."
-- With a wider scope, the scope is the trigger's subject: "**When Your Unit is defeated**: give
-  your units 4 Block." "**Before Your Unit's combat**, while it is the initiator: …" ("Defeated by
-  Your Unit" would read as Your Unit doing the defeating.)
-- A phase is a side's, not a unit's: Your Unit's reads "**Phase Start**", Any Ally Unit's
-  "**Allied Phase Start**", Any Unit's "**Any Phase Start**".
-- With a counter, a unit trigger keeps the counted form `Every Nth <trigger> by <scope>`:
-  "Every 7th **Attack made** by **Your Unit** **this campaign**: that attack gains lifesteal."
+- **Sentences.** Each effect is one sentence: a capital first letter and a closing period.
+  Operations are one list, "a, b and c": "+20 HP, +5 DEF and +5 CON."
+- **No "Always".** An always-on effect has no head: "+2 DEF.", "Enemy intents are hidden."
+  Conditions still lead: "While the opponent is Exposed, +2 Attack."
+- **Unit triggers** read "Whenever <subject> <does it>": "**Whenever this unit lands a crit**,
+  that hit skips Mitigation." The subject is the scope in plain words: this unit, **one of your
+  units**, **an ally**, **any unit** ("Whenever one of your units is defeated, give your units
+  4 Block."). This unit's own turn and exchange read "At the start of this unit's turn",
+  "Before each exchange", "After each exchange"; its defeat "When this unit is defeated".
+- **A phase** is a side's, not a unit's: "**At Phase Start**" (This unit and Your Unit),
+  "**At each allied Phase Start**" (Any Ally Unit), "**At every Phase Start**" (Any Unit).
+- **Counters** read "The first time <clause> each combat" and "Every Nth time <clause> each
+  combat", or "this run" for a campaign counter: "Every 7th time one of your units attacks each
+  combat, that attack gains lifesteal." Phases: "At the first Phase Start each combat".
+- **Campaign triggers:** "Upon pickup" (Gained), "At the end of each combat" (Combat ended),
+  "Whenever one of your units levels up".
+- **Charges** close the sentence: "(once per combat)", "(twice per run)", "(3 times per combat)".
+- **Lead-ins** come from the carrier: an ingredient's eat effect opens "**When eaten**" (it can
+  also be cooked); a starting heirloom's bonus "**At the start of the run**". A Pouch item reads
+  as its action: "Heal the target for 8 HP."
+- **Value keys** read by their player-facing names (`EffectTerms.KEY_TEXT`): "+25% XP",
+  "+8 Gold per won combat", "+1 max Stance", "-20% shop prices", "+1 MGT per level-up",
+  "Attacks deal Magic damage." The inspector keeps the keys' code names.
 - Permissions read as what the unit can do, with the target as subject: "a random one of your
-  units can't gain Block until the end of the next phase", "Always: can pick locks".
+  units can't gain Block until the end of the next phase", "Can pick locks."
 - A rune reads as its cast, with no head, naming who it is cast on in place of "the target"
-  (an ally, an enemy, an ally that hasn't acted): "Heal an ally for 10", "Remove 2 Stance from an
-  enemy". Timed modifiers that last alike share one duration: "Give an ally +20 Hit and +2 Attack
-  on its next attack until Phase End". Only runes read this way; a Pouch item keeps "the target".
+  (an ally, an enemy, an ally that hasn't acted): "Heal an ally for 10 HP.", "Remove 2 Stance
+  from an enemy." Timed modifiers that last alike share one duration: "Give an ally +20 Hit and
+  +2 Attack on its next attack until Phase End." Only runes read this way; a Pouch item keeps
+  "the target".
+- **Written text.** An effect the blocks can't say (an opener such as Burglar's Roll or the Key,
+  which `MapObjects` reads by id) carries its sentence in `EffectDefinition.written_text`, shown
+  in place of the built text.
+- **Keywords** (`EffectTerms.KEYWORDS`: Block, Stance, Exposed, Mitigation, Phase Start, Gold,
+  the stat names and the rest) are spelled and capitalized the same everywhere, so a later pass
+  can highlight them; the content test fails a keyword written in lower case, except those that
+  are also plain words (attack, hit, crit, range).
 
-The generated text lives in `EffectTerms` (`trigger_head`, `describe_permission`); a rune's in
-`RuneDefinition.describe()`.
+The generated text lives in `EffectTerms` (`trigger_head`, `describe_modifier`,
+`describe_permission`) and `EffectDefinition.describe()`; a rune's in `RuneDefinition.describe()`.
+`tools/dump_effect_text.gd` prints every carrier's text as [effect-text.md](effect-text.md)'s
+tables.
 
 ## Scopes
 
@@ -176,7 +202,7 @@ Before Combat to After Combat.
 | No ally closer to an enemy | No ally of this unit has a smaller tile distance (tiles up plus tiles across, ignoring terrain) to its nearest enemy than this unit has to its own; a tie still counts | "Phase Start, while no ally is closer to an enemy than this unit: gain 3 Block" |
 
 **Shove distance.** How many tiles this unit's shoves push (1 by default). Effects change it like any
-other value: "Always: Shove distance +1". A longer shove still moves tile by tile and stops early
+other value: "+1 Shove distance." A longer shove still moves tile by tile and stops early
 at anything in the way, bumping a unit it runs into (see Shove in
 [game-vision.md](game-vision.md#combat)).
 

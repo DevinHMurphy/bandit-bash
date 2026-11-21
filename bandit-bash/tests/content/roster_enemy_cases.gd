@@ -6,7 +6,7 @@
 # File:     roster_enemy_cases.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -71,22 +71,22 @@ const GROWTH_STATS: Array[int] = [
 # Reviewed effect text of each class's trait, one line per effect. The Warcaller's War Horn is
 # also its signature move.
 const TEXT: Dictionary[String, Array] = {
-	"cutthroat": ["While the opponent is Exposed: +2 Attack"],
-	"duelist": ["Before Combat, while it is the defender: gain 3 Block"],
-	"shieldbearer": ["Always: +2 DEF × this unit's current Stance"],
+	"cutthroat": ["While the opponent is Exposed, +2 Attack."],
+	"duelist": ["Before each exchange, while it is the defender, gain 3 Block."],
+	"shieldbearer": ["+2 DEF × this unit's current Stance."],
 	"hexer": [
-		"Hit dealt: remove 1 Stance from the other unit and adjacent units of the other unit, "
-		+ "friend or foe",
+		"Whenever this unit lands a hit, remove 1 Stance from the other unit and adjacent units of"
+		+ " the other unit, friend or foe.",
 	],
 	"warcaller": [
-		"Every 2nd Phase Start this combat: give this unit and units within 2 tiles, friend or foe "
-		+ "+2 Attack until the end of the next phase",
+		"At every 2nd Phase Start each combat, give this unit and units within 2 tiles, friend or"
+		+ " foe +2 Attack until the end of the next phase.",
 	],
 	"raider": [
-		"Hit dealt, while this unit moved 3+ tiles this turn: deal 3 splash damage to adjacent "
-		+ "units of the other unit, friend or foe",
+		"Whenever this unit lands a hit, while this unit moved 3+ tiles this turn, deal 3 splash"
+		+ " damage to adjacent units of the other unit, friend or foe.",
 	],
-	"hound": ["Always: +2 Attack × the number of adjacent allies"],
+	"hound": ["+2 Attack × the number of adjacent allies."],
 }
 
 # The Raider's, the Hound's and the Shieldbearer's weapons. Columns: Dmg, AtkX, profile, range min,

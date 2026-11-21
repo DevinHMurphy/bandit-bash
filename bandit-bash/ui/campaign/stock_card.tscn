@@ -56,6 +56,13 @@ theme_type_variation = &"BodyLabel"
 text = "Common weapon"
 autowrap_mode = 3
 
+[node name="Effects" type="Label" parent="Content/Layout/Text"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"BodyLabel"
+autowrap_mode = 3
+
 [node name="Spacer" type="Control" parent="Content/Layout/Text"]
 layout_mode = 2
 size_flags_vertical = 3

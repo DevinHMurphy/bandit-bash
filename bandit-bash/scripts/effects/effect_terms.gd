@@ -6,7 +6,7 @@
 # File:     effect_terms.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 18, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 @tool
@@ -163,49 +163,60 @@ const TRIGGER_TEXT: Dictionary[int, String] = {
 	Trigger.LEVELED_UP: "Leveled up",
 }
 
-## Effect-text heads of the unit triggers under a scope other than This unit, the scope's name in
-## place of [code]%s[/code]: the scope is the trigger's subject, so "When Your Unit is defeated",
-## not "Defeated by Your Unit" (which reads as Your Unit defeating). A trigger not listed reads
-## "<trigger> by <scope>"; the phase triggers read by [method trigger_head].
-const SCOPED_TRIGGER_TEXT: Dictionary[int, String] = {
-	Trigger.UNIT_TURN_START: "When %s's turn starts",
-	Trigger.BEFORE_COMBAT: "Before %s's combat",
-	Trigger.AFTER_COMBAT: "After %s's combat",
-	Trigger.UNIT_TURN_END: "When %s's turn ends",
-	Trigger.ATTACK_MADE: "When %s attacks",
-	Trigger.HIT_DEALT: "When %s deals a hit",
-	Trigger.HIT_TAKEN: "When %s is hit",
-	Trigger.MISSED: "When %s misses",
-	Trigger.DODGED: "When %s dodges",
-	Trigger.DAMAGE_DEALT: "When %s deals damage",
-	Trigger.DAMAGE_TAKEN: "When %s takes damage",
-	Trigger.CRIT_DEALT: "When %s lands a crit",
-	Trigger.CRIT_TAKEN: "When %s takes a crit",
-	Trigger.EXPOSED: "When %s is Exposed",
-	Trigger.DEFEATED_AN_ENEMY: "When %s defeats an enemy",
-	Trigger.DEFEATED: "When %s is defeated",
-	Trigger.HEALED_AN_ALLY: "When %s heals an ally",
-	Trigger.HEALED: "When %s is healed",
-	Trigger.USED_STAFF_ON_ALLY: "When %s uses a staff on an ally",
-	Trigger.DARKNESS_DAMAGE_TAKEN: "When %s takes darkness damage",
-	Trigger.OBJECT_USED: "When %s uses an object",
-	Trigger.SHOVED_A_UNIT: "When %s shoves a unit",
-	Trigger.SHOVED: "When %s is shoved",
-	Trigger.BLOCK_GAINED: "When %s gains Block",
-	Trigger.MOVED_AFTER_ACTING: "When %s moves after acting",
-	Trigger.LEVELED_UP: "When %s levels up",
+## What happens in each unit trigger, as a clause with its subject ([constant SUBJECT_TEXT]) in
+## place of [code]%s[/code]: "%s attacks". Effect text opens "Whenever <clause>", or "Every 7th
+## time <clause> each combat" with a counter ([method trigger_head]). A unit trigger not listed
+## reads "On <trigger>".
+const TRIGGER_CLAUSE_TEXT: Dictionary[int, String] = {
+	Trigger.UNIT_TURN_START: "%s starts its turn",
+	Trigger.BEFORE_COMBAT: "%s enters an exchange",
+	Trigger.AFTER_COMBAT: "%s finishes an exchange",
+	Trigger.UNIT_TURN_END: "%s ends its turn",
+	Trigger.ATTACK_MADE: "%s attacks",
+	Trigger.HIT_DEALT: "%s lands a hit",
+	Trigger.HIT_TAKEN: "%s is hit",
+	Trigger.MISSED: "%s misses",
+	Trigger.DODGED: "%s dodges",
+	Trigger.DAMAGE_DEALT: "%s deals damage",
+	Trigger.DAMAGE_TAKEN: "%s takes damage",
+	Trigger.CRIT_DEALT: "%s lands a crit",
+	Trigger.CRIT_TAKEN: "%s takes a crit",
+	Trigger.EXPOSED: "%s becomes Exposed",
+	Trigger.DEFEATED_AN_ENEMY: "%s defeats an enemy",
+	Trigger.DEFEATED: "%s is defeated",
+	Trigger.HEALED_AN_ALLY: "%s heals an ally",
+	Trigger.HEALED: "%s is healed",
+	Trigger.USED_STAFF_ON_ALLY: "%s uses a staff on an ally",
+	Trigger.DARKNESS_DAMAGE_TAKEN: "%s takes darkness damage",
+	Trigger.OBJECT_USED: "%s uses an object",
+	Trigger.SHOVED_A_UNIT: "%s shoves a unit",
+	Trigger.SHOVED: "%s is shoved",
+	Trigger.BLOCK_GAINED: "%s gains Block",
+	Trigger.MOVED_AFTER_ACTING: "%s moves after acting",
+	Trigger.LEVELED_UP: "%s levels up",
+}
+
+## The subject of a unit trigger's clause for each scope, in plain words: "Whenever one of your
+## units is defeated", not the scope's inspector name ([constant SCOPE_TEXT]).
+const SUBJECT_TEXT: Dictionary[int, String] = {
+	Scope.THIS_UNIT: "this unit",
+	Scope.YOUR_UNIT: "one of your units",
+	Scope.ANY_ALLY_UNIT: "an ally",
+	Scope.ANY_UNIT: "any unit",
 }
 
 ## The words before a phase trigger's name for each scope: a phase is a side's, not a unit's, so
-## Your Unit's is just "Phase Start" and the wider scopes name whose phase counts.
+## Your Unit's is just "At Phase Start" and the wider scopes name whose phase counts ("At each
+## allied Phase Start", "At every Phase Start").
 const PHASE_SCOPE_TEXT: Dictionary[int, String] = {
 	Scope.THIS_UNIT: "",
 	Scope.YOUR_UNIT: "",
-	Scope.ANY_ALLY_UNIT: "Allied ",
-	Scope.ANY_UNIT: "Any ",
+	Scope.ANY_ALLY_UNIT: "each allied ",
+	Scope.ANY_UNIT: "every ",
 }
 
-## Effect-text names of the scopes.
+## Effect-text names of the scopes, for the inspector and content errors; effect text names a
+## scope by [constant SUBJECT_TEXT].
 const SCOPE_TEXT: Dictionary[int, String] = {
 	Scope.THIS_UNIT: "This unit",
 	Scope.YOUR_UNIT: "Your Unit",
@@ -246,11 +257,93 @@ const PERMISSION_DENIED_TEXT: Dictionary[int, String] = {
 	CampaignValue.Permission.STAT_CAN_GROW: "%s can't grow",
 }
 
-## Effect-text names of the lanes.
+## Effect-text names of the lanes, as the period now running: "3 / 7 this combat".
 const LANE_TEXT: Dictionary[int, String] = {
 	Lane.COMBAT: "this combat",
-	Lane.CAMPAIGN: "this campaign",
+	Lane.CAMPAIGN: "this run",
 }
+
+## A counter's lane after its count in effect text: "The first time this unit is hit each combat"
+## (it starts over every combat), "Every 10th time … this run" (it never does).
+const COUNT_LANE_TEXT: Dictionary[int, String] = {
+	Lane.COMBAT: "each combat",
+	Lane.CAMPAIGN: "this run",
+}
+
+## A charge limit's lane in effect text: "(once per combat)".
+const CHARGE_LANE_TEXT: Dictionary[int, String] = {
+	Lane.COMBAT: "per combat",
+	Lane.CAMPAIGN: "per run",
+}
+
+## The count word of a first-only counter, for [method trigger_head].
+const FIRST_COUNT: String = "first"
+
+## Player-facing names of the value keys in effect text, after a signed amount: "+1 max Stance",
+## "+8 Gold per won combat". A key not listed reads [method key_name] (base stats keep their
+## abbreviations). A key in [constant PERCENT_KEYS] shows its amount as a percent.
+const KEY_TEXT: Dictionary[int, String] = {
+	CombatValue.Key.NET_WEIGHT: "Weight",
+	CombatValue.Key.ATK_X: "AtkX",
+	CombatValue.Key.CRIT_CHANCE: "Crit",
+	CombatValue.Key.CRIT_X: "CritX",
+	CombatValue.Key.STANCE_MAX: "max Stance",
+	CombatValue.Key.SHOVE_DISTANCE: "Shove distance",
+	CombatValue.Key.RANGE_MIN: "min Range",
+	CombatValue.Key.RANGE_MAX: "max Range",
+	CombatValue.Key.DAMAGE_TYPE: "damage type",
+	CombatValue.Key.EFFECTIVE_MODIFIER: "effectiveness",
+	CombatValue.Key.STAFF_AMOUNT: "staff amount",
+	CampaignValue.Key.COMBAT_GOLD: "Gold per won combat",
+	CampaignValue.Key.GRADE_BONUS_PERCENT: "grade bonus",
+	CampaignValue.Key.SHARED_XP_PERCENT: "shared XP",
+	CampaignValue.Key.UNIT_XP_PERCENT: "XP",
+	CampaignValue.Key.SCRAP_PERCENT: "of the price when scrapping",
+	CampaignValue.Key.ARMORY_STOCK: "Armory items",
+	CampaignValue.Key.GUILDHALL_RECRUITS: "Guildhall recruits",
+	CampaignValue.Key.PRICE_PERCENT: "shop prices",
+	CampaignValue.Key.FREE_REROLLS: "free rerolls",
+	CampaignValue.Key.MAX_ARMY_SIZE: "max army size",
+	CampaignValue.Key.EXTRA_ENEMIES: "enemies per combat",
+	CampaignValue.Key.HEALING_RECEIVED_PERCENT: "healing received",
+	CampaignValue.Key.LEVEL_UP_GUARANTEED_GAINS: "stat points per level-up",
+	CampaignValue.Key.LEVEL_UP_MIN_STATS: "stats raised per level-up",
+	CampaignValue.Key.DARKNESS_ARRIVAL_OFFSET: "turns before the darkness arrives",
+	CampaignValue.Key.POUCH_ITEM_WEIGHT: "weight per Pouch item",
+	CampaignValue.Key.LEVEL_UP_RANDOM_GAINS: "random stat points per level-up",
+}
+
+## [constant KEY_TEXT]'s name for an amount of exactly 1 or -1, where it differs: "+1 free
+## reroll".
+const KEY_TEXT_ONE: Dictionary[int, String] = {
+	CampaignValue.Key.ARMORY_STOCK: "Armory item",
+	CampaignValue.Key.GUILDHALL_RECRUITS: "Guildhall recruit",
+	CampaignValue.Key.FREE_REROLLS: "free reroll",
+	CampaignValue.Key.LEVEL_UP_GUARANTEED_GAINS: "stat point per level-up",
+	CampaignValue.Key.EXTRA_ENEMIES: "enemy per combat",
+	CampaignValue.Key.DARKNESS_ARRIVAL_OFFSET: "turn before the darkness arrives",
+	CampaignValue.Key.LEVEL_UP_RANDOM_GAINS: "random stat point per level-up",
+}
+
+## Keys whose amount is in percent or percentage points, shown with a percent sign: "+25% XP".
+const PERCENT_KEYS: Array[int] = [
+	CampaignValue.Key.GRADE_BONUS_PERCENT,
+	CampaignValue.Key.SHARED_XP_PERCENT,
+	CampaignValue.Key.UNIT_XP_PERCENT,
+	CampaignValue.Key.SCRAP_PERCENT,
+	CampaignValue.Key.PRICE_PERCENT,
+	CampaignValue.Key.HEALING_RECEIVED_PERCENT,
+]
+
+## The game terms effect text names, spelled and capitalized the same everywhere, so a later pass
+## can highlight them. The content test fails text that writes one in lower case ("block"),
+## except the terms that are also plain words ("that attack", "lands a hit", "at range 2").
+const KEYWORDS: PackedStringArray = [
+	"Block", "Stance", "Exposed", "Mitigation", "Phase Start", "Phase End", "Attack",
+	"Attack Speed", "AtkX", "Parry", "Hit", "Avoid", "Crit", "CritX", "Movement", "Range", "HP",
+	"MGT", "SPD", "DEF", "RES", "CON", "Gold", "XP", "Pouch", "Armory", "Guildhall", "Magic",
+	"Physical",
+]
 
 ## Effect-text names of the damage stage keys, as players read a change to them ("+2 Attack for
 ## that hit", "×0.5 damage taken"); [method key_name] keeps the stage names for the inspector.
@@ -313,21 +406,101 @@ static func stat_hint() -> String:
 	return ",".join(entries)
 
 
-## The head of a triggered effect's text for [param trigger] under [param scope]: the trigger's
-## name for This unit ("Hit dealt"), the scope as its subject otherwise
-## ([constant SCOPED_TRIGGER_TEXT]), and a phase trigger named by whose phase it is
-## ([constant PHASE_SCOPE_TEXT]). [param is_counted]: a counter goes before it, so a unit trigger
-## keeps the counted "<trigger> by <scope>" ("Every 5th Hit dealt by Your Unit").
-static func trigger_head(trigger: int, scope: int, is_counted: bool = false) -> String:
-	var name: String = TRIGGER_TEXT.get(trigger, "Trigger %d" % [trigger])
-	if trigger == Trigger.PHASE_START or trigger == Trigger.PHASE_END:
-		return "%s%s" % [PHASE_SCOPE_TEXT.get(scope, ""), name]
+## The opening phrase of a triggered effect's text for [param trigger] under [param scope], with
+## no comma: "Whenever one of your units is defeated", "At Phase Start", "Upon pickup"; empty for
+## Always. [param count]: empty for every time, [constant FIRST_COUNT], or an ordinal ("7th"),
+## counted in [param lane]: "The first time this unit is hit each combat", "Every 7th time one of
+## your units attacks each combat", "At the first Phase Start each combat".
+static func trigger_head(
+		trigger: int, scope: int, count: String = "", lane: int = Lane.COMBAT
+) -> String:
+	var period: String = COUNT_LANE_TEXT.get(lane, "")
+	match trigger:
+		Trigger.ALWAYS:
+			return ""
+		Trigger.GAINED:
+			return "Upon pickup"
+		Trigger.COMBAT_ENDED:
+			if count.is_empty():
+				return "At the end of each combat"
+			if count == FIRST_COUNT:
+				return "At the end of the first combat"
+			return "At the end of every %s combat" % [count]
+		Trigger.PHASE_START, Trigger.PHASE_END:
+			var phase: String = TRIGGER_TEXT[trigger]
+			if count.is_empty():
+				return "At %s%s" % [PHASE_SCOPE_TEXT.get(scope, ""), phase]
+			var allied: String = "allied " if scope == Scope.ANY_ALLY_UNIT else ""
+			if count == FIRST_COUNT:
+				return "At the first %s%s %s" % [allied, phase, period]
+			return "At every %s %s%s %s" % [count, allied, phase, period]
+	var clause: String = trigger_clause(trigger, scope)
+	if count == FIRST_COUNT:
+		return "The first time %s %s" % [clause, period]
+	if not count.is_empty():
+		return "Every %s time %s %s" % [count, clause, period]
 	if scope == Scope.THIS_UNIT:
-		return name
-	var subject: String = SCOPE_TEXT[scope]
-	if is_counted or not SCOPED_TRIGGER_TEXT.has(trigger):
-		return "%s by %s" % [name, subject]
-	return SCOPED_TRIGGER_TEXT[trigger] % [subject]
+		match trigger:
+			Trigger.BEFORE_COMBAT:
+				return "Before each exchange"
+			Trigger.AFTER_COMBAT:
+				return "After each exchange"
+			Trigger.UNIT_TURN_START:
+				return "At the start of this unit's turn"
+			Trigger.UNIT_TURN_END:
+				return "At the end of this unit's turn"
+			Trigger.DEFEATED:
+				return "When %s" % [clause]
+	return "Whenever %s" % [clause]
+
+
+## What happens in a unit trigger, with [param scope]'s subject: "one of your units attacks"
+## ([constant TRIGGER_CLAUSE_TEXT], [constant SUBJECT_TEXT]); the heirloom bar's ready line names
+## the next event by it.
+static func trigger_clause(trigger: int, scope: int) -> String:
+	var subject: String = SUBJECT_TEXT.get(scope, "this unit")
+	if not TRIGGER_CLAUSE_TEXT.has(trigger):
+		return "%s: %s" % [subject, TRIGGER_TEXT.get(trigger, "Trigger %d" % [trigger])]
+	return TRIGGER_CLAUSE_TEXT[trigger] % [subject]
+
+
+## The player-facing name of [param key] in effect text for an amount of [param value]
+## ([constant KEY_TEXT], [constant KEY_TEXT_ONE], a damage stage's [constant STAGE_TEXT]), else
+## [method key_name].
+static func text_name(key: int, value: float = 0.0) -> String:
+	if is_equal_approx(absf(value), 1.0) and KEY_TEXT_ONE.has(key):
+		return KEY_TEXT_ONE[key]
+	if KEY_TEXT.has(key):
+		return KEY_TEXT[key]
+	return STAGE_TEXT.get(key, key_name(key))
+
+
+## [param parts] as one English list: "a", "a and b", "a, b and c".
+static func join_list(parts: PackedStringArray) -> String:
+	if parts.size() <= 1:
+		return "".join(parts)
+	return "%s and %s" % [", ".join(parts.slice(0, parts.size() - 1)), parts[parts.size() - 1]]
+
+
+## [param text] as a sentence: its first letter capitalized and a closing period added unless it
+## ends in one; empty stays empty.
+static func sentence(text: String) -> String:
+	var trimmed: String = text.strip_edges()
+	if trimmed.is_empty():
+		return ""
+	if not (trimmed.ends_with(".") or trimmed.ends_with("!") or trimmed.ends_with("?")):
+		trimmed += "."
+	return trimmed.left(1).to_upper() + trimmed.substr(1)
+
+
+## A charge limit as effect text: "(once per combat)", "(twice per run)", "(3 times per combat)".
+static func describe_charges(charges: int, lane: int) -> String:
+	var times: String = "%d times" % [charges]
+	if charges == 1:
+		times = "once"
+	elif charges == 2:
+		times = "twice"
+	return "(%s %s)" % [times, CHARGE_LANE_TEXT.get(lane, "")]
 
 
 ## Effect text for [param key] allowed ([param is_allowed]) or denied, with no subject, such as
@@ -352,28 +525,37 @@ static func describe_permission(
 	return phrase
 
 
-## Effect text for one modifier, such as "+8 Combat Gold", "×0.5 damage" (a damage stage, named
-## by [constant STAGE_TEXT]), "Range Max becomes 2" or a permission's, such as
+## Effect text for one modifier, such as "+8 Gold per won combat", "+25% XP", "×0.5 damage" (a
+## damage stage), "max Range becomes 2", "attacks deal Magic damage" or a permission's, such as
 ## "can't counter" or, for a per-stat key with [param stat], "SPD can't grow"
-## ([method describe_permission]).
+## ([method describe_permission]); key names by [method text_name].
 static func describe_modifier(
 		key: int, mode: Modifier.Mode, value: float, stat: int = Modifier.NO_STAT
 ) -> String:
 	if mode == Modifier.Mode.GRANT or mode == Modifier.Mode.DENY:
 		return describe_permission(key, mode == Modifier.Mode.GRANT, stat)
-	var name: String = STAGE_TEXT.get(key, key_name(key))
+	var name: String = text_name(key, value)
 	var stat_name: Variant = CombatValue.Stat.find_key(stat)
-	if stat_name != null:
+	if stat_name != null and key == CampaignValue.Key.LEVEL_UP_GUARANTEED_GAINS:
+		name = "%s per level-up" % [stat_name]
+	elif stat_name != null:
 		name = "%s (%s)" % [name, stat_name]
 	var shown: String = format_number(value)
+	var percent: String = "%" if PERCENT_KEYS.has(key) else ""
 	if CombatValue.ENUM_KEYS.has(key):
 		var type_name: Variant = CombatFact.DamageType.find_key(roundi(value))
 		shown = shown if type_name == null else (type_name as String).capitalize()
+		if key == CombatValue.Key.DAMAGE_TYPE and type_name != null:
+			return "attacks deal %s damage" % [shown]
+	if mode == Modifier.Mode.FLOOR and key == CampaignValue.Key.LEVEL_UP_MIN_STATS:
+		return "at least %s %s" % [shown, name]
 	match mode:
 		Modifier.Mode.REPLACE_BASE:
-			return "%s becomes %s" % [name, shown]
+			return "%s becomes %s%s" % [name, shown, percent]
 		Modifier.Mode.ADD:
-			return "%s%s %s" % ["-" if value < 0.0 else "+", format_number(absf(value)), name]
+			return "%s%s%s %s" % [
+				"-" if value < 0.0 else "+", format_number(absf(value)), percent, name,
+			]
 		Modifier.Mode.MULTIPLY:
 			return "×%s %s" % [shown, name]
 		Modifier.Mode.FLOOR:

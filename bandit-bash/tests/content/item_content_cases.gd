@@ -6,7 +6,7 @@
 # File:     item_content_cases.gd
 # Author:
 # Created:  November 12, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -49,15 +49,17 @@ const RUNE_DIR: String = "res://data/runes/"
 # items.md's seven runes: target kind, target side (unit runes only), whether the unit must not
 # have acted, and the reviewed effect text.
 const RUNES: Dictionary[String, Array] = {
-	"mend": ["unit", "player", false, "Heal an ally for 10"],
-	"aegis": ["unit", "player", false, "Give an ally 6 Block"],
-	"shatter": ["unit", "enemy", false, "Remove 2 Stance from an enemy"],
+	"mend": ["unit", "player", false, "Heal an ally for 10 HP."],
+	"aegis": ["unit", "player", false, "Give an ally 6 Block."],
+	"shatter": ["unit", "enemy", false, "Remove 2 Stance from an enemy."],
 	"clarity": ["unit", "player", false, (
-			"Give an ally +20 Hit and +2 Attack on its next attack until Phase End"
+			"Give an ally +20 Hit and +2 Attack on its next attack until Phase End."
 	)],
-	"haste": ["unit", "player", true, "Give an ally that hasn't acted +2 Movement until Phase End"],
-	"spark": ["object", "", false, "A powder keg anywhere on the map explodes"],
-	"recall": ["pair", "", false, "Two of your units swap positions"],
+	"haste": ["unit", "player", true, (
+			"Give an ally that hasn't acted +2 Movement until Phase End."
+	)],
+	"spark": ["object", "", false, "A powder keg anywhere on the map explodes."],
+	"recall": ["pair", "", false, "Two of your units swap positions."],
 }
 
 # Any fixed seed: the forecasts draw nothing from it, and no item use rolls.
@@ -201,130 +203,142 @@ const COOKED: Dictionary[String, Array] = {
 const M1_CONSUMABLES: PackedStringArray = ["potion", "guard_tonic"]
 
 # Reviewed effect text, one line per effect, in each item's order.
-# NOTE: stat boosters and ingredients read "Always:" because the text generator recognises a
-# used-on-target effect only when every operation is a heal or Block gain, and the Key and
-# Lockpick read "Always: " because their use effects have no operations; Tungsten Ooze's Armored
-# tag isn't in its text (reported with CT5, for P07).
+# NOTE: the Key's and Lockpick's text is written (their use effects have no operations), and an
+# ingredient's opens "When eaten"; Tungsten Ooze's Armored tag isn't in its text (reported with
+# CT5, for P07).
 const TEXT: Dictionary[String, Array] = {
-	"vitality_cloak": ["Always: +4 HP", "Phase Start: heal 1"],
-	"enshrouding_sash": ["Always: +20 Avoid, +1 SPD, -1 DEF"],
-	"fancy_cloak": ["Always: +6 HP"],
-	"magi_robes": ["Always: +2 MGT, +1 RES"],
-	"tungsten_ooze": ["Always: +4 DEF, -1 Movement"],
-	"old_soldiers_band": ["Always: +1 MGT, +1 DEF, +10 Hit"],
+	"vitality_cloak": ["+4 HP.", "At Phase Start, heal 1 HP."],
+	"enshrouding_sash": ["+20 Avoid, +1 SPD and -1 DEF."],
+	"fancy_cloak": ["+6 HP."],
+	"magi_robes": ["+2 MGT and +1 RES."],
+	"tungsten_ooze": ["+4 DEF and -1 Movement."],
+	"old_soldiers_band": ["+1 MGT, +1 DEF and +10 Hit."],
 	# "+2 damage" is +2 at the Attack stage, as the Archer's Volley reads it.
-	"power_band": ["Always: +2 Attack"],
-	"training_weights": [
-		"Always: -2 SPD, SPD can't grow, +1 Level Up Guaranteed Gains (MGT)",
-	],
-	"sunshard_band": ["Always: +4 HP", "Phase End: heal for 10% of this unit's HP"],
-	"quick_soles": ["Always: +1 Movement"],
-	"simple_quiver": ["While at range 2 or more: +1 Attack"],
+	"power_band": ["+2 Attack."],
+	"training_weights": ["-2 SPD, SPD can't grow and +1 MGT per level-up."],
+	"sunshard_band": ["+4 HP.", "At Phase End, heal for 10% of this unit's HP."],
+	"quick_soles": ["+1 Movement."],
+	"simple_quiver": ["While at range 2 or more, +1 Attack."],
 	# Every bow reaches 1-2, the Short Bow and the Dragonslayer Bow included.
-	"short_quiver": [
-		"While holding a bow: Range becomes 1-2",
-	],
-	"simple_coating": ["While the opponent is Exposed: +2 Attack"],
+	"short_quiver": ["While holding a bow, Range becomes 1-2."],
+	"simple_coating": ["While the opponent is Exposed, +2 Attack."],
 	# It replaces the damage type's base, so a fixed damage type still wins.
-	"spirit_coating": ["Always: Damage Type becomes Magic"],
+	"spirit_coating": ["Attacks deal Magic damage."],
 	# A shield's Before Combat Block comes in every exchange, attacking or defending.
-	"iron_shield": ["Always: +2 DEF", "Before Combat: gain 1 Block"],
-	"iron_greatshield": ["Always: +2 DEF, +1 Stance Max"],
-	"buckler": ["Always: +1 DEF, +1 RES", "Before Combat: gain 1 Block"],
-	"steel_shield": ["Always: +3 DEF", "Before Combat: gain 1 Block"],
-	"steel_greatshield": ["Always: +3 DEF, +1 Stance Max"],
-	"knight_shield": ["Always: +2 DEF, +2 RES", "Before Combat: gain 1 Block"],
-	"silver_greatshield": ["Always: +4 DEF, +1 RES, +1 Stance Max"],
-	"silver_shield": ["Always: +4 DEF", "Before Combat: gain 2 Block"],
-	"eye_shield": ["Always: +4 HP, -3 SPD, +4 DEF, +2 RES, +1 Parry"],
-	"lucky_coin": ["Always: +10 Crit Chance"],
-	"mystifying_incense": ["Always: +5 Avoid"],
-	"old_pendant": ["Always: +1 RES"],
-	"travelers_ring": ["Always: +2 SPD, -1 DEF"],
-	"scholars_optics": ["Always: +10 Hit"],
+	"iron_shield": ["+2 DEF.", "Before each exchange, gain 1 Block."],
+	"iron_greatshield": ["+2 DEF and +1 max Stance."],
+	"buckler": ["+1 DEF and +1 RES.", "Before each exchange, gain 1 Block."],
+	"steel_shield": ["+3 DEF.", "Before each exchange, gain 1 Block."],
+	"steel_greatshield": ["+3 DEF and +1 max Stance."],
+	"knight_shield": ["+2 DEF and +2 RES.", "Before each exchange, gain 1 Block."],
+	"silver_greatshield": ["+4 DEF, +1 RES and +1 max Stance."],
+	"silver_shield": ["+4 DEF.", "Before each exchange, gain 2 Block."],
+	"eye_shield": ["+4 HP, -3 SPD, +4 DEF, +2 RES and +1 Parry."],
+	"lucky_coin": ["+10 Crit."],
+	"mystifying_incense": ["+5 Avoid."],
+	"old_pendant": ["+1 RES."],
+	"travelers_ring": ["+2 SPD and -1 DEF."],
+	"scholars_optics": ["+10 Hit."],
 	# "+25% XP" and "+20% healing received" add points to their 100% bases.
-	"family_ring": ["Always: +25 Unit Xp Percent"],
-	"band_of_fortune": ["Always: +5 Crit Chance, +5 Hit"],
-	"knights_token": ["Always: +1 MGT, +1 DEF, -1 SPD"],
-	"loaded_die": ["Always: +30 Crit Chance, -1 Crit X"],
-	"null_sigil": ["Always: +1 Stance Max"],
+	"family_ring": ["+25% XP."],
+	"band_of_fortune": ["+5 Crit and +5 Hit."],
+	"knights_token": ["+1 MGT, +1 DEF and -1 SPD."],
+	"loaded_die": ["+30 Crit and -1 CritX."],
+	"null_sigil": ["+1 max Stance."],
 	# "Crits ignore the target's Defense" is Kukri's permission, which skips the whole
 	# Mitigation stage (Resistance against magic too).
-	"jester_mask": ["Always: crits skip Mitigation"],
-	"royal_crest": ["Always: Level Up Min Stats at least 3"],
-	"ring_of_favor": ["Always: +2 HP, +1 DEF, +1 RES"],
-	"oak_wood_charm": ["Always: +10 Avoid"],
-	"cleansed_goblet": ["Always: +20 Healing Received Percent"],
-	"heavy_brick": ["Always: +2 CON"],
-	"key": ["Always: "],
-	"lockpick": ["Always: "],
-	"large_potion": ["Heal the target for 8"],
-	"potion_plus": ["Heal the target for 12"],
-	"large_potion_plus": ["Heal the target for 12"],
+	"jester_mask": ["Crits skip Mitigation."],
+	"royal_crest": ["At least 3 stats raised per level-up."],
+	"ring_of_favor": ["+2 HP, +1 DEF and +1 RES."],
+	"oak_wood_charm": ["+10 Avoid."],
+	"cleansed_goblet": ["+20% healing received."],
+	"heavy_brick": ["+2 CON."],
+	"key": ["Open a chest or door."],
+	"lockpick": ["Open a chest or door. Lock pickers only."],
+	"large_potion": ["Heal the target for 8 HP."],
+	"potion_plus": ["Heal the target for 12 HP."],
+	"large_potion_plus": ["Heal the target for 12 HP."],
 	# "Heal to full" heals the target's maximum HP, so healing received below 100%
 	# (Cursed Blood) leaves it short of full.
-	"elixir": ["Heal the target for HP equal to the target's HP"],
-	"guard_tonic_plus": ["Give the target 10 Block"],
-	"emberglass_vial": ["Heal the target for 12"],
-	"vermillion_tonic": ["Always: permanently give the target +3 HP"],
-	"godseed_oil": ["Always: permanently give the target +7 HP"],
-	"bulls_draught": ["Always: permanently give the target +1 MGT"],
-	"giants_brew": ["Always: permanently give the target +2 MGT"],
-	"spirit_ink": ["Always: permanently give the target +1 MGT"],
-	"soul_dust": ["Always: permanently give the target +2 MGT"],
-	"tempo_tonic": ["Always: permanently give the target +1 SPD"],
-	"wyvern_wingdust": ["Always: permanently give the target +2 SPD"],
-	"infused_obsidian": ["Always: permanently give the target +1 DEF"],
-	"stonedragon_tail": ["Always: permanently give the target +2 DEF"],
-	"warding_worm": ["Always: permanently give the target +1 RES"],
-	"ancient_anchor": ["Always: permanently give the target +2 RES"],
-	"adept_anchovy": ["Always: permanently give the target +5 Hit"],
-	"martial_scroll": ["Always: permanently give the target +10 Hit"],
-	"boost_bread": [
-		"Always: permanently give the target +1 MGT, permanently give the target +1 SPD,"
-		+ " permanently give the target +1 DEF, permanently give the target +1 RES",
+	"elixir": ["Heal the target for HP equal to the target's HP."],
+	"guard_tonic_plus": ["Give the target 10 Block."],
+	"emberglass_vial": ["Heal the target for 12 HP."],
+	"vermillion_tonic": ["Permanently give the target +3 HP."],
+	"godseed_oil": ["Permanently give the target +7 HP."],
+	"bulls_draught": ["Permanently give the target +1 MGT."],
+	"giants_brew": ["Permanently give the target +2 MGT."],
+	"spirit_ink": ["Permanently give the target +1 MGT."],
+	"soul_dust": ["Permanently give the target +2 MGT."],
+	"tempo_tonic": ["Permanently give the target +1 SPD."],
+	"wyvern_wingdust": ["Permanently give the target +2 SPD."],
+	"infused_obsidian": ["Permanently give the target +1 DEF."],
+	"stonedragon_tail": ["Permanently give the target +2 DEF."],
+	"warding_worm": ["Permanently give the target +1 RES."],
+	"ancient_anchor": ["Permanently give the target +2 RES."],
+	"adept_anchovy": ["Permanently give the target +5 Hit."],
+	"martial_scroll": ["Permanently give the target +10 Hit."],
+	"boost_bread": ["Permanently give the target +1 MGT, +1 SPD, +1 DEF and +1 RES."],
+	"heartbeet": [
+		"When eaten, heal the target for 5 HP and permanently give the target +5% HP growth.",
 	],
-	"heartbeet": ["Always: heal the target for 5, permanently give the target +5% HP growth"],
-	"titan_trout": ["Always: heal the target for 10, permanently give the target +10% HP growth"],
+	"titan_trout": [
+		"When eaten, heal the target for 10 HP and permanently give the target +10% HP growth.",
+	],
 	"century_cheese": [
-		"Always: heal the target for 10, permanently give the target +10% HP growth",
+		"When eaten, heal the target for 10 HP and permanently give the target +10% HP growth.",
 	],
-	"brutvine_sap": ["Always: heal the target for 5, permanently give the target +5% MGT growth"],
-	"runewart": ["Always: heal the target for 5, permanently give the target +5% MGT growth"],
-	"wisdom_wine": ["Always: heal the target for 5, permanently give the target +5% MGT growth"],
+	"brutvine_sap": [
+		"When eaten, heal the target for 5 HP and permanently give the target +5% MGT growth.",
+	],
+	"runewart": [
+		"When eaten, heal the target for 5 HP and permanently give the target +5% MGT growth.",
+	],
+	"wisdom_wine": [
+		"When eaten, heal the target for 5 HP and permanently give the target +5% MGT growth.",
+	],
 	"brawn_prawn": [
-		"Always: heal the target for 10, permanently give the target +10% MGT growth",
+		"When eaten, heal the target for 10 HP and permanently give the target +10% MGT growth.",
 	],
 	"brutvine_heartroot": [
-		"Always: heal the target for 10, permanently give the target +10% MGT growth",
+		"When eaten, heal the target for 10 HP and permanently give the target +10% MGT growth.",
 	],
 	"moonclam_pearl": [
-		"Always: heal the target for 10, permanently give the target +10% MGT growth",
+		"When eaten, heal the target for 10 HP and permanently give the target +10% MGT growth.",
 	],
-	"rushraddish": ["Always: heal the target for 5, permanently give the target +5% SPD growth"],
+	"rushraddish": [
+		"When eaten, heal the target for 5 HP and permanently give the target +5% SPD growth.",
+	],
 	"swift_shellfish": [
-		"Always: heal the target for 10, permanently give the target +10% SPD growth",
+		"When eaten, heal the target for 10 HP and permanently give the target +10% SPD growth.",
 	],
 	"hastehawk_feather": [
-		"Always: heal the target for 10, permanently give the target +10% SPD growth",
+		"When eaten, heal the target for 10 HP and permanently give the target +10% SPD growth.",
 	],
 	"stonebark_blossom": [
-		"Always: heal the target for 5, permanently give the target +5% DEF growth",
+		"When eaten, heal the target for 5 HP and permanently give the target +5% DEF growth.",
 	],
-	"bastion_crab": ["Always: heal the target for 5, permanently give the target +5% DEF growth"],
+	"bastion_crab": [
+		"When eaten, heal the target for 5 HP and permanently give the target +5% DEF growth.",
+	],
 	"stonebark_essence": [
-		"Always: heal the target for 10, permanently give the target +10% DEF growth",
+		"When eaten, heal the target for 10 HP and permanently give the target +10% DEF growth.",
 	],
-	"cave_carrot": ["Always: heal the target for 5, permanently give the target +5% RES growth"],
+	"cave_carrot": [
+		"When eaten, heal the target for 5 HP and permanently give the target +5% RES growth.",
+	],
 	"sanctuary_shell": [
-		"Always: heal the target for 5, permanently give the target +5% RES growth",
+		"When eaten, heal the target for 5 HP and permanently give the target +5% RES growth.",
 	],
 	"sanctree_branch": [
-		"Always: heal the target for 10, permanently give the target +10% RES growth",
+		"When eaten, heal the target for 10 HP and permanently give the target +10% RES growth.",
 	],
-	"hawkweed": ["Always: heal the target for 5, permanently give the target +3 Hit"],
-	"precise_pepper": ["Always: heal the target for 5, permanently give the target +3 Hit"],
-	"finesse_filet": ["Always: heal the target for 10, permanently give the target +5 Hit"],
+	"hawkweed": ["When eaten, heal the target for 5 HP and permanently give the target +3 Hit."],
+	"precise_pepper": [
+		"When eaten, heal the target for 5 HP and permanently give the target +3 Hit.",
+	],
+	"finesse_filet": [
+		"When eaten, heal the target for 10 HP and permanently give the target +5 Hit.",
+	],
 }
 
 var _check: Callable

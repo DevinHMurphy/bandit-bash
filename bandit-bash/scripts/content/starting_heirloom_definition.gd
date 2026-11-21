@@ -6,7 +6,7 @@
 # File:     starting_heirloom_definition.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 @tool
@@ -43,6 +43,9 @@ enum Bonus {
 	REPLACE = 6,
 }
 
+## The opening of the bonus's line: the bonus is given once, as the run starts.
+const RUN_START_LEAD_IN: String = "At the start of the run"
+
 ## What it gives once, when taken.
 @export var bonus: Bonus = Bonus.NONE
 
@@ -73,7 +76,7 @@ func _validate_property(property: Dictionary) -> void:
 		ContentIds.apply_hint(property, ContentIds.HEIRLOOM_TIERS)
 
 
-## Its effects' text, then its bonus's line, such as "Run start: gain 100 gold".
+## Its effects' text, then its bonus's line, such as "At the start of the run, gain 100 Gold.".
 func describe() -> PackedStringArray:
 	var texts: PackedStringArray = super()
 	var line: String = bonus_text()
@@ -82,26 +85,30 @@ func describe() -> PackedStringArray:
 	return texts
 
 
-## Its bonus as one line of text; empty for [constant Bonus.NONE].
+## Its bonus as one sentence, opening [constant RUN_START_LEAD_IN]; empty for
+## [constant Bonus.NONE].
 func bonus_text() -> String:
+	var action: String = ""
 	match bonus:
 		Bonus.RECRUIT:
-			return "Run start: recruit 1 of %d units %s" % [offer_count, _prefix_text()]
+			action = "recruit 1 of %d units %s" % [offer_count, _prefix_text()]
 		Bonus.REPLACE:
-			return "Run start: recruit 1 of %d units %s, replacing a unit (not the commander)" % [
+			action = "recruit 1 of %d units %s, replacing a unit (not the commander)" % [
 				offer_count, _prefix_text(),
 			]
 		Bonus.WEAPON:
-			return "Run start: take 1 of %d %s weapons the army can use" % [
+			action = "take 1 of %d %s weapons the army can use" % [
 				offer_count, (ItemDefinition.Rarity.find_key(item_rarity) as String).capitalize(),
 			]
 		Bonus.UPGRADE:
-			return "Run start: upgrade one unit (not the commander) for free"
+			action = "upgrade one unit (not the commander) for free"
 		Bonus.GOLD:
-			return "Run start: gain %d gold" % [gold]
+			action = "gain %d Gold" % [gold]
 		Bonus.HEIRLOOM:
-			return "Run start: gain a random %s heirloom" % [heirloom_tier.capitalize()]
-	return ""
+			action = "gain a random %s heirloom" % [heirloom_tier.capitalize()]
+	if action.is_empty():
+		return ""
+	return EffectTerms.sentence("%s, %s" % [RUN_START_LEAD_IN, action])
 
 
 func _prefix_text() -> String:

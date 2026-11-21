@@ -6,7 +6,7 @@
 # File:     engine_cases.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -109,7 +109,7 @@ func _test_per_stat_modifiers() -> void:
 	_same(
 			"f3: Training Weights text names its stats",
 			weights.describe(),
-			"Always: -2 SPD, SPD can't grow, +1 Level Up Guaranteed Gains (MGT)"
+			"-2 SPD, SPD can't grow and +1 MGT per level-up."
 	)
 	engine.set_base("p1", CombatValue.Key.SPD, 6.0)
 	engine.register(_instance(
@@ -144,7 +144,7 @@ func _test_command_target_and_mend() -> void:
 			[],
 			[_gain(GainResource.Pool.HP, CommandTarget.new(), _constant(10.0))]
 	)
-	_same("f4: Mend text", mend.describe(), "Heal the target for 10")
+	_same("f4: Mend text", mend.describe(), "Heal the target for 10 HP.")
 
 	var rune: EffectInstance = _instance(
 			"effect:mend", mend, EffectOwner.for_rune("rune:1", 0), Modifier.SourceKind.RUNE
@@ -184,9 +184,9 @@ func _test_while_matchup() -> void:
 			[_block(3.0)]
 	)
 	_same(
-			"f4: Professional text (unit-roster.md wording)",
+			"f4: Professional text",
 			professional.describe(),
-			"Before Combat, while this unit has triangle Advantage: gain 3 Block"
+			"Before each exchange, while this unit has triangle Advantage, gain 3 Block."
 	)
 
 
@@ -250,9 +250,9 @@ func _test_extra_stance_loss() -> void:
 			EffectTerms.Trigger.HIT_DEALT, [first], [breaker_loss]
 	)
 	_same(
-			"f4: Breaker text (unit-roster.md wording)",
+			"f4: Breaker text",
 			breaker.describe(),
-			"First Hit dealt this combat: the target loses 1 extra Stance"
+			"The first time this unit lands a hit each combat, the target loses 1 extra Stance."
 	)
 	_same(
 			"f4: extra Stance loss on a hit taken names the hit",

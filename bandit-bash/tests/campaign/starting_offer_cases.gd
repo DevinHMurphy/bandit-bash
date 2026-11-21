@@ -6,7 +6,7 @@
 # File:     starting_offer_cases.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -89,7 +89,9 @@ func _test_pool() -> void:
 				or definition.offer_count != row[2] or definition.is_prefix_positive != row[3]
 				or definition.heirloom_tier != row[4]
 				or (definition.bonus != StartingHeirloomDefinition.Bonus.NONE
-						and not "\n".join(definition.describe()).contains("Run start:"))
+						and not "\n".join(definition.describe()).contains(
+								StartingHeirloomDefinition.RUN_START_LEAD_IN
+						))
 		):
 			wrong.append(heirloom_id)
 	_check("pool: each heirloom's bonus is heirlooms.md's, its line in its text", (

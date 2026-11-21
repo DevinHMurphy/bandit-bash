@@ -6,7 +6,7 @@
 # File:     heirloom_content_cases.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -112,85 +112,94 @@ const CURSES: Dictionary[String, String] = {
 # Reviewed effect text, one line per effect.
 const TEXT: Dictionary[String, Array] = {
 	# "+2 damage" is +2 at the Attack stage; the profile is the held weapon's.
-	"grandfathers_whetstone": ["While holding a Power weapon: +2 Attack"],
-	"dueling_manual": ["While holding a Nimble weapon: +2 Attack Speed"],
-	"drillmasters_baton": ["While holding a Balance weapon: +1 Attack, +1 DEF"],
-	"fletchers_kit": ["While at range 2 or more: +1 Attack"],
-	"hammerhead_charm": ["Against Armored units: +3 Attack"],
-	"horsebane_charm": ["Against Mounted units: +3 Attack"],
+	"grandfathers_whetstone": ["While holding a Power weapon, +2 Attack."],
+	"dueling_manual": ["While holding a Nimble weapon, +2 Attack Speed."],
+	"drillmasters_baton": ["While holding a Balance weapon, +1 Attack and +1 DEF."],
+	"fletchers_kit": ["While at range 2 or more, +1 Attack."],
+	"hammerhead_charm": ["Against Armored units, +3 Attack."],
+	"horsebane_charm": ["Against Mounted units, +3 Attack."],
 	"bloodied_banner": [
-		"When Your Unit defeats an enemy: give that unit +3 Attack on its next attack"
-		+ " this combat",
+		"Whenever one of your units defeats an enemy, give that unit +3 Attack on its next attack"
+		+ " this combat.",
 	],
-	"iron_rations": ["First Phase Start this combat: give your units 3 Block"],
+	"iron_rations": ["At the first Phase Start each combat, give your units 3 Block."],
 	# +5 Hit for that exchange only.
 	"hunters_horn": [
-		"Before Your Unit's combat, while it is the initiator: give that unit +5 Hit"
-		+ " this exchange",
+		"Whenever one of your units enters an exchange, while it is the initiator, give that unit"
+		+ " +5 Hit this exchange.",
 	],
-	"shoving_pole": ["When Your Unit shoves a unit: give that unit 2 Block"],
-	"sappers_fuse": ["When Your Unit uses an object: give that unit 3 Block"],
-	"lantern_oil": ["When Your Unit takes darkness damage: ×0.5 to that darkness damage"],
-	"bounty_ledger": ["Always: +8 Combat Gold"],
+	"shoving_pole": ["Whenever one of your units shoves a unit, give that unit 2 Block."],
+	"sappers_fuse": ["Whenever one of your units uses an object, give that unit 3 Block."],
+	"lantern_oil": [
+		"Whenever one of your units takes darkness damage, ×0.5 to that darkness damage.",
+	],
+	"bounty_ledger": ["+8 Gold per won combat."],
 	# Percents add points to their base: 20 + 20 is the 40% scrap rate.
-	"scrappers_tongs": ["Always: +20 Scrap Percent"],
-	"executioners_brand": ["While the opponent is Exposed: +3 Attack"],
+	"scrappers_tongs": ["+20% of the price when scrapping."],
+	"executioners_brand": ["While the opponent is Exposed, +3 Attack."],
 	"breakers_maul": [
-		"Every 5th Hit dealt by Your Unit this combat: the target loses 1 extra Stance",
+		"Every 5th time one of your units lands a hit each combat, the target loses 1 extra"
+		+ " Stance.",
 	],
-	"war_ledger": ["Every 10th Attack made by Your Unit this campaign: ×2 damage for that attack"],
+	"war_ledger": [
+		"Every 10th time one of your units attacks this run, ×2 damage for that attack.",
+	],
 	"overflowing_cup": [
-		"When Your Unit is healed: give that unit Block equal to 100% of that overheal",
+		"Whenever one of your units is healed, give that unit Block equal to 100% of that"
+		+ " overheal.",
 	],
 	"tactical_map": [
-		"First Phase Start this combat: give your units +1 Movement until Phase End",
+		"At the first Phase Start each combat, give your units +1 Movement until Phase End.",
 	],
 	# The defeated unit is off the map when the Block is given, so "every other one" holds.
-	"grave_candle": ["When Your Unit is defeated: give your units 4 Block"],
-	"warlords_spoils": ["When Your Unit defeats an enemy: heal that unit for 3"],
-	# An opener with no operations, like the Key: MapObjects reads its charge.
-	"burglars_roll": ["Always: (1 use this combat)"],
-	"veterans_medal": ["Always: +20 Shared Xp Percent"],
+	"grave_candle": ["Whenever one of your units is defeated, give your units 4 Block."],
+	"warlords_spoils": ["Whenever one of your units defeats an enemy, heal that unit for 3 HP."],
+	# An opener with no operations, like the Key, so its text is written: MapObjects reads its
+	# charge.
+	"burglars_roll": [
+		"Once per combat, one of your units can open a chest or door without a Key or Lockpick"
+		+ " (still its action).",
+	],
+	"veterans_medal": ["+20% shared XP."],
 	"brothers_in_arms": [
-		"Allied Phase Start: give every ally unit adjacent to a unit of another player 2 Block",
+		"At each allied Phase Start, give every ally adjacent to a unit of another player 2 Block.",
 	],
 	# The ceiling of 8 is the recruiting step's rule, not this value's.
-	"muster_roll": ["Always: +1 Max Army Size"],
-	"warhorse_lineage": ["Always: +1 Movement"],
-	"ancestral_mail": ["Always: +1 Stance Max"],
+	"muster_roll": ["+1 max army size."],
+	"warhorse_lineage": ["+1 Movement."],
+	"ancestral_mail": ["+1 max Stance."],
 	"bloodhounds_collar": [
-		"When Your Unit defeats an enemy: that unit may move after acting until Phase End",
+		"Whenever one of your units defeats an enemy, that unit may move after acting until Phase"
+		+ " End.",
 	],
 	"champions_belt": [
-		"When Your Unit defeats an enemy: give that unit +1 Attack this combat",
+		"Whenever one of your units defeats an enemy, give that unit +1 Attack this combat.",
 	],
 	# The commander counts: it is 0 tiles from itself.
 	"commanders_standard": [
-		"Phase Start: give your commander and allies within 2 tiles of your commander 2 Block",
+		"At Phase Start, give your commander and allies within 2 tiles of your commander 2 Block.",
 	],
-	"gilded_purse": ["Always: +25 Grade Bonus Percent"],
-	"merchants_ledger": ["Always: +1 Armory Stock"],
-	"guild_charter": ["Always: +1 Guildhall Recruits"],
-	"membership_seal": ["Always: -20 Price Percent"],
-	"tinkers_token": ["Always: +1 Free Rerolls"],
+	"gilded_purse": ["+25% grade bonus."],
+	"merchants_ledger": ["+1 Armory item."],
+	"guild_charter": ["+1 Guildhall recruit."],
+	"membership_seal": ["-20% shop prices."],
+	"tinkers_token": ["+1 free reroll."],
 	# Resolves first, so the ban is in place before Phase Start's Block gains.
 	"haunted": [
-		"Phase Start: a random one of your units can't gain Block"
-		+ " until the end of the next phase",
+		"At Phase Start, a random one of your units can't gain Block until the end of the next"
+		+ " phase.",
 	],
-	"short_wick": ["Always: -1 Darkness Arrival Offset"],
+	"short_wick": ["-1 turn before the darkness arrives."],
 	# A Stance loss at the army's first Phase Start, so it lasts until its next refresh.
-	"shaken_footing": [
-		"First Phase Start this combat: remove 1 Stance from your units",
-	],
-	"heavy_pack": ["Always: +2 Pouch Item Weight"],
-	"leaden_boots": ["Always: -1 SPD"],
-	"brittle_guard": ["When Your Unit gains Block: -1 to that Block gain"],
-	"clouded_sight": ["Always: enemy intents are hidden"],
-	"ill_omen": ["While it is the commander: -1 Stance Max"],
-	"hunted": ["Always: +1 Extra Enemies"],
+	"shaken_footing": ["At the first Phase Start each combat, remove 1 Stance from your units."],
+	"heavy_pack": ["+2 weight per Pouch item."],
+	"leaden_boots": ["-1 SPD."],
+	"brittle_guard": ["Whenever one of your units gains Block, -1 to that Block gain."],
+	"clouded_sight": ["Enemy intents are hidden."],
+	"ill_omen": ["While it is the commander, -1 max Stance."],
+	"hunted": ["+1 enemy per combat."],
 	# It multiplies, so two copies leave a quarter.
-	"cursed_blood": ["Always: ×0.5 Healing Received Percent"],
+	"cursed_blood": ["×0.5 healing received."],
 }
 
 # Reviewed golden fact logs, one CombatFact.to_log_line() per fact, keyed by the name _golden()

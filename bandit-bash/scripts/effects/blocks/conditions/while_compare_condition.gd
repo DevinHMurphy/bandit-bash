@@ -6,7 +6,7 @@
 # File:     while_compare_condition.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 29, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 @tool
@@ -98,7 +98,7 @@ func test(ctx: EffectContext) -> bool:
 func _quantity_name() -> String:
 	match quantity:
 		Quantity.VALUE:
-			return EffectTerms.key_name(key)
+			return EffectTerms.text_name(key)
 		Quantity.CURRENT_HP:
 			return "HP"
 		Quantity.HP_PERCENT:

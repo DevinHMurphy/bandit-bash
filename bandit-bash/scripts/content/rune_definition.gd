@@ -6,7 +6,7 @@
 # File:     rune_definition.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 16, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 @tool
@@ -81,8 +81,8 @@ func target_noun() -> String:
 	return ""
 
 
-## The text of every effect, one line each, read as the cast: no "Always" head (a rune acts when
-## cast, not always), the command's target named by [method target_noun] ("Heal an ally for 10"),
+## The text of every effect, one sentence each, read as the cast: the command's target named by
+## [method target_noun] ("Heal an ally for 10 HP."),
 ## and timed modifiers that last alike joined under one duration ("+20 Hit and +2 Attack on its
 ## next attack until Phase End"). Only runes read this way; other carriers' text is
 ## [method EffectDefinition.describe]'s. An effect with a trigger, conditions or charges keeps
@@ -119,8 +119,7 @@ func _describe_cast(effect: EffectDefinition) -> String:
 			continue
 		actions.append(operation.describe_for_trigger(effect.trigger))
 		i += 1
-	var text: String = _name_target(", ".join(actions))
-	return text.left(1).to_upper() + text.substr(1)
+	return EffectTerms.sentence(_name_target(EffectTerms.join_list(actions)))
 
 
 # Where the target's own words, the first time, become target_noun() and later ones "it".

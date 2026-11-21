@@ -9,6 +9,7 @@
 [sub_resource type="Resource" id="Resource_8dm4n"]
 script = ExtResource("1_04lr3")
 id = "lockpick"
+written_text = "Open a chest or door. Lock pickers only."
 
 [resource]
 script = ExtResource("4_rhvi7")

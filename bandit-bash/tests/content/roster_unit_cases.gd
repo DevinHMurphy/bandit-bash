@@ -6,7 +6,7 @@
 # File:     roster_unit_cases.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -90,32 +90,43 @@ const GROWTH_STATS: Array[int] = [
 
 # Reviewed effect text, one line per effect: the trait, the "+" trait and the innate effects.
 const TEXT: Dictionary[String, Array] = {
-	"sellsword": ["Before Combat, while this unit has triangle Advantage: gain 3 Block"],
-	"sellsword+": ["Before Combat, while this unit has triangle Advantage: gain 5 Block"],
-	"fighter": ["Missed: gain +15 Hit on its next attack this combat"],
-	"fighter+": ["Missed: gain +25 Hit on its next attack this combat, gain +1 Attack this combat"],
-	"lancer": ["Unit Turn Start: gain Block equal to the number of adjacent allies"],
-	"lancer+": ["Unit Turn Start: gain Block equal to 2 × the number of adjacent allies"],
-	"brawler": ["First Hit dealt this combat: the target loses 1 extra Stance"],
-	"brawler+": ["First Hit dealt this combat: the target loses 2 extra Stance"],
-	"thief": ["Always: +15 Crit Chance"],
-	"thief+": ["Always: +25 Crit Chance"],
-	"thief innate": ["Always: can pick locks"],
-	"freewing": ["After Combat: may move after acting until Phase End"],
-	"freewing+": [
-		"After Combat: may move after acting until Phase End",
-		"Moved after acting: gain 2 Block",
+	"sellsword": ["Before each exchange, while this unit has triangle Advantage, gain 3 Block."],
+	"sellsword+": ["Before each exchange, while this unit has triangle Advantage, gain 5 Block."],
+	"fighter": ["Whenever this unit misses, gain +15 Hit on its next attack this combat."],
+	"fighter+": [
+		"Whenever this unit misses, gain +25 Hit on its next attack this combat and gain +1 Attack"
+		+ " this combat.",
 	],
-	"lance_armor": ["Always: +1 Parry"],
-	"lance_armor+": ["Always: +1 Parry, +1 Stance Max"],
-	"ward": ["Always: +1 Shove Distance"],
-	"ward+": ["Always: +1 Shove Distance", "Shoved a unit: gain 2 Block"],
-	"mage": ["Every 3rd Attack made this combat: +3 Attack for that attack"],
-	"mage+": ["Every 3rd Attack made this combat: +5 Attack for that attack"],
-	"shaman": ["While this unit's Attack Speed is higher than its opponent's: +2 Attack"],
-	"shaman+": ["While this unit's Attack Speed is higher than its opponent's: +3 Attack"],
-	"suncaster": ["Unit Turn End: give adjacent allies 1 Block"],
-	"suncaster+": ["Unit Turn End: give adjacent allies 2 Block"],
+	"lancer": [
+		"At the start of this unit's turn, gain Block equal to the number of adjacent allies.",
+	],
+	"lancer+": [
+		"At the start of this unit's turn, gain Block equal to 2 × the number of adjacent allies.",
+	],
+	"brawler": [
+		"The first time this unit lands a hit each combat, the target loses 1 extra Stance.",
+	],
+	"brawler+": [
+		"The first time this unit lands a hit each combat, the target loses 2 extra Stance.",
+	],
+	"thief": ["+15 Crit."],
+	"thief+": ["+25 Crit."],
+	"thief innate": ["Can pick locks."],
+	"freewing": ["After each exchange, may move after acting until Phase End."],
+	"freewing+": [
+		"After each exchange, may move after acting until Phase End.",
+		"Whenever this unit moves after acting, gain 2 Block.",
+	],
+	"lance_armor": ["+1 Parry."],
+	"lance_armor+": ["+1 Parry and +1 max Stance."],
+	"ward": ["+1 Shove distance."],
+	"ward+": ["+1 Shove distance.", "Whenever this unit shoves a unit, gain 2 Block."],
+	"mage": ["Every 3rd time this unit attacks each combat, +3 Attack for that attack."],
+	"mage+": ["Every 3rd time this unit attacks each combat, +5 Attack for that attack."],
+	"shaman": ["While this unit's Attack Speed is higher than its opponent's, +2 Attack."],
+	"shaman+": ["While this unit's Attack Speed is higher than its opponent's, +3 Attack."],
+	"suncaster": ["At the end of this unit's turn, give adjacent allies 1 Block."],
+	"suncaster+": ["At the end of this unit's turn, give adjacent allies 2 Block."],
 }
 
 var _check: Callable

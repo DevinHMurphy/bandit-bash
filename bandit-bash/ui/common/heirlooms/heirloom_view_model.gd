@@ -6,7 +6,7 @@
 # File:     heirloom_view_model.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name HeirloomViewModel
@@ -86,7 +86,8 @@ var is_ready: bool = false
 var is_spent: bool = false
 
 ## What the next qualifying event does, for the ready line, such as
-## [code]Attack made by Your Unit: ×2 to that attack's damage[/code]; empty with no count.
+## [code]the next time one of your units attacks, ×2 damage for that attack[/code]; empty with
+## no count.
 var next_text: String = ""
 
 
@@ -106,8 +107,8 @@ func badge_text() -> String:
 	return ""
 
 
-# ASSUMPTION: the tooltip footer's wording ("Uncommon heirloom", "7 / 10 this campaign",
-# "Ready: next ...", "1 / 1 use left this combat"); ui-lift.md gives only "7 / 10".
+# ASSUMPTION: the tooltip footer's wording ("Uncommon heirloom", "7 / 10 this run",
+# "Ready: the next time ...", "1 / 1 use left this combat"); ui-lift.md gives only "7 / 10".
 ## Its tooltip's footer: its tier, then its count toward its period (with the ready line), or that
 ## a first-only effect is used, then its uses left; one line each.
 func footer_text() -> String:
@@ -115,7 +116,7 @@ func footer_text() -> String:
 	if has_counter:
 		lines.append("%d / %d %s" % [counter, period, EffectTerms.LANE_TEXT[lane]])
 		if is_ready and not next_text.is_empty():
-			lines.append("Ready: next %s" % [next_text])
+			lines.append("Ready: %s." % [next_text])
 	if is_first_only and is_spent:
 		lines.append("Used %s" % [EffectTerms.LANE_TEXT[lane]])
 	if has_charges:
@@ -149,13 +150,14 @@ func _follow_counter(effect: EffectDefinition, condition: CounterCondition, coun
 		return
 	has_counter = true
 	period = condition.count
-	var actions: PackedStringArray = []
-	for operation: EffectOperation in effect.operations:
-		if operation != null:
-			actions.append(operation.describe_for_trigger(effect.trigger))
-	next_text = "%s: %s" % [
-		EffectTerms.trigger_head(effect.trigger, effect.scope, true), ", ".join(actions),
+	var moment: String = "the next time %s" % [
+		EffectTerms.trigger_clause(effect.trigger, effect.scope),
 	]
+	if effect.trigger == EffectTerms.Trigger.PHASE_START or (
+			effect.trigger == EffectTerms.Trigger.PHASE_END
+	):
+		moment = "at the next %s" % [EffectTerms.TRIGGER_TEXT[effect.trigger]]
+	next_text = "%s, %s" % [moment, effect.describe_actions()]
 
 
 # Follows effect's charge limit with left charges, in its lane.
