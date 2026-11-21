@@ -6,7 +6,7 @@
 # File:     unknown_screen_cases.gd
 # Author:
 # Created:  November 20, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -16,8 +16,9 @@ extends RefCounted
 ## none drawn to the placeholder); the entry rolled and saved by RunScreen.enter_unknown, the same
 ## after a Save & Quit and Continue and never rolled twice; a quit before the roll rolling on
 ## Continue what the node's own stream gives; an Unknown that became an Armory, Guildhall or
-## Treasure rolling that node's offer as its screen opens; and the placeholder naming the node.
-## Leaving is by command, as the walk (run_all.gd) does the routing; nothing here changes scene.
+## Treasure rolling that node's offer as its screen opens; and the placeholder naming the node,
+## saying nothing happens there, and leaving for the map on Continue by key, mouse and pad. Other
+## leaving is by command; only the placeholder's Continue routes, and no scene it queues shows.
 ## Writes save files, so it runs only with a test user folder; it deletes user://saves/ before
 ## and after. It never names an autoload: they are reached as nodes.
 
@@ -35,6 +36,7 @@ const TREASURE_SCENE: String = "res://ui/campaign/treasure_screen.tscn"
 
 # SceneRouter.Screen values: a case file can't name the autoload.
 const SCREEN_GAMEPLAY: int = 3
+const SCREEN_MAP: int = 9
 const SCREEN_PLACEHOLDER: int = 11
 const SCREEN_EVENT: int = 13
 const SCREEN_TREASURE: int = 14
@@ -46,6 +48,13 @@ const SAVE_NUMBER: int = 3
 const RUN_SEED: int = 0xA510
 
 const SCREEN_SIZE: Vector2 = Vector2(1280.0, 720.0)
+
+# The placeholder's note and the copy it shows (node_placeholder_screen.tscn).
+const NOTE_PATH: NodePath = ^"Layout/Column/Center/Box/Note"
+const QUIET_ROAD_TEXT: String = "The road is quiet. Nothing happens here."
+
+# The devices Continue is pressed with, one placeholder each.
+const DEVICES: PackedStringArray = ["keyboard", "mouse", "pad"]
 
 # The screen each outcome routes to, with no event open.
 const ROUTES: Dictionary[String, int] = {
@@ -60,15 +69,17 @@ var _check: Callable
 var _root: Window = null
 var _saves: Node = null
 var _service: Node = null
+var _router: Node = null
 
 
 ## [param check]: called as check(case_name: String, passed: bool, detail: String).
-## [param root]: the root viewport, where the screens are added.
+## [param root]: the root viewport, where the screens are added and input is pushed.
 func _init(check: Callable, root: Window) -> void:
 	_check = check
 	_root = root
 	_saves = root.get_node(^"SaveService")
 	_service = root.get_node(^"CampaignService")
+	_router = root.get_node(^"SceneRouter")
 
 
 ## Runs every case. Call only with a test user folder.
@@ -210,6 +221,41 @@ func _test_placeholder() -> void:
 	), "%d; %s" % [routed, title.text])
 	_remove(screen)
 	_leave_node()
+	for device: String in DEVICES:
+		_test_placeholder_continue(device)
+
+
+# The placeholder's copy, and Continue by device leaving the node for the map. Continue routes
+# through the real router (RunScreen.go), which queues a scene change; the suite's walk routes to
+# Loading in the same frame, before any queued scene enters the tree, so none shows.
+func _test_placeholder_continue(device: String) -> void:
+	var session: CampaignSession = _at_new_unknown()
+	if session == null:
+		return
+	session.run.flow.unknown = UnknownResolution.EVENT
+	var screen: Control = _add(PLACEHOLDER_SCENE)
+	var note: Label = screen.get_node(NOTE_PATH)
+	var button: Button = screen.call(&"get_continue_button")
+	_check.call("placeholder (%s): says nothing happens here; Continue ready" % [device], (
+			note.text == QUIET_ROAD_TEXT and button.text == "Continue" and not button.disabled
+	), note.text)
+	match device:
+		"mouse":
+			_click(button)
+		"pad":
+			button.grab_focus()
+			_press_pad(JOY_BUTTON_A)
+		_:
+			button.grab_focus()
+			_press_key(KEY_ENTER)
+	var has_left: bool = session.run.flow.is_on_map()
+	var screen_now: int = _router.get(&"current_screen")
+	_check.call("placeholder (%s): Continue leaves the node and sends the run to the map" % [
+		device,
+	], has_left and screen_now == SCREEN_MAP, "on map %s; screen %d" % [has_left, screen_now])
+	_remove(screen)
+	if not has_left:
+		_leave_node()
 
 
 # A new solo run through SaveService, past its starting offer; null, checked, if none starts.
@@ -277,3 +323,44 @@ func _add(path: String) -> Control:
 func _remove(screen: Control) -> void:
 	_root.remove_child(screen)
 	screen.free()
+
+
+# Sorts the screen's containers twice, parents first, as a frame's deferred sort would.
+func _lay_out(screen: Control) -> void:
+	for _pass: int in 2:
+		for node: Node in screen.find_children("*", "Container", true, false):
+			node.notification(Container.NOTIFICATION_SORT_CHILDREN)
+
+
+# A left click at the middle of control, its screen laid out first.
+func _click(control: Control) -> void:
+	var top: Control = control
+	while top.get_parent_control() != null:
+		top = top.get_parent_control()
+	_lay_out(top)
+	var point: Vector2 = control.get_global_rect().get_center()
+	for is_down: bool in [true, false]:
+		var click: InputEventMouseButton = InputEventMouseButton.new()
+		click.position = point
+		click.global_position = point
+		click.button_index = MOUSE_BUTTON_LEFT
+		click.pressed = is_down
+		_root.push_input(click, true)
+
+
+func _press_key(key: Key) -> void:
+	for is_down: bool in [true, false]:
+		var event: InputEventKey = InputEventKey.new()
+		event.physical_keycode = key
+		event.keycode = key
+		event.pressed = is_down
+		_root.push_input(event, true)
+
+
+func _press_pad(button: JoyButton) -> void:
+	for is_down: bool in [true, false]:
+		var event: InputEventJoypadButton = InputEventJoypadButton.new()
+		event.device = 0
+		event.button_index = button
+		event.pressed = is_down
+		_root.push_input(event, true)

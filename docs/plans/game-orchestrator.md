@@ -36,7 +36,7 @@ Where the project is, what's next and what's out of scope. Start here.
 - **Milestones:** M0 and M1 are complete. **Current: M2 Combat complete,** with M3 started alongside.
 - **What runs today:** a solo run opens the M1 battle: the Mercenary army against the Brigand pack on the greybox map. All of M2's battle systems and functional UI work on keyboard, mouse and controller: targeting, forecast, intents, the darkness, every objective's HUD, unit detail, and Save & Quit with resume.
 - **What M2 still needs:** content, enemy AI, docs and bug fixes. No new systems.
-- **Tests:** 7,363 cases in 30 suites, all passing, and a clean headless launch (`sh bandit-bash/tools/run_tests.sh`).
+- **Tests:** 7,369 cases in 30 suites, all passing, and a clean headless launch (`sh bandit-bash/tools/run_tests.sh`).
 - **Not started:** P09 (approved) and P10–P12. P08 is in progress (RN1–RN5 merged).
 
 ## Milestones
@@ -48,7 +48,7 @@ The MVP is **one full run, start screen to boss, solo and co-op, on Normal** (ga
 | **M0 Foundations** | The engine every system plugs into | P00, P01 | **Complete** October 30, 2026 |
 | **M1 First playable fight** | One greybox combat, start to finish | P02–P07 (subsets) | **Complete** November 5, 2026; its tuning pass is deferred |
 | **M2 Combat complete** | Every MVP combat feature and piece of content, with a functional UI | P02–P07 | **In progress.** Every build is in (BF3 merged November 19, 2026). Left: the exit playtest (BF4 merged November 20, 2026; BF6, the end-of-phase battle save, merged November 20, 2026). RB1 moved to M3 (user, November 20, 2026): balancing needs events and every node working |
-| **M3 Solo run** | Start screen → campaign → boss, saved and resumable; 60–80 minutes | P08, P09 | **In progress.** RN1–RN5 merged (a run plays map → combat → Results → map on all three devices, headless) |
+| **M3 Solo run** | Start screen → campaign → boss, saved and resumable; 60–80 minutes | P08, P09 | **In progress.** P08 and P09 built (RN12 merged November 21, 2026): a seeded solo run plays from the start to the Boss and resumes at every stop. Left: the full-run playtest, then RB1 (user, November 20, 2026) |
 | **M4 Co-op run** | The same run for 2–4 players, tested live on two machines | P10, P11 | Not started |
 | **M5 MVP** | Statistics, the Waystation war table, the MVP checklist | P12, polish | Not started |
 | Post-MVP | Meta progression and beyond | P20–P24 | Not planned |
@@ -69,7 +69,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P05 | [Enemies and AI](2026-10-30-enemies-and-ai.md) | **In progress** | EN15, EN16 (EN13 and EN14, the forecast cache, merged November 20, 2026; EN11 merged November 18, 2026; EN12 docs merged November 19, 2026, in content-authoring.md) | P02, P04 |
 | P06 | [The darkness](2026-11-03-the-darkness.md) | **Implemented** (DK6 docs merged November 19, 2026) | — | P02, P04 |
 | P07 | [Combat UI](2026-11-04-combat-ui.md) | **In progress** | Nothing for M2 | P02, P04, P05, P06 |
-| P08 | [Campaign and run flow](2026-10-24-campaign-run-flow.md) | **In progress**: RN6 and RN7 merged November 19, 2026; RN8, RN9, RN10 and RN11 (the full run, resumed at every stop) November 20 | RN12 | P01, P03 |
+| P08 | [Campaign and run flow](2026-10-24-campaign-run-flow.md) | **Implemented** (RN12 docs merged November 21, 2026: [campaign-run.md](../design/campaign-run.md), save-system.md's run state) | P08 question 71 (the placeholder copy) to confirm | P01, P03 |
 | P09 | [Narrative events and curses](2026-11-12-events-and-curses.md) | **Done**: EV1, EV2, EV3 and EV5 merged November 19, 2026; EV1F, EV1G, EV4 and EV6 November 20 | — | P01, P03, P08 |
 | P10 | [Net transport](2026-11-19-net-transport.md) | **In progress**: NT1 and NT2 merged November 19, 2026 | NT3 (after RN6), then NT4–NT8 (Lane E) | P00, P01 |
 | P11 | [Co-op combat](2026-11-20-coop-combat.md) | **Approved** (user, November 20, 2026; CO6 to Lane C); the first steps' 18 questions answered, 23 open in [decisions](decisions/P11-coop-combat.md) | CO1–CO21 | P01, P02, P04, P08, P10 |
