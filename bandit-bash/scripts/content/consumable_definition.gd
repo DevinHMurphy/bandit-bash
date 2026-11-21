@@ -6,7 +6,7 @@
 # File:     consumable_definition.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: October 30, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 @tool
@@ -21,6 +21,14 @@ extends ItemDefinition
 ## permanent gain or an eaten ingredient's growth. Uses left live on the item's instance.
 ##
 ## @tutorial(Items, Consumables): docs/design/items.md
+
+## The [member use_kind] of an ingredient, which is eaten or cooked (items.md, Ingredients).
+const INGREDIENT_USE_KIND: String = "ingredient"
+
+# ASSUMPTION: the wording "When eaten" (P01 question 67; RF-036 says "or similar").
+## The lead-in of an ingredient's effect text: it has two uses, so the text names the one its
+## effects describe ("When eaten, heal the target for 5 HP and …"); cooking has its own fields.
+const EATEN_LEAD_IN: String = "When eaten"
 
 ## How it is used, from [constant ContentIds.CONSUMABLE_USE_KINDS].
 @export var use_kind: String = ""
@@ -57,6 +65,19 @@ extends ItemDefinition
 func _validate_property(property: Dictionary) -> void:
 	if property["name"] == "use_kind":
 		ContentIds.apply_hint(property, ContentIds.CONSUMABLE_USE_KINDS)
+
+
+## The effect text of every effect, one line each, in order: an ingredient's open with
+## [constant EATEN_LEAD_IN]; any other consumable's read as its use's action.
+func describe() -> PackedStringArray:
+	if use_kind != INGREDIENT_USE_KIND:
+		return super()
+	var texts: PackedStringArray = []
+	for effect: EffectDefinition in effects:
+		var text: String = "" if effect == null else effect.describe(EATEN_LEAD_IN)
+		if not text.is_empty():
+			texts.append(text)
+	return texts
 
 
 func _get_kind() -> String:

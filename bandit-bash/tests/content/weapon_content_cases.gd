@@ -6,7 +6,7 @@
 # File:     weapon_content_cases.gd
 # Author:
 # Created:  November 15, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -139,14 +139,14 @@ const STAVES: Dictionary[String, Array] = {
 # The generated text of every weapon with effects; the rest have none.
 const TEXT: Dictionary[String, Array] = {
 	# weapons.md: "Hit dealt: heals the attacker for half the damage it deals to HP".
-	"dark_sword": ["Damage dealt: heal for 50% of the damage dealt to HP"],
-	"kukri": ["Crit dealt: that hit skips Mitigation"],
-	"life_tap": ["Hit dealt: that hit gains lifesteal"],
-	"colossus": ["Always: +20 HP, +5 DEF, +5 CON"],
-	"zweihander": ["Always: +4 MGT, +2 SPD"],
-	"titans_will": ["Always: +17 HP, +5 MGT, +9 SPD, +4 DEF, +14 RES"],
-	"ebonflight": ["Always: +5 SPD"],
-	"abyss_typhoon": ["Always: +5 MGT"],
+	"dark_sword": ["Whenever this unit deals damage, heal for 50% of the damage dealt to HP."],
+	"kukri": ["Whenever this unit lands a crit, that hit skips Mitigation."],
+	"life_tap": ["Whenever this unit lands a hit, that hit gains lifesteal."],
+	"colossus": ["+20 HP, +5 DEF and +5 CON."],
+	"zweihander": ["+4 MGT and +2 SPD."],
+	"titans_will": ["+17 HP, +5 MGT, +9 SPD, +4 DEF and +14 RES."],
+	"ebonflight": ["+5 SPD."],
+	"abyss_typhoon": ["+5 MGT."],
 }
 
 var _check: Callable

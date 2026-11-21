@@ -46,32 +46,40 @@ visible = false
 layout_mode = 2
 handles_focus_input = true
 
-[node name="Center" type="CenterContainer" parent="Layout/Column"]
+[node name="Scroll" type="ScrollContainer" parent="Layout/Column"]
+unique_name_in_owner = true
 layout_mode = 2
+size_flags_vertical = 3
+follow_focus = true
+horizontal_scroll_mode = 0
+
+[node name="Center" type="CenterContainer" parent="Layout/Column/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
 mouse_filter = 2
 
-[node name="Box" type="VBoxContainer" parent="Layout/Column/Center"]
+[node name="Box" type="VBoxContainer" parent="Layout/Column/Scroll/Center"]
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="StockView" parent="Layout/Column/Center/Box" instance=ExtResource("7_stock")]
+[node name="StockView" parent="Layout/Column/Scroll/Center/Box" instance=ExtResource("7_stock")]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="Footer" type="HBoxContainer" parent="Layout/Column/Center/Box"]
+[node name="Footer" type="HBoxContainer" parent="Layout/Column/Scroll/Center/Box"]
 layout_mode = 2
 theme_override_constants/separation = 16
 alignment = 1
 
-[node name="LeaveButton" type="Button" parent="Layout/Column/Center/Box/Footer"]
+[node name="LeaveButton" type="Button" parent="Layout/Column/Scroll/Center/Box/Footer"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(160, 36)
 layout_mode = 2
 theme_type_variation = &"PrimaryButton"
 text = "Leave"
 
-[node name="Status" type="Label" parent="Layout/Column/Center/Box/Footer"]
+[node name="Status" type="Label" parent="Layout/Column/Scroll/Center/Box/Footer"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(560, 0)
 layout_mode = 2

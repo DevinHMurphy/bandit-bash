@@ -6,7 +6,7 @@
 # File:     heirloom_bar_cases.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -117,7 +117,7 @@ func _test_battle_bar() -> void:
 	var footer: String = ledger.get_view().footer_text()
 	_check.call("bar: War Ledger shows its saved campaign count, copied into the battle (7 / 10)", (
 			ledger.get_badge_text() == str(LEDGER_COUNT)
-			and footer.contains("%d / %d this campaign" % [LEDGER_COUNT, LEDGER_PERIOD])
+			and footer.contains("%d / %d this run" % [LEDGER_COUNT, LEDGER_PERIOD])
 			and not ledger.is_ready_look()
 			and is_equal_approx(ledger.get_shown_alpha(), ledger.rest_alpha)
 	), "badge %s, footer %s, alpha %.2f" % [
@@ -150,7 +150,7 @@ func _test_battle_bar() -> void:
 			maul.is_ready_look()
 			and is_equal_approx(maul.get_shown_alpha(), 1.0)
 			and footer.contains("%d / %d this combat" % [MAUL_PERIOD - 1, MAUL_PERIOD])
-			and footer.contains("Ready: next Hit dealt by Your Unit")
+			and footer.contains("Ready: the next time one of your units lands a hit, the target")
 			and not maul_two.is_ready_look()
 	), "ready %s, alpha %.2f, footer %s" % [
 		maul.is_ready_look(), maul.get_shown_alpha(), footer,
@@ -226,7 +226,7 @@ func _test_battle_bar() -> void:
 			bar.get_tip().visible
 			and texts[0] == "War Ledger"
 			and texts[1] == "\n".join(definition.describe())
-			and texts[2] == "Uncommon heirloom\n%d / %d this campaign" % [
+			and texts[2] == "Uncommon heirloom\n%d / %d this run" % [
 				LEDGER_COUNT, LEDGER_PERIOD,
 			]
 			and is_equal_approx(ledger.get_shown_alpha(), 1.0)

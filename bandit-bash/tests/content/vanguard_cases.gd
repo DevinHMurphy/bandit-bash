@@ -6,7 +6,7 @@
 # File:     vanguard_cases.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -34,7 +34,7 @@ const BLOCK_PER_LEVEL: int = 2
 const LEVELS: Array[int] = [1, 3, 10]
 
 # The reviewed text of the Drengr's one trait.
-const TEXT: String = "Phase Start: gain Block equal to 2 × this unit's level"
+const TEXT: String = "At Phase Start, gain Block equal to 2 × this unit's level."
 
 # The row: the Drengr at (0, 0), an Archer ally at (3, 0) and an enemy Hakkapel at (5, 0), so the
 # ally (2 tiles) stands nearer the enemy than the Drengr (5 tiles).

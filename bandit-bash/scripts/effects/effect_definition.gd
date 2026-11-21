@@ -6,7 +6,7 @@
 # File:     effect_definition.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 16, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 @tool
@@ -17,9 +17,9 @@ extends Resource
 ## Items, traits, heirlooms, curses and runes all carry their effects as these
 ## ([EffectCarrierDefinition]). [b]Read-only at runtime:[/b] Godot shares a loaded .tres, so
 ## counters, charges and owners live on the effect's runtime instance, never here.[br]
-## [method describe] generates the effect text in the effect-triggers.md grammar,
-## "<head> [this combat | this campaign]: <operation>", the head naming the scope as the
-## trigger's subject ([method EffectTerms.trigger_head]), so text and behavior can't drift.
+## [method describe] generates the effect text as a sentence in the effect-triggers.md grammar,
+## "<head>, <conditions>, <operations>.", the head naming the scope as the trigger's subject
+## ([method EffectTerms.trigger_head]), so text and behavior can't drift.
 ## Its enums, their text and the text helpers blocks share live in
 ## [EffectTerms], a leaf: blocks must never name this class (see there for why).
 ##
@@ -79,12 +79,23 @@ enum Tag {
 @export var item_points: float = 0.0
 
 
-## The effect text, generated from the data, such as
-## [code]Every 7th Attack made by Your Unit this combat: that attack gains lifesteal[/code].
-## An effect that runs when used on a target (a Pouch item, a rune: every operation gives to the
-## command's target) reads as the action alone, [code]Heal the target for 8[/code]: "Always"
-## would call it always-on.
-func describe() -> String:
+# ASSUMPTION: the override replaces the whole built text, lead-in and charges included (P01
+# question 65).
+## Player-facing text [method describe] shows in place of the text built from the blocks, for an
+## effect the blocks can't say: an opener (Burglar's Roll, the Key) has no operations, since
+## [MapObjects] reads it by id. One or more whole sentences, punctuation included.[br]
+## [b]Empty:[/b] the built text.
+@export_multiline var written_text: String = ""
+
+
+## The effect text as a sentence: [member written_text] when set, else built from the blocks
+## ("Every 7th time one of your units attacks each combat, that attack gains lifesteal."). An
+## always-on effect has no head ("+2 DEF."); a used Pouch item reads as its action ("Heal the
+## target for 8 HP."). [param lead_in]: an opening its carrier gives, before the head and
+## conditions ("When eaten"); empty for none. The grammar: docs/design/effect-triggers.md.
+func describe(lead_in: String = "") -> String:
+	if not written_text.is_empty():
+		return written_text
 	var counter: CounterCondition = null
 	var clauses: PackedStringArray = []
 	for condition: EffectCondition in conditions:
@@ -95,19 +106,32 @@ func describe() -> String:
 		else:
 			clauses.append(condition.describe())
 
-	var head: String = ""
-	if trigger != EffectTerms.Trigger.ALWAYS:
-		head = EffectTerms.trigger_head(trigger, scope, counter != null)
+	var count: String = ""
+	var lane: EffectTerms.Lane = EffectTerms.Lane.COMBAT
 	if counter != null:
-		head = ("%s %s" % [counter.describe_count(), head]).strip_edges()
-		head += " %s" % [EffectTerms.LANE_TEXT[counter.lane]]
-	if head.is_empty() and clauses.is_empty() and not _is_used_on_target():
-		head = EffectTerms.TRIGGER_TEXT[EffectTerms.Trigger.ALWAYS]
-
+		lane = counter.lane
+		if counter.mode == CounterCondition.Mode.FIRST:
+			count = EffectTerms.FIRST_COUNT
+		elif counter.count > 1:
+			count = EffectTerms.ordinal(counter.count)
 	var opening: PackedStringArray = []
-	if not head.is_empty():
-		opening.append(head)
+	for phrase: String in [lead_in, EffectTerms.trigger_head(trigger, scope, count, lane)]:
+		if not phrase.is_empty():
+			opening.append(phrase)
 	opening.append_array(clauses)
+
+	var text: String = describe_actions()
+	if not opening.is_empty():
+		text = ", ".join(opening) if text.is_empty() else "%s, %s" % [", ".join(opening), text]
+	if charges > 0:
+		text = "%s %s" % [text, EffectTerms.describe_charges(charges, charge_lane)]
+	return EffectTerms.sentence(text)
+
+
+## What the operations do, as one list with no head: "heal the target for 10 HP and permanently
+## give the target +10% MGT growth". A range pair reads as one "Range becomes 1-2", and permanent
+## changes given alike share one "permanently give the target +1 MGT, +1 SPD and +1 DEF".
+func describe_actions() -> String:
 	var actions: PackedStringArray = []
 	var i: int = 0
 	while i < operations.size():
@@ -118,20 +142,18 @@ func describe() -> String:
 			actions.append(EffectTerms.describe_range_base(low.value, high.value))
 			i += 2
 			continue
+		var run: Array[ChangeBaseStat] = _permanent_run(i)
+		if run.size() > 1:
+			var changes: PackedStringArray = []
+			for change: ChangeBaseStat in run:
+				changes.append(change.describe_change())
+			actions.append(run[0].describe_with(EffectTerms.join_list(changes)))
+			i += run.size()
+			continue
 		if operation != null:
 			actions.append(operation.describe_for_trigger(trigger))
 		i += 1
-
-	var text: String = ", ".join(actions)
-	if not opening.is_empty():
-		text = "%s: %s" % [", ".join(opening), text]
-	if charges > 0:
-		var uses: String = "use" if charges == 1 else "uses"
-		# Trimmed first: an opener with no operations (Burglar's Roll) reads "Always: (1 use ...)".
-		text = "%s (%d %s %s)" % [
-			text.strip_edges(false, true), charges, uses, EffectTerms.LANE_TEXT[charge_lane],
-		]
-	return text.left(1).to_upper() + text.substr(1)
+	return EffectTerms.join_list(actions)
 
 
 ## Whether [member tags] includes [param tag].
@@ -139,16 +161,24 @@ func has_tag(tag: Tag) -> bool:
 	return tags & tag != 0
 
 
-# Whether the effect is an Always effect whose every operation gives to the command's target (a
-# used Pouch item's heal or Block, a rune's), so it runs when used, not always.
-func _is_used_on_target() -> bool:
-	if trigger != EffectTerms.Trigger.ALWAYS or operations.is_empty():
-		return false
-	for operation: EffectOperation in operations:
-		var gain: GainResource = operation as GainResource
-		if gain == null or not gain.target is CommandTarget:
-			return false
-	return true
+# The ChangeBaseStats from operations[start] on that change the same target's stats (not
+# growths), so one "permanently give <who> A, B and C" says them all; fewer than two: none.
+func _permanent_run(start: int) -> Array[ChangeBaseStat]:
+	var run: Array[ChangeBaseStat] = []
+	var first: ChangeBaseStat = operations[start] as ChangeBaseStat
+	if first == null or first.mode != ChangeBaseStat.Mode.BASE:
+		return run
+	run.append(first)
+	for j: int in range(start + 1, operations.size()):
+		var next: ChangeBaseStat = operations[j] as ChangeBaseStat
+		if (
+				next == null
+				or next.mode != first.mode
+				or next.describe_with("") != first.describe_with("")
+		):
+			break
+		run.append(next)
+	return run
 
 
 # Whether low then high set a unit's whole range in place of its weapon's (the Short Quiver): one

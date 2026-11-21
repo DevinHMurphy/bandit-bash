@@ -11,7 +11,8 @@
 
 extends Control
 ## An Armory node: the shared stock ([StockView]) under the run's header and [HeirloomBar], priced
-## for the seat, with Leave.
+## for the seat, with Leave. The stock and Leave scroll when taller than the window (cards with
+## effect lines, at 1280×720), following focus, so the selected card is always in view.
 ##
 ## On entry, a stock not yet rolled is rolled and saved first ([OpenArmoryCommand]), so a quit and
 ## Continue shows the same stock. A card opens the [PurchasePanel]: an item's unit and deal with
@@ -34,7 +35,8 @@ extends Control
 #                             panel, back a step)
 #   "heirloom_bar_focus"   -> H; RS pushed left [R stick]    (read by the HeirloomBar: focuses
 #                             it, then back; hints HEIRLOOMS meanwhile)
-#   Mouse: clicks on the cards, choices and Leave; hovering an heirloom shows its tooltip.
+#   Mouse: clicks on the cards, choices and Leave; the wheel scrolls the stock; hovering an
+#   heirloom shows its tooltip.
 # ============================================================
 
 ## The hint context while the stock shows.

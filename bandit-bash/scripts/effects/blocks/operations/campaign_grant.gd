@@ -6,14 +6,14 @@
 # File:     campaign_grant.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 28, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 @tool
 class_name CampaignGrant
 extends EffectOperation
 ## Grants the owner's player something on the campaign layer: gold, a heirloom, a recruit or a rune
-## ("gain 50 gold", "gain the rune mend").
+## ("gain 50 Gold", "gain the rune mend").
 ##
 ## Queued. Used by Gained effects (War Chest, Family Relic) and by narrative event outcomes. In
 ## combat it adds to [member EffectEngine.grants] when its reaction resolves; the [CombatSession]
@@ -54,7 +54,7 @@ func describe() -> String:
 			return "recruit a unit" if definition_id.is_empty() else "recruit %s" % [definition_id]
 		Grant.RUNE:
 			return _grant_text("a rune", "the rune")
-	return "gain %d gold" % [amount]
+	return "gain %d Gold" % [amount]
 
 
 ## Adds the grant, for the owner's seat, to [member EffectEngine.grants]. A sandbox's engine keeps

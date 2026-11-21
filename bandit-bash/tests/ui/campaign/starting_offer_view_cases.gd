@@ -6,7 +6,7 @@
 # File:     starting_offer_view_cases.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -66,7 +66,7 @@ func _test_key() -> void:
 	var cards: Array[Button] = view.get_cards()
 	_ok("key: three heirloom cards, each with its name and bonus line", (
 			cards.size() == 3 and cards[index].text.contains("War Chest")
-			and cards[index].text.contains("gain 100 gold") and view.focus_first()
+			and cards[index].text.contains("gain 100 Gold") and view.focus_first()
 	), "" if cards.is_empty() else cards[index].text)
 	cards[index].grab_focus()
 	_press_key(KEY_ENTER)

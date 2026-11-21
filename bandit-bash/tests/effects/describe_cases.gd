@@ -6,7 +6,7 @@
 # File:     describe_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 extends "res://tests/effects/effects_case_base.gd"
@@ -63,7 +63,7 @@ func _test_describe_conditions() -> void:
 	var first: CounterCondition = CounterCondition.new()
 	first.mode = CounterCondition.Mode.FIRST
 	first.lane = EffectTerms.Lane.CAMPAIGN
-	_snapshot("counter: first", first.describe(), "first time this campaign")
+	_snapshot("counter: first", first.describe(), "first time this run")
 
 	var chance: ChanceCondition = ChanceCondition.new()
 	chance.chance_percent = 25
@@ -126,28 +126,28 @@ func _test_describe_operations() -> void:
 	_snapshot(
 			"modify value: add",
 			_modify_value(CampaignValue.Key.COMBAT_GOLD, ADD, 8.0).describe(),
-			"+8 Combat Gold"
+			"+8 Gold per won combat"
 	)
 	_snapshot(
 			"modify value: replace base",
 			_modify_value(CombatValue.Key.RANGE_MAX, REPLACE_BASE, 2.0).describe(),
-			"Range Max becomes 2"
+			"max Range becomes 2"
 	)
 	var magic: float = CombatFact.DamageType.MAGIC
 	_snapshot(
 			"modify value: enum key shows the enum name",
 			_modify_value(CombatValue.Key.DAMAGE_TYPE, FIXED, magic).describe(),
-			"Damage Type always Magic"
+			"attacks deal Magic damage"
 	)
 	_snapshot(
 			"modify value: multiply",
 			_modify_value(CampaignValue.Key.HEALING_RECEIVED_PERCENT, MULTIPLY, 0.5).describe(),
-			"×0.5 Healing Received Percent"
+			"×0.5 healing received"
 	)
 	_snapshot(
 			"modify value: floor",
 			_modify_value(CampaignValue.Key.LEVEL_UP_MIN_STATS, FLOOR, 3.0).describe(),
-			"Level Up Min Stats at least 3"
+			"at least 3 stats raised per level-up"
 	)
 	_snapshot(
 			"modify value: negative add",
@@ -224,11 +224,11 @@ func _test_describe_operations() -> void:
 	var block: GainResource.Pool = GainResource.Pool.BLOCK
 	_snapshot("gain: Block", _gain(block, null, _constant(3.0)).describe(), "gain 3 Block")
 	var hp: GainResource.Pool = GainResource.Pool.HP
-	_snapshot("gain: heal", _gain(hp, null, _constant(10.0)).describe(), "heal 10")
+	_snapshot("gain: heal", _gain(hp, null, _constant(10.0)).describe(), "heal 10 HP")
 	_snapshot(
 			"gain: heal a target",
 			_gain(GainResource.Pool.HP, FactActor.new(), _constant(10.0)).describe(),
-			"heal that unit for 10"
+			"heal that unit for 10 HP"
 	)
 	var stance: GainResource = _gain(GainResource.Pool.STANCE, Owner.new(), _constant(1.0))
 	_snapshot("gain: Stance", stance.describe(), "gain 1 Stance")
@@ -274,7 +274,7 @@ func _test_describe_operations() -> void:
 	var booster: ChangeBaseStat = ChangeBaseStat.new()
 	booster.key = CombatValue.Key.MOVEMENT
 	booster.value = 1.0
-	_snapshot("change base stat", booster.describe(), "permanently +1 Movement")
+	_snapshot("change base stat", booster.describe(), "permanently gain +1 Movement")
 	booster.target = FactTarget.new()
 	_snapshot(
 			"change base stat: target",
@@ -285,7 +285,7 @@ func _test_describe_operations() -> void:
 	ingredient.key = CombatValue.Key.RES
 	ingredient.mode = ChangeBaseStat.Mode.GROWTH
 	ingredient.value = 5.0
-	_snapshot("change base stat: growth", ingredient.describe(), "permanently +5% RES growth")
+	_snapshot("change base stat: growth", ingredient.describe(), "permanently gain +5% RES growth")
 
 	var permission_op: SetPermission = SetPermission.new()
 	permission_op.permission = CombatValue.Permission.CAN_BE_SHOVED
@@ -296,7 +296,7 @@ func _test_describe_operations() -> void:
 
 	var grant: CampaignGrant = CampaignGrant.new()
 	grant.amount = 50
-	_snapshot("campaign grant: gold", grant.describe(), "gain 50 gold")
+	_snapshot("campaign grant: gold", grant.describe(), "gain 50 Gold")
 	grant.grant = CampaignGrant.Grant.HEIRLOOM
 	_snapshot("campaign grant: unnamed heirloom", grant.describe(), "gain an heirloom")
 	grant.grant = CampaignGrant.Grant.RUNE
@@ -413,7 +413,7 @@ func _test_describe_values() -> void:
 	_snapshot("count of: each", doubled.describe(), "2 × the number of adjacent allies")
 	var counter: CounterValue = CounterValue.new()
 	counter.lane = EffectTerms.Lane.CAMPAIGN
-	_snapshot("counter value", counter.describe(), "its count this campaign")
+	_snapshot("counter value", counter.describe(), "its count this run")
 
 
 # The coverage fixtures of the event bus plan (Effect data model), as authored effect text.
@@ -428,7 +428,7 @@ func _test_describe_coverage_fixtures() -> void:
 	_snapshot(
 			"fixture: Vanguard",
 			vanguard.describe(),
-			"Phase Start, while no ally is closer to an enemy than this unit: gain 3 Block"
+			"At Phase Start, while no ally is closer to an enemy than this unit, gain 3 Block."
 	)
 
 	var seventh: CounterCondition = CounterCondition.new()
@@ -442,7 +442,7 @@ func _test_describe_coverage_fixtures() -> void:
 	_snapshot(
 			"fixture: Iron Heart",
 			iron_heart.describe(),
-			"Every 7th Attack made by Your Unit this combat: that attack gains lifesteal"
+			"Every 7th time one of your units attacks each combat, that attack gains lifesteal."
 	)
 
 	var plus_hit: AddTimedModifier = _timed(CombatValue.Key.HIT, ADD, 15.0)
@@ -451,7 +451,7 @@ func _test_describe_coverage_fixtures() -> void:
 	_snapshot(
 			"fixture: Momentum",
 			_definition(EffectTerms.Trigger.MISSED, [], [plus_hit]).describe(),
-			"Missed: gain +15 Hit on its next attack this combat"
+			"Whenever this unit misses, gain +15 Hit on its next attack this combat."
 	)
 
 	var adjacent_allies: Area = _area(Area.Center.OWNER, 1, EffectTerms.UnitSide.ALLY, false)
@@ -459,7 +459,7 @@ func _test_describe_coverage_fixtures() -> void:
 	_snapshot(
 			"fixture: Phalanx",
 			_definition(EffectTerms.Trigger.UNIT_TURN_START, [], [phalanx_gain]).describe(),
-			"Unit Turn Start: gain Block equal to the number of adjacent allies"
+			"At the start of this unit's turn, gain Block equal to the number of adjacent allies."
 	)
 
 	var splash: DealSplash = DealSplash.new()
@@ -468,7 +468,7 @@ func _test_describe_coverage_fixtures() -> void:
 	_snapshot(
 			"fixture: Cleave",
 			_definition(EffectTerms.Trigger.HIT_DEALT, [], [splash]).describe(),
-			"Hit dealt: deal 2 splash damage to adjacent units, friend or foe"
+			"Whenever this unit lands a hit, deal 2 splash damage to adjacent units, friend or foe."
 	)
 
 	var second: CounterCondition = CounterCondition.new()
@@ -479,8 +479,8 @@ func _test_describe_coverage_fixtures() -> void:
 	_snapshot(
 			"fixture: War Horn",
 			_definition(EffectTerms.Trigger.PHASE_START, [second], [horn]).describe(),
-			"Every 2nd Phase Start this combat: give this unit and units within 2 tiles, friend or"
-			+ " foe +2 Attack until the end of the next phase"
+			"At every 2nd Phase Start each combat, give this unit and units within 2 tiles, friend"
+			+ " or foe +2 Attack until the end of the next phase."
 	)
 
 	var cup_gain: GainResource = _gain(
@@ -491,7 +491,8 @@ func _test_describe_coverage_fixtures() -> void:
 	_snapshot(
 			"fixture: Overflowing Cup",
 			cup.describe(),
-			"When Your Unit is healed: give that unit Block equal to 100% of that overheal"
+			"Whenever one of your units is healed, give that unit Block equal to 100% of that"
+			+ " overheal."
 	)
 
 	var halve: ModifyThat = ModifyThat.new()
@@ -505,14 +506,15 @@ func _test_describe_coverage_fixtures() -> void:
 	_snapshot(
 			"fixture: Lantern Oil",
 			lantern.describe(),
-			"When Your Unit takes darkness damage: ×0.5 damage for that darkness damage"
+			"Whenever one of your units takes darkness damage, ×0.5 damage for that darkness"
+			+ " damage."
 	)
 
 	var gold: ModifyValue = _modify_value(CampaignValue.Key.COMBAT_GOLD, ADD, 8.0)
 	_snapshot(
 			"fixture: Bounty Ledger",
 			_definition(EffectTerms.Trigger.ALWAYS, [], [gold]).describe(),
-			"Always: +8 Combat Gold"
+			"+8 Gold per won combat."
 	)
 
 	var no_growth: SetPermission = SetPermission.new()
@@ -524,7 +526,7 @@ func _test_describe_coverage_fixtures() -> void:
 	_snapshot(
 			"fixture: Training Weights without stats named (engine cases name them)",
 			_definition(EffectTerms.Trigger.ALWAYS, [], [no_growth, gain_might]).describe(),
-			"Always: stats can't grow, +1 Level Up Guaranteed Gains"
+			"Stats can't grow and +1 stat point per level-up."
 	)
 
 	var minus_one: ModifyThat = ModifyThat.new()
@@ -538,7 +540,7 @@ func _test_describe_coverage_fixtures() -> void:
 	_snapshot(
 			"fixture: Brittle Guard",
 			brittle.describe(),
-			"When Your Unit gains Block: -1 to that Block gain"
+			"Whenever one of your units gains Block, -1 to that Block gain."
 	)
 	_check(
 			"fixture: Brittle Guard is a curse, not unique",
@@ -556,8 +558,8 @@ func _test_describe_coverage_fixtures() -> void:
 	_snapshot(
 			"fixture: Haunted",
 			haunted.describe(),
-			"Phase Start: a random one of your units can't gain Block until"
-			+ " the end of the next phase"
+			"At Phase Start, a random one of your units can't gain Block until"
+			+ " the end of the next phase."
 	)
 
 
@@ -573,7 +575,7 @@ func _test_describe_definition_shapes() -> void:
 	_snapshot(
 			"definition: counter, then other conditions",
 			_definition(EffectTerms.Trigger.HIT_TAKEN, [chance, tenth], [halve]).describe(),
-			"Every 10th Hit taken this combat, 25% chance: ×0.5 damage for that hit"
+			"Every 10th time this unit is hit each combat, 25% chance, ×0.5 damage for that hit."
 	)
 
 	var exposed: WhileStateCondition = WhileStateCondition.new()
@@ -581,16 +583,16 @@ func _test_describe_definition_shapes() -> void:
 	_snapshot(
 			"definition: always-on with a While condition",
 			_definition(EffectTerms.Trigger.ALWAYS, [exposed], [atk_x]).describe(),
-			"While Exposed: +1 Atk X"
+			"While Exposed, +1 AtkX."
 	)
 
 	var heal: GainResource = _gain(GainResource.Pool.HP, null, _constant(10.0))
 	var potion: EffectDefinition = _definition(EffectTerms.Trigger.ALWAYS, [], [heal])
 	potion.charges = 3
-	_snapshot("definition: charges", potion.describe(), "Always: heal 10 (3 uses this combat)")
+	_snapshot("definition: charges", potion.describe(), "Heal 10 HP (3 times per combat).")
 	potion.charges = 1
 	potion.charge_lane = EffectTerms.Lane.CAMPAIGN
-	_snapshot("definition: one charge", potion.describe(), "Always: heal 10 (1 use this campaign)")
+	_snapshot("definition: one charge", potion.describe(), "Heal 10 HP (once per run).")
 
 	var carrier: EffectCarrierDefinition = EffectCarrierDefinition.new()
 	carrier.id = "bounty_ledger"
@@ -604,8 +606,8 @@ func _test_describe_definition_shapes() -> void:
 	_check(
 			"carrier: one line per effect, nulls skipped",
 			carrier.describe() == PackedStringArray([
-				"Always: +8 Combat Gold",
-				"Always: heal 10 (1 use this campaign)",
+				"+8 Gold per won combat.",
+				"Heal 10 HP (once per run).",
 			]),
 			str(carrier.describe())
 	)

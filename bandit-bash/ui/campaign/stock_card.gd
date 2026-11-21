@@ -12,9 +12,9 @@
 class_name StockCard
 extends Button
 ## One shop entry: a pressable card with its icon, name, details and price for the seat
-## ([ArmoryModel], [GuildhallModel]), and for an item, who can use it ([ItemUsableBy]) at its
-## bottom right, as on an [ItemOfferCard]; an heirloom or rune shows no such row. The row shares
-## the price's line, so the Armory's three rows of cards fit at 1280×720.[br]
+## ([ArmoryModel], [GuildhallModel]), and for an item, one line per effect and who can use it
+## ([ItemUsableBy]) at its bottom right, as on an [ItemOfferCard]; an heirloom or rune shows no
+## such row. The row shares the price's line, so the cards stay short.[br]
 ## An entry the seat can't buy ([method Armory.entry_problem]) says why, its lines muted, and is
 ## disabled and out of the focus order, as [HeirloomOfferCard] treats a refused heirloom.
 ## Pressing it (click, or accept while focused) asks to buy it; its view passes that on. Keyboard
@@ -52,6 +52,7 @@ var _styles: Dictionary[Label, StringName] = {}
 @onready var _entry_icon: TextureRect = %EntryIcon
 @onready var _name_label: Label = %EntryName
 @onready var _details_label: Label = %Details
+@onready var _effects_label: Label = %Effects
 @onready var _price_label: Label = %Price
 @onready var _problem_label: Label = %Problem
 @onready var _usable_by: ItemUsableBy = %UsableBy
@@ -86,6 +87,8 @@ func show_entry(
 	_name_label.text = title
 	_details_label.text = details
 	_details_label.visible = not details.is_empty()
+	_effects_label.text = ""
+	_effects_label.visible = false
 	_price_label.text = price
 	_problem_label.text = "Can't buy: %s." % [refusal]
 	_problem_label.visible = not refusal.is_empty()
@@ -96,9 +99,11 @@ func show_entry(
 		label.theme_type_variation = _REFUSED_STYLE if disabled else _styles[label]
 
 
-## Shows who of [param seat_run]'s living units can use the item [param definition], read from
-## [param catalog] and named through [param ids] (null: by unit type), as an offer card does.
-## Not called, or called with a null [param definition]: no row, as for an heirloom or rune.
+## Shows the item [param definition]'s effect lines under its details, and who of
+## [param seat_run]'s living units can use it, read from [param catalog] and named through
+## [param ids] (null: by unit type), as an [ItemOfferCard] does. Not called, or called with a
+## null [param definition]: no lines and no row, as for an heirloom (whose text is its details)
+## or a rune. Call it after [method show_entry], which clears both.
 func show_users(
 		definition: ItemDefinition,
 		seat_run: SeatRun,
@@ -108,13 +113,18 @@ func show_users(
 	if not is_node_ready():
 		push_error("StockCard: show_users before the card is in the tree - %s" % [entry_name])
 		return
+	var effects: PackedStringArray = (
+			PackedStringArray() if definition == null else definition.describe()
+	)
+	_effects_label.text = "\n".join(effects)
+	_effects_label.visible = not effects.is_empty()
 	_usable_by.show_users(definition, seat_run, catalog, ids)
 	if has_focus():
 		_usable_by.show_names_tip()
 
 
-## Its lines as shown, for tests: name, then each line of its details, its price and why it
-## can't be bought.
+## Its lines as shown, for tests: name, then each line of its details and its effects, its price
+## and why it can't be bought.
 func get_lines() -> PackedStringArray:
 	var lines: PackedStringArray = []
 	for label: Label in _lines():
@@ -143,7 +153,7 @@ func fit_content() -> void:
 
 
 func _lines() -> Array[Label]:
-	return [_name_label, _details_label, _price_label, _problem_label]
+	return [_name_label, _details_label, _effects_label, _price_label, _problem_label]
 
 
 func _on_focus_entered() -> void:

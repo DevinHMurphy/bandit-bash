@@ -6,7 +6,7 @@
 # File:     gain_resource.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 15, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 @tool
@@ -60,7 +60,7 @@ func describe() -> String:
 
 ## The text, with a share of the triggering fact named for [param trigger]
 ## ([method PercentOfFact.describe_for_trigger]): Dark Sword's "heal for 50% of the damage dealt
-## to HP". A heal of a worked-out amount reads "heal for …" on the owner, and
+## to HP". A set heal reads "heal 10 HP"; a worked-out amount "heal for …" on the owner, and
 ## "heal <who> for HP equal to …" on another unit.
 func describe_for_trigger(trigger: EffectTerms.Trigger) -> String:
 	var pool_name: String = POOL_TEXT[pool]
@@ -80,7 +80,9 @@ func describe_for_trigger(trigger: EffectTerms.Trigger) -> String:
 	if pool == Pool.HP:
 		if constant == null and to_owner:
 			return "heal for %s" % [how_much]
-		var healing: String = how_much if constant != null else "HP equal to %s" % [how_much]
+		var healing: String = (
+				"%s HP" % [how_much] if constant != null else "HP equal to %s" % [how_much]
+		)
 		if to_owner:
 			return "heal %s" % [healing]
 		return "heal %s for %s" % [who, healing]

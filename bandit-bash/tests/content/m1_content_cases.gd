@@ -6,7 +6,7 @@
 # File:     m1_content_cases.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -104,16 +104,24 @@ const CONSUMABLES: Dictionary[String, Array] = {
 
 # Reviewed effect text, one line per effect, in each list's order.
 const TEXT: Dictionary[String, Array] = {
-	"drengr": ["Phase Start: gain Block equal to 2 × this unit's level"],
-	"archer": ["Hit dealt, while at maximum range: +2 Attack for that hit"],
-	"archer+": ["Hit dealt, while at maximum range: +4 Attack for that hit"],
-	"battle_medic": ["Used a staff on an ally: give the other unit 1 Stance, even above its maximum"],
-	"battle_medic+": ["Used a staff on an ally: give the other unit 2 Stance, even above its maximum"],
-	"hakkapel": ["While this unit moved 4+ tiles this turn: +2 Attack"],
-	"hakkapel+": ["While this unit moved 4+ tiles this turn: +4 Attack"],
-	"iron_heart": ["Every 7th Attack made by Your Unit this combat: that attack gains lifesteal"],
-	"potion": ["Heal the target for 8"],
-	"guard_tonic": ["Give the target 6 Block"],
+	"drengr": ["At Phase Start, gain Block equal to 2 × this unit's level."],
+	"archer": ["Whenever this unit lands a hit, while at maximum range, +2 Attack for that hit."],
+	"archer+": ["Whenever this unit lands a hit, while at maximum range, +4 Attack for that hit."],
+	"battle_medic": [
+		"Whenever this unit uses a staff on an ally, give the other unit 1 Stance, even above its"
+		+ " maximum.",
+	],
+	"battle_medic+": [
+		"Whenever this unit uses a staff on an ally, give the other unit 2 Stance, even above its"
+		+ " maximum.",
+	],
+	"hakkapel": ["While this unit moved 4+ tiles this turn, +2 Attack."],
+	"hakkapel+": ["While this unit moved 4+ tiles this turn, +4 Attack."],
+	"iron_heart": [
+		"Every 7th time one of your units attacks each combat, that attack gains lifesteal.",
+	],
+	"potion": ["Heal the target for 8 HP."],
+	"guard_tonic": ["Give the target 6 Block."],
 	"shelter": [],
 	"minor_heal": [],
 }

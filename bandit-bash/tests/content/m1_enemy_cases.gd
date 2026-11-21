@@ -6,7 +6,7 @@
 # File:     m1_enemy_cases.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -74,9 +74,13 @@ const GROWTH_STATS: Array[int] = [
 
 # Reviewed effect text of each class's trait, one line per effect.
 const TEXT: Dictionary[String, Array] = {
-	"brute": ["Hit dealt: deal 2 splash damage to adjacent units, friend or foe"],
-	"crossbowman": ["While it hasn't moved this turn: +10 Hit"],
-	"hedge_healer": ["Healed an ally: give the other unit 1 Stance, even above its maximum"],
+	"brute": [
+		"Whenever this unit lands a hit, deal 2 splash damage to adjacent units, friend or foe.",
+	],
+	"crossbowman": ["While it hasn't moved this turn, +10 Hit."],
+	"hedge_healer": [
+		"Whenever this unit heals an ally, give the other unit 1 Stance, even above its maximum.",
+	],
 }
 
 var _check: Callable

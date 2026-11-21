@@ -59,8 +59,8 @@ Not a bug.
 | [BUG-024](#bug-024-battles-dont-save-at-the-end-of-a-player-phase) | Battles don't save at the end of a player phase: a crash loses every move since Begin | P00 / P07 (battle checkpoints) | S2 | Fixed (BF6 merge, November 20, 2026) | November 20, 2026, P11 plan report | BF6 |
 | [BUG-025](#bug-025-openeventcommand-accepts-an-unknown-that-rolled-a-shop) | `OpenEventCommand` accepts an Unknown that rolled a shop, Treasure or combat | P09 (event commands) | S3 (latent) | Open | November 20, 2026, RN10 report | a Lane C step (CO9) |
 | [BUG-026](#bug-026-the-event-panels-deferred-focus-has-no-in-tree-guard) | The event panel's deferred focus has no in-tree guard (BUG-017's pattern) | P09 (event screen) | S4 | Open | November 20, 2026, RN10 report | a Lane C step (CO12) |
-| [BUG-027](#bug-027-burglars-roll-shows-no-effect-text) | Burglar's Roll shows no effect text, only "(1 use this combat)" | P03 / P07 (effect text) | S3 | Open (TX1 issued November 20, 2026) | November 20, 2026, user | TX1 |
-| [BUG-028](#bug-028-a-weapons-own-effects-dont-show-in-unit-detail) | A weapon's own effects (lifesteal, extra strikes) don't show in unit detail's gear row | P07 (unit detail) | S3 | Open (TX1 issued November 20, 2026) | November 20, 2026, user | TX1 |
+| [BUG-027](#bug-027-burglars-roll-shows-no-effect-text) | Burglar's Roll shows no effect text, only "(1 use this combat)" | P03 / P07 (effect text) | S3 | Fixed (TX1 merge, November 20, 2026) | November 20, 2026, user | TX1 |
+| [BUG-028](#bug-028-a-weapons-own-effects-dont-show-in-unit-detail) | A weapon's own effects (lifesteal, extra strikes) don't show in unit detail's gear row | P07 (unit detail) | S3 | Can't reproduce (TX1, November 20, 2026: the gear row already shows a weapon's effect lines and AtkX; regression cases added) | November 20, 2026, user | TX1 |
 | [BUG-029](#bug-029-the-node-placeholder-says-this-node-isnt-built-yet) | The node placeholder says "This node isn't built yet", but now shows only for an Unknown with no event to draw | P08 (campaign UI) | S4 | Open | November 20, 2026, BF6 report | RN12 |
 | [BUG-030](#bug-030-the-save-debug-panels-doc-calls-its-end-player-phase-the-only-battle-save) | The save debug panel's doc calls its End Player Phase the only battle save besides Begin | P00 (debug panel) | S4 | Open | November 20, 2026, BF6 report | BF7 |
 | [BUG-031](#bug-031-a-continued-runs-instance-ids-drift-from-an-uninterrupted-ones) | A continued run's instance ids drift from an uninterrupted one's, so heirloom reactions can fire in another order after a quit | P08 / P01 (campaign session) | S2 | Fixed (RN11 merge, November 20, 2026) | November 20, 2026, RN11 | RN11 |
@@ -443,12 +443,18 @@ Not a bug.
   only the charge note is left.
 - **Expected** (heirlooms.md): "Once per combat, Your Unit can open a chest or door without a Key
   or Lockpick (still its action)".
+- **Fixed** in TX1 (merged November 20, 2026): `EffectDefinition.written_text` replaces the built
+  text when set; Burglar's Roll, the Key and the Lockpick use it (P01 questions 64 and 68).
+  Regression: `tests/effects/effect_text_cases.gd` and `tests/content/effect_text_content_cases.gd`.
 
 ### BUG-028 A weapon's own effects don't show in unit detail
 
 - **Reported** by the user: a weapon's specials (lifesteal, multiple strikes) aren't on the unit
   detail panel. `DetailGearRow` shows a weapon's profile *or* an item's effect text, so a weapon's
   effects never show. Check that a weapon's strike count (AtkX) is in its profile as well.
+- **Can't reproduce** (TX1, November 20, 2026; P01 question 70): `DetailGearRow` already shows a
+  weapon's effect lines and its AtkX. Regression: `tests/ui/battle/unit/gear_row_cases.gd` and
+  capture 415 (unit detail with Life Tap). Reopen it if a weapon's special is seen missing.
 
 ### BUG-029 The node placeholder says "This node isn't built yet"
 

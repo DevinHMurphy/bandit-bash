@@ -6,14 +6,14 @@
 # File:     change_base_stat.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 12, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 @tool
 class_name ChangeBaseStat
 extends EffectOperation
-## Permanently changes a unit's stat or growth: "permanently +1 Might" (stat boosters), "+5% RES
-## growth" (an eaten ingredient), "permanently +5 Hit" (a Hit stat booster or ingredient).
+## Permanently changes a unit's stat or growth: "permanently gain +1 MGT" (stat boosters), "+5% RES
+## growth" (an eaten ingredient), "permanently gain +5 Hit" (a Hit stat booster or ingredient).
 ##
 ## Queued. A stat change adds a sourced permanent delta to the unit's instance, never to its type's
 ## definition; a growth change is kept on the unit's combat state and changes nothing in battle.
@@ -54,15 +54,26 @@ func _validate_property(property: Dictionary) -> void:
 
 
 func describe() -> String:
-	var change: String = EffectTerms.describe_modifier(key, Modifier.Mode.ADD, value)
+	return describe_with(describe_change())
+
+
+## The change alone, with no target: "+1 MGT", "+5% RES growth".
+func describe_change() -> String:
 	if mode == Mode.GROWTH:
-		change = "%s%s%% %s growth" % [
+		return "%s%s%% %s growth" % [
 			"-" if value < 0.0 else "+",
 			EffectTerms.format_number(absf(value)),
 			EffectTerms.key_name(key),
 		]
+	return EffectTerms.describe_modifier(key, Modifier.Mode.ADD, value)
+
+
+## [param change] given to this operation's target for good: "permanently gain +1 MGT" on the
+## owner, "permanently give the target +1 MGT, +1 SPD and +1 DEF" otherwise, so
+## [method EffectDefinition.describe_actions] can say several alike changes once.
+func describe_with(change: String) -> String:
 	if target == null or target.is_owner():
-		return "permanently %s" % [change]
+		return "permanently gain %s" % [change]
 	return "permanently give %s %s" % [target.describe(), change]
 
 

@@ -6,14 +6,14 @@
 # File:     all_of_scope.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 14, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 @tool
 class_name AllOfScope
 extends TargetSelector
 ## Selects every unit in a scope, relative to the effect's owner: "your units", "every unit",
-## "every ally unit adjacent to a unit of another player" (Brothers in Arms).
+## "every ally adjacent to a unit of another player" (Brothers in Arms).
 ##
 ## Non-positional, so Any Ally Unit and Any Unit reach partners' maps through the encounter
 ## (event bus plan, question 12); a [member where] filter that tests position still only sees each
@@ -25,7 +25,7 @@ extends TargetSelector
 const SCOPE_TARGET_TEXT: Dictionary[int, String] = {
 	EffectTerms.Scope.THIS_UNIT: "this unit",
 	EffectTerms.Scope.YOUR_UNIT: "your units",
-	EffectTerms.Scope.ANY_ALLY_UNIT: "every ally unit",
+	EffectTerms.Scope.ANY_ALLY_UNIT: "every ally",
 	EffectTerms.Scope.ANY_UNIT: "every unit",
 }
 
@@ -37,7 +37,7 @@ const SCOPE_TARGET_TEXT: Dictionary[int, String] = {
 @export var where: EffectCondition = null
 
 
-## The scope's noun, then the filter's text without its "while", such as "every ally unit adjacent
+## The scope's noun, then the filter's text without its "while", such as "every ally adjacent
 ## to a unit of another player".
 func describe() -> String:
 	var noun: String = SCOPE_TARGET_TEXT[scope]

@@ -126,5 +126,5 @@ before writing a prompt and name it in the LANE block.
 | C Events | CO9 (team choices per seat) | CO6 (route votes), CO12 (co-op event screen) | CO9 after NT3 merges: NT3 gives the event commands their wire forms (P10 question 12) |
 | D Engine, AI, content | EN15 (zones; EN14 merged November 20, 2026) | EN16; P11 CO1–CO4; CT12 after the weapon modification design | — |
 | E Network | NT3 campaign wire (ready: RN11 merged November 20, 2026) | NT4–NT8; CO15 after NT4 | — |
-| G Audio and tooling | TX1 effect text pass (issued November 20, 2026; BUG-027, BUG-028, RF-036, RF-037) | AU2 after the audio direction (M5); the capture builder tidy-up | — |
+| G Audio and tooling | TX2 trait wording, part 2 (TX1 merged November 20, 2026) | P17's first step; AU2 after the audio direction (M5); the capture builder tidy-up | P17's first step after the P17 plan |
 | F Docs and plans | P17 localization plan | CO20 docs after P11's answers; P12 plan when wanted | — |

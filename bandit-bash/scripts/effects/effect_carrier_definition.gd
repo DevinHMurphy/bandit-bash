@@ -6,7 +6,7 @@
 # File:     effect_carrier_definition.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name EffectCarrierDefinition
@@ -29,10 +29,14 @@ extends Resource
 @export var effects: Array[EffectDefinition] = []
 
 
-## The effect text of every effect, one line each, in order.
+## The effect text of every effect, one sentence each, in order; an effect with no text (none of
+## its blocks say anything) gives no line, so a card shows no empty one.
 func describe() -> PackedStringArray:
 	var texts: PackedStringArray = []
 	for effect: EffectDefinition in effects:
-		if effect != null:
-			texts.append(effect.describe())
+		if effect == null:
+			continue
+		var text: String = effect.describe()
+		if not text.is_empty():
+			texts.append(text)
 	return texts
