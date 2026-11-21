@@ -37,7 +37,7 @@ extends "res://tests/ui/ui_suite.gd"
 ## a test user folder (see the base). Battles are won by recording their end, not played.
 
 # The test report's line on this suite; tools/run_tests.sh reads it from this one line.
-const SUITE_DESCRIPTION: String = "A run played through the campaign screens by key, mouse, pad"
+const SUITE_DESCRIPTION: String = "Screens by key, mouse, pad; a full run resumed at each stop"
 
 
 # SceneRouter.Screen values: a suite can't name the autoload (see the base).

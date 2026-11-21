@@ -6,15 +6,15 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 12, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 extends SceneTree
 ## Headless tests for the campaign layer: the map graph, its generator and rules data, the run
-## state, its commands and save sections, the battle bridge and the XP tally, a won combat's
-## rewards, placing a new item, Treasure, the Camp and their sounds. They are the case files
-## declaring this suite, which [code]tests/case_files.gd[/code] finds and runs in path order; each
-## one's class doc lists its checks. Touches no save files.
+## state, its commands and save sections, the map pools, the battle bridge and the XP tally, a
+## won combat's rewards, placing a new item, Treasure, the Camp and their sounds. They are the
+## case files declaring this suite, which [code]tests/case_files.gd[/code] finds and runs in path
+## order; each one's class doc lists its checks. Touches no save files.
 ##
 ## Run from the repo root:[br]
 ## [code]godot --headless --path bandit-bash --script res://tests/campaign/run_all.gd[/code][br]
@@ -22,7 +22,7 @@ extends SceneTree
 ## rules or bad run data log errors on purpose; only FAIL lines mean a problem.
 
 # The test report's line on this suite; tools/run_tests.sh reads it from this one line.
-const SUITE_DESCRIPTION: String = "Map, run state, bridge, rewards, placement, Treasure, Camp"
+const SUITE_DESCRIPTION: String = "Map, pools, run state, bridge, rewards, placing, Treasure, Camp"
 
 # Preloaded scripts used as types (gdscript.md, Naming): they have no class name.
 const GroupClock = preload("res://tests/group_clock.gd")
