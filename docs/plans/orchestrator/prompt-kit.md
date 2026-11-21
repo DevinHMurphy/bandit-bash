@@ -126,5 +126,5 @@ before writing a prompt and name it in the LANE block.
 | C Events | CO9 (team choices per seat; NT3 merged November 21, 2026, so it can go) | CO12 (co-op event screen) after CO10 | — |
 | D Engine, AI, content | EN15 (zones; issued November 21, 2026) | EN16; P11 CO1–CO4; CT12 after the weapon modification design | — |
 | E Network | NT4 relay (NT3 merged November 21, 2026) | NT5–NT8; CO15 after NT4 | NT4: P11 question 4 (who fills host-side objects) |
-| G Audio and tooling | TX2 trait wording, part 2 (TX1 merged November 20, 2026) | P17's first step; AU2 after the audio direction (M5); the capture builder tidy-up | TX2 after the user's wording pass in effect-text.md (it applies it, and confirms P01 65–68); P17's first step after the P17 plan |
+| G Audio and tooling | TX2 trait wording, part 2 (TX1 merged November 20, 2026) | TX3 keyword highlighting (scoping, user November 21, 2026); P17's first step; AU2 after the audio direction (M5); the capture builder tidy-up | TX2 after the user's wording pass in effect-text.md (it applies it, and confirms P01 65–68); P17's first step after the P17 plan |
 | F Docs and plans | P17 localization plan | CO20 docs after P11's answers; P12 plan when wanted | — |
