@@ -79,6 +79,8 @@ enum Tag {
 @export var item_points: float = 0.0
 
 
+# ASSUMPTION: the override replaces the whole built text, lead-in and charges included (P01
+# question 65).
 ## Player-facing text [method describe] shows in place of the text built from the blocks, for an
 ## effect the blocks can't say: an opener (Burglar's Roll, the Key) has no operations, since
 ## [MapObjects] reads it by id. One or more whole sentences, punctuation included.[br]

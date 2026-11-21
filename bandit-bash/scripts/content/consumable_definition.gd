@@ -25,6 +25,7 @@ extends ItemDefinition
 ## The [member use_kind] of an ingredient, which is eaten or cooked (items.md, Ingredients).
 const INGREDIENT_USE_KIND: String = "ingredient"
 
+# ASSUMPTION: the wording "When eaten" (P01 question 67; RF-036 says "or similar").
 ## The lead-in of an ingredient's effect text: it has two uses, so the text names the one its
 ## effects describe ("When eaten, heal the target for 5 HP and …"); cooking has its own fields.
 const EATEN_LEAD_IN: String = "When eaten"

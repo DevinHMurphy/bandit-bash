@@ -257,6 +257,7 @@ const PERMISSION_DENIED_TEXT: Dictionary[int, String] = {
 	CampaignValue.Permission.STAT_CAN_GROW: "%s can't grow",
 }
 
+# ASSUMPTION: "this run" for the campaign lane, as the menus say "Continue Run" (P01 question 67).
 ## Effect-text names of the lanes, as the period now running: "3 / 7 this combat".
 const LANE_TEXT: Dictionary[int, String] = {
 	Lane.COMBAT: "this combat",
@@ -279,6 +280,7 @@ const CHARGE_LANE_TEXT: Dictionary[int, String] = {
 ## The count word of a first-only counter, for [method trigger_head].
 const FIRST_COUNT: String = "first"
 
+# ASSUMPTION: these names, proposed in P01 question 66, until the user's wording pass confirms them.
 ## Player-facing names of the value keys in effect text, after a signed amount: "+1 max Stance",
 ## "+8 Gold per won combat". A key not listed reads [method key_name] (base stats keep their
 ## abbreviations). A key in [constant PERCENT_KEYS] shows its amount as a percent.

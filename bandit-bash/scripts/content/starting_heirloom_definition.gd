@@ -43,6 +43,7 @@ enum Bonus {
 	REPLACE = 6,
 }
 
+# ASSUMPTION: the wording, in place of "Run start:" (P01 question 67).
 ## The opening of the bonus's line: the bonus is given once, as the run starts.
 const RUN_START_LEAD_IN: String = "At the start of the run"
 
