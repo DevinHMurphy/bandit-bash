@@ -6,7 +6,7 @@
 # File:     armory_purchase_command.gd
 # Author:
 # Created:  November 20, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name ArmoryPurchaseCommand
@@ -20,6 +20,10 @@ extends CampaignCommand
 ## nothing (game-vision.md, Co-op ownership).
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
+
+## Its name on the wire ([method CampaignCommand.get_wire_type]): the entry, the unit and the
+## trade-in travel; the catalog and the stream are the host's.
+const WIRE_TYPE: String = "armory_purchase"
 
 ## The index of the entry in [member ArmoryStock.entries].
 var entry: int = -1
@@ -61,6 +65,26 @@ func validate(run: CampaignRunState) -> String:
 
 func resolve(run: CampaignRunState) -> void:
 	Armory.buy(run, seat, entry, unit_id, is_traded_in, _contents(), stream)
+
+
+func get_wire_type() -> String:
+	return WIRE_TYPE
+
+
+func _wire_fields() -> Array:
+	return [entry, unit_id, is_traded_in]
+
+
+func _read_wire_fields(values: Array) -> bool:
+	if values.size() != 3:
+		return false
+	var stock_index: Variant = _wire_at_least(values[0], _NO_INDEX)
+	if stock_index == null or not values[1] is String or not values[2] is bool:
+		return false
+	entry = stock_index
+	unit_id = values[1]
+	is_traded_in = values[2]
+	return true
 
 
 func _contents() -> EffectCatalog.Index:

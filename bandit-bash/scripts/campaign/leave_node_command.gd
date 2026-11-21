@@ -6,7 +6,7 @@
 # File:     leave_node_command.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name LeaveNodeCommand
@@ -23,6 +23,9 @@ extends CampaignCommand
 ## ([member RunFlow.unknown]); the Unknown odds stay for the next one.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
+
+## Its name on the wire ([method CampaignCommand.get_wire_type]). It has no fields of its own.
+const WIRE_TYPE: String = "leave_node"
 
 
 func _init(sender: int = -1) -> void:
@@ -67,3 +70,7 @@ func resolve(run: CampaignRunState) -> void:
 	var left: CampaignFact = CampaignFact.new(CampaignFact.Kind.NODE_LEFT, seat)
 	left.amount = run.node
 	run.record(left)
+
+
+func get_wire_type() -> String:
+	return WIRE_TYPE

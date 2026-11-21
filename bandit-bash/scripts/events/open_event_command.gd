@@ -23,6 +23,10 @@ extends CampaignCommand
 ##
 ## @tutorial(Events and curses plan): docs/plans/2026-11-12-events-and-curses.md
 
+## Its name on the wire ([method CampaignCommand.get_wire_type]). It has no fields of its own:
+## the pool, catalog, rules and streams are the host's.
+const WIRE_TYPE: String = "open_event"
+
 ## The events to draw from.
 var pool: EventPool = null
 
@@ -76,3 +80,7 @@ func resolve(run: CampaignRunState) -> void:
 		)
 	events.open(event.id, run.floor_number, run.node, run.seat_numbers(), rolls)
 	EventCommand.record_event(run, CampaignFact.Kind.EVENT_DRAWN, CampaignFact.NO_SEAT, run.node)
+
+
+func get_wire_type() -> String:
+	return WIRE_TYPE

@@ -6,7 +6,7 @@
 # File:     item_pick_command.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name ItemPickCommand
@@ -24,6 +24,10 @@ extends CampaignCommand
 
 ## [member index] for skipping the pick.
 const SKIP: int = -1
+
+## Its name on the wire ([method CampaignCommand.get_wire_type]): the offer index and the
+## placement travel; the catalog is the host's.
+const WIRE_TYPE: String = "item_pick"
 
 ## The offer taken, its index in [member ItemPick.offers]; [constant SKIP] to take none.
 var index: int = SKIP
@@ -84,6 +88,25 @@ func resolve(run: CampaignRunState) -> void:
 	_placement().apply(
 			run, seat, ItemInstance.new(offer.instance_id, offer.definition_id), _contents()
 	)
+
+
+func get_wire_type() -> String:
+	return WIRE_TYPE
+
+
+func _wire_fields() -> Array:
+	return [index, _placement_to_wire(placement)]
+
+
+func _read_wire_fields(values: Array) -> bool:
+	if values.size() != 2 or not _is_placement_wire(values[1]):
+		return false
+	var offer_index: Variant = _wire_at_least(values[0], SKIP)
+	if offer_index == null:
+		return false
+	index = offer_index
+	placement = _placement_of_wire(values[1] as Array)
+	return true
 
 
 func _placement() -> ItemPlacement:

@@ -6,7 +6,7 @@
 # File:     treasure_command.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name TreasureCommand
@@ -24,6 +24,10 @@ extends CampaignCommand
 
 ## [member CampaignFact.definition_id] of the chest's gold.
 const SOURCE_ID: String = "treasure"
+
+## Its name on the wire ([method CampaignCommand.get_wire_type]): whether it takes and the
+## placement travel; the catalog is the host's.
+const WIRE_TYPE: String = "treasure"
 
 ## Whether the seat takes the chest; false gives it up.
 var is_taking: bool = true
@@ -95,6 +99,22 @@ func resolve(run: CampaignRunState) -> void:
 				ItemInstance.new(chest.item.instance_id, chest.item.definition_id),
 				placement, contents
 		)
+
+
+func get_wire_type() -> String:
+	return WIRE_TYPE
+
+
+func _wire_fields() -> Array:
+	return [is_taking, _placement_to_wire(placement)]
+
+
+func _read_wire_fields(values: Array) -> bool:
+	if values.size() != 2 or not values[0] is bool or not _is_placement_wire(values[1]):
+		return false
+	is_taking = values[0]
+	placement = _placement_of_wire(values[1] as Array)
+	return true
 
 
 func _contents() -> EffectCatalog.Index:

@@ -6,7 +6,7 @@
 # File:     net_contract.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name NetContract
@@ -28,8 +28,8 @@ extends RefCounted
 const CONTENT_ROOTS: PackedStringArray = ["res://data/", "res://maps/"]
 
 ## Classes whose descendants under [constant SCRIPTS_ROOT] travel by their [code]WIRE_TYPE[/code]
-## constant.
-const COMMAND_BASES: PackedStringArray = ["Command"]
+## constant: the combat commands and the campaign and event commands.
+const COMMAND_BASES: PackedStringArray = ["Command", "CampaignCommand"]
 
 ## Only classes in this folder count as command types: test fixtures elsewhere are never sent.
 const SCRIPTS_ROOT: String = "res://scripts/"

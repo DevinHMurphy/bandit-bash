@@ -18,6 +18,7 @@
 | [design/event-bus.md](design/event-bus.md) | Facts, buses, the effect engine, triggers and the rules-code contract |
 | [design/map-authoring.md](design/map-authoring.md) | Making a combat map: layers, markers, ids, the generator, the map check, darkness sources, pools |
 | [design/content-authoring.md](design/content-authoring.md) | Adding a unit, item, heirloom, curse, rune, prefix, shape or enemy, and the content test |
+| [design/campaign-run.md](design/campaign-run.md) | How a run works between battles: the map, nodes, routing, commands, playback, saving |
 
 Coding rules are in `CLAUDE.md` and `.claude/rules/` at the repo root.
 

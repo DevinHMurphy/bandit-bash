@@ -6,7 +6,7 @@
 # File:     resolve_unknown_command.gd
 # Author:
 # Created:  November 20, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name ResolveUnknownCommand
@@ -22,6 +22,10 @@ extends CampaignCommand
 ## entered but before this command's save rolls the same outcome on Continue.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
+
+## Its name on the wire ([method CampaignCommand.get_wire_type]). It has no fields of its own:
+## the rules and the stream are the host's.
+const WIRE_TYPE: String = "resolve_unknown"
 
 ## The base chances the roll reads.
 var rules: CampaignMapRules = null
@@ -55,6 +59,10 @@ func resolve(run: CampaignRunState) -> void:
 	resolved.definition_id = UnknownResolution.roll(run.flow, rules, stream)
 	resolved.amount = run.node
 	run.record(resolved)
+
+
+func get_wire_type() -> String:
+	return WIRE_TYPE
 
 
 ## The command that rolls the Unknown node [param session]'s run is in, with the node's stream,

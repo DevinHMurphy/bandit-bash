@@ -6,7 +6,7 @@
 # File:     open_treasure_command.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name OpenTreasureCommand
@@ -21,6 +21,10 @@ extends CampaignCommand
 ## save ([method CampaignService.submit_command]) keeps it.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
+
+## Its name on the wire ([method CampaignCommand.get_wire_type]). It has no fields of its own:
+## the catalog, allocator and streams are the host's.
+const WIRE_TYPE: String = "open_treasure"
 
 ## Content the chests draw from.
 var catalog: EffectCatalog.Index = null
@@ -58,6 +62,10 @@ func resolve(run: CampaignRunState) -> void:
 	for seat_number: int in run.seat_numbers():
 		var seat_run: SeatRun = run.seat_run(seat_number)
 		TreasureChest.roll(streams[seat_number], seat_run, catalog, ids, is_coop).store(seat_run)
+
+
+func get_wire_type() -> String:
+	return WIRE_TYPE
 
 
 ## The command that rolls the chests at the Treasure node [param session]'s run is in, with each

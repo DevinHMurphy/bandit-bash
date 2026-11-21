@@ -6,7 +6,7 @@
 # File:     train_command.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name TrainCommand
@@ -16,6 +16,9 @@ extends CampaignCommand
 ## living, non-commander unit not upgraded yet.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
+
+## Its name on the wire ([method CampaignCommand.get_wire_type]): the unit travels.
+const WIRE_TYPE: String = "train"
 
 ## Instance id of the unit upgraded.
 var unit_id: String = ""
@@ -39,6 +42,21 @@ func validate(run: CampaignRunState) -> String:
 
 func resolve(run: CampaignRunState) -> void:
 	Camp.train(run, seat, unit_id, _contents())
+
+
+func get_wire_type() -> String:
+	return WIRE_TYPE
+
+
+func _wire_fields() -> Array:
+	return [unit_id]
+
+
+func _read_wire_fields(values: Array) -> bool:
+	if values.size() != 1 or not values[0] is String:
+		return false
+	unit_id = values[0]
+	return true
 
 
 func _contents() -> EffectCatalog.Index:

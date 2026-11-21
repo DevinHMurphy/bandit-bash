@@ -6,7 +6,7 @@
 # File:     event_chooser_command.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name EventChooserCommand
@@ -19,6 +19,10 @@ extends EventCommand
 ## has no chooser stage. Choosing the option itself is [EventOptionCommand], from either stage.
 ##
 ## @tutorial(Events and curses plan): docs/plans/2026-11-12-events-and-curses.md
+
+## Its name on the wire ([method CampaignCommand.get_wire_type]): the option travels; the pool and
+## the catalog are the host's.
+const WIRE_TYPE: String = "event_chooser"
 
 ## The option whose chooser opens; [constant EventRunState.NO_OPTION] closes the open one.
 var option_index: int = EventRunState.NO_OPTION
@@ -59,3 +63,21 @@ func validate(run: CampaignRunState) -> String:
 func resolve(run: CampaignRunState) -> void:
 	run.events.seat_event(seat).choosing = option_index
 	EventCommand.record_event(run, CampaignFact.Kind.EVENT_CHOOSING, seat, option_index)
+
+
+func get_wire_type() -> String:
+	return WIRE_TYPE
+
+
+func _wire_fields() -> Array:
+	return [option_index]
+
+
+func _read_wire_fields(values: Array) -> bool:
+	if values.size() != 1:
+		return false
+	var option: Variant = _wire_at_least(values[0], EventRunState.NO_OPTION)
+	if option == null:
+		return false
+	option_index = option
+	return true
