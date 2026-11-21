@@ -123,7 +123,7 @@ before writing a prompt and name it in the LANE block.
 |------|------|------|----------|
 | A Battle UI | BF7 small fixes (BUG-023 two places, BUG-030, P00 30–32 marker; ready, user November 21, 2026) | EN16 after EN15; RB1 in M3; CO13 after CO2 | RB1: RN10 merged and a full-run playtest (user, November 20, 2026) |
 | B Campaign and run | P11 CO10 (issued November 21, 2026) | CO5, CO7, CO8, CO11, CO14 | — |
-| C Events | CO9 (issued November 21, 2026) | CO6 (route votes); CO12 (co-op event screen) after CO10 and TX3 | — |
+| C Events | CO6 route votes (CO9 merged November 21, 2026) | CO12 (co-op event screen) after CO10 and TX3; BUG-026 | — |
 | D Engine, AI, content | EN15 (zones; issued November 21, 2026) | EN16; P11 CO1–CO4; CT12 after the weapon modification design | — |
 | E Network | NT4 relay (ready: P11 question 4 answered November 21, 2026, complete_on_host) | NT5–NT8 (NT5 binds the battle and map screens to a client's seat, P11 question 1); CO15 after NT4 | — |
 | G Audio and tooling | TX3 keyword highlighting and tooltips (issued November 21, 2026, beside CO10) | TX2 trait wording, part 2, after the user's wording pass; P17's first step; AU2 after the audio direction (M5); the capture builder tidy-up | TX2 after the user's wording pass in effect-text.md (it applies it, and confirms P01 65–68); P17's first step after the P17 plan |

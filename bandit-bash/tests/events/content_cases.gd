@@ -6,7 +6,7 @@
 # File:     content_cases.gd
 # Author:
 # Created:  November 20, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -392,6 +392,8 @@ func _test_toll_team() -> void:
 		_fx.vote(team.made, team.events, 1, option)
 		var drawn: int = team.made.run.events.drawn_option()
 		team.batch = _fx.choose(team.made, team.events, 0, option)
+		if not team.batch.is_rejected():
+			team.batch = _fx.choose(team.made, team.events, 1, option)
 		var every: bool = drawn == option and not team.batch.is_rejected()
 		for seat: int in [0, 1]:
 			var seat_run: SeatRun = team.made.run.seat_run(seat)
@@ -405,7 +407,7 @@ func _test_toll_team() -> void:
 					every = every and seat_run.gold == gold[seat] + 40
 					every = every and _fx.curses_of(MINOR).has(curse)
 					every = every and seat_run.heirloom_ids().has(curse)
-		_check("bandit_toll: a team vote for \"%s\" draws it and applies it to every seat" % [
+		_check("bandit_toll: a team vote for \"%s\" draws it and each seat applies it" % [
 			_title(TEAM_EVENT, option),
 		], every, _why(team))
 
