@@ -14,17 +14,51 @@ starting from `Godot_FE`'s absolute-range check.
 
 ## Where it stands
 
-- **The target** is 50 ms per hover (P05 question 10).
-- **Today**, measured on M1 turn 1 in a debug build on a worker thread, a hover takes 17–18 ms at
-  the median and 33–40 ms at p95. A release build on the main thread took 14 ms at the median,
-  measured before the worker thread existed.
-- **The cost grows** with enemies × attack options. Each attack option is a full
-  `CombatForecast.exchange`, about 1.9 ms in debug. M1 has 3 enemies. A key combat fields up to 9
-  enemies, its step's standard count plus 1 to 3 plus a mini-boss (game-vision.md, Run structure).
-  Boss maps can field more. Before the worker thread, M1 already ran 66 ms at the median and
-  214–232 ms at p95.
-- **Breakdown unknown.** No profile yet says how a hover's time splits between the fixed costs and
-  the decisions. The first build step measures it.
+- **The target** is 50 ms per hover at p95 in a debug build (P05 question 10; decision 4 below).
+- **The benchmark** (`tests/bench/preview_bench.tscn`, release through
+  `tests/bench/release_bench.sh`) hovers every move tile of every acting unit through the threaded
+  `MovePreview.Queue` on four boards: M1 turn 1, M1 engaged, a 9-enemy 6-unit key board on the
+  Hall, and the Powder Keep engaged. Real key maps field fewer: a key pack is the step's standard
+  count of escorts (at most 5) plus its mini-boss (game-vision.md, Run structure; enemy-packs.md).
+  The key board adds a Brute, a Crossbowman and a Hedge Healer to reach move-preview's benchmark
+  size (P05 question 47). The Powder Keep is the real 9-enemy board.
+- **Measured** on one machine (Ryzen 7 9800X3D), Godot 4.7.1, times in milliseconds. "Before" is
+  EN13's code, measured at the start of EN14; "after" is EN14 (layer 2, the lighter sandbox),
+  November 20, 2026. A sweep is all of one unit's tiles in turn.
+
+| Board | Build | Hover median | Hover p95 | Sweep median | Sweep p95 |
+|---|---|---|---|---|---|
+| M1 turn 1 | debug | 18 → 18 | 41 → 29 | 520 → 461 | 942 → 770 |
+| M1 turn 1 | release | 14 → 13 | 28 → 25 | 382 → 363 | 690 → 601 |
+| M1 engaged | debug | 82 → **28** | 107 → **46** | 2,051 → 694 | 2,783 → 971 |
+| M1 engaged | release | 58 → 24 | 74 → 40 | 1,484 → 587 | 1,964 → 830 |
+| Key, 9 enemies | debug | 362 → 205 | 503 → 300 | 12,590 → 7,289 | 21,926 → 12,731 |
+| Key, 9 enemies | release | 251 → 156 | 359 → 226 | 8,688 → 5,544 | 15,673 → 9,760 |
+| Boss, 9 enemies | debug | 1,609 → 618 | 1,860 → 970 | 61,825 → 25,196 | 98,829 → 35,291 |
+| Boss, 9 enemies | release | 1,097 → 449 | 1,275 → 707 | 42,432 → 18,513 | 67,473 → 25,942 |
+
+- **The target now holds** on both M1 boards, and is missed on the 9-enemy boards.
+- **Why one forecast slowed on big boards** (EN13: 1.9 ms on M1, 4.6 ms on the boss board): the
+  sandbox copy. Every `StatSheet.copy_for` rebuilt its copy through `set_base` and
+  `add_modifier`, each dropping 16 cache slots from an empty cache, for every base sheet and every
+  cached sheet: about 1.35 ms of a 1.56 ms engine copy on the key board in debug. Instances
+  (copying and re-registering about 32) took 0.24 ms. The copy now takes the dictionaries whole,
+  with each sheet's static answers. One forecast in debug: 1.8 → 1.1 ms (M1), 3.1 → 1.7 ms (key),
+  3.3 → 1.9 ms (boss). What still grows with the board is the engine copy's instances (0.15 →
+  0.54 ms) and the exchange's dispatch over them (0.76 → 0.98 ms).
+- **Reuse, as built** (layer 2): on the key board a hover makes 46 attack forecasts and reuses 32;
+  on the boss board it makes 259 and reuses 199. Three things limit it:
+  - an army effect counting every attack (Iron Heart, every 7th attack by your units; the
+    Mercenary army's heirloom) is read by nearly every forecast, and its counter moves at almost
+    every enemy step, so steps within one preview rarely reuse each other's forecasts. Most reuse
+    comes from earlier hovers on the same board;
+  - engaged boards cluster: most options lie within the margin of the unit moved or of an earlier
+    step's action;
+  - previews keep at most 2,000 forecasts in the store (Threads and memory).
+- **What dominates now** on the 9-enemy boards is the decisions themselves, not their forecasts:
+  45 decisions per hover, each with its floods, Support's safety floods (the Warcaller's about
+  13 ms per decision in debug) and an advance's whole-map flood. Layers 3 and 4 bound those;
+  layer 5 hides the rest.
 
 ## How a preview works now
 
@@ -114,6 +148,30 @@ both changes still finds its forecasts cached.
 **Fallback:** if any effect reads the whole map (a margin of −1, as with "no ally closer to the
 enemy"), the key holds every unit's signature. Nothing is reused, which is today's behavior.
 
+**As built (EN14, P05 question 48):** `EnemyAI.ForecastStore` and `EnemyAI.Forecasts`, handed to
+`EnemyAI.decide` through an optional `forecasts` argument.
+
+- **The key:** the attacker, the weapon, the path and the target; the margin; the signature of
+  each unit on the path or within the margin of the attacker's tile, the end tile and the
+  target's tile; and what the whole board shares (turn, phase, the darkness layers, map objects,
+  and the counters of effects with no holder, such as heirlooms). Units beside the path aren't in
+  it: a walk reads only its own tiles, and a move before acting fires nothing.
+- **A signature** is the unit's whole state (`CombatUnitState.capture`), the counters and charges
+  of the effects it holds, its timed modifiers, and its stat changes in the sandbox's fact log.
+  An effect that fires only at Phase Start or Phase End is left out: a forecast crosses no phase,
+  and only an effect's own instance reads its counters.
+- **Whole-board effects:** an effect that can fire in an exchange and selects a whole scope (Grave
+  Candle's Block for all your units on a defeat), runs a custom script (a keg's blast aside,
+  which the margin counts) or reaches other units by scope from a unit puts every unit's
+  signature in the key.
+- **Lifetime:** one store per computation of the intents, not per battle; it is dropped at the
+  next fact. Surviving facts needs the turn-dependent parts and the cross-generation sharing
+  worked out first, and is left for later.
+
+The board diff of layer 1 is the signatures: two boards differ, for a forecast, exactly where its
+key's signatures differ. The decision-level reuse (`Decision.touches`) still uses the moved
+unit's two tiles.
+
 ### 3. Bounded zones for the decisions that are global today
 
 Each zone below is a safe upper bound. A tile outside it can't change the decision. All three use
@@ -197,13 +255,17 @@ The preview must equal a full re-plan, so every layer ships with checks that com
 
 ## Threads and memory
 
-- **Threads.** The main thread fills the option cache when it computes intents. A preview on the
-  worker reads the cache and writes its new entries to its own overlay. The main thread merges the
-  overlay when it collects the result. Only one preview runs at a time, so nothing needs a lock.
-  The rules code stays pure, and the worker still never logs.
-- **Memory.** One forecast per enemy × end tile × target in range × weapon. A key combat with
-  9 enemies, about 40 end tiles each and 2 targets in range, comes to about 1,500 forecasts. That is
-  small, and the cache clears at each turn's end. The figure is an estimate, not measured.
+- **Threads.** The main thread fills the store when it computes intents. A preview, on the worker,
+  reads the store and keeps its new forecasts in its own overlay, then adds them to the store as
+  it ends, on the worker. One preview runs at a time, but the store takes a lock on every read
+  and write anyway, so a dropped job finishing while the main thread works stays safe. The rules
+  code stays pure, and the worker still never logs.
+- **Memory, measured.** A kept forecast holds 25–43 KB in debug (its facts, rolls and outcomes are
+  objects). Unbounded, a sweep of every tile of one board state kept 10,225 forecasts on the key
+  board (480 MB) and 58,793 on the boss board. So previews add at most 2,000 to a store, the oldest
+  previews' dropped first (a hover's neighbours share most forecasts); the computation's own are
+  kept besides. After a full sweep the store held 89 MB on the key board and 64 MB on the boss
+  board, in debug. It goes at the next fact.
 
 ## Rejected
 
@@ -219,13 +281,13 @@ The preview must equal a full re-plan, so every layer ships with checks that com
 | Step | Work | Done when |
 |---|---|---|
 | A Measure | Benchmark boards: M1 turn 1, M1 engaged, a 9-enemy, 6-unit key-combat board. A per-phase profile of a hover. The equality suite and checking mode, run against today's preview | Baseline median and p95, debug and release, per hover and per sweep; equality passes |
-| B Diff and cache | Layers 1 and 2, the shared flood | Equality passes; the benchmark is measured before and after |
+| B Diff and cache | Layers 1 and 2, the shared flood (left out: under 2% of a hover) | Equality passes; the benchmark is measured before and after. **Built in EN14** (Where it stands) |
 | C Zones | Layers 3 and 4 | Same |
 | D Precompute | Layer 5: the sweep during playback, in `MovePreview.Queue` | A hover on a done tile shows on the next frame; the sweep's time per turn is reported |
 
 Steps A–C change only the internals of `intents.gd`, `enemy_ai.gd` and `danger_zone.gd`. Step D
 changes the queue inside `move_preview.gd` and the controller's calls into it. No public signature
-changes. Step D goes ahead whatever B and C measure, because the user wants hover work at a minimum.
+changes, except EN14's optional `forecasts` argument on `EnemyAI.decide` (P05 question 48). Step D goes ahead whatever B and C measure, because the user wants hover work at a minimum.
 
 ## Decisions
 

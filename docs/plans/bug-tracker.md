@@ -55,7 +55,7 @@ Not a bug.
 | [BUG-020](#bug-020-a-broken-breakables-token-stayed-on-the-board) | A broken breakable's token stayed on the board | P07 (board) | S3 | Fixed (BF4 merge, November 20, 2026) | November 19, 2026, BF4 report | BF4 |
 | [BUG-021](#bug-021-an-infused-basic-weapon-scraps-for-0-gold) | An Infused Basic weapon scraps (and trades in) for 0 gold | P08 (prices) | S3 | Fixed (EV4 merge, November 20, 2026) | November 20, 2026, RN8 report | EV4 (note sent November 20, 2026) |
 | [BUG-022](#bug-022-an-enemys-second-move-ending-in-a-wait-crashes-the-enemy-phase) | An enemy's second move ending in a Wait crashes the enemy phase (the Bloodhound after a kill) | P05 (enemy plans) | S2 | Fixed (BF5 merge, November 20, 2026) | November 20, 2026, EN13 report | BF5 |
-| [BUG-023](#bug-023-an-untyped-empty-literal-from-a-ternary-fails-in-a-typed-slot) | An untyped `[]` from a ternary fails at runtime in a typed Array slot (three latent places) | P01 / P08 / tests | S3 (latent) | Open | November 20, 2026, BF5 report | EN14 (effect_engine.gd), BF7 (the other two; UL10 left them) |
+| [BUG-023](#bug-023-an-untyped-empty-literal-from-a-ternary-fails-in-a-typed-slot) | An untyped `[]` from a ternary fails at runtime in a typed Array slot (three latent places) | P01 / P08 / tests | S3 (latent) | Open | November 20, 2026, BF5 report | EN14 fixed effect_engine.gd; BF7 (the other two; UL10 left them) |
 | [BUG-024](#bug-024-battles-dont-save-at-the-end-of-a-player-phase) | Battles don't save at the end of a player phase: a crash loses every move since Begin | P00 / P07 (battle checkpoints) | S2 | Fixed (BF6 merge, November 20, 2026) | November 20, 2026, P11 plan report | BF6 |
 | [BUG-025](#bug-025-openeventcommand-accepts-an-unknown-that-rolled-a-shop) | `OpenEventCommand` accepts an Unknown that rolled a shop, Treasure or combat | P09 (event commands) | S3 (latent) | Open | November 20, 2026, RN10 report | a Lane C step (CO9) |
 | [BUG-026](#bug-026-the-event-panels-deferred-focus-has-no-in-tree-guard) | The event panel's deferred focus has no in-tree guard (BUG-017's pattern) | P09 (event screen) | S4 | Open | November 20, 2026, RN10 report | a Lane C step (CO12) |
@@ -400,7 +400,8 @@ Not a bug.
   - `ui/campaign/starting_offer_view.gd:210` (no offer; Lane A or B);
   - `tests/ui/victory/victory_cases.gd:96` (a null model shows as a script error, not a failed check).
 - **Fix:** a typed local, assigned in an `if`, as BF5 did. `effect_engine.gd` goes in EN14; UL10
-  left the other two unchanged, so they go in BF7.
+  left the other two unchanged, so they go in BF7. EN14 fixed `effect_engine.gd` (merged November
+  20, 2026).
 
 ### BUG-024 Battles don't save at the end of a player phase
 

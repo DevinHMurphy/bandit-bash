@@ -13,8 +13,9 @@ extends Node
 ## The move preview's baseline (move-preview.md, build step A): on four boards (M1 turn 1, M1
 ## engaged, a 9-enemy 6-unit key board on the Hall, the Powder Keep engaged), every tile each
 ## acting unit can end on is hovered through a threaded [MovePreview.Queue] as the battle runs it,
-## giving the latency per hover and per sweep (all of one unit's tiles in turn), and the frame that
-## starts each; then a per-phase profile of sampled hovers on the main thread.[br]
+## giving the latency per hover and per sweep (all of one unit's tiles in turn), the frame that
+## starts each, the attack forecasts each made and reused, and the memory the sweep left held; then
+## a per-phase profile of sampled hovers on the main thread.[br]
 ## Run from the repo root, with board names after [code]--[/code] to run only those:[br]
 ## [code]godot --headless --path bandit-bash res://tests/bench/preview_bench.tscn -- key_engaged
 ## [/code][br]
@@ -65,9 +66,15 @@ const TARGET_USEC: float = 50000.0
 # to within a millisecond, without a busy loop taking a core from it.
 const POLL_USEC: int = 1000
 
+const BYTES_PER_MB: float = 1048576.0
+
 var _failures: PackedStringArray = []
 var _catalog: EffectCatalog.Index = null
 var _runs: Array[CampaignSession] = []
+# Per hover of the board being benched: the attack forecasts its preview made afresh, and reused
+# from the latest intents' store (Intents.forecasts_made, Intents.forecasts_reused).
+var _made: PackedInt64Array = []
+var _reused: PackedInt64Array = []
 
 
 func _ready() -> void:
@@ -347,6 +354,9 @@ func _bench_worker(session: CombatSession) -> void:
 	var sweeps: PackedInt64Array = []
 	var warm: Array[Vector2i] = TurnInputModel.move_tiles(session, units[0])
 	_hover(queue, session, units[0], warm[warm.size() - 1], PackedInt64Array())
+	_made.clear()
+	_reused.clear()
+	var memory_before: int = OS.get_static_memory_usage()
 	for unit_id: String in units:
 		var swept: int = Time.get_ticks_usec()
 		for tile: Vector2i in TurnInputModel.move_tiles(session, unit_id):
@@ -356,6 +366,12 @@ func _bench_worker(session: CombatSession) -> void:
 	_report("hover to preview (latency)", hovers)
 	_report("  frame that starts it (main thread)", starts)
 	_report("sweep: every move tile of one unit", sweeps)
+	_report_count("attack forecasts made per hover", _made)
+	_report_count("attack forecasts reused per hover", _reused)
+	# Static memory is counted in debug builds only; a release build prints 0.
+	print("Memory the sweep left held (the latest intents' forecasts): %+.1f MB" % [
+		(OS.get_static_memory_usage() - memory_before) / BYTES_PER_MB,
+	])
 	print("Target %.0f per hover: median %s, p95 %s" % [
 		TARGET_USEC,
 		"met" if _median(hovers) <= TARGET_USEC else "missed",
@@ -379,6 +395,9 @@ func _hover(
 		OS.delay_usec(POLL_USEC)
 		ready = queue.run_pending(session)
 	var latency: int = Time.get_ticks_usec() - requested
+	if ready.intents != null:
+		_made.append(ready.intents.forecasts_made)
+		_reused.append(ready.intents.forecasts_reused)
 	# The queue drops a request repeating the preview it shows, which would wait forever here.
 	queue.clear()
 	return latency
@@ -390,6 +409,15 @@ func _report(label: String, samples: PackedInt64Array) -> void:
 		label, samples.size(), _median(samples), _p95(samples),
 		0.0 if samples.is_empty() else float(samples[samples.size() - 1]),
 	])
+
+
+# A count per hover, with its mean, which a median of whole numbers hides.
+func _report_count(label: String, samples: PackedInt64Array) -> void:
+	var total: int = 0
+	for sample: int in samples:
+		total += sample
+	var mean: float = 0.0 if samples.is_empty() else total / float(samples.size())
+	_report("%s (mean %.1f)" % [label, mean], samples)
 
 
 static func _median(sorted: PackedInt64Array) -> float:

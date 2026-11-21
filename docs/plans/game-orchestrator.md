@@ -36,7 +36,7 @@ Where the project is, what's next and what's out of scope. Start here.
 - **Milestones:** M0 and M1 are complete. **Current: M2 Combat complete,** with M3 started alongside.
 - **What runs today:** a solo run opens the M1 battle: the Mercenary army against the Brigand pack on the greybox map. All of M2's battle systems and functional UI work on keyboard, mouse and controller: targeting, forecast, intents, the darkness, every objective's HUD, unit detail, and Save & Quit with resume.
 - **What M2 still needs:** content, enemy AI, docs and bug fixes. No new systems.
-- **Tests:** 7,241 cases in 30 suites, all passing, and a clean headless launch (`sh bandit-bash/tools/run_tests.sh`).
+- **Tests:** 7,260 cases in 30 suites, all passing, and a clean headless launch (`sh bandit-bash/tools/run_tests.sh`).
 - **Not started:** P09 (approved) and P10–P12. P08 is in progress (RN1–RN5 merged).
 
 ## Milestones
@@ -66,7 +66,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P02 | [Combat core](2026-10-26-combat-core.md) | **Implemented** (CC9 docs merged November 19, 2026; vision question 4 checked against `BonusTurns`, N1–N10 recorded as built, BUG-003 fixed) | — | P01 |
 | P03 | [Content catalog](2026-10-29-content-catalog.md) | **In progress** | CT12 weapon modifications (CT11 docs merged November 19, 2026: [content-authoring.md](../design/content-authoring.md)) (M3, after P09 EV1; question 33) | P01 |
 | P04 | [Combat map](2026-10-27-combat-map.md) | **In progress** | MP11 map authoring toolkit (future; MP9 docs merged November 19, 2026: [map-authoring.md](../design/map-authoring.md)) | P01, P02 |
-| P05 | [Enemies and AI](2026-10-30-enemies-and-ai.md) | **In progress** | EN13–EN16 (EN11 merged November 18, 2026; EN12 docs merged November 19, 2026, in content-authoring.md) | P02, P04 |
+| P05 | [Enemies and AI](2026-10-30-enemies-and-ai.md) | **In progress** | EN15, EN16 (EN13 and EN14, the forecast cache, merged November 20, 2026; EN11 merged November 18, 2026; EN12 docs merged November 19, 2026, in content-authoring.md) | P02, P04 |
 | P06 | [The darkness](2026-11-03-the-darkness.md) | **Implemented** (DK6 docs merged November 19, 2026) | — | P02, P04 |
 | P07 | [Combat UI](2026-11-04-combat-ui.md) | **In progress** | Nothing for M2 | P02, P04, P05, P06 |
 | P08 | [Campaign and run flow](2026-10-24-campaign-run-flow.md) | **In progress**: RN6 and RN7 merged November 19, 2026; RN8, RN9, RN10 and RN11 (the full run, resumed at every stop) November 20 | RN12 | P01, P03 |
