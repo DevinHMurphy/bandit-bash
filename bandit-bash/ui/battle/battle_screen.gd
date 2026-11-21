@@ -6,7 +6,7 @@
 # File:     battle_screen.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 19, 2026
+# Modified: November 20, 2026
 # ==============================================================================
 
 class_name BattleScreen
@@ -16,10 +16,11 @@ extends Node2D
 ## It begins the run's combat node from [method CampaignRunState.battle_request] (in the swap
 ## window only while [member SettingsData.is_opening_swap_on]), resumes one saved mid-fight or
 ## shows one already on (its [EventLog] starting "Battle resumed"), and sends any other run to
-## [RunScreen]. Once the map has ended and settled, input stops, the end banner shows for
-## [member end_banner_time], and the result is saved: a won solo combat's [VictoryOverlay] opens
-## over the board; a loss goes on. Co-op and clients keep the placeholder; the save debug panel
-## (F3, with the debug fact log) hides while a battle shows.
+## [RunScreen]. The end of each player phase saves the battle as its command resolves
+## ([method SaveService.save_checkpoint]). Once the map has ended and settled, input stops, the
+## end banner shows for [member end_banner_time], and the result is saved: a won solo combat's
+## [VictoryOverlay] opens over the board; a loss goes on. Co-op and clients keep the placeholder;
+## the save debug panel (F3, with the debug fact log) hides while a battle shows.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
@@ -120,6 +121,7 @@ func _open(encounter: CombatEncounter, seat: int) -> void:
 	if is_instance_valid(_save_debug_panel):
 		_save_debug_panel.visible = false
 	_view.settled.connect(_on_battle_view_settled)
+	_session.batch_resolved.connect(_on_session_batch_resolved)
 	_view.bind(_session)
 	_controller.bind(encounter, _session, seat)
 	_controller.run_units = _run_units_of(seat)
@@ -203,6 +205,22 @@ func _on_battle_view_settled() -> void:
 		_show_end()
 
 
+# The end-of-phase checkpoint (save-system.md, When the game saves). The batch that ends the player
+# phase also resolved the enemy phase and the next player Phase Start (PhaseRunner.end_turn), so
+# the save holds the start of that phase. A battle the batch finished is saved by _end_battle().
+# A failed save is reported and play goes on: the previous save stays, and the next one retries.
+func _on_session_batch_resolved(batch: CombatSession.FactBatch) -> void:
+	if _is_ending or _session.is_finished or SaveService.combat == null:
+		return
+	if not _ends_player_phase(batch):
+		return
+	# ASSUMPTION: the save lands as the batch resolves, before its playback, so a crash while the
+	# enemy phase plays resumes at the next player phase instead of losing the phase.
+	var err: Error = SaveService.save_checkpoint()
+	if err != OK:
+		push_error("BattleScreen: the end-of-phase save failed - %s" % [error_string(err)])
+
+
 func _on_unit_panel_details_pressed(unit_id: String) -> void:
 	_controller.request_unit_detail(unit_id)
 
@@ -210,3 +228,11 @@ func _on_unit_panel_details_pressed(unit_id: String) -> void:
 # The raw fact log shows only beside the save debug panel, and only while a battle shows.
 func _on_save_debug_panel_visibility_changed() -> void:
 	_hud.get_fact_log().visible = _save_debug_panel.visible and _session != null
+
+
+# Whether batch holds the player side's Phase End: the last End Turn of a player phase.
+static func _ends_player_phase(batch: CombatSession.FactBatch) -> bool:
+	for fact: CombatFact in batch.facts:
+		if fact.kind == CombatFact.Kind.PHASE_END and fact.side == CombatFact.CombatSide.PLAYER:
+			return true
+	return false

@@ -121,7 +121,7 @@ before writing a prompt and name it in the LANE block.
 
 | Lane | Next | Then | Gated on |
 |------|------|------|----------|
-| A Battle UI | BF6 (issued November 20, 2026) | EN16 after EN14; RB1 in M3; CO13 after CO2 | RB1: RN10 merged and a full-run playtest (user, November 20, 2026) |
+| A Battle UI | BF7 small fixes (BUG-023 two places, BUG-030, P00 30–32 marker) | EN16 after EN14; RB1 in M3; CO13 after CO2 | RB1: RN10 merged and a full-run playtest (user, November 20, 2026) |
 | B Campaign and run | RN11 full run (issued November 20, 2026) | RN12 docs; then P11 CO10, CO5, CO7, CO8, CO11, CO14 | NT3 goes after RN11 (user) |
 | C Events | CO9 (team choices per seat) | CO6 (route votes), CO12 (co-op event screen) | — |
 | D Engine, AI, content | EN14 (forecast cache) | EN15, EN16; CT12 after the weapon modification design | — |

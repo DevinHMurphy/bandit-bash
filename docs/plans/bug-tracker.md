@@ -1,6 +1,6 @@
 # Bug Tracker
 
-**Created:** November 6, 2026. **Last updated:** November 16, 2026.
+**Created:** November 6, 2026. **Last updated:** November 20, 2026.
 
 Every known defect in `bandit-bash/`, from playtests, build reports and reviews. It works under the
 [orchestrator](game-orchestrator.md): the orchestrator session triages new rows, batches them into
@@ -55,12 +55,14 @@ Not a bug.
 | [BUG-020](#bug-020-a-broken-breakables-token-stayed-on-the-board) | A broken breakable's token stayed on the board | P07 (board) | S3 | Fixed (BF4 merge, November 20, 2026) | November 19, 2026, BF4 report | BF4 |
 | [BUG-021](#bug-021-an-infused-basic-weapon-scraps-for-0-gold) | An Infused Basic weapon scraps (and trades in) for 0 gold | P08 (prices) | S3 | Fixed (EV4 merge, November 20, 2026) | November 20, 2026, RN8 report | EV4 (note sent November 20, 2026) |
 | [BUG-022](#bug-022-an-enemys-second-move-ending-in-a-wait-crashes-the-enemy-phase) | An enemy's second move ending in a Wait crashes the enemy phase (the Bloodhound after a kill) | P05 (enemy plans) | S2 | Fixed (BF5 merge, November 20, 2026) | November 20, 2026, EN13 report | BF5 |
-| [BUG-023](#bug-023-an-untyped-empty-literal-from-a-ternary-fails-in-a-typed-slot) | An untyped `[]` from a ternary fails at runtime in a typed Array slot (three latent places) | P01 / P08 / tests | S3 (latent) | Open | November 20, 2026, BF5 report | EN14 (effect_engine.gd), UL10 (the other two) |
-| [BUG-024](#bug-024-battles-dont-save-at-the-end-of-a-player-phase) | Battles don't save at the end of a player phase: a crash loses every move since Begin | P00 / P07 (battle checkpoints) | S2 | Open (BF6 issued November 20, 2026) | November 20, 2026, P11 plan report | BF6 (Lane A, after UL10) |
+| [BUG-023](#bug-023-an-untyped-empty-literal-from-a-ternary-fails-in-a-typed-slot) | An untyped `[]` from a ternary fails at runtime in a typed Array slot (three latent places) | P01 / P08 / tests | S3 (latent) | Open | November 20, 2026, BF5 report | EN14 (effect_engine.gd), BF7 (the other two; UL10 left them) |
+| [BUG-024](#bug-024-battles-dont-save-at-the-end-of-a-player-phase) | Battles don't save at the end of a player phase: a crash loses every move since Begin | P00 / P07 (battle checkpoints) | S2 | Fixed (BF6 merge, November 20, 2026) | November 20, 2026, P11 plan report | BF6 |
 | [BUG-025](#bug-025-openeventcommand-accepts-an-unknown-that-rolled-a-shop) | `OpenEventCommand` accepts an Unknown that rolled a shop, Treasure or combat | P09 (event commands) | S3 (latent) | Open | November 20, 2026, RN10 report | a Lane C step (CO9) |
 | [BUG-026](#bug-026-the-event-panels-deferred-focus-has-no-in-tree-guard) | The event panel's deferred focus has no in-tree guard (BUG-017's pattern) | P09 (event screen) | S4 | Open | November 20, 2026, RN10 report | a Lane C step (CO12) |
 | [BUG-027](#bug-027-burglars-roll-shows-no-effect-text) | Burglar's Roll shows no effect text, only "(1 use this combat)" | P03 / P07 (effect text) | S3 | Open (TX1 issued November 20, 2026) | November 20, 2026, user | TX1 |
 | [BUG-028](#bug-028-a-weapons-own-effects-dont-show-in-unit-detail) | A weapon's own effects (lifesteal, extra strikes) don't show in unit detail's gear row | P07 (unit detail) | S3 | Open (TX1 issued November 20, 2026) | November 20, 2026, user | TX1 |
+| [BUG-029](#bug-029-the-node-placeholder-says-this-node-isnt-built-yet) | The node placeholder says "This node isn't built yet", but now shows only for an Unknown with no event to draw | P08 (campaign UI) | S4 | Open | November 20, 2026, BF6 report | the next Lane B step after RN11 |
+| [BUG-030](#bug-030-the-save-debug-panels-doc-calls-its-end-player-phase-the-only-battle-save) | The save debug panel's doc calls its End Player Phase the only battle save besides Begin | P00 (debug panel) | S4 | Open | November 20, 2026, BF6 report | BF7 |
 
 ### BUG-001 No Block at the start of combat
 
@@ -396,7 +398,8 @@ Not a bug.
   - `scripts/effects/effect_engine.gd:1124` (a missing effect instance; Lane D);
   - `ui/campaign/starting_offer_view.gd:210` (no offer; Lane A or B);
   - `tests/ui/victory/victory_cases.gd:96` (a null model shows as a script error, not a failed check).
-- **Fix:** a typed local, assigned in an `if`, as BF5 did. Each goes in its owner's next step.
+- **Fix:** a typed local, assigned in an `if`, as BF5 did. `effect_engine.gd` goes in EN14; UL10
+  left the other two unchanged, so they go in BF7.
 
 ### BUG-024 Battles don't save at the end of a player phase
 
@@ -408,6 +411,12 @@ Not a bug.
 - **Fix in BF6** before M3 (a solo run must be resumable): save at the end of each player phase.
   P11 CO2 then extends it to co-op, where each map checkpoints at the end of its own player phase
   (P11 question 39).
+- **Fixed** in BF6 (merged November 20, 2026): the battle screen saves (`save_checkpoint()`) as
+  the batch holding the player side's Phase End resolves, before its playback. That batch also
+  holds the enemy phase and the next player Phase Start, so a resume opens at the start of the next
+  player phase and re-runs nothing. A phase end that finishes the battle is saved by the battle's
+  end instead. Regression: `tests/ui/battle/phase_save_cases.gd`. P00 questions 30–32 hold the
+  defaults, to confirm.
 
 ### BUG-025 OpenEventCommand accepts an Unknown that rolled a shop
 
@@ -438,3 +447,14 @@ Not a bug.
 - **Reported** by the user: a weapon's specials (lifesteal, multiple strikes) aren't on the unit
   detail panel. `DetailGearRow` shows a weapon's profile *or* an item's effect text, so a weapon's
   effects never show. Check that a weapon's strike count (AtkX) is in its profile as well.
+
+### BUG-029 The node placeholder says "This node isn't built yet"
+
+- **Found** by BF6: since RN10 and RN11 the placeholder (`ui/campaign/`) shows only for an Unknown
+  that rolled an event with none to draw, so its copy is stale. It should say what happened (no
+  event this time) and let the player go on.
+
+### BUG-030 The save debug panel's doc calls its End Player Phase the only battle save
+
+- **Found** by BF6: `save_debug_panel.gd`'s class doc says its End Player Phase is "the only battle
+  save point besides Begin". Since BF6 the battle screen saves at every player phase end.
