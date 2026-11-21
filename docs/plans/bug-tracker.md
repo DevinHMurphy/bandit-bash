@@ -1,6 +1,6 @@
 # Bug Tracker
 
-**Created:** November 6, 2026. **Last updated:** November 20, 2026.
+**Created:** November 6, 2026. **Last updated:** November 21, 2026.
 
 Every known defect in `bandit-bash/`, from playtests, build reports and reviews. It works under the
 [orchestrator](game-orchestrator.md): the orchestrator session triages new rows, batches them into
@@ -61,7 +61,7 @@ Not a bug.
 | [BUG-026](#bug-026-the-event-panels-deferred-focus-has-no-in-tree-guard) | The event panel's deferred focus has no in-tree guard (BUG-017's pattern) | P09 (event screen) | S4 | Open | November 20, 2026, RN10 report | a Lane C step (CO12) |
 | [BUG-027](#bug-027-burglars-roll-shows-no-effect-text) | Burglar's Roll shows no effect text, only "(1 use this combat)" | P03 / P07 (effect text) | S3 | Fixed (TX1 merge, November 20, 2026) | November 20, 2026, user | TX1 |
 | [BUG-028](#bug-028-a-weapons-own-effects-dont-show-in-unit-detail) | A weapon's own effects (lifesteal, extra strikes) don't show in unit detail's gear row | P07 (unit detail) | S3 | Can't reproduce (TX1, November 20, 2026: the gear row already shows a weapon's effect lines and AtkX; regression cases added) | November 20, 2026, user | TX1 |
-| [BUG-029](#bug-029-the-node-placeholder-says-this-node-isnt-built-yet) | The node placeholder says "This node isn't built yet", but now shows only for an Unknown with no event to draw | P08 (campaign UI) | S4 | Open | November 20, 2026, BF6 report | RN12 |
+| [BUG-029](#bug-029-the-node-placeholder-says-this-node-isnt-built-yet) | The node placeholder says "This node isn't built yet", but now shows only for an Unknown with no event to draw | P08 (campaign UI) | S4 | Open (RN12 issued November 21, 2026) | November 20, 2026, BF6 report | RN12 |
 | [BUG-030](#bug-030-the-save-debug-panels-doc-calls-its-end-player-phase-the-only-battle-save) | The save debug panel's doc calls its End Player Phase the only battle save besides Begin | P00 (debug panel) | S4 | Open | November 20, 2026, BF6 report | BF7 |
 | [BUG-031](#bug-031-a-continued-runs-instance-ids-drift-from-an-uninterrupted-ones) | A continued run's instance ids drift from an uninterrupted one's, so heirloom reactions can fire in another order after a quit | P08 / P01 (campaign session) | S2 | Fixed (RN11 merge, November 20, 2026) | November 20, 2026, RN11 | RN11 |
 
