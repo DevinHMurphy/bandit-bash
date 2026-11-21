@@ -6,7 +6,7 @@
 # File:     gift_item_command.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name GiftItemCommand
@@ -18,6 +18,10 @@ extends CampaignCommand
 ## Records [constant CampaignFact.Kind.ITEM_GIFTED].
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
+
+## Its name on the wire ([method CampaignCommand.get_wire_type]): the item and the receiving seat
+## travel.
+const WIRE_TYPE: String = "gift_item"
 
 ## Instance id of the giver's convoy item.
 var item_id: String = ""
@@ -73,6 +77,25 @@ func resolve(run: CampaignRunState) -> void:
 	gifted.definition_id = item.definition_id
 	gifted.amount = to_seat
 	run.record(gifted)
+
+
+func get_wire_type() -> String:
+	return WIRE_TYPE
+
+
+func _wire_fields() -> Array:
+	return [item_id, to_seat]
+
+
+func _read_wire_fields(values: Array) -> bool:
+	if values.size() != 2 or not values[0] is String:
+		return false
+	var receiver: Variant = _wire_at_least(values[1], CampaignFact.NO_SEAT)
+	if receiver == null:
+		return false
+	item_id = values[0]
+	to_seat = receiver
+	return true
 
 
 func _contents() -> EffectCatalog.Index:

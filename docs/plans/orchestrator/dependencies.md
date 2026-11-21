@@ -262,8 +262,9 @@ flowchart LR
   class EV1F done
   class EV4,EV1G done
   class EV6,UL9 done
-  class NT3 active
-  class NT4,NT5,NT6,NT8,CO2,CO3,CO8,CO11,CO12,CO13,CO14,CO15,CO16,CO17,CO18,CO19,CO21 waiting
+  class NT3 done
+  class NT4 ready
+  class NT5,NT6,NT8,CO2,CO3,CO8,CO11,CO12,CO13,CO14,CO15,CO16,CO17,CO18,CO19,CO21 waiting
   class CO1,CO4,CO5,CO6,CO7,CO9,CO10 ready
 
 ```
@@ -344,7 +345,7 @@ mark it **Open** here.
 | P04 MP1–MP3, MP6 | P04 approved ✅ (October 27, 2026) | — | **Open** October 27, 2026; MP1–MP3 built October 28, 2026; MP6 built October 29, 2026, so MP7 may start; MP7 built October 29, 2026 |
 | P04 MP4 Objectives | P02 CC6 (the `AFTER_STEP` hook) | The checks run on the turn loop's hook; built with CC6 | **Open** October 28, 2026 (EB6 implemented, so CC6 may start); implemented with CC6 October 28, 2026, so MP5 may start |
 | P04 MP8 Save sections | P01 EB7, P02 CC8 | `entities` and `combat_map` follow the session snapshot and `combat_state` | **Open** October 31, 2026 (CC8 merged) |
-| P10 NT1–NT8 Net transport | P10 approved ✅ (November 19, 2026); in order NT1, then NT2 and NT3 in parallel, then NT4–NT8 | Cross-lane edits per the plan's "Other lanes' files" column (P10 question 12): NT3 touches Lanes B and C, NT5 `battle_controller.gd` (Lane A), NT6 `scene_router.gd` (Lane B); schedule each when those lanes are quiet | **Open**: NT1 ✅ (merged November 19, 2026: `NetGate`, `NetContract` (the build fingerprint, about 164 ms at boot), `BUILD_MISMATCH = 3`, `SeatDirectory`, the `tests/net/` suite; P10 questions 15–18). NT2 ✅ (merged November 19, 2026: the loopback harness, `tests/net/harness/net_harness.gd`, plus one ENet case; P10 questions 19–21 answered as recommended). NT3 issued November 21, 2026 (Lane E, beside RN12; RN11 merged November 20, 2026; NT3 gives every campaign and event command a wire form; EV4 is event data and EV1G event UI, neither edits commands); NT4 needs NT3 |
+| P10 NT1–NT8 Net transport | P10 approved ✅ (November 19, 2026); in order NT1, then NT2 and NT3 in parallel, then NT4–NT8 | Cross-lane edits per the plan's "Other lanes' files" column (P10 question 12): NT3 touches Lanes B and C, NT5 `battle_controller.gd` (Lane A), NT6 `scene_router.gd` (Lane B); schedule each when those lanes are quiet | **Open**: NT1 ✅ (merged November 19, 2026: `NetGate`, `NetContract` (the build fingerprint, about 164 ms at boot), `BUILD_MISMATCH = 3`, `SeatDirectory`, the `tests/net/` suite; P10 questions 15–18). NT2 ✅ (merged November 19, 2026: the loopback harness, `tests/net/harness/net_harness.gd`, plus one ENet case; P10 questions 19–21 answered as recommended). NT3 ✅ (merged November 21, 2026, 7,405 cases: wire forms for all 22 campaign and event commands and `CampaignBatch`, the fingerprint covers their names; P10 questions 22–24). NT4 next (Lane E), once P11 question 4 settles who fills host-side objects into a decoded command (NT3: no such path exists; only the factories set them). Before NT3: NT3 gives every campaign and event command a wire form; EV4 is event data and EV1G event UI, neither edits commands); NT4 needs NT3 |
 | P11 CO1–CO14 | P11 approved ✅ (user, November 20, 2026); each step's questions answered (the first steps' are); no NT step (CO10 and CO12 rely on P11 questions 2 and 3 (a)) | Lane plan: D CO1 → CO2 → CO3, CO4 any time; B CO10 → CO5 → CO7 → CO8 → CO11 → CO14; C CO9 → CO6 → CO12 (CO6 moved to Lane C, user); A CO13 after CO2 | **Open**: CO1, CO4 (D), CO5, CO7, CO10 (B), CO6, CO9 (C) ready; CO13 after CO2 |
 | P11 CO15 | P10 NT4 | Seat settings and fast-forward on the network (Lane E) | Closed |
 | P11 CO16, CO17 | P10 NT5 | Clients in the harness: campaign and events (CO16), battles (CO17) | Closed |

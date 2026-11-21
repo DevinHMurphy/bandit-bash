@@ -6,7 +6,7 @@
 # File:     prefix_reroll_command.gd
 # Author:
 # Created:  November 20, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name PrefixRerollCommand
@@ -18,6 +18,10 @@ extends CampaignCommand
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 ## @tutorial(Unit roster, Prefixes): docs/design/unit-roster.md
+
+## Its name on the wire ([method CampaignCommand.get_wire_type]): the unit travels; the catalog
+## and the stream are the host's.
+const WIRE_TYPE: String = "prefix_reroll"
 
 ## Instance id of the living unit re-rolled.
 var unit_id: String = ""
@@ -46,6 +50,21 @@ func validate(run: CampaignRunState) -> String:
 
 func resolve(run: CampaignRunState) -> void:
 	Guildhall.reroll(run, seat, unit_id, _contents(), stream)
+
+
+func get_wire_type() -> String:
+	return WIRE_TYPE
+
+
+func _wire_fields() -> Array:
+	return [unit_id]
+
+
+func _read_wire_fields(values: Array) -> bool:
+	if values.size() != 1 or not values[0] is String:
+		return false
+	unit_id = values[0]
+	return true
 
 
 func _contents() -> EffectCatalog.Index:

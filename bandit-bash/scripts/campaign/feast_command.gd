@@ -6,7 +6,7 @@
 # File:     feast_command.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name FeastCommand
@@ -15,6 +15,9 @@ extends CampaignCommand
 ## ([method Camp.feast]). Valid inside a Camp before the seat has chosen.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
+
+## Its name on the wire ([method CampaignCommand.get_wire_type]): the ingredient travels.
+const WIRE_TYPE: String = "feast"
 
 ## Instance id of the ingredient cooked, from the seat's convoy or a living unit's Pouch.
 ## [b]Empty:[/b] none is cooked; the Feast still heals.
@@ -39,6 +42,21 @@ func validate(run: CampaignRunState) -> String:
 
 func resolve(run: CampaignRunState) -> void:
 	Camp.feast(run, seat, ingredient_id, _contents())
+
+
+func get_wire_type() -> String:
+	return WIRE_TYPE
+
+
+func _wire_fields() -> Array:
+	return [ingredient_id]
+
+
+func _read_wire_fields(values: Array) -> bool:
+	if values.size() != 1 or not values[0] is String:
+		return false
+	ingredient_id = values[0]
+	return true
 
 
 func _contents() -> EffectCatalog.Index:

@@ -6,7 +6,7 @@
 # File:     regear_command.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name RegearCommand
@@ -16,6 +16,10 @@ extends CampaignCommand
 ## the seat's choice.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
+
+## Its name on the wire ([method CampaignCommand.get_wire_type]): the item, the unit and the slot
+## travel.
+const WIRE_TYPE: String = "regear"
 
 ## Instance id of the item moved.
 var item_id: String = ""
@@ -56,6 +60,26 @@ func validate(run: CampaignRunState) -> String:
 
 func resolve(run: CampaignRunState) -> void:
 	Regear.move(run, seat, item_id, unit_id, slot)
+
+
+func get_wire_type() -> String:
+	return WIRE_TYPE
+
+
+func _wire_fields() -> Array:
+	return [item_id, unit_id, slot]
+
+
+func _read_wire_fields(values: Array) -> bool:
+	if values.size() != 3 or not values[0] is String or not values[1] is String:
+		return false
+	var to_slot: Variant = _wire_enum(values[2], Loadout.Slot.values())
+	if to_slot == null:
+		return false
+	item_id = values[0]
+	unit_id = values[1]
+	slot = to_slot as Loadout.Slot
+	return true
 
 
 func _contents() -> EffectCatalog.Index:

@@ -123,8 +123,8 @@ before writing a prompt and name it in the LANE block.
 |------|------|------|----------|
 | A Battle UI | BF7 small fixes (BUG-023 two places, BUG-030, P00 30–32 marker) | EN16 after EN15; RB1 in M3; CO13 after CO2 | RB1: RN10 merged and a full-run playtest (user, November 20, 2026) |
 | B Campaign and run | P11 CO10 (RN12 merged November 21, 2026; P08 complete) | CO5, CO7, CO8, CO11, CO14 | — |
-| C Events | CO9 (team choices per seat) | CO6 (route votes), CO12 (co-op event screen) | CO9 after NT3 merges: NT3 gives the event commands their wire forms (P10 question 12) |
+| C Events | CO9 (team choices per seat; NT3 merged November 21, 2026, so it can go) | CO12 (co-op event screen) after CO10 | — |
 | D Engine, AI, content | EN15 (zones; issued November 21, 2026) | EN16; P11 CO1–CO4; CT12 after the weapon modification design | — |
-| E Network | NT3 campaign wire (issued November 21, 2026) | NT4–NT8; CO15 after NT4 | — |
+| E Network | NT4 relay (NT3 merged November 21, 2026) | NT5–NT8; CO15 after NT4 | NT4: P11 question 4 (who fills host-side objects) |
 | G Audio and tooling | TX2 trait wording, part 2 (TX1 merged November 20, 2026) | P17's first step; AU2 after the audio direction (M5); the capture builder tidy-up | TX2 after the user's wording pass in effect-text.md (it applies it, and confirms P01 65–68); P17's first step after the P17 plan |
 | F Docs and plans | P17 localization plan | CO20 docs after P11's answers; P12 plan when wanted | — |

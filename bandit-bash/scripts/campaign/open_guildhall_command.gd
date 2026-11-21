@@ -6,7 +6,7 @@
 # File:     open_guildhall_command.gd
 # Author:
 # Created:  November 20, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name OpenGuildhallCommand
@@ -22,6 +22,10 @@ extends CampaignCommand
 ## the stock before anything shows.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
+
+## Its name on the wire ([method CampaignCommand.get_wire_type]). It has no fields of its own:
+## the catalog, allocator and stream are the host's.
+const WIRE_TYPE: String = "open_guildhall"
 
 ## Content the stock draws from.
 var catalog: EffectCatalog.Index = null
@@ -53,6 +57,10 @@ func validate(run: CampaignRunState) -> String:
 
 func resolve(run: CampaignRunState) -> void:
 	GuildhallStock.roll(stream, run, catalog, ids).store(run)
+
+
+func get_wire_type() -> String:
+	return WIRE_TYPE
 
 
 ## The command that rolls the stock at the Guildhall [param session]'s run is in, with the node's

@@ -6,7 +6,7 @@
 # File:     key_heirloom_command.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name KeyHeirloomCommand
@@ -17,6 +17,9 @@ extends CampaignCommand
 ## does. Valid at the combat's results while the seat's offer is open.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
+
+## Its name on the wire ([method CampaignCommand.get_wire_type]): whether it takes travels.
+const WIRE_TYPE: String = "key_heirloom"
 
 ## Whether the seat takes the heirloom; false gives it up.
 var is_taking: bool = true
@@ -55,6 +58,21 @@ func resolve(run: CampaignRunState) -> void:
 	offer.store(seat_run)
 	if is_taking:
 		RunOperations.grant_heirloom(run, seat, offer.heirloom_id, _contents())
+
+
+func get_wire_type() -> String:
+	return WIRE_TYPE
+
+
+func _wire_fields() -> Array:
+	return [is_taking]
+
+
+func _read_wire_fields(values: Array) -> bool:
+	if values.size() != 1 or not values[0] is bool:
+		return false
+	is_taking = values[0]
+	return true
 
 
 func _contents() -> EffectCatalog.Index:

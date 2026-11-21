@@ -6,7 +6,7 @@
 # File:     event_option_command.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name EventOptionCommand
@@ -24,13 +24,18 @@ extends EventCommand
 ##
 ## @tutorial(Events and curses plan): docs/plans/2026-11-12-events-and-curses.md
 
+## Its name on the wire ([method CampaignCommand.get_wire_type]): the option and the sender's own
+## picks travel; the pool, catalog, allocator and streams are the host's.
+const WIRE_TYPE: String = "event_option"
+
 ## The option chosen, its index in [member EventDefinition.options].
 var option_index: int = EventRunState.NO_OPTION
 
 ## The sending seat's picks. [b]Null:[/b] nothing picked.
 var choice: EventChoice = null
 
-## The other seats' picks in a team choice, by seat. [b]Missing:[/b] nothing picked.
+## The other seats' picks in a team choice, by seat. [b]Missing:[/b] nothing picked. Never on the
+## wire: a seat sends only its own picks, so a decoded command has none.
 var team_choices: Dictionary[int, EventChoice] = {}
 
 ## Mints the instance ids of new items and runes.
@@ -88,6 +93,25 @@ func resolve(run: CampaignRunState) -> void:
 		var result: EventResult = EventResolver.resolve(_context(run, event, seat_number))
 		if result.surprise_combat != null:
 			run.events.is_combat_pending = true
+
+
+func get_wire_type() -> String:
+	return WIRE_TYPE
+
+
+func _wire_fields() -> Array:
+	return [option_index, _choice_to_wire(choice)]
+
+
+func _read_wire_fields(values: Array) -> bool:
+	if values.size() != 2 or not _is_choice_wire(values[1]):
+		return false
+	var option: Variant = _wire_at_least(values[0], EventRunState.NO_OPTION)
+	if option == null:
+		return false
+	option_index = option
+	choice = _choice_of_wire(values[1] as Array)
+	return true
 
 
 # The seats the option applies to: every seat of a team choice, ascending, else the sender.
