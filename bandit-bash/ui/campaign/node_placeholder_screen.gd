@@ -6,20 +6,20 @@
 # File:     node_placeholder_screen.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 extends Control
-## The fallback for an Unknown node with no event open: one that became an event when no event
-## can be drawn there ([OpenEventCommand] refused), or one not rolled. Names the node and lets the
-## run move on.
+## The quiet road: an Unknown node with no event open, one that became an event when no event can
+## be drawn there ([OpenEventCommand] refused), or one not rolled. Names the node, says nothing
+## happens here, and lets the run go on.
 ##
 ## Continue sends [LeaveNodeCommand] through [method CampaignService.submit_command], which saves,
-## and returns to the map; the node stays visited and its floor locked. It keeps a route through
-## such a node reaching the Boss; with the game's events it never shows in play, as only the
-## shrine has an eligibility rule. Opened at any other stage, it sends the run on at once. The
-## [HeirloomBar] under the header shows the seat's heirlooms as the run saved them. The run's facts
-## still to play ([CampaignPlayback]) play once Continue resolves.
+## and returns to the map; the node stays visited and its floor locked, so a route through it
+## still reaches the Boss. With the game's events it never shows in play, as only the shrine has an
+## eligibility rule. Opened at any other stage, it sends the run on at once. The [HeirloomBar]
+## shows the seat's heirlooms as the run saved them. The run's facts still to play
+## ([CampaignPlayback]) play once Continue resolves.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 
@@ -33,6 +33,9 @@ extends Control
 #                  hints are HEIRLOOMS meanwhile)
 #   Mouse: a click on Continue; hovering an heirloom shows its tooltip.
 # ============================================================
+
+# ASSUMPTION: the Note label's copy in the scene, "The road is quiet. Nothing happens here." (P08
+# question 71).
 
 ## The hint context while the placeholder shows.
 const HINT_CONTEXT: StringName = &"NODE"
