@@ -67,6 +67,7 @@ Not a bug.
 | [BUG-032](#bug-032-the-campaign-maps-class-doc-says-every-non-combat-node-goes-to-the-placeholder) | The campaign map's class doc says a non-combat node goes to the placeholder | P08 (campaign UI) | S4 | Open | November 21, 2026, RN12 report | the next Lane B step touching `ui/campaign/` (CO10) |
 | [BUG-033](#bug-033-event-busmd-lists-only-five-campaign-commands) | event-bus.md lists only five campaign commands; about 20 more exist | P01 / P08 (docs) | S4 | Open | November 21, 2026, RN12 report | the next docs step (CO20) |
 | [BUG-034](#bug-034-leavenodecommand-doesnt-wait-for-an-open-events-seats) | `LeaveNodeCommand` doesn't wait for an open event's seats to choose; leaving after a pending Fight skips the surprise combat | P08 / P09 (leave rules) | S3 (latent) | Open | November 21, 2026, CO9 report | Lane B, before CO16 (clients in the harness) |
+| [BUG-035](#bug-035-the-intents-refresh-after-each-player-action-blocks-the-main-thread) | The intents refresh after every player action blocks the main thread: 0.78 s (release) and 6.3 s (debug) on the boss board | P05 (intents) | S3 | Assigned | November 21, 2026, EN15 report | EN16 (Lane A) |
 
 ### BUG-001 No Block at the start of combat
 
@@ -508,3 +509,13 @@ Not a bug.
   send commands (NT4, NT5).
 - **Fix:** refuse Leave at an event until every seat has chosen and any pending combat has run,
   with a case.
+
+### BUG-035 The intents refresh after each player action blocks the main thread
+
+- **Found** by EN15, measured on the bench boards: after every player action the battle
+  recomputes the enemy intents on the main thread. That takes 0.33 s on the key board and 0.78 s
+  on the boss board in release, and 1.5 s and 6.3 s in debug. The debug time is inflated because
+  the refresh's sandbox keeps verify mode on, while previews turn it off.
+- **Fix:** EN16 (layer 5) decides whether the refresh moves to the preview worker or is split
+  across frames, and whether the refresh's sandbox needs verify mode. Measure the boss board in
+  release before and after.

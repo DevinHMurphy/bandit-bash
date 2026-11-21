@@ -6,7 +6,7 @@
 # File:     preview_equality_cases.gd
 # Author:
 # Created:  November 20, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -131,9 +131,9 @@ func _test_random_boards() -> void:
 			for tile: Vector2i in walker.reach:
 				tiles += 1
 				var preview: Intents = Intents.preview(session, unit_id, tile)
-				var full: Intents = _full_replan(session, unit_id, walker.path_to(tile))
-				var seen: String = _intents_text(preview)
-				var expected: String = _intents_text(full)
+				var full: Intents = full_replan(session, _catalog, unit_id, walker.path_to(tile))
+				var seen: String = intents_text(preview)
+				var expected: String = intents_text(full)
 				if mismatch.is_empty() and seen != expected:
 					mismatch = "%s to %s: preview %s / full %s" % [unit_id, tile, seen, expected]
 				# The full re-plan reuses forecasts across its own steps, so checking mode checks
@@ -144,7 +144,7 @@ func _test_random_boards() -> void:
 					checked += shown.checked
 					reused_total += shown.forecasts_reused
 					made_total += shown.forecasts_made
-					var flags: String = _check_lines(shown)
+					var flags: String = check_lines(shown)
 					if flagged.is_empty() and not flags.is_empty():
 						flagged = "%s to %s: %s" % [unit_id, tile, flags]
 		kept_total += checked
@@ -173,7 +173,7 @@ func _test_checking_reports_stale() -> void:
 	Intents.is_checking = true
 	var preview: Intents = Intents.preview(world.session, "p_far", Vector2i(10, 6))
 	Intents.is_checking = false
-	var flags: String = "" if preview == null else _check_lines(preview)
+	var flags: String = "" if preview == null else check_lines(preview)
 	_check.call("checking: a kept decision made stale behind the intents' back is reported", (
 			preview != null and preview.checked > 0 and flags.contains("e1")
 	), "checked %d; %s" % [-1 if preview == null else preview.checked, flags])
@@ -191,10 +191,10 @@ func _test_checking_changes_nothing() -> void:
 			and on != null
 			and off.checked == 0
 			and on.checked > 0
-			and _check_lines(on).is_empty()
-			and _intents_text(off) == _intents_text(on)
+			and check_lines(on).is_empty()
+			and intents_text(off) == intents_text(on)
 			and off.decisions == on.decisions
-	), "off %s / on %s" % [_intents_text(off), _intents_text(on)])
+	), "off %s / on %s" % [intents_text(off), intents_text(on)])
 
 
 # Two enemies with p1 and p2 in their options and p_far out of every enemy's: a move of p_far keeps
@@ -292,9 +292,12 @@ func _add_player(world: AiWorld, unit_id: String, type_id: String, tile: Vector2
 	world.session.add_unit(loaded.state, loaded.bases)
 
 
-# The intents Intents.compute gives on a copy of session with unit_id walked along path (its own
-# tile when empty): a full re-plan, keeping nothing from the latest intents.
-func _full_replan(session: CombatSession, unit_id: String, path: Array[Vector2i]) -> Intents:
+## The intents [method Intents.compute] gives, reading [param catalog], on a copy of
+## [param session] with [param unit_id] walked along [param path] (its own tile when empty): a
+## full re-plan, keeping nothing from the latest intents.
+static func full_replan(
+		session: CombatSession, catalog: EffectCatalog.Index, unit_id: String, path: Array[Vector2i]
+) -> Intents:
 	var sandbox: Sandbox = Sandbox.new(session.engine, ForecastRolls.new())
 	var engine: EffectEngine = sandbox.engine
 	# Verify mode checks stat caches, not the intents, and changes no result; off for speed.
@@ -304,13 +307,13 @@ func _full_replan(session: CombatSession, unit_id: String, path: Array[Vector2i]
 		engine.begin_step()
 		UnitTurnCommand.walk_path(engine, moved, unit_id, path)
 		engine.drain()
-	return Intents.compute(_moved_copy(session, engine), _catalog)
+	return Intents.compute(_moved_copy(session, engine), catalog)
 
 
 # A session over engine, a sandbox of session's, sharing its hooks, map and setup, as
 # PhaseRunner's stand-in does, so Intents.compute reads the moved board through every
 # registration session has.
-func _moved_copy(session: CombatSession, engine: EffectEngine) -> CombatSession:
+static func _moved_copy(session: CombatSession, engine: EffectEngine) -> CombatSession:
 	var grid: MapGrid = MapGrid.new(session.layout)
 	var copy: CombatSession = CombatSession.new(
 			session.session_id, session.seats, grid, engine.rolls, session.ids
@@ -326,9 +329,9 @@ func _moved_copy(session: CombatSession, engine: EffectEngine) -> CombatSession:
 	return copy
 
 
-# Every intent as one line each (enemy, order, kind, target, tile, path, weapon, area, kills,
-# signature and its plan's forecast), then the danger zone's tiles; "null" for none.
-func _intents_text(shown: Intents) -> String:
+## Every intent of [param shown] as one line each (enemy, order, kind, target, tile, path, weapon,
+## area, kills, signature and its plan's forecast), then the danger zone's tiles; "null" for none.
+static func intents_text(shown: Intents) -> String:
 	if shown == null:
 		return "null"
 	var lines: PackedStringArray = []
@@ -348,7 +351,7 @@ func _intents_text(shown: Intents) -> String:
 
 
 # A forecast's legality, every unit's outcome and, for an exchange, each attack; "" for none.
-func _forecast_text(forecast: CombatForecast.Forecast) -> String:
+static func _forecast_text(forecast: CombatForecast.Forecast) -> String:
 	if forecast == null:
 		return ""
 	var parts: PackedStringArray = [str(forecast.is_legal), forecast.actor_id, forecast.target_id]
@@ -368,8 +371,8 @@ func _forecast_text(forecast: CombatForecast.Forecast) -> String:
 	return " ".join(parts)
 
 
-# The checking-mode lines in shown's diagnostics, joined; "" for none.
-func _check_lines(shown: Intents) -> String:
+## The checking-mode lines in [param shown]'s diagnostics, joined; "" for none.
+static func check_lines(shown: Intents) -> String:
 	var lines: PackedStringArray = []
 	for line: String in shown.diagnostics:
 		if line.begins_with(Intents.CHECK_PREFIX):
