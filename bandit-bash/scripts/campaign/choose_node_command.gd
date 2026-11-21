@@ -6,7 +6,7 @@
 # File:     choose_node_command.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name ChooseNodeCommand
@@ -22,6 +22,9 @@ extends CampaignCommand
 ## not run here.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
+
+## Its name on the wire ([method CampaignCommand.get_wire_type]): the node id travels.
+const WIRE_TYPE: String = "choose_node"
 
 ## The node chosen, by its [CampaignGraph] id.
 var node_id: int = CampaignGraph.NO_NODE
@@ -56,3 +59,21 @@ func resolve(run: CampaignRunState) -> void:
 	var chosen: CampaignFact = CampaignFact.new(CampaignFact.Kind.NODE_CHOSEN, seat)
 	chosen.amount = node_id
 	run.record(chosen)
+
+
+func get_wire_type() -> String:
+	return WIRE_TYPE
+
+
+func _wire_fields() -> Array:
+	return [node_id]
+
+
+func _read_wire_fields(values: Array) -> bool:
+	if values.size() != 1:
+		return false
+	var node: Variant = _wire_at_least(values[0], CampaignGraph.NO_NODE)
+	if node == null:
+		return false
+	node_id = node
+	return true

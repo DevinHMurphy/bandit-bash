@@ -6,7 +6,7 @@
 # File:     starting_heirloom_command.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name StartingHeirloomCommand
@@ -30,6 +30,10 @@ const SKIP: int = -1
 
 ## [member recruit] and [member weapon] when the bonus offers none.
 const NO_CHOICE: int = -1
+
+## Its name on the wire ([method CampaignCommand.get_wire_type]): the option, the recruit, the
+## weapon, the unit and the placement travel; the catalog is the host's.
+const WIRE_TYPE: String = "starting_heirloom"
 
 ## The option taken, its index in [member StartingOffer.options]; [constant SKIP] to take none.
 var option: int = SKIP
@@ -122,6 +126,30 @@ func resolve(run: CampaignRunState) -> void:
 					run, seat, ItemInstance.new(taken.instance_id, taken.definition_id), placement,
 					contents
 			)
+
+
+func get_wire_type() -> String:
+	return WIRE_TYPE
+
+
+func _wire_fields() -> Array:
+	return [option, recruit, weapon, unit_id, _placement_to_wire(placement)]
+
+
+func _read_wire_fields(values: Array) -> bool:
+	if values.size() != 5 or not values[3] is String or not _is_placement_wire(values[4]):
+		return false
+	var option_index: Variant = _wire_at_least(values[0], SKIP)
+	var recruit_index: Variant = _wire_at_least(values[1], NO_CHOICE)
+	var weapon_index: Variant = _wire_at_least(values[2], NO_CHOICE)
+	if option_index == null or recruit_index == null or weapon_index == null:
+		return false
+	option = option_index
+	recruit = recruit_index
+	weapon = weapon_index
+	unit_id = values[3]
+	placement = _placement_of_wire(values[4] as Array)
+	return true
 
 
 # Why this command's sub-choice doesn't fit offered's bonus; empty when it does.

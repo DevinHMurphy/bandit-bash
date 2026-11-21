@@ -6,7 +6,7 @@
 # File:     guildhall_purchase_command.gd
 # Author:
 # Created:  November 20, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name GuildhallPurchaseCommand
@@ -21,6 +21,10 @@ extends CampaignCommand
 ## ownership).
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
+
+## Its name on the wire ([method CampaignCommand.get_wire_type]): the entry, the replaced unit, the
+## hand-over as [code][item id, HandOver][/code] pairs in order, and the discarded slot travel.
+const WIRE_TYPE: String = "guildhall_purchase"
 
 ## The index of the entry in [member GuildhallStock.entries].
 var entry: int = -1
@@ -71,6 +75,40 @@ func resolve(run: CampaignRunState) -> void:
 		Guildhall.buy_recruit(run, seat, entry, replaced_id, hand_over, _contents())
 	else:
 		Guildhall.buy_rune(run, seat, entry, discard_slot, _contents())
+
+
+func get_wire_type() -> String:
+	return WIRE_TYPE
+
+
+func _wire_fields() -> Array:
+	var pairs: Array = []
+	for item_id: String in hand_over:
+		pairs.append([item_id, hand_over[item_id]])
+	return [entry, replaced_id, pairs, discard_slot]
+
+
+func _read_wire_fields(values: Array) -> bool:
+	if values.size() != 4 or not values[1] is String or not values[2] is Array:
+		return false
+	var stock_index: Variant = _wire_at_least(values[0], _NO_INDEX)
+	var slot: Variant = _wire_at_least(values[3], Guildhall.NO_SLOT)
+	if stock_index == null or slot == null:
+		return false
+	var handed: Dictionary[String, int] = {}
+	for pair: Variant in values[2] as Array:
+		if not pair is Array or (pair as Array).size() != 2:
+			return false
+		var item_id: Variant = (pair as Array)[0]
+		var where: Variant = _wire_enum((pair as Array)[1], Guildhall.HandOver.values())
+		if not item_id is String or where == null or handed.has(item_id):
+			return false
+		handed[item_id as String] = where
+	entry = stock_index
+	replaced_id = values[1]
+	hand_over = handed
+	discard_slot = slot
+	return true
 
 
 func _contents() -> EffectCatalog.Index:
