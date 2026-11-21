@@ -68,6 +68,7 @@ func is_threatened(tile: Vector2i) -> bool:
 ## full rebuild. Call it with a base on the main thread only.
 static func compute(
 		engine: EffectEngine,
+		# ASSUMPTION: optional trailing arguments for the preview's rebuild (P05 question 49).
 		base: DangerZone = null,
 		touched: Array[Vector2i] = [],
 		margin: int = 0

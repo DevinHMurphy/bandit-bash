@@ -36,10 +36,10 @@ extends RefCounted
 ## @tutorial(Enemies and AI plan): docs/plans/2026-10-30-enemies-and-ai.md
 ##
 ## @todo: TOD-001 [MEDIUM] - The move preview meets its 50 ms target only on M1: per hover in
-## debug on a worker thread, median / p95, M1 turn 1 18 / 29 ms, M1 engaged 28 / 46 ms, the
-## 9-enemy key board 205 / 300 ms, the boss board 618 / 970 ms (release 13 / 25, 24 / 40,
-## 156 / 226, 449 / 707). Attack forecasts are reused; most of the rest is decisions re-made at
-## every step, which move-preview.md's zones and sweep (layers 3 to 5) take on.
+## debug on a worker thread, median / p95, M1 turn 1 17 / 28 ms, M1 engaged 26 / 45 ms, the
+## 9-enemy key board 200 / 296 ms, the boss board 604 / 956 ms (release 13 / 22, 22 / 38,
+## 146 / 216, 434 / 696). On engaged boards the moved unit stands within most enemies' reach,
+## so few decisions are kept and most steps decide afresh: move-preview.md's sweep (layer 5).
 
 ## The text a checking-mode difference starts with in [member diagnostics].
 const CHECK_PREFIX: String = "check: "
@@ -201,10 +201,10 @@ static func compute(session: CombatSession, catalog: EffectCatalog.Index) -> Int
 
 
 # TODO(TOD-001): [MEDIUM] The move preview meets its 50 ms target only on M1: per hover in
-# debug on a worker thread, median / p95, M1 turn 1 18 / 29 ms, M1 engaged 28 / 46 ms, the
-# 9-enemy key board 205 / 300 ms, the boss board 618 / 970 ms (release 13 / 25, 24 / 40,
-# 156 / 226, 449 / 707). Attack forecasts are reused; most of the rest is decisions re-made at
-# every step, which move-preview.md's zones and sweep (layers 3 to 5) take on.
+# debug on a worker thread, median / p95, M1 turn 1 17 / 28 ms, M1 engaged 26 / 45 ms, the
+# 9-enemy key board 200 / 296 ms, the boss board 604 / 956 ms (release 13 / 22, 22 / 38,
+# 146 / 216, 434 / 696). On engaged boards the moved unit stands within most enemies' reach,
+# so few decisions are kept and most steps decide afresh: move-preview.md's sweep (layer 5).
 ## The intents if player unit [param unit_id] moved to [param tile] now, before any action, built
 ## on [member CombatSession.intents] (computed afresh first when stale, not stored). The latest
 ## intents for the unit's own tile; null when nothing keeps intents on [param session], or the unit
@@ -336,6 +336,7 @@ static func _play(
 		round_of.second_path = _carry_out(engine, best.plan, found, flooded)
 		# A kept plan acts as it did on base's board, but its second move is decided afresh: one
 		# that goes elsewhere leaves the boards differing past touched.
+		# ASSUMPTION: reuse stops after a second move that differs (P05 question 49).
 		is_reusing = (
 				known != null
 				and best == known.winner
@@ -414,6 +415,7 @@ static func _plan_text(plan: EnemyPlan) -> String:
 # the same unit in the same state on both. Returns [CombatFact.NO_TILE] when such a fact names
 # something else, such as an effect with no holder, which can reach every unit.
 static func _changed_tiles(base: Intents, engine: EffectEngine, from: int) -> Array[Vector2i]:
+	# ASSUMPTION: touched tiles by comparing facts, not the moved unit's two (P05 question 49).
 	var unmatched: Dictionary[String, int] = {}
 	for line: String in base._crossing_lines:
 		unmatched[line] = unmatched.get(line, 0) + 1

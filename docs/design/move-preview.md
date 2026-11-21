@@ -15,29 +15,53 @@ starting from `Godot_FE`'s absolute-range check.
 ## Where it stands
 
 - **The target** is 50 ms per hover at p95 in a debug build (P05 question 10; decision 4 below).
-- **The benchmark** (`tests/bench/preview_bench.tscn`, release through
-  `tests/bench/release_bench.sh`) hovers every move tile of every acting unit through the threaded
-  `MovePreview.Queue` on four boards: M1 turn 1, M1 engaged, a 9-enemy 6-unit key board on the
-  Hall, and the Powder Keep engaged. Real key maps field fewer: a key pack is the step's standard
-  count of escorts (at most 5) plus its mini-boss (game-vision.md, Run structure; enemy-packs.md).
-  The key board adds a Brute, a Crossbowman and a Hedge Healer to reach move-preview's benchmark
-  size (P05 question 47). The Powder Keep is the real 9-enemy board.
+- **The benchmark** (`tests/bench/preview_bench.tscn`, its boards built by
+  `tests/bench/bench_boards.gd`, release through `tests/bench/release_bench.sh`) hovers every move
+  tile of every acting unit through the threaded `MovePreview.Queue` on four boards: M1 turn 1,
+  M1 engaged, a 9-enemy 6-unit key board on the Hall, and the Powder Keep engaged. Real key maps
+  field fewer: a key pack is the step's standard count of escorts (at most 5) plus its mini-boss
+  (game-vision.md, Run structure; enemy-packs.md). The key board adds a Brute, a Crossbowman and
+  a Hedge Healer to reach move-preview's benchmark size (P05 question 47). The Powder Keep is the
+  real 9-enemy board. `-- check` hovers every tile in checking mode instead; `-- after_action`
+  sweeps again after one unit walks and waits.
 - **Measured** on one machine (Ryzen 7 9800X3D), Godot 4.7.1, times in milliseconds. "Before" is
-  EN13's code, measured at the start of EN14; "after" is EN14 (layer 2, the lighter sandbox),
-  November 20, 2026. A sweep is all of one unit's tiles in turn.
+  EN14's code (layer 2), "after" is EN15 (layers 3 and 4), November 21, 2026. Release: one run
+  each, back to back. Debug: the best of two runs before and three after, by median; the machine
+  ran other builds, and single debug runs varied by up to 30%. A sweep is all of one unit's tiles
+  in turn. EN13 → EN14 is in P05 question 48.
 
 | Board | Build | Hover median | Hover p95 | Sweep median | Sweep p95 |
 |---|---|---|---|---|---|
-| M1 turn 1 | debug | 18 → 18 | 41 → 29 | 520 → 461 | 942 → 770 |
-| M1 turn 1 | release | 14 → 13 | 28 → 25 | 382 → 363 | 690 → 601 |
-| M1 engaged | debug | 82 → **28** | 107 → **46** | 2,051 → 694 | 2,783 → 971 |
-| M1 engaged | release | 58 → 24 | 74 → 40 | 1,484 → 587 | 1,964 → 830 |
-| Key, 9 enemies | debug | 362 → 205 | 503 → 300 | 12,590 → 7,289 | 21,926 → 12,731 |
-| Key, 9 enemies | release | 251 → 156 | 359 → 226 | 8,688 → 5,544 | 15,673 → 9,760 |
-| Boss, 9 enemies | debug | 1,609 → 618 | 1,860 → 970 | 61,825 → 25,196 | 98,829 → 35,291 |
-| Boss, 9 enemies | release | 1,097 → 449 | 1,275 → 707 | 42,432 → 18,513 | 67,473 → 25,942 |
+| M1 turn 1 | debug | 18 → 17 | 30 → 28 | 471 → 414 | 789 → 745 |
+| M1 turn 1 | release | 13 → 13 | 24 → 22 | 352 → 317 | 595 → 566 |
+| M1 engaged | debug | 31 → **26** | 49 → **45** | 818 → 657 | 998 → 928 |
+| M1 engaged | release | 24 → 22 | 39 → 38 | 571 → 537 | 798 → 768 |
+| Key, 9 enemies | debug | 261 → 200 | 384 → 296 | 9,126 → 6,931 | 15,924 → 12,445 |
+| Key, 9 enemies | release | 155 → 146 | 226 → 216 | 5,481 → 5,133 | 9,632 → 9,232 |
+| Boss, 9 enemies | debug | 634 → 604 | 1,043 → 956 | 27,153 → 24,886 | 37,161 → 35,082 |
+| Boss, 9 enemies | release | 445 → 434 | 708 → 696 | 18,312 → 18,013 | 25,802 → 25,193 |
 
-- **The target now holds** on both M1 boards, and is missed on the 9-enemy boards.
+- **The target holds** on both M1 boards, and is missed on the 9-enemy boards.
+- **What layers 3 and 4 saved** is mostly fixed cost. A decision no longer floods a second time to
+  build its zone (0.3–0.6 ms each in debug, about 45 per hover on the 9-enemy boards); its
+  footprint's reads are tested against the touched tiles instead. Recording a footprint costs
+  nothing measurable (the profile's "recorded" column). The incremental danger zone takes the
+  hover's main-thread frame from 2.4 to 0.8 ms on M1 turn 1 and 7.1 to 3.5 ms on the key board in
+  debug (release 1.2 → 0.6, 4.3 → 2.4).
+- **The zones keep few decisions on engaged boards:** 45 → 44 per hover on the 9-enemy boards,
+  6 → 5.8 on M1. The moved unit usually stands within reach of most attackers, so their own target
+  reads include its old tile. Of the first step's decisions, previews kept 4% on M1 turn 1 (every
+  enemy advances on a cluster the moved unit belongs to), 3% on M1 engaged, 6% on the key board and
+  15% on the boss board (the Powder Baron's Wait in 86% of hovers, the Shieldbearers' posts in
+  18%). Once a first step's winner is decided again, the later steps keep nothing.
+- **The touched tiles are more than the moved unit's two** in 99 of 256 boss-board hovers: the
+  Powder Baron's barrage aims at player units during the crossing, so a move can land its keg far
+  from both tiles. Checking mode finds no difference on any bench board (`-- check`).
+- **EN14's two open questions, measured** (P05 questions 50 and 51): neither saves anything
+  material on these boards. Forecasts kept across a fact: the refresh and the next sweep made the
+  same forecasts (the walked unit is within the margin of nearly every key, and previews keep only
+  2,000). Iron Heart's counter keyed as "far": forecasts made per hover fell by under 2%, so the
+  counter is not what stops one step reusing another's forecasts.
 - **Why one forecast slowed on big boards** (EN13: 1.9 ms on M1, 4.6 ms on the boss board): the
   sandbox copy. Every `StatSheet.copy_for` rebuilt its copy through `set_base` and
   `add_modifier`, each dropping 16 cache slots from an empty cache, for every base sheet and every
@@ -46,19 +70,22 @@ starting from `Godot_FE`'s absolute-range check.
   with each sheet's static answers. One forecast in debug: 1.8 → 1.1 ms (M1), 3.1 → 1.7 ms (key),
   3.3 → 1.9 ms (boss). What still grows with the board is the engine copy's instances (0.15 →
   0.54 ms) and the exchange's dispatch over them (0.76 → 0.98 ms).
-- **Reuse, as built** (layer 2): on the key board a hover makes 46 attack forecasts and reuses 32;
-  on the boss board it makes 259 and reuses 199. Three things limit it:
-  - an army effect counting every attack (Iron Heart, every 7th attack by your units; the
-    Mercenary army's heirloom) is read by nearly every forecast, and its counter moves at almost
-    every enemy step, so steps within one preview rarely reuse each other's forecasts. Most reuse
-    comes from earlier hovers on the same board;
+- **Forecast reuse** (layer 2): on the key board a hover makes 46 attack forecasts and reuses 32;
+  on the boss board it makes 259 and reuses 199. Two things limit it:
   - engaged boards cluster: most options lie within the margin of the unit moved or of an earlier
-    step's action;
+    step's action (its actor, its target, any splash), so steps within one preview rarely reuse
+    each other's forecasts, and most reuse comes from earlier hovers on the same board. An army
+    counter (Iron Heart) moving at every step was thought to be the cause; keyed as unchanged it
+    saved under 2% (P05 question 51);
   - previews keep at most 2,000 forecasts in the store (Threads and memory).
-- **What dominates now** on the 9-enemy boards is the decisions themselves, not their forecasts:
-  45 decisions per hover, each with its floods, Support's safety floods (the Warcaller's about
-  13 ms per decision in debug) and an advance's whole-map flood. Layers 3 and 4 bound those;
-  layer 5 hides the rest.
+- **What dominates now** on the 9-enemy boards is the decisions at every step and their forecasts:
+  about 44 decisions per hover (the zones rarely hold on engaged boards), Support's threat floods
+  (the Warcaller's about 12 ms per decision in debug), an advance's whole-map flood, and on the
+  boss board some 260 forecasts made. Layer 5 hides what is left.
+- **After every fact** the latest intents are computed afresh on the main thread (`Intents.refresh`):
+  1.5 s on the key board and 6.3 s on the boss board in debug, where its sandbox keeps the
+  session's verify mode (a preview's turns it off), and 0.33 s and 0.78 s in release
+  (`-- after_action`). A player waits that long after each action before the next hover.
 
 ## How a preview works now
 
