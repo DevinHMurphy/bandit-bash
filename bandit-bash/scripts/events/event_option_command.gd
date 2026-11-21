@@ -18,10 +18,9 @@ extends EventCommand
 ## A team choice of more than one seat takes only the option the votes drew ([EventVoteCommand]),
 ## after the draw. Each seat applies it to its own army with its own command, and the team's
 ## choice is done once every seat has ([method EventRunState.is_finished]). Picks naming a
-## teammate's unit or item are refused. A surprise combat marks
-## [member EventRunState.is_combat_pending] only as the last seat applies, so the node's battle
-## (on the Standard pool) never begins while a teammate still chooses. Built by
-## [method EventNode.choose].
+## teammate's unit or item are refused. A surprise combat is marked pending
+## ([member EventRunState.is_combat_pending]) only as the last seat applies, so the battle never
+## begins while a teammate still chooses. Built by [method EventNode.choose].
 ##
 ## @todo: TOD-001 - remove [member team_choices], which nothing reads, once the user agrees.
 ## @tutorial(Co-op combat plan): docs/plans/2026-11-20-coop-combat.md
