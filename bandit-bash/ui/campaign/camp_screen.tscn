@@ -11,6 +11,8 @@
 [ext_resource type="PackedScene" path="res://ui/common/heirlooms/heirloom_bar.tscn" id="9_heirlooms"]
 [ext_resource type="PackedScene" path="res://ui/campaign/unit_choice_panel.tscn" id="10_units"]
 [ext_resource type="PackedScene" path="res://ui/campaign/army_view.tscn" id="11_army"]
+[ext_resource type="PackedScene" path="res://ui/campaign/team_panel.tscn" id="12_team"]
+[ext_resource type="PackedScene" path="res://ui/campaign/camp_team_status.tscn" id="13_team_status"]
 
 [node name="CampScreen" type="Control"]
 layout_mode = 3
@@ -91,6 +93,11 @@ theme_type_variation = &"MutedLabel"
 horizontal_alignment = 1
 autowrap_mode = 3
 
+[node name="CampTeamStatus" parent="Layout/Column/Center/Box" instance=ExtResource("13_team_status")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+
 [node name="Buttons" type="HBoxContainer" parent="Layout/Column/Center/Box"]
 layout_mode = 2
 theme_override_constants/separation = 12
@@ -108,6 +115,13 @@ custom_minimum_size = Vector2(180, 36)
 layout_mode = 2
 theme_type_variation = &"PrimaryButton"
 text = "Leave"
+
+[node name="TeamButton" type="Button" parent="Layout/Column/Center/Box/Buttons"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(120, 36)
+layout_mode = 2
+text = "Team"
 
 [node name="IngredientPanel" parent="." instance=ExtResource("8_ingredients")]
 unique_name_in_owner = true
@@ -160,6 +174,11 @@ layout_mode = 2
 unique_name_in_owner = true
 layout_mode = 1
 
+[node name="TeamPanel" parent="." node_paths=PackedStringArray("hints") instance=ExtResource("12_team")]
+unique_name_in_owner = true
+layout_mode = 1
+hints = NodePath("../ScreenHints")
+
 [node name="InputDeviceAdapter" parent="." instance=ExtResource("3_device")]
 
 [node name="ScreenHints" type="Node" parent="."]
@@ -169,7 +188,9 @@ actions = Dictionary[StringName, PackedStringArray]({
 &"CHOOSE": PackedStringArray("ui_left", "ui_right", "ui_accept", "heirloom_bar_focus", "ui_cancel"),
 &"ASK": PackedStringArray("ui_up", "ui_down", "ui_accept", "ui_cancel"),
 &"ARMY": PackedStringArray("ui_up", "ui_down", "ui_accept", "ui_cancel"),
-&"HEIRLOOMS": PackedStringArray("ui_left", "ui_right", "ui_cancel", "heirloom_bar_focus")
+&"HEIRLOOMS": PackedStringArray("ui_left", "ui_right", "ui_cancel", "heirloom_bar_focus"),
+&"TEAM": PackedStringArray("ui_up", "ui_down", "ui_accept", "ui_cancel"),
+&"TEAM_HEIRLOOMS": PackedStringArray("ui_left", "ui_right", "ui_cancel")
 })
 
 [node name="ControlHintBar" parent="." node_paths=PackedStringArray("controller", "device") instance=ExtResource("5_bar")]
@@ -189,6 +210,10 @@ labels = Dictionary[String, String]({
 "HEIRLOOMS/ui_cancel": "Close",
 "HEIRLOOMS/ui_left": "Choose",
 "HEIRLOOMS/ui_right": "Choose",
+"TEAM/ui_accept": "Heirlooms",
+"TEAM/ui_cancel": "Close",
+"TEAM_HEIRLOOMS/ui_left": "Choose",
+"TEAM_HEIRLOOMS/ui_right": "Choose",
 "PAUSED/ui_cancel": "Resume",
 "PAUSED/ui_down": "Choose",
 "PAUSED/ui_up": "Choose",

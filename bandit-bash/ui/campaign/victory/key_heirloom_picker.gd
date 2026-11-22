@@ -6,16 +6,16 @@
 # File:     key_heirloom_picker.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name KeyHeirloomPicker
 extends RewardPicker
 ## A Key combat's heirloom in a modal: the heirloom as an [HeirloomOfferCard], which takes it when
-## pressed ([KeyHeirloomCommand]), and Back. The take resolves the offer, so its row leaves the
-## list, and its facts play ([CampaignPlayback]), sounding the gain. A rejection shows its reason
-## and changes nothing. Back, or ui_cancel, closes it untouched; the overlay's Leave gives the
-## heirloom up.
+## pressed ([KeyHeirloomCommand], through a [CampaignLink]), and Back. Once the take resolves the
+## offer is settled, so its row leaves the list, and its facts play ([CampaignPlayback]), sounding
+## the gain. A refusal shows its reason and changes nothing. Back, or ui_cancel, closes it
+## untouched; the overlay's Leave gives the heirloom up.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 
@@ -34,6 +34,7 @@ extends RewardPicker
 @export_range(0.0, 1.0, 0.05) var backdrop_alpha: float = 0.6
 
 var _seat: int = 0
+var _link: CampaignLink = null
 
 @onready var _backdrop: ColorRect = %Backdrop
 @onready var _card: HeirloomOfferCard = %HeirloomCard
@@ -55,6 +56,11 @@ func _ready() -> void:
 	_back_button.focus_neighbor_bottom = _back_button.get_path_to(_back_button)
 
 
+func _exit_tree() -> void:
+	if _link != null:
+		_link.close()
+
+
 func _input(event: InputEvent) -> void:
 	if not is_visible_in_tree():
 		return
@@ -65,6 +71,10 @@ func _input(event: InputEvent) -> void:
 
 func open(_reward: VictoryReward, seat: int) -> void:
 	_seat = seat
+	if _link != null:
+		_link.close()
+	_link = CampaignLink.new(CampaignService.session, seat, CampaignService.submit_command)
+	_link.refused.connect(_on_link_refused)
 	_status_label.text = ""
 	visible = true
 	var model: CombatResultsModel = CombatResultsModel.build(CampaignService.session, seat)
@@ -95,15 +105,18 @@ func get_status_text() -> String:
 
 
 func _on_card_pressed() -> void:
-	var batch: CampaignBatch = CampaignService.submit_command(KeyHeirloomCommand.new(_seat))
-	if batch == null or batch.is_rejected():
-		_status_label.text = "Can't take it: %s." % [
-			batch.rejected_reason if batch != null else "no run in progress",
-		]
-		return
+	_link.send(KeyHeirloomCommand.new(_seat), _on_take_resolved)
+
+
+func _on_take_resolved(_batch: CampaignBatch) -> void:
 	CampaignPlayback.play_pending(CampaignService.session)
 	visible = false
 	resolved.emit("Took %s." % [_card.heirloom_name])
+
+
+func _on_link_refused(reason: String) -> void:
+	if visible:
+		_status_label.text = "Can't take it: %s." % [reason]
 
 
 func _on_back_button_pressed() -> void:

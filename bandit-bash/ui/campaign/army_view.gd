@@ -6,7 +6,7 @@
 # File:     army_view.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name ArmyView
@@ -21,16 +21,18 @@ extends Control
 ## up, then a living unit's slot or "Put it in the convoy" to move it there ([RegearCommand]); a
 ## move [Regear] refuses says why and sends nothing. Scrapping is one press ([ScrapItemCommand]).
 ## It only asks: [signal command_ready] goes to the screen, which sends the command and calls
-## [method refresh], or [method show_problem] with the rejection.
+## [method refresh], or [method show_problem] with the rejection. In co-op, with
+## [member offers_team], its Team button asks the screen for the [TeamPanel].
 
 # ============================================================
 # INPUT MAP SETUP:
 #   "ui_cancel" -> Esc; pad B [Circle], Menu [Options]   (read in _input while shown: drops the
-#                  item being moved, else closes; taken first, so the pause menu doesn't open)
+#                  item being moved, else closes; taken first, so the pause menu doesn't open.
+#                  A team panel over it, later in the tree, takes it before the view)
 #   "ui_left" / "ui_right" / "ui_up" / "ui_down" / "ui_accept"  (not read here: the GUI moves
-#                  focus between the slots, convoy items and Scrap buttons by their layout, and
-#                  presses the focused one)
-#   Mouse: clicks on the slots, convoy items, Scrap buttons and Close.
+#                  focus between the slots, convoy items, Scrap buttons and Team by their layout,
+#                  and presses the focused one)
+#   Mouse: clicks on the slots, convoy items, Scrap buttons, Team and Close.
 # ============================================================
 
 ## The player chose a change; the screen sends it.
@@ -38,6 +40,9 @@ signal command_ready(command: CampaignCommand)
 
 ## The view closed.
 signal closed()
+
+## The player pressed Team: the screen opens its [TeamPanel] over the view.
+signal team_requested()
 
 ## What the view allows.
 enum Mode {
@@ -53,6 +58,11 @@ const ROW_SCENE: PackedScene = preload("res://ui/campaign/unit_gear_row.tscn")
 ## [b]0.0:[/b] no dimming; [b]1.0:[/b] the screen hidden. 0.6 matches the [PlacementPanel]'s.
 @export_range(0.0, 1.0, 0.05) var backdrop_alpha: float = 0.6
 
+## Whether the view shows a Team button in a co-op run, for a screen with no Team button of its
+## own (the campaign map, whose focus stays on its nodes).[br]
+## [b]Off:[/b] never shown; solo never shows it either way.
+@export var offers_team: bool = false
+
 var _mode: Mode = Mode.VIEW
 var _session: CampaignSession = null
 var _seat: int = 0
@@ -67,15 +77,18 @@ var _carrying: String = ""
 @onready var _convoy: ConvoyPanel = %ConvoyPanel
 @onready var _status_label: Label = %Status
 @onready var _close_button: Button = %CloseButton
+@onready var _team_button: Button = %TeamButton
 
 
 func _ready() -> void:
 	visible = false
+	_team_button.visible = false
 	_backdrop.color = UiTokens.with_alpha(UiTokens.BG, backdrop_alpha)
 	_convoy.item_pressed.connect(_on_convoy_item_pressed)
 	_convoy.scrap_pressed.connect(_on_convoy_scrap_pressed)
 	_convoy.to_convoy_pressed.connect(_on_convoy_to_convoy_pressed)
 	_close_button.pressed.connect(close)
+	_team_button.pressed.connect(_on_team_button_pressed)
 
 
 func _input(event: InputEvent) -> void:
@@ -102,6 +115,7 @@ func open(session: CampaignSession, seat: int, mode: Mode) -> void:
 			if mode == Mode.REGEAR
 			else "Gear changes at a Camp. Convoy items can be scrapped here for gold."
 	)
+	_team_button.visible = offers_team and session != null and session.seats.size() > 1
 	visible = true
 	refresh()
 
@@ -176,6 +190,11 @@ func get_close_button() -> Button:
 	return _close_button
 
 
+## The Team button, shown in co-op with [member offers_team], for tests.
+func get_team_button() -> Button:
+	return _team_button
+
+
 ## The status line's text, for tests.
 func get_status_text() -> String:
 	return _status_label.text
@@ -248,3 +267,7 @@ func _on_convoy_to_convoy_pressed() -> void:
 
 func _on_convoy_scrap_pressed(item_id: String) -> void:
 	command_ready.emit(ScrapItemCommand.new(_seat, item_id))
+
+
+func _on_team_button_pressed() -> void:
+	team_requested.emit()

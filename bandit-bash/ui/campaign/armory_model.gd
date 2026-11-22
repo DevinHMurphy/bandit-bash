@@ -6,15 +6,15 @@
 # File:     armory_model.gd
 # Author:
 # Created:  November 20, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name ArmoryModel
 extends RefCounted
-## What the Armory's screens show, read from the run: each stock entry's name, details and price
-## for its card, and the before/after rows of an item against the one it replaces
-## ([ItemComparison]). Prices and refusals come from [Armory]'s rules, never worked out here.
-## Presentation only; static, never instantiated.
+## What the Armory's screens show, read from the run: each stock entry's name, details, price and
+## refusal for its card, and the before/after rows of an item against the one it replaces
+## ([ItemComparison]). Prices and refusals come from [Armory]'s rules, never worked out here; in
+## co-op a refusal names the teammate it is about. Presentation only; static, never instantiated.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 
@@ -49,6 +49,31 @@ static func entry_details(entry: ArmoryStock.Entry, catalog: EffectCatalog.Index
 	if heirloom == null:
 		return "Not in the catalog"
 	return "\n".join(heirloom.describe())
+
+
+## Why seat [param seat] can't buy stock entry [param index] of [param run], as its card says it
+## ([method Armory.entry_problem]): an entry a teammate bought reads "bought by" them, and in
+## co-op every seat the rules name reads as its player. Empty when it can be bought.
+static func entry_refusal(
+		run: CampaignRunState, seat: int, index: int, catalog: EffectCatalog.Index
+) -> String:
+	var buyer: String = bought_by(run, seat, index)
+	if not buyer.is_empty():
+		return buyer
+	var problem: String = Armory.entry_problem(run, seat, index, catalog)
+	return CampaignLink.name_seats(problem) if run.seat_numbers().size() > 1 else problem
+
+
+## "bought by Player 2" when a teammate of seat [param seat] bought stock entry [param index] of
+## [param run]; empty when nobody did, the seat itself did, or there is no such entry.
+static func bought_by(run: CampaignRunState, seat: int, index: int) -> String:
+	var stock: ArmoryStock = ArmoryStock.pending(run)
+	if stock == null or index < 0 or index >= stock.entries.size():
+		return ""
+	var entry: ArmoryStock.Entry = stock.entries[index]
+	if not entry.is_sold() or entry.buyer == seat:
+		return ""
+	return "bought by %s" % [CampaignLink.seat_name(entry.buyer)]
 
 
 ## [param entry]'s icon; null for none.
