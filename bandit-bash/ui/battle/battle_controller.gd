@@ -6,7 +6,7 @@
 # File:     battle_controller.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 19, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name BattleController
@@ -20,8 +20,8 @@ extends HintSource
 ## opens one pushes it, and cancel pops exactly one.[br]
 ## Picking another tile walks the token there locally first ([method BattleView.stage_walk]).
 ## Targets are one [TargetList], however picked; an attack, a staff or a shove confirms on a
-## [ForecastPanel]. A hovered move tile's [MovePreview] runs on a worker thread
-## ([method run_preview_frame]). [BattleScreen] binds it ([method bind]); the blocks below give
+## [ForecastPanel]. Move previews run on a worker thread, sweeping the seat's move tiles so a
+## hover is a lookup ([method run_preview_frame]). [BattleScreen] binds it ([method bind]); the blocks below give
 ## every binding and stage, and [constant LIVE_ACTIONS] each stage's hints.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
@@ -187,9 +187,10 @@ extends HintSource
 # MOVE:        a unit selected: its move, attack (red) and support (purple) tiles drawn, and the
 #              path to the cursor while
 #              the cursor is on a move tile, with that tile's move preview (requested on each
-#              hover, started on a worker thread by run_preview_frame and drawn when it finishes,
-#              cleared off a move tile and on leaving for any stage but WALK to CONFIRM, which
-#              drops one still running); the intent display shows the preview's intents,
+#              hover and drawn on the next frame when the sweep has done it, else started on the
+#              worker thread by run_preview_frame and drawn when it finishes; cleared off a move
+#              tile and on leaving for any stage but WALK to CONFIRM; one still running finishes
+#              into the sweep's done ones); the intent display shows the preview's intents,
 #              previewed, and the live ones until one is drawn and once it clears. The danger
 #              zone stays the board's here.
 #              Accept on another move tile walks the token there (WALK); on its own tile it opens
@@ -654,8 +655,14 @@ var _has_detail_unit: bool = false
 # In WALK, the action menu's rows for the picked tile, opened on arrival; empty elsewhere.
 var _walk_options: Array[TurnInputModel.ActionOption] = []
 
-# The newest hover's move preview, waiting for run_preview_frame, and the one on a worker thread.
+# The newest hover's move preview, waiting for run_preview_frame, the one on a worker thread, and
+# the sweep's done ones.
 var _previews: MovePreview.Queue = MovePreview.Queue.new()
+
+# The units the sweep previews, in order, and the board, selection and cursor's unit they were read
+# for (_sweep_order).
+var _sweep_units: PackedStringArray = []
+var _sweep_read_at: String = ""
 
 # What accept on a tile picks in SWAP_PICKED: the partners.
 var _targets_by_tile: Dictionary[Vector2i, TurnInputModel.TargetOption] = {}
@@ -1129,17 +1136,18 @@ func cycle_unit(forward: bool) -> String:
 	return unit_id
 
 
-## Draws the move preview that finished on its worker thread, if one did: its damage, and its
-## intents as previewed (from WALK to CONFIRM, its danger zone too); then starts the newest
-## hover's when none runs ([method MovePreview.Queue.run_pending]). Runs in MOVE and from WALK to
-## CONFIRM, where the picked tile's preview is kept. [method Node._process] calls it once a frame;
-## tests call it to stand for a frame, and [method MovePreview.Queue.wait] for the worker. Returns
+## Draws the hovered tile's move preview once it is done: its damage, and its intents as
+## previewed (from WALK to CONFIRM, its danger zone too). Every frame, in any stage, playback
+## included, the queue also starts the next preview when none runs: the hover's, else the sweep's
+## next tile, the selected unit's first, then the cursor's unit's, then the seat's other units'
+## ([method MovePreview.Queue.run_pending]). [method Node._process] calls it once a frame; tests
+## call it to stand for a frame, and [method MovePreview.Queue.wait] for the worker. Returns
 ## whether a preview was drawn.
 func run_preview_frame() -> bool:
-	if _session == null or not _has_preview_widgets() or not _keeps_preview(_stage):
+	if _session == null or not _has_preview_widgets():
 		return false
-	var preview: MovePreview = _previews.run_pending(_session)
-	if preview == null:
+	var preview: MovePreview = _previews.run_pending(_session, _sweep_order())
+	if preview == null or not _keeps_preview(_stage):
 		return false
 	if move_preview_marks != null:
 		move_preview_marks.show_preview(preview, view.tile_to_position(preview.tile))
@@ -1994,6 +2002,28 @@ func _clear_preview() -> void:
 
 func _has_preview_widgets() -> bool:
 	return move_preview_marks != null or intent_display != null
+
+
+# The units the move preview queue sweeps, in order: the selected one, the one under the cursor,
+# then the seat's other units that can act, in state order. Read again only when the board, the
+# selection or the cursor's unit changed since.
+func _sweep_order() -> PackedStringArray:
+	var under: String = _unit_at(_cursor)
+	var read_at: String = "%d %d %d %s %s" % [
+		_session.get_instance_id(), _seat, _session.last_seq(), _unit_id, under,
+	]
+	if read_at == _sweep_read_at:
+		return _sweep_units
+	_sweep_read_at = read_at
+	_sweep_units = PackedStringArray()
+	var acting: PackedStringArray = TurnInputModel.acting_units(_session, _seat)
+	for first: String in [_unit_id, under]:
+		if acting.has(first) and not _sweep_units.has(first):
+			_sweep_units.append(first)
+	for unit_id: String in acting:
+		if not _sweep_units.has(unit_id):
+			_sweep_units.append(unit_id)
+	return _sweep_units
 
 
 # Whether stage shows a move preview: MOVE the hovered tile's, and WALK to CONFIRM the picked

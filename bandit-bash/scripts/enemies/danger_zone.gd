@@ -6,7 +6,7 @@
 # File:     danger_zone.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 21, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name DangerZone
@@ -68,7 +68,7 @@ func is_threatened(tile: Vector2i) -> bool:
 ## full rebuild. Call it with a base on the main thread only.
 static func compute(
 		engine: EffectEngine,
-		# ASSUMPTION: optional trailing arguments for the preview's rebuild (P05 question 49).
+		# Optional and trailing, so a full rebuild passes none of them.
 		base: DangerZone = null,
 		touched: Array[Vector2i] = [],
 		margin: int = 0
