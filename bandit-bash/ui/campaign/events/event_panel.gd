@@ -92,6 +92,7 @@ enum Step {
 }
 
 # The steps that show Team, in co-op: those with no unsaved picks under way.
+# ASSUMPTION: Team hides while a chooser, the leaving unit, a placement or the rune discard asks.
 const _TEAM_STEPS: Array[Step] = [
 	Step.CLOSED, Step.OPTIONS, Step.VOTE, Step.DRAWN, Step.OUTCOME,
 ]
