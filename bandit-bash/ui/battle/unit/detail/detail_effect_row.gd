@@ -6,14 +6,15 @@
 # File:     detail_effect_row.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name DetailEffectRow
 extends HBoxContainer
 ## One trait, heirloom or curse in the [UnitDetailPanel]: its name and its effect text, the same
-## generated text as everywhere else ([method EffectDefinition.describe]), with its charges left
-## where it has a limit (ui-lift.md, Unit detail pop-up). Holds no rules.
+## generated text as everywhere else ([method EffectDefinition.describe_marked], in an
+## [EffectText]), with its charges left where it has a limit (ui-lift.md, Unit detail pop-up).
+## Holds no rules.
 ##
 ## @tutorial(UI lift): docs/design/ui-lift.md
 
@@ -25,20 +26,21 @@ extends HBoxContainer
 @export var army_suffix: String = " (heirloom)"
 
 @onready var _name: Label = %EffectName
-@onready var _text: Label = %EffectText
+@onready var _text: EffectText = %EffectText
 
 
-## Draws [param line]; [param is_army] when it is one of the army's heirlooms or curses.
+## Draws [param line], its keywords coloured; [param is_army] when it is one of the army's
+## heirlooms or curses.
 func show_effect(line: UnitDetailViewModel.EffectLine, is_army: bool) -> void:
 	if line == null:
 		return
 	_name.text = line.label + (army_suffix if is_army else "")
-	var text: String = line.text
+	var text: String = line.marked_text
 	if line.charges_left >= 0:
 		text += charges_format % [line.charges_left]
-	_text.text = text
+	_text.marked_text = text
 
 
-## Its lines as shown, for tests: name, text.
+## Its lines as shown, for tests: name, text (its words, without keyword tags).
 func get_texts() -> PackedStringArray:
-	return PackedStringArray([_name.text, _text.text])
+	return PackedStringArray([_name.text, _text.get_plain_text()])

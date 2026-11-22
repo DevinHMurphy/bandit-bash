@@ -6,7 +6,7 @@
 # File:     effects_case_base.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 9, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -42,8 +42,11 @@ func _init(check: Callable) -> void:
 	_report = check
 
 
+# Compares the words alone: blocks and EffectTerms return keyword-tagged text, which the markup
+# cases check on their own; a snapshot holds that the words shown never change.
 func _snapshot(case_name: String, actual: String, expected: String) -> void:
-	_check("describe %s" % [case_name], actual == expected, actual)
+	var words: String = EffectTerms.plain_text(actual)
+	_check("describe %s" % [case_name], words == expected, actual)
 
 
 # Stands in for a session's describe: "unit:57" -> "unit:57 (Hakkapel)".

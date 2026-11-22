@@ -6,15 +6,15 @@
 # File:     theme_cases.gd
 # Author:
 # Created:  November 18, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 extends RefCounted
 ## The shared theme against the UI style guide (docs/design/ui-style.md), for the ui/theme suite:
 ## every colour token in [code]game_theme.tres[/code]'s Palette with the guide's value and none
-## besides, read alike through [UiTokens]; text and muted text at 4.5:1 or more on panel and
-## raised panel, and text on the danger and darkness chip fills (the ratios are in the case
-## names); every colour in the project and battle themes
+## besides, read alike through [UiTokens]; text, muted text and each keyword colour of effect
+## text at 4.5:1 or more on panel and raised panel, and text on the danger and darkness chip
+## fills (the ratios are in the case names); every colour in the project and battle themes
 ## a token at some alpha, white or clear (tints and outlines drawn white), or one of the listed
 ## placeholders; no font size under 14 base units; the fonts and weights of the type scale, with
 ## their licence files; the row looks (rest, hover, focus, primary, disabled). No autoload is
@@ -33,11 +33,15 @@ const GUIDE: Dictionary[StringName, String] = {
 	&"bg": "14171c", &"panel": "2a3038", &"panel_raised": "3a434d", &"border": "4a5560",
 	&"text": "e8e2d4", &"text_muted": "a6afb9", &"accent": "d9b45a", &"parchment": "d8c9a3",
 	&"danger": "c8463c", &"danger_fill": "9e352e", &"heal": "5fae6b", &"block": "6fa3d8",
-	&"darkness": "6b4fa0",
+	&"darkness": "6b4fa0", &"danger_text": "f4978e", &"heal_text": "7fbe89",
+	&"block_text": "89b4df", &"darkness_text": "bba5ea",
 }
 
 ## The chip fills text sits on: warnings and the enemy side, the darkness banner and log rows.
 const CHIP_FILLS: Array[StringName] = [&"danger_fill", &"darkness"]
+
+## The theme type whose colours tint effect text's keywords, one per colour group.
+const EFFECT_TEXT_TYPE: StringName = &"EffectText"
 
 ## WCAG AA for body text.
 const MIN_CONTRAST: float = 4.5
@@ -128,6 +132,22 @@ func _test_contrast() -> void:
 		_check.call("contrast: text on the %s chip is %.2f:1 (at least %.1f)" % [
 			fill, on_fill, MIN_CONTRAST,
 		], on_fill >= MIN_CONTRAST)
+	var groups: int = 0
+	for group: int in KeywordEntry.ColourGroup.values():
+		var item: StringName = KeywordEntry.colour_item(group)
+		if not _game.has_color(item, EFFECT_TEXT_TYPE):
+			_check.call("contrast: EffectText has keyword colour %s" % [item], false, "")
+			continue
+		groups += 1
+		var tint: Color = _game.get_color(item, EFFECT_TEXT_TYPE)
+		for back: StringName in [UiTokens.PANEL, UiTokens.PANEL_RAISED]:
+			var ratio: float = contrast(tint, UiTokens.color(back))
+			_check.call("contrast: keyword %s #%s on %s is %.2f:1 (at least %.1f)" % [
+				item, tint.to_html(false), back, ratio, MIN_CONTRAST,
+			], ratio >= MIN_CONTRAST)
+	_check.call("contrast: every keyword colour group has its EffectText colour", (
+			groups == KeywordEntry.ColourGroup.size()
+	), "%d of %d" % [groups, KeywordEntry.ColourGroup.size()])
 
 
 # Every colour either theme draws is a token (any alpha), white or clear, or listed.

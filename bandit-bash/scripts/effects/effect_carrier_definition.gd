@@ -6,7 +6,7 @@
 # File:     effect_carrier_definition.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name EffectCarrierDefinition
@@ -29,14 +29,24 @@ extends Resource
 @export var effects: Array[EffectDefinition] = []
 
 
-## The effect text of every effect, one sentence each, in order; an effect with no text (none of
-## its blocks say anything) gives no line, so a card shows no empty one.
+## [method describe_marked]'s lines as plain words, their keyword tags removed, for logs, plain
+## labels and tests of the words.
 func describe() -> PackedStringArray:
+	var texts: PackedStringArray = []
+	for text: String in describe_marked():
+		texts.append(EffectTerms.plain_text(text))
+	return texts
+
+
+## The effect text of every effect, one sentence each, in order, keywords marked for
+## [EffectText]; an effect with no text (none of its blocks say anything) gives no line, so a
+## card shows no empty one. Carriers with their own wording override this, not [method describe].
+func describe_marked() -> PackedStringArray:
 	var texts: PackedStringArray = []
 	for effect: EffectDefinition in effects:
 		if effect == null:
 			continue
-		var text: String = effect.describe()
+		var text: String = effect.describe_marked()
 		if not text.is_empty():
 			texts.append(text)
 	return texts

@@ -6,7 +6,7 @@
 # File:     starting_heirloom_definition.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 @tool
@@ -77,8 +77,9 @@ func _validate_property(property: Dictionary) -> void:
 		ContentIds.apply_hint(property, ContentIds.HEIRLOOM_TIERS)
 
 
-## Its effects' text, then its bonus's line, such as "At the start of the run, gain 100 Gold.".
-func describe() -> PackedStringArray:
+## Its effects' text, then its bonus's line, such as "At the start of the run, gain 100 Gold.",
+## keywords marked.
+func describe_marked() -> PackedStringArray:
 	var texts: PackedStringArray = super()
 	var line: String = bonus_text()
 	if not line.is_empty():
@@ -86,7 +87,7 @@ func describe() -> PackedStringArray:
 	return texts
 
 
-## Its bonus as one sentence, opening [constant RUN_START_LEAD_IN]; empty for
+## Its bonus as one sentence, opening [constant RUN_START_LEAD_IN], keywords marked; empty for
 ## [constant Bonus.NONE].
 func bonus_text() -> String:
 	var action: String = ""
@@ -104,7 +105,7 @@ func bonus_text() -> String:
 		Bonus.UPGRADE:
 			action = "upgrade one unit (not the commander) for free"
 		Bonus.GOLD:
-			action = "gain %d Gold" % [gold]
+			action = "gain %d %s" % [gold, EffectTerms.mark("Gold")]
 		Bonus.HEIRLOOM:
 			action = "gain a random %s heirloom" % [heirloom_tier.capitalize()]
 	if action.is_empty():

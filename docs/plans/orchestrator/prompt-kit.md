@@ -89,7 +89,7 @@ before writing a prompt and name it in the LANE block.
   `docs/design/event-bus.md` lists every kind with what records it.
 - `SceneRouter.Screen`: ends at `GUILDHALL = 17` (RN9).
 - `FactCueMap.Shape`: ends at `GUILDHALL_NODE = 9` (RN9).
-- `capture` group numbers in `tools/captures/`: 100 to 700 used; EV3 took 450, RN7 460, RN8 470, RN9 480, EV1G 455, UL9 405, UL10 475, CO10 485 (needs 480), TX3 told 420.
+- `capture` group numbers in `tools/captures/`: 100 to 700 used; EV3 took 450, RN7 460, RN8 470, RN9 480, EV1G 455, UL9 405, UL10 475, CO10 485 (needs 480), TX3 420, BF8 487 (needs 485).
 
 ## Reviewing a report
 
@@ -123,10 +123,10 @@ before writing a prompt and name it in the LANE block.
 
 | Lane | Next | Then | Gated on |
 |------|------|------|----------|
-| A Battle UI | EN16 the sweep (ready: EN15 merged November 21, BF7 November 22, 2026; with BUG-035 and the five P05 question 49 markers) | RB1 in M3; CO13 after CO2 | RB1: RN10 merged and a full-run playtest (user, November 20, 2026) |
-| B Campaign and run | P11 CO5 unit swaps (ready: CO10 merged November 22, 2026), with BUG-023's `starting_offer_view.gd:210` | CO7, CO8 after CO2, CO11 after CO5 and CO6, CO14; BUG-034 before CO16 | — |
-| C Events | CO6 route votes (issued November 22, 2026), with the `EventOptionCommand.team_choices` removal (P11 question 50; CO9 merged November 21, 2026) | CO12 (co-op event screen) after TX3 (CO10 merged November 22, 2026; it takes `event_screen.gd` off `SEAT_ZERO_EXEMPT`); BUG-026 | — |
-| D Engine, AI, content | P11 CO2 sending units and calling for aid (ready: CO1 merged November 22, 2026; reuses `PhaseRunner.resume()`; with BUG-036) | CO3 [CO2]; CO4 any time; CT12 after the weapon modification design | — |
+| A Battle UI | EN16 the sweep (issued November 22, 2026; with BUG-035 and the five P05 question 49 markers) | RB1 in M3; CO13 after CO2 | RB1: RN10 merged and a full-run playtest (user, November 20, 2026) |
+| B Campaign and run | P11 CO5 unit swaps (after CO6, which shares `scripts/campaign/`; BF8 merged November 22, 2026), with `loading_gate.gd`'s class doc | CO7, CO8 after CO2, CO11 after CO5 and CO6, CO14; BUG-034 before CO16 | — |
+| C Events | CO6 route votes (issued November 22, 2026), with the `EventOptionCommand.team_choices` removal (P11 question 50; CO9 merged November 21, 2026) | CO12 (co-op event screen; ready after CO6: CO10 and TX3 merged November 22, 2026; it takes `event_screen.gd` off `SEAT_ZERO_EXEMPT` and shows effects with `describe_marked()` in an `EffectText`); BUG-026 | — |
+| D Engine, AI, content | P11 CO2 sending units and calling for aid (issued November 22, 2026; reuses `PhaseRunner.resume()`; with BUG-036) | CO3 [CO2]; CO4 any time; CT12 after the weapon modification design | — |
 | E Network | NT4 relay (ready: P11 question 4 answered November 21, 2026, complete_on_host; CO1 merged November 22, 2026; it and CO2 both change `combat_encounter.gd`, so not beside CO2) | NT5–NT8 (NT5 binds the battle and map screens to a client's seat, P11 question 1); CO15 after NT4 | — |
-| G Audio and tooling | TX3 keyword highlighting and tooltips (issued November 21, 2026, beside CO10) | TX2 trait wording, part 2, after the user's wording pass; P17's first step; AU2 after the audio direction (M5); the capture builder tidy-up | TX2 after the user's wording pass in effect-text.md (it applies it, and confirms P01 65–68); P17's first step after the P17 plan |
+| G Audio and tooling | TX2 trait wording, part 2, after the user's wording pass (effect-text.md, and keywords.md's Your wording column; TX3 merged November 22, 2026) | P17's first step; P17's first step; AU2 after the audio direction (M5); the capture builder tidy-up | TX2 after the user's wording pass in effect-text.md (it applies it, and confirms P01 65–68); P17's first step after the P17 plan |
 | F Docs and plans | P17 localization plan | CO20 docs (P11 answered November 22, 2026); P12 plan when wanted | — |

@@ -6,7 +6,7 @@
 # File:     unit_detail_view_model.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 19, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name UnitDetailViewModel
@@ -493,6 +493,9 @@ class EffectLine:
 	var label: String = ""
 	## The effect text ([method EffectDefinition.describe]).
 	var text: String = ""
+	## [member text] with its keywords marked, for the panel's [EffectText]s
+	## ([method EffectDefinition.describe_marked]).
+	var marked_text: String = ""
 	## Charges left this period; -1 when unlimited.
 	var charges_left: int = -1
 
@@ -501,5 +504,6 @@ class EffectLine:
 		var line: EffectLine = EffectLine.new()
 		line.label = instance.label
 		line.text = instance.definition.describe()
+		line.marked_text = instance.definition.describe_marked()
 		line.charges_left = instance.charges_left
 		return line

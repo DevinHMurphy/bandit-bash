@@ -6,7 +6,7 @@
 # File:     unit_detail_panel.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 19, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name UnitDetailPanel
@@ -298,7 +298,7 @@ func _icon_of(line: UnitDetailViewModel.WeaponLine) -> Texture2D:
 	return null if line == null else line.icon
 
 
-# A weapon's profile and its effects, without its name, for its gear row.
+# A weapon's profile and its effects, keywords marked, without its name, for its gear row.
 func _weapon_detail(line: UnitDetailViewModel.WeaponLine) -> String:
 	if line == null:
 		return ""
@@ -315,7 +315,7 @@ func _weapon_detail(line: UnitDetailViewModel.WeaponLine) -> String:
 	if not line.effective_against.is_empty():
 		text += " · Effective vs %s" % [", ".join(line.effective_against)]
 	for effect: UnitDetailViewModel.EffectLine in line.effects:
-		text += "\n" + _effect_text(effect)
+		text += "\n" + _effect_text(effect, true)
 	return text
 
 
@@ -339,11 +339,11 @@ func _weapon_text(line: UnitDetailViewModel.WeaponLine) -> String:
 	return text
 
 
-# An item's effect lines, one per line, for its gear row.
+# An item's effect lines, one per line, keywords marked, for its gear row.
 func _lines_text(effects: Array[UnitDetailViewModel.EffectLine]) -> String:
 	var lines: PackedStringArray = []
 	for effect: UnitDetailViewModel.EffectLine in effects:
-		lines.append(_effect_text(effect))
+		lines.append(_effect_text(effect, true))
 	return "\n".join(lines)
 
 
@@ -366,8 +366,11 @@ func _list_text(heading: String, effects: Array[UnitDetailViewModel.EffectLine])
 	return "\n".join(lines)
 
 
-func _effect_text(effect: UnitDetailViewModel.EffectLine) -> String:
-	var text: String = effect_format % [effect.label, effect.text]
+# effect's line: its carrier's name and its text, with its keywords marked when is_marked (for a
+# gear row's EffectText), else plain (for get_texts()).
+func _effect_text(effect: UnitDetailViewModel.EffectLine, is_marked: bool = false) -> String:
+	var shown: String = effect.marked_text if is_marked else effect.text
+	var text: String = effect_format % [effect.label, shown]
 	if effect.charges_left >= 0:
 		text += charges_format % [effect.charges_left]
 	return text

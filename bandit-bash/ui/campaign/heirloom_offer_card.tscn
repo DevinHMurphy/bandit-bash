@@ -1,13 +1,60 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://ui/campaign/heirloom_offer_card.gd" id="1_card"]
+[ext_resource type="PackedScene" path="res://ui/common/text/effect_text.tscn" id="2_text"]
 
 [node name="HeirloomOfferCard" type="Button"]
 custom_minimum_size = Vector2(300, 200)
-text = "Heirloom
-Its effect"
-alignment = 0
-autowrap_mode = 3
-vertical_icon_alignment = 0
-expand_icon = false
 script = ExtResource("1_card")
+
+[node name="Content" type="MarginContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 8
+
+[node name="Layout" type="HBoxContainer" parent="Content"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 12
+
+[node name="HeirloomIcon" type="TextureRect" parent="Content/Layout"]
+unique_name_in_owner = true
+visible = false
+texture_filter = 1
+layout_mode = 2
+size_flags_vertical = 0
+mouse_filter = 2
+
+[node name="Text" type="VBoxContainer" parent="Content/Layout"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="HeirloomName" type="Label" parent="Content/Layout/Text"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BodyLabel"
+text = "Heirloom"
+autowrap_mode = 3
+
+[node name="Effects" parent="Content/Layout/Text" instance=ExtResource("2_text")]
+unique_name_in_owner = true
+layout_mode = 2
+marked_text = "Its effect"
+
+[node name="Problem" type="Label" parent="Content/Layout/Text"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"BodyLabel"
+autowrap_mode = 3

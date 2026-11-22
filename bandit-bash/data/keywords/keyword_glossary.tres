@@ -1,0 +1,232 @@
+[gd_resource type="Resource" script_class="KeywordGlossary" format=3]
+
+[ext_resource type="Script" path="res://ui/common/text/keyword_entry.gd" id="1_entry"]
+[ext_resource type="Script" path="res://ui/common/text/keyword_glossary.gd" id="2_glossary"]
+
+[sub_resource type="Resource" id="Resource_block"]
+script = ExtResource("1_entry")
+id = "block"
+display_name = "Block"
+colour_group = 1
+explanation = "Absorbs damage before HP. Clears when its side's phase starts."
+
+[sub_resource type="Resource" id="Resource_stance"]
+script = ExtResource("1_entry")
+id = "stance"
+display_name = "Stance"
+colour_group = 3
+explanation = "Each hit that deals damage removes 1; at 0 the unit is Exposed. Refills at Phase Start."
+
+[sub_resource type="Resource" id="Resource_exposed"]
+script = ExtResource("1_entry")
+id = "exposed"
+display_name = "Exposed"
+colour_group = 0
+explanation = "Has no Stance left, so it can be crit and shoved."
+
+[sub_resource type="Resource" id="Resource_mitigation"]
+script = ExtResource("1_entry")
+id = "mitigation"
+display_name = "Mitigation"
+colour_group = 1
+explanation = "Subtracted from each hit's damage: DEF against Physical, RES against Magic."
+
+[sub_resource type="Resource" id="Resource_phase_start"]
+script = ExtResource("1_entry")
+id = "phase_start"
+display_name = "Phase Start"
+colour_group = 3
+explanation = "A side's turn begins: its Block clears and its Stance refills, then effects apply."
+
+[sub_resource type="Resource" id="Resource_phase_end"]
+script = ExtResource("1_entry")
+id = "phase_end"
+display_name = "Phase End"
+colour_group = 3
+explanation = "A side's turn ends. Effects that last until Phase End stop."
+
+[sub_resource type="Resource" id="Resource_attack"]
+script = ExtResource("1_entry")
+id = "attack"
+display_name = "Attack"
+colour_group = 0
+explanation = "A hit's damage before Mitigation: weapon damage plus MGT and bonuses."
+
+[sub_resource type="Resource" id="Resource_attack_speed"]
+script = ExtResource("1_entry")
+id = "attack_speed"
+display_name = "Attack Speed"
+colour_group = 3
+explanation = "SPD minus any weight over CON. Being 4 or more faster gives extra turns in an exchange."
+
+[sub_resource type="Resource" id="Resource_atk_x"]
+script = ExtResource("1_entry")
+id = "atk_x"
+display_name = "AtkX"
+colour_group = 0
+explanation = "How many attacks the unit makes each turn of an exchange."
+
+[sub_resource type="Resource" id="Resource_parry"]
+script = ExtResource("1_entry")
+id = "parry"
+display_name = "Parry"
+colour_group = 1
+explanation = "Removes attacks from each enemy turn of an exchange, but never the last one."
+
+[sub_resource type="Resource" id="Resource_hit"]
+script = ExtResource("1_entry")
+id = "hit"
+display_name = "Hit"
+colour_group = 3
+explanation = "The chance an attack lands, lowered by the target's Avoid."
+
+[sub_resource type="Resource" id="Resource_avoid"]
+script = ExtResource("1_entry")
+id = "avoid"
+display_name = "Avoid"
+colour_group = 3
+explanation = "Lowers the Hit of attacks against this unit. Comes from terrain and effects."
+
+[sub_resource type="Resource" id="Resource_crit"]
+script = ExtResource("1_entry")
+id = "crit"
+display_name = "Crit"
+colour_group = 0
+explanation = "The chance a hit is critical. Only Exposed units can be crit."
+
+[sub_resource type="Resource" id="Resource_crit_x"]
+script = ExtResource("1_entry")
+id = "crit_x"
+display_name = "CritX"
+colour_group = 0
+explanation = "How much a critical hit multiplies its damage."
+
+[sub_resource type="Resource" id="Resource_movement"]
+script = ExtResource("1_entry")
+id = "movement"
+display_name = "Movement"
+colour_group = 1
+explanation = "How many tiles a unit can move each turn. Rough terrain costs more."
+
+[sub_resource type="Resource" id="Resource_range"]
+script = ExtResource("1_entry")
+id = "range"
+display_name = "Range"
+colour_group = 0
+explanation = "How many tiles away a weapon can attack or counter."
+
+[sub_resource type="Resource" id="Resource_hp"]
+script = ExtResource("1_entry")
+id = "hp"
+display_name = "HP"
+colour_group = 2
+explanation = "Health. A unit at 0 HP is defeated. HP carries over between combats."
+
+[sub_resource type="Resource" id="Resource_mgt"]
+script = ExtResource("1_entry")
+id = "mgt"
+display_name = "MGT"
+colour_group = 3
+explanation = "Might: adds to weapon damage and to staff healing and Block."
+
+[sub_resource type="Resource" id="Resource_spd"]
+script = ExtResource("1_entry")
+id = "spd"
+display_name = "SPD"
+colour_group = 3
+explanation = "Speed: the base of Attack Speed."
+
+[sub_resource type="Resource" id="Resource_def"]
+script = ExtResource("1_entry")
+id = "def"
+display_name = "DEF"
+colour_group = 1
+explanation = "Reduces Physical damage taken."
+
+[sub_resource type="Resource" id="Resource_res"]
+script = ExtResource("1_entry")
+id = "res"
+display_name = "RES"
+colour_group = 1
+explanation = "Reduces Magic damage taken."
+
+[sub_resource type="Resource" id="Resource_con"]
+script = ExtResource("1_entry")
+id = "con"
+display_name = "CON"
+colour_group = 3
+explanation = "How much weight a unit carries before it loses Attack Speed."
+
+[sub_resource type="Resource" id="Resource_gold"]
+script = ExtResource("1_entry")
+id = "gold"
+display_name = "Gold"
+colour_group = 3
+explanation = "Earned in combats and events; spent at the Armory and Guildhall."
+
+[sub_resource type="Resource" id="Resource_xp"]
+script = ExtResource("1_entry")
+id = "xp"
+display_name = "XP"
+colour_group = 2
+explanation = "Earned mostly at the end of each combat. Enough XP levels a unit up."
+
+[sub_resource type="Resource" id="Resource_pouch"]
+script = ExtResource("1_entry")
+id = "pouch"
+display_name = "Pouch"
+colour_group = 3
+explanation = "Holds one consumable, trinket or spare weapon. Using it takes the unit's action."
+
+[sub_resource type="Resource" id="Resource_armory"]
+script = ExtResource("1_entry")
+id = "armory"
+display_name = "Armory"
+colour_group = 3
+explanation = "A shop for weapons, equipment, Pouch items and heirlooms."
+
+[sub_resource type="Resource" id="Resource_guildhall"]
+script = ExtResource("1_entry")
+id = "guildhall"
+display_name = "Guildhall"
+colour_group = 3
+explanation = "A shop for recruits, runes and prefix re-rolls."
+
+[sub_resource type="Resource" id="Resource_magic"]
+script = ExtResource("1_entry")
+id = "magic"
+display_name = "Magic"
+colour_group = 3
+explanation = "A damage type, reduced by RES."
+
+[sub_resource type="Resource" id="Resource_physical"]
+script = ExtResource("1_entry")
+id = "physical"
+display_name = "Physical"
+colour_group = 3
+explanation = "A damage type, reduced by DEF."
+
+[sub_resource type="Resource" id="Resource_damage"]
+script = ExtResource("1_entry")
+id = "damage"
+display_name = "Damage"
+colour_group = 0
+explanation = "Lowers Block first, then HP."
+
+[sub_resource type="Resource" id="Resource_heal"]
+script = ExtResource("1_entry")
+id = "heal"
+display_name = "Heal"
+colour_group = 2
+explanation = "Restores HP, up to its maximum."
+
+[sub_resource type="Resource" id="Resource_darkness"]
+script = ExtResource("1_entry")
+id = "darkness"
+display_name = "Darkness"
+colour_group = 4
+explanation = "Spreads across the map as turns pass. Units in it lose HP each turn; Block doesn't stop it."
+
+[resource]
+script = ExtResource("2_glossary")
+entries = Array[ExtResource("1_entry")]([SubResource("Resource_block"), SubResource("Resource_stance"), SubResource("Resource_exposed"), SubResource("Resource_mitigation"), SubResource("Resource_phase_start"), SubResource("Resource_phase_end"), SubResource("Resource_attack"), SubResource("Resource_attack_speed"), SubResource("Resource_atk_x"), SubResource("Resource_parry"), SubResource("Resource_hit"), SubResource("Resource_avoid"), SubResource("Resource_crit"), SubResource("Resource_crit_x"), SubResource("Resource_movement"), SubResource("Resource_range"), SubResource("Resource_hp"), SubResource("Resource_mgt"), SubResource("Resource_spd"), SubResource("Resource_def"), SubResource("Resource_res"), SubResource("Resource_con"), SubResource("Resource_gold"), SubResource("Resource_xp"), SubResource("Resource_pouch"), SubResource("Resource_armory"), SubResource("Resource_guildhall"), SubResource("Resource_magic"), SubResource("Resource_physical"), SubResource("Resource_damage"), SubResource("Resource_heal"), SubResource("Resource_darkness")])
