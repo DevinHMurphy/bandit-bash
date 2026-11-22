@@ -6,17 +6,18 @@
 # File:     preview_profile.gd
 # Author:
 # Created:  November 20, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 extends RefCounted
 ## The move preview's per-phase profile for [code]preview_bench.gd[/code] (move-preview.md, build
 ## step A): on one board, [constant SAMPLES] hovers spread over every move tile, on the main thread.
 ## Each is timed whole ([method Intents.prepare_preview], then [method Intents.PreviewJob.run]),
-## then its preparation is rebuilt phase by phase with the same calls (sandbox copy, walk, danger
-## zone, phase crossing) and, on the crossed board, every enemy's first-round decision is timed
-## with no forecast cache, with its parts: its board's two floods, each attack forecast it weighs,
-## its reuse zone's flood. Forecasts are counted and timed by enumerating the options as
+## then its preparation is rebuilt phase by phase with the same calls (sandbox copy, walk, phase
+## crossing, and for reference a full danger zone) and, on the crossed board, every enemy's
+## first-round decision is timed with no forecast cache, with its parts: its board's two floods,
+## each attack forecast it weighs; then again recording its footprint, as a preview's decisions
+## do ([EnemyAI.Footprint]). Forecasts are counted and timed by enumerating the options as
 ## [method EnemyAI.decide] does, outside it, so the parts are estimates a remainder balances. Every
 ## [constant PARTS_EVERY]th hover takes each of those forecasts apart step by step. Measures only.
 
@@ -55,7 +56,7 @@ var _catalog: EffectCatalog.Index = null
 # Sums over every profiled hover, in microseconds, by phase.
 var _phases: Dictionary[String, int] = {}
 # Per enemy class: decisions timed, then sums of decide, floods, forecasts counted, forecast time,
-# zone flood, in that order.
+# decide recording its footprint, in that order.
 var _classes: Dictionary[String, PackedInt64Array] = {}
 var _decisions: int = 0
 var _hovers: int = 0
@@ -170,7 +171,8 @@ func _profile_enemies(engine: EffectEngine) -> void:
 			row[3] += forecasts.x
 			row[4] += forecasts.y
 		started = Time.get_ticks_usec()
-		_zone_flood(engine, enemy_id)
+		var footprint: EnemyAI.Footprint = EnemyAI.Footprint.new()
+		EnemyAI.decide(engine, _catalog, enemy_id, flooded, objective, null, footprint)
 		row[5] += Time.get_ticks_usec() - started
 		row[0] += 1
 		_classes[class_id] = row
@@ -290,27 +292,6 @@ func _time_forecasts(engine: EffectEngine, board: EnemyAI.Board) -> Vector2i:
 	return Vector2i(count, spent)
 
 
-# The reuse zone an attacking decision builds (Intents' zone): a flood with the enemy's budget and
-# every tile within its longest range plus the effect margin, taken as 1, of each tile it walks.
-func _zone_flood(engine: EffectEngine, enemy_id: String) -> void:
-	var state: CombatState = engine.state
-	var mover: CombatUnitState = state.unit(enemy_id)
-	var walked: Dictionary[Vector2i, int] = Pathing.flood(
-			state,
-			mover.tile,
-			Pathing.budget_of(engine, state, enemy_id),
-			mover.movement_type,
-			mover.side
-	)
-	var longest: int = 1
-	for span: Vector2i in DangerZone.attack_ranges(engine, enemy_id):
-		longest = maxi(longest, span.y)
-	var zone: Dictionary[Vector2i, bool] = {}
-	for walked_tile: Vector2i in walked:
-		for near: Vector2i in DangerZone.tiles_within(walked_tile, Vector2i(0, longest + 1)):
-			zone[near] = true
-
-
 func _add(phase: String, spent: int) -> void:
 	var total: int = _phases.get(phase, 0)
 	_phases[phase] = total + spent
@@ -324,16 +305,17 @@ func _print_phases() -> void:
 	var decisions: float = _decisions / hovers
 	var decide: float = _mean_decide()
 	var parts: float = 0.0
-	for phase: String in ["copy", "walk", "danger", "cross"]:
+	for phase: String in ["copy", "walk", "cross"]:
 		parts += _mean(phase)
 	print("\n-- Profile: %d hovers on the main thread, mean per hover --" % [_hovers])
 	_line("hover (prepare + run)", whole, whole)
 	_line("prepare_preview (main thread)", prepare, whole)
 	_line("  sandbox copy", _mean("copy"), whole)
 	_line("  walk to the tile", _mean("walk"), whole)
-	_line("  danger zone", _mean("danger"), whole)
 	_line("  phase crossing (Phase End, enemy Phase Start)", _mean("cross"), whole)
-	_line("  the rest (path, checks, signatures, margin)", prepare - parts, whole)
+	# A preview recomputes only the enemies its move reaches; the full rebuild is for reference.
+	_line("  the rest (danger zone, path, checks, margin)", prepare - parts, whole)
+	_line("  reference: a full danger zone rebuild", _mean("danger"), whole)
 	_line("PreviewJob.run (worker in play)", job, whole)
 	print("  %.1f decisions; attack forecasts made %.1f, reused %.1f (the store as the sweep" % [
 		decisions, _made / hovers, _reused / hovers,
@@ -347,7 +329,7 @@ func _print_phases() -> void:
 func _print_classes() -> void:
 	print("\n-- Profile: each enemy's first-round decision, mean per decision --")
 	print("%-16s %5s %9s %9s %9s %9s %9s %9s" % [
-		"class", "n", "decide", "floods", "forecasts", "each", "rest", "zone",
+		"class", "n", "decide", "floods", "forecasts", "each", "rest", "recorded",
 	])
 	var all_count: int = 0
 	var all_time: int = 0
@@ -366,7 +348,7 @@ func _print_classes() -> void:
 	])
 	print("decide: the whole decision; floods: its board's reach and walk; forecasts: counted per")
 	print("decision, each timed; rest: decide less floods and forecasts (rating, staves, safety")
-	print("floods); zone: the reuse zone's flood, outside decide.")
+	print("floods); recorded: decide again, recording its footprint for reuse, as previews do.")
 
 
 func _print_parts() -> void:

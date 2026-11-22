@@ -6,7 +6,7 @@
 # File:     open_event_command.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name OpenEventCommand
@@ -16,7 +16,8 @@ extends CampaignCommand
 ## [constant CampaignFact.Kind.EVENT_DRAWN]. The Unknown node's entry point, built by
 ## [method EventNode.open].
 ##
-## Valid only inside an Unknown node with no event open there yet, so a continued run shows the
+## Valid only inside an Unknown node that plays as one ([method CampaignRunState.node_type]: not
+## rolled yet, or rolled an event) with no event open there yet, so a continued run shows the
 ## event it saved and never draws again; rejected when no event is eligible, and the node goes
 ## on without one. Everything is rolled before anything shows, and the command's save
 ## ([method CampaignService.submit_command]) keeps it.
@@ -56,6 +57,8 @@ func validate(run: CampaignRunState) -> String:
 		return "the run isn't inside a node"
 	if run.graph.type_of(run.node) != CampaignGraph.NodeType.UNKNOWN:
 		return "node %d isn't an Unknown node" % [run.node]
+	if run.node_type() != CampaignGraph.NodeType.UNKNOWN:
+		return "node %d became %s, not an event" % [run.node, run.flow.unknown]
 	if run.events.is_open_at(run.floor_number, run.node):
 		return "an event is already open at node %d" % [run.node]
 	if pool == null or catalog == null or rules == null or draw_stream == null:

@@ -6,19 +6,21 @@
 # File:     event_view.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name EventView
 extends RefCounted
 ## What the event screen shows one seat of the event open at the run's node: the event, each
 ## option with its rolled parts, named curse and votes, why an option is greyed out, the seat's
-## chooser stage and choice, the team's vote and draw, and a pending surprise combat.
+## chooser stage and choice, the team's vote and draw, which seats have chosen, and a pending
+## surprise combat.
 ##
 ## A read-only snapshot built by [method EventNode.view] from the saved state, so a continued run
 ## shows exactly what was shown before the quit. It holds definitions and ids only; changing it
 ## changes nothing. A team choice's option is greyed out unless every seat can take it; with more
-## than one seat it is voted on ([method is_vote_needed], [method EventNode.vote]).
+## than one seat it is voted on ([method is_vote_needed], [method EventNode.vote]), and each seat
+## then applies the draw to its own army ([method seats_still_choosing]).
 ##
 ## @tutorial(Events and curses plan): docs/plans/2026-11-12-events-and-curses.md
 
@@ -53,14 +55,29 @@ var is_team_vote: bool = false
 ## Each seat's vote, by seat: an option index. [b]Empty:[/b] no votes, or no team vote.
 var votes: Dictionary[int, int] = {}
 
-## The option the team's votes drew: waiting for the team's [EventOptionCommand], or applied.
+## The option the team's votes drew, which each seat applies with its own [EventOptionCommand].
 ## [constant EventRunState.NO_OPTION] before the draw and outside a team vote.
 var drawn: int = EventRunState.NO_OPTION
+
+## Each seat's choice, by seat: the option it chose (in a team vote, applied to its own army), or
+## [constant EventRunState.NO_OPTION] while it still chooses. Every seat of the event is a key.
+var choices: Dictionary[int, int] = {}
 
 
 ## Whether an event is open to show.
 func is_open() -> bool:
 	return event != null
+
+
+## The seats that haven't chosen yet, ascending: in a team vote, the ones the team's choice
+## still waits on. Empty once [member is_finished].
+func seats_still_choosing() -> PackedInt32Array:
+	var waiting: PackedInt32Array = []
+	for seat_number: int in choices:
+		if choices[seat_number] == EventRunState.NO_OPTION:
+			waiting.append(seat_number)
+	waiting.sort()
+	return waiting
 
 
 ## Whether the team still votes: a team vote whose option isn't drawn yet. Each seat may vote,
@@ -93,12 +110,12 @@ static func build(
 	view.is_finished = state.is_finished()
 	view.is_combat_pending = state.is_combat_pending
 	view.is_team_vote = found.is_team_choice and state.seats.size() > 1
+	for seat_number: int in state.seats:
+		view.choices[seat_number] = state.seats[seat_number].chosen
 	var tally: PackedInt32Array = state.tally(found.options.size())
 	if view.is_team_vote:
 		view.votes = state.votes.duplicate()
 		view.drawn = state.drawn_option()
-		if view.drawn == EventRunState.NO_OPTION and part.chosen != EventRunState.NO_OPTION:
-			view.drawn = part.chosen
 	for index: int in found.options.size():
 		var shown: OptionView = OptionView.new()
 		shown.index = index

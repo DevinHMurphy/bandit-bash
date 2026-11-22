@@ -6,7 +6,7 @@
 # File:     event_node.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name EventNode
@@ -105,8 +105,9 @@ static func vote(
 
 ## The command by which [param seat] chooses option [param option_index] with its picks
 ## [param choice] (null: nothing picked), with the run's id allocator and each seat's
-## [code]EVENT_OUTCOME[/code] stream. Add teammates' picks for a team choice to
-## [member EventOptionCommand.team_choices]. Null, reported, with no run.
+## [code]EVENT_OUTCOME[/code] stream. It applies to [param seat]'s own army only; in a team vote
+## every seat sends its own, and the team's choice is done once all have. Null, reported, with no
+## run.
 static func choose(
 		session: CampaignSession,
 		seat: int,

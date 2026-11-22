@@ -6,7 +6,7 @@
 # File:     vote_view_cases.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -15,7 +15,8 @@ extends RefCounted
 ## teammate short of gold greying Pay for both with the seat named); seat 0's vote by key, shown
 ## on its card and the status line, then changed by mouse; seat 1's vote by pad completing the
 ## set and drawing; the drawn result on both panels, only the drawn card pressable; seat 0
-## taking it, which applies to both seats; both ending on the outcome with the tally.
+## taking it, which applies to its own army only, then seat 1 taking it by pad; both ending on
+## the outcome with the tally.
 
 # The suite that runs this file; tests/case_files.gd finds it by this line.
 const SUITE: String = "ui/events"
@@ -93,17 +94,24 @@ func _test_vote() -> void:
 
 	var gold: PackedInt32Array = [made.run.seat_run(0).gold, made.run.seat_run(1).gold]
 	pressed = _press(first, "key", Fixture.INTIMIDATE)
-	_ok("drawn: seat 0 takes it with its own picks; it applies to both seats", (
+	_ok("drawn: seat 0 takes it with its own picks; it applies to seat 0's army only", (
 			pressed and first.get_step() == EventPanel.Step.OUTCOME
 			and made.run.seat_run(0).gold == gold[0] + Fixture.LOOT_GOLD
-			and made.run.seat_run(1).gold == gold[1] + Fixture.LOOT_GOLD
+			and made.run.seat_run(1).gold == gold[1]
 			and first.get_summary().get_lines().contains("The team drew it with 2 of 2 votes.")
+			and first.get_summary().get_lines().contains(
+					"Waiting for the rest of the team to choose."
+			)
 	), _fx.last_batch.rejected_reason if _fx.last_batch != null else "")
 	_fx.close_panel(first)
 
 	second = _fx.open_panel(made, 1)
-	_ok("drawn: seat 1's panel opens on the same outcome, its curse named", (
-			second.get_step() == EventPanel.Step.OUTCOME
+	var waiting: bool = second.get_step() == EventPanel.Step.DRAWN
+	pressed = _press(second, "pad", Fixture.INTIMIDATE)
+	_ok("drawn: seat 1's panel still shows the draw; it takes it by pad, its curse named", (
+			waiting and pressed and second.get_step() == EventPanel.Step.OUTCOME
+			and made.run.seat_run(1).gold == gold[1] + Fixture.LOOT_GOLD
+			and made.run.events.is_finished()
 			and second.get_summary().get_heading() == "You chose Intimidate"
 			and second.get_summary().get_lines().contains("(Minor curse)")
 	), second.get_summary().get_lines())

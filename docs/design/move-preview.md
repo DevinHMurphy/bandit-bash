@@ -15,29 +15,53 @@ starting from `Godot_FE`'s absolute-range check.
 ## Where it stands
 
 - **The target** is 50 ms per hover at p95 in a debug build (P05 question 10; decision 4 below).
-- **The benchmark** (`tests/bench/preview_bench.tscn`, release through
-  `tests/bench/release_bench.sh`) hovers every move tile of every acting unit through the threaded
-  `MovePreview.Queue` on four boards: M1 turn 1, M1 engaged, a 9-enemy 6-unit key board on the
-  Hall, and the Powder Keep engaged. Real key maps field fewer: a key pack is the step's standard
-  count of escorts (at most 5) plus its mini-boss (game-vision.md, Run structure; enemy-packs.md).
-  The key board adds a Brute, a Crossbowman and a Hedge Healer to reach move-preview's benchmark
-  size (P05 question 47). The Powder Keep is the real 9-enemy board.
+- **The benchmark** (`tests/bench/preview_bench.tscn`, its boards built by
+  `tests/bench/bench_boards.gd`, release through `tests/bench/release_bench.sh`) hovers every move
+  tile of every acting unit through the threaded `MovePreview.Queue` on four boards: M1 turn 1,
+  M1 engaged, a 9-enemy 6-unit key board on the Hall, and the Powder Keep engaged. Real key maps
+  field fewer: a key pack is the step's standard count of escorts (at most 5) plus its mini-boss
+  (game-vision.md, Run structure; enemy-packs.md). The key board adds a Brute, a Crossbowman and
+  a Hedge Healer to reach move-preview's benchmark size (P05 question 47). The Powder Keep is the
+  real 9-enemy board. `-- check` hovers every tile in checking mode instead; `-- after_action`
+  sweeps again after one unit walks and waits.
 - **Measured** on one machine (Ryzen 7 9800X3D), Godot 4.7.1, times in milliseconds. "Before" is
-  EN13's code, measured at the start of EN14; "after" is EN14 (layer 2, the lighter sandbox),
-  November 20, 2026. A sweep is all of one unit's tiles in turn.
+  EN14's code (layer 2), "after" is EN15 (layers 3 and 4), November 21, 2026. Release: one run
+  each, back to back. Debug: the best of two runs before and three after, by median; the machine
+  ran other builds, and single debug runs varied by up to 30%. A sweep is all of one unit's tiles
+  in turn. EN13 → EN14 is in P05 question 48.
 
 | Board | Build | Hover median | Hover p95 | Sweep median | Sweep p95 |
 |---|---|---|---|---|---|
-| M1 turn 1 | debug | 18 → 18 | 41 → 29 | 520 → 461 | 942 → 770 |
-| M1 turn 1 | release | 14 → 13 | 28 → 25 | 382 → 363 | 690 → 601 |
-| M1 engaged | debug | 82 → **28** | 107 → **46** | 2,051 → 694 | 2,783 → 971 |
-| M1 engaged | release | 58 → 24 | 74 → 40 | 1,484 → 587 | 1,964 → 830 |
-| Key, 9 enemies | debug | 362 → 205 | 503 → 300 | 12,590 → 7,289 | 21,926 → 12,731 |
-| Key, 9 enemies | release | 251 → 156 | 359 → 226 | 8,688 → 5,544 | 15,673 → 9,760 |
-| Boss, 9 enemies | debug | 1,609 → 618 | 1,860 → 970 | 61,825 → 25,196 | 98,829 → 35,291 |
-| Boss, 9 enemies | release | 1,097 → 449 | 1,275 → 707 | 42,432 → 18,513 | 67,473 → 25,942 |
+| M1 turn 1 | debug | 18 → 17 | 30 → 28 | 471 → 414 | 789 → 745 |
+| M1 turn 1 | release | 13 → 13 | 24 → 22 | 352 → 317 | 595 → 566 |
+| M1 engaged | debug | 31 → **26** | 49 → **45** | 818 → 657 | 998 → 928 |
+| M1 engaged | release | 24 → 22 | 39 → 38 | 571 → 537 | 798 → 768 |
+| Key, 9 enemies | debug | 261 → 200 | 384 → 296 | 9,126 → 6,931 | 15,924 → 12,445 |
+| Key, 9 enemies | release | 155 → 146 | 226 → 216 | 5,481 → 5,133 | 9,632 → 9,232 |
+| Boss, 9 enemies | debug | 634 → 604 | 1,043 → 956 | 27,153 → 24,886 | 37,161 → 35,082 |
+| Boss, 9 enemies | release | 445 → 434 | 708 → 696 | 18,312 → 18,013 | 25,802 → 25,193 |
 
-- **The target now holds** on both M1 boards, and is missed on the 9-enemy boards.
+- **The target holds** on both M1 boards, and is missed on the 9-enemy boards.
+- **What layers 3 and 4 saved** is mostly fixed cost. A decision no longer floods a second time to
+  build its zone (0.3–0.6 ms each in debug, about 45 per hover on the 9-enemy boards); its
+  footprint's reads are tested against the touched tiles instead. Recording a footprint costs
+  nothing measurable (the profile's "recorded" column). The incremental danger zone takes the
+  hover's main-thread frame from 2.4 to 0.8 ms on M1 turn 1 and 7.1 to 3.5 ms on the key board in
+  debug (release 1.2 → 0.6, 4.3 → 2.4).
+- **The zones keep few decisions on engaged boards:** 45 → 44 per hover on the 9-enemy boards,
+  6 → 5.8 on M1. The moved unit usually stands within reach of most attackers, so their own target
+  reads include its old tile. Of the first step's decisions, previews kept 4% on M1 turn 1 (every
+  enemy advances on a cluster the moved unit belongs to), 3% on M1 engaged, 6% on the key board and
+  15% on the boss board (the Powder Baron's Wait in 86% of hovers, the Shieldbearers' posts in
+  18%). Once a first step's winner is decided again, the later steps keep nothing.
+- **The touched tiles are more than the moved unit's two** in 99 of 256 boss-board hovers: the
+  Powder Baron's barrage aims at player units during the crossing, so a move can land its keg far
+  from both tiles. Checking mode finds no difference on any bench board (`-- check`).
+- **EN14's two open questions, measured** (P05 questions 50 and 51): neither saves anything
+  material on these boards. Forecasts kept across a fact: the refresh and the next sweep made the
+  same forecasts (the walked unit is within the margin of nearly every key, and previews keep only
+  2,000). Iron Heart's counter keyed as "far": forecasts made per hover fell by under 2%, so the
+  counter is not what stops one step reusing another's forecasts.
 - **Why one forecast slowed on big boards** (EN13: 1.9 ms on M1, 4.6 ms on the boss board): the
   sandbox copy. Every `StatSheet.copy_for` rebuilt its copy through `set_base` and
   `add_modifier`, each dropping 16 cache slots from an empty cache, for every base sheet and every
@@ -46,36 +70,38 @@ starting from `Godot_FE`'s absolute-range check.
   with each sheet's static answers. One forecast in debug: 1.8 → 1.1 ms (M1), 3.1 → 1.7 ms (key),
   3.3 → 1.9 ms (boss). What still grows with the board is the engine copy's instances (0.15 →
   0.54 ms) and the exchange's dispatch over them (0.76 → 0.98 ms).
-- **Reuse, as built** (layer 2): on the key board a hover makes 46 attack forecasts and reuses 32;
-  on the boss board it makes 259 and reuses 199. Three things limit it:
-  - an army effect counting every attack (Iron Heart, every 7th attack by your units; the
-    Mercenary army's heirloom) is read by nearly every forecast, and its counter moves at almost
-    every enemy step, so steps within one preview rarely reuse each other's forecasts. Most reuse
-    comes from earlier hovers on the same board;
+- **Forecast reuse** (layer 2): on the key board a hover makes 46 attack forecasts and reuses 32;
+  on the boss board it makes 259 and reuses 199. Two things limit it:
   - engaged boards cluster: most options lie within the margin of the unit moved or of an earlier
-    step's action;
+    step's action (its actor, its target, any splash), so steps within one preview rarely reuse
+    each other's forecasts, and most reuse comes from earlier hovers on the same board. An army
+    counter (Iron Heart) moving at every step was thought to be the cause; keyed as unchanged it
+    saved under 2% (P05 question 51);
   - previews keep at most 2,000 forecasts in the store (Threads and memory).
-- **What dominates now** on the 9-enemy boards is the decisions themselves, not their forecasts:
-  45 decisions per hover, each with its floods, Support's safety floods (the Warcaller's about
-  13 ms per decision in debug) and an advance's whole-map flood. Layers 3 and 4 bound those;
-  layer 5 hides the rest.
+- **What dominates now** on the 9-enemy boards is the decisions at every step and their forecasts:
+  about 44 decisions per hover (the zones rarely hold on engaged boards), Support's threat floods
+  (the Warcaller's about 12 ms per decision in debug), an advance's whole-map flood, and on the
+  boss board some 260 forecasts made. Layer 5 hides what is left.
+- **After every fact** the latest intents are computed afresh on the main thread (`Intents.refresh`):
+  1.5 s on the key board and 6.3 s on the boss board in debug, where its sandbox keeps the
+  session's verify mode (a preview's turns it off), and 0.33 s and 0.78 s in release
+  (`-- after_action`). A player waits that long after each action before the next hover.
 
 ## How a preview works now
 
 1. **On the main thread** (`Intents.prepare_preview`):
    - copy the session into a sandbox;
    - walk the unit to the tile;
-   - compute the whole danger zone;
+   - rebuild the danger zone from the latest one (layer 4);
    - cross the player Phase End and the enemy Phase Start (every Phase End effect; darkness damage
      comes later, in the darkness phase).
 2. **On a worker** (`PreviewJob.run`), play the enemy phase step by step. At each step every enemy
    yet to act decides, and the best one acts.
-3. **Reuse.** An enemy keeps its decision from the latest intents while neither the unit's old tile
-   nor its new tile lies in that decision's zone. The zone is the tiles the enemy can walk through,
-   plus its longest range plus the effect margin (the largest positional reach of any effect on the
-   map).
+3. **Reuse.** An enemy keeps its decision from the latest intents while no touched tile can change
+   it (layer 3, as built), until a different enemy acts first; its attack forecasts are reused by
+   key (layer 2). The effect margin is the largest positional reach of any effect on the map.
 
-The reuse misses in four ways:
+Before EN14 and EN15, the reuse missed in four ways:
 
 - **It works per decision.** One touched option re-decides the whole enemy, every end tile × target
   × weapon, though most of those forecasts didn't change.
@@ -169,8 +195,7 @@ enemy"), the key holds every unit's signature. Nothing is reused, which is today
   worked out first, and is left for later.
 
 The board diff of layer 1 is the signatures: two boards differ, for a forecast, exactly where its
-key's signatures differ. The decision-level reuse (`Decision.touches`) still uses the moved
-unit's two tiles.
+key's signatures differ. For decisions, the diff compares facts (layer 3, as built).
 
 ### 3. Bounded zones for the decisions that are global today
 
@@ -191,11 +216,65 @@ terrain-free distances, the absolute range in `Godot_FE`'s sense, which never un
 - **Wait with a class.** The enemy had no foe in reach. The decision changes only if a touched tile
   lies within the enemy's absolute range.
 
+**As built (EN15):** `EnemyAI.Footprint`, filled by `EnemyAI.decide` through an optional
+`footprint` argument (null records nothing) with what the decision read, as it read it. Every
+decision has one; none counts as touched by any move any more. A touched tile can change the
+decision when one of these readings covers it. Distances are terrain-free: impassable terrain is
+the only cost-0 tile, so every step costs at least 1 and a route never costs less than its grid
+distance.
+
+- **The walk:** every tile it can walk through, and the units within its longest attack or staff
+  range of them (at least 1, since a unit beside the walk can block it), plus the margin. This is
+  the attack zone of before, now tested on the touched tiles against the board's own flood
+  instead of built as a set from a second flood per decision.
+- **Units it reads:** each option's target-rule subject, and a Shieldbearer's candidate allies
+  (their ranges), within the margin; the Hexer's subjects within 2 more (its rule counts the foes
+  around them).
+- **An advance** on a foe whose nearest stand tile costs C: a foe within C plus its range of the
+  enemy (it could be as near), or for a Hound within K of a pack ally (K: the target's distance
+  to the pack); and every route from an end tile r to the target's stand tiles costing no more
+  than r's cost left: a tile x with dist(r, x) + max(0, dist(x, target) − range) ≤ left(r) can
+  block a cheapest route or open a cheaper one.
+- **A Shieldbearer short of a post:** the same routes to the tiles beside its ally, each bound by
+  the least cost left of any end tile.
+- **A lit Brazier beside an end tile:** the units within its light.
+- **No foe reachable** (an advancing class's Wait): its whole-map flood, within its range. The
+  absolute range above fits a Guard's Wait (the walk reading); an advancing enemy waits only when
+  no foe is reachable anywhere.
+- **Support's threats** (Godot_FE's absolute range): the moved unit's movement plus range from
+  where it stood (its stats then) and where it stands (its stats now), and every other player
+  unit's range around each touched tile (a tile it can now end on, or no longer can). A player
+  unit whose MOVEMENT or range differs on the preview's board changes them anywhere: those are
+  compared on that board.
+- **Every move:** a lever that can seal the objective (its seal reads every route), and an end
+  tile with no route at all (one of any length can open).
+
+**The touched tiles** come from layer 1, applied to decisions: the preview compares the facts of
+its walk and phase crossing with those of the latest intents' crossing. Each fact one recorded
+and the other didn't adds its tile and the tiles, on both boards, of the units and objects it
+names: the moved unit's two tiles, a Phase End heal reaching a third unit, a Powder Baron's keg
+landing elsewhere because the move changed its best tile. Rules code records a fact for every
+change, so an untouched tile holds the same unit in the same state on both boards. A fact naming
+anything else (an effect with no holder) re-decides every enemy.
+
+A kept decision that acts is carried out afresh, and its second move (the Bloodhound's) is decided
+afresh. When that second move goes elsewhere than the latest intents', the boards differ past the
+touched tiles, so the later steps decide afresh.
+
 ### 4. An incremental danger zone
 
 Keep the danger zone per enemy, with `Godot_FE`'s index from tiles to the enemies whose absolute
 range covers them. A preview recomputes only the enemies indexed at the touched tiles and merges the
 result.
+
+**As built (EN15):** `DangerZone.compute` takes the latest zone, the touched tiles and the margin
+as optional trailing arguments. An enemy's tiles depend only on who stands within its MOVEMENT (its
+walk) and on its own stats, so each enemy keeps its tiles from the latest zone unless its MOVEMENT
+or the margin, from its tile, reaches a touched tile. The index from tiles to enemies is built
+once per zone, on the first preview. The preview builds its zone on the main thread from the walk's
+facts. A walk fact naming a map object (a keg's blast reaches past any walk), a negative margin or
+a different set of enemies rebuilds every enemy. The result equals a full rebuild, the merged tiles
+in the same order.
 
 ### 5. Precompute during playback, so a hover is a lookup
 
@@ -282,12 +361,15 @@ The preview must equal a full re-plan, so every layer ships with checks that com
 |---|---|---|
 | A Measure | Benchmark boards: M1 turn 1, M1 engaged, a 9-enemy, 6-unit key-combat board. A per-phase profile of a hover. The equality suite and checking mode, run against today's preview | Baseline median and p95, debug and release, per hover and per sweep; equality passes |
 | B Diff and cache | Layers 1 and 2, the shared flood (left out: under 2% of a hover) | Equality passes; the benchmark is measured before and after. **Built in EN14** (Where it stands) |
-| C Zones | Layers 3 and 4 | Same |
+| C Zones | Layers 3 and 4 | Same. **Built in EN15** (Where it stands) |
 | D Precompute | Layer 5: the sweep during playback, in `MovePreview.Queue` | A hover on a done tile shows on the next frame; the sweep's time per turn is reported |
 
 Steps A–C change only the internals of `intents.gd`, `enemy_ai.gd` and `danger_zone.gd`. Step D
 changes the queue inside `move_preview.gd` and the controller's calls into it. No public signature
-changes, except EN14's optional `forecasts` argument on `EnemyAI.decide` (P05 question 48). Step D goes ahead whatever B and C measure, because the user wants hover work at a minimum.
+changes, except optional trailing arguments: EN14's `forecasts` on `EnemyAI.decide` (P05 question
+48), and EN15's `footprint` on it and `base`, `touched` and `margin` on `DangerZone.compute` (P05
+question 49). Step D goes ahead whatever B and C measure, because the user wants hover work at a
+minimum.
 
 ## Decisions
 

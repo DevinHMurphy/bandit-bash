@@ -207,8 +207,10 @@ team. Each event is marked; events without a mark are individual.
   chance); the host draws. The chosen option applies to every player: each gets its reward, its
   curse, or its cost. An option is only available if every player meets its requirement.
   - Voting again replaces a player's vote; a vote can't be withdrawn.
-  - The last vote draws the option. The team then applies it, each player making their own picks
-    (a unit, item placements, a rune to discard).
+  - The last vote draws the option. Each player then applies it to their own army with their own
+    picks (a unit, item placements, a rune to discard); nobody picks for a teammate's army. The
+    team's choice is done when every player has applied it, and a surprise combat starts only
+    then.
   - The votes stay on show until the next event opens.
   - In solo there is no vote: you choose directly.
 - **Combat options are always team choices.** If the team picks a surprise combat, everyone fights

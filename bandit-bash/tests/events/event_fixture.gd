@@ -6,7 +6,7 @@
 # File:     event_fixture.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -283,6 +283,19 @@ func choose(
 		choice: EventChoice = null
 ) -> CampaignBatch:
 	return made.submit(EventNode.choose(made, seat, option, choice, events, catalog))
+
+
+## Every seat of the open event chooses option [param option] with no picks, in seat order, as each
+## seat applies a team's drawn option to its own army. The first rejection's reason, naming its
+## seat; empty when every seat's applied.
+func choose_every(made: CampaignSession, events: EventPool, option: int) -> String:
+	var every: PackedInt32Array = PackedInt32Array(made.run.events.seats.keys())
+	every.sort()
+	for seat: int in every:
+		var batch: CampaignBatch = choose(made, events, seat, option)
+		if batch.is_rejected():
+			return "seat %d: %s" % [seat, batch.rejected_reason]
+	return ""
 
 
 ## Seat [param seat] votes for option [param option] of the open team choice.

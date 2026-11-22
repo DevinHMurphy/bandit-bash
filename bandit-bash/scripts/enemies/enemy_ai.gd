@@ -6,7 +6,7 @@
 # File:     enemy_ai.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name EnemyAI
@@ -123,22 +123,23 @@ static func next_plan(
 	return best
 
 
-## [param unit_id]'s best plan on [param engine]'s map, its class from [param catalog], rated in
-## [EnemyPlan]'s order; a Wait with no option or class. Aggressive, Skirmisher: the best attack in
+## [param unit_id]'s best plan on [param engine]'s map, changing nothing, its class from
+## [param catalog]; a Wait with no option or class. Aggressive, Skirmisher: the best attack in
 ## reach, else advance (a Hound toward its pack's nearest foe). Hold: a kill, else from its tile,
-## else as Aggressive. Guard: any attack in reach, else stay (a Shieldbearer beside its back-line
-## ally). Support: heal, else regroup (a Warcaller near most allies). A post holder keeps its
-## behavior after the darkness. Attackers blow kegs to kill; looters loot; with nothing to attack
-## the advancing ones seal the objective or douse a Brazier. [param flooded]:
-## [method flooded_tiles]; [param objective]: [method objective_tiles]. [param forecasts]: reuses
-## attack forecasts other decisions made ([Forecasts]); null makes each afresh. Changes nothing.
+## else as Aggressive. Guard: any attack in reach, else stay (a Shieldbearer beside its ally).
+## Support: heal, else regroup (a Warcaller near most allies). Post holders keep theirs after the
+## darkness; attackers blow kegs to kill, looters loot, idle advancers seal or douse. Reads
+## [method flooded_tiles] and [method objective_tiles]; [param forecasts] reuses attack forecasts
+## ([Forecasts]), [param footprint] records what it read ([Footprint]); null for none.
 static func decide(
 		engine: EffectEngine,
 		catalog: EffectCatalog.Index,
 		unit_id: String,
 		flooded: Dictionary[Vector2i, bool] = {},
 		objective: Array[Vector2i] = [],
-		forecasts: Forecasts = null
+		forecasts: Forecasts = null,
+		# ASSUMPTION: an optional trailing argument and a new inner class (P05 question 49).
+		footprint: Footprint = null
 ) -> EnemyPlan:
 	var state: CombatState = engine.state
 	var definition: EnemyClassDefinition = null
@@ -150,6 +151,9 @@ static func decide(
 	board.objective = objective
 	board.catalog = catalog
 	board.forecasts = forecasts
+	if footprint != null:
+		footprint.begin(board)
+		board.footprint = footprint
 	board.behavior = definition.behavior
 	board.rule = definition.target_rule_id
 	if Reinforcements.has_darkness_arrived(state) and not definition.holds_post:
@@ -288,6 +292,8 @@ static func _attacks(board: Board) -> Array[EnemyPlan]:
 		if held == null or not _attacks_with(held):
 			continue
 		var span: Vector2i = ExchangeResolver.weapon_range(board.engine, board.unit_id, held.id)
+		if board.footprint != null:
+			board.footprint.reads_around_walk(span.y)
 		for tile: Vector2i in board.reach:
 			var path: Array[Vector2i] = board.path_to(tile)
 			for target: String in targets:
@@ -353,10 +359,18 @@ static func _object_uses(board: Board) -> Array[EnemyPlan]:
 		for lever: MapState.ObjectState in state.map.objects_of(MapLayout.ObjectKind.LEVER):
 			if lever.is_destroyed or lever.group_id < 0 or not board.reach.has(lever.tile):
 				continue
+			# Sealing reads every player unit's route to the objective, anywhere on the map.
+			if board.footprint != null:
+				board.footprint.is_whole = true
 			if _seals(board, lever):
 				options.append(_object_plan(board, EnemyPlan.Kind.USE_OBJECT, lever.tile, lever.id))
 	for brazier: MapState.ObjectState in state.map.objects_of(MapLayout.ObjectKind.BRAZIER):
-		if brazier.is_destroyed or not brazier.is_lit or not _lights_a_foe(state, brazier.tile):
+		if brazier.is_destroyed or not brazier.is_lit:
+			continue
+		# A foe walking into or out of its light changes the douse wherever the enemy reaches it.
+		if board.footprint != null and _is_beside_any(brazier.tile, board.reach):
+			board.footprint.reads_occupants(brazier.tile, DarknessState.BRAZIER_RADIUS)
+		if not _lights_a_foe(state, brazier.tile):
 			continue
 		for tile: Vector2i in board.reach:
 			if state.grid.distance(tile, brazier.tile) == 1:
@@ -470,6 +484,8 @@ static func _heals(board: Board) -> Array[EnemyPlan]:
 	if held == null or held.staff != CombatState.WeaponStats.Staff.HEAL:
 		return options
 	var span: Vector2i = _range_of(board.engine, board.unit_id)
+	if board.footprint != null:
+		board.footprint.reads_around_walk(span.y)
 	var allies: PackedStringArray = state.units_of(CombatFact.CombatSide.ENEMY)
 	for tile: Vector2i in board.reach:
 		var path: Array[Vector2i] = board.path_to(tile)
@@ -563,7 +579,16 @@ static func _beside(board: Board, ally: String) -> Array[EnemyPlan]:
 			if left.has(tile) and (least < 0 or left[tile] < least):
 				least = left[tile]
 		if least < 0:
+			# Cut off from its ally: a unit stepping aside can open a route of any length.
+			if board.footprint != null:
+				board.footprint.is_whole = true
 			return options
+		if board.footprint != null:
+			# A route as cheap as the posts' can only pass within least of an end tile.
+			var bounds: Dictionary[Vector2i, int] = {}
+			for tile: Vector2i in board.reach:
+				bounds[tile] = least
+			board.footprint.reads_routes(ally_tile, 1, bounds)
 		for tile: Vector2i in board.reach:
 			if left.get(tile, -1) == least:
 				posts[tile] = least
@@ -594,6 +619,9 @@ static func _back_line_ally(board: Board) -> String:
 				definition != null
 				and definition.behavior == EnemyClassDefinition.Behavior.SUPPORT
 		)
+		# Its weapons' ranges are its stats, which an effect around it can change.
+		if not is_support and board.footprint != null:
+			board.footprint.reads_unit(state.tile_of(ally), 0)
 		if not is_support and not _carries_ranged(board.engine, ally):
 			continue
 		# Nearest by tile distance, then id.
@@ -734,10 +762,17 @@ static func _advances(board: Board) -> Array[EnemyPlan]:
 			nearest_key = key
 			nearest_goals = goals
 	if nearest_id.is_empty():
+		# No foe reachable: one walking within range of the whole flood, or freeing a tile beside
+		# it, can become one.
+		# ASSUMPTION: this Wait reads the whole flood, not the absolute range (P05 question 49).
+		if board.footprint != null:
+			board.footprint.reads_far(walked, maxi(span.y, 1))
 		return options
 	var left: Dictionary[Vector2i, int] = _cost_to(
 			state, nearest_goals, board.movement_type, board.side
 	)
+	if board.footprint != null:
+		_note_advance(board, span, nearest_key, state.tile_of(nearest_id), pack_tiles, left)
 	for tile: Vector2i in board.reach:
 		if not left.has(tile):
 			continue
@@ -751,6 +786,35 @@ static func _advances(board: Board) -> Array[EnemyPlan]:
 					plan.allies_beside += 1
 		options.append(plan)
 	return options
+
+
+# Records in board's footprint what an advance on the foe at target_tile read, chosen by key
+# (pack distance, path cost) and closing to span: a foe that could become nearer, by cost
+# (within key.y + span.y of the enemy, every step costing at least 1) or for a Hound by distance
+# (within key.x of its pack), and every route between an end tile and the foe's stand tiles that
+# could get cheaper or dearer (left: the cost from each end tile). A move anywhere else changes
+# neither the foe nor any cost; the target rule records the foe itself.
+static func _note_advance(
+		board: Board,
+		span: Vector2i,
+		key: Vector2i,
+		target_tile: Vector2i,
+		pack_tiles: Array[Vector2i],
+		left: Dictionary[Vector2i, int]
+) -> void:
+	var footprint: Footprint = board.footprint
+	footprint.reads_occupants(board.origin, key.y + span.y)
+	for ally_tile: Vector2i in pack_tiles:
+		footprint.reads_occupants(ally_tile, key.x)
+	var bounds: Dictionary[Vector2i, int] = {}
+	for tile: Vector2i in board.reach:
+		# NOTE: never missing (every end tile walks back to the enemy, which reaches the foe);
+		# an end tile with no route could gain one of any length.
+		if not left.has(tile):
+			footprint.is_whole = true
+			return
+		bounds[tile] = left[tile]
+	footprint.reads_routes(target_tile, span.y, bounds)
 
 
 # Hold: every kill in reach, wherever it ends, since kills come first for every behavior
@@ -804,6 +868,13 @@ static func _rate_target_rule(board: Board, options: Array[EnemyPlan]) -> void:
 		subjects[plan] = subject
 		if not nearest.has(subject) or plan.path_cost < nearest[subject]:
 			nearest[subject] = plan.path_cost
+	if board.footprint != null:
+		# Each rule reads its subject's state; the Hexer's also counts the foes around it.
+		var around: int = 0
+		if board.rule == ContentIds.TARGET_MOST_CURSED:
+			around = HEX_STORM_TILES
+		for subject: String in nearest:
+			board.footprint.reads_unit(board.state.tile_of(subject), around)
 	for plan: EnemyPlan in subjects:
 		var subject: String = subjects[plan]
 		var hp: int = board.state.get_hp(subject)
@@ -906,6 +977,8 @@ static func _wait_plan(
 static func _safety_of(board: Board, tile: Vector2i) -> int:
 	if not board.has_threats:
 		board.has_threats = true
+		if board.footprint != null:
+			board.footprint.reads_threats = true
 		var state: CombatState = board.state
 		for foe: String in state.units_of(CombatFact.CombatSide.PLAYER):
 			var held: CombatState.WeaponStats = state.equipped_weapon(foe)
@@ -922,6 +995,13 @@ static func _safety_of(board: Board, tile: Vector2i) -> int:
 					foe_unit.side
 			)
 			var span: Vector2i = _range_of(board.engine, foe)
+			if board.footprint != null:
+				board.footprint.reads_threat(
+						foe,
+						foe_unit.tile,
+						board.engine.stats(foe).get_int(CombatValue.Key.MOVEMENT),
+						span
+				)
 			var covered: Dictionary[Vector2i, bool] = {}
 			for end: Vector2i in walked:
 				var occupant: String = state.occupant_at(end)
@@ -939,6 +1019,14 @@ static func _safety_of(board: Board, tile: Vector2i) -> int:
 # same kill.
 static func _goal_of(plan: EnemyPlan) -> String:
 	return "%d %s %s" % [plan.kind, plan.target_id, plan.is_kill]
+
+
+# Whether any of tiles is beside tile (grid distance 1).
+static func _is_beside_any(tile: Vector2i, tiles: Dictionary[Vector2i, int]) -> bool:
+	for other: Vector2i in tiles:
+		if absi(other.x - tile.x) + absi(other.y - tile.y) == 1:
+			return true
+	return false
 
 
 # Whether held attacks: any weapon but a Block or heal staff.
@@ -1069,6 +1157,8 @@ class Board:
 	var objective_cost: int = -1
 	## The attack forecasts its decision may reuse ([method EnemyAI.decide]); null for none.
 	var forecasts: Forecasts = null
+	## What its decision reads, recorded as it reads it ([method EnemyAI.decide]); null for none.
+	var footprint: Footprint = null
 
 	# The flood reach is cut from, every tile it can walk through: the paths.
 	var _walked: Dictionary[Vector2i, int] = {}
@@ -1112,6 +1202,185 @@ class Board:
 			path.push_front(came_from)
 			at = came_from
 		return path
+
+	## Every tile it can walk through this turn with the cost to get there, its paths' flood;
+	## shared, not copied.
+	func walked_tiles() -> Dictionary[Vector2i, int]:
+		return _walked
+
+
+## What one decision ([method EnemyAI.decide]) read of the board, so a move preview can tell
+## which tiles a moved unit must touch to change it (move-preview.md, layer 3). A tile can change
+## it when a reading below covers it, by terrain-free distance: every step costs at least 1, so a
+## route never costs less. Units' own reads widen by the effect margin, which an effect reading
+## positions can reach; occupancy and routes read only who stands where. Player units' threat
+## counts compare their stats instead ([method threat_changed]). Built on one thread, then only
+## read: [Intents] shares it across threads with its decision.
+## @tutorial(The move preview): docs/design/move-preview.md
+class Footprint:
+	extends RefCounted
+
+	## Whether any move can change it: a lever's seal, or a route of any length opening.
+	var is_whole: bool = false
+	## Whether it counts the player units that could attack its end tiles ([method threat_changed]).
+	var reads_threats: bool = false
+
+	# The deciding enemy's tile, its walk (shared with its board), its end tiles, and how far from a
+	# walked tile it reads units: at least 1, since a unit beside the walk can block it.
+	var _origin: Vector2i = CombatFact.NO_TILE
+	var _walked: Dictionary[Vector2i, int] = {}
+	var _reach: Dictionary[Vector2i, int] = {}
+	var _walk_reads: int = 1
+	# The farthest walked tile from _origin, so a far tile skips the walk.
+	var _extent: int = 0
+	# (x, y, radius): units it reads within radius, widened by the margin; occupants it counts
+	# within radius, not widened.
+	var _units: Array[Vector3i] = []
+	var _occupants: Array[Vector3i] = []
+	# Routes from each end tile to the stand tiles within _route_span of _route_goal, each at most
+	# its bound: a tile on one, or freeing a cheaper one, changes it.
+	var _route_goal: Vector2i = CombatFact.NO_TILE
+	var _route_span: int = 0
+	var _route_bounds: Dictionary[Vector2i, int] = {}
+	# A whole-map flood, any tile within _far_reach of which can change it.
+	var _far: Dictionary[Vector2i, int] = {}
+	var _far_reach: int = 0
+	# The player units counted as threats: id, tile, MOVEMENT and range then.
+	var _threat_ids: PackedStringArray = []
+	var _threat_tiles: Array[Vector2i] = []
+	var _threat_moves: PackedInt32Array = []
+	var _threat_spans: Array[Vector2i] = []
+
+	## Starts on [param board]: its enemy's tile, walk and end tiles.
+	func begin(board: Board) -> void:
+		_origin = board.origin
+		_walked = board.walked_tiles()
+		_reach = board.reach
+		for tile: Vector2i in _walked:
+			_extent = maxi(_extent, absi(tile.x - _origin.x) + absi(tile.y - _origin.y))
+
+	## Reads units within [param tiles] of every walked tile: its targets, or a staff's allies.
+	func reads_around_walk(tiles: int) -> void:
+		_walk_reads = maxi(_walk_reads, tiles)
+
+	## Reads the state of the unit on [param tile], and counts the units within [param around].
+	func reads_unit(tile: Vector2i, around: int) -> void:
+		_units.append(Vector3i(tile.x, tile.y, around))
+
+	## Counts who stands within [param tiles] of [param tile].
+	func reads_occupants(tile: Vector2i, tiles: int) -> void:
+		_occupants.append(Vector3i(tile.x, tile.y, tiles))
+
+	## Reads routes from each end tile in [param bounds] to the stand tiles within [param span] of
+	## [param goal], none costing more than its bound. A second set makes it whole.
+	func reads_routes(goal: Vector2i, span: int, bounds: Dictionary[Vector2i, int]) -> void:
+		if not _route_bounds.is_empty():
+			is_whole = true
+			return
+		_route_goal = goal
+		_route_span = span
+		_route_bounds = bounds
+
+	## Reads [param flood], a whole-map walk, and the units within [param tiles] of it.
+	func reads_far(flood: Dictionary[Vector2i, int], tiles: int) -> void:
+		_far = flood
+		_far_reach = tiles
+
+	## Counts player unit [param unit_id] on [param tile] as a threat, with its [param movement]
+	## and range [param span] (shortest, longest) as it read them.
+	func reads_threat(unit_id: String, tile: Vector2i, movement: int, span: Vector2i) -> void:
+		_threat_ids.append(unit_id)
+		_threat_tiles.append(tile)
+		_threat_moves.append(movement)
+		_threat_spans.append(span)
+
+	## Whether a unit entering, leaving or changing on [param tile] can change the decision, with
+	## [param margin] the effect margin. Threat counts aside ([method threat_changed]).
+	func can_change(tile: Vector2i, margin: int) -> bool:
+		if is_whole:
+			return true
+		var walk_reads: int = _walk_reads + margin
+		if _distance(_origin, tile) <= _extent + walk_reads:
+			for walked: Vector2i in _walked:
+				if _distance(walked, tile) <= walk_reads:
+					return true
+		for read: Vector3i in _units:
+			if _distance(Vector2i(read.x, read.y), tile) <= read.z + margin:
+				return true
+		for read: Vector3i in _occupants:
+			if _distance(Vector2i(read.x, read.y), tile) <= read.z:
+				return true
+		if not _route_bounds.is_empty():
+			var past: int = maxi(0, _distance(tile, _route_goal) - _route_span)
+			for end: Vector2i in _route_bounds:
+				if _distance(end, tile) + past <= _route_bounds[end]:
+					return true
+		for far: Vector2i in _far:
+			if _distance(far, tile) <= _far_reach:
+				return true
+		return false
+
+	## Whether the threat counts of its end tiles can differ on [param engine], the board it was
+	## made for with [param moved_id] moved off or onto [param tiles] (Godot_FE's absolute range):
+	## a player unit's MOVEMENT or range changed, or an end tile lies within the moved unit's
+	## movement plus range of where it stood or stands, or within another's range of a tile it can
+	## now end on or no longer can. Without [param engine], whether it counts threats at all.
+	func threat_changed(engine: EffectEngine, tiles: Array[Vector2i], moved_id: String) -> bool:
+		if not reads_threats:
+			return false
+		if engine == null:
+			return true
+		var state: CombatState = engine.state
+		var others: int = -1
+		var was: int = -1
+		var was_on: Vector2i = CombatFact.NO_TILE
+		for index: int in _threat_ids.size():
+			var unit_id: String = _threat_ids[index]
+			var span: Vector2i = _threat_spans[index]
+			if unit_id == moved_id:
+				was = _threat_moves[index] + span.y
+				was_on = _threat_tiles[index]
+				continue
+			others = maxi(others, span.y)
+			if not state.has_unit(unit_id):
+				return true
+			var held: CombatState.WeaponStats = state.equipped_weapon(unit_id)
+			if held == null or not EnemyAI._attacks_with(held):
+				return true
+			if engine.stats(unit_id).get_int(CombatValue.Key.MOVEMENT) != _threat_moves[index]:
+				return true
+			if EnemyAI._range_of(engine, unit_id) != span:
+				return true
+		for unit_id: String in state.units_of(CombatFact.CombatSide.PLAYER):
+			var held: CombatState.WeaponStats = state.equipped_weapon(unit_id)
+			var attacks: bool = held != null and EnemyAI._attacks_with(held)
+			if attacks and unit_id != moved_id and not _threat_ids.has(unit_id):
+				return true
+		var now: int = -1
+		var now_on: Vector2i = CombatFact.NO_TILE
+		if state.has_unit(moved_id):
+			now_on = state.tile_of(moved_id)
+			var held: CombatState.WeaponStats = state.equipped_weapon(moved_id)
+			if held != null and EnemyAI._attacks_with(held):
+				now = (
+						engine.stats(moved_id).get_int(CombatValue.Key.MOVEMENT)
+						+ EnemyAI._range_of(engine, moved_id).y
+				)
+		for tile: Vector2i in tiles:
+			var reach: int = others
+			if tile == was_on:
+				reach = maxi(reach, was)
+			if tile == now_on:
+				reach = maxi(reach, now)
+			if reach < 0:
+				continue
+			for end: Vector2i in _reach:
+				if _distance(end, tile) <= reach:
+					return true
+		return false
+
+	static func _distance(a: Vector2i, b: Vector2i) -> int:
+		return absi(a.x - b.x) + absi(a.y - b.y)
 
 
 ## Attack forecasts one computation of the intents made, for its later steps and every preview
