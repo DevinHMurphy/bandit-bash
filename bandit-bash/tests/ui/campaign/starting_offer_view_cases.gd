@@ -15,8 +15,9 @@ extends RefCounted
 ## Abundance by mouse, a recruit card clicked, Back clicked; Mercenary Contract by pad, A through
 ## the recruit and the unit, B back each step without the pause menu, the commander greyed out;
 ## Ancestral Weapon by keyboard into the placement panel, Esc back out of it and the convoy chosen;
-## Veteran Company's unit column; three refused heirlooms shown with their reasons and Skip. Every
-## command the view builds is one the run accepts. The real screen is the walk's, by keyboard.
+## Veteran Company's unit column; three refused heirlooms shown with their reasons and Skip; a seat
+## with no offer shown with nothing to pick, no script error (BUG-023). Every command the view
+## builds is one the run accepts. The real screen is the walk's, by keyboard.
 
 # The suite that runs this file; tests/case_files.gd finds it by this line.
 const SUITE: String = "ui/campaign"
@@ -57,6 +58,7 @@ func run() -> void:
 	_test_weapon_by_key()
 	_test_upgrade_column()
 	_test_refused()
+	_test_no_offer()
 
 
 func _test_key() -> void:
@@ -214,6 +216,25 @@ func _test_refused() -> void:
 			and _commands[0].option == StartingHeirloomCommand.SKIP
 			and _commands[0].validate(session.run).is_empty()
 	), _last_problem(session))
+	_close(view)
+
+
+# BUG-023: a seat with no offer takes the empty branch for the options; the view must reach the
+# end of showing the three (its step_changed), not stop on a script error there.
+func _test_no_offer() -> void:
+	var session: CampaignSession = _session(4)
+	session.run.seat_run(0).pending_offers.erase(StartingOffer.OFFER_KEY)
+	var steps: Array[StartingOfferView.Step] = []
+	var view: StartingOfferView = VIEW_SCENE.instantiate()
+	_root.add_child(view)
+	view.step_changed.connect(steps.append)
+	view.open(session, 0, _catalog)
+	_ok("no offer: the view shows no cards, no Skip, and settles at the three", (
+			StartingOffer.pending(session.run.seat_run(0)) == null
+			and steps.size() == 1 and steps[0] == StartingOfferView.Step.HEIRLOOM
+			and view.get_cards().is_empty() and not view.get_skip_button().visible
+			and view.get_step() == StartingOfferView.Step.HEIRLOOM
+	), "steps %s, cards %d" % [str(steps), view.get_cards().size()])
 	_close(view)
 
 

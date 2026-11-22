@@ -6,7 +6,7 @@
 # File:     starting_offer_view.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 20, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name StartingOfferView
@@ -207,7 +207,9 @@ func _show_heirlooms() -> void:
 	_question_label.text = "Pick 1 of 3. Each is offered only now."
 	_clear_cards()
 	var every_refused: bool = true
-	var options: Array[StartingOffer.Option] = [] if _offer == null else _offer.options
+	var options: Array[StartingOffer.Option] = []
+	if _offer != null:
+		options = _offer.options
 	for index: int in options.size():
 		var option: StartingOffer.Option = options[index]
 		var problem: String = StartingOffer.option_problem(_session.run, _seat, option, _catalog)

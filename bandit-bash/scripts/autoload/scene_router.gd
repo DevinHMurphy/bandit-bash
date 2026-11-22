@@ -6,7 +6,7 @@
 # File:     scene_router.gd
 # Author:
 # Created:  October 9, 2026
-# Modified: November 20, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 extends Node
@@ -40,9 +40,10 @@ signal invite_confirmation_requested()
 #                  faction and commander pickers are skipped: the MVP has one of each.
 #   OPTIONS     -> back to whichever screen opened it (only MAIN_MENU links to it)
 #   LOBBY       -> LOADING (everyone, host's Start or Resume), MAIN_MENU
-#   LOADING     -> the solo run's screen by its stage (RunScreen.of): STARTING_HEIRLOOM,
-#                  CAMPAIGN_MAP, GAMEPLAY, TREASURE, CAMP, ARMORY, GUILDHALL, EVENT,
-#                  NODE_PLACEHOLDER or COMBAT_RESULTS; GAMEPLAY (everyone) outside a solo run
+#   LOADING     -> the run's screen by its stage for the local seat, solo and a co-op host alike
+#                  (RunScreen.of): STARTING_HEIRLOOM, CAMPAIGN_MAP, GAMEPLAY, TREASURE, CAMP,
+#                  ARMORY, GUILDHALL, EVENT, NODE_PLACEHOLDER or COMBAT_RESULTS; GAMEPLAY
+#                  (everyone) with no run, as on a client
 #   STARTING_HEIRLOOM -> CAMPAIGN_MAP (once the heirloom is taken: the first node comes after)
 #   CAMPAIGN_MAP     -> GAMEPLAY (a combat node chosen), TREASURE, CAMP, ARMORY, GUILDHALL; an
 #                       Unknown node by what it became (RunScreen.go rolls it first): GAMEPLAY,
