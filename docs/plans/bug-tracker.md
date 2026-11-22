@@ -68,6 +68,7 @@ Not a bug.
 | [BUG-033](#bug-033-event-busmd-lists-only-five-campaign-commands) | event-bus.md lists only five campaign commands; about 20 more exist | P01 / P08 (docs) | S4 | Open | November 21, 2026, RN12 report | the next docs step (CO20) |
 | [BUG-034](#bug-034-leavenodecommand-doesnt-wait-for-an-open-events-seats) | `LeaveNodeCommand` doesn't wait for an open event's seats to choose; leaving after a pending Fight skips the surprise combat | P08 / P09 (leave rules) | S3 (latent) | Open | November 21, 2026, CO9 report | Lane B, before CO16 (clients in the harness) |
 | [BUG-035](#bug-035-the-intents-refresh-after-each-player-action-blocks-the-main-thread) | The intents refresh after every player action blocks the main thread: 0.78 s (release) and 6.3 s (debug) on the boss board | P05 (intents) | S3 | Assigned | November 21, 2026, EN15 report | EN16 (Lane A) |
+| [BUG-036](#bug-036-a-resumed-frozen-maps-turn-cant-end) | A resumed frozen map's turn can't end: `PhaseRunner.seats_with_units` counts only the map's own seats, not a sender's unit on it | P11 (co-op battles) | S2 (latent: only tests send) | Assigned | November 22, 2026, CO1 report | CO2 (Lane D) |
 
 ### BUG-001 No Block at the start of combat
 
@@ -519,3 +520,13 @@ Not a bug.
 - **Fix:** EN16 (layer 5) decides whether the refresh moves to the preview worker or is split
   across frames, and whether the refresh's sandbox needs verify mode. Measure the boss board in
   release before and after.
+
+### BUG-036 A resumed frozen map's turn can't end
+
+- **Found** by CO1: after a frozen map resumes on an arrival, the rule that waits for every seat
+  to end its turn (`PhaseRunner.seats_with_units`, `scripts/combat/phase_runner.gd`) counts only
+  the seats in the map's `session.seats`. A unit sent from another seat isn't in it, so the
+  visiting unit can act but no seat can end the turn. Latent: nothing but tests calls
+  `send_unit()` until CO2.
+- **Fix:** CO2 makes the receiving map count the sender's seat (for its turn and End Turn), with
+  a case where a frozen map resumes and the visitor's seat ends the turn.

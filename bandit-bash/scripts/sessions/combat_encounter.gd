@@ -6,7 +6,7 @@
 # File:     combat_encounter.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 4, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name CombatEncounter
@@ -14,27 +14,20 @@ extends RefCounted
 ## One combat node's battle: its sessions, one per map, the setup they share, and everything that
 ## crosses maps. Sessions never reference each other; this is the only path between them.
 ##
-## [b]Setup[/b] runs once, at battle start, inside [method run_setup]: a fixed, ordered list of
-## [enum SetupStep]s other plans register into with [method add_setup_step]. Steps 1 to 5 draw
-## from the shared [code]ENCOUNTER_SETUP[/code] stream, then for each seat step 6 from that seat's
-## [code]ENCOUNTER_SETUP[/code] stream and step 7 from its [code]MAP_LOOT[/code] streams, one per
-## container. Setup streams are derived fresh for the call and live only inside it, so a battle
-## restarted from Begin rolls the same setup, loot included. Sessions get the results, never a
-## setup stream, and only their own seat's [code]COMBAT_ROLLS[/code] stream, in [LiveRolls].[br]
-## [b]Across maps:[/b] cross-map effect instances ([method add_cross_map]) count facts on every
-## map, and their counter and activation facts are mirrored here with the encounter's own
-## [member CombatFact.seq] and played on [member bus]. Commands are routed to a map by
-## [method submit] (a rune cast on a teammate's map) and stamped by one clock, so cross-map order
-## is the host's arrival order. Units move between maps with [method send_unit] and
-## [method deliver_arrivals].[br]
-## [b]Snapshots:[/b] [method snapshot] holds the encounter's own state (units on their way between
-## maps included) and every session's [method CombatSession.snapshot]; [method load_snapshot]
-## restores the cross-map instances first and hands the same objects to every map. The save
-## sections build on them ([CombatStateSection]). A mirror applies encounter facts with
-## [method apply_batch].
+## [b]Setup[/b] ([method run_setup]) runs the [enum SetupStep]s once, in order, from
+## [SetupStreams] that live only inside the call, so a battle restarted from Begin rolls the same
+## setup. Sessions get the results and only their own seat's [code]COMBAT_ROLLS[/code] stream.[br]
+## [b]Across maps:[/b] cross-map effects ([method add_cross_map]), whose counter and activation
+## facts are mirrored into [member fact_log]; commands stamped by one clock ([method submit]);
+## units sent between maps ([method send_unit]). In co-op ([member seats] above one) an empty map
+## freezes ([method is_frozen]) until help lands, and [method is_run_lost] says when none can.[br]
+## [b]Snapshots[/b] ([method snapshot], [method load_snapshot]) hold the encounter's own state and
+## every map's, for the save sections ([CombatStateSection]); a mirror applies encounter facts
+## with [method apply_batch].
 ##
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
 ## @tutorial(RNG streams plan): docs/plans/2026-10-26-rng-streams.md
+## @tutorial(Co-op combat plan): docs/plans/2026-11-20-coop-combat.md
 
 ## A map's session was opened: emitted once per map by [method open_sessions].
 signal session_opened(session: CombatSession)
@@ -319,9 +312,10 @@ func resolve_queued() -> Array[CombatSession.FactBatch]:
 
 
 ## Sends [param unit_id], a surviving player unit on the won map [param from_session_id], toward
-## the map [param to_session_id], still being fought, where it arrives at that map's next Phase
-## Start ([method deliver_arrivals]) on [param arrival_tile] or the nearest free tile. Only a won
-## map sends (the vision: "a player who wins their map can send any of their surviving units"); a
+## the map [param to_session_id], still being fought, where it arrives at that map's next player
+## Phase Start ([method deliver_arrivals]) on [param arrival_tile] or the nearest free tile. A
+## frozen map is held at that Phase Start, so it lands at once ([method PhaseRunner.resume]) and
+## the facts go out as their own batch ([method CombatSession.flush]). Only a won map sends; a
 ## lost map's player spectates. Its effects leave with their state; the won map keeps the unit's
 ## record as it was. Returns why it can't be sent, or empty when it was.
 func send_unit(
@@ -369,6 +363,13 @@ func send_unit(
 				"%s UNIT SENT %s s%d -> s%d"
 				% [_tag(), source.describe(unit_id), from_session_id, to_session_id]
 		)
+	if is_frozen(to_session_id) and PhaseRunner.resume(target):
+		target.flush("frozen map resumed")
+		if net != null:
+			net.info(
+					NetLogScript.Category.COMBAT,
+					"%s RESUMED s%d at turn %d" % [_tag(), to_session_id, target.state.turn]
+			)
 	return ""
 
 
@@ -399,6 +400,48 @@ func units_in_transit() -> PackedStringArray:
 	for transfer: Transfer in _in_transit:
 		waiting.append(transfer.unit.id)
 	return waiting
+
+
+## Whether the map [param session_id] is frozen: a co-op map still being fought with no player unit
+## left, held after its enemy phase at the next player Phase Start ([method PhaseRunner.resume]).
+## Read between steps. Derived from the map's state, never saved or sent, so a mirror and a
+## resumed battle answer the same. False in solo and for an unknown map.
+func is_frozen(session_id: int) -> bool:
+	var session: CombatSession = get_session(session_id)
+	if session == null or seats.size() <= 1 or session.is_finished:
+		return false
+	var state: CombatState = session.state
+	return (
+			state.phase_side == CombatFact.CombatSide.ENEMY
+			and state.is_phase_ended
+			and state.units_of(CombatFact.CombatSide.PLAYER).is_empty()
+	)
+
+
+## Whether the co-op run is lost: a map is frozen ([method is_frozen]) with no unit on its way to
+## it, and no map can still help: none is still being fought and no won map holds a player unit it
+## could yet send. A map still being fought may win and send, so the run waits for it. A pure
+## query: ask it whenever a map freezes or ends; the encounter ends nothing itself. Always false
+## in solo.
+func is_run_lost() -> bool:
+	if seats.size() <= 1:
+		return false
+	var awaited: Dictionary[int, bool] = {}
+	for transfer: Transfer in _in_transit:
+		awaited[transfer.to_session_id] = true
+	var is_stranded: bool = false
+	for session: CombatSession in _sessions:
+		if is_frozen(session.session_id):
+			# ASSUMPTION: a frozen map with a unit on its way resumes when it lands, so it counts as
+			# help for another frozen map too.
+			if awaited.has(session.session_id):
+				return false
+			is_stranded = true
+		elif not session.is_finished:
+			return false
+		elif session.is_won and _has_unit_to_send(session):
+			return false
+	return is_stranded
 
 
 ## Whether every map's combat has ended ([member CombatSession.is_finished]): a map's end ends only
@@ -641,6 +684,16 @@ func _arrive(target: CombatSession, transfer: Transfer) -> bool:
 				% [_tag(), target.describe(unit.id), target.session_id, tile]
 		)
 	return true
+
+
+# Whether the won map session holds a player unit send_unit would take: one whose current record
+# is there (a unit it sent keeps a record there) and that isn't on its way.
+func _has_unit_to_send(session: CombatSession) -> bool:
+	var travelling: PackedStringArray = units_in_transit()
+	for unit_id: String in session.state.units_of(CombatFact.CombatSide.PLAYER):
+		if not travelling.has(unit_id) and session_of_unit(unit_id) == session:
+			return true
+	return false
 
 
 # A session's ARRIVALS hook: its player Phase Start is starting.

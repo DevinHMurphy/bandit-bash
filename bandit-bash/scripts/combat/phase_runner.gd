@@ -6,38 +6,28 @@
 # File:     phase_runner.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 18, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name PhaseRunner
 extends RefCounted
 ## The turn loop of one map: Phase Start and Phase End for each side, the enemy phase as one
-## command, and the [CombatHooks] other plans register into (combat core plan, Turn and phase
-## loop).
+## command, and the [CombatHooks] other plans register into.
 ##
-## [b]Battle start[/b] ([method open_battle]): with a seat's opening-swap setting on, the battle
-## opens in the swap window before turn 1, and turn 1's player Phase Start runs once every such
-## seat has sent Start ([method start]); with it off, Phase Start runs at once.[br]
-## A turn is one player phase, then one enemy phase; [member CombatState.turn] rises at the player
-## Phase Start. [b]Phase Start[/b], in order: (player only) [constant CombatHooks.Hook.ARRIVALS];
-## each unit of the side has its Block cleared and Stance set to its maximum
-## ([constant CombatFact.Kind.BLOCK_STANCE_REFRESHED]); terrain healing; one
-## [constant CombatFact.Kind.PHASE_START]; [constant CombatFact.Kind.UNIT_TURN_START] for each unit
-## in placement order (roster, then spawn); the drain;
-## [constant CombatHooks.Hook.PHASE_START_EFFECTS]; then, for the player side,
-## [constant CombatHooks.Hook.INTENTS]. [b]Phase End[/b] mirrors it:
-## [constant CombatFact.Kind.PHASE_END], [constant CombatFact.Kind.UNIT_TURN_END] for each unit,
-## the drain, [constant CombatHooks.Hook.PHASE_END_EFFECTS], the drain again, then "until Phase
-## End" modifiers expire. A unit's action ends its turn but fires no Unit Turn End of its own.[br]
-## The last seat's end turn resolves, as one command: player Phase End and enemy Phase Start
-## ([method cross_to_enemy_phase], which a sandbox can cross too), each enemy's turn, enemy Phase
-## End, [constant CombatHooks.Hook.AFTER_ENEMY_PHASE] (the darkness phase first), and the next
-## player Phase Start. Every step ends with [constant CombatHooks.Hook.AFTER_STEP]
-## ([method end_step]); once the map's combat has ended, nothing more runs.[br]
-## Pure rules code on the session's state and engine: it never awaits and records every change as
-## a fact. Main thread only.
+## [method open_battle] starts turn 1, or the opening swap window first ([method start]). A turn is
+## one player phase, then one enemy phase; [member CombatState.turn] rises at the player Phase
+## Start. The last seat's [method end_turn] resolves the rest of the turn as one command, and every
+## step ends with [method end_step]; once the map's combat has ended, nothing more runs. A unit's
+## action ends its turn but records no Unit Turn End; its side's Phase End records one per unit.[br]
+## [b]A frozen co-op map:[/b] a map with no player unit left is held at its next player Phase
+## Start, once the phase in progress has finished (a player phase emptied mid-phase finishes at
+## once, in [method end_step]). It runs no phase and its turn stays until arrivals land there
+## ([method resume]). Solo maps never freeze: [Objectives] ends an empty one as lost.[br]
+## Pure rules code: it never awaits and records every change as a fact. Main thread only.
 ##
+## @todo: TOD-001 - a later rule could let the darkness keep rising on a frozen map, at the hold.
 ## @tutorial(Combat core plan): docs/plans/2026-10-26-combat-core.md
+## @tutorial(Co-op combat plan): docs/plans/2026-11-20-coop-combat.md
 
 ## How many commands the [constant CombatHooks.Hook.ENEMY_COMMANDS] hook may give per enemy on the
 ## map at the enemy Phase Start: its action, and a second move after acting. More is an AI fault,
@@ -87,20 +77,31 @@ static func end_turn(session: CombatSession, seat: int) -> void:
 	session.state.ended_seats.append(seat)
 	if not seats_to_end(session).is_empty():
 		return
-	if not cross_to_enemy_phase(session):
-		return
-	if not _enemy_turns(session):
-		return
-	_phase_end(session, CombatFact.CombatSide.ENEMY)
-	if not end_step(session):
-		return
-	for run: Callable in session.hooks.get_registered(CombatHooks.Hook.AFTER_ENEMY_PHASE):
-		session.engine.begin_step()
-		run.call(session)
-		session.engine.drain()
-		if not end_step(session):
-			return
+	_finish_turn(session)
+
+
+## Runs the player Phase Start that frozen [param session] is held at, then the step's end: units
+## on their way land ([constant CombatHooks.Hook.ARRIVALS]), and with a player unit then on the map
+## its turn rises and it goes on. Call it between steps once a unit is sent there
+## ([method CombatEncounter.send_unit]). It records outside any command, so the caller sends the
+## batch ([method CombatSession.flush]).
+## Returns whether the Phase Start ran: false, changing nothing, for a map that isn't frozen or
+## still has no player unit after the arrivals.
+static func resume(session: CombatSession) -> bool:
+	var state: CombatState = session.state
+	if (
+			session.is_finished
+			or state.phase_side != CombatFact.CombatSide.ENEMY
+			or not state.is_phase_ended
+			or not _is_held(session)
+	):
+		return false
 	_phase_start(session, CombatFact.CombatSide.PLAYER)
+	# Held again: no arrival landed, so the phase never started.
+	if state.phase_side != CombatFact.CombatSide.PLAYER:
+		return false
+	end_step(session)
+	return true
 
 
 ## The boundary from the player phase to the enemy phase on [param session]: the player Phase End
@@ -119,15 +120,29 @@ static func cross_to_enemy_phase(session: CombatSession, sandbox: EffectEngine =
 	return _end_crossing_step(on, sandbox)
 
 
-## Ends a resolution step: [constant CombatHooks.Hook.AFTER_STEP] in registration order, then the
-## drain. Skipped once the map's combat has ended. Returns whether the combat goes on.
+## Ends a resolution step: [constant CombatHooks.Hook.AFTER_STEP] in registration order, each
+## followed by the drain. Skipped once the map's combat has ended. On a co-op map whose player
+## phase the step left with no player unit, no seat can end its turn, so the rest of the turn runs
+## here at once, as the last end turn runs it, and the map freezes at the next player Phase Start.
+## Returns whether the combat goes on.
 static func end_step(session: CombatSession) -> bool:
 	if session.is_finished:
 		return false
 	for run: Callable in session.hooks.get_registered(CombatHooks.Hook.AFTER_STEP):
 		run.call(session)
 		session.engine.drain()
-	return not session.is_finished
+	if session.is_finished:
+		return false
+	var state: CombatState = session.state
+	if (
+			state.phase_side == CombatFact.CombatSide.PLAYER
+			and not state.is_phase_ended
+			and _is_held(session)
+	):
+		_finish_turn(session)
+		# The next player Phase Start's own step: held there, or going on with the arrivals.
+		return end_step(session)
+	return true
 
 
 ## The seats of [param session] with units on its map that haven't ended their turn this player
@@ -190,6 +205,31 @@ static func _end_crossing_step(on: CombatSession, sandbox: EffectEngine) -> bool
 	return not on.is_finished
 
 
+# The rest of the turn once the player phase is over: player Phase End and enemy Phase Start, each
+# enemy's turn, enemy Phase End, each AFTER_ENEMY_PHASE registration as its own step (the darkness
+# phase first), then the next player Phase Start, whose step the caller ends.
+static func _finish_turn(session: CombatSession) -> void:
+	if not cross_to_enemy_phase(session):
+		return
+	if not _enemy_turns(session):
+		return
+	_phase_end(session, CombatFact.CombatSide.ENEMY)
+	if not end_step(session):
+		return
+	for run: Callable in session.hooks.get_registered(CombatHooks.Hook.AFTER_ENEMY_PHASE):
+		session.engine.begin_step()
+		run.call(session)
+		session.engine.drain()
+		if not end_step(session):
+			return
+	_phase_start(session, CombatFact.CombatSide.PLAYER)
+
+
+# Phase Start, in order: (player only) ARRIVALS, where a frozen co-op map is held; each unit of the
+# side refreshed (Block 0, Stance to its maximum); terrain healing; PHASE_START; UNIT_TURN_START
+# for each unit in placement order (roster, then spawn); the drain; PHASE_START_EFFECTS; then, for
+# the player side, INTENTS. A held map records nothing past its arrivals, and its phase side and
+# turn stay as the enemy Phase End left them.
 static func _phase_start(session: CombatSession, side: CombatFact.CombatSide) -> void:
 	var state: CombatState = session.state
 	var engine: EffectEngine = session.engine
@@ -197,6 +237,10 @@ static func _phase_start(session: CombatSession, side: CombatFact.CombatSide) ->
 	if side == CombatFact.CombatSide.PLAYER:
 		for run: Callable in session.hooks.get_registered(CombatHooks.Hook.ARRIVALS):
 			run.call(session)
+		if _is_held(session):
+			# TODO(TOD-001): a later rule could let the darkness keep rising on a frozen map; it
+			# would hook in here.
+			return
 		state.turn += 1
 		state.ended_seats.clear()
 	state.phase_side = side
@@ -340,3 +384,16 @@ static func _heal_on_terrain(session: CombatSession, unit_id: String) -> void:
 	# questions 17 and 29); Godot_FE floored the percent part on its own.
 	var amount: float = bonus.heal_flat + max_hp * bonus.heal_percent / 100.0
 	session.engine.heal(unit_id, amount)
+
+
+# Whether a player Phase Start on session holds instead of starting: a co-op map, past battle
+# start, with no player unit on it. CombatEncounter.is_frozen reads the same state.
+static func _is_held(session: CombatSession) -> bool:
+	if session.setup == null or session.state.turn < 1:
+		return false
+	# ASSUMPTION: co-op is the setup naming more than one seat: run_setup fills one entry per seat
+	# of the encounter, at Begin and on a resume, so this equals CombatEncounter.seats.size() > 1
+	# for code that sees only the session. Objectives reads it the same way.
+	if session.setup.seats.size() <= 1:
+		return false
+	return session.state.units_of(CombatFact.CombatSide.PLAYER).is_empty()
