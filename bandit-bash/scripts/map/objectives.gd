@@ -6,38 +6,26 @@
 # File:     objectives.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 17, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name Objectives
 extends RefCounted
-## The win and loss checks of one map: after every step they record
-## [constant CombatFact.Kind.COMBAT_ENDED] once, with [member CombatFact.side] naming the side that
-## won (combat map plan, Objectives and the end of a combat).
+## The win and loss checks of one map, after every step ([method register]): they record
+## [constant CombatFact.Kind.COMBAT_ENDED] once, its [member CombatFact.side] the winner.
 ##
-## [method register] adds [method check] to a session's [constant CombatHooks.Hook.AFTER_STEP];
-## [CombatEncounter] does it for every map it opens. The objective is the map's
-## [member CombatMapDefinition.objective], and its tiles are the layout's markers. Losses come
-## first:[br]
-## - [b]Lost:[/b] a commander on the map is defeated, no player unit is left on it, or (Defend) an
-## enemy ends its turn on a defend tile.[br]
-## - [b]Rout:[/b] won when no enemy is on the map; waves not yet arrived are cancelled
-## ([method cancel_pending_waves]).[br]
-## - [b]Defeat the Leader, Defeat the Boss:[/b] won when every enemy that appeared on a leader slot
-## is defeated ([method marked_ids]).[br]
-## - [b]Seize:[/b] won when a player unit ends its turn on a seize tile.[br]
-## - [b]Survive and Defend:[/b] won when turn [member CombatMapDefinition.survive_turns]'s enemy
-## Phase End has run, or early when no enemy is on the map and no reinforcement point is open
-## ([method Reinforcements.is_open]): a point a player closed and a point with no waves left count
-## as closed.[br]
-## A unit "ends its turn" at its side's Phase End, where it records
-## [constant CombatFact.Kind.UNIT_TURN_END] with its tile. Nothing is checked before turn 1, nor on
-## a map with no setup. The fact's [member CombatFact.amount] is the turn the combat ended on, and
-## its [member CombatFact.key] is the turns a Survive or Defend map was won early (the speed bonus
-## P08 grades); 0 otherwise.[br]
-## Pure rules code: it records through the session's engine and never awaits.
+## [b]Lost[/b] (checked first): (Defend) an enemy ends its turn on a defend tile; in solo also a
+## commander's fall or no player unit left. In co-op neither loses a map, shared or not: the
+## commander returns at critical health after the combat, and an empty map freezes ([PhaseRunner]).
+## [br][b]Won:[/b] Rout, no enemy left (pending waves cancelled); Defeat the Leader or the Boss,
+## every enemy that appeared on a leader slot defeated ([method marked_ids]); Seize, a player unit
+## ends its turn on a seize tile; Survive and Defend, turn [member CombatMapDefinition.survive_turns]
+## ended, or no enemy left and no reinforcement point open ([method Reinforcements.is_open]).[br]
+## A unit "ends its turn" at its side's Phase End ([constant CombatFact.Kind.UNIT_TURN_END]).
+## Nothing is checked before turn 1 or with no setup. Pure rules code; it never awaits.
 ##
 ## @tutorial(Combat map plan): docs/plans/2026-10-27-combat-map.md
+## @tutorial(Co-op combat plan): docs/plans/2026-11-20-coop-combat.md
 
 ## The key of [member CombatEncounter.EncounterSetup.shared] where setup step 5 puts the
 ## reinforcement waves ([method Reinforcements.draw_waves]). Its value maps each reinforcement
@@ -56,8 +44,10 @@ static func register(session: CombatSession) -> void:
 	session.hooks.add(CombatHooks.Hook.AFTER_STEP, Objectives.check)
 
 
-## Records [constant CombatFact.Kind.COMBAT_ENDED] on [param session] when its map is won or lost.
-## Does nothing once the map has finished, before turn 1, or with no setup.
+## Records [constant CombatFact.Kind.COMBAT_ENDED] on [param session] when its map is won or lost:
+## its [member CombatFact.amount] is the turn it ended on, and its [member CombatFact.key] a win's
+## [method turns_early] (the speed bonus grades read). Does nothing once the map has finished,
+## before turn 1, or with no setup.
 static func check(session: CombatSession) -> void:
 	if session.is_finished or session.setup == null or session.setup.map == null:
 		return
@@ -126,15 +116,20 @@ static func marked_ids(session: CombatSession) -> PackedStringArray:
 	return marked
 
 
+# A failed Defend loses in solo and co-op alike; a commander's fall and an empty map lose only in
+# solo. In co-op the commander's player plays on with the rest, and an empty map freezes instead
+# (PhaseRunner), however many seats share it.
 static func _is_lost(session: CombatSession) -> bool:
 	var state: CombatState = session.state
-	# Any commander's fall loses a map shared by several seats (shared battles are post-MVP, P11).
-	for commander_id: String in session.commander_ids.values():
-		var commander: CombatUnitState = state.unit(commander_id)
-		if commander != null and commander.is_defeated:
+	# ASSUMPTION: co-op is the setup naming more than one seat, as PhaseRunner._is_held reads it:
+	# run_setup fills one entry per seat of the encounter, at Begin and on a resume.
+	if session.setup.seats.size() <= 1:
+		for commander_id: String in session.commander_ids.values():
+			var commander: CombatUnitState = state.unit(commander_id)
+			if commander != null and commander.is_defeated:
+				return true
+		if state.units_of(CombatFact.CombatSide.PLAYER).is_empty():
 			return true
-	if state.units_of(CombatFact.CombatSide.PLAYER).is_empty():
-		return true
 	return (
 			session.setup.map.objective == _DEFEND
 			and _turn_ended_on(session, CombatFact.CombatSide.ENEMY, MapLayout.MarkerKind.DEFEND)
