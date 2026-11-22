@@ -6,16 +6,17 @@
 # File:     loading_gate.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 14, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 extends Control
 ## Loading: the gate every run passes on its way in. A placeholder until loading waits for every
 ## player.
 ##
-## Continue opens the screen the run belongs on ([method RunScreen.go]): a solo run continues on
-## its map, in its node or at its results, as it was saved; outside a solo run everyone goes to the
-## battle screen. Continue has focus from the start, so a pad can press it.
+## Continue sends everyone to the screen the run belongs on ([method RunScreen.go]): a solo run
+## and a co-op host's alike continue, by the local seat, on the map, in the node or at the results,
+## as saved; with no run held, the battle screen. In co-op only the host's press moves everyone.
+## Continue has focus from the start, so a pad can press it.
 
 # ============================================================
 # INPUT MAP SETUP: none read here. "ui_accept" (Enter, Space; pad A [Cross]) presses the focused

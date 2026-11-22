@@ -19,7 +19,9 @@ extends Control
 ## It emits [signal purchase_chosen] once the deal is settled; the screen sends the command, which
 ## checks it again, and a rejection shows here ([method show_problem]). Each step lists its choices
 ## as one column of buttons, so a pad moves up and down within it; the dimmed backdrop takes every
-## click outside it.
+## click outside it. While anything in the panel holds key or pad focus, the Details' and the
+## comparison's keywords show as one column of tooltips beside the panel, each once, as focus on
+## a card shows its keywords ([EffectText]); with mouse focus, hovering a keyword shows its own.
 
 # ============================================================
 # INPUT MAP SETUP:
@@ -66,6 +68,10 @@ var _definition: ItemDefinition = null
 var _unit_id: String = ""
 var _step: Step = Step.UNIT
 
+# The keyword ids of the column shown on the Details text for key or pad focus; empty while none.
+var _column_ids: PackedStringArray = []
+
+@onready var _panel: PanelContainer = $Center/Panel
 @onready var _icon: RewardIcon = %Icon
 @onready var _title_label: Label = %Title
 @onready var _details_text: EffectText = %Details
@@ -77,6 +83,11 @@ var _step: Step = Step.UNIT
 
 func _ready() -> void:
 	visible = false
+	get_viewport().gui_focus_changed.connect(_on_viewport_gui_focus_changed)
+	visibility_changed.connect(_refresh_keywords)
+	# The panel re-centres as a step resizes it; the column follows.
+	_panel.item_rect_changed.connect(_details_text.place_tooltips)
+	_watch_hover(_details_text)
 
 
 func _input(event: InputEvent) -> void:
@@ -189,6 +200,8 @@ func _show_deal() -> void:
 			ArmoryModel.entry_name(_entry, _catalog),
 			ArmoryModel.comparison_rows(held, _definition, _catalog)
 	)
+	for text: EffectText in _comparison.get_effect_texts():
+		_watch_hover(text)
 	_question_label.text = "Before and after, on %s:" % [_unit_name(_unit_id)]
 	_clear_choices()
 	var price: int = Armory.price(seat_run, _entry, _catalog)
@@ -276,5 +289,60 @@ func _gold(amount: int) -> String:
 	return "%d gold" % [amount]
 
 
+# Shows the keyword column on the Details text, beside the panel, while key or pad focus is in
+# the panel, and hides it once focus isn't. Meanwhile a hovered keyword, already in the column,
+# shows no tooltip of its own (as on a focused card). Rebuilds only when the column changed, or
+# when a hover on the Details text replaced it.
+func _refresh_keywords() -> void:
+	if not _has_key_focus():
+		# Only the column is this panel's to hide: a hovered keyword keeps its tooltip.
+		if not _column_ids.is_empty():
+			_column_ids = PackedStringArray()
+			_details_text.hide_tooltips()
+		return
+	for text: EffectText in _comparison.get_effect_texts():
+		text.hide_tooltips()
+	var ids: PackedStringArray = _keyword_ids()
+	if ids == _column_ids and _details_text.get_shown_tooltips().size() == ids.size():
+		return
+	_column_ids = ids
+	_details_text.show_tooltips(ids)
+
+
+# Whether a control in the shown panel holds focus a key or pad gave (not a click's hidden focus).
+func _has_key_focus() -> bool:
+	if not is_visible_in_tree():
+		return false
+	var focused: Control = get_viewport().gui_get_focus_owner()
+	return focused != null and is_ancestor_of(focused) and focused.has_focus(true)
+
+
+# The Details' keywords, then the shown comparison's, each once, in reading order.
+func _keyword_ids() -> PackedStringArray:
+	var ids: PackedStringArray = _details_text.get_keyword_ids()
+	if not _comparison.visible:
+		return ids
+	for text: EffectText in _comparison.get_effect_texts():
+		for id: String in text.get_keyword_ids():
+			if not ids.has(id):
+				ids.append(id)
+	return ids
+
+
+# Connected after text's own handlers, so the column is set again after each hover change.
+func _watch_hover(text: EffectText) -> void:
+	text.meta_hover_started.connect(_on_effect_text_meta_hover_changed)
+	text.meta_hover_ended.connect(_on_effect_text_meta_hover_changed)
+	text.mouse_exited.connect(_refresh_keywords)
+
+
 func _on_deal_chosen(is_traded_in: bool) -> void:
 	purchase_chosen.emit(_unit_id, is_traded_in)
+
+
+func _on_viewport_gui_focus_changed(_control: Control) -> void:
+	_refresh_keywords()
+
+
+func _on_effect_text_meta_hover_changed(_meta: Variant) -> void:
+	_refresh_keywords()
