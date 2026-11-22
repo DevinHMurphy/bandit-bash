@@ -6,7 +6,7 @@
 # File:     combat_session.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 19, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name CombatSession
@@ -239,26 +239,29 @@ func resolve_next() -> FactBatch:
 		_start_replay()
 	var command: Command = _queue.pop_front()
 	_record_for_replay(command)
-	var batch: FactBatch = FactBatch.new()
-	batch.session_id = session_id
-	batch.seat = command.seat
-	batch.arrival = command.arrival
-	batch.label = command.get_label()
-	batch.actor_id = command.actor_id
-	batch.target_id = command.get_target_id()
-	batch.based_on_seq = command.based_on_seq
-	batch.rejected_reason = _check(command)
-	if batch.is_rejected():
-		command_rejected.emit(command.seat, command.arrival, batch.rejected_reason)
-		_log_command(batch)
-		batch_resolved.emit(batch)
-		return batch
+	var reason: String = _check(command)
+	if not reason.is_empty():
+		return reject(command, reason)
 
+	var batch: FactBatch = _batch_for(command)
 	engine.begin_step()
 	command.resolve(self)
 	engine.drain()
 	PhaseRunner.end_step(self)
 	_finish_batch(batch)
+	_log_command(batch)
+	batch_resolved.emit(batch)
+	return batch
+
+
+## Rejects [param command] with [param reason] as [method resolve_next] rejects one: nothing is
+## recorded, only its seat is told through [signal command_rejected], and the batch, with
+## [member FactBatch.rejected_reason] set, goes out on [signal batch_resolved] and is returned. For
+## a command sent to this map but checked elsewhere ([method CombatEncounter.submit]).
+func reject(command: Command, reason: String) -> FactBatch:
+	var batch: FactBatch = _batch_for(command)
+	batch.rejected_reason = reason
+	command_rejected.emit(command.seat, command.arrival, reason)
 	_log_command(batch)
 	batch_resolved.emit(batch)
 	return batch
@@ -737,6 +740,19 @@ func describe_effect(fact: CombatFact) -> String:
 	if not queued_text.is_empty():
 		done.append("queued %s" % ["; ".join(queued_text)])
 	return "%s FIRED %s" % [head, ", ".join(done)]
+
+
+# A batch naming command: its map, seat, arrival, label, actor, target and forecast seq.
+func _batch_for(command: Command) -> FactBatch:
+	var batch: FactBatch = FactBatch.new()
+	batch.session_id = session_id
+	batch.seat = command.seat
+	batch.arrival = command.arrival
+	batch.label = command.get_label()
+	batch.actor_id = command.actor_id
+	batch.target_id = command.get_target_id()
+	batch.based_on_seq = command.based_on_seq
+	return batch
 
 
 # Every check before a command resolves (see Command); the first failure's reason, or empty.

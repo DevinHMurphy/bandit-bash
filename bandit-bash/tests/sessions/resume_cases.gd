@@ -6,7 +6,7 @@
 # File:     resume_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 20, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 extends "res://tests/sessions/sessions_case_base.gd"
@@ -97,7 +97,7 @@ func _test_service_combat_state() -> bool:
 	_check("service combat state: a checkpoint writes both sections and the core's turn", (
 			begun == OK
 			and saved == OK
-			and versions == [3, 1]
+			and versions == [4, 1]
 			and core.turn == 1
 			and core.phase == CombatData.Phase.PLAYER
 			and session.state.unit(units[0]).has_acted

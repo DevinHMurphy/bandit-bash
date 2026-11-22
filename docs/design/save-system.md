@@ -485,11 +485,11 @@ Save Impact):
 
 | Block | Key | Version | Holds |
 |-------|-----|---------|-------|
-| `COMBAT` | `combat_state` | 3 | Each map's units (`CombatUnitState`: tile, HP, Block, Stance, what it did this turn and phase, movement spent, a pending second move, slots, growth changes, and the prefix and level the unit detail shows; version 1 and 2 units migrate with no prefix and level 1), weapon records (an area staff's shape by its id and a heal staff's full heal included; version 1 records migrate with neither), turn, phase side, ended and not-yet-started seats, rune slots, and the session part (seq, commanders, bases, finished and won); the encounter's seq, arrivals and units on their way between maps |
+| `COMBAT` | `combat_state` | 4 | Each map's units (`CombatUnitState`: tile, HP, Block, Stance, what it did this turn and phase, movement spent, a pending second move, slots, growth changes, and the prefix and level the unit detail shows; version 1 and 2 units migrate with no prefix and level 1), weapon records (an area staff's shape by its id and a heal staff's full heal included; version 1 records migrate with neither), turn, phase side, ended and not-yet-started seats, rune slots, and the session part (seq, commanders, bases, finished and won); the encounter's seq, arrivals and units on their way between maps; from version 4, each unit on its way's clock turn (the turn the map it left was won on), each seat's latest send (`sends`: target map or -1 for none, and that turn), each map's senders (`senders`: seats whose units landed there) and raised calls for aid (`aid`), and forfeited seats (`forfeited`, empty until CO14); version 1 to 3 data migrates with none sent, received, called or forfeited and clock turn 0, due at the next player Phase Start as before |
 | `COMBAT` | `effects` | 1 | Each map's effect engine (instances with counters and charges, timed modifiers, bases and deltas, phase and attack counts) and the encounter's cross-map instances |
 
 ```json
-"combat_state": { "version": 3, "data": { "encounter": { }, "sessions": [ { "session": { }, "combat_state": { } } ] } },
+"combat_state": { "version": 4, "data": { "encounter": { }, "sessions": [ { "session": { }, "combat_state": { } } ] } },
 "effects": { "version": 1, "data": { "encounter": { "cross_map": [ ] }, "sessions": [ { } ] } }
 ```
 

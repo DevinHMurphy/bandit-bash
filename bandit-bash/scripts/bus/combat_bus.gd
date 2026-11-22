@@ -6,7 +6,7 @@
 # File:     combat_bus.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 18, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name CombatBus
@@ -78,6 +78,8 @@ class FlowChannel:
 	signal unit_turn_ended(fact: CombatFact)
 	## [constant CombatFact.COMBAT_ENDED].
 	signal combat_ended(fact: CombatFact)
+	## [constant CombatFact.AID_CALLED], on the encounter's bus.
+	signal aid_called(fact: CombatFact)
 
 	func _init() -> void:
 		_route(CombatFact.Kind.PHASE_START, phase_started)
@@ -85,6 +87,7 @@ class FlowChannel:
 		_route(CombatFact.Kind.UNIT_TURN_START, unit_turn_started)
 		_route(CombatFact.Kind.UNIT_TURN_END, unit_turn_ended)
 		_route(CombatFact.Kind.COMBAT_ENDED, combat_ended)
+		_route(CombatFact.Kind.AID_CALLED, aid_called)
 
 
 ## What happens to a unit: moves, spawns, HP, Block, Stance, defeat.
@@ -115,6 +118,10 @@ class UnitChannel:
 	signal stat_changed(fact: CombatFact)
 	## [constant CombatFact.GROWTH_CHANGED].
 	signal growth_changed(fact: CombatFact)
+	## [constant CombatFact.UNIT_SENT], on the encounter's bus.
+	signal sent(fact: CombatFact)
+	## [constant CombatFact.UNIT_RETURNED], on the encounter's bus.
+	signal returned(fact: CombatFact)
 
 	func _init() -> void:
 		_route(CombatFact.Kind.UNIT_MOVED, moved)
@@ -129,6 +136,8 @@ class UnitChannel:
 		_route(CombatFact.Kind.BLOCK_LOST, block_lost)
 		_route(CombatFact.Kind.STAT_CHANGED, stat_changed)
 		_route(CombatFact.Kind.GROWTH_CHANGED, growth_changed)
+		_route(CombatFact.Kind.UNIT_SENT, sent)
+		_route(CombatFact.Kind.UNIT_RETURNED, returned)
 
 
 ## Exchanges, attacks, hits, shoves, and the other actions: objects, items, swaps, runes, Wait.
