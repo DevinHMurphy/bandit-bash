@@ -6,7 +6,7 @@
 # File:     intents.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 21, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name Intents
@@ -35,11 +35,11 @@ extends RefCounted
 ##
 ## @tutorial(Enemies and AI plan): docs/plans/2026-10-30-enemies-and-ai.md
 ##
-## @todo: TOD-001 [MEDIUM] - The move preview meets its 50 ms target only on M1: per hover in
-## debug on a worker thread, median / p95, M1 turn 1 17 / 28 ms, M1 engaged 26 / 45 ms, the
-## 9-enemy key board 200 / 296 ms, the boss board 604 / 956 ms (release 13 / 22, 22 / 38,
-## 146 / 216, 434 / 696). On engaged boards the moved unit stands within most enemies' reach,
-## so few decisions are kept and most steps decide afresh: move-preview.md's sweep (layer 5).
+## @todo: TOD-001 [MEDIUM] - A hover on a tile the sweep hasn't reached meets the 50 ms target
+## only on M1: unswept, in debug, median / p95, the 9-enemy key board 203 / 326 ms and the boss
+## board 657 / 1,043 ms (release 158 / 245, 456 / 736), more while a sweep preview runs. On
+## engaged boards the moved unit stands within most enemies' reach, so few decisions are kept.
+## Swept tiles are a lookup; the options left are in move-preview.md (Where it stands).
 
 ## The text a checking-mode difference starts with in [member diagnostics].
 const CHECK_PREFIX: String = "check: "
@@ -169,6 +169,10 @@ static func compute(session: CombatSession, catalog: EffectCatalog.Index) -> Int
 	found._objective = EnemyAI.objective_tiles(session)
 	found.based_on_seq = session.last_seq()
 	var sandbox: Sandbox = Sandbox.new(session.engine, ForecastRolls.new())
+	# Verify mode rebuilds every cached sheet read to check it, a debug-only check that took about
+	# four fifths of a refresh; it changes no result, the session's own reads keep it, and so does
+	# checking mode, which tests run.
+	sandbox.engine.verify = sandbox.engine.verify and is_checking
 	found.danger = DangerZone.compute(sandbox.engine)
 	var crossed_from: int = sandbox.engine.fact_log.size()
 	PhaseRunner.cross_to_enemy_phase(session, sandbox.engine)
@@ -200,11 +204,11 @@ static func compute(session: CombatSession, catalog: EffectCatalog.Index) -> Int
 	return found
 
 
-# TODO(TOD-001): [MEDIUM] The move preview meets its 50 ms target only on M1: per hover in
-# debug on a worker thread, median / p95, M1 turn 1 17 / 28 ms, M1 engaged 26 / 45 ms, the
-# 9-enemy key board 200 / 296 ms, the boss board 604 / 956 ms (release 13 / 22, 22 / 38,
-# 146 / 216, 434 / 696). On engaged boards the moved unit stands within most enemies' reach,
-# so few decisions are kept and most steps decide afresh: move-preview.md's sweep (layer 5).
+# TODO(TOD-001): [MEDIUM] A hover on a tile the sweep hasn't reached meets the 50 ms target
+# only on M1: unswept, in debug, median / p95, the 9-enemy key board 203 / 326 ms and the boss
+# board 657 / 1,043 ms (release 158 / 245, 456 / 736), more while a sweep preview runs. On
+# engaged boards the moved unit stands within most enemies' reach, so few decisions are kept.
+# Swept tiles are a lookup; the options left are in move-preview.md (Where it stands).
 ## The intents if player unit [param unit_id] moved to [param tile] now, before any action, built
 ## on [member CombatSession.intents] (computed afresh first when stale, not stored). The latest
 ## intents for the unit's own tile; null when nothing keeps intents on [param session], or the unit
@@ -335,8 +339,7 @@ static func _play(
 		var acted_from: int = engine.fact_log.size()
 		round_of.second_path = _carry_out(engine, best.plan, found, flooded)
 		# A kept plan acts as it did on base's board, but its second move is decided afresh: one
-		# that goes elsewhere leaves the boards differing past touched.
-		# ASSUMPTION: reuse stops after a second move that differs (P05 question 49).
+		# that goes elsewhere leaves the boards differing past touched, so reuse stops there.
 		is_reusing = (
 				known != null
 				and best == known.winner
@@ -415,7 +418,8 @@ static func _plan_text(plan: EnemyPlan) -> String:
 # the same unit in the same state on both. Returns [CombatFact.NO_TILE] when such a fact names
 # something else, such as an effect with no holder, which can reach every unit.
 static func _changed_tiles(base: Intents, engine: EffectEngine, from: int) -> Array[Vector2i]:
-	# ASSUMPTION: touched tiles by comparing facts, not the moved unit's two (P05 question 49).
+	# By facts, not the moved unit's two tiles: a Phase End effect or a keg thrown during the
+	# crossing can change a unit or tile far from both.
 	var unmatched: Dictionary[String, int] = {}
 	for line: String in base._crossing_lines:
 		unmatched[line] = unmatched.get(line, 0) + 1
@@ -828,6 +832,10 @@ class PreviewJob:
 		forecasts.add_overlay_to_store()
 		Intents._take_forecasts(_found, _engine, forecasts)
 		_found.diagnostics = _engine.diagnostics
+		# Only the intents a preview builds on read their rounds; a preview's own, with every
+		# decision's plan, footprint and forecast, would hold about 1 MB each in a sweep's done
+		# previews (debug).
+		_found._rounds.clear()
 		_result = _found
 		_found = null
 		_engine = null

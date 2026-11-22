@@ -6,7 +6,7 @@
 # File:     run_flow.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 20, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name RunFlow
@@ -23,10 +23,10 @@ extends RefCounted
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 
 # Meaningful while a run exists (a CampaignRunState holds it).
-# MAP      the run is on the campaign map between nodes. ChooseNodeCommand is the only command
-#          that resolves; it locks the next floor and moves to NODE.
+# MAP      the run is on the campaign map between nodes. ChooseNodeCommand (solo) or, in co-op,
+#          the RouteVoteCommand that completes the votes locks the next floor and moves to NODE.
 # NODE     the run is inside CampaignRunState.node; a combat node's battle begins and ends here.
-#          ChooseNodeCommand is rejected; LeaveNodeCommand goes back to MAP with the node still
+#          Both are rejected; LeaveNodeCommand goes back to MAP with the node still
 #          visited and its floor still locked. A won battle moves to RESULTS
 #          (CampaignRunState.apply_battle); a lost one stays. An Unknown node's outcome is rolled
 #          here (ResolveUnknownCommand) and kept in unknown until the node is left.

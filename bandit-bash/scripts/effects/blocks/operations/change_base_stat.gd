@@ -6,7 +6,7 @@
 # File:     change_base_stat.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 @tool
@@ -63,9 +63,9 @@ func describe_change() -> String:
 		return "%s%s%% %s growth" % [
 			"-" if value < 0.0 else "+",
 			EffectTerms.format_number(absf(value)),
-			EffectTerms.key_name(key),
+			EffectTerms.mark_if_keyword(EffectTerms.key_name(key)),
 		]
-	return EffectTerms.describe_modifier(key, Modifier.Mode.ADD, value)
+	return EffectTerms.describe_modifier_marked(key, Modifier.Mode.ADD, value)
 
 
 ## [param change] given to this operation's target for good: "permanently gain +1 MGT" on the

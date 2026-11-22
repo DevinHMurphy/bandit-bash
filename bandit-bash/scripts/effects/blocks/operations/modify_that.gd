@@ -6,7 +6,7 @@
 # File:     modify_that.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 29, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 @tool
@@ -49,10 +49,12 @@ const THAT_TEXT: Dictionary[int, String] = {
 	EffectTerms.Trigger.HIT_TAKEN: "that hit",
 	EffectTerms.Trigger.CRIT_DEALT: "that hit",
 	EffectTerms.Trigger.CRIT_TAKEN: "that hit",
-	EffectTerms.Trigger.HEALED: "that heal",
-	EffectTerms.Trigger.HEALED_AN_ALLY: "that heal",
-	EffectTerms.Trigger.DARKNESS_DAMAGE_TAKEN: "that darkness damage",
-	EffectTerms.Trigger.BLOCK_GAINED: "that Block gain",
+	EffectTerms.Trigger.HEALED: "that [kw=heal]heal[/kw]",
+	EffectTerms.Trigger.HEALED_AN_ALLY: "that [kw=heal]heal[/kw]",
+	EffectTerms.Trigger.DARKNESS_DAMAGE_TAKEN: (
+			"that [kw=darkness]darkness[/kw] [kw=damage]damage[/kw]"
+	),
+	EffectTerms.Trigger.BLOCK_GAINED: "that [kw=block]Block[/kw] gain",
 }
 
 ## What part of the action changes.
@@ -90,10 +92,10 @@ func describe_for_trigger(trigger: EffectTerms.Trigger) -> String:
 		What.FLAG:
 			if flag == Flag.LIFESTEAL:
 				return "%s gains lifesteal" % [noun]
-			return "%s skips Mitigation" % [noun]
+			return "%s skips [kw=mitigation]Mitigation[/kw]" % [noun]
 		What.EXTRA_STANCE_LOSS:
 			return _stance_text(trigger, noun)
-	return "%s for %s" % [EffectTerms.describe_modifier(key, mode, value), noun]
+	return "%s for %s" % [EffectTerms.describe_modifier_marked(key, mode, value), noun]
 
 
 func is_inline() -> bool:
@@ -126,8 +128,10 @@ func _stance_text(trigger: EffectTerms.Trigger, noun: String) -> String:
 			or trigger == EffectTerms.Trigger.CRIT_DEALT
 	)
 	if dealt and mode == Modifier.Mode.ADD and value >= 0.0:
-		return "the target loses %s extra Stance" % [EffectTerms.format_number(value)]
-	return "%s extra Stance loss for %s" % [_amount_change(), noun]
+		return "the target loses %s extra %s" % [
+			EffectTerms.format_number(value), EffectTerms.mark("Stance"),
+		]
+	return "%s extra [kw=stance]Stance[/kw] loss for %s" % [_amount_change(), noun]
 
 
 func _amount_change() -> String:

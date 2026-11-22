@@ -6,7 +6,7 @@
 # File:     effect_definition.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 @tool
@@ -83,17 +83,25 @@ enum Tag {
 # question 65).
 ## Player-facing text [method describe] shows in place of the text built from the blocks, for an
 ## effect the blocks can't say: an opener (Burglar's Roll, the Key) has no operations, since
-## [MapObjects] reads it by id. One or more whole sentences, punctuation included.[br]
+## [MapObjects] reads it by id. One or more whole sentences, punctuation included, keywords
+## marked as [code][kw=block]Block[/kw][/code] ([constant EffectTerms.KEYWORD_IDS]).[br]
 ## [b]Empty:[/b] the built text.
 @export_multiline var written_text: String = ""
 
 
-## The effect text as a sentence: [member written_text] when set, else built from the blocks
-## ("Every 7th time one of your units attacks each combat, that attack gains lifesteal."). An
-## always-on effect has no head ("+2 DEF."); a used Pouch item reads as its action ("Heal the
-## target for 8 HP."). [param lead_in]: an opening its carrier gives, before the head and
-## conditions ("When eaten"); empty for none. The grammar: docs/design/effect-triggers.md.
+## [method describe_marked] as plain words, its keyword tags removed: the effect text for logs,
+## plain labels and tests of the words.
 func describe(lead_in: String = "") -> String:
+	return EffectTerms.plain_text(describe_marked(lead_in))
+
+
+## The effect text as a sentence, keywords marked for [EffectText]: [member written_text] when
+## set, else built from the blocks ("Every 7th time one of your units attacks each combat, that
+## attack gains lifesteal."). An always-on effect has no head ("+2 DEF."); a used Pouch item
+## reads as its action ("Heal the target for 8 HP."). [param lead_in]: an opening its carrier
+## gives, before the head and conditions ("When eaten"); empty for none. The grammar:
+## docs/design/effect-triggers.md.
+func describe_marked(lead_in: String = "") -> String:
 	if not written_text.is_empty():
 		return written_text
 	var counter: CounterCondition = null
@@ -128,9 +136,9 @@ func describe(lead_in: String = "") -> String:
 	return EffectTerms.sentence(text)
 
 
-## What the operations do, as one list with no head: "heal the target for 10 HP and permanently
-## give the target +10% MGT growth". A range pair reads as one "Range becomes 1-2", and permanent
-## changes given alike share one "permanently give the target +1 MGT, +1 SPD and +1 DEF".
+## What the operations do, as one list with no head, keywords marked: "heal the target for 10 HP
+## and permanently give the target +10% MGT growth". A range pair reads as one "Range becomes
+## 1-2", and alike permanent changes share one "permanently give the target +1 MGT and +1 SPD".
 func describe_actions() -> String:
 	var actions: PackedStringArray = []
 	var i: int = 0

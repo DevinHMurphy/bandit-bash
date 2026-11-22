@@ -6,7 +6,7 @@
 # File:     campaign_command.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 21, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 @abstract
@@ -168,6 +168,8 @@ static func _of_wire_type(wire_type: String) -> CampaignCommand:
 			return EventVoteCommand.new()
 		EventOptionCommand.WIRE_TYPE:
 			return EventOptionCommand.new()
+		RouteVoteCommand.WIRE_TYPE:
+			return RouteVoteCommand.new()
 	return null
 
 

@@ -308,7 +308,7 @@ uses them is in the [campaign layer guide](campaign-run.md).
 
 | Key | Per player | Version | Holds |
 |-----|------------|---------|-------|
-| `campaign_map` | No | 1 | The map and the route taken |
+| `campaign_map` | No | 2 | The map, the route taken and the co-op route votes |
 | `run_flow` | No | 1 | The stage within a node, the Unknown odds and outcome, the maps used, the shared shop stock |
 | `roster` | Yes | 1 | The army, the fallen, the convoy and every item the seat holds |
 | `heirlooms` | Yes | 2 | Owned heirlooms and curses with their campaign lanes, and the seat's value changes |
@@ -324,6 +324,10 @@ Their keys are listed below.
 - `visited`: the node ids entered, one per floor from floor 1.
 - `floor`: the floor of the current node; 0 before the first.
 - `node`: the current node's id; -1 before the first.
+- `votes`: each co-op seat's route vote (`RouteVoteCommand`), by seat as a decimal string: a node
+  id. All are choices of one move: the next one while the vote is open, or the one just made,
+  since the votes stay after the draw until the next floor's first vote. Empty in solo and before
+  the first vote. A quit mid-vote keeps them.
 
 **`run_flow`** (`RunFlow.capture()`):
 
@@ -417,7 +421,9 @@ shop or an offer key changes no version, and an optional key read as missing cha
 - **Versions.** `economy` is at 2: version 2 added the combat report's `stats`. Its migration from
   1 changes nothing, since a report without `stats` reads as one with no numbers (the recap shows
   "—"). `heirlooms` is at 2: version 2 added `value_changes`. Its migration from 1 changes
-  nothing, since a section without them reads as a seat with none. The other four are at 1.
+  nothing, since a section without them reads as a seat with none. `campaign_map` is at 2:
+  version 2 added `votes`. Its migration from 1 changes nothing, since a map without them reads
+  as one with no votes. The other three are at 1.
 - **Validated:** a route that skips a floor or leaves the graph's edges, a stage inside a node
   before any node, an unknown stage, Unknown odds that aren't whole numbers, an Unknown outcome
   that isn't one of the five, an item in two places or in none, a commander outside the army, a

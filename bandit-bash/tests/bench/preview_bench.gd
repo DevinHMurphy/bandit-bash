@@ -6,7 +6,7 @@
 # File:     preview_bench.gd
 # Author:
 # Created:  November 20, 2026
-# Modified: November 21, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 extends Node
@@ -19,8 +19,9 @@ extends Node
 ## on the main thread.[br]
 ## Run from the repo root, with board names after [code]--[/code] to run only those,
 ## [code]check[/code] to hover in checking mode ([member Intents.is_checking], debug only) and
-## count what it finds instead of timing, and [code]after_action[/code] to sweep again after one
-## unit acts, instead of the profile:[br]
+## count what it finds instead of timing, [code]after_action[/code] to sweep again after one
+## unit acts, [code]sweep[/code] to time the sweep of layer 5 and the hovers it serves, and
+## [code]refresh[/code] to time the intents refresh after an action, instead of the profile:[br]
 ## [code]godot --headless --path bandit-bash res://tests/bench/preview_bench.tscn -- key_engaged
 ## [/code][br]
 ## A release build runs it through [code]tests/bench/release_bench.sh[/code]. Measures only;
@@ -40,6 +41,22 @@ const CHECK_ARGUMENT: String = "check"
 # the previews after it.
 const AFTER_ACTION_ARGUMENT: String = "after_action"
 
+# The argument after "--" that, instead of the profile, sweeps every acting unit's tiles through a
+# sweeping queue (layer 5): the sweep's time and its frames, hovers on swept tiles, hovers that
+# jump into a running sweep, and the memory the done previews hold.
+const SWEEP_ARGUMENT: String = "sweep"
+
+# The argument after "--" that times the intents refresh instead (Intents.compute, as the refresh
+# after each action runs it), with the session's verify mode on and off, and its parts.
+const REFRESH_ARGUMENT: String = "refresh"
+
+# Refreshes timed per board and verify setting.
+const REFRESH_RUNS: int = 3
+
+# Hovers that jump into a running sweep, per board, and the sweep frames between two of them.
+const JUMPS: int = 12
+const FRAMES_BETWEEN_JUMPS: int = 20
+
 # P05 question 10's target per hover, in microseconds (move-preview.md, its decision 4: p95, debug).
 const TARGET_USEC: float = 50000.0
 
@@ -48,6 +65,13 @@ const TARGET_USEC: float = 50000.0
 const POLL_USEC: int = 1000
 
 const BYTES_PER_MB: float = 1048576.0
+const USEC_PER_SECOND: float = 1000000.0
+
+# One frame at 60 Hz, as the battle's _process polls the queue, in microseconds.
+const FRAME_USEC: int = 16667
+
+# The longest a sweep may run before the bench gives up on it, in microseconds.
+const MAX_SWEEP_USEC: int = 600000000
 
 # The checking-mode lines printed per board, at most.
 const MAX_FLAGS_SHOWN: int = 5
@@ -71,6 +95,8 @@ func _ready() -> void:
 	_boards = BenchBoards.new(_catalog)
 	var is_checking: bool = OS.get_cmdline_user_args().has(CHECK_ARGUMENT)
 	var is_after_action: bool = OS.get_cmdline_user_args().has(AFTER_ACTION_ARGUMENT)
+	var is_sweep: bool = OS.get_cmdline_user_args().has(SWEEP_ARGUMENT)
+	var is_refresh: bool = OS.get_cmdline_user_args().has(REFRESH_ARGUMENT)
 	_print_header(is_checking)
 	for board: String in _chosen_boards():
 		var session: CombatSession = _boards.build(board)
@@ -79,6 +105,10 @@ func _ready() -> void:
 		var units: PackedStringArray = TurnInputModel.acting_units(session, 0)
 		if is_checking:
 			_check_board(board, session)
+		elif is_sweep:
+			_bench_sweep(session, units)
+		elif is_refresh:
+			_bench_refresh(session)
 		elif is_after_action:
 			_bench_worker(session, units)
 			var actor: String = units[0]
@@ -117,6 +147,8 @@ func _chosen_boards() -> PackedStringArray:
 	var named: PackedStringArray = OS.get_cmdline_user_args()
 	named.erase(CHECK_ARGUMENT)
 	named.erase(AFTER_ACTION_ARGUMENT)
+	named.erase(SWEEP_ARGUMENT)
+	named.erase(REFRESH_ARGUMENT)
 	var chosen: PackedStringArray = []
 	for board: String in BenchBoards.BOARDS:
 		if named.is_empty() or named.has(board):
@@ -164,6 +196,144 @@ func _bench_worker(session: CombatSession, units: PackedStringArray) -> void:
 		"met" if _median(hovers) <= TARGET_USEC else "missed",
 		"met" if _p95(hovers) <= TARGET_USEC else "missed",
 	])
+
+
+# The sweep (layer 5) of every move tile of units, in that order, through a sweeping queue polled
+# once a 60 Hz frame, from fresh intents (only their own forecasts in the store): the sweep's
+# time, the main thread's time in each frame (one starting a preview prepares it), a hover on
+# every swept tile (a lookup, which must start no preview) and the memory the done previews hold;
+# then, from fresh intents again, hovers that jump into a running sweep at tiles it hasn't reached.
+func _bench_sweep(session: CombatSession, units: PackedStringArray) -> void:
+	var total: int = 0
+	for unit_id: String in units:
+		total += TurnInputModel.move_tiles(session, unit_id).size()
+	session.intents = Intents.compute(session, _catalog)
+	var memory_before: int = OS.get_static_memory_usage()
+	var queue: MovePreview.Queue = MovePreview.Queue.new()
+	var frames: PackedInt64Array = []
+	var starting: PackedInt64Array = []
+	var started: int = Time.get_ticks_usec()
+	while queue.swept < total and Time.get_ticks_usec() - started < MAX_SWEEP_USEC:
+		var swept_before: int = queue.swept
+		var spent: int = _frame(queue, session, units)
+		frames.append(spent)
+		if queue.swept > swept_before:
+			starting.append(spent)
+	queue.wait()
+	queue.run_pending(session, units)
+	var sweep_time: int = Time.get_ticks_usec() - started
+	var done: int = 0
+	for unit_id: String in units:
+		for tile: Vector2i in TurnInputModel.move_tiles(session, unit_id):
+			if queue.is_done(session, unit_id, tile):
+				done += 1
+	if done != total:
+		_failures.append("the sweep did %d of %d tiles" % [done, total])
+	var lookups: PackedInt64Array = []
+	var runs_before: int = queue.runs
+	var missed: int = 0
+	for unit_id: String in units:
+		for tile: Vector2i in TurnInputModel.move_tiles(session, unit_id):
+			var asked: int = Time.get_ticks_usec()
+			queue.request(unit_id, tile)
+			var ready: MovePreview = queue.run_pending(session, units)
+			lookups.append(Time.get_ticks_usec() - asked)
+			if ready == null:
+				missed += 1
+			queue.clear()
+	if missed > 0 or queue.runs != runs_before:
+		_failures.append("hovers on swept tiles: %d not returned at once, %d previews started" % [
+			missed, queue.runs - runs_before,
+		])
+	var memory_swept: int = OS.get_static_memory_usage()
+	queue = null
+	var memory_dropped: int = OS.get_static_memory_usage()
+	print("\n-- The sweep (60 Hz frames), from fresh intents --")
+	print("Sweep of %d tiles over %d units: %d (%.1f s), %d frames" % [
+		total, units.size(), sweep_time, sweep_time / USEC_PER_SECOND, frames.size(),
+	])
+	_report("frame, main thread (every frame)", frames)
+	_report("frame, main thread (one starting a preview)", starting)
+	_report("hover on a swept tile (one call)", lookups)
+	# Static memory is counted in debug builds only; a release build prints 0.
+	print("Memory held after the sweep: %+.1f MB; the done previews alone %.1f MB" % [
+		(memory_swept - memory_before) / BYTES_PER_MB,
+		(memory_swept - memory_dropped) / BYTES_PER_MB,
+	])
+	_bench_jumps(session, units, total)
+
+
+# Hovers that jump into a running sweep: from fresh intents, a sweep runs JUMPS times for
+# FRAMES_BETWEEN_JUMPS frames, then a tile it reaches last and hasn't done is hovered, polled as
+# the other hovers are: the wait for the sweep's preview running, then the hover's own.
+func _bench_jumps(session: CombatSession, units: PackedStringArray, total: int) -> void:
+	session.intents = Intents.compute(session, _catalog)
+	var queue: MovePreview.Queue = MovePreview.Queue.new()
+	var last: String = units[units.size() - 1]
+	var far: Array[Vector2i] = TurnInputModel.move_tiles(session, last)
+	far.reverse()
+	var jumps: PackedInt64Array = []
+	for tile: Vector2i in far:
+		if jumps.size() >= JUMPS or queue.swept >= total:
+			break
+		for _frame_index: int in FRAMES_BETWEEN_JUMPS:
+			_frame(queue, session, units)
+		if queue.is_done(session, last, tile):
+			continue
+		var requested: int = Time.get_ticks_usec()
+		queue.request(last, tile)
+		var ready: MovePreview = queue.run_pending(session, units)
+		while ready == null:
+			OS.delay_usec(POLL_USEC)
+			ready = queue.run_pending(session, units)
+		jumps.append(Time.get_ticks_usec() - requested)
+		queue.clear()
+	queue.wait()
+	_report("hover jumping into a running sweep (latency)", jumps)
+	print("Target %.0f per hover jumping in: median %s, p95 %s" % [
+		TARGET_USEC,
+		"met" if _median(jumps) <= TARGET_USEC else "missed",
+		"met" if _p95(jumps) <= TARGET_USEC else "missed",
+	])
+
+
+# One 60 Hz frame of queue on session sweeping units: its run_pending, then a wait to the frame's
+# end. Returns the main thread's time in run_pending.
+func _frame(queue: MovePreview.Queue, session: CombatSession, units: PackedStringArray) -> int:
+	var frame: int = Time.get_ticks_usec()
+	queue.run_pending(session, units)
+	var spent: int = Time.get_ticks_usec() - frame
+	OS.delay_usec(maxi(FRAME_USEC - spent, 0))
+	return spent
+
+
+# The intents refresh after a fact, as Intents.refresh runs it (Intents.compute on the main
+# thread), REFRESH_RUNS times with the session's verify mode on and then off; and its parts before
+# the phase is played: the sandbox copy, the danger zone and the phase crossing, rebuilt with the
+# same calls, verify copied from the session. The refresh's own sandbox keeps verify only in
+# checking mode, so its two rows differ only by noise; the parts show what verify costs a copy.
+func _bench_refresh(session: CombatSession) -> void:
+	print("\n-- The intents refresh (Intents.compute, main thread) --")
+	var was_verifying: bool = session.engine.verify
+	for is_verifying: bool in [true, false]:
+		session.engine.verify = is_verifying and OS.is_debug_build()
+		var totals: PackedInt64Array = []
+		var parts: PackedInt64Array = []
+		for _run: int in REFRESH_RUNS:
+			var started: int = Time.get_ticks_usec()
+			var found: Intents = Intents.compute(session, _catalog)
+			totals.append(Time.get_ticks_usec() - started)
+			if found == null:
+				_failures.append("the refresh computed no intents")
+			started = Time.get_ticks_usec()
+			var sandbox: Sandbox = Sandbox.new(session.engine, ForecastRolls.new())
+			DangerZone.compute(sandbox.engine)
+			PhaseRunner.cross_to_enemy_phase(session, sandbox.engine)
+			parts.append(Time.get_ticks_usec() - started)
+		var label: String = "verify %s" % ["on" if session.engine.verify else "off"]
+		_report("refresh, %s" % [label], totals)
+		_report("  its copy, zone and crossing, %s" % [label], parts)
+	session.engine.verify = was_verifying
 
 
 # Every move tile of every acting unit previewed on the main thread in checking mode: every kept

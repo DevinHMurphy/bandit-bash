@@ -6,7 +6,7 @@
 # File:     percent_of_fact.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 15, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 @tool
@@ -31,18 +31,18 @@ enum Field {
 ## Effect-text names of the fields.
 const FIELD_TEXT: Dictionary[int, String] = {
 	Field.AMOUNT: "amount",
-	Field.HP_AMOUNT: "HP amount",
+	Field.HP_AMOUNT: "[kw=hp]HP[/kw] amount",
 	Field.OVERHEAL: "overheal",
 }
 
 ## Effect text of [constant Field.HP_AMOUNT] under each damage trigger, the damage it is part of.
 const DAMAGE_TEXT: Dictionary[int, String] = {
-	EffectTerms.Trigger.HIT_DEALT: "the damage dealt to HP",
-	EffectTerms.Trigger.DAMAGE_DEALT: "the damage dealt to HP",
-	EffectTerms.Trigger.CRIT_DEALT: "the damage dealt to HP",
-	EffectTerms.Trigger.HIT_TAKEN: "the damage taken to HP",
-	EffectTerms.Trigger.DAMAGE_TAKEN: "the damage taken to HP",
-	EffectTerms.Trigger.CRIT_TAKEN: "the damage taken to HP",
+	EffectTerms.Trigger.HIT_DEALT: "the [kw=damage]damage[/kw] dealt to [kw=hp]HP[/kw]",
+	EffectTerms.Trigger.DAMAGE_DEALT: "the [kw=damage]damage[/kw] dealt to [kw=hp]HP[/kw]",
+	EffectTerms.Trigger.CRIT_DEALT: "the [kw=damage]damage[/kw] dealt to [kw=hp]HP[/kw]",
+	EffectTerms.Trigger.HIT_TAKEN: "the [kw=damage]damage[/kw] taken to [kw=hp]HP[/kw]",
+	EffectTerms.Trigger.DAMAGE_TAKEN: "the [kw=damage]damage[/kw] taken to [kw=hp]HP[/kw]",
+	EffectTerms.Trigger.CRIT_TAKEN: "the [kw=damage]damage[/kw] taken to [kw=hp]HP[/kw]",
 }
 
 ## The part of the fact read.

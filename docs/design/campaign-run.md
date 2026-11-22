@@ -34,7 +34,8 @@ commands and show the results.
    starting heirloom screen while the offer is open. `StartingHeirloomCommand` takes one heirloom
    and its sub-choice together. No node can be chosen until every seat has picked.
 3. **The map.** `ChooseNodeCommand` enters a node on the next floor that the current node leads
-   to (any floor 1 node at the start). The floor locks and the stage becomes `node`.
+   to (any floor 1 node at the start). The floor locks and the stage becomes `node`. In co-op
+   each seat votes instead (`RouteVoteCommand`; see Co-op).
 4. **Inside a node.** `RunScreen.go()` routes to the node's screen. The screen opens the node
    (rolling its offer if it has one), the player acts, and `LeaveNodeCommand` returns the run to
    the map. The node stays visited.
@@ -180,9 +181,18 @@ Each node has its own streams (`SHOP_STOCK`, `UNKNOWN_RESOLUTION`, each seat's `
 
 Every seat has its own `SeatRun`; the map, flow and shop stock are shared. The rules handle
 several seats, and the campaign tests cover them headless. On the host, the campaign screens serve
-a co-op run for the local seat (Screens and seats). Route votes, swaps, the event screen's co-op
-views and the co-op battle screen come with the co-op plan (P11); clients' screens come with
-transport (P10 NT5).
+a co-op run for the local seat (Screens and seats). Swaps, the event screen's co-op views, the
+map screen's votes and the co-op battle screen come with the co-op plan (P11); clients' screens
+come with transport (P10 NT5).
+
+**Route votes.** In co-op a seat's own `ChooseNodeCommand` is refused, with a reason. Each seat
+sends `RouteVoteCommand` for a node `ChooseNodeCommand` would accept; voting again replaces its
+vote, and a vote is never withdrawn. The last seat's vote draws the node from the next floor's
+`ROUTE_DRAW` stream, weighted by votes (2 votes against 1 is a 2-in-3 chance), and enters it:
+`ROUTE_VOTED` for each vote, then `NODE_CHOSEN` for no seat. The votes are saved in
+`campaign_map` and stay after the draw, so the tally still shows, until the next floor's first
+vote. Until the co-op map screen sends votes (P11 CO11), a co-op host can't leave the map from
+it.
 
 ## Tests
 

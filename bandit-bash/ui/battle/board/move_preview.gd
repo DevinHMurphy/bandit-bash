@@ -6,7 +6,7 @@
 # File:     move_preview.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 18, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name MovePreview
@@ -16,15 +16,13 @@ extends RefCounted
 ## re-planned for it ([method Intents.preview]), with which enemies' intents differ from the
 ## current ones (combat UI plan, question 9).
 ##
-## A preview takes tens of milliseconds in a debug build, so it runs off the input path (question
-## 16 (a)): hovering only [method Queue.request]s one, and [BattleController] hands the newest to
-## a [Queue], which re-plans the enemies on a worker thread ([method Intents.PreviewJob.run]) and
-## returns the preview on a later frame. Hovers in between are dropped, and so is a result that is
-## no longer the newest hover's or was asked on an older board. Reading only: every query runs on
-## a sandbox copied on the main thread. [MovePreviewMarks] draws the damage and [IntentDisplay] the
-## intents, as previewed.
+## A preview takes tens to hundreds of milliseconds, so it runs off the input path: a [Queue]
+## re-plans on one worker thread ([method Intents.PreviewJob.run]), sweeping every tile the
+## seat's units can end on as soon as the intents are current, so a hover is usually a lookup
+## (move-preview.md, layer 5). Reading only: every query runs on a sandbox copied on the main
+## thread. [MovePreviewMarks] draws the damage and [IntentDisplay] the intents, as previewed.
 ##
-## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
+## @tutorial(The move preview): docs/design/move-preview.md
 
 ## The unit previewed.
 var unit_id: String = ""
@@ -102,9 +100,15 @@ func _finish() -> void:
 	_current = null
 
 
-## The newest hover waiting for its preview, the one running on a worker thread, and the one
-## shown. Each [method run_pending] returns a finished preview, if one is ready, and starts the
-## newest [method request] when none runs, so at most one preview runs at a time.
+## The newest hover waiting for its preview, the previews done on the current board, the one
+## running on a worker thread, and the one shown. Each [method run_pending] takes a finished
+## preview into the done ones, returns the hover's when it is done, and otherwise starts the
+## hover's, or else the sweep's next tile, so at most one preview runs at a time.[br]
+## [b]The sweep:[/b] while the session's intents are current, the worker previews every tile each
+## unit of the sweep order can end on, nearest first, a unit's tiles before the next unit's; a
+## hover on a tile not yet done runs next. The done previews are keyed by the session, its
+## [method CombatSession.last_seq], the unit and the tile, and dropped at the next fact, when the
+## sweep starts over.
 class Queue:
 	extends RefCounted
 
@@ -112,22 +116,43 @@ class Queue:
 	const _NO_TASK: int = -1
 
 	## Whether previews re-plan on a worker thread. [b]Off:[/b] [method run_pending] computes the
-	## newest request whole on the main thread and returns it at once.
+	## newest request whole on the main thread and returns it at once, and nothing is swept.
 	var is_threaded: bool = true
+
+	## Whether the worker sweeps while no hover waits (see the class doc), with
+	## [member is_threaded] on. [b]Off:[/b] only hovers run.
+	var is_sweeping: bool = true
 
 	## Previews returned by [method run_pending] so far, for tests and benchmarks.
 	var computed: int = 0
 
+	## Previews started so far, for hovers and the sweep, for tests and benchmarks. A hover on a
+	## done tile starts none.
+	var runs: int = 0
+
+	## Of [member runs], those the sweep started.
+	var swept: int = 0
+
+	# The newest request; whether it waits to start, and whether it is owed: waiting, or started
+	# and not yet returned.
 	var _unit_id: String = ""
 	var _tile: Vector2i = CombatFact.NO_TILE
 	var _has_pending: bool = false
+	var _is_owed: bool = false
 	var _shown: MovePreview = null
 
-	# The preview whose enemies a worker re-plans, its task (_NO_TASK once waited for), and whether
-	# clear() dropped it.
+	# The previews done on one board, by _key_of, with that board: the session's instance id and
+	# its last_seq; and each unit's tiles in sweep order there, computed as the sweep reaches it.
+	var _done: Dictionary[String, MovePreview] = {}
+	var _done_session: int = 0
+	var _done_seq: int = Command.NO_SEQ
+	var _tiles_of: Dictionary[String, Array] = {}
+
+	# The preview a worker re-plans, its task (_NO_TASK once waited for), and the session's
+	# instance id when it was asked for.
 	var _running: MovePreview = null
 	var _task_id: int = _NO_TASK
-	var _is_dropped: bool = false
+	var _running_session: int = 0
 
 	## Asks for the preview of [param unit_id] on [param tile], replacing any request not yet run.
 	## A request for the preview already shown, on an unchanged session, is dropped when run.
@@ -135,15 +160,16 @@ class Queue:
 		_unit_id = unit_id
 		_tile = tile
 		_has_pending = true
+		_is_owed = true
 
 	## Drops the request waiting and forgets the preview shown. A preview still running isn't
-	## waited for: its result is dropped when it finishes.
+	## waited for: it finishes into the done previews, as a sweep's would.
 	func clear() -> void:
 		_has_pending = false
+		_is_owed = false
 		_shown = null
-		_is_dropped = _running != null
 
-	## Whether a request is waiting.
+	## Whether a request is waiting to start; false once its preview runs.
 	func has_pending() -> bool:
 		return _has_pending
 
@@ -151,68 +177,155 @@ class Queue:
 	func shown() -> MovePreview:
 		return _shown
 
+	## Whether the preview of [param unit_id] on [param tile] is done on [param session]'s board
+	## as it stands, so a hover there returns it with no work.
+	func is_done(session: CombatSession, unit_id: String, tile: Vector2i) -> bool:
+		return _is_done_board(session) and _done.has(_key_of(unit_id, tile))
+
 	## Blocks until the preview running on a worker thread, if any, has finished; the next
-	## [method run_pending] returns it, or drops it. For tests, benchmarks and teardown, which must
-	## wait for every task before exit.
+	## [method run_pending] takes it. For tests, benchmarks and teardown, which must wait for
+	## every task before exit.
 	func wait() -> void:
 		if _task_id == _NO_TASK:
 			return
 		WorkerThreadPool.wait_for_task_completion(_task_id)
 		_task_id = _NO_TASK
 
-	## On [param session]: takes the finished preview, if one is, then starts the newest request
-	## when nothing runs. Returns the finished preview; null while it runs, when nothing waited, or
-	## when it was dropped: by [method clear], for a newer request, or because the session changed
-	## while it ran (the same request is then asked again). With [member is_threaded] off, computes
-	## the newest request at once and returns it. A request that would repeat the preview shown is
-	## dropped.
-	func run_pending(session: CombatSession) -> MovePreview:
-		var ready: MovePreview = _collect(session)
-		if _running != null or not _has_pending:
+	## On [param session]: takes the finished preview into the done ones, then returns the
+	## newest request's when it is done, or starts it when nothing runs; with no request waiting,
+	## starts the next tile of [param sweep] (the units to sweep, in order) not yet done. Returns
+	## null while the request's preview isn't done, when nothing waited, or for a request that
+	## would repeat the preview shown. A preview asked on an older board is ignored when it
+	## finishes. With [member is_threaded] off, computes the newest request at once instead.
+	func run_pending(session: CombatSession, sweep: PackedStringArray = []) -> MovePreview:
+		_drop_stale(session)
+		_collect(session)
+		var ready: MovePreview = _take_done(session)
+		if _running != null:
 			return ready
-		_has_pending = false
+		# Owed and not running: waiting, or its preview was asked on an older board.
+		if _is_owed:
+			var preview: MovePreview = MovePreview._prepare(session, _unit_id, _tile)
+			runs += 1
+			_has_pending = false
+			if not is_threaded:
+				preview._finish()
+				_is_owed = false
+				_keep(session, preview)
+				_shown = preview
+				computed += 1
+				return preview
+			_start(session, preview)
+			return ready
+		if is_threaded and is_sweeping and _has_current_intents(session):
+			_sweep_next(session, sweep)
+		return ready
+
+	# Drops the done previews and the sweep's tiles when session's board isn't theirs.
+	func _drop_stale(session: CombatSession) -> void:
+		if _is_done_board(session):
+			return
+		_done.clear()
+		_tiles_of.clear()
+		_done_session = session.get_instance_id()
+		_done_seq = session.last_seq()
+
+	func _is_done_board(session: CombatSession) -> bool:
+		return _done_session == session.get_instance_id() and _done_seq == session.last_seq()
+
+	# The running preview once its task has finished: finished on the main thread and kept as
+	# done while it was asked on session's board as it stands, else ignored.
+	func _collect(session: CombatSession) -> void:
+		if _running == null:
+			return
+		if _task_id != _NO_TASK:
+			if not WorkerThreadPool.is_task_completed(_task_id):
+				return
+			WorkerThreadPool.wait_for_task_completion(_task_id)
+			_task_id = _NO_TASK
+		var finished: MovePreview = _running
+		_running = null
+		if _running_session != session.get_instance_id():
+			return
+		if finished.based_on_seq != session.last_seq():
+			return
+		finished._finish()
+		_keep(session, finished)
+
+	# The waiting request's preview, shown, when it is done; null while it isn't, or when it
+	# repeats the preview shown (the request is then dropped).
+	func _take_done(session: CombatSession) -> MovePreview:
+		if not _is_owed:
+			return null
 		if (
 				_shown != null
 				and _shown.unit_id == _unit_id
 				and _shown.tile == _tile
 				and _shown.based_on_seq == session.last_seq()
 		):
-			return ready
-		var preview: MovePreview = MovePreview._prepare(session, _unit_id, _tile)
-		if not is_threaded:
-			preview._finish()
-			_shown = preview
-			computed += 1
-			return preview
-		_running = preview
-		_is_dropped = false
-		_task_id = WorkerThreadPool.add_task(preview._job.run)
-		return ready
-
-	# The running preview once its task has finished, finished on the main thread and shown; null
-	# while it runs or when it is dropped.
-	func _collect(session: CombatSession) -> MovePreview:
-		if _running == null:
+			_has_pending = false
+			_is_owed = false
 			return null
-		if _task_id != _NO_TASK:
-			if not WorkerThreadPool.is_task_completed(_task_id):
-				return null
-			WorkerThreadPool.wait_for_task_completion(_task_id)
-			_task_id = _NO_TASK
-		var finished: MovePreview = _running
-		_running = null
-		if _is_dropped:
-			return null
-		var is_newest: bool = (
-				not _has_pending or (_unit_id == finished.unit_id and _tile == finished.tile)
-		)
-		if not is_newest:
-			return null
-		if finished.based_on_seq != session.last_seq():
-			request(finished.unit_id, finished.tile)
+		var done: MovePreview = _done.get(_key_of(_unit_id, _tile), null)
+		if done == null:
 			return null
 		_has_pending = false
-		finished._finish()
-		_shown = finished
+		_is_owed = false
+		_shown = done
 		computed += 1
-		return finished
+		return done
+
+	func _keep(session: CombatSession, preview: MovePreview) -> void:
+		if _is_done_board(session) and preview.based_on_seq == _done_seq:
+			_done[_key_of(preview.unit_id, preview.tile)] = preview
+
+	func _start(session: CombatSession, preview: MovePreview) -> void:
+		_running = preview
+		_running_session = session.get_instance_id()
+		_task_id = WorkerThreadPool.add_task(preview._job.run)
+
+	# Starts the first tile of sweep's units, in order, not yet done.
+	func _sweep_next(session: CombatSession, sweep: PackedStringArray) -> void:
+		for unit_id: String in sweep:
+			for tile: Vector2i in _sweep_tiles(session, unit_id):
+				if _done.has(_key_of(unit_id, tile)):
+					continue
+				runs += 1
+				swept += 1
+				_start(session, MovePreview._prepare(session, unit_id, tile))
+				return
+
+	# Every tile unit_id can end its move on (Pathing.reach), nearest first, ties in row-major
+	# order; empty for a unit that isn't a player unit yet to act. Kept until the board changes.
+	func _sweep_tiles(session: CombatSession, unit_id: String) -> Array:
+		if _tiles_of.has(unit_id):
+			return _tiles_of[unit_id]
+		var tiles: Array[Vector2i] = []
+		var state: CombatState = session.state
+		var is_player: bool = (
+				state.has_unit(unit_id)
+				and state.side_of(unit_id) == CombatFact.CombatSide.PLAYER
+		)
+		if is_player and not state.unit(unit_id).has_acted:
+			# ASSUMPTION: "nearest" is the walk's cost from the unit's tile, not grid distance.
+			var costs: Dictionary[Vector2i, int] = Pathing.reach(session.engine, state, unit_id)
+			tiles.assign(costs.keys())
+			tiles.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+				if costs[a] != costs[b]:
+					return costs[a] < costs[b]
+				return MapLayout.is_before(a, b)
+			)
+		_tiles_of[unit_id] = tiles
+		return tiles
+
+	# Whether session's intents are current: a preview on stale ones computes them afresh on the
+	# main thread first (Intents.prepare_preview), which the sweep must never cost.
+	static func _has_current_intents(session: CombatSession) -> bool:
+		return (
+				not session.is_finished
+				and session.intents != null
+				and session.intents.based_on_seq == session.last_seq()
+		)
+
+	static func _key_of(unit_id: String, tile: Vector2i) -> String:
+		return "%s %d %d" % [unit_id, tile.x, tile.y]

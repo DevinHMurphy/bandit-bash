@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" path="res://ui/campaign/item_offer_card.gd" id="1_card"]
 [ext_resource type="PackedScene" path="res://ui/campaign/item_usable_by.tscn" id="2_usable"]
+[ext_resource type="PackedScene" path="res://ui/common/text/effect_text.tscn" id="3_text"]
 
 [node name="ItemOfferCard" type="Button"]
 custom_minimum_size = Vector2(296, 72)
@@ -63,12 +64,10 @@ layout_mode = 2
 theme_type_variation = &"BodyLabel"
 autowrap_mode = 3
 
-[node name="Effects" type="Label" parent="Content/Layout/Text"]
+[node name="Effects" parent="Content/Layout/Text" instance=ExtResource("3_text")]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
-theme_type_variation = &"BodyLabel"
-autowrap_mode = 3
 
 [node name="Spacer" type="Control" parent="Content/Layout/Text"]
 layout_mode = 2
