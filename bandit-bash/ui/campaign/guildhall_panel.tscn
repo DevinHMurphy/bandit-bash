@@ -31,7 +31,7 @@ grow_vertical = 2
 mouse_filter = 2
 
 [node name="Panel" type="PanelContainer" parent="Center"]
-custom_minimum_size = Vector2(680, 0)
+custom_minimum_size = Vector2(608, 0)
 layout_mode = 2
 
 [node name="Margin" type="MarginContainer" parent="Center/Panel"]
@@ -53,13 +53,13 @@ text = "Recruit"
 
 [node name="Details" parent="Center/Panel/Margin/Column" instance=ExtResource("2_text")]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(648, 0)
+custom_minimum_size = Vector2(576, 0)
 layout_mode = 2
 marked_text = "Joins at level 1."
 
 [node name="Question" type="Label" parent="Center/Panel/Margin/Column"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(648, 0)
+custom_minimum_size = Vector2(576, 0)
 layout_mode = 2
 text = "It joins your army."
 autowrap_mode = 3
@@ -75,6 +75,6 @@ layout_mode = 2
 
 [node name="Problem" type="Label" parent="Center/Panel/Margin/Column"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(648, 0)
+custom_minimum_size = Vector2(576, 0)
 layout_mode = 2
 autowrap_mode = 3

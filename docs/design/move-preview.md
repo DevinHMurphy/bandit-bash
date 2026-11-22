@@ -82,10 +82,47 @@ starting from `Godot_FE`'s absolute-range check.
   about 44 decisions per hover (the zones rarely hold on engaged boards), Support's threat floods
   (the Warcaller's about 12 ms per decision in debug), an advance's whole-map flood, and on the
   boss board some 260 forecasts made. Layer 5 hides what is left.
-- **After every fact** the latest intents are computed afresh on the main thread (`Intents.refresh`):
-  1.5 s on the key board and 6.3 s on the boss board in debug, where its sandbox keeps the
-  session's verify mode (a preview's turns it off), and 0.33 s and 0.78 s in release
-  (`-- after_action`). A player waits that long after each action before the next hover.
+- **After every fact** the latest intents are computed afresh on the main thread (`Intents.refresh`),
+  inside the command's resolution, before its playback starts. One walk and its refresh
+  (`-- after_action`), EN15 → EN16, debug: M1 turn 1 79 → 29 ms, M1 engaged 861 → 112 ms, key
+  1,474 → 379 ms, boss 6,080 → 1,095 ms; release, unchanged: 17, 74–76, 254–281 and 825–846 ms.
+  EN16 turned verify mode off in the refresh's sandbox outside checking mode, as previews do; it
+  was about four fifths of a debug refresh. What is left plays the phase: the sandbox copy, the
+  danger zone and the crossing take 2–10 ms of it (`-- refresh`). BUG-035 tracks the rest.
+
+**Layer 5, measured (EN16, November 22, 2026):** same machine, back to back with EN15's code, the
+machine otherwise idle. Times in milliseconds unless marked. "Swept": a hover on a tile the sweep
+has done, one call. "Idle": an unswept hover with no sweep running, EN15 → EN16 (the same path).
+"Jumping in": an unswept hover while a sweep runs, at a tile it reaches last. "Sweep": every tile
+of all 6 (M1: 4) acting units at 60 Hz frames. "Frame": the main thread's time in a frame that
+starts a sweep preview (`Intents.prepare_preview` runs there), median / max. `-- sweep` gives all
+but "Idle". M1's debug "Idle" is from a second pair of runs: the first pair differed by more than
+the 30% EN15 saw from run to run (17 → 31 ms), and two reruns gave both 22–24 ms.
+
+| Board | Build | Swept, median / p95 | Idle, median / p95 | Jumping in, median / p95 | Sweep | Frame |
+|---|---|---|---|---|---|---|
+| M1 turn 1 | debug | 0.07 / 0.08 | 22 / 36 → 22 / 37 | 21 / 27 | 3.1 s | 1.2 / 2.7 |
+| M1 turn 1 | release | 0.05 / 0.07 | 12 / 24 → 14 / 24 | 9 / 16 | 2.2 s | 0.7 / 1.5 |
+| M1 engaged | debug | 0.06 / 0.10 | 35 / 58 → 37 / 62 | 46 / 94 | 4.3 s | 1.8 / 3.2 |
+| M1 engaged | release | 0.05 / 0.07 | 30 / 46 → 22 / 39 | 17 / 47 | 4.2 s | 1.6 / 2.7 |
+| Key, 9 enemies | debug | 0.13 / 0.16 | 205 / 315 → 203 / 326 | 277 / 352 | 54.7 s | 4.0 / 9.3 |
+| Key, 9 enemies | release | 0.10 / 0.14 | 158 / 248 → 158 / 245 | 177 / 398 | 40.6 s | 3.2 / 6.2 |
+| Boss, 9 enemies | debug | 0.25 / 0.26 | 607 / 1,011 → 657 / 1,043 | 1,670 / 2,062 | 196.8 s | 8.1 / 25.8 |
+| Boss, 9 enemies | release | 0.12 / 0.13 | 469 / 760 → 456 / 736 | 807 / 1,066 | 117.3 s | 5.3 / 8.7 |
+
+- **A swept tile is a lookup:** the hover's preview shows on the next frame, under 0.3 ms.
+- **The target (50 ms p95, debug, unswept)** holds on M1 turn 1 and misses on M1 engaged (jumping
+  in) and on both 9-enemy boards, idle or jumping in. The sweep doesn't change an unswept
+  preview's own time.
+- **Jumping in waits** for the sweep's preview running: on the boss board 1.7 s against 0.66 s idle
+  in debug. The running preview can't be stopped (P05 question 54).
+- **Against playback:** an enemy's turn plays in about 2.5–3 s at speed 1 when it attacks and 0.5 s
+  when it doesn't, so a 9-enemy phase with 5 attacks plays in about 15 s, and a player's attack in
+  about 3 s (estimated from `BattleView`'s pacing exports, not measured). The M1 sweeps finish
+  within one action's playback. In release the key board sweeps about 2 of its 6 units during an
+  enemy phase, the boss board under 1; the selected unit goes first (7 s and 20 s for one unit).
+- **A frame starting a sweep preview** costs the main thread up to 9 ms in release and 26 ms in
+  debug on the boss board: a debug frame can drop during playback.
 
 ## How a preview works now
 
@@ -297,6 +334,26 @@ already final.
 Layers 2–4 make the whole sweep cheap, because neighbouring tiles and units share nearly every
 forecast. The sweep runs one preview at a time on one worker thread, as the queue already allows.
 
+**As built (EN16):** in `MovePreview.Queue`, with `BattleController` handing it the order.
+
+- **The done previews** are kept by the session, its `last_seq`, the unit and the tile. Each
+  `run_pending` first drops them if the board isn't theirs, takes a finished preview in, and
+  returns the hover's if it is done. When nothing runs it starts the hover's, else the sweep's
+  next tile not yet done. A preview asked on an older board, or another session's, is ignored when
+  it finishes; a hover's is then asked again.
+- **The order** is an optional trailing `sweep` argument on `run_pending`: the selected unit, the
+  unit under the cursor, then the seat's other units that can act, in state order. The controller
+  reads it again when the board, the selection or the cursor's unit changes, and runs the queue
+  every frame, in any stage, playback included. A unit's tiles are ordered by walking cost from
+  its tile (`Pathing.reach`), ties in row-major order.
+- **When:** only while the session's intents are current. A preview on stale intents computes
+  them afresh on the main thread first, which the sweep must never cost. Not with `is_threaded`
+  off, and not with `is_sweeping` off (tests of the hover alone).
+- **A hover cleared or replaced** while its preview runs no longer drops it: the preview finishes
+  into the done ones.
+- **Memory:** a preview's rounds are released as its job ends (only the intents a preview builds on
+  read them). See Threads and memory.
+
 ### Scaling to shared co-op maps
 
 Shared battles, where 2–4 players fight on one map at once, are post-MVP (P24). The design is meant
@@ -345,6 +402,13 @@ The preview must equal a full re-plan, so every layer ships with checks that com
   previews' dropped first (a hover's neighbours share most forecasts); the computation's own are
   kept besides. After a full sweep the store held 89 MB on the key board and 64 MB on the boss
   board, in debug. It goes at the next fact.
+- **The sweep's done previews** (layer 5) hold one preview per move tile of one board state, so
+  their count is bounded by the tiles, and they go at the next fact. Each first kept its whole
+  phase (every decision's plan, footprint and forecast): 219.5 MB for the key board's 230 tiles and
+  232.4 MB for the boss board's 262, in debug. A preview's rounds are now released as its job ends,
+  leaving its intents, danger zone and diagnostics: 3.4 MB (M1 turn 1), 4.3 MB (M1 engaged),
+  39.1 MB (key) and 51.6 MB (boss). After a full sweep the store and the done previews together
+  held 134 MB (key) and 132 MB (boss). No cap on their count (P05 question 52).
 
 ## Rejected
 
@@ -362,13 +426,14 @@ The preview must equal a full re-plan, so every layer ships with checks that com
 | A Measure | Benchmark boards: M1 turn 1, M1 engaged, a 9-enemy, 6-unit key-combat board. A per-phase profile of a hover. The equality suite and checking mode, run against today's preview | Baseline median and p95, debug and release, per hover and per sweep; equality passes |
 | B Diff and cache | Layers 1 and 2, the shared flood (left out: under 2% of a hover) | Equality passes; the benchmark is measured before and after. **Built in EN14** (Where it stands) |
 | C Zones | Layers 3 and 4 | Same. **Built in EN15** (Where it stands) |
-| D Precompute | Layer 5: the sweep during playback, in `MovePreview.Queue` | A hover on a done tile shows on the next frame; the sweep's time per turn is reported |
+| D Precompute | Layer 5: the sweep during playback, in `MovePreview.Queue` | A hover on a done tile shows on the next frame; the sweep's time per turn is reported. **Built in EN16** (Where it stands) |
 
 Steps A–C change only the internals of `intents.gd`, `enemy_ai.gd` and `danger_zone.gd`. Step D
 changes the queue inside `move_preview.gd` and the controller's calls into it. No public signature
 changes, except optional trailing arguments: EN14's `forecasts` on `EnemyAI.decide` (P05 question
-48), and EN15's `footprint` on it and `base`, `touched` and `margin` on `DangerZone.compute` (P05
-question 49). Step D goes ahead whatever B and C measure, because the user wants hover work at a
+48), EN15's `footprint` on it and `base`, `touched` and `margin` on `DangerZone.compute` (P05
+question 49), and EN16's `sweep` on `MovePreview.Queue.run_pending`, with the queue's new
+`is_sweeping`, `runs`, `swept` and `is_done` (P05 question 52). Step D goes ahead whatever B and C measure, because the user wants hover work at a
 minimum.
 
 ## Decisions

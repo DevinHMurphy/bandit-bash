@@ -6,7 +6,7 @@
 # File:     enemy_ai.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 21, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name EnemyAI
@@ -138,7 +138,7 @@ static func decide(
 		flooded: Dictionary[Vector2i, bool] = {},
 		objective: Array[Vector2i] = [],
 		forecasts: Forecasts = null,
-		# ASSUMPTION: an optional trailing argument and a new inner class (P05 question 49).
+		# Optional and trailing, so every caller that doesn't preview records nothing.
 		footprint: Footprint = null
 ) -> EnemyPlan:
 	var state: CombatState = engine.state
@@ -764,7 +764,8 @@ static func _advances(board: Board) -> Array[EnemyPlan]:
 	if nearest_id.is_empty():
 		# No foe reachable: one walking within range of the whole flood, or freeing a tile beside
 		# it, can become one.
-		# ASSUMPTION: this Wait reads the whole flood, not the absolute range (P05 question 49).
+		# The whole flood, not the absolute range: an advancing enemy waits only when no foe is
+		# reachable anywhere.
 		if board.footprint != null:
 			board.footprint.reads_far(walked, maxi(span.y, 1))
 		return options
