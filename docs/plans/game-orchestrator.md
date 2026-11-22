@@ -36,7 +36,7 @@ Where the project is, what's next and what's out of scope. Start here.
 - **Milestones:** M0 and M1 are complete. **Current: M2 Combat complete,** with M3 started alongside.
 - **What runs today:** a solo run opens the M1 battle: the Mercenary army against the Brigand pack on the greybox map. All of M2's battle systems and functional UI work on keyboard, mouse and controller: targeting, forecast, intents, the darkness, every objective's HUD, unit detail, and Save & Quit with resume.
 - **What M2 still needs:** content, enemy AI, docs and bug fixes. No new systems.
-- **Tests:** 7,649 cases in 31 suites, all passing, and a clean headless launch (`sh bandit-bash/tools/run_tests.sh`).
+- **Tests:** 7,686 cases in 31 suites, all passing, and a clean headless launch (`sh bandit-bash/tools/run_tests.sh`).
 - **Not started:** P09 (approved) and P10–P12. P08 is in progress (RN1–RN5 merged).
 
 ## Milestones
@@ -47,9 +47,9 @@ The MVP is **one full run, start screen to boss, solo and co-op, on Normal** (ga
 |---|---|---|---|
 | **M0 Foundations** | The engine every system plugs into | P00, P01 | **Complete** October 30, 2026 |
 | **M1 First playable fight** | One greybox combat, start to finish | P02–P07 (subsets) | **Complete** November 5, 2026; its tuning pass is deferred |
-| **M2 Combat complete** | Every MVP combat feature and piece of content, with a functional UI | P02–P07 | **In progress.** Every build is in (BF3 merged November 19, 2026). Left: the exit playtest (BF4 merged November 20, 2026; BF6, the end-of-phase battle save, merged November 20, 2026). RB1 moved to M3 (user, November 20, 2026): balancing needs events and every node working |
-| **M3 Solo run** | Start screen → campaign → boss, saved and resumable; 60–80 minutes | P08, P09 | **In progress.** P08 and P09 built (RN12 merged November 21, 2026): a seeded solo run plays from the start to the Boss and resumes at every stop. Left: the full-run playtest, then RB1 (user, November 20, 2026) |
-| **M4 Co-op run** | The same run for 2–4 players, tested live on two machines | P10, P11 | Not started |
+| **M2 Combat complete** | Every MVP combat feature and piece of content, with a functional UI | P02–P07 | **In progress.** Every build is in (BF3 merged November 19, 2026). Left: the exit playtest, folded into M3's full-run playtest (user, November 22, 2026) (BF4 merged November 20, 2026; BF6, the end-of-phase battle save, merged November 20, 2026). RB1 moved to M3 (user, November 20, 2026): balancing needs events and every node working |
+| **M3 Solo run** | Start screen → campaign → boss, saved and resumable; 60–80 minutes | P08, P09 | **In progress.** P08 and P09 built (RN12 merged November 21, 2026): a seeded solo run plays from the start to the Boss and resumes at every stop. Left: the full-run playtest, which also closes M2's exit playtest (user, November 22, 2026), then RB1 (user, November 20, 2026) and TX2. CT12 (weapon modifications) is not part of M3's exit (user, November 22, 2026): game-vision.md still lists its design as open |
+| **M4 Co-op run** | The same run for 2–4 players, tested live on two machines | P10, P11 | **In progress** alongside M3: P10 NT1–NT3 and P11 CO1, CO6, CO9 and CO10 merged by November 22, 2026; CO2 and CO12 building; NT4 next |
 | **M5 MVP** | Statistics, the Waystation war table, the MVP checklist | P12, polish | Not started |
 | Post-MVP | Meta progression and beyond | P20–P24 | Not planned |
 
@@ -64,9 +64,9 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P00 | [Save system](2026-10-13-save-system.md) | **Implemented** | Multiplayer paths untested live | — |
 | P01 | [Event bus and effects](2026-10-23-event-bus-and-effects.md) | **Implemented** (EB8 docs merged November 19, 2026: [event-bus.md](../design/event-bus.md)) | — | P00 |
 | P02 | [Combat core](2026-10-26-combat-core.md) | **Implemented** (CC9 docs merged November 19, 2026; vision question 4 checked against `BonusTurns`, N1–N10 recorded as built, BUG-003 fixed) | — | P01 |
-| P03 | [Content catalog](2026-10-29-content-catalog.md) | **In progress** | CT12 weapon modifications (CT11 docs merged November 19, 2026: [content-authoring.md](../design/content-authoring.md)) (M3, after P09 EV1; question 33) | P01 |
+| P03 | [Content catalog](2026-10-29-content-catalog.md) | **In progress** | CT12 weapon modifications, after an ideation pass on their design (out of M3's exit, user November 22, 2026; CT11 docs merged November 19, 2026: [content-authoring.md](../design/content-authoring.md)) (question 33) | P01 |
 | P04 | [Combat map](2026-10-27-combat-map.md) | **In progress** | MP11 map authoring toolkit (future; MP9 docs merged November 19, 2026: [map-authoring.md](../design/map-authoring.md)) | P01, P02 |
-| P05 | [Enemies and AI](2026-10-30-enemies-and-ai.md) | **In progress** | EN16 (EN15, the preview zones, merged November 21, 2026, P05 questions 49–51 answered November 22, 2026; EN13 and EN14, the forecast cache, merged November 20, 2026; EN11 merged November 18, 2026; EN12 docs merged November 19, 2026, in content-authoring.md) | P02, P04 |
+| P05 | [Enemies and AI](2026-10-30-enemies-and-ai.md) | **In progress** | EN16 merged November 22, 2026 (the sweep); P05 questions 52–55 open (EN15 merged November 21, 2026; EN13 and EN14, the forecast cache, merged November 20, 2026; EN11 merged November 18, 2026; EN12 docs merged November 19, 2026, in content-authoring.md) | P02, P04 |
 | P06 | [The darkness](2026-11-03-the-darkness.md) | **Implemented** (DK6 docs merged November 19, 2026) | — | P02, P04 |
 | P07 | [Combat UI](2026-11-04-combat-ui.md) | **In progress** | Nothing for M2 | P02, P04, P05, P06 |
 | P08 | [Campaign and run flow](2026-10-24-campaign-run-flow.md) | **Implemented** (RN12 docs merged November 21, 2026: [campaign-run.md](../design/campaign-run.md), save-system.md's run state) | P08 question 71 (the placeholder copy) to confirm | P01, P03 |

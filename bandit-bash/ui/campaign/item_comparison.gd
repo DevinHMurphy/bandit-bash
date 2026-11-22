@@ -15,8 +15,9 @@ extends GridContainer
 ## ([method ArmoryModel.comparison_rows]): a column each under their names, one row per number or
 ## line, the change after the offer's value (+2), in [member better_color] or
 ## [member worse_color]. An effect row ([member ArmoryModel.Row.is_marked]) shows each side in an
-## [EffectText]: keywords coloured, a tooltip on hover, all of them while a focusable ancestor
-## holds key or pad focus ([PurchasePanel] has none). Shows only; takes no focus, reads no input.
+## [EffectText]: keywords coloured, a tooltip on hover; [PurchasePanel] shows all of them
+## ([method get_effect_texts]) while its choices hold key or pad focus. Shows only; takes no
+## focus, reads no input.
 
 const EFFECT_TEXT_SCENE: PackedScene = preload("res://ui/common/text/effect_text.tscn")
 
@@ -68,6 +69,17 @@ func show_comparison(before_name: String, after_name: String, rows: Array) -> vo
 					&"font_color", better_color if row.is_better() else worse_color
 			)
 		shown.append(PackedStringArray([row.label, row.before, after]))
+
+
+## The effect rows' [EffectText]s shown, before then after for each row; empty when no row is
+## marked.
+func get_effect_texts() -> Array[EffectText]:
+	var texts: Array[EffectText] = []
+	for child: Node in get_children():
+		var text: EffectText = child as EffectText
+		if text != null and not text.is_queued_for_deletion():
+			texts.append(text)
+	return texts
 
 
 # A cell in the next column: the labels' column never wraps; an item's column wraps at

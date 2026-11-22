@@ -20,6 +20,9 @@ extends Control
 ## the screen sends the command, which checks it again, and a rejection shows here
 ## ([method show_problem]). The re-roll step stays open for another ([method refresh]). Choices
 ## are one column a pad moves up and down; the dimmed backdrop takes every click outside it.
+## While anything in the panel holds key or pad focus, the Details' keywords (a rune's) show as
+## one column of tooltips beside the panel, as focus on a card shows its keywords ([EffectText]);
+## with mouse focus, hovering a keyword shows its own.
 # ============================================================
 # INPUT MAP SETUP:
 #   "ui_cancel" -> Esc; pad B [Circle], Menu [Options]   (read in _input while shown: steps back
@@ -80,6 +83,10 @@ var _replaced_id: String = ""
 var _hand_over: Dictionary[String, int] = {}
 var _step: Step = Step.RECRUIT
 
+# The keyword ids of the column shown on the Details text for key or pad focus; empty while none.
+var _column_ids: PackedStringArray = []
+
+@onready var _panel: PanelContainer = $Center/Panel
 @onready var _title_label: Label = %Title
 @onready var _details_text: EffectText = %Details
 @onready var _question_label: Label = %Question
@@ -90,6 +97,14 @@ var _step: Step = Step.RECRUIT
 
 func _ready() -> void:
 	visible = false
+	get_viewport().gui_focus_changed.connect(_on_viewport_gui_focus_changed)
+	visibility_changed.connect(_refresh_keywords)
+	# The panel re-centres as a step resizes it; the column follows.
+	_panel.item_rect_changed.connect(_details_text.place_tooltips)
+	# Connected after the text's own handlers, so the column is set again after each hover change.
+	_details_text.meta_hover_started.connect(_on_details_meta_hover_changed)
+	_details_text.meta_hover_ended.connect(_on_details_meta_hover_changed)
+	_details_text.mouse_exited.connect(_refresh_keywords)
 
 
 func _input(event: InputEvent) -> void:
@@ -436,6 +451,31 @@ func _unit_name(unit_id: String) -> String:
 	return CombatResultsModel.unit_name(_ids, _run.seat_run(_seat), unit_id, _catalog)
 
 
+# Shows the Details' keywords as a column beside the panel while key or pad focus is in the panel,
+# and hides it once focus isn't; meanwhile a hovered keyword, already in the column, shows no
+# tooltip of its own. Rebuilds only when the column changed, or when a hover replaced it.
+func _refresh_keywords() -> void:
+	if not _has_key_focus():
+		# Only the column is this panel's to hide: a hovered keyword keeps its tooltip.
+		if not _column_ids.is_empty():
+			_column_ids = PackedStringArray()
+			_details_text.hide_tooltips()
+		return
+	var ids: PackedStringArray = _details_text.get_keyword_ids()
+	if ids == _column_ids and _details_text.get_shown_tooltips().size() == ids.size():
+		return
+	_column_ids = ids
+	_details_text.show_tooltips(ids)
+
+
+# Whether a control in the shown panel holds focus a key or pad gave (not a click's hidden focus).
+func _has_key_focus() -> bool:
+	if not is_visible_in_tree():
+		return false
+	var focused: Control = get_viewport().gui_get_focus_owner()
+	return focused != null and is_ancestor_of(focused) and focused.has_focus(true)
+
+
 static func _with_problem(text: String, problem: String) -> String:
 	return text if problem.is_empty() else "%s - can't: %s" % [text, problem]
 
@@ -450,3 +490,11 @@ func _on_rune_chosen(slot: int) -> void:
 
 func _on_reroll_pressed(unit_id: String) -> void:
 	reroll_chosen.emit(unit_id)
+
+
+func _on_viewport_gui_focus_changed(_control: Control) -> void:
+	_refresh_keywords()
+
+
+func _on_details_meta_hover_changed(_meta: Variant) -> void:
+	_refresh_keywords()
