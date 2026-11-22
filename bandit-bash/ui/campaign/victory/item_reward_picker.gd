@@ -6,16 +6,17 @@
 # File:     item_reward_picker.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name ItemRewardPicker
 extends RewardPicker
 ## The item pick's picker: the offers and Skip ([ItemPickPanel]) in a modal, then where a taken
 ## item goes ([PlacementPanel]). A take with its placement goes as one [ItemPickCommand], Skip as
-## another; either resolves the pick, so its row leaves the list, and its facts play
-## ([CampaignPlayback]), which sound the take and the scrap (GAINED, ITEM_SCRAPPED). A rejection
-## shows its reason and changes nothing. Back, or ui_cancel, closes it untouched.
+## another, through a [CampaignLink]; once either resolves the pick is settled, so its row leaves
+## the list, and its facts play ([CampaignPlayback]), which sound the take and the scrap (GAINED,
+## ITEM_SCRAPPED). A refusal shows its reason and changes nothing. Back, or ui_cancel, closes it
+## untouched.
 ##
 ## @tutorial(UL5 plan): docs/plans/2026-11-19-ul5-victory-sequence.md
 
@@ -40,6 +41,7 @@ extends RewardPicker
 var _reward: ItemPickReward = null
 var _seat: int = 0
 var _model: CombatResultsModel = null
+var _link: CampaignLink = null
 
 # The offer the placement panel is placing; ItemPickCommand.SKIP while it is closed.
 var _offer_index: int = ItemPickCommand.SKIP
@@ -60,6 +62,11 @@ func _ready() -> void:
 	_back_button.pressed.connect(_on_back_button_pressed)
 
 
+func _exit_tree() -> void:
+	if _link != null:
+		_link.close()
+
+
 func _input(event: InputEvent) -> void:
 	if not is_visible_in_tree() or _placement_panel.visible:
 		return
@@ -71,6 +78,10 @@ func _input(event: InputEvent) -> void:
 func open(reward: VictoryReward, seat: int) -> void:
 	_reward = reward as ItemPickReward
 	_seat = seat
+	if _link != null:
+		_link.close()
+	_link = CampaignLink.new(CampaignService.session, seat, CampaignService.submit_command)
+	_link.refused.connect(_on_link_refused)
 	_offer_index = ItemPickCommand.SKIP
 	_model = CombatResultsModel.build(CampaignService.session, seat)
 	_status_label.text = ""
@@ -128,17 +139,21 @@ func _link_back() -> void:
 	_back_button.focus_neighbor_right = self_path
 
 
-func _submit(command: CampaignCommand) -> bool:
-	var batch: CampaignBatch = CampaignService.submit_command(command)
-	if batch == null or batch.is_rejected():
-		var reason: String = batch.rejected_reason if batch != null else "no run in progress"
-		if _placement_panel.visible:
-			_placement_panel.show_problem("Can't do that: %s." % [reason])
-		else:
-			_status_label.text = "Can't do that: %s." % [reason]
-		return false
+# Settles the pick: its facts play, the picker closes and reports note.
+func _settle(note: String) -> void:
 	CampaignPlayback.play_pending(CampaignService.session)
-	return true
+	_offer_index = ItemPickCommand.SKIP
+	_close()
+	resolved.emit(note)
+
+
+func _on_link_refused(reason: String) -> void:
+	if not visible:
+		return
+	if _placement_panel.visible:
+		_placement_panel.show_problem("Can't do that: %s." % [reason])
+	else:
+		_status_label.text = "Can't do that: %s." % [reason]
 
 
 # What became of the taken item, for the overlay's status line.
@@ -177,20 +192,18 @@ func _on_pick_panel_offer_chosen(index: int) -> void:
 
 
 func _on_pick_panel_skip_chosen() -> void:
-	if not _submit(ItemPickCommand.new(_seat, ItemPickCommand.SKIP)):
-		return
-	_close()
-	resolved.emit("Skipped the item pick.")
+	_link.send(
+			ItemPickCommand.new(_seat, ItemPickCommand.SKIP),
+			func(_batch: CampaignBatch) -> void: _settle("Skipped the item pick.")
+	)
 
 
 func _on_placement_panel_placement_chosen(placement: ItemPlacement) -> void:
 	var index: int = _offer_index
-	if not _submit(ItemPickCommand.new(_seat, index, placement)):
-		return
-	var note: String = _placement_note(index, placement)
-	_offer_index = ItemPickCommand.SKIP
-	_close()
-	resolved.emit(note)
+	_link.send(
+			ItemPickCommand.new(_seat, index, placement),
+			func(_batch: CampaignBatch) -> void: _settle(_placement_note(index, placement))
+	)
 
 
 func _on_placement_panel_cancelled() -> void:

@@ -6,34 +6,40 @@
 # File:     guildhall_screen.gd
 # Author:
 # Created:  November 20, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 extends Control
 ## A Guildhall node: the shared stock ([GuildhallStockView]) under the run's header and
-## [HeirloomBar], priced for the seat, with Re-roll a prefix and Leave.
+## [HeirloomBar], priced for the local seat, with Re-roll a prefix, Leave and, in co-op, Team
+## ([TeamPanel]). The stock and its buttons scroll when taller than the window (a co-op stock),
+## following focus.
 ##
 ## On entry, a stock not yet rolled is rolled and saved first ([OpenGuildhallCommand]), so a quit
 ## and Continue shows the same stock. A card opens the [GuildhallPanel]: a recruit's price (with a
 ## full army, the unit it replaces and the hand-over) or a rune's (with full slots, the rune it
 ## discards), sending [GuildhallPurchaseCommand]; Re-roll opens its unit list, sending
-## [PrefixRerollCommand]. Leave sends [LeaveNodeCommand] at any time. Every command goes through
-## [method CampaignService.submit_command], which saves; a rejection shows its reason. The run's
-## facts play ([CampaignPlayback]) as each resolves. Opened at any other stage, it sends the run on.
+## [PrefixRerollCommand]. Leave sends [LeaveNodeCommand] at any time. Every command goes through a
+## [CampaignLink], which saves; a refusal shows its reason, a teammate's purchase first as "bought
+## by" them. Every batch rebuilds the stock; once any seat's Leave resolves the run returns to the
+## map. The run's facts play ([CampaignPlayback]) after each batch. Opened at any other stage, it
+## sends the run on.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 # ============================================================
-# INPUT MAP SETUP (built-in ui_* actions, read through the GUI; the panel reads its own ui_cancel
-# first):
+# INPUT MAP SETUP (built-in ui_* actions, read through the GUI; the panels read their own
+# ui_cancel first):
 #   "ui_left" / "ui_right" / "ui_up" / "ui_down"
-#                          -> arrows; d-pad, left stick      (between the cards, Re-roll and
-#                             Leave; the panel's column and a hand-over row)
+#                          -> arrows; d-pad, left stick      (between the cards, Re-roll, Leave
+#                             and Team; the panel's column and a hand-over row; the team panel's
+#                             rows)
 #   "ui_accept"            -> Enter, Space; pad A [Cross]    (press the focused card or choice)
 #   "ui_cancel"            -> Esc; pad B [Circle], Menu [Options] (the pause menu reads it; in the
 #                             panel, back a step)
 #   "heirloom_bar_focus"   -> H; RS pushed left [R stick]    (read by the HeirloomBar: focuses
 #                             it, then back; hints HEIRLOOMS meanwhile)
-#   Mouse: clicks on the cards, choices, Re-roll and Leave; hovering an heirloom shows its tooltip.
+#   Mouse: clicks on the cards, choices, Re-roll, Leave and Team; hovering an heirloom shows its
+#   tooltip.
 # ============================================================
 
 ## The hint context while the stock shows.
@@ -46,6 +52,7 @@ var _is_leaving: bool = false
 var _seat: int = 0
 var _context: StringName = HINT_STOCK
 var _buying: int = -1
+var _link: CampaignLink = null
 
 @onready var _header: RunHeader = %RunHeader
 @onready var _heirlooms: HeirloomBar = %HeirloomBar
@@ -53,7 +60,9 @@ var _buying: int = -1
 @onready var _status_label: Label = %Status
 @onready var _reroll_button: Button = %RerollButton
 @onready var _leave_button: Button = %LeaveButton
+@onready var _team_button: Button = %TeamButton
 @onready var _panel: GuildhallPanel = %GuildhallPanel
+@onready var _team_panel: TeamPanel = %TeamPanel
 @onready var _hints: ScreenHints = %ScreenHints
 
 
@@ -63,29 +72,34 @@ func _ready() -> void:
 		_is_leaving = true
 		RunScreen.go()
 		return
-	_seat = session.seats[0]
+	_seat = CampaignService.local_seat()
+	_link = CampaignLink.new(session, _seat, CampaignService.submit_command)
+	_link.batch_resolved.connect(_on_link_batch_resolved)
+	_link.refused.connect(_on_link_refused)
 	_header.title = "Guildhall"
 	_heirlooms.navigation_started.connect(_on_heirloom_bar_navigation_started)
 	_heirlooms.navigation_ended.connect(_on_heirloom_bar_navigation_ended)
 	_stock_view.entry_pressed.connect(_on_stock_view_entry_pressed)
 	_reroll_button.pressed.connect(_on_reroll_button_pressed)
 	_leave_button.pressed.connect(_on_leave_button_pressed)
+	_team_button.visible = _link.is_coop()
+	_team_button.pressed.connect(_on_team_button_pressed)
 	_panel.recruit_chosen.connect(_on_panel_recruit_chosen)
 	_panel.rune_chosen.connect(_on_panel_rune_chosen)
 	_panel.reroll_chosen.connect(_on_panel_reroll_chosen)
 	_panel.cancelled.connect(_on_panel_cancelled)
+	# The host rolls the shared stock, so the roll goes out as the host's, not through the link.
 	if GuildhallStock.pending(session.run) == null:
-		var opened: CampaignBatch = CampaignService.submit_command(
-				OpenGuildhallCommand.for_session(session)
-		)
-		if opened == null or opened.is_rejected():
-			_status_label.text = "The Guildhall couldn't open: %s." % [
-				opened.rejected_reason if opened != null else "no run in progress",
-			]
+		CampaignService.submit_command(OpenGuildhallCommand.for_session(session))
 	_refresh()
 	_set_context(HINT_STOCK)
 	CampaignPlayback.play_pending(session)
 	_focus_default.call_deferred()
+
+
+func _exit_tree() -> void:
+	if _link != null:
+		_link.close()
 
 
 ## The stock shown, for tests and captures.
@@ -106,6 +120,16 @@ func get_reroll_button() -> Button:
 ## The Leave button, for tests.
 func get_leave_button() -> Button:
 	return _leave_button
+
+
+## The Team button, shown in co-op, for tests.
+func get_team_button() -> Button:
+	return _team_button
+
+
+## The team panel, for tests and captures.
+func get_team_panel() -> TeamPanel:
+	return _team_panel
 
 
 ## The status line's text, for tests.
@@ -137,20 +161,6 @@ func _set_context(context: StringName) -> void:
 	_hints.context = context
 
 
-# Sends command; a rejection shows on the panel while it is open, else on the status line.
-func _submit(command: CampaignCommand) -> bool:
-	var batch: CampaignBatch = CampaignService.submit_command(command)
-	if batch == null or batch.is_rejected():
-		var reason: String = batch.rejected_reason if batch != null else "no run in progress"
-		if _panel.visible:
-			_panel.show_problem("Can't do that: %s." % [reason])
-		else:
-			_status_label.text = "Can't do that: %s." % [reason]
-		return false
-	CampaignPlayback.play_pending(CampaignService.session)
-	return true
-
-
 # What the purchase just made did, for the status line, from its bought or re-rolled fact.
 func _bought_note(facts: Array[CampaignFact]) -> String:
 	var catalog: EffectCatalog.Index = EffectCatalog.index()
@@ -179,13 +189,22 @@ func _bought_note(facts: Array[CampaignFact]) -> String:
 	return ""
 
 
-# After a purchase: the panel closed, the run shown again and the note on the status line.
-func _after_purchase(first: int) -> void:
+# After the seat's purchase: the panel closed and the note on the status line.
+func _on_purchase_resolved(batch: CampaignBatch) -> void:
+	if _is_leaving:
+		return
 	_panel.close()
 	_set_context(HINT_STOCK)
-	_status_label.text = _bought_note(CampaignService.session.run.fact_log.slice(first))
-	_refresh()
+	_status_label.text = _bought_note(batch.facts)
 	_focus_default()
+
+
+# After the seat's re-roll: the panel shows the unit list again with the note.
+func _on_reroll_resolved(batch: CampaignBatch) -> void:
+	if _is_leaving:
+		return
+	_panel.refresh()
+	_panel.show_problem(_bought_note(batch.facts))
 
 
 func _on_stock_view_entry_pressed(index: int) -> void:
@@ -209,32 +228,21 @@ func _on_reroll_button_pressed() -> void:
 
 
 func _on_panel_recruit_chosen(replaced_id: String, hand_over: Dictionary) -> void:
-	var session: CampaignSession = CampaignService.session
-	var first: int = session.run.fact_log.size()
 	var command: GuildhallPurchaseCommand = GuildhallPurchaseCommand.new(_seat, _buying)
 	command.replaced_id = replaced_id
 	command.hand_over.assign(hand_over)
-	if _submit(command):
-		_after_purchase(first)
+	_link.send(command, _on_purchase_resolved)
 
 
 func _on_panel_rune_chosen(discard_slot: int) -> void:
-	var session: CampaignSession = CampaignService.session
-	var first: int = session.run.fact_log.size()
 	var command: GuildhallPurchaseCommand = GuildhallPurchaseCommand.new(_seat, _buying)
 	command.discard_slot = discard_slot
-	if _submit(command):
-		_after_purchase(first)
+	_link.send(command, _on_purchase_resolved)
 
 
 func _on_panel_reroll_chosen(unit_id: String) -> void:
 	var session: CampaignSession = CampaignService.session
-	var first: int = session.run.fact_log.size()
-	if not _submit(PrefixRerollCommand.for_session(session, _seat, unit_id)):
-		return
-	_refresh()
-	_panel.refresh()
-	_panel.show_problem(_bought_note(session.run.fact_log.slice(first)))
+	_link.send(PrefixRerollCommand.for_session(session, _seat, unit_id), _on_reroll_resolved)
 
 
 func _on_panel_cancelled() -> void:
@@ -251,10 +259,44 @@ func _on_panel_cancelled() -> void:
 func _on_leave_button_pressed() -> void:
 	if _is_leaving:
 		return
-	if not _submit(LeaveNodeCommand.new(_seat)):
+	_link.send(LeaveNodeCommand.new(_seat))
+
+
+func _on_team_button_pressed() -> void:
+	_team_panel.open(_link.session, _seat)
+
+
+# Any seat's batch: one the screen follows plays its facts and, once the run left the Guildhall,
+# moves the screen on; while the run is still here the stock shows again, a teammate's purchase
+# included.
+func _on_link_batch_resolved(batch: CampaignBatch, is_answer: bool) -> void:
+	if _is_leaving:
 		return
-	_is_leaving = true
-	RunScreen.go()
+	var follows: bool = _link.moves_with(batch, is_answer)
+	if follows:
+		CampaignPlayback.play_pending(_link.session)
+	if RunScreen.of(_link.session) != SceneRouter.Screen.GUILDHALL:
+		if follows:
+			_is_leaving = true
+			RunScreen.go()
+		return
+	_refresh()
+	_team_panel.refresh()
+
+
+# A refusal shows on the panel while it is open, else on the status line; an entry a teammate
+# bought first says who, and one before the stock was rolled is the roll's.
+func _on_link_refused(reason: String) -> void:
+	var run: CampaignRunState = _link.session.run
+	if GuildhallStock.pending(run) == null:
+		_status_label.text = "The Guildhall couldn't open: %s." % [reason]
+		return
+	var buyer: String = GuildhallModel.bought_by(run, _seat, _buying)
+	var shown: String = "Can't do that: %s." % [reason if buyer.is_empty() else buyer]
+	if _panel.visible:
+		_panel.show_problem(shown)
+	else:
+		_status_label.text = shown
 
 
 func _on_heirloom_bar_navigation_started() -> void:

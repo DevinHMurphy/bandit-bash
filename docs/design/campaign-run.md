@@ -83,19 +83,44 @@ different thing.
 
 ## Routing
 
-`RunScreen` is the one place that decides where a solo run belongs, so every screen routes alike
-and a continued run reopens where it was saved.
+`RunScreen` is the one place that decides where the run belongs, so every screen routes alike
+and a continued run reopens where it was saved. Solo and a co-op host route alike, by the local
+seat (`CampaignService.local_seat()`).
 
-- `RunScreen.of(session)` reads the stage. On the map: the starting heirloom screen while the offer
-  is open, else the campaign map. At results: `COMBAT_RESULTS`. Inside a node: the screen for the
+- `RunScreen.of(session)` reads the stage. On the map: the starting heirloom screen while the local
+  seat's offer is open, else the campaign map. At results: `COMBAT_RESULTS`. Inside a node: the screen for the
   type it plays as. An Unknown goes to the event screen with an event open, the battle screen once
   the event chose a fight, and the placeholder with no event.
 - `RunScreen.go()` first settles an Unknown's entry (`enter_unknown()`: rolls it, then opens an
   event's event, each saved), then changes screen for everyone.
 - Every campaign screen checks `of()` in `_ready()`. If the run belongs elsewhere it calls `go()`
-  at once. Screens call `go()` after any command that moves the run.
-- Outside a solo run (co-op, or no run), `of()` returns the battle screen, which shows the co-op
-  placeholder.
+  at once. A screen moves on when a batch it follows moves the run (see Screens and seats).
+- With no run, `of()` returns the battle screen. A co-op combat node also goes there, to its co-op
+  placeholder until the co-op battle screen comes (P10 NT5, P11 CO13).
+
+## Screens and seats
+
+Every campaign screen and the victory sequence act for `CampaignService.local_seat()`: the host
+seat in solo and on the host; a test can set another (`set_local_seat()`), and P10 NT5 makes a
+client's its own. No screen reads `session.seats[0]`; the ui/campaign suite scans for it.
+
+- **A `CampaignLink`** ([campaign_link.gd](../../bandit-bash/ui/campaign/campaign_link.gd)) ties a
+  screen to the session. `send()` submits the seat's command and ignores the return. What happened
+  comes back from the session's signals: `batch_resolved` for every seat's batch, and `refused` for
+  the seat's own refusals. A screen rebuilds from the run whenever a batch arrives. This works the
+  same when a client's answer arrives later (P11 question 3).
+- **Order.** What settles during a send is held until the submit, and its save, return. A
+  follow-up send never runs inside the session's own `submit()`.
+- **Which batches move a screen.** A screen follows the run to another screen for an answer to one
+  of its own sends, or for a teammate's batch (a teammate's Leave takes everyone to the map). The
+  seat's own commands sent from elsewhere (the host's rolls, a capture group staging the run)
+  rebuild the screen but never move it.
+- **Refusals** name seats as players in co-op ("Player 2 hasn't chosen Feast or Train"). A shop
+  entry a teammate bought reads "bought by Player 2", on its card and when a purchase loses the
+  race. Players are named "Player N" until Steam names reach the UI (TOD-001).
+- **Teammates.** In co-op a Team button (on the map, inside the army view) opens the `TeamPanel`:
+  each teammate's gold, army and heirloom bar. A Camp lists each teammate's choice
+  (`CampTeamStatus`).
 
 ## Commands and facts
 
@@ -154,8 +179,10 @@ Each node has its own streams (`SHOP_STOCK`, `UNKNOWN_RESOLUTION`, each seat's `
 ## Co-op
 
 Every seat has its own `SeatRun`; the map, flow and shop stock are shared. The rules handle
-several seats, and the campaign tests cover them headless. The screens serve solo runs only.
-Co-op screens and transport come with the co-op plan (P11).
+several seats, and the campaign tests cover them headless. On the host, the campaign screens serve
+a co-op run for the local seat (Screens and seats). Route votes, swaps, the event screen's co-op
+views and the co-op battle screen come with the co-op plan (P11); clients' screens come with
+transport (P10 NT5).
 
 ## Tests
 

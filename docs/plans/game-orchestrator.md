@@ -36,7 +36,7 @@ Where the project is, what's next and what's out of scope. Start here.
 - **Milestones:** M0 and M1 are complete. **Current: M2 Combat complete,** with M3 started alongside.
 - **What runs today:** a solo run opens the M1 battle: the Mercenary army against the Brigand pack on the greybox map. All of M2's battle systems and functional UI work on keyboard, mouse and controller: targeting, forecast, intents, the darkness, every objective's HUD, unit detail, and Save & Quit with resume.
 - **What M2 still needs:** content, enemy AI, docs and bug fixes. No new systems.
-- **Tests:** 7,405 cases in 30 suites, all passing, and a clean headless launch (`sh bandit-bash/tools/run_tests.sh`).
+- **Tests:** 7,504 cases in 31 suites, all passing, and a clean headless launch (`sh bandit-bash/tools/run_tests.sh`).
 - **Not started:** P09 (approved) and P10–P12. P08 is in progress (RN1–RN5 merged).
 
 ## Milestones
@@ -66,13 +66,13 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P02 | [Combat core](2026-10-26-combat-core.md) | **Implemented** (CC9 docs merged November 19, 2026; vision question 4 checked against `BonusTurns`, N1–N10 recorded as built, BUG-003 fixed) | — | P01 |
 | P03 | [Content catalog](2026-10-29-content-catalog.md) | **In progress** | CT12 weapon modifications (CT11 docs merged November 19, 2026: [content-authoring.md](../design/content-authoring.md)) (M3, after P09 EV1; question 33) | P01 |
 | P04 | [Combat map](2026-10-27-combat-map.md) | **In progress** | MP11 map authoring toolkit (future; MP9 docs merged November 19, 2026: [map-authoring.md](../design/map-authoring.md)) | P01, P02 |
-| P05 | [Enemies and AI](2026-10-30-enemies-and-ai.md) | **In progress** | EN15, EN16 (EN13 and EN14, the forecast cache, merged November 20, 2026; EN11 merged November 18, 2026; EN12 docs merged November 19, 2026, in content-authoring.md) | P02, P04 |
+| P05 | [Enemies and AI](2026-10-30-enemies-and-ai.md) | **In progress** | EN16 (EN15, the preview zones, merged November 21, 2026, P05 questions 49–51 answered November 22, 2026; EN13 and EN14, the forecast cache, merged November 20, 2026; EN11 merged November 18, 2026; EN12 docs merged November 19, 2026, in content-authoring.md) | P02, P04 |
 | P06 | [The darkness](2026-11-03-the-darkness.md) | **Implemented** (DK6 docs merged November 19, 2026) | — | P02, P04 |
 | P07 | [Combat UI](2026-11-04-combat-ui.md) | **In progress** | Nothing for M2 | P02, P04, P05, P06 |
 | P08 | [Campaign and run flow](2026-10-24-campaign-run-flow.md) | **Implemented** (RN12 docs merged November 21, 2026: [campaign-run.md](../design/campaign-run.md), save-system.md's run state) | P08 question 71 (the placeholder copy) to confirm | P01, P03 |
 | P09 | [Narrative events and curses](2026-11-12-events-and-curses.md) | **Done**: EV1, EV2, EV3 and EV5 merged November 19, 2026; EV1F, EV1G, EV4 and EV6 November 20 | — | P01, P03, P08 |
 | P10 | [Net transport](2026-11-19-net-transport.md) | **In progress**: NT1 and NT2 merged November 19, 2026; NT3 (every campaign and event command on the wire) November 21 | NT4 (after P11 question 4), then NT5–NT8 (Lane E) | P00, P01 |
-| P11 | [Co-op combat](2026-11-20-coop-combat.md) | **Approved** (user, November 20, 2026; CO6 to Lane C); the first steps' 18 questions answered, 23 open in [decisions](decisions/P11-coop-combat.md) | CO1–CO21 | P01, P02, P04, P08, P10 |
+| P11 | [Co-op combat](2026-11-20-coop-combat.md) | **In progress** (approved November 20, 2026; CO6 to Lane C): CO9 merged November 21, 2026; CO10 (screens for the local seat) merged November 22, 2026; CO1 building; every question answered but CO10's 48 (built as (a)) in [decisions](decisions/P11-coop-combat.md) | CO1–CO8, CO11–CO21 | P01, P02, P04, P08, P10 |
 | P12 | Statistics and the Waystation war table (meta-progression.md) | **Not started** | — | P01, P08 |
 | P13 | [RNG streams](2026-10-26-rng-streams.md) | **Implemented** | — | P00 |
 | P15 | UI lift ([ui-lift.md](../design/ui-lift.md); its scope doc is the plan) | **Implemented** November 19, 2026: UL0–UL8 and UL1F merged | — | P07, P08 |

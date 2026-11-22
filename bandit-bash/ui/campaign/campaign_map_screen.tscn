@@ -10,6 +10,7 @@
 [ext_resource type="PackedScene" path="res://ui/common/pause_menu.tscn" id="8_pause"]
 [ext_resource type="PackedScene" path="res://ui/common/heirlooms/heirloom_bar.tscn" id="9_heirlooms"]
 [ext_resource type="PackedScene" path="res://ui/campaign/army_view.tscn" id="10_army"]
+[ext_resource type="PackedScene" path="res://ui/campaign/team_panel.tscn" id="11_team"]
 
 [node name="CampaignMapScreen" type="Control"]
 layout_mode = 3
@@ -102,6 +103,12 @@ text = "Army"
 [node name="ArmyView" parent="." instance=ExtResource("10_army")]
 unique_name_in_owner = true
 layout_mode = 1
+offers_team = true
+
+[node name="TeamPanel" parent="." node_paths=PackedStringArray("hints") instance=ExtResource("11_team")]
+unique_name_in_owner = true
+layout_mode = 1
+hints = NodePath("../ScreenHints")
 
 [node name="InputDeviceAdapter" parent="." instance=ExtResource("5_device")]
 
@@ -111,7 +118,9 @@ script = ExtResource("6_hints")
 actions = Dictionary[StringName, PackedStringArray]({
 &"MAP": PackedStringArray("ui_left", "ui_right", "ui_accept", "unit_detail", "heirloom_bar_focus", "ui_cancel"),
 &"ARMY": PackedStringArray("ui_up", "ui_down", "ui_accept", "ui_cancel"),
-&"HEIRLOOMS": PackedStringArray("ui_left", "ui_right", "ui_cancel", "heirloom_bar_focus")
+&"HEIRLOOMS": PackedStringArray("ui_left", "ui_right", "ui_cancel", "heirloom_bar_focus"),
+&"TEAM": PackedStringArray("ui_up", "ui_down", "ui_accept", "ui_cancel"),
+&"TEAM_HEIRLOOMS": PackedStringArray("ui_left", "ui_right", "ui_cancel")
 })
 
 [node name="ControlHintBar" parent="." node_paths=PackedStringArray("controller", "device") instance=ExtResource("7_bar")]
@@ -130,6 +139,10 @@ labels = Dictionary[String, String]({
 "HEIRLOOMS/ui_cancel": "Close",
 "HEIRLOOMS/ui_left": "Choose",
 "HEIRLOOMS/ui_right": "Choose",
+"TEAM/ui_accept": "Heirlooms",
+"TEAM/ui_cancel": "Close",
+"TEAM_HEIRLOOMS/ui_left": "Choose",
+"TEAM_HEIRLOOMS/ui_right": "Choose",
 "PAUSED/ui_cancel": "Resume",
 "PAUSED/ui_down": "Choose",
 "PAUSED/ui_up": "Choose",

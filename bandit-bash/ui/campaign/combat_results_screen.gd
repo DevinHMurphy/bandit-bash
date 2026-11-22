@@ -6,15 +6,16 @@
 # File:     combat_results_screen.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 extends Control
 ## A combat's results when the battle is gone: a run continued at a won combat's results shows its
 ## [VictoryOverlay] here, over a plain [code]bg[/code] backdrop, read from the saved run. After a
 ## win in play the battle screen shows the same overlay over the board instead. The overlay opens
-## as resumed, so it starts on Rewards once a reward is taken. Opened at any other stage, it sends
-## the run on at once. Reads no input itself; the overlay and the pause menu do.
+## for the local seat ([method CampaignService.local_seat]), as resumed, so it starts on Rewards
+## once a reward is taken. Opened at any other stage, it sends the run on at once. Reads no input
+## itself; the overlay and the pause menu do.
 ##
 ## @tutorial(UL5 plan): docs/plans/2026-11-19-ul5-victory-sequence.md
 
@@ -28,7 +29,7 @@ func _ready() -> void:
 	if RunScreen.of(session) != SceneRouter.Screen.COMBAT_RESULTS:
 		RunScreen.go()
 		return
-	_overlay.open(session.seats[0], true)
+	_overlay.open(CampaignService.local_seat(), true)
 
 
 ## The victory sequence shown.

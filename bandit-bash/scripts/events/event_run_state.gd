@@ -6,7 +6,7 @@
 # File:     event_run_state.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name EventRunState
@@ -114,16 +114,17 @@ func tally(option_count: int) -> PackedInt32Array:
 	return counts
 
 
-## The option a team choice's votes drew, waiting for the team's [EventOptionCommand]: every
-## seat's [member SeatEvent.choosing], which a team choice uses for nothing else.
-## [constant NO_OPTION] before the draw, once it applies, or when the seats disagree.
+## The option a team choice's votes drew: each seat's [member SeatEvent.choosing] (which a team
+## choice uses for nothing else) until that seat's own [EventOptionCommand] applies it, then its
+## [member SeatEvent.chosen]. [constant NO_OPTION] before the draw, or when the seats disagree.
 func drawn_option() -> int:
 	var drawn: int = NO_OPTION
 	for seat: int in seats:
-		var choosing: int = seats[seat].choosing
-		if choosing == NO_OPTION or (drawn != NO_OPTION and choosing != drawn):
+		var part: SeatEvent = seats[seat]
+		var option: int = part.chosen if part.chosen != NO_OPTION else part.choosing
+		if option == NO_OPTION or (drawn != NO_OPTION and option != drawn):
 			return NO_OPTION
-		drawn = choosing
+		drawn = option
 	return drawn
 
 

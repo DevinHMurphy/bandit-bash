@@ -49,8 +49,9 @@ some built rules contradict them.
 
 ## Open Questions
 
-All 41 are in [decisions/P11-coop-combat.md](decisions/P11-coop-combat.md), each with options and
-a recommendation; none is answered yet. Each step below names the questions it needs. Where the
+All of them are in [decisions/P11-coop-combat.md](decisions/P11-coop-combat.md), each with options and
+a recommendation. Questions 1–41 and 50–52 are answered (user, November 20–22, 2026, all as
+recommended); the build steps add theirs from 42 (CO10) and 53 (CO1). Each step below names the questions it needs. Where the
 Approach states a rule a question decides, it takes the recommendation and cites it as
 **(Q n)**; nothing is built on it until the question is answered.
 

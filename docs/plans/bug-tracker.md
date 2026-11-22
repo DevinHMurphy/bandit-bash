@@ -55,17 +55,19 @@ Not a bug.
 | [BUG-020](#bug-020-a-broken-breakables-token-stayed-on-the-board) | A broken breakable's token stayed on the board | P07 (board) | S3 | Fixed (BF4 merge, November 20, 2026) | November 19, 2026, BF4 report | BF4 |
 | [BUG-021](#bug-021-an-infused-basic-weapon-scraps-for-0-gold) | An Infused Basic weapon scraps (and trades in) for 0 gold | P08 (prices) | S3 | Fixed (EV4 merge, November 20, 2026) | November 20, 2026, RN8 report | EV4 (note sent November 20, 2026) |
 | [BUG-022](#bug-022-an-enemys-second-move-ending-in-a-wait-crashes-the-enemy-phase) | An enemy's second move ending in a Wait crashes the enemy phase (the Bloodhound after a kill) | P05 (enemy plans) | S2 | Fixed (BF5 merge, November 20, 2026) | November 20, 2026, EN13 report | BF5 |
-| [BUG-023](#bug-023-an-untyped-empty-literal-from-a-ternary-fails-in-a-typed-slot) | An untyped `[]` from a ternary fails at runtime in a typed Array slot (three latent places) | P01 / P08 / tests | S3 (latent) | Open | November 20, 2026, BF5 report | EN14 fixed effect_engine.gd; BF7 (the other two; UL10 left them) |
+| [BUG-023](#bug-023-an-untyped-empty-literal-from-a-ternary-fails-in-a-typed-slot) | An untyped `[]` from a ternary fails at runtime in a typed Array slot (three latent places) | P01 / P08 / tests | S3 (latent) | Open | November 20, 2026, BF5 report | EN14 fixed effect_engine.gd; BF7 the victory test (issued November 22, 2026); `ui/campaign/starting_offer_view.gd:210` left by CO10, now for the next Lane B step (CO5) |
 | [BUG-024](#bug-024-battles-dont-save-at-the-end-of-a-player-phase) | Battles don't save at the end of a player phase: a crash loses every move since Begin | P00 / P07 (battle checkpoints) | S2 | Fixed (BF6 merge, November 20, 2026) | November 20, 2026, P11 plan report | BF6 |
-| [BUG-025](#bug-025-openeventcommand-accepts-an-unknown-that-rolled-a-shop) | `OpenEventCommand` accepts an Unknown that rolled a shop, Treasure or combat | P09 (event commands) | S3 (latent) | Open | November 20, 2026, RN10 report | a Lane C step (CO9) |
+| [BUG-025](#bug-025-openeventcommand-accepts-an-unknown-that-rolled-a-shop) | `OpenEventCommand` accepts an Unknown that rolled a shop, Treasure or combat | P09 (event commands) | S3 (latent) | Fixed (CO9 merge, November 21, 2026) | November 20, 2026, RN10 report | a Lane C step (CO9) |
 | [BUG-026](#bug-026-the-event-panels-deferred-focus-has-no-in-tree-guard) | The event panel's deferred focus has no in-tree guard (BUG-017's pattern) | P09 (event screen) | S4 | Open | November 20, 2026, RN10 report | a Lane C step (CO12) |
 | [BUG-027](#bug-027-burglars-roll-shows-no-effect-text) | Burglar's Roll shows no effect text, only "(1 use this combat)" | P03 / P07 (effect text) | S3 | Fixed (TX1 merge, November 20, 2026) | November 20, 2026, user | TX1 |
 | [BUG-028](#bug-028-a-weapons-own-effects-dont-show-in-unit-detail) | A weapon's own effects (lifesteal, extra strikes) don't show in unit detail's gear row | P07 (unit detail) | S3 | Can't reproduce (TX1, November 20, 2026: the gear row already shows a weapon's effect lines and AtkX; regression cases added) | November 20, 2026, user | TX1 |
 | [BUG-029](#bug-029-the-node-placeholder-says-this-node-isnt-built-yet) | The node placeholder says "This node isn't built yet", but now shows only for an Unknown with no event to draw | P08 (campaign UI) | S4 | Fixed (RN12 merge, November 21, 2026) | November 20, 2026, BF6 report | RN12 |
 | [BUG-030](#bug-030-the-save-debug-panels-doc-calls-its-end-player-phase-the-only-battle-save) | The save debug panel's doc calls its End Player Phase the only battle save besides Begin | P00 (debug panel) | S4 | Open | November 20, 2026, BF6 report | BF7 |
 | [BUG-031](#bug-031-a-continued-runs-instance-ids-drift-from-an-uninterrupted-ones) | A continued run's instance ids drift from an uninterrupted one's, so heirloom reactions can fire in another order after a quit | P08 / P01 (campaign session) | S2 | Fixed (RN11 merge, November 20, 2026) | November 20, 2026, RN11 | RN11 |
-| [BUG-032](#bug-032-the-campaign-maps-class-doc-says-every-non-combat-node-goes-to-the-placeholder) | The campaign map's class doc says a non-combat node goes to the placeholder | P08 (campaign UI) | S4 | Open | November 21, 2026, RN12 report | the next Lane B step touching `ui/campaign/` (CO10) |
+| [BUG-032](#bug-032-the-campaign-maps-class-doc-says-every-non-combat-node-goes-to-the-placeholder) | The campaign map's class doc says a non-combat node goes to the placeholder | P08 (campaign UI) | S4 | Fixed (CO10 merge, November 22, 2026) | November 21, 2026, RN12 report | the next Lane B step touching `ui/campaign/` (CO10) |
 | [BUG-033](#bug-033-event-busmd-lists-only-five-campaign-commands) | event-bus.md lists only five campaign commands; about 20 more exist | P01 / P08 (docs) | S4 | Open | November 21, 2026, RN12 report | the next docs step (CO20) |
+| [BUG-034](#bug-034-leavenodecommand-doesnt-wait-for-an-open-events-seats) | `LeaveNodeCommand` doesn't wait for an open event's seats to choose; leaving after a pending Fight skips the surprise combat | P08 / P09 (leave rules) | S3 (latent) | Open | November 21, 2026, CO9 report | Lane B, before CO16 (clients in the harness) |
+| [BUG-035](#bug-035-the-intents-refresh-after-each-player-action-blocks-the-main-thread) | The intents refresh after every player action blocks the main thread: 0.78 s (release) and 6.3 s (debug) on the boss board | P05 (intents) | S3 | Assigned | November 21, 2026, EN15 report | EN16 (Lane A) |
 
 ### BUG-001 No Block at the start of combat
 
@@ -429,6 +431,8 @@ Not a bug.
   a Guildhall, a Treasure or a combat. Only the routing keeps it from being sent. Latent; on the
   network (NT3 onward) a forged command could reach it.
 - **Fix:** validate against `node_type()`, with a case.
+- **Fixed** in CO9 (merged November 21, 2026): `OpenEventCommand.validate` also checks
+  `CampaignRunState.node_type()`; regression in `tests/events/team_apply_cases.gd`.
 
 ### BUG-026 The event panel's deferred focus has no in-tree guard
 
@@ -495,3 +499,23 @@ Not a bug.
   `LeaveNodeCommand`, `ItemPickCommand`, `OpenEventCommand` and the event commands. About 20
   more campaign commands exist; `docs/design/campaign-run.md` lists them all. Link to it or list
   them.
+
+### BUG-034 LeaveNodeCommand doesn't wait for an open event's seats
+
+- **Found** by CO9: `LeaveNodeCommand` (`scripts/campaign/`) doesn't check that every seat has
+  chosen at an open event. Over the network a teammate's Leave would skip a seat that hasn't
+  applied, and leaving after a pending Fight puts the run back on the map without the surprise
+  combat. Today only the event panel's disabled Leave button prevents it. Latent until clients
+  send commands (NT4, NT5).
+- **Fix:** refuse Leave at an event until every seat has chosen and any pending combat has run,
+  with a case.
+
+### BUG-035 The intents refresh after each player action blocks the main thread
+
+- **Found** by EN15, measured on the bench boards: after every player action the battle
+  recomputes the enemy intents on the main thread. That takes 0.33 s on the key board and 0.78 s
+  on the boss board in release, and 1.5 s and 6.3 s in debug. The debug time is inflated because
+  the refresh's sandbox keeps verify mode on, while previews turn it off.
+- **Fix:** EN16 (layer 5) decides whether the refresh moves to the preview worker or is split
+  across frames, and whether the refresh's sandbox needs verify mode. Measure the boss board in
+  release before and after.

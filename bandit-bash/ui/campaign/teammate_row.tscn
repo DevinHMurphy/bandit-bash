@@ -1,0 +1,27 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/teammate_row.gd" id="1_row"]
+[ext_resource type="PackedScene" path="res://ui/common/heirlooms/heirloom_bar.tscn" id="2_heirlooms"]
+
+[node name="TeammateRow" type="VBoxContainer"]
+theme_override_constants/separation = 4
+script = ExtResource("1_row")
+
+[node name="NameButton" type="Button" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(420, 36)
+layout_mode = 2
+size_flags_horizontal = 0
+text = "Player 2 · Gold 0 · Army 0 / 0"
+alignment = 0
+
+[node name="HeirloomBar" parent="." instance=ExtResource("2_heirlooms")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Note" type="Label" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(420, 0)
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+autowrap_mode = 3

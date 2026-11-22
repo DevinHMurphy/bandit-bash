@@ -11,9 +11,10 @@
 
 class_name GuildhallModel
 extends RefCounted
-## What the Guildhall's screens show, read from the run: a rune's name and text, prices as a card
-## shows them, and the names of the items in a hand-over. Prices and refusals come from
-## [Guildhall]'s rules, never worked out here. Presentation only; static, never instantiated.
+## What the Guildhall's screens show, read from the run: a rune's name and text, prices and
+## refusals as a card shows them, and the names of the items in a hand-over. Prices and refusals
+## come from [Guildhall]'s rules, never worked out here; in co-op a refusal names the teammate it
+## is about. Presentation only; static, never instantiated.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 
@@ -49,6 +50,31 @@ static func price_text(paid: int, listed: float) -> String:
 	if paid != listed_gold:
 		return "%d gold (%d listed)" % [paid, listed_gold]
 	return "%d gold" % [paid]
+
+
+## Why seat [param seat] can't buy stock entry [param index] of [param run], as its card says it
+## ([method Guildhall.entry_problem]): an entry a teammate bought reads "bought by" them, and in
+## co-op every seat the rules name reads as its player. Empty when it can be bought.
+static func entry_refusal(
+		run: CampaignRunState, seat: int, index: int, catalog: EffectCatalog.Index
+) -> String:
+	var buyer: String = bought_by(run, seat, index)
+	if not buyer.is_empty():
+		return buyer
+	var problem: String = Guildhall.entry_problem(run, seat, index, catalog)
+	return CampaignLink.name_seats(problem) if run.seat_numbers().size() > 1 else problem
+
+
+## "bought by Player 2" when a teammate of seat [param seat] bought stock entry [param index] of
+## [param run]; empty when nobody did, the seat itself did, or there is no such entry.
+static func bought_by(run: CampaignRunState, seat: int, index: int) -> String:
+	var stock: GuildhallStock = GuildhallStock.pending(run)
+	if stock == null or index < 0 or index >= stock.entries.size():
+		return ""
+	var entry: GuildhallStock.Entry = stock.entries[index]
+	if not entry.is_sold() or entry.buyer == seat:
+		return ""
+	return "bought by %s" % [CampaignLink.seat_name(entry.buyer)]
 
 
 ## The price line of stock entry [param index] for seat [param seat] of [param run]

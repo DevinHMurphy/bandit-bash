@@ -6,7 +6,7 @@
 # File:     choice_cases.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -14,10 +14,9 @@ extends RefCounted
 ## Unknown node; the chooser stage opens, closes and is refused for an option with nothing to
 ## pick; a fallen unit can't be chosen, except by the shrine; an option resolves once, after its
 ## EVENT_CHOSEN, with its item placed and its drawn curse given; a team choice, voted on (see
-## vote_cases.gd), applies to every seat and needs every seat to meet it; the view greys options
-## with their reasons; and a surprise
-## combat begins through the battle bridge on the Standard pool, then returns to the map.
-## Touches no save files.
+## vote_cases.gd), is applied by each seat to itself and needs every seat to meet it; the view
+## greys options with their reasons; and a surprise combat begins through the battle bridge on
+## the Standard pool, then returns to the map. Touches no save files.
 
 const SUITE: String = "events"
 
@@ -212,17 +211,21 @@ func _test_team_choice() -> void:
 	_fx.vote(team, events, 0, INTIMIDATE)
 	_fx.vote(team, events, 1, INTIMIDATE)
 	var looted: CampaignBatch = _fx.choose(team, events, 0, INTIMIDATE)
-	var every: bool = not looted.is_rejected() and team.run.events.is_finished()
+	var second: CampaignBatch = _fx.choose(team, events, 1, INTIMIDATE)
+	var every: bool = (
+			not looted.is_rejected() and not second.is_rejected()
+			and team.run.events.is_finished()
+	)
 	for seat: int in [0, 1]:
 		var seat_run: SeatRun = team.run.seat_run(seat)
 		var curse: String = team.run.events.seat_event(seat).rolls_of(INTIMIDATE).curse_id
 		every = every and seat_run.heirloom_ids().has(curse)
-	_check("team: one choice applies to every seat, each with its own curse", (
+	_check("team: each seat applies the drawn option to itself, each with its own curse", (
 			every
 			and team.run.seat_run(0).gold == Fixture.START_GOLD + Fixture.LOOT_GOLD
 			and poor.gold == POOR_GOLD + Fixture.LOOT_GOLD
-			and _chosen_seats(looted) == [0, 1]
-	), looted.rejected_reason)
+			and _chosen_seats(looted) == [0] and _chosen_seats(second) == [1]
+	), "%s / %s" % [looted.rejected_reason, second.rejected_reason])
 
 
 func _test_surprise_combat() -> void:

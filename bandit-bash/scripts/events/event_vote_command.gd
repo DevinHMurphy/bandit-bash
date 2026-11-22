@@ -14,7 +14,7 @@ extends EventCommand
 ## The seat votes for an option of the open team-choice event, replacing its own earlier vote,
 ## recording [constant CampaignFact.Kind.EVENT_VOTED]. The vote that completes the set draws the
 ## team's option ([method draw]) and records [constant CampaignFact.Kind.TEAM_OPTION_DRAWN];
-## the team's [EventOptionCommand] then applies it to every seat, with each seat's picks.
+## each seat's own [EventOptionCommand] then applies it to that seat's army, with its own picks.
 ##
 ## Only a team choice of more than one seat is voted on: with one seat, [EventOptionCommand]
 ## chooses directly. An option is voted for only if every seat can take it. Votes change until
