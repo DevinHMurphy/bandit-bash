@@ -6,7 +6,7 @@
 # File:     combat_feedback_cases.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -50,6 +50,9 @@ const SMALL_HIT: int = 2
 
 # Any prefix id: the elite case marks an enemy by its prefix alone.
 const PREFIX_ID: String = "test:prefix"
+
+# How far the keg lines case looks for a tile a keg can land on, as the art suite's keg case.
+const KEG_SEARCH_SPAN: int = 16
 
 const PLAYER: CombatFact.CombatSide = CombatFact.CombatSide.PLAYER
 const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
@@ -467,15 +470,24 @@ func _test_elite_and_sides() -> void:
 
 
 # A thrown keg's landing, by its thrower and by no one, and its fuse burning down: each its own
-# line, never the generic "changes".
+# line, never the generic "changes". The keg is thrown for real, so the session can name it.
 func _test_keg_lines() -> void:
 	var board: BattleViewCases.Board = _board("keg lines: the M1 battle begins")
 	if board == null:
 		return
 	var session: CombatSession = board.session
 	var thrower: String = session.state.units_of(ENEMY)[0]
-	var keg: String = "test:keg"
-	var tile: Vector2i = Vector2i(0, 7)
+	var keg: String = ""
+	var tile: Vector2i = CombatFact.NO_TILE
+	for y: int in KEG_SEARCH_SPAN:
+		for x: int in KEG_SEARCH_SPAN:
+			if keg.is_empty() and MapObjects.can_land(session.state, Vector2i(x, y)):
+				tile = Vector2i(x, y)
+				keg = MapObjects.throw_keg(session, tile, thrower)
+	if keg.is_empty():
+		_check.call("keg lines: a keg lands on the M1 map", false, "no tile took it")
+		board.close()
+		return
 	var writer: EventLogWriter = EventLogWriter.new(session)
 	var keg_name: String = BattleText.name_of(session, keg)
 	var by_name: String = BattleText.name_of(session, thrower)
@@ -486,9 +498,10 @@ func _test_keg_lines() -> void:
 	for fact: CombatFact in [landed, dropped, burned]:
 		for entry: EventLogWriter.Entry in writer.write(fact):
 			texts.append(entry.text())
+	var at: String = "(%d, %d)" % [tile.x, tile.y]
 	var expected: PackedStringArray = [
-		"%s throws %s: it lands at (0, 7), lit" % [by_name, keg_name],
-		"%s lands at (0, 7), lit" % [keg_name],
+		"%s throws %s: it lands at %s, lit" % [by_name, keg_name, at],
+		"%s lands at %s, lit" % [keg_name, at],
 		"%s's fuse burns down (1 left)" % [keg_name],
 	]
 	_check.call("keg lines: a thrown keg lands, lit, and its fuse burns down, by name", (

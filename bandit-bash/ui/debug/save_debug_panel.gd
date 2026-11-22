@@ -6,7 +6,7 @@
 # File:     save_debug_panel.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: November 5, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 extends PanelContainer
@@ -17,9 +17,9 @@ extends PanelContainer
 ## [code]SaveService.campaign[/code] and [code]SaveService.combat[/code]; buttons that don't apply
 ## right now are disabled.[br]
 ## Stand-ins for systems that don't exist yet: "Room Entered" bumps the floor and saves a
-## checkpoint; "End Player Phase" moves to the enemy phase and saves (the only battle save point
-## besides Begin); "End Enemy Phase" starts the next turn without saving, as the real combat flow
-## will.[br]
+## checkpoint; "End Player Phase" moves to the enemy phase and saves a checkpoint, the save
+## [BattleScreen] makes at each player phase end; "End Enemy Phase" starts the next turn without
+## saving, as the real combat flow does.[br]
 ## "New Solo Run From Seed" starts a solo run from the seed typed in the field above it
 ## ([method RunSeed.parse]'s form), abandoning any solo run first, and stays on this screen.[br]
 ## Works the same for a multiplayer host, whose saves also reach the clients. On a client every

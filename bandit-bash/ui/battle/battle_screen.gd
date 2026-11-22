@@ -6,7 +6,7 @@
 # File:     battle_screen.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 20, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name BattleScreen
@@ -214,8 +214,8 @@ func _on_session_batch_resolved(batch: CombatSession.FactBatch) -> void:
 		return
 	if not _ends_player_phase(batch):
 		return
-	# ASSUMPTION: the save lands as the batch resolves, before its playback, so a crash while the
-	# enemy phase plays resumes at the next player phase instead of losing the phase.
+	# The save lands as the batch resolves, before its playback, so a crash while the enemy phase
+	# plays resumes at the next player phase instead of losing the phase.
 	var err: Error = SaveService.save_checkpoint()
 	if err != OK:
 		push_error("BattleScreen: the end-of-phase save failed - %s" % [error_string(err)])

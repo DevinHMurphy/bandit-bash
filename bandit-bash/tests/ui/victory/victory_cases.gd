@@ -6,7 +6,7 @@
 # File:     victory_cases.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -93,7 +93,9 @@ func _test_model() -> void:
 		_level_up(twice.instance_id, 3),
 	], [leveled, steady, twice, fallen])
 	var model: CombatResultsModel = CombatResultsModel.build(session, 0, _catalog, _rules)
-	var lines: Array[CombatResultsModel.XpLine] = [] if model == null else model.xp_lines
+	var lines: Array[CombatResultsModel.XpLine] = []
+	if model != null:
+		lines = model.xp_lines
 	_ok("model: XP before the combat over 1, 0 and 2 level-ups", (
 			lines.size() == 3
 			and lines[0].level_before == 1 and lines[0].xp_before == 20
