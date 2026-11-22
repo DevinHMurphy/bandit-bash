@@ -6,7 +6,7 @@
 # File:     run_service_cases.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 20, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 extends "res://tests/sessions/sessions_case_base.gd"
@@ -209,11 +209,14 @@ func _skipped(case_name: String) -> bool:
 	return true
 
 
-# Whether every run section of the file, and every seat's, is at its version (economy and
-# heirlooms 2, the rest 1) and holds a run.
+# Whether every run section of the file, and every seat's, is at its version (campaign_map,
+# economy and heirlooms 2, the rest 1) and holds a run.
 func _holds_run(file: CampaignData) -> bool:
 	for key: String in RUN_KEYS:
-		if not _is_filled(file.sections.get(key), RunSaveSections.VERSION):
+		var shared_version: int = (
+				RunSaveSections.MAP_VERSION if key == "campaign_map" else RunSaveSections.VERSION
+		)
+		if not _is_filled(file.sections.get(key), shared_version):
 			return false
 	for player: CampaignData.PlayerRun in file.players:
 		for key: String in SEAT_KEYS:

@@ -100,7 +100,6 @@ static func for_session(session: CampaignSession, sender: int, node: int) -> Rou
 		push_error("RouteVoteCommand: no run to vote in")
 		return null
 	var command: RouteVoteCommand = RouteVoteCommand.new(sender, node)
-	# ASSUMPTION: the stream is keyed by the floor voted on, the one after the run's floor.
 	command.draw_stream = session.rng.stream(RngKey.new(
 			RngKey.RngPurpose.ROUTE_DRAW, session.run.floor_number + 1
 	))
