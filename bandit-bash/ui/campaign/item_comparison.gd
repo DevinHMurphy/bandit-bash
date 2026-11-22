@@ -15,8 +15,8 @@ extends GridContainer
 ## ([method ArmoryModel.comparison_rows]): a column each under their names, one row per number or
 ## line, the change after the offer's value (+2), in [member better_color] or
 ## [member worse_color]. An effect row ([member ArmoryModel.Row.is_marked]) shows each side in an
-## [EffectText], keywords coloured and explained on hover; with no focusable ancestor, focus shows
-## no tooltips. Shows only; takes no focus and reads no input.
+## [EffectText]: keywords coloured, a tooltip on hover, all of them while a focusable ancestor
+## holds key or pad focus ([PurchasePanel] has none). Shows only; takes no focus, reads no input.
 
 const EFFECT_TEXT_SCENE: PackedScene = preload("res://ui/common/text/effect_text.tscn")
 
