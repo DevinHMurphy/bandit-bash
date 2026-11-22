@@ -1,6 +1,7 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://ui/campaign/events/event_outcome_summary.gd" id="1_summary"]
+[ext_resource type="PackedScene" path="res://ui/common/text/effect_text.tscn" id="2_text"]
 
 [node name="EventOutcomeSummary" type="VBoxContainer"]
 mouse_filter = 2
@@ -14,11 +15,9 @@ theme_type_variation = &"HeaderLabel"
 text = "You chose"
 horizontal_alignment = 1
 
-[node name="Lines" type="Label" parent="."]
+[node name="Lines" parent="." instance=ExtResource("2_text")]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(720, 0)
 layout_mode = 2
-theme_type_variation = &"BodyLabel"
-text = "What it did."
 horizontal_alignment = 1
-autowrap_mode = 3
+marked_text = "What it did."

@@ -6,21 +6,22 @@
 # File:     event_panel.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 20, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name EventPanel
 extends Control
-## The event open at the run's node, asked over its steps ([enum Step]): the [EventStory], its
-## options ([EventOptionCard]) with the team's [EventVoteStatus], then whatever the option chosen
-## needs (the unit, fallen unit or weapon, then the unit that leaves a full army for a recruit or
-## a revived unit, each from an [EventChooser]; where each new item goes from the
-## [PlacementPanel]; a rune to discard), and last the [EventOutcomeSummary] and Leave.
+## The event open at the run's node, asked over its steps ([enum Step]) for one seat: the
+## [EventStory], its options ([EventOptionCard]) with the team's [EventVoteStatus] and each
+## teammate's part ([EventTeamStatus]), then whatever the option chosen needs (the unit, fallen
+## unit or weapon, then the unit that leaves a full army, each from an [EventChooser]; where each
+## new item goes from the [PlacementPanel]; a rune to discard), and last the [EventOutcomeSummary]
+## and Leave, with Team in co-op ([member offers_team]).
 ##
-## Each step comes from the saved [EventView] ([method refresh]), so a continued run opens where
-## it was saved; the leaving unit, placements and the rune discard aren't saved and start over.
-## Each command is built with [EventNode] and emitted ([signal command_ready]); the screen sends
-## it and calls [method refresh], or [method show_problem] on a rejection. Names no autoload.
+## Each step comes from the saved [EventView] ([method refresh]); the leaving unit, placements and
+## rune discard aren't saved and start over. Commands are built with [EventNode] and emitted
+## ([signal command_ready]); the screen sends them and calls [method refresh] for the seat's own
+## batches, [method refresh_team] for a teammate's, or [method show_problem]. Names no autoload.
 ##
 ## @tutorial(Events and curses plan): docs/plans/2026-11-12-events-and-curses.md
 
@@ -31,8 +32,9 @@ extends Control
 #                  PlacementPanel reads it; in the other steps it is left to the pause menu)
 #   "ui_left" / "ui_right" / "ui_up" / "ui_down" / "ui_accept"   (not read here: the GUI moves
 #                  focus along the cards or a chooser's column and presses the focused one, by
-#                  key, d-pad, stick or A [Cross])
-#   Mouse: a click on a card, choice or Leave presses it; Back steps back as ui_cancel does.
+#                  key, d-pad, stick or A [Cross]; down from the cards or Leave reaches Team, up
+#                  from Team returns)
+#   Mouse: a click on a card, choice, Leave or Team presses it; Back steps back as ui_cancel does.
 # ============================================================
 
 ## The player settled a step: send [param command] ([EventChooserCommand], [EventVoteCommand]
@@ -44,6 +46,9 @@ signal step_changed(step: Step)
 
 ## The player pressed Leave (or Fight, with a surprise combat pending).
 signal leave_requested()
+
+## The player pressed Team: the screen opens its [TeamPanel].
+signal team_requested()
 
 const CARD_SCENE: PackedScene = preload("res://ui/campaign/events/event_option_card.tscn")
 
@@ -86,6 +91,15 @@ enum Step {
 	LEAVING = 8,
 }
 
+# The steps that show Team, in co-op: those with no unsaved picks under way.
+const _TEAM_STEPS: Array[Step] = [
+	Step.CLOSED, Step.OPTIONS, Step.VOTE, Step.DRAWN, Step.OUTCOME,
+]
+
+## Whether the Team button shows, beside the cards and Leave: set by the screen in co-op before
+## [method open]. [b]Off:[/b] solo, no Team button.
+var offers_team: bool = false
+
 var _step: Step = Step.CLOSED
 var _session: CampaignSession = null
 var _seat: int = 0
@@ -99,12 +113,17 @@ var _choice: EventChoice = EventChoice.new()
 var _item_blocks: PackedInt32Array = []
 var _next_block: int = 0
 
+# The option whose card had focus when the cards were last rebuilt, focused again after; -1: none.
+var _refocus_option: int = EventRunState.NO_OPTION
+
 @onready var _story: EventStory = %EventStory
 @onready var _votes: EventVoteStatus = %EventVoteStatus
+@onready var _team: EventTeamStatus = %EventTeamStatus
 @onready var _cards: HBoxContainer = %Cards
 @onready var _chooser: EventChooser = %EventChooser
 @onready var _summary: EventOutcomeSummary = %EventOutcomeSummary
 @onready var _leave_button: Button = %LeaveButton
+@onready var _team_button: Button = %TeamButton
 @onready var _status_label: Label = %Status
 @onready var _placement: PlacementPanel = %PlacementPanel
 
@@ -115,6 +134,7 @@ func _ready() -> void:
 	_placement.placement_chosen.connect(_on_placement_panel_placement_chosen)
 	_placement.cancelled.connect(_on_placement_panel_cancelled)
 	_leave_button.pressed.connect(_on_leave_button_pressed)
+	_team_button.pressed.connect(_on_team_button_pressed)
 
 
 func _input(event: InputEvent) -> void:
@@ -159,6 +179,22 @@ func refresh() -> void:
 		_start_picks(_view.choosing)
 	else:
 		_show_cards(Step.OPTIONS)
+
+
+## Reads the saved event again after a teammate's batch: as [method refresh], except that while
+## the seat is part way through its picks (a chooser, the unit that leaves, a placement, the rune
+## discard) only the team's votes and choices update, so the picks so far stay.
+func refresh_team() -> void:
+	var is_picking: bool = (
+			_step == Step.CHOOSER or _step == Step.LEAVING or _step == Step.PLACEMENT
+			or _step == Step.RUNE
+	)
+	var fresh: EventView = EventNode.view(_session, _seat, _pool, _catalog)
+	if not is_picking or not fresh.is_open() or fresh.event != _view.event:
+		refresh()
+		return
+	_view = fresh
+	_show_team_parts()
 
 
 ## Shows [param problem] where the choice was made, such as the reason a command was rejected.
@@ -224,6 +260,11 @@ func get_vote_status() -> EventVoteStatus:
 	return _votes
 
 
+## The teammates' choices, for tests.
+func get_team_status() -> EventTeamStatus:
+	return _team
+
+
 ## The chooser, for tests.
 func get_chooser() -> EventChooser:
 	return _chooser
@@ -244,29 +285,38 @@ func get_leave_button() -> Button:
 	return _leave_button
 
 
+## The Team button, shown in co-op, for the screen and tests.
+func get_team_button() -> Button:
+	return _team_button
+
+
 ## The status line, for tests.
 func get_status_text() -> String:
 	return _status_label.text
 
 
-## Focuses the first card, choice or button the step offers; returns whether one took it.
+## Focuses the first card, choice or button the step offers (Team last); returns whether one took
+## it. Out of the tree, as when the screen changed in the frame a step showed, none does.
 func focus_first() -> bool:
+	if not is_inside_tree():
+		return false
 	for card: EventOptionCard in get_cards():
 		if not card.disabled:
 			card.grab_focus()
 			return true
 	if _chooser.visible:
 		return _chooser.focus_first()
-	if _leave_button.visible and not _leave_button.disabled:
-		_leave_button.grab_focus()
-		return true
+	for button: Button in [_leave_button, _team_button]:
+		if button.visible and not button.disabled:
+			button.grab_focus()
+			return true
 	return false
 
 
 func _show_closed() -> void:
 	_story.show_problem(_view.problem if not _view.problem.is_empty() else "event is closed")
 	_leave_button.text = "Leave"
-	_leave_button.disabled = false
+	_set_enabled(_leave_button, true)
 	_enter(Step.CLOSED)
 
 
@@ -283,8 +333,12 @@ func _show_cards(step: Step) -> void:
 	_option = EventRunState.NO_OPTION
 	_choice = EventChoice.new()
 	_story.show_event(_view.event)
-	_votes.show_votes(_view, _seat_count())
+	_show_team_parts()
+	_refocus_option = EventRunState.NO_OPTION
 	for child: Node in _cards.get_children():
+		var card: EventOptionCard = child as EventOptionCard
+		if card != null and card.has_focus():
+			_refocus_option = card.option_index
 		_cards.remove_child(child)
 		child.queue_free()
 	var seat_run: SeatRun = _session.run.seat_run(_seat)
@@ -293,6 +347,8 @@ func _show_cards(step: Step) -> void:
 		var refusal: String = shown.unmet_reason
 		if step == Step.DRAWN and shown.index != _view.drawn and refusal.is_empty():
 			refusal = "the team drew another option"
+		if _is_coop():
+			refusal = CampaignLink.name_seats(refusal)
 		var vote_line: String = ""
 		if _view.is_team_vote:
 			vote_line = "Votes: %d%s" % [
@@ -325,7 +381,7 @@ func _show_chooser() -> void:
 	_choice = EventChoice.new()
 	_next_block = 0
 	_story.show_event(_view.event)
-	_votes.show_votes(_view, _seat_count())
+	_show_team_parts()
 	_enter(Step.CHOOSER)
 	_chooser.show_entries(
 			EventScreenModel.chooser_question(option.chooser(), option.title),
@@ -345,7 +401,7 @@ func _show_leaving() -> void:
 	_choice.rune_discard_slot = EventChoice.NO_SLOT
 	_next_block = 0
 	_story.show_event(_view.event)
-	_votes.show_votes(_view, _seat_count())
+	_show_team_parts()
 	_enter(Step.LEAVING)
 	_chooser.show_entries(
 			EventScreenModel.leaving_question(title, seat_run, _catalog),
@@ -400,16 +456,17 @@ func _next_pick() -> void:
 func _show_outcome() -> void:
 	var shown: EventView.OptionView = _view.options[_view.chosen]
 	_story.show_event(_view.event)
-	_votes.show_votes(_view, _seat_count())
+	_show_team_parts()
 	_summary.show_outcome(shown.option.title, EventScreenModel.summary_lines(
 			_view, _session.run.seat_run(_seat), _catalog
 	))
 	_leave_button.text = "Fight" if _view.is_combat_pending else "Leave"
-	_leave_button.disabled = not _view.is_finished
+	_set_enabled(_leave_button, _view.is_finished)
 	_enter(Step.OUTCOME)
 
 
-# Shows the parts step uses, clears the status line and focuses the step's first control.
+# Shows the parts step uses, clears the status line and focuses the step's first control a frame
+# later (_focus_step).
 func _enter(step: Step) -> void:
 	_step = step
 	_status_label.text = ""
@@ -418,15 +475,39 @@ func _enter(step: Step) -> void:
 	_chooser.visible = step == Step.CHOOSER or step == Step.LEAVING or step == Step.RUNE
 	_summary.visible = step == Step.OUTCOME
 	_leave_button.visible = step == Step.OUTCOME or step == Step.CLOSED
+	_team_button.visible = offers_team and _TEAM_STEPS.has(step)
 	if step == Step.CLOSED:
 		_votes.visible = false
+		_team.visible = false
+	_link_team()
 	if step != Step.PLACEMENT:
-		focus_first.call_deferred()
+		_focus_step.call_deferred()
 	step_changed.emit(step)
 
 
-# The enabled cards as one row: left and right step along it and stop at its ends; up and down
-# stay put.
+# The step's focus, deferred from _enter: the card of the option focused before the cards were
+# rebuilt, else the step's first control. Does nothing once the panel has left the tree (the
+# screen changed in the frame the step showed), or while a shown control keeps focus (Leave or
+# Team across a teammate's batch, the team panel, the heirloom bar), so a batch never takes it.
+func _focus_step() -> void:
+	if not is_inside_tree():
+		return
+	var owner_now: Control = get_viewport().gui_get_focus_owner()
+	var refocus: int = _refocus_option
+	_refocus_option = EventRunState.NO_OPTION
+	if owner_now != null and owner_now.is_visible_in_tree():
+		var held: BaseButton = owner_now as BaseButton
+		if held == null or not held.disabled:
+			return
+	for card: EventOptionCard in get_cards():
+		if card.option_index == refocus and not card.disabled:
+			card.grab_focus()
+			return
+	focus_first()
+
+
+# The enabled cards as one row: left and right step along it and stop at its ends; up stays put,
+# down goes to Team when it shows.
 func _link_cards() -> void:
 	var row: Array[Control] = []
 	for card: EventOptionCard in get_cards():
@@ -438,13 +519,52 @@ func _link_cards() -> void:
 		control.focus_neighbor_left = control.get_path_to(row[maxi(i - 1, 0)])
 		control.focus_neighbor_right = control.get_path_to(row[mini(i + 1, row.size() - 1)])
 		control.focus_neighbor_top = self_path
-		control.focus_neighbor_bottom = self_path
+		control.focus_neighbor_bottom = (
+				control.get_path_to(_team_button) if _team_button.visible else self_path
+		)
 		control.focus_previous = control.focus_neighbor_left
 		control.focus_next = control.focus_neighbor_right
 
 
+# Team under the step's controls: up from it to the first enabled card, else an enabled Leave,
+# else it stays; down from Leave to it. Left, right and down from Team stay put.
+func _link_team() -> void:
+	if not _team_button.visible:
+		_leave_button.focus_neighbor_bottom = NodePath()
+		return
+	var above: Control = _team_button
+	for card: EventOptionCard in get_cards():
+		if not card.disabled:
+			above = card
+			break
+	if above == _team_button and _leave_button.visible and not _leave_button.disabled:
+		above = _leave_button
+	var self_path: NodePath = _team_button.get_path_to(_team_button)
+	_team_button.focus_neighbor_top = _team_button.get_path_to(above)
+	_team_button.focus_neighbor_bottom = self_path
+	_team_button.focus_neighbor_left = self_path
+	_team_button.focus_neighbor_right = self_path
+	_leave_button.focus_neighbor_bottom = _leave_button.get_path_to(_team_button)
+
+
+# Shows the team's vote and each teammate's part as the view stands.
+func _show_team_parts() -> void:
+	_votes.show_votes(_view, _seat_count())
+	_team.show_team(_view)
+
+
+# Enables or disables button, taking it out of the focus order while disabled.
+func _set_enabled(button: Button, is_enabled: bool) -> void:
+	button.disabled = not is_enabled
+	button.focus_mode = Control.FOCUS_ALL if is_enabled else Control.FOCUS_NONE
+
+
 func _seat_count() -> int:
 	return _session.run.events.seats.size()
+
+
+func _is_coop() -> bool:
+	return _session != null and _session.seats.size() > 1
 
 
 func _on_card_pressed(index: int) -> void:
@@ -491,3 +611,7 @@ func _on_placement_panel_cancelled() -> void:
 
 func _on_leave_button_pressed() -> void:
 	leave_requested.emit()
+
+
+func _on_team_button_pressed() -> void:
+	team_requested.emit()

@@ -6,7 +6,7 @@
 # File:     panel_cases.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -75,10 +75,10 @@ func _test_greyed() -> void:
 	var skipped: bool = _root.gui_get_focus_owner() == cards[Fixture.WALK_AWAY]
 	_ok("greyed: Pay the Tithe says why on its card, can't be pressed or focused", (
 			tithe.disabled and tithe.focus_mode == Control.FOCUS_NONE
-			and tithe.text.contains("Can't choose: needs %d gold." % [Fixture.TITHE_GOLD])
+			and tithe.get_card_text().contains("Can't choose: needs %d gold." % [Fixture.TITHE_GOLD])
 			and tithe.problem == "needs %d gold" % [Fixture.TITHE_GOLD]
 			and skipped
-	), tithe.text)
+	), tithe.get_card_text())
 	_fx.close_panel(panel)
 
 
@@ -88,7 +88,7 @@ func _test_named_curse() -> void:
 	var rolls: EventRolls = made.run.events.seat_event(0).rolls_of(Fixture.PRIZE)
 	var curse: CurseDefinition = _fx.base.catalog.curse(rolls.curse_id)
 	var weapon: ItemDefinition = _fx.base.catalog.item(rolls.pick(0))
-	var text: String = panel.get_cards()[Fixture.PRIZE].text
+	var text: String = panel.get_cards()[Fixture.PRIZE].get_card_text()
 	_ok("curse: Take the Prize names its weapon and its curse, tier and effect before choosing", (
 			curse != null and weapon != null
 			and text.contains("Gain %s (Rare" % [weapon.display_name])
