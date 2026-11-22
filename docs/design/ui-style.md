@@ -38,6 +38,10 @@ Every colour comes from a token. Names are the theme's: the colours of the `Pale
 | `heal` | `#5fae6b` | Healing, positive changes |
 | `block` | `#6fa3d8` | Block, the player side's colour |
 | `darkness` | `#6b4fa0` | The darkness's layers, its phase banner and its log lines |
+| `danger_text` | `#f4978e` | `danger`'s hue as text on panels: damage keywords in effect text |
+| `heal_text` | `#7fbe89` | `heal`'s hue as text on panels: healing keywords in effect text |
+| `block_text` | `#89b4df` | `block`'s hue as text on panels: Block keywords in effect text |
+| `darkness_text` | `#bba5ea` | `darkness`'s hue as text on panels: the darkness keyword |
 
 - **Disabled:** a control at 45% opacity, its text `text_muted`. Refused options say why (as UI13
   and UI14 do).
@@ -48,6 +52,16 @@ Every colour comes from a token. Names are the theme's: the colours of the `Pale
 - **Chips:** `danger` and `darkness` fail as text on `panel` (2.79:1 and 2.06:1), so text that
   carries them is `text` on a filled chip: `danger_fill` (5.42:1) or `darkness` (5.00:1). Plain
   `danger` under `text` is only 3.70:1, which is why danger chips have their own fill.
+- **Keyword text** (TX3, [keywords.md](keywords.md); drafts for the user to confirm): effect
+  text colours each keyword by its group, through the `EffectText` theme type's `keyword_*`
+  colours. A hue that fails as text gets a lighter tint of its own: `danger_text` 6.12:1 on
+  `panel` and 4.62:1 on `panel_raised`, `block_text` 6.12:1 and 4.62:1, `heal_text` 6.10:1 and
+  4.61:1, `darkness_text` 6.14:1 and 4.63:1; the accent group is `accent` itself (6.73:1 and
+  5.08:1). `tests/ui/theme/` measures each. `EffectTextMuted` is the muted 14-unit look
+  (`HudNote`, `MutedLabel`) with the same keyword colours.
+- **Keyword tooltip:** a tooltip panel, the keyword's name in Alegreya in its colour
+  (`KeywordTooltipName`), its explanation below in body text; several stack in a column beside
+  the card, 4 units apart.
 
 ## Fonts
 

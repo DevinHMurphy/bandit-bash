@@ -6,7 +6,7 @@
 # File:     guildhall_model.gd
 # Author:
 # Created:  November 20, 2026
-# Modified: November 20, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name GuildhallModel
@@ -31,12 +31,13 @@ static func rune_name(rune_id: String, catalog: EffectCatalog.Index) -> String:
 	return rune_id if rune == null else rune.display_name
 
 
-## The rune [param rune_id]'s text, one line per effect; "Not in the catalog" when it is missing.
+## The rune [param rune_id]'s text, one line per effect, keywords marked for an [EffectText]; "Not
+## in the catalog" when it is missing.
 static func rune_details(rune_id: String, catalog: EffectCatalog.Index) -> String:
 	var rune: RuneDefinition = catalog.rune(rune_id)
 	if rune == null:
 		return "Not in the catalog"
-	return "\n".join(rune.describe())
+	return "\n".join(rune.describe_marked())
 
 
 ## [param paid] gold as a card shows it: [code]32 gold (40 listed)[/code] when a discount changed

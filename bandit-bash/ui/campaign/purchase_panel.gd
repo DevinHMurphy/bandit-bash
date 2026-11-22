@@ -6,7 +6,7 @@
 # File:     purchase_panel.gd
 # Author:
 # Created:  November 20, 2026
-# Modified: November 20, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name PurchasePanel
@@ -68,7 +68,7 @@ var _step: Step = Step.UNIT
 
 @onready var _icon: RewardIcon = %Icon
 @onready var _title_label: Label = %Title
-@onready var _details_label: Label = %Details
+@onready var _details_text: EffectText = %Details
 @onready var _comparison: ItemComparison = %ItemComparison
 @onready var _question_label: Label = %Question
 @onready var _choices: VBoxContainer = %Choices
@@ -105,7 +105,7 @@ func open(
 	_unit_id = ""
 	_icon.texture = ArmoryModel.entry_icon(_entry, catalog)
 	_title_label.text = "Buy %s" % [ArmoryModel.entry_name(_entry, catalog)]
-	_details_label.text = ArmoryModel.entry_details(_entry, catalog)
+	_details_text.marked_text = ArmoryModel.entry_details(_entry, catalog)
 	visible = true
 	if _entry.is_heirloom():
 		_show_heirloom()

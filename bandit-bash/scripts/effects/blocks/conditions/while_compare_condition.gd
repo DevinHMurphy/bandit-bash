@@ -6,7 +6,7 @@
 # File:     while_compare_condition.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 @tool
@@ -100,13 +100,13 @@ func _quantity_name() -> String:
 		Quantity.VALUE:
 			return EffectTerms.text_name(key)
 		Quantity.CURRENT_HP:
-			return "HP"
+			return "[kw=hp]HP[/kw]"
 		Quantity.HP_PERCENT:
-			return "HP %"
+			return "[kw=hp]HP[/kw] %"
 		Quantity.BLOCK:
-			return "Block"
+			return "[kw=block]Block[/kw]"
 		Quantity.STANCE:
-			return "Stance"
+			return "[kw=stance]Stance[/kw]"
 	return "value"
 
 

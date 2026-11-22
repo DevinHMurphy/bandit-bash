@@ -6,13 +6,14 @@
 # File:     stock_card.gd
 # Author:
 # Created:  November 20, 2026
-# Modified: November 20, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name StockCard
 extends Button
 ## One shop entry: a pressable card with its icon, name, details and price for the seat
-## ([ArmoryModel], [GuildhallModel]), and for an item, one line per effect and who can use it
+## ([ArmoryModel], [GuildhallModel]; an heirloom's or rune's details are its effect text), and for
+## an item, one line per effect and who can use it
 ## ([ItemUsableBy]) at its bottom right, as on an [ItemOfferCard]; an heirloom or rune shows no
 ## such row. The row shares the price's line, so the cards stay short.[br]
 ## An entry the seat can't buy ([method Armory.entry_problem]) says why, its lines muted, and is
@@ -23,8 +24,10 @@ extends Button
 ##
 ## @tutorial(RF-034): docs/design/rebalance-and-features.md
 
-# The look of a refused entry's lines, in place of each label's own.
+# The look of a refused entry's lines, in place of each label's own, and of its effect text's
+# (the same muted 14-unit look, keywords still coloured).
 const _REFUSED_STYLE: StringName = &"MutedLabel"
+const _REFUSED_TEXT_STYLE: StringName = &"EffectTextMuted"
 
 ## The card's width and least height: wide enough for a weapon's numbers on one line, narrow
 ## enough for four in a row at 1280×720. Taller content makes it taller.[br]
@@ -46,21 +49,21 @@ var entry_name: String = ""
 var problem: String = ""
 
 # Each line's look as the scene sets it, put back when an entry can be bought again.
-var _styles: Dictionary[Label, StringName] = {}
+var _styles: Dictionary[Control, StringName] = {}
 
 @onready var _content: MarginContainer = %Content
 @onready var _entry_icon: TextureRect = %EntryIcon
 @onready var _name_label: Label = %EntryName
-@onready var _details_label: Label = %Details
-@onready var _effects_label: Label = %Effects
+@onready var _details_text: EffectText = %Details
+@onready var _effects_text: EffectText = %Effects
 @onready var _price_label: Label = %Price
 @onready var _problem_label: Label = %Problem
 @onready var _usable_by: ItemUsableBy = %UsableBy
 
 
 func _ready() -> void:
-	for label: Label in _lines():
-		_styles[label] = label.theme_type_variation
+	for line: Control in _lines():
+		_styles[line] = line.theme_type_variation
 	_content.minimum_size_changed.connect(fit_content)
 	focus_entered.connect(_on_focus_entered)
 	focus_exited.connect(_on_focus_exited)
@@ -85,18 +88,19 @@ func show_entry(
 	entry_name = title
 	problem = refusal
 	_name_label.text = title
-	_details_label.text = details
-	_details_label.visible = not details.is_empty()
-	_effects_label.text = ""
-	_effects_label.visible = false
+	_details_text.marked_text = details
+	_details_text.visible = not details.is_empty()
+	_effects_text.marked_text = ""
+	_effects_text.visible = false
 	_price_label.text = price
 	_problem_label.text = "Can't buy: %s." % [refusal]
 	_problem_label.visible = not refusal.is_empty()
 	_entry_icon.texture = entry_icon
 	disabled = not refusal.is_empty()
 	focus_mode = Control.FOCUS_NONE if disabled else Control.FOCUS_ALL
-	for label: Label in _lines():
-		label.theme_type_variation = _REFUSED_STYLE if disabled else _styles[label]
+	for line: Control in _lines():
+		var refused: StringName = _REFUSED_TEXT_STYLE if line is EffectText else _REFUSED_STYLE
+		line.theme_type_variation = refused if disabled else _styles[line]
 
 
 ## Shows the item [param definition]'s effect lines under its details, and who of
@@ -114,10 +118,10 @@ func show_users(
 		push_error("StockCard: show_users before the card is in the tree - %s" % [entry_name])
 		return
 	var effects: PackedStringArray = (
-			PackedStringArray() if definition == null else definition.describe()
+			PackedStringArray() if definition == null else definition.describe_marked()
 	)
-	_effects_label.text = "\n".join(effects)
-	_effects_label.visible = not effects.is_empty()
+	_effects_text.marked_text = "\n".join(effects)
+	_effects_text.visible = not effects.is_empty()
 	_usable_by.show_users(definition, seat_run, catalog, ids)
 	if has_focus():
 		_usable_by.show_names_tip()
@@ -127,9 +131,12 @@ func show_users(
 ## and why it can't be bought.
 func get_lines() -> PackedStringArray:
 	var lines: PackedStringArray = []
-	for label: Label in _lines():
-		if label.visible:
-			lines.append_array(label.text.split("\n"))
+	for line: Control in _lines():
+		if not line.visible:
+			continue
+		var text: EffectText = line as EffectText
+		var shown: String = text.get_plain_text() if text != null else (line as Label).text
+		lines.append_array(shown.split("\n"))
 	return lines
 
 
@@ -152,8 +159,8 @@ func fit_content() -> void:
 	)
 
 
-func _lines() -> Array[Label]:
-	return [_name_label, _details_label, _effects_label, _price_label, _problem_label]
+func _lines() -> Array[Control]:
+	return [_name_label, _details_text, _effects_text, _price_label, _problem_label]
 
 
 func _on_focus_entered() -> void:

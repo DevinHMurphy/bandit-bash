@@ -6,7 +6,7 @@
 # File:     add_timed_modifier.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 16, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 @tool
@@ -36,7 +36,7 @@ enum End {
 ## Effect-text words for each end.
 const END_TEXT: Dictionary[int, String] = {
 	End.THIS_EXCHANGE: "this exchange",
-	End.UNTIL_PHASE_END: "until Phase End",
+	End.UNTIL_PHASE_END: "until [kw=phase_end]Phase End[/kw]",
 	End.END_OF_NEXT_PHASE: "until the end of the next phase",
 	End.THIS_COMBAT: "this combat",
 }
@@ -71,7 +71,7 @@ func _validate_property(property: Dictionary) -> void:
 
 
 func describe() -> String:
-	var change: String = EffectTerms.describe_modifier(key, mode, value)
+	var change: String = EffectTerms.describe_modifier_marked(key, mode, value)
 	var duration: String = describe_duration()
 	var to_owner: bool = target == null or target.is_owner()
 	if mode == Modifier.Mode.GRANT or mode == Modifier.Mode.DENY:

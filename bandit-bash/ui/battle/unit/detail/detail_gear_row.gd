@@ -6,7 +6,7 @@
 # File:     detail_gear_row.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name DetailGearRow
@@ -23,12 +23,13 @@ extends HBoxContainer
 @onready var _heading: Label = %Heading
 @onready var _icon: RewardIcon = %Icon
 @onready var _item: Label = %Item
-@onready var _detail: Label = %Detail
+@onready var _detail: EffectText = %Detail
 
 
-## Shows [param heading] with [param item_icon], [param item_name] and [param detail] under it; an
-## empty name shows [member empty_text] and no icon, a null icon the placeholder mark, and an empty
-## detail hides its line.
+## Shows [param heading] with [param item_icon], [param item_name] and [param detail] under it,
+## its keywords coloured ([EffectTerms] markup; plain text shows as written); an empty name shows
+## [member empty_text] and no icon, a null icon the placeholder mark, and an empty detail hides
+## its line.
 func show_gear(
 		heading: String, item_name: String, detail: String, item_icon: Texture2D = null
 ) -> void:
@@ -36,7 +37,7 @@ func show_gear(
 	_item.text = item_name if not item_name.is_empty() else empty_text
 	_icon.texture = item_icon
 	_icon.visible = not item_name.is_empty()
-	_detail.text = detail
+	_detail.marked_text = detail
 	_detail.visible = not detail.is_empty()
 
 
@@ -45,6 +46,6 @@ func get_icon() -> Texture2D:
 	return _icon.texture if _icon.visible else null
 
 
-## Its lines as shown, for tests: heading, item, detail.
+## Its lines as shown, for tests: heading, item, detail (its words, without keyword tags).
 func get_texts() -> PackedStringArray:
-	return PackedStringArray([_heading.text, _item.text, _detail.text])
+	return PackedStringArray([_heading.text, _item.text, _detail.get_plain_text()])

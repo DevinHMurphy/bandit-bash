@@ -6,7 +6,7 @@
 # File:     armory_model.gd
 # Author:
 # Created:  November 20, 2026
-# Modified: November 20, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name ArmoryModel
@@ -40,15 +40,15 @@ static func entry_name(entry: ArmoryStock.Entry, catalog: EffectCatalog.Index) -
 
 
 ## [param entry]'s details under its name: an item's rarity, kind and weapon numbers
-## ([method CombatResultsModel.item_details]), or an heirloom's effect text (its tier is on its
-## price line, [method price_text]).
+## ([method CombatResultsModel.item_details]), or an heirloom's effect text, keywords marked for
+## an [EffectText] (its tier is on its price line, [method price_text]).
 static func entry_details(entry: ArmoryStock.Entry, catalog: EffectCatalog.Index) -> String:
 	if not entry.is_heirloom():
 		return CombatResultsModel.item_details(catalog.item(entry.definition_id))
 	var heirloom: HeirloomDefinition = catalog.heirloom(entry.definition_id)
 	if heirloom == null:
 		return "Not in the catalog"
-	return "\n".join(heirloom.describe())
+	return "\n".join(heirloom.describe_marked())
 
 
 ## [param entry]'s icon; null for none.

@@ -6,7 +6,7 @@
 # File:     engine_cases.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -254,9 +254,10 @@ func _test_extra_stance_loss() -> void:
 			breaker.describe(),
 			"The first time this unit lands a hit each combat, the target loses 1 extra Stance."
 	)
+	var taken_text: String = breaker_loss.describe_for_trigger(EffectTerms.Trigger.HIT_TAKEN)
 	_same(
 			"f4: extra Stance loss on a hit taken names the hit",
-			breaker_loss.describe_for_trigger(EffectTerms.Trigger.HIT_TAKEN),
+			EffectTerms.plain_text(taken_text),
 			"+1 extra Stance loss for that hit"
 	)
 
@@ -825,7 +826,8 @@ func _test_gain_resource_paths() -> void:
 	var lost: GainResource = _gain(GainResource.Pool.STANCE, null, _constant(-1.0))
 	lost.can_exceed_maximum = true
 	_same("gain: the option's text", " | ".join(PackedStringArray([
-		capped.describe(), past.describe(), lost.describe(),
+		EffectTerms.plain_text(capped.describe()), EffectTerms.plain_text(past.describe()),
+		EffectTerms.plain_text(lost.describe()),
 	])), "gain 1 Stance | gain 1 Stance, even above its maximum | lose 1 Stance")
 
 

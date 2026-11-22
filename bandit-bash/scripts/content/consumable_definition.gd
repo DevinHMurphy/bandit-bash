@@ -6,7 +6,7 @@
 # File:     consumable_definition.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 @tool
@@ -68,13 +68,13 @@ func _validate_property(property: Dictionary) -> void:
 
 
 ## The effect text of every effect, one line each, in order: an ingredient's open with
-## [constant EATEN_LEAD_IN]; any other consumable's read as its use's action.
-func describe() -> PackedStringArray:
+## [constant EATEN_LEAD_IN]; any other consumable's read as its use's action. Keywords marked.
+func describe_marked() -> PackedStringArray:
 	if use_kind != INGREDIENT_USE_KIND:
 		return super()
 	var texts: PackedStringArray = []
 	for effect: EffectDefinition in effects:
-		var text: String = "" if effect == null else effect.describe(EATEN_LEAD_IN)
+		var text: String = "" if effect == null else effect.describe_marked(EATEN_LEAD_IN)
 		if not text.is_empty():
 			texts.append(text)
 	return texts

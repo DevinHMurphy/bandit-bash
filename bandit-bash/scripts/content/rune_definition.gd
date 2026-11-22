@@ -6,7 +6,7 @@
 # File:     rune_definition.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 @tool
@@ -84,10 +84,10 @@ func target_noun() -> String:
 ## The text of every effect, one sentence each, read as the cast: the command's target named by
 ## [method target_noun] ("Heal an ally for 10 HP."),
 ## and timed modifiers that last alike joined under one duration ("+20 Hit and +2 Attack on its
-## next attack until Phase End"). Only runes read this way; other carriers' text is
-## [method EffectDefinition.describe]'s. An effect with a trigger, conditions or charges keeps
-## its own text, with the target named.
-func describe() -> PackedStringArray:
+## next attack until Phase End"), keywords marked. Only runes read this way; other carriers' text
+## is [method EffectDefinition.describe_marked]'s. An effect with a trigger, conditions or
+## charges keeps its own text, with the target named.
+func describe_marked() -> PackedStringArray:
 	var texts: PackedStringArray = []
 	for effect: EffectDefinition in effects:
 		if effect != null:
@@ -95,7 +95,7 @@ func describe() -> PackedStringArray:
 	return texts
 
 
-# One effect's text as the cast reads it (see describe()).
+# One effect's marked text as the cast reads it (see describe_marked()).
 func _describe_cast(effect: EffectDefinition) -> String:
 	var is_plain: bool = (
 			effect.trigger == EffectTerms.Trigger.ALWAYS
@@ -103,7 +103,7 @@ func _describe_cast(effect: EffectDefinition) -> String:
 			and effect.charges == 0
 	)
 	if not is_plain:
-		return _name_target(effect.describe())
+		return _name_target(effect.describe_marked())
 	var actions: PackedStringArray = []
 	var i: int = 0
 	var operations: Array[EffectOperation] = effect.operations
@@ -174,7 +174,9 @@ static func _is_joinable(modifier: AddTimedModifier) -> bool:
 static func _describe_joined(run: Array[AddTimedModifier]) -> String:
 	var changes: PackedStringArray = []
 	for modifier: AddTimedModifier in run:
-		changes.append(EffectTerms.describe_modifier(modifier.key, modifier.mode, modifier.value))
+		changes.append(EffectTerms.describe_modifier_marked(
+				modifier.key, modifier.mode, modifier.value
+		))
 	var joined: String = ", ".join(changes.slice(0, changes.size() - 1))
 	joined += " and " + changes[changes.size() - 1]
 	return "give %s %s %s" % [run[0].target.describe(), joined, run[0].describe_duration()]

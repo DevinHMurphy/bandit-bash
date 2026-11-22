@@ -6,7 +6,7 @@
 # File:     gain_resource.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 @tool
@@ -33,9 +33,9 @@ enum Pool {
 
 ## Effect-text names of the pools.
 const POOL_TEXT: Dictionary[int, String] = {
-	Pool.HP: "HP",
-	Pool.BLOCK: "Block",
-	Pool.STANCE: "Stance",
+	Pool.HP: "[kw=hp]HP[/kw]",
+	Pool.BLOCK: "[kw=block]Block[/kw]",
+	Pool.STANCE: "[kw=stance]Stance[/kw]",
 }
 
 ## The resource gained.
@@ -79,13 +79,14 @@ func describe_for_trigger(trigger: EffectTerms.Trigger) -> String:
 		how_much = share.describe_for_trigger(trigger)
 	if pool == Pool.HP:
 		if constant == null and to_owner:
-			return "heal for %s" % [how_much]
+			return "[kw=heal]heal[/kw] for %s" % [how_much]
 		var healing: String = (
-				"%s HP" % [how_much] if constant != null else "HP equal to %s" % [how_much]
+				"%s %s" % [how_much, POOL_TEXT[Pool.HP]] if constant != null
+				else "%s equal to %s" % [POOL_TEXT[Pool.HP], how_much]
 		)
 		if to_owner:
-			return "heal %s" % [healing]
-		return "heal %s for %s" % [who, healing]
+			return "[kw=heal]heal[/kw] %s" % [healing]
+		return "[kw=heal]heal[/kw] %s for %s" % [who, healing]
 	var gained: String = "%s %s" % [how_much, pool_name]
 	if constant == null:
 		gained = "%s equal to %s" % [pool_name, how_much]
