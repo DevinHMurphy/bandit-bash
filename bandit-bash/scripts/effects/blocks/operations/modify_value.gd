@@ -6,7 +6,7 @@
 # File:     modify_value.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 13, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 @tool
@@ -53,7 +53,7 @@ func _validate_property(property: Dictionary) -> void:
 
 
 func describe() -> String:
-	var change: String = EffectTerms.describe_modifier(key, mode, value, stat)
+	var change: String = EffectTerms.describe_modifier_marked(key, mode, value, stat)
 	if per == null:
 		return change
 	return "%s × %s" % [change, per.describe()]

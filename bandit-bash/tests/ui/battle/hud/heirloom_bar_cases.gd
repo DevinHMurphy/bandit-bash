@@ -6,7 +6,7 @@
 # File:     heirloom_bar_cases.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 20, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -16,7 +16,8 @@ extends RefCounted
 ## through the campaign bridge. The copies show once each in gain order, the curse after the
 ## divider; the copied-in count shows; a COUNTER_CHANGED moves an icon only as it plays; the ready
 ## look at period - 1 and its reset after firing, with the pulse and the event log line; charges
-## spent and a first-only curse used take the spent look; the tooltip's text; the fallback mark and
+## spent and a first-only curse used take the spent look; the tooltip's text and its keywords'
+## tooltips; the fallback mark and
 ## every heirloom and curse having art; another seat sees none; campaign screens' view from the
 ## saved copies; focus by key and by pad, in battle (HEIRLOOM_BAR) and on a campaign screen.
 
@@ -231,10 +232,21 @@ func _test_battle_bar() -> void:
 			]
 			and is_equal_approx(ledger.get_shown_alpha(), 1.0)
 	)
+	# Its keywords' tooltips beside it, one per distinct keyword, gone with it.
+	var body: EffectText = bar.get_tip().get_body()
+	var keyword_ids: PackedStringArray = []
+	for tooltip: KeywordTooltip in body.get_shown_tooltips():
+		keyword_ids.append(tooltip.keyword_id)
+	var keywords_ok: bool = (
+			not body.get_keyword_ids().is_empty() and keyword_ids == body.get_keyword_ids()
+	)
 	ledger.mouse_exited.emit()
 	_check.call("tooltip: name, the effect text used everywhere, tier and count; full on hover", (
 			tip_ok and not bar.get_tip().visible
 	), str(texts))
+	_check.call("tooltip: one keyword tooltip per distinct keyword, hidden with the tooltip", (
+			keywords_ok and body.get_shown_tooltips().is_empty()
+	), "%s of %s" % [keyword_ids, body.get_keyword_ids()])
 
 	_check.call("co-op: another seat's bar holds none of this seat's heirlooms", (
 			HeirloomViewModel.for_battle(rig.h.run, rig.h.session, 1, _catalog).is_empty()

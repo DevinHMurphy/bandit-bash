@@ -1,6 +1,7 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://ui/campaign/guildhall_panel.gd" id="1_panel"]
+[ext_resource type="PackedScene" path="res://ui/common/text/effect_text.tscn" id="2_text"]
 
 [node name="GuildhallPanel" type="Control"]
 layout_mode = 3
@@ -50,12 +51,11 @@ layout_mode = 2
 theme_type_variation = &"HeaderLabel"
 text = "Recruit"
 
-[node name="Details" type="Label" parent="Center/Panel/Margin/Column"]
+[node name="Details" parent="Center/Panel/Margin/Column" instance=ExtResource("2_text")]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(648, 0)
 layout_mode = 2
-text = "Joins at level 1."
-autowrap_mode = 3
+marked_text = "Joins at level 1."
 
 [node name="Question" type="Label" parent="Center/Panel/Margin/Column"]
 unique_name_in_owner = true

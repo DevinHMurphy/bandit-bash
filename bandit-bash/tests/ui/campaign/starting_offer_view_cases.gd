@@ -6,7 +6,7 @@
 # File:     starting_offer_view_cases.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 20, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -65,9 +65,9 @@ func _test_key() -> void:
 	var index: int = _index_of(session, "war_chest")
 	var cards: Array[Button] = view.get_cards()
 	_ok("key: three heirloom cards, each with its name and bonus line", (
-			cards.size() == 3 and cards[index].text.contains("War Chest")
-			and cards[index].text.contains("gain 100 Gold") and view.focus_first()
-	), "" if cards.is_empty() else cards[index].text)
+			cards.size() == 3 and _card_text(cards[index]).contains("War Chest")
+			and _card_text(cards[index]).contains("gain 100 Gold") and view.focus_first()
+	), "" if cards.is_empty() else _card_text(cards[index]))
 	cards[index].grab_focus()
 	_press_key(KEY_ENTER)
 	_ok("key: Enter on War Chest builds its command at once, which the run accepts", (
@@ -206,7 +206,7 @@ func _test_refused() -> void:
 	for card: Button in view.get_cards():
 		says_why = (
 				says_why and card.disabled and card.focus_mode == Control.FOCUS_NONE
-				and card.text.contains("Can't take it:")
+				and _card_text(card).contains("Can't take it:")
 		)
 	_click(view.get_skip_button())
 	_ok("refused: every card greyed with its reason; Skip shows and builds the skip", (
@@ -316,6 +316,13 @@ func _last_problem(session: CampaignSession) -> String:
 	if _commands.is_empty():
 		return "no command"
 	return _commands[-1].validate(session.run)
+
+
+# A card's words: an heirloom card's own lines (its text is drawn by its children), else the
+# button's text.
+func _card_text(card: Button) -> String:
+	var heirloom: HeirloomOfferCard = card as HeirloomOfferCard
+	return card.text if heirloom == null else heirloom.get_card_text()
 
 
 func _ok(case_name: String, passed: bool, detail: String = "") -> void:

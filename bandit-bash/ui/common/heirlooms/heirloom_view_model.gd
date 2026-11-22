@@ -6,7 +6,7 @@
 # File:     heirloom_view_model.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name HeirloomViewModel
@@ -43,6 +43,10 @@ var icon: Texture2D = null
 
 ## Each of its effects' text, the same text as everywhere else ([method EffectDefinition.describe]).
 var effect_lines: PackedStringArray = []
+
+## [member effect_lines] with their keywords marked, for the tooltip's [EffectText]
+## ([method EffectCarrierDefinition.describe_marked]).
+var marked_lines: PackedStringArray = []
 
 ## Instance ids of its effects in the battle in progress; empty on campaign screens.
 var instance_ids: PackedStringArray = []
@@ -157,7 +161,8 @@ func _follow_counter(effect: EffectDefinition, condition: CounterCondition, coun
 			effect.trigger == EffectTerms.Trigger.PHASE_END
 	):
 		moment = "at the next %s" % [EffectTerms.TRIGGER_TEXT[effect.trigger]]
-	next_text = "%s, %s" % [moment, effect.describe_actions()]
+	# The ready line is a plain footer, not effect text: its words alone.
+	next_text = EffectTerms.plain_text("%s, %s" % [moment, effect.describe_actions()])
 
 
 # Follows effect's charge limit with left charges, in its lane.
@@ -275,6 +280,7 @@ static func _from_definition(definition: HeirloomDefinition, copy_index: int) ->
 	view.is_curse = definition is CurseDefinition
 	view.icon = definition.icon
 	view.effect_lines = definition.describe()
+	view.marked_lines = definition.describe_marked()
 	return view
 
 

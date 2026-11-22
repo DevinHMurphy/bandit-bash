@@ -50,9 +50,13 @@ question 61). Every effect reads the same way:
   which `MapObjects` reads by id) carries its sentence in `EffectDefinition.written_text`, shown
   in place of the built text.
 - **Keywords** (`EffectTerms.KEYWORDS`: Block, Stance, Exposed, Mitigation, Phase Start, Gold,
-  the stat names and the rest) are spelled and capitalized the same everywhere, so a later pass
-  can highlight them; the content test fails a keyword written in lower case, except those that
-  are also plain words (attack, hit, crit, range).
+  the stat names, damage, heal, Darkness and the rest) are spelled and capitalized the same
+  everywhere, and the generator and written text mark each one, `[kw=<id>]Word[/kw]`, by its
+  stable id (`EffectTerms.KEYWORD_IDS`), so an `EffectText` colours it and explains it in a
+  tooltip ([keywords.md](keywords.md)). `describe_marked()` gives the marked text, `describe()`
+  the same words plain. The content test fails a keyword written in lower case, except those
+  that are also plain words (attack, hit, crit, range, magic, physical, the darkness), and a
+  keyword left unmarked.
 
 The generated text lives in `EffectTerms` (`trigger_head`, `describe_modifier`,
 `describe_permission`) and `EffectDefinition.describe()`; a rune's in `RuneDefinition.describe()`.

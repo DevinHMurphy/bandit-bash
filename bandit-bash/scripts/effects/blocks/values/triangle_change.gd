@@ -6,7 +6,7 @@
 # File:     triangle_change.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 @tool
@@ -36,7 +36,8 @@ enum Part {
 
 
 func describe() -> String:
-	return "its triangle %s change" % ["Hit" if part == Part.HIT else "damage"]
+	var changed: String = "Hit" if part == Part.HIT else "damage"
+	return "its triangle %s change" % [EffectTerms.mark(changed)]
 
 
 ## The change for the queried unit ([member EffectContext.subject_id]) in [param ctx]'s attack;

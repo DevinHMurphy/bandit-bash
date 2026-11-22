@@ -6,7 +6,7 @@
 # File:     guildhall_panel.gd
 # Author:
 # Created:  November 20, 2026
-# Modified: November 20, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name GuildhallPanel
@@ -81,7 +81,7 @@ var _hand_over: Dictionary[String, int] = {}
 var _step: Step = Step.RECRUIT
 
 @onready var _title_label: Label = %Title
-@onready var _details_label: Label = %Details
+@onready var _details_text: EffectText = %Details
 @onready var _question_label: Label = %Question
 @onready var _rows: VBoxContainer = %Rows
 @onready var _choices: VBoxContainer = %Choices
@@ -114,12 +114,12 @@ func open_entry(
 	visible = true
 	if not entry.is_recruit():
 		_title_label.text = "Buy %s" % [GuildhallModel.rune_name(entry.definition_id, catalog)]
-		_details_label.text = GuildhallModel.rune_details(entry.definition_id, catalog)
+		_details_text.marked_text = GuildhallModel.rune_details(entry.definition_id, catalog)
 		_show_rune()
 		return
 	_joining = Guildhall.recruit_for(run, seat, index, catalog)
 	_title_label.text = "Recruit %s" % [RecruitOfferCard.title_of(_joining.unit, catalog)]
-	_details_label.text = "Joins at level %d, with %s." % [
+	_details_text.marked_text = "Joins at level %d, with %s." % [
 		_joining.unit.level, _brought(_joining),
 	]
 	if Guildhall.is_army_full(run, seat, catalog):
@@ -134,7 +134,7 @@ func open_reroll(
 ) -> void:
 	_bind(run, seat, catalog, ids)
 	_title_label.text = "Re-roll a prefix"
-	_details_label.text = (
+	_details_text.marked_text = (
 			"A new prefix, never the same one. Each paid re-roll here costs half the first more."
 	)
 	visible = true
