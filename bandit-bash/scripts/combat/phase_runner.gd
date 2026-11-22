@@ -17,7 +17,8 @@ extends RefCounted
 ## [method open_battle] starts turn 1, or the opening swap window first ([method start]). A turn is
 ## one player phase, then one enemy phase; [member CombatState.turn] rises at the player Phase
 ## Start. The last seat's [method end_turn] resolves the rest of the turn as one command, and every
-## step ends with [method end_step]; once the map's combat has ended, nothing more runs.[br]
+## step ends with [method end_step]; once the map's combat has ended, nothing more runs. A unit's
+## action ends its turn but records no Unit Turn End; its side's Phase End records one per unit.[br]
 ## [b]A frozen co-op map:[/b] a map with no player unit left is held at its next player Phase
 ## Start, once the phase in progress has finished (a player phase emptied mid-phase finishes at
 ## once, in [method end_step]). It runs no phase and its turn stays until arrivals land there

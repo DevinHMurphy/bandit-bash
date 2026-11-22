@@ -19,8 +19,9 @@ extends RefCounted
 ## commander returns at critical health after the combat, and an empty map freezes ([PhaseRunner]).
 ## [br][b]Won:[/b] Rout, no enemy left (pending waves cancelled); Defeat the Leader or the Boss,
 ## every enemy that appeared on a leader slot defeated ([method marked_ids]); Seize, a player unit
-## ends its turn on a seize tile; Survive and Defend, turn [member CombatMapDefinition.survive_turns]
-## ended, or no enemy left and no reinforcement point open ([method Reinforcements.is_open]).[br]
+## ends its turn on a seize tile; Survive and Defend, turn
+## [member CombatMapDefinition.survive_turns] ended, or no enemy left and no reinforcement point
+## open ([method Reinforcements.is_open]).[br]
 ## A unit "ends its turn" at its side's Phase End ([constant CombatFact.Kind.UNIT_TURN_END]).
 ## Nothing is checked before turn 1 or with no setup. Pure rules code; it never awaits.
 ##
