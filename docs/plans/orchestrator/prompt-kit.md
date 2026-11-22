@@ -95,7 +95,7 @@ before writing a prompt and name it in the LANE block.
   `docs/design/event-bus.md` lists every kind with what records it.
 - `SceneRouter.Screen`: ends at `GUILDHALL = 17` (RN9).
 - `FactCueMap.Shape`: ends at `GUILDHALL_NODE = 9` (RN9).
-- `capture` group numbers in `tools/captures/`: 100 to 700 used; EV3 took 450, RN7 460, RN8 470, RN9 480, EV1G 455, UL9 405, UL10 475, CO10 485 (needs 480), TX3 420, BF8 487 (needs 485), BF9 488 (needs 487); CO12 told 458.
+- `capture` group numbers in `tools/captures/`: 100 to 700 used; EV3 took 450, RN7 460, RN8 470, RN9 480, EV1G 455, UL9 405, UL10 475, CO10 485 (needs 480), TX3 420, BF8 487 (needs 485), BF9 488 (needs 487); CO12 458 (needs 455).
 
 ## Reviewing a report
 
@@ -129,10 +129,10 @@ before writing a prompt and name it in the LANE block.
 
 | Lane | Next | Then | Gated on |
 |------|------|------|----------|
-| A Battle UI | TX3's Lane A follow-ups (unit detail's keywords by keyboard and pad, the rune picker, an enemy's signature move; EN16 merged November 22, 2026) | Preview cancel and workers if P05 question 54 says so; RB1 after the full-run playtest; CO13 after CO2 | RB1: the user's full-run playtest (user, November 20 and 22, 2026) |
-| B Campaign and run | P11 CO5 unit swaps (ready: CO6 and BF9 merged November 22, 2026) | CO7, CO8 after CO2, CO11 after CO5 and CO6, CO14; BUG-034 before CO16 | — |
-| C Events | CO12 co-op event screen, with BUG-026 (issued November 22, 2026; CO10 and TX3 merged November 22, 2026; it takes `event_screen.gd` off `SEAT_ZERO_EXEMPT` and shows effects with `describe_marked()` in an `EffectText`) | RF-033's hand-over panel on the event screen; BUG-026 | — |
-| D Engine, AI, content | P11 CO2 sending units and calling for aid (issued November 22, 2026; reuses `PhaseRunner.resume()`; with BUG-036) | CO3 [CO2]; CO4 any time; CT12 after the weapon modification design | — |
+| A Battle UI | BF10, TX3's Lane A follow-ups and the double column (issued November 22, 2026; unit detail's keywords by keyboard and pad, the rune picker, an enemy's signature move; EN16 merged November 22, 2026) | EN17 preview cancel (P05 question 54 (a); workers held until the playtest); RB1 after the full-run playtest; CO13 after CO2 | RB1: the user's full-run playtest (user, November 20 and 22, 2026) |
+| B Campaign and run | P11 CO7 unique heirloom claims (issued November 22, 2026; owns `campaign_session.gd`, CO2 told; P11 85–89 answered, the Treasure and key heirloom screens set the expected heirloom) | CO5 after CO2 (BUG-036's seat rule, `auto_deploy.gd`), CO8 after CO2, CO11 after CO5, CO14; BUG-034 before CO16 | — |
+| C Events | RF-033's hand-over panel on the event screen (ready: CO12 merged November 22, 2026), with the outcome summary's keyword reach if P11 question 75 says (a) | BUG-034 is Lane B's; the event option's expected-heirloom field when events offer a unique heirloom | — |
+| D Engine, AI, content | P11 CO2 sending units and calling for aid (issued November 22, 2026; building, its questions 65–71 answered in its session; reuses `PhaseRunner.resume()`; with BUG-036) | EN18 plan: the intents refresh on the worker (P05 question 53 (a), plan doc first, after CO2; BUG-035's release part); CO3 [CO2]; CO4 after CO2; CT12 after the weapon modification design | — |
 | E Network | NT4 relay (ready: P11 question 4 answered November 21, 2026, complete_on_host; CO1 merged November 22, 2026; it and CO2 both change `combat_encounter.gd`, so not beside CO2) | NT5–NT8 (NT5 binds the battle and map screens to a client's seat, P11 question 1); CO15 after NT4 | — |
 | G Audio and tooling | TX2 trait wording, part 2, with RF-038 (Foods), after the user's wording pass (in the Wording Pass artifact, https://claude.ai/artifact/V1CKy2XcDTHEtkDdtxYHS5, collection `wording`, read back with ArtifactData; it covers effect-text.md and keywords.md; TX3 merged November 22, 2026) | AU2 after the audio direction (M5); the capture builder tidy-up | TX2 after the user's wording pass (it applies it, and confirms P01 65–68) |
 | F Docs and plans | CO20 docs, with BUG-033 (P11 answered November 22, 2026) | P12 plan when wanted; P17 parked (user, November 22, 2026: very low priority) | — |

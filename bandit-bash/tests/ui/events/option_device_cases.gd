@@ -6,7 +6,7 @@
 # File:     option_device_cases.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -221,7 +221,7 @@ func _press_card(panel: EventPanel, device: String, index: int) -> bool:
 
 func _card_text(panel: EventPanel, index: int) -> String:
 	var cards: Array[EventOptionCard] = panel.get_cards()
-	return cards[index].text if index < cards.size() else ""
+	return cards[index].get_card_text() if index < cards.size() else ""
 
 
 # The weapon ids the Temper chooser lists for seat 0 of made, in its order.

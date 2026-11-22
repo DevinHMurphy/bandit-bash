@@ -69,9 +69,10 @@ word itself names the term, and its tooltip explains it.
   focus: the mouse can't reach it (pointing away hides it).
 - **Surfaces:** the item offer card, the heirloom offer card, the Armory and Guildhall stock
   cards (an heirloom's or rune's details and an item's effect lines), the purchase and Guildhall
-  panels' details, unit detail's trait rows and gear rows, and the heirloom bar's tooltip. The
-  event screen adopts `EffectText` in CO12; the battle log and the battle's rune picker stay
-  plain.
+  panels' details, unit detail's trait rows and gear rows, the heirloom bar's tooltip, and the
+  event screen's option cards and outcome summary (an option's heirloom and curse). The battle log
+  and the battle's rune picker stay plain. **Gap:** no focusable control holds the event outcome's
+  summary, so a pad reaches no keyword tooltip there.
 
 ## Glossary entries
 

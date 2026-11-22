@@ -215,6 +215,11 @@ team. Each event is marked; events without a mark are individual.
   - In solo there is no vote: you choose directly.
 - **Combat options are always team choices.** If the team picks a surprise combat, everyone fights
   it, each on their own parallel map, so nobody waits while a teammate fights alone.
+- **On the event screen** each player sees their own part and every teammate by name ("Player 2"
+  until Steam names reach the UI): each teammate's vote, then who has taken the drawn option; in an
+  individual event, what each teammate chose or that they are still choosing. A player who has
+  chosen waits on the outcome, Leave closed, until every teammate has; Team opens each teammate's
+  gold, army and heirlooms (campaign-run.md, Screens and seats).
 
 ## Not ported from Godot_FE
 

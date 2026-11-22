@@ -23,3 +23,10 @@ theme_type_variation = &"MutedLabel"
 text = "0 of 2 votes cast."
 horizontal_alignment = 1
 autowrap_mode = 3
+
+[node name="Seats" type="Label" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+horizontal_alignment = 1
