@@ -6,7 +6,7 @@
 # File:     combat_session.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 19, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name CombatSession
@@ -728,9 +728,9 @@ func describe_effect(fact: CombatFact) -> String:
 		if operation == null:
 			continue
 		if operation.is_inline():
-			inline_text.append(operation.describe())
+			inline_text.append(EffectTerms.plain_text(operation.describe()))
 		else:
-			queued_text.append(operation.describe())
+			queued_text.append(EffectTerms.plain_text(operation.describe()))
 	var done: PackedStringArray = []
 	if not inline_text.is_empty():
 		done.append("inline %s" % ["; ".join(inline_text)])

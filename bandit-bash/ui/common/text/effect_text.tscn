@@ -1,0 +1,23 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/common/text/effect_text.gd" id="1_text"]
+[ext_resource type="PackedScene" path="res://ui/common/text/keyword_tooltip.tscn" id="2_tip"]
+
+[node name="EffectText" type="RichTextLabel"]
+mouse_filter = 1
+theme_type_variation = &"EffectText"
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+autowrap_mode = 3
+meta_underlined = false
+script = ExtResource("1_text")
+tooltip_scene = ExtResource("2_tip")
+
+[node name="Tooltips" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+top_level = true
+z_index = 1
+layout_mode = 0
+mouse_filter = 2

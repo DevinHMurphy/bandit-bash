@@ -6,7 +6,7 @@
 # File:     effect_text_content_cases.gd
 # Author:
 # Created:  November 20, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -31,9 +31,10 @@ const BURGLAR_TEXT: String = (
 const KEY_TEXT: String = "Open a chest or door."
 const LOCKPICK_TEXT: String = "Open a chest or door. Lock pickers only."
 
-# Keywords that are also plain words, so their lower case is allowed ("that attack", "a hit").
+# Keywords that are also plain words, so their lower case is allowed ("that attack", "a hit",
+# "the darkness arrives").
 const PLAIN_WORDS: PackedStringArray = [
-	"Attack", "Hit", "Crit", "Range", "Magic", "Physical",
+	"Attack", "Hit", "Crit", "Range", "Magic", "Physical", "Darkness",
 ]
 
 # Words that only a value key's code name puts in text ("Unit Xp Percent").

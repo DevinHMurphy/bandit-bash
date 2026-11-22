@@ -36,7 +36,7 @@ Where the project is, what's next and what's out of scope. Start here.
 - **Milestones:** M0 and M1 are complete. **Current: M2 Combat complete,** with M3 started alongside.
 - **What runs today:** a solo run opens the M1 battle: the Mercenary army against the Brigand pack on the greybox map. All of M2's battle systems and functional UI work on keyboard, mouse and controller: targeting, forecast, intents, the darkness, every objective's HUD, unit detail, and Save & Quit with resume.
 - **What M2 still needs:** content, enemy AI, docs and bug fixes. No new systems.
-- **Tests:** 7,568 cases in 31 suites, all passing, and a clean headless launch (`sh bandit-bash/tools/run_tests.sh`).
+- **Tests:** 7,649 cases in 31 suites, all passing, and a clean headless launch (`sh bandit-bash/tools/run_tests.sh`).
 - **Not started:** P09 (approved) and P10–P12. P08 is in progress (RN1–RN5 merged).
 
 ## Milestones
@@ -72,13 +72,13 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P08 | [Campaign and run flow](2026-10-24-campaign-run-flow.md) | **Implemented** (RN12 docs merged November 21, 2026: [campaign-run.md](../design/campaign-run.md), save-system.md's run state) | P08 question 71 (the placeholder copy) to confirm | P01, P03 |
 | P09 | [Narrative events and curses](2026-11-12-events-and-curses.md) | **Done**: EV1, EV2, EV3 and EV5 merged November 19, 2026; EV1F, EV1G, EV4 and EV6 November 20 | — | P01, P03, P08 |
 | P10 | [Net transport](2026-11-19-net-transport.md) | **In progress**: NT1 and NT2 merged November 19, 2026; NT3 (every campaign and event command on the wire) November 21 | NT4 (after P11 question 4), then NT5–NT8 (Lane E) | P00, P01 |
-| P11 | [Co-op combat](2026-11-20-coop-combat.md) | **In progress** (approved November 20, 2026; CO6 to Lane C): CO9 merged November 21, 2026; CO10 (screens for the local seat) merged November 22, 2026; CO1 (co-op loss rules) merged November 22, 2026; CO6 building; every question answered in [decisions](decisions/P11-coop-combat.md) | CO2–CO8, CO11–CO21 | P01, P02, P04, P08, P10 |
+| P11 | [Co-op combat](2026-11-20-coop-combat.md) | **In progress** (approved November 20, 2026; CO6 to Lane C): CO9 merged November 21, 2026; CO10 (screens for the local seat) merged November 22, 2026; CO1 (co-op loss rules) merged November 22, 2026; CO6 (route votes) merged November 22, 2026; CO2 building; every question answered in [decisions](decisions/P11-coop-combat.md) | CO2–CO5, CO7, CO8, CO11–CO21 | P01, P02, P04, P08, P10 |
 | P12 | Statistics and the Waystation war table (meta-progression.md) | **Not started** | — | P01, P08 |
 | P13 | [RNG streams](2026-10-26-rng-streams.md) | **Implemented** | — | P00 |
 | P15 | UI lift ([ui-lift.md](../design/ui-lift.md); its scope doc is the plan) | **Implemented** November 19, 2026: UL0–UL8 and UL1F merged | — | P07, P08 |
 | P14 | [Project organization](2026-11-09-project-organization.md) | **In progress** | O8 concurrency tooling **merged** November 19, 2026 (every case file declares `const SUITE`, `tests/case_files.gd` finds it; `--quick` skips the map_set parts); O8b **merged** November 19, 2026 (`capture_screens.gd` is a runner over `tools/captures/<number>_<name>.gd` groups); O5 (deferred) | — |
 | P16 | Audio ([audio.md](../design/audio.md); its scope doc is the plan) | **In progress**: AU1 the audio layer merged November 19, 2026 | AU1 done; AU2+ sound design (M5, after the audio direction) | P07, P15 |
-| P17 | Localization: written, translatable descriptions; every string through Godot's translation; layouts that survive longer text and other scripts | **Scoping** (user, November 20, 2026): plan prompt offered (Lane F) | the plan | P03, P07, P08, P09, P15 |
+| P17 | Localization: written, translatable descriptions; every string through Godot's translation; layouts that survive longer text and other scripts | **Parked** (user, November 22, 2026: very low priority; not offered until the user raises it) | — | P03, P07, P08, P09, P15 |
 | P20–P24 | Meta progression, tutorials, dev console, status effects, shared co-op battles | Post-MVP | — | — |
 
 ## Next actions

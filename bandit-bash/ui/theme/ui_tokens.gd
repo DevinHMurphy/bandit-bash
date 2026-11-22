@@ -6,7 +6,7 @@
 # File:     ui_tokens.gd
 # Author:
 # Created:  November 18, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name UiTokens
@@ -54,11 +54,20 @@ const HEAL: StringName = &"heal"
 const BLOCK: StringName = &"block"
 ## The darkness's layers, its phase banner and its log lines.
 const DARKNESS: StringName = &"darkness"
+## [constant DANGER]'s hue light enough for text on [constant PANEL] and [constant PANEL_RAISED]
+## (4.5:1): damage keywords in effect text.
+const DANGER_TEXT: StringName = &"danger_text"
+## [constant HEAL]'s hue as text on panels (4.5:1): healing keywords in effect text.
+const HEAL_TEXT: StringName = &"heal_text"
+## [constant BLOCK]'s hue as text on panels (4.5:1): Block keywords in effect text.
+const BLOCK_TEXT: StringName = &"block_text"
+## [constant DARKNESS]'s hue as text on panels (4.5:1): the darkness keyword in effect text.
+const DARKNESS_TEXT: StringName = &"darkness_text"
 
 ## Every token, in the style guide's order.
 const ALL: Array[StringName] = [
 	BG, PANEL, PANEL_RAISED, BORDER, TEXT, TEXT_MUTED, ACCENT, PARCHMENT, DANGER, DANGER_FILL,
-	HEAL, BLOCK, DARKNESS,
+	HEAL, BLOCK, DARKNESS, DANGER_TEXT, HEAL_TEXT, BLOCK_TEXT, DARKNESS_TEXT,
 ]
 
 ## How opaque a disabled control is (the style guide's Disabled line).

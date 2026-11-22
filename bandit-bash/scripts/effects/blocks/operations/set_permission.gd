@@ -6,7 +6,7 @@
 # File:     set_permission.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 29, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 @tool
@@ -43,7 +43,7 @@ func _validate_property(property: Dictionary) -> void:
 
 
 func describe() -> String:
-	return EffectTerms.describe_modifier(permission, _mode(), 0.0, stat)
+	return EffectTerms.describe_modifier_marked(permission, _mode(), 0.0, stat)
 
 
 ## Always-on permissions are read by queries, not applied: this only reports a content error.

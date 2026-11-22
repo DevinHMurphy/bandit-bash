@@ -6,7 +6,7 @@
 # File:     item_offer_card.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name ItemOfferCard
@@ -14,7 +14,8 @@ extends Button
 ## One offer of an item pick, the Treasure chest or the starting offer: a pressable card with the
 ## item's icon ([member ItemDefinition.icon]), name, rarity and kind, a weapon's numbers
 ## ([method CombatResultsModel.item_details]), one line per effect
-## ([method EffectCarrierDefinition.describe]) and, at its bottom right, who can use it
+## ([method EffectCarrierDefinition.describe_marked], keywords coloured and explained by an
+## [EffectText]) and, at its bottom right, who can use it
 ## ([ItemUsableBy]). Long text wraps; the card grows to fit, and a row's cards share the tallest
 ## height, as their row container fills them.[br]
 ## Pressing it (click, or accept while focused) asks to take the item; its screen passes that on.
@@ -41,7 +42,7 @@ var item_name: String = ""
 @onready var _name_label: Label = %ItemName
 @onready var _details_label: Label = %Details
 @onready var _numbers_label: Label = %Numbers
-@onready var _effects_label: Label = %Effects
+@onready var _effects_text: EffectText = %Effects
 @onready var _usable_by: ItemUsableBy = %UsableBy
 
 
@@ -75,10 +76,10 @@ func show_item(
 	_numbers_label.text = "\n".join(details.slice(1))
 	_numbers_label.visible = details.size() > 1
 	var effects: PackedStringArray = (
-			PackedStringArray() if definition == null else definition.describe()
+			PackedStringArray() if definition == null else definition.describe_marked()
 	)
-	_effects_label.text = "\n".join(effects)
-	_effects_label.visible = not effects.is_empty()
+	_effects_text.marked_text = "\n".join(effects)
+	_effects_text.visible = not effects.is_empty()
 	_item_icon.texture = null if definition == null else definition.icon
 	_usable_by.show_users(definition, seat_run, catalog, ids)
 	if has_focus():
@@ -88,9 +89,10 @@ func show_item(
 ## Its lines as shown, for tests: name, rarity and kind, then a weapon's numbers and each effect.
 func get_lines() -> PackedStringArray:
 	var lines: PackedStringArray = [_name_label.text, _details_label.text]
-	for label: Label in [_numbers_label, _effects_label]:
-		if label.visible:
-			lines.append_array(label.text.split("\n"))
+	if _numbers_label.visible:
+		lines.append_array(_numbers_label.text.split("\n"))
+	if _effects_text.visible:
+		lines.append_array(_effects_text.get_plain_text().split("\n"))
 	return lines
 
 

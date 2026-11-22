@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://ui/campaign/purchase_panel.gd" id="1_panel"]
 [ext_resource type="PackedScene" path="res://ui/campaign/victory/reward_icon.tscn" id="2_icon"]
 [ext_resource type="PackedScene" path="res://ui/campaign/item_comparison.tscn" id="3_compare"]
+[ext_resource type="PackedScene" path="res://ui/common/text/effect_text.tscn" id="4_text"]
 
 [node name="PurchasePanel" type="Control"]
 layout_mode = 3
@@ -62,12 +63,11 @@ size_flags_vertical = 4
 theme_type_variation = &"HeaderLabel"
 text = "Buy item"
 
-[node name="Details" type="Label" parent="Center/Panel/Margin/Column"]
+[node name="Details" parent="Center/Panel/Margin/Column" instance=ExtResource("4_text")]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(528, 0)
 layout_mode = 2
-text = "Common weapon"
-autowrap_mode = 3
+marked_text = "Common weapon"
 
 [node name="ItemComparison" parent="Center/Panel/Margin/Column" instance=ExtResource("3_compare")]
 unique_name_in_owner = true

@@ -6,14 +6,15 @@
 # File:     heirloom_bar.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name HeirloomBar
 extends HBoxContainer
 ## The seat's heirlooms and curses in a row under the top header (ui-lift.md, Heirloom bar): one
 ## [HeirloomIcon] per held copy, heirlooms in gain order, a divider, then curses; a [GameTooltip]
-## under the icon pointed at. Hidden while the seat holds none.
+## under the icon pointed at, its keywords' [KeywordTooltip]s beside it. Hidden while the seat
+## holds none.
 ##
 ## Draws the [HeirloomViewModel]s it is handed ([method show_views]) and recounts nothing. Bound to
 ## a battle's session ([method bind]) it follows facts as they play: COUNTER_CHANGED moves its
@@ -308,15 +309,19 @@ func _show_tip(icon: HeirloomIcon) -> void:
 		_hide_tip()
 		return
 	_pointed = icon
-	_tooltip.show_tip(view.display_name, "\n".join(view.effect_lines), view.footer_text())
+	_tooltip.show_tip(view.display_name, "\n".join(view.marked_lines), view.footer_text())
 	_tooltip.visible = true
 	_place_tip()
-	# The tooltip refits a frame later when its text wraps; place it again then.
+	# The mouse can't reach the tooltip (pointing away hides it), so its keywords' tooltips show
+	# with it, beside it, by hover and by focus alike.
+	_tooltip.get_body().show_all_keywords()
+	# The tooltip refits a frame later when its text wraps; place it, and its keywords, again then.
 	_place_tip.call_deferred()
 
 
 func _hide_tip() -> void:
 	_pointed = null
+	_tooltip.get_body().hide_tooltips()
 	_tooltip.visible = false
 
 
@@ -328,6 +333,7 @@ func _place_tip() -> void:
 	at.x = clampf(at.x, 0.0, maxf(screen.x - _tooltip.size.x, 0.0))
 	at.y = clampf(at.y, 0.0, maxf(screen.y - _tooltip.size.y, 0.0))
 	_tooltip.global_position = at
+	_tooltip.get_body().place_tooltips()
 
 
 func _on_icon_pointed(icon: HeirloomIcon) -> void:

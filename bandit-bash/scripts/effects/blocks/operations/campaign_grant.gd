@@ -6,7 +6,7 @@
 # File:     campaign_grant.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 @tool
@@ -54,7 +54,7 @@ func describe() -> String:
 			return "recruit a unit" if definition_id.is_empty() else "recruit %s" % [definition_id]
 		Grant.RUNE:
 			return _grant_text("a rune", "the rune")
-	return "gain %d Gold" % [amount]
+	return "gain %d [kw=gold]Gold[/kw]" % [amount]
 
 
 ## Adds the grant, for the owner's seat, to [member EffectEngine.grants]. A sandbox's engine keeps

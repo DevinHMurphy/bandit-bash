@@ -6,7 +6,7 @@
 # File:     catalog_cases.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -37,6 +37,7 @@ const _NOT_CONTENT_FOLDERS: PackedStringArray = [
 	"res://data/campaign/",
 	"res://data/audio/",
 	"res://data/events/",
+	"res://data/keywords/",
 ]
 
 # Each bad tree and the one rule it breaks, checked against the real price table.

@@ -6,7 +6,7 @@
 # File:     deal_splash.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: October 26, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 @tool
@@ -30,8 +30,8 @@ func describe() -> String:
 	var who: String = "this unit" if target == null else target.describe()
 	var how_much: String = "?" if amount == null else amount.describe()
 	if amount is Constant:
-		return "deal %s splash damage to %s" % [how_much, who]
-	return "deal splash damage equal to %s to %s" % [how_much, who]
+		return "deal %s splash [kw=damage]damage[/kw] to %s" % [how_much, who]
+	return "deal splash [kw=damage]damage[/kw] equal to %s to %s" % [how_much, who]
 
 
 ## Picks the targets, evaluates the amount once, and deals it to each through

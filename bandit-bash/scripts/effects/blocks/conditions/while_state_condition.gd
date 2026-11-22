@@ -6,7 +6,7 @@
 # File:     while_state_condition.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 18, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 @tool
@@ -104,7 +104,9 @@ func describe() -> String:
 			if is_opponent:
 				return "while the opponent %s" % [text]
 			return "while %s" % [text]
-	var state_name: String = (State.find_key(state) as String).capitalize()
+	var state_name: String = EffectTerms.mark_if_keyword(
+			(State.find_key(state) as String).capitalize()
+	)
 	if is_opponent:
 		return "while the opponent is %s" % [state_name]
 	return "while %s" % [state_name]

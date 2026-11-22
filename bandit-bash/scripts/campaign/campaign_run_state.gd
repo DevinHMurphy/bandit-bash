@@ -6,7 +6,7 @@
 # File:     campaign_run_state.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 20, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name CampaignRunState
@@ -41,6 +41,7 @@ const _KEY_GRAPH: String = "graph"
 const _KEY_VISITED: String = "visited"
 const _KEY_FLOOR: String = "floor"
 const _KEY_NODE: String = "node"
+const _KEY_VOTES: String = "votes"
 
 # The combat report's keys. Never change them: saved runs are read by these names.
 const _KEY_GRADES: String = "grades"
@@ -61,6 +62,11 @@ var floor_number: int = 0
 
 ## The node the run last entered; [constant CampaignGraph.NO_NODE] before the first.
 var node: int = CampaignGraph.NO_NODE
+
+## Each seat's co-op route vote, by seat: a node id, set by [RouteVoteCommand] and saved with the
+## map. Votes for the next nodes are the open vote ([method open_route_votes]); after the draw they
+## stay, on the floor entered, until the next floor's first vote. [b]Empty:[/b] no votes.
+var route_votes: Dictionary[int, int] = {}
 
 ## The stage within [member node], and the state every seat shares.
 var flow: RunFlow = RunFlow.new()
@@ -108,8 +114,8 @@ func node_type() -> CampaignGraph.NodeType:
 
 
 ## The nodes the run can enter next, in id order: on the map, the children of [member node], or
-## every floor-1 node before the first; empty inside a node. [ChooseNodeCommand] accepts exactly
-## these.
+## every floor-1 node before the first; empty inside a node. [ChooseNodeCommand] and
+## [RouteVoteCommand] accept exactly these.
 func next_nodes() -> PackedInt32Array:
 	if not is_on_map() or graph == null:
 		return PackedInt32Array()
@@ -119,6 +125,17 @@ func next_nodes() -> PackedInt32Array:
 	)
 	found.sort()
 	return found
+
+
+## The open route vote: each seat's vote in [member route_votes] for one of [method next_nodes],
+## by seat. Empty inside a node, and after a draw until the next floor's first vote.
+func open_route_votes() -> Dictionary[int, int]:
+	var next: PackedInt32Array = next_nodes()
+	var open: Dictionary[int, int] = {}
+	for seat: int in route_votes:
+		if next.has(route_votes[seat]):
+			open[seat] = route_votes[seat]
+	return open
 
 
 ## Whether the run's Boss is beaten: the run is at the results of a Boss node, which only a won
@@ -158,7 +175,7 @@ func resolve(command: CampaignCommand) -> CampaignBatch:
 
 
 ## Enters [param node_id] on the next floor and locks that floor: the rules of
-## [ChooseNodeCommand], which checks the move first.
+## [ChooseNodeCommand] and [RouteVoteCommand]'s draw, which check the move first.
 func enter_node(node_id: int) -> void:
 	visited.append(node_id)
 	floor_number = graph.floor_of(node_id)
@@ -298,22 +315,28 @@ func apply_battle(
 	return next
 
 
-## The map and the route taken as plain JSON, for the [code]campaign_map[/code] section.
+## The map, the route taken and the route votes as plain JSON, for the [code]campaign_map[/code]
+## section; votes are keyed by seat as decimal strings.
 func capture_map() -> Dictionary:
 	var route: Array[int] = []
 	for node_id: int in visited:
 		route.append(node_id)
+	var votes: Dictionary = {}
+	for seat: int in route_votes:
+		votes[str(seat)] = route_votes[seat]
 	return {
 		_KEY_GRAPH: graph.to_dict() if graph != null else {},
 		_KEY_VISITED: route,
 		_KEY_FLOOR: floor_number,
 		_KEY_NODE: node,
+		_KEY_VOTES: votes,
 	}
 
 
-## Takes the map [param data], as [method capture_map] wrote it. Returns
-## [constant ERR_INVALID_DATA], changing nothing, for a graph [method CampaignGraph.from_dict]
-## refuses or a route that breaks the route invariant (see the class doc).
+## Takes the map [param data], as [method capture_map] wrote it; data with no votes (saved before
+## them) has none. Returns [constant ERR_INVALID_DATA], changing nothing, for a graph
+## [method CampaignGraph.from_dict] refuses, a route that breaks the route invariant (see the class
+## doc), or votes that aren't all choices of one move: the next one, or the last one made.
 func restore_map(data: Dictionary) -> Error:
 	var graph_data: Variant = data.get(_KEY_GRAPH)
 	var read_graph: CampaignGraph = (
@@ -332,11 +355,15 @@ func restore_map(data: Dictionary) -> Error:
 		read_route.append(node_id as int)
 	if not _is_route(read_graph, read_route, read_floor as int, read_node as int):
 		return _refuse("map", data)
+	var read_votes: Dictionary[int, int] = {}
+	if not _read_votes(data.get(_KEY_VOTES, {}), read_graph, read_route, read_votes):
+		return _refuse("map", data)
 
 	graph = read_graph
 	visited = read_route
 	floor_number = read_floor as int
 	node = read_node as int
+	route_votes = read_votes
 	return OK
 
 
@@ -625,6 +652,43 @@ static func _is_route(
 			return false
 		previous = node_id
 	return last_node == previous
+
+
+# Reads data's votes into into, by seat, checked against map and route (already a valid route):
+# every vote a node one move could reach, all from one move: the next one (votes still open), or
+# the last one made (votes kept after the draw). False, with into partly filled, for any other.
+static func _read_votes(
+		data: Variant, map: CampaignGraph, route: PackedInt32Array, into: Dictionary[int, int]
+) -> bool:
+	if not data is Dictionary:
+		return false
+	var votes: Dictionary = data
+	var vote_floor: int = -1
+	for key: Variant in votes:
+		var node_id: Variant = whole_number(votes[key])
+		if (
+				not key is String or not (key as String).is_valid_int()
+				or (key as String).to_int() < 0
+				or node_id == null or not map.has_node_id(node_id as int)
+		):
+			return false
+		var at_floor: int = map.floor_of(node_id as int)
+		if vote_floor != -1 and at_floor != vote_floor:
+			return false
+		vote_floor = at_floor
+		into[(key as String).to_int()] = node_id as int
+	if into.is_empty():
+		return true
+	if vote_floor != route.size() + 1 and vote_floor != route.size():
+		return false
+	var from: int = route[vote_floor - 2] if vote_floor >= 2 else CampaignGraph.NO_NODE
+	var reachable: PackedInt32Array = (
+			map.nodes_on_floor(1) if from == CampaignGraph.NO_NODE else map.children_of(from)
+	)
+	for seat: int in into:
+		if not reachable.has(into[seat]):
+			return false
+	return true
 
 
 ## One seat's combat report, as [method read_combat_report] reads it: what Results shows.
