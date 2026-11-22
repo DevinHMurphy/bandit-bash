@@ -6,14 +6,14 @@
 # File:     node_fixture.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 extends RefCounted
 ## Shared setup for the Treasure and Camp cases (treasure_cases.gd, camp_cases.gd): real runs from
 ## the real catalog and map rules, solo or two-seat, put inside a node of a wanted type on a route
-## the run's own checks accept; a run through JSON, as a quit and Continue gives it back; and the
-## fact kinds a run recorded. Static; never instanced.
+## the run's own checks accept, or moved there as its team does; a run through JSON, as a quit and
+## Continue gives it back; and the fact kinds a run recorded. Static; never instanced.
 
 const RULES_PATH: String = "res://data/campaign/campaign_map_rules.tres"
 const MERCENARY: String = "mercenary"
@@ -115,6 +115,21 @@ static func kinds(batch: CampaignBatch) -> Array[CampaignFact.Kind]:
 ## Whether [param seat_run]'s roster invariant holds: a restore of its capture accepts it.
 static func is_whole(seat_run: SeatRun) -> bool:
 	return SeatRun.new(seat_run.seat).restore_roster(seat_run.capture_roster()) == OK
+
+
+## Moves [param made]'s run to [param node] as its team does: a solo run's [ChooseNodeCommand], or
+## every seat's [RouteVoteCommand] for it, in seat order, so the last vote draws it for certain.
+## Returns the last batch; null with no run.
+static func choose(made: CampaignSession, node: int) -> CampaignBatch:
+	if made == null or made.run == null:
+		return null
+	var seats: PackedInt32Array = made.run.seat_numbers()
+	if seats.size() < 2:
+		return made.submit(ChooseNodeCommand.new(seats[0] if not seats.is_empty() else 0, node))
+	var batch: CampaignBatch = null
+	for seat: int in seats:
+		batch = made.submit(RouteVoteCommand.for_session(made, seat, node))
+	return batch
 
 
 ## A new item of [param definition_id] in [param seat_run]'s convoy, its id from [param ids].

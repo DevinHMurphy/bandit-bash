@@ -6,20 +6,18 @@
 # File:     choose_node_command.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 21, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name ChooseNodeCommand
 extends CampaignCommand
-## The team moves to a node on the next floor: it locks that floor and enters the node
+## A solo run moves to a node on the next floor: it locks that floor and enters the node
 ## ([method CampaignRunState.enter_node]), recording [constant CampaignFact.Kind.NODE_CHOSEN].
 ##
-## Valid only on the map, for a node on the floor above the current one that the current node leads
-## to (any node on floor 1 before the first), once every seat has resolved its [StartingOffer]
-## (heirlooms.md: the pick comes before the first node). Once one resolves the run is inside a
-## node, so a second choice for the same floor, from any seat, is rejected: the first arrival
-## wins. In co-op this carries the route the host drew from the votes. The node's own rules are
-## not run here.
+## Valid for a node [method route_problem] accepts. Once one resolves the run is inside a node, so
+## a second choice for the same floor is rejected. In co-op it is refused, even for a node it would
+## accept: the team votes ([RouteVoteCommand]), and the vote that completes the set enters the
+## drawn node. The node's own rules are not run here.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 
@@ -40,17 +38,11 @@ func get_label() -> String:
 
 
 func validate(run: CampaignRunState) -> String:
-	if not run.is_on_map():
-		return "the run is inside node %d" % [run.node]
-	for waiting: int in run.seat_numbers():
-		if StartingOffer.is_open(run.seat_run(waiting)):
-			return "seat %d hasn't taken its starting heirloom" % [waiting]
-	if not run.graph.has_node_id(node_id):
-		return "the map has no node %d" % [node_id]
-	if run.graph.floor_of(node_id) != run.floor_number + 1:
-		return "node %d isn't on floor %d" % [node_id, run.floor_number + 1]
-	if run.node != CampaignGraph.NO_NODE and not run.graph.children_of(run.node).has(node_id):
-		return "node %d doesn't lead to node %d" % [run.node, node_id]
+	var problem: String = ChooseNodeCommand.route_problem(run, node_id)
+	if not problem.is_empty():
+		return problem
+	if run.seats.size() > 1:
+		return "the team votes on its route in co-op"
 	return ""
 
 
@@ -77,3 +69,22 @@ func _read_wire_fields(values: Array) -> bool:
 		return false
 	node_id = node
 	return true
+
+
+## Why [param run] can't move to [param node] now; empty when it can. A move is valid only on the
+## map, for a node on the floor above the current one that the current node leads to (any node on
+## floor 1 before the first), once every seat has resolved its [StartingOffer] (heirlooms.md: the
+## pick comes before the first node). [RouteVoteCommand] votes under the same rule.
+static func route_problem(run: CampaignRunState, node: int) -> String:
+	if not run.is_on_map():
+		return "the run is inside node %d" % [run.node]
+	for waiting: int in run.seat_numbers():
+		if StartingOffer.is_open(run.seat_run(waiting)):
+			return "seat %d hasn't taken its starting heirloom" % [waiting]
+	if not run.graph.has_node_id(node):
+		return "the map has no node %d" % [node]
+	if run.graph.floor_of(node) != run.floor_number + 1:
+		return "node %d isn't on floor %d" % [node, run.floor_number + 1]
+	if run.node != CampaignGraph.NO_NODE and not run.graph.children_of(run.node).has(node):
+		return "node %d doesn't lead to node %d" % [run.node, node]
+	return ""
