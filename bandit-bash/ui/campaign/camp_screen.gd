@@ -6,33 +6,37 @@
 # File:     camp_screen.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 extends Control
-## A Camp: choose one of Feast or Train ([CampChoiceCard]s), re-gear freely alongside
-## ([ArmyView] in its re-gear mode), then Leave, under the run's header and [HeirloomBar].
+## A Camp for the local seat: choose one of Feast or Train ([CampChoiceCard]s), re-gear freely
+## alongside ([ArmyView] in its re-gear mode), then Leave, under the run's header and
+## [HeirloomBar]. In co-op, each teammate's choice shows ([CampTeamStatus]) and Team opens the
+## [TeamPanel].
 ##
 ## Feast asks which ingredient to cook, or none ([IngredientPanel]), then sends [FeastCommand];
 ## Train asks which unit ([UnitChoicePanel]) and sends [TrainCommand]. A choice that can't be made
 ## says why on its card; once one is made both cards say so, and Leave ([LeaveNodeCommand]) opens
-## up. Every command goes through [method CampaignService.submit_command], which saves, so a quit
-## and Continue returns here with the choice as made; a rejection shows its reason and changes
-## nothing. The run's facts play ([CampaignPlayback]) as each resolves. Opened at any other stage,
-## it sends the run on at once.
+## up. Every command goes through a [CampaignLink], which saves, so a quit and Continue returns
+## here with the choice as made; a refusal shows its reason (in co-op, a teammate still choosing).
+## Every batch rebuilds the screen, and once any seat's Leave resolves the run returns to the map.
+## The run's facts play ([CampaignPlayback]) after each batch. Opened at any other stage, it sends
+## the run on at once.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 
 # ============================================================
 # INPUT MAP SETUP (built-in ui_* actions, read through the GUI; the panels read their own
 # ui_cancel first):
-#   "ui_left" / "ui_right" -> arrows; d-pad, left stick      (between the cards; the buttons)
+#   "ui_left" / "ui_right" -> arrows; d-pad, left stick      (between the cards; the buttons, Team
+#                             among them in co-op)
 #   "ui_up" / "ui_down"    -> arrows; d-pad, left stick      (cards to buttons; a panel's column;
-#                             the army view's rows)
+#                             the army view's rows; the team panel's rows)
 #   "ui_accept"            -> Enter, Space; pad A [Cross]    (press the focused card or button)
 #   "ui_cancel"            -> Esc; pad B [Circle], Menu [Options] (the pause menu reads it; read
 #                             here in _input while the unit choice shows: Back; the ingredient
-#                             panel and army view read their own)
+#                             panel, army view and team panel read their own)
 #   "heirloom_bar_focus"   -> H; RS pushed left [R stick]    (read by the HeirloomBar: focuses
 #                             it, then back; hints HEIRLOOMS meanwhile)
 #   Mouse: clicks on the cards, buttons and choices; hovering an heirloom shows its tooltip.
@@ -56,19 +60,23 @@ const CHOICE_NAMES: Dictionary[Camp.Choice, String] = {
 var _is_leaving: bool = false
 var _seat: int = 0
 var _context: StringName = HINT_CHOOSE
+var _link: CampaignLink = null
 
 @onready var _header: RunHeader = %RunHeader
 @onready var _heirlooms: HeirloomBar = %HeirloomBar
 @onready var _feast_card: CampChoiceCard = %FeastCard
 @onready var _train_card: CampChoiceCard = %TrainCard
+@onready var _team_status: CampTeamStatus = %CampTeamStatus
 @onready var _status_label: Label = %Status
 @onready var _army_button: Button = %ArmyButton
 @onready var _leave_button: Button = %LeaveButton
+@onready var _team_button: Button = %TeamButton
 @onready var _ingredients: IngredientPanel = %IngredientPanel
 @onready var _train_overlay: Control = %TrainOverlay
 @onready var _train_backdrop: ColorRect = %TrainBackdrop
 @onready var _unit_choice: UnitChoicePanel = %UnitChoicePanel
 @onready var _army_view: ArmyView = %ArmyView
+@onready var _team_panel: TeamPanel = %TeamPanel
 @onready var _hints: ScreenHints = %ScreenHints
 
 
@@ -78,7 +86,10 @@ func _ready() -> void:
 		_is_leaving = true
 		RunScreen.go()
 		return
-	_seat = session.seats[0]
+	_seat = CampaignService.local_seat()
+	_link = CampaignLink.new(session, _seat, CampaignService.submit_command)
+	_link.batch_resolved.connect(_on_link_batch_resolved)
+	_link.refused.connect(_on_link_refused)
 	_header.title = "Camp"
 	_train_overlay.visible = false
 	_train_backdrop.color = UiTokens.with_alpha(UiTokens.BG, _ingredients.backdrop_alpha)
@@ -88,6 +99,8 @@ func _ready() -> void:
 	_train_card.pressed.connect(_on_train_card_pressed)
 	_army_button.pressed.connect(_on_army_button_pressed)
 	_leave_button.pressed.connect(_on_leave_button_pressed)
+	_team_button.visible = _link.is_coop()
+	_team_button.pressed.connect(_on_team_button_pressed)
 	_ingredients.ingredient_chosen.connect(_on_ingredients_ingredient_chosen)
 	_ingredients.cancelled.connect(_on_panel_cancelled)
 	_unit_choice.unit_chosen.connect(_on_unit_choice_unit_chosen)
@@ -98,6 +111,11 @@ func _ready() -> void:
 	_set_context(HINT_CHOOSE)
 	CampaignPlayback.play_pending(session)
 	_focus_default.call_deferred()
+
+
+func _exit_tree() -> void:
+	if _link != null:
+		_link.close()
 
 
 func _input(event: InputEvent) -> void:
@@ -127,6 +145,16 @@ func get_leave_button() -> Button:
 	return _leave_button
 
 
+## The Team button, shown in co-op, for tests.
+func get_team_button() -> Button:
+	return _team_button
+
+
+## The teammates' choices, for tests.
+func get_team_status() -> CampTeamStatus:
+	return _team_status
+
+
 ## The ingredient panel, for tests.
 func get_ingredient_panel() -> IngredientPanel:
 	return _ingredients
@@ -147,12 +175,18 @@ func get_army_view() -> ArmyView:
 	return _army_view
 
 
+## The team panel, for tests and captures.
+func get_team_panel() -> TeamPanel:
+	return _team_panel
+
+
 ## The status line's text, for tests.
 func get_status_text() -> String:
 	return _status_label.text
 
 
-# Shows the run as saved: the header, the bar, the two cards and whether Leave can go.
+# Shows the run as saved: the header, the bar, the two cards, the teammates' choices and whether
+# Leave can go.
 func _refresh() -> void:
 	var session: CampaignSession = CampaignService.session
 	var run: CampaignRunState = session.run
@@ -178,6 +212,7 @@ func _refresh() -> void:
 		"Upgrade one unit: its \"+\" trait and stat gains.",
 		"The commander is never upgraded.",
 	]), train_refusal)
+	_team_status.show_choices(run, _link.teammates())
 	var can_leave: bool = chosen != Camp.Choice.NONE
 	_leave_button.disabled = not can_leave
 	_leave_button.focus_mode = Control.FOCUS_ALL if can_leave else Control.FOCUS_NONE
@@ -199,24 +234,6 @@ func _set_context(context: StringName) -> void:
 	_hints.context = context
 
 
-# Sends command; on a rejection says why where the player is looking and returns false.
-func _submit(command: CampaignCommand) -> bool:
-	var batch: CampaignBatch = CampaignService.submit_command(command)
-	if batch == null or batch.is_rejected():
-		var reason: String = "Can't do that: %s." % [
-			batch.rejected_reason if batch != null else "no run in progress"
-		]
-		if _ingredients.visible:
-			_ingredients.show_problem(reason)
-		elif _army_view.visible:
-			_army_view.show_problem(reason)
-		else:
-			_status_label.text = reason
-		return false
-	CampaignPlayback.play_pending(CampaignService.session)
-	return true
-
-
 # Back to the cards after a panel, focusing Leave once the choice is made.
 func _back_to_choices() -> void:
 	_ingredients.close()
@@ -224,6 +241,14 @@ func _back_to_choices() -> void:
 	_set_context(HINT_CHOOSE)
 	_refresh()
 	_focus_default()
+
+
+# Each teammate's choice as a note for the team panel's rows.
+func _team_notes() -> Dictionary[int, String]:
+	var notes: Dictionary[int, String] = {}
+	for teammate: int in _link.teammates():
+		notes[teammate] = CampTeamStatus.choice_text(_link.session.run, teammate)
+	return notes
 
 
 func _on_feast_card_pressed() -> void:
@@ -248,17 +273,22 @@ func _on_army_button_pressed() -> void:
 	_set_context(HINT_ARMY)
 
 
+func _on_team_button_pressed() -> void:
+	_team_panel.open(_link.session, _seat, _team_notes())
+
+
 func _on_leave_button_pressed() -> void:
 	if _is_leaving:
 		return
-	if not _submit(LeaveNodeCommand.new(_seat)):
-		return
-	_is_leaving = true
-	RunScreen.go()
+	_link.send(LeaveNodeCommand.new(_seat))
 
 
 func _on_ingredients_ingredient_chosen(item_id: String) -> void:
-	if not _submit(FeastCommand.new(_seat, item_id)):
+	_link.send(FeastCommand.new(_seat, item_id), _on_feast_resolved.bind(item_id))
+
+
+func _on_feast_resolved(_batch: CampaignBatch, item_id: String) -> void:
+	if _is_leaving:
 		return
 	_status_label.text = (
 			"The army feasted." if item_id.is_empty()
@@ -268,7 +298,11 @@ func _on_ingredients_ingredient_chosen(item_id: String) -> void:
 
 
 func _on_unit_choice_unit_chosen(unit_id: String) -> void:
-	if not _submit(TrainCommand.new(_seat, unit_id)):
+	_link.send(TrainCommand.new(_seat, unit_id), _on_train_resolved.bind(unit_id))
+
+
+func _on_train_resolved(_batch: CampaignBatch, unit_id: String) -> void:
+	if _is_leaving:
 		return
 	var session: CampaignSession = CampaignService.session
 	_status_label.text = "%s trained." % [CombatResultsModel.unit_name(
@@ -282,10 +316,42 @@ func _on_panel_cancelled() -> void:
 
 
 func _on_army_view_command_ready(command: CampaignCommand) -> void:
-	if not _submit(command):
+	_link.send(command)
+
+
+# Any seat's batch: one the screen follows plays its facts and, once the run left the Camp, moves
+# the screen on; while the run is still here the screen shows it again, the army view only when
+# the batch changed this seat's part, so a teammate's choice never drops an item being moved.
+func _on_link_batch_resolved(batch: CampaignBatch, is_answer: bool) -> void:
+	if _is_leaving:
 		return
-	_header.show_run(CampaignService.session.run, _seat)
-	_army_view.refresh()
+	var follows: bool = _link.moves_with(batch, is_answer)
+	if follows:
+		CampaignPlayback.play_pending(_link.session)
+	if RunScreen.of(_link.session) != SceneRouter.Screen.CAMP:
+		if follows:
+			_is_leaving = true
+			RunScreen.go()
+		return
+	if _army_view.visible:
+		_header.show_run(_link.session.run, _seat)
+		_team_status.show_choices(_link.session.run, _link.teammates())
+		if _link.touches_seat(batch):
+			_army_view.refresh()
+	else:
+		_refresh()
+	_team_panel.refresh(_team_notes())
+
+
+# A refusal says why where the player is looking.
+func _on_link_refused(reason: String) -> void:
+	var shown: String = "Can't do that: %s." % [reason]
+	if _ingredients.visible:
+		_ingredients.show_problem(shown)
+	elif _army_view.visible:
+		_army_view.show_problem(shown)
+	else:
+		_status_label.text = shown
 
 
 func _on_army_view_closed() -> void:

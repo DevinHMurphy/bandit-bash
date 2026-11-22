@@ -6,7 +6,7 @@
 # File:     starting_heirloom_screen.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 extends Control
@@ -14,11 +14,12 @@ extends Control
 ## first choice): the [StartingOfferView] over the run's header and [HeirloomBar]. The faction and
 ## commander pickers before it are skipped while the MVP has one of each.
 ##
-## The view's command goes through [method CampaignService.submit_command], which saves; a
-## rejection shows its reason on the view and changes nothing. Once it resolves, the run's facts
-## play ([CampaignPlayback]), the bar shows the new heirloom and the run goes to the map
-## ([method RunScreen.go]). A quit before then Continues here with the same offer, saved in the
-## seat's pending offers. Opened at any other stage, it sends the run on at once.
+## The local seat's offer. The view's command goes through a [CampaignLink], which saves; a
+## refusal shows its reason on the view and changes nothing. Once the seat's pick resolves, the
+## run's facts play ([CampaignPlayback]), the bar shows the new heirloom and the run goes to the
+## map ([method RunScreen.go]); a teammate's pick shows the header and bar again. A quit before
+## then Continues here with the same offer, saved in the seat's pending offers. Opened at any
+## other stage, it sends the run on at once.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 
@@ -47,6 +48,7 @@ const HINT_CONTEXTS: Dictionary[StartingOfferView.Step, StringName] = {
 
 var _is_leaving: bool = false
 var _step_context: StringName = &"OFFER"
+var _link: CampaignLink = null
 
 @onready var _header: RunHeader = %RunHeader
 @onready var _heirlooms: HeirloomBar = %HeirloomBar
@@ -60,16 +62,24 @@ func _ready() -> void:
 		_is_leaving = true
 		RunScreen.go()
 		return
-	var seat: int = session.seats[0]
-	_header.show_run(session.run, seat)
+	_link = CampaignLink.new(
+			session, CampaignService.local_seat(), CampaignService.submit_command
+	)
+	_link.batch_resolved.connect(_on_link_batch_resolved)
+	_link.refused.connect(_on_link_refused)
+	_show_seat()
 	_header.title = "Starting heirloom"
-	_heirlooms.show_views(HeirloomViewModel.for_run(session.run.seat_run(seat)))
 	_heirlooms.navigation_started.connect(_on_heirloom_bar_navigation_started)
 	_heirlooms.navigation_ended.connect(_on_heirloom_bar_navigation_ended)
 	_view.step_changed.connect(_on_view_step_changed)
 	_view.command_ready.connect(_on_view_command_ready)
-	_view.open(session, seat)
+	_view.open(session, _link.seat)
 	CampaignPlayback.play_pending(session)
+
+
+func _exit_tree() -> void:
+	if _link != null:
+		_link.close()
 
 
 ## The offer view, for tests and captures.
@@ -82,20 +92,35 @@ func get_heirloom_bar() -> HeirloomBar:
 	return _heirlooms
 
 
+# The header and heirloom bar for the local seat, as the run saved them.
+func _show_seat() -> void:
+	var run: CampaignRunState = _link.session.run
+	_header.show_run(run, _link.seat)
+	_heirlooms.show_views(HeirloomViewModel.for_run(run.seat_run(_link.seat)))
+
+
 func _on_view_command_ready(command: StartingHeirloomCommand) -> void:
 	if _is_leaving:
 		return
-	var session: CampaignSession = CampaignService.session
-	var batch: CampaignBatch = CampaignService.submit_command(command)
-	if batch == null or batch.is_rejected():
-		_view.show_problem("Can't take it: %s." % [
-			batch.rejected_reason if batch != null else "no run in progress",
-		])
+	_link.send(command)
+
+
+# Any seat's batch: one the screen follows plays its facts; the seat's parts show again; once the
+# seat's own offer is settled, a batch it follows moves the run to the map.
+func _on_link_batch_resolved(batch: CampaignBatch, is_answer: bool) -> void:
+	if _is_leaving:
 		return
-	_is_leaving = true
-	CampaignPlayback.play_pending(session)
-	_heirlooms.show_views(HeirloomViewModel.for_run(session.run.seat_run(session.seats[0])))
-	RunScreen.go()
+	var follows: bool = _link.moves_with(batch, is_answer)
+	if follows:
+		CampaignPlayback.play_pending(_link.session)
+	_show_seat()
+	if follows and RunScreen.of(_link.session) != SceneRouter.Screen.STARTING_HEIRLOOM:
+		_is_leaving = true
+		RunScreen.go()
+
+
+func _on_link_refused(reason: String) -> void:
+	_view.show_problem("Can't take it: %s." % [reason])
 
 
 func _on_view_step_changed(step: StartingOfferView.Step) -> void:

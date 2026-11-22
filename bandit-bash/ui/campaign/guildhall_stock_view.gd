@@ -6,7 +6,7 @@
 # File:     guildhall_stock_view.gd
 # Author:
 # Created:  November 20, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name GuildhallStockView
@@ -39,7 +39,8 @@ var _indexes: Dictionary[Button, int] = {}
 
 
 ## Shows the stock of [param run]'s Guildhall for seat [param seat], from [param catalog]: each
-## entry's card, refused for [method Guildhall.entry_problem]. Nothing for no stock.
+## entry's card, refused for [method GuildhallModel.entry_refusal] (a teammate's purchase reads
+## "bought by" them). Nothing for no stock.
 func show_stock(run: CampaignRunState, seat: int, catalog: EffectCatalog.Index) -> void:
 	for child: Node in get_children():
 		remove_child(child)
@@ -59,7 +60,7 @@ func show_stock(run: CampaignRunState, seat: int, catalog: EffectCatalog.Index) 
 		card.show_recruit(offer, catalog)
 		card.show_price(
 				GuildhallModel.entry_price_text(run, seat, index, catalog),
-				Guildhall.entry_problem(run, seat, index, catalog)
+				GuildhallModel.entry_refusal(run, seat, index, catalog)
 		)
 		_add(card, index)
 	var runes: HFlowContainer = _row("Runes")
@@ -74,7 +75,7 @@ func show_stock(run: CampaignRunState, seat: int, catalog: EffectCatalog.Index) 
 				GuildhallModel.rune_details(entry.definition_id, catalog),
 				GuildhallModel.entry_price_text(run, seat, index, catalog),
 				icon,
-				Guildhall.entry_problem(run, seat, index, catalog)
+				GuildhallModel.entry_refusal(run, seat, index, catalog)
 		)
 		_add(card, index)
 

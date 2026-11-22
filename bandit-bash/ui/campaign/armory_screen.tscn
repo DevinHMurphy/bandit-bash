@@ -9,6 +9,7 @@
 [ext_resource type="PackedScene" path="res://ui/campaign/stock_view.tscn" id="7_stock"]
 [ext_resource type="PackedScene" path="res://ui/campaign/purchase_panel.tscn" id="8_purchase"]
 [ext_resource type="PackedScene" path="res://ui/common/heirlooms/heirloom_bar.tscn" id="9_heirlooms"]
+[ext_resource type="PackedScene" path="res://ui/campaign/team_panel.tscn" id="10_team"]
 
 [node name="ArmoryScreen" type="Control"]
 layout_mode = 3
@@ -79,6 +80,13 @@ layout_mode = 2
 theme_type_variation = &"PrimaryButton"
 text = "Leave"
 
+[node name="TeamButton" type="Button" parent="Layout/Column/Scroll/Center/Box/Footer"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(120, 36)
+layout_mode = 2
+text = "Team"
+
 [node name="Status" type="Label" parent="Layout/Column/Scroll/Center/Box/Footer"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(560, 0)
@@ -91,6 +99,11 @@ autowrap_mode = 3
 unique_name_in_owner = true
 layout_mode = 1
 
+[node name="TeamPanel" parent="." node_paths=PackedStringArray("hints") instance=ExtResource("10_team")]
+unique_name_in_owner = true
+layout_mode = 1
+hints = NodePath("../ScreenHints")
+
 [node name="InputDeviceAdapter" parent="." instance=ExtResource("3_device")]
 
 [node name="ScreenHints" type="Node" parent="."]
@@ -99,7 +112,9 @@ script = ExtResource("4_hints")
 actions = Dictionary[StringName, PackedStringArray]({
 &"STOCK": PackedStringArray("ui_left", "ui_right", "ui_up", "ui_down", "ui_accept", "heirloom_bar_focus", "ui_cancel"),
 &"BUY": PackedStringArray("ui_up", "ui_down", "ui_accept", "ui_cancel"),
-&"HEIRLOOMS": PackedStringArray("ui_left", "ui_right", "ui_cancel", "heirloom_bar_focus")
+&"HEIRLOOMS": PackedStringArray("ui_left", "ui_right", "ui_cancel", "heirloom_bar_focus"),
+&"TEAM": PackedStringArray("ui_up", "ui_down", "ui_accept", "ui_cancel"),
+&"TEAM_HEIRLOOMS": PackedStringArray("ui_left", "ui_right", "ui_cancel")
 })
 
 [node name="ControlHintBar" parent="." node_paths=PackedStringArray("controller", "device") instance=ExtResource("5_bar")]
@@ -117,6 +132,10 @@ labels = Dictionary[String, String]({
 "HEIRLOOMS/ui_cancel": "Close",
 "HEIRLOOMS/ui_left": "Choose",
 "HEIRLOOMS/ui_right": "Choose",
+"TEAM/ui_accept": "Heirlooms",
+"TEAM/ui_cancel": "Close",
+"TEAM_HEIRLOOMS/ui_left": "Choose",
+"TEAM_HEIRLOOMS/ui_right": "Choose",
 "PAUSED/ui_cancel": "Resume",
 "PAUSED/ui_down": "Choose",
 "PAUSED/ui_up": "Choose",

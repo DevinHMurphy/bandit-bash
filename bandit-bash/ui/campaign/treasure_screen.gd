@@ -6,30 +6,32 @@
 # File:     treasure_screen.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 20, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 extends Control
-## A Treasure node: the seat's chest ([ChestView]) under the run's header and [HeirloomBar], with
-## Open and Leave.
+## A Treasure node: the local seat's chest ([ChestView]) under the run's header and
+## [HeirloomBar], with Open and Leave, and in co-op Team ([TeamPanel]).
 ##
-## On entry, a chest not yet rolled is rolled and saved first ([OpenTreasureCommand]), so a quit
-## and Continue shows the same chest. Open takes it whole ([TreasureCommand]); a Legendary item
-## asks where it goes in the [PlacementPanel] first. Leave with the chest unopened asks first
-## ([LeaveConfirmDialog]) and gives it up, then [LeaveNodeCommand] returns to the map. Every
-## command goes through [method CampaignService.submit_command], which saves; a rejection shows
-## its reason and changes nothing. The run's facts play ([CampaignPlayback]) as each resolves.
-## While Open has focus, the chest names its weapon's wielders ([method ChestView.show_names_tip]).
-## Opened at any other stage, it sends the run on at once.
+## On entry, the chests not yet rolled are rolled and saved first ([OpenTreasureCommand]), so a
+## quit and Continue shows the same chest. Open takes it whole ([TreasureCommand]); a Legendary
+## item asks where it goes in the [PlacementPanel] first. Leave with the chest unopened asks first
+## ([LeaveConfirmDialog]) and gives it up, then sends [LeaveNodeCommand]. Every command goes
+## through a [CampaignLink], which saves; a refusal shows its reason (in co-op, a teammate's chest
+## still open). Every batch rebuilds the screen, and once any seat's Leave resolves the run returns
+## to the map. The run's facts play ([CampaignPlayback]) after each batch. While Open has focus,
+## the chest names its weapon's wielders ([method ChestView.show_names_tip]). Opened at any other
+## stage, it sends the run on at once.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 
 # ============================================================
-# INPUT MAP SETUP (built-in ui_* actions, read through the GUI; the panel and dialog read their
-# own ui_cancel first):
-#   "ui_left" / "ui_right" -> arrows; d-pad, left stick      (between Open and Leave; the
-#                             dialog's Stay and Leave)
-#   "ui_up" / "ui_down"    -> arrows; d-pad, left stick      (the placement panel's column)
+# INPUT MAP SETUP (built-in ui_* actions, read through the GUI; the panel, dialog and team panel
+# read their own ui_cancel first):
+#   "ui_left" / "ui_right" -> arrows; d-pad, left stick      (between Open, Leave and, in co-op,
+#                             Team; the dialog's Stay and Leave)
+#   "ui_up" / "ui_down"    -> arrows; d-pad, left stick      (the placement panel's column; the
+#                             team panel's rows)
 #   "ui_accept"            -> Enter, Space; pad A [Cross]    (press the focused button)
 #   "ui_cancel"            -> Esc; pad B [Circle], Menu [Options] (the pause menu reads it; in the
 #                             placement panel, back a step; in the dialog, Stay)
@@ -50,6 +52,7 @@ const HINT_CONFIRM: StringName = &"CONFIRM"
 var _is_leaving: bool = false
 var _seat: int = 0
 var _context: StringName = HINT_CHEST
+var _link: CampaignLink = null
 
 @onready var _header: RunHeader = %RunHeader
 @onready var _heirlooms: HeirloomBar = %HeirloomBar
@@ -57,8 +60,10 @@ var _context: StringName = HINT_CHEST
 @onready var _status_label: Label = %Status
 @onready var _open_button: Button = %OpenButton
 @onready var _leave_button: Button = %LeaveButton
+@onready var _team_button: Button = %TeamButton
 @onready var _placement_panel: PlacementPanel = %PlacementPanel
 @onready var _confirm: LeaveConfirmDialog = %LeaveConfirmDialog
+@onready var _team_panel: TeamPanel = %TeamPanel
 @onready var _hints: ScreenHints = %ScreenHints
 
 
@@ -68,7 +73,10 @@ func _ready() -> void:
 		_is_leaving = true
 		RunScreen.go()
 		return
-	_seat = session.seats[0]
+	_seat = CampaignService.local_seat()
+	_link = CampaignLink.new(session, _seat, CampaignService.submit_command)
+	_link.batch_resolved.connect(_on_link_batch_resolved)
+	_link.refused.connect(_on_link_refused)
 	_header.title = "Treasure"
 	_heirlooms.navigation_started.connect(_on_heirloom_bar_navigation_started)
 	_heirlooms.navigation_ended.connect(_on_heirloom_bar_navigation_ended)
@@ -76,23 +84,25 @@ func _ready() -> void:
 	_open_button.focus_entered.connect(_chest_view.show_names_tip)
 	_open_button.focus_exited.connect(_chest_view.hide_names_tip)
 	_leave_button.pressed.connect(_on_leave_button_pressed)
+	_team_button.visible = _link.is_coop()
+	_team_button.pressed.connect(_on_team_button_pressed)
 	_placement_panel.placement_chosen.connect(_on_placement_panel_placement_chosen)
 	_placement_panel.cancelled.connect(_on_placement_panel_cancelled)
 	_confirm.confirmed.connect(_on_confirm_confirmed)
 	_confirm.cancelled.connect(_on_confirm_cancelled)
 	_link_buttons()
+	# The host rolls every seat's chest, so the roll goes out as the host's, not through the link.
 	if TreasureChest.pending(session.run.seat_run(_seat)) == null:
-		var opened: CampaignBatch = CampaignService.submit_command(
-				OpenTreasureCommand.for_session(session)
-		)
-		if opened == null or opened.is_rejected():
-			_status_label.text = "The chest couldn't be opened: %s." % [
-				opened.rejected_reason if opened != null else "no run in progress",
-			]
+		CampaignService.submit_command(OpenTreasureCommand.for_session(session))
 	_refresh()
 	_set_context(HINT_CHEST)
 	CampaignPlayback.play_pending(session)
 	_focus_default.call_deferred()
+
+
+func _exit_tree() -> void:
+	if _link != null:
+		_link.close()
 
 
 ## The chest shown, for tests and captures.
@@ -110,6 +120,11 @@ func get_leave_button() -> Button:
 	return _leave_button
 
 
+## The Team button, shown in co-op, for tests.
+func get_team_button() -> Button:
+	return _team_button
+
+
 ## The placement panel, for tests.
 func get_placement_panel() -> PlacementPanel:
 	return _placement_panel
@@ -118,6 +133,11 @@ func get_placement_panel() -> PlacementPanel:
 ## The leave dialog, for tests.
 func get_confirm_dialog() -> LeaveConfirmDialog:
 	return _confirm
+
+
+## The team panel, for tests and captures.
+func get_team_panel() -> TeamPanel:
+	return _team_panel
 
 
 ## The status line's text, for tests.
@@ -147,10 +167,10 @@ func _refresh() -> void:
 	_link_buttons()
 
 
-# Open and Leave as one row: left and right between them, the ends stop, up and down stay put.
+# Open, Leave and Team as one row: left and right between them, the ends stop, up and down stay.
 func _link_buttons() -> void:
 	var row: Array[Button] = []
-	for button: Button in [_open_button, _leave_button]:
+	for button: Button in [_open_button, _leave_button, _team_button]:
 		if button.visible:
 			row.append(button)
 	for i: int in row.size():
@@ -174,27 +194,21 @@ func _set_context(context: StringName) -> void:
 	_hints.context = context
 
 
-func _submit(command: CampaignCommand) -> bool:
-	var batch: CampaignBatch = CampaignService.submit_command(command)
-	if batch == null or batch.is_rejected():
-		var reason: String = batch.rejected_reason if batch != null else "no run in progress"
-		if _placement_panel.visible:
-			_placement_panel.show_problem("Can't do that: %s." % [reason])
-		else:
-			_status_label.text = "Can't do that: %s." % [reason]
-		return false
-	CampaignPlayback.play_pending(CampaignService.session)
-	return true
-
-
 func _take(placement: ItemPlacement) -> void:
 	var chest: TreasureChest = _chest()
-	if not _submit(TreasureCommand.new(_seat, true, placement)):
+	_link.send(
+			TreasureCommand.new(_seat, true, placement),
+			func(_batch: CampaignBatch) -> void: _after_take(chest)
+	)
+
+
+# After the seat's chest was taken: back to the chest, saying what it gave.
+func _after_take(chest: TreasureChest) -> void:
+	if _is_leaving:
 		return
 	_placement_panel.close()
 	_set_context(HINT_CHEST)
 	_status_label.text = _taken_note(chest)
-	_refresh()
 	_leave_button.grab_focus()
 
 
@@ -214,11 +228,37 @@ func _taken_note(chest: TreasureChest) -> String:
 	return "The chest was empty." if parts.is_empty() else "Took %s." % [", ".join(parts)]
 
 
-func _leave() -> void:
-	if not _submit(LeaveNodeCommand.new(_seat)):
+func _leave(_resolved: CampaignBatch = null) -> void:
+	if _is_leaving:
 		return
-	_is_leaving = true
-	RunScreen.go()
+	_link.send(LeaveNodeCommand.new(_seat))
+
+
+# Any seat's batch: one the screen follows plays its facts and, once the run left the node, moves
+# the screen on; while the run is still here the screen shows it again.
+func _on_link_batch_resolved(batch: CampaignBatch, is_answer: bool) -> void:
+	if _is_leaving:
+		return
+	var follows: bool = _link.moves_with(batch, is_answer)
+	if follows:
+		CampaignPlayback.play_pending(_link.session)
+	if RunScreen.of(_link.session) != SceneRouter.Screen.TREASURE:
+		if follows:
+			_is_leaving = true
+			RunScreen.go()
+		return
+	_refresh()
+	_team_panel.refresh()
+
+
+# A refusal says why where the player is looking; one before the chests were rolled is the roll's.
+func _on_link_refused(reason: String) -> void:
+	if _chest() == null:
+		_status_label.text = "The chest couldn't be opened: %s." % [reason]
+	elif _placement_panel.visible:
+		_placement_panel.show_problem("Can't do that: %s." % [reason])
+	else:
+		_status_label.text = "Can't do that: %s." % [reason]
 
 
 func _on_open_button_pressed() -> void:
@@ -250,6 +290,10 @@ func _on_leave_button_pressed() -> void:
 	_leave()
 
 
+func _on_team_button_pressed() -> void:
+	_team_panel.open(_link.session, _seat)
+
+
 func _on_placement_panel_placement_chosen(placement: ItemPlacement) -> void:
 	_take(placement)
 
@@ -262,8 +306,7 @@ func _on_placement_panel_cancelled() -> void:
 func _on_confirm_confirmed() -> void:
 	_confirm.visible = false
 	_set_context(HINT_CHEST)
-	if _submit(TreasureCommand.new(_seat, false)):
-		_leave()
+	_link.send(TreasureCommand.new(_seat, false), _leave)
 
 
 func _on_confirm_cancelled() -> void:

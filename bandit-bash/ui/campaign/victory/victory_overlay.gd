@@ -6,7 +6,7 @@
 # File:     victory_overlay.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 class_name VictoryOverlay
@@ -16,11 +16,12 @@ extends CanvasLayer
 ## ([CombatResultsModel], [VictoryRewards]), rebuilt after every command, so a quit and Continue
 ## shows the same. The [BattleScreen] shows it over the board after a win; on a resumed run the
 ## Results screen shows it over a plain backdrop, opening on Rewards once a reward is taken.[br]
-## A picker sends its reward's commands; Leave sends each open reward's skip, then
-## [LeaveNodeCommand], asking first while rewards are open; after the Boss it reads End run and
-## ends the run as won ([method CampaignService.end_won_run]). A rejection shows its reason and
-## changes nothing. XP fills run on playback time ([member playback_speed]). The run's facts play
-## ([CampaignPlayback]) on opening, each level-up with its card, the rest at Rewards.
+## Shows one seat's results. A picker sends its reward's commands; Leave sends each open reward's
+## skip, then [LeaveNodeCommand], asking first while rewards are open, each once the one before
+## settled ([CampaignLink]); after the Boss it reads End run and ends the run as won
+## ([method CampaignService.end_won_run]). A refusal shows its reason; once any seat's Leave
+## resolves, the run goes on. XP fills run on playback time ([member playback_speed]). The run's
+## facts play ([CampaignPlayback]) on opening, each level-up with its card, the rest at Rewards.
 ##
 ## @tutorial(UL5 plan): docs/plans/2026-11-19-ul5-victory-sequence.md
 
@@ -51,13 +52,15 @@ extends CanvasLayer
 #                  RECAP_DONE.
 # RECAP_DONE:      the rows, still. Continue -> REWARDS.
 # REWARDS:         a row per open reward and Leave (End run after the Boss). A row -> PICKING;
-#                  Leave -> CONFIRM_LEAVE while rewards are open, else the commands and LEAVING.
+#                  Leave -> CONFIRM_LEAVE while rewards are open, else the commands, and LEAVING
+#                  once the Leave resolves.
 # PICKING:         the reward's picker over the stage; the button is out of reach. Resolved or
 #                  cancelled -> REWARDS, rebuilt from the saved run.
 # CONFIRM_LEAVE:   the LeaveConfirmDialog. Leave -> the commands and LEAVING; Stay -> REWARDS.
 # LEAVING:         input does nothing; the screen changes.
 # A resumed sequence opens on REWARDS once a reward is taken, else on GRADE. There is no stage
-# for gold: it is collected before the sequence opens. A rejected command stays in REWARDS.
+# for gold: it is collected before the sequence opens. A rejected command stays in REWARDS. Any
+# stage: the run leaving these results (any seat's Leave) -> LEAVING.
 ## Where the sequence is.
 enum Stage {
 	## The grades and the gold collected.
@@ -107,6 +110,9 @@ var _rewards: Array[VictoryReward] = []
 var _level_up_index: int = 0
 var _picker: RewardPicker = null
 var _shown_stage: Control = null
+var _link: CampaignLink = null
+# Leave's commands still to send, each once the one before resolved.
+var _leave_commands: Array[CampaignCommand] = []
 
 @onready var _root: Control = %Root
 @onready var _backdrop: ColorRect = %Backdrop
@@ -136,6 +142,11 @@ func _ready() -> void:
 	_primary_button.focus_neighbor_bottom = self_path
 
 
+func _exit_tree() -> void:
+	if _link != null:
+		_link.close()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if _stage == Stage.RECAP_FILLING and event.is_action_pressed(&"skip_playback"):
 		get_viewport().set_input_as_handled()
@@ -150,6 +161,11 @@ func _process(delta: float) -> void:
 ## a continued run, which opens on Rewards once a reward is taken.
 func open(seat: int, is_resumed: bool) -> void:
 	_seat = seat
+	if _link != null:
+		_link.close()
+	_link = CampaignLink.new(CampaignService.session, seat, CampaignService.submit_command)
+	_link.batch_resolved.connect(_on_link_batch_resolved)
+	_link.refused.connect(_on_link_refused)
 	_root.visible = true
 	_root.modulate.a = 0.0
 	create_tween().tween_property(_root, "modulate:a", 1.0, STAGE_FADE_TIME)
@@ -360,14 +376,13 @@ func _play_level_up(index: int) -> void:
 	))
 
 
-func _submit(command: CampaignCommand) -> bool:
-	var batch: CampaignBatch = CampaignService.submit_command(command)
-	if batch == null or batch.is_rejected():
-		var reason: String = batch.rejected_reason if batch != null else "no run in progress"
-		_status_label.text = "Can't do that: %s." % [reason]
-		return false
-	CampaignPlayback.play_pending(CampaignService.session)
-	return true
+# Sends the next of Leave's commands, once the one before resolved; the last is the Leave, whose
+# batch moves the run on (_on_link_batch_resolved).
+func _send_next_leave_command(_resolved: CampaignBatch = null) -> void:
+	if _stage == Stage.LEAVING or _leave_commands.is_empty():
+		return
+	var command: CampaignCommand = _leave_commands.pop_front()
+	_link.send(command, _send_next_leave_command)
 
 
 # Asks first while rewards are open, else leaves.
@@ -394,18 +409,41 @@ func _leave() -> void:
 		_enter(Stage.LEAVING)
 		SceneRouter.goto_screen(SceneRouter.Screen.RESULTS)
 		return
+	_leave_commands.clear()
 	for reward: VictoryReward in VictoryRewards.open_of(_rewards):
 		var skip_command: CampaignCommand = reward.skip_command(_seat)
-		if skip_command != null and not _submit(skip_command):
-			_refresh()
-			_enter(Stage.REWARDS)
-			return
-	if not _submit(LeaveNodeCommand.new(_seat)):
-		_refresh()
-		_enter(Stage.REWARDS)
+		if skip_command != null:
+			_leave_commands.append(skip_command)
+	_leave_commands.append(LeaveNodeCommand.new(_seat))
+	_send_next_leave_command()
+
+
+# A batch the sequence follows ([method CampaignLink.moves_with]; a picker's own sends are its
+# picker's): once the run has left these results, the sequence leaves too; at Rewards its facts
+# play. A level-up still to show waits for its card.
+func _on_link_batch_resolved(batch: CampaignBatch, is_answer: bool) -> void:
+	if _stage == Stage.LEAVING or not _link.moves_with(batch, is_answer):
 		return
-	_enter(Stage.LEAVING)
-	RunScreen.go()
+	if RunScreen.of(CampaignService.session) != SceneRouter.Screen.COMBAT_RESULTS:
+		_leave_commands.clear()
+		_close_picker()
+		CampaignPlayback.play_pending(CampaignService.session)
+		_enter(Stage.LEAVING)
+		RunScreen.go()
+		return
+	if _stage >= Stage.REWARDS:
+		CampaignPlayback.play_pending(CampaignService.session)
+
+
+# A refusal of one of Leave's commands stops the rest and shows the rewards again; a picker's
+# refusal shows on the picker.
+func _on_link_refused(reason: String) -> void:
+	if _stage == Stage.PICKING or _stage == Stage.LEAVING:
+		return
+	_leave_commands.clear()
+	_status_label.text = "Can't do that: %s." % [reason]
+	_refresh()
+	_enter(Stage.REWARDS)
 
 
 func _close_picker() -> void:

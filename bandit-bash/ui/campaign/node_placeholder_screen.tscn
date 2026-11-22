@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" path="res://ui/battle/hud/control_hint_bar.tscn" id="5_bar"]
 [ext_resource type="PackedScene" path="res://ui/common/pause_menu.tscn" id="6_pause"]
 [ext_resource type="PackedScene" path="res://ui/common/heirlooms/heirloom_bar.tscn" id="9_heirlooms"]
+[ext_resource type="PackedScene" path="res://ui/campaign/team_panel.tscn" id="10_team"]
 
 [node name="NodePlaceholderScreen" type="Control"]
 layout_mode = 3
@@ -78,6 +79,19 @@ theme_type_variation = &"PrimaryButton"
 size_flags_horizontal = 4
 text = "Continue"
 
+[node name="TeamButton" type="Button" parent="Layout/Column/Center/Box"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(120, 36)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "Team"
+
+[node name="TeamPanel" parent="." node_paths=PackedStringArray("hints") instance=ExtResource("10_team")]
+unique_name_in_owner = true
+layout_mode = 1
+hints = NodePath("../ScreenHints")
+
 [node name="InputDeviceAdapter" parent="." instance=ExtResource("3_device")]
 
 [node name="ScreenHints" type="Node" parent="."]
@@ -85,7 +99,9 @@ unique_name_in_owner = true
 script = ExtResource("4_hints")
 actions = Dictionary[StringName, PackedStringArray]({
 &"NODE": PackedStringArray("ui_accept", "heirloom_bar_focus", "ui_cancel"),
-&"HEIRLOOMS": PackedStringArray("ui_left", "ui_right", "ui_cancel", "heirloom_bar_focus")
+&"HEIRLOOMS": PackedStringArray("ui_left", "ui_right", "ui_cancel", "heirloom_bar_focus"),
+&"TEAM": PackedStringArray("ui_up", "ui_down", "ui_accept", "ui_cancel"),
+&"TEAM_HEIRLOOMS": PackedStringArray("ui_left", "ui_right", "ui_cancel")
 })
 
 [node name="ControlHintBar" parent="." node_paths=PackedStringArray("controller", "device") instance=ExtResource("5_bar")]
@@ -101,6 +117,10 @@ labels = Dictionary[String, String]({
 "HEIRLOOMS/ui_cancel": "Close",
 "HEIRLOOMS/ui_left": "Choose",
 "HEIRLOOMS/ui_right": "Choose",
+"TEAM/ui_accept": "Heirlooms",
+"TEAM/ui_cancel": "Close",
+"TEAM_HEIRLOOMS/ui_left": "Choose",
+"TEAM_HEIRLOOMS/ui_right": "Choose",
 "PAUSED/ui_cancel": "Resume",
 "PAUSED/ui_down": "Choose",
 "PAUSED/ui_up": "Choose",

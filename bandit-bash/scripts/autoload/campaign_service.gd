@@ -6,7 +6,7 @@
 # File:     campaign_service.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 19, 2026
+# Modified: November 21, 2026
 # ==============================================================================
 
 extends Node
@@ -60,6 +60,9 @@ var _events: EventSaveSection = EventSaveSection.new()
 # The id counter the combat instance_ids section gave a session built to resume a battle, set
 # again once the saved battle has loaded (the rebuild mints throwaway ids first); empty otherwise.
 var _battle_ids: Dictionary = {}
+
+# The seat local_seat() returns; back to the host seat with every new session.
+var _local_seat: int = CampaignData.HOST_SEAT
 
 
 func _ready() -> void:
@@ -218,6 +221,25 @@ func submit_command(command: CampaignCommand) -> CampaignBatch:
 	return batch
 
 
+## The seat this machine plays, which every campaign screen acts for and shows: the host seat
+## ([constant CampaignData.HOST_SEAT]) in solo and on the host, unless [method set_local_seat]
+## chose another. Screens read it, never [code]session.seats[0][/code], so a client's screens act
+## for its own seat once transport sets it (P10 NT5).
+func local_seat() -> int:
+	return _local_seat
+
+
+## Makes [param seat] the one [method local_seat] returns, for tests that act as a teammate and
+## for a client's join. Returns false, changing nothing, with no session or a seat it doesn't
+## hold. A new session goes back to the host seat.
+func set_local_seat(seat: int) -> bool:
+	if session == null or not session.seats.has(seat):
+		push_error("CampaignService: seat %d isn't in the run in progress." % [seat])
+		return false
+	_local_seat = seat
+	return true
+
+
 ## Ends the run as won from its Boss's Results ([method CampaignRunState.is_boss_beaten]):
 ## archives it through [method SaveService.end_run], which closes the session. The run waits at
 ## the Boss's results until then, so a quit before it shows the same Results again; leaving the
@@ -250,6 +272,7 @@ func _replace_session(replacement: CampaignSession) -> void:
 	_run_sections.detach()
 	_events.detach()
 	_battle_ids = {}
+	_local_seat = CampaignData.HOST_SEAT
 	if replacement != null:
 		_attach_rng_sections(replacement)
 		_attach_id_sections(replacement)

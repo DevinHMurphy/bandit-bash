@@ -10,6 +10,7 @@
 [ext_resource type="PackedScene" path="res://ui/campaign/placement_panel.tscn" id="8_placement"]
 [ext_resource type="PackedScene" path="res://ui/common/heirlooms/heirloom_bar.tscn" id="9_heirlooms"]
 [ext_resource type="PackedScene" path="res://ui/campaign/victory/leave_confirm_dialog.tscn" id="10_confirm"]
+[ext_resource type="PackedScene" path="res://ui/campaign/team_panel.tscn" id="11_team"]
 
 [node name="TreasureScreen" type="Control"]
 layout_mode = 3
@@ -94,6 +95,13 @@ custom_minimum_size = Vector2(160, 36)
 layout_mode = 2
 text = "Leave"
 
+[node name="TeamButton" type="Button" parent="Layout/Column/Center/Box/Buttons"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(120, 36)
+layout_mode = 2
+text = "Team"
+
 [node name="PlacementPanel" parent="." instance=ExtResource("8_placement")]
 unique_name_in_owner = true
 layout_mode = 1
@@ -101,6 +109,11 @@ layout_mode = 1
 [node name="LeaveConfirmDialog" parent="." instance=ExtResource("10_confirm")]
 unique_name_in_owner = true
 layout_mode = 1
+
+[node name="TeamPanel" parent="." node_paths=PackedStringArray("hints") instance=ExtResource("11_team")]
+unique_name_in_owner = true
+layout_mode = 1
+hints = NodePath("../ScreenHints")
 
 [node name="InputDeviceAdapter" parent="." instance=ExtResource("3_device")]
 
@@ -111,7 +124,9 @@ actions = Dictionary[StringName, PackedStringArray]({
 &"CHEST": PackedStringArray("ui_left", "ui_right", "ui_accept", "heirloom_bar_focus", "ui_cancel"),
 &"PLACE": PackedStringArray("ui_up", "ui_down", "ui_accept", "ui_cancel"),
 &"CONFIRM": PackedStringArray("ui_left", "ui_right", "ui_accept", "ui_cancel"),
-&"HEIRLOOMS": PackedStringArray("ui_left", "ui_right", "ui_cancel", "heirloom_bar_focus")
+&"HEIRLOOMS": PackedStringArray("ui_left", "ui_right", "ui_cancel", "heirloom_bar_focus"),
+&"TEAM": PackedStringArray("ui_up", "ui_down", "ui_accept", "ui_cancel"),
+&"TEAM_HEIRLOOMS": PackedStringArray("ui_left", "ui_right", "ui_cancel")
 })
 
 [node name="ControlHintBar" parent="." node_paths=PackedStringArray("controller", "device") instance=ExtResource("5_bar")]
@@ -131,6 +146,10 @@ labels = Dictionary[String, String]({
 "HEIRLOOMS/ui_cancel": "Close",
 "HEIRLOOMS/ui_left": "Choose",
 "HEIRLOOMS/ui_right": "Choose",
+"TEAM/ui_accept": "Heirlooms",
+"TEAM/ui_cancel": "Close",
+"TEAM_HEIRLOOMS/ui_left": "Choose",
+"TEAM_HEIRLOOMS/ui_right": "Choose",
 "PAUSED/ui_cancel": "Resume",
 "PAUSED/ui_down": "Choose",
 "PAUSED/ui_up": "Choose",

@@ -63,6 +63,14 @@ layout_mode = 2
 theme_type_variation = &"MutedLabel"
 text = "Gear changes at a Camp."
 
+[node name="TeamButton" type="Button" parent="Center/Panel/Margin/Column"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(120, 36)
+layout_mode = 2
+size_flags_horizontal = 0
+text = "Team"
+
 [node name="Body" type="HBoxContainer" parent="Center/Panel/Margin/Column"]
 layout_mode = 2
 theme_override_constants/separation = 16
