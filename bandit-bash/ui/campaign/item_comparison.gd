@@ -6,7 +6,7 @@
 # File:     item_comparison.gd
 # Author:
 # Created:  November 20, 2026
-# Modified: November 20, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name ItemComparison
@@ -14,7 +14,11 @@ extends GridContainer
 ## A before/after comparison of the item a purchase replaces and the one bought
 ## ([method ArmoryModel.comparison_rows]): a column each under their names, one row per number or
 ## line, the change after the offer's value (+2), in [member better_color] or
-## [member worse_color]. Shows only; takes no focus and reads no input.
+## [member worse_color]. An effect row ([member ArmoryModel.Row.is_marked]) shows each side in an
+## [EffectText]: keywords coloured, a tooltip on hover, all of them while a focusable ancestor
+## holds key or pad focus ([PurchasePanel] has none). Shows only; takes no focus, reads no input.
+
+const EFFECT_TEXT_SCENE: PackedScene = preload("res://ui/common/text/effect_text.tscn")
 
 ## The width of each item's column; longer text wraps within it.[br]
 ## [b]Units:[/b] base units. [b]0:[/b] sized by the text alone, never wrapping.
@@ -30,8 +34,8 @@ extends GridContainer
 ## The offer's value where it is worse than the replaced item's: the theme's danger.
 @export var worse_color: Color = UiTokens.color(UiTokens.DANGER)
 
-## Each row as shown, label then before then after, for tests: rebuilt by
-## [method show_comparison].
+## Each row as shown, label then before then after, in plain words (an effect row's keyword tags
+## removed), for tests: rebuilt by [method show_comparison].
 var shown: Array[PackedStringArray] = []
 
 
@@ -47,9 +51,16 @@ func show_comparison(before_name: String, after_name: String, rows: Array) -> vo
 	_add(before_name, &"HeaderLabel")
 	_add(after_name, &"HeaderLabel")
 	for row: ArmoryModel.Row in rows:
+		_add(row.label, &"MutedLabel")
+		if row.is_marked:
+			var before_text: EffectText = _add_effect_text(row.before)
+			var after_text: EffectText = _add_effect_text(row.after)
+			shown.append(PackedStringArray([
+				row.label, before_text.get_plain_text(), after_text.get_plain_text(),
+			]))
+			continue
 		var change: String = row.change_text()
 		var after: String = row.after if change.is_empty() else "%s (%s)" % [row.after, change]
-		_add(row.label, &"MutedLabel")
 		_add(row.before, &"BodyLabel")
 		var after_label: Label = _add(after, &"BodyLabel")
 		if not change.is_empty():
@@ -73,3 +84,16 @@ func _add(text: String, variation: StringName) -> Label:
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(label)
 	return label
+
+
+# An item's cell of effect text, keyword tags in marked_text: wraps at value_width as _add's do,
+# or sized by its text alone when that is 0.
+func _add_effect_text(marked_text: String) -> EffectText:
+	var text: EffectText = EFFECT_TEXT_SCENE.instantiate()
+	text.marked_text = marked_text
+	if value_width > 0.0:
+		text.custom_minimum_size = Vector2(value_width, 0.0)
+	else:
+		text.autowrap_mode = TextServer.AUTOWRAP_OFF
+	add_child(text)
+	return text

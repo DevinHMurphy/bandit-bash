@@ -113,7 +113,8 @@ static func held_name(item: ItemInstance, catalog: EffectCatalog.Index) -> Strin
 
 ## The rows comparing [param current] (null: an empty slot) with the offered [param offered]: for
 ## weapons their numbers, a modified item's changes included, each with the change it makes; for
-## other items their kind and effect text.
+## other items their kind and effect text, the effects' keywords marked for an [EffectText]
+## ([member Row.is_marked]).
 static func comparison_rows(
 		current: ItemInstance, offered: ItemDefinition, catalog: EffectCatalog.Index
 ) -> Array[Row]:
@@ -142,9 +143,11 @@ static func comparison_rows(
 			"Kind", NONE if held == null else CombatResultsModel.item_details(held),
 			CombatResultsModel.item_details(offered)
 	))
-	rows.append(Row.new(
+	var effects: Row = Row.new(
 			"Effects", NONE if held == null else _effects(held), _effects(offered)
-	))
+	)
+	effects.is_marked = true
+	rows.append(effects)
 	return rows
 
 
@@ -186,8 +189,9 @@ static func _weapon_type(weapon: WeaponDefinition) -> String:
 	return "%s, %s" % [weapon.weapon_type, profile_name]
 
 
+# definition's effect lines, keywords marked; "none" when it has none.
 static func _effects(definition: ItemDefinition) -> String:
-	var lines: PackedStringArray = definition.describe()
+	var lines: PackedStringArray = definition.describe_marked()
 	return "none" if lines.is_empty() else "\n".join(lines)
 
 
@@ -207,6 +211,9 @@ class Row:
 	var is_numeric: bool = false
 	## Whether a lower value is the better one (weight).
 	var is_lower_better: bool = false
+	## Whether [member before] and [member after] are effect text with keyword tags
+	## ([code][kw=<id>]Word[/kw][/code]), shown in an [EffectText]; plain text otherwise.
+	var is_marked: bool = false
 
 	func _init(row_label: String = "", before_text: String = "", after_text: String = "") -> void:
 		label = row_label
