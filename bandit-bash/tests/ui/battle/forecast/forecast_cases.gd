@@ -6,7 +6,7 @@
 # File:     forecast_cases.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 19, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -671,6 +671,7 @@ func _test_weapon_cycle() -> void:
 
 # Hovering move tiles only asks for previews; one frame runs one, the newest; its marks are
 # Darkness.damage_at and the enemies Intents.preview re-plans; leaving the move tiles clears it.
+# The sweep is off, so no sweep preview runs when the burst arrives (preview_sweep_cases.gd).
 func _test_move_preview() -> void:
 	var h: TurnInputCases.Harness = _harness()
 	if h == null:
@@ -687,6 +688,7 @@ func _test_move_preview() -> void:
 		return
 	h.controller.confirm_tile(h.session.state.tile_of(unit_id))
 	var queue: MovePreview.Queue = h.controller.get_preview_queue()
+	queue.is_sweeping = false
 	h.controller.run_preview_frame()
 	queue.wait()
 	h.controller.run_preview_frame()
