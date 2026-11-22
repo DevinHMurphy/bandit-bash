@@ -6,15 +6,15 @@
 # File:     campaign_wire_cases.gd
 # Author:
 # Created:  November 21, 2026
-# Modified: November 21, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 extends "res://tests/net/net_case_base.gd"
 ## Campaign wire cases for tests/net/run_all.gd ([method CampaignCommand.to_wire],
 ## [method CampaignBatch.to_wire]): every campaign and event command type goes through JSON to an
 ## equal command carrying no host-side object, and once the host fills it in through the factories
-## its own seat uses, resolves on a fresh session exactly as the original did; nested picks
-## round-trip and a teammate's picks never travel; every malformed form is refused with one
+## its own seat uses, resolves on a fresh session exactly as the original did (a route vote's draw
+## included); nested picks round-trip; every malformed form is refused with one
 ## error; a batch round-trips with its facts and its rejection; every [CampaignCommand] class in
 ## the project has a registered wire type; the fingerprint covers the campaign wire names.
 
@@ -36,7 +36,9 @@ const BREAK_THE_ICE: int = 1
 const WEAPON_BLOCK: int = 0
 const FIGHT: int = 1
 # Every campaign and event command type built so far; a lower count means one went missing.
-const COMMAND_TYPES: int = 22
+const COMMAND_TYPES: int = 23
+# Seats of the route vote's round trip: two vote before the sent one, which draws.
+const ROUTE_SEATS: int = 3
 # Classes whose values are plain picks, which travel; any other object is host state.
 const PLAIN_CLASSES: PackedStringArray = ["ItemPlacement", "EventChoice"]
 
@@ -142,13 +144,12 @@ func _test_nested_fields() -> void:
 	picks.rune_discard_slot = 1
 	picks.replaced_id = "unit:6"
 	var chose: EventOptionCommand = EventOptionCommand.new(1, 2, picks)
-	chose.team_choices[0] = EventChoice.new("unit:1")
 	var decoded: EventOptionCommand = (
 			CampaignCommand.from_wire(_through_json(chose.to_wire())) as EventOptionCommand
 	)
 	var read: EventChoice = decoded.choice if decoded != null else null
 	var placed: ItemPlacement = read.placements.get(3, null) if read != null else null
-	_check("campaign wire: an event choice round-trips; a teammate's picks never travel", (
+	_check("campaign wire: an event choice round-trips", (
 			read != null
 			and decoded.to_wire() == chose.to_wire()
 			and read.placements.keys() == [3, 0]
@@ -158,7 +159,6 @@ func _test_nested_fields() -> void:
 			and placed.convoy_scrap_id == "item:8"
 			and read.rune_discard_slot == 1
 			and read.replaced_id == "unit:6"
-			and decoded.team_choices.is_empty()
 	), str(decoded.to_wire() if decoded != null else null))
 
 	var skip: ItemPickCommand = ItemPickCommand.new(0, ItemPickCommand.SKIP)
@@ -240,6 +240,10 @@ func _test_malformed_commands() -> void:
 		["event_option", 0, 0, 0, ["u", "w", [], -2, ""]],
 		["event_option", 0, 0, 0, ["u", "w", [], -1]],
 		["event_option", 0, 0, 0, ["u", 4, [], -1, ""]],
+		["route_vote", 0, 0, -2],
+		["route_vote", 0, 0, "3"],
+		["route_vote", 0, 0, 2.5],
+		["route_vote", 0, 0, null],
 	]:
 		_note_unrefused(bad, unrefused)
 	_check("campaign wire: each type's fields mistyped or out of range are refused", (
@@ -414,6 +418,10 @@ func _scenarios() -> Array[Scenario]:
 		Scenario.new(
 				EventOptionCommand.WIRE_TYPE, goblet, _event_option, _refill_event_option
 		),
+		Scenario.new(
+				RouteVoteCommand.WIRE_TYPE, _with_first_route_vote, _route_vote,
+				_refill_route_vote
+		),
 	]
 	return made
 
@@ -423,13 +431,13 @@ func _on_map() -> CampaignSession:
 	return NodeFixture.session(RUN_SEED)
 
 
-# A new run of seat_count seats inside its first floor-1 node, made a node of type and entered by
-# choosing it, every seat holding RICH gold.
+# A new run of seat_count seats inside its first floor-1 node, made a node of type and entered as
+# its team enters one (NodeFixture.choose()), every seat holding RICH gold.
 func _inside(type: CampaignGraph.NodeType, seat_count: int = 1) -> CampaignSession:
 	var made: CampaignSession = NodeFixture.session(RUN_SEED, seat_count)
 	var first: int = made.run.graph.nodes_on_floor(1)[0]
 	made.run.graph.set_node_type(first, type)
-	made.submit(ChooseNodeCommand.new(0, first))
+	NodeFixture.choose(made, first)
 	for seat: int in made.run.seat_numbers():
 		made.run.seat_run(seat).gold = RICH
 	return made
@@ -513,6 +521,13 @@ func _with_event(pool: Callable, seat_count: int) -> CampaignSession:
 func _with_first_vote() -> CampaignSession:
 	var made: CampaignSession = _with_event(_toll, 2)
 	_events.vote(made, _toll(), 0, FIGHT)
+	return made
+
+
+# Three seats on the map before the first node, seat 0 having voted for the first floor-1 node.
+func _with_first_route_vote() -> CampaignSession:
+	var made: CampaignSession = NodeFixture.session(RUN_SEED, ROUTE_SEATS)
+	made.submit(RouteVoteCommand.for_session(made, 0, made.run.next_nodes()[0]))
 	return made
 
 
@@ -726,6 +741,21 @@ func _refill_event_option(fresh: CampaignSession, decoded: CampaignCommand) -> C
 			fresh, choosing.seat, choosing.option_index, choosing.choice, _goblet(),
 			_events.catalog
 	)
+
+
+# Seat 2's vote for the last floor-1 node, after seat 1's for the first: it completes the set and
+# draws the team's node from the floor's stream.
+func _route_vote(session: CampaignSession) -> CampaignCommand:
+	var next: PackedInt32Array = session.run.next_nodes()
+	session.submit(RouteVoteCommand.for_session(session, 1, next[0]))
+	return RouteVoteCommand.for_session(session, 2, next[next.size() - 1])
+
+
+# The fresh session gets seat 1's vote too, so the decoded last vote meets the same set.
+func _refill_route_vote(fresh: CampaignSession, decoded: CampaignCommand) -> CampaignCommand:
+	var voting: RouteVoteCommand = decoded as RouteVoteCommand
+	fresh.submit(RouteVoteCommand.for_session(fresh, 1, fresh.run.next_nodes()[0]))
+	return RouteVoteCommand.for_session(fresh, voting.seat, voting.node_id)
 
 
 # The first of candidates run accepts now; else the first, so its reason shows; null for none.

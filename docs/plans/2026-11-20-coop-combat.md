@@ -350,7 +350,7 @@ Leave Match (a drop: everyone waits; they can rejoin), Forfeit (a confirm) **(Q 
 
 | Block | Key | Per player | Version | Change | Step |
 |---|---|---|---|---|---|
-| `CAMPAIGN` | `campaign_map` | No | 1 → 2 | `votes`: by seat, a node id; empty outside a vote. Migration: none voted | CO6 |
+| `CAMPAIGN` | `campaign_map` | No | 1 → 2 | `votes`: by seat, a node id; empty before the first vote and in solo, and kept after the draw until the next floor's first vote. Migration: none voted | CO6 |
 | `CAMPAIGN` | `run_flow` | No | 1 → 2 | `swaps`: the accepted swaps for the next combat, each two seats and their two unit ids. Migration: none | CO5 |
 | `COMBAT` | `combat_state` | No | 3 → 4 | The encounter's `sends` (by seat: target map and winning turn, or none); each transfer's clock turn; each map's senders and call for aid; forfeited seats (empty until CO14). Migration: none sent, no flag, none forfeited; a v3 transfer is due at the next Phase Start, as built **(Q 15)** | CO2 |
 | `CAMPAIGN` | core `players` | — | schema 1 (no change) | A forfeit removes the seat's entry; seats keep their numbers. The rule "the player count is fixed for a campaign's life" goes | CO14 |

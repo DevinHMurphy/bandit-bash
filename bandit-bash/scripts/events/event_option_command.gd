@@ -6,7 +6,7 @@
 # File:     event_option_command.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 21, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name EventOptionCommand
@@ -22,7 +22,6 @@ extends EventCommand
 ## ([member EventRunState.is_combat_pending]) only as the last seat applies, so the battle never
 ## begins while a teammate still chooses. Built by [method EventNode.choose].
 ##
-## @todo: TOD-001 - remove [member team_choices], which nothing reads, once the user agrees.
 ## @tutorial(Co-op combat plan): docs/plans/2026-11-20-coop-combat.md
 
 ## Its name on the wire ([method CampaignCommand.get_wire_type]): the option and the sender's own
@@ -34,11 +33,6 @@ var option_index: int = EventRunState.NO_OPTION
 
 ## The sending seat's picks. [b]Null:[/b] nothing picked.
 var choice: EventChoice = null
-
-## Ignored: each seat applies a team choice with its own command and picks. Never on the wire, so
-## a decoded command has none.
-# TODO(TOD-001): remove this public member once the user agrees; nothing reads it.
-var team_choices: Dictionary[int, EventChoice] = {}
 
 ## Mints the instance ids of new items and runes.
 var ids: InstanceIdAllocator = null

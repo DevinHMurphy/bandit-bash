@@ -6,7 +6,7 @@
 # File:     campaign_fact.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 20, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name CampaignFact
@@ -36,7 +36,7 @@ enum Kind {
 	## A run began for the seat, with the faction named by [member definition_id].
 	RUN_STARTED = 5,
 	## The seat chose node [member amount] (a [CampaignGraph] id): its floor is locked and the run
-	## is inside it.
+	## is inside it. For no seat, the co-op route votes drew it.
 	NODE_CHOSEN = 6,
 	## The run left node [member amount] for the map, at the seat's command.
 	NODE_LEFT = 7,
@@ -125,6 +125,10 @@ enum Kind {
 	## outcome id ([code]"combat"[/code], [code]"armory"[/code], [code]"guildhall"[/code],
 	## [code]"treasure"[/code] or [code]"event"[/code]); it belongs to no seat.
 	UNKNOWN_RESOLVED = 32,
+	## The seat voted for node [member amount] (a [CampaignGraph] id) on the co-op route's next
+	## floor, replacing any earlier vote of its own. The last vote's [constant NODE_CHOSEN]
+	## follows.
+	ROUTE_VOTED = 33,
 }
 
 ## A [member flags] bit: this [constant Kind.GAINED] was a purchase, whose

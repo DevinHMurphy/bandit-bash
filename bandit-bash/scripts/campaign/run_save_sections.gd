@@ -6,7 +6,7 @@
 # File:     run_save_sections.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 20, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name RunSaveSections
@@ -14,8 +14,9 @@ extends RefCounted
 ## The save sections of a run's [CampaignRunState] in the [code]CAMPAIGN[/code] block:
 ## [code]campaign_map[/code] and [code]run_flow[/code] ([SaveSection]s), and per seat
 ## [code]roster[/code], [code]heirlooms[/code], [code]runes[/code] and [code]economy[/code]
-## ([PlayerSaveSection]s): [code]economy[/code] at [constant ECONOMY_VERSION],
-## [code]heirlooms[/code] at [constant HEIRLOOMS_VERSION], the rest at [constant VERSION].
+## ([PlayerSaveSection]s): [code]campaign_map[/code] at [constant MAP_VERSION],
+## [code]economy[/code] at [constant ECONOMY_VERSION], [code]heirlooms[/code] at
+## [constant HEIRLOOMS_VERSION], the rest at [constant VERSION].
 ## [code]CampaignService[/code] registers them, map before flow.[br]
 ## [b]Load order:[/b] sections restore before the run's session exists, so each only checks its data
 ## and holds it; [method attach] builds the session's [member CampaignSession.run] from it.
@@ -42,9 +43,14 @@ enum Part {
 	ECONOMY,
 }
 
-## The data version of every section but [code]economy[/code] ([constant ECONOMY_VERSION]) and
-## [code]heirlooms[/code] ([constant HEIRLOOMS_VERSION]).
+## The data version of every section but [code]campaign_map[/code] ([constant MAP_VERSION]),
+## [code]economy[/code] ([constant ECONOMY_VERSION]) and [code]heirlooms[/code]
+## ([constant HEIRLOOMS_VERSION]).
 const VERSION: int = 1
+
+## The [code]campaign_map[/code] section's data version. 2: it carries the co-op route votes
+## ([member CampaignRunState.route_votes]); a version 1 section has none and reads as it is.
+const MAP_VERSION: int = 2
 
 ## The [code]heirlooms[/code] section's data version. 2: it carries the seat's value changes
 ## ([member SeatRun.value_changes]); a version 1 section has none and reads as it is.
@@ -212,7 +218,14 @@ class SharedSection:
 		return _KEYS[_part]
 
 	func get_version() -> int:
-		return VERSION
+		return MAP_VERSION if _part == Part.MAP else VERSION
+
+	## [code]campaign_map[/code] from version 1 needs no change: a map without votes reads as one
+	## with none. The run flow has no older version.
+	func migrate(data: Dictionary, from_version: int) -> Error:
+		if _part == Part.MAP and from_version == 1:
+			return OK
+		return super(data, from_version)
 
 	## The attached session's run, else the held data; [code]{}[/code] with neither.
 	func capture() -> Dictionary:
