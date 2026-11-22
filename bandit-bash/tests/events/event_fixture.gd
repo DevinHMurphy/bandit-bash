@@ -6,7 +6,7 @@
 # File:     event_fixture.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 21, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -18,6 +18,8 @@ extends RefCounted
 ## Unknown node, and the commands EventNode builds (team votes included), submitted to the
 ## session; and a quit and Continue through the campaign block's sections and JSON. None of the
 ## test content is real content: CT12 authors the weapon prefix list, EV4 the 13 events.
+
+const NodeFixture = preload("res://tests/campaign/node_fixture.gd")
 
 const RULES_PATH: String = "res://data/campaign/campaign_map_rules.tres"
 const RUN_SEED: int = 0x5EA7C0DE
@@ -231,7 +233,8 @@ func pool(events: Array[EventDefinition] = []) -> EventPool:
 	return EventPool.new(events)
 
 
-## A new Mercenary run of [param seat_count] seats, inside a floor-1 node made an Unknown one.
+## A new Mercenary run of [param seat_count] seats, inside a floor-1 node made an Unknown one,
+## entered as its team enters a node ([method NodeFixture.choose]).
 func unknown_session(seat_count: int = 1) -> CampaignSession:
 	var seat_numbers: PackedInt32Array = []
 	var factions: Dictionary[int, String] = {}
@@ -252,7 +255,7 @@ func unknown_session(seat_count: int = 1) -> CampaignSession:
 	made.run = start.run
 	var first: int = made.run.graph.nodes_on_floor(1)[0]
 	made.run.graph.set_node_type(first, CampaignGraph.NodeType.UNKNOWN)
-	made.submit(ChooseNodeCommand.new(0, first))
+	NodeFixture.choose(made, first)
 	return made
 
 
@@ -261,7 +264,7 @@ func next_unknown(made: CampaignSession) -> void:
 	made.submit(LeaveNodeCommand.new(0))
 	var child: int = made.run.graph.children_of(made.run.node)[0]
 	made.run.graph.set_node_type(child, CampaignGraph.NodeType.UNKNOWN)
-	made.submit(ChooseNodeCommand.new(0, child))
+	NodeFixture.choose(made, child)
 
 
 ## Opens an event from [param events] at the run's node, as the Unknown node does.

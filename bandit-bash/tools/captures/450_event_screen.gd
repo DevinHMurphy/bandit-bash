@@ -6,7 +6,7 @@
 # File:     450_event_screen.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 20, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 extends "res://tools/captures/capture_group.gd"
@@ -108,8 +108,8 @@ func _open_event(event: EventDefinition) -> bool:
 
 
 # A new run of seat_count seats built in memory, every seat on the throwaway run's faction,
-# standing in its first node made an Unknown one with event open there. Null, with a FAIL line,
-# when it can't be built.
+# standing in its first node made an Unknown one (entered by every seat's vote in co-op) with
+# event open there. Null, with a FAIL line, when it can't be built.
 func _session_with(event: EventDefinition, seat_count: int) -> CampaignSession:
 	var map_rules: CampaignMapRules = load(MAP_RULES_PATH) as CampaignMapRules
 	if event == null or map_rules == null:
@@ -138,7 +138,12 @@ func _session_with(event: EventDefinition, seat_count: int) -> CampaignSession:
 	made.run = start.run
 	var first: int = made.run.graph.nodes_on_floor(1)[0]
 	made.run.graph.set_node_type(first, CampaignGraph.NodeType.UNKNOWN)
-	made.submit(ChooseNodeCommand.new(0, first))
+	# Solo chooses the node; in co-op every seat votes for it, so the last vote draws it.
+	if seat_count == 1:
+		made.submit(ChooseNodeCommand.new(0, first))
+	else:
+		for seat: int in seats:
+			made.submit(RouteVoteCommand.for_session(made, seat, first))
 	var batch: CampaignBatch = made.submit(EventNode.open(
 			made, EventPool.new([event]), EffectCatalog.index(), CombatRewardRules.load_default()
 	))

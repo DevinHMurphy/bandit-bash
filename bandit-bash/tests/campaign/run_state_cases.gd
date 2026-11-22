@@ -6,17 +6,18 @@
 # File:     run_state_cases.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 20, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 extends RefCounted
 ## Run state cases for tests/campaign/run_all.gd, on two seats: a new run's map, armies, gold,
 ## heirlooms, runes and economy ([RunStart]); the same seed gives the same run; the campaign
-## commands (the route, first arrival wins, rejections change nothing); a run saves through its six
-## sections ([RunSaveSections], driven by a [SaveSectionRegistry] and a JSON round trip) and
-## reloads identically, with a Hit delta, a curse held twice, a convoy item and a fallen unit's
-## items; a section from a newer build or at version 0 stops the load; bad, partial and empty run
-## data; the standard combats a step has seen, read from the saved route. Touches no save files.
+## commands (the route by votes, a seat's own choice refused, rejections change nothing); a run
+## saves through its six sections ([RunSaveSections], driven by a [SaveSectionRegistry] and a JSON
+## round trip) and reloads identically, with a Hit delta, a curse held twice, a convoy item, a
+## fallen unit's items and the route votes; a section from a newer build or at version 0 stops the
+## load, and a map from before the votes loads with none; bad, partial and empty run data; the
+## standard combats a step has seen, read from the saved route. Touches no save files.
 
 # The suite that runs this file; tests/case_files.gd finds it by this line.
 const SUITE: String = "campaign"
@@ -286,46 +287,58 @@ func _test_commands() -> void:
 	)
 	var no_node: CampaignBatch = session.submit(ChooseNodeCommand.new(0, 9999))
 	var stranger: CampaignBatch = session.submit(ChooseNodeCommand.new(5, start_node))
+	var own_choice: CampaignBatch = session.submit(ChooseNodeCommand.new(1, start_node))
 	_check("commands: rejections change nothing and record nothing", (
 			leave_early.is_rejected()
 			and too_far.is_rejected()
 			and no_node.is_rejected()
 			and stranger.is_rejected()
+			and own_choice.is_rejected()
 			and run_text(run) == before
 			and run.fact_log.size() == SEATS.size()
-			and rejections.size() == 4
+			and rejections.size() == 5
 	), "%s" % [rejections])
+	_check("commands: in co-op a seat's own choice is refused, with a reason", (
+			own_choice.rejected_reason == "the team votes on its route in co-op"
+	), own_choice.rejected_reason)
 
-	var chosen: CampaignBatch = session.submit(ChooseNodeCommand.new(1, start_node))
-	var late: CampaignBatch = session.submit(
-			ChooseNodeCommand.new(0, first_floor[first_floor.size() - 1])
+	var voted: CampaignBatch = session.submit(RouteVoteCommand.for_session(session, 1, start_node))
+	var chosen: CampaignBatch = session.submit(
+			RouteVoteCommand.for_session(session, 0, start_node)
 	)
-	_check("commands: a node on floor 1 locks the floor and enters the node", (
-			not chosen.is_rejected()
-			and chosen.facts.size() == 1
-			and chosen.facts[0].kind == CampaignFact.Kind.NODE_CHOSEN
-			and chosen.facts[0].seat == 1
-			and chosen.facts[0].amount == start_node
+	var late: CampaignBatch = session.submit(
+			RouteVoteCommand.for_session(session, 0, first_floor[first_floor.size() - 1])
+	)
+	_check("commands: the votes for a node on floor 1 lock the floor and enter the node", (
+			not voted.is_rejected()
+			and not chosen.is_rejected()
+			and chosen.facts.size() == 2
+			and chosen.facts[0].kind == CampaignFact.Kind.ROUTE_VOTED
+			and chosen.facts[0].seat == 0
+			and chosen.facts[1].kind == CampaignFact.Kind.NODE_CHOSEN
+			and chosen.facts[1].seat == CampaignFact.NO_SEAT
+			and chosen.facts[1].amount == start_node
 			and run.floor_number == 1
 			and run.node == start_node
 			and run.visited == PackedInt32Array([start_node])
 			and run.flow.stage == RunFlow.Stage.NODE
-	), chosen.rejected_reason)
-	_check("commands: the first arrival wins; the other seat's pick is rejected", (
+	), "%s / %s" % [voted.rejected_reason, chosen.rejected_reason])
+	_check("commands: once the votes drew, a later vote is rejected", (
 			late.is_rejected() and run.node == start_node and late.arrival > chosen.arrival
 	), late.rejected_reason)
 
 	var left: CampaignBatch = session.submit(LeaveNodeCommand.new(0))
 	var children: PackedInt32Array = run.graph.children_of(start_node)
 	var stray: int = _node_not_child(run.graph, start_node, 2)
-	var off_route: CampaignBatch = session.submit(ChooseNodeCommand.new(0, stray))
-	var back: CampaignBatch = session.submit(ChooseNodeCommand.new(0, start_node))
-	var next: CampaignBatch = session.submit(ChooseNodeCommand.new(0, children[0]))
+	var off_route: CampaignBatch = session.submit(RouteVoteCommand.for_session(session, 0, stray))
+	var back: CampaignBatch = session.submit(RouteVoteCommand.for_session(session, 0, start_node))
+	session.submit(RouteVoteCommand.for_session(session, 0, children[0]))
+	var next: CampaignBatch = session.submit(RouteVoteCommand.for_session(session, 1, children[0]))
 	_check("commands: leaving returns to the map; the route only follows children", (
 			not left.is_rejected()
 			and left.facts[0].kind == CampaignFact.Kind.NODE_LEFT
 			and left.facts[0].amount == start_node
-			and (stray == CampaignGraph.NO_NODE or off_route.is_rejected())
+			and off_route.is_rejected()
 			and back.is_rejected()
 			and not next.is_rejected()
 			and run.visited == PackedInt32Array([start_node, children[0]])
@@ -335,7 +348,7 @@ func _test_commands() -> void:
 	for fact: CampaignFact in run.fact_log:
 		seqs.append(fact.seq)
 	_check("commands: facts are numbered in order, every batch announced", (
-			seqs == [1, 2, 3, 4, 5] and resolved.size() == 10
+			seqs == [1, 2, 3, 4, 5, 6, 7, 8, 9] and resolved.size() == 13
 	), "%s, %d batches" % [seqs, resolved.size()])
 
 	session.close()
@@ -367,10 +380,10 @@ func _test_save_and_reload() -> void:
 			attached == ERR_DOES_NOT_EXIST
 	), error_string(attached))
 	var expected_versions: String = (
-			"campaign_map 1, run_flow 1; economy 2, heirlooms 2, roster 1, runes 1"
+			"campaign_map 2, run_flow 1; economy 2, heirlooms 2, roster 1, runes 1"
 	)
-	_check("save: every section is at its version in the campaign block, economy and heirlooms "
-			+ "at 2", (
+	_check("save: every section is at its version in the campaign block, the map, economy and "
+			+ "heirlooms at 2", (
 			_versions(saved) == expected_versions
 	), _versions(saved))
 	_check("save: the run reloads identically, part by part", (
@@ -400,6 +413,10 @@ func _test_save_and_reload() -> void:
 			and seat_one.heirlooms[2].counters.is_empty()
 	), str(seat_one.heirloom_ids()))
 	var fallen: UnitInstance = seat_one.fallen[0] if not seat_one.fallen.is_empty() else null
+	_check("save: the route votes kept after their draw come back", (
+			reloaded.run.route_votes == run.route_votes
+			and run.route_votes.size() == SEATS.size()
+	), str(reloaded.run.route_votes))
 	_check("save: the convoy item and the fallen unit's items are kept", (
 			seat_zero.convoy.size() == 1
 			and seat_zero.items.has(seat_zero.convoy[0])
@@ -425,9 +442,9 @@ func _test_newer_and_zero_versions_refused() -> void:
 	var sections: RunSaveSections = RunSaveSections.new()
 	sections.attach(session)
 	var saved: Dictionary = _save(sections, SEATS)
-	print("    (errors about a section version 2, then version 0, follow)")
+	print("    (errors about a newer section version, then version 0, follow)")
 	var cases: Dictionary[String, Array] = {
-		"campaign_map newer": [_with_version(saved, "campaign_map", -1, 2), ERR_FILE_UNRECOGNIZED],
+		"campaign_map newer": [_with_version(saved, "campaign_map", -1, 3), ERR_FILE_UNRECOGNIZED],
 		"run_flow at 0": [_with_version(saved, "run_flow", -1, 0), ERR_INVALID_DATA],
 		"roster newer": [_with_version(saved, "roster", 1, 2), ERR_FILE_UNRECOGNIZED],
 		"economy at 0": [_with_version(saved, "economy", 0, 0), ERR_INVALID_DATA],
@@ -460,6 +477,30 @@ func _test_newer_and_zero_versions_refused() -> void:
 			and ((saved["players"] as Array)[0]["sections"]["economy"]["version"] as int) == 2
 	), "%s, %s" % [error_string(loaded), error_string(built)])
 
+	# campaign_map version 1 (no votes key) loads as a map with no votes, and saves again at 2.
+	var voting: CampaignSession = new_session(RUN_SEED)
+	voting.submit(RouteVoteCommand.for_session(voting, 0, voting.run.next_nodes()[0]))
+	var with_votes: Dictionary = _save_of(voting)
+	var old_map: Dictionary = _with_version(with_votes, "campaign_map", -1, 1)
+	(old_map["sections"]["campaign_map"]["data"] as Dictionary).erase("votes")
+	var map_loaded: RunSaveSections = RunSaveSections.new()
+	var map_err: Error = _load(map_loaded, old_map)
+	var map_into: CampaignSession = CampaignSession.new(
+			CampaignData.Mode.MULTIPLAYER, RUN_SEED, SEATS
+	)
+	var map_built: Error = map_loaded.attach(map_into)
+	var resaved: Dictionary = (
+			_save(map_loaded, SEATS)["sections"]["campaign_map"] if map_built == OK else {}
+	)
+	_check("versions: campaign_map at version 1 loads with no votes, and saves again at 2", (
+			map_err == OK
+			and map_built == OK
+			and map_into.run.route_votes.is_empty()
+			and ItemInstance.read_int(resaved.get("version"), 0) == 2
+			and JSON.stringify(resaved["data"]["votes"]) == "{}"
+			and voting.run.route_votes.size() == 1
+	), "%s, %s" % [error_string(map_err), error_string(map_built)])
+
 
 func _test_bad_data_refused() -> void:
 	var session: CampaignSession = new_session(RUN_SEED)
@@ -489,9 +530,23 @@ func _test_bad_data_refused() -> void:
 	(duplicate_unit["fallen"] as Array).append(second_unit.duplicate(true))
 	var no_faction: Dictionary = roster.duplicate(true)
 	no_faction["faction_id"] = ""
+	var entered: int = run.node
+	var child: int = run.graph.children_of(entered)[0]
+	var stray: int = _node_not_child(run.graph, entered, 2)
+	var far: int = run.graph.nodes_on_floor(3)[0]
 
 	var cases: Dictionary[String, Error] = {
 		"a route that skips a floor": CampaignRunState.new().restore_map(broken_route),
+		"votes on two floors": _restore_votes(map, {"0": entered, "1": child}),
+		"a vote two floors ahead": _restore_votes(map, {"0": far}),
+		"a vote the route can't reach": _restore_votes(
+				map, {"0": stray if stray != CampaignGraph.NO_NODE else 9999}
+		),
+		"a vote for a node the map lacks": _restore_votes(map, {"0": 9999}),
+		"a vote by no seat": _restore_votes(map, {"-1": child}),
+		"a vote keyed by a name": _restore_votes(map, {"host": child}),
+		"a vote for a name": _restore_votes(map, {"0": str(child)}),
+		"votes that aren't a dictionary": _restore_votes(map, [child]),
 		"a stage inside a node before any node": CampaignRunState.new().restore_flow(
 				{"stage": "node", "unknown_odds": {}, "used_maps": [], "shop_stock": {}}
 		),
@@ -528,6 +583,10 @@ func _test_bad_data_refused() -> void:
 	}
 	for case_name: String in cases:
 		_check("bad data: %s is refused" % [case_name], cases[case_name] == ERR_INVALID_DATA)
+	_check("bad data: open votes for the next floor and votes kept after a draw both load", (
+			_restore_votes(map, {"0": child, "1": child}) == OK
+			and _restore_votes(map, {"0": entered}) == OK
+	))
 
 	var flow_alone: Dictionary = _save_of(session)
 	flow_alone["sections"]["campaign_map"] = {"version": 1, "data": {}}
@@ -578,7 +637,7 @@ func _test_partial_and_empty_runs() -> void:
 
 # A Hit delta on seat 0's second unit, a convoy item for seat 0, a curse held twice (one copy
 # with a counter) and a fallen unit for seat 1, a rune, gold, the offset, pending offers, the
-# shared state and one node chosen.
+# shared state and one node chosen by both seats' votes, which stay after their draw.
 func _fill_every_part(session: CampaignSession) -> void:
 	var run: CampaignRunState = session.run
 	var seat_zero: SeatRun = run.seat_run(0)
@@ -604,7 +663,8 @@ func _fill_every_part(session: CampaignSession) -> void:
 	run.flow.unknown_odds = {"standard": 20, "shop": 6}
 	run.flow.used_maps = PackedStringArray(["m1_greybox"])
 	run.flow.shop_stock = {"7": {"weapons": ["simple_bow"]}}
-	session.submit(ChooseNodeCommand.new(0, run.graph.nodes_on_floor(1)[0]))
+	for seat: int in SEATS:
+		session.submit(RouteVoteCommand.for_session(session, seat, run.graph.nodes_on_floor(1)[0]))
 
 
 # The campaign block's sections and each seat's, as a registry writes them, after a JSON trip.
@@ -693,6 +753,13 @@ func _with_flow_stage(saved: Dictionary, stage: String) -> Dictionary:
 	var copy: Dictionary = saved.duplicate(true)
 	copy["sections"]["run_flow"]["data"]["stage"] = stage
 	return copy
+
+
+# What a new run state's restore_map() returns for map with its votes replaced by votes.
+func _restore_votes(map: Dictionary, votes: Variant) -> Error:
+	var changed: Dictionary = map.duplicate(true)
+	changed["votes"] = votes
+	return CampaignRunState.new().restore_map(changed)
 
 
 # A node on floor_number that from_id doesn't lead to; NO_NODE when it leads to them all.
