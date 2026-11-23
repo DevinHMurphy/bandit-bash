@@ -154,16 +154,13 @@ func begin_battle(request: CampaignSession.BattleRequest) -> Error:
 
 
 ## Resumes the battle a continued run loaded ([constant CombatData.ResumePoint.BATTLE]) from
-## [param request], the request Begin had, in save-system.md's order (Combat map): with the
-## combat state, map and darkness sections all holding, the battle is rebuilt as Begin set it up
-## ([method CampaignSession.resume_battle]), its maps loaded ([method CombatMapSection.load_into]),
-## then their darkness ([method DarknessSaveSection.load_into]), then its units, turn and effects
-## ([method CombatStateSection.load_into]), and the run's id counter set back to the combat
-## checkpoint's. On any failure the saved battle is dropped
-## ([method SaveService.drop_battle]) and begun again from Begin ([method begin_battle]), minting
-## on from the run's counter. Returns [constant OK], resumed or restarted;
-## [constant ERR_INVALID_PARAMETER] for null; [constant ERR_UNCONFIGURED] with no session or no
-## saved battle loaded; [constant ERR_ALREADY_IN_USE] during a battle; or [method begin_battle]'s.
+## [param request], the request Begin had: with every combat section holding, the battle is rebuilt
+## as Begin set it up ([method CampaignSession.resume_battle]) and the save loaded into it in
+## save-system.md's order (Combat map), a map whose seat left ([member CampaignData.departed]) as
+## saved. On any failure the saved battle is dropped ([method SaveService.drop_battle]) and begun
+## again from Begin without such seats ([method begin_battle]). Returns [constant OK], resumed or
+## restarted; [constant ERR_INVALID_PARAMETER] for null; [constant ERR_UNCONFIGURED] with no session
+## or saved battle; [constant ERR_ALREADY_IN_USE] mid-battle; or [method begin_battle]'s.
 func resume_battle(request: CampaignSession.BattleRequest) -> Error:
 	if request == null:
 		return ERR_INVALID_PARAMETER
@@ -192,7 +189,7 @@ func resume_battle(request: CampaignSession.BattleRequest) -> Error:
 		push_warning(
 				"CampaignService: the old combat file wasn't deleted - %s" % [error_string(dropped)]
 		)
-	return begin_battle(request)
+	return begin_battle(_without_departed(request))
 
 
 ## Ends the battle in progress in save-system.md's order, so a crash at any point loses and repeats
@@ -318,9 +315,10 @@ func submit_combat(command: Command, session_id: int) -> Array[CombatSession.Fac
 ## Host only: [param seat], a non-host player, leaves the run for good, as a forfeit or, with
 ## [param is_removed], the host's removal after a drop (P11 CO18 calls it for both). A forfeit's
 ## archive record is built first ([method SaveService.archive_forfeit]); then the rules
-## ([method CampaignSession.forfeit_seat]); then the seat leaves the campaign's players and the
-## checkpoint is saved. A rejection changes nothing and drops the record. Returns the batch; null
-## with no session or on a client. A failed save is reported and the change kept in memory.
+## ([method CampaignSession.forfeit_seat]); then the seat leaves the campaign's players (mid-battle
+## set aside until the battle ends, [method SaveService.set_aside_player]) and the checkpoint is
+## saved. A rejection changes nothing and drops the record. Returns the batch; null with no session
+## or on a client. A failed save is reported and the change kept in memory.
 func forfeit_seat(seat: int, is_removed: bool = false) -> CampaignBatch:
 	if session == null or _is_client():
 		push_error("CampaignService: only the host's run can lose a seat.")
@@ -328,11 +326,14 @@ func forfeit_seat(seat: int, is_removed: bool = false) -> CampaignBatch:
 	var is_member: bool = session.run != null and session.run.seats.has(seat)
 	if not is_removed and is_member and seat != CampaignData.HOST_SEAT:
 		SaveService.archive_forfeit(seat)
+	var is_in_battle: bool = session.encounter != null
 	var batch: CampaignBatch = session.forfeit_seat(seat, is_removed)
 	if batch == null or batch.is_rejected():
 		SaveService.take_forfeit_record(seat)
 		return batch
-	var removed: Error = SaveService.remove_player(seat)
+	var removed: Error = (
+			SaveService.set_aside_player(seat) if is_in_battle else SaveService.remove_player(seat)
+	)
 	if removed != OK:
 		push_error("CampaignService: seat %d stayed in the campaign - %s" % [
 			seat, error_string(removed),
@@ -575,6 +576,40 @@ func _load_saved_battle(battle: CombatEncounter) -> Error:
 	return err
 
 
+# A saved battle that can't be rebuilt restarts from Begin, where nobody would play the map of a
+# seat that had left it (the lobby didn't admit them): each such seat leaves the run as a forfeit
+# on the map does, and the request is made again from the run, keeping the opening-swap entries
+# of the seats left. request itself when no seat left, or when the run gives no request.
+func _without_departed(
+		request: CampaignSession.BattleRequest
+) -> CampaignSession.BattleRequest:
+	var campaign: CampaignData = SaveService.campaign
+	if campaign == null or campaign.departed.is_empty() or session.run == null:
+		return request
+	var leaving: PackedInt32Array = []
+	for player: CampaignData.PlayerRun in campaign.departed:
+		leaving.append(player.seat)
+	for seat: int in leaving:
+		# ASSUMPTION: recorded as a forfeit, not a removal: the combat file doesn't say which it
+		# was, and the leaving player's machine already holds any record it gets.
+		var batch: CampaignBatch = session.forfeit_seat(seat)
+		if batch == null or batch.is_rejected():
+			push_warning("CampaignService: seat %d, which left the battle, stays in its restart." % [
+				seat,
+			])
+			continue
+		SaveService.remove_player(seat)
+	var again: CampaignSession.BattleRequest = session.run.battle_request(
+			CombatMapPools.load_default(), request.catalog
+	)
+	if again == null:
+		return request
+	for seat: int in request.opening_swap:
+		if session.seats.has(seat):
+			again.opening_swap[seat] = request.opening_swap[seat]
+	return again
+
+
 # A battle's end that didn't save: the run, its campaign streams and its id counter as they were
 # before it, so ending it again rolls and mints the same.
 func _put_back(
@@ -640,8 +675,9 @@ func _on_save_service_campaign_activated(mode: CampaignData.Mode, resumed: bool)
 	if campaign == null:
 		_replace_session(null)
 		return
+	# A seat that left the saved battle is still in its rebuild, until the battle's end drops it.
 	var seats: PackedInt32Array = []
-	for player: CampaignData.PlayerRun in campaign.players:
+	for player: CampaignData.PlayerRun in campaign.players + campaign.departed:
 		seats.append(player.seat)
 	if seats.is_empty():
 		seats.append(CampaignData.HOST_SEAT)

@@ -91,6 +91,12 @@ const _RESERVED_CAMPAIGN_SECTIONS: Array[String] = ["rng"]
 # as an unknown section (save-system.md).
 const _RESERVED_COMBAT_SECTIONS: Array[String] = ["entities", "rng"]
 
+# Where the combat file lists the seats that left its battle: CombatStateSection's key (never
+# changed, save-system.md), its encounter part and CombatEncounter.snapshot()'s list.
+const _COMBAT_STATE_KEY: String = "combat_state"
+const _ENCOUNTER_PART: String = "encounter"
+const _FORFEITED_KEY: String = "forfeited"
+
 ## The open save file, 1 to [constant SAVE_FILE_COUNT], or [constant NO_SAVE_FILE].
 var current_save_number: int = NO_SAVE_FILE
 
@@ -234,6 +240,7 @@ func get_summary(save_number: int) -> SaveFileSummary:
 		summary.multi_state = _get_failure_state(multi_err)
 	else:
 		summary.multi_state = SaveFileSummary.State.READY
+		_set_aside_departed(multi, _read_paired_combat(save_number, multi))
 		summary.multi_player_count = multi.players.size()
 		summary.multi_last_opened = multi.last_opened
 	return summary
@@ -554,7 +561,8 @@ func drop_battle() -> Error:
 ## the battle's results, then deletes the combat file.
 ##
 ## Systems apply the battle's results to their campaign sections before calling this; they are
-## captured here. If the campaign write fails, the battle stays in progress and nothing changes.
+## captured here. Each seat that left during the battle ([member CampaignData.departed]) leaves the
+## file now. If the campaign write fails, the battle stays in progress and nothing changes.
 ## Returns [constant OK], [constant ERR_UNCONFIGURED] with no battle in progress, or the first
 ## write or delete error.
 func end_battle() -> Error:
@@ -566,12 +574,15 @@ func end_battle() -> Error:
 	var begin_player_sections: Array[Dictionary] = []
 	for player: CampaignData.PlayerRun in campaign.players:
 		begin_player_sections.append(player.sections)
+	var departed: Array[CampaignData.PlayerRun] = campaign.departed
 
+	campaign.departed = []
 	campaign.combat_in_progress = false
 	var now_msec: int = Time.get_ticks_msec()
 	var campaign_err: Error = _write_campaign(now_msec)
 	if campaign_err != OK:
 		campaign.combat_in_progress = true
+		campaign.departed = departed
 		campaign.sections = begin_sections
 		for index: int in campaign.players.size():
 			campaign.players[index].sections = begin_player_sections[index]
@@ -645,6 +656,8 @@ func abandon_run(slot_mode: CampaignData.Mode) -> Error:
 		if last_archive_error != OK:
 			push_warning("SaveService: abandoned run in %s couldn't be archived." % [path])
 			source = null
+		else:
+			_set_aside_departed(source, _read_paired_combat(current_save_number, source))
 
 	if source != null:
 		last_archive_error = _write_archive(
@@ -686,15 +699,28 @@ func archive_forfeit(seat: int) -> ArchiveRecord:
 	return record
 
 
-## Host only: takes [param seat] out of [member campaign]'s players, with its sections, once it has
-## left the run (a forfeit, or a removal after a drop), so a resume no longer needs them. Writes
-## nothing: the caller's next checkpoint does. Returns [method CampaignData.remove_player]'s result;
-## [constant ERR_UNCONFIGURED] with no campaign.
+## Host only: takes [param seat] out of [member campaign], with its sections, once it has left the
+## run (a forfeit, or a removal after a drop) outside a battle, so a resume no longer needs them;
+## mid-battle see [method set_aside_player]. Writes nothing: the caller's next checkpoint does.
+## Returns [method CampaignData.remove_player]'s result; [constant ERR_UNCONFIGURED] with no
+## campaign.
 func remove_player(seat: int) -> Error:
 	if campaign == null:
 		push_error("SaveService: no campaign to remove seat %d from." % [seat])
 		return ERR_UNCONFIGURED
 	return campaign.remove_player(seat)
+
+
+## Host only: [param seat] left the battle in progress (a forfeit, or a removal after a drop). It
+## leaves [member campaign]'s players at once, so a resume no longer needs them, but its entry stays
+## in the campaign file until [method end_battle] ([method CampaignData.set_aside]), so a resumed
+## battle rebuilds its map as saved. Writes nothing: the caller's next checkpoint does. Returns
+## [method CampaignData.set_aside]'s result; [constant ERR_UNCONFIGURED] outside a battle.
+func set_aside_player(seat: int) -> Error:
+	if campaign == null or combat == null:
+		push_error("SaveService: no battle in progress for seat %d to leave." % [seat])
+		return ERR_UNCONFIGURED
+	return campaign.set_aside(seat)
 
 
 ## Returns [param seat]'s forfeit record ([method archive_forfeit]) and forgets it, for the leaving
@@ -817,6 +843,11 @@ func _activate_campaign(slot_mode: CampaignData.Mode) -> Error:
 
 	campaign = loaded
 	resume_point = _load_battle()
+	# Only a battle that resumes rebuilds the maps of the seats that left it.
+	# ASSUMPTION: a restart from Begin at load (no usable combat file to say who left) keeps every
+	# entry the file holds, so its lobby needs the seat that left too.
+	if resume_point == CombatData.ResumePoint.BATTLE:
+		_set_aside_departed(campaign, combat)
 	return OK
 
 
@@ -879,6 +910,30 @@ func _load_battle() -> CombatData.ResumePoint:
 	SaveFile.delete(path)
 	_sections.reset(SaveSection.Block.COMBAT)
 	return CombatData.ResumePoint.BATTLE_RETRY
+
+
+# The combat file paired with source's last write in save_number, read only: null outside a
+# battle, or for a file that is missing, unreadable or from another checkpoint (_load_battle()).
+func _read_paired_combat(save_number: int, source: CampaignData) -> CombatData:
+	if not source.combat_in_progress:
+		return null
+	var result: SaveFile.ReadResult = SaveFile.read(_get_combat_path(save_number, source.mode))
+	var loaded: CombatData = CombatData.new()
+	if result.error != OK or loaded.load_envelope(result.envelope) != OK:
+		return null
+	var seq_gap: int = loaded.checkpoint_seq - source.checkpoint_seq
+	return loaded if seq_gap == 0 or seq_gap == 1 else null
+
+
+# Sets aside each of target's seats that left battle (_forfeited_seats()), so target's players are
+# the run's as the battle stands. A save from before entries were kept already dropped the seat.
+func _set_aside_departed(target: CampaignData, battle: CombatData) -> void:
+	for seat: int in _forfeited_seats(battle):
+		var err: Error = target.set_aside(seat)
+		if err != OK and err != ERR_DOES_NOT_EXIST:
+			push_warning("SaveService: seat %d left the battle but can't be set aside - %s" % [
+				seat, error_string(err),
+			])
 
 
 # Writes record to the open save file's archive folder, adding a suffix if a record with the same
@@ -1075,7 +1130,7 @@ func _write_campaign(now_msec: int) -> Error:
 	if not campaign.combat_in_progress:
 		_capture_campaign_sections()
 	var path: String = _get_campaign_path(current_save_number, campaign.mode)
-	var err: Error = SaveFile.write(path, campaign.to_envelope())
+	var err: Error = SaveFile.write(path, campaign.to_save_envelope())
 	if err != OK:
 		campaign.play_time_seconds = previous_play_time
 		campaign.checkpoint_seq = previous_seq
@@ -1155,3 +1210,30 @@ func _write_last_selected(save_number: int) -> void:
 	var err: Error = SaveFile.write(LAST_SELECTED_PATH, envelope)
 	if err != OK:
 		push_warning("SaveService: couldn't remember save %d as last selected." % [save_number])
+
+
+# The seats battle's combat_state section lists as having left the battle
+# (CombatEncounter.snapshot()'s "forfeited"), read from its raw data so the lobby knows them before
+# any session exists; empty for null, a battle nobody left or data that doesn't hold the list.
+static func _forfeited_seats(battle: CombatData) -> PackedInt32Array:
+	var seats: PackedInt32Array = []
+	if battle == null:
+		return seats
+	var entry: Variant = battle.sections.get(_COMBAT_STATE_KEY, null)
+	if not entry is Dictionary:
+		return seats
+	var data: Variant = (entry as Dictionary).get(SaveSectionRegistry.KEY_DATA, null)
+	if not data is Dictionary:
+		return seats
+	var part: Variant = (data as Dictionary).get(_ENCOUNTER_PART, null)
+	if not part is Dictionary:
+		return seats
+	var listed: Variant = (part as Dictionary).get(_FORFEITED_KEY, null)
+	if not listed is Array:
+		return seats
+	# Untyped: the list comes from JSON, whose numbers are floats.
+	for seat: Variant in listed:
+		if seat is int or seat is float:
+			var number: float = seat
+			seats.append(roundi(number))
+	return seats
