@@ -18,10 +18,11 @@ extends Node
 ## any save file opens. The host's and solo's session is built on
 ## [signal SaveService.campaign_activated] and closed on run end, save file close and campaign
 ## clear. A client's is the host's [ClientMirror], built while the host's campaign replica is
-## held, never saved; its commands go to the host. [b]Save sections,[/b] handed each new session,
-## campaign before combat: [code]rng[/code], [code]instance_ids[/code], the run's
-## ([RunSaveSections], [EventSaveSection]) and the battle's. A run whose save holds no run
-## sections is built by [RunStart] and saved at once.
+## held (and kept through a reconnect), never saved; its commands go to the host, and a rejoin
+## takes it to the run's screen. While the run is paused every command settles "paused".
+## [b]Save sections,[/b] campaign before combat: [code]rng[/code], [code]instance_ids[/code], the
+## run's ([RunSaveSections], [EventSaveSection]) and the battle's; a run with none is built by
+## [RunStart] and saved at once.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
@@ -44,6 +45,9 @@ const MAP_RULES_PATH: String = "res://data/campaign/campaign_map_rules.tres"
 ## Every seat's faction in a new run. The Mercenary is the MVP's only faction and is preselected
 ## until the run-start screens offer a choice.
 const DEFAULT_FACTION_ID: String = "mercenary"
+
+# Why a command settled while the run is paused: NetRelay's word for its clients' commands.
+const _PAUSED: String = "paused"
 
 ## The run in progress on this machine; on a multiplayer client, the mirror of the host's
 ## ([member CampaignSession.is_mirror]) once its first capture arrived. Null outside a run.
@@ -73,6 +77,9 @@ var _mirror_seed: int = 0
 
 # The map each combat command this client sent is for, by token, until it settles.
 var _sent_combat: Dictionary[int, int] = {}
+
+# A client that rejoined a run in progress goes to the run's screen on its next sync.
+var _moves_on_sync: bool = false
 
 
 func _ready() -> void:
@@ -110,12 +117,16 @@ func _ready() -> void:
 
 
 # A client mirrors the host's run while it holds the host's campaign (the replica SaveService
-# keeps), and runs the mirror's request clock; a new run's replica starts a new mirror.
+# keeps), through a reconnect too, and runs the mirror's request clock; a new run's replica
+# starts a new mirror. A reconnect means the screen moves once the client is back.
 func _process(delta: float) -> void:
 	var replica: CampaignData = SaveService.multiplayer_replica
-	if not _is_client() or replica == null:
+	var is_reconnecting: bool = _mirror != null and SteamNetwork.is_reconnecting()
+	if replica == null or not (_is_client() or is_reconnecting):
 		_drop_mirror()
 		return
+	if is_reconnecting:
+		_moves_on_sync = true
 	if _mirror != null and _mirror_seed != replica.run_seed:
 		_drop_mirror()
 	if _mirror == null:
@@ -186,14 +197,17 @@ func resume_battle(request: CampaignSession.BattleRequest) -> Error:
 ## nothing: collects the result ([method CampaignSession.collect_battle]), swaps in the run with it
 ## applied and its rewards rolled ([method CampaignRunState.apply_battle], rules from
 ## [constant CombatRewardRules.DEFAULT_PATH]), saves with [method SaveService.end_battle], then
-## drops the battle. A solo battle lost ends the run instead ([method SaveService.end_run]).
-## Returns the result; null with no battle, or when applying or the save failed, which puts the
-## run, its campaign streams and its id counter back, leaving the battle in progress.
+## drops the battle. A lost run ends instead, for every seat ([method SaveService.end_run]): a
+## solo battle lost, a co-op run lost ([method CombatEncounter.is_run_lost], so before every map
+## has ended), or a co-op Boss no map beat. Returns the result; null with no battle, or when
+## applying or the save failed, which puts the run, its campaign streams and its id counter back,
+## leaving the battle in progress.
 func end_battle() -> CampaignSession.BattleResult:
 	if session == null or session.encounter == null:
 		push_error("CampaignService: no battle in progress to end.")
 		return null
 	var result: CampaignSession.BattleResult = session.collect_battle()
+	var was_run_lost: bool = session.encounter.is_run_lost()
 	var kept: CampaignRunState = session.run
 	# The rewards draw from the live streams and mint ids, so a retry must start from here again.
 	var streams_before: Dictionary[String, String] = session.rng.capture_campaign()
@@ -212,7 +226,7 @@ func end_battle() -> CampaignSession.BattleResult:
 			return null
 		session.run = applied
 	_sync_floor()
-	if session.mode == CampaignData.Mode.SOLO and result.is_finished and not result.is_won:
+	if _is_battle_losing_run(result, was_run_lost):
 		var lost: CampaignSession = session
 		lost.end_battle()
 		var ended: Error = SaveService.end_run(false)
@@ -230,8 +244,13 @@ func end_battle() -> CampaignSession.BattleResult:
 ## quit. Returns the batch; null with no session. A failed save is reported and the change kept
 ## in memory, for the next checkpoint to write. On a multiplayer client nothing resolves here:
 ## the command goes to the host ([method ClientMirror.submit_campaign]), the mirror announces
-## what it did on the session's signals, and null is returned.
+## what it did on the session's signals, and null is returned. While the run is paused it is
+## refused "paused" ([signal CampaignSession.command_rejected]) before anything resolves.
 func submit_command(command: CampaignCommand) -> CampaignBatch:
+	if _mirror != null and not NetGate.has_session(NetRelay.multiplayer):
+		if command != null and _mirror.session != null:
+			_mirror.session.command_rejected.emit(local_seat(), 0, _PAUSED)
+		return null
 	if _is_client():
 		if _mirror != null:
 			_mirror.submit_campaign(command)
@@ -241,6 +260,8 @@ func submit_command(command: CampaignCommand) -> CampaignBatch:
 	if session == null:
 		push_error("CampaignService: no run in progress to command.")
 		return null
+	if command != null and NetRelay.is_paused():
+		return _refuse_paused(command)
 	var batch: CampaignBatch = session.submit(command)
 	if batch != null and not batch.is_rejected():
 		_sync_floor()
@@ -259,8 +280,13 @@ func submit_command(command: CampaignCommand) -> CampaignBatch:
 ## batches. On a multiplayer client it goes to the host instead, returning none, and
 ## [signal combat_settled] follows once the host's batches have reached the mirror. None, too,
 ## with no battle in progress, a null command or a mirror's battle off the network (reported).
+## While the run is paused the map rejects it "paused" ([method CombatSession.reject]); a client
+## reconnecting to its host settles it "paused" at once.
 func submit_combat(command: Command, session_id: int) -> Array[CombatSession.FactBatch]:
 	var batches: Array[CombatSession.FactBatch] = []
+	if _mirror != null and not NetGate.has_session(NetRelay.multiplayer):
+		combat_settled.emit(session_id, _PAUSED)
+		return batches
 	if _is_client():
 		_follow_relay_settles()
 		var token: int = NetRelay.NO_TOKEN
@@ -276,6 +302,11 @@ func submit_combat(command: Command, session_id: int) -> Array[CombatSession.Fac
 		return batches
 	if session.is_mirror:
 		push_error("CampaignService: a mirror's battle resolves nothing; it isn't sent either.")
+		return batches
+	if NetRelay.is_paused():
+		var map: CombatSession = session.encounter.get_session(session_id)
+		if map != null:
+			batches.append(map.reject(command, _PAUSED))
 		return batches
 	session.encounter.submit(command, session_id)
 	batches = session.encounter.resolve_queued()
@@ -325,6 +356,24 @@ func _is_client() -> bool:
 	return not NetGate.is_authoritative(NetRelay.multiplayer)
 
 
+# Whether the battle that left result, now applied to the run, ends the run as lost: a solo battle
+# lost; a co-op run lost (was_run_lost, read before the battle closed); or a co-op battle over at
+# its node that didn't reach its results (a Boss no map beat; CampaignRunState.apply_battle).
+func _is_battle_losing_run(
+		result: CampaignSession.BattleResult, was_run_lost: bool
+) -> bool:
+	if session.mode == CampaignData.Mode.SOLO:
+		return result.is_finished and not result.is_won
+	if was_run_lost:
+		return true
+	var run: CampaignRunState = session.run
+	return (
+			result.is_finished and result.seats.size() > 1 and run != null
+			and run.flow.stage == RunFlow.Stage.NODE
+			and run.floor_number == result.floor_number and run.node == result.node
+	)
+
+
 # A mirror of the run seeded run_seed on NetRelay, shown as the session once its first capture
 # arrives, asking for it now.
 func _start_mirror(run_seed: int) -> void:
@@ -334,6 +383,11 @@ func _start_mirror(run_seed: int) -> void:
 	_mirror_seed = run_seed
 	_mirror.session_built.connect(_on_mirror_session_built)
 	_mirror.sync_gave_up.connect(_on_mirror_sync_gave_up)
+	# After the mirror's own, so the sync has applied when the screen moves.
+	NetRelay.sync_received.connect(_on_net_relay_sync_received)
+	# A normal start sends a client to Loading before its mirror exists; one still in the lobby
+	# joined a run in progress.
+	_moves_on_sync = SceneRouter.current_screen == SceneRouter.Screen.LOBBY
 	_mirror.start()
 
 
@@ -344,6 +398,9 @@ func _drop_mirror() -> void:
 	var dropped: ClientMirror = _mirror
 	_mirror = null
 	_sent_combat.clear()
+	_moves_on_sync = false
+	if NetRelay.sync_received.is_connected(_on_net_relay_sync_received):
+		NetRelay.sync_received.disconnect(_on_net_relay_sync_received)
 	var mirrored: CampaignSession = dropped.session
 	dropped.close()
 	if mirrored != null and session == mirrored:
@@ -496,6 +553,17 @@ func _put_back(
 	session.ids.restore(counter)
 
 
+# The host's own campaign command while the run is paused: refused as a client's would be, its
+# seat told, nothing stamped, resolved or saved.
+func _refuse_paused(command: CampaignCommand) -> CampaignBatch:
+	var batch: CampaignBatch = CampaignBatch.new()
+	batch.seat = command.seat
+	batch.label = command.get_label()
+	batch.rejected_reason = _PAUSED
+	session.command_rejected.emit(batch.seat, batch.arrival, batch.rejected_reason)
+	return batch
+
+
 # Sets the active campaign's floor, which Save Select shows, to the run's.
 func _sync_floor() -> void:
 	var campaign: CampaignData = SaveService.campaign
@@ -563,6 +631,22 @@ func _on_mirror_sync_gave_up(attempts: int) -> void:
 	push_warning("CampaignService: the host sent no state after %d requests." % [attempts])
 
 
+# A client that rejoined goes to the run's screen once the host's state has reached its mirror:
+# its old screen shows a battle the mirror rebuilt, or no run at all.
+func _on_net_relay_sync_received(
+		_run: Dictionary, _battle: Dictionary, _facts: Array, screen: int
+) -> void:
+	if not _moves_on_sync or session == null or session.run == null:
+		return
+	_moves_on_sync = false
+	var target: SceneRouter.Screen = _rejoin_screen(session, screen)
+	NetLog.info(
+			NetLog.Category.SCENE,
+			"Rejoined the run; going to %s." % [SceneRouter.Screen.find_key(target)]
+	)
+	SceneRouter.goto_screen(target)
+
+
 # A combat command this client sent settled; a campaign one is the mirror's to announce.
 func _on_net_relay_command_settled(token: int, reason: String) -> void:
 	if not _sent_combat.has(token):
@@ -570,3 +654,11 @@ func _on_net_relay_command_settled(token: int, reason: String) -> void:
 	var session_id: int = _sent_combat[token]
 	_sent_combat.erase(token)
 	combat_settled.emit(session_id, reason)
+
+
+# The screen a rejoined client opens on run_session, its mirror: the battle screen when the
+# host's sync says a battle is open (screen), else the run's own for this seat (RunScreen.of()).
+static func _rejoin_screen(run_session: CampaignSession, screen: int) -> SceneRouter.Screen:
+	if screen == SceneRouter.Screen.GAMEPLAY:
+		return SceneRouter.Screen.GAMEPLAY
+	return RunScreen.of(run_session)

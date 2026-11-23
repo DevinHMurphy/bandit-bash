@@ -71,6 +71,8 @@ Not a bug.
 | [BUG-036](#bug-036-a-resumed-frozen-maps-turn-cant-end) | A resumed frozen map's turn can't end: `PhaseRunner.seats_with_units` counts only the map's own seats, not a sender's unit on it | P11 (co-op battles) | S2 (latent: only tests send) | Fixed (CO2 merge, November 22, 2026) | November 22, 2026, CO1 report | CO2 (Lane D) |
 | [BUG-037](#bug-037-a-map-that-received-units-keeps-its-speed-bonus) | A co-op map that received units keeps its speed bonus: `SeatOutcome.has_received_units` is never set | P11 (co-op rewards) | S3 (latent: co-op battles show the placeholder) | Fixed (CO5 merge, November 22, 2026) | November 22, 2026, CO2 report | CO5 (Lane B, owns `campaign_session.gd`) |
 | [BUG-038](#bug-038-a-unit-sent-to-a-frozen-map-with-no-free-tile-never-lands) | A unit sent to a frozen map with no free tile never lands, so the run waits forever | P11 (co-op battles) | S2 (latent) | Assigned; decided (user, November 22, 2026): the unit returns to its sender's map and the frozen map counts as unreachable, so `is_run_lost()` can end the run | November 22, 2026, CO2 report | CO3 (Lane D) |
+| [BUG-039](#bug-039-loot-found-on-a-map-never-reaches-the-run) | Loot found on a battle map (`MapState.found`) is never given to the run at the battle's end, and is filed under the looting unit's seat rather than the map owner's | P04 / P08 (map loot, battle end) | S2 (solo too, unless another path applies it: confirm) | Open | November 23, 2026, CO8 report | Lane B (with CO14) |
+| [BUG-040](#bug-040-a-1-seat-multiplayer-run-that-loses-never-ends) | A 1-seat multiplayer run that loses its battle never ends | P11 (run end) | S4 | Open | November 23, 2026, CO8 report | Lane B (with CO14) |
 
 ### BUG-001 No Block at the start of combat
 
@@ -550,3 +552,19 @@ Not a bug.
 - **Fix** (decided by the user, November 22, 2026): an arrival that finds no free tile on a frozen
   map returns to its sender's won map, and that frozen map counts as one no unit can reach, so
   `is_run_lost()` can end the run instead of waiting; with a case. Lane D, with CO3.
+
+### BUG-039 Loot found on a map never reaches the run
+
+- **Found** by CO8: `map_objects.gd` records what a unit loots from a map object in
+  `MapState.found`, under the looting unit's seat, but nothing applies it to the run when the
+  battle ends. Co-op rules (P11 question 25) give loot to the map's owner.
+- **Fix:** confirm whether solo applies found loot by another path; then apply `MapState.found` at
+  the battle's end to the map owner's run state (pouch, convoy or gold as each kind says), with a
+  solo and a co-op case.
+
+### BUG-040 A 1-seat multiplayer run that loses never ends
+
+- **Found** by CO8: a multiplayer session with one seat is neither solo nor co-op for the run-end
+  path, so a lost battle leaves it on its map. It predates CO8.
+- **Fix:** treat a 1-seat multiplayer run's loss as a solo loss (`SaveService.end_run(false)`), with
+  a case.

@@ -6,7 +6,7 @@
 # File:     save_service.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: November 5, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends Node
@@ -463,6 +463,15 @@ func resume_multiplayer_run() -> Error:
 	_announce_run_started()
 	campaign_activated.emit(CampaignData.Mode.MULTIPLAYER, true)
 	return OK
+
+
+## Host only: tells the admitted client [param peer_id] alone that the run started, as a run's
+## start tells every client, so a client rejoining the run in progress holds the campaign again
+## (one that crashed holds none). Does nothing elsewhere, or for a peer that isn't a member.
+func send_run_to(peer_id: int) -> void:
+	if not _is_multiplayer_host() or not _get_client_peer_ids().has(peer_id):
+		return
+	_client_run_started.rpc_id(peer_id, campaign.to_envelope())
 
 
 ## Saves [member campaign] at a checkpoint (plan, row 13), then the profile. During a battle it

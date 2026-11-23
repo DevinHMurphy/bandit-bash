@@ -6,7 +6,7 @@
 # File:     xp_award.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 14, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name XpAward
@@ -16,9 +16,10 @@ extends RefCounted
 ## [b]Shared[/b] XP by combat type, times the seat's [constant CampaignValue.Key.SHARED_XP_PERCENT];
 ## [b]personal[/b] XP from its tallied actions, capped; the [b]Standout[/b]'s bonus on top of the
 ## cap; the sum times the unit's [constant CampaignValue.Key.UNIT_XP_PERCENT] (Family Ring). Each
-## percent rounds halves up. Only units standing at the end of a won map earn any. The Standout
-## has the most actions; a tie goes to the lower level, then the more personal XP (capped), then
-## roster order; no Standout when nobody acted. Pure rules code; saved as [method capture].
+## percent rounds halves up. Only a won seat's units standing at the battle's end earn any, on
+## any map. The Standout has the most actions; a tie goes to the lower level, then the more
+## personal XP (capped), then roster order; no Standout when nobody acted. Pure rules code; saved
+## as [method capture].
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 
@@ -101,13 +102,16 @@ static func restore(data: Dictionary, rules: CombatRewardRules) -> XpAward:
 
 ## Each of [param units]' awards from a won combat of [param outcome]'s seat, in their order (the
 ## roster's). [param tally]: the battle's actions. [param unit_percents]: each unit's XP percent
-## by instance id, 100 for one not listed. Empty for a lost map.
+## by instance id, 100 for one not listed. [param unshared]: units that earn no shared XP (a
+## co-op visitor on a partner's map that failed), still their personal XP and the Standout. Empty
+## for a lost map.
 static func award(
 		units: Array[UnitInstance],
 		tally: BattleTally,
 		outcome: CampaignSession.SeatOutcome,
 		unit_percents: Dictionary[String, int],
-		rules: CombatRewardRules
+		rules: CombatRewardRules,
+		unshared: PackedStringArray = PackedStringArray()
 ) -> Array[XpAward]:
 	var awards: Array[XpAward] = []
 	if outcome == null or rules == null or tally == null or not outcome.is_won:
@@ -119,7 +123,7 @@ static func award(
 	for unit: UnitInstance in units:
 		var earned: XpAward = XpAward.new()
 		earned.unit_id = unit.instance_id
-		earned.shared = shared_xp
+		earned.shared = 0 if unshared.has(unit.instance_id) else shared_xp
 		earned.personal = capped_personal_xp(tally, unit.instance_id, rules)
 		if unit.instance_id == standout_id:
 			earned.is_standout = true

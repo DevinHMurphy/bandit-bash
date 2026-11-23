@@ -6,7 +6,7 @@
 # File:     combat_feedback_cases.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -15,8 +15,8 @@ extends RefCounted
 ## next back for its beat; the floating numbers of a multi-hit attack (one per strike), of a
 ## splash on two units, and of a hit that breaks Stance, stacked a row apart; skip and held
 ## fast-forward leaving the board as the state stands and its tokens at rest; the phase banner
-## below the heirloom bar's row at any icon count and size; the elite mark and the side shape on
-## the right tokens; and the event log's thrown-keg lines. Strike facts are built as
+## below the heirloom bar's row at any icon count and size; the elite mark and the profile mark's
+## side on the right tokens; and the event log's thrown-keg lines. Strike facts are built as
 ## ExchangeResolver.attack and DamagePipeline.apply record them. No autoload is named or needed.
 
 # The suite that runs this file; tests/case_files.gd finds it by this line.
@@ -432,7 +432,8 @@ func _test_banner_place() -> void:
 
 
 # An enemy given a prefix before the board is built: its token is marked elite and shows the
-# mark; no other token does. Player tokens draw a circle, enemies a diamond, others nothing.
+# mark; no other token does. Player tokens' profile marks are filled, enemies' hollow, others
+# show none (profile_mark_cases.gd checks the shapes).
 func _test_elite_and_sides() -> void:
 	var board: BattleViewCases.Board = _board("elite and sides: the M1 battle begins")
 	if board == null:
@@ -449,23 +450,30 @@ func _test_elite_and_sides() -> void:
 	for unit_id: String in view.token_ids():
 		var token: UnitToken = view.token_of(unit_id)
 		var mark: EliteMark = token.info.get_elite_mark()
-		var shape: SideShape.Shape = token.info.get_side_shape().shape
+		var profile_mark: ProfileMark = token.info.get_profile_mark()
 		var is_elite: bool = unit_id == elite
 		if token.is_elite != is_elite or mark.is_shown() != is_elite:
 			wrong_elites.append("%s elite %s, mark %s" % [
 				unit_id, token.is_elite, mark.is_shown(),
 			])
 		var side: CombatFact.CombatSide = state.side_of(unit_id)
-		if shape != SideShape.shape_of(side):
-			wrong_shapes.append("%s (side %d) draws shape %d" % [unit_id, side, shape])
-		players += 1 if side == PLAYER and shape == SideShape.Shape.CIRCLE else 0
-		enemies += 1 if side == ENEMY and shape == SideShape.Shape.DIAMOND else 0
+		var is_right: bool = (
+				profile_mark.side == side
+				and profile_mark.is_shown() == (side == PLAYER or side == ENEMY)
+				and profile_mark.is_filled() == (side == PLAYER)
+		)
+		if not is_right:
+			wrong_shapes.append("%s (side %d): mark side %d, filled %s" % [
+				unit_id, side, profile_mark.side, profile_mark.is_filled(),
+			])
+		players += 1 if side == PLAYER and profile_mark.is_filled() else 0
+		enemies += 1 if side == ENEMY and profile_mark.is_shown() else 0
 	_check.call("elite and sides: only the prefixed enemy is marked elite", (
 			view.token_of(elite).is_elite and wrong_elites.is_empty()
 	), "; ".join(wrong_elites))
-	_check.call("elite and sides: circles on player tokens, diamonds on enemies", (
+	_check.call("elite and sides: filled marks on player tokens, hollow on enemies", (
 			wrong_shapes.is_empty() and players > 0 and enemies > 0
-	), "%d circles, %d diamonds; %s" % [players, enemies, "; ".join(wrong_shapes)])
+	), "%d filled, %d hollow; %s" % [players, enemies, "; ".join(wrong_shapes)])
 	board.close()
 
 

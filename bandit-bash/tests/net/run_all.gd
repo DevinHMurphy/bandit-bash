@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -21,7 +21,7 @@ extends SceneTree
 ## loopback in [code]tests/net/harness/[/code]; one ENet case skips where it can't open a port.
 
 # The test report's line on this suite; tools/run_tests.sh reads it from this one line.
-const SUITE_DESCRIPTION: String = "Network: fingerprint, admission, seats, gate, harness, relay"
+const SUITE_DESCRIPTION: String = "Net: contract, seats, harness, relay, mirrors, rejoin, overlay"
 
 # Preloaded scripts used as types (gdscript.md, Naming): they have no class name.
 const GroupClock = preload("res://tests/group_clock.gd")
