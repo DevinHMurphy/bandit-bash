@@ -281,8 +281,9 @@ func session_of_seat(seat: int) -> CombatSession:
 
 
 ## The session whose record of [param unit_id] is current: the map it last arrived on from another
-## map, else the first map that has it. Null when no map has it. A won map keeps the record of
-## a unit it sent away, so read a unit through this, never by searching the sessions.
+## map, else the first map that has it. Null when no map has it, or when it left the battle from
+## a teammate's map ([method forfeit]). A won map keeps the record of a unit it sent away, so read
+## a unit through this, never by searching the sessions.
 func session_of_unit(unit_id: String) -> CombatSession:
 	_drop_landed()
 	return _current_session_of(unit_id)
@@ -297,11 +298,9 @@ func add_cross_map(instance: EffectInstance) -> bool:
 		return false
 	instance.reset_lane(EffectTerms.Lane.COMBAT)
 	_cross_map[instance.instance_id] = instance
-	# ASSUMPTION: one instance registered in every session's engine is how a cross-map effect
-	# forwards, since the engine has no forwarding hook: each map dispatches it from its own trigger
-	# index and the shared object holds the one counter. Its queued operations resolve on the map
-	# where the trigger happened, so "Your Units" never reaches the owner's map from another one;
-	# deferred, since no MVP content needs it.
+	# The engine has no forwarding hook: each map dispatches the one shared instance from its own
+	# trigger index, and its operations resolve where the trigger happened, so "Your Units" never
+	# reaches the owner's map from another one. No MVP content needs forwarding.
 	for session: CombatSession in _sessions:
 		session.engine.register(instance, true)
 	return true
@@ -463,8 +462,8 @@ func is_frozen(session_id: int) -> bool:
 ## it, and no map can still help: no map still being fought or won holds a player unit that could
 ## yet be sent there and land. A map still being fought may win and send, so the run waits for it;
 ## a frozen map with no free tile can never be helped, since a frozen map never changes. A
-## forfeited map counts for nothing. A pure query: ask it whenever a map freezes or ends; the
-## encounter ends nothing itself. Always false in solo.
+## forfeited seat's map and units count for nothing. A pure query: ask it whenever a map freezes
+## or ends; the encounter ends nothing itself. Always false in solo.
 func is_run_lost() -> bool:
 	if seats.size() <= 1:
 		return false
@@ -487,8 +486,8 @@ func is_run_lost() -> bool:
 			helpers.append(session)
 	if stranded.is_empty():
 		return false
-	# ASSUMPTION: a full frozen map is unreachable at once, before any arrival there is refused and
-	# while a map that could never land there is still fought; nothing is saved for it.
+	# A full frozen map is unreachable at once, before any arrival there is refused and while a map
+	# whose units could never land there is still fought; nothing is saved for it.
 	for helper: CombatSession in helpers:
 		for unit_id: String in _units_left_on(helper):
 			var movement: CombatGrid.MovementType = helper.state.unit(unit_id).movement_type
@@ -510,25 +509,46 @@ func is_finished() -> bool:
 	return true
 
 
-## Takes [param seat] out of the battle ([ForfeitCommand]). Its map stays, saved with it, but
-## leaves play: nothing is submitted there or by the seat ([method submit]), it never freezes, and
-## the battle ends without it. Units on their way there go back as to a map that ended, recording
-## [constant CombatFact.Kind.UNIT_RETURNED] in a batch; the seat's own units on their way leave
-## with it. Teammates' units on its map stay as they stand until the battle ends. Records no fact
-## of its own: a mirror makes the same call (P11 CO18). Returns false, changing nothing, when
-## [method forfeit_problem] refuses.
+## Takes [param seat] out of the battle ([ForfeitCommand]), recording
+## [constant CombatFact.Kind.UNIT_LEFT] for the seat, then for each of its units on a teammate's
+## map still in play, which leaves it; units on their way to its map go back
+## ([constant CombatFact.Kind.UNIT_RETURNED]). One batch carries them, then each map left goes on
+## in a batch of its own ([method PhaseRunner.after_seat_left]): a phase no longer waits for the
+## seat, and a map left empty freezes. Its own map stays, saved, out of play ([method submit]).
+## A mirror follows the facts; calling this there after them is refused. Returns false, changing
+## nothing, when [method forfeit_problem] refuses.
 func forfeit(seat: int) -> bool:
 	if not forfeit_problem(seat).is_empty():
 		return false
-	_forfeited.append(seat)
-	_forfeited.sort()
-	var waiting: Array[Transfer] = []
-	for transfer: Transfer in _in_transit:
-		if transfer.unit.seat != seat:
-			waiting.append(transfer)
-	_in_transit = waiting
+	var own_map: int = _session_of_seat[seat]
+	var gone: CombatFact = CombatFact.new(CombatFact.Kind.UNIT_LEFT)
+	gone.session_id = own_map
+	gone.amount = seat
+	_record(gone)
+	_leave_battle(seat)
+	var left_maps: Array[CombatSession] = []
+	for session: CombatSession in _sessions:
+		# Its own map and any other out of play keep what stands there, as an ended map does.
+		if session.is_finished or is_map_forfeited(session.session_id):
+			continue
+		var leaving: PackedStringArray = _units_of_seat_on(session, seat)
+		for unit_id: String in leaving:
+			var left: CombatFact = CombatFact.new(CombatFact.Kind.UNIT_LEFT, unit_id)
+			left.session_id = session.session_id
+			left.amount = seat
+			left.tile = session.state.tile_of(unit_id)
+			_record(left)
+			_take_off(session, unit_id)
+		if not leaving.is_empty():
+			left_maps.append(session)
 	_return_from_finished()
-	_flush(_session_of_seat[seat], -1, CombatSession.NO_ARRIVAL, "seat %d forfeited" % [seat])
+	var label: String = "seat %d forfeited" % [seat]
+	_flush(own_map, -1, CombatSession.NO_ARRIVAL, label)
+	for session: CombatSession in left_maps:
+		PhaseRunner.after_seat_left(session)
+		session.flush(label)
+		_return_from_finished()
+		_flush(session.session_id, -1, CombatSession.NO_ARRIVAL, label)
 	var net: NetLogScript = CombatSession.logger(
 			NetLogScript.Level.INFO, NetLogScript.Category.COMBAT
 	)
@@ -537,22 +557,13 @@ func forfeit(seat: int) -> bool:
 	return true
 
 
-## Why [param seat] can't leave the battle now; empty when it can: a seat not in it, one already
-## gone, or one with a unit standing on a teammate's map (sent there, or a swap's visitor).
+## Why [param seat] can't leave the battle now; empty when it can: a seat not in it, or one
+## already gone.
 func forfeit_problem(seat: int) -> String:
 	if is_closed or not _session_of_seat.has(seat):
 		return "seat %d isn't in the battle" % [seat]
 	if _forfeited.has(seat):
 		return "seat %d has already left the battle" % [seat]
-	var own: CombatSession = session_of_seat(seat)
-	for session: CombatSession in _sessions:
-		if session == own:
-			continue
-		for unit_id: String in session.state.units_of(CombatFact.CombatSide.PLAYER):
-			if session.state.seat_of(unit_id) == seat and _current_session_of(unit_id) == session:
-				# ASSUMPTION: no rule takes a unit off a map still in play yet, and that map's
-				# phase would wait for the seat's End Turn, so the forfeit waits for it to go home.
-				return "seat %d has a unit on s%d" % [seat, session.session_id]
 	return ""
 
 
@@ -723,14 +734,13 @@ func state_hash() -> int:
 	return JSON.stringify(_capture_encounter(by_id), "", true).hash()
 
 
-## Applies [param batch], encounter facts from the host, as this encounter's mirror, which follows
-## every map of its encounter too: each fact not yet applied, in encounter seq order, joins
-## [member fact_log] and playback. A counter fact sets its cross-map instance's count; a send takes
-## the unit from this mirror's won map onto its way, a return puts it back, a call for aid sets
-## the flag; a unit on its way that its target's batch already placed has landed. A fact already
-## applied is skipped. Returns [constant OK]; [constant ERR_INVALID_PARAMETER] for null;
-## [constant ERR_PARAMETER_RANGE_ERROR] when a seq is missing (the facts before the gap apply);
-## [constant ERR_INVALID_DATA] in debug builds when applied but the hashes differ.
+## Applies [param batch], the host's encounter facts, as this mirror (which follows every map too):
+## each new fact, in seq order, joins [member fact_log] and playback. A counter fact sets its
+## cross-map count; a send takes the unit from the won map onto its way, a return puts it back, a
+## call for aid sets the flag, a leave takes a seat or its unit out ([method forfeit]); a unit its
+## target's batch already placed has landed. Returns [constant OK];
+## [constant ERR_INVALID_PARAMETER] for null; [constant ERR_PARAMETER_RANGE_ERROR] when a seq is
+## missing (the facts before the gap apply); [constant ERR_INVALID_DATA] when hashes differ.
 func apply_batch(batch: CombatSession.FactBatch) -> Error:
 	if batch == null:
 		return ERR_INVALID_PARAMETER
@@ -865,20 +875,27 @@ func _landing_tile(
 
 
 # The player units session holds that could still go to another map: those whose current record
-# is there (a won map keeps a record of a unit it sent) and that aren't on their way.
+# is there (a won map keeps a record of a unit it sent), that aren't on their way and whose seat
+# is still in the battle.
 func _units_left_on(session: CombatSession) -> PackedStringArray:
 	var travelling: PackedStringArray = units_in_transit()
 	var left: PackedStringArray = []
 	for unit_id: String in session.state.units_of(CombatFact.CombatSide.PLAYER):
-		if not travelling.has(unit_id) and _current_session_of(unit_id) == session:
+		if (
+				not travelling.has(unit_id)
+				and _current_session_of(unit_id) == session
+				and not _forfeited.has(session.state.seat_of(unit_id))
+		):
 			left.append(unit_id)
 	return left
 
 
-# The session whose record of unit_id is current (session_of_unit), with no landing settled first.
+# The session whose record of unit_id is current (session_of_unit), with no landing settled first;
+# null for a unit that left the battle from the map it last arrived on (_take_off).
 func _current_session_of(unit_id: String) -> CombatSession:
 	if _arrived_on.has(unit_id):
-		return get_session(_arrived_on[unit_id])
+		var landed: CombatSession = get_session(_arrived_on[unit_id])
+		return landed if landed != null and landed.state.unit(unit_id) != null else null
 	for session: CombatSession in _sessions:
 		if session.state.unit(unit_id) != null:
 			return session
@@ -1144,6 +1161,64 @@ func _put_back(transfer: Transfer) -> CombatSession:
 	return home
 
 
+# seat leaves the battle, as forfeit() and a mirror's UNIT_LEFT with no actor both do it: marked
+# out of play, its units on their way dropped with their effects, and its army's cross-map effects
+# off every other map. Its own map keeps them, so a resume loads its map as saved.
+func _leave_battle(seat: int) -> void:
+	_forfeited.append(seat)
+	_forfeited.sort()
+	var waiting: Array[Transfer] = []
+	for transfer: Transfer in _in_transit:
+		if transfer.unit.seat != seat:
+			waiting.append(transfer)
+	_in_transit = waiting
+	for instance: EffectInstance in get_cross_map_instances():
+		if instance.owner.seat != seat:
+			continue
+		_cross_map.erase(instance.instance_id)
+		for session: CombatSession in _sessions:
+			if not session.seats.has(seat):
+				session.engine.unregister(instance.instance_id)
+
+
+# seat's player units whose current record is on session's map, in placement order.
+func _units_of_seat_on(session: CombatSession, seat: int) -> PackedStringArray:
+	var found: PackedStringArray = []
+	for unit_id: String in session.state.units_of(CombatFact.CombatSide.PLAYER):
+		if session.state.seat_of(unit_id) == seat and _current_session_of(unit_id) == session:
+			found.append(unit_id)
+	return found
+
+
+# Takes unit_id off session's map for good, on the host and on a mirror alike: its effects and
+# timed modifiers go with it. Once its seat has no unit left there, the seat leaves the map's
+# seats to start and to end, and its army's effects that followed its units there go too.
+func _take_off(session: CombatSession, unit_id: String) -> void:
+	var seat: int = session.state.seat_of(unit_id)
+	var held: Array[String] = []
+	for instance: EffectInstance in session.engine.get_instances():
+		if instance.owner.holder_id == unit_id:
+			held.append(instance.instance_id)
+	held.sort()
+	for instance_id: String in held:
+		session.engine.unregister(instance_id)
+	session.engine.take_timed_modifiers(unit_id)
+	session.state.remove_unit(unit_id)
+	if PhaseRunner.seats_with_units(session).has(seat):
+		return
+	# Packed arrays are values: each list is changed on the state itself.
+	var state: CombatState = session.state
+	var ended: int = state.ended_seats.find(seat)
+	if ended >= 0:
+		state.ended_seats.remove_at(ended)
+	var starting: int = state.seats_to_start.find(seat)
+	if starting >= 0:
+		state.seats_to_start.remove_at(starting)
+	for instance: EffectInstance in session.engine.get_instances():
+		if instance.owner.kind == EffectOwner.Kind.ARMY and instance.owner.seat == seat:
+			session.engine.unregister(instance.instance_id)
+
+
 # A mirror's units on their way that their target's own batch already placed: they have landed.
 # Changes nothing on the host, where a landing leaves the list as it lands.
 func _drop_landed() -> void:
@@ -1287,6 +1362,14 @@ func _follow(fact: CombatFact) -> void:
 					return
 		CombatFact.Kind.AID_CALLED:
 			_set_aid(fact.session_id, fact.key == 1)
+		CombatFact.Kind.UNIT_LEFT:
+			if fact.actor_id.is_empty():
+				if _session_of_seat.has(fact.amount) and not _forfeited.has(fact.amount):
+					_leave_battle(fact.amount)
+				return
+			var map: CombatSession = get_session(fact.session_id)
+			if map != null and map.state.has_unit(fact.actor_id):
+				_take_off(map, fact.actor_id)
 
 
 # A session's ARRIVALS hook: its player Phase Start is starting, so the units due there land.
@@ -1511,8 +1594,8 @@ static func _follows_units(instance: EffectInstance) -> bool:
 	if instance.definition.scope != EffectTerms.Scope.YOUR_UNIT:
 		return false
 	var trigger: int = instance.definition.trigger
-	# ASSUMPTION: a curse follows like a heirloom, and a phase-triggered one (Iron Rations, Tactical
-	# Map, Commander's Standard, Haunted, Shaken Footing) acts on the seat's own map only.
+	# A curse follows like a heirloom; a phase-triggered one (Iron Rations, Tactical Map,
+	# Commander's Standard, Haunted, Shaken Footing) acts on the seat's own map only.
 	return trigger != EffectTerms.Trigger.PHASE_START and trigger != EffectTerms.Trigger.PHASE_END
 
 

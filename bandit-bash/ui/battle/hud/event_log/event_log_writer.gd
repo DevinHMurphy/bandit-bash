@@ -112,6 +112,9 @@ const SILENT_KINDS: Dictionary[CombatFact.Kind, String] = {
 	CombatFact.Kind.UNIT_RETURNED: "an encounter fact, never on a map's log",
 	CombatFact.Kind.AID_CALLED: "an encounter fact, never on a map's log",
 	CombatFact.Kind.DARKNESS_WAVE_SPREAD: "for mirrors; the darkness spread line stands for it",
+	CombatFact.Kind.UNIT_LEFT: "an encounter fact, never on a map's log",
+	CombatFact.Kind.TURN_ENDED: "for mirrors; the phase header stands for it",
+	CombatFact.Kind.SEAT_STARTED: "for mirrors; the phase header stands for it",
 }
 
 ## The note a resumed battle's log starts with.

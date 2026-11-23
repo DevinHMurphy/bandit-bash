@@ -91,8 +91,9 @@ screen or system with many parts).
 When two branches append, the second to merge renumbers its own. Check the last value on `dev`
 before writing a prompt and name it in the LANE block.
 
-- `CampaignFact.Kind` (`scripts/bus/campaign_fact.gd`): ends at 32 (RN10) on November 20, 2026;
+- `CampaignFact.Kind` (`scripts/bus/campaign_fact.gd`): ends at `SEAT_FORFEITED = 38` (CO14) on November 23, 2026;
   `CampaignFact.flags` defines `FLAG_BOUGHT = 1` (RN8).
+- `CombatFact.Kind` (`scripts/bus/combat_fact.gd`): ends at `SEAT_STARTED = 53` (CO23) on November 23, 2026; every kind joins `event_log_writer.gd`'s list (P11 question 149).
   `docs/design/event-bus.md` lists every kind with what records it.
 - `SceneRouter.Screen`: ends at `GUILDHALL = 17` (RN9).
 - `FactCueMap.Shape`: ends at `GUILDHALL_NODE = 9` (RN9).
@@ -133,7 +134,7 @@ before writing a prompt and name it in the LANE block.
 | A Battle UI | — (free: EN19 merged November 23, 2026) | BUG-049 (a held pad trigger re-arms fast-forward) with the HUD rune bar as an EffectText and the detail rows' 4-unit focus inset; the event log per viewed map; RB1 after the full-run playtest | RB1: the user's full-run playtest (user, November 20 and 22, 2026) |
 | B Campaign and run | — (free: CO22 merged November 23, 2026) | CO19 the co-op pause menu [CO18], with `RunScreen._has_run`'s stale comment; SaveService's run-start and checkpoint messages under the relay's size check [NT8] | — |
 | C Events | BF12 BUG-048, the intermittent refused Leave (issued November 23, 2026) | the event option's expected-heirloom field [a unique heirloom at events] | — |
-| D Engine, AI, content | CO23 a unit leaving a map in play (issued November 23, 2026: P11 question 116 (a), user, November 23, 2026; critical path to M4: so a forfeit, a removal or a return can take a unit off a teammate's map; before CO18), with CO3's `combat_encounter.gd` markers removed and BUG-043 (note, November 23, 2026) | EN18 plan: the intents refresh on the worker (P05 question 53 (a); BUG-035's release part; a plan session, no build slot); CO17 clients in the harness: co-op battles [CO13] (M4's network steps spread across idle lanes, user November 23, 2026), with `CastRuneCommand`'s doc corrected (P11 question 136 (a)), a client's mirror of a visitor battle and `BattleView.mismatches()` comparing a token's profile; CT12 after the weapon modification design | — |
-| E Network | — (free: BF11 merged November 23, 2026) | NT8 the live check [BUG-046], with the user (CO13 and CO16 merged November 23, 2026) → CO18 forfeit and removal on the network [CO23], calling `forfeit()` on every mirror (P11 question 122 (a)), with BUG-047 → CO21 | — |
+| D Engine, AI, content | CO17 clients in the harness: co-op battles (ready: CO13 and CO23 merged November 23, 2026), with `CastRuneCommand`'s doc (P11 question 136 (a)) and a client's mirror of a visitor battle, `BattleView.mismatches()` comparing a token's profile | EN18 plan (a plan session); CT12 after the weapon modification design | — |
+| E Network | CO18 forfeit and removal on the network (ready: CO23 merged November 23, 2026), with BUG-047; mirrors follow `UNIT_LEFT` and don't call `forfeit()` (question 122 as amended) | NT8a setup (the macOS export, Lane G's tooling) → NT8b the live check with the user, Windows against a Mac → CO21 | — |
 | G Audio and tooling | — (free: CO15 merged November 23, 2026) | AU2 after the audio direction (M5); the capture builder tidy-up; a fixed glyph family per capture run; TX2 when the user raises it | Nothing ready |
 | F Docs and plans | CO20 docs, with BUG-033 (P11 answered November 22, 2026) | P12 plan when wanted; P17 parked (user, November 22, 2026: very low priority) | — |

@@ -244,6 +244,23 @@ func swap_units(first_id: String, second_id: String) -> void:
 	_occupancy[second.tile] = second_id
 
 
+## Takes [param id] off the map as if it had never been placed: out of the units, the placement
+## order and occupancy, so no defeat or fall is read for it. For a unit whose seat left the battle
+## ([CombatEncounter]); the caller records the fact and takes its effects. Returns the unit, or
+## null when it isn't on the map.
+func remove_unit(id: String) -> CombatUnitState:
+	if not has_unit(id):
+		return null
+	var gone: CombatUnitState = _units[id]
+	_units.erase(id)
+	var index: int = _order.find(id)
+	if index >= 0:
+		_order.remove_at(index)
+	if _occupancy.get(gone.tile, "") == id:
+		_occupancy.erase(gone.tile)
+	return gone
+
+
 ## Records [param id]'s defeat and takes it off the map: [constant CombatFact.Kind.DEFEATED],
 ## then [constant CombatFact.Kind.DEFEATED_AN_ENEMY] when [param by_id] is on the other side,
 ## then it leaves occupancy and drops any loot it carried ([method MapObjects.drop_carried]). Its
@@ -406,8 +423,8 @@ func restore(data: Dictionary) -> Error:
 ## client mirror does: the core's facts change units, turn and phase as the host's rules did, and
 ## the engine follows the effects' state in step ([method EffectEngine.follow]), so a value read
 ## mid-batch is the host's. Map objects, points and the darkness (waves with their reach and tiles
-## entered, layers, contacts, arrival) follow their facts. Draws no roll and fires nothing. Not
-## followed: a point's waiting units; a non-final End Turn or Start on a map several seats share.
+## entered, layers, contacts, arrival) follow their facts, and so do each seat's End Turn and
+## Start. Draws no roll and fires nothing. Not followed: a point's waiting units.
 ## [param spawned]: units this state doesn't know, by id, each placed at its UNIT_SPAWNED
 ## ([member CombatSession.FactBatch.spawned]); add their weapons, bases and effects first.
 func follow(
@@ -437,6 +454,13 @@ func follow(
 				is_phase_ended = true
 				if fact.side == CombatFact.CombatSide.PLAYER:
 					ended_seats = _seats_on_map()
+			CombatFact.Kind.TURN_ENDED:
+				if not ended_seats.has(fact.amount):
+					ended_seats.append(fact.amount)
+			CombatFact.Kind.SEAT_STARTED:
+				var started: int = seats_to_start.find(fact.amount)
+				if started >= 0:
+					seats_to_start.remove_at(started)
 			CombatFact.Kind.BLOCK_STANCE_REFRESHED:
 				if actor != null:
 					actor.has_acted = false

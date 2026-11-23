@@ -52,13 +52,6 @@ const START_LIMIT_MSEC: int = 30000
 const PAIR_LIMIT_MSEC: int = 300000
 # Log lines a failure's detail quotes from the end of each instance's log.
 const TAIL_LINES: int = 6
-
-# The pair's run seed, given to both instances with SaveService's debug flag; only the host's
-# starts the run. NOTE: pinned for BUG-046 (a map of a two-map battle stops after its enemy phase
-# once the other map has ended): seeds 9456-F0E2-B5D2-6 and B072-5FA4-D5CB-1 stall. Its fix
-# unpins this, back to a new seed each run.
-const RUN_SEED_ARG: String = "--run-seed="
-const PAIR_SEED: String = "AD91-720C-39CB-1"
 # The pause between polls while waiting, so the wait doesn't spin a core.
 const POLL_PAUSE_MSEC: int = 50
 
@@ -353,7 +346,6 @@ func _launch(
 	var args: PackedStringArray = [
 		"--headless", "--path", ProjectSettings.globalize_path("res://"),
 		"--log-file", instance.log_path, "--script", PEER_SCRIPT, "--", flag,
-		"%s%s" % [RUN_SEED_ARG, PAIR_SEED],
 	]
 	var kept: String = OS.get_environment(user_variable)
 	OS.set_environment(user_variable, user_root)
@@ -478,9 +470,10 @@ class Instance:
 ## One instance's side of the two-instance battle, ticked every frame by
 ## [code]harness/enet_pair_peer.gd[/code]: the host enters the lobby (which hosts on ENet), waits
 ## for the client, starts a 2-seat run, votes for floor 1's Standard combat with the client,
-## begins it and plays its map; the client enters the lobby (which joins), votes, and plays its
-## own map through its mirror, one command at a time. Each map is played by the M1 battle driver
-## ([code]m1_battle_cases.gd[/code]). When every map has ended each prints its maps' hashes; the
+## begins it and plays its seat; the client enters the lobby (which joins), votes, and plays its
+## seat through its mirror, one command at a time. A seat plays the M1 battle driver
+## ([code]m1_battle_cases.gd[/code]) on every map it has units on, and once its map is won sends
+## its units to a frozen map. When every map has ended each prints its maps' hashes; the
 ## host ends the battle and waits for the client to leave; the client leaves at the results.
 ## It prints each step it enters, and fails when nothing moves (no new step, no new fact on any
 ## map) for [constant STALL_LIMIT] s, or at [constant PEER_LIMIT] s in all.
@@ -624,7 +617,7 @@ class PairPeer:
 		for map: CombatSession in battle.get_sessions():
 			is_over = is_over and map.is_finished
 		if not is_over:
-			_act(battle.session_of_seat(CampaignService.local_seat()))
+			_act(battle)
 			return RUNNING
 		_print_maps(battle)
 		if _is_host and CampaignService.end_battle() == null:
@@ -671,36 +664,68 @@ class PairPeer:
 		CampaignService.submit_command(vote)
 		return true
 
-	# The seat's next command on map, one at a time on a client: Start in the opening window, then
-	# each unit the driver's turn, then the end of the turn.
-	func _act(map: CombatSession) -> void:
+	# The seat's next command, one at a time on a client, on the first map it has to act on (its
+	# own, or a teammate's its sent units stand on), else, its map won while one is frozen, a send
+	# of every unit it has left there, as the co-op rules require (BUG-046).
+	func _act(battle: CombatEncounter) -> void:
 		var seat: int = CampaignService.local_seat()
-		if map == null or map.is_finished or _is_waiting:
+		if _is_waiting:
 			return
 		var command: Command = null
-		if map.state.seats_to_start.has(seat):
-			command = StartCommand.new(seat)
-		elif (
-				map.state.phase_side == CombatFact.CombatSide.PLAYER
-				and not map.state.is_phase_ended
-				and not map.state.ended_seats.has(seat)
-		):
-			var acting: PackedStringArray = TurnInputModel.acting_units(map, seat)
-			if acting.is_empty():
-				command = EndTurnCommand.new(seat)
-			else:
-				var turn: UnitTurnCommand = _driver._turn_for(map, acting[0])
-				turn.seat = seat
-				command = turn
+		var session_id: int = -1
+		for map: CombatSession in battle.get_sessions():
+			command = _command_on(map, seat)
+			if command != null:
+				session_id = map.session_id
+				break
+		if command == null:
+			command = _send_to_frozen(battle, seat)
+			session_id = battle.session_of_seat(seat).session_id
 		if command == null:
 			return
 		_is_waiting = not _is_host
-		for batch: CombatSession.FactBatch in CampaignService.submit_combat(
-				command, map.session_id
-		):
+		for batch: CombatSession.FactBatch in CampaignService.submit_combat(command, session_id):
 			if batch.is_rejected():
 				_rejections += 1
 				print("PAIR REFUSED %s: %s" % [batch.label, batch.rejected_reason])
+
+	# Seat's next command on map: Start in its window, then each unit the driver's turn, then the
+	# end of its turn; null when it has nothing to do there.
+	func _command_on(map: CombatSession, seat: int) -> Command:
+		var state: CombatState = map.state
+		if map.is_finished:
+			return null
+		if state.seats_to_start.has(seat):
+			return StartCommand.new(seat)
+		if (
+				state.phase_side != CombatFact.CombatSide.PLAYER
+				or state.is_phase_ended
+				or state.ended_seats.has(seat)
+				or not PhaseRunner.seats_with_units(map).has(seat)
+		):
+			return null
+		var acting: PackedStringArray = TurnInputModel.acting_units(map, seat)
+		if acting.is_empty():
+			return EndTurnCommand.new(seat)
+		var turn: UnitTurnCommand = _driver._turn_for(map, acting[0])
+		turn.seat = seat
+		return turn
+
+	# With seat's map won and a map frozen, a send of every unit it has left to that map; else
+	# null.
+	func _send_to_frozen(battle: CombatEncounter, seat: int) -> Command:
+		var own: CombatSession = battle.session_of_seat(seat)
+		if own == null or not own.is_finished or not own.is_won:
+			return null
+		var units: PackedStringArray = []
+		var travelling: PackedStringArray = battle.units_in_transit()
+		for unit_id: String in own.state.units_of(CombatFact.CombatSide.PLAYER):
+			if battle.session_of_unit(unit_id) == own and not travelling.has(unit_id):
+				units.append(unit_id)
+		for map: CombatSession in battle.get_sessions():
+			if not units.is_empty() and battle.is_frozen(map.session_id):
+				return SendUnitsCommand.new(seat, units, map.session_id)
+		return null
 
 	# Restarts the stall clock when the step or the battle's facts moved since the last frame, and
 	# prints each step entered, so a case whose instance was stopped still knows where it was.

@@ -6,7 +6,7 @@
 # File:     objective_cases.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 19, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -161,7 +161,7 @@ func _test_seize() -> void:
 	_same(
 			"seize: no enemy phase after it",
 			world.kinds(start),
-			"PHASE_END UNIT_TURN_END COMBAT_ENDED"
+			"TURN_ENDED PHASE_END UNIT_TURN_END COMBAT_ENDED"
 	)
 	_quiet(world)
 
