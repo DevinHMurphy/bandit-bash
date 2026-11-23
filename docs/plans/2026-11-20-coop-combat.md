@@ -383,6 +383,8 @@ stay append-only and readers strict.
 | `ForfeitCommand` | Campaign command | CO14 |
 | `NetRelay._seat_settings(settings: Dictionary)` | `any_peer`, `call_remote`, to the host | CO15 |
 | A fast-forward vote | N8 notice kind | CO15 |
+| `NetRelay._forfeit_record(envelope: Dictionary)`: the leaving client's archive record, then its seat `REMOVED` | `authority`, `call_remote`, `reliable`, host to that client alone | CO18 |
+| A client's `ForfeitCommand` runs `CampaignService.forfeit_seat()` on the host; `seat_removed` now also means a forfeit | Changed meaning | CO18 |
 
 A command merged before NT3 gets its wire form in NT3; one merged after adds its own (N5).
 

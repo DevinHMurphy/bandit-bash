@@ -17,14 +17,16 @@ extends CanvasLayer
 ## It keeps clicks from the screen beneath; keys still reach that screen's own handlers, whose
 ## commands settle "paused". Its layer sits under the pause menu's, so Esc's menu opens above it.
 ## [b]Buttons:[/b] the host's Save & Quit (as the pause menu's: the run resumes from that save), a
-## client's Leave Match. [b]Focus:[/b] its first button has it while shown, taking it back from
-## the screen beneath but never from a higher layer; on hiding, the control focused before has it.
-## @todo: TOD-001 - show Remove, once removing a seat has its rules.
+## client's Leave Match, and the host's Remove for the seat that has waited longest once it has
+## waited [constant NetRelay.REMOVE_WAIT] s: that seat leaves the run as removed (no archive
+## record), then the directory. [b]Focus:[/b] its first button has it while shown, taking it back
+## from the screen beneath but never from a higher layer; on hiding, the control focused before has
+## it.
 
 # ============================================================
 # INPUT MAP SETUP (built-in ui_* actions; read through the GUI, not here):
 #   "ui_accept"            -> Enter, Space; pad A [Cross] (press the focused button)
-#   "ui_left" / "ui_right" -> arrows; d-pad, left stick   (move along the button row)
+#   "ui_left" / "ui_right" -> arrows; d-pad, left stick   (move along the button row: Remove)
 #   Mouse: clicks on the buttons; any other click stops on this layer.
 # Nothing is read here; Esc reaches the pause menu above, which opens over this.
 # ============================================================
@@ -39,6 +41,9 @@ var _relay: NetRelayScript = null
 # The control that had focus when the overlay showed, given it back when it hides; null for none.
 var _focus_before: Control = null
 
+# The seat Remove acts on, as the last refresh found it; NO_SEAT while it is hidden.
+var _removable_seat: int = SeatDirectory.NO_SEAT
+
 @onready var _title_label: Label = %Title
 @onready var _lines_label: Label = %Lines
 @onready var _status_label: Label = %Status
@@ -49,7 +54,7 @@ var _focus_before: Control = null
 func _ready() -> void:
 	visible = false
 	_leave_button.pressed.connect(_on_leave_button_pressed)
-	# TODO(TOD-001): show Remove, once removing a seat has its rules.
+	_remove_button.pressed.connect(_on_remove_button_pressed)
 	_remove_button.visible = false
 	refresh()
 
@@ -64,9 +69,9 @@ func follow(relay: NetRelayScript) -> void:
 	refresh()
 
 
-## Shows the relay's waits as they are now, or hides when it waits for nobody, and keeps focus on
-## the first button while shown. [method Node._process] calls it each frame; tests call it to stand
-## for one.
+## Shows the relay's waits as they are now, with Remove when a seat may be removed, or hides when
+## it waits for nobody, and keeps focus on the first button while shown. [method Node._process]
+## calls it each frame; tests call it to stand for one.
 func refresh() -> void:
 	if not is_node_ready():
 		return
@@ -79,6 +84,8 @@ func refresh() -> void:
 		_focus_before = null if focused != null and is_ancestor_of(focused) else focused
 		_status_label.text = ""
 	visible = not waiting.is_empty()
+	_removable_seat = _seat_to_remove(waiting) if visible else SeatDirectory.NO_SEAT
+	_remove_button.visible = _removable_seat != SeatDirectory.NO_SEAT
 	if not visible:
 		if was_visible:
 			_give_focus_back()
@@ -91,6 +98,8 @@ func refresh() -> void:
 		lines.append(form % [_seat_name(seat), _clock(_relay.waited(seat))])
 	_lines_label.text = "\n".join(lines)
 	_leave_button.text = "Save & Quit" if _is_host() else "Leave Match"
+	if _remove_button.visible:
+		_remove_button.text = "Remove %s" % [_seat_name(_removable_seat)]
 	_keep_focus()
 
 
@@ -115,6 +124,21 @@ func _keep_focus() -> void:
 		if is_ancestor_of(focused) or _layer_of(focused) > layer:
 			return
 	_leave_button.grab_focus()
+
+
+# The seat of waiting the host may remove now: the one waited for longest (the lowest on a tie),
+# once that is at least NetRelay.REMOVE_WAIT; NO_SEAT off the host or before any wait has run.
+func _seat_to_remove(waiting: PackedInt32Array) -> int:
+	if not _is_host():
+		return SeatDirectory.NO_SEAT
+	var chosen: int = SeatDirectory.NO_SEAT
+	var longest: float = NetRelayScript.REMOVE_WAIT
+	for seat: int in waiting:
+		var waited_for: float = _relay.waited(seat)
+		if waited_for >= longest and (chosen == SeatDirectory.NO_SEAT or waited_for > longest):
+			chosen = seat
+			longest = waited_for
+	return chosen
 
 
 func _give_focus_back() -> void:
@@ -143,6 +167,25 @@ func _on_leave_button_pressed() -> void:
 			]
 			return
 	SceneRouter.goto_screen(SceneRouter.Screen.MAIN_MENU)
+
+
+# The run first, so a refusal leaves the seat waited for: it leaves as removed, with no archive
+# record, then the directory lets it go and every peer hears it.
+func _on_remove_button_pressed() -> void:
+	var seat: int = _removable_seat
+	if seat == SeatDirectory.NO_SEAT or not _is_host():
+		return
+	var name_shown: String = _seat_name(seat)
+	var batch: CampaignBatch = CampaignService.forfeit_seat(seat, true)
+	if batch == null or batch.is_rejected():
+		var reason: String = "no run" if batch == null else batch.rejected_reason
+		_status_label.text = "Couldn't remove %s (%s)." % [name_shown, reason]
+		return
+	if not _relay.remove_seat(seat):
+		_status_label.text = "%s left the run but is still waited for." % [name_shown]
+		return
+	_status_label.text = ""
+	refresh()
 
 
 # The canvas layer node is drawn on: its nearest CanvasLayer's, else 0, the screens' own.

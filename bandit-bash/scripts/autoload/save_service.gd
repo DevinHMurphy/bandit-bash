@@ -731,6 +731,23 @@ func take_forfeit_record(seat: int) -> ArchiveRecord:
 	return record
 
 
+## The leaving client's side of a forfeit: [param record] is its own record from the host
+## ([code]NetRelay[/code]). This machine's part in the run ends (play time flushed to the profile,
+## the replica dropped), then the record goes into the open save file's archive. Returns the write's
+## result, kept in [member last_archive_error]; [constant ERR_INVALID_PARAMETER] for null;
+## [constant ERR_UNCONFIGURED] with no save file open.
+func archive_forfeit_record(record: ArchiveRecord) -> Error:
+	if record == null:
+		push_error("SaveService: no forfeit record to archive.")
+		return ERR_INVALID_PARAMETER
+	_end_client_run()
+	if not has_open_save_file():
+		push_error("SaveService: no save file open to archive the forfeit in.")
+		return ERR_UNCONFIGURED
+	last_archive_error = _write_archive(record)
+	return last_archive_error
+
+
 ## Returns the record of the run that ended last and forgets it, so the Results screen shows a run
 ## only once. Null when no run ended since the last call.
 func take_ended_run() -> ArchiveRecord:

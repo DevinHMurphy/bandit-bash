@@ -15,10 +15,11 @@ extends RefCounted
 ## [code]NetRelay[/code] hears, never resolving anything. [member session] is a [CampaignSession]
 ## flagged [member CampaignSession.is_mirror]: each campaign batch restores its run, events and
 ## open swap proposals from the run's capture, then announces itself on the session's signals, so
-## screens read a mirror as they read the host's; a battle's end adds the facts it recorded. The
-## battle is rebuilt as a resume rebuilds one ([method CampaignSession.resume_battle]) from the
-## host's snapshot, then follows every map's and the encounter's batches, dropping any for a
-## battle not built.[br]
+## screens read a mirror as they read the host's. Only a battle's end (a batch of no seat) closes
+## its battle, adding the facts it recorded; a seat that left the run leaves the session's seats
+## once a capture no longer holds it. The battle is rebuilt as a resume rebuilds one
+## ([method CampaignSession.resume_battle]) from the host's snapshot, then follows every map's and
+## the encounter's batches, a seat's leave included ([constant CombatFact.Kind.UNIT_LEFT]).[br]
 ## [b]Sync:[/b] state it lacks (no run, a battle, a gap, a debug hash mismatch) is asked for with
 ## [code]NetRelay.request_sync()[/code] every [constant SYNC_INTERVAL] s, at most
 ## [constant SYNC_ATTEMPTS] times. [method advance] runs that clock, so its owner sets the time.
@@ -75,6 +76,10 @@ var _since_ask: float = 0.0
 # for the local seat was announced, so its settle isn't announced again.
 var _campaign_tokens: Dictionary[int, bool] = {}
 var _heard_rejection: bool = false
+
+# Seats whose map a closed battle held forfeited: they have left the run, though a mirror built
+# after a resume never heard their SEAT_FORFEITED.
+var _departed: PackedInt32Array = []
 
 
 ## A mirror of the run seeded [param run_seed] (the host's campaign seed), fed by [param relay],
@@ -211,23 +216,60 @@ func _battle() -> CombatEncounter:
 	return null if session == null else session.encounter
 
 
+# Whether run, a host's capture, is the run after this client's own seat left it: the session
+# holds the seat and the capture doesn't.
+func _is_leaving(run: Dictionary) -> bool:
+	var seat: int = local_seat()
+	if session == null or seat == SeatDirectory.NO_SEAT or not session.seats.has(seat):
+		return false
+	var kept: PackedInt32Array = _seats_of(run)
+	return not kept.is_empty() and not kept.has(seat)
+
+
+# Whether kept, a capture's seats, is the session's less only seats that left the run: each named
+# by a SEAT_FORFEITED this mirror heard (batch's included), forfeited on a battle it held, or
+# removed in the relay's directory, as a client back from a drop hears of a removal it missed.
+func _lacks_only_departed(kept: PackedInt32Array, batch: CampaignBatch) -> bool:
+	for seat: int in kept:
+		if not session.seats.has(seat):
+			return false
+	for seat: int in session.seats:
+		if not kept.has(seat) and not _has_left(seat, batch):
+			return false
+	return true
+
+
+func _has_left(seat: int, batch: CampaignBatch) -> bool:
+	var held: CombatEncounter = _battle()
+	if _departed.has(seat) or (held != null and held.forfeited_seats().has(seat)):
+		return true
+	var directory: SeatDirectory = _relay.seats if is_instance_valid(_relay) else null
+	if directory != null and directory.state_of(seat) == SeatDirectory.State.REMOVED:
+		return true
+	var heard: Array[CampaignFact] = []
+	if session.run != null:
+		heard.append_array(session.run.fact_log)
+	if batch != null:
+		heard.append_array(batch.facts)
+	for fact: CampaignFact in heard:
+		if fact.kind == CampaignFact.Kind.SEAT_FORFEITED and fact.seat == seat:
+			return true
+	return false
+
+
 # Restores the run from run, the host's capture, building the session on the first: its sections,
 # then the events and the open swap proposals; carries the facts already heard over, and batch's
-# new facts after them, for the screens' playback. False, changing nothing, for an empty or
-# unusable capture, one missing a part, or one for other seats.
+# new facts after them, for the screens' playback. A capture without seats that left the run
+# takes them out of the session's seats. False, changing nothing, for an empty or unusable
+# capture, one missing a part, or one for other seats.
 func _restore_run(run: Dictionary, batch: CampaignBatch) -> bool:
-	var by_seat: Variant = run.get(_RUN_SEATS_KEY, null)
-	if run.is_empty() or not by_seat is Dictionary:
+	var seats: PackedInt32Array = _seats_of(run)
+	if seats.is_empty():
 		return false
-	var seats: PackedInt32Array = []
-	for seat: Variant in by_seat:
-		if not seat is int or not (by_seat as Dictionary)[seat] is Dictionary:
-			return false
-		seats.append(seat as int)
-	seats.sort()
-	if session != null and session.seats != seats:
+	if session != null and session.seats != seats and not _lacks_only_departed(seats, batch):
 		NetLog.warn(NetLog.Category.CAMPAIGN, "ClientMirror: a capture for seats %s" % [seats])
 		return false
+	var by_seat: Dictionary = run[_RUN_SEATS_KEY]
 	var sections: RunSaveSections = RunSaveSections.new()
 	var events: EventSaveSection = EventSaveSection.new()
 	var proposals: Array[UnitSwap] = []
@@ -238,7 +280,7 @@ func _restore_run(run: Dictionary, batch: CampaignBatch) -> bool:
 			and _read_proposals(run.get(_RUN_PROPOSALS_KEY, null), proposals)
 	)
 	for seat: int in seats:
-		var parts: Dictionary = (by_seat as Dictionary)[seat]
+		var parts: Dictionary = by_seat[seat]
 		for section: RunSaveSections.SeatSection in sections.seat_sections:
 			var data: Variant = parts.get(section.get_key(), null)
 			restored = (
@@ -254,7 +296,11 @@ func _restore_run(run: Dictionary, batch: CampaignBatch) -> bool:
 	var heard: Array[CampaignFact] = []
 	if target.run != null:
 		heard = target.run.fact_log
+	# The sections build the run for the session's seats, so seats that left go first.
+	var seats_before: PackedInt32Array = target.seats
+	target.seats = seats
 	if not restored or sections.attach(target) != OK:
+		target.seats = seats_before
 		NetLog.warn(NetLog.Category.CAMPAIGN, "ClientMirror: the host's run capture can't load.")
 		sections.detach()
 		return false
@@ -327,9 +373,14 @@ func _on_relay_campaign_batch_received(facts: Array, run: Dictionary) -> void:
 			_need(false, true)
 			return
 	var is_rejection: bool = batch != null and batch.is_rejected()
-	# A battle's end arrives as the run with what it recorded (a batch of no seat) or no facts;
-	# nothing else resolves during a battle.
-	if not is_rejection and _battle() != null:
+	# The leaving seat's own mirror keeps what it holds: its record and the main menu follow.
+	if _is_leaving(run):
+		return
+	# A battle's end arrives as the run with what it recorded (a batch of no seat) or no facts. A
+	# forfeit is the only other batch a battle resolves, and its battle goes on.
+	var is_battle_end: bool = batch == null or batch.seat == CampaignFact.NO_SEAT
+	if not is_rejection and is_battle_end and _battle() != null:
+		_departed.append_array(_battle().forfeited_seats())
 		session.abandon_battle()
 	if not _restore_run(run, batch):
 		_need(false, true)
@@ -387,8 +438,11 @@ func _on_relay_sync_received(
 		run: Dictionary, battle: Dictionary, facts: Array, screen: int
 ) -> void:
 	# Answered: any need left after applying it is a new one. An answer that can't be used (no run
-	# yet, a snapshot that won't load) is asked again after an interval, not at once.
+	# yet, a snapshot that won't load) is asked again after an interval, not at once; one for a run
+	# this seat has left is not.
 	_wants_sync = false
+	if _is_leaving(run):
+		return
 	if not _restore_run(run, null):
 		_need(false, false)
 		return
@@ -416,6 +470,21 @@ func _on_relay_sync_received(
 		_need(false, false)
 	if not _wants_sync:
 		_attempts = 0
+
+
+# The seats run, a host's capture, holds sections for, ascending; empty for one with none, or with
+# a seat entry that isn't a whole number holding a Dictionary.
+static func _seats_of(run: Dictionary) -> PackedInt32Array:
+	var seats: PackedInt32Array = []
+	var by_seat: Variant = run.get(_RUN_SEATS_KEY, null)
+	if not by_seat is Dictionary:
+		return seats
+	for seat: Variant in by_seat as Dictionary:
+		if not seat is int or not (by_seat as Dictionary)[seat] is Dictionary:
+			return PackedInt32Array()
+		seats.append(seat as int)
+	seats.sort()
+	return seats
 
 
 static func _restore_part(section: SaveSection, data: Variant) -> bool:

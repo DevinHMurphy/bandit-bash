@@ -13,10 +13,11 @@ extends "res://tests/net/net_case_base.gd"
 ## Co-op battles on maps two seats share, in the harness for tests/net/run_all.gd, 2 and 4 seats,
 ## every client acting through its [ClientMirror]: accepted swaps put a visitor on each partner's
 ## map, every seat's Start in the opening swap windows (the visitor's owner's too) and every End
-## Turn on each map, then a client seat forfeits while the teammate whose map its visitor stands
-## on has ended its turn, so the visitor leaves and that map's turn runs on. Every client's
-## encounter and every map's [method CombatSession.state_hash] equals the host's after each Start,
-## each End Turn and the leave (BUG-043, P11 CO23). Needs a test user folder.
+## Turn on each map, then a client seat forfeits through its mirror while the teammate whose map
+## its visitor stands on has ended its turn, so the visitor leaves and that map's turn runs on.
+## Every client's encounter and every map's [method CombatSession.state_hash] equals the host's
+## after each Start, each End Turn, and the leave's battle batches and campaign batch (BUG-043,
+## BUG-047, P11 CO23). Needs a test user folder.
 
 # The suite that runs this file; tests/case_files.gd finds it by this line.
 const SUITE: String = "net"
@@ -91,23 +92,29 @@ func _test_shared_maps(client_count: int) -> void:
 	_act(rig, HOST_SEAT, EndTurnCommand.new(HOST_SEAT), shared.session_id)
 	var waited: bool = shared.state.turn == turn
 	rig.after_batch.clear()
-	var forfeit: CampaignBatch = CampaignService.forfeit_seat(LEAVER)
+	rig.after_campaign.clear()
+	rig.mirror(LEAVER).submit_campaign(ForfeitCommand.new(LEAVER))
 	rig.harness.step_until_idle()
-	# Each client is compared as the forfeit's last battle batch reaches it: the SEAT_FORFEITED
-	# campaign batch after them closes a mirror's battle, as any campaign batch in a battle does.
-	var followed: bool = rig.after_batch.size() == rig.harness.size() - 1
+	# Each client is compared as the forfeit's last battle batch reaches it, and again after the
+	# SEAT_FORFEITED campaign batch that follows them, which keeps every mirror's battle.
+	var clients: int = rig.harness.size() - 1
+	var followed: bool = (
+			rig.after_batch.size() == clients and rig.after_campaign.size() == clients
+	)
 	for index: int in rig.after_batch:
 		followed = followed and rig.after_batch[index].is_empty()
+	for index: int in rig.after_campaign:
+		followed = followed and rig.after_campaign[index].is_empty()
 	_check("%s the leave runs the teammate's turn on, every mirror following" % [tag], (
 			waited
-			and forfeit != null and not forfeit.is_rejected()
+			and battle.forfeited_seats() == PackedInt32Array([LEAVER])
 			and shared.state.turn == turn + 1
 			and PhaseRunner.seats_with_units(shared) == PackedInt32Array([HOST_SEAT])
 			and followed
 			and rig.failures.is_empty()
-	), "waited %s, refused %s, turn %d of %d, seats %s; %s; %s" % [
-		waited, "-" if forfeit == null else forfeit.rejected_reason, shared.state.turn, turn + 1,
-		PhaseRunner.seats_with_units(shared), rig.after_batch, rig.failures,
+	), "waited %s, forfeited %s, turn %d of %d, seats %s; %s; %s; %s" % [
+		waited, battle.forfeited_seats(), shared.state.turn, turn + 1,
+		PhaseRunner.seats_with_units(shared), rig.after_batch, rig.after_campaign, rig.failures,
 	])
 	_stop(rig)
 
@@ -264,7 +271,8 @@ func _has_test_user_dir() -> bool:
 
 # One case's peers: the host's session, the harness, each branch's relay and mirror, every battle
 # batch whose hash a client's mirror didn't match as it applied, and by client, how its battle
-# differed from the host's right after the last battle batch it applied (empty: equal).
+# differed from the host's right after the last battle batch and the last campaign batch it
+# applied (empty: equal).
 class Rig:
 	extends RefCounted
 
@@ -274,6 +282,7 @@ class Rig:
 	var mirrors: Array[ClientMirror] = []
 	var failures: PackedStringArray = []
 	var after_batch: Dictionary[int, String] = {}
+	var after_campaign: Dictionary[int, String] = {}
 
 	func relay(index: int) -> NetRelayScript:
 		return relays[index] as NetRelayScript
@@ -287,6 +296,11 @@ class Rig:
 		mirrors[index] = ClientMirror.new(client, session.rng.run_seed)
 		client.combat_batch_received.connect(_check_map.bind(index))
 		client.encounter_batch_received.connect(_check_encounter.bind(index))
+		client.campaign_batch_received.connect(_check_campaign.bind(index))
+
+	func _check_campaign(_facts: Array, _run: Dictionary, index: int) -> void:
+		var battle: CombatEncounter = _battle_of(index)
+		after_campaign[index] = "no battle" if battle == null else _against_host(battle)
 
 	func _check_map(wire: Array, index: int) -> void:
 		var batch: CombatSession.FactBatch = CombatSession.FactBatch.from_wire(wire)

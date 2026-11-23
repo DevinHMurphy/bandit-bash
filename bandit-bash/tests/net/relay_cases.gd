@@ -52,6 +52,7 @@ const RELAY_RPCS: PackedStringArray = [
 	"_seat_changed",
 	"_notice",
 	"_seat_settings",
+	"_forfeit_record",
 ]
 
 # A token no relay hands out in these cases, for calls made around send_*().
