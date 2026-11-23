@@ -18,10 +18,11 @@ extends SceneTree
 ## Prints PASS, FAIL or SKIP per case and exits with code 1 if any fails. The cases run on the
 ## first frame, when autoloads exist, since some call [code]SteamNetwork[/code]; this script
 ## compiles before they are registered. The two-peer cases run every peer in this process, on the
-## loopback in [code]tests/net/harness/[/code]; one ENet case skips where it can't open a port.
+## loopback in [code]tests/net/harness/[/code]; the ENet cases skip where they can't open a
+## port, and two instances of the project play one battle (enet_dev_cases.gd).
 
 # The test report's line on this suite; tools/run_tests.sh reads it from this one line.
-const SUITE_DESCRIPTION: String = "Net: contract, seats, harness, relay, mirrors, rejoin, overlay"
+const SUITE_DESCRIPTION: String = "Net: contract, relay, mirrors, rejoin, overlay, sizes, ENet dev"
 
 # Preloaded scripts used as types (gdscript.md, Naming): they have no class name.
 const GroupClock = preload("res://tests/group_clock.gd")
