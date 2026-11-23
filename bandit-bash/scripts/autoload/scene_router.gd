@@ -6,7 +6,7 @@
 # File:     scene_router.gd
 # Author:
 # Created:  October 9, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends Node
@@ -22,7 +22,9 @@ extends Node
 ## [b]Invites and lost hosts:[/b] an accepted Steam invite opens a save file if none is open
 ## ([code]SaveService.get_invite_save_number()[/code]) and goes to the lobby, which joins it.
 ## During a solo run it first asks, through [signal invite_confirmation_requested], whether to
-## Save & Quit. A client whose host leaves mid-match returns to the Main Menu.
+## Save & Quit. A client whose host leaves mid-match returns to the Main Menu once it can't get
+## back. [b]Moves for everyone[/b] are the host's: a client's asks the host, which routes
+## everyone by its own run ([method RunScreen.go]).
 
 ## This machine just entered [param screen].
 signal screen_changed(screen: Screen)
@@ -60,8 +62,12 @@ signal invite_confirmation_requested()
 #                  COMBAT_RESULTS, GAMEPLAY -> MAIN_MENU (pause menu)
 #   any screen  -> LOBBY on an accepted invite (accept_pending_invite); during a solo run only
 #                  after the player chose Save & Quit
-#   LOADING and every in-run screen -> MAIN_MENU on a client whose host left (session_ended)
-# "Everyone" edges go through goto_screen_for_everyone(): host only, solo falls back to local.
+#   LOADING and every in-run screen -> MAIN_MENU on a client whose host left and that couldn't
+#                  get back (session_ended); LOBBY or the screen it held -> the run's screen on a
+#                  client that rejoined a run in progress (CampaignService, on its next sync)
+# "Everyone" edges go through goto_screen_for_everyone(): the host moves everyone; a client's
+# asks the host (a ROUTE notice), which routes everyone by its own run (RunScreen.go), unless the
+# run is paused; solo falls back to local.
 # Entering START, SAVE_SELECT or MAIN_MENU ends any lobby session, so Leave Match also leaves the
 # lobby. Entering SAVE_SELECT also closes the open save file (save_select_screen.gd).
 # There is no way to MAIN_MENU without an open save file: every path in passes SAVE_SELECT.
@@ -138,6 +144,8 @@ var previous_screen: Screen = Screen.START
 func _ready() -> void:
 	SteamNetwork.invite_received.connect(_on_steam_network_invite_received)
 	SteamNetwork.session_ended.connect(_on_steam_network_session_ended)
+	# NetRelay is registered after this autoload, so it is in the tree only once every _ready ran.
+	_follow_relay.call_deferred()
 
 
 ## Switches to [param screen] on this machine only.
@@ -173,16 +181,19 @@ func goto_screen(screen: Screen) -> void:
 
 ## Switches every connected peer, this machine included, to [param screen].
 ##
-## Host only in effect: a client's call is refused with a warning. With no active session it is a
-## plain local switch, so solo play uses the same call.
+## Host only in effect: a client's call asks the host to route everyone by its own run instead
+## ([method RunScreen.go]), so [param screen] is the host's to choose. With no active session it
+## is a plain local switch, so solo play uses the same call.
 func goto_screen_for_everyone(screen: Screen) -> void:
 	if not SteamNetwork.has_active_session():
 		goto_screen(screen)
 		return
 	if not multiplayer.is_server():
-		push_warning(
-				"SceneRouter: only the host can move everyone to %s." % [Screen.find_key(screen)]
+		NetLog.info(
+				NetLog.Category.SCENE,
+				"Asking the host to route everyone (wanted %s)." % [Screen.find_key(screen)]
 		)
+		NetRelay.send_notice(NetRelay.NoticeKind.ROUTE, [])
 		return
 
 	_networked_goto_screen.rpc(screen)
@@ -236,6 +247,18 @@ func _on_steam_network_session_ended() -> void:
 			or _RUN_SCREENS.has(current_screen)
 	):
 		goto_screen(Screen.MAIN_MENU)
+
+
+func _follow_relay() -> void:
+	NetRelay.notice_received.connect(_on_net_relay_notice_received)
+
+
+# A client asked for a move for everyone; the relay drops one while the run is paused, so the host
+# routes on every one it hears.
+func _on_net_relay_notice_received(_seat: int, kind: int, _data: Array) -> void:
+	if kind != NetRelay.NoticeKind.ROUTE or not SteamNetwork.is_authoritative():
+		return
+	RunScreen.go()
 
 
 # call_local so the host takes the same dispatch path as the clients instead of jumping a full

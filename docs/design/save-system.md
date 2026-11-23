@@ -679,6 +679,12 @@ and [UL5 plan](../plans/2026-11-19-ul5-victory-sequence.md), Save Impact):
   their seat is removed from the save, so resuming no longer needs them, and their run is archived
   for them as lost. See [game-vision.md](game-vision.md#combat-maps).
 - Never send a Resource over the network; send envelopes or ids.
+- **A drop mid-run saves nothing (P10 NT6).** The seat is kept, dropped, and the run pauses; once a
+  run starts the host admits only the run's seats not removed (by Steam id from the connection),
+  so a dropped player's account gets back in and nobody else does. A rejoining client is sent the
+  campaign as at a run's start (`SaveService.send_run_to()`), since a crashed client holds no
+  replica, then a fresh snapshot. `NetRelay.remove_seat()` changes nothing on disk: the seat's
+  removal from the save comes with the forfeit. Untested live.
 
 ## Testing
 
