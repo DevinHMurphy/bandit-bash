@@ -185,6 +185,14 @@ The plan's Work Breakdown says which questions each step needs answered before i
 | 36 | The co-op pause menu (design items: it doesn't pause the tree, so the hint bar never shows PAUSED hints) | (a) the tree never pauses in co-op; the hint bar shows a "the game goes on" set; host: Resume, Options, Save & Quit (ends the match for everyone, after a confirm); client: Resume, Options, Leave Match (a drop: everyone waits, and they can rejoin), Forfeit (confirm; non-host only); (b) the menu pauses everyone | **(a)**: the vision pauses everyone only for a drop | **Answered** (user, November 22, 2026): as recommended. |
 | 37 | A turn timer on a map two players share (a visitor's or sender's owner can stall its player phase) | (a) none in the MVP; revisit at the M4 playtest; (b) add one now (needs a value) | **(a)** | **Answered** (user, November 22, 2026): as recommended. |
 
+### Clients in the harness (CO16)
+
+| # | Question | Options | Recommendation | Answer |
+|---|----------|---------|----------------|--------|
+| 140 | How a client learns the open swap proposals, which live only in the host's memory (design items, CO5's and CO11's notes for CO16) | (a) the run capture carries them under `swap_proposals`, each a `UnitSwap.capture()` in the order made, and the mirror restores them with the run (built, `# ASSUMPTION` in `net_relay.gd`); (b) the mirror rebuilds them from `SWAP_PROPOSED`, `SWAP_ACCEPTED` and `SWAP_ENDED` facts | **(a)**: the same rule as the run (P10 question 2: a capture can't drift); a mirror built mid-run or after a rejoin never heard the facts, and rebuilding means re-running the rules on a mirror | Open |
+| 141 | How the facts a battle's end records (each seat's `COMBAT_ENDED`, `LEVELED_UP`) reach a client's victory sequence: no command's batch carries them | (a) the host's battle-end message (`_campaign_batch`, sent as the battle closes) carries the facts recorded since the battle opened, as a batch of no seat; the mirror adds them to its log by seq and announces no batch, as the host's session announces none (built, `# ASSUMPTION` in `net_relay.gd`); (b) a new capture key with the facts; (c) a new RPC | **(a)**: no new RPC or key; the message already goes out at that moment, and an end that records nothing still sends no facts | Open |
+| 142 | BUG-034's refusal at an open event whose id the build's pool lacks (the event panel's "can't be shown" step offers Leave): rules code has no pool, so Leave is now refused there too, solo included | (a) as built: refused; an event id leaving the content is a content change that needs its own handling (`# ASSUMPTION` in `leave_node_command.gd`); (b) the command is handed the pool and lets the team leave an event it can't show | **(a)**: no saved run can reach it today, and (b) would make a rules command depend on content to decide whether to wait | Open |
+
 ### Scope and records
 
 | # | Question | Options | Recommendation | Answer |

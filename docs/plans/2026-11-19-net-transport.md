@@ -186,9 +186,10 @@ Steam: it reads its own node's `multiplayer` and the `SeatDirectory`, so the har
   them, on one reliable channel (gdscript.md §10: discrete events are reliable; their order
   matters).
 - **Campaign batches carry the run.** Each sends its facts (for presentation) and the run's
-  capture (`RunSaveSections`' six parts). A client restores its mirror run from the capture, so
-  what no fact records (battle-end gold, falls, a skipped pick) still arrives **(Q 2)**. The
-  host also sends the capture after a battle's end applies to the run.
+  capture (`RunSaveSections`' six parts, the `events` section and the open swap proposals, P11
+  CO16). A client restores its mirror run from the capture, so what no fact records (battle-end
+  gold, falls, a skipped pick) still arrives **(Q 2)**. The host also sends the capture after a
+  battle's end applies to the run, with the facts that end recorded (P11 question 141).
 - **Combat batches** are `FactBatch.to_wire()` as they are. Clients apply them with
   `CombatSession.apply_batch()` / `CombatEncounter.apply_batch()`; a batch for a battle the client
   hasn't built is dropped, since the snapshot that follows covers it.

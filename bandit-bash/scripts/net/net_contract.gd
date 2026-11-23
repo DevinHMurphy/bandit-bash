@@ -6,7 +6,7 @@
 # File:     net_contract.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name NetContract
@@ -80,9 +80,10 @@ static func combine(version: String, parts: Dictionary, content: String) -> int:
 
 
 ## The network format as plain values, each part under its own name: every wire enum (name to
-## value), wire pattern and snapshot format, each run section's version by key (a campaign batch
-## carries the run in their shape), the command wire names ([method command_wire_types]), the
-## autoloads' RPC configs ([method rpc_configs]) and [code]NetRelay[/code]'s notice kinds.
+## value), wire pattern and snapshot format, each run section's version by key and the events
+## section's (a campaign batch carries the run in their shape), the command wire names
+## ([method command_wire_types]), the autoloads' RPC configs ([method rpc_configs]) and
+## [code]NetRelay[/code]'s notice kinds.
 static func format_parts() -> Dictionary:
 	return {
 		"CombatFact.Kind": CombatFact.Kind,
@@ -98,6 +99,7 @@ static func format_parts() -> Dictionary:
 		"CombatSession.snapshot_format": _snapshot_format(CombatSession),
 		"CombatEncounter.snapshot_format": _snapshot_format(CombatEncounter),
 		"RunSaveSections.versions": _run_section_versions(),
+		"EventSaveSection.version": EventSaveSection.VERSION,
 		"commands": command_wire_types(),
 		"rpc": rpc_configs(),
 		"NetRelay.NoticeKind": _notice_kinds(),

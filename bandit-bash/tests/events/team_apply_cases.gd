@@ -6,7 +6,7 @@
 # File:     team_apply_cases.gd
 # Author:
 # Created:  November 21, 2026
-# Modified: November 21, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -15,8 +15,9 @@ extends RefCounted
 ## picks (the goblet made a team choice). Each apply changes only the sender's army and records
 ## only its facts; the view lists who still chooses; picks naming a teammate's unit or item are
 ## refused, changing nothing; Bandit Toll's surprise combat waits for the last seat; a quit and
-## Continue between two seats' applies keeps both; solo plays as before; and an Unknown that
-## rolled a shop, Treasure or combat opens no event. Touches no save files.
+## Continue between two seats' applies keeps both; Leave waits for every seat's choice and the
+## surprise combat (BUG-034); solo plays as before; and an Unknown that rolled a shop, Treasure or
+## combat opens no event. Touches no save files.
 
 const SUITE: String = "events"
 
@@ -59,6 +60,8 @@ func run() -> void:
 	_test_teammate_placement()
 	_test_quit_between_applies()
 	_test_quit_before_the_fight()
+	_test_leave_waits_for_the_team()
+	_test_leave_waits_for_each_seat()
 	_test_solo_unchanged()
 	_test_unknown_outcomes()
 
@@ -200,6 +203,63 @@ func _test_quit_before_the_fight() -> void:
 					resumed.run.floor_number, resumed.run.node
 			)
 	), last.rejected_reason)
+
+
+# BUG-034: a teammate's Leave doesn't skip a seat still to apply the team's Fight, nor the surprise
+# combat once all have; that combat's results leave as any combat's do.
+func _test_leave_waits_for_the_team() -> void:
+	var team: CampaignSession = _team(2, _toll, FIGHT)
+	_fx.choose(team, _toll, 0, FIGHT)
+	var before: Dictionary[int, String] = _states(team.run)
+	var logged: int = team.run.fact_log.size()
+	var early: CampaignBatch = team.submit(LeaveNodeCommand.new(0))
+	var held: bool = (
+			early.is_rejected() and not team.run.is_on_map()
+			and _states(team.run) == before and team.run.fact_log.size() == logged
+	)
+	_check("BUG-034: Leave is refused while a seat hasn't applied the team's choice", (
+			held and early.rejected_reason == "seat 1 hasn't chosen at the event"
+	), early.rejected_reason)
+	_fx.choose(team, _toll, 1, FIGHT)
+	var unfought: CampaignBatch = team.submit(LeaveNodeCommand.new(1))
+	_check("BUG-034: Leave is refused while the chosen surprise combat waits", (
+			unfought.is_rejected() and not team.run.is_on_map()
+			and unfought.rejected_reason == "the event's surprise combat hasn't been fought"
+			and team.run.events.is_combat_pending_at(team.run.floor_number, team.run.node)
+	), unfought.rejected_reason)
+	# The battle's end leaves the run at its results, the event still open there.
+	team.run.flow.stage = RunFlow.Stage.RESULTS
+	var after: CampaignBatch = team.submit(LeaveNodeCommand.new(1))
+	_check("BUG-034: after the surprise combat, its results leave as any combat's", (
+			not after.is_rejected() and team.run.is_on_map()
+	), after.rejected_reason)
+
+
+# BUG-034: at an individual event, Leave waits for every seat's choice; solo leaves once chosen.
+func _test_leave_waits_for_each_seat() -> void:
+	var own: EventPool = _fx.pool([_fx.goblet()])
+	var team: CampaignSession = _fx.unknown_session(2)
+	_fx.open(team, own)
+	var first: UnitInstance = _fx.soldier(team.run.seat_run(0))
+	_fx.choose(team, own, 0, DRINK, EventChoice.new(first.instance_id))
+	var early: CampaignBatch = team.submit(LeaveNodeCommand.new(0))
+	var second: UnitInstance = _fx.soldier(team.run.seat_run(1))
+	_fx.choose(team, own, 1, DRINK, EventChoice.new(second.instance_id))
+	var left: CampaignBatch = team.submit(LeaveNodeCommand.new(0))
+	_check("BUG-034: an individual event's Leave waits for the seat still choosing", (
+			early.is_rejected() and early.rejected_reason == "seat 1 hasn't chosen at the event"
+			and not left.is_rejected() and team.run.is_on_map()
+	), "%s / %s" % [early.rejected_reason, left.rejected_reason])
+
+	var solo: CampaignSession = _fx.unknown_session()
+	_fx.open(solo, own)
+	var unchosen: CampaignBatch = solo.submit(LeaveNodeCommand.new(0))
+	var unit: UnitInstance = _fx.soldier(solo.run.seat_run(0))
+	_fx.choose(solo, own, 0, DRINK, EventChoice.new(unit.instance_id))
+	var done: CampaignBatch = solo.submit(LeaveNodeCommand.new(0))
+	_check("BUG-034: solo leaves an event once it has chosen, and not before", (
+			unchosen.is_rejected() and not done.is_rejected() and solo.run.is_on_map()
+	), "%s / %s" % [unchosen.rejected_reason, done.rejected_reason])
 
 
 func _test_solo_unchanged() -> void:
