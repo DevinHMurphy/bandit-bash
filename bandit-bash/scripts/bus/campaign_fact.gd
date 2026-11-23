@@ -129,6 +129,10 @@ enum Kind {
 	## floor, replacing any earlier vote of its own. The last vote's [constant NODE_CHOSEN]
 	## follows.
 	ROUTE_VOTED = 33,
+	## The seat's open offer of a unique heirloom seat [member amount] just gained was replaced
+	## by [member definition_id], of the same tier ([UniqueClaims]; empty: none was left). It
+	## follows the claimant's [constant GAINED].
+	HEIRLOOM_OFFER_REPLACED = 34,
 }
 
 ## A [member flags] bit: this [constant Kind.GAINED] was a purchase, whose

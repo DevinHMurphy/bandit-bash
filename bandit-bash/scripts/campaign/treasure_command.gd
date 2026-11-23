@@ -6,7 +6,7 @@
 # File:     treasure_command.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 21, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name TreasureCommand
@@ -18,15 +18,17 @@ extends CampaignCommand
 ## grants its heirloom ([method RunOperations.grant_heirloom]) and places its Legendary item by
 ## [member placement] ([method ItemPlacement.apply]). Giving it up records nothing. Valid inside a
 ## Treasure node while the seat's chest is open; either way the chest is resolved and the run can
-## leave once every seat's is.
+## leave once every seat's is. A take is refused when the chest no longer holds
+## [member expected_heirloom_id] (a teammate took that unique heirloom first) or holds a unique
+## heirloom a teammate owns ([method UniqueClaims.take_problem]).
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 
 ## [member CampaignFact.definition_id] of the chest's gold.
 const SOURCE_ID: String = "treasure"
 
-## Its name on the wire ([method CampaignCommand.get_wire_type]): whether it takes and the
-## placement travel; the catalog is the host's.
+## Its name on the wire ([method CampaignCommand.get_wire_type]): whether it takes, the placement
+## and the expected heirloom travel; the catalog is the host's.
 const WIRE_TYPE: String = "treasure"
 
 ## Whether the seat takes the chest; false gives it up.
@@ -35,22 +37,35 @@ var is_taking: bool = true
 ## Where the chest's Legendary item goes; needed exactly when it holds one and is taken.
 var placement: ItemPlacement = null
 
+## Content id of the heirloom the seat saw in its chest; a take is refused once the chest holds
+## another. [b]Empty:[/b] no check.
+var expected_heirloom_id: String = ""
+
 ## Content the chest's heirloom and item come from; null: the loaded catalog.
 var catalog: EffectCatalog.Index = null
 
 
 func _init(
-		sender: int = -1, taking: bool = true, item_placement: ItemPlacement = null
+		sender: int = -1,
+		taking: bool = true,
+		item_placement: ItemPlacement = null,
+		expected_heirloom: String = ""
 ) -> void:
 	seat = sender
 	is_taking = taking
 	placement = item_placement
+	expected_heirloom_id = expected_heirloom
 
 
 func get_label() -> String:
 	if not is_taking:
 		return "give up treasure"
-	return "take treasure%s" % ["" if placement == null else " (%s)" % [placement.describe()]]
+	var parts: PackedStringArray = ["take treasure"]
+	if placement != null:
+		parts.append(" (%s)" % [placement.describe()])
+	if not expected_heirloom_id.is_empty():
+		parts.append(", expecting %s" % [expected_heirloom_id])
+	return "".join(parts)
 
 
 func validate(run: CampaignRunState) -> String:
@@ -65,6 +80,11 @@ func validate(run: CampaignRunState) -> String:
 	if not is_taking:
 		return "" if placement == null else "giving the chest up places nothing"
 	var contents: EffectCatalog.Index = _contents()
+	var claimed: String = UniqueClaims.take_problem(
+			run, seat, chest.heirloom_id, expected_heirloom_id, contents
+	)
+	if not claimed.is_empty():
+		return claimed
 	if not chest.heirloom_id.is_empty():
 		var problem: String = RunOperations.heirloom_problem(
 				run, seat, chest.heirloom_id, contents
@@ -106,14 +126,18 @@ func get_wire_type() -> String:
 
 
 func _wire_fields() -> Array:
-	return [is_taking, _placement_to_wire(placement)]
+	return [is_taking, _placement_to_wire(placement), expected_heirloom_id]
 
 
 func _read_wire_fields(values: Array) -> bool:
-	if values.size() != 2 or not values[0] is bool or not _is_placement_wire(values[1]):
+	if (
+			values.size() != 3 or not values[0] is bool or not _is_placement_wire(values[1])
+			or not values[2] is String
+	):
 		return false
 	is_taking = values[0]
 	placement = _placement_of_wire(values[1] as Array)
+	expected_heirloom_id = values[2]
 	return true
 
 

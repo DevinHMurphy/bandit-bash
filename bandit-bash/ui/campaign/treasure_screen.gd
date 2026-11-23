@@ -6,7 +6,7 @@
 # File:     treasure_screen.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 21, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 extends Control
@@ -194,10 +194,13 @@ func _set_context(context: StringName) -> void:
 	_hints.context = context
 
 
+# Takes the chest as shown: the take names its heirloom, so a teammate's first claim of a unique
+# one refuses it by name instead of taking the replacement unseen.
 func _take(placement: ItemPlacement) -> void:
 	var chest: TreasureChest = _chest()
+	var shown: String = chest.heirloom_id if chest != null else ""
 	_link.send(
-			TreasureCommand.new(_seat, true, placement),
+			TreasureCommand.new(_seat, true, placement, shown),
 			func(_batch: CampaignBatch) -> void: _after_take(chest)
 	)
 

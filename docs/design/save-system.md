@@ -406,6 +406,10 @@ Their keys are listed below.
     `heirloom_id`, `item` (`{definition_id, instance_id}` or `{}`), `is_resolved` and `is_taken`.
   - `camp`: inside a Camp. `choice`: `""`, `"feast"` or `"train"`.
   - Every key but `starting_heirloom` is cleared when the node is left (`LeaveNodeCommand`).
+  - In co-op, a teammate's first claim of a unique heirloom replaces it where it is offered, in
+    place: `treasure`'s and `key_heirloom`'s `heirloom_id`, a `starting_heirloom` option's
+    `drawn_heirloom_id`, and an open event's pick in `events` (`UniqueClaims`, P11 CO7). No shape
+    or version changes; the draw moves that offer's saved stream (`rng`).
 
 The stock and the pending offers are free-form JSON in the shape each rule defines, so adding a
 shop or an offer key changes no version, and an optional key read as missing changes none either.
