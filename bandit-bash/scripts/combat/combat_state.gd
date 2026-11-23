@@ -6,7 +6,7 @@
 # File:     combat_state.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: November 19, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name CombatState
@@ -403,16 +403,13 @@ func restore(data: Dictionary) -> Error:
 
 
 ## Applies [param facts], one batch the host recorded, to this state and to [param engine], as a
-## client mirror does: the combat core's facts change the units, the turn and the phase as the
-## host's rules did, and the engine follows the effects' state ([method EffectEngine.follow]) in
-## step, so a value read mid-batch (a refresh's Stance, a Pouch item's last use) is the host's.
-## Map objects, points (closing, waves sent) and the darkness (released waves, layers, contacts,
-## arrival) follow their facts. Draws no roll and fires nothing. Not followed: what no fact
-## carries (a point's waiting units, a wave's reach and tiles entered); a non-final End Turn or
-## Start on a map several seats share.
-## [param spawned]: units this state doesn't know, by id, each placed at its
-## [constant CombatFact.Kind.UNIT_SPAWNED] ([member CombatSession.FactBatch.spawned]); add their
-## weapons, bases and effects to [param engine] first.
+## client mirror does: the core's facts change units, turn and phase as the host's rules did, and
+## the engine follows the effects' state in step ([method EffectEngine.follow]), so a value read
+## mid-batch is the host's. Map objects, points and the darkness (waves with their reach and tiles
+## entered, layers, contacts, arrival) follow their facts. Draws no roll and fires nothing. Not
+## followed: a point's waiting units; a non-final End Turn or Start on a map several seats share.
+## [param spawned]: units this state doesn't know, by id, each placed at its UNIT_SPAWNED
+## ([member CombatSession.FactBatch.spawned]); add their weapons, bases and effects first.
 func follow(
 		engine: EffectEngine,
 		facts: Array[CombatFact],
@@ -493,6 +490,8 @@ func follow(
 				_follow_object_change(fact)
 			CombatFact.Kind.DARKNESS_ADVANCED:
 				_follow_darkness(fact)
+			CombatFact.Kind.DARKNESS_WAVE_SPREAD:
+				_follow_wave(fact)
 			CombatFact.Kind.REINFORCEMENT_ARRIVED:
 				var sender: MapState.PointState = map.point(fact.actor_id)
 				if sender != null:
@@ -736,8 +735,8 @@ func _follow_object_change(fact: CombatFact) -> void:
 
 
 # A DARKNESS_ADVANCED as Darkness recorded it: a release adds its source's wave, at reach 0 with no
-# tile entered (no fact carries either), and the first release sets the arrival flag; a deepened
-# tile takes its new layer.
+# tile entered until its DARKNESS_WAVE_SPREAD facts, and the first release sets the arrival flag; a
+# deepened tile takes its new layer.
 func _follow_darkness(fact: CombatFact) -> void:
 	if (fact.flags & CombatFact.Flag.DARKNESS_RELEASED) != 0:
 		var wave: DarknessState.Wave = DarknessState.Wave.new()
@@ -748,6 +747,17 @@ func _follow_darkness(fact: CombatFact) -> void:
 		return
 	if fact.tile != CombatFact.NO_TILE:
 		map.darkness.layers[fact.tile] = fact.amount as WhileLayerCondition.Layer
+
+
+# A DARKNESS_WAVE_SPREAD: the wave it names takes its reach, and its tile, if any, as entered. A
+# wave this state doesn't hold is left alone; the hash check then reports the difference.
+func _follow_wave(fact: CombatFact) -> void:
+	if fact.key < 0 or fact.key >= map.darkness.waves.size():
+		return
+	var wave: DarknessState.Wave = map.darkness.waves[fact.key]
+	wave.reach = fact.amount
+	if fact.tile != CombatFact.NO_TILE:
+		wave.entered[fact.tile] = true
 
 
 # The seats with player units on the map, ascending: the seats that have ended at a player Phase

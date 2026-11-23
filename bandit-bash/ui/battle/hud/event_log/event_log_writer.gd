@@ -6,7 +6,7 @@
 # File:     event_log_writer.gd
 # Author:
 # Created:  November 18, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name EventLogWriter
@@ -111,6 +111,7 @@ const SILENT_KINDS: Dictionary[CombatFact.Kind, String] = {
 	CombatFact.Kind.UNIT_SENT: "an encounter fact, never on a map's log",
 	CombatFact.Kind.UNIT_RETURNED: "an encounter fact, never on a map's log",
 	CombatFact.Kind.AID_CALLED: "an encounter fact, never on a map's log",
+	CombatFact.Kind.DARKNESS_WAVE_SPREAD: "for mirrors; the darkness spread line stands for it",
 }
 
 ## The note a resumed battle's log starts with.

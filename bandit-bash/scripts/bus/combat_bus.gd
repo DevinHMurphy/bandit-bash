@@ -6,7 +6,7 @@
 # File:     combat_bus.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name CombatBus
@@ -226,12 +226,16 @@ class WorldChannel:
 	signal reinforcement_incoming(fact: CombatFact)
 	## [constant CombatFact.REINFORCEMENT_ARRIVED].
 	signal reinforcement_arrived(fact: CombatFact)
+	## [constant CombatFact.DARKNESS_WAVE_SPREAD]: a wave's reach and tiles entered, which change
+	## nothing on the board ([signal darkness_advanced] draws the layers).
+	signal darkness_wave_spread(fact: CombatFact)
 
 	func _init() -> void:
 		_route(CombatFact.Kind.DARKNESS_ADVANCED, darkness_advanced)
 		_route(CombatFact.Kind.OBJECT_STATE_CHANGED, object_state_changed)
 		_route(CombatFact.Kind.REINFORCEMENT_INCOMING, reinforcement_incoming)
 		_route(CombatFact.Kind.REINFORCEMENT_ARRIVED, reinforcement_arrived)
+		_route(CombatFact.Kind.DARKNESS_WAVE_SPREAD, darkness_wave_spread)
 
 
 ## Effect activations, counters and timed modifiers.
