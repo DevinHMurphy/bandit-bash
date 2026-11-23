@@ -10,18 +10,18 @@
 # ==============================================================================
 
 extends Node
-## Every run message between host and clients: commands up, batches down, each command's settle,
-## presentation notices, and the seats' drops and rejoins. Autoload [code]NetRelay[/code], after
-## [code]CampaignService[/code]. It reads its own node's [code]multiplayer[/code] ([NetGate]) and
-## [member seats], never Steam, except to seat a lobby's run, so a test puts one under each branch.
-## [b]Host:[/b] a client's command takes its seat from the connection, is refused while the run is
-## paused, is filled ([HostFill]) and resolves as the host's own; its sender alone hears how it
-## settled. Batches go to every seated client in the host's order on one reliable channel, a
-## rejection to its sender only, campaign batches with the run's capture, a battle's snapshot on
-## the idle frame after it opens. [b]Seats:[/b] a seat whose peer leaves is kept, dropped, and the
-## run pauses for everyone until it rejoins (a fresh snapshot) or the host removes it.
-## [b]Clients[/b] hand what arrives on through the [code]*_received[/code] signals and
-## [signal sync_received], for [ClientMirror]. Notices are presentation only.
+## Every run message between host and clients: commands up, batches down, settles, notices, and
+## the seats' drops and rejoins. Autoload [code]NetRelay[/code], after [code]CampaignService[/code].
+## It reads its own node's [code]multiplayer[/code] ([NetGate]) and [member seats], never Steam
+## but to seat a lobby's run, so a test puts one under each branch. [b]Host:[/b] a client's
+## command takes its seat from the connection, is refused while paused, is filled ([HostFill]) and
+## resolves as the host's own; its sender alone hears how it settled. Batches go to every seated
+## client in order on one reliable channel (a rejection to its sender), campaign batches with the
+## run's capture, a battle's snapshot the idle frame after it opens. A dropped seat is kept and
+## pauses the run until it rejoins (a fresh snapshot) or is removed. [b]Clients[/b] pass it on
+## through the [code]*_received[/code] signals and [signal sync_received]. [code]_sync[/code] and
+## [code]_campaign_batch[/code] travel packed (zstd, checked); nothing over Steam's message limit
+## is sent; every message sent or received is a NetLog line (kind, size, peer).
 ##
 ## @tutorial(Net transport plan): docs/plans/2026-11-19-net-transport.md
 
@@ -117,6 +117,27 @@ const _NO_SCREEN: int = -1
 # A catch-up batch's label, for the client's log.
 const _CATCH_UP_LABEL: String = "catch-up"
 
+# Steam's limit on one message (k_cbMaxSteamNetworkingSocketsMessageSizeSend, Valve's
+# steamnetworkingtypes.h); a larger send fails. ENet's and the loopback's are far larger.
+const _STEAM_MESSAGE_LIMIT: int = 512 * 1024
+# ASSUMPTION: room for Godot's RPC header and GodotSteam's own packet header, which couldn't be
+# read; NT8 checks it live.
+const _SEND_MARGIN: int = 1024
+# The most a message's measured size may be: _size_of() of its arguments.
+const _SEND_BUDGET: int = _STEAM_MESSAGE_LIMIT - _SEND_MARGIN
+
+# The packed form of _sync's and _campaign_batch's arguments: this format byte, their encoded
+# size (u32), their MD5 (16 bytes), then their var_to_bytes() compressed with _PACK_MODE. The
+# fingerprint covers the format (NetContract); change it with the layout or the mode.
+const _PACK_FORMAT: int = 1
+const _PACK_MODE: FileAccess.CompressionMode = FileAccess.COMPRESSION_ZSTD
+const _PACK_SIZE_AT: int = 1
+const _PACK_DIGEST_AT: int = 5
+const _PACK_HEADER: int = 21
+# ASSUMPTION: Godot's own default limit on one Variant decoded from a packet peer
+# (PacketPeer.encode_buffer_max_size, 8 MiB); the largest message measured is about 350 KB.
+const _UNPACK_LIMIT: int = 8 * 1024 * 1024
+
 ## Which connection holds which seat. On the host it decides every client's seat; on a client it
 ## gives this machine's own. [b]Null:[/b] none is known, so every client's command settles "not
 ## seated" and no client hears the run. Built by [method seat_members] for a lobby's run.
@@ -184,16 +205,13 @@ func request_sync(have: Dictionary) -> bool:
 	if not _is_client():
 		push_error("NetRelay: only a client asks the host for state.")
 		return false
-	var err: Error = rpc_id(_HOST_PEER, &"_request_sync", have)
-	if err != OK:
-		push_error("NetRelay: a request for state wasn't sent - %s" % [error_string(err)])
-	return err == OK
+	return _send([_HOST_PEER], &"_request_sync", [have])
 
 
 ## Sends [param command], for the map [param session_id], from this client to the host and
 ## returns its token for [signal command_settled]. Nothing changes here until batches arrive.
-## [constant NO_TOKEN], sending nothing, on the host, in solo, for null, or for a command with
-## no wire form.
+## [constant NO_TOKEN], sending nothing, on the host, in solo, for null, for a command with no
+## wire form, or when it can't be sent (over the message limit).
 func send_combat(command: Command, session_id: int) -> int:
 	if command == null or not _is_client():
 		push_error("NetRelay: only a client sends a combat command to the host.")
@@ -202,9 +220,7 @@ func send_combat(command: Command, session_id: int) -> int:
 	if wire.is_empty():
 		return NO_TOKEN
 	var token: int = _take_token()
-	var err: Error = rpc_id(_HOST_PEER, &"_submit_combat", wire, session_id, token)
-	if err != OK:
-		push_error("NetRelay: a combat command wasn't sent - %s" % [error_string(err)])
+	if not _send([_HOST_PEER], &"_submit_combat", [wire, session_id, token]):
 		return NO_TOKEN
 	return token
 
@@ -218,9 +234,7 @@ func send_campaign(command: CampaignCommand) -> int:
 	if wire.is_empty():
 		return NO_TOKEN
 	var token: int = _take_token()
-	var err: Error = rpc_id(_HOST_PEER, &"_submit_campaign", wire, token)
-	if err != OK:
-		push_error("NetRelay: a campaign command wasn't sent - %s" % [error_string(err)])
+	if not _send([_HOST_PEER], &"_submit_campaign", [wire, token]):
 		return NO_TOKEN
 	return token
 
@@ -236,7 +250,7 @@ func send_notice(kind: int, data: Array) -> void:
 		push_error("NetRelay: notice %d with data %s isn't allowed." % [kind, data])
 		return
 	if not multiplayer.is_server():
-		_notice.rpc_id(_HOST_PEER, SeatDirectory.NO_SEAT, kind, data)
+		_send([_HOST_PEER], &"_notice", [SeatDirectory.NO_SEAT, kind, data])
 		return
 	if kind == NoticeKind.ROUTE:
 		push_error("NetRelay: the host routes everyone itself; it sends no route notice.")
@@ -245,8 +259,7 @@ func send_notice(kind: int, data: Array) -> void:
 	if seat == SeatDirectory.NO_SEAT:
 		push_error("NetRelay: the host holds no seat to send a notice for.")
 		return
-	for peer: int in _seated_peers():
-		_notice.rpc_id(peer, seat, kind, data)
+	_send(_seated_peers(), &"_notice", [seat, kind, data])
 
 
 ## Seats the run: [param steam_ids_by_seat] is each seat's Steam id (the campaign's players),
@@ -324,6 +337,7 @@ func is_host_lost() -> bool:
 # are checked first, then it resolves as the host's own would. The sender is told how it settled.
 @rpc("any_peer", "call_remote", "reliable")
 func _submit_combat(wire: Array, session_id: int, token: int) -> void:
+	_log_received(&"_submit_combat", [wire, session_id, token])
 	if not _is_host():
 		return
 	var sender: int = multiplayer.get_remote_sender_id()
@@ -345,6 +359,7 @@ func _submit_combat(wire: Array, session_id: int, token: int) -> void:
 # As _submit_combat(), for a campaign command, filled by HostFill before it resolves.
 @rpc("any_peer", "call_remote", "reliable")
 func _submit_campaign(wire: Array, token: int) -> void:
+	_log_received(&"_submit_campaign", [wire, token])
 	if not _is_host():
 		return
 	var sender: int = multiplayer.get_remote_sender_id()
@@ -365,6 +380,7 @@ func _submit_campaign(wire: Array, token: int) -> void:
 
 @rpc("authority", "call_remote", "reliable")
 func _command_settled(token: int, reason: String) -> void:
+	_log_received(&"_command_settled", [token, reason])
 	if multiplayer.is_server():
 		return
 	command_settled.emit(token, reason)
@@ -372,6 +388,7 @@ func _command_settled(token: int, reason: String) -> void:
 
 @rpc("authority", "call_remote", "reliable")
 func _combat_batch(wire: Array) -> void:
+	_log_received(&"_combat_batch", [wire])
 	if multiplayer.is_server():
 		return
 	combat_batch_received.emit(wire)
@@ -379,22 +396,31 @@ func _combat_batch(wire: Array) -> void:
 
 @rpc("authority", "call_remote", "reliable")
 func _encounter_batch(wire: Array) -> void:
+	_log_received(&"_encounter_batch", [wire])
 	if multiplayer.is_server():
 		return
 	encounter_batch_received.emit(wire)
 
 
+# A campaign batch's facts and the run's capture, packed (_pack()); one that doesn't unpack to
+# that shape is dropped, and the next batch or sync brings the run again.
 @rpc("authority", "call_remote", "reliable")
-func _campaign_batch(facts: Array, run: Dictionary) -> void:
+func _campaign_batch(packed: PackedByteArray) -> void:
+	_log_received(&"_campaign_batch", [packed])
 	if multiplayer.is_server():
 		return
-	campaign_batch_received.emit(facts, run)
+	var args: Array = _unpack(packed)
+	if not _is_campaign_batch_shape(args):
+		_log_dropped(multiplayer.get_remote_sender_id(), "a campaign batch that doesn't unpack")
+		return
+	campaign_batch_received.emit(args[0] as Array, args[1] as Dictionary)
 
 
 # A seated client's request for state, on the host: answered to it alone, the same way however
 # often it asks, so a retry's duplicate is harmless. An unseated or malformed one is dropped.
 @rpc("any_peer", "call_remote", "reliable")
 func _request_sync(have: Dictionary) -> void:
+	_log_received(&"_request_sync", [have])
 	if not _is_host():
 		return
 	var sender: int = multiplayer.get_remote_sender_id()
@@ -414,18 +440,27 @@ func _request_sync(have: Dictionary) -> void:
 			battle = _encounter.snapshot()
 		else:
 			facts = caught_up
-	_sync.rpc_id(sender, _capture_run(), battle, facts, screen)
+	_send_sync([sender], _capture_run(), battle, facts, screen)
 
 
-# A client back from losing the host has its state here, after the seats' news: the wait is over.
+# The run, the battle, missed facts and the screen, packed (_pack()); one that doesn't unpack to
+# that shape is dropped, and the client's request clock asks again. A client back from losing the
+# host has its state here, after the seats' news: the wait is over.
 @rpc("authority", "call_remote", "reliable")
-func _sync(run: Dictionary, battle: Dictionary, facts: Array, screen: int) -> void:
+func _sync(packed: PackedByteArray) -> void:
+	_log_received(&"_sync", [packed])
 	if multiplayer.is_server():
+		return
+	var args: Array = _unpack(packed)
+	if not _is_sync_shape(args):
+		_log_dropped(multiplayer.get_remote_sender_id(), "a sync that doesn't unpack")
 		return
 	if _host_lost:
 		_host_lost = false
 		_waits.erase(CampaignData.HOST_SEAT)
-	sync_received.emit(run, battle, facts, screen)
+	sync_received.emit(
+			args[0] as Dictionary, args[1] as Dictionary, args[2] as Array, args[3] as int
+	)
 
 
 # A seat's connection changed, on every peer, the host's own call included: the waits, the
@@ -433,6 +468,9 @@ func _sync(run: Dictionary, battle: Dictionary, facts: Array, screen: int) -> vo
 # list, which carries the new peer). state is a SeatDirectory.State.
 @rpc("authority", "call_local", "reliable")
 func _seat_changed(seat: int, state: int, waited_for: float) -> void:
+	# The host calls it directly too, at times inside another peer's RPC: that is no message.
+	if not multiplayer.is_server():
+		_log_received(&"_seat_changed", [seat, state, waited_for])
 	if seat < 0 or waited_for < 0.0 or not SeatDirectory.State.values().has(state):
 		_log_dropped(
 				multiplayer.get_remote_sender_id(),
@@ -465,6 +503,7 @@ func _seat_changed(seat: int, state: int, waited_for: float) -> void:
 # forward is heard, so a client's direct call to another client is ignored.
 @rpc("any_peer", "call_remote", "reliable")
 func _notice(seat: int, kind: int, data: Array) -> void:
+	_log_received(&"_notice", [seat, kind, data])
 	var sender: int = multiplayer.get_remote_sender_id()
 	if not _is_notice_valid(kind, data):
 		_log_dropped(sender, "notice %d with data %s" % [kind, data])
@@ -484,9 +523,9 @@ func _notice(seat: int, kind: int, data: Array) -> void:
 			notice_received.emit(from_seat, kind, data)
 		return
 	notice_received.emit(from_seat, kind, data)
-	for peer: int in _seated_peers():
-		if peer != sender:
-			_notice.rpc_id(peer, from_seat, kind, data)
+	var others: Array[int] = _seated_peers()
+	others.erase(sender)
+	_send(others, &"_notice", [from_seat, kind, data])
 
 
 func _is_host() -> bool:
@@ -578,11 +617,66 @@ func _settle(sender: int, token: int, reason: String, category: NetLogScript.Cat
 				category,
 				"NetRelay: peer %d's command %d settled - %s" % [sender, token, reason]
 		)
-	_command_settled.rpc_id(sender, token, reason)
+	_send([sender], &"_command_settled", [token, reason])
 
 
 func _log_dropped(sender: int, what: String) -> void:
 	NetLog.warn(NetLog.Category.LOBBY, "NetRelay: dropped %s from peer %d." % [what, sender])
+
+
+# Sends the RPC method with args to each of peers, one message each, and logs each; returns
+# whether every one went. Measured once: over _SEND_BUDGET it goes to nobody, with an error, since
+# Steam would refuse it; a batch lost so is repaired as any gap is (a client's sync request).
+func _send(peers: Array[int], method: StringName, args: Array) -> bool:
+	if peers.is_empty():
+		return true
+	var size: int = _size_of(args)
+	var category: NetLogScript.Category = _category_of(method)
+	if size > _SEND_BUDGET:
+		NetLog.error(category, "NetRelay: %s is %d B, over the %d B a message may be; not sent." % [
+			_kind_of(method), size, _SEND_BUDGET,
+		])
+		return false
+	var is_logged: bool = NetLog.would_log(NetLog.Level.INFO, category)
+	var sent: bool = true
+	for peer: int in peers:
+		var err: Error = callv(&"rpc_id", [peer, method] + args)
+		if err != OK:
+			push_error("NetRelay: %s to peer %d wasn't sent - %s" % [
+				_kind_of(method), peer, error_string(err),
+			])
+			sent = false
+		elif is_logged:
+			NetLog.info(category, "NetRelay: sent %s, %d B, to peer %d." % [
+				_kind_of(method), size, peer,
+			])
+	return sent
+
+
+# _sync's arguments, packed once for every peer.
+func _send_sync(
+		peers: Array[int], run: Dictionary, battle: Dictionary, facts: Array, screen: int
+) -> void:
+	if not peers.is_empty():
+		_send(peers, &"_sync", [_pack([run, battle, facts, screen])])
+
+
+# A campaign batch's facts with the run's capture as it stands, packed once for every peer.
+func _send_campaign_batch(peers: Array[int], facts: Array) -> void:
+	if not peers.is_empty():
+		_send(peers, &"_campaign_batch", [_pack([facts, _capture_run()])])
+
+
+# The line for a relay message that arrived, before anything checks it; the host's own call of a
+# call_local RPC has no sender and isn't a message.
+func _log_received(method: StringName, args: Array) -> void:
+	var sender: int = multiplayer.get_remote_sender_id()
+	var category: NetLogScript.Category = _category_of(method)
+	if sender == 0 or not NetLog.would_log(NetLog.Level.INFO, category):
+		return
+	NetLog.info(category, "NetRelay: received %s, %d B, from peer %d." % [
+		_kind_of(method), _size_of(args), sender,
+	])
 
 
 # The open battle's snapshot to every seated client, as it stands between commands.
@@ -592,15 +686,12 @@ func _push_battle() -> void:
 	var battle: Dictionary = _encounter.snapshot()
 	if battle.is_empty():
 		return
-	var run: Dictionary = _capture_run()
-	for peer: int in _seated_peers():
-		_sync.rpc_id(peer, run, battle, [], SceneRouter.Screen.GAMEPLAY)
+	_send_sync(_seated_peers(), _capture_run(), battle, [], SceneRouter.Screen.GAMEPLAY)
 
 
 # Host: tells every seated peer, and this one, that seat's connection is now state.
 func _send_seat_changed(seat: int, state: SeatDirectory.State, waited_for: float) -> void:
-	for peer: int in _seated_peers():
-		_seat_changed.rpc_id(peer, seat, state, waited_for)
+	_send(_seated_peers(), &"_seat_changed", [seat, state, waited_for])
 	_seat_changed(seat, state, waited_for)
 
 
@@ -623,7 +714,7 @@ func _announce_rejoin(seat: int, peer: int) -> void:
 	for other: int in seats.seats():
 		var state: int = seats.state_of(other)
 		if state == SeatDirectory.State.DROPPED or state == SeatDirectory.State.REMOVED:
-			_seat_changed.rpc_id(peer, other, state, waited(other))
+			_send([peer], &"_seat_changed", [other, state, waited(other)])
 	if _is_lobby_relay():
 		SaveService.send_run_to(peer)
 	var battle: Dictionary = {}
@@ -631,7 +722,7 @@ func _announce_rejoin(seat: int, peer: int) -> void:
 	if _is_battle_open():
 		battle = _encounter.snapshot()
 		screen = SceneRouter.Screen.GAMEPLAY
-	_sync.rpc_id(peer, _capture_run(), battle, [], screen)
+	_send_sync([peer], _capture_run(), battle, [], screen)
 
 
 # Host of a lobby's run: only the run's seats that aren't removed may join, so a dropped seat's
@@ -827,13 +918,11 @@ func _on_session_campaign_batch_resolved(batch: CampaignBatch) -> void:
 		return
 	var wire: Array = batch.to_wire()
 	if not batch.is_rejected():
-		var run: Dictionary = _capture_run()
-		for peer: int in _seated_peers():
-			_campaign_batch.rpc_id(peer, wire, run)
+		_send_campaign_batch(_seated_peers(), wire)
 		return
 	var sender: int = _peer_of(batch.seat)
 	if sender != SeatDirectory.NO_PEER:
-		_campaign_batch.rpc_id(sender, wire, _capture_run())
+		_send_campaign_batch([sender], wire)
 
 
 # Begin and a resume are still setting the battle up here; its snapshot goes out once they are done.
@@ -849,9 +938,7 @@ func _on_session_combat_encounter_closed(encounter: CombatEncounter) -> void:
 	if encounter == _encounter:
 		_follow_battle(null)
 	if _is_host():
-		var run: Dictionary = _capture_run()
-		for peer: int in _seated_peers():
-			_campaign_batch.rpc_id(peer, [], run)
+		_send_campaign_batch(_seated_peers(), [])
 
 
 func _on_encounter_session_opened(map: CombatSession) -> void:
@@ -862,9 +949,7 @@ func _on_encounter_session_opened(map: CombatSession) -> void:
 func _on_encounter_batch_resolved(batch: CombatSession.FactBatch) -> void:
 	if not _is_host():
 		return
-	var wire: Array = batch.to_wire()
-	for peer: int in _seated_peers():
-		_encounter_batch.rpc_id(peer, wire)
+	_send(_seated_peers(), &"_encounter_batch", [batch.to_wire()])
 
 
 func _on_map_batch_resolved(batch: CombatSession.FactBatch) -> void:
@@ -872,12 +957,11 @@ func _on_map_batch_resolved(batch: CombatSession.FactBatch) -> void:
 		return
 	var wire: Array = batch.to_wire()
 	if not batch.is_rejected():
-		for peer: int in _seated_peers():
-			_combat_batch.rpc_id(peer, wire)
+		_send(_seated_peers(), &"_combat_batch", [wire])
 		return
 	var sender: int = _peer_of(batch.seat)
 	if sender != SeatDirectory.NO_PEER:
-		_combat_batch.rpc_id(sender, wire)
+		_send([sender], &"_combat_batch", [wire])
 
 
 # Whether have is a sync request: exactly its three keys, a battle of two whole numbers or none,
@@ -899,6 +983,22 @@ static func _is_have_valid(have: Dictionary) -> bool:
 	return true
 
 
+# Whether args are _sync's: the run, the battle, the missed facts and the screen.
+static func _is_sync_shape(args: Array) -> bool:
+	return (
+			args.size() == 4
+			and args[0] is Dictionary
+			and args[1] is Dictionary
+			and args[2] is Array
+			and args[3] is int
+	)
+
+
+# Whether args are _campaign_batch's: the facts and the run.
+static func _is_campaign_batch_shape(args: Array) -> bool:
+	return args.size() == 2 and args[0] is Array and args[1] is Dictionary
+
+
 # Whether data is what a notice of kind carries.
 static func _is_notice_valid(kind: int, data: Array) -> bool:
 	match kind:
@@ -912,3 +1012,63 @@ static func _is_notice_valid(kind: int, data: Array) -> bool:
 		NoticeKind.ROUTE:
 			return data.is_empty()
 	return false
+
+
+# args encoded as one Variant: at least what Godot's RPC encoding of them carries, so the measure
+# the send guard and the log lines use.
+static func _size_of(args: Array) -> int:
+	return var_to_bytes(args).size()
+
+
+# A message's kind as its log line names it: the RPC method without its underscore.
+static func _kind_of(method: StringName) -> String:
+	return String(method).trim_prefix("_")
+
+
+# Which NetLog category a relay message's lines go under: a map's traffic Combat, the run's
+# Campaign, the rest (settles, syncs, seats, notices) Lobby.
+static func _category_of(method: StringName) -> NetLogScript.Category:
+	match method:
+		&"_submit_combat", &"_combat_batch", &"_encounter_batch":
+			return NetLogScript.Category.COMBAT
+		&"_submit_campaign", &"_campaign_batch":
+			return NetLogScript.Category.CAMPAIGN
+	return NetLogScript.Category.LOBBY
+
+
+# args as one packed message (see _PACK_FORMAT): the format byte, the encoded size, its MD5, then
+# the encoded args compressed.
+static func _pack(args: Array) -> PackedByteArray:
+	var raw: PackedByteArray = var_to_bytes(args)
+	var packed: PackedByteArray = PackedByteArray()
+	packed.resize(_PACK_DIGEST_AT)
+	packed.encode_u8(0, _PACK_FORMAT)
+	packed.encode_u32(_PACK_SIZE_AT, raw.size())
+	packed.append_array(_md5(raw))
+	packed.append_array(raw.compress(_PACK_MODE))
+	return packed
+
+
+# The args _pack() packed; empty when packed is another format, says a size over _UNPACK_LIMIT,
+# doesn't decompress to that size, fails its MD5 or isn't an Array. Never decodes objects.
+static func _unpack(packed: PackedByteArray) -> Array:
+	var refused: Array = []
+	if packed.size() <= _PACK_HEADER or packed.decode_u8(0) != _PACK_FORMAT:
+		return refused
+	var raw_size: int = packed.decode_u32(_PACK_SIZE_AT)
+	if raw_size <= 0 or raw_size > _UNPACK_LIMIT:
+		return refused
+	var raw: PackedByteArray = packed.slice(_PACK_HEADER).decompress(raw_size, _PACK_MODE)
+	if raw.size() != raw_size or _md5(raw) != packed.slice(_PACK_DIGEST_AT, _PACK_HEADER):
+		return refused
+	var args: Variant = bytes_to_var(raw)
+	if not args is Array:
+		return refused
+	return args as Array
+
+
+static func _md5(bytes: PackedByteArray) -> PackedByteArray:
+	var context: HashingContext = HashingContext.new()
+	context.start(HashingContext.HASH_MD5)
+	context.update(bytes)
+	return context.finish()

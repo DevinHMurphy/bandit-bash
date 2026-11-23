@@ -6,7 +6,7 @@
 # File:     net_contract.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name NetContract
@@ -16,10 +16,11 @@ extends RefCounted
 ##
 ## [method fingerprint] covers the game version, the network format ([method format_parts]: the
 ## wire enums and patterns, the snapshot and run section formats, every command's wire name, every
-## autoload's RPC config, the relay's notice kinds) and the content ([method content_digest] of
-## [constant CONTENT_ROOTS]). It is computed, never kept by hand: appending a fact kind, adding a
-## command type or an RPC, or editing a data file changes it with no edit here. A new wire enum or
-## pattern is added to [method format_parts]; a new command base class to [constant COMMAND_BASES].
+## autoload's RPCs with their arguments, the relay's notice kinds and pack format) and the content
+## ([method content_digest] of [constant CONTENT_ROOTS]). It is computed, never kept by hand:
+## appending a fact kind, adding a command type or an RPC, changing an RPC's arguments, or editing
+## a data file changes it with no edit here. A new wire enum or pattern is added to
+## [method format_parts]; a new command base class to [constant COMMAND_BASES].
 ##
 ## @tutorial(Net transport plan): docs/plans/2026-11-19-net-transport.md
 
@@ -46,6 +47,10 @@ const _SNAPSHOT_FORMAT_CONSTANT: String = "_SNAPSHOT_FORMAT"
 # The NetRelay autoload's script and its notice kinds enum, read through its constant map.
 const _RELAY_PATH: String = "res://scripts/autoload/net_relay.gd"
 const _NOTICE_KINDS_CONSTANT: String = "NoticeKind"
+const _PACK_FORMAT_CONSTANT: String = "_PACK_FORMAT"
+
+# The key each RPC's arguments are added under in its config entry.
+const _ARGUMENTS_KEY: String = "args"
 
 static var _fingerprint: int = 0
 static var _has_fingerprint: bool = false
@@ -82,7 +87,8 @@ static func combine(version: String, parts: Dictionary, content: String) -> int:
 ## The network format as plain values, each part under its own name: every wire enum (name to
 ## value), wire pattern and snapshot format, each run section's version by key (a campaign batch
 ## carries the run in their shape), the command wire names ([method command_wire_types]), the
-## autoloads' RPC configs ([method rpc_configs]) and [code]NetRelay[/code]'s notice kinds.
+## autoloads' RPCs ([method rpc_configs]), and [code]NetRelay[/code]'s notice kinds and the
+## format of its packed messages.
 static func format_parts() -> Dictionary:
 	return {
 		"CombatFact.Kind": CombatFact.Kind,
@@ -101,6 +107,7 @@ static func format_parts() -> Dictionary:
 		"commands": command_wire_types(),
 		"rpc": rpc_configs(),
 		"NetRelay.NoticeKind": _notice_kinds(),
+		"NetRelay.pack_format": _pack_format(),
 	}
 
 
@@ -128,9 +135,10 @@ static func command_wire_types() -> Dictionary[String, String]:
 	return found
 
 
-## Every autoload's [method Script.get_rpc_config], by autoload name; an autoload that isn't a
-## script with RPCs adds nothing. RPCs are indexed by method name in sorted order, so the config
-## is what peers must share.
+## Every autoload's [method Script.get_rpc_config], by autoload name, each method's entry with its
+## arguments added under [code]"args"[/code] ([code][name, type, hint string][/code] each); an
+## autoload that isn't a script with RPCs adds nothing. RPCs are indexed by method name in sorted
+## order and decode their arguments by position, so both are what peers must share.
 static func rpc_configs() -> Dictionary[String, Variant]:
 	var configs: Dictionary[String, Variant] = {}
 	for property: Dictionary in ProjectSettings.get_property_list():
@@ -143,7 +151,7 @@ static func rpc_configs() -> Dictionary[String, Variant]:
 			continue
 		var config: Variant = script.get_rpc_config()
 		if config is Dictionary and not (config as Dictionary).is_empty():
-			configs[key.trim_prefix("autoload/")] = config
+			configs[key.trim_prefix("autoload/")] = _with_arguments(config as Dictionary, script)
 	configs.sort()
 	return configs
 
@@ -222,6 +230,33 @@ static func _notice_kinds() -> Dictionary:
 		push_error("NetContract: no notice kinds - %s" % [_RELAY_PATH])
 		return {}
 	return script.get_script_constant_map()[_NOTICE_KINDS_CONSTANT] as Dictionary
+
+
+# The private format of NetRelay's packed messages, read as _notice_kinds() reads its enum; -1,
+# loudly, when it is gone.
+static func _pack_format() -> int:
+	var script: Script = load(_RELAY_PATH) as Script
+	if script == null or not script.get_script_constant_map().has(_PACK_FORMAT_CONSTANT):
+		push_error("NetContract: no pack format - %s" % [_RELAY_PATH])
+		return -1
+	return script.get_script_constant_map()[_PACK_FORMAT_CONSTANT] as int
+
+
+# config (an RPC config) with each method's arguments from script's method list added to its
+# entry, so a changed signature changes the fingerprint as a changed mode does.
+static func _with_arguments(config: Dictionary, script: Script) -> Dictionary:
+	var arguments: Dictionary[String, Array] = {}
+	for method: Dictionary in script.get_script_method_list():
+		var listed: Array = []
+		for argument: Dictionary in method["args"]:
+			listed.append([argument["name"], argument["type"], argument["hint_string"]])
+		arguments[method["name"] as String] = listed
+	var combined: Dictionary = {}
+	for method_name: Variant in config:
+		var entry: Dictionary = (config[method_name] as Dictionary).duplicate()
+		entry[_ARGUMENTS_KEY] = arguments.get(str(method_name), [])
+		combined[method_name] = entry
+	return combined
 
 
 # Whether class_id has a COMMAND_BASES class among its ancestors in bases (class to base class).
