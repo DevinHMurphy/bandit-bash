@@ -25,8 +25,6 @@ extends RefCounted
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 ##
-## @todo: TOD-003 - Send each co-op seat's opening-swap setting to the host (P11); no entry means
-## on. Solo's comes from the battle screen's request (the player's settings).
 ## @todo: TOD-004 - Pass the enemy level modifiers (difficulty ladder, run modifiers) to the enemy
 ## draws.
 
@@ -246,9 +244,10 @@ func begin_battle(request: BattleRequest) -> CombatEncounter:
 		var swap_seats: PackedInt32Array = []
 		# Every seat with units here, a visitor's owner too, opens its window by its own setting.
 		for seat: int in PhaseRunner.seats_with_units(session):
-			# TODO(TOD-003): co-op seats' settings don't reach the host yet (P11); no entry means on,
-			# the setting's default (SettingsData.DEFAULT_OPENING_SWAP).
-			if request.opening_swap.get(seat, true):
+			# The host's entry is its player's own; a client's is what it sent the host
+			# (CampaignService fills it). No entry means on, the setting's default.
+			var is_on: bool = request.opening_swap.get(seat, SettingsData.DEFAULT_OPENING_SWAP)
+			if is_on:
 				swap_seats.append(seat)
 		session.open_battle(swap_seats)
 	_log_battle("BATTLE START", request, battle)

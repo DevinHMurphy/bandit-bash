@@ -134,15 +134,17 @@ func _process(delta: float) -> void:
 	_mirror.advance(delta)
 
 
-## Begins the battle [param request] describes, after the player presses Begin: sets it up
-## ([method CampaignSession.begin_battle]), then saves it with [method SaveService.begin_battle], so
-## the combat file holds the battle as set up. Returns [constant OK];
-## [constant ERR_UNCONFIGURED] with no session; [constant ERR_CANT_CREATE] when setup failed; or
-## the save error, with the battle dropped again.
+## Begins the battle [param request] describes, after the player presses Begin: each seat it left
+## without an opening-swap entry takes the one its player sent the host
+## ([method NetRelay.seat_settings]), the battle is set up ([method CampaignSession.begin_battle]),
+## then saved with [method SaveService.begin_battle], so the combat file holds it as set up.
+## Returns [constant OK]; [constant ERR_UNCONFIGURED] with no session; [constant ERR_CANT_CREATE]
+## when setup failed; or the save error, with the battle dropped again.
 func begin_battle(request: CampaignSession.BattleRequest) -> Error:
 	if session == null:
 		push_error("CampaignService: no run in progress to begin a battle in.")
 		return ERR_UNCONFIGURED
+	_fill_seat_settings(request)
 	if session.begin_battle(request) == null:
 		return ERR_CANT_CREATE
 	var err: Error = SaveService.begin_battle()
@@ -562,6 +564,20 @@ func _refuse_paused(command: CampaignCommand) -> CampaignBatch:
 	batch.rejected_reason = _PAUSED
 	session.command_rejected.emit(batch.seat, batch.arrival, batch.rejected_reason)
 	return batch
+
+
+# Fills request's opening-swap entry for every seat of the run it has none for (the screen sets
+# only this machine's) from the settings that seat's player sent the host. A seat that sent none
+# keeps no entry, which CampaignSession.begin_battle() reads as the setting's default, on.
+func _fill_seat_settings(request: CampaignSession.BattleRequest) -> void:
+	if request == null:
+		return
+	for seat: int in session.seats:
+		if request.opening_swap.has(seat):
+			continue
+		var sent: Variant = NetRelay.seat_settings(seat).get(SettingsData.OPENING_SWAP_KEY, null)
+		if sent is bool:
+			request.opening_swap[seat] = sent
 
 
 # Sets the active campaign's floor, which Save Select shows, to the run's.
