@@ -6,7 +6,7 @@
 # File:     army_view.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 21, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name ArmyView
@@ -14,15 +14,14 @@ extends Control
 ## The army and its convoy, over the screen that opened it: the army's size against its max
 ## ([method RunOperations.max_army_size], so Muster Roll shows), a [UnitGearRow] per unit and the
 ## [ConvoyPanel]. Gear changes only where it is gained and when re-gearing at a Camp; elsewhere
-## the army can only be viewed and items scrapped (game-vision.md, Inventory), so it has two modes
-## ([enum Mode]).
+## the army can only be viewed and items scrapped (game-vision.md, Inventory): [enum Mode].
 ##
-## Re-gearing is pick up, then put down: press a filled slot (or a convoy item) to pick its item
-## up, then a living unit's slot or "Put it in the convoy" to move it there ([RegearCommand]); a
-## move [Regear] refuses says why and sends nothing. Scrapping is one press ([ScrapItemCommand]).
-## It only asks: [signal command_ready] goes to the screen, which sends the command and calls
-## [method refresh], or [method show_problem] with the rejection. In co-op, with
-## [member offers_team], its Team button asks the screen for the [TeamPanel].
+## Re-gearing is pick up, then put down: a filled slot or convoy item, then a living unit's slot
+## or the convoy ([RegearCommand]); a move [Regear] refuses says why. Scrapping is one press. It
+## only asks: [signal command_ready] goes to the screen, which sends it and calls [method refresh]
+## or [method show_problem]. In co-op its Team button ([member offers_team]) asks for the
+## [TeamPanel], its Swaps button ([member offers_swaps]) for the [SwapPanel]; accepted swaps
+## show on their units' rows and in a line naming both units ([SwapText]).
 
 # ============================================================
 # INPUT MAP SETUP:
@@ -30,9 +29,9 @@ extends Control
 #                  item being moved, else closes; taken first, so the pause menu doesn't open.
 #                  A team panel over it, later in the tree, takes it before the view)
 #   "ui_left" / "ui_right" / "ui_up" / "ui_down" / "ui_accept"  (not read here: the GUI moves
-#                  focus between the slots, convoy items, Scrap buttons and Team by their layout,
-#                  and presses the focused one)
-#   Mouse: clicks on the slots, convoy items, Scrap buttons, Team and Close.
+#                  focus between the slots, convoy items, Scrap buttons, Team and Swaps by their
+#                  layout, and presses the focused one)
+#   Mouse: clicks on the slots, convoy items, Scrap buttons, Team, Swaps and Close.
 # ============================================================
 
 ## The player chose a change; the screen sends it.
@@ -43,6 +42,9 @@ signal closed()
 
 ## The player pressed Team: the screen opens its [TeamPanel] over the view.
 signal team_requested()
+
+## The player pressed Swaps: the screen opens its [SwapPanel] over the view.
+signal swaps_requested()
 
 ## What the view allows.
 enum Mode {
@@ -63,6 +65,11 @@ const ROW_SCENE: PackedScene = preload("res://ui/campaign/unit_gear_row.tscn")
 ## [b]Off:[/b] never shown; solo never shows it either way.
 @export var offers_team: bool = false
 
+## Whether the view shows a Swaps button in a co-op run: only where swaps are agreed, the
+## campaign map.[br]
+## [b]Off:[/b] never shown; solo never shows it either way.
+@export var offers_swaps: bool = false
+
 var _mode: Mode = Mode.VIEW
 var _session: CampaignSession = null
 var _seat: int = 0
@@ -78,17 +85,24 @@ var _carrying: String = ""
 @onready var _status_label: Label = %Status
 @onready var _close_button: Button = %CloseButton
 @onready var _team_button: Button = %TeamButton
+@onready var _swaps_button: Button = %SwapsButton
+@onready var _team_buttons: HBoxContainer = %TeamButtons
+@onready var _swap_note_label: Label = %SwapNote
 
 
 func _ready() -> void:
 	visible = false
 	_team_button.visible = false
+	_swaps_button.visible = false
+	_team_buttons.visible = false
+	_swap_note_label.visible = false
 	_backdrop.color = UiTokens.with_alpha(UiTokens.BG, backdrop_alpha)
 	_convoy.item_pressed.connect(_on_convoy_item_pressed)
 	_convoy.scrap_pressed.connect(_on_convoy_scrap_pressed)
 	_convoy.to_convoy_pressed.connect(_on_convoy_to_convoy_pressed)
 	_close_button.pressed.connect(close)
 	_team_button.pressed.connect(_on_team_button_pressed)
+	_swaps_button.pressed.connect(_on_swaps_button_pressed)
 
 
 func _input(event: InputEvent) -> void:
@@ -115,12 +129,16 @@ func open(session: CampaignSession, seat: int, mode: Mode) -> void:
 			if mode == Mode.REGEAR
 			else "Gear changes at a Camp. Convoy items can be scrapped here for gold."
 	)
-	_team_button.visible = offers_team and session != null and session.seats.size() > 1
+	var is_coop: bool = session != null and session.seats.size() > 1
+	_team_button.visible = offers_team and is_coop
+	_swaps_button.visible = offers_swaps and is_coop
+	_team_buttons.visible = _team_button.visible or _swaps_button.visible
 	visible = true
 	refresh()
 
 
-## Shows the run as saved again, dropping any item being moved, and focuses the first choice.
+## Shows the run as saved again, dropping any item being moved, and focuses the first choice. A
+## unit in an accepted swap says where it goes, and a line names both units.
 func refresh() -> void:
 	if _session == null or _session.run == null:
 		return
@@ -142,7 +160,11 @@ func refresh() -> void:
 		var row: UnitGearRow = ROW_SCENE.instantiate()
 		_rows.add_child(row)
 		row.show_unit(unit, seat_run, catalog, seat_run.fallen.has(unit), can_move)
+		row.set_swap_note(SwapText.unit_note(_session.run, _seat, unit.instance_id))
 		row.slot_pressed.connect(_on_row_slot_pressed)
+	var swap_lines: PackedStringArray = SwapText.army_lines(_session.run, _seat, catalog)
+	_swap_note_label.text = "\n".join(swap_lines)
+	_swap_note_label.visible = not swap_lines.is_empty()
 	_convoy.show_convoy(seat_run, catalog, can_move, not _carrying.is_empty())
 	_focus_first()
 
@@ -193,6 +215,16 @@ func get_close_button() -> Button:
 ## The Team button, shown in co-op with [member offers_team], for tests.
 func get_team_button() -> Button:
 	return _team_button
+
+
+## The Swaps button, shown in co-op with [member offers_swaps], for tests.
+func get_swaps_button() -> Button:
+	return _swaps_button
+
+
+## The accepted swaps' line, empty with none, for tests.
+func get_swap_note_text() -> String:
+	return _swap_note_label.text
 
 
 ## The status line's text, for tests.
@@ -271,3 +303,7 @@ func _on_convoy_scrap_pressed(item_id: String) -> void:
 
 func _on_team_button_pressed() -> void:
 	team_requested.emit()
+
+
+func _on_swaps_button_pressed() -> void:
+	swaps_requested.emit()
