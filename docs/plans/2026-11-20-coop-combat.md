@@ -374,7 +374,7 @@ stay append-only and readers strict.
 |---|---|---|
 | `SendUnitsCommand`, `CallForAidCommand` | Combat commands (wire types) | CO2 |
 | Units sent, units returned, aid called | `CombatFact.Kind`, appended | CO2 |
-| A wave's reach and entered tiles | `CombatFact.Kind`, appended | CO4 |
+| A wave's reach and entered tiles | `CombatFact.Kind`, appended | CO4 ✅ (`DARKNESS_WAVE_SPREAD = 50`) |
 | `ProposeSwapCommand`, `AnswerSwapCommand`, `WithdrawSwapCommand` | Campaign commands | CO5 |
 | `RouteVoteCommand` | Campaign command | CO6 |
 | Route voted, route drawn; swap proposed, accepted, ended; heirloom offer replaced; seat forfeited | `CampaignFact.Kind`, appended | CO5–CO7, CO14 |

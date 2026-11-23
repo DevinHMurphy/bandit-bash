@@ -6,7 +6,7 @@
 # File:     combat_fact.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name CombatFact
@@ -162,6 +162,11 @@ enum Kind {
 	## An encounter fact: the seat [member amount] raised ([member key] 1) or lowered (0) the call
 	## for aid of its map [member session_id]. No trigger fires on it.
 	AID_CALLED = 49,
+	## A darkness wave grew or entered a tile ([Darkness]); no actor, no trigger. [member key] is
+	## its index in [member DarknessState.waves], [member amount] its reach now, [member tile] a
+	## tile it entered, deepened or not, or [constant NO_TILE] for a creep that entered none. One
+	## per tile, after that step's [constant DARKNESS_ADVANCED] facts, so mirrors follow the waves.
+	DARKNESS_WAVE_SPREAD = 50,
 }
 
 ## What produced an amount. Sent over the network as an int: [b]append only[/b].
@@ -298,12 +303,9 @@ var side: CombatSide = CombatSide.NONE
 ## other kind.
 var item_id: String = ""
 
-## A small number whose meaning depends on the kind: the [enum EffectTerms.Lane] of a
-## [constant COUNTER_CHANGED], the [enum CombatValue.Stat] of a [constant STAT_CHANGED], the turns
-## won early of a [constant COMBAT_ENDED], the [enum MapObjects.Change] of an
-## [constant OBJECT_STATE_CHANGED], the operation index of a [constant MODIFIER_GAINED] or
-## [constant MODIFIER_EXPIRED], the movement cost of a [constant UNIT_MOVED], the darkness source
-## index of a [constant DARKNESS_ADVANCED]. 0 on every other kind.
+## A small number whose meaning each [enum Kind] that uses it gives: a counter's lane, a stat, the
+## turns won early, a map object change, a modifier's operation index, a walk's movement cost, a
+## darkness source or wave index, a map's session id, a raised call for aid. 0 on other kinds.
 var key: int = 0
 
 ## The unit type ([member CombatUnitState.unit_type]) of each unit in a coming wave, in arrival
@@ -349,8 +351,8 @@ func to_wire() -> Array:
 ## attack[/code], or [code]s0#1 PHASE_START side player amount 3[/code]
 ##
 ## Empty fields are left out, and amounts print only when one is non-zero. [member key] prints as
-## "lane N", "stat N" or "change N" on the kinds that use it; [member unit_types] last, as
-## "types A, B".
+## "lane N", "stat N", "change N" or "wave N" on the kinds that use it; [member unit_types] last,
+## as "types A, B".
 ## [param describe]: turns an id into display text (the session's describe); when invalid, ids
 ## print bare.
 func to_log_line(describe: Callable = Callable()) -> String:
@@ -371,6 +373,8 @@ func to_log_line(describe: Callable = Callable()) -> String:
 		parts.append("stat %d" % [key])
 	elif kind == Kind.OBJECT_STATE_CHANGED:
 		parts.append("change %d" % [key])
+	elif kind == Kind.DARKNESS_WAVE_SPREAD:
+		parts.append("wave %d" % [key])
 	if amount != 0 or hp_amount != 0 or block_amount != 0:
 		parts.append("amount %d" % [amount])
 		if hp_amount != 0 or block_amount != 0:

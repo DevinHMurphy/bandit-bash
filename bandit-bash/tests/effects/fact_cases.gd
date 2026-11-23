@@ -6,7 +6,7 @@
 # File:     fact_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends "res://tests/effects/effects_case_base.gd"
@@ -168,7 +168,7 @@ func _test_combat_fact_amendments() -> void:
 	_check(
 			"amendments: old kind values unchanged",
 			CombatFact.Kind.PHASE_START == 0 and CombatFact.Kind.MODIFIER_EXPIRED == 34
-			and CombatFact.Kind.size() == 50
+			and CombatFact.Kind.size() == 51
 	)
 	_check(
 			"amendments: the reinforcement kinds appended (combat map plan, New facts)",

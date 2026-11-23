@@ -6,25 +6,23 @@
 # File:     darkness.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 18, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name Darkness
 extends RefCounted
 ## The darkness phase at the end of every turn, arrival, and the queries the board reads
-## (the-darkness.md; ui-lift.md, Darkness phase; darkness plan, DK3, DK4 and DK7).
+## (the-darkness.md; ui-lift.md, Darkness phase).
 ##
 ## [b]The darkness phase[/b], after the enemy Phase End and before the player Phase Start, is
 ## [method hurt] then [method step], each its own step on
-## [constant CombatHooks.Hook.AFTER_ENEMY_PHASE], so a battle the damage ends sees no creep. It has
-## no Phase Start or Phase End of its own. [b]Damage[/b] is not an attack: only the Darkness damage
-## taken window. [b]Step[/b] ([method advance]): creep, release when due (the first is arrival,
-## [member MapState.has_darkness_arrived]), then erosion. [b]Queries[/b] for the board:
-## [method damage_at], [method next_deepening], [method source_counters].[br]
-## [b]Facts[/b], in order: per unit hurt, [constant CombatFact.Kind.DARKNESS_DAMAGE_TAKEN] then its
-## defeat; per tile deepened, [constant CombatFact.Kind.DARKNESS_ADVANCED] (a release's flagged one
-## first); erosion as [constant CombatFact.Kind.OBJECT_STATE_CHANGED]. Pure static rules code on
-## the engine and state it is handed; it never awaits.
+## [constant CombatHooks.Hook.AFTER_ENEMY_PHASE], so a battle the damage ends sees no creep; it has
+## no Phase Start or End. Damage is not an attack: only the Darkness damage taken window.
+## [method advance]: creep, release when due (the first is arrival), then erosion. [b]Facts:[/b]
+## per unit hurt, [constant CombatFact.Kind.DARKNESS_DAMAGE_TAKEN] then its defeat; per tile
+## deepened, [constant CombatFact.Kind.DARKNESS_ADVANCED] (a release's flagged one first), then
+## [constant CombatFact.Kind.DARKNESS_WAVE_SPREAD] for what waves entered; erosion as
+## [constant CombatFact.Kind.OBJECT_STATE_CHANGED]. Pure static rules code; it never awaits.
 ##
 ## @tutorial(The darkness): docs/design/the-darkness.md
 ## @tutorial(The darkness plan): docs/plans/2026-11-03-the-darkness.md
@@ -99,7 +97,9 @@ static func advance(engine: EffectEngine, state: CombatState) -> void:
 	var darkness: DarknessState = state.map.darkness
 	if darkness.sources.is_empty():
 		return
-	_record(engine, darkness.creep(state))
+	var entered: Array[DarknessState.Entry] = []
+	_record(engine, darkness.creep(state, entered))
+	_record_spread(engine, darkness, entered, true)
 	if is_release_due(darkness, state.turn):
 		_release(engine, state)
 	_erode(engine, state)
@@ -127,9 +127,13 @@ static func is_release_due(darkness: DarknessState, turn: int) -> bool:
 
 ## Lets every wave on [param state]'s map enter the tiles now within its reach, after a breakable
 ## broke or a door opened or closed ([method DarknessState.recalculate]), recording one
-## [constant CombatFact.Kind.DARKNESS_ADVANCED] per tile deepened. A closed door keeps its layer.
+## [constant CombatFact.Kind.DARKNESS_ADVANCED] per tile deepened, then one
+## [constant CombatFact.Kind.DARKNESS_WAVE_SPREAD] per tile entered. A closed door keeps its layer.
 static func recalculate(engine: EffectEngine, state: CombatState) -> void:
-	_record(engine, state.map.darkness.recalculate(state))
+	var darkness: DarknessState = state.map.darkness
+	var entered: Array[DarknessState.Entry] = []
+	_record(engine, darkness.recalculate(state, entered))
+	_record_spread(engine, darkness, entered, false)
 
 
 ## The HP [param unit_id] would lose in this turn's darkness phase standing on [param tile]: its
@@ -207,12 +211,45 @@ static func _record(engine: EffectEngine, deepened: Array[DarknessState.Deepenin
 		engine.record(fact)
 
 
+# One DARKNESS_WAVE_SPREAD per entry of entered, in order, and on a creep one with no tile for
+# each wave that entered nothing, since its reach still grew. Each fact sits among its wave's, as
+# DarknessState._enter lets the waves enter one by one in index order.
+static func _record_spread(
+		engine: EffectEngine,
+		darkness: DarknessState,
+		entered: Array[DarknessState.Entry],
+		is_creep: bool
+) -> void:
+	var next: int = 0
+	for wave_index: int in darkness.waves.size():
+		var reach: int = darkness.waves[wave_index].reach
+		var from: int = next
+		while next < entered.size() and entered[next].wave == wave_index:
+			_record_wave(engine, wave_index, reach, entered[next].tile)
+			next += 1
+		if is_creep and next == from:
+			_record_wave(engine, wave_index, reach, CombatFact.NO_TILE)
+
+
+# One DARKNESS_WAVE_SPREAD: the wave at wave_index, its reach now, the tile it entered or NO_TILE.
+static func _record_wave(
+		engine: EffectEngine, wave_index: int, reach: int, tile: Vector2i
+) -> void:
+	var fact: CombatFact = CombatFact.new(CombatFact.Kind.DARKNESS_WAVE_SPREAD)
+	fact.key = wave_index
+	fact.amount = reach
+	fact.tile = tile
+	engine.record(fact)
+
+
 # Every active source releases a wave; the first release is arrival. Each wave's release fact
-# comes before the tiles it entered, by source index.
+# comes before the tiles it deepened, by source index; the tiles the new waves entered follow all
+# of them.
 static func _release(engine: EffectEngine, state: CombatState) -> void:
 	var darkness: DarknessState = state.map.darkness
 	var is_arrival: bool = not darkness.has_arrived()
-	var deepened: Array[DarknessState.Deepening] = darkness.release(state)
+	var entered: Array[DarknessState.Entry] = []
+	var deepened: Array[DarknessState.Deepening] = darkness.release(state, entered)
 	if is_arrival:
 		state.map.has_darkness_arrived = true
 	var flags: int = CombatFact.Flag.DARKNESS_RELEASED
@@ -228,6 +265,7 @@ static func _release(engine: EffectEngine, state: CombatState) -> void:
 			if entry.source == source_index:
 				own.append(entry)
 		_record(engine, own)
+	_record_spread(engine, darkness, entered, false)
 
 
 # Each standing breakable next to a flooded tile, in spot order, gains a turn of contact; one at
