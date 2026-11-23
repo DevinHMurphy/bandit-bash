@@ -6,7 +6,7 @@
 # File:     unknown_screen_cases.gd
 # Author:
 # Created:  November 20, 2026
-# Modified: November 21, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -302,8 +302,13 @@ func _reopen() -> CampaignSession:
 	return _session()
 
 
-# Leaves the node the run is in by command, as its screen's Leave would.
+# Leaves the node the run is in by command, as its screen's Leave would. An event a case opened
+# there and nobody chose holds the team (BUG-034), so it is forgotten first, as the next case's
+# _at_new_unknown() forgets it anyway.
 func _leave_node() -> void:
+	var session: CampaignSession = _session()
+	if session != null and session.run != null:
+		session.run.events = EventRunState.new()
 	var left: CampaignBatch = _service.call(&"submit_command", LeaveNodeCommand.new(0))
 	if left == null or left.is_rejected():
 		_check.call("unknown: the node is left", false, (
