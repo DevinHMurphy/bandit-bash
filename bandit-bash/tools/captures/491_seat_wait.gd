@@ -14,7 +14,7 @@ extends "res://tools/captures/capture_group.gd"
 ## the host, reconnecting. The NetRelay autoload is told the seats dropped as the host's word would
 ## tell it (its seat change, called here), and, for the second shot, that its host is gone, with a
 ## stand-in seat directory; both are undone afterwards, so 500 starts on the map with no wait.[br]
-## Needs: the map, as the co-op battle shots leave it (489_coop_battle).
+## Needs: the map, as the co-op map shots leave it (490_coop_map).
 
 # SeatDirectory.State.DROPPED and CONNECTED, sent as ints.
 const DROPPED: int = 1
