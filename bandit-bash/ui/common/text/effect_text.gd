@@ -17,10 +17,11 @@ extends RichTextLabel
 ## [code]keyword_*[/code] colours); everything else, an unknown tag's word included, is plain.[br]
 ## [b]Tooltips[/b] ([KeywordTooltip], stacked in a column beside the card, kept on screen):
 ## hovering a keyword shows its own; keyboard or pad focus on the card holding this text (its
-## nearest focusable ancestor) shows one per distinct keyword of every [EffectText] on that card,
-## until focus leaves. Mouse focus shows none, so a click never opens the whole column. An owner
-## whose text no card holds (the heirloom bar's tooltip) calls [method show_all_keywords] itself.
-## Reads no input action.
+## nearest focusable ancestor) shows one column, on the card's first text, with one per distinct
+## keyword of every [EffectText] on that card, until focus leaves; meanwhile no text on the card
+## shows a hovered keyword's own. Mouse focus shows none, so a click never opens the whole column.
+## An owner whose text no card holds (the heirloom bar's tooltip) calls [method show_all_keywords]
+## itself. Reads no input action.
 ##
 ## @tutorial(Keywords): docs/design/keywords.md
 
@@ -240,6 +241,15 @@ func _is_card_leader() -> bool:
 	return not texts.is_empty() and texts[0] == self
 
 
+# Whether any text on the card, this one included, shows the card's column: a hover on any of
+# them then adds no column of its own over it.
+func _is_card_showing_all() -> bool:
+	for text: EffectText in _texts_on_card():
+		if text._is_showing_all:
+			return true
+	return false
+
+
 func _bind_holder() -> void:
 	_unbind_holder()
 	var node: Node = get_parent()
@@ -270,8 +280,13 @@ func _on_holder_focus_entered() -> void:
 	# A mouse click focuses with the focus hidden: only keys and pads open the column.
 	if not is_instance_valid(_holder) or not _holder.has_focus(true):
 		return
-	if shows_tooltips and is_visible_in_tree() and _is_card_leader():
+	if not shows_tooltips or not is_visible_in_tree():
+		return
+	# The leader's column replaces any hovered keyword's tooltip on another text of the card.
+	if _is_card_leader():
 		show_all_keywords()
+	else:
+		hide_tooltips()
 
 
 func _on_holder_focus_exited() -> void:
@@ -279,7 +294,7 @@ func _on_holder_focus_exited() -> void:
 
 
 func _on_meta_hover_started(meta: Variant) -> void:
-	if _is_showing_all:
+	if _is_card_showing_all():
 		return
 	show_tooltips(PackedStringArray([str(meta)]))
 

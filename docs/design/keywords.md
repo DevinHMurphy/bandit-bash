@@ -63,15 +63,24 @@ word itself names the term, and its tooltip explains it.
   Several stack in a column beside the card, kept inside the screen: right of the card, else
   left of it.
 - **Keyboard and controller.** Key or pad focus on the card holding the text (its nearest
-  focusable ancestor) shows one tooltip per distinct keyword of every `EffectText` on that card;
-  focus leaving hides them. Mouse focus shows none. No input action is added.
+  focusable ancestor) shows one tooltip per distinct keyword of every `EffectText` on that card,
+  in one column on the card's first text; focus leaving hides them. While it shows, hovering a
+  keyword in any text on the card adds no second column. Mouse focus shows none. No input action
+  is added.
+- **Unit detail** (BF10): up and down step focus from Close through the rows that show text (each
+  gear row with text under its name, an enemy's signature move, each trait, heirloom and curse
+  row), the body following, so each focused row is a card showing its keywords; past the last row
+  and above Close they scroll the body, and accept on a row closes the detail as Close does. The
+  focused row draws the theme's focus look. The mouse never focuses a row.
+- **The rune menu** (BF10), like the shop panels (BF9): while one of its rows holds key or pad
+  focus, the focused rune's keywords show as one column beside the menu.
 - **The heirloom bar's tooltip** shows its keywords' tooltips whenever it opens, by hover or
   focus: the mouse can't reach it (pointing away hides it).
 - **Surfaces:** the item offer card, the heirloom offer card, the Armory and Guildhall stock
   cards (an heirloom's or rune's details and an item's effect lines), the purchase and Guildhall
-  panels' details, unit detail's trait rows and gear rows, and the heirloom bar's tooltip. The
-  event screen adopts `EffectText` in CO12; the battle log and the battle's rune picker stay
-  plain.
+  panels' details, unit detail's trait rows, gear rows and an enemy's signature move, the battle's
+  rune menu, and the heirloom bar's tooltip. The event screen adopts `EffectText` in CO12; the
+  battle log and the rune bar's text stay plain.
 
 ## Glossary entries
 

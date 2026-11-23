@@ -252,8 +252,10 @@ extends HintSource
 # DETAIL:      a unit's detail panel (UnitDetailPanel) over IDLE or MOVE, for the unit under the
 #              cursor, else the selected one, either side. The board is inert: no cursor, no
 #              clicks; MOVE's overlays and path stay drawn, its hover preview is dropped and asked
-#              again on return. Up and down scroll the panel; accept presses its Close; Q / E, the
-#              shoulder buttons and its Previous and Next show its side's other units. Cancel,
+#              again on return. Up and down step focus from its Close through its rows with
+#              text, each showing its keywords, and scroll it past either end; accept closes it
+#              from any of them; Q / E, the shoulder buttons and its Previous and Next show its
+#              side's other units. Cancel,
 #              Close or unit_detail -> the stage it was opened from, with its selection and cursor
 #              as they were, whichever unit it ended on. Opened through _history like any panel,
 #              so it is never left open by a command (none can be sent from it).
@@ -1532,7 +1534,9 @@ func _can_act_now(context: StringName, action: StringName) -> bool:
 			if context == &"EVENT_LOG":
 				return event_log != null and event_log.can_scroll()
 			if context == &"DETAIL":
-				return is_instance_valid(_detail_panel) and _detail_panel.can_scroll()
+				return is_instance_valid(_detail_panel) and (
+						_detail_panel.can_scroll() or not _detail_panel.get_focus_rows().is_empty()
+				)
 			if context == &"RUNE":
 				return _action != null and _action.runes.size() > 1
 			if context == &"FORECAST":

@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://ui/battle/menus/rune_menu.gd" id="1_menu"]
 [ext_resource type="Theme" path="res://ui/theme/battle_theme.tres" id="2_theme"]
 [ext_resource type="PackedScene" path="res://ui/battle/menus/menu_row.tscn" id="3_row"]
+[ext_resource type="PackedScene" path="res://ui/common/text/effect_text.tscn" id="4_text"]
 
 [node name="RuneMenu" type="PanelContainer"]
 theme = ExtResource("2_theme")
@@ -20,9 +21,8 @@ text = "Runes"
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="RuneText" type="Label" parent="Column"]
+[node name="RuneText" parent="Column" instance=ExtResource("4_text")]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
-theme_type_variation = &"ForecastNote"
-autowrap_mode = 3
+theme_type_variation = &"EffectTextMuted"

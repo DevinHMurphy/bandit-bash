@@ -6,7 +6,7 @@
 # File:     turn_input_model.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 19, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name TurnInputModel
@@ -508,6 +508,7 @@ static func held_runes(session: CombatSession, seat: int) -> Array[HeldRune]:
 		rune.definition_id = "" if definition == null else definition.id
 		rune.label = BattleText.name_of(session, rune_id)
 		rune.text = "" if definition == null else " ".join(definition.describe())
+		rune.marked_text = "" if definition == null else " ".join(definition.describe_marked())
 		var option: RuneOption = _rune_option(session, seat, rune_id)
 		if option != null and not option.targets.is_empty():
 			rune.option = option
@@ -600,6 +601,7 @@ static func _rune_option(session: CombatSession, seat: int, rune_id: String) -> 
 	option.rune_id = rune_id
 	option.label = BattleText.name_of(session, rune_id)
 	option.text = " ".join(definition.describe())
+	option.marked_text = " ".join(definition.describe_marked())
 	option.target_kind = definition.target_kind
 	option.target_noun = definition.target_noun()
 	option.title = "%s: %s" % [option.label, option.target_noun]
@@ -848,6 +850,9 @@ class RuneOption:
 	var label: String = ""
 	## Its text ([method RuneDefinition.describe]), such as "Heal an ally for 10".
 	var text: String = ""
+	## [member text] with its keywords marked, for the rune menu's [EffectText]
+	## ([method RuneDefinition.describe_marked]).
+	var marked_text: String = ""
 	## Its [member RuneDefinition.target_kind]: [code]unit[/code], [code]pair[/code] (Recall) or
 	## [code]object[/code] (Spark).
 	var target_kind: String = ""
@@ -880,6 +885,9 @@ class HeldRune:
 	var label: String = ""
 	## Its text ([method RuneDefinition.describe]); empty with no definition.
 	var text: String = ""
+	## [member text] with its keywords marked ([method RuneDefinition.describe_marked]); empty with
+	## no definition.
+	var marked_text: String = ""
 	## What casting it offers now, its targets included; null when nothing can be cast on.
 	var option: RuneOption = null
 	## Why it can't be cast now ([constant TurnInputModel.NO_TARGET_REASON]); empty when it can.
