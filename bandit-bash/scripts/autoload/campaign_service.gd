@@ -6,7 +6,7 @@
 # File:     campaign_service.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends Node
@@ -15,16 +15,13 @@ extends Node
 ##
 ## Autoload [code]CampaignService[/code], after [code]SaveService[/code] and before
 ## [code]SceneRouter[/code]: the session outlives every screen, and its sections register before
-## any save file opens. A session is built on [signal SaveService.campaign_activated] and closed
-## on run end, save file close and campaign clear, so exactly one exists per run; a multiplayer
-## client has none until transport (P10).[br]
-## [b]Save sections,[/b] each handed the new session before [signal session_started], campaign
-## before combat: [code]rng[/code] and [code]instance_ids[/code] in both blocks, the campaign's
-## run sections ([RunSaveSections]) and [code]events[/code] ([EventSaveSection], once the run is
-## built), and the combat block's ([CombatStateSection],
-## [CombatMapSection], [DarknessSaveSection], [BattleTallySection]). A run whose save holds no run
-## sections, a new one included, is built by [RunStart] and saved at once. Every save made here
-## first sets [member CampaignData.floors_climbed] to the run's floor, for Save Select.
+## any save file opens. The host's and solo's session is built on
+## [signal SaveService.campaign_activated] and closed on run end, save file close and campaign
+## clear. A client's is the host's [ClientMirror], built while the host's campaign replica is
+## held, never saved; its commands go to the host. [b]Save sections,[/b] handed each new session,
+## campaign before combat: [code]rng[/code], [code]instance_ids[/code], the run's
+## ([RunSaveSections], [EventSaveSection]) and the battle's. A run whose save holds no run
+## sections is built by [RunStart] and saved at once.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
@@ -36,6 +33,11 @@ signal session_started(session: CampaignSession)
 ## A run's session was closed: its run ended, its save file closed, or another run replaced it.
 signal session_ended(session: CampaignSession)
 
+## Clients only: the host settled the combat command this machine sent through
+## [method submit_combat] for the map [param session_id]; [param reason] is empty when it
+## resolved, else why it was refused. Its batches have reached the mirror by then.
+signal combat_settled(session_id: int, reason: String)
+
 ## The campaign map's rules data, read when a new run is built.
 const MAP_RULES_PATH: String = "res://data/campaign/campaign_map_rules.tres"
 
@@ -43,7 +45,8 @@ const MAP_RULES_PATH: String = "res://data/campaign/campaign_map_rules.tres"
 ## until the run-start screens offer a choice.
 const DEFAULT_FACTION_ID: String = "mercenary"
 
-## The run in progress on this machine; null outside a run and on a multiplayer client.
+## The run in progress on this machine; on a multiplayer client, the mirror of the host's
+## ([member CampaignSession.is_mirror]) once its first capture arrived. Null outside a run.
 var session: CampaignSession = null
 
 var _campaign_rng: RngSaveSection = RngSaveSection.new(SaveSection.Block.CAMPAIGN)
@@ -63,6 +66,13 @@ var _battle_ids: Dictionary = {}
 
 # The seat local_seat() returns; back to the host seat with every new session.
 var _local_seat: int = CampaignData.HOST_SEAT
+
+# A client's mirror of the host's run, and the campaign seed it mirrors; null elsewhere.
+var _mirror: ClientMirror = null
+var _mirror_seed: int = 0
+
+# The map each combat command this client sent is for, by token, until it settles.
+var _sent_combat: Dictionary[int, int] = {}
 
 
 func _ready() -> void:
@@ -97,6 +107,20 @@ func _ready() -> void:
 	SaveService.run_ended.connect(_on_save_service_run_ended)
 	SaveService.save_file_closed.connect(_on_save_service_save_file_closed)
 	SaveService.campaign_cleared.connect(_on_save_service_campaign_cleared)
+
+
+# A client mirrors the host's run while it holds the host's campaign (the replica SaveService
+# keeps), and runs the mirror's request clock; a new run's replica starts a new mirror.
+func _process(delta: float) -> void:
+	var replica: CampaignData = SaveService.multiplayer_replica
+	if not _is_client() or replica == null:
+		_drop_mirror()
+		return
+	if _mirror != null and _mirror_seed != replica.run_seed:
+		_drop_mirror()
+	if _mirror == null:
+		_start_mirror(replica.run_seed)
+	_mirror.advance(delta)
 
 
 ## Begins the battle [param request] describes, after the player presses Begin: sets it up
@@ -205,11 +229,14 @@ func end_battle() -> CampaignSession.BattleResult:
 ## saves with [method SaveService.save_checkpoint], so a chosen node or a purchase survives a
 ## quit. Returns the batch; null with no session. A failed save is reported and the change kept
 ## in memory, for the next checkpoint to write. On a multiplayer client nothing resolves here:
-## the command goes to the host through [code]NetRelay[/code], which settles it, and null is
-## returned.
+## the command goes to the host ([method ClientMirror.submit_campaign]), the mirror announces
+## what it did on the session's signals, and null is returned.
 func submit_command(command: CampaignCommand) -> CampaignBatch:
 	if _is_client():
-		NetRelay.send_campaign(command)
+		if _mirror != null:
+			_mirror.submit_campaign(command)
+		else:
+			NetRelay.send_campaign(command)
 		return null
 	if session == null:
 		push_error("CampaignService: no run in progress to command.")
@@ -229,15 +256,26 @@ func submit_command(command: CampaignCommand) -> CampaignBatch:
 ## The one way a combat command enters the battle, for the host's screens and the relay alike:
 ## routes [param command] to the map [param session_id] ([method CombatEncounter.submit]), then
 ## resolves everything queued ([method CombatEncounter.resolve_queued]) and returns its map
-## batches. On a multiplayer client it goes to the host through [code]NetRelay[/code] instead,
-## returning none, as with no battle in progress or a null command (reported).
+## batches. On a multiplayer client it goes to the host instead, returning none, and
+## [signal combat_settled] follows once the host's batches have reached the mirror. None, too,
+## with no battle in progress, a null command or a mirror's battle off the network (reported).
 func submit_combat(command: Command, session_id: int) -> Array[CombatSession.FactBatch]:
 	var batches: Array[CombatSession.FactBatch] = []
 	if _is_client():
-		NetRelay.send_combat(command, session_id)
+		_follow_relay_settles()
+		var token: int = NetRelay.NO_TOKEN
+		if _mirror != null:
+			token = _mirror.submit_combat(command, session_id)
+		else:
+			token = NetRelay.send_combat(command, session_id)
+		if token != NetRelay.NO_TOKEN:
+			_sent_combat[token] = session_id
 		return batches
 	if command == null or session == null or session.encounter == null:
 		push_error("CampaignService: no command, or no battle in progress to command.")
+		return batches
+	if session.is_mirror:
+		push_error("CampaignService: a mirror's battle resolves nothing; it isn't sent either.")
 		return batches
 	session.encounter.submit(command, session_id)
 	batches = session.encounter.resolve_queued()
@@ -246,9 +284,11 @@ func submit_combat(command: Command, session_id: int) -> Array[CombatSession.Fac
 
 ## The seat this machine plays, which every campaign screen acts for and shows: the host seat
 ## ([constant CampaignData.HOST_SEAT]) in solo and on the host, unless [method set_local_seat]
-## chose another. Screens read it, never [code]session.seats[0][/code], so a client's screens act
-## for its own seat once transport sets it (P10 NT5).
+## chose another; on a client, its own ([method ClientMirror.local_seat]). Screens read it, never
+## [code]session.seats[0][/code].
 func local_seat() -> int:
+	if _mirror != null:
+		return _mirror.local_seat()
 	return _local_seat
 
 
@@ -283,6 +323,43 @@ func end_won_run() -> Error:
 # NetRelay's API, the one its RPCs travel on.
 func _is_client() -> bool:
 	return not NetGate.is_authoritative(NetRelay.multiplayer)
+
+
+# A mirror of the run seeded run_seed on NetRelay, shown as the session once its first capture
+# arrives, asking for it now.
+func _start_mirror(run_seed: int) -> void:
+	_replace_session(null)
+	_follow_relay_settles()
+	_mirror = ClientMirror.new(NetRelay, run_seed)
+	_mirror_seed = run_seed
+	_mirror.session_built.connect(_on_mirror_session_built)
+	_mirror.sync_gave_up.connect(_on_mirror_sync_gave_up)
+	_mirror.start()
+
+
+# Closes the mirror and lets its session go; nothing when there is none.
+func _drop_mirror() -> void:
+	if _mirror == null:
+		return
+	var dropped: ClientMirror = _mirror
+	_mirror = null
+	_sent_combat.clear()
+	var mirrored: CampaignSession = dropped.session
+	dropped.close()
+	if mirrored != null and session == mirrored:
+		session = null
+		session_ended.emit(mirrored)
+
+
+func _follow_relay_settles() -> void:
+	if not NetRelay.command_settled.is_connected(_on_net_relay_command_settled):
+		NetRelay.command_settled.connect(_on_net_relay_command_settled)
+
+
+# A session from this machine's own save ends; a client's mirror follows the host instead.
+func _close_own_session() -> void:
+	if _mirror == null:
+		_replace_session(null)
 
 
 # The rng sections let go of the previous session first, so a section that refuses the
@@ -441,7 +518,7 @@ func _combat_core() -> CombatData:
 
 func _on_save_service_campaign_activated(mode: CampaignData.Mode, resumed: bool) -> void:
 	if SteamNetwork.has_active_session() and not SteamNetwork.is_authoritative():
-		_replace_session(null)
+		_close_own_session()
 		return
 	var campaign: CampaignData = SaveService.campaign
 	if campaign == null:
@@ -466,12 +543,30 @@ func _on_save_service_campaign_activated(mode: CampaignData.Mode, resumed: bool)
 
 
 func _on_save_service_run_ended(_mode: CampaignData.Mode, _won: bool) -> void:
-	_replace_session(null)
+	_close_own_session()
 
 
 func _on_save_service_save_file_closed() -> void:
-	_replace_session(null)
+	_close_own_session()
 
 
 func _on_save_service_campaign_cleared() -> void:
-	_replace_session(null)
+	_close_own_session()
+
+
+func _on_mirror_session_built(built: CampaignSession) -> void:
+	session = built
+	session_started.emit(built)
+
+
+func _on_mirror_sync_gave_up(attempts: int) -> void:
+	push_warning("CampaignService: the host sent no state after %d requests." % [attempts])
+
+
+# A combat command this client sent settled; a campaign one is the mirror's to announce.
+func _on_net_relay_command_settled(token: int, reason: String) -> void:
+	if not _sent_combat.has(token):
+		return
+	var session_id: int = _sent_combat[token]
+	_sent_combat.erase(token)
+	combat_settled.emit(session_id, reason)
