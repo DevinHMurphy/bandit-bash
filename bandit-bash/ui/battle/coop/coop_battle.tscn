@@ -1,0 +1,53 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://ui/battle/coop/coop_battle.gd" id="1_coop"]
+[ext_resource type="Theme" path="res://ui/theme/battle_theme.tres" id="2_theme"]
+[ext_resource type="PackedScene" path="res://ui/battle/coop/coop_bar.tscn" id="3_bar"]
+[ext_resource type="PackedScene" path="res://ui/battle/coop/frozen_banner.tscn" id="4_frozen"]
+[ext_resource type="PackedScene" path="res://ui/battle/coop/waiting_banner.tscn" id="5_waiting"]
+[ext_resource type="PackedScene" path="res://ui/battle/coop/maps_panel.tscn" id="6_maps"]
+[ext_resource type="PackedScene" path="res://ui/battle/coop/send_panel.tscn" id="7_send"]
+
+[node name="CoopBattle" type="Node"]
+script = ExtResource("1_coop")
+
+[node name="CoopBar" parent="." instance=ExtResource("3_bar")]
+unique_name_in_owner = true
+visible = false
+
+[node name="Banners" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -220.0
+offset_top = -64.0
+offset_right = 220.0
+offset_bottom = -64.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme = ExtResource("2_theme")
+theme_override_constants/separation = 6
+alignment = 2
+
+[node name="FrozenBanner" parent="Banners" instance=ExtResource("4_frozen")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
+[node name="WaitingBanner" parent="Banners" instance=ExtResource("5_waiting")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
+[node name="MapsPanel" parent="." instance=ExtResource("6_maps")]
+unique_name_in_owner = true
+visible = false
+
+[node name="SendPanel" parent="." instance=ExtResource("7_send")]
+unique_name_in_owner = true
+visible = false

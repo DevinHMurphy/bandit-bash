@@ -6,7 +6,7 @@
 # File:     turn_input_model.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name TurnInputModel
@@ -555,6 +555,32 @@ static func swap_partners(session: CombatSession, unit_id: String) -> Array[Targ
 		if swap.validate(session).is_empty():
 			partners.append(_target(session, other_id, swap))
 	return partners
+
+
+## Every free deployment tile [param unit_id] may move onto in the opening swap window, each with
+## its [constant UnitTurnCommand.Action.OPENING_SWAP] command (no target, a one-tile path): only a
+## swap visitor's owner moves rather than swaps ([method AutoDeploy.check_opening_move]). Ordered
+## as the map lists its deployment tiles; empty outside the window and for a map's own seats.
+static func opening_moves(session: CombatSession, unit_id: String) -> Array[TargetOption]:
+	var moves: Array[TargetOption] = []
+	var state: CombatState = session.state
+	if not state.has_unit(unit_id):
+		return moves
+	var seat: int = state.seat_of(unit_id)
+	for tile: Vector2i in session.layout.tiles_of(MapLayout.MarkerKind.DEPLOYMENT):
+		var path: Array[Vector2i] = [tile]
+		var move: UnitTurnCommand = UnitTurnCommand.new(
+				seat, unit_id, UnitTurnCommand.Action.OPENING_SWAP, "", path
+		)
+		if not move.validate(session).is_empty():
+			continue
+		var option: TargetOption = TargetOption.new()
+		option.tile = tile
+		option.label = BattleText.name_of(session, unit_id)
+		option.command = move
+		option.commands.append(move)
+		moves.append(option)
+	return moves
 
 
 ## [param seat]'s End Turn when the session would accept it now; null when it wouldn't.

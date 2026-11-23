@@ -11,20 +11,23 @@
 
 class_name BattleScreen
 extends Node2D
-## The gameplay screen: the run's battle on this machine's own map
+## The gameplay screen: the run's battle for this machine's seat
 ## ([method CampaignService.local_seat]), from Begin to its results, solo, co-op host or client.
 ##
 ## The host and solo begin the run's combat node ([method CampaignRunState.battle_request], in the
 ## swap window only while [member SettingsData.is_opening_swap_on]), resume one saved mid-fight or
 ## show one already on (its [EventLog] starting "Battle resumed"), and send any other run to
 ## [RunScreen]; each player phase's end, on any map, saves the battle. A client shows its mirror's
-## battle once the host's snapshot built it, and again after a resync. Once this map has ended and
-## settled, input stops and the end banner shows; once every map has, the host waits
-## [member end_banner_time] and saves the result: a won solo combat's [VictoryOverlay] opens, else
-## everyone moves on. A client waits for that move. The save debug panel hides during a battle.
+## battle once the host's snapshot built it, and again after a resync. It views one map, the
+## seat's own first; in co-op [CoopBattle] views any other, played for the seat's units there. A
+## viewed map that has ended stops input and shows its end banner. Once every map has, or the
+## co-op run is lost, the host waits [member end_banner_time] and saves: a won solo combat's
+## [VictoryOverlay] opens, else everyone goes where the run now is. A client waits for that move.
+## The save debug panel hides during a battle.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
+## @tutorial(Co-op combat plan): docs/plans/2026-11-20-coop-combat.md
 
 const VICTORY_SCENE: PackedScene = preload("res://ui/campaign/victory/victory_overlay.tscn")
 
@@ -35,16 +38,23 @@ const VICTORY_SCENE: PackedScene = preload("res://ui/campaign/victory/victory_ov
 ## [b]Units:[/b] seconds. [b]0.0:[/b] routes at once, so the banner is never seen.
 @export_range(0.0, 10.0, 0.1) var end_banner_time: float = 2.0
 
-# The player's map in the battle shown; null when the placeholder shows.
+# The map viewed in the battle shown, the seat's own until CoopBattle views another; null when the
+# placeholder shows.
 var _session: CombatSession = null
 
 # The battle shown, whose every map's save points save it; null when the placeholder shows.
 var _encounter: CombatEncounter = null
 
-# Whether this map has ended and its banner shows; and whether the hold before the battle's end
-# has started (once every map has ended).
-var _is_ending: bool = false
+# The seat this machine plays.
+var _seat: int = -1
+
+# The session id whose end banner shows (the viewed map ended and settled); -1 for none. And
+# whether the hold before the battle's end has started (every map ended, or the run lost).
+var _shown_end_of: int = -1
 var _is_end_held: bool = false
+
+# Whether the co-op run was found lost: input stops and the host ends the run after the hold.
+var _is_run_lost: bool = false
 
 # Whether the battle shown was resumed or already on, not begun by this screen.
 var _is_resumed: bool = false
@@ -59,6 +69,7 @@ var _mirror: CampaignSession = null
 @onready var _hud_layer: CanvasLayer = $Hud
 @onready var _placeholder: Control = %CoopPlaceholder
 @onready var _placeholder_note: Label = %PlaceholderNote
+@onready var _coop: CoopBattle = %CoopBattle
 
 # Outside debug builds the panel frees itself, so it is checked before each use.
 @onready var _save_debug_panel: Control = %SaveDebugPanel
@@ -68,6 +79,8 @@ func _ready() -> void:
 	_placeholder.visible = false
 	if is_instance_valid(_save_debug_panel):
 		_save_debug_panel.visibility_changed.connect(_on_save_debug_panel_visibility_changed)
+	_coop.view_requested.connect(_on_coop_battle_view_requested)
+	_coop.run_lost.connect(_on_coop_battle_run_lost)
 	var run: CampaignSession = CampaignService.session
 	if run == null:
 		_show_placeholder("")
@@ -114,6 +127,31 @@ func get_hud() -> BattleHud:
 	return _hud
 
 
+## The co-op parts, for tests that drive them; unbound outside a co-op battle.
+func get_coop() -> CoopBattle:
+	return _coop
+
+
+## Views the map [param session_id] of the battle shown, for the seat: the board, HUD and turn
+## input follow it, so the seat plays its own units there; a map with none of them is read-only,
+## as the rules refuse every command there. A forfeited map can't be viewed. [CoopBattle] asks
+## it; tests call it. Returns whether the view moved.
+func view_map(session_id: int) -> bool:
+	if _encounter == null or _is_run_lost:
+		return false
+	var map: CombatSession = _encounter.get_session(session_id)
+	if map == null or map == _session or _encounter.is_map_forfeited(session_id):
+		return false
+	_show_session(map)
+	return true
+
+
+## Whether the hold before the battle's end has started: every map has ended, or the co-op run
+## is lost, and the host waits [member end_banner_time] before saving and routing everyone on.
+func is_end_held() -> bool:
+	return _is_end_held
+
+
 # The run's battle request for its combat node, then Begin, or the resume of the battle a
 # continued run saved mid-fight, from the same request (the run is as Begin saved it). Returns the
 # error the screen reports.
@@ -137,29 +175,42 @@ func _begin_battle(run: CampaignSession) -> Error:
 	return CampaignService.begin_battle(request)
 
 
-# Shows seat's map of encounter, letting go of a battle shown before (a client's resync).
+# Shows seat's map of encounter, letting go of a battle shown before (a client's resync); in
+# co-op, binds the co-op parts too.
 func _open(encounter: CombatEncounter, seat: int) -> void:
 	_let_go_of_battle()
-	_session = encounter.session_of_seat(seat)
-	if _session == null:
+	var own: CombatSession = encounter.session_of_seat(seat)
+	if own == null:
 		_show_placeholder("The battle has no map for seat %d." % [seat])
 		return
 	if is_instance_valid(_save_debug_panel):
 		_save_debug_panel.visible = false
 	_view.settled.connect(_on_battle_view_settled)
 	_encounter = encounter
+	_seat = seat
 	for map: CombatSession in encounter.get_sessions():
 		map.batch_resolved.connect(_on_session_batch_resolved)
-	_view.bind(_session)
-	_controller.bind(encounter, _session, seat)
 	_controller.run_units = _run_units_of(seat)
-	_hud.bind(_session, _controller, _view)
-	_hud.bind_heirlooms(CampaignService.session, seat)
-	AudioService.follow_battle(_session)
-	if _is_resumed:
-		_hud.get_event_log().add_resumed_line()
 	# The unit panel's Details button is the mouse's way to unit detail; the controller decides.
 	_hud.get_unit_panel().details_pressed.connect(_on_unit_panel_details_pressed)
+	_coop.send_offer_delay = end_banner_time
+	_coop.bind(encounter, seat, own.session_id)
+	_show_session(own)
+	if _is_resumed:
+		_hud.get_event_log().add_resumed_line()
+
+
+# Views map: the board, turn input for the seat, the HUD and the battle's sounds follow it; an
+# ended map shows its end banner once settled.
+func _show_session(map: CombatSession) -> void:
+	_session = map
+	_shown_end_of = -1
+	_view.bind(map)
+	_controller.bind(_encounter, map, _seat)
+	_hud.bind(map, _controller, _view)
+	_hud.bind_heirlooms(CampaignService.session, _seat)
+	AudioService.follow_battle(map)
+	_coop.show_viewed(map.session_id)
 	_on_battle_view_settled()
 
 
@@ -167,6 +218,7 @@ func _open(encounter: CombatEncounter, seat: int) -> void:
 func _let_go_of_battle() -> void:
 	if _encounter == null:
 		return
+	_coop.unbind()
 	for map: CombatSession in _encounter.get_sessions():
 		if map.batch_resolved.is_connected(_on_session_batch_resolved):
 			map.batch_resolved.disconnect(_on_session_batch_resolved)
@@ -177,8 +229,10 @@ func _let_go_of_battle() -> void:
 		panel.details_pressed.disconnect(_on_unit_panel_details_pressed)
 	_encounter = null
 	_session = null
-	_is_ending = false
+	_seat = -1
+	_shown_end_of = -1
 	_is_end_held = false
+	_is_run_lost = false
 
 
 # The seat's army by instance id, for the unit detail's level, XP and growths; empty off a run.
@@ -197,6 +251,7 @@ func _run_units_of(seat: int) -> Dictionary[String, UnitInstance]:
 
 # Hides the battle and shows the co-op placeholder; a non-empty note replaces its text.
 func _show_placeholder(note: String) -> void:
+	_coop.unbind()
 	_controller.unbind()
 	_hud.unbind()
 	_view.visible = false
@@ -206,20 +261,24 @@ func _show_placeholder(note: String) -> void:
 		_placeholder_note.text = note
 
 
-# Stops input and shows this map's end banner, then holds for the battle's end. Runs once.
+# Stops input and shows the viewed map's end banner, then holds for the battle's end. Runs once
+# per view of an ended map.
 func _show_end() -> void:
-	if _is_ending:
+	if _shown_end_of == _session.session_id:
 		return
-	_is_ending = true
+	_shown_end_of = _session.session_id
 	_controller.unbind()
 	_hud.show_result(_session.is_won)
 	_hold_end()
 
 
-# Once every map has ended (in solo, the one map), ends the battle after end_banner_time, on the
-# host; a client's banner stays until the host moves everyone on. Runs once.
+# Once every map has ended (in solo, the one map) and the viewed map's playback has settled, or
+# once the co-op run is lost, ends the battle after end_banner_time, on the host; a client's
+# banner stays until the host moves everyone on. Runs once.
 func _hold_end() -> void:
-	if _is_end_held or _mirror != null or not _encounter.is_finished():
+	if _is_end_held or _mirror != null or _encounter == null:
+		return
+	if not _is_run_lost and not (_encounter.is_finished() and _view.is_settled()):
 		return
 	_is_end_held = true
 	if end_banner_time <= 0.0:
@@ -231,9 +290,11 @@ func _hold_end() -> void:
 
 
 # Saves the battle's end, then shows a won solo combat's victory sequence over the board (the run
-# is at its results); otherwise routes everyone on: a solo run still going to its stage's screen,
-# and a run that ended, or anything but a solo run, to RESULTS. Called once, by _hold_end().
+# is at its results); otherwise routes everyone where the run now is ([method RunScreen.of]): a
+# co-op battle's results to COMBAT_RESULTS, where each machine shows its own seat's, and a run
+# that ended (lost, a co-op run lost included) to RESULTS. Called once, by _hold_end().
 func _end_battle() -> void:
+	_coop.unbind()
 	_controller.unbind()
 	_hud.unbind()
 	_view.unbind()
@@ -241,10 +302,8 @@ func _end_battle() -> void:
 		_show_placeholder("Couldn't save the battle's end; see the log.")
 		return
 	var run: CampaignSession = CampaignService.session
-	var next: SceneRouter.Screen = SceneRouter.Screen.RESULTS
-	if RunScreen.is_solo_run(run):
-		next = RunScreen.of(run)
-	if next == SceneRouter.Screen.COMBAT_RESULTS:
+	var next: SceneRouter.Screen = screen_after_battle(run)
+	if next == SceneRouter.Screen.COMBAT_RESULTS and RunScreen.is_solo_run(run):
 		_hud_layer.visible = false
 		var overlay: VictoryOverlay = VICTORY_SCENE.instantiate()
 		overlay.playback_speed = _view.playback_speed
@@ -256,20 +315,26 @@ func _end_battle() -> void:
 
 
 func _on_battle_view_settled() -> void:
-	if _session.is_finished and _view.is_settled():
+	if _session == null or not _view.is_settled():
+		return
+	if _session.is_finished:
 		_show_end()
+	_hold_end()
 
 
 # The end-of-phase checkpoint (save-system.md, When the game saves), on any map of the battle, a
-# co-op host's included: a player phase's end or a frozen map's restart saves the whole battle at
-# the start of a player phase (CombatEncounter.is_save_point). Once this map has ended, a map's
-# batch only checks for the battle's end, which _end_battle() saves. A failed save is reported and
-# play goes on. A client's mirror sends no batches here, and never saves.
+# co-op host's included, whether or not its own map has ended: a player phase's end or a frozen
+# map's restart saves the whole battle at the start of a player phase
+# (CombatEncounter.is_save_point). Once every map has ended, or the run is lost, a batch only
+# checks for the battle's end, which _end_battle() saves. A failed save is reported and play goes
+# on. A client's mirror sends no batches here, and never saves.
 func _on_session_batch_resolved(batch: CombatSession.FactBatch) -> void:
-	if _is_ending:
+	if _encounter == null:
+		return
+	if _encounter.is_finished() or _is_run_lost:
 		_hold_end()
 		return
-	if _encounter.is_finished() or SaveService.combat == null:
+	if SaveService.combat == null:
 		return
 	if not CombatEncounter.is_save_point(batch):
 		return
@@ -299,7 +364,30 @@ func _on_unit_panel_details_pressed(unit_id: String) -> void:
 	_controller.request_unit_detail(unit_id)
 
 
+func _on_coop_battle_view_requested(session_id: int) -> void:
+	view_map(session_id)
+
+
+# The co-op run can't be saved (CombatEncounter.is_run_lost): input stops, and the host ends the
+# battle after the hold, which ends the run for every seat (CampaignService.end_battle()).
+func _on_coop_battle_run_lost() -> void:
+	if _is_run_lost or _encounter == null:
+		return
+	_is_run_lost = true
+	_controller.unbind()
+	_hold_end()
+
+
 # The raw fact log shows only beside the save debug panel, and only while a battle shows.
 func _on_save_debug_panel_visibility_changed() -> void:
 	_hud.get_fact_log().visible = _save_debug_panel.visible and _session != null
+
+
+## Where a battle's end sends everyone, from [param run] once [method CampaignService.end_battle]
+## has applied it: the screen its run now belongs on ([method RunScreen.of]; a battle's results
+## are COMBAT_RESULTS), or RESULTS when the run ended (lost, or no run).
+static func screen_after_battle(run: CampaignSession) -> SceneRouter.Screen:
+	if run == null or run.run == null:
+		return SceneRouter.Screen.RESULTS
+	return RunScreen.of(run)
 
