@@ -532,6 +532,10 @@ class PairPeer:
 			return _fail("no end after %.0f s" % [PEER_LIMIT])
 		if _rejections > REJECTION_LIMIT:
 			return _fail("%d commands refused" % [_rejections])
+		# Past the lobby the run is there until this side is done; a client whose host left has
+		# none (SteamNetwork ends the session, the menus clear it).
+		if _step > Step.LOBBY and CampaignService.session == null:
+			return _fail("the run's session ended")
 		match _step:
 			Step.BOOT:
 				# SteamNetwork follows the router from its deferred call, done by the first frame.
