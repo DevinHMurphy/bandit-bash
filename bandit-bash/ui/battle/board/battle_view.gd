@@ -757,8 +757,9 @@ func map_rect() -> Rect2:
 ## or a token with no unit, a token on the wrong tile or position, or showing the wrong HP, Stance,
 ## Block, held weapon's profile, turn or phase, or its info drawing other HP, Stance or profile mark
 ## than the token holds; a drawn map object with no mark, or a mark off its tile or showing another
-## state. Empty when they agree. A staged walk's token ([method stage_walk]) may stand anywhere on
-## its walk; its tile must still be the unit's. For tests and debugging; once [method is_settled].
+## state. Empty when they agree. A staged walk's token ([method stage_walk]) is placed right on its
+## staged tile once there, anywhere while it walks; its tile must still be the unit's. For tests
+## and debugging; meaningful once [method is_settled].
 func mismatches() -> PackedStringArray:
 	var found: PackedStringArray = []
 	if _session == null:
