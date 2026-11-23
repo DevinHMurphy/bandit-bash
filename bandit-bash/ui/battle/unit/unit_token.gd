@@ -6,14 +6,14 @@
 # File:     unit_token.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 19, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name UnitToken
 extends Node2D
 ## One unit on the battle board: its sprite, or its type's letters when it has none, in the world;
-## its HP, Stance, Block, range-tracked icon, a lit keg's fuse, its side's shape and an elite's
-## mark on its [UnitInfo] (combat UI plan, questions 22, 23 and 29; RF-025, RF-026).
+## its HP, Stance, Block, range-tracked icon, a lit keg's fuse, its held weapon's [ProfileMark]
+## and an elite's mark on its [UnitInfo] (combat UI plan, questions 22, 23 and 29; RF-025, RF-039).
 ##
 ## [BattleView] places one per unit, moves it and gives it each value as the facts play; the token
 ## keeps the values shown and passes them to [member info], which the [UnitInfoLayer] keeps over
@@ -145,6 +145,9 @@ var fuse: int = -1
 ## Whether the token is marked as an elite ([member BoardViewModel.UnitView.is_elite]).
 var is_elite: bool = false
 
+## The held weapon's profile its [ProfileMark] shows; follows the swaps as they play.
+var profile: WeaponTriangle.Profile = WeaponTriangle.Profile.NONE
+
 ## Its bars, numbers and icons on the [UnitInfoLayer], which sets this; null draws none of them.
 var info: UnitInfo = null
 
@@ -162,8 +165,8 @@ var _flash_color: Color = Color.WHITE
 @onready var _letter: Label = %Letter
 
 
-## Draws [param view]: its sprite or letters, its side's outline or colour and shape, its HP,
-## Stance, Block, Block ban, turn, a lit keg's fuse and an elite's mark. Whether its range is
+## Draws [param view]: its sprite or letters, its side's outline or colour, its profile mark, its
+## HP, Stance, Block, Block ban, turn, a lit keg's fuse and an elite's mark. Whether its range is
 ## tracked is left as it is.
 func show_unit(view: BoardViewModel.UnitView) -> void:
 	unit_id = view.id
@@ -173,6 +176,7 @@ func show_unit(view: BoardViewModel.UnitView) -> void:
 	if is_instance_valid(info):
 		info.show_side(side)
 		info.show_elite(is_elite)
+	show_profile(view.profile)
 	_letter.text = letters_for(view.unit_type)
 	var texture: Texture2D = sprite_for(view.unit_type)
 	_sprite.texture = texture
@@ -187,6 +191,13 @@ func show_unit(view: BoardViewModel.UnitView) -> void:
 	show_block_ban(not view.can_gain_block)
 	show_turn(view.has_acted, view.is_second_move_pending)
 	show_fuse(view.fuse)
+
+
+## Shows [param value], the held weapon's profile, as its [ProfileMark]'s shape.
+func show_profile(value: WeaponTriangle.Profile) -> void:
+	profile = value
+	if is_instance_valid(info):
+		info.show_profile(profile)
 
 
 ## Shows a lit keg's [param value] Phase Ends left on its [FuseBadge]; below 0 shows none.

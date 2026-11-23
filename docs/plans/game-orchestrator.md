@@ -36,7 +36,7 @@ Where the project is, what's next and what's out of scope. Start here.
 - **Milestones:** M0 and M1 are complete. **Current: M2 Combat complete,** with M3 started alongside.
 - **What runs today:** a solo run opens the M1 battle: the Mercenary army against the Brigand pack on the greybox map. All of M2's battle systems and functional UI work on keyboard, mouse and controller: targeting, forecast, intents, the darkness, every objective's HUD, unit detail, and Save & Quit with resume.
 - **What M2 still needs:** content, enemy AI, docs and bug fixes. No new systems.
-- **Tests:** 8,359 cases in 31 suites, all passing, and a clean headless launch (`sh bandit-bash/tools/run_tests.sh`).
+- **Tests:** 8,400 cases in 31 suites, all passing, and a clean headless launch (`sh bandit-bash/tools/run_tests.sh`).
 - **Not started:** P09 (approved) and P10–P12. P08 is in progress (RN1–RN5 merged).
 
 ## Milestones

@@ -1,0 +1,18 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ui/battle/key/board_key_row.gd" id="1_row"]
+[ext_resource type="PackedScene" path="res://ui/battle/unit/profile_mark.tscn" id="2_mark"]
+
+[node name="BoardKeyRow" type="HBoxContainer"]
+mouse_filter = 2
+script = ExtResource("1_row")
+
+[node name="ProfileMark" parent="." instance=ExtResource("2_mark")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+
+[node name="Label" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Power — beats Balance"
