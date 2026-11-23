@@ -6,7 +6,7 @@
 # File:     fact_playback.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 19, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name FactPlayback
@@ -42,7 +42,8 @@ var is_fast_forward: bool = false
 ## [b]Units:[/b] seconds. [b]Invalid:[/b] every fact takes no time.
 var duration_hook: Callable = Callable()
 
-## Whether fast-forward stops before a fact, as [code]func(fact: CombatFact) -> bool[/code].[br]
+## Whether fast-forward stops before a fact, as [code]func(fact: CombatFact) -> bool[/code];
+## [BattleController] sets it to the key moments on the map it binds.[br]
 ## [b]Invalid:[/b] fast-forward never stops.
 var pause_hook: Callable = Callable()
 

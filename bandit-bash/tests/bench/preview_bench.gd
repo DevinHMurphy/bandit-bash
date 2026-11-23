@@ -6,7 +6,7 @@
 # File:     preview_bench.gd
 # Author:
 # Created:  November 20, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends Node
@@ -20,8 +20,9 @@ extends Node
 ## Run from the repo root, with board names after [code]--[/code] to run only those,
 ## [code]check[/code] to hover in checking mode ([member Intents.is_checking], debug only) and
 ## count what it finds instead of timing, [code]after_action[/code] to sweep again after one
-## unit acts, [code]sweep[/code] to time the sweep of layer 5 and the hovers it serves, and
-## [code]refresh[/code] to time the intents refresh after an action, instead of the profile:[br]
+## unit acts, [code]sweep[/code] to time the sweep of layer 5 and the hovers it serves,
+## [code]refresh[/code] to time the intents refresh after an action, and [code]stale[/code] to
+## time the sweep's restart after a fact lands mid-preview, instead of the profile:[br]
 ## [code]godot --headless --path bandit-bash res://tests/bench/preview_bench.tscn -- key_engaged
 ## [/code][br]
 ## A release build runs it through [code]tests/bench/release_bench.sh[/code]. Measures only;
@@ -49,6 +50,15 @@ const SWEEP_ARGUMENT: String = "sweep"
 # The argument after "--" that times the intents refresh instead (Intents.compute, as the refresh
 # after each action runs it), with the session's verify mode on and off, and its parts.
 const REFRESH_ARGUMENT: String = "refresh"
+
+# The argument after "--" that times, instead of the profile, a fact landing while a sweep
+# preview runs: each acting unit but the last waits right after the sweep starts a preview, and
+# the time from the command's end (its intents refresh included) to the sweep's restart on the
+# new board is the stale preview's cost.
+const STALE_ARGUMENT: String = "stale"
+
+# Boards built for the stale bench, each giving a sample per acting unit but the last.
+const STALE_BUILDS: int = 3
 
 # Refreshes timed per board and verify setting.
 const REFRESH_RUNS: int = 3
@@ -97,13 +107,16 @@ func _ready() -> void:
 	var is_after_action: bool = OS.get_cmdline_user_args().has(AFTER_ACTION_ARGUMENT)
 	var is_sweep: bool = OS.get_cmdline_user_args().has(SWEEP_ARGUMENT)
 	var is_refresh: bool = OS.get_cmdline_user_args().has(REFRESH_ARGUMENT)
+	var is_stale: bool = OS.get_cmdline_user_args().has(STALE_ARGUMENT)
 	_print_header(is_checking)
 	for board: String in _chosen_boards():
 		var session: CombatSession = _boards.build(board)
 		if session == null or not _boards.is_intended(board, session):
 			continue
 		var units: PackedStringArray = TurnInputModel.acting_units(session, 0)
-		if is_checking:
+		if is_stale:
+			_bench_stale(board, session)
+		elif is_checking:
 			_check_board(board, session)
 		elif is_sweep:
 			_bench_sweep(session, units)
@@ -149,6 +162,7 @@ func _chosen_boards() -> PackedStringArray:
 	named.erase(AFTER_ACTION_ARGUMENT)
 	named.erase(SWEEP_ARGUMENT)
 	named.erase(REFRESH_ARGUMENT)
+	named.erase(STALE_ARGUMENT)
 	var chosen: PackedStringArray = []
 	for board: String in BenchBoards.BOARDS:
 		if named.is_empty() or named.has(board):
@@ -375,6 +389,58 @@ func _check_board(board: String, session: CombatSession) -> void:
 		print("  %s" % [_flags[index]])
 	if not _flags.is_empty():
 		_failures.append("%s: checking mode found %d differences" % [board, _flags.size()])
+
+
+# A fact landing while a sweep preview runs, STALE_BUILDS times on fresh copies of board (session
+# the first): per sample, the command with its intents refresh (main thread), then the polls
+# until the sweep starts on the new board, and whether the queue cancelled the stale preview
+# (stale_cancelled, read by name so a queue without it reports none).
+func _bench_stale(board: String, first: CombatSession) -> void:
+	var commands: PackedInt64Array = []
+	var restarts: PackedInt64Array = []
+	var stale_cancels: int = 0
+	var session: CombatSession = first
+	for build: int in STALE_BUILDS:
+		if build > 0:
+			session = _boards.build(board)
+		if session == null or not _boards.is_intended(board, session):
+			return
+		if session.intents == null or session.intents.based_on_seq != session.last_seq():
+			session.intents = Intents.compute(session, _catalog)
+		var units: PackedStringArray = TurnInputModel.acting_units(session, 0)
+		var queue: MovePreview.Queue = MovePreview.Queue.new()
+		# A unit's first sweep preview is its own tile, which needs no re-plan: each fact lands
+		# on the one after it.
+		queue.run_pending(session, units)
+		for index: int in units.size() - 1:
+			queue.wait()
+			var swept: int = queue.swept
+			queue.run_pending(session, units.slice(index))
+			if queue.swept == swept:
+				_failures.append("%s: no sweep preview ran before a fact" % [board])
+				break
+			session.submit(UnitTurnCommand.new(0, units[index], UnitTurnCommand.Action.WAIT))
+			var started: int = Time.get_ticks_usec()
+			var batch: CombatSession.FactBatch = session.resolve_next()
+			var landed: int = Time.get_ticks_usec()
+			if batch == null or batch.is_rejected():
+				_failures.append("%s: %s's wait was rejected" % [board, units[index]])
+				break
+			commands.append(landed - started)
+			var rest: PackedStringArray = units.slice(index + 1)
+			swept = queue.swept
+			queue.run_pending(session, rest)
+			while queue.swept == swept and Time.get_ticks_usec() - landed < MAX_SWEEP_USEC:
+				OS.delay_usec(POLL_USEC)
+				queue.run_pending(session, rest)
+			restarts.append(Time.get_ticks_usec() - landed)
+		queue.wait()
+		var counted: Variant = queue.get(&"stale_cancelled")
+		stale_cancels += counted as int if counted != null else 0
+	print("\n-- A fact while a sweep preview runs (1 ms polls), %d boards --" % [STALE_BUILDS])
+	_report("the waiting unit's command (its refresh)", commands)
+	_report("from its end to the sweep's restart", restarts)
+	print("Stale previews cancelled: %d of %d facts" % [stale_cancels, restarts.size()])
 
 
 # unit_id walks to its last move tile and waits, a fact the intents refresh after: prints how long
