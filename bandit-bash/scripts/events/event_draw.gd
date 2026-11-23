@@ -20,7 +20,9 @@ extends RefCounted
 ## map pools do: the seen list clears and every eligible event can be drawn again.
 ## [b]Rolls[/b] per seat, options in order: the blocks' items and runes
 ## ([method EventResolver.roll]), then each tier heirloom in block order, then the tier curse,
-## drawn from the whole tier, held curses included.
+## drawn from the whole tier, held curses included, then each recruit's type and prefix in block
+## order ([method RecruitOutcome.roll_recruit]). An option without a recruit draws as if they
+## weren't there.
 ##
 ## @tutorial(Events): docs/design/events.md
 ## @tutorial(Events and curses plan): docs/plans/2026-11-12-events-and-curses.md
@@ -91,6 +93,10 @@ static func roll_seat(
 		_draw_heirlooms(option, rolls, run, seat_run, stream, catalog)
 		if option.curse_id.is_empty() and not option.curse_tier.is_empty():
 			rolls.curse_id = draw_curse(option.curse_tier, stream, catalog)
+		for index: int in option.outcomes.size():
+			var recruit: RecruitOutcome = option.outcomes[index] as RecruitOutcome
+			if recruit != null:
+				recruit.roll_recruit(rolls, index, stream, catalog)
 		rolled.append(rolls)
 	return rolled
 

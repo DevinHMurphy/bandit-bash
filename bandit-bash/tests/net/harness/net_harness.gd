@@ -6,7 +6,7 @@
 # File:     net_harness.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -177,6 +177,12 @@ func delay(from_index: int, to_index: int, steps: int) -> void:
 ## [param order]; see the network's [code]reorder_next()[/code].
 func reorder(from_index: int, to_index: int, order: PackedInt32Array) -> bool:
 	return _network.reorder_next(peer_id(from_index), peer_id(to_index), order)
+
+
+## Loses the next [param count] packets from branch [param from_index] to [param to_index]; see
+## the network's [code]lose_next()[/code].
+func lose_next(from_index: int, to_index: int, count: int) -> void:
+	_network.lose_next(peer_id(from_index), peer_id(to_index), count)
 
 
 ## Cuts branch [param index] off the loopback network now; every side hears it as the next steps

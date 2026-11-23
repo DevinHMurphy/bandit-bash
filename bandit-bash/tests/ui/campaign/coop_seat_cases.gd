@@ -6,7 +6,7 @@
 # File:     coop_seat_cases.gd
 # Author:
 # Created:  November 21, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -15,7 +15,7 @@ extends RefCounted
 ## screen shows seat 1's gold, chest, army and choices and sends seat 1's commands; a teammate's
 ## batch rebuilds it (gold, a sold card "bought by Player 1", a Camp choice); a refusal waiting on
 ## the teammate names them. The Team panel by mouse, keys and pad. No file under ui/ reads
-## seats[0] but the one listed for its own steps. No press here moves the run to another
+## seats[0]. No press here moves the run to another
 ## screen, so nothing changes scene.
 ## Writes save files, so it runs only with a test user folder; it deletes user://saves/ before
 ## and after. It never names an autoload: they are reached as nodes.
@@ -52,11 +52,8 @@ const RICH: int = 9000
 # The ingredient staged in the teammate's convoy, for a scrap that changes only their part.
 const INGREDIENT: String = "heartbeet"
 
-# The files that still read seats[0], each for its own step (P11): the battle screen for NT5 and
-# CO13.
-const SEAT_ZERO_EXEMPT: PackedStringArray = [
-	"res://ui/battle/battle_screen.gd",
-]
+# The files that may still read seats[0], each for its own step (P11). None is left.
+const SEAT_ZERO_EXEMPT: PackedStringArray = []
 
 var _check: Callable
 var _root: Window = null

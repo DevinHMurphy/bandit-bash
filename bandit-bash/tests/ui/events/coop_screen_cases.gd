@@ -16,8 +16,9 @@ extends RefCounted
 ## choice waiting on them, Leave closed until they choose; its curse's keywords on the card (key
 ## focus shows their tooltips) and in the outcome. A team vote: each teammate's vote by name, a
 ## refused vote naming them, the draw, each seat taking it for its own army while the other waits
-## read only, the Team panel by keys and pad (a teammate's batch keeps it open), and the Fight only
-## after the last seat. Out of the tree the panel's focus asks nothing (BUG-026).
+## read only, the Team panel by keys and pad (a teammate's batch keeps it open; Team's own hints
+## while it has focus), and the Fight only after the last seat. Out of the tree the panel's focus
+## asks nothing (BUG-026).
 ## Writes save files, so it runs only with a test user folder; it deletes user://saves/ before
 ## and after. It never names an autoload: they are reached as nodes.
 
@@ -33,6 +34,9 @@ const SCREEN_PATH: String = "res://ui/campaign/events/event_screen.tscn"
 # SceneRouter.Screen values, read through the node as the suites do.
 const SCREEN_GAMEPLAY: int = 3
 const SCREEN_MAP: int = 9
+
+# The screen's hint context while Team holds focus (event_screen.gd's TEAM_FOCUS_CONTEXT).
+const TEAM_HINTS: StringName = &"ON_TEAM"
 
 # The save file the cases write, in the test user folder only.
 const SAVE_NUMBER: int = 2
@@ -255,10 +259,12 @@ func _test_team(local: int) -> void:
 			and hints.context == TeamPanel.HINT_TEAM
 	), "%s; %s" % [note, hints.context])
 	_fx.press_key(KEY_ESCAPE)
-	_ok("%s (keys): Esc closes Team, giving back focus and the step's hints" % [tag], (
-			not team_panel.visible and team_button.has_focus() and hints.context == &"OPTIONS"
-			and not _root.get_tree().paused
-	), str(hints.context))
+	var on_team: StringName = hints.context
+	_fx.press_key(KEY_UP)
+	_ok("%s (keys): Esc closes Team, giving back focus and Team's hints; up, the step's" % [tag], (
+			not team_panel.visible and on_team == TEAM_HINTS and hints.context == &"OPTIONS"
+			and not team_button.has_focus() and not _root.get_tree().paused
+	), "%s, then %s" % [on_team, hints.context])
 
 	_batches.clear()
 	panel.focus_first()
@@ -291,9 +297,12 @@ func _test_team(local: int) -> void:
 			and summary.get_lines().contains("A surprise combat begins")
 	), "%s; %s; %s" % [note, hints.context, leave.text])
 	_fx.press_pad(JOY_BUTTON_B)
-	_ok("%s (pad): B closes Team onto the Fight's hints, no pause menu" % [tag], (
-			not team_panel.visible and hints.context == &"FIGHT" and not _root.get_tree().paused
-	), str(hints.context))
+	var closed_on: StringName = hints.context
+	_fx.press_pad(JOY_BUTTON_DPAD_UP)
+	_ok("%s (pad): B closes Team onto Team's hints, no pause menu; up to Fight, its hints" % [tag], (
+			not team_panel.visible and closed_on == TEAM_HINTS and leave.has_focus()
+			and hints.context == &"FIGHT" and not _root.get_tree().paused
+	), "%s, then %s" % [closed_on, hints.context])
 
 	_batches.clear()
 	leave.grab_focus()

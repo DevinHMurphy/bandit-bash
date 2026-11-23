@@ -6,7 +6,7 @@
 # File:     battle_controller.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name BattleController
@@ -295,7 +295,8 @@ extends HintSource
 # event_log_scroll_* in any stage it shows in, playback included; it takes focus only in EVENT_LOG.
 # Global: cancel pops exactly one stage (_history), and one panel with it; WALK is never on
 # _history. Sending a command flushes every panel, stage and mark but leaves a staged token where
-# it stands, hides the intents, and waits in INACTIVE; when its playback settles the stage, the
+# it stands, hides the intents, and waits in INACTIVE; when its playback settles (on a client's
+# mirror, once the host has also settled it: CampaignService.combat_settled) the stage, the
 # danger zone and the intents are rebuilt from the session, a staged walk still standing (the
 # command rejected) snapping back: a rejection's reason shows and the flow returns to IDLE, a unit
 # with a second move pending reopens MOVE on its new tile, and otherwise IDLE, SWAP or INACTIVE as
@@ -675,6 +676,10 @@ var _shown_enemies: PackedStringArray = []
 # A command was sent and its playback hasn't settled.
 var _is_waiting: bool = false
 
+# A command sent from a client's mirror waits for the host's settle too, which comes after its
+# batches; false on the host and in solo.
+var _is_awaiting_settle: bool = false
+
 # The unit the command being waited on acted for; empty for none.
 var _sent_unit_id: String = ""
 
@@ -824,6 +829,10 @@ func bind(encounter: CombatEncounter, session: CombatSession, seat: int) -> void
 	_encounter = encounter
 	_session = session
 	_seat = seat
+	_is_awaiting_settle = false
+	var service: Node = _campaign_service()
+	if service != null:
+		service.connect(&"combat_settled", _on_campaign_service_combat_settled)
 	_session.command_rejected.connect(_on_session_command_rejected)
 	_session.intents_changed.connect(_on_session_intents_changed)
 	_session.bus.flow.phase_started.connect(_on_flow_phase_started)
@@ -849,6 +858,12 @@ func bind(encounter: CombatEncounter, session: CombatSession, seat: int) -> void
 func unbind() -> void:
 	if _session == null:
 		return
+	var service: Node = _campaign_service()
+	if service != null and service.is_connected(
+			&"combat_settled", _on_campaign_service_combat_settled
+	):
+		service.disconnect(&"combat_settled", _on_campaign_service_combat_settled)
+	_is_awaiting_settle = false
 	if _session.command_rejected.is_connected(_on_session_command_rejected):
 		_session.command_rejected.disconnect(_on_session_command_rejected)
 	if _session.intents_changed.is_connected(_on_session_intents_changed):
@@ -2211,8 +2226,10 @@ func _clear_selection() -> void:
 	_bar_cursor = CombatFact.NO_TILE
 
 
-# Sends command for the seat and resolves it; input waits, with the board's marks cleared, until
-# its playback settles. A staged token stays where it walked: the command's move plays from there.
+# Sends command for the seat and resolves it, through CampaignService.submit_combat() when the
+# battle is the run's (the one route, host and client) and on the encounter for one outside any
+# run (a test's); input waits, with the board's marks cleared, until its playback settles, and on
+# a client's mirror the host's settle too. A staged token stays where it walked.
 func _send(command: Command) -> void:
 	panel_host.flush()
 	_history.clear()
@@ -2225,10 +2242,24 @@ func _send(command: Command) -> void:
 	_set_stage(Stage.INACTIVE)
 	_redraw()
 	_show_intents()
-	_encounter.submit(command, _session.session_id)
-	_encounter.resolve_queued()
-	if view.is_settled():
+	var service: Node = _campaign_service()
+	var run: CampaignSession = null
+	if service != null:
+		run = service.get(&"session") as CampaignSession
+	if run == null or run.encounter != _encounter:
+		_encounter.submit(command, _session.session_id)
+		_encounter.resolve_queued()
+	else:
+		_is_awaiting_settle = run.is_mirror
+		service.call(&"submit_combat", command, _session.session_id)
+	if view.is_settled() and not _is_awaiting_settle:
 		_after_playback()
+
+
+# The CampaignService autoload, reached as a node, since this script also compiles in --script
+# runs (the capture tool, the test suites) before autoload names exist. Null outside the tree.
+func _campaign_service() -> Node:
+	return get_node_or_null(^"/root/CampaignService") if is_inside_tree() else null
 
 
 # Rebuilds the stage from the session once a command's playback has settled (see the state block).
@@ -2615,6 +2646,18 @@ func _on_detail_panel_scroll_range_changed() -> void:
 	live_actions_changed.emit()
 
 
+# The host settled the command this client's mirror sent from this map: its batches have
+# arrived, so the stage rebuilds once their playback settles; a refusal shows as a rejection.
+func _on_campaign_service_combat_settled(session_id: int, reason: String) -> void:
+	if not _is_awaiting_settle or _session == null or session_id != _session.session_id:
+		return
+	_is_awaiting_settle = false
+	if not reason.is_empty():
+		_on_session_command_rejected(_seat, CombatSession.NO_ARRIVAL, reason)
+	if _is_waiting and view.is_settled():
+		_after_playback()
+
+
 func _on_session_command_rejected(seat: int, _arrival: int, reason: String) -> void:
 	if seat != _seat:
 		return
@@ -2629,7 +2672,7 @@ func _on_session_command_rejected(seat: int, _arrival: int, reason: String) -> v
 func _on_view_settled() -> void:
 	_played_status = ""
 	_is_played_darkness = false
-	if _is_waiting:
+	if _is_waiting and not _is_awaiting_settle:
 		_after_playback()
 		return
 	if _stage in [Stage.INACTIVE, Stage.SWAP, Stage.IDLE] and _base_stage() != _stage:

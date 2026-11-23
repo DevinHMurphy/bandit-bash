@@ -1,0 +1,39 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/events/event_hand_over_panel.gd" id="1_panel"]
+
+[node name="EventHandOverPanel" type="VBoxContainer"]
+mouse_filter = 2
+theme_override_constants/separation = 8
+script = ExtResource("1_panel")
+
+[node name="Question" type="Label" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(608, 0)
+layout_mode = 2
+theme_type_variation = &"HeaderLabel"
+text = "A unit leaves. Where does each of its items go?"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Rows" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="Notes" type="Label" parent="."]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(608, 0)
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+autowrap_mode = 3
+
+[node name="Choices" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+mouse_filter = 2
+theme_override_constants/separation = 4
