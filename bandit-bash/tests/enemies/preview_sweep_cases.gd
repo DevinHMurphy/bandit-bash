@@ -16,7 +16,9 @@ extends RefCounted
 ## with no preview started, a fact dropping the done previews and restarting the sweep in the
 ## same frame, a preview asked on an older board ignored when it finishes, another session never
 ## served, no sweep without the worker, and swept previews equal to a full re-plan in checking
-## mode. Reports each case through the check callable it is given.
+## mode. The cancel: a hover cancels the sweep's running preview and runs first, the cancelled
+## tile swept again later, a cancelled job keeping nothing, a hover's own preview never cancelled,
+## and a fact during a cancel. Reports each case through the check callable it is given.
 ##
 ## @tutorial(The move preview): docs/design/move-preview.md
 
@@ -31,6 +33,14 @@ const BOARD: String = "m1_turn_1"
 
 # Frames the order case follows: every tile of the first unit and this many of the second's.
 const SECOND_UNIT_TILES: int = 3
+
+# Tries a cancel case makes before reporting that no cancel landed: a sweep preview that ends
+# before the hover's cancel reaches it (a loaded machine) is kept, not cancelled.
+const CANCEL_TRIES: int = 4
+
+# The wait before a job running on the worker is cancelled, in microseconds: a few of an M1
+# preview's 20 or so milliseconds, so it stops partway through its phase.
+const CANCEL_DELAY_USEC: int = 4000
 
 var _check: Callable = Callable()
 var _catalog: EffectCatalog.Index = null
@@ -55,6 +65,10 @@ func run() -> void:
 	_test_other_session()
 	_test_unthreaded()
 	_test_checking()
+	_test_cancel_for_hover()
+	_test_job_cancel()
+	_test_hover_never_cancelled()
+	_test_fact_during_cancel()
 	_boards.close()
 	Intents.is_checking = was_checking
 
@@ -258,6 +272,210 @@ func _test_checking() -> void:
 	_check.call("sweep: every swept preview equals a full re-plan in checking mode", (
 			flags.is_empty()
 	), "; ".join(flags.slice(0, 3)))
+
+
+# Mid-sweep, a hover on the last unit's farthest tile cancels the sweep's preview running: the
+# next call after it stops drops its result, starts the hover's (not the sweep's next) and the
+# one after returns it, equal to one computed afresh; the cancelled tile is then the sweep's next.
+# A hover on the very tile the sweep runs cancels nothing.
+func _test_cancel_for_hover() -> void:
+	var session: CombatSession = _session("cancel")
+	if session == null:
+		return
+	var units: PackedStringArray = TurnInputModel.acting_units(session, 0)
+	var queue: MovePreview.Queue = MovePreview.Queue.new()
+	var order: Array[Vector2i] = _nearest_first(session, units[0])
+	_sweep_steps(queue, session, units, 2)
+	var last: String = units[units.size() - 1]
+	var far: Array[Vector2i] = _nearest_first(session, last)
+	var hovered: Vector2i = far[far.size() - 1]
+	var running: Vector2i = CombatFact.NO_TILE
+	var dropped: bool = false
+	var first_started: bool = false
+	var ready: MovePreview = null
+	for _try: int in CANCEL_TRIES:
+		# Takes the finished sweep preview in and starts the next tile not yet done.
+		queue.run_pending(session, units)
+		running = _first_not_done(queue, session, units[0], order)
+		var cancelled: int = queue.cancelled
+		var runs: int = queue.runs
+		var swept: int = queue.swept
+		queue.request(last, hovered)
+		queue.run_pending(session, units)
+		queue.wait()
+		var none_yet: MovePreview = queue.run_pending(session, units)
+		dropped = queue.cancelled == cancelled + 1 and not queue.is_done(session, units[0], running)
+		first_started = none_yet == null and queue.runs == runs + 1 and queue.swept == swept
+		queue.wait()
+		ready = queue.run_pending(session, units)
+		queue.clear()
+		if dropped:
+			break
+		far.remove_at(far.size() - 1)
+		hovered = far[far.size() - 1]
+	var fresh: MovePreview = MovePreview.compute(session, last, hovered)
+	_check.call("sweep: a hover cancels the sweep's running preview and runs first", (
+			dropped
+			and first_started
+			and ready != null
+			and ready.tile == hovered
+			and PreviewEqualityCases.intents_text(ready.intents)
+			== PreviewEqualityCases.intents_text(fresh.intents)
+	), "dropped %s, hover started first %s, returned %s" % [dropped, first_started, ready != null])
+	# The call returning the hover's preview started the sweep's next tile: the cancelled one.
+	queue.wait()
+	queue.run_pending(session, units)
+	_check.call("sweep: a cancelled tile is swept again, next in the sweep's order", (
+			queue.is_done(session, units[0], running)
+	), "the cancelled tile %s" % [running])
+
+	queue.run_pending(session, units)
+	var own: Vector2i = _first_not_done(queue, session, units[0], order)
+	var cancelled_before: int = queue.cancelled
+	queue.request(units[0], own)
+	queue.run_pending(session, units)
+	queue.wait()
+	var same: MovePreview = queue.run_pending(session, units)
+	_check.call("sweep: a hover on the tile the sweep runs waits for it, cancelling nothing", (
+			same != null and same.tile == own and queue.cancelled == cancelled_before
+	), "returned %s, cancels %d" % [same != null, queue.cancelled - cancelled_before])
+	queue.clear()
+	queue.wait()
+
+
+# PreviewJob.cancel itself: a job cancelled before it runs returns null; one cancelled while it
+# runs on the worker returns null and adds none of its forecasts to the store (a later preview of
+# that tile makes as many as on an identical board that never ran it); one that has ended keeps
+# its result.
+func _test_job_cancel() -> void:
+	var session: CombatSession = _session("job cancel")
+	var twin: CombatSession = _session("job cancel, twin")
+	if session == null or twin == null:
+		return
+	var units: PackedStringArray = TurnInputModel.acting_units(session, 0)
+	var tiles: Array[Vector2i] = _nearest_first(session, units[0])
+	var before: Intents.PreviewJob = Intents.prepare_preview(session, units[0], tiles[1])
+	before.cancel()
+	var unrun: bool = before.run() == null and before.is_cancelled() and before.run() == null
+	_check.call("preview job: cancelled before it runs, it returns null", unrun)
+
+	var stopped: Vector2i = CombatFact.NO_TILE
+	for index: int in range(1, mini(tiles.size(), CANCEL_TRIES + 1)):
+		var job: Intents.PreviewJob = Intents.prepare_preview(session, units[0], tiles[index])
+		var task: int = WorkerThreadPool.add_task(job.run)
+		OS.delay_usec(CANCEL_DELAY_USEC)
+		job.cancel()
+		WorkerThreadPool.wait_for_task_completion(task)
+		if job.is_cancelled():
+			stopped = tiles[index]
+			break
+		# It ended first and kept its forecasts: the twin's store gets the same.
+		Intents.preview(twin, units[0], tiles[index])
+	var kept: Intents = null
+	var clean: Intents = null
+	if stopped != CombatFact.NO_TILE:
+		kept = Intents.preview(session, units[0], stopped)
+		clean = Intents.preview(twin, units[0], stopped)
+	_check.call("preview job: cancelled while it runs, it keeps none of its forecasts", (
+			kept != null
+			and clean != null
+			and kept.forecasts_made == clean.forecasts_made
+			and PreviewEqualityCases.intents_text(kept) == PreviewEqualityCases.intents_text(clean)
+	), "stopped on %s; forecasts made %d / %d on a board that never ran it" % [
+		stopped,
+		kept.forecasts_made if kept != null else -1,
+		clean.forecasts_made if clean != null else -1,
+	])
+
+	var ended: Intents.PreviewJob = Intents.prepare_preview(twin, units[0], tiles[2])
+	var result: Intents = ended.run()
+	ended.cancel()
+	_check.call("preview job: a cancel after it has ended keeps its result", (
+			result != null and ended.run() == result and not ended.is_cancelled()
+	))
+
+
+# A hover's own preview, replaced by another hover while it runs, is never cancelled: it finishes
+# into the done previews, and the new hover's runs after it.
+func _test_hover_never_cancelled() -> void:
+	var session: CombatSession = _session("hover kept")
+	if session == null:
+		return
+	var units: PackedStringArray = TurnInputModel.acting_units(session, 0)
+	var queue: MovePreview.Queue = MovePreview.Queue.new()
+	var tiles: Array[Vector2i] = _nearest_first(session, units[1])
+	var first: Vector2i = tiles[tiles.size() - 1]
+	var second: Vector2i = tiles[tiles.size() - 2]
+	queue.request(units[1], first)
+	queue.run_pending(session, units)
+	queue.request(units[1], second)
+	queue.run_pending(session, units)
+	queue.wait()
+	var none_yet: MovePreview = queue.run_pending(session, units)
+	var first_done: bool = queue.is_done(session, units[1], first)
+	queue.wait()
+	var ready: MovePreview = queue.run_pending(session, units)
+	_check.call("sweep: a hover's own preview is never cancelled by the next hover", (
+			none_yet == null
+			and first_done
+			and queue.cancelled == 0
+			and ready != null
+			and ready.tile == second
+	), "first done %s, cancels %d, second returned %s" % [
+		first_done, queue.cancelled, ready != null,
+	])
+	queue.clear()
+	queue.wait()
+
+
+# A fact resolving while a cancelled sweep preview is still stopping: the cancelled one is
+# dropped, nothing is kept on the new board, and the hover is asked again there and returned
+# equal to one computed afresh on it.
+func _test_fact_during_cancel() -> void:
+	var session: CombatSession = _session("fact during cancel")
+	if session == null:
+		return
+	var units: PackedStringArray = TurnInputModel.acting_units(session, 0)
+	var queue: MovePreview.Queue = MovePreview.Queue.new()
+	_sweep_steps(queue, session, units, 2)
+	queue.run_pending(session, units)
+	var running: Vector2i = _first_not_done(queue, session, units[0], _nearest_first(
+			session, units[0]
+	))
+	var hovered: Vector2i = _nearest_first(session, units[1])[1]
+	queue.request(units[1], hovered)
+	queue.run_pending(session, units)
+	if not _wait_on(session, units[0]):
+		queue.wait()
+		return
+	queue.wait()
+	var none_yet: MovePreview = queue.run_pending(session, units)
+	var nothing_kept: bool = not queue.is_done(session, units[0], running)
+	queue.wait()
+	var ready: MovePreview = queue.run_pending(session, units)
+	var fresh: MovePreview = MovePreview.compute(session, units[1], hovered)
+	_check.call("sweep: a fact during a cancel drops it, the hover asked again on the new board", (
+			none_yet == null
+			and nothing_kept
+			and ready != null
+			and ready.tile == hovered
+			and ready.based_on_seq == session.last_seq()
+			and PreviewEqualityCases.intents_text(ready.intents)
+			== PreviewEqualityCases.intents_text(fresh.intents)
+	), "nothing kept %s, returned %s" % [nothing_kept, ready != null])
+	queue.clear()
+	queue.wait()
+
+
+# The first of tiles, unit_id's in sweep order, that queue hasn't done on session's board: the
+# sweep's preview running, right after a call started one.
+func _first_not_done(
+		queue: MovePreview.Queue, session: CombatSession, unit_id: String, tiles: Array[Vector2i]
+) -> Vector2i:
+	for tile: Vector2i in tiles:
+		if not queue.is_done(session, unit_id, tile):
+			return tile
+	return CombatFact.NO_TILE
 
 
 # Steps queue's sweep of order on session, one preview at a time, until count are done or the

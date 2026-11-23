@@ -265,7 +265,8 @@ func _bench_sweep(session: CombatSession, units: PackedStringArray) -> void:
 
 # Hovers that jump into a running sweep: from fresh intents, a sweep runs JUMPS times for
 # FRAMES_BETWEEN_JUMPS frames, then a tile it reaches last and hasn't done is hovered, polled as
-# the other hovers are: the wait for the sweep's preview running, then the hover's own.
+# the other hovers are: the wait for the sweep's preview running to stop (cancelled), until the
+# hover's own starts, then the hover's own.
 func _bench_jumps(session: CombatSession, units: PackedStringArray, total: int) -> void:
 	session.intents = Intents.compute(session, _catalog)
 	var queue: MovePreview.Queue = MovePreview.Queue.new()
@@ -273,6 +274,7 @@ func _bench_jumps(session: CombatSession, units: PackedStringArray, total: int) 
 	var far: Array[Vector2i] = TurnInputModel.move_tiles(session, last)
 	far.reverse()
 	var jumps: PackedInt64Array = []
+	var waits: PackedInt64Array = []
 	for tile: Vector2i in far:
 		if jumps.size() >= JUMPS or queue.swept >= total:
 			break
@@ -280,9 +282,14 @@ func _bench_jumps(session: CombatSession, units: PackedStringArray, total: int) 
 			_frame(queue, session, units)
 		if queue.is_done(session, last, tile):
 			continue
+		var runs: int = queue.runs
 		var requested: int = Time.get_ticks_usec()
 		queue.request(last, tile)
 		var ready: MovePreview = queue.run_pending(session, units)
+		while queue.runs == runs and ready == null:
+			OS.delay_usec(POLL_USEC)
+			ready = queue.run_pending(session, units)
+		waits.append(Time.get_ticks_usec() - requested)
 		while ready == null:
 			OS.delay_usec(POLL_USEC)
 			ready = queue.run_pending(session, units)
@@ -290,6 +297,8 @@ func _bench_jumps(session: CombatSession, units: PackedStringArray, total: int) 
 		queue.clear()
 	queue.wait()
 	_report("hover jumping into a running sweep (latency)", jumps)
+	_report("  its wait for the sweep's preview to stop", waits)
+	print("Sweep previews cancelled by those hovers: %d" % [queue.cancelled])
 	print("Target %.0f per hover jumping in: median %s, p95 %s" % [
 		TARGET_USEC,
 		"met" if _median(jumps) <= TARGET_USEC else "missed",
