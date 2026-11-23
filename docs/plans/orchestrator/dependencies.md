@@ -263,7 +263,7 @@ flowchart LR
   class EV4,EV1G done
   class EV6,UL9 done
   class NT3,NT4,NT5 done
-  class NT6 ready
+  class NT6 active
   class NT8,CO14,CO15,CO16,CO17,CO18,CO19,CO21 waiting
   class CO9,CO10,CO1,CO6,CO12,CO2,CO7,CO5 done
   class CO3,CO4,CO8,CO13 ready
