@@ -36,7 +36,7 @@ Where the project is, what's next and what's out of scope. Start here.
 - **Milestones:** M0 and M1 are complete. **Current: M2 Combat complete,** with M3 started alongside.
 - **What runs today:** a solo run opens the M1 battle: the Mercenary army against the Brigand pack on the greybox map. All of M2's battle systems and functional UI work on keyboard, mouse and controller: targeting, forecast, intents, the darkness, every objective's HUD, unit detail, and Save & Quit with resume.
 - **What M2 still needs:** content, enemy AI, docs and bug fixes. No new systems.
-- **Tests:** 8,119 cases in 31 suites, all passing, and a clean headless launch (`sh bandit-bash/tools/run_tests.sh`).
+- **Tests:** 8,127 cases in 31 suites, all passing, and a clean headless launch (`sh bandit-bash/tools/run_tests.sh`).
 - **Not started:** P09 (approved) and P10–P12. P08 is in progress (RN1–RN5 merged).
 
 ## Milestones
@@ -66,7 +66,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P02 | [Combat core](2026-10-26-combat-core.md) | **Implemented** (CC9 docs merged November 19, 2026; vision question 4 checked against `BonusTurns`, N1–N10 recorded as built, BUG-003 fixed) | — | P01 |
 | P03 | [Content catalog](2026-10-29-content-catalog.md) | **In progress** | CT12 weapon modifications, after an ideation pass on their design (out of M3's exit, user November 22, 2026; CT11 docs merged November 19, 2026: [content-authoring.md](../design/content-authoring.md)) (question 33) | P01 |
 | P04 | [Combat map](2026-10-27-combat-map.md) | **In progress** | MP11 map authoring toolkit (future; MP9 docs merged November 19, 2026: [map-authoring.md](../design/map-authoring.md)) | P01, P02 |
-| P05 | [Enemies and AI](2026-10-30-enemies-and-ai.md) | **In progress** | EN16 merged November 22, 2026 (the sweep); P05 questions 52–55 open (EN15 merged November 21, 2026; EN13 and EN14, the forecast cache, merged November 20, 2026; EN11 merged November 18, 2026; EN12 docs merged November 19, 2026, in content-authoring.md) | P02, P04 |
+| P05 | [Enemies and AI](2026-10-30-enemies-and-ai.md) | **In progress** | EN17 (the cancel) merged November 23, 2026; EN18 plan next; P05 questions 56–57 open (EN16 merged November 22, 2026; EN15 merged November 21, 2026; EN13 and EN14, the forecast cache, merged November 20, 2026; EN11 merged November 18, 2026; EN12 docs merged November 19, 2026, in content-authoring.md) | P02, P04 |
 | P06 | [The darkness](2026-11-03-the-darkness.md) | **Implemented** (DK6 docs merged November 19, 2026) | — | P02, P04 |
 | P07 | [Combat UI](2026-11-04-combat-ui.md) | **In progress** | Nothing for M2 | P02, P04, P05, P06 |
 | P08 | [Campaign and run flow](2026-10-24-campaign-run-flow.md) | **Implemented** (RN12 docs merged November 21, 2026: [campaign-run.md](../design/campaign-run.md), save-system.md's run state) | P08 question 71 (the placeholder copy) to confirm | P01, P03 |
@@ -76,7 +76,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P12 | Statistics and the Waystation war table (meta-progression.md) | **Not started** | — | P01, P08 |
 | P13 | [RNG streams](2026-10-26-rng-streams.md) | **Implemented** | — | P00 |
 | P15 | UI lift ([ui-lift.md](../design/ui-lift.md); its scope doc is the plan) | **Implemented** November 19, 2026: UL0–UL8 and UL1F merged | — | P07, P08 |
-| P14 | [Project organization](2026-11-09-project-organization.md) | **In progress** | O8 concurrency tooling **merged** November 19, 2026 (every case file declares `const SUITE`, `tests/case_files.gd` finds it; `--quick` skips the map_set parts); O8b **merged** November 19, 2026 (`capture_screens.gd` is a runner over `tools/captures/<number>_<name>.gd` groups); O5 (deferred) | — |
+| P14 | [Project organization](2026-11-09-project-organization.md) | **In progress** | TL1 capture guard and `run_captures.sh` merged November 23, 2026; O8 concurrency tooling **merged** November 19, 2026 (every case file declares `const SUITE`, `tests/case_files.gd` finds it; `--quick` skips the map_set parts); O8b **merged** November 19, 2026 (`capture_screens.gd` is a runner over `tools/captures/<number>_<name>.gd` groups); O5 (deferred) | — |
 | P16 | Audio ([audio.md](../design/audio.md); its scope doc is the plan) | **In progress**: AU1 the audio layer merged November 19, 2026 | AU1 done; AU2+ sound design (M5, after the audio direction) | P07, P15 |
 | P17 | Localization: written, translatable descriptions; every string through Godot's translation; layouts that survive longer text and other scripts | **Parked** (user, November 22, 2026: very low priority; not offered until the user raises it) | — | P03, P07, P08, P09, P15 |
 | P20–P24 | Meta progression, tutorials, dev console, status effects, shared co-op battles | Post-MVP | — | — |

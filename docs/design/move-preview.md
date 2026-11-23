@@ -114,8 +114,8 @@ the 30% EN15 saw from run to run (17 → 31 ms), and two reruns gave both 22–2
 - **The target (50 ms p95, debug, unswept)** holds on M1 turn 1 and misses on M1 engaged (jumping
   in) and on both 9-enemy boards, idle or jumping in. The sweep doesn't change an unswept
   preview's own time.
-- **Jumping in waits** for the sweep's preview running: on the boss board 1.7 s against 0.66 s idle
-  in debug. The running preview can't be stopped (P05 question 54).
+- **Jumping in waited** for the whole of the sweep's preview running: on the boss board 1.7 s
+  against 0.66 s idle in debug. A hover now cancels it (EN17, measured below).
 - **Against playback:** an enemy's turn plays in about 2.5–3 s at speed 1 when it attacks and 0.5 s
   when it doesn't, so a 9-enemy phase with 5 attacks plays in about 15 s, and a player's attack in
   about 3 s (estimated from `BattleView`'s pacing exports, not measured). The M1 sweeps finish
@@ -123,6 +123,36 @@ the 30% EN15 saw from run to run (17 → 31 ms), and two reruns gave both 22–2
   enemy phase, the boss board under 1; the selected unit goes first (7 s and 20 s for one unit).
 - **A frame starting a sweep preview** costs the main thread up to 9 ms in release and 26 ms in
   debug on the boss board: a debug frame can drop during playback.
+
+**The cancel, measured (EN17, November 23, 2026):** same machine, EN16's code and EN17's run in
+turn, mode by mode (`-- sweep`, then the plain run for "Idle"). The machine was not idle: other
+processes held about 40% of the CPU throughout, and the key board's release "Idle" moved 207 →
+150 ms with no change on that path, so treat differences under about 30% as noise. Median / p95
+in milliseconds. "Jumping in" as above (5–12 hovers per board, on the last unit's farthest
+tiles, not the "Idle" sample, so it can come in under "Idle"); "Its wait": from the hover to its
+own preview starting, the cancelled one stopping.
+
+| Board | Build | Idle, EN16 → EN17 | Jumping in, EN16 → EN17 | Its wait (EN17) |
+|---|---|---|---|---|
+| M1 turn 1 | debug | 17 / 30 → 17 / 30 | 21 / 48 → 17 / 34 | 0.9 / 17 |
+| M1 turn 1 | release | 14 / 24 → 13 / 22 | 8 / 16 → 12 / 17 | 3 / 5 |
+| M1 engaged | debug | 29 / 49 → 27 / 46 | 47 / 95 → 24 / 56 | 2 / 11 |
+| M1 engaged | release | 31 / 53 → 23 / 41 | 23 / 47 → 23 / 46 | 3 / 13 |
+| Key, 9 enemies | debug | 213 / 316 → 203 / 318 | 321 / 549 → 264 / 311 | 18 / 34 |
+| Key, 9 enemies | release | 207 / 331 → 150 / 229 | 161 / 263 → 155 / 242 | 12 / 17 |
+| Boss, 9 enemies | debug | 652 / 1,050 → 633 / 1,055 | 932 / 1,234 → 543 / 818 | 62 / 103 |
+| Boss, 9 enemies | release | 468 / 762 → 454 / 743 | 874 / 1,112 → 558 / 770 | 59 / 73 |
+
+- **A hover jumping in now costs about an idle hover** plus the cancelled preview's stop: on the
+  boss board in debug 932 → 543 ms (median) and 1,234 → 818 ms (p95), its wait 62 / 103 ms. On
+  the 9-enemy boards every jump cancelled one (12 of 12); on M1 a sweep preview more often ended
+  before the next frame (1 of 5 and 4 of 9 in debug).
+- **The wait is about one step of the phase** and one poll: the job checks before each step, and
+  a boss-board preview plays about 9 (its idle time divided by its steps, not measured per step).
+- **The target (50 ms p95, debug, unswept)** still holds only on M1 turn 1: the cancel removes the
+  wait, not an unswept preview's own time (P05 question 54, its miss accepted for now).
+- **The sweep is unchanged** within noise (boss board 162 → 176 s in debug, 124 → 125 s in
+  release; it starts no hover), as are a swept hover's lookup and a sweep frame.
 
 ## How a preview works now
 
@@ -351,6 +381,16 @@ forecast. The sweep runs one preview at a time on one worker thread, as the queu
   off, and not with `is_sweeping` off (tests of the hover alone).
 - **A hover cleared or replaced** while its preview runs no longer drops it: the preview finishes
   into the done ones.
+- **A hover cancels the sweep's preview** (EN17, P05 question 54 (a)). When a hover waits on a
+  tile not yet done and the preview running is the sweep's, of another tile,
+  `Intents.PreviewJob.cancel` asks it to stop. The job checks before each step of the phase and
+  as it ends; once stopped it returns null, adds none of its forecasts to the store and holds no
+  result. The queue drops it when its task completes and starts the hover's on that same call,
+  so one preview still runs at a time. The cancelled tile isn't done, so the sweep reaches it
+  again in its order, next if it was the sweep's first tile not done. A hover's own preview is
+  never cancelled, and neither is a sweep preview of the hovered tile on the current board. A
+  job that has ended keeps its result: a cancel then does nothing. The queue counts the
+  cancelled ones (`cancelled`).
 - **Memory:** a preview's rounds are released as its job ends (only the intents a preview builds on
   read them). See Threads and memory.
 
@@ -395,7 +435,10 @@ The preview must equal a full re-plan, so every layer ships with checks that com
   reads the store and keeps its new forecasts in its own overlay, then adds them to the store as
   it ends, on the worker. One preview runs at a time, but the store takes a lock on every read
   and write anyway, so a dropped job finishing while the main thread works stays safe. The rules
-  code stays pure, and the worker still never logs.
+  code stays pure, and the worker still never logs. A cancel is a flag behind the job's own lock;
+  a cancelled job leaves its overlay unadded. All it leaves in the store is the short number
+  given to each signature it read (a text's number never changes, so no key matches
+  differently) and whether each effect definition reads the whole board (fixed by content).
 - **Memory, measured.** A kept forecast holds 25–43 KB in debug (its facts, rolls and outcomes are
   objects). Unbounded, a sweep of every tile of one board state kept 10,225 forecasts on the key
   board (480 MB) and 58,793 on the boss board. So previews add at most 2,000 to a store, the oldest
@@ -426,14 +469,16 @@ The preview must equal a full re-plan, so every layer ships with checks that com
 | A Measure | Benchmark boards: M1 turn 1, M1 engaged, a 9-enemy, 6-unit key-combat board. A per-phase profile of a hover. The equality suite and checking mode, run against today's preview | Baseline median and p95, debug and release, per hover and per sweep; equality passes |
 | B Diff and cache | Layers 1 and 2, the shared flood (left out: under 2% of a hover) | Equality passes; the benchmark is measured before and after. **Built in EN14** (Where it stands) |
 | C Zones | Layers 3 and 4 | Same. **Built in EN15** (Where it stands) |
-| D Precompute | Layer 5: the sweep during playback, in `MovePreview.Queue` | A hover on a done tile shows on the next frame; the sweep's time per turn is reported. **Built in EN16** (Where it stands) |
+| D Precompute | Layer 5: the sweep during playback, in `MovePreview.Queue` | A hover on a done tile shows on the next frame; the sweep's time per turn is reported. **Built in EN16** (Where it stands); a hover cancelling the sweep's preview in EN17 |
 
 Steps A–C change only the internals of `intents.gd`, `enemy_ai.gd` and `danger_zone.gd`. Step D
 changes the queue inside `move_preview.gd` and the controller's calls into it. No public signature
 changes, except optional trailing arguments: EN14's `forecasts` on `EnemyAI.decide` (P05 question
 48), EN15's `footprint` on it and `base`, `touched` and `margin` on `DangerZone.compute` (P05
 question 49), and EN16's `sweep` on `MovePreview.Queue.run_pending`, with the queue's new
-`is_sweeping`, `runs`, `swept` and `is_done` (P05 question 52). Step D goes ahead whatever B and C measure, because the user wants hover work at a
+`is_sweeping`, `runs`, `swept` and `is_done` (P05 question 52), then EN17's `cancel` and
+`is_cancelled` on `Intents.PreviewJob` (P05 question 54) and the queue's `cancelled` (P05
+question 56, proposed). Step D goes ahead whatever B and C measure, because the user wants hover work at a
 minimum.
 
 ## Decisions

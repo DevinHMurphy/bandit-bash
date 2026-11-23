@@ -71,7 +71,8 @@ RULES
 
 TESTS AND CHECKS
 - Cases for: ...
-- Captures (UI): at 1280x720, 1920x1080 and 1280x800, with 0 layout issues.
+- Captures (UI): run sh bandit-bash/tools/run_captures.sh (never capture_screens.gd directly):
+  1280x720, 1920x1080 and 1280x800, with 0 layout issues; give the captures folder it prints.
 - Before reporting, merge dev into your branch and fix any conflicts. Then do one full run:
   JOBS=8 SUITE_TIMEOUT=450 sh bandit-bash/tools/run_tests.sh   (no --open). Give the report path.
 
@@ -129,10 +130,10 @@ before writing a prompt and name it in the LANE block.
 
 | Lane | Next | Then | Gated on |
 |------|------|------|----------|
-| A Battle UI | EN17 preview cancel (P05 question 54 (a); issued November 22, 2026) | UL11 weapon-profile marks (RF-039, user November 23, 2026); CO13 the co-op battle screen (ready: NT5 merged November 23, 2026, the placeholder gone; owns the "waiting for the other maps" UI); it builds on `has_sent()`, `senders_of()`, `is_aid_called()`, `is_frozen()`); the HUD rune bar as an EffectText, with the detail rows' 4-unit focus inset; RB1 after the full-run playtest | RB1: the user's full-run playtest (user, November 20 and 22, 2026) |
+| A Battle UI | UL11 weapon-profile marks (ready: EN17 merged November 23, 2026; RF-039) | a stale-preview cancel if P05 question 57 says yes (with `move_preview.gd`'s confirmed "nearest" ASSUMPTION removed); CO13 the co-op battle screen (ready: NT5 merged November 23, 2026, the placeholder gone; owns the "waiting for the other maps" UI); it builds on `has_sent()`, `senders_of()`, `is_aid_called()`, `is_frozen()`); the HUD rune bar as an EffectText, with the detail rows' 4-unit focus inset; RB1 after the full-run playtest | RB1: the user's full-run playtest (user, November 20 and 22, 2026) |
 | B Campaign and run | P11 CO11 the co-op campaign map (issued November 23, 2026; a co-op host can't leave the map until it sends route votes) | CO8 the co-op battle end and rewards (with CO5's visitor reward gaps); CO14 (a forfeit clears swaps and route votes); BUG-034 before CO16 | — |
 | C Events | — (free: EV7 merged November 23, 2026) | the event option's expected-heirloom field when events offer a unique heirloom; unit-roster.md's temporary convoy overflow, if wanted | Nothing ready |
 | D Engine, AI, content | EN18 plan: the intents refresh on the worker (P05 question 53 (a), plan doc first; BUG-035's release part; CO2 merged November 22, 2026) | CO3 units on a partner's map, with BUG-038; CO4 the darkness on mirrors; CT12 after the weapon modification design | — |
-| E Network | NT6 drop, pause and rejoin (ready: NT5 merged November 23, 2026), with clients' `SeatDirectory` (removing P10 question 38's host-seat fallback) and P10 question 39's route notice if answered | NT7, NT8; CO15 after NT4 | — |
+| E Network | NT6 drop, pause and rejoin (issued November 23, 2026), with clients' `SeatDirectory` (removing P10 question 38's host-seat fallback) and P10 question 39's route notice (answered (a)) | NT7, NT8; CO15 after NT4 | — |
 | G Audio and tooling | TX2 trait wording, part 2, with RF-038 (Foods), after the user's wording pass (in the Wording Pass artifact, https://claude.ai/artifact/V1CKy2XcDTHEtkDdtxYHS5, collection `wording`, read back with ArtifactData; it covers effect-text.md and keywords.md; TX3 merged November 22, 2026) | AU2 after the audio direction (M5); the capture builder tidy-up | TX2 after the user's wording pass (it applies it, and confirms P01 65–68) |
 | F Docs and plans | CO20 docs, with BUG-033 (P11 answered November 22, 2026) | P12 plan when wanted; P17 parked (user, November 22, 2026: very low priority) | — |
