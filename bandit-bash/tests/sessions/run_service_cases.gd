@@ -210,11 +210,12 @@ func _skipped(case_name: String) -> bool:
 
 
 # Whether every run section of the file, and every seat's, is at its version (campaign_map,
-# economy and heirlooms 2, the rest 1) and holds a run.
+# run_flow, economy and heirlooms 2, the rest 1) and holds a run.
 func _holds_run(file: CampaignData) -> bool:
 	for key: String in RUN_KEYS:
 		var shared_version: int = (
-				RunSaveSections.MAP_VERSION if key == "campaign_map" else RunSaveSections.VERSION
+				RunSaveSections.MAP_VERSION if key == "campaign_map"
+				else RunSaveSections.FLOW_VERSION
 		)
 		if not _is_filled(file.sections.get(key), shared_version):
 			return false

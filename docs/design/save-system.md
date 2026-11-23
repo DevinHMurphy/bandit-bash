@@ -309,7 +309,7 @@ uses them is in the [campaign layer guide](campaign-run.md).
 | Key | Per player | Version | Holds |
 |-----|------------|---------|-------|
 | `campaign_map` | No | 2 | The map, the route taken and the co-op route votes |
-| `run_flow` | No | 1 | The stage within a node, the Unknown odds and outcome, the maps used, the shared shop stock |
+| `run_flow` | No | 2 | The stage within a node, the Unknown odds and outcome, the maps used, the shared shop stock, the accepted co-op unit swaps |
 | `roster` | Yes | 1 | The army, the fallen, the convoy and every item the seat holds |
 | `heirlooms` | Yes | 2 | Owned heirlooms and curses with their campaign lanes, and the seat's value changes |
 | `runes` | Yes | 1 | The 3 rune slots |
@@ -351,6 +351,13 @@ Their keys are listed below.
     `recruit` (`{unit, items}` as `roster` writes them, at level 1: the buyer's level is applied
     on purchase) or, for a `"rune"`, `definition_id` and `instance_id`; and `rerolls`, each seat's
     prefix re-rolls this visit (`{free, paid}`), by seat.
+- `swaps`: the co-op unit swaps accepted for the next combat the team fights (`UnitSwap`), in the
+  order accepted, each `{seat_a, unit_a, seat_b, unit_b}`: seat A proposed, its `unit_a` starts
+  that combat on seat B's map and seat B's `unit_b` on seat A's. They stay through non-combat
+  nodes and during the battle (a resume rebuilds the same request), and end when the combat ends,
+  a named unit leaves its army, or either seat withdraws. Empty in solo. Open proposals are never
+  saved: a quit loses them (coop-unit-swaps.md, decision 7). A run saved before the key existed
+  has none.
 
 **`roster`** (`SeatRun.capture_roster()`):
 
@@ -427,14 +434,17 @@ shop or an offer key changes no version, and an optional key read as missing cha
   "—"). `heirlooms` is at 2: version 2 added `value_changes`. Its migration from 1 changes
   nothing, since a section without them reads as a seat with none. `campaign_map` is at 2:
   version 2 added `votes`. Its migration from 1 changes nothing, since a map without them reads
-  as one with no votes. The other three are at 1.
+  as one with no votes. `run_flow` is at 2: version 2 added `swaps`. Its migration from 1 changes
+  nothing, since a flow without them reads as one with no swaps. The other two are at 1.
 - **Validated:** a route that skips a floor or leaves the graph's edges, a stage inside a node
   before any node, an unknown stage, Unknown odds that aren't whole numbers, an Unknown outcome
   that isn't one of the five, an item in two places or in none, a commander outside the army, a
   repeated unit or rune, out-of-range gold or offset, and a value change whose key isn't a campaign
-  value, whose amount isn't a number, or whose `source_id` or `label` isn't a string each refuse
+  value, whose amount isn't a number, or whose `source_id` or `label` isn't a string, and a swap
+  naming one seat twice, an empty unit or a unit or pair of seats another swap names, each refuse
   the section and stop the load. The shop stock and pending offers are checked by the rules that
-  read them, not on load.
+  read them, not on load; a swap's units are checked against the armies when the battle request
+  is built, which leaves out a swap naming a unit its army doesn't hold, with an error.
 - **Saved when:** every resolved campaign command (`CampaignService.submit_command()`) saves at
   once; a rejected one saves nothing. A failed save is logged and the change stays in memory for
   the next checkpoint to write. A battle's end saves its result applied

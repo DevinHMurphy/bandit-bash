@@ -195,9 +195,10 @@ func add_setup_step(step: CombatEncounter.SetupStep, run: Callable) -> void:
 ## [signal combat_encounter_opened], one session per seat on its [code]COMBAT_ROLLS[/code] stream,
 ## then per map its objects, enemies, darkness phase, reinforcement points, AI and intents, carrier
 ## copies, its darkness ([method DarknessSetup.place], so Short Wick counts), each army's runes
-## ([member Army.rune_slots]) and deployment, and [method CombatSession.open_battle] as
-## [member BattleRequest.opening_swap] says. Returns the encounter; null, with nothing begun, when
-## a battle is on, the run is closed, or setup fails.
+## ([member Army.rune_slots]) and deployment, its visitors loaded as their owners'
+## ([member Army.visitor_seats]), and [method CombatSession.open_battle] as the
+## [member BattleRequest.opening_swap] of each seat with units there says. Returns the encounter;
+## null, with nothing begun, when a battle is on, the run is closed, or setup fails.
 func begin_battle(request: BattleRequest) -> CombatEncounter:
 	if not _can_open_battle(request):
 		return null
@@ -228,14 +229,19 @@ func begin_battle(request: BattleRequest) -> CombatEncounter:
 				session.engine.register(instance)
 			units.append(loaded.state)
 			bases[loaded.state.id] = loaded.bases
-			if commander_id.is_empty() and catalog.commander(loaded.state.unit_type) != null:
+			if (
+					commander_id.is_empty()
+					and not army.visitor_seats.has(loaded.state.id)
+					and catalog.commander(loaded.state.unit_type) != null
+			):
 				commander_id = loaded.state.id
 		_give_runes(session, catalog, seat, army.rune_slots)
 		session.deploy(units, bases, commander_id)
 		session.flush("deployment")
 	for session: CombatSession in battle.get_sessions():
 		var swap_seats: PackedInt32Array = []
-		for seat: int in session.seats:
+		# Every seat with units here, a visitor's owner too, opens its window by its own setting.
+		for seat: int in PhaseRunner.seats_with_units(session):
 			# TODO(TOD-003): co-op seats' settings don't reach the host yet (P11); no entry means on,
 			# the setting's default (SettingsData.DEFAULT_OPENING_SWAP).
 			if request.opening_swap.get(seat, true):
@@ -655,7 +661,8 @@ func _relink_battle(
 			if holder == null:
 				continue
 			var loaded: Loadout.LoadedUnit = Loadout.load_unit(
-					catalog, unit, army.item_instances, CombatFact.CombatSide.PLAYER, seat, scratch
+					catalog, unit, army.item_instances, CombatFact.CombatSide.PLAYER,
+					army.owner_of(unit.instance_id, seat), scratch
 			)
 			if not loaded.is_loaded():
 				continue
@@ -796,13 +803,15 @@ func _register_carriers(battle: CombatEncounter, request: BattleRequest) -> void
 		_battle_copies[instance_id] = copy
 
 
-# Loads each of the army's unit instances (Loadout.load_unit), reporting what was wrong with their
-# data. Returns the units that loaded, in roster order; they are kept for write_back().
+# Loads each of the army's unit instances (Loadout.load_unit) as its owner's (Army.owner_of; seat
+# for the army's own), reporting what was wrong with their data. Returns the units that loaded,
+# in roster order; they are kept for write_back().
 func _load_army(catalog: EffectCatalog.Index, army: Army, seat: int) -> Array[Loadout.LoadedUnit]:
 	var units: Array[Loadout.LoadedUnit] = []
 	for unit: UnitInstance in army.unit_instances:
 		var loaded: Loadout.LoadedUnit = Loadout.load_unit(
-				catalog, unit, army.item_instances, CombatFact.CombatSide.PLAYER, seat, ids
+				catalog, unit, army.item_instances, CombatFact.CombatSide.PLAYER,
+				army.owner_of(unit.instance_id, seat), ids
 		)
 		for problem: String in loaded.problems:
 			push_error("CampaignSession: %s" % [problem])
@@ -908,11 +917,15 @@ func _collect_unit(result: BattleResult, session: CombatSession, unit_id: String
 
 
 # The seat's map at its end, after its units are collected: won or not, the turn, par and turns
-# early, objective and combat type, units lost, and the seat's reward values.
+# early, objective and combat type, units lost, whether units sent from another map landed there
+# (CombatEncounter.senders_of), and the seat's reward values.
 func _collect_seat(result: BattleResult, map: CombatSession, seat: int) -> SeatOutcome:
 	var outcome: SeatOutcome = SeatOutcome.new()
 	outcome.seat = seat
 	outcome.is_won = map.is_finished and map.is_won
+	outcome.has_received_units = (
+			encounter != null and not encounter.senders_of(map.session_id).is_empty()
+	)
 	outcome.turn = map.state.turn
 	if map.setup != null and map.setup.map != null:
 		var definition: CombatMapDefinition = map.setup.map
@@ -1027,9 +1040,9 @@ class BattleRequest:
 	## The content the loadout reads. [b]Null:[/b] the loaded catalog
 	## ([method EffectCatalog.index]); tests pass a fixture tree.
 	var catalog: EffectCatalog.Index = null
-	## Each seat's opening-swap setting, by seat (the setting itself is P07's): on, its map opens in
-	## the swap window before turn 1 and waits for its Start command; off, turn 1 starts at once. A
-	## seat with no entry has it on.
+	## Each seat's opening-swap setting, by seat (the setting itself is P07's): on, every map it has
+	## units on (a swap's visitor included) opens in the swap window and waits for its Start; when
+	## no seat there has it on, turn 1 starts at once. A seat with no entry has it on.
 	var opening_swap: Dictionary[int, bool] = {}
 
 
@@ -1061,6 +1074,14 @@ class Army:
 	## [member CombatState.rune_slots] with its effects, and the battle's end reports those left
 	## ([member BattleResult.runes]). [b]Empty:[/b] none.
 	var rune_slots: Array[SeatRun.RuneSlot] = []
+	## Units of [member unit_instances] that belong to another seat, by instance id: their owner.
+	## Each is loaded as its owner's and deploys on this army's map, where its owner controls it
+	## (a co-op swap's visitor, [UnitSwap]). [b]Empty:[/b] every unit is this army's seat's.
+	var visitor_seats: Dictionary[String, int] = {}
+
+	## The seat that owns [param unit_id] in this army, [param army_seat] for its own units.
+	func owner_of(unit_id: String, army_seat: int) -> int:
+		return visitor_seats.get(unit_id, army_seat)
 
 
 ## What a battle leaves for the run to apply ([method CampaignRunState.apply_battle]).
@@ -1120,8 +1141,8 @@ class SeatOutcome:
 	var combat_type: CombatMapDefinition.CombatType = CombatMapDefinition.CombatType.STANDARD
 	## How many of the seat's units fell, its commander included.
 	var units_lost: int = 0
-	## Whether its map received units another player sent; such a map earns no speed bonus. Always
-	## false until co-op sends units (P11).
+	## Whether a unit another seat sent landed on its map ([method CombatEncounter.senders_of]);
+	## such a map earns no speed bonus. A swap's visitor, deployed at Begin, isn't a sent unit.
 	var has_received_units: bool = false
 	## [constant CampaignValue.Key.COMBAT_GOLD] of the seat (Bounty Ledger).[br]
 	## [b]Units:[/b] gold.

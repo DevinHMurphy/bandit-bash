@@ -380,10 +380,10 @@ func _test_save_and_reload() -> void:
 			attached == ERR_DOES_NOT_EXIST
 	), error_string(attached))
 	var expected_versions: String = (
-			"campaign_map 2, run_flow 1; economy 2, heirlooms 2, roster 1, runes 1"
+			"campaign_map 2, run_flow 2; economy 2, heirlooms 2, roster 1, runes 1"
 	)
-	_check("save: every section is at its version in the campaign block, the map, economy and "
-			+ "heirlooms at 2", (
+	_check("save: every section is at its version in the campaign block, the map, flow, economy "
+			+ "and heirlooms at 2", (
 			_versions(saved) == expected_versions
 	), _versions(saved))
 	_check("save: the run reloads identically, part by part", (
