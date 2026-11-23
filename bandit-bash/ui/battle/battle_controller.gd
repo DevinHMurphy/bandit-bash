@@ -79,16 +79,19 @@ extends HintSource
 #                              RT [R2] (hold)    board plays its waits and animations, WALK's walk
 #                                                included, BattleView.fast_forward_speed times
 #                                                faster, in order; released, normal speed. The
-#                                                trigger counts as held past halfway. Co-op: on
-#                                                a map other players have units on, fast only
-#                                                while each of them holds too (their NetRelay
-#                                                FAST_FORWARD notices); a player unit's defeat
-#                                                or an attack with the Boss lets the hold go
-#                                                until it is pressed again)
+#                                                trigger counts as held past halfway. A key
+#                                                moment (a player unit's defeat, an attack with
+#                                                the Boss) lets the hold go until it is pressed
+#                                                again, solo and co-op. Co-op: on a map other
+#                                                players have units on, fast only while each of
+#                                                them holds too (their NetRelay FAST_FORWARD
+#                                                notices))
 #   "skip_playback"         -> X; LT [L2]     (any stage, while playback runs: the board skips it
-#                                                behind a fade to black, BattleView.skip_playback.
-#                                                Harmless with nothing playing or during a skip,
-#                                                so a trigger's stream of motion events is too)
+#                                                behind a fade to black, BattleView.skip_playback,
+#                                                stopping before a key moment, which then plays
+#                                                at normal speed. Harmless with nothing playing
+#                                                or during a skip, so a trigger's stream of
+#                                                motion events is too)
 #   "toggle_danger_zone"    -> R; View        (any stage, even during playback, while a session is
 #                              [Create]          bound and still fought: shows or hides the danger
 #                                                zone. It changes no state, so it isn't held back)
@@ -865,7 +868,8 @@ func _process(delta: float) -> void:
 
 
 ## Takes turn input for [param seat] on [param session], a map of [param encounter], and shows the
-## widgets. Binding again replaces the map.
+## widgets; its playback's [member FactPlayback.pause_hook] marks the key moments, so a skip stops
+## before them until [method unbind]. Binding again replaces the map.
 func bind(encounter: CombatEncounter, session: CombatSession, seat: int) -> void:
 	unbind()
 	if view == null or panel_host == null:
@@ -882,6 +886,7 @@ func bind(encounter: CombatEncounter, session: CombatSession, seat: int) -> void
 	_session.intents_changed.connect(_on_session_intents_changed)
 	_session.bus.flow.phase_started.connect(_on_flow_phase_started)
 	_session.bus.fact_played.connect(_on_bus_fact_played)
+	_session.playback.pause_hook = _stops_fast_forward
 	view.settled.connect(_on_view_settled)
 	view.staged_walk_finished.connect(_on_view_staged_walk_finished)
 	view.darkness_phase_started.connect(_on_view_darkness_phase_started)
@@ -921,6 +926,8 @@ func unbind() -> void:
 		_session.bus.flow.phase_started.disconnect(_on_flow_phase_started)
 	if _session.bus.fact_played.is_connected(_on_bus_fact_played):
 		_session.bus.fact_played.disconnect(_on_bus_fact_played)
+	if _session.playback.pause_hook == _stops_fast_forward:
+		_session.playback.pause_hook = Callable()
 	# Let go while the map is still known, so teammates hear the release for it.
 	if _is_forward_held:
 		_is_forward_held = false
@@ -2403,10 +2410,14 @@ func _send_fast_forward() -> void:
 	relay.call(&"send_notice", _forward_kind, [_session.session_id, _is_forward_held])
 
 
-# Whether fast-forward stops for fact, a key moment: a player unit defeated, or an attack the
-# Boss makes or takes (a unit Objectives.marked_ids() lists on a Defeat the Boss map). Every
-# attack of a Boss exchange matches; the first lets the hold go.
+# Whether fact is a key moment (game-vision.md, fast-forward): a player unit defeated, or an
+# attack the Boss makes or takes (a unit Objectives.marked_ids() lists on a Defeat the Boss map).
+# The one rule for both stops: the bound playback's pause_hook (a skip stops before it) and the
+# held key (_on_bus_fact_played lets go once it plays). Every attack of a Boss exchange matches;
+# the first stops either, so a re-press or a second skip mid-exchange stops at the next.
 func _stops_fast_forward(fact: CombatFact) -> bool:
+	if _session == null:
+		return false
 	match fact.kind:
 		CombatFact.Kind.DEFEATED:
 			return _session.state.side_of(fact.actor_id) == PLAYER
@@ -2909,10 +2920,11 @@ func _on_event_log_scroll_range_changed() -> void:
 	live_actions_changed.emit()
 
 
-# Co-op, while this player holds fast-forward: a key moment lets the hold go, so it plays at
-# normal speed; any other fact may change who has units here. Solo keeps the hold as it is.
+# While this player holds fast-forward, solo and co-op: a key moment lets the hold go, so it
+# plays at normal speed until the key is pressed again; in co-op any other fact may change who
+# has units here.
 func _on_bus_fact_played(fact: CombatFact) -> void:
-	if not _is_forward_held or _session.setup.seats.size() <= 1:
+	if not _is_forward_held:
 		return
 	if _stops_fast_forward(fact):
 		_hold_fast_forward(false)

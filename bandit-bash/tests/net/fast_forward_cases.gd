@@ -17,7 +17,8 @@ extends "res://tests/net/net_case_base.gd"
 ## while both seats hold there (a hold on another map doesn't count, a drop lets it go); seat 1
 ## alone on map 1 decides alone, as does a viewer with no units on a map; a player unit's defeat
 ## and an attack with the Boss let this player's hold go and leave the teammate's; other facts
-## don't. Solo: the hold works as before, and nothing stops it.
+## don't. Solo: the hold speeds the board, the same key moments let it go, a press is fast again,
+## and release slows it.
 
 # The suite that runs this file; tests/case_files.gd finds it by this line.
 const SUITE: String = "net"
@@ -227,21 +228,30 @@ func _test_solo() -> void:
 	var board: Board = _board(run, battle, battle.get_session(0), 0)
 	var bosses: PackedStringArray = Objectives.marked_ids(board.session)
 	var own_ids: PackedStringArray = board.session.state.units_of(PLAYER)
+	if bosses.is_empty() or own_ids.is_empty():
+		_check("fast-forward solo: the keep has a Boss and player units", false)
+		_free(board)
+		return
 	_hold(board, true)
 	var held: bool = board.view.is_fast_forward()
-	if not bosses.is_empty() and not own_ids.is_empty():
-		board.controller._on_bus_fact_played(
-				CombatFact.new(CombatFact.Kind.DEFEATED, own_ids[0], bosses[0])
-		)
-		board.controller._on_bus_fact_played(
-				CombatFact.new(CombatFact.Kind.ATTACK_MADE, bosses[0], own_ids[0])
-		)
-	var after_stops: bool = board.view.is_fast_forward()
+	var stopped: PackedStringArray = []
+	for fact: CombatFact in [
+		CombatFact.new(CombatFact.Kind.DEFEATED, own_ids[0], bosses[0]),
+		CombatFact.new(CombatFact.Kind.ATTACK_MADE, bosses[0], own_ids[0]),
+	]:
+		_hold(board, false)
+		_hold(board, true)
+		var was_fast: bool = board.view.is_fast_forward()
+		board.controller._on_bus_fact_played(fact)
+		if was_fast and not board.view.is_fast_forward():
+			stopped.append(str(CombatFact.Kind.find_key(fact.kind)))
 	_hold(board, false)
-	_check("fast-forward solo: the hold speeds the board, nothing stops it, release slows it", (
-			held and after_stops and not board.view.is_fast_forward()
-			and not bosses.is_empty() and not own_ids.is_empty()
-	), "held %s, after the stops %s" % [held, after_stops])
+	_hold(board, true)
+	var again: bool = board.view.is_fast_forward()
+	_hold(board, false)
+	_check("fast-forward solo: the key moments let the hold go, a press is fast again", (
+			held and stopped.size() == 2 and again and not board.view.is_fast_forward()
+	), "held %s, stopped by %s, fast again %s" % [held, stopped, again])
 	_free(board)
 
 
