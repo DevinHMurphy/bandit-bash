@@ -96,22 +96,30 @@ unique_name_in_owner = true
 layout_mode = 2
 autowrap_mode = 3
 
-[node name="RouteVoteStatus" parent="Layout/Column/Body/Side" instance=ExtResource("12_votes")]
-unique_name_in_owner = true
-visible = false
-layout_mode = 2
-
-[node name="SwapStatus" parent="Layout/Column/Body/Side" instance=ExtResource("13_swaps")]
-unique_name_in_owner = true
-visible = false
-layout_mode = 2
-
 [node name="ArmyButton" type="Button" parent="Layout/Column/Body/Side"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 focus_mode = 0
 text = "Army"
+
+[node name="CoopSide" type="VBoxContainer" parent="Layout/Column/Body"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 16
+
+[node name="RouteVoteStatus" parent="Layout/Column/Body/CoopSide" instance=ExtResource("12_votes")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
+[node name="SwapStatus" parent="Layout/Column/Body/CoopSide" instance=ExtResource("13_swaps")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
 
 [node name="ArmyView" parent="." instance=ExtResource("10_army")]
 unique_name_in_owner = true

@@ -99,17 +99,17 @@ static func row_summary(
 	return "No swap with %s." % [name]
 
 
-## The map's side-panel line for [param viewer] and [param partner]; empty when the pair has
-## nothing open or agreed.
+## The map's side-panel line for [param viewer] and [param partner], short enough for one line
+## of the 240-unit column; empty when the pair has nothing open or agreed.
 static func status_line(run: CampaignRunState, viewer: int, partner: int) -> String:
 	var name: String = CampaignLink.seat_name(partner)
 	match status_of(run, viewer, partner):
 		PairStatus.PROPOSED_BY_VIEWER:
-			return "Your swap proposal waits for %s." % [name]
+			return "%s has your proposal." % [name]
 		PairStatus.PROPOSED_TO_VIEWER:
-			return "%s proposes a swap: open Army, then Swaps, to answer." % [name]
+			return "%s proposes a swap." % [name]
 		PairStatus.ACCEPTED:
-			return "Swap with %s for the next combat." % [name]
+			return "Swapping with %s." % [name]
 	return ""
 
 

@@ -86,6 +86,7 @@ var _link: CampaignLink = null
 @onready var _swap_panel: SwapPanel = %SwapPanel
 @onready var _vote_status: RouteVoteStatus = %RouteVoteStatus
 @onready var _swap_status: SwapStatus = %SwapStatus
+@onready var _coop_side: VBoxContainer = %CoopSide
 
 
 func _ready() -> void:
@@ -111,6 +112,8 @@ func _ready() -> void:
 	_swap_panel.command_ready.connect(_on_swap_panel_command_ready)
 	_vote_status.continued.connect(_on_vote_status_continued)
 	var run: CampaignRunState = session.run
+	# The vote and swaps have their own column, so the legend's column keeps solo's layout.
+	_coop_side.visible = _link.is_coop()
 	_show_seat()
 	_map_view.show_run(run)
 	_show_coop()
@@ -305,8 +308,11 @@ func _show_draw(drawn: int) -> void:
 	_team_panel.close()
 	_army_view.close()
 	var run: CampaignRunState = _link.session.run
+	# The drawn node was in view while voting; the rebuild would scroll the map back to its top.
+	var kept_scroll: int = _map_scroll.scroll_vertical
 	_map_view.show_run(run, false)
 	_map_view.show_votes(run.route_votes, _link.seat)
+	_map_scroll.set_deferred(&"scroll_vertical", kept_scroll)
 	_vote_status.show_draw(run, _link.seat, drawn)
 	_swap_status.show_swaps(run, _link.seat)
 	_show_seat()
@@ -314,9 +320,6 @@ func _show_draw(drawn: int) -> void:
 	_status_label.text = ""
 	_hints.context = HINT_DRAWN
 	_vote_status.get_continue_button().grab_focus()
-	var drawn_button: MapNodeButton = _map_view.get_node_button(drawn)
-	if drawn_button != null:
-		_map_scroll.ensure_control_visible(drawn_button)
 
 
 func _on_vote_status_continued() -> void:

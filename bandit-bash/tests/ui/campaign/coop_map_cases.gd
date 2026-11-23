@@ -93,7 +93,7 @@ func _test_votes(count: int, local: int) -> void:
 	_check.call("votes (%s): the map asks for a vote, every seat yet to vote" % [tag], (
 			status.visible and none_voted and hints.context == &"VOTE"
 			and screen.call(&"get_info_text") == "Vote for the next node."
-			and status.get_detail().begins_with("0 of %d voted." % [count])
+			and status.get_detail().begins_with("0 of %d voted ·" % [count])
 	), "%s; %s; %s" % [screen.call(&"get_info_text"), lines, hints.context])
 	var reachable: PackedInt32Array = map_view.get_reachable()
 	if reachable.size() < 2:
@@ -134,7 +134,7 @@ func _test_votes(count: int, local: int) -> void:
 		]
 	_check.call("votes (%s): teammates' votes show on their node and by name" % [tag], (
 			_badge_seats(map_view, first) == waiting and lines_match
-			and status.get_detail().begins_with("%d of %d voted." % [count - 1, count])
+			and status.get_detail().begins_with("%d of %d voted ·" % [count - 1, count])
 	), "%s; %s" % [status.get_detail(), shown])
 	_test_team_votes(screen, run, others)
 	_batches.clear()
@@ -286,7 +286,7 @@ func _test_swaps(count: int, local: int) -> void:
 			and row.get_status() == SwapText.PairStatus.PROPOSED_BY_VIEWER
 			and row.get_summary().begins_with("You proposed your ")
 			and swap_status.get_lines() == PackedStringArray([
-				"Your swap proposal waits for %s." % [CampaignLink.seat_name(partner)],
+				"%s has your proposal." % [CampaignLink.seat_name(partner)],
 			])
 	), "%s; %s; %s" % [_batches, row.get_summary(), swap_status.get_lines()])
 	if proposal == null:
@@ -331,7 +331,7 @@ func _test_swaps(count: int, local: int) -> void:
 			and answers[1] == row.get_decline_button()
 			and row.get_summary().begins_with("%s proposes their " % [name])
 			and swap_status.get_lines() == PackedStringArray([
-				"%s proposes a swap: open Army, then Swaps, to answer." % [name],
+				"%s proposes a swap." % [name], SwapStatus.ANSWER_HINT,
 			])
 	), "%s; %s" % [row.get_summary(), swap_status.get_lines()])
 	row.get_accept_button().grab_focus()
@@ -352,7 +352,7 @@ func _test_swaps(count: int, local: int) -> void:
 			and run.flow.swaps.size() == 1
 			and row.get_summary().begins_with("Swapped for the next combat: your ")
 			and swap_status.get_lines() == PackedStringArray([
-				"Swap with %s for the next combat." % [name],
+				"Swapping with %s." % [name],
 			])
 	), "%s; %s" % [_batches, row.get_summary()])
 	_press_key(KEY_ESCAPE)

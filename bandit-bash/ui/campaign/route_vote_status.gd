@@ -70,9 +70,7 @@ func show_vote(run: CampaignRunState, viewer: int) -> void:
 		return
 	var votes: Dictionary[int, int] = run.open_route_votes()
 	_heading_label.text = "Team vote"
-	_detail_label.text = "%d of %d voted. The node is drawn, weighted by votes." % [
-		votes.size(), run.seats.size(),
-	]
+	_detail_label.text = "%d of %d voted · weighted draw" % [votes.size(), run.seats.size()]
 	_show_seats(run, viewer, votes)
 
 
