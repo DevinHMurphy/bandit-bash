@@ -15,14 +15,15 @@ extends VBoxContainer
 ## gave by name, its curse with tier and effect, the team's draw, a surprise combat, and in co-op
 ## who the team still waits on ([method EventScreenModel.summary_lines]). Built from saved state,
 ## so a quit and Continue shows the same summary. The lines are an [EffectText]: keywords
-## coloured, each explained on hover. No focusable control holds it, so key and pad focus show
-## no keyword tooltips here. Reads no input.
+## coloured, each explained on hover; no focusable control holds it, so [EventPanel] shows them
+## all as one column beside it while Leave, Fight or Team holds key or pad focus. Reads no input.
 ##
 ## @tutorial(Events): docs/design/events.md
 
-## The width the summary's lines wrap at.[br]
+## The width the summary's lines wrap at: 608 leaves room for the keyword column beside it in a
+## 1280-wide window.[br]
 ## [b]Units:[/b] base units. [b]0:[/b] as wide as the text, unwrapped.
-@export var line_width: float = 720.0:
+@export var line_width: float = 608.0:
 	set(value):
 		line_width = value
 		if not is_node_ready():

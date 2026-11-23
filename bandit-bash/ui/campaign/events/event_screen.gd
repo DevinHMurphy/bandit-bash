@@ -28,12 +28,14 @@ extends Control
 # lists what it reads):
 #   "ui_left" / "ui_right" -> arrows; d-pad, left stick      (along the option cards)
 #   "ui_up" / "ui_down"    -> arrows; d-pad, left stick      (along a chooser, the unit that
-#                             leaves, or a placement; in co-op, down from the cards or Leave to
-#                             Team, and the team panel's rows)
+#                             leaves, its hand-over's rows, or a placement; in co-op, down from
+#                             the cards or Leave to Team, and the team panel's rows)
 #   "ui_accept"            -> Enter, Space; pad A [Cross]    (choose or vote for the focused card,
-#                             the focused choice, or Leave / Fight / Team)
+#                             the focused choice or place, or Leave / Fight / Team; the hints say
+#                             Team while it has focus)
 #   "ui_cancel"            -> Esc; pad B [Circle], Menu [Options] (Back in a chooser, the unit
-#                             that leaves or the rune discard, read by the panel; in a placement
+#                             that leaves, its hand-over or the rune discard, read by the panel;
+#                             in a placement
 #                             the placement panel reads it; the team panel reads it while open; on
 #                             the cards and the outcome the pause menu reads it; on the heirloom
 #                             bar the bar reads it, closing itself)
@@ -55,10 +57,15 @@ const HINT_CONTEXTS: Dictionary[EventPanel.Step, StringName] = {
 	EventPanel.Step.RUNE: &"CHOOSE",
 	EventPanel.Step.OUTCOME: &"DONE",
 	EventPanel.Step.LEAVING: &"CHOOSE",
+	EventPanel.Step.HAND_OVER: &"HAND_OVER",
 }
 
 ## The outcome's hint context while a surprise combat waits.
 const FIGHT_CONTEXT: StringName = &"FIGHT"
+
+## The hint context while the Team button holds focus, on whatever step shows it: accept opens
+## the team panel, whatever the step's own accept does.
+const TEAM_FOCUS_CONTEXT: StringName = &"ON_TEAM"
 
 ## The outcome's hint context while teammates still choose: Leave is closed, so accept presses
 ## whatever has focus (Team in co-op).
@@ -69,6 +76,7 @@ const NO_EVENT_TITLE: String = "Event"
 
 var _is_leaving: bool = false
 var _step_context: StringName = &"OPTIONS"
+var _is_on_heirlooms: bool = false
 var _seat: int = CampaignData.HOST_SEAT
 var _link: CampaignLink = null
 
@@ -96,6 +104,7 @@ func _ready() -> void:
 	_panel.leave_requested.connect(_on_panel_leave_requested)
 	_panel.team_requested.connect(_on_panel_team_requested)
 	_team_panel.closed.connect(_on_team_panel_closed)
+	get_viewport().gui_focus_changed.connect(_on_viewport_gui_focus_changed)
 	_panel.offers_team = _link.is_coop()
 	_panel.open(session, _seat)
 	_show_run()
@@ -226,16 +235,33 @@ func _on_panel_step_changed(step: EventPanel.Step) -> void:
 	elif step == EventPanel.Step.OUTCOME and view.is_combat_pending:
 		_step_context = FIGHT_CONTEXT
 	if not _team_panel.visible:
-		_hints.context = _step_context
+		_show_hints()
+
+
+# The step's hints, or Team's while it holds focus; the team panel and the heirloom bar keep
+# their own while open.
+func _show_hints() -> void:
+	if _is_on_heirlooms:
+		return
+	var team_button: Button = _panel.get_team_button()
+	var is_on_team: bool = team_button.is_visible_in_tree() and team_button.has_focus()
+	_hints.context = TEAM_FOCUS_CONTEXT if is_on_team else _step_context
 
 
 func _on_team_panel_closed() -> void:
-	_hints.context = _step_context
+	_show_hints()
 
 
 func _on_heirloom_bar_navigation_started() -> void:
+	_is_on_heirlooms = true
 	_hints.context = HeirloomBar.HINT_CONTEXT
 
 
 func _on_heirloom_bar_navigation_ended() -> void:
-	_hints.context = _step_context
+	_is_on_heirlooms = false
+	_show_hints()
+
+
+func _on_viewport_gui_focus_changed(_control: Control) -> void:
+	if not _is_leaving and not _team_panel.visible:
+		_show_hints()

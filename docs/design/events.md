@@ -118,7 +118,7 @@ is drawn like any other event (no special odds).
 - *Offer a Prayer:* one fallen unit returns at critical health (10% of max HP, at least 1).
   *(Requires a fallen unit.)* Eligibility keeps the shrine from showing without one, so this never
   greys out in play. The revived unit keeps the items it still holds. Into a full army it works
-  like recruiting past the max: the player names a unit that leaves.
+  like recruiting past the max: the player names a unit that leaves and hands over its items.
 - *Claim the Relic:* gain a rare heirloom.
 
 **Bandit Toll** (`bandit_toll`) *(team choice)*: brigands block the road. Built on `Godot_FE`'s
@@ -141,9 +141,9 @@ scripted bandit outcomes (bribe, fight, intimidate). In solo, "each player" is j
 - *Sign a Company Charter:* +1 max army size and a **major** curse (named before choosing).
   *(Requires max army size below the ceiling of 8.)*
 
-Both recruits are any recruitable unit type, drawn evenly as the option applies, so the player
-doesn't see the recruit before choosing. Into a full army, each asks which unit leaves; a new
-Mercenary army starts full (4 of 4).
+Both recruits are any recruitable unit type, drawn evenly when the event opens with their
+prefixes, so the player sees the recruit on the card before choosing. Into a full army, each asks
+which unit leaves and where its items go; a new Mercenary army starts full (4 of 4).
 
 **The Black Altar** (`black_altar`): a pact offered in the dark. The one event with a severe curse.
 The id drops the leading "The"; the title keeps it.
@@ -167,9 +167,9 @@ The id drops the leading "The"; the title keeps it.
 - **Max HP:** a gain raises current HP by as much. A loss lowers current HP only where it is above
   the new max, and never takes max HP below 1.
 - **Rolled before shown:** when an event opens, each option's random parts are drawn and saved:
-  items, runes, heirlooms and tier curses. The player sees the exact result before choosing, and a
-  quit and resume shows the same event. A prefix re-roll and a random recruit are drawn as the
-  option applies instead.
+  items, runes, heirlooms, tier curses and then each recruit's type and prefix. The player sees the
+  exact result before choosing, and a quit and resume shows the same event. A prefix re-roll is
+  drawn as the option applies instead, as is a recruit in a run saved before recruits were rolled.
 - **Random items:** a rare weapon or tome is from a type the army can use 75% of the time, as in a
   combat's Weapon pick ([campaign and run flow plan](../plans/2026-10-24-campaign-run-flow.md)). A
   trinket rolls its rarity on a Standard combat's odds, without the rare offset. A rune is drawn
@@ -182,8 +182,11 @@ The id drops the leading "The"; the title keeps it.
 - **Recruits** from events follow the normal recruiting rules: they join at the army's average
   level, and past max army size they replace a unit ([unit-roster.md](unit-roster.md#recruiting-and-item-transfer)).
   The level is the average before any unit leaves. The player names the unit that leaves after the
-  chooser, before placing items. The commander can't leave, nor a unit whose items the convoy
-  can't take. If no unit can leave, all show greyed and the option stays on offer.
+  chooser, then hands over its items as at the Guildhall (each onto the unit joining if it can use
+  it, into the convoy, or scrapped), before placing items. The hand-over opens with everything to
+  the convoy; an item put on the unit joining sends what it held in that slot to the convoy, which
+  needs the room. The commander can't leave; a full convoy greys no unit, since its items can be
+  scrapped.
 - **Upgrades** follow Train's rules. An upgrade of every unit skips the commander and units already
   upgraded, and is refused only when none can upgrade.
 - **Max army size:** a gain adds only the part that fits below the ceiling of 8.

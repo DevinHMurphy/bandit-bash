@@ -6,7 +6,7 @@
 # File:     455_event_replace.gd
 # Author:
 # Created:  November 20, 2026
-# Modified: November 20, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends "res://tools/captures/capture_group.gd"
@@ -14,9 +14,9 @@ extends "res://tools/captures/capture_group.gd"
 ## of Doubt opens at the run's next node made an Unknown one, as 450_event_screen opens its
 ## events; the shots are runs built in memory, shown on the same screen (its header stays the
 ## solo run's), so the throwaway run's roster is untouched: the Mercenary Camp's free volunteer
-## into a full army, the commander and a unit whose items the convoy can't take greyed; the Broken
-## Shrine of Valor's fallen chooser in a full army, ungreyed; then its leaving step. The mirror's
-## Walk Away and Leave return to the map for the next group.[br]
+## into a full army, the commander greyed and a unit whose items overflow the convoy open (its
+## hand-over can scrap); the Broken Shrine of Valor's fallen chooser in a full army, ungreyed; then
+## its leaving step. The mirror's Walk Away and Leave return to the map for the next group.[br]
 ## Needs: the map left by the event shots' Leave (450_event_screen).
 
 # SceneRouter.Screen.EVENT (the script can't name the autoload; see the base).

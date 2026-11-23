@@ -6,7 +6,7 @@
 # File:     hand_over_row.gd
 # Author:
 # Created:  November 20, 2026
-# Modified: November 20, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name HandOverRow
@@ -29,6 +29,11 @@ signal place_chosen(item_id: String, place: int)
 ## Each place button's least width.[br]
 ## [b]Units:[/b] base units. [b]0:[/b] as wide as its text.
 @export_range(0.0, 200.0, 1.0) var button_width: float = 96.0
+
+## The text on a place's button, by [enum Guildhall.HandOver], as the next [method show_item]
+## shows it, such as "Revived" for the unit an event brings back. [b]Missing:[/b] the Guildhall's
+## ([constant GuildhallModel.PLACE_NAMES]).
+@export var place_names: Dictionary[int, String] = {}
 
 ## The item this row places, by [method show_item]; empty before it.
 var item_id: String = ""
@@ -60,7 +65,7 @@ func show_item(
 	_buttons.clear()
 	for each: int in Guildhall.HandOver.values():
 		var button: Button = Button.new()
-		button.text = GuildhallModel.PLACE_NAMES.get(each, str(each))
+		button.text = place_names.get(each, GuildhallModel.PLACE_NAMES.get(each, str(each)))
 		button.custom_minimum_size.x = button_width
 		button.toggle_mode = true
 		button.button_pressed = each == chosen

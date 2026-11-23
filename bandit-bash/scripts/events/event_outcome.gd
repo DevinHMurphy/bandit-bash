@@ -6,7 +6,7 @@
 # File:     event_outcome.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 20, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name EventOutcome
@@ -88,6 +88,13 @@ func apply(_ctx: EventContext, _index: int) -> void:
 	pass
 
 
+## The unit this block, at [param index], brings into [param ctx]'s army as it would join now, with
+## its own items, for a full army's hand-over ([EventHandOver]); a recruit's ids are throwaway,
+## never the run's. Null for a block that brings none, or one not known until it applies.
+func joining(_ctx: EventContext, _index: int) -> RecruitOffer:
+	return null
+
+
 ## The units [param target] names in [param ctx]'s seat, in roster order. Empty when a chosen or
 ## commander target is missing; [method target_problem] says why.
 static func targets(ctx: EventContext, target: Target) -> Array[UnitInstance]:
@@ -123,29 +130,42 @@ static func target_problem(ctx: EventContext, target: Target) -> String:
 	return ""
 
 
-## Why one more unit can't join [param ctx]'s army now (a recruit, a revived unit). With room, no
-## unit may be named to dismiss ([member EventChoice.replaced_id]); in a full army one must be,
-## and it must be able to leave ([method RunOperations.dismiss_problem]). Empty when it can join.
-static func join_problem(ctx: EventContext) -> String:
+## Why one more unit, [param newcomer] ([method joining]; null while unknown), can't join
+## [param ctx]'s army now. With room, no unit may be named to dismiss
+## ([member EventChoice.replaced_id]) or hand over; in a full army one must be, able to leave: with
+## no hand-over as [method RunOperations.dismiss_problem] says, else as
+## [method EventHandOver.problem] settles its items. Empty when it can join.
+static func join_problem(ctx: EventContext, newcomer: RecruitOffer = null) -> String:
 	var seat_run: SeatRun = ctx.seat_run()
 	var limit: int = RunOperations.max_army_size(seat_run, ctx.catalog)
 	var replaced_id: String = ctx.choice.replaced_id
 	if seat_run.army.size() < limit:
-		if replaced_id.is_empty():
-			return ""
-		# With room, naming a unit to dismiss is refused rather than ignored.
-		return "the army has room (%d of %d), so no unit is dismissed" % [
-			seat_run.army.size(), limit,
-		]
+		if not replaced_id.is_empty():
+			# With room, naming a unit to dismiss is refused rather than ignored.
+			return "the army has room (%d of %d), so no unit is dismissed" % [
+				seat_run.army.size(), limit,
+			]
+		if not ctx.choice.hand_over.is_empty():
+			return "no unit is dismissed, so nothing is handed over"
+		return ""
 	if replaced_id.is_empty():
 		return "the army is full (%d of %d): choose a unit to dismiss" % [
 			seat_run.army.size(), limit,
 		]
-	return RunOperations.dismiss_problem(ctx.run, ctx.seat, replaced_id, ctx.catalog)
+	if ctx.choice.hand_over.is_empty():
+		return RunOperations.dismiss_problem(ctx.run, ctx.seat, replaced_id, ctx.catalog)
+	var problem: String = EventHandOver.leave_problem(ctx.run, ctx.seat, replaced_id)
+	if not problem.is_empty():
+		return problem
+	return EventHandOver.problem(
+			seat_run, living_unit(seat_run, replaced_id), newcomer, ctx.choice.hand_over,
+			ctx.catalog
+	)
 
 
 ## Dismisses the unit [param ctx]'s player named to make room ([method join_problem]) for
-## [param joining_id], by the event, its items to the convoy; nothing when none was named.
+## [param joining_id], by the event, the items it still holds to the convoy (after
+## [method EventHandOver.set_aside]); nothing when none was named.
 static func make_room(ctx: EventContext, joining_id: String) -> void:
 	if ctx.choice.replaced_id.is_empty():
 		return
