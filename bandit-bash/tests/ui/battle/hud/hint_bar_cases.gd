@@ -6,7 +6,7 @@
 # File:     hint_bar_cases.gd
 # Author:
 # Created:  November 6, 2026
-# Modified: November 19, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -14,11 +14,10 @@ extends RefCounted
 ## 24, 25, 31 and 32; UI11's unit detail): the [ControlHintBar] against
 ## [constant BattleController.LIVE_ACTIONS]; its layout from its exports, clear of the HUD's map
 ## area at the 1280×720 base size; a rebound key changing its label; two M1 battles walked by
-## input through every hint context a solo battle (unit detail's DETAIL included)
-## reaches, by the actions' keys, then again by their joypad bindings with the bar drawing the Xbox
-## family, with a third walking the rune bar (RUNE_SLOTS, DISCARD_CONFIRM), the rune menu (RUNE)
-## and Recall's second pick
-## (PAIR_TARGET); and the hints left out while they can do nothing (one target, one weapon). Each
+## input through every hint context a solo battle (unit detail's DETAIL and the pause menu's
+## board key, BOARD_KEY, included) reaches, by the actions' keys, then again by their joypad
+## bindings with the bar drawing the Xbox family, with a third walking the rune bar (RUNE_SLOTS,
+## DISCARD_CONFIRM), the rune menu (RUNE) and Recall's second pick (PAIR_TARGET); and the hints left out while they can do nothing (one target, one weapon). Each
 ## rig has an [EventLog] long enough to scroll, so its scroll actions act wherever it shows, and
 ## the turn walk focuses it (EVENT_LOG), and a [HeirloomBar] with two of the army's heirlooms, which
 ## the turn walk focuses too (HEIRLOOM_BAR).[br]
@@ -89,6 +88,9 @@ const FOCUS_MOVES: Array[StringName] = [
 const PAUSE_MENU_SCENE: String = "res://ui/common/pause_menu.tscn"
 const SAVE_DEBUG_SCENE: String = "res://ui/debug/save_debug_panel.tscn"
 
+# The battle screen's board key, set on the pause menu as gameplay.tscn sets it.
+const BOARD_KEY_SCENE: PackedScene = preload("res://ui/battle/key/board_key.tscn")
+
 # Any fixed seed; the other UI cases use the same one.
 const SEED: int = 0x0C0FFEE
 
@@ -124,7 +126,7 @@ const TOGGLES: Array[StringName] = [
 const KEYBOARD_ONLY: Array[StringName] = [&"toggle_save_debug"]
 
 # The contexts besides the stages' names (BattleController's state block).
-const EXTRA_CONTEXTS: Array[StringName] = [&"FORECAST", &"PLAYBACK", &"PAUSED"]
+const EXTRA_CONTEXTS: Array[StringName] = [&"FORECAST", &"PLAYBACK", &"PAUSED", &"BOARD_KEY"]
 
 const STOWED_ID: String = "test:stowed_sword"
 
@@ -519,6 +521,14 @@ func _test_turn() -> void:
 	_expect_acts(rig, &"ui_cancel", &"PAUSED")
 	_expect_context(rig, &"PAUSED")
 	_expect_acts(rig, &"ui_accept", &"IDLE")
+	_expect_acts(rig, &"ui_cancel", &"PAUSED")
+	# The board key: Board Key opens it; Back (accept) and Esc / B each go back to the menu.
+	(rig.pause.get_node(^"%BoardKeyButton") as Button).grab_focus()
+	_expect_acts(rig, &"ui_accept", &"BOARD_KEY")
+	_expect_context(rig, &"BOARD_KEY")
+	_expect_acts(rig, &"ui_accept", &"PAUSED")
+	(rig.pause.get_node(^"%BoardKeyButton") as Button).grab_focus()
+	_expect_acts(rig, &"ui_accept", &"BOARD_KEY")
 	_expect_acts(rig, &"ui_cancel", &"PAUSED")
 	_expect_acts(rig, &"ui_cancel", &"IDLE")
 	_expect_acts(rig, &"end_turn", &"END_CONFIRM")
@@ -1122,6 +1132,7 @@ func _rig() -> Rig:
 	h.hud.add_child(rig.debug)
 	rig.debug.visible = false
 	rig.pause = (load(PAUSE_MENU_SCENE) as PackedScene).instantiate()
+	rig.pause.set(&"board_key_scene", BOARD_KEY_SCENE)
 	_root.add_child(rig.pause)
 	h.view.bind(h.session)
 	rig.log.bind(h.session)

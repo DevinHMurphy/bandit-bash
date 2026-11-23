@@ -1,4 +1,4 @@
-[gd_scene load_steps=25 format=3]
+[gd_scene load_steps=26 format=3]
 
 [ext_resource type="Script" path="res://ui/common/nav_button.gd" id="1_nav"]
 [ext_resource type="PackedScene" path="res://ui/debug/save_debug_panel.tscn" id="2_save_debug"]
@@ -24,6 +24,7 @@
 [ext_resource type="PackedScene" path="res://ui/battle/unit/unit_detail_panel.tscn" id="23_unit_detail"]
 [ext_resource type="PackedScene" path="res://ui/battle/menus/rune_menu.tscn" id="24_rune_menu"]
 [ext_resource type="PackedScene" path="res://ui/battle/hud/rune_bar.tscn" id="25_rune_bar"]
+[ext_resource type="PackedScene" path="res://ui/battle/key/board_key.tscn" id="26_board_key"]
 
 [node name="Gameplay" type="Node2D"]
 script = ExtResource("5_screen")
@@ -144,3 +145,4 @@ heirloom_bar = NodePath("../Hud/BattleHud/HeirloomBar")
 unique_name_in_owner = true
 
 [node name="PauseMenu" parent="." instance=ExtResource("3_pause_menu")]
+board_key_scene = ExtResource("26_board_key")
