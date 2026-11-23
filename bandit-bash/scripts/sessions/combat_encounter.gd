@@ -6,7 +6,7 @@
 # File:     combat_encounter.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name CombatEncounter
@@ -20,7 +20,8 @@ extends RefCounted
 ## [b]Across maps:[/b] cross-map effects ([method add_cross_map]), whose counter and activation
 ## facts are mirrored into [member fact_log]; commands stamped by one clock ([method submit]),
 ## the co-op sends and calls for aid resolved here ([SendUnitsCommand], [CallForAidCommand]);
-## units on their way, landing by the battle clock or going back when their target ends first.
+## units on their way, landing by the battle clock with their timed modifiers and their owner's
+## Your Unit effects ([method add_owner_effects]), or going back when they can't.
 ## In co-op an empty map freezes ([method is_frozen]) until help lands, and [method is_run_lost]
 ## says when none can.[br]
 ## [b]Snapshots[/b] ([method snapshot], [method load_snapshot]) hold the encounter's own state and
@@ -224,7 +225,8 @@ func run_setup(pool: Array[CombatMapDefinition], streams: SetupStreams) -> Error
 ## emits [signal session_opened] for each. Session ids follow [member seats]: the lowest seat's map
 ## is session 0. Each session's map state starts as a copy of its seat's
 ## [member SeatSetup.map], container contents included, and it gets the encounter's arrivals
-## ([method deliver_arrivals]) and the objective checks ([method Objectives.register]) as hooks.
+## ([method deliver_arrivals], and the timed modifiers they bring through
+## [member EffectEngine.carried_modifiers]) and the objective checks ([method Objectives.register]).
 ## Call once, after [method run_setup].
 ## Returns false, opening nothing, before setup, when already open, or when a seat has no stream.
 func open_sessions(combat_rolls: Dictionary[int, RngStream]) -> bool:
@@ -251,6 +253,7 @@ func open_sessions(combat_rolls: Dictionary[int, RngStream]) -> bool:
 		session.state.map = setup.seats[seat].map.copy()
 		session.fact_recorded.connect(_on_session_fact_recorded)
 		session.hooks.add(CombatHooks.Hook.ARRIVALS, _on_session_arrivals_due)
+		session.engine.carried_modifiers = _carried_to.bind(index)
 		Objectives.register(session)
 		_sessions.append(session)
 		_session_of_seat[seat] = index
@@ -302,6 +305,15 @@ func add_cross_map(instance: EffectInstance) -> bool:
 	for session: CombatSession in _sessions:
 		session.engine.register(instance, true)
 	return true
+
+
+## Registers on the map [param session_id] the effects of [param seat]'s army that follow its
+## units onto a partner's map: the same instances its own map holds, so a heirloom keeps one
+## counter and one set of charges, and acting only on that seat's units there. For a swap
+## visitor's owner before that map deploys, so the visitor's Pouch item weight is its army's; a
+## sent unit's owner's are added at the send. Adds nothing on the seat's own map or twice.
+func add_owner_effects(session_id: int, seat: int) -> void:
+	_add_owner_effects(get_session(session_id), seat)
 
 
 ## Every cross-map instance, by instance id.
@@ -356,9 +368,10 @@ func resolve_queued() -> Array[CombatSession.FactBatch]:
 ## Sends [param unit_id], a surviving player unit on the won map [param from_session_id], toward
 ## the map [param to_session_id], still being fought, aimed at [param arrival_tile]
 ## ([constant CombatFact.NO_TILE]: the receiving commander), as [SendUnitsCommand] sends one but
-## without its seat's rules. Its effects leave with their state; the won map keeps the unit's
-## record as it was. A frozen target restarts at once. For tools and tests; play sends through
-## [method submit]. Returns why it can't be sent, or empty when it was.
+## without its seat's rules. Its effects leave with their state, and its owner's that follow it
+## join the target ([method add_owner_effects]); the won map keeps the unit's record and timed
+## modifiers as they were until it lands. A frozen target restarts at once. For tools and tests;
+## play sends through [method submit]. Returns why it can't be sent, or empty when it was.
 func send_unit(
 		unit_id: String, from_session_id: int, to_session_id: int, arrival_tile: Vector2i
 ) -> String:
@@ -389,9 +402,11 @@ func send_unit(
 ## Places every unit on its way to [param session_id] now, the battle clock ignored (the
 ## receiving map's [constant CombatHooks.Hook.ARRIVALS] keeps it): its effects join the map with
 ## their counters and charges, then it is placed with Block 0 and full Stance, recording
-## [constant CombatFact.Kind.UNIT_SPAWNED]. It lands on its aimed tile when that is free and dry,
-## else on [method Pathing.nearest_free_tile]'s, dry first. Returns the ids placed; a unit with no
-## free tile stays on its way.
+## [constant CombatFact.Kind.UNIT_SPAWNED], where its timed modifiers join it with the phases they
+## had left. It lands on its aimed tile when that is free and dry, else on
+## [method Pathing.nearest_free_tile]'s, dry first. Returns the ids placed. A unit with no free
+## tile stays on its way, except to a map with no player unit (frozen), where it goes back to the
+## won map it left ([constant CombatFact.Kind.UNIT_RETURNED]) and can't help that map.
 func deliver_arrivals(session_id: int) -> PackedStringArray:
 	return _deliver(session_id, false)
 
@@ -441,10 +456,11 @@ func is_frozen(session_id: int) -> bool:
 
 
 ## Whether the co-op run is lost: a map is frozen ([method is_frozen]) with no unit on its way to
-## it, and no map can still help: none is still being fought and no won map holds a player unit it
-## could yet send. A map still being fought may win and send, so the run waits for it. A pure
-## query: ask it whenever a map freezes or ends; the encounter ends nothing itself. Always false
-## in solo.
+## it, and no map can still help: no map still being fought or won holds a player unit that could
+## yet be sent there and land. A map still being fought may win and send, so the run waits for it;
+## a frozen map with no free tile a unit could land on can never be helped by it, since a frozen
+## map never changes. A pure query: ask it whenever a map freezes or ends; the encounter ends
+## nothing itself. Always false in solo.
 func is_run_lost() -> bool:
 	if seats.size() <= 1:
 		return false
@@ -452,19 +468,28 @@ func is_run_lost() -> bool:
 	var awaited: Dictionary[int, bool] = {}
 	for transfer: Transfer in _in_transit:
 		awaited[transfer.to_session_id] = true
-	var is_stranded: bool = false
+	var stranded: Array[CombatSession] = []
+	var helpers: Array[CombatSession] = []
 	for session: CombatSession in _sessions:
 		if is_frozen(session.session_id):
 			# ASSUMPTION: a frozen map with a unit on its way resumes when it lands, so it counts as
 			# help for another frozen map too.
 			if awaited.has(session.session_id):
 				return false
-			is_stranded = true
-		elif not session.is_finished:
-			return false
-		elif session.is_won and _has_unit_to_send(session):
-			return false
-	return is_stranded
+			stranded.append(session)
+		elif not session.is_finished or session.is_won:
+			helpers.append(session)
+	if stranded.is_empty():
+		return false
+	# ASSUMPTION: a full frozen map is unreachable at once, before any arrival there is refused and
+	# while a map that could never land there is still fought; nothing is saved for it.
+	for helper: CombatSession in helpers:
+		for unit_id: String in _units_left_on(helper):
+			var movement: CombatGrid.MovementType = helper.state.unit(unit_id).movement_type
+			for frozen: CombatSession in stranded:
+				if _landing_tile(frozen, CombatFact.NO_TILE, movement) != CombatFact.NO_TILE:
+					return false
+	return true
 
 
 ## Whether every map's combat has ended ([member CombatSession.is_finished]): a map's end ends only
@@ -526,7 +551,8 @@ func snapshot(reference: Callable = Callable()) -> Dictionary:
 ## Replaces the battle's state with [param data] from [method snapshot], also after a trip
 ## through JSON: the cross-map instances first, then each map with
 ## [method CombatSession.load_snapshot], the same cross-map objects shared by every map's engine,
-## then the units on their way. Load it into an encounter built the way this battle was (same
+## and so is an army effect several maps hold ([method add_owner_effects]); then the units on
+## their way. Load it into an encounter built the way this battle was (same
 ## node, seats and setup, sessions open). [param resolve]: see
 ## [method EffectInstance.from_capture]. Returns [constant OK], or [constant ERR_INVALID_DATA]
 ## when the data is malformed or for another battle; a map that refused leaves the maps before it
@@ -590,11 +616,12 @@ func load_snapshot(data: Dictionary, resolve: Callable = Callable()) -> Error:
 		var where_number: float = where
 		arrived_on[str(unit_id)] = roundi(where_number)
 	var map_list: Array = maps
+	var by_maps: Dictionary[String, EffectInstance] = _shared_by_maps(map_list, resolve, shared)
 	for index: int in _sessions.size():
 		if not map_list[index] is Dictionary:
 			return _refuse_snapshot("map %d isn't a snapshot" % [index])
 		var err: Error = _sessions[index].load_snapshot(
-				map_list[index] as Dictionary, resolve, shared
+				map_list[index] as Dictionary, resolve, by_maps
 		)
 		if err != OK:
 			return err
@@ -602,6 +629,9 @@ func load_snapshot(data: Dictionary, resolve: Callable = Callable()) -> Error:
 	_cross_map = shared
 	_arrived_on = arrived_on
 	_in_transit = in_transit
+	for transfer: Transfer in _in_transit:
+		var source: CombatSession = _current_session_of(transfer.unit.id)
+		transfer.from_session_id = -1 if source == null else source.session_id
 	_sends = sends
 	_senders = senders
 	_aid_called = aid
@@ -708,17 +738,7 @@ func _next_to_resolve() -> CombatSession:
 # Lands transfer on target, as deliver_arrivals() describes; false when no tile is free.
 func _arrive(target: CombatSession, transfer: Transfer) -> bool:
 	var unit: CombatUnitState = transfer.unit
-	var tile: Vector2i = transfer.tile
-	if tile == CombatFact.NO_TILE:
-		tile = _anchor_of(target)
-		if tile == CombatFact.NO_TILE:
-			return false
-	if (
-			not target.state.occupant_at(tile).is_empty()
-			or not target.state.can_stand(tile, unit.movement_type)
-			or target.state.map.darkness.layer_at(tile) != WhileLayerCondition.Layer.DRY
-	):
-		tile = Pathing.nearest_free_tile(target.state, tile, unit.movement_type)
+	var tile: Vector2i = _landing_tile(target, transfer.tile, unit.movement_type)
 	if tile == CombatFact.NO_TILE:
 		return false
 	for weapon: CombatState.WeaponStats in transfer.weapons:
@@ -748,14 +768,34 @@ func _arrive(target: CombatSession, transfer: Transfer) -> bool:
 	return true
 
 
-# Whether the won map session holds a player unit send_unit would take: one whose current record
-# is there (a unit it sent keeps a record there) and that isn't on its way.
-func _has_unit_to_send(session: CombatSession) -> bool:
+# Where a unit of movement_type aimed at aimed (NO_TILE: the receiving commander) lands on target:
+# the aimed tile when free, standable and dry, else Pathing.nearest_free_tile's; NO_TILE when none.
+func _landing_tile(
+		target: CombatSession, aimed: Vector2i, movement_type: CombatGrid.MovementType
+) -> Vector2i:
+	var tile: Vector2i = aimed
+	if tile == CombatFact.NO_TILE:
+		tile = _anchor_of(target)
+		if tile == CombatFact.NO_TILE:
+			return CombatFact.NO_TILE
+	if (
+			not target.state.occupant_at(tile).is_empty()
+			or not target.state.can_stand(tile, movement_type)
+			or target.state.map.darkness.layer_at(tile) != WhileLayerCondition.Layer.DRY
+	):
+		tile = Pathing.nearest_free_tile(target.state, tile, movement_type)
+	return tile
+
+
+# The player units session holds that could still go to another map: those whose current record
+# is there (a won map keeps a record of a unit it sent) and that aren't on their way.
+func _units_left_on(session: CombatSession) -> PackedStringArray:
 	var travelling: PackedStringArray = units_in_transit()
+	var left: PackedStringArray = []
 	for unit_id: String in session.state.units_of(CombatFact.CombatSide.PLAYER):
 		if not travelling.has(unit_id) and _current_session_of(unit_id) == session:
-			return true
-	return false
+			left.append(unit_id)
+	return left
 
 
 # The session whose record of unit_id is current (session_of_unit), with no landing settled first.
@@ -896,15 +936,19 @@ func _send(
 
 # unit_id on its way from source to the map to_session_id, aimed at tile: a copy of its record,
 # bases and weapons, and its effects taken off source's engine in id order, due by the clock
-# after the turn source was won on.
+# after the turn source was won on. Its owner's effects that follow it join the target now, on the
+# host and on a mirror alike, so both maps' states agree at every batch; with no unit of that seat
+# there yet, they act on nobody. Its timed modifiers stay on source until it lands.
 func _take_from(
 		source: CombatSession, unit_id: String, to_session_id: int, tile: Vector2i
 ) -> Transfer:
 	var transfer: Transfer = Transfer.new()
 	transfer.unit = source.state.unit(unit_id).copy()
+	transfer.from_session_id = source.session_id
 	transfer.to_session_id = to_session_id
 	transfer.tile = tile
 	transfer.clock_turn = source.state.turn
+	_add_owner_effects(get_session(to_session_id), transfer.unit.seat)
 	transfer.bases = source.bases_of(unit_id).duplicate()
 	for weapon_id: String in [transfer.unit.equipped_weapon_id, transfer.unit.stowed_weapon_id]:
 		var weapon: CombatState.WeaponStats = source.state.weapon(weapon_id)
@@ -921,11 +965,15 @@ func _take_from(
 
 
 # Restarts the map session_id when it is frozen and units on their way land there at once (the
-# clock waived), sending its batch; units then bound for an ended map go back. Returns the map's
-# batch, or null when it didn't restart.
+# clock waived), sending its batch; units then bound for an ended map go back. When none could
+# land, the map stays frozen and the ones sent back go out as encounter facts at once. Returns the
+# map's batch, or null when it didn't restart.
 func _restart(session_id: int) -> CombatSession.FactBatch:
 	var target: CombatSession = get_session(session_id)
-	if target == null or not is_frozen(session_id) or not PhaseRunner.resume(target):
+	if target == null or not is_frozen(session_id):
+		return null
+	if not PhaseRunner.resume(target):
+		_flush(session_id, -1, CombatSession.NO_ARRIVAL, "no free tile")
 		return null
 	var batch: CombatSession.FactBatch = target.flush("frozen map resumed")
 	var net: NetLogScript = CombatSession.logger(
@@ -943,7 +991,9 @@ func _restart(session_id: int) -> CombatSession.FactBatch:
 
 # Lands the units on their way to session_id that are due: all of them when keeps_clock is false
 # or the map has no player unit (a frozen map; the clock is waived), else those whose clock turn
-# its turn has reached, so they land at its first player Phase Start after that turn.
+# its turn has reached, so they land at its first player Phase Start after that turn. On a frozen
+# map, one with no free tile goes back to its won map, since nothing there changes until a unit
+# lands; elsewhere it waits for the next player Phase Start.
 func _deliver(session_id: int, keeps_clock: bool) -> PackedStringArray:
 	var delivered: PackedStringArray = []
 	var target: CombatSession = get_session(session_id)
@@ -954,17 +1004,25 @@ func _deliver(session_id: int, keeps_clock: bool) -> PackedStringArray:
 			not keeps_clock
 			or target.state.units_of(CombatFact.CombatSide.PLAYER).is_empty()
 	)
+	var was_frozen: bool = is_frozen(session_id)
 	var waiting: Array[Transfer] = []
+	var stranded: Array[Transfer] = []
+	# The list is replaced only after the loop: a landing reads it for its timed modifiers.
 	for transfer: Transfer in _in_transit:
 		if (
 				transfer.to_session_id != session_id
 				or (not is_waived and target.state.turn < transfer.clock_turn)
-				or not _arrive(target, transfer)
 		):
 			waiting.append(transfer)
-		else:
+		elif _arrive(target, transfer):
 			delivered.append(transfer.unit.id)
+		elif was_frozen:
+			stranded.append(transfer)
+		else:
+			waiting.append(transfer)
 	_in_transit = waiting
+	for transfer: Transfer in stranded:
+		_send_back(transfer)
 	return delivered
 
 
@@ -982,12 +1040,18 @@ func _return_from_finished() -> void:
 			waiting.append(transfer)
 	_in_transit = waiting
 	for transfer: Transfer in returning:
-		var home: CombatSession = _put_back(transfer)
-		var returned: CombatFact = CombatFact.new(CombatFact.Kind.UNIT_RETURNED, transfer.unit.id)
-		returned.session_id = transfer.to_session_id
-		returned.amount = transfer.unit.seat
-		returned.key = -1 if home == null else home.session_id
-		_record(returned)
+		_send_back(transfer)
+
+
+# Puts transfer, already off its way, back on the won map it left (_put_back) and records
+# UNIT_RETURNED for its target, naming that map.
+func _send_back(transfer: Transfer) -> void:
+	var home: CombatSession = _put_back(transfer)
+	var returned: CombatFact = CombatFact.new(CombatFact.Kind.UNIT_RETURNED, transfer.unit.id)
+	returned.session_id = transfer.to_session_id
+	returned.amount = transfer.unit.seat
+	returned.key = -1 if home == null else home.session_id
+	_record(returned)
 
 
 # Registers transfer's effects again on the won map that kept the unit's record. Returns that map.
@@ -1026,6 +1090,37 @@ func _landed(target: CombatSession, unit: CombatUnitState) -> void:
 		senders.append(unit.seat)
 		senders.sort()
 	_senders[target.session_id] = senders
+
+
+# Each session engine's carried_modifiers: the timed modifiers unit_id held on the map it left,
+# taken off it as it lands on session_id (EffectEngine.take_timed_modifiers). Read before the
+# landing settles, so its transfer is still on its way, on the host and on a mirror alike. Empty
+# for any other unit placed there.
+func _carried_to(unit_id: String, session_id: int) -> Array[TimedModifier]:
+	var carried: Array[TimedModifier] = []
+	for transfer: Transfer in _in_transit:
+		if transfer.unit.id != unit_id or transfer.to_session_id != session_id:
+			continue
+		var source: CombatSession = get_session(transfer.from_session_id)
+		if source != null:
+			carried = source.engine.take_timed_modifiers(unit_id)
+		break
+	return carried
+
+
+# Registers on target the effects of seat's army that follow its units (_follows_units), taken
+# from the seat's own map, as add_owner_effects() describes.
+func _add_owner_effects(target: CombatSession, seat: int) -> void:
+	var home: CombatSession = session_of_seat(seat)
+	if target == null or home == null or target == home:
+		return
+	for instance: EffectInstance in home.engine.get_instances():
+		if (
+				instance.owner.seat == seat
+				and _follows_units(instance)
+				and target.engine.get_instance(instance.instance_id) == null
+		):
+			target.engine.register(instance, true)
 
 
 # The tile a unit sent with no tile aims at on target: its owner's commander's, else its first
@@ -1323,6 +1418,63 @@ static func is_cross_map(instance: EffectInstance) -> bool:
 	return true
 
 
+# Whether instance, a player's army effect (a heirloom or curse), follows its seat's units onto a
+# partner's map: scoped Your Unit, so only that seat's units there meet it. Any Ally Unit and Any
+# Unit effects are cross-map already, or positional and asleep there. One instance acts on every
+# map that holds it, so a phase's trigger, which has no unit, would fire there for the seat and
+# spend the home map's "first Phase Start this combat"; those stay on the seat's own map.
+static func _follows_units(instance: EffectInstance) -> bool:
+	if instance == null or instance.definition == null:
+		return false
+	if instance.owner.kind != EffectOwner.Kind.ARMY:
+		return false
+	if instance.definition.scope != EffectTerms.Scope.YOUR_UNIT:
+		return false
+	var trigger: int = instance.definition.trigger
+	# ASSUMPTION: a curse follows like a heirloom, and a phase-triggered one (Iron Rations, Tactical
+	# Map, Commander's Standard, Haunted, Shaken Footing) acts on the seat's own map only.
+	return trigger != EffectTerms.Trigger.PHASE_START and trigger != EffectTerms.Trigger.PHASE_END
+
+
+# The instances to restore once for every map whose engine holds them: cross_map's, and each army
+# effect two or more maps captured (one following its seat's units onto a partner's map), made
+# from the first map's capture, since on the host it is one object. An entry that can't be read
+# is left to its map's own load, which refuses it.
+static func _shared_by_maps(
+		maps: Array, resolve: Callable, cross_map: Dictionary[String, EffectInstance]
+) -> Dictionary[String, EffectInstance]:
+	var shared: Dictionary[String, EffectInstance] = {}
+	for instance_id: String in cross_map:
+		shared[instance_id] = cross_map[instance_id]
+	var first: Dictionary[String, Dictionary] = {}
+	var repeated: PackedStringArray = []
+	# Untyped: the parts come from JSON and are checked entry by entry.
+	for map: Variant in maps:
+		var effects: Variant = (
+				(map as Dictionary).get("effects", null) if map is Dictionary else null
+		)
+		var captured: Variant = (
+				(effects as Dictionary).get("instances", null) if effects is Dictionary else null
+		)
+		if not captured is Array:
+			continue
+		for entry: Variant in captured:
+			var instance_id: String = (
+					str((entry as Dictionary).get("id", "")) if entry is Dictionary else ""
+			)
+			if instance_id.is_empty() or shared.has(instance_id):
+				continue
+			if not first.has(instance_id):
+				first[instance_id] = entry as Dictionary
+			elif not repeated.has(instance_id):
+				repeated.append(instance_id)
+	for instance_id: String in repeated:
+		var instance: EffectInstance = EffectInstance.from_capture(first[instance_id], resolve)
+		if instance != null and instance.owner.kind == EffectOwner.Kind.ARMY:
+			shared[instance_id] = instance
+	return shared
+
+
 # A whole number read from saved data, or -1 when it isn't one (never a floor, node or seat).
 static func _whole(value: Variant) -> int:
 	if not (value is int or value is float):
@@ -1547,11 +1699,13 @@ class SeatSetup:
 
 
 # A unit on its way from a won map to another one. tile is NO_TILE when it aims at the receiving
-# commander; clock_turn is the turn the map it left was won on.
+# commander; clock_turn is the turn the map it left was won on. from_session_id is that map, which
+# keeps its record and timed modifiers: never saved, since load_snapshot() finds it again.
 class Transfer:
 	extends RefCounted
 
 	var unit: CombatUnitState = null
+	var from_session_id: int = -1
 	var to_session_id: int = -1
 	var tile: Vector2i = CombatFact.NO_TILE
 	var clock_turn: int = 0

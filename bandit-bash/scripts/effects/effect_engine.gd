@@ -6,7 +6,7 @@
 # File:     effect_engine.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 20, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name EffectEngine
@@ -127,6 +127,13 @@ var grants: Array[Grant] = []
 ## Verify mode: every cached [method stats] read is also built fresh, and a difference is reported
 ## in [member diagnostics]. On in tests and debug builds, off in release.
 var verify: bool = OS.is_debug_build()
+
+## Where a unit placed here from another map brings its timed modifiers from: called as
+## [code]carried_modifiers.call(unit_id) -> Array[TimedModifier][/code] at its
+## [constant CombatFact.Kind.UNIT_SPAWNED], when recorded and when followed alike, so a mirror adds
+## them where the host did. Each is [method take_timed_modifiers]' copy from the map it left. Set
+## by [CombatEncounter]; unset, a placed unit brings none.
+var carried_modifiers: Callable = Callable()
 
 var _instances: Dictionary[String, EffectInstance] = {}
 
@@ -332,6 +339,8 @@ func record(fact: CombatFact, ctx: EffectContext = null) -> void:
 		_run.attack_of[fact.actor_id] = _run.attacks
 	if _INVALIDATING_KINDS.has(fact.kind):
 		_run.sheets.erase(fact.actor_id)
+	if fact.kind == CombatFact.Kind.UNIT_SPAWNED:
+		_land_carried(fact.actor_id)
 	for observer: Callable in _observers:
 		observer.call(fact)
 	for observer: Callable in _context_observers:
@@ -466,6 +475,26 @@ func get_timed_modifiers(holder_id: String) -> Array[TimedModifier]:
 		if timed.holder_id == holder_id:
 			held.append(timed)
 	return held
+
+
+## Removes every timed modifier [param holder_id] holds, for a unit landing on another map, and
+## returns copies in the order gained whose [member TimedModifier.phase] counts from this
+## engine's current phase: 0 is the phase under way, or the next to start between phases. The map
+## it lands on counts them from its own ([member carried_modifiers]), so the phases left keep, and
+## uses are spent only by attacks made there. Records nothing: they leave, they don't expire.
+func take_timed_modifiers(holder_id: String) -> Array[TimedModifier]:
+	var taken: Array[TimedModifier] = []
+	var kept: Array[TimedModifier] = []
+	var current: int = _current_phase()
+	for timed: TimedModifier in _run.timed:
+		if timed.holder_id != holder_id:
+			kept.append(timed)
+			continue
+		var carried: TimedModifier = timed.copy()
+		carried.phase = timed.phase - current
+		taken.append(carried)
+	_run.timed = kept
+	return taken
 
 
 ## Expires the timed modifiers due at [param boundary] and records one
@@ -669,8 +698,9 @@ func restore(
 ## client mirror does: it dispatches nothing, fires no effect, draws no roll and tells no observer.
 ## What it follows: the next seq, phase and attack counts, counters
 ## ([constant CombatFact.Kind.COUNTER_CHANGED]), charges spent
-## ([constant CombatFact.Kind.EFFECT_ACTIVATED]), timed modifiers gained, spent and expired, and
-## permanent stat changes. Facts about the rules state are [CombatSession]'s to apply.
+## ([constant CombatFact.Kind.EFFECT_ACTIVATED]), timed modifiers gained, spent and expired, those
+## a placed unit brings ([member carried_modifiers]), and permanent stat changes. Facts about the
+## rules state are [CombatSession]'s to apply.
 ## A batch is whole when it ends: the host reaches a Phase End boundary after its fact's
 ## reactions, so a mirror leaves the phase only once the batch is applied.
 func follow(facts: Array[CombatFact]) -> void:
@@ -703,6 +733,8 @@ func follow(facts: Array[CombatFact]) -> void:
 				_follow_modifier_expired(fact)
 			CombatFact.Kind.STAT_CHANGED:
 				_follow_stat_changed(fact)
+			CombatFact.Kind.UNIT_SPAWNED:
+				_land_carried(fact.actor_id)
 		if _INVALIDATING_KINDS.has(fact.kind):
 			_run.sheets.erase(fact.actor_id)
 	if is_phase_ending:
@@ -1163,6 +1195,30 @@ func _follow_modifier_expired(fact: CombatFact) -> void:
 		):
 			_run.timed.erase(timed)
 			return
+
+
+# Gives the unit just placed the timed modifiers it brought from the map it left, after any it
+# already holds: their phases counted from this engine's current one, their uses spent only by
+# attacks from now on.
+func _land_carried(holder_id: String) -> void:
+	if not carried_modifiers.is_valid():
+		return
+	var returned: Variant = carried_modifiers.call(holder_id)
+	if not returned is Array:
+		return
+	var carried: Array[TimedModifier] = []
+	carried.assign(returned as Array)
+	var current: int = _current_phase()
+	for timed: TimedModifier in carried:
+		timed.holder_id = holder_id
+		timed.phase += current
+		timed.attacks_before = _run.attacks
+		_run.timed.append(timed)
+
+
+# The phase a timed modifier added now belongs to: the one under way, or the next to start.
+func _current_phase() -> int:
+	return _run.phase if _run.in_phase else _run.phase + 1
 
 
 # Adds the delta ChangeBaseStat added: the effect's base-mode change to that stat, or the fact's

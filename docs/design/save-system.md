@@ -536,6 +536,11 @@ Save Impact):
 - **Definitions no catalog holds:** a powder keg's two reactions are built by `MapObjects`, so
   `CampaignService` sets the sections' `resolve` to find them first
   (`MapObjects.map_definition()`), as `CombatSession.load_snapshot()` always does.
+- **Units on a partner's map** (P11 CO3) change no shape. A unit on its way keeps its timed
+  modifiers in the `effects` of the won map it left, which still holds its record; they move to
+  the map it lands on, with the phases they had left. The owner's Your Unit heirlooms and curses
+  on a partner's map are the same instances as on the owner's own map: each map's `effects` lists
+  them, and `CombatEncounter.load_snapshot()` restores one object for every map that holds one.
 
 ## Combat map
 
