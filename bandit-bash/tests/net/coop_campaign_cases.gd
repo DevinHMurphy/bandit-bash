@@ -273,7 +273,8 @@ func _play_own_event(rig: Rig, tag: String) -> bool:
 	_check("%s every client's mirror holds the open event for its screens" % [tag], (
 			readable and _difference(rig).is_empty()
 	), _difference(rig))
-	_send(rig, _event_choice(rig, 1, POUR_AWAY))
+	if not _pour_away(rig, tag, 1):
+		return false
 	rig.clear()
 	var token: int = rig.mirror(1).submit_campaign(LeaveNodeCommand.new(1))
 	rig.harness.step_until_idle()
@@ -284,8 +285,8 @@ func _play_own_event(rig: Rig, tag: String) -> bool:
 			and _is_quiet_but(rig, 1)
 	), rig.record(1).describe())
 	for seat: int in rig.seats():
-		if seat != 1:
-			_send(rig, _event_choice(rig, seat, POUR_AWAY))
+		if seat != 1 and not _pour_away(rig, tag, seat):
+			return false
 	return _leave(rig, tag, "the individual event")
 
 
@@ -572,14 +573,34 @@ func _open_event(rig: Rig, event_id: String) -> bool:
 	return rig.session.run.events.event_id == event_id and _difference(rig).is_empty()
 
 
-# Seat's choice of option: with no picks, or its new item to the convoy.
+# Seat's choice of option: with no picks, its new item to the convoy, or, when the convoy is full
+# (gifts and loot can fill the host seat's on some seeds), its new item scrapped.
 func _event_choice(rig: Rig, seat: int, option: int) -> CampaignCommand:
 	var to_convoy: EventChoice = EventChoice.new()
 	to_convoy.placements[0] = ItemPlacement.new()
+	var scrapped: EventChoice = EventChoice.new()
+	scrapped.placements[0] = ItemPlacement.new(ItemPlacement.Destination.SCRAP)
 	return _first_valid(rig, [
 		EventOptionCommand.new(seat, option, null),
 		EventOptionCommand.new(seat, option, to_convoy),
+		EventOptionCommand.new(seat, option, scrapped),
 	])
+
+
+# Seat pours the goblet away; false, failing a check with the host's reason, when no choice of it
+# would resolve.
+func _pour_away(rig: Rig, tag: String, seat: int) -> bool:
+	var choice: CampaignCommand = _event_choice(rig, seat, POUR_AWAY)
+	if choice != null:
+		_send(rig, choice)
+		return true
+	var plain: CampaignCommand = HostFill.complete(
+			EventOptionCommand.new(seat, POUR_AWAY, null), rig.session
+	)
+	_check("%s seat %d has a choice at %s the host would take" % [tag, seat, OWN_EVENT], false, (
+			"no fill" if plain == null else plain.validate(rig.session.run)
+	))
+	return false
 
 
 # The last client sends Leave, which resolves and brings every mirror back to the map.
