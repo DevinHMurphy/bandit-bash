@@ -6,14 +6,17 @@
 # File:     rune_bar.gd
 # Author:
 # Created:  November 18, 2026
-# Modified: November 18, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name RuneBar
 extends PanelContainer
 ## The seat's rune slots on the battle HUD, laid out like potion slots: one [RuneSlotButton] per
 ## slot ([constant SeatRun.RUNE_SLOT_COUNT]), the held runes in slot order and then empty circles,
-## with the pointed rune's text, or why it can't be used, under them.
+## with the pointed rune's text, or why it can't be used, under them in an [EffectText]. While a
+## rune's circle is pointed at, by the mouse or by focus, its keywords show as one column of
+## tooltips beside the bar. The text hides as the mouse leaves the circle, so it takes no mouse
+## input: just shown, it covers the slots until the bar lays out, and would eat their clicks.
 ##
 ## A click on a rune or its Discard emits [signal rune_pressed] or [signal discard_pressed]. Keys
 ## and pads reach it only while [method set_navigable] is on: left and right move between runes,
@@ -57,11 +60,13 @@ var _is_discard_pointed: bool = false
 var _base_width: float = 0.0
 
 @onready var _slot_box: HBoxContainer = %Slots
-@onready var _text: Label = %RuneText
+@onready var _text: EffectText = %RuneText
 
 
 func _ready() -> void:
 	_base_width = size.x
+	# The bar refits its width as slots come and go; the keyword column follows it.
+	item_rect_changed.connect(_text.place_tooltips)
 	if slot_scene == null:
 		push_error("RuneBar: no slot scene set")
 	else:
@@ -150,9 +155,14 @@ func get_slots() -> Array[RuneSlotButton]:
 	return _slots.duplicate()
 
 
-## The text under the slots; empty while it is hidden.
+## The text under the slots, its words without keyword tags; empty while it is hidden.
 func get_text() -> String:
-	return _text.text if _text.visible else ""
+	return _text.get_plain_text() if _text.visible else ""
+
+
+## The text under the slots as shown, for tests of its keywords and tooltip column.
+func get_effect_text() -> EffectText:
+	return _text
 
 
 # Widens the bar to fit its slots, or back to its width in the scene, keeping its right edge where
@@ -202,23 +212,40 @@ func _link_focus() -> void:
 		discard.focus_previous = discard.focus_neighbor_left
 
 
-# The pointed slot's line: a rune's text and why it can't be used now, Discard's, or an empty
-# slot's (the bar's refusal, else empty_text); nothing, hidden, while no slot is pointed at.
+# The pointed slot's line: a rune's text, its keywords marked, and why it can't be used now;
+# Discard's, or an empty slot's (the bar's refusal, else empty_text); nothing, hidden, while no
+# slot is pointed at. A rune's circle pointed at shows its keyword column; anything else none.
 func _show_text() -> void:
 	var line: String = ""
+	var is_rune_pointed: bool = false
 	if _pointed >= _runes.size():
 		line = _reason if not _reason.is_empty() else empty_text
 	elif _pointed >= 0:
 		var rune: TurnInputModel.HeldRune = _runes[_pointed]
+		is_rune_pointed = not _is_discard_pointed
 		if _is_discard_pointed:
 			line = discard_text_format % [rune.label]
 		else:
-			line = "%s: %s" % [rune.label, rune.text]
+			line = "%s: %s" % [rune.label, rune.marked_text]
 		var why: String = _reason if not _reason.is_empty() else rune.reason
 		if not why.is_empty() and (not _is_discard_pointed or not _reason.is_empty()):
 			line += " (%s)" % [why.trim_suffix(".")]
-	_text.text = line
+	# Setting the same text again would hide and rebuild the column, so only a new line is set.
+	if _text.marked_text != line:
+		_text.marked_text = line
 	_text.visible = not line.is_empty()
+	_show_keywords(is_rune_pointed)
+
+
+# Shows the line's keywords as one column beside the bar while is_shown and the line shows, else
+# hides it; a column already showing every keyword of the line is left as it is.
+func _show_keywords(is_shown: bool) -> void:
+	if not is_shown or not _text.visible or not is_visible_in_tree():
+		if not _text.get_shown_tooltips().is_empty():
+			_text.hide_tooltips()
+		return
+	if _text.get_shown_tooltips().size() != _text.get_keyword_ids().size():
+		_text.show_all_keywords()
 
 
 func _on_slot_pressed(index: int) -> void:

@@ -71,16 +71,22 @@ word itself names the term, and its tooltip explains it.
   gear row with text under its name, an enemy's signature move, each trait, heirloom and curse
   row), the body following, so each focused row is a card showing its keywords; past the last row
   and above Close they scroll the body, and accept on a row closes the detail as Close does. The
-  focused row draws the theme's focus look. The mouse never focuses a row.
+  focused row draws the theme's focus look on its edge, its contents 4 units inside (the style
+  guide's row gap), so the outline never touches the text. The mouse never focuses a row.
 - **The rune menu** (BF10), like the shop panels (BF9): while one of its rows holds key or pad
   focus, the focused rune's keywords show as one column beside the menu.
+- **The HUD rune bar** (UL12): the pointed rune's line under the slots is an `EffectText`. While
+  a rune's circle is pointed at, by key or pad focus or by the mouse, its keywords show as one
+  column beside the bar, as the heirloom bar's tooltip does: the line hides as the mouse leaves
+  the circle, so the mouse can't reach it. Discard, an empty slot and the bar's refusals (such as
+  "Your runes act on your own map only.") are plain words with no column.
 - **The heirloom bar's tooltip** shows its keywords' tooltips whenever it opens, by hover or
   focus: the mouse can't reach it (pointing away hides it).
 - **Surfaces:** the item offer card, the heirloom offer card, the Armory and Guildhall stock
   cards (an heirloom's or rune's details and an item's effect lines), the purchase and Guildhall
   panels' details, unit detail's trait rows, gear rows and an enemy's signature move, the battle's
-  rune menu, the heirloom bar's tooltip, and the event screen's option cards and outcome summary
-  (an option's heirloom and curse). The battle log and the rune bar's text stay plain. **Gap:** no
+  rune menu and HUD rune bar, the heirloom bar's tooltip, and the event screen's option cards and
+  outcome summary (an option's heirloom and curse). The battle log stays plain. **Gap:** no
   focusable control holds the event outcome's summary, so a pad reaches no keyword tooltip there.
 
 ## Glossary entries

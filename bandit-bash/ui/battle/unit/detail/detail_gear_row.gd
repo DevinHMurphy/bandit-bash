@@ -17,13 +17,20 @@ extends HBoxContainer
 ## style (RF-039). Holds no rules: the panel formats the lines.[br]
 ## While it shows text it is a focus stop the panel steps keys and pads through (the mouse never
 ## focuses it), so key or pad focus shows its keywords beside it ([EffectText]); it draws the
-## theme's focus look ([code]Button[/code]'s [code]focus[/code] style) while that focus is on it.
+## theme's focus look ([code]Button[/code]'s [code]focus[/code] style) on its edge while that focus
+## is on it, its contents [member focus_inset] inside.
 ##
 ## @tutorial(UI lift): docs/design/ui-lift.md
 
 ## The name shown when the slot holds nothing.
 @export var empty_text: String = "—"
 
+## How far the row's contents sit inside its edge, where the focus outline draws, on every side,
+## so the outline never touches the text; the style guide's row gap.[br]
+## [b]Units:[/b] base units. [b]0.0:[/b] the contents reach the edge, under the outline.
+@export_range(0.0, 16.0, 1.0) var focus_inset: float = 4.0
+
+@onready var _inset: MarginContainer = %Inset
 @onready var _heading: Label = %Heading
 @onready var _icon: RewardIcon = %Icon
 @onready var _item: Label = %Item
@@ -32,6 +39,8 @@ extends HBoxContainer
 
 
 func _ready() -> void:
+	for side: StringName in [&"margin_left", &"margin_top", &"margin_right", &"margin_bottom"]:
+		_inset.add_theme_constant_override(side, roundi(focus_inset))
 	focus_entered.connect(queue_redraw)
 	focus_exited.connect(queue_redraw)
 
