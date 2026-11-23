@@ -706,9 +706,9 @@ and [UL5 plan](../plans/2026-11-19-ul5-victory-sequence.md), Save Impact):
   `heirlooms`, `runes`, `economy`) go with the entry, and the shared sections drop its route vote,
   its part of the open event and its vote there, and its swaps; a vote it completes draws. In a
   battle its map stays in `combat_state`, its seat in the encounter's `forfeited` list, until the
-  battle ends; the battle's end drops the seat from the run. A resume of that battle can't rebuild
-  the forfeited map without the seat's Begin sections, so it restarts from Begin (`BATTLE_RETRY`)
-  without it (P11 question 115).
+  battle ends, and its entry is set aside (`departed`) and still saved until then; the battle's end
+  drops the seat from the run. A resume of that battle keeps the battle (P11 question 115 (b),
+  CO22: see "Resuming a battle a seat left" below).
 - **The archive record is at schema 2** (`ArchiveRecord.SCHEMA_VERSION`): core gains `forfeited`
   (bool), true only in a forfeiting player's own record, whose `outcome` is always `"lost"`; a
   forfeited win or a non-bool is refused. Migration from 1 changes nothing: a record without it
@@ -716,6 +716,22 @@ and [UL5 plan](../plans/2026-11-19-ul5-victory-sequence.md), Save Impact):
   (`SaveService.archive_forfeit()`, the run as it stands, every seat in it) and held for
   `take_forfeit_record()`, which P11 CO18 sends to that machine; the host writes none, and a
   removed player gets none.
+- **Resuming a battle a seat left (P11 CO22), built; replaces the restart in the Forfeits row
+  above.** A seat that leaves mid-battle is set aside (`SaveService.set_aside_player()`,
+  `CampaignData.departed`): out of `players` at once, so everything reading the run's players
+  (votes, the replica clients hold, `get_required_steam_ids()`, the relay's seats, every archive
+  record) no longer counts it, but its entry, with its Begin sections, is still written to the
+  campaign file (`CampaignData.to_save_envelope()`) until `SaveService.end_battle()` drops it. No
+  format change: the file's `players` simply keeps the entry, and the combat file's
+  `combat_state` encounter `forfeited` list says which entries left. On load, a battle that
+  resumes (`BATTLE`) sets those seats aside again before the lobby asks for the required ids, so
+  admission and Resume need only the seats left; the session still holds the left seats, so the
+  battle rebuilds with their maps as saved and forfeited, and play goes on. A combat file that
+  can't be used (`BATTLE_RETRY` at load) sets nothing aside: the battle restarts from Begin with
+  every entry, the left seat included (P11 question 150). A battle that loads but can't be rebuilt
+  restarts from Begin without the left seats, each leaving the run as a forfeit on the map does.
+  A save from before this (the entry already gone) still restarts from Begin without the seat.
+  Save Select's player count and an abandon's archive record read the file the same way.
 
 ## Testing
 

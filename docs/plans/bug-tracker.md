@@ -73,11 +73,13 @@ Not a bug.
 | [BUG-038](#bug-038-a-unit-sent-to-a-frozen-map-with-no-free-tile-never-lands) | A unit sent to a frozen map with no free tile never lands, so the run waits forever | P11 (co-op battles) | S2 (latent) | Fixed (CO3 merge, November 23, 2026); decided (user, November 22, 2026): the unit returns to its sender's map and the frozen map counts as unreachable, so `is_run_lost()` can end the run | November 22, 2026, CO2 report | CO3 (Lane D) |
 | [BUG-039](#bug-039-loot-found-on-a-map-never-reaches-the-run) | Loot found on a battle map (`MapState.found`) is never given to the run at the battle's end, and is filed under the looting unit's seat rather than the map owner's | P04 / P08 (map loot, battle end) | S2 (solo too: confirmed by CO14, all map loot was lost) | Fixed (CO14 merge, November 23, 2026) | November 23, 2026, CO8 report | Lane B (with CO14) |
 | [BUG-040](#bug-040-a-1-seat-multiplayer-run-that-loses-never-ends) | A 1-seat multiplayer run that loses its battle never ends | P11 (run end) | S4 | Fixed (CO14 merge, November 23, 2026) | November 23, 2026, CO8 report | Lane B (with CO14) |
-| [BUG-041](#bug-041-skipping-playback-never-stops-for-key-moments) | Skipping playback never stops for key moments: `FactPlayback.pause_hook` is never set, though `battle_view.gd`'s skip doc says the skip stops for them | P07 (playback) | S3 | Open | November 23, 2026, CO15 report | Lane A (with EN19) |
+| [BUG-041](#bug-041-skipping-playback-never-stops-for-key-moments) | Skipping playback never stops for key moments: `FactPlayback.pause_hook` is never set, though `battle_view.gd`'s skip doc says the skip stops for them | P07 (playback) | S3 | Decided (user, November 23, 2026): the vision's stops apply in solo too (game-vision.md, fast-forward pauses for boss combats and any player unit's death); building in EN19 | November 23, 2026, CO15 report | EN19 (Lane A) |
 | [BUG-042](#bug-042-the-enet-pair-case-times-out-under-full-run-load) | The ENet pair case ("two instances on one machine play a battle to its end") times out at its 150 s step limit during a full run while other builds run on the machine; it passes alone | P10 (tests) | S4 (test only) | Open | November 23, 2026, NT7 merge | BF11 (Lane E) |
-| [BUG-043](#bug-043-mirrors-diverge-on-a-map-two-seats-share) | Mirrors diverge on a map two seats share (a swap's visitor, a landed send): `PhaseRunner.start()` drops a seat from `seats_to_start` and `end_turn()` adds it to `ended_seats` without recording a fact, so after the first seat's Start or End Turn every mirror's state differs from the host's | P11 / P10 (co-op battles on mirrors) | S2 (latent until clients play co-op battles live) | Open | November 23, 2026, CO16 report | CO17 (Lane D), or CO23 if its mirror cases hit it |
-| [BUG-044](#bug-044-capture-group-491-fails-every-capture-run) | Capture group 491 (NT6's) logs "No multiplayer peer is assigned" from `net_relay.gd:505` since NT7 and CO15, so every capture run reports FAIL at every size though the shots are fine | P10 / P14 (captures) | S3 (every UI step's capture verdict is FAIL) | Open | November 23, 2026, CO13 report | Lane E (BF11 if noted) |
-| [BUG-045](#bug-045-the-intent-rule-tooltip-draws-off-the-top-edge) | The intent rule tooltip on a unit in the map's top row draws off the screen's top edge | P07 (battle HUD) | S4 | Open | November 23, 2026, CO13 report | EN19 (Lane A) |
+| [BUG-043](#bug-043-mirrors-diverge-on-a-map-two-seats-share) | Mirrors diverge on a map two seats share (a swap's visitor, a landed send): `PhaseRunner.start()` drops a seat from `seats_to_start` and `end_turn()` adds it to `ended_seats` without recording a fact, so after the first seat's Start or End Turn every mirror's state differs from the host's | P11 / P10 (co-op battles on mirrors) | S2 (latent until clients play co-op battles live) | Open; added to CO23 (note, November 23, 2026) | November 23, 2026, CO16 report | CO23 (Lane D) |
+| [BUG-044](#bug-044-capture-group-491-fails-every-capture-run) | Capture group 491 (NT6's) logs "No multiplayer peer is assigned" from `net_relay.gd:505` since NT7 and CO15, so every capture run reports FAIL at every size though the shots are fine | P10 / P14 (captures) | S3 (every UI step's capture verdict is FAIL) | Open; added to BF11 (note, November 23, 2026) | November 23, 2026, CO13 report | BF11 (Lane E) |
+| [BUG-045](#bug-045-the-intent-rule-tooltip-draws-off-the-top-edge) | The intent rule tooltip on a unit in the map's top row draws off the screen's top edge | P07 (battle HUD) | S4 | Building in EN19 | November 23, 2026, CO13 report | EN19 (Lane A) |
+| [BUG-046](#bug-046-a-co-op-battle-stalls-after-one-map-ends) | A co-op battle can stall after one map ends: the other map's enemy phase ends, the darkness advances, then no player phase starts and the map never finishes | P11 (co-op battles) | S2 (a co-op battle can't finish; about half of BF11's full runs) | Open | November 23, 2026, BF11 report | Lane D (CO23 if noted) |
+| [BUG-047](#bug-047-a-client-mirror-loses-its-battle-at-a-forfeit) | Two `ClientMirror` gaps at a forfeit: any accepted campaign batch during a battle closes the mirror's battle, so a forfeit closes every client's battle; after the battle ends a mirror keeps the forfeited seat, so the host's next capture is refused ("a capture for seats") | P10 / P11 (mirrors) | S2 (latent until clients play live) | Open | November 23, 2026, CO22 report (P11 question 152) | CO18 (Lane E) |
 
 ### BUG-001 No Block at the start of combat
 
@@ -617,3 +619,31 @@ Not a bug.
 - **Found** by CO13 (pre-existing): the intent rule tooltip on a unit in the map's top row opens
   above the unit and leaves the screen. CO13 stopped a viewed map's cursor from starting there.
 - **Fix:** keep the tooltip inside the viewport (flip below, or clamp), with a case.
+
+### BUG-046 A co-op battle stalls after one map ends
+
+- **Found** by BF11's stricter ENet pair case (two instances, a 2-seat Standard battle): in two of
+  four full runs one map ended, and the other, down to a Battle Medic that only waits, finished
+  its enemy phase, advanced the darkness and changed objects, then started no player phase and
+  never ended. Not load: a pinned seed reproduces it with the net suite alone, failing in 22.6 s.
+  In both, the other map had already ended; BF11's unconfirmed guess is that the next round
+  waits on a finished map.
+- **Seeds:** `9456-F0E2-B5D2-6` (s0, the host's map, last fact #905) and `B072-5FA4-D5CB-1` (s1,
+  the client's, last fact #1014). Reproduce by adding `"--run-seed=<seed>"` after `flag` in
+  `_launch`'s arguments in `tests/net/enet_dev_cases.gd`.
+- **Fix:** find why the round doesn't start on the remaining map (the per-map phase loop and how
+  it treats an ended map; related to BUG-043's per-seat Start and End Turn), fix it, and add both
+  seeds as pinned headless cases; the pair case goes back to random seeds after.
+
+### BUG-047 A client mirror loses its battle at a forfeit
+
+- **Found** by CO22 (P11 question 152), with or without a resume, in `scripts/net/client_mirror.gd`:
+  - any accepted campaign batch during a battle closes the mirror's battle, so the
+    `SEAT_FORFEITED` batch closes every client's battle;
+  - after the battle ends a mirror still holds the forfeited seat, so the host's next capture is
+    refused ("a capture for seats") until the mirror resyncs.
+  CO22's harness case works around both (mirrors ask for a fresh sync after the forfeit, and new
+  mirrors are built after the battle).
+- **Fix:** in CO18, with P11 question 122 (a) (`forfeit()` on every mirror): a mid-battle
+  campaign batch keeps the mirror's battle, and the mirror drops a departed seat at the battle's
+  end; remove CO22's workarounds from `tests/net/forfeit_resume_cases.gd`.
