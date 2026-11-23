@@ -788,7 +788,8 @@ func mismatches() -> PackedStringArray:
 			found.append("%s shows %d Stance, has %d" % [unit_id, token.stance, unit.stance])
 		if token.block != unit.block:
 			found.append("%s shows %d Block, has %d" % [unit_id, token.block, unit.block])
-		var held: WeaponTriangle.Profile = state.weapon_profile_of(state.equipped_weapon_id(unit_id))
+		var held_id: String = state.equipped_weapon_id(unit_id)
+		var held: WeaponTriangle.Profile = state.weapon_profile_of(held_id)
 		if token.profile != held:
 			found.append("%s shows the %s profile, holds %s" % [
 				unit_id, _profile_name(token.profile), _profile_name(held),
