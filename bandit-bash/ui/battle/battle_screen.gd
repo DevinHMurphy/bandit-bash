@@ -23,6 +23,7 @@ extends Node2D
 ## viewed map that has ended stops input and shows its end banner. Once every map has, or the
 ## co-op run is lost, the host waits [member end_banner_time] and saves: a won solo combat's
 ## [VictoryOverlay] opens, else everyone goes where the run now is. A client waits for that move.
+## The save debug panel hides during a battle.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md

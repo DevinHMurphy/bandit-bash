@@ -17,8 +17,8 @@ extends CanvasLayer
 ## shows the same. The [BattleScreen] shows it over the board after a win; on a resumed run the
 ## Results screen shows it over a plain backdrop, opening on Rewards once a reward is taken.[br]
 ## Shows one seat's results; a co-op seat whose map was lost sees only that and Leave. A picker
-## sends its reward's commands; Leave sends each open reward's
-## skip, then [LeaveNodeCommand], asking first while rewards are open, each once the one before
+## sends its reward's commands; Leave sends each open reward's skip, then [LeaveNodeCommand],
+## asking first while rewards are open, each once the one before
 ## settled ([CampaignLink]); after the Boss it reads End run and ends the run as won
 ## ([method CampaignService.end_won_run]). A refusal shows its reason; once any seat's Leave
 ## resolves, the run goes on. XP fills run on playback time ([member playback_speed]). The run's
