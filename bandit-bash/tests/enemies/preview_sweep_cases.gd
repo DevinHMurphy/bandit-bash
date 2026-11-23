@@ -6,7 +6,7 @@
 # File:     preview_sweep_cases.gd
 # Author:
 # Created:  November 22, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -17,8 +17,10 @@ extends RefCounted
 ## same frame, a preview asked on an older board ignored when it finishes, another session never
 ## served, no sweep without the worker, and swept previews equal to a full re-plan in checking
 ## mode. The cancel: a hover cancels the sweep's running preview and runs first, the cancelled
-## tile swept again later, a cancelled job keeping nothing, a hover's own preview never cancelled,
-## and a fact during a cancel. Reports each case through the check callable it is given.
+## tile swept again later, a cancelled job keeping nothing, a hover's own preview never cancelled
+## by another hover, and a fact during a cancel. The stale cancel: a fact, or another session,
+## cancels the preview running, sweep's or hover's, and the next starts as soon as it stops.
+## Reports each case through the check callable it is given.
 ##
 ## @tutorial(The move preview): docs/design/move-preview.md
 
@@ -69,6 +71,9 @@ func run() -> void:
 	_test_job_cancel()
 	_test_hover_never_cancelled()
 	_test_fact_during_cancel()
+	_test_fact_cancels_sweep()
+	_test_fact_cancels_hover()
+	_test_other_session_cancels()
 	_boards.close()
 	Intents.is_checking = was_checking
 
@@ -467,6 +472,126 @@ func _test_fact_during_cancel() -> void:
 	queue.wait()
 
 
+# A fact lands while a sweep preview is queued on the worker (PoolHold keeps it from ending
+# first): the next call cancels it, counted as stale and not as a hover's cancel, and once it
+# stops the same call that drops it starts the sweep on the new board, nothing of the old kept.
+func _test_fact_cancels_sweep() -> void:
+	var session: CombatSession = _session("stale sweep")
+	if session == null:
+		return
+	var units: PackedStringArray = TurnInputModel.acting_units(session, 0)
+	var queue: MovePreview.Queue = MovePreview.Queue.new()
+	# The unit's own tile needs no re-plan, so its job has ended before it is queued: the held
+	# preview is the next tile's.
+	_sweep_steps(queue, session, units, 1)
+	var hold: PoolHold = PoolHold.new()
+	queue.run_pending(session, units)
+	var running: Vector2i = _first_not_done(queue, session, units[0], _nearest_first(
+			session, units[0]
+	))
+	var swept: int = queue.swept
+	if not _wait_on(session, units[0]):
+		hold.release()
+		queue.wait()
+		return
+	var rest: PackedStringArray = units.slice(1)
+	var none_yet: MovePreview = queue.run_pending(session, rest)
+	var restarted_early: bool = queue.swept != swept
+	hold.release()
+	queue.wait()
+	queue.run_pending(session, rest)
+	var restarted: bool = queue.swept == swept + 1
+	queue.wait()
+	queue.run_pending(session, rest)
+	var own: Vector2i = session.state.tile_of(units[1])
+	_check.call("stale: a fact cancels the sweep's preview; the sweep restarts once it stops", (
+			none_yet == null
+			and not restarted_early
+			and queue.stale_cancelled == 1
+			and queue.cancelled == 0
+			and restarted
+			and queue.is_done(session, units[1], own)
+			and not queue.is_done(session, units[0], running)
+	), "stale cancels %d, hover cancels %d, restarted early %s / after %s" % [
+		queue.stale_cancelled, queue.cancelled, restarted_early, restarted,
+	])
+	queue.wait()
+
+
+# A fact lands while a hover's preview is queued on the worker: it is cancelled (a hover's own
+# preview is cancelled once stale), and the hover is asked again on the new board as soon as it
+# stops, returned equal to one computed afresh there.
+func _test_fact_cancels_hover() -> void:
+	var session: CombatSession = _session("stale hover")
+	if session == null:
+		return
+	var units: PackedStringArray = TurnInputModel.acting_units(session, 0)
+	var queue: MovePreview.Queue = MovePreview.Queue.new()
+	var hovered: Vector2i = _nearest_first(session, units[1])[1]
+	var hold: PoolHold = PoolHold.new()
+	queue.request(units[1], hovered)
+	queue.run_pending(session, units)
+	var runs: int = queue.runs
+	if not _wait_on(session, units[0]):
+		hold.release()
+		queue.wait()
+		return
+	var rest: PackedStringArray = units.slice(1)
+	queue.run_pending(session, rest)
+	hold.release()
+	queue.wait()
+	var none_yet: MovePreview = queue.run_pending(session, rest)
+	var asked_again: bool = queue.runs == runs + 1
+	queue.wait()
+	var ready: MovePreview = queue.run_pending(session, rest)
+	var fresh: MovePreview = MovePreview.compute(session, units[1], hovered)
+	_check.call("stale: a fact cancels a hover's preview; it is asked again once it stops", (
+			queue.stale_cancelled == 1
+			and none_yet == null
+			and asked_again
+			and ready != null
+			and ready.tile == hovered
+			and ready.based_on_seq == session.last_seq()
+			and PreviewEqualityCases.intents_text(ready.intents)
+			== PreviewEqualityCases.intents_text(fresh.intents)
+	), "stale cancels %d, asked again %s, returned %s" % [
+		queue.stale_cancelled, asked_again, ready != null,
+	])
+	queue.clear()
+	queue.wait()
+
+
+# The queue asked on another session (another map bound) while a preview of the first runs: it
+# is cancelled as stale, never kept for either, and the other session's sweep starts once it stops.
+func _test_other_session_cancels() -> void:
+	var session: CombatSession = _session("stale, first session")
+	var other: CombatSession = _session("stale, second session")
+	if session == null or other == null:
+		return
+	var units: PackedStringArray = TurnInputModel.acting_units(session, 0)
+	var other_units: PackedStringArray = TurnInputModel.acting_units(other, 0)
+	var queue: MovePreview.Queue = MovePreview.Queue.new()
+	_sweep_steps(queue, session, units, 1)
+	var hold: PoolHold = PoolHold.new()
+	queue.run_pending(session, units)
+	var swept: int = queue.swept
+	queue.run_pending(other, other_units)
+	hold.release()
+	queue.wait()
+	queue.run_pending(other, other_units)
+	var restarted: bool = queue.swept == swept + 1
+	queue.wait()
+	queue.run_pending(other, other_units)
+	var origin: Vector2i = other.state.tile_of(other_units[0])
+	_check.call("stale: another session's call cancels the preview running, then sweeps its own", (
+			queue.stale_cancelled == 1
+			and restarted
+			and queue.is_done(other, other_units[0], origin)
+			and not queue.is_done(session, units[0], session.state.tile_of(units[0]))
+	), "stale cancels %d, restarted %s" % [queue.stale_cancelled, restarted])
+	queue.wait()
+
+
 # The first of tiles, unit_id's in sweep order, that queue hasn't done on session's board: the
 # sweep's preview running, right after a call started one.
 func _first_not_done(
@@ -549,3 +674,25 @@ func _wait_on(session: CombatSession, unit_id: String) -> bool:
 
 static func _name_of(unit_id: String, tile: Vector2i) -> String:
 	return "%s %s" % [unit_id, tile]
+
+
+# Holds the worker pool: a blocking task per logical core, each waiting on one gate, so a preview
+# queued after them can't start, let alone end, until release(). Only the preview queue uses the
+# pool, and rules code never waits on it, so the main thread runs on meanwhile.
+class PoolHold:
+	extends RefCounted
+
+	var _gate: Semaphore = Semaphore.new()
+	var _tasks: Array[int] = []
+
+	func _init() -> void:
+		for _index: int in OS.get_processor_count():
+			_tasks.append(WorkerThreadPool.add_task(_gate.wait))
+
+	# Lets every blocking task end and waits for each, as every pool task must be waited for.
+	func release() -> void:
+		for _index: int in _tasks.size():
+			_gate.post()
+		for task: int in _tasks:
+			WorkerThreadPool.wait_for_task_completion(task)
+		_tasks.clear()

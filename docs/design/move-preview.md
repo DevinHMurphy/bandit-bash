@@ -369,8 +369,9 @@ forecast. The sweep runs one preview at a time on one worker thread, as the queu
 - **The done previews** are kept by the session, its `last_seq`, the unit and the tile. Each
   `run_pending` first drops them if the board isn't theirs, takes a finished preview in, and
   returns the hover's if it is done. When nothing runs it starts the hover's, else the sweep's
-  next tile not yet done. A preview asked on an older board, or another session's, is ignored when
-  it finishes; a hover's is then asked again.
+  next tile not yet done. A preview still running on an older board, or another session's, is
+  cancelled (see A fact cancels the preview running) and ignored when it stops; a hover's is then
+  asked again.
 - **The order** is an optional trailing `sweep` argument on `run_pending`: the selected unit, the
   unit under the cursor, then the seat's other units that can act, in state order. The controller
   reads it again when the board, the selection or the cursor's unit changes, and runs the queue
@@ -387,10 +388,22 @@ forecast. The sweep runs one preview at a time on one worker thread, as the queu
   as it ends; once stopped it returns null, adds none of its forecasts to the store and holds no
   result. The queue drops it when its task completes and starts the hover's on that same call,
   so one preview still runs at a time. The cancelled tile isn't done, so the sweep reaches it
-  again in its order, next if it was the sweep's first tile not done. A hover's own preview is
-  never cancelled, and neither is a sweep preview of the hovered tile on the current board. A
-  job that has ended keeps its result: a cancel then does nothing. The queue counts the
-  cancelled ones (`cancelled`).
+  again in its order, next if it was the sweep's first tile not done. Another hover never
+  cancels a hover's preview, and nothing cancels a sweep preview of the hovered tile on the
+  current board. A job that has ended keeps its result: a cancel then does nothing. The queue
+  counts the cancelled ones (`cancelled`).
+- **A fact cancels the preview running** (EN19, P05 question 57). When `run_pending` finds the
+  preview running asked on an older board (a fact since) or on another session, it cancels it,
+  sweep's or hover's: its result would never be used, so the cancel changes no result. The
+  sweep starts on the new board, and a hover is asked again, on the call that drops it. The
+  queue counts these apart (`stale_cancelled`), so `cancelled` stays the hovers' alone.
+  Measured (`preview_bench.gd -- boss_engaged stale`, debug, 15 facts each, each landing just
+  after a sweep preview started, with other builds running): the fact's command with its intents
+  refresh takes 1,446 / 1,533 ms (median / p95) on the main thread, and most stale previews end
+  within it; 3 of 15 were still running and were cancelled. From the command's end to the
+  sweep's restart: 34 / 226 ms before, 34 / 91 ms after (max 226 → 91 ms). Once the refresh
+  moves to the worker (question 53 (a)) it no longer hides a stale preview, so the cancel should
+  save more (unmeasured).
 - **Memory:** a preview's rounds are released as its job ends (only the intents a preview builds on
   read them). See Threads and memory.
 
