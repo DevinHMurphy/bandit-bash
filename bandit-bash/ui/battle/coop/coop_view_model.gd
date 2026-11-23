@@ -53,7 +53,7 @@ static func status(encounter: CombatEncounter, session_id: int, seat: int) -> Ma
 	var state: CombatState = session.state
 	var shown: MapStatus = MapStatus.new()
 	shown.session_id = session_id
-	shown.owner_seat = session.seats[0] if not session.seats.is_empty() else -1
+	shown.owner_seat = owner_of(session)
 	shown.is_own = session.seats.has(seat)
 	shown.title = map_title(session, seat)
 	shown.turn = state.turn
@@ -76,7 +76,18 @@ static func status(encounter: CombatEncounter, session_id: int, seat: int) -> Ma
 static func map_title(session: CombatSession, seat: int) -> String:
 	if session.seats.has(seat) or session.seats.is_empty():
 		return "Your map"
-	return "%s's map" % [CampaignLink.seat_name(session.seats[0])]
+	return "%s's map" % [CampaignLink.seat_name(owner_of(session))]
+
+
+## The seat whose map [param session] is: the lowest of its own seats (one per map in parallel
+## maps); -1 for a map with none. A map's owner, never the screen's own seat, which is
+## [method CampaignService.local_seat].
+static func owner_of(session: CombatSession) -> int:
+	var lowest: int = -1
+	for seat: int in session.seats:
+		if lowest < 0 or seat < lowest:
+			lowest = seat
+	return lowest
 
 
 ## Whether [param seat] has something to do on [param session] now: its opening swap window, or

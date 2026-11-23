@@ -17,9 +17,9 @@ extends RefCounted
 ## refused, then a send to the frozen map landing at once and played there; call for aid raised and
 ## lowered by keys, mouse and pad, and seen by a teammate; spectating a teammate's map read-only by
 ## mouse and pad; waiting for the other maps, then the battle's end held and routed to its results;
-## a lost run's banner and end; the visitor's opening move on the partner's map; a client's view of
-## a teammate's call through its mirror; solo unchanged. Autoloads are reached as nodes. Runs only
-## with a test user folder, as it writes save files.
+## a lost run's banner and end; the visitor's opening move on the partner's map; a forfeited map
+## leaving every view; a client's view of a teammate's call through its mirror; solo unchanged.
+## Autoloads are reached as nodes. Runs only with a test user folder, as it writes save files.
 
 # The suite that runs this file; tests/case_files.gd finds it by this line.
 const SUITE: String = "ui/input"
@@ -72,8 +72,41 @@ func run() -> void:
 	_test_waiting_then_results()
 	_test_run_lost()
 	_test_visitor_move()
+	_test_forfeited_map()
 	_test_client_view()
 	_test_solo()
+
+
+# A teammate who forfeits takes their map out of every view: it leaves the maps panel and can't
+# be viewed; a view on it goes back to the seat's own map.
+func _test_forfeited_map() -> void:
+	var tag: String = "coop forfeit"
+	var run: CampaignSession = _start(4)
+	if run == null:
+		_check.call("%s: the battle begins" % [tag], false)
+		_finish()
+		return
+	var battle: CombatEncounter = run.encounter
+	var coop: CoopBattle = _screen.get_coop()
+	var leaving: CombatSession = battle.session_of_seat(2)
+	_screen.view_map(leaving.session_id)
+	var was_viewed: bool = coop.get_viewed() == leaving.session_id
+	var has_left: bool = battle.forfeit(2)
+	coop.refresh()
+	coop.open_maps()
+	var listed: PackedInt32Array = []
+	for row: MapStatusRow in coop.get_maps_panel().get_rows():
+		listed.append(row.session_id)
+	_check.call("%s: the map leaves the panel and the view, and can't be viewed again" % [tag], (
+			was_viewed
+			and has_left
+			and not listed.has(leaving.session_id)
+			and listed.size() == 3
+			and _screen.get_view().get_session() == battle.session_of_seat(0)
+			and not _screen.view_map(leaving.session_id)
+	), "viewed %s, left %s, listed %s" % [was_viewed, has_left, listed])
+	coop.close_panels()
+	_finish()
 
 
 # After the host's map is won the send panel opens by itself, input held and the wait shown; a

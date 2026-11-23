@@ -353,17 +353,17 @@ func refresh() -> void:
 		close_panels()
 		_drawn = ""
 		run_lost.emit()
+	var own: CombatSession = _encounter.session_of_seat(_seat)
+	if own != null and _viewed_id != own.session_id and _encounter.is_map_forfeited(_viewed_id):
+		# A forfeited map leaves every view: back to the seat's own. A forfeit records no fact.
+		view_requested.emit(own.session_id)
+		return
 	var drawn: String = _state_key()
 	if drawn == _drawn:
 		return
 	_drawn = drawn
-	var own: CombatSession = _encounter.session_of_seat(_seat)
 	_start_offer_timer(own)
 	var viewed: CombatSession = _encounter.get_session(_viewed_id)
-	if own != null and viewed != own and _encounter.is_map_forfeited(_viewed_id):
-		# A forfeited map leaves every view: back to the seat's own.
-		view_requested.emit(own.session_id)
-		return
 	var is_teammate_calling: bool = false
 	for shown: CoopViewModel.MapStatus in CoopViewModel.maps(_encounter, _seat):
 		is_teammate_calling = is_teammate_calling or (
@@ -372,7 +372,7 @@ func refresh() -> void:
 	# ASSUMPTION: the strip's short names ("Yours", "Player 2"); no design doc words them.
 	var whose: String = "Yours"
 	if viewed != null and not viewed.seats.has(_seat) and not viewed.seats.is_empty():
-		whose = CampaignLink.seat_name(viewed.seats[0])
+		whose = CampaignLink.seat_name(CoopViewModel.owner_of(viewed))
 	var is_own_open: bool = own != null and not own.is_finished and not _is_run_lost
 	var is_aid_raised: bool = own != null and _encounter.is_aid_called(own.session_id)
 	var is_aid_waiting: bool = _pending_map >= 0 and not _is_pending_send
@@ -390,12 +390,12 @@ func refresh() -> void:
 	_offer_send()
 
 
-# What the parts draw from: every map's last seq, the encounter's facts, the view, the pending
-# command and the offer.
+# What the parts draw from: every map's last seq, the encounter's facts and forfeits, the view,
+# the pending command and the offer.
 func _state_key() -> String:
 	var parts: PackedStringArray = [
 		str(_encounter.fact_log.size()), str(_viewed_id), str(_pending_map), str(_is_offer_ready),
-		str(_is_run_lost),
+		str(_is_run_lost), str(_encounter.forfeited_seats()),
 	]
 	for map: CombatSession in _encounter.get_sessions():
 		parts.append(str(map.last_seq()))
