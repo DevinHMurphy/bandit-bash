@@ -244,7 +244,13 @@ func _test_table() -> void:
 			if not InputMap.has_action(StringName(key)):
 				problems.append("label %s is no InputMap action" % [key])
 			continue
-		var row: Array = BattleController.LIVE_ACTIONS.get(StringName(parts[0]), [])
+		var row: Array = []
+		row.append_array(BattleController.LIVE_ACTIONS.get(StringName(parts[0]), []) as Array)
+		# A co-op battle's hint source: its own panels' rows, and cycle_weapon added where it opens
+		# the maps panel (CoopBattle.get_live_actions()).
+		row.append_array(CoopBattle.LIVE_ACTIONS.get(StringName(parts[0]), []) as Array)
+		if CoopBattle.MAPS_CONTEXTS.has(StringName(parts[0])):
+			row.append(&"cycle_weapon")
 		if not row.has(StringName(parts[1])):
 			problems.append("label %s names no action of a row" % [key])
 	bar.free()
