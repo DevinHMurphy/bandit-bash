@@ -378,6 +378,7 @@ stay append-only and readers strict.
 | `ProposeSwapCommand`, `AnswerSwapCommand`, `WithdrawSwapCommand` | Campaign commands | CO5 |
 | `RouteVoteCommand` | Campaign command | CO6 |
 | Route voted, route drawn; swap proposed, accepted, ended; heirloom offer replaced; seat forfeited | `CampaignFact.Kind`, appended | CO5–CO7, CO14 |
+| Expected-heirloom slot on `TreasureCommand` and `KeyHeirloomCommand` (appended field) | Campaign commands, wire fields | CO7 |
 | `EventOptionCommand` on a team choice | Changed meaning: one seat's own part | CO9 |
 | `ForfeitCommand` | Campaign command | CO14 |
 | `NetRelay._seat_settings(settings: Dictionary)` | `any_peer`, `call_remote`, to the host | CO15 |

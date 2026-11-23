@@ -14,7 +14,10 @@ extends HBoxContainer
 ## One trait, heirloom or curse in the [UnitDetailPanel]: its name and its effect text, the same
 ## generated text as everywhere else ([method EffectDefinition.describe_marked], in an
 ## [EffectText]), with its charges left where it has a limit (ui-lift.md, Unit detail pop-up).
-## Holds no rules.
+## Holds no rules.[br]
+## It is a focus stop the panel steps keys and pads through (the mouse never focuses it), so key
+## or pad focus shows its keywords beside it; it draws the theme's focus look
+## ([code]Button[/code]'s [code]focus[/code] style) while that focus is on it.
 ##
 ## @tutorial(UI lift): docs/design/ui-lift.md
 
@@ -29,6 +32,16 @@ extends HBoxContainer
 @onready var _text: EffectText = %EffectText
 
 
+func _ready() -> void:
+	focus_entered.connect(queue_redraw)
+	focus_exited.connect(queue_redraw)
+
+
+func _draw() -> void:
+	if has_focus(true):
+		draw_style_box(get_theme_stylebox(&"focus", &"Button"), Rect2(Vector2.ZERO, size))
+
+
 ## Draws [param line], its keywords coloured; [param is_army] when it is one of the army's
 ## heirlooms or curses.
 func show_effect(line: UnitDetailViewModel.EffectLine, is_army: bool) -> void:
@@ -39,6 +52,11 @@ func show_effect(line: UnitDetailViewModel.EffectLine, is_army: bool) -> void:
 	if line.charges_left >= 0:
 		text += charges_format % [line.charges_left]
 	_text.marked_text = text
+
+
+## The effect text, for tests of its keywords and tooltips.
+func get_effect_text() -> EffectText:
+	return _text
 
 
 ## Its lines as shown, for tests: name, text (its words, without keyword tags).
