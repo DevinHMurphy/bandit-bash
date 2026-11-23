@@ -1,0 +1,129 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://ui/battle/coop/send_panel.gd" id="1_panel"]
+[ext_resource type="Theme" path="res://ui/theme/battle_theme.tres" id="2_theme"]
+[ext_resource type="PackedScene" path="res://ui/battle/coop/frozen_banner.tscn" id="3_rule"]
+
+[node name="SendPanel" type="PanelContainer"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -240.0
+offset_top = -60.0
+offset_right = 240.0
+offset_bottom = 60.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+theme_type_variation = &"FloatingPanel"
+script = ExtResource("1_panel")
+
+[node name="Column" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="Column"]
+layout_mode = 2
+theme_type_variation = &"HudHeading"
+text = "Send units"
+
+[node name="Rule" parent="Column" instance=ExtResource("3_rule")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
+[node name="PickPage" type="VBoxContainer" parent="Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="UnitsLabel" type="Label" parent="Column/PickPage"]
+layout_mode = 2
+theme_type_variation = &"HudText"
+text = "Units"
+
+[node name="UnitScroll" type="ScrollContainer" parent="Column/PickPage"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+follow_focus = true
+horizontal_scroll_mode = 0
+
+[node name="UnitRows" type="VBoxContainer" parent="Column/PickPage/UnitScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="MapsLabel" type="Label" parent="Column/PickPage"]
+layout_mode = 2
+theme_type_variation = &"HudText"
+text = "To"
+
+[node name="MapRows" type="VBoxContainer" parent="Column/PickPage"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Status" type="Label" parent="Column/PickPage"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(440, 0)
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+text = "Pick units, then one map to send them to."
+autowrap_mode = 3
+
+[node name="Buttons" type="HBoxContainer" parent="Column/PickPage"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SendButton" type="Button" parent="Column/PickPage/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 32)
+layout_mode = 2
+disabled = true
+text = "Send"
+
+[node name="SendNoneButton" type="Button" parent="Column/PickPage/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 32)
+layout_mode = 2
+text = "Send none"
+
+[node name="CloseButton" type="Button" parent="Column/PickPage/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 32)
+layout_mode = 2
+text = "Close"
+
+[node name="ConfirmPage" type="VBoxContainer" parent="Column"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Question" type="Label" parent="Column/ConfirmPage"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(440, 0)
+layout_mode = 2
+theme_type_variation = &"HudText"
+text = "Send Archer to Player 2's map? It arrives at the start of its turn 3."
+autowrap_mode = 3
+
+[node name="ConfirmButtons" type="HBoxContainer" parent="Column/ConfirmPage"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ConfirmButton" type="Button" parent="Column/ConfirmPage/ConfirmButtons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 32)
+layout_mode = 2
+text = "Confirm"
+
+[node name="BackButton" type="Button" parent="Column/ConfirmPage/ConfirmButtons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 32)
+layout_mode = 2
+text = "Back"

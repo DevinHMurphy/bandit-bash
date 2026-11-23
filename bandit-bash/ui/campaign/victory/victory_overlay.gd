@@ -6,7 +6,7 @@
 # File:     victory_overlay.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 21, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name VictoryOverlay
@@ -16,8 +16,9 @@ extends CanvasLayer
 ## ([CombatResultsModel], [VictoryRewards]), rebuilt after every command, so a quit and Continue
 ## shows the same. The [BattleScreen] shows it over the board after a win; on a resumed run the
 ## Results screen shows it over a plain backdrop, opening on Rewards once a reward is taken.[br]
-## Shows one seat's results. A picker sends its reward's commands; Leave sends each open reward's
-## skip, then [LeaveNodeCommand], asking first while rewards are open, each once the one before
+## Shows one seat's results; a co-op seat whose map was lost sees only that and Leave. A picker
+## sends its reward's commands; Leave sends each open reward's skip, then [LeaveNodeCommand],
+## asking first while rewards are open, each once the one before
 ## settled ([CampaignLink]); after the Boss it reads End run and ends the run as won
 ## ([method CampaignService.end_won_run]). A refusal shows its reason; once any seat's Leave
 ## resolves, the run goes on. XP fills run on playback time ([member playback_speed]). The run's
@@ -58,6 +59,8 @@ extends CanvasLayer
 #                  cancelled -> REWARDS, rebuilt from the saved run.
 # CONFIRM_LEAVE:   the LeaveConfirmDialog. Leave -> the commands and LEAVING; Stay -> REWARDS.
 # LEAVING:         input does nothing; the screen changes.
+# A co-op seat whose map was lost (CombatResultsModel.is_lost) opens on REWARDS with no stage
+# shown: the "Map lost" ribbon, the loss line and Leave (End run when another map beat the Boss).
 # A resumed sequence opens on REWARDS once a reward is taken, else on GRADE. There is no stage
 # for gold: it is collected before the sequence opens. A rejected command stays in REWARDS. Any
 # stage: the run leaving these results (any seat's Leave) -> LEAVING.
@@ -87,6 +90,13 @@ const BACKDROP_ALPHA: float = 0.85
 ## Length of a stage change's fade, and of the overlay's own fade-in (ui-style.md, Motion).[br]
 ## [b]Units:[/b] seconds, not scaled by playback speed.
 const STAGE_FADE_TIME: float = 0.25
+
+# ASSUMPTION: the failed seat's wordings (P11 question 134); no design doc words them.
+## The ribbon of a co-op seat whose map was lost ([member CombatResultsModel.is_lost]).
+const LOST_TITLE: String = "Map lost"
+
+## The line under it: what the loss costs.
+const LOST_TEXT: String = "Your map was lost: no gold, XP, item pick or Standout this combat."
 
 # The Grade stage's gold (Godot_FE's reward panel). Gold has no fact of its own, so it sounds
 # here; level-ups sound through their facts (_play_level_up).
@@ -174,6 +184,10 @@ func open(seat: int, is_resumed: bool) -> void:
 		_ribbon_label.text = "Victory"
 		_status_label.text = "This combat's report couldn't be read; see the log."
 		_primary_button.disabled = true
+		return
+	if _model.is_lost:
+		_status_label.text = LOST_TEXT
+		_enter(Stage.REWARDS)
 		return
 	CampaignPlayback.play_before(CampaignService.session, CampaignFact.Kind.LEVELED_UP, _seat)
 	var starts_on_rewards: bool = is_resumed and VictoryRewards.has_taken(_rewards)
@@ -277,6 +291,14 @@ func _enter(stage: Stage) -> void:
 			_recap_stage.link_focus(_primary_button)
 			if stage == Stage.RECAP_DONE:
 				_recap_stage.hide_level_up()
+		Stage.REWARDS when _model.is_lost:
+			# A lost map's results: the loss and Leave, no stage shown.
+			CampaignPlayback.play_pending(CampaignService.session)
+			_ribbon_label.text = LOST_TITLE
+			for stage_shown: Control in [_grade_stage, _recap_stage, _rewards_stage]:
+				stage_shown.visible = false
+			_shown_stage = null
+			_set_primary("End run" if _model.is_boss else "Leave")
 		Stage.REWARDS:
 			CampaignPlayback.play_pending(CampaignService.session)
 			_ribbon_label.text = "Rewards"
