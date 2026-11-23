@@ -22,4 +22,9 @@
 
 Coding rules are in `CLAUDE.md` and `.claude/rules/` at the repo root.
 
+**Tools** (in `bandit-bash/tools/`; each script's header has the details): tests run through
+`run_tests.sh` (or double-click `run_tests.cmd`). UI screenshots run through `run_captures.sh` (or
+`run_captures.cmd`), which gives each size a throwaway user folder and prints where the shots and
+layout reports are; `capture_screens.gd` refuses any user folder that script didn't make.
+
 **Plan IDs:** P00 save system · P01 event bus and effects · P02 combat core · P03 content · P04 combat map · P05 enemies and AI · P06 the darkness · P07 combat UI · P08 campaign · P09 events · P10 net · P11 co-op · P12 statistics · P13 RNG · P14 project organization.

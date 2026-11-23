@@ -6,7 +6,7 @@
 # File:     capture_screens.gd
 # Author:
 # Created:  November 18, 2026
-# Modified: November 19, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -17,9 +17,9 @@ extends SceneTree
 ## units and visible controls outside the window listed, and their count printed at the end.[br]
 ## To add shots, add [code]tools/captures/<number>_<name>.gd[/code] extending
 ## [code]capture_group.gd[/code] by path; its number places it; its doc names what it needs.[br]
-## Run windowed with a throwaway user folder (APPDATA on Windows; it writes save file 1):
-## [code]godot --path bandit-bash --script res://tools/capture_screens.gd -- --out <dir>
-## --size 1920x1080[/code]. Authoring tooling: nothing in the game loads it. Never names an
+## Run it through [code]tools/run_captures.sh[/code] (or [code].cmd[/code]): the run writes save
+## file 1, so the tool refuses any user folder but the throwaway one that script makes (see
+## [constant USER_DIR_PREFIX]). Authoring tooling: nothing in the game loads it. Never names an
 ## autoload (a [code]--script[/code] run compiles before they register); it reaches them as nodes.
 ## @tutorial(UI style guide): docs/design/ui-style.md
 
@@ -27,6 +27,11 @@ const CaptureGroup = preload("res://tools/captures/capture_group.gd")
 
 # The groups' folder: every [code]<number>_<name>.gd[/code] in it is a group.
 const GROUP_DIR: String = "res://tools/captures"
+
+## The tool runs only when a folder on the user folder's path starts with this: the name
+## tools/run_captures.sh gives its throwaway folder, so the two change together. A name, not a
+## comparison with the default path, so any folder the script didn't make is refused too.
+const USER_DIR_PREFIX: String = "bandit_bash_captures"
 
 ## The style guide's floor for text, in base units.
 const MIN_FONT_SIZE: int = 14
@@ -38,10 +43,26 @@ var _issues: int = 0
 
 
 func _initialize() -> void:
+	if not _is_throwaway_user_dir():
+		push_error((
+			"CaptureScreens: refusing to run in the user folder %s, which isn't a throwaway one:"
+			+ " run bandit-bash/tools/run_captures.sh (or run_captures.cmd) instead"
+		) % [OS.get_user_data_dir()])
+		quit(1)
+		return
 	if not _read_args():
 		quit(1)
 		return
 	_run.call_deferred()
+
+
+# Whether user:// sits under a folder named for run_captures.sh's throwaway one. Reads the folder
+# Godot actually resolved, so an override.cfg or a project setting can't slip past it.
+func _is_throwaway_user_dir() -> bool:
+	for part: String in OS.get_user_data_dir().split("/"):
+		if part.begins_with(USER_DIR_PREFIX):
+			return true
+	return false
 
 
 func _read_args() -> bool:
