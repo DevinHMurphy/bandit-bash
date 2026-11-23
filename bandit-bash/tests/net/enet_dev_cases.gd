@@ -13,12 +13,13 @@ extends "res://tests/net/net_case_base.gd"
 ## ENet dev transport cases for tests/net/run_all.gd ([code]SteamNetwork[/code]'s debug flags):
 ## the flags ask for a host or a join in a debug build, and for nothing, with why, in a release
 ## build or when malformed; entering the lobby with the host flag hosts on ENet on the real
-## autoload (stand-in ids, "Player <id>") and leaving ends it. [b]Two instances:[/b] two headless
-## instances of this project, launched with the flags and each its own user folder, play a
-## battle to its end over ENet through the real autoloads, each driven by [PairPeer] from
-## [code]harness/enet_pair_peer.gd[/code]; every map's hash must match on both, and both logs
-## are kept in [code]user://logs/[/code]. Only the instances this case started are ever stopped.
-## Skipped without a test user folder.
+## autoload (stand-in ids, "Player <id>") and leaving ends it; the lobby screen's status names the
+## transport and its address under either flag, and is as before without one. [b]Two
+## instances:[/b] two headless instances of this project, launched with the flags and each its own
+## user folder, play a battle to its end over ENet through the real autoloads, each driven by
+## [PairPeer] from [code]harness/enet_pair_peer.gd[/code]; every map's hash must match on both,
+## every relay message must arrive, and both logs are kept in [code]user://logs/[/code]. Only the
+## instances this case started are ever stopped. Skipped without a test user folder.
 
 # The suite that runs this file; tests/case_files.gd finds it by this line.
 const SUITE: String = "net"
@@ -28,6 +29,8 @@ const M1BattleCases = preload("res://tests/enemies/m1_battle_cases.gd")
 const Fixture = preload("res://tests/campaign/node_fixture.gd")
 
 const PEER_SCRIPT: String = "res://tests/net/harness/enet_pair_peer.gd"
+# Loaded by its case alone: the pair's instances load this file too, and never show a lobby.
+const LOBBY_SCENE_PATH: String = "res://ui/screens/lobby_screen.tscn"
 const LOCALHOST: String = "127.0.0.1"
 const HOST_ARG: String = "--enet-host="
 const JOIN_ARG: String = "--enet-join="
@@ -38,11 +41,17 @@ const HOSTING_LINE: String = "Hosting on ENet "
 const DONE_LINE: String = "PAIR DONE"
 const FAILED_LINE: String = "PAIR FAILED"
 const MAP_LINE: String = "PAIR MAP "
+const STEP_LINE: String = "PAIR STEP "
+const SEED_LINE: String = "New multiplayer run, seed "
 
-# Limits that only stop a hang: an instance boots in seconds and a localhost battle of two seats
-# ends in under a minute, both well inside the runner's suite limit.
+# Limits that only stop a hang. Alone, an instance boots in seconds and the battle ends in about
+# 10 s; under a full run's load it can take minutes, so each instance fails on its own first
+# (PairPeer's limits) and this case's limit is a backstop past them. START + PAIR, about 330 s,
+# plus the rest of the net suite (under a minute) stays inside a SUITE_TIMEOUT of 450 s.
 const START_LIMIT_MSEC: int = 30000
-const PAIR_LIMIT_MSEC: int = 180000
+const PAIR_LIMIT_MSEC: int = 300000
+# Log lines a failure's detail quotes from the end of each instance's log.
+const TAIL_LINES: int = 6
 # The pause between polls while waiting, so the wait doesn't spin a core.
 const POLL_PAUSE_MSEC: int = 50
 
@@ -54,6 +63,7 @@ const JOIN_ROLE: int = SteamNetworkScript._DevRole.JOIN
 func run() -> void:
 	_test_flags()
 	_test_host_in_process()
+	_test_lobby_status()
 	_test_two_instances()
 
 
@@ -148,6 +158,103 @@ func _test_host_in_process() -> void:
 	))
 
 
+# The lobby screen's status on the real SteamNetwork: without the flags, as it was (Steam's line
+# when Steam is off); hosting, the transport and its port above the lobby's line; joining an ENet
+# server here, the host's address while connecting, then above the lobby's line once connected.
+func _test_lobby_status() -> void:
+	const NONE_CASE: String = "enet: without the flags the lobby's status is as before"
+	const HOST_CASE: String = "enet: hosting, the lobby's status names the transport and port"
+	const JOIN_CASE: String = "enet: joining, the lobby's status names the host's address"
+	const STEAM_OFF_TEXT: String = "Steam is not available. Open Steam, then restart the game."
+	const PREFIX: String = "ENet dev transport: "
+	var case_names: PackedStringArray = [NONE_CASE, HOST_CASE, JOIN_CASE]
+	var scene: PackedScene = load(LOBBY_SCENE_PATH) as PackedScene
+	if SteamNetwork.current_lobby_id != 0 or scene == null:
+		for case_name: String in case_names:
+			_skip(case_name, "SteamNetwork is in a lobby, or %s doesn't load" % [LOBBY_SCENE_PATH])
+		return
+	var kept: SteamNetworkScript._DevLink = SteamNetwork._dev_link
+	var screen: Control = scene.instantiate() as Control
+	_root.add_child(screen)
+	var status: Label = screen.get_node("%Status") as Label
+
+	SteamNetwork._dev_link = SteamNetworkScript._dev_link_of(PackedStringArray(), true)
+	SteamNetwork._on_scene_router_screen_changed(SceneRouter.Screen.LOBBY)
+	var plain: String = status.text
+	var is_plain: bool = (
+			not SteamNetwork.has_active_session()
+			and not plain.contains(PREFIX)
+			and (SteamManager.is_available or plain == STEAM_OFF_TEXT)
+	)
+
+	SteamNetwork._dev_link = SteamNetworkScript._dev_link_of(
+			PackedStringArray(["%s0" % [HOST_ARG]]), true
+	)
+	SteamNetwork._on_scene_router_screen_changed(SceneRouter.Screen.LOBBY)
+	var host_port: int = _dev_port()
+	var host_lines: PackedStringArray = status.text.split("\n")
+	SteamNetwork.leave_lobby()
+	var after_host: String = status.text
+	_check(NONE_CASE, is_plain and after_host == plain, "before %s, after leaving %s" % [
+		plain.c_escape(), after_host.c_escape(),
+	])
+	_check(HOST_CASE, (
+			host_lines.size() == 2
+			and host_lines[0] == "%shosting on %s:%d" % [PREFIX, LOCALHOST, host_port]
+			and not host_lines[1].is_empty()
+			and host_lines[1] != STEAM_OFF_TEXT
+	), "port %d: %s" % [host_port, "\\n".join(host_lines)])
+
+	var server: ENetMultiplayerPeer = ENetMultiplayerPeer.new()
+	server.set_bind_ip(LOCALHOST)
+	if server.create_server(0, 1) != OK:
+		_skip(JOIN_CASE, "no port can be opened on %s" % [LOCALHOST])
+	else:
+		var port: int = server.host.get_local_port()
+		var where: String = "%s:%d" % [LOCALHOST, port]
+		SteamNetwork._dev_link = SteamNetworkScript._dev_link_of(
+				PackedStringArray(["%s%s" % [JOIN_ARG, where]]), true
+		)
+		SteamNetwork._on_scene_router_screen_changed(SceneRouter.Screen.LOBBY)
+		var joining: String = status.text
+		var connected: bool = _wait(START_LIMIT_MSEC, func() -> bool:
+			server.poll()
+			SteamNetwork.multiplayer.poll()
+			return _dev_port() > 0 and (
+					SteamNetwork.multiplayer.multiplayer_peer.get_connection_status()
+					== MultiplayerPeer.CONNECTION_CONNECTED
+			)
+		)
+		screen.call("_refresh")
+		var joined_lines: PackedStringArray = status.text.split("\n")
+		SteamNetwork.leave_lobby()
+		server.close()
+		_check(JOIN_CASE, (
+				joining == "%sjoining %s..." % [PREFIX, where]
+				and connected
+				and joined_lines.size() == 2
+				and joined_lines[0] == "%sjoined %s" % [PREFIX, where]
+				and not joined_lines[1].is_empty()
+				and status.text == plain
+		), "connecting %s, connected %s, joined %s, after leaving %s" % [
+			joining.c_escape(), connected, "\\n".join(joined_lines), status.text.c_escape(),
+		])
+	SteamNetwork._dev_link = kept
+	_root.remove_child(screen)
+	screen.queue_free()
+
+
+# The local port of SteamNetwork's ENet peer, or 0 without one: a host's listening port, a
+# client's own.
+static func _dev_port() -> int:
+	var peer: ENetMultiplayerPeer = (
+			SteamNetwork.multiplayer.multiplayer_peer as ENetMultiplayerPeer
+	)
+	if peer == null or peer.host == null:
+		return 0
+	return peer.host.get_local_port()
+
+
 func _test_two_instances() -> void:
 	const CASE_NAME: String = "enet: two instances on one machine play a battle to its end"
 	if not _has_test_user_dir():
@@ -176,20 +283,31 @@ func _test_two_instances() -> void:
 	var instances: Array[Instance] = [host]
 	if client != null:
 		instances.append(client)
+	var started_msec: int = Time.get_ticks_msec()
 	var ended: bool = _wait(PAIR_LIMIT_MSEC, func() -> bool:
 		for instance: Instance in instances:
 			if instance.is_running():
 				return false
 		return true
 	)
+	var seconds: float = (Time.get_ticks_msec() - started_msec) / 1000.0
 	for instance: Instance in instances:
 		instance.stop()
 	var host_text: String = host.log_text()
 	var client_text: String = "" if client == null else client.log_text()
 	var host_maps: PackedStringArray = _lines_with(host_text, MAP_LINE)
 	var client_maps: PackedStringArray = _lines_with(client_text, MAP_LINE)
-	print("      enet pair logs: %s, %s" % [
-		host.log_path, "(no client)" if client == null else client.log_path,
+	var run_seed: String = _after_last(host_text, SEED_LINE).get_slice(",", 0)
+	# Every relay message one side sent the other arrived, kind by kind, both ways.
+	var to_client: String = _count_text(host_text, "sent")
+	var to_host: String = _count_text(client_text, "sent")
+	var counts_match: bool = (
+			not to_client.is_empty()
+			and to_client == _count_text(client_text, "received")
+			and to_host == _count_text(host_text, "received")
+	)
+	print("      enet pair: %.1f s from the client's launch, seed %s; logs: %s, %s" % [
+		seconds, run_seed, host.log_path, "(no client)" if client == null else client.log_path,
 	])
 	_check(CASE_NAME, (
 			listening
@@ -202,8 +320,17 @@ func _test_two_instances() -> void:
 			and host_maps == client_maps
 			and host_text.contains("NetRelay: sent sync, ")
 			and client_text.contains("NetRelay: received sync, ")
-	), "listening %s, ended %s, maps %s / %s; host: %s; client: %s" % [
-		listening, ended, host_maps, client_maps, _tail(host_text), _tail(client_text),
+			and counts_match
+	), (
+			"listening %s, ended %s after %.1f s, seed %s, maps %s / %s; messages to the client"
+			+ " %s / %s, to the host %s / %s; steps reached: %s / %s; host's last lines: %s;"
+			+ " client's last lines: %s"
+	) % [
+		listening, ended, seconds, run_seed, host_maps, client_maps,
+		to_client, _count_text(client_text, "received"),
+		to_host, _count_text(host_text, "received"),
+		_after_last(host_text, STEP_LINE), _after_last(client_text, STEP_LINE),
+		_tail(host_text), _tail(client_text),
 	])
 
 
@@ -277,10 +404,46 @@ static func _lines_with(text: String, part: String) -> PackedStringArray:
 	return found
 
 
-# The last lines of text, for a failure's detail.
+# How many relay messages of each kind text's log lines say were sent, or received, as
+# "kind n, ..." in kind order; "" with none. One line per message ("NetRelay: sent sync, 84 B,
+# to peer 1."), as net_relay.gd logs it.
+static func _count_text(text: String, verb: String) -> String:
+	var marker: String = "NetRelay: %s " % [verb]
+	var counts: Dictionary[String, int] = {}
+	for line: String in text.split("\n"):
+		var at: int = line.find(marker)
+		if at < 0:
+			continue
+		var kind: String = line.substr(at + marker.length()).get_slice(",", 0)
+		counts[kind] = counts.get(kind, 0) + 1
+	var kinds: Array[String] = []
+	kinds.assign(counts.keys())
+	kinds.sort()
+	var parts: PackedStringArray = []
+	for kind: String in kinds:
+		parts.append("%s %d" % [kind, counts[kind]])
+	return ", ".join(parts)
+
+
+# The rest of text's last line holding part, after it, or "(none)": the step an instance
+# reached, or the host's run seed.
+static func _after_last(text: String, part: String) -> String:
+	var at: int = text.rfind(part)
+	if at < 0:
+		return "(none)"
+	return text.substr(at + part.length()).get_slice("\n", 0).strip_edges()
+
+
+# The last TAIL_LINES lines of text, for a failure's detail, leaving out the backtrace lines
+# under warnings and errors.
 static func _tail(text: String) -> String:
-	var lines: PackedStringArray = text.strip_edges().split("\n")
-	return " | ".join(lines.slice(maxi(lines.size() - 4, 0)))
+	var kept: PackedStringArray = []
+	for line: String in text.strip_edges().split("\n"):
+		var trimmed: String = line.strip_edges()
+		if trimmed.is_empty() or line.begins_with(" ") or line.begins_with("\t"):
+			continue
+		kept.append(trimmed)
+	return " | ".join(kept.slice(maxi(kept.size() - TAIL_LINES, 0)))
 
 
 # One launched instance: its process and its log.
@@ -311,6 +474,8 @@ class Instance:
 ## own map through its mirror, one command at a time. Each map is played by the M1 battle driver
 ## ([code]m1_battle_cases.gd[/code]). When every map has ended each prints its maps' hashes; the
 ## host ends the battle and waits for the client to leave; the client leaves at the results.
+## It prints each step it enters, and fails when nothing moves (no new step, no new fact on any
+## map) for [constant STALL_LIMIT] s, or at [constant PEER_LIMIT] s in all.
 class PairPeer:
 	extends RefCounted
 
@@ -328,14 +493,23 @@ class PairPeer:
 	const PASSED: int = 0
 	const FAILED: int = 1
 
-	# Seconds an instance waits for the battle to end before it fails; only stops a hang.
-	const PEER_LIMIT: float = 150.0
+	# Seconds with no new step and no new fact on any map before an instance fails: a hang. Under
+	# load a command can take seconds, so this is far above the slowest gap seen.
+	const STALL_LIMIT: float = 60.0
+	# Seconds in all before an instance fails, however it moves: a battle that never ends. Under
+	# the case's PAIR_LIMIT_MSEC, so the instance reports its own failure first.
+	const PEER_LIMIT: float = 270.0
 	# Commands refused before the instance gives up: the driver would otherwise send one again.
 	const REJECTION_LIMIT: int = 20
 
 	var _is_host: bool = false
 	var _step: Step = Step.BOOT
 	var _clock: float = 0.0
+	# Seconds since the step or a map's last fact last moved, and what they were then (-1 before
+	# the first frame).
+	var _stall_clock: float = 0.0
+	var _seen_step: int = -1
+	var _seen_seq: int = -1
 	var _node: int = -1
 	var _driver: M1BattleCases = null
 	var _is_waiting: bool = false
@@ -351,8 +525,11 @@ class PairPeer:
 	## Advances by [param delta] seconds; [constant RUNNING] until this side is done.
 	func tick(delta: float) -> int:
 		_clock += delta
+		_note_progress(delta)
+		if _stall_clock > STALL_LIMIT:
+			return _fail("nothing moved for %.0f s" % [STALL_LIMIT])
 		if _clock > PEER_LIMIT:
-			return _fail("no end after %.0f s, at step %s" % [PEER_LIMIT, Step.find_key(_step)])
+			return _fail("no end after %.0f s" % [PEER_LIMIT])
 		if _rejections > REJECTION_LIMIT:
 			return _fail("%d commands refused" % [_rejections])
 		match _step:
@@ -513,8 +690,49 @@ class PairPeer:
 				_rejections += 1
 				print("PAIR REFUSED %s: %s" % [batch.label, batch.rejected_reason])
 
+	# Restarts the stall clock when the step or the battle's facts moved since the last frame, and
+	# prints each step entered, so a case whose instance was stopped still knows where it was.
+	func _note_progress(delta: float) -> void:
+		var seq: int = _seq_total()
+		if _step != _seen_step:
+			print("%s%s %s at %.1f s" % [STEP_LINE, _side(), Step.find_key(_step), _clock])
+		if _step == _seen_step and seq == _seen_seq:
+			_stall_clock += delta
+			return
+		_seen_step = _step
+		_seen_seq = seq
+		_stall_clock = 0.0
+
+	# The sum of every map's last fact seq in this instance's battle; 0 without one. A rebuilt
+	# mirror may move it either way: any change is movement.
+	func _seq_total() -> int:
+		var session: CampaignSession = CampaignService.session
+		if session == null or session.encounter == null:
+			return 0
+		var total: int = 0
+		for map: CombatSession in session.encounter.get_sessions():
+			total += map.last_seq()
+		return total
+
+	# Each map's last fact seq, for a failure's detail.
+	func _seqs_text() -> String:
+		var session: CampaignSession = CampaignService.session
+		if session == null or session.encounter == null:
+			return "no battle"
+		var parts: PackedStringArray = []
+		for map: CombatSession in session.encounter.get_sessions():
+			parts.append("s%d#%d%s" % [
+				map.session_id, map.last_seq(), " ended" if map.is_finished else "",
+			])
+		return " ".join(parts)
+
+	func _side() -> String:
+		return "host" if _is_host else "client"
+
 	func _fail(why: String) -> int:
-		print("%s %s: %s" % [FAILED_LINE, "host" if _is_host else "client", why])
+		print("%s %s: %s, at step %s after %.1f s, maps %s" % [
+			FAILED_LINE, _side(), why, Step.find_key(_step), _clock, _seqs_text(),
+		])
 		SteamNetwork.leave_lobby()
 		return FAILED
 

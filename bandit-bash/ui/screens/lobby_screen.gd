@@ -6,7 +6,7 @@
 # File:     lobby_screen.gd
 # Author:
 # Created:  October 9, 2026
-# Modified: November 19, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends Control
@@ -41,6 +41,13 @@ extends Control
 # ============================================================
 
 const _FRIEND_ROW_SCENE: PackedScene = preload("res://ui/screens/friend_lobby_row.tscn")
+
+# The ENet dev transport's status line (debug builds only). The host's address is the loopback
+# SteamNetwork binds its dev host to, which its ENet peer doesn't report: keep the two in step.
+const _DEV_TRANSPORT_PREFIX: String = "ENet dev transport: "
+const _DEV_HOST_ADDRESS: String = "127.0.0.1"
+# Ends the line while a dev client still connects, when it stands alone as a pending request does.
+const _DEV_JOINING_SUFFIX: String = "..."
 
 # Text for a request that is in flight, or "" when idle. Non-empty disables Host and Join.
 var _pending_text: String = ""
@@ -325,9 +332,45 @@ func _get_missing_steam_ids() -> PackedInt64Array:
 	return missing
 
 
+# The status line, under the ENet dev transport's own line when the lobby is on it: there Steam
+# isn't needed, so its absence isn't news.
 func _get_status_text(in_lobby: bool, is_host: bool, host_blocker: String) -> String:
-	if not SteamManager.is_available:
-		return "Steam is not available. Open Steam, then restart the game."
+	var dev_peer: ENetMultiplayerPeer = _get_dev_peer()
+	if dev_peer == null:
+		if not SteamManager.is_available:
+			return "Steam is not available. Open Steam, then restart the game."
+		return _get_lobby_status_text(in_lobby, is_host, host_blocker)
+	var transport_text: String = _get_dev_transport_text(dev_peer)
+	if dev_peer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
+		return transport_text
+	return "%s\n%s" % [transport_text, _get_lobby_status_text(in_lobby, is_host, host_blocker)]
+
+
+# The lobby's ENet peer in a debug build, else null. Only SteamNetwork's debug flags put a lobby
+# on ENet (a Steam lobby's peer is a SteamMultiplayerPeer), so the peer itself tells which.
+func _get_dev_peer() -> ENetMultiplayerPeer:
+	if not OS.is_debug_build() or not SteamNetwork.has_active_session():
+		return null
+	return SteamNetwork.multiplayer.multiplayer_peer as ENetMultiplayerPeer
+
+
+# "ENet dev transport: hosting on <address>:<port>", "joined <address>:<port>", or "joining
+# <address>:<port>..." while a client still connects.
+func _get_dev_transport_text(peer: ENetMultiplayerPeer) -> String:
+	if peer.get_unique_id() == MultiplayerPeer.TARGET_PEER_SERVER:
+		return "%shosting on %s:%d" % [
+			_DEV_TRANSPORT_PREFIX, _DEV_HOST_ADDRESS, peer.host.get_local_port(),
+		]
+	var host: ENetPacketPeer = peer.get_peer(MultiplayerPeer.TARGET_PEER_SERVER)
+	if host == null:
+		return "%sjoining%s" % [_DEV_TRANSPORT_PREFIX, _DEV_JOINING_SUFFIX]
+	var address: String = "%s:%d" % [host.get_remote_address(), host.get_remote_port()]
+	if peer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
+		return "%sjoining %s%s" % [_DEV_TRANSPORT_PREFIX, address, _DEV_JOINING_SUFFIX]
+	return "%sjoined %s" % [_DEV_TRANSPORT_PREFIX, address]
+
+
+func _get_lobby_status_text(in_lobby: bool, is_host: bool, host_blocker: String) -> String:
 	if not _error_text.is_empty():
 		return _error_text
 	if not _pending_text.is_empty():
