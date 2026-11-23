@@ -6,7 +6,7 @@
 # File:     detail_enemy_section.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name DetailEnemySection
@@ -17,7 +17,8 @@ extends VBoxContainer
 ## player unit. Holds no rules.[br]
 ## While it shows the move's text it is a focus stop the panel steps keys and pads through (the
 ## mouse never focuses it), so key or pad focus shows the move's keywords beside it; it draws the
-## theme's focus look ([code]Button[/code]'s [code]focus[/code] style) while that focus is on it.
+## theme's focus look ([code]Button[/code]'s [code]focus[/code] style) on its edge while that focus
+## is on it, its contents [member focus_inset] inside.
 ##
 ## @tutorial(UI lift): docs/design/ui-lift.md
 
@@ -41,6 +42,12 @@ extends VBoxContainer
 ## Start. [b]Empty:[/b] nothing is added.
 @export var next_text: String = " · fires next enemy phase"
 
+## How far the section's contents sit inside its edge, where the focus outline draws, on every
+## side, so the outline never touches the text; the style guide's row gap.[br]
+## [b]Units:[/b] base units. [b]0.0:[/b] the contents reach the edge, under the outline.
+@export_range(0.0, 16.0, 1.0) var focus_inset: float = 4.0
+
+@onready var _inset: MarginContainer = %Inset
 @onready var _intent: Label = %Intent
 @onready var _rule: Label = %Rule
 @onready var _signature: Label = %Signature
@@ -48,6 +55,8 @@ extends VBoxContainer
 
 
 func _ready() -> void:
+	for side: StringName in [&"margin_left", &"margin_top", &"margin_right", &"margin_bottom"]:
+		_inset.add_theme_constant_override(side, roundi(focus_inset))
 	focus_entered.connect(queue_redraw)
 	focus_exited.connect(queue_redraw)
 

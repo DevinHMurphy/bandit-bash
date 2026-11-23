@@ -10,33 +10,42 @@ mouse_filter = 2
 theme = ExtResource("2_theme")
 script = ExtResource("1_section")
 
-[node name="Heading" type="Label" parent="."]
+[node name="Inset" type="MarginContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Content" type="VBoxContainer" parent="Inset"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Heading" type="Label" parent="Inset/Content"]
 layout_mode = 2
 theme_type_variation = &"HudHeading"
 text = "Enemy"
 
-[node name="Intent" type="Label" parent="."]
+[node name="Intent" type="Label" parent="Inset/Content"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(240, 0)
 layout_mode = 2
 theme_type_variation = &"HudText"
 autowrap_mode = 3
 
-[node name="Rule" type="Label" parent="."]
+[node name="Rule" type="Label" parent="Inset/Content"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(240, 0)
 layout_mode = 2
 theme_type_variation = &"HudNote"
 autowrap_mode = 3
 
-[node name="Signature" type="Label" parent="."]
+[node name="Signature" type="Label" parent="Inset/Content"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(240, 0)
 layout_mode = 2
 theme_type_variation = &"HudText"
 autowrap_mode = 3
 
-[node name="SignatureText" parent="." instance=ExtResource("3_text")]
+[node name="SignatureText" parent="Inset/Content" instance=ExtResource("3_text")]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(240, 0)
 layout_mode = 2
