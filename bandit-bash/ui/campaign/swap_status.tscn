@@ -1,0 +1,18 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/swap_status.gd" id="1_status"]
+
+[node name="SwapStatus" type="VBoxContainer"]
+theme_override_constants/separation = 4
+script = ExtResource("1_status")
+
+[node name="Heading" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"HeaderLabel"
+text = "Swaps"
+
+[node name="Lines" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BodyLabel"
+autowrap_mode = 3

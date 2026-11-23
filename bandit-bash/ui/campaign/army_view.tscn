@@ -63,13 +63,35 @@ layout_mode = 2
 theme_type_variation = &"MutedLabel"
 text = "Gear changes at a Camp."
 
-[node name="TeamButton" type="Button" parent="Center/Panel/Margin/Column"]
+[node name="SwapNote" type="Label" parent="Center/Panel/Margin/Column"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(1180, 0)
+layout_mode = 2
+theme_type_variation = &"BodyLabel"
+autowrap_mode = 3
+
+[node name="TeamButtons" type="HBoxContainer" parent="Center/Panel/Margin/Column"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="TeamButton" type="Button" parent="Center/Panel/Margin/Column/TeamButtons"]
 unique_name_in_owner = true
 visible = false
 custom_minimum_size = Vector2(120, 36)
 layout_mode = 2
 size_flags_horizontal = 0
 text = "Team"
+
+[node name="SwapsButton" type="Button" parent="Center/Panel/Margin/Column/TeamButtons"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(120, 36)
+layout_mode = 2
+size_flags_horizontal = 0
+text = "Swaps"
 
 [node name="Body" type="HBoxContainer" parent="Center/Panel/Margin/Column"]
 layout_mode = 2

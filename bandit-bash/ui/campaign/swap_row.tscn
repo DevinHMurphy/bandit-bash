@@ -1,0 +1,46 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/campaign/swap_row.gd" id="1_row"]
+
+[node name="SwapRow" type="VBoxContainer"]
+theme_override_constants/separation = 4
+script = ExtResource("1_row")
+
+[node name="Summary" type="Label" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(640, 0)
+layout_mode = 2
+theme_type_variation = &"BodyLabel"
+text = "No swap with Player 2."
+autowrap_mode = 3
+
+[node name="Buttons" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ProposeButton" type="Button" parent="Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 36)
+layout_mode = 2
+text = "Propose"
+
+[node name="AcceptButton" type="Button" parent="Buttons"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(120, 36)
+layout_mode = 2
+text = "Accept"
+
+[node name="DeclineButton" type="Button" parent="Buttons"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(120, 36)
+layout_mode = 2
+text = "Decline"
+
+[node name="WithdrawButton" type="Button" parent="Buttons"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(120, 36)
+layout_mode = 2
+text = "Withdraw"
