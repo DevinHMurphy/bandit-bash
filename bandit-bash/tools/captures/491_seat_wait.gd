@@ -34,12 +34,10 @@ func run() -> bool:
 		return true
 	var relay: Node = node(^"NetRelay")
 	note("wait overlay shots: seats 1 and 2 dropped, then the host lost, on the NetRelay autoload")
-	relay.call(&"_seat_changed", 1, DROPPED, SECOND_SEAT_WAIT)
-	relay.call(&"_seat_changed", 2, DROPPED, THIRD_SEAT_WAIT)
+	_change_seats(relay, DROPPED)
 	await frames(SETTLE_FRAMES)
 	await capture("seat_wait_host")
-	relay.call(&"_seat_changed", 1, CONNECTED, SECOND_SEAT_WAIT)
-	relay.call(&"_seat_changed", 2, CONNECTED, THIRD_SEAT_WAIT)
+	_change_seats(relay, CONNECTED)
 	var stand_in: SeatDirectory = SeatDirectory.new()
 	stand_in.add_seat(0, STAND_IN_STEAM_ID, 1)
 	relay.set(&"seats", stand_in)
@@ -50,3 +48,17 @@ func run() -> bool:
 	relay.set(&"seats", null)
 	await frames(SETTLE_FRAMES)
 	return true
+
+
+# Seats 1 and 2 to state, as the host's seat change tells it. The relay asks its API whether it is
+# the host, which logs an error with no peer at all, as after SteamNetwork leaves a lobby: the
+# calls hold Godot's solo peer meanwhile (no session, so nothing is sent), then put back the last.
+func _change_seats(relay: Node, state: int) -> void:
+	var api: MultiplayerAPI = relay.multiplayer
+	var kept: MultiplayerPeer = api.multiplayer_peer
+	if kept == null:
+		api.multiplayer_peer = OfflineMultiplayerPeer.new()
+	relay.call(&"_seat_changed", 1, state, SECOND_SEAT_WAIT)
+	relay.call(&"_seat_changed", 2, state, THIRD_SEAT_WAIT)
+	if kept == null:
+		api.multiplayer_peer = null
