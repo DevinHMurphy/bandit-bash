@@ -6,7 +6,7 @@
 # File:     event_screen_model.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 20, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name EventScreenModel
@@ -14,7 +14,8 @@ extends RefCounted
 ## The words and choices the event screen shows, read from an [EventView] and the run: each
 ## option's rolled parts and named curse, the steps a chosen option asks for (a pick, the unit
 ## that leaves a full army, item placements, a rune to discard), every chooser's entries with why
-## each is greyed out, and the outcome summary.
+## each is greyed out, and the outcome summary. Option and summary lines mark their keywords for
+## an [EffectText] ([method EffectTerms.plain_text] gives the words alone).
 ##
 ## Static and read-only: it reads only what it is handed and changes nothing. The summary is
 ## built from saved state alone (the option, its rolls and the team's votes), so the one shown
@@ -28,7 +29,8 @@ const INFUSED_FORMAT: String = "Infused %s"
 
 ## The lines [param shown] adds under its text on its card ([param is_done] false) or in the
 ## summary once taken (true): each block's rolled or named item, rune and heirloom by name, then
-## its curse with its tier and effect. [param seat_run] tells a rune gained with every slot full.
+## its curse with its tier and effect, keywords marked. [param seat_run] tells a rune gained with
+## every slot full.
 static func option_lines(
 		shown: EventView.OptionView,
 		seat_run: SeatRun,
@@ -65,13 +67,14 @@ static func option_lines(
 
 
 ## The curse [param curse_id] as an option names it before it is chosen ([param is_done] false)
-## or once taken: [code]Curse: Haunted (Minor curse). Phase Start: ...[/code].
+## or once taken, its effect's keywords marked: [code]Curse: Haunted (Minor curse). Phase Start:
+## ...[/code].
 static func curse_line(
 		curse_id: String, catalog: EffectCatalog.Index, is_done: bool = false
 ) -> String:
 	var curse: CurseDefinition = catalog.curse(curse_id)
 	var tier: String = "" if curse == null or curse.tier.is_empty() else curse.tier.capitalize()
-	var effect: String = "" if curse == null else " ".join(curse.describe())
+	var effect: String = "" if curse == null else " ".join(curse.describe_marked())
 	var line: String = "%s: %s (%s curse). %s" % [
 		"Cursed" if is_done else "Curse", _carrier_name(curse, curse_id), tier, effect,
 	]
@@ -225,7 +228,8 @@ static func rune_entries(seat_run: SeatRun, catalog: EffectCatalog.Index) -> Arr
 
 
 ## The summary of [param view]'s chosen option for its seat: its text, what it gave by name (its
-## curse with tier and effect), the team's draw, and a surprise combat. Empty with none chosen.
+## curse with tier and effect, keywords marked), the team's draw, a surprise combat, or the seats
+## still choosing by name ([method seat_names]). Empty with none chosen.
 static func summary_lines(
 		view: EventView, seat_run: SeatRun, catalog: EffectCatalog.Index
 ) -> PackedStringArray:
@@ -243,8 +247,20 @@ static func summary_lines(
 	if view.is_combat_pending:
 		lines.append("A surprise combat begins: a Standard combat, with its full rewards.")
 	elif not view.is_finished:
-		lines.append("Waiting for the rest of the team to choose.")
+		lines.append("Waiting for %s to choose." % [seat_names(view.seats_still_choosing())])
 	return lines
+
+
+## [param seats] by name ([method CampaignLink.seat_name]), in order, as a sentence lists them:
+## [code]Player 2[/code], [code]Player 2 and Player 3[/code], [code]Player 2, Player 3 and
+## Player 4[/code].
+static func seat_names(seats: PackedInt32Array) -> String:
+	var names: PackedStringArray = []
+	for seat: int in seats:
+		names.append(CampaignLink.seat_name(seat))
+	if names.size() < 2:
+		return "".join(names)
+	return "%s and %s" % [", ".join(names.slice(0, names.size() - 1)), names[names.size() - 1]]
 
 
 ## [param item]'s name as the screen shows it: "Infused <name>" once modified (items.md).
@@ -331,12 +347,16 @@ static func _granted_heirloom(heirloom: HeirloomOutcome, index: int, rolls: Even
 	return rolls.pick(index) if heirloom.is_tier_draw() else heirloom.heirloom_id
 
 
-# A carrier's name, then its effects' text: "Gilded Purse: +10% gold from combats".
+# A carrier's name, then its effects' text, keywords marked: "Gilded Purse: +10% gold from
+# combats".
 static func _described(carrier: EffectCarrierDefinition, fallback: String) -> String:
 	var carrier_name: String = _carrier_name(carrier, fallback)
-	if carrier == null or carrier.describe().is_empty():
+	var effects: PackedStringArray = (
+			PackedStringArray() if carrier == null else carrier.describe_marked()
+	)
+	if effects.is_empty():
 		return carrier_name
-	return "%s: %s" % [carrier_name, " ".join(carrier.describe())]
+	return "%s: %s" % [carrier_name, " ".join(effects)]
 
 
 static func _carrier_name(carrier: EffectCarrierDefinition, fallback: String) -> String:

@@ -6,19 +6,20 @@
 # File:     event_screen.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 20, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 extends Control
-## The event an Unknown node holds: the [EventPanel] under the run's header and [HeirloomBar].
+## The event an Unknown node holds, for the local seat: the [EventPanel] under the run's header and
+## [HeirloomBar]; in co-op, Team opens the [TeamPanel] with each teammate's vote or choice.
 ##
-## The panel's commands go through [method CampaignService.submit_command], which saves; a
-## rejection shows its reason on the panel and changes nothing. After each, the run's facts play
-## ([CampaignPlayback]: the event's draw sounds as the screen opens), the header and bar follow,
-## and the panel shows the saved step again, so a quit Continues at the option list, the chooser
-## or the outcome. Leave sends [LeaveNodeCommand] and returns to the map; with a surprise combat
-## pending it is Fight, which goes to the battle ([method RunScreen.go]). Opened at any other
-## stage, it sends the run on at once. Shows the game's events ([method EventPool.load_default]).
+## Commands go through a [CampaignLink] ([method CampaignService.submit_command], which saves),
+## and the screen rebuilds from what the session reports, never the submit's return: the seat's
+## own batches show the saved step again (a quit Continues there), a teammate's updates votes and
+## choices but keeps the seat's picks, and a refusal shows on the panel. Facts play
+## ([CampaignPlayback]) for the batches it follows. Leave sends [LeaveNodeCommand]; with a surprise
+## combat pending it is Fight, which goes to the battle ([method RunScreen.go]). Opened at another
+## stage, it sends the run on. Shows the game's events ([method EventPool.load_default]).
 ##
 ## @tutorial(Events and curses plan): docs/plans/2026-11-12-events-and-curses.md
 
@@ -27,16 +28,19 @@ extends Control
 # lists what it reads):
 #   "ui_left" / "ui_right" -> arrows; d-pad, left stick      (along the option cards)
 #   "ui_up" / "ui_down"    -> arrows; d-pad, left stick      (along a chooser, the unit that
-#                             leaves, or a placement)
+#                             leaves, or a placement; in co-op, down from the cards or Leave to
+#                             Team, and the team panel's rows)
 #   "ui_accept"            -> Enter, Space; pad A [Cross]    (choose or vote for the focused card,
-#                             the focused choice, or Leave / Fight)
+#                             the focused choice, or Leave / Fight / Team)
 #   "ui_cancel"            -> Esc; pad B [Circle], Menu [Options] (Back in a chooser, the unit
 #                             that leaves or the rune discard, read by the panel; in a placement
-#                             the placement panel reads it; on the cards and the outcome the pause
-#                             menu reads it; on the heirloom bar the bar reads it, closing itself)
+#                             the placement panel reads it; the team panel reads it while open; on
+#                             the cards and the outcome the pause menu reads it; on the heirloom
+#                             bar the bar reads it, closing itself)
 #   "heirloom_bar_focus"   -> H; RS pushed left [R stick]    (read by the HeirloomBar: focuses it,
 #                             then back; hints HEIRLOOMS meanwhile)
-#   Mouse: a click on a card, choice or Leave presses it; hovering an heirloom shows its tooltip.
+#   Mouse: a click on a card, choice, Leave or Team presses it; hovering an heirloom or a keyword
+#   shows its tooltip.
 # ============================================================
 
 ## The hint context of each step of the panel; the outcome's is [constant FIGHT_CONTEXT] with a
@@ -56,15 +60,22 @@ const HINT_CONTEXTS: Dictionary[EventPanel.Step, StringName] = {
 ## The outcome's hint context while a surprise combat waits.
 const FIGHT_CONTEXT: StringName = &"FIGHT"
 
+## The outcome's hint context while teammates still choose: Leave is closed, so accept presses
+## whatever has focus (Team in co-op).
+const WAITING_CONTEXT: StringName = &"WAITING"
+
 ## The header's title while no event can be shown.
 const NO_EVENT_TITLE: String = "Event"
 
 var _is_leaving: bool = false
 var _step_context: StringName = &"OPTIONS"
+var _seat: int = CampaignData.HOST_SEAT
+var _link: CampaignLink = null
 
 @onready var _header: RunHeader = %RunHeader
 @onready var _heirlooms: HeirloomBar = %HeirloomBar
 @onready var _panel: EventPanel = %EventPanel
+@onready var _team_panel: TeamPanel = %TeamPanel
 @onready var _hints: ScreenHints = %ScreenHints
 
 
@@ -74,21 +85,32 @@ func _ready() -> void:
 		_is_leaving = true
 		RunScreen.go()
 		return
+	_seat = CampaignService.local_seat()
+	_link = CampaignLink.new(session, _seat, CampaignService.submit_command)
+	_link.batch_resolved.connect(_on_link_batch_resolved)
+	_link.refused.connect(_on_link_refused)
 	_heirlooms.navigation_started.connect(_on_heirloom_bar_navigation_started)
 	_heirlooms.navigation_ended.connect(_on_heirloom_bar_navigation_ended)
 	_panel.step_changed.connect(_on_panel_step_changed)
 	_panel.command_ready.connect(_on_panel_command_ready)
 	_panel.leave_requested.connect(_on_panel_leave_requested)
-	_panel.open(session, session.seats[0])
+	_panel.team_requested.connect(_on_panel_team_requested)
+	_team_panel.closed.connect(_on_team_panel_closed)
+	_panel.offers_team = _link.is_coop()
+	_panel.open(session, _seat)
 	_show_run()
 	CampaignPlayback.play_pending(session)
+
+
+func _exit_tree() -> void:
+	if _link != null:
+		_link.close()
 
 
 ## Shows the open event again from [param pool], read with [param catalog] (null: the game's
 ## own), header included: for tests and captures, whose test-only events the game's pool lacks.
 func reopen(pool: EventPool, catalog: EffectCatalog.Index = null) -> void:
-	var session: CampaignSession = CampaignService.session
-	_panel.open(session, session.seats[0], pool, catalog)
+	_panel.open(CampaignService.session, _seat, pool, catalog)
 	_show_run()
 
 
@@ -107,63 +129,107 @@ func get_header() -> RunHeader:
 	return _header
 
 
+## The team panel, for tests and captures.
+func get_team_panel() -> TeamPanel:
+	return _team_panel
+
+
 ## The hint context shown, for tests.
 func get_hint_context() -> StringName:
 	return _hints.context
 
 
-# The header and bar as the run stands, titled with the event's name.
+# The header and bar as the run stands for the seat, titled with the event's name.
 func _show_run() -> void:
 	var session: CampaignSession = CampaignService.session
-	var seat: int = session.seats[0]
 	var view: EventView = _panel.get_view()
-	_header.show_run(session.run, seat)
+	_header.show_run(session.run, _seat)
 	_header.title = view.event.title if view.is_open() else NO_EVENT_TITLE
-	_heirlooms.show_views(HeirloomViewModel.for_run(session.run.seat_run(seat)))
+	_heirlooms.show_views(HeirloomViewModel.for_run(session.run.seat_run(_seat)))
+
+
+# Whether the run has left this event: it stands elsewhere, and no surprise combat chosen here
+# waits for its Fight (which shows on the outcome until pressed).
+func _has_left_event() -> bool:
+	var run: CampaignRunState = _link.session.run
+	if RunScreen.of(_link.session) == SceneRouter.Screen.EVENT:
+		return false
+	return not run.events.is_combat_pending_at(run.floor_number, run.node)
+
+
+# Each teammate's vote or choice as a note for the team panel's rows.
+func _team_notes() -> Dictionary[int, String]:
+	var notes: Dictionary[int, String] = {}
+	var view: EventView = _panel.get_view()
+	for teammate: int in _link.teammates():
+		notes[teammate] = EventTeamStatus.choice_text(view, teammate) if view.is_open() else ""
+	return notes
 
 
 func _on_panel_command_ready(command: CampaignCommand) -> void:
 	if _is_leaving:
 		return
-	var session: CampaignSession = CampaignService.session
-	var batch: CampaignBatch = (
-			null if command == null else CampaignService.submit_command(command)
-	)
-	if batch == null or batch.is_rejected():
-		_panel.show_problem("Can't do that: %s." % [
-			batch.rejected_reason if batch != null else "no run in progress",
-		])
+	if command == null:
+		_panel.show_problem("Can't do that: no run in progress.")
 		return
-	CampaignPlayback.play_pending(session)
-	_panel.refresh()
-	_show_run()
+	_link.send(command)
 
 
 func _on_panel_leave_requested() -> void:
 	if _is_leaving:
 		return
-	var session: CampaignSession = CampaignService.session
 	if _panel.get_view().is_combat_pending:
 		_is_leaving = true
 		RunScreen.go()
 		return
-	var batch: CampaignBatch = CampaignService.submit_command(
-			LeaveNodeCommand.new(session.seats[0])
-	)
-	if batch == null or batch.is_rejected():
-		_panel.show_problem("Couldn't leave: %s." % [
-			batch.rejected_reason if batch != null else "no run in progress",
-		])
+	_link.send(LeaveNodeCommand.new(_seat))
+
+
+func _on_panel_team_requested() -> void:
+	_team_panel.open(_link.session, _seat, _team_notes())
+
+
+# Any seat's batch: one the screen follows plays its facts and, once the run has left the event,
+# moves the screen on. While the run is still here, the seat's own batches show the saved step
+# again and a teammate's updates the team's parts, keeping the seat's picks under way.
+func _on_link_batch_resolved(batch: CampaignBatch, is_answer: bool) -> void:
+	if _is_leaving:
 		return
-	_is_leaving = true
-	CampaignPlayback.play_pending(session)
-	RunScreen.go()
+	var follows: bool = _link.moves_with(batch, is_answer)
+	if follows:
+		CampaignPlayback.play_pending(_link.session)
+	if _has_left_event():
+		if follows:
+			_is_leaving = true
+			RunScreen.go()
+		return
+	if batch.seat == _seat:
+		_panel.refresh()
+	else:
+		_panel.refresh_team()
+	_show_run()
+	_team_panel.refresh(_team_notes())
+
+
+# A refusal of the seat's own command says why where it was made; teammates are named.
+func _on_link_refused(reason: String) -> void:
+	if _is_leaving:
+		return
+	_panel.show_problem("Can't do that: %s." % [reason])
 
 
 func _on_panel_step_changed(step: EventPanel.Step) -> void:
 	_step_context = HINT_CONTEXTS.get(step, &"OPTIONS")
-	if step == EventPanel.Step.OUTCOME and _panel.get_view().is_combat_pending:
+	var view: EventView = _panel.get_view()
+	if step == EventPanel.Step.OUTCOME and not view.is_finished:
+		_step_context = WAITING_CONTEXT
+	elif step == EventPanel.Step.OUTCOME and view.is_combat_pending:
 		_step_context = FIGHT_CONTEXT
+	if not _team_panel.visible:
+		_hints.context = _step_context
+
+
+func _on_team_panel_closed() -> void:
 	_hints.context = _step_context
 
 

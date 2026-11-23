@@ -6,7 +6,7 @@
 # File:     vote_view_cases.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 21, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -52,7 +52,7 @@ func _test_vote() -> void:
 			first.get_step() == EventPanel.Step.VOTE and status.visible
 			and status.get_heading() == "Team choice: everyone votes"
 			and status.get_detail().begins_with("0 of 2 votes cast. You haven't voted.")
-			and first.get_cards()[Fixture.FIGHT].text.contains("Votes: 0")
+			and first.get_cards()[Fixture.FIGHT].get_card_text().contains("Votes: 0")
 	), status.get_detail())
 
 	var pressed: bool = _press(first, "key", Fixture.FIGHT)
@@ -60,7 +60,7 @@ func _test_vote() -> void:
 	_ok("vote view: seat 0 votes Fight by key; its card and the status line show it", (
 			pressed and vote == Fixture.FIGHT
 			and first.get_step() == EventPanel.Step.VOTE
-			and first.get_cards()[Fixture.FIGHT].text.contains("Votes: 1 (your vote)")
+			and first.get_cards()[Fixture.FIGHT].get_card_text().contains("Votes: 1 (your vote)")
 			and status.get_detail().begins_with("1 of 2 votes cast. Your vote: Fight.")
 	), status.get_detail())
 
@@ -68,9 +68,9 @@ func _test_vote() -> void:
 	vote = made.run.events.votes.get(0, EventRunState.NO_OPTION)
 	_ok("vote view: seat 0 changes its vote to Intimidate by mouse", (
 			pressed and vote == Fixture.INTIMIDATE
-			and first.get_cards()[Fixture.FIGHT].text.contains("Votes: 0")
-			and first.get_cards()[Fixture.INTIMIDATE].text.contains("Votes: 1 (your vote)")
-	), first.get_cards()[Fixture.INTIMIDATE].text)
+			and first.get_cards()[Fixture.FIGHT].get_card_text().contains("Votes: 0")
+			and first.get_cards()[Fixture.INTIMIDATE].get_card_text().contains("Votes: 1 (your vote)")
+	), first.get_cards()[Fixture.INTIMIDATE].get_card_text())
 	_fx.close_panel(first)
 
 	var second: EventPanel = _fx.open_panel(made, 1)
@@ -89,7 +89,9 @@ func _test_vote() -> void:
 			first.get_step() == EventPanel.Step.DRAWN
 			and first.get_vote_status().get_detail().begins_with("2 of 2 votes were for it.")
 			and not cards[Fixture.INTIMIDATE].disabled and cards[Fixture.FIGHT].disabled
-			and cards[Fixture.FIGHT].text.contains("Can't choose: the team drew another option.")
+			and cards[Fixture.FIGHT].get_card_text().contains(
+					"Can't choose: the team drew another option."
+			)
 	), first.get_vote_status().get_detail())
 
 	var gold: PackedInt32Array = [made.run.seat_run(0).gold, made.run.seat_run(1).gold]
@@ -99,9 +101,7 @@ func _test_vote() -> void:
 			and made.run.seat_run(0).gold == gold[0] + Fixture.LOOT_GOLD
 			and made.run.seat_run(1).gold == gold[1]
 			and first.get_summary().get_lines().contains("The team drew it with 2 of 2 votes.")
-			and first.get_summary().get_lines().contains(
-					"Waiting for the rest of the team to choose."
-			)
+			and first.get_summary().get_lines().contains("Waiting for Player 2 to choose.")
 	), _fx.last_batch.rejected_reason if _fx.last_batch != null else "")
 	_fx.close_panel(first)
 
@@ -123,10 +123,11 @@ func _test_greyed_for_team() -> void:
 	made.run.seat_run(1).gold = 0
 	var panel: EventPanel = _fx.open_panel(made, 0)
 	var pay: EventOptionCard = panel.get_cards()[Fixture.PAY]
-	_ok("vote view: Pay is greyed for both when seat 1 lacks the gold, the seat named", (
-			pay.disabled
-			and pay.text.contains("Can't choose: seat 1 needs %d gold." % [Fixture.TOLL_GOLD])
-	), pay.text)
+	_ok("vote view: Pay is greyed for both when seat 1 lacks the gold, named as Player 2", (
+			pay.disabled and pay.get_card_text().contains(
+					"Can't choose: Player 2 needs %d gold." % [Fixture.TOLL_GOLD]
+			)
+	), pay.get_card_text())
 	_fx.close_panel(panel)
 
 

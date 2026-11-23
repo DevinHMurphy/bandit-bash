@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" path="res://ui/campaign/events/event_chooser.tscn" id="4_chooser"]
 [ext_resource type="PackedScene" path="res://ui/campaign/events/event_outcome_summary.tscn" id="5_summary"]
 [ext_resource type="PackedScene" path="res://ui/campaign/placement_panel.tscn" id="6_placement"]
+[ext_resource type="PackedScene" path="res://ui/campaign/events/event_team_status.tscn" id="7_team"]
 
 [node name="EventPanel" type="Control"]
 layout_mode = 3
@@ -40,6 +41,11 @@ size_flags_horizontal = 4
 unique_name_in_owner = true
 layout_mode = 2
 
+[node name="EventTeamStatus" parent="Center/Box" instance=ExtResource("7_team")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+
 [node name="Cards" type="HBoxContainer" parent="Center/Box"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -67,6 +73,14 @@ layout_mode = 2
 size_flags_horizontal = 4
 theme_type_variation = &"PrimaryButton"
 text = "Leave"
+
+[node name="TeamButton" type="Button" parent="Center/Box"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(120, 36)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "Team"
 
 [node name="Status" type="Label" parent="Center/Box"]
 unique_name_in_owner = true
