@@ -1,4 +1,4 @@
-[gd_scene load_steps=26 format=3]
+[gd_scene load_steps=27 format=3]
 
 [ext_resource type="Script" path="res://ui/common/nav_button.gd" id="1_nav"]
 [ext_resource type="PackedScene" path="res://ui/debug/save_debug_panel.tscn" id="2_save_debug"]
@@ -25,6 +25,7 @@
 [ext_resource type="PackedScene" path="res://ui/battle/menus/rune_menu.tscn" id="24_rune_menu"]
 [ext_resource type="PackedScene" path="res://ui/battle/hud/rune_bar.tscn" id="25_rune_bar"]
 [ext_resource type="PackedScene" path="res://ui/battle/key/board_key.tscn" id="26_board_key"]
+[ext_resource type="PackedScene" path="res://ui/battle/coop/coop_battle.tscn" id="27_coop"]
 
 [node name="Gameplay" type="Node2D"]
 script = ExtResource("5_screen")
@@ -82,6 +83,12 @@ unique_name_in_owner = true
 
 [node name="BattleMessage" parent="Hud" instance=ExtResource("11_message")]
 unique_name_in_owner = true
+
+[node name="CoopBattle" parent="Hud" node_paths=PackedStringArray("controller", "hint_bar", "message") instance=ExtResource("27_coop")]
+unique_name_in_owner = true
+controller = NodePath("../../BattleController")
+hint_bar = NodePath("../ControlHintBar")
+message = NodePath("../BattleMessage")
 
 [node name="CoopPlaceholder" type="CenterContainer" parent="Hud"]
 unique_name_in_owner = true

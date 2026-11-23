@@ -137,7 +137,8 @@ const UNBOUND_KEY: String = "(unbound)"
 
 # ASSUMPTION: the labels beyond the plan's examples (Danger zone, End turn, Target, Weapon, Fast,
 # Skip, Debug) have no basis: Move, Select, Back, Pause, Resume, Start, Units, Choose, Confirm,
-# Pick, Swap, Pick tile, Runes, Discard, Log, Scroll (the log's), Toggle, Heirlooms.
+# Pick, Swap, Pick tile, Runes, Discard, Log, Scroll (the log's), Toggle, Heirlooms, Maps, Close
+# (co-op's panels, CoopBattle).
 ## What each action does, by action name, or by [code]CONTEXT/action[/code] where a context
 ## ([method HintSource.get_hint_context]) gives it another meaning; the context's key wins.
 ## [b]Missing:[/b] the action's own name shows.
@@ -226,6 +227,27 @@ const UNBOUND_KEY: String = "(unbound)"
 	"HEIRLOOM_BAR/ui_right": "Choose",
 	"HEIRLOOM_BAR/ui_cancel": "Close",
 	"HEIRLOOM_BAR/heirloom_bar_focus": "Close",
+	"SWAP/cycle_weapon": "Maps",
+	"SWAP_PICKED/cycle_weapon": "Maps",
+	"IDLE/cycle_weapon": "Maps",
+	"MOVE/cycle_weapon": "Maps",
+	"INACTIVE/cycle_weapon": "Maps",
+	"WAITING/cycle_weapon": "Maps",
+	"WAITING/ui_cancel": "Pause",
+	"MAPS/ui_up": "Choose",
+	"MAPS/ui_down": "Choose",
+	"MAPS/ui_left": "Choose",
+	"MAPS/ui_right": "Choose",
+	"MAPS/ui_cancel": "Close",
+	"SEND/ui_up": "Choose",
+	"SEND/ui_down": "Choose",
+	"SEND/ui_left": "Choose",
+	"SEND/ui_right": "Choose",
+	"SEND/ui_accept": "Pick",
+	"SEND/ui_cancel": "Close",
+	"SEND_CONFIRM/ui_left": "Choose",
+	"SEND_CONFIRM/ui_right": "Choose",
+	"SEND_CONFIRM/ui_accept": "Confirm",
 }
 
 @export_group("")

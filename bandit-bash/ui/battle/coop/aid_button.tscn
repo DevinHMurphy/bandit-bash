@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/battle/coop/aid_button.gd" id="1_aid"]
+
+[node name="AidButton" type="Button"]
+custom_minimum_size = Vector2(140, 32)
+text = "Call for aid"
+script = ExtResource("1_aid")

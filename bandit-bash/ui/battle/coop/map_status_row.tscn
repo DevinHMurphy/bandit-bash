@@ -1,0 +1,30 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/battle/coop/map_status_row.gd" id="1_row"]
+
+[node name="MapStatusRow" type="VBoxContainer"]
+theme_override_constants/separation = 2
+script = ExtResource("1_row")
+
+[node name="MapButton" type="Button" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(440, 36)
+layout_mode = 2
+text = "Player 2's map · Turn 1 · 4 units · 5 enemies"
+alignment = 0
+
+[node name="Warning" type="Label" parent="."]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(440, 0)
+layout_mode = 2
+theme_type_variation = &"HudWarning"
+autowrap_mode = 3
+
+[node name="Note" type="Label" parent="."]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(440, 0)
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+autowrap_mode = 3

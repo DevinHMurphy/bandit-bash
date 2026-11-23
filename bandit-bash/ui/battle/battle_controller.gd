@@ -90,7 +90,10 @@ extends HintSource
 #   "cycle_weapon"          -> C; X [Square]  (CONFIRM with the forecast panel open: the forecast
 #                                                and the command move to the target's next weapon,
 #                                                wrapping. Harmless elsewhere, and with one weapon;
-#                                                Q / E are targets, not weapons, unlike Godot_FE)
+#                                                Q / E are targets, not weapons, unlike Godot_FE.
+#                                                In a co-op battle CoopBattle reads it to open the
+#                                                maps panel where can_open_maps() allows, as this
+#                                                node does nothing with it there)
 #   "toggle_save_debug"     -> F3; no pad     (read by the save debug panel, in debug builds; not
 #                              binding           read here. RS went to open_runes: the panel is a
 #                                                developer's tool, and the bar hides its hint on
@@ -170,11 +173,13 @@ extends HintSource
 #              or it ended its turn), or a sent command's playback is running. Input is ignored
 #              and the board shows no selection.
 # SWAP:        the opening swap window, before the seat's Start. Cursor free. Accept on one of
-#              the seat's units that has a swap partner picks it (SWAP_PICKED). end_turn or the
-#              window's Start sends StartCommand. Cancel is left to the pause menu. No intents
+#              the seat's units that has a swap partner, or a swap visitor that has a free
+#              deployment tile, picks it (SWAP_PICKED). end_turn or the window's Start sends
+#              StartCommand. Cancel is left to the pause menu. No intents
 #              exist yet; the danger zone shows unless toggled off, and goes off at Start.
-# SWAP_PICKED: a unit picked to swap; its partners' tiles show on the move overlay. Accept on a
-#              partner sends the swap (UnitTurnCommand OPENING_SWAP) with no confirm; accept
+# SWAP_PICKED: a unit picked to swap; its partners' tiles, or a visitor's free deployment tiles
+#              (TurnInputModel.opening_moves), show on the move overlay. Accept on one sends the
+#              swap or the move (UnitTurnCommand OPENING_SWAP) with no confirm; accept
 #              elsewhere is inert. Cancel -> SWAP.
 # IDLE:        the seat's player phase, nothing selected. Cursor free. Accept on a unit that can
 #              act selects it (MOVE); on an enemy toggles its range on the enemy range overlays,
@@ -294,9 +299,10 @@ extends HintSource
 # The event log (EventLog) shows whenever no panel is open (set_covered) and scrolls by
 # event_log_scroll_* in any stage it shows in, playback included; it takes focus only in EVENT_LOG.
 # Global: cancel pops exactly one stage (_history), and one panel with it; WALK is never on
-# _history. Sending a command flushes every panel, stage and mark but leaves a staged token where
-# it stands, hides the intents, and waits in INACTIVE; when its playback settles (on a client's
-# mirror, once the host has also settled it: CampaignService.combat_settled) the stage, the
+# _history. While a co-op panel holds input (set_held()) the stage is rebuilt with nothing
+# selected and nothing is read but fast_forward; releasing rebuilds it again. Sending a command
+# flushes every panel, stage and mark but leaves a staged token where it stands, hides the
+# intents, and waits in INACTIVE; when its playback settles (on a client's mirror, once the host has also settled it: CampaignService.combat_settled) the stage, the
 # danger zone and the intents are rebuilt from the session, a staged walk still standing (the
 # command rejected) snapping back: a rejection's reason shows and the flow returns to IDLE, a unit
 # with a second move pending reopens MOVE on its new tile, and otherwise IDLE, SWAP or INACTIVE as
@@ -359,7 +365,8 @@ const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
 # leaves Esc to it there), and toggle_save_debug is the save debug panel's. Order is the bar's
 # display order.
 # get_live_actions() leaves out what a row lists but can do nothing now (question 31 (a)): Q / E
-# with one target and C with one weapon in TARGET, PAIR_TARGET, CONFIRM and FORECAST, the
+# with one target and C with one weapon in TARGET, PAIR_TARGET, CONFIRM and FORECAST, end_turn
+# where no Start or End Turn would be accepted (a co-op map with none of the seat's units), the
 # danger zone in the final playback, unit_detail in IDLE and MOVE with no unit to show, RUNE's up
 # and down with one rune, FORECAST's up and down with no Breakdown or Next weapon (a staff, a
 # shove, a rune), DETAIL's up and down while its body fits and its Q / E while its side has one
@@ -485,6 +492,10 @@ const RUNES_PLAYING: String = "Wait for the board to finish."
 
 ## Why the rune bar is refused with every slot empty.
 const RUNES_NONE: String = "You hold no runes."
+
+# ASSUMPTION: the wording; the rules give a seat's runes to its own map only (Begin's runes).
+## Why the rune bar is refused on a co-op teammate's map: a seat's runes are only on its own map.
+const RUNES_OWN_MAP: String = "Your runes act on your own map only."
 
 ## Why the rune bar is refused while a unit's action is under way (WALK to CONFIRM).
 const RUNES_UNIT_BUSY: String = "Finish or cancel this unit's action first."
@@ -729,6 +740,9 @@ var _is_log_focus_latched: bool = false
 var _log_scroll_held: int = 0
 var _log_scroll_left: float = 0.0
 
+# Whether a co-op panel holds turn input off (set_held()); kept across bind() and unbind().
+var _is_held: bool = false
+
 
 func _ready() -> void:
 	_show_widgets(false)
@@ -752,6 +766,8 @@ func _exit_tree() -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if _is_held:
+		return
 	if _stage == Stage.EVENT_LOG and is_accepting_input() and _take_log_arrow(event):
 		get_viewport().set_input_as_handled()
 		return
@@ -769,6 +785,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action(&"fast_forward") and not event.is_echo():
 		view.set_fast_forward(event.is_pressed())
+		return
+	if _is_held:
 		return
 	if event.is_action_pressed(&"skip_playback"):
 		view.skip_playback()
@@ -852,6 +870,9 @@ func bind(encounter: CombatEncounter, session: CombatSession, seat: int) -> void
 		for unit_id: String in session.state.units_of(PLAYER):
 			if session.state.seat_of(unit_id) == seat:
 				units.append(unit_id)
+	if units.is_empty():
+		# A co-op teammate's map with none of the seat's units: its own players' first.
+		units = session.state.units_of(PLAYER)
 	move_cursor(session.state.tile_of(units[0]) if not units.is_empty() else Vector2i.ZERO)
 	_rebuild()
 
@@ -972,18 +993,50 @@ func get_live_actions() -> Array[StringName]:
 	return actions
 
 
-## Whether input is taken now: a session is bound and still fought, no command's playback is
-## running, no token walks to its picked tile (WALK), and the seat has something to do
-## ([enum Stage] isn't INACTIVE).
+## Whether input is taken now: a session is bound and still fought, input isn't held
+## ([method set_held]), no command's playback is running, no token walks to its picked tile
+## (WALK), and the seat has something to do ([enum Stage] isn't INACTIVE).
 func is_accepting_input() -> bool:
 	return (
 			_session != null
+			and not _is_held
 			and not _session.is_finished
 			and not _is_waiting
 			and view.is_settled()
 			and _stage != Stage.INACTIVE
 			and _stage != Stage.WALK
 	)
+
+
+## Holds turn input off while [param is_held], as a co-op panel ([CoopBattle]) takes the keys:
+## holding drops the selection and any panel, as sending a command does, and nothing but
+## fast_forward is read until released; releasing rebuilds the stage from the session. Kept
+## across [method bind] and [method unbind].
+func set_held(is_held: bool) -> void:
+	if _is_held == is_held:
+		return
+	_is_held = is_held
+	if _session != null:
+		_rebuild()
+	live_actions_changed.emit()
+
+
+## Whether turn input is held off ([method set_held]).
+func is_held() -> bool:
+	return _is_held
+
+
+## Whether a co-op battle's maps panel may open now ([CoopBattle] reads cycle_weapon for it, which
+## is inert here in these stages): not held, and nothing bound, or settled with no command
+## waiting in SWAP, SWAP_PICKED, IDLE, MOVE or INACTIVE.
+func can_open_maps() -> bool:
+	if _is_held:
+		return false
+	if _session == null:
+		return true
+	if _is_waiting or not view.is_settled():
+		return false
+	return _stage in [Stage.SWAP, Stage.SWAP_PICKED, Stage.IDLE, Stage.MOVE, Stage.INACTIVE]
 
 
 ## Moves the cursor to [param tile] when it is on the map, redrawing the path in MOVE and asking
@@ -1445,8 +1498,8 @@ func request_discard(rune_id: String) -> bool:
 
 
 ## Why the rune bar can't be used now, as the bar and the message show it; empty when it can:
-## in IDLE, MOVE or RUNE_SLOTS of the seat's player phase, settled, with a rune held. The phase
-## cases follow [method CommandValidator.player_phase_reason].
+## in IDLE, MOVE or RUNE_SLOTS of the seat's player phase on its own map, settled, with a rune
+## held. The phase cases follow [method CommandValidator.player_phase_reason].
 func rune_bar_reason() -> String:
 	if _session == null or _session.is_finished:
 		return RUNES_BATTLE_OVER
@@ -1460,6 +1513,8 @@ func rune_bar_reason() -> String:
 		if state.ended_seats.has(_seat) and state.phase_side == PLAYER:
 			return RUNES_TURN_ENDED
 		return RUNES_ENEMY_PHASE
+	if not _session.seats.has(_seat):
+		return RUNES_OWN_MAP
 	if get_held_runes().is_empty():
 		return RUNES_NONE
 	match _stage:
@@ -1518,6 +1573,13 @@ func _can_act_now(context: StringName, action: StringName) -> bool:
 			return OS.is_debug_build()
 		&"toggle_danger_zone":
 			return not _session.is_finished
+		&"end_turn":
+			# On a co-op teammate's map with none of the seat's units, neither Start nor End Turn
+			# is accepted; with units, as in solo, one always is.
+			if context == &"SWAP" or context == &"SWAP_PICKED":
+				return TurnInputModel.start_command(_session, _seat) != null
+			if context == &"IDLE" or context == &"MOVE":
+				return TurnInputModel.end_turn_command(_session, _seat) != null
 		&"cycle_weapon":
 			return _targets != null and _targets.weapon_count() > 1
 		&"target_prev", &"target_next":
@@ -1825,10 +1887,12 @@ func _open_action_menu(options: Array[TurnInputModel.ActionOption]) -> void:
 	_redraw()
 
 
+# Picks unit_id in the swap window: its partners' tiles, or a swap visitor's free deployment tiles.
 func _pick_swap_unit(unit_id: String) -> void:
 	var partners: Array[TurnInputModel.TargetOption] = TurnInputModel.swap_partners(
 			_session, unit_id
 	)
+	partners.append_array(TurnInputModel.opening_moves(_session, unit_id))
 	if partners.is_empty():
 		return
 	_unit_id = unit_id
@@ -2500,8 +2564,13 @@ func _refresh_widgets() -> void:
 	var is_swapping: bool = TurnInputModel.is_swapping(_session, _seat)
 	if swap_window != null:
 		swap_window.visible = is_swapping and not _session.is_finished
-		if _stage == Stage.SWAP_PICKED:
+		# ASSUMPTION: the visitor's hints' wording; no design doc words them.
+		if _stage == Stage.SWAP_PICKED and not _session.seats.has(_seat):
+			swap_window.show_hint("Pick a free tile to move to.")
+		elif _stage == Stage.SWAP_PICKED:
 			swap_window.show_hint("Pick the unit to trade tiles with.")
+		elif not _session.seats.has(_seat):
+			swap_window.show_hint("Your unit visits here: move it to a free tile, then Start.")
 		else:
 			swap_window.show_hint("Pick two of your units to trade tiles, then Start.")
 	if turn_bar == null:
