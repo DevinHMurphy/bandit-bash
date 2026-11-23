@@ -106,9 +106,11 @@ func _finish() -> void:
 ## hover's, or else the sweep's next tile, so at most one preview runs at a time.[br]
 ## [b]The sweep:[/b] while the session's intents are current, the worker previews every tile each
 ## unit of the sweep order can end on, nearest first, a unit's tiles before the next unit's; a
-## hover on a tile not yet done runs next. The done previews are keyed by the session, its
-## [method CombatSession.last_seq], the unit and the tile, and dropped at the next fact, when the
-## sweep starts over.
+## hover on a tile not yet done cancels the sweep's preview running
+## ([method Intents.PreviewJob.cancel]) and runs as soon as it stops, the cancelled tile left for
+## the sweep to reach again. A hover's own preview is never cancelled. The done previews are keyed
+## by the session, its [method CombatSession.last_seq], the unit and the tile, and dropped at the
+## next fact, when the sweep starts over.
 class Queue:
 	extends RefCounted
 
@@ -133,6 +135,10 @@ class Queue:
 	## Of [member runs], those the sweep started.
 	var swept: int = 0
 
+	## Of [member swept], those a hover cancelled before they ended, their results dropped; each
+	## cancelled tile is swept again later, so it counts in [member swept] again.
+	var cancelled: int = 0
+
 	# The newest request; whether it waits to start, and whether it is owed: waiting, or started
 	# and not yet returned.
 	var _unit_id: String = ""
@@ -148,11 +154,12 @@ class Queue:
 	var _done_seq: int = Command.NO_SEQ
 	var _tiles_of: Dictionary[String, Array] = {}
 
-	# The preview a worker re-plans, its task (_NO_TASK once waited for), and the session's
-	# instance id when it was asked for.
+	# The preview a worker re-plans, its task (_NO_TASK once waited for), the session's instance
+	# id when it was asked for, and whether the sweep started it (a hover may cancel it).
 	var _running: MovePreview = null
 	var _task_id: int = _NO_TASK
 	var _running_session: int = 0
+	var _is_running_swept: bool = false
 
 	## Asks for the preview of [param unit_id] on [param tile], replacing any request not yet run.
 	## A request for the preview already shown, on an unchanged session, is dropped when run.
@@ -192,16 +199,21 @@ class Queue:
 		_task_id = _NO_TASK
 
 	## On [param session]: takes the finished preview into the done ones, then returns the
-	## newest request's when it is done, or starts it when nothing runs; with no request waiting,
-	## starts the next tile of [param sweep] (the units to sweep, in order) not yet done. Returns
-	## null while the request's preview isn't done, when nothing waited, or for a request that
-	## would repeat the preview shown. A preview asked on an older board is ignored when it
-	## finishes. With [member is_threaded] off, computes the newest request at once instead.
+	## newest request's when it is done, or starts it when nothing runs, cancelling a sweep's
+	## preview of another tile that runs; with no request waiting, starts the next tile of
+	## [param sweep] (the units to sweep, in order) not yet done. Returns null while the request's
+	## preview isn't done, when nothing waited, or for a request that would repeat the preview
+	## shown. A preview asked on an older board, or cancelled, is ignored when it finishes. With
+	## [member is_threaded] off, computes the newest request at once instead.
 	func run_pending(session: CombatSession, sweep: PackedStringArray = []) -> MovePreview:
 		_drop_stale(session)
 		_collect(session)
 		var ready: MovePreview = _take_done(session)
 		if _running != null:
+			if _is_owed and _is_running_swept and not _runs_request(session):
+				# The hover's starts on the first call after the cancelled one stops, so one
+				# preview runs at a time.
+				_running._job.cancel()
 			return ready
 		# Owed and not running: waiting, or its preview was asked on an older board.
 		if _is_owed:
@@ -234,7 +246,8 @@ class Queue:
 		return _done_session == session.get_instance_id() and _done_seq == session.last_seq()
 
 	# The running preview once its task has finished: finished on the main thread and kept as
-	# done while it was asked on session's board as it stands, else ignored.
+	# done while it was asked on session's board as it stands, else ignored; ignored and counted
+	# when a cancel stopped it.
 	func _collect(session: CombatSession) -> void:
 		if _running == null:
 			return
@@ -245,6 +258,9 @@ class Queue:
 			_task_id = _NO_TASK
 		var finished: MovePreview = _running
 		_running = null
+		if finished._job.is_cancelled():
+			cancelled += 1
+			return
 		if _running_session != session.get_instance_id():
 			return
 		if finished.based_on_seq != session.last_seq():
@@ -279,9 +295,20 @@ class Queue:
 		if _is_done_board(session) and preview.based_on_seq == _done_seq:
 			_done[_key_of(preview.unit_id, preview.tile)] = preview
 
-	func _start(session: CombatSession, preview: MovePreview) -> void:
+	# Whether the preview running is the request's, on session's board as it stands: its result
+	# will serve the hover, so cancelling it would only start the same preview again.
+	func _runs_request(session: CombatSession) -> bool:
+		return (
+				_running.unit_id == _unit_id
+				and _running.tile == _tile
+				and _running.based_on_seq == session.last_seq()
+				and _running_session == session.get_instance_id()
+		)
+
+	func _start(session: CombatSession, preview: MovePreview, is_swept: bool = false) -> void:
 		_running = preview
 		_running_session = session.get_instance_id()
+		_is_running_swept = is_swept
 		_task_id = WorkerThreadPool.add_task(preview._job.run)
 
 	# Starts the first tile of sweep's units, in order, not yet done.
@@ -292,7 +319,7 @@ class Queue:
 					continue
 				runs += 1
 				swept += 1
-				_start(session, MovePreview._prepare(session, unit_id, tile))
+				_start(session, MovePreview._prepare(session, unit_id, tile), true)
 				return
 
 	# Every tile unit_id can end its move on (Pathing.reach), nearest first, ties in row-major

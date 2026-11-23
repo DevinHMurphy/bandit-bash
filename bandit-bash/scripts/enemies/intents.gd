@@ -280,7 +280,8 @@ static func prepare_preview(session: CombatSession, unit_id: String, tile: Vecto
 # change it (Decision.touches), until a plan other than base's acts or a second move goes
 # elsewhere. margin: _effect_margin of engine as it starts. checking: also decide each kept one
 # afresh (_check_kept). forecasts: the attack forecasts every decision reuses and adds to, across
-# steps. Pure on engine: PreviewJob.run calls it on a worker.
+# steps. job: stops before a step once it is cancelled, found left part-built. Pure on engine:
+# PreviewJob.run calls it on a worker.
 static func _play(
 		found: Intents,
 		engine: EffectEngine,
@@ -289,11 +290,14 @@ static func _play(
 		touched: Array[Vector2i],
 		margin: int,
 		checking: bool = false,
-		forecasts: EnemyAI.Forecasts = null
+		forecasts: EnemyAI.Forecasts = null,
+		job: PreviewJob = null
 ) -> void:
 	var state: CombatState = engine.state
 	var is_reusing: bool = base != null and margin >= 0
 	for step: int in state.units_of(CombatFact.CombatSide.ENEMY).size():
+		if job != null and job._is_asked_to_stop():
+			return
 		var known: Round = null
 		if is_reusing and step < base._rounds.size():
 			known = base._rounds[step]
@@ -792,10 +796,17 @@ class Decision:
 
 ## A move preview between [method Intents.prepare_preview], on the main thread, and [method run],
 ## on any thread: the sandbox it re-plans on and the intents it builds on. It shares nothing
-## mutable with the session, so the session may resolve commands while it runs.
+## mutable with the session, so the session may resolve commands while it runs. [method cancel]
+## stops it from another thread at its next step, keeping nothing.
 class PreviewJob:
 	extends RefCounted
 
+	# Guards the three flags below, which cancel sets from one thread while run reads them on
+	# another.
+	var _lock: Mutex = Mutex.new()
+	var _is_cancel_asked: bool = false
+	var _is_stopped: bool = false
+	var _has_ended: bool = false
 	# The answer prepare_preview found without re-planning (null, or the base intents), then run's.
 	var _result: Intents = null
 	# What run re-plans, all set together by prepare_preview; cleared once it has run.
@@ -815,10 +826,13 @@ class PreviewJob:
 	## same. Pure rules code on the job's own sandbox, reading only the base intents and content
 	## definitions: no session, node, autoload or log, so it may run on a worker thread, one call
 	## at a time. It reuses the base's forecasts and adds its own to them as it ends (a locked
-	## store). The sandbox's diagnostics are in [member Intents.diagnostics].
+	## store). The sandbox's diagnostics are in [member Intents.diagnostics]. Null once cancelled.
 	func run() -> Intents:
 		if _found == null:
 			return _result
+		if _is_asked_to_stop():
+			_stop()
+			return null
 		var forecasts: EnemyAI.Forecasts = EnemyAI.Forecasts.new(
 				_forecasts, _margin, _is_checking
 		)
@@ -827,8 +841,16 @@ class PreviewJob:
 		if touched.has(CombatFact.NO_TILE):
 			reused = null
 		Intents._play(
-				_found, _engine, _flooded, reused, touched, _margin, _is_checking, forecasts
+				_found, _engine, _flooded, reused, touched, _margin, _is_checking, forecasts, self
 		)
+		# The last point a cancel stops it: past here its result counts and cancel does nothing.
+		_lock.lock()
+		var is_stopping: bool = _is_cancel_asked
+		_has_ended = not is_stopping
+		_lock.unlock()
+		if is_stopping:
+			_stop()
+			return null
 		forecasts.add_overlay_to_store()
 		Intents._take_forecasts(_found, _engine, forecasts)
 		_found.diagnostics = _engine.diagnostics
@@ -842,6 +864,41 @@ class PreviewJob:
 		_base = null
 		_forecasts = null
 		return _result
+
+	## Asks the job to stop, from any thread: [method run] stops before its next step of the
+	## phase (one enemy acting) or as it ends, then returns null, keeps none of its forecasts in
+	## the base's store and holds no result. A job that has ended keeps its result, and one that
+	## never re-plans returns its answer. Can't be undone.
+	func cancel() -> void:
+		_lock.lock()
+		if not _has_ended:
+			_is_cancel_asked = true
+		_lock.unlock()
+
+	## Whether [method run] stopped on a [method cancel], with no result; false while it runs.
+	func is_cancelled() -> bool:
+		_lock.lock()
+		var stopped: bool = _is_stopped
+		_lock.unlock()
+		return stopped
+
+	# Whether cancel was asked: Intents._play reads it before each step.
+	func _is_asked_to_stop() -> bool:
+		_lock.lock()
+		var asked: bool = _is_cancel_asked
+		_lock.unlock()
+		return asked
+
+	# Drops everything run would build on or keep, so a later run returns null too.
+	func _stop() -> void:
+		_found = null
+		_engine = null
+		_base = null
+		_forecasts = null
+		_result = null
+		_lock.lock()
+		_is_stopped = true
+		_lock.unlock()
 
 
 ## One step of the phase: every enemy yet to act, decided, and the decision that acted.

@@ -351,6 +351,16 @@ forecast. The sweep runs one preview at a time on one worker thread, as the queu
   off, and not with `is_sweeping` off (tests of the hover alone).
 - **A hover cleared or replaced** while its preview runs no longer drops it: the preview finishes
   into the done ones.
+- **A hover cancels the sweep's preview** (EN17, P05 question 54 (a)). When a hover waits on a
+  tile not yet done and the preview running is the sweep's, of another tile,
+  `Intents.PreviewJob.cancel` asks it to stop. The job checks before each step of the phase and
+  as it ends; once stopped it returns null, adds none of its forecasts to the store and holds no
+  result. The queue drops it when its task completes and starts the hover's on that same call,
+  so one preview still runs at a time. The cancelled tile isn't done, so the sweep reaches it
+  again in its order, next if it was the sweep's first tile not done. A hover's own preview is
+  never cancelled, and neither is a sweep preview of the hovered tile on the current board. A
+  job that has ended keeps its result: a cancel then does nothing. The queue counts the
+  cancelled ones (`cancelled`).
 - **Memory:** a preview's rounds are released as its job ends (only the intents a preview builds on
   read them). See Threads and memory.
 
@@ -395,7 +405,10 @@ The preview must equal a full re-plan, so every layer ships with checks that com
   reads the store and keeps its new forecasts in its own overlay, then adds them to the store as
   it ends, on the worker. One preview runs at a time, but the store takes a lock on every read
   and write anyway, so a dropped job finishing while the main thread works stays safe. The rules
-  code stays pure, and the worker still never logs.
+  code stays pure, and the worker still never logs. A cancel is a flag behind the job's own lock;
+  a cancelled job leaves its overlay unadded. All it leaves in the store is the short number
+  given to each signature it read (a text's number never changes, so no key matches
+  differently) and whether each effect definition reads the whole board (fixed by content).
 - **Memory, measured.** A kept forecast holds 25–43 KB in debug (its facts, rolls and outcomes are
   objects). Unbounded, a sweep of every tile of one board state kept 10,225 forecasts on the key
   board (480 MB) and 58,793 on the boss board. So previews add at most 2,000 to a store, the oldest
@@ -426,14 +439,16 @@ The preview must equal a full re-plan, so every layer ships with checks that com
 | A Measure | Benchmark boards: M1 turn 1, M1 engaged, a 9-enemy, 6-unit key-combat board. A per-phase profile of a hover. The equality suite and checking mode, run against today's preview | Baseline median and p95, debug and release, per hover and per sweep; equality passes |
 | B Diff and cache | Layers 1 and 2, the shared flood (left out: under 2% of a hover) | Equality passes; the benchmark is measured before and after. **Built in EN14** (Where it stands) |
 | C Zones | Layers 3 and 4 | Same. **Built in EN15** (Where it stands) |
-| D Precompute | Layer 5: the sweep during playback, in `MovePreview.Queue` | A hover on a done tile shows on the next frame; the sweep's time per turn is reported. **Built in EN16** (Where it stands) |
+| D Precompute | Layer 5: the sweep during playback, in `MovePreview.Queue` | A hover on a done tile shows on the next frame; the sweep's time per turn is reported. **Built in EN16** (Where it stands); a hover cancelling the sweep's preview in EN17 |
 
 Steps A–C change only the internals of `intents.gd`, `enemy_ai.gd` and `danger_zone.gd`. Step D
 changes the queue inside `move_preview.gd` and the controller's calls into it. No public signature
 changes, except optional trailing arguments: EN14's `forecasts` on `EnemyAI.decide` (P05 question
 48), EN15's `footprint` on it and `base`, `touched` and `margin` on `DangerZone.compute` (P05
 question 49), and EN16's `sweep` on `MovePreview.Queue.run_pending`, with the queue's new
-`is_sweeping`, `runs`, `swept` and `is_done` (P05 question 52). Step D goes ahead whatever B and C measure, because the user wants hover work at a
+`is_sweeping`, `runs`, `swept` and `is_done` (P05 question 52), then EN17's `cancel` and
+`is_cancelled` on `Intents.PreviewJob` (P05 question 54) and the queue's `cancelled` (P05
+question 56, proposed). Step D goes ahead whatever B and C measure, because the user wants hover work at a
 minimum.
 
 ## Decisions
