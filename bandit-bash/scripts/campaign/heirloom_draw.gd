@@ -6,7 +6,7 @@
 # File:     heirloom_draw.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name HeirloomDraw
@@ -16,9 +16,10 @@ extends RefCounted
 ## tier), then one heirloom of that tier ([method draw]).
 ##
 ## A drawn heirloom is one the seat doesn't own (offers never duplicate one), never a curse and
-## never a starting, Shop or commander heirloom; co-op-only ones only in co-op. A tier with none
-## left draws from the whole main pool (game-vision.md, Empty offer pools). Draws come only from
-## the stream handed in; pure and static.
+## never a starting, Shop or commander heirloom; co-op-only ones only in co-op; never one the
+## caller excludes, such as a unique one a teammate owns
+## ([method UniqueClaims.owned_by_teammates]). A tier with none left draws from the whole main pool
+## (game-vision.md, Empty offer pools). Draws come only from the stream handed in; pure and static.
 ##
 ## @tutorial(Heirlooms, Tiers and sources): docs/design/heirlooms.md
 
@@ -42,28 +43,34 @@ static func roll_tier(stream: RngStream) -> String:
 
 ## One heirloom of [param tier] for [param seat_run], evenly in id order, from [param stream]
 ## (see the class doc), the whole main pool when the tier has none left; [param is_coop] admits
-## co-op-only heirlooms. Empty, drawing nothing, when nothing is left at all.
+## co-op-only heirlooms; never one of [param excluded]. Empty, drawing nothing, when nothing is
+## left at all.
 static func draw(
 		stream: RngStream,
 		seat_run: SeatRun,
 		catalog: EffectCatalog.Index,
 		tier: String,
-		is_coop: bool
+		is_coop: bool,
+		excluded: PackedStringArray = PackedStringArray()
 ) -> String:
-	var found: PackedStringArray = candidates(seat_run, catalog, PackedStringArray([tier]), is_coop)
+	var found: PackedStringArray = candidates(
+			seat_run, catalog, PackedStringArray([tier]), is_coop, excluded
+	)
 	if found.is_empty():
-		found = candidates(seat_run, catalog, TIERS, is_coop)
+		found = candidates(seat_run, catalog, TIERS, is_coop, excluded)
 	if found.is_empty():
 		return ""
 	return found[stream.pick_index(found.size())]
 
 
-## Ids of the heirlooms of [param tiers] [param seat_run] may be given (see the class doc), sorted.
+## Ids of the heirlooms of [param tiers] [param seat_run] may be given (see the class doc), none
+## of [param excluded], sorted.
 static func candidates(
 		seat_run: SeatRun,
 		catalog: EffectCatalog.Index,
 		tiers: PackedStringArray,
-		is_coop: bool
+		is_coop: bool,
+		excluded: PackedStringArray = PackedStringArray()
 ) -> PackedStringArray:
 	var owned: PackedStringArray = seat_run.heirloom_ids()
 	var found: PackedStringArray = []
@@ -71,7 +78,9 @@ static func candidates(
 		var heirloom: HeirloomDefinition = resource as HeirloomDefinition
 		if heirloom == null or heirloom is CurseDefinition or not tiers.has(heirloom.tier):
 			continue
-		if owned.has(heirloom.id) or (heirloom.is_coop_only and not is_coop):
+		if owned.has(heirloom.id) or excluded.has(heirloom.id):
+			continue
+		if heirloom.is_coop_only and not is_coop:
 			continue
 		found.append(heirloom.id)
 	found.sort()

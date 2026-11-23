@@ -6,14 +6,15 @@
 # File:     open_treasure_command.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 21, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name OpenTreasureCommand
 extends CampaignCommand
 ## Rolls every seat's chest at the Treasure node the run is in ([method TreasureChest.roll]), each
-## from its own [code]REWARD[/code] stream, and saves them in the seats' pending offers: the
-## Treasure screen's entry point, as [OpenEventCommand] is an Unknown node's.
+## from its own [code]REWARD[/code] stream and never with a unique heirloom a teammate owns, and
+## saves them in the seats' pending offers: the Treasure screen's entry point, as
+## [OpenEventCommand] is an Unknown node's.
 ##
 ## Valid only inside a Treasure node where no seat has a chest yet, so a continued run shows the
 ## chests it saved and never rolls again. Records no fact: rolling an offer changes no state a
@@ -61,7 +62,12 @@ func resolve(run: CampaignRunState) -> void:
 	var is_coop: bool = run.seat_numbers().size() > 1
 	for seat_number: int in run.seat_numbers():
 		var seat_run: SeatRun = run.seat_run(seat_number)
-		TreasureChest.roll(streams[seat_number], seat_run, catalog, ids, is_coop).store(seat_run)
+		var excluded: PackedStringArray = UniqueClaims.owned_by_teammates(
+				run, seat_number, catalog
+		)
+		TreasureChest.roll(
+				streams[seat_number], seat_run, catalog, ids, is_coop, excluded
+		).store(seat_run)
 
 
 func get_wire_type() -> String:

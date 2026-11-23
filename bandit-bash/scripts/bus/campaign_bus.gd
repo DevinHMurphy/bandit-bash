@@ -150,6 +150,8 @@ class ArmyChannel:
 	signal rune_bought(fact: CampaignFact)
 	## [constant CampaignFact.PREFIX_REROLLED].
 	signal prefix_rerolled(fact: CampaignFact)
+	## [constant CampaignFact.HEIRLOOM_OFFER_REPLACED].
+	signal heirloom_offer_replaced(fact: CampaignFact)
 
 	func _init() -> void:
 		_route(CampaignFact.Kind.GAINED, gained)
@@ -173,6 +175,7 @@ class ArmyChannel:
 		_route(CampaignFact.Kind.UNIT_BOUGHT, unit_bought)
 		_route(CampaignFact.Kind.RUNE_BOUGHT, rune_bought)
 		_route(CampaignFact.Kind.PREFIX_REROLLED, prefix_rerolled)
+		_route(CampaignFact.Kind.HEIRLOOM_OFFER_REPLACED, heirloom_offer_replaced)
 
 
 ## Effect activations and counters.

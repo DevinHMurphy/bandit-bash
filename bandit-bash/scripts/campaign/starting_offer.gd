@@ -6,7 +6,7 @@
 # File:     starting_offer.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name StartingOffer
@@ -19,7 +19,8 @@ extends RefCounted
 ## heirlooms, then each one's part in offer order. [RunStart] stores it in the seat's
 ## [member SeatRun.pending_offers] under [constant OFFER_KEY] before the run's first save;
 ## [StartingHeirloomCommand] takes one, with its sub-choice, or skips when all three are refused
-## ([method option_problem]). Until it is resolved the run can't choose its first node. Pure rules
+## ([method option_problem]). Until it is resolved the run can't choose its first node. A unique
+## heirloom Family Relic drew is replaced once a teammate takes it ([UniqueClaims]). Pure rules
 ## code; the faction and commander pickers it follows are skipped while the MVP has one of each.
 ##
 ## @tutorial(Heirlooms, Starting heirlooms): docs/design/heirlooms.md
@@ -110,7 +111,7 @@ static func roll(
 			StartingHeirloomDefinition.Bonus.WEAPON:
 				option.weapons = _roll_weapons(stream, seat_run, catalog, definition, ids)
 			StartingHeirloomDefinition.Bonus.HEIRLOOM:
-				option.drawn_heirloom_id = _draw_heirloom(
+				option.drawn_heirloom_id = draw_heirloom(
 						stream, seat_run, catalog, definition.heirloom_tier, is_coop
 				)
 	offer.is_resolved = offer.options.is_empty()
@@ -180,7 +181,8 @@ static func definition_of(
 
 ## Why [param option] can't be taken by seat [param seat] of [param run] now, whatever its
 ## sub-choice: its bonus has nothing to give (no room for a recruit, no unit to upgrade or
-## replace, no weapon or heirloom drawn). Empty when it can.
+## replace, no weapon or heirloom drawn), or its drawn heirloom is unique and a teammate owns it
+## ([method UniqueClaims.take_problem]). Empty when it can.
 static func option_problem(
 		run: CampaignRunState, seat: int, option: Option, catalog: EffectCatalog.Index
 ) -> String:
@@ -217,6 +219,7 @@ static func option_problem(
 		StartingHeirloomDefinition.Bonus.HEIRLOOM:
 			if option.drawn_heirloom_id.is_empty():
 				return "no %s heirloom is left to draw" % [definition.heirloom_tier.capitalize()]
+			return UniqueClaims.take_problem(run, seat, option.drawn_heirloom_id, "", catalog)
 	return ""
 
 
@@ -238,6 +241,35 @@ static func eligible_units(
 		if problem.is_empty():
 			found.append(unit.instance_id)
 	return found
+
+
+## Family Relic's heirloom for [param seat_run]: one of [param tier], evenly in id order from
+## [param stream], that it doesn't own (offers never duplicate one, heirlooms.md), co-op-only ones
+## only with [param is_coop], never one of [param excluded] (a unique one a teammate owns), a
+## curse or a starting heirloom. Empty, drawing nothing, for none: no fallback to another tier.
+static func draw_heirloom(
+		stream: RngStream,
+		seat_run: SeatRun,
+		catalog: EffectCatalog.Index,
+		tier: String,
+		is_coop: bool,
+		excluded: PackedStringArray = PackedStringArray()
+) -> String:
+	var owned: PackedStringArray = seat_run.heirloom_ids()
+	var found: PackedStringArray = []
+	for resource: Resource in catalog.all_of(EffectCatalog.Kind.HEIRLOOM):
+		var heirloom: HeirloomDefinition = resource as HeirloomDefinition
+		if heirloom == null or heirloom is CurseDefinition or heirloom.tier != tier:
+			continue
+		if owned.has(heirloom.id) or excluded.has(heirloom.id):
+			continue
+		if heirloom.is_coop_only and not is_coop:
+			continue
+		found.append(heirloom.id)
+	if found.is_empty():
+		return ""
+	found.sort()
+	return found[stream.pick_index(found.size())]
 
 
 # Up to the heirloom's offer_count weapons of its rarity the army can use (ItemPick's reading:
@@ -285,30 +317,6 @@ static func _roll_weapons(
 		used.append(picked_type)
 		offers.append(ItemPick.Offer.new(picked.id, ids.next_item_id(picked.display_name)))
 	return offers
-
-
-# One heirloom of tier, evenly in id order, that seat_run doesn't own (offers never duplicate one,
-# heirlooms.md), co-op ones only in co-op; never a curse or a starting heirloom. Empty for none.
-static func _draw_heirloom(
-		stream: RngStream,
-		seat_run: SeatRun,
-		catalog: EffectCatalog.Index,
-		tier: String,
-		is_coop: bool
-) -> String:
-	var owned: PackedStringArray = seat_run.heirloom_ids()
-	var found: PackedStringArray = []
-	for resource: Resource in catalog.all_of(EffectCatalog.Kind.HEIRLOOM):
-		var heirloom: HeirloomDefinition = resource as HeirloomDefinition
-		if heirloom == null or heirloom is CurseDefinition or heirloom.tier != tier:
-			continue
-		if owned.has(heirloom.id) or (heirloom.is_coop_only and not is_coop):
-			continue
-		found.append(heirloom.id)
-	if found.is_empty():
-		return ""
-	found.sort()
-	return found[stream.pick_index(found.size())]
 
 
 static func _restore_option(entry: Variant) -> Option:

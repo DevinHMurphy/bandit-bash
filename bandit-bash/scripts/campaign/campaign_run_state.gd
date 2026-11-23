@@ -550,7 +550,8 @@ static func _reward_seat(
 		pick.store(seat_run)
 	if outcome.combat_type == CombatMapDefinition.CombatType.KEY:
 		var heirloom: KeyHeirloom = KeyHeirloom.roll(
-				reward_stream, seat_run, catalog, run.seat_numbers().size() > 1
+				reward_stream, seat_run, catalog, run.seat_numbers().size() > 1,
+				UniqueClaims.owned_by_teammates(run, seat, catalog)
 		)
 		if heirloom != null:
 			heirloom.store(seat_run)

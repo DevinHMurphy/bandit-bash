@@ -6,7 +6,7 @@
 # File:     campaign_session.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 20, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name CampaignSession
@@ -387,10 +387,12 @@ func end_battle() -> BattleResult:
 
 
 ## Stamps [param command] on arrival and resolves it on [member run] at once
-## ([method CampaignRunState.resolve]), so the first arrival wins. Rejected, changing nothing,
-## with no run, a closed run or a battle in progress. Emits [signal campaign_batch_resolved], and
-## [signal command_rejected] for a rejection; logs it at INFO. Returns the batch; null for null.
-## Saving is the caller's ([code]CampaignService.submit_command()[/code]).
+## ([method CampaignRunState.resolve]), so the first arrival wins; a unique heirloom it gained
+## replaces every teammate's open offer of it in the same batch ([UniqueClaims]). Rejected,
+## changing nothing, with no run, a closed run or a battle in progress. Emits
+## [signal campaign_batch_resolved], and [signal command_rejected] for a rejection; logs it at
+## INFO. Returns the batch; null for null. Saving is the caller's
+## ([code]CampaignService.submit_command()[/code]).
 func submit(command: CampaignCommand) -> CampaignBatch:
 	if command == null:
 		push_error("CampaignSession: submit needs a command")
@@ -408,6 +410,8 @@ func submit(command: CampaignCommand) -> CampaignBatch:
 		)
 	else:
 		batch = run.resolve(command)
+		if not batch.is_rejected():
+			_settle_claims(batch)
 	if batch.is_rejected():
 		command_rejected.emit(batch.seat, batch.arrival, batch.rejected_reason)
 	_log_campaign_batch(batch)
@@ -714,6 +718,22 @@ func _battle_instance(battle: CombatEncounter, instance_id: String) -> EffectIns
 
 
 # One INFO line per campaign command, then one per fact it recorded.
+# Replaces every teammate's open offer of a unique heirloom batch gained, each from the stream it
+# was rolled from, and adds the replacements' facts to batch, so they are announced and saved with
+# the take. Reads the loaded catalog: a command's own test catalog doesn't reach here.
+func _settle_claims(batch: CampaignBatch) -> void:
+	var catalog: EffectCatalog.Index = EffectCatalog.index()
+	var offers: Array[UniqueClaims.Offer] = UniqueClaims.offers_to_replace(
+			run, batch.facts, catalog
+	)
+	if offers.is_empty():
+		return
+	var first: int = run.fact_log.size()
+	for offer: UniqueClaims.Offer in offers:
+		UniqueClaims.replace(run, offer, rng.stream(UniqueClaims.stream_key(run, offer)), catalog)
+	batch.facts.append_array(run.fact_log.slice(first))
+
+
 func _log_campaign_batch(batch: CampaignBatch) -> void:
 	var net: NetLogScript = CombatSession.logger(
 			NetLogScript.Level.INFO, NetLogScript.Category.CAMPAIGN
