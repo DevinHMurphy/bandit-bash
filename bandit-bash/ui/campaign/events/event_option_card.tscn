@@ -1,11 +1,61 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://ui/campaign/events/event_option_card.gd" id="1_card"]
+[ext_resource type="PackedScene" path="res://ui/common/text/effect_text.tscn" id="2_text"]
 
 [node name="EventOptionCard" type="Button"]
 custom_minimum_size = Vector2(300, 200)
-text = "Option
-What it does"
-alignment = 0
-autowrap_mode = 3
 script = ExtResource("1_card")
+
+[node name="Content" type="MarginContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 8
+
+[node name="Text" type="VBoxContainer" parent="Content"]
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="Title" type="Label" parent="Content/Text"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BodyLabel"
+text = "Option"
+autowrap_mode = 3
+
+[node name="OptionText" type="Label" parent="Content/Text"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BodyLabel"
+text = "What it does"
+autowrap_mode = 3
+
+[node name="Effects" parent="Content/Text" instance=ExtResource("2_text")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
+[node name="Votes" type="Label" parent="Content/Text"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"BodyLabel"
+autowrap_mode = 3
+
+[node name="Problem" type="Label" parent="Content/Text"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"BodyLabel"
+autowrap_mode = 3

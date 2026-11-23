@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 15, 2026
-# Modified: November 20, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 extends "res://tests/ui/ui_suite.gd"
@@ -1081,7 +1081,7 @@ func _finish_walk() -> void:
 	if _treasure_with.is_empty():
 		_skip("treasure", "the seed's route reached no Treasure")
 	var focus_errors: PackedStringArray = _focus_errors.get_errors()
-	_check("walk: no control asked for focus outside the tree (BUG-017)", (
+	_check("walk: no control asked for focus outside the tree (BUG-017, BUG-026)", (
 			focus_errors.is_empty()
 	), "; ".join(focus_errors))
 	if _level_up_cards_checked == 0:
@@ -1201,9 +1201,13 @@ func _on_event(scene: Node) -> void:
 			panel.get_view().chosen == card.option_index
 			and leave.visible and not leave.disabled and leave.text == "Leave"
 	), "chosen %d; leave %s" % [panel.get_view().chosen, leave.text])
-	# Deferred, so the outcome's own deferred focus runs first, while the panel is in the tree:
-	# a player never presses Leave in the frame the outcome shows.
-	_answer.call_deferred(device, leave)
+	# In the frame the outcome shows: the scene change takes the panel out of the tree before its
+	# deferred focus runs, which must then do nothing (BUG-026); the focus logger fails otherwise.
+	# The containers are sorted first, so a click lands where Leave now sits.
+	for _pass: int in 2:
+		for node: Node in scene.find_children("*", "Container", true, false):
+			node.notification(Container.NOTIFICATION_SORT_CHILDREN)
+	_answer(device, leave)
 
 
 # The first available option card of panel whose option asks nothing after it is chosen: no

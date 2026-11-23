@@ -181,9 +181,9 @@ Each node has its own streams (`SHOP_STOCK`, `UNKNOWN_RESOLUTION`, each seat's `
 
 Every seat has its own `SeatRun`; the map, flow and shop stock are shared. The rules handle
 several seats, and the campaign tests cover them headless. On the host, the campaign screens serve
-a co-op run for the local seat (Screens and seats). Swaps, the event screen's co-op views, the
-map screen's votes and the co-op battle screen come with the co-op plan (P11); clients' screens
-come with transport (P10 NT5).
+a co-op run for the local seat (Screens and seats); the event screen shows each teammate's vote
+and choice (events.md, Co-op). Swaps, the map screen's votes and the co-op battle screen come with
+the co-op plan (P11); clients' screens come with transport (P10 NT5).
 
 **Route votes.** In co-op a seat's own `ChooseNodeCommand` is refused, with a reason. Each seat
 sends `RouteVoteCommand` for a node `ChooseNodeCommand` would accept; voting again replaces its

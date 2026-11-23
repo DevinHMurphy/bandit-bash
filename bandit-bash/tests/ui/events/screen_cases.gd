@@ -6,7 +6,7 @@
 # File:     screen_cases.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -333,7 +333,7 @@ func _facts(kind: CampaignFact.Kind) -> Array[CampaignFact]:
 func _card_texts(panel: EventPanel) -> PackedStringArray:
 	var texts: PackedStringArray = []
 	for card: EventOptionCard in panel.get_cards():
-		texts.append(card.text)
+		texts.append(card.get_card_text())
 	return texts
 
 
