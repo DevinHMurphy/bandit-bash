@@ -755,11 +755,11 @@ func map_rect() -> Rect2:
 
 ## How the board differs from the session's state, one line per difference: a unit with no token
 ## or a token with no unit, a token on the wrong tile or position, or showing the wrong HP, Stance,
-## Block, turn or phase, or its info drawing other HP or Stance than the token holds; a drawn map
-## object with no mark, or a mark off its tile or showing another state. Empty when they agree.
-## A staged walk's token ([method stage_walk]) is placed right on its staged tile once it stands
-## there, and anywhere while it walks; its tile must still be the unit's. For tests and debugging;
-## meaningful once [method is_settled].
+## Block, held weapon's profile, turn or phase, or its info drawing other HP, Stance or profile mark
+## than the token holds; a drawn map object with no mark, or a mark off its tile or showing another
+## state. Empty when they agree. A staged walk's token ([method stage_walk]) is placed right on its
+## staged tile once there, anywhere while it walks; its tile must still be the unit's. For tests
+## and debugging; meaningful once [method is_settled].
 func mismatches() -> PackedStringArray:
 	var found: PackedStringArray = []
 	if _session == null:
@@ -788,6 +788,12 @@ func mismatches() -> PackedStringArray:
 			found.append("%s shows %d Stance, has %d" % [unit_id, token.stance, unit.stance])
 		if token.block != unit.block:
 			found.append("%s shows %d Block, has %d" % [unit_id, token.block, unit.block])
+		var held_id: String = state.equipped_weapon_id(unit_id)
+		var held: WeaponTriangle.Profile = state.weapon_profile_of(held_id)
+		if token.profile != held:
+			found.append("%s shows the %s profile, holds %s" % [
+				unit_id, _profile_name(token.profile), _profile_name(held),
+			])
 		if (
 				token.has_acted != unit.has_acted
 				or token.is_second_move_pending != unit.is_second_move_pending
@@ -1195,7 +1201,7 @@ func _follow_info() -> void:
 	_info_layer.follow(_camera.board_to_screen())
 
 
-# Each unit's info drawing other HP or Stance than its token holds.
+# Each unit's info drawing other HP, Stance or profile mark (shape or side) than its token holds.
 func _info_mismatches(token: UnitToken) -> PackedStringArray:
 	var found: PackedStringArray = []
 	if not is_instance_valid(token.info):
@@ -1210,6 +1216,12 @@ func _info_mismatches(token: UnitToken) -> PackedStringArray:
 	if pips.stance != token.stance or pips.stance_max != token.stance_max:
 		found.append("%s's pips show %d of %d, token %d of %d" % [
 			token.unit_id, pips.stance, pips.stance_max, token.stance, token.stance_max,
+		])
+	var mark: ProfileMark = token.info.get_profile_mark()
+	if mark.profile != token.profile or mark.side != token.side:
+		found.append("%s's profile mark shows %s (side %d), token %s (side %d)" % [
+			token.unit_id, _profile_name(mark.profile), mark.side,
+			_profile_name(token.profile), token.side,
 		])
 	return found
 
@@ -1639,3 +1651,8 @@ static func _is_darkness_change(fact: CombatFact) -> bool:
 		CombatFact.Kind.OBJECT_STATE_CHANGED:
 			return fact.key == MapObjects.Change.CONTACTED or fact.key == MapObjects.Change.ERODED
 	return false
+
+
+# profile's enum name, for mismatch lines.
+static func _profile_name(profile: WeaponTriangle.Profile) -> String:
+	return str(WeaponTriangle.Profile.find_key(profile))

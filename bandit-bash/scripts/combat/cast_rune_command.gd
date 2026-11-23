@@ -6,23 +6,21 @@
 # File:     cast_rune_command.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 15, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name CastRuneCommand
 extends Command
-## A seat casts a rune from its slots on this map (combat core plan, Commands; [RuneResolver]).
-##
-## Runes are outside the action economy and act for no unit, so any seat holding the rune may
-## cast it during this map's player phase, a teammate's map included (the encounter routes it
-## there with the caster's seat). A seat that has ended its turn here can't. The rune's
-## [member RuneDefinition.target_kind] says which fields the cast names, and a cast naming any
-## other is refused: a [code]unit[/code] rune [member target_id]; a [code]pair[/code] rune (Recall)
-## [member target_id] and [member second_target_id]; an [code]object[/code] rune (Spark)
-## [member tile], whose object the map's [constant CombatHooks.Hook.OBJECT_OPERATIONS] act on.
-## [method cast_on] is the one cast path: [method resolve] runs it on the session, [method validate]
-## and [method CombatForecast.rune] on a sandbox copy, where the map's own rule
-## ([method MapObjects.operate]) stands in for the hooks, which act on the real session.
+## A seat casts a rune from its slots on its own map ([RuneResolver]), outside the action economy
+## and for no unit, during the player phase until it ends its turn there. Only a seat's own map
+## holds its runes and their effects, so a cast on a teammate's map (by a sent unit or a visitor)
+## finds no rune and is refused. [member RuneDefinition.target_kind] says which fields the cast
+## names, and naming any other is refused: a [code]unit[/code] rune [member target_id]; a
+## [code]pair[/code] rune (Recall) [member target_id] and [member second_target_id]; an
+## [code]object[/code] rune (Spark) [member tile], whose object the map's
+## [constant CombatHooks.Hook.OBJECT_OPERATIONS] act on. [method cast_on] is the one cast path:
+## [method resolve] runs it on the session, [method validate] and [method CombatForecast.rune] on
+## a sandbox copy, where [method MapObjects.operate] stands in for the hooks.
 ##
 ## @tutorial(Combat core plan): docs/plans/2026-10-26-combat-core.md
 

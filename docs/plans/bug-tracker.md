@@ -81,7 +81,8 @@ Not a bug.
 | [BUG-046](#bug-046-a-co-op-battle-stalls-after-one-map-ends) | A co-op battle can stall after one map ends: the other map's enemy phase ends, the darkness advances, then no player phase starts and the map never finishes | P11 (co-op battles) | S2 (a co-op battle can't finish; about half of BF11's full runs) | Closed, not an engine bug (CO23 merge, November 23, 2026): on both seeds one map was won and the other froze when its last player unit fell, which is correct; the pair's test driver never sent to the frozen map or played units on a teammate's map. CO23 fixed the driver, unpinned the seed and added both seeds as harness cases | November 23, 2026, BF11 report | Lane D (CO23 if noted) |
 | [BUG-047](#bug-047-a-client-mirror-loses-its-battle-at-a-forfeit) | Two `ClientMirror` gaps at a forfeit: any accepted campaign batch during a battle closes the mirror's battle, so a forfeit closes every client's battle; after the battle ends a mirror keeps the forfeited seat, so the host's next capture is refused ("a capture for seats") | P10 / P11 (mirrors) | S2 (latent until clients play live) | Fixed (CO18 merge, November 23, 2026: only the battle-end batch closes a mirror's battle; a mirror accepts a capture without a seat that left; no mirror calls `forfeit()`) | November 23, 2026, CO22 report (P11 question 152) | CO18 (Lane E) |
 | [BUG-048](#bug-048-a-client-leaving-an-individual-event-is-sometimes-refused) | Intermittent: CO16's "a client leaves the individual event on every mirror" (`tests/net/coop_campaign_cases.gd`) is sometimes refused with "seat 0 hasn't chosen at the event", and the battle-hash case after it then checks nothing | P11 / P10 (events on mirrors) | S3 (a test flake, or a real ordering race in BUG-034's Leave rule) | Fixed (BF12 merge, November 23, 2026): a test bug. A full convoy refused the host seat's event choice, so none was sent; the choice now falls back to scrapping the new item, and a seat with no valid choice fails a check | November 23, 2026, BF11 report | Lane C |
-| [BUG-049](#bug-049-a-held-pad-trigger-turns-fast-forward-back-on-after-a-stop) | After a key-moment stop, a pad trigger (RT) held past halfway may turn fast-forward straight back on: `_unhandled_input` counts every non-echo `fast_forward` event with `is_pressed()` as a press, and a held trigger keeps sending motion events | P07 / P11 (fast-forward) | S3 (by reading, not reproduced; in co-op since CO15) | Building in UL12 (issued November 23, 2026) | November 23, 2026, EN19 report | Lane A |
+| [BUG-049](#bug-049-a-held-pad-trigger-turns-fast-forward-back-on-after-a-stop) | After a key-moment stop, a pad trigger (RT) held past halfway may turn fast-forward straight back on: `_unhandled_input` counts every non-echo `fast_forward` event with `is_pressed()` as a press, and a held trigger keeps sending motion events | P07 / P11 (fast-forward) | S3 (by reading, not reproduced; in co-op since CO15) | Fixed (UL12 merge, November 23, 2026: a press counts only on the up-to-down edge, for keys, buttons and the trigger) | November 23, 2026, EN19 report | Lane A |
+| [BUG-050](#bug-050-the-enet-pair-hosts-battle-stops-moving-in-full-runs) | The ENet pair case's host stops moving for 60 s mid-battle in some full runs (`PAIR FAILED host: nothing moved for 60 s, at step PLAY`); the client then loses the host and fails as "the run's session ended". Passes with `net` alone | P10 (tests, or a real stall) | S2 until shown to be the test | Open | November 23, 2026, UL12 report and the UL12 and CO17 merge | Lane E (BF13) |
 
 ### BUG-001 No Block at the start of combat
 
@@ -673,3 +674,17 @@ Not a bug.
   on. Not reproduced; it has applied in co-op since CO15 and in solo since EN19.
 - **Fix:** count a press only on the trigger's released-to-pressed edge, with a case; also bring
   `battle_controller.gd`'s two lines over 100 characters (24 and 313) to budget if touched.
+
+### BUG-050 The ENet pair host's battle stops moving in full runs
+
+- **Found** in UL12's full run and again in the UL12 and CO17 merge run (November 23, 2026), each
+  time under a full run while other builds ran. The host reached PLAY at 3.9 s, then nothing moved
+  for 60 s with both maps mid-battle (`s0#359`, `s1#307`); its last lines were the client's
+  attack accepted (`s1 CMD arrival 23 seat 1 unit:12 ... -> OK`), the batch and settle sent.
+  The host then left the lobby, so the client failed as "the run's session ended". Message counts
+  matched both ways. `net` alone passed twice right after. Seed `4EC9-C868-1610-B`.
+- **Unknown yet:** whether a seed stalls on its own (as BUG-046's did: a driver that waits on
+  something it never does), or load starves an instance for 60 s.
+- **Fix:** pin `4EC9-C868-1610-B` and see if it stalls alone; if so, find what the host or the
+  driver waits on and fix it; if not, make the no-progress limit hold under load. Add the seed as a
+  harness case either way.
