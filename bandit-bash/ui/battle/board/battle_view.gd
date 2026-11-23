@@ -6,7 +6,7 @@
 # File:     battle_view.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 19, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name BattleView
@@ -965,6 +965,7 @@ func _bus_links(bus: CombatBus) -> Array[Array]:
 		[bus.action.damage_taken, _on_action_damage_taken],
 		[bus.action.missed, _on_action_missed],
 		[bus.action.crit_taken, _on_action_crit_taken],
+		[bus.action.weapon_swapped, _on_action_weapon_swapped],
 		[bus.effect.modifier_gained, _on_effect_modifier_gained],
 		[bus.effect.modifier_expired, _on_effect_modifier_expired],
 		[bus.flow.phase_started, _on_flow_phase_started],
@@ -1381,6 +1382,14 @@ func _on_action_crit_taken(fact: CombatFact) -> void:
 
 
 # A side's Phase Start: its spent units gray from now on, the other side's show in colour.
+# The only fact that changes a unit's held weapon in battle. Its profile is the fact's weapon's,
+# never the unit's weapon in the state: the state may already be past swaps still to play.
+func _on_action_weapon_swapped(fact: CombatFact) -> void:
+	var token: UnitToken = token_of(fact.actor_id)
+	if token != null:
+		token.show_profile(_session.state.weapon_profile_of(fact.item_id))
+
+
 func _on_flow_phase_started(fact: CombatFact) -> void:
 	_phase_side = fact.side
 	_played_turn = fact.amount

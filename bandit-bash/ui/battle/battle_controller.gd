@@ -311,7 +311,8 @@ extends HintSource
 # (only fast_forward, skip_playback, toggle_danger_zone and the pause menu's Esc act), the final
 # playback after the battle is decided included, until it settles and the end banner shows;
 # PAUSED is the pause menu open over any stage, where this node is paused and the menu takes the
-# arrows, accept and Esc. In multiplayer the menu doesn't pause, so PAUSED never comes. With
+# arrows, accept and Esc; BOARD_KEY is PAUSED with the menu's board key shown, where accept and Esc
+# go back to the menu. In multiplayer the menu doesn't pause, so neither ever comes. With
 # nothing bound, or the combat over and its playback settled, there is no context.
 ## The steps of turn input; see the block above.
 enum Stage {
@@ -467,6 +468,7 @@ const LIVE_ACTIONS: Dictionary[StringName, Array] = {
 		&"ui_cancel", &"toggle_save_debug",
 	],
 	&"PAUSED": [&"ui_up", &"ui_down", &"ui_accept", &"ui_cancel"],
+	&"BOARD_KEY": [&"ui_accept", &"ui_cancel"],
 }
 
 # ASSUMPTION: the wordings of the rune bar's refusals and of the discard question; no design doc
@@ -967,7 +969,8 @@ func get_shown_enemies() -> PackedStringArray:
 
 
 ## The hint context the screen is in, a key of [constant LIVE_ACTIONS]: PAUSED while the tree is
-## paused, PLAYBACK while a command plays (the battle's final playback included), FORECAST in
+## paused (BOARD_KEY while a [BoardKey] shows then), PLAYBACK while a command plays (the battle's
+## final playback included), FORECAST in
 ## CONFIRM on the forecast panel, else the stage's name; empty while nothing is bound, or once the
 ## combat is over and its playback has settled. Cheap enough to poll.
 func get_hint_context() -> StringName:
@@ -977,7 +980,7 @@ func get_hint_context() -> StringName:
 	if _session.is_finished and not is_playing:
 		return &""
 	if is_inside_tree() and get_tree().paused:
-		return &"PAUSED"
+		return &"BOARD_KEY" if BoardKey.is_open_in(get_tree()) else &"PAUSED"
 	if is_playing:
 		return &"PLAYBACK"
 	if _stage == Stage.CONFIRM and is_instance_valid(_forecast_panel):

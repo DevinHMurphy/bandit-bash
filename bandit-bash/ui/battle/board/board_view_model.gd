@@ -6,14 +6,15 @@
 # File:     board_view_model.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 19, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name BoardViewModel
 extends RefCounted
 ## What the battle board draws, as plain data read from a [CombatSession]: each unit on the map,
-## with its HP, Stance, Block and turn, each flooded tile's darkness layer, and each map object
-## that isn't a token, with its state and the tag linking a lever to its doors and a passage's ends.
+## with its HP, Stance, Block, turn and held weapon's profile, each flooded tile's darkness layer,
+## and each map object that isn't a token, with its state and the tag linking a lever to its doors
+## and a passage's ends.
 ##
 ## Built by [method build] and read by [BattleView]; widgets draw it and hold no rules. Reading
 ## only: nothing here changes the session. Tests check it without rendering (combat UI plan,
@@ -139,6 +140,7 @@ static func unit_view(session: CombatSession, unit_id: String) -> UnitView:
 		view.has_acted = unit.has_acted
 		view.is_second_move_pending = unit.is_second_move_pending
 		view.is_elite = view.side == CombatFact.CombatSide.ENEMY and not unit.prefix_id.is_empty()
+	view.profile = state.weapon_profile_of(state.equipped_weapon_id(unit_id))
 	# A breakable's unit id is its object id, so a thrown keg finds its fuse there.
 	var placed: MapState.ObjectState = (
 			null if state.map == null else state.map.objects.get(unit_id, null)
@@ -225,6 +227,8 @@ class UnitView:
 	## Whether it is an elite: an enemy with a prefix ([member CombatUnitState.prefix_id]), which
 	## its token marks (RF-025). A leader's outline is the objective's, apart from this.
 	var is_elite: bool = false
+	## Its held weapon's triangle profile, which its [ProfileMark] shows; None when it holds none.
+	var profile: WeaponTriangle.Profile = WeaponTriangle.Profile.NONE
 
 
 ## One map object as its [MapObjectMark] draws it.
