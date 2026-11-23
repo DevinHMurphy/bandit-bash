@@ -6,7 +6,7 @@
 # File:     campaign_fact.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name CampaignFact
@@ -143,6 +143,10 @@ enum Kind {
 	## as [constant SWAP_PROPOSED]), for the reason in [member definition_id], one of
 	## [UnitSwap]'s [code]END_*[/code] constants.
 	SWAP_ENDED = 37,
+	## The seat left the co-op run ([ForfeitCommand]): it forfeited, or the host removed it after
+	## a drop ([member amount] 1). The ends and draws its leaving caused follow; in a battle, its
+	## sections go when the battle ends.
+	SEAT_FORFEITED = 38,
 }
 
 ## A [member flags] bit: this [constant Kind.GAINED] was a purchase, whose

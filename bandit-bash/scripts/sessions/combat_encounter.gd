@@ -137,7 +137,8 @@ var _senders: Dictionary[int, PackedInt32Array] = {}
 # The maps whose call for aid is raised, ascending.
 var _aid_called: PackedInt32Array = []
 
-# Seats that left the battle: saved, and empty until forfeits exist.
+# Seats that left the battle (forfeit()), ascending: saved, so a resumed battle keeps their maps
+# out of play.
 var _forfeited: PackedInt32Array = []
 
 # Index into fact_log of the first fact not yet in a batch.
@@ -329,10 +330,11 @@ func get_cross_map_instances() -> Array[EffectInstance]:
 ## a rune cast on a teammate's map is routed this way with the caster's seat. A send (on the
 ## sender's won map) or a call for aid (on the caller's map) waits in the encounter's own queue
 ## instead, never the map's. Nothing resolves until [method resolve_queued]. Returns the arrival
-## stamp, or [constant CombatSession.NO_ARRIVAL] when there is no such session.
+## stamp, or [constant CombatSession.NO_ARRIVAL] when there is no such session, the map was
+## forfeited or the command's seat forfeited ([method forfeit]): nobody acts there.
 func submit(command: Command, session_id: int) -> int:
 	var session: CombatSession = get_session(session_id)
-	if session == null or is_closed:
+	if session == null or is_closed or _is_out_of_play(command, session_id):
 		return CombatSession.NO_ARRIVAL
 	if not (command is SendUnitsCommand or command is CallForAidCommand):
 		return session.submit(command)
@@ -441,10 +443,13 @@ func is_aid_called(session_id: int) -> bool:
 ## Whether the map [param session_id] is frozen: a co-op map still being fought with no player unit
 ## left, held after its enemy phase at the next player Phase Start ([method PhaseRunner.resume]).
 ## Read between steps. Derived from the map's state, never saved or sent, so a mirror and a
-## resumed battle answer the same. False in solo and for an unknown map.
+## resumed battle answer the same. False in solo, for an unknown map and for a forfeited one.
 func is_frozen(session_id: int) -> bool:
 	var session: CombatSession = get_session(session_id)
-	if session == null or seats.size() <= 1 or session.is_finished:
+	if (
+			session == null or seats.size() <= 1 or session.is_finished
+			or is_map_forfeited(session_id)
+	):
 		return false
 	var state: CombatState = session.state
 	return (
@@ -457,9 +462,9 @@ func is_frozen(session_id: int) -> bool:
 ## Whether the co-op run is lost: a map is frozen ([method is_frozen]) with no unit on its way to
 ## it, and no map can still help: no map still being fought or won holds a player unit that could
 ## yet be sent there and land. A map still being fought may win and send, so the run waits for it;
-## a frozen map with no free tile a unit could land on can never be helped by it, since a frozen
-## map never changes. A pure query: ask it whenever a map freezes or ends; the encounter ends
-## nothing itself. Always false in solo.
+## a frozen map with no free tile can never be helped, since a frozen map never changes. A
+## forfeited map counts for nothing. A pure query: ask it whenever a map freezes or ends; the
+## encounter ends nothing itself. Always false in solo.
 func is_run_lost() -> bool:
 	if seats.size() <= 1:
 		return false
@@ -470,6 +475,8 @@ func is_run_lost() -> bool:
 	var stranded: Array[CombatSession] = []
 	var helpers: Array[CombatSession] = []
 	for session: CombatSession in _sessions:
+		if is_map_forfeited(session.session_id):
+			continue
 		if is_frozen(session.session_id):
 			# ASSUMPTION: a frozen map with a unit on its way resumes when it lands, so it counts as
 			# help for another frozen map too.
@@ -492,14 +499,77 @@ func is_run_lost() -> bool:
 
 
 ## Whether every map's combat has ended ([member CombatSession.is_finished]): a map's end ends only
-## its own session, and the battle ends with the last one. False before [method open_sessions].
+## its own session, and the battle ends with the last one. A forfeited map never ends and isn't
+## waited for. False before [method open_sessions].
 func is_finished() -> bool:
 	if _sessions.is_empty():
 		return false
 	for session: CombatSession in _sessions:
-		if not session.is_finished:
+		if not session.is_finished and not is_map_forfeited(session.session_id):
 			return false
 	return true
+
+
+## Takes [param seat] out of the battle ([ForfeitCommand]). Its map stays, saved with it, but
+## leaves play: nothing is submitted there or by the seat ([method submit]), it never freezes, and
+## the battle ends without it. Units on their way there go back as to a map that ended, recording
+## [constant CombatFact.Kind.UNIT_RETURNED] in a batch; the seat's own units on their way leave
+## with it. Teammates' units on its map stay as they stand until the battle ends. Records no fact
+## of its own: a mirror makes the same call (P11 CO18). Returns false, changing nothing, when
+## [method forfeit_problem] refuses.
+func forfeit(seat: int) -> bool:
+	if not forfeit_problem(seat).is_empty():
+		return false
+	_forfeited.append(seat)
+	_forfeited.sort()
+	var waiting: Array[Transfer] = []
+	for transfer: Transfer in _in_transit:
+		if transfer.unit.seat != seat:
+			waiting.append(transfer)
+	_in_transit = waiting
+	_return_from_finished()
+	_flush(_session_of_seat[seat], -1, CombatSession.NO_ARRIVAL, "seat %d forfeited" % [seat])
+	var net: NetLogScript = CombatSession.logger(
+			NetLogScript.Level.INFO, NetLogScript.Category.COMBAT
+	)
+	if net != null:
+		net.info(NetLogScript.Category.COMBAT, "%s SEAT FORFEITED %d" % [_tag(), seat])
+	return true
+
+
+## Why [param seat] can't leave the battle now; empty when it can: a seat not in it, one already
+## gone, or one with a unit standing on a teammate's map (sent there, or a swap's visitor).
+func forfeit_problem(seat: int) -> String:
+	if is_closed or not _session_of_seat.has(seat):
+		return "seat %d isn't in the battle" % [seat]
+	if _forfeited.has(seat):
+		return "seat %d has already left the battle" % [seat]
+	var own: CombatSession = session_of_seat(seat)
+	for session: CombatSession in _sessions:
+		if session == own:
+			continue
+		for unit_id: String in session.state.units_of(CombatFact.CombatSide.PLAYER):
+			if session.state.seat_of(unit_id) == seat and _current_session_of(unit_id) == session:
+				# ASSUMPTION: no rule takes a unit off a map still in play yet, and that map's
+				# phase would wait for the seat's End Turn, so the forfeit waits for it to go home.
+				return "seat %d has a unit on s%d" % [seat, session.session_id]
+	return ""
+
+
+## The seats that left the battle ([method forfeit]), ascending.
+func forfeited_seats() -> PackedInt32Array:
+	return _forfeited.duplicate()
+
+
+## Whether the map [param session_id] belongs to a seat that left the battle.
+func is_map_forfeited(session_id: int) -> bool:
+	var session: CombatSession = get_session(session_id)
+	if session == null:
+		return false
+	for seat: int in session.seats:
+		if _forfeited.has(seat):
+			return true
+	return false
 
 
 ## Ends the encounter: its sessions stop reporting here and routing stops. The caller writes
@@ -722,6 +792,14 @@ func _choose_map(pool: Array[CombatMapDefinition], ctx: SetupContext) -> bool:
 	return true
 
 
+# Whether command, for the map session_id, comes from or goes to a seat that left the battle.
+func _is_out_of_play(command: Command, session_id: int) -> bool:
+	return (
+			is_map_forfeited(session_id)
+			or (command != null and _forfeited.has(command.seat))
+	)
+
+
 # The session whose next queued command arrived first; null when none has one.
 func _next_to_resolve() -> CombatSession:
 	var next: CombatSession = null
@@ -865,6 +943,8 @@ func _send_reason(send: SendUnitsCommand, source: CombatSession) -> String:
 		return "no map s%d to send to" % [send.to_session_id]
 	if target.is_finished:
 		return "s%d has finished" % [send.to_session_id]
+	if is_map_forfeited(send.to_session_id):
+		return "s%d left the battle" % [send.to_session_id]
 	var travelling: PackedStringArray = units_in_transit()
 	var named: PackedStringArray = []
 	for unit_id: String in send.unit_ids:
@@ -1025,15 +1105,16 @@ func _deliver(session_id: int, keeps_clock: bool) -> PackedStringArray:
 	return delivered
 
 
-# Sends every unit on its way to a map that has ended back onto the won map it left, unharmed:
-# that map kept its record, so only its effects go back. Each records UNIT_RETURNED.
+# Sends every unit on its way to a map that has ended or was forfeited back onto the won map it
+# left, unharmed: that map kept its record, so only its effects go back. Each records
+# UNIT_RETURNED.
 func _return_from_finished() -> void:
 	_drop_landed()
 	var waiting: Array[Transfer] = []
 	var returning: Array[Transfer] = []
 	for transfer: Transfer in _in_transit:
 		var target: CombatSession = get_session(transfer.to_session_id)
-		if target != null and target.is_finished:
+		if target != null and (target.is_finished or is_map_forfeited(target.session_id)):
 			returning.append(transfer)
 		else:
 			waiting.append(transfer)

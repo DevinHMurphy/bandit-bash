@@ -6,7 +6,7 @@
 # File:     campaign_data.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: October 27, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name CampaignData
@@ -106,7 +106,8 @@ var floors_climbed: int = 0
 ## Key combat maps completed this run.
 var combat_maps_completed: int = 0
 
-## One entry per seat, ordered by seat. Never empty in a loaded or created campaign.
+## One entry per seat, ordered by seat. Never empty in a loaded or created campaign. A forfeited
+## seat's entry goes ([method remove_player]); the others keep their seats, so seats can have gaps.
 var players: Array[PlayerRun] = []
 
 ## Section key to [code]{"version": int, "data": Dictionary}[/code], as stored on disk.
@@ -188,6 +189,20 @@ func get_required_steam_ids() -> PackedInt64Array:
 	return steam_ids
 
 
+## Removes the entry of [param seat], a multiplayer seat other than the host's, with its sections:
+## the player forfeited or was removed, so a resume no longer needs them. Seats are never
+## renumbered. Returns [constant OK]; [constant ERR_INVALID_PARAMETER] for the host's seat or a
+## solo campaign; [constant ERR_DOES_NOT_EXIST] for a seat with no entry.
+func remove_player(seat: int) -> Error:
+	if mode != Mode.MULTIPLAYER or seat == HOST_SEAT:
+		return ERR_INVALID_PARAMETER
+	for index: int in players.size():
+		if players[index].seat == seat:
+			players.remove_at(index)
+			return OK
+	return ERR_DOES_NOT_EXIST
+
+
 ## The host's Steam id (seat [constant HOST_SEAT]), or 0 for a solo campaign.
 func get_host_steam_id() -> int:
 	if mode != Mode.MULTIPLAYER:
@@ -216,8 +231,8 @@ static func create_solo(new_seed: int) -> CampaignData:
 
 ## Returns a new multiplayer campaign: one seat per Steam id, in order, started now.
 ##
-## [param steam_ids]: decimal Steam id strings; the first is the host (seat 0). The player count is
-## fixed from here on (plan, row 21).
+## [param steam_ids]: decimal Steam id strings; the first is the host (seat 0). No seat joins
+## later; one can only leave ([method remove_player]).
 static func create_multiplayer(new_seed: int, steam_ids: PackedStringArray) -> CampaignData:
 	var campaign: CampaignData = create_solo(new_seed)
 	campaign.mode = Mode.MULTIPLAYER

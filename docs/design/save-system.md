@@ -591,6 +591,11 @@ Each map's objects and reinforcement points are two more `COMBAT` sections, one
   refused, like any section; either stops the load and gives `BATTLE_RETRY`.
 - **Mirrors** follow the objects and the points' closing and waves sent; the units waiting for
   room are in no fact, so a mirror's points are left out of `CombatSession.state_hash()`.
+- **Loot found** (`entities`' `found`) reaches the run at the battle's end (BUG-039): each map's
+  loot, whoever's unit took it, goes to that map's owner when its map was won (a failed or forfeited
+  map's goes to nobody), as gold, a rune in the first empty slot, or an item in the convoy while it
+  has room; what doesn't fit is lost with a warning (P11 question 117). Items and runes record
+  `GAINED`; the battle's end saves them like any reward.
 
 ## Darkness
 
@@ -681,7 +686,8 @@ and [UL5 plan](../plans/2026-11-19-ul5-victory-sequence.md), Save Impact):
   the campaign's players (by Steam id from the Steam connection, never from a message) and only the
   same game version and build (`NetContract.fingerprint()`) are admitted. Resume needs every
   player present and Ready.
-- The player count is set when a campaign starts. **Decided October 24, 2026, not yet built:** a
+- The player count is set when a campaign starts. **Decided October 24, 2026, built (P11 CO14,
+  below):** a
   non-host player who forfeits (or is removed by the host after a disconnect) leaves the campaign:
   their seat is removed from the save, so resuming no longer needs them, and their run is archived
   for them as lost. See [game-vision.md](game-vision.md#combat-maps).
@@ -692,6 +698,24 @@ and [UL5 plan](../plans/2026-11-19-ul5-victory-sequence.md), Save Impact):
   campaign as at a run's start (`SaveService.send_run_to()`), since a crashed client holds no
   replica, then a fresh snapshot. `NetRelay.remove_seat()` changes nothing on disk: the seat's
   removal from the save comes with the forfeit. Untested live.
+- **Forfeits (P11 CO14), built.** A non-host seat leaves through
+  `CampaignService.forfeit_seat()` (a forfeit, or with `is_removed` the host's removal after a
+  drop): its `players` entry goes from `CampaignData` at once and the checkpoint is saved, so a
+  resume needs and builds only the seats left; seats are never renumbered, so they can have gaps.
+  `CampaignData` stays at schema 1. On the map or in a node its per-seat sections (`roster`,
+  `heirlooms`, `runes`, `economy`) go with the entry, and the shared sections drop its route vote,
+  its part of the open event and its vote there, and its swaps; a vote it completes draws. In a
+  battle its map stays in `combat_state`, its seat in the encounter's `forfeited` list, until the
+  battle ends; the battle's end drops the seat from the run. A resume of that battle can't rebuild
+  the forfeited map without the seat's Begin sections, so it restarts from Begin (`BATTLE_RETRY`)
+  without it (P11 question 115).
+- **The archive record is at schema 2** (`ArchiveRecord.SCHEMA_VERSION`): core gains `forfeited`
+  (bool), true only in a forfeiting player's own record, whose `outcome` is always `"lost"`; a
+  forfeited win or a non-bool is refused. Migration from 1 changes nothing: a record without it
+  reads as not forfeited. A voluntary forfeit's record is built for the leaving seat before it goes
+  (`SaveService.archive_forfeit()`, the run as it stands, every seat in it) and held for
+  `take_forfeit_record()`, which P11 CO18 sends to that machine; the host writes none, and a
+  removed player gets none.
 
 ## Testing
 

@@ -6,12 +6,12 @@
 # File:     combat_archive_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 19, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends "res://tests/save/save_case_base.gd"
 ## [CombatData] and [ArchiveRecord] cases for tests/save/run_all.gd: round trips and refused
-## data, and archive records built from a campaign.
+## data, and archive records built from a campaign, forfeited ones and schema 1 ones included.
 
 
 # The suite that runs this file; tests/case_files.gd finds it by this line.
@@ -22,6 +22,34 @@ func run() -> void:
 	_test_combat_rejects_bad_data()
 	_test_archive_from_campaign()
 	_test_archive_round_trip_and_bad_data()
+	_test_archive_forfeited()
+
+
+# Schema 2: a forfeited loss round-trips; a schema 1 record loads as not forfeited; a forfeited
+# win or a forfeited that isn't a bool is refused.
+func _test_archive_forfeited() -> void:
+	var record: ArchiveRecord = ArchiveRecord.from_campaign(CampaignData.create_solo(9), false, {})
+	record.forfeited = true
+	var envelope: Dictionary = record.to_envelope()
+	var loaded: ArchiveRecord = ArchiveRecord.new()
+	var err: Error = loaded.load_envelope(JSON.parse_string(JSON.stringify(envelope)) as Dictionary)
+	var version: int = envelope.get(SaveFile.KEY_SCHEMA_VERSION, 0)
+	_check("archive schema 2: a forfeited loss round-trips", (
+			version == 2 and err == OK and loaded.forfeited and not loaded.won
+	), error_string(err))
+	var old: ArchiveRecord = ArchiveRecord.new()
+	old.forfeited = true
+	var old_core: Dictionary = {"mode": "multiplayer", "outcome": "lost", "players": []}
+	var old_err: Error = old.load_envelope(SaveFile.make_envelope(1, old_core))
+	_check("archive schema 1: loads, not forfeited", old_err == OK and not old.forfeited)
+	var bad: Dictionary[String, Dictionary] = {
+		"forfeited win": {"mode": "solo", "outcome": "won", "players": [], "forfeited": true},
+		"forfeited not a bool": {"mode": "solo", "outcome": "lost", "players": [], "forfeited": 1},
+	}
+	for case_name: String in bad:
+		var target: ArchiveRecord = ArchiveRecord.new()
+		var bad_err: Error = target.load_envelope(SaveFile.make_envelope(2, bad[case_name]))
+		_check("archive bad data: %s refused" % [case_name], bad_err == ERR_INVALID_DATA)
 
 
 func _test_combat_round_trip() -> void:

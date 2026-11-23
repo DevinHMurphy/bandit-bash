@@ -6,7 +6,7 @@
 # File:     archive_record.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: October 27, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name ArchiveRecord
@@ -20,7 +20,8 @@ extends RefCounted
 ## @tutorial(Save system design): docs/design/save-system.md
 
 ## Current schema version of this block. Raising it needs a step in [method _migration_steps].
-const SCHEMA_VERSION: int = 1
+## 2: [member forfeited]; a version 1 record has none and reads as not forfeited.
+const SCHEMA_VERSION: int = 2
 
 ## Folder inside a save file's folder that holds the records.
 const FOLDER_NAME: String = "archive"
@@ -39,6 +40,7 @@ const _KEY_MODIFIERS: String = "modifiers"
 const _KEY_FLOORS_CLIMBED: String = "floors_climbed"
 const _KEY_COMBAT_MAPS_COMPLETED: String = "combat_maps_completed"
 const _KEY_PLAYERS: String = "players"
+const _KEY_FORFEITED: String = "forfeited"
 
 const _OUTCOME_WON: String = "won"
 const _OUTCOME_LOST: String = "lost"
@@ -47,6 +49,9 @@ const _OUTCOME_LOST: String = "lost"
 var mode: CampaignData.Mode = CampaignData.Mode.SOLO
 ## True for a win; false for a loss or an abandoned run.
 var won: bool = false
+## True when this player left a co-op run before it ended ([ForfeitCommand]): the record is theirs
+## alone, and [member won] is false. False for every run that ended for everyone.
+var forfeited: bool = false
 ## When the run started. [b]Units:[/b] Unix seconds, UTC.
 var started_at: int = 0
 ## When the run ended. [b]Units:[/b] Unix seconds, UTC.
@@ -85,6 +90,7 @@ func to_envelope() -> Dictionary:
 		_KEY_FLOORS_CLIMBED: floors_climbed,
 		_KEY_COMBAT_MAPS_COMPLETED: combat_maps_completed,
 		_KEY_PLAYERS: player_entries,
+		_KEY_FORFEITED: forfeited,
 	}
 	return SaveFile.make_envelope(SCHEMA_VERSION, core)
 
@@ -92,8 +98,9 @@ func to_envelope() -> Dictionary:
 ## Fills this record from [param envelope], migrating it to [constant SCHEMA_VERSION] first.
 ##
 ## Edits [param envelope] while migrating. On error the record is left unchanged.
-## Returns [constant OK]; [constant ERR_INVALID_DATA] for an unknown mode or outcome or a
-## malformed player list; or the [method SaveMigrations.run] error.
+## Returns [constant OK]; [constant ERR_INVALID_DATA] for an unknown mode or outcome, a
+## [code]forfeited[/code] that isn't a bool or marks a win, or a malformed player list; or the
+## [method SaveMigrations.run] error.
 func load_envelope(envelope: Dictionary) -> Error:
 	var err: Error = SaveMigrations.run(envelope, SCHEMA_VERSION, _migration_steps())
 	if err != OK:
@@ -103,6 +110,9 @@ func load_envelope(envelope: Dictionary) -> Error:
 	var loaded_mode: int = CampaignData.find_mode(str(core.get(_KEY_MODE, "")))
 	var outcome: String = str(core.get(_KEY_OUTCOME, ""))
 	if loaded_mode == -1 or (outcome != _OUTCOME_WON and outcome != _OUTCOME_LOST):
+		return ERR_INVALID_DATA
+	var read_forfeited: Variant = core.get(_KEY_FORFEITED, false)
+	if not read_forfeited is bool or (read_forfeited and outcome == _OUTCOME_WON):
 		return ERR_INVALID_DATA
 
 	var loaded_players: Array[ArchivedPlayer] = []
@@ -118,6 +128,7 @@ func load_envelope(envelope: Dictionary) -> Error:
 
 	mode = loaded_mode as CampaignData.Mode
 	won = outcome == _OUTCOME_WON
+	forfeited = read_forfeited
 	started_at = core.get(_KEY_STARTED_AT, 0) as int
 	ended_at = core.get(_KEY_ENDED_AT, 0) as int
 	play_time_seconds = maxi(core.get(_KEY_PLAY_TIME_SECONDS, 0) as int, 0)
@@ -182,7 +193,13 @@ static func _read_strings(value: Variant) -> PackedStringArray:
 
 # One step per schema version after 1, oldest first; see SaveMigrations.
 static func _migration_steps() -> Array[Callable]:
-	return []
+	return [_from_version_1]
+
+
+# 1 -> 2: changes nothing. A record without forfeited reads as not forfeited, which every run
+# archived before forfeits existed was.
+static func _from_version_1(_envelope: Dictionary) -> Error:
+	return OK
 
 
 ## One player as the run ended.

@@ -36,6 +36,7 @@ const FILLED: PackedStringArray = [
 	EventChooserCommand.WIRE_TYPE,
 	EventVoteCommand.WIRE_TYPE,
 	EventOptionCommand.WIRE_TYPE,
+	ForfeitCommand.WIRE_TYPE,
 ]
 
 ## The wire types whose commands hold nothing the host fills, or only a catalog whose null means
@@ -113,4 +114,6 @@ static func _rebuilt(command: CampaignCommand, session: CampaignSession) -> Camp
 	if command is EventOptionCommand:
 		var option: EventOptionCommand = command
 		return EventNode.choose(session, option.seat, option.option_index, option.choice)
+	if command is ForfeitCommand:
+		return ForfeitCommand.for_session(session, command.seat)
 	return null

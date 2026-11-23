@@ -6,7 +6,7 @@
 # File:     campaign_wire_cases.gd
 # Author:
 # Created:  November 21, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends "res://tests/net/net_case_base.gd"
@@ -36,7 +36,7 @@ const BREAK_THE_ICE: int = 1
 const WEAPON_BLOCK: int = 0
 const FIGHT: int = 1
 # Every campaign and event command type built so far; a lower count means one went missing.
-const COMMAND_TYPES: int = 26
+const COMMAND_TYPES: int = 27
 # Seats of the route vote's round trip: two vote before the sent one, which draws.
 const ROUTE_SEATS: int = 3
 # Classes whose values are plain picks, which travel; any other object is host state.
@@ -425,6 +425,7 @@ func _scenarios() -> Array[Scenario]:
 		Scenario.new(ProposeSwapCommand.WIRE_TYPE, _on_team_map, _propose_swap),
 		Scenario.new(AnswerSwapCommand.WIRE_TYPE, _with_swap_proposal, _answer_swap),
 		Scenario.new(WithdrawSwapCommand.WIRE_TYPE, _with_swap_proposal, _withdraw_swap),
+		Scenario.new(ForfeitCommand.WIRE_TYPE, _on_team_map, _forfeit),
 	]
 	return made
 
@@ -789,6 +790,10 @@ func _answer_swap(session: CampaignSession) -> CampaignCommand:
 
 func _withdraw_swap(_session: CampaignSession) -> CampaignCommand:
 	return WithdrawSwapCommand.new(1, 0)
+
+
+func _forfeit(_session: CampaignSession) -> CampaignCommand:
+	return ForfeitCommand.new(1)
 
 
 # The first of candidates run accepts now; else the first, so its reason shows; null for none.

@@ -313,9 +313,10 @@ func write_back() -> void:
 ## Gathers what the battle in progress leaves for the run, with the battle still on: first
 ## [method write_back], then each player unit's HP, fall, permanent stat deltas, growth changes
 ## and reward values, each heirloom copy's campaign lane, the grants received, a copy of the
-## tally, the map, whether every map was won, each seat's [SeatOutcome] and the runes it has left.
-## Rewards read item and heirloom values here, since they count only in battle. Copies
-## [member stats] too. Calling it again returns the same result; null when no battle is on.
+## tally, the map, whether every map was won, each seat's [SeatOutcome], the runes it has left and
+## its map's loot, and the seats that left the battle, whose maps count for none of it. Rewards
+## read item and heirloom values here, since they count only in battle. Copies [member stats] too.
+## Calling it again returns the same result; null when no battle is on.
 func collect_battle() -> BattleResult:
 	if encounter == null:
 		return null
@@ -331,9 +332,12 @@ func collect_battle() -> BattleResult:
 	result.tally.restore(tally.capture())
 	result.stats.restore(stats.capture())
 	var sessions: Array[CombatSession] = encounter.get_sessions()
+	result.forfeited = encounter.forfeited_seats()
 	result.is_finished = not sessions.is_empty()
 	result.is_won = not sessions.is_empty()
 	for session: CombatSession in sessions:
+		if encounter.is_map_forfeited(session.session_id):
+			continue
 		result.is_finished = result.is_finished and session.is_finished
 		result.is_won = result.is_won and session.is_finished and session.is_won
 	for unit_id: String in _battle_unit_ids:
@@ -343,10 +347,11 @@ func collect_battle() -> BattleResult:
 			_collect_unit(result, holder, unit_id)
 	for seat: int in seats:
 		var map: CombatSession = encounter.session_of_seat(seat)
-		if map != null:
+		if map != null and not result.forfeited.has(seat):
 			result.seats[seat] = _collect_seat(result, map, seat)
 			var left: PackedStringArray = map.state.rune_slots.get(seat, PackedStringArray())
 			result.runes[seat] = left.duplicate()
+			result.loot[seat] = _collect_loot(map)
 	_collect_heirlooms(result)
 	_collected = result
 	return result
@@ -361,6 +366,8 @@ func reward_rolls(result: BattleResult) -> RewardRolls:
 	if result == null:
 		return rolls
 	for seat: int in seats:
+		if result.forfeited.has(seat):
+			continue
 		rolls.reward[seat] = rng.stream(RngKey.new(
 				RngKey.RngPurpose.REWARD, result.floor_number, result.node, seat
 		))
@@ -381,14 +388,17 @@ func starting_offer_streams() -> Dictionary[int, RngStream]:
 
 ## Ends the battle in progress: its result is collected ([method collect_battle]) if it wasn't
 ## yet, the encounter closed and [signal combat_encounter_closed] emitted; every combat lane is
-## dropped with it. Apply the result to the run and save it first
-## ([code]CampaignService.end_battle()[/code]). Returns the result; null when no battle is on.
+## dropped with it, and each seat that left the battle leaves [member seats]. Apply the result to
+## the run and save it first ([code]CampaignService.end_battle()[/code]). Returns the result; null
+## when no battle is on.
 func end_battle() -> BattleResult:
 	if encounter == null:
 		return null
 	var result: BattleResult = collect_battle()
 	var map_id: String = result.map_id
 	abandon_battle()
+	for seat: int in result.forfeited:
+		_drop_seat(seat)
 
 	var net: NetLogScript = CombatSession.logger(
 			NetLogScript.Level.INFO, NetLogScript.Category.CAMPAIGN
@@ -401,10 +411,10 @@ func end_battle() -> BattleResult:
 ## Stamps [param command] on arrival and resolves it on [member run] at once
 ## ([method CampaignRunState.resolve]), so the first arrival wins; a unique heirloom it gained
 ## replaces every teammate's open offer of it in the same batch ([UniqueClaims]). Rejected,
-## changing nothing, with no run, a closed run, a battle in progress or on a [member is_mirror].
-## Emits [signal campaign_batch_resolved], and [signal command_rejected] for a rejection; logs it
-## at INFO. Returns the batch; null for null. Saving is the caller's
-## ([code]CampaignService.submit_command()[/code]).
+## changing nothing, with no run, a closed run, a battle in progress (but a [ForfeitCommand], see
+## [method forfeit_seat]) or on a [member is_mirror]. Emits [signal campaign_batch_resolved], and
+## [signal command_rejected] for a rejection; logs it at INFO. Returns the batch; null for null.
+## Saving is the caller's ([code]CampaignService.submit_command()[/code]).
 func submit(command: CampaignCommand) -> CampaignBatch:
 	if command == null:
 		push_error("CampaignSession: submit needs a command")
@@ -412,7 +422,10 @@ func submit(command: CampaignCommand) -> CampaignBatch:
 	command.arrival = _next_arrival
 	_next_arrival += 1
 	var batch: CampaignBatch = null
-	if run == null or is_closed or encounter != null or is_mirror:
+	var is_open: bool = run != null and not is_closed and not is_mirror
+	if is_open and encounter != null and command is ForfeitCommand:
+		batch = _forfeit_in_battle(command as ForfeitCommand)
+	elif run == null or is_closed or encounter != null or is_mirror:
 		batch = CampaignBatch.new()
 		batch.seat = command.seat
 		batch.arrival = command.arrival
@@ -426,11 +439,27 @@ func submit(command: CampaignCommand) -> CampaignBatch:
 		batch = run.resolve(command)
 		if not batch.is_rejected():
 			_settle_claims(batch)
+			if command is ForfeitCommand:
+				_drop_seat(command.seat)
 	if batch.is_rejected():
 		command_rejected.emit(batch.seat, batch.arrival, batch.rejected_reason)
 	_log_campaign_batch(batch)
 	campaign_batch_resolved.emit(batch)
 	return batch
+
+
+## The one way a non-host seat leaves the run, for a forfeit and the host's removal after a drop
+## ([param is_removed]) alike: its [ForfeitCommand], built here with the streams it may draw from,
+## through [method submit]. On the map or in a node the seat goes at once, with [member seats]. In
+## a battle its map leaves play ([method CombatEncounter.forfeit]) and only
+## [constant CampaignFact.Kind.SEAT_FORFEITED] is recorded; the battle's end drops the seat. Returns
+## the batch; the caller saves ([code]CampaignService.forfeit_seat()[/code]).
+func forfeit_seat(seat: int, is_removed: bool = false) -> CampaignBatch:
+	var command: ForfeitCommand = (
+			ForfeitCommand.for_session(self, seat) if run != null else ForfeitCommand.new(seat)
+	)
+	command.is_removed = is_removed
+	return submit(command)
 
 
 ## Records a grant from an effect that fired in battle and reports it at INFO; the run applies it
@@ -732,6 +761,36 @@ func _battle_instance(battle: CombatEncounter, instance_id: String) -> EffectIns
 	return null
 
 
+# A forfeit while a battle is on: the command's own checks, then the encounter's; the fact is
+# recorded and the seat's map leaves play, and the seat stays in the run until the battle's end
+# drops it (CampaignRunState.apply_battle).
+func _forfeit_in_battle(command: ForfeitCommand) -> CampaignBatch:
+	var batch: CampaignBatch = CampaignBatch.new()
+	batch.seat = command.seat
+	batch.arrival = command.arrival
+	batch.label = command.get_label()
+	if not run.seats.has(command.seat):
+		batch.rejected_reason = "seat %d isn't in the run" % [command.seat]
+		return batch
+	batch.rejected_reason = command.validate(run)
+	if batch.rejected_reason.is_empty():
+		batch.rejected_reason = encounter.forfeit_problem(command.seat)
+	if batch.is_rejected():
+		return batch
+	var first: int = run.fact_log.size()
+	run.record(ForfeitCommand.fact_for(command.seat, command.is_removed))
+	encounter.forfeit(command.seat)
+	batch.facts = run.fact_log.slice(first)
+	return batch
+
+
+# Takes seat out of seats, the run's seats, once it has left the run.
+func _drop_seat(seat: int) -> void:
+	var index: int = seats.find(seat)
+	if index >= 0:
+		seats.remove_at(index)
+
+
 # One INFO line per campaign command, then one per fact it recorded.
 # Replaces every teammate's open offer of a unique heirloom batch gained, each from the stream it
 # was rolled from, and adds the replacements' facts to batch, so they are announced and saved with
@@ -966,6 +1025,18 @@ func _collect_seat(result: BattleResult, map: CombatSession, seat: int) -> SeatO
 	return outcome
 
 
+# Everything looted on map (MapState.found), every looting seat's in seat order, each in the order
+# taken: loot belongs to the map's owner, whoever's unit took it.
+func _collect_loot(map: CombatSession) -> Array:
+	var loot: Array = []
+	var looters: Array[int] = []
+	looters.assign(map.state.map.found.keys())
+	looters.sort()
+	for seat: int in looters:
+		loot.append_array(map.state.map.found[seat].duplicate(true))
+	return loot
+
+
 # Each held heirloom copy's campaign lane, from its carriers (write_back() has run): counters by
 # effect id (0 left out), and charges for the effects whose charges last the run.
 func _collect_heirlooms(result: BattleResult) -> void:
@@ -1141,6 +1212,13 @@ class BattleResult:
 	## The rune instance ids each seat still holds at the battle's end, by seat: a cast or discarded
 	## rune is gone. A seat with no entry keeps its runes as they are.
 	var runes: Dictionary[int, PackedStringArray] = {}
+	## What was looted on each seat's map, by its owner seat: container contents as
+	## [method MapObjects.roll] makes them, in the order taken. The battle's end gives a won seat
+	## its own map's ([method CampaignRunState.apply_battle]).
+	var loot: Dictionary[int, Array] = {}
+	## The seats that left the battle ([method CombatEncounter.forfeit]), ascending: no outcome,
+	## runes or loot of theirs is collected, and the battle's end drops them from the run.
+	var forfeited: PackedInt32Array = []
 
 
 ## One seat's map at a battle's end, and the reward values its heirlooms set, for the rewards.
