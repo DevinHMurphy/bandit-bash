@@ -51,6 +51,7 @@ const RELAY_RPCS: PackedStringArray = [
 	"_sync",
 	"_seat_changed",
 	"_notice",
+	"_seat_settings",
 ]
 
 # A token no relay hands out in these cases, for calls made around send_*().
@@ -258,7 +259,7 @@ func _test_refusals() -> void:
 
 	# Godot refuses an authority RPC from a client before any handler runs, on the host and on a
 	# client the host's relay forwarded it to; the engine's errors in the output are expected.
-	client.rpc_id(1, &"_campaign_batch", [], {})
+	client.rpc_id(1, &"_campaign_batch", PackedByteArray())
 	client.rpc_id(rig.harness.peer_id(2), &"_command_settled", FORGED_TOKEN, "forged")
 	client.rpc_id(rig.harness.peer_id(2), &"_combat_batch", [])
 	rig.harness.step_until_idle()

@@ -6,7 +6,7 @@
 # File:     campaign_bus.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name CampaignBus
@@ -25,7 +25,8 @@ extends RefCounted
 signal fact_played(fact: CampaignFact)
 
 ## The run's progress: the run starting, route votes, nodes chosen and left, Unknown nodes
-## resolved, events drawn, voted on and chosen, unit swaps agreed and ended, combats ending.
+## resolved, events drawn, voted on and chosen, unit swaps agreed and ended, combats ending, seats
+## forfeited.
 var run: RunChannel = RunChannel.new()
 
 ## A player's army: heirlooms, items and runes gained, equipped, modified, scrapped, gifted or
@@ -61,7 +62,8 @@ func play(fact: CampaignFact) -> void:
 
 
 ## The run's progress: the run starting, route votes, nodes chosen and left, Unknown nodes
-## resolved, events drawn, voted on and chosen, unit swaps agreed and ended, combats ending.
+## resolved, events drawn, voted on and chosen, unit swaps agreed and ended, combats ending, seats
+## forfeited.
 class RunChannel:
 	extends BusChannel
 
@@ -93,6 +95,8 @@ class RunChannel:
 	signal swap_accepted(fact: CampaignFact)
 	## [constant CampaignFact.SWAP_ENDED].
 	signal swap_ended(fact: CampaignFact)
+	## [constant CampaignFact.SEAT_FORFEITED].
+	signal seat_forfeited(fact: CampaignFact)
 
 	func _init() -> void:
 		_route(CampaignFact.Kind.COMBAT_ENDED, combat_ended)
@@ -109,6 +113,7 @@ class RunChannel:
 		_route(CampaignFact.Kind.SWAP_PROPOSED, swap_proposed)
 		_route(CampaignFact.Kind.SWAP_ACCEPTED, swap_accepted)
 		_route(CampaignFact.Kind.SWAP_ENDED, swap_ended)
+		_route(CampaignFact.Kind.SEAT_FORFEITED, seat_forfeited)
 
 
 ## A player's army: heirlooms, items and runes gained, bought, equipped, modified, scrapped,

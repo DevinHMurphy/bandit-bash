@@ -30,16 +30,17 @@ const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
 
 
 ## Every map of [param encounter] as [param seat] sees it: the seat's own first, then by session
-## id. Empty for no encounter.
+## id. A forfeited map ([method CombatEncounter.is_map_forfeited]) has left every view and isn't
+## listed. Empty for no encounter.
 static func maps(encounter: CombatEncounter, seat: int) -> Array[MapStatus]:
 	var found: Array[MapStatus] = []
 	if encounter == null:
 		return found
 	var own: CombatSession = encounter.session_of_seat(seat)
-	if own != null:
+	if own != null and not encounter.is_map_forfeited(own.session_id):
 		found.append(status(encounter, own.session_id, seat))
 	for session: CombatSession in encounter.get_sessions():
-		if session != own:
+		if session != own and not encounter.is_map_forfeited(session.session_id):
 			found.append(status(encounter, session.session_id, seat))
 	return found
 
@@ -101,13 +102,13 @@ static func is_any_frozen(encounter: CombatEncounter) -> bool:
 	return false
 
 
-## How many maps of [param encounter] are still being fought.
+## How many maps of [param encounter] are still being fought; a forfeited one isn't waited for.
 static func maps_left(encounter: CombatEncounter) -> int:
 	var left: int = 0
 	if encounter == null:
 		return left
 	for session: CombatSession in encounter.get_sessions():
-		if not session.is_finished:
+		if not session.is_finished and not encounter.is_map_forfeited(session.session_id):
 			left += 1
 	return left
 
@@ -178,13 +179,16 @@ static func can_send_none(encounter: CombatEncounter, seat: int) -> bool:
 
 
 ## Why the map [param session_id] can't take a send from [param source_id] now; empty when it can:
-## a map still fought that isn't the source, and a frozen one while any map is frozen.
+## a map still fought, not forfeited, that isn't the source, and a frozen one while any map is
+## frozen.
 static func target_reason(encounter: CombatEncounter, session_id: int, source_id: int) -> String:
 	var target: CombatSession = encounter.get_session(session_id)
 	if target == null or session_id == source_id:
 		return "not a map to send to"
 	if target.is_finished:
 		return "its combat has ended"
+	if encounter.is_map_forfeited(session_id):
+		return "its player left"
 	if is_any_frozen(encounter) and not encounter.is_frozen(session_id):
 		return "a map is frozen: send to a frozen map"
 	return ""

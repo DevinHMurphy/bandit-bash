@@ -51,6 +51,12 @@ const _KEY_STATS: String = "stats"
 
 const _PERCENT: float = 100.0
 
+# A container's contents' keys and kinds (MapObjects.roll()) that the battle's end reads.
+const _LOOT_KIND: String = "kind"
+const _LOOT_AMOUNT: String = "amount"
+const _LOOT_GOLD: String = "gold"
+const _LOOT_RUNE: String = "rune"
+
 ## The run's map. Null only in a state not yet built or restored.
 var graph: CampaignGraph = null
 
@@ -278,15 +284,14 @@ func battle_request(
 
 
 ## A copy of this run with [param result] applied, this run unchanged, so the caller swaps it in,
-## saves, and keeps this one if the save fails. Each unit's HP, deltas and growth changes; fallen
-## units to [member SeatRun.fallen] with their items (a fallen commander stays at critical HP);
-## each heirloom copy's campaign lane; each rune cast or discarded gone from its slot; then the
-## grants, minted from [param ids]. For the node's own finished battle: the map counts as used,
-## each seat's [code]COMBAT_ENDED[/code] records its own map, every swap and proposal ends, each
-## seat whose map was won is paid by [param rules] from [param rolls] (see
-## [constant COMBAT_REPORT_KEY]), and the run moves to its results: solo on a win, co-op always,
-## except a Boss failed on every map, which loses the run. Null for a null result, missing rules
-## or rolls, or a failed copy. [param catalog] null: loaded.
+## saves, and keeps this one if the save fails. First each seat that left the battle goes
+## ([method ForfeitCommand.drop_seat]); then each unit's HP, deltas and growth changes, falls to
+## [member SeatRun.fallen] (a fallen commander stays at critical HP), heirloom lanes, runes spent,
+## and the grants, minted from [param ids]. For the node's own finished battle: the map counts as
+## used, each seat's [code]COMBAT_ENDED[/code] records its own map, every swap ends, each seat whose
+## map was won is paid by [param rules] from [param rolls] with its map's loot, and the run moves to
+## its results: one map on a win, co-op always, but a Boss no map beat loses the run. Null for a
+## null result, missing rules or rolls, or a failed copy. [param catalog] null: loaded.
 func apply_battle(
 		result: CampaignSession.BattleResult,
 		ids: InstanceIdAllocator,
@@ -300,6 +305,10 @@ func apply_battle(
 	var next: CampaignRunState = _copy()
 	if next == null or result == null:
 		return null
+	# Read before any swap ends: which partner's map each visitor fought on.
+	var hosts: Dictionary[String, int] = _visitor_hosts(next.flow)
+	for seat: int in result.forfeited:
+		ForfeitCommand.drop_seat(next, seat)
 	for seat: int in next.seat_numbers():
 		var seat_run: SeatRun = next.seat_run(seat)
 		_apply_units(seat_run, result, rules)
@@ -307,7 +316,8 @@ func apply_battle(
 		if result.runes.has(seat):
 			_apply_runes(seat_run, result.runes[seat])
 	for grant: CampaignSession.Grant in result.grants:
-		_apply_grant(next, grant, ids)
+		if not result.forfeited.has(grant.seat):
+			_apply_grant(next, grant, ids)
 	var is_node_battle: bool = (
 			result.floor_number == next.floor_number and result.node == next.node
 	)
@@ -322,8 +332,6 @@ func apply_battle(
 		# no field for it.
 		ended.amount = 1 if _is_map_won(result, seat) else 0
 		next.record(ended)
-	# Read before the swaps end: which partner's map each visitor fought on.
-	var hosts: Dictionary[String, int] = _visitor_hosts(next.flow)
 	UnitSwap.end_all(next, UnitSwap.END_COMBAT_ENDED)
 	var contents: EffectCatalog.Index = catalog if catalog != null else EffectCatalog.index()
 	for seat: int in next.seat_numbers():
@@ -549,8 +557,11 @@ static func _army_unit(army: CampaignSession.Army, unit_id: String) -> UnitInsta
 	return null
 
 
-# Whether seat's own map in result was won; a seat with no map in it has the battle's result.
+# Whether seat's own map in result was won; a seat with no map in it has the battle's result, but a
+# map whose seat left the battle was never won.
 static func _is_map_won(result: CampaignSession.BattleResult, seat: int) -> bool:
+	if result.forfeited.has(seat):
+		return false
 	var outcome: CampaignSession.SeatOutcome = result.seats.get(seat, null)
 	return result.is_won if outcome == null else outcome.is_won
 
@@ -583,8 +594,9 @@ static func _visitor_hosts(flow_state: RunFlow) -> Dictionary[String, int]:
 # The seat's rewards from a won map of result: grades and gold, XP for each unit still standing on
 # any map, their level-ups in roster order (one LEVELED_UP each), the item pick (none after a
 # Boss), a Key combat's heirloom from the same stream after it, and the combat report under
-# COMBAT_REPORT_KEY, with every seat unit's battle stats. A visitor on a partner's map that failed
-# (hosts: visitor id to that map's seat) earns no shared XP. A seat whose map was lost gets nothing.
+# COMBAT_REPORT_KEY, with every seat unit's battle stats, then its map's loot. A visitor on a
+# partner's map that failed (hosts: visitor id to that map's seat) earns no shared XP. A seat whose
+# map was lost gets nothing.
 static func _reward_seat(
 		run: CampaignRunState,
 		seat: int,
@@ -658,6 +670,56 @@ static func _reward_seat(
 		_KEY_LEVEL_UPS: level_data,
 		_KEY_STATS: stats_data,
 	}
+	var loot: Array = []
+	if result.loot.has(seat):
+		loot = result.loot[seat]
+	_apply_loot(run, seat_run, loot, ids, catalog)
+
+
+# The loot found on the seat's own map (MapObjects' contents, in the order taken), for seat_run:
+# gold added; a rune into the first empty slot; any other kind as a new item in the convoy while
+# it has room. Each item and rune records GAINED. Loot that can't be placed is reported and lost.
+static func _apply_loot(
+		run: CampaignRunState,
+		seat_run: SeatRun,
+		loot: Array,
+		ids: InstanceIdAllocator,
+		catalog: EffectCatalog.Index
+) -> void:
+	for entry: Variant in loot:
+		var found: Dictionary = entry if entry is Dictionary else {}
+		var kind: String = str(found.get(_LOOT_KIND, ""))
+		if kind == _LOOT_GOLD:
+			var amount: Variant = whole_number(found.get(_LOOT_AMOUNT))
+			seat_run.gold = maxi(seat_run.gold + (0 if amount == null else amount as int), 0)
+			continue
+		var definition_id: String = str(found.get(MapObjects.CONTENTS_ID_KEY, ""))
+		var instance_id: String = ""
+		if definition_id.is_empty() or ids == null:
+			push_warning("CampaignRunState: map loot with nothing to give - %s" % [found])
+			continue
+		# ASSUMPTION: loot enters the convoy only while it has room, as every other item does; a
+		# full convoy or full rune slots lose it, since no screen asks for a discard at the battle's
+		# end.
+		if kind == _LOOT_RUNE:
+			var slot: int = _empty_rune_slot(seat_run)
+			if slot >= 0:
+				instance_id = ids.next_rune_id(definition_id)
+				seat_run.rune_slots[slot] = SeatRun.RuneSlot.new(instance_id, definition_id)
+		elif not ItemPlacement.is_convoy_full(seat_run, catalog):
+			instance_id = ids.next_item_id(definition_id)
+			seat_run.items[instance_id] = ItemInstance.new(instance_id, definition_id)
+			seat_run.convoy.append(instance_id)
+		if instance_id.is_empty():
+			push_warning("CampaignRunState: seat %d had no room for map loot %s" % [
+				seat_run.seat, definition_id,
+			])
+			continue
+		var gained: CampaignFact = CampaignFact.new(
+				CampaignFact.Kind.GAINED, seat_run.seat, instance_id
+		)
+		gained.definition_id = definition_id
+		run.record(gained)
 
 
 # Each of the seat's units in result, in roster order: its HP, the battle's permanent deltas and

@@ -55,18 +55,18 @@ func _send_shots() -> void:
 	var coop: CampaignSession = await _open_battle(2, false)
 	if coop == null:
 		return
-	var screen: BattleScreen = scene() as BattleScreen
-	var parts: CoopBattle = screen.get_coop()
+	var screen: Node = scene()
+	var parts: CoopBattle = screen.call(&"get_coop") as CoopBattle
 	var battle: CombatEncounter = coop.encounter
 	parts.request_aid(true)
 	parts.open_maps()
 	await frames(SETTLE_FRAMES)
 	await capture("coop_maps_panel")
 	parts.close_panels()
-	screen.view_map(battle.session_of_seat(1).session_id)
+	screen.call(&"view_map", battle.session_of_seat(1).session_id)
 	await frames(SETTLE_FRAMES)
 	await capture("coop_spectate")
-	screen.view_map(battle.session_of_seat(0).session_id)
+	screen.call(&"view_map", battle.session_of_seat(0).session_id)
 	_end(battle.session_of_seat(0), PLAYER)
 	settle(battle_view())
 	parts.refresh()
@@ -97,16 +97,16 @@ func _frozen_shots() -> void:
 	var coop: CampaignSession = await _open_battle(4, false)
 	if coop == null:
 		return
-	var screen: BattleScreen = scene() as BattleScreen
-	var parts: CoopBattle = screen.get_coop()
+	var screen: Node = scene()
+	var parts: CoopBattle = screen.call(&"get_coop") as CoopBattle
 	var battle: CombatEncounter = coop.encounter
 	var frozen: CombatSession = battle.session_of_seat(1)
 	_freeze(frozen)
-	screen.view_map(frozen.session_id)
+	screen.call(&"view_map", frozen.session_id)
 	parts.refresh()
 	await frames(SETTLE_FRAMES)
 	await capture("coop_frozen_banner")
-	screen.view_map(battle.session_of_seat(0).session_id)
+	screen.call(&"view_map", battle.session_of_seat(0).session_id)
 	_end(battle.session_of_seat(0), PLAYER)
 	settle(battle_view())
 	parts.refresh()
@@ -128,7 +128,7 @@ func _lost_run_shot() -> void:
 	var coop: CampaignSession = await _open_battle(2, false)
 	if coop == null:
 		return
-	var parts: CoopBattle = (scene() as BattleScreen).get_coop()
+	var parts: CoopBattle = scene().call(&"get_coop") as CoopBattle
 	_end(coop.encounter.session_of_seat(0), ENEMY)
 	settle(battle_view())
 	_freeze(coop.encounter.session_of_seat(1))
@@ -144,9 +144,9 @@ func _visitor_shot() -> void:
 	var coop: CampaignSession = await _open_battle(2, true)
 	if coop == null:
 		return
-	var screen: BattleScreen = scene() as BattleScreen
+	var screen: Node = scene()
 	var partner: CombatSession = coop.encounter.session_of_seat(1)
-	screen.view_map(partner.session_id)
+	screen.call(&"view_map", partner.session_id)
 	settle(battle_view())
 	var controller: BattleController = battle_controller()
 	for unit_id: String in partner.state.units_of(PLAYER):
@@ -220,13 +220,13 @@ func _open_battle(seat_count: int, with_swap: bool) -> CampaignSession:
 	node(^"CampaignService").set(&"session", coop)
 	node(^"SceneRouter").call(&"goto_screen", SCREEN_GAMEPLAY)
 	await frames(SETTLE_FRAMES)
-	var screen: BattleScreen = scene() as BattleScreen
-	if screen == null:
+	var screen: Node = scene()
+	if screen == null or not screen.has_method(&"get_coop"):
 		fail("the %d-seat battle's screen didn't open" % [seat_count])
 		coop.close()
 		return null
-	screen.end_banner_time = LONG_HOLD
-	screen.get_coop().send_offer_delay = 0.0
+	screen.set(&"end_banner_time", LONG_HOLD)
+	(screen.call(&"get_coop") as CoopBattle).send_offer_delay = 0.0
 	settle(battle_view())
 	await frames(SETTLE_FRAMES)
 	return coop

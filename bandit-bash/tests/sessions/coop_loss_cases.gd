@@ -6,7 +6,7 @@
 # File:     coop_loss_cases.gd
 # Author:
 # Created:  November 22, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends "res://tests/sessions/sessions_case_base.gd"
@@ -16,7 +16,8 @@ extends "res://tests/sessions/sessions_case_base.gd"
 ## at once and the map resumes, its batch sent on [signal CombatSession.batch_resolved] and
 ## followed by a mirror; a Defend loss ends only that map, also on an emptied map, where a Survive
 ## win reached as the phase finishes stands; each case of
-## [method CombatEncounter.is_run_lost]; and solo's commander and empty-map losses unchanged.
+## [method CombatEncounter.is_run_lost], a full frozen map sending its arrival back (BUG-038)
+## among them; and solo's commander and empty-map losses unchanged.
 ##
 ## Each map is its seat's fixture map with a Drengr at (0, 3) and a Brute at (3, 2), turn 1 open.
 ## Defeats come from fixture commands, so no case depends on a roll.
@@ -49,7 +50,7 @@ func run() -> void:
 	_run(_test_run_waits_for_a_teammate)
 	_run(_test_run_lost_without_help)
 	_run(_test_sent_unit_counts_once)
-	_run(_test_units_in_transit)
+	_run(_test_no_free_tile_sends_back)
 	_run(_test_solo_unchanged)
 
 
@@ -324,24 +325,73 @@ func _test_sent_unit_counts_once() -> bool:
 	return true
 
 
-# A unit on its way to a frozen map (no free tile there, so it waits): the run waits for it, and a
-# frozen map it is on its way to helps another frozen one.
-func _test_units_in_transit() -> bool:
+# BUG-038: a unit sent to a frozen map with no free tile goes back to the won map it left at once,
+# unharmed, and a mirror follows it; the map stays frozen. Another frozen map it can reach still
+# has help, but once no unit left anywhere can land on the full one, the run is lost, even with a
+# map still being fought; with two seats it is lost before any send.
+func _test_no_free_tile_sends_back() -> bool:
 	var battle: Battle = _coop(3)
+	var winner: CombatSession = battle.encounter.get_session(0)
 	var full: CombatSession = battle.encounter.get_session(1)
-	var sent: String = _player_of(battle.encounter.get_session(0))
+	var sent: String = _player_of(winner)
+	var batches: Array[CombatSession.FactBatch] = []
+	battle.encounter.batch_resolved.connect(func(batch: CombatSession.FactBatch) -> void:
+		batches.append(batch)
+	)
 	_open(battle)
 	_resolve(battle, FellFixture.new(1, [_player_of(full)]), 1)
 	_resolve(battle, FellFixture.new(2, [_player_of(battle.encounter.get_session(2))]), 2)
 	_resolve(battle, EndMapFixture.new(), 0)
 	_fill_map(battle, 1)
+	var mirror: Battle = _coop(3)
+	var loaded: Error = mirror.encounter.load_snapshot(
+			WireCases.Kit.through_json(battle.encounter.snapshot()) as Dictionary
+	)
+	var before: Dictionary = winner.state.unit(sent).capture()
 	var reason: String = battle.encounter.send_unit(sent, 0, 1, ARRIVAL_TILE)
-	_check("transit: no free tile, so it waits and the map stays frozen", (
+	var facts: Array[CombatFact] = []
+	var applied: Array[Error] = []
+	for batch: CombatSession.FactBatch in batches:
+		facts.append_array(batch.facts)
+		applied.append(mirror.encounter.apply_batch(WireCases.Kit.batch_through_json(batch)))
+	var returned: CombatFact = _first_of(facts, CombatFact.Kind.UNIT_RETURNED)
+	_check("no free tile: it goes back to the won map at once, unharmed (BUG-038)", (
 			reason.is_empty()
-			and battle.encounter.units_in_transit() == PackedStringArray([sent])
+			and battle.encounter.units_in_transit().is_empty()
+			and battle.encounter.session_of_unit(sent) == winner
+			and JSON.stringify(winner.state.unit(sent).capture()) == JSON.stringify(before)
+			and not full.state.has_unit(sent)
 			and battle.encounter.is_frozen(1)
-	), reason)
-	_check("transit: the run waits for it", not battle.encounter.is_run_lost())
+			and returned.actor_id == sent
+			and returned.session_id == 1
+			and returned.key == 0
+	), "%s; %s" % [reason, _kinds_of(facts)])
+	_check("no free tile: a mirror follows the return, hash for hash", (
+			loaded == OK
+			and applied.count(OK) == applied.size()
+			and mirror.encounter.state_hash() == battle.encounter.state_hash()
+			and mirror.encounter.units_in_transit().is_empty()
+			and mirror.encounter.get_session(0).state_hash() == winner.state_hash()
+	), "%s %s" % [error_string(loaded), applied])
+	_check("no free tile: another frozen map it can reach still has help", (
+			not battle.encounter.is_run_lost()
+	))
+	_check("no free tile: sent again, it lands there", (
+			battle.encounter.send_unit(sent, 0, 2, ARRIVAL_TILE).is_empty()
+			and battle.encounter.get_session(2).state.has_unit(sent)
+			and not battle.encounter.is_frozen(2)
+	))
+	_check("no free tile: lost once no unit left can land on the full map", (
+			battle.encounter.is_frozen(1)
+			and not battle.encounter.get_session(2).is_finished
+			and battle.encounter.is_run_lost()
+	))
+	var two: Battle = _coop(2)
+	_open(two)
+	_resolve(two, FellFixture.new(1, [_player_of(two.encounter.get_session(1))]), 1)
+	_resolve(two, EndMapFixture.new(), 0)
+	_fill_map(two, 1)
+	_check("no free tile: two seats, lost before any send", two.encounter.is_run_lost())
 	return true
 
 

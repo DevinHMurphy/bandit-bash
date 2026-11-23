@@ -133,13 +133,13 @@ func get_coop() -> CoopBattle:
 
 ## Views the map [param session_id] of the battle shown, for the seat: the board, HUD and turn
 ## input follow it, so the seat plays its own units there; a map with none of them is read-only,
-## as the rules refuse every command there. [CoopBattle] asks it; tests call it. Returns whether
-## the view moved.
+## as the rules refuse every command there. A forfeited map can't be viewed. [CoopBattle] asks
+## it; tests call it. Returns whether the view moved.
 func view_map(session_id: int) -> bool:
 	if _encounter == null or _is_run_lost:
 		return false
 	var map: CombatSession = _encounter.get_session(session_id)
-	if map == null or map == _session:
+	if map == null or map == _session or _encounter.is_map_forfeited(session_id):
 		return false
 	_show_session(map)
 	return true

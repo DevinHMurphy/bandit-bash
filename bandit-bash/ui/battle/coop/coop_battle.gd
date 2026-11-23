@@ -360,6 +360,10 @@ func refresh() -> void:
 	var own: CombatSession = _encounter.session_of_seat(_seat)
 	_start_offer_timer(own)
 	var viewed: CombatSession = _encounter.get_session(_viewed_id)
+	if own != null and viewed != own and _encounter.is_map_forfeited(_viewed_id):
+		# A forfeited map leaves every view: back to the seat's own.
+		view_requested.emit(own.session_id)
+		return
 	var is_teammate_calling: bool = false
 	for shown: CoopViewModel.MapStatus in CoopViewModel.maps(_encounter, _seat):
 		is_teammate_calling = is_teammate_calling or (

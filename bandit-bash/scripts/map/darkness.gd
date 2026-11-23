@@ -120,8 +120,8 @@ static func is_release_due(darkness: DarknessState, turn: int) -> bool:
 	var first: int = release_turn(darkness)
 	if first == DarknessState.NO_RELEASE or turn < first:
 		return false
-	# ASSUMPTION: the interval counts from the turn the first wave was released, so a first release
-	# held back to turn 1 (question 12 d) is followed at turn 3, not turn 2.
+	# The interval counts from the turn the first wave was released, so a first release held back
+	# to turn 1 is followed at turn 3, not turn 2.
 	return (turn - first) % WAVE_INTERVAL == 0
 
 
@@ -274,8 +274,8 @@ static func _release(engine: EffectEngine, state: CombatState) -> void:
 # one.
 static func _erode(engine: EffectEngine, state: CombatState) -> void:
 	var darkness: DarknessState = state.map.darkness
-	# ASSUMPTION: contact is read once, before any break this step, so a lane a break opens
-	# erodes the breakables beyond it from the next step; the-darkness.md doesn't order them.
+	# Contact is read once, before any break this step, so a lane a break opens erodes the
+	# breakables beyond it from the next step.
 	var touching: Array[MapState.ObjectState] = []
 	for placed: MapState.ObjectState in _breakables(state):
 		var is_under: bool = (
@@ -341,8 +341,8 @@ static func _deal(
 	var hp: int = state.get_hp(unit_id)
 	var lost: int = mini(_amount(engine, unit_id, layer, ctx), hp)
 	state.set_hp(unit_id, hp - lost)
-	# ASSUMPTION: amount is the HP lost, overkill dropped, as DAMAGE_TAKEN's amount is what got
-	# through and as the board reads it (combat UI plan question 14 g).
+	# The amount is the HP lost, overkill dropped, as DAMAGE_TAKEN's amount is what got through
+	# and as the board reads it.
 	fact.amount = lost
 	fact.hp_amount = lost
 	engine.record(fact, ctx)
