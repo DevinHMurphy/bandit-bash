@@ -6,7 +6,7 @@
 # File:     combat_fact.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 18, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name CombatFact
@@ -150,6 +150,18 @@ enum Kind {
 	## [constant RUNE_USED], the actor is empty and [member amount] is the seat; no target, no tile,
 	## and no trigger fires on it.
 	RUNE_DISCARDED = 46,
+	## An encounter fact ([CombatEncounter]): the actor left the won map [member session_id] for
+	## the map [member key] (a session id); [member amount] is the seat that sent it, and
+	## [member tile] the tile it aims at, or [constant NO_TILE] for the receiving commander. A send
+	## of no units is one fact with no actor and [member key] -1. No trigger fires on it.
+	UNIT_SENT = 47,
+	## An encounter fact: the actor, on its way to the map [member session_id], went back to the
+	## won map [member key] it left, unharmed, because its target ended first; [member amount] is
+	## its seat. No trigger fires on it.
+	UNIT_RETURNED = 48,
+	## An encounter fact: the seat [member amount] raised ([member key] 1) or lowered (0) the call
+	## for aid of its map [member session_id]. No trigger fires on it.
+	AID_CALLED = 49,
 }
 
 ## What produced an amount. Sent over the network as an int: [b]append only[/b].

@@ -83,8 +83,8 @@ static func end_turn(session: CombatSession, seat: int) -> void:
 ## Runs the player Phase Start that frozen [param session] is held at, then the step's end: units
 ## on their way land ([constant CombatHooks.Hook.ARRIVALS]), and with a player unit then on the map
 ## its turn rises and it goes on. Call it between steps once a unit is sent there
-## ([method CombatEncounter.send_unit]). It records outside any command, so the caller sends the
-## batch ([method CombatSession.flush]).
+## ([CombatEncounter]). It records outside any command, so the caller sends the batch
+## ([method CombatSession.flush]).
 ## Returns whether the Phase Start ran: false, changing nothing, for a map that isn't frozen or
 ## still has no player unit after the arrivals.
 static func resume(session: CombatSession) -> bool:
@@ -155,12 +155,14 @@ static func seats_to_end(session: CombatSession) -> PackedInt32Array:
 	return waiting
 
 
-## The seats of [param session] that have at least one unit on its map, ascending.
+## The seats that have at least one player unit on [param session]'s map, ascending: its own
+## seats' and those of units sent there from another map ([CombatEncounter]), which take their
+## turn and end it there too. [member CombatSession.seats] stays the map's own.
 static func seats_with_units(session: CombatSession) -> PackedInt32Array:
 	var found: PackedInt32Array = []
 	for unit_id: String in session.state.units_of(CombatFact.CombatSide.PLAYER):
 		var seat: int = session.state.seat_of(unit_id)
-		if session.seats.has(seat) and not found.has(seat):
+		if seat >= 0 and not found.has(seat):
 			found.append(seat)
 	found.sort()
 	return found

@@ -6,7 +6,7 @@
 # File:     save_cases.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 19, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -469,13 +469,13 @@ func _test_section_versions_and_partners() -> void:
 	var saved: Dictionary = host.save()
 	var entry: Dictionary = saved["combat_state"]
 	var effects_entry: Dictionary = saved["effects"]
-	_check.call("section: combat_state at version 3, effects at 1, the roll streams left out", (
-			WireCases.Kit.as_int(entry["version"]) == 3
+	_check.call("section: combat_state at version 4, effects at 1, the roll streams left out", (
+			WireCases.Kit.as_int(entry["version"]) == 4
 			and WireCases.Kit.as_int(effects_entry["version"]) == 1
 			and not JSON.stringify(entry["data"]).contains("\"rolls\"")
 	))
 	var newer: Dictionary = saved.duplicate(true)
-	(newer["combat_state"] as Dictionary)["version"] = 4
+	(newer["combat_state"] as Dictionary)["version"] = 5
 	var zero: Dictionary = saved.duplicate(true)
 	(zero["effects"] as Dictionary)["version"] = 0
 	var effects_only: Dictionary = saved.duplicate(true)

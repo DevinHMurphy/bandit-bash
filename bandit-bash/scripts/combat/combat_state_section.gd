@@ -6,36 +6,31 @@
 # File:     combat_state_section.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 19, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name CombatStateSection
 extends SaveSection
-## The battle in progress in the combat block: the [code]combat_state[/code] section, with its
-## partner [member effects], the [code]effects[/code] section; this one at version 3 (weapon records
-## gained [code]area_shape_id[/code] and [code]full_heal[/code] at 2, units their prefix and
-## level at 3; [method migrate]), effects at 1.
+## The battle in progress in the combat block: the [code]combat_state[/code] section (version 4;
+## older data through [method migrate]), with its partner [member effects], the
+## [code]effects[/code] section (version 1).
 ##
-## [code]CampaignService[/code] registers this section, then [member effects], and attaches both
-## to the run's [CampaignSession]. Each capture reads the battle's [method CombatEncounter.snapshot]
-## and keeps its own part, so saving and rejoining can't drift apart (event bus plan, Rejoin and
-## resume): [code]combat_state[/code] holds the encounter's own part (seqs, arrivals, units on
-## their way) and each map's session part and [method CombatState.capture]; [code]effects[/code]
-## holds each map's [method EffectEngine.capture] and the cross-map instances. The roll streams
-## are the combat [code]rng[/code] section's. Capturing also keeps the combat block's core turn and
-## phase equal to the battle's ([method _init]).[br]
-## [b]Load order:[/b] [code]SaveService[/code] restores sections before any battle exists, so
-## [method restore] only checks the data and holds it, and [member effects] restores after this
-## section, refusing data without it. [method load_into] then loads both into a battle rebuilt the
-## way this one was set up, units and turn before effects.[br]
-## [b]Resets:[/b] a reset (Begin, battle end, [code]BATTLE_RETRY[/code]) drops held data only.
+## Registered and attached by [code]CampaignService[/code]. Each capture keeps its own part of
+## [method CombatEncounter.snapshot], so saving and rejoining can't drift apart:
+## [code]combat_state[/code] the encounter's part but its cross-map instances (seqs, arrivals,
+## units on their way, sends, senders, calls for aid) and each map's session part and units;
+## [code]effects[/code] each map's engine and the cross-map instances. The rolls are the
+## [code]rng[/code] section's. Capturing keeps the core turn and phase equal to the battle's.[br]
+## [b]Load order:[/b] no battle exists at restore, so [method restore] only checks and holds the
+## data, [member effects] after it; [method load_into] loads both into the rebuilt battle. A reset
+## (Begin, battle end, [code]BATTLE_RETRY[/code]) drops held data only.
 ##
 ## @tutorial(Save system design): docs/design/save-system.md
 ## @tutorial(Combat core plan): docs/plans/2026-10-26-combat-core.md
 
 # Never change it: it is how saved data finds this section (save-system.md).
 const _KEY: String = "combat_state"
-const _VERSION: int = 3
+const _VERSION: int = 4
 
 ## The [code]effects[/code] section: register it after this one, in the same block.
 var effects: EffectsSection = null
@@ -74,27 +69,34 @@ func get_version() -> int:
 	return _VERSION
 
 
-## Upgrades [param data] from version 1 or 2 in place, on each map and on each unit on its way
-## between maps. From 1: every weapon record gains [code]area_shape_id[/code] [code]""[/code]
-## and [code]full_heal[/code] false (a version 1 battle saved no area and had no full-heal staff).
-## From 1 and 2: every unit gains [code]prefix_id[/code] [code]""[/code] and [code]level[/code] 1
-## ([method CombatUnitState.capture]); the battle plays the same, as both are shown only, but its
-## elites resume showing no prefix and level 1. Malformed parts are left for [method restore].
+## Upgrades [param data] from version 1, 2 or 3 in place, on each map and on each unit on its way
+## between maps. From 1: weapon records gain [code]area_shape_id[/code] [code]""[/code] and
+## [code]full_heal[/code] false (no area, no full-heal staff then). From 1 and 2: units gain
+## [code]prefix_id[/code] [code]""[/code] and [code]level[/code] 1, shown only. From 1 to 3: the
+## encounter gains no sends, senders, calls for aid or forfeited seats, and each unit on its way
+## clock turn 0, due at the next Phase Start as before. Malformed parts are left for
+## [method restore].
 func migrate(data: Dictionary, from_version: int) -> Error:
-	if from_version != 1 and from_version != 2:
+	if from_version < 1 or from_version > 3:
 		return super(data, from_version)
 	var is_v1: bool = from_version == 1
+	var is_before_v3: bool = from_version < 3
 	var encounter_part: Variant = data.get("encounter", null)
 	if encounter_part is Dictionary:
+		_add_coop_fields(encounter_part as Dictionary)
 		# Untyped: the parts come from JSON and are checked entry by entry.
 		for entry: Variant in _array_of(encounter_part as Dictionary, "in_transit"):
 			if not entry is Dictionary:
 				continue
+			if not (entry as Dictionary).has("clock_turn"):
+				(entry as Dictionary)["clock_turn"] = 0
 			if is_v1:
 				_add_weapon_fields(entry as Dictionary)
 			var travelling: Variant = (entry as Dictionary).get("unit", null)
-			if travelling is Dictionary:
+			if travelling is Dictionary and is_before_v3:
 				_add_unit_fields(travelling as Dictionary)
+	if not is_before_v3:
+		return OK
 	for entry: Variant in _array_of(data, "sessions"):
 		if not entry is Dictionary:
 			continue
@@ -263,6 +265,15 @@ static func _add_weapon_fields(holder: Dictionary) -> void:
 			fields["area_shape_id"] = ""
 		if not fields.has("full_heal"):
 			fields["full_heal"] = false
+
+
+# Adds version 4's co-op fields to the encounter part that lacks them: nothing sent, received,
+# called for or forfeited.
+static func _add_coop_fields(encounter_part: Dictionary) -> void:
+	var defaults: Dictionary = {"sends": {}, "senders": {}, "aid": [], "forfeited": []}
+	for key: String in defaults:
+		if not encounter_part.has(key):
+			encounter_part[key] = defaults[key]
 
 
 # Adds version 3's unit fields to a unit's capture that lacks them: no prefix, level 1.
