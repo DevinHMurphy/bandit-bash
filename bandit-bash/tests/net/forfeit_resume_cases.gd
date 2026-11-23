@@ -10,13 +10,14 @@
 # ==============================================================================
 
 extends "res://tests/net/net_case_base.gd"
-## A co-op battle a seat forfeits, saved and resumed, with every client in the harness acting
-## through its [ClientMirror], for tests/net/run_all.gd, at 3 and 4 seats: each mirror equals the
-## host (run, encounter and every map's hash) once the battle opens, after the forfeit (from a
-## fresh snapshot each asks for), and after the resume, which seats only the players
-## left and rebuilds every mirror's battle with the left map still forfeited; then the maps left
-## are won, every batch's hash matching as it applies, and the battle ends without the seat, as
-## mirrors built after it agree. Needs a test user folder.
+## A co-op battle a seat leaves, saved and resumed, with every client in the harness acting
+## through its [ClientMirror], for tests/net/run_all.gd: a client's own forfeit at 3 and 4 seats,
+## and the host's removal of a dropped client after the wait at 3. Each mirror equals the host
+## (run, encounter and every map's hash) once the battle opens, after the leave as its batches
+## arrive, and after the resume, which seats only the players left and rebuilds every mirror's
+## battle with the left map still forfeited; then the maps left are won, every batch's hash
+## matching as it applies, and the battle ends without the seat on every running mirror. Needs a
+## test user folder.
 
 # The suite that runs this file; tests/case_files.gd finds it by this line.
 const SUITE: String = "net"
@@ -45,11 +46,14 @@ func run() -> void:
 		return
 	print("    (errors from refused snapshots and RunSaveSections below are expected)")
 	for seat_count: int in [3, 4]:
-		_test_forfeit_and_resume(seat_count)
+		_test_forfeit_and_resume(seat_count, false)
+	_test_forfeit_and_resume(3, true)
 
 
-func _test_forfeit_and_resume(seat_count: int) -> void:
-	var tag: String = "forfeit resume %d seats:" % [seat_count]
+# With is_removed, the leaving client drops and the host removes it after the wait, as
+# SeatWaitOverlay's Remove does; otherwise it forfeits through its mirror.
+func _test_forfeit_and_resume(seat_count: int, is_removed: bool) -> void:
+	var tag: String = "forfeit resume %d seats%s:" % [seat_count, ", removal" if is_removed else ""]
 	var session: CampaignSession = _start_run(seat_count)
 	if session == null:
 		_check("%s the run reaches a combat node" % [tag], false)
@@ -74,19 +78,14 @@ func _test_forfeit_and_resume(seat_count: int) -> void:
 		_end_run()
 		return
 
-	var batch: CampaignBatch = CampaignService.forfeit_seat(LEAVING)
-	rig.harness.step_until_idle()
-	# A mirror follows a mid-battle forfeit only from a fresh snapshot for now: forfeit() records no
-	# combat fact, and the forfeit's campaign batch closes a mirror's battle. Each asks for one.
-	rig.without(LEAVING)
-	for index: int in rig.clients():
-		rig.mirror(index).start()
-	rig.harness.step_until_idle()
-	_check("%s after the forfeit every mirror still equals the host" % [tag], (
-			batch != null and not batch.is_rejected()
+	var has_left: bool = _leave(rig, is_removed)
+	_check("%s after the leave every mirror still equals the host, its battle kept" % [tag], (
+			has_left
 			and battle.forfeited_seats() == PackedInt32Array([LEAVING])
+			and rig.every_mirror_forfeited(LEAVING)
+			and rig.combat_failures.is_empty()
 			and rig.difference().is_empty()
-	), rig.difference())
+	), "%s; %s" % [rig.combat_failures, rig.difference()])
 	var saved: Dictionary[int, int] = _map_hashes(battle)
 	var saved_encounter: int = battle.state_hash()
 	_stop(rig)
@@ -125,21 +124,36 @@ func _test_forfeit_and_resume(seat_count: int) -> void:
 	), "%d checked; %s; %s" % [rig.combat_checks, rig.combat_failures, rig.difference()])
 	var result: CampaignSession.BattleResult = CampaignService.end_battle()
 	rig.harness.step_until_idle()
-	# A running mirror keeps the left seat past the battle's end, as it did before any resume, so
-	# the end is compared on mirrors built after it.
-	_stop(rig)
-	rig = _make_rig(resumed, left)
-	_check("%s the battle ends without the seat that left; new mirrors equal the host" % [tag], (
+	_check("%s the battle ends without the seat that left; every mirror equals the host" % [tag], (
 			result != null and result.forfeited == PackedInt32Array([LEAVING])
 			and resumed.encounter == null
 			and resumed.seats == left
 			and _seats_of(SaveService.campaign.players) == left
 			and SaveService.campaign.departed.is_empty()
-			and rig != null and rig.every_mirror_built() and rig.difference().is_empty()
-	), "" if rig == null else rig.difference())
-	if rig != null:
-		_stop(rig)
+			and rig.every_mirror_seated(left) and rig.difference().is_empty()
+	), rig.difference())
+	_stop(rig)
 	_end_run()
+
+
+# The client of seat LEAVING leaves the battle: its own forfeit through its mirror, settled and
+# let go; or, with is_removed, a drop, the wait, then the host's removal. Every client left keeps
+# comparing as the leave's batches arrive. Whether the leave went through.
+func _leave(rig: Rig, is_removed: bool) -> bool:
+	var index: int = rig.seat_of_branch.find(LEAVING)
+	rig.without(LEAVING)
+	if not is_removed:
+		var token: int = rig.mirror(index).submit_campaign(ForfeitCommand.new(LEAVING))
+		rig.harness.step_until_idle()
+		return rig.settles[index].has([token, ""])
+	var host: NetRelayScript = rig.relay(NetHarness.HOST)
+	rig.harness.drop(index)
+	rig.harness.step_until_idle()
+	host._process(NetRelayScript.REMOVE_WAIT)
+	var batch: CampaignBatch = CampaignService.forfeit_seat(LEAVING, true)
+	var removed: bool = host.remove_seat(LEAVING)
+	rig.harness.step_until_idle()
+	return batch != null and not batch.is_rejected() and removed and not host.is_paused()
 
 
 # A multiplayer run of seat_count seats through SaveService, no starting offers, inside its first
@@ -333,6 +347,13 @@ class Rig:
 			if copy == null or not copy.is_mirror:
 				return false
 			if mirror(index).local_seat() != seat_of_branch[index]:
+				return false
+		return true
+
+	func every_mirror_seated(seats: PackedInt32Array) -> bool:
+		for index: int in clients():
+			var copy: CampaignSession = mirror(index).session
+			if copy == null or copy.seats != seats:
 				return false
 		return true
 

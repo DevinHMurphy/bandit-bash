@@ -131,10 +131,10 @@ before writing a prompt and name it in the LANE block.
 
 | Lane | Next | Then | Gated on |
 |------|------|------|----------|
-| A Battle UI | — (free: EN19 merged November 23, 2026) | BUG-049 (a held pad trigger re-arms fast-forward) with the HUD rune bar as an EffectText and the detail rows' 4-unit focus inset; the event log per viewed map; RB1 after the full-run playtest | RB1: the user's full-run playtest (user, November 20 and 22, 2026) |
-| B Campaign and run | — (free: CO22 merged November 23, 2026) | CO19 the co-op pause menu [CO18], with `RunScreen._has_run`'s stale comment; SaveService's run-start and checkpoint messages under the relay's size check [NT8] | — |
+| A Battle UI | UL12: BUG-049 (a held pad trigger re-arms fast-forward), the HUD rune bar as an EffectText, the detail rows' 4-unit focus inset (issued November 23, 2026) | the event log per viewed map; RB1 after the full-run playtest | RB1: the user's full-run playtest (user, November 20 and 22, 2026) |
+| B Campaign and run | CO19 the co-op pause menu (ready: CO18 merged November 23, 2026), with `RunScreen._has_run`'s stale comment and the forfeiter disconnect |  SaveService's run-start and checkpoint messages under the relay's size check [NT8] | — |
 | C Events | — (free: BF12 merged November 23, 2026) | the event option's expected-heirloom field [a unique heirloom at events] | — |
-| D Engine, AI, content | CO17 clients in the harness: co-op battles (issued November 23, 2026), with `CastRuneCommand`'s doc (P11 question 136 (a)) and a client's mirror of a visitor battle, `BattleView.mismatches()` comparing a token's profile | EN18 plan (a plan session); CT12 after the weapon modification design | — |
-| E Network | CO18 forfeit and removal on the network (issued November 23, 2026), with BUG-047; mirrors follow `UNIT_LEFT` and don't call `forfeit()` (question 122 as amended) | NT8a setup (the macOS export, Lane G's tooling) → NT8b the live check with the user, Windows against a Mac → CO21 | — |
+| D Engine, AI, content | CO17 clients in the harness: co-op battles (issued November 23, 2026), with `CastRuneCommand`'s doc (P11 question 136 (a)) and a client's mirror of a visitor battle, `BattleView.mismatches()` comparing a token's profile | EN20 plan (a plan session); CT12 after the weapon modification design | — |
+| E Network | — (free: CO18 merged November 23, 2026) | NT8a setup (the macOS export, Lane G's tooling) → NT8b the live check with the user, Windows against a Mac → CO21 | — |
 | G Audio and tooling | — (free: CO15 merged November 23, 2026) | AU2 after the audio direction (M5); the capture builder tidy-up; a fixed glyph family per capture run; TX2 when the user raises it | Nothing ready |
-| F Docs and plans | CO20 docs, with BUG-033 (P11 answered November 22, 2026) | P12 plan when wanted; P17 parked (user, November 22, 2026: very low priority) | — |
+| F Docs and plans | TL2 the rebalance board artifact (issued November 23, 2026; read-only on the repo, no build slot); CO20 docs, with BUG-033 (P11 answered November 22, 2026) | P12 plan when wanted; P17 parked (user, November 22, 2026: very low priority) | — |

@@ -11,17 +11,17 @@
 
 extends Node
 ## Every run message between host and clients: commands up, batches down, settles, notices, seat
-## settings, and the seats' drops and rejoins. Autoload [code]NetRelay[/code], after
+## settings, and the seats' drops, rejoins and leaving. Autoload [code]NetRelay[/code], after
 ## [code]CampaignService[/code]; it reads its own node's [code]multiplayer[/code] ([NetGate]) and
 ## [member seats], never Steam but to seat a lobby's run, so a test puts one under each branch.
 ## [b]Host:[/b] a client's command takes its seat from the connection, is refused while paused, is
-## filled ([HostFill]) and resolves as the host's own; its sender alone hears how it settled.
-## Batches go to every seated client in order on one reliable channel (a rejection to its sender),
-## campaign batches with the run's capture, a battle's snapshot the idle frame after it opens. A
-## dropped seat pauses the run until it rejoins (a fresh snapshot) or is removed. [b]Clients[/b]
-## pass it on through the [code]*_received[/code] signals and send their settings
-## ([method seat_settings]). [code]_sync[/code] and [code]_campaign_batch[/code] travel packed;
-## nothing over Steam's message limit is sent; each message is a NetLog line (kind, size, peer).
+## filled ([HostFill]) and resolves as the host's own; its sender alone hears how it settled. A
+## forfeit then sends the leaver its archive record and lets the seat go. Batches go to every
+## seated client in order on one reliable channel, campaign batches with the run's capture, a
+## battle's snapshot the idle frame after it opens. A dropped seat pauses the run until it rejoins
+## or is removed. [b]Clients[/b] pass it on through the [code]*_received[/code] signals and send
+## their settings. [code]_sync[/code] and [code]_campaign_batch[/code] travel packed; nothing over
+## Steam's message limit is sent; each message is a NetLog line (kind, size, peer).
 ##
 ## @tutorial(Net transport plan): docs/plans/2026-11-19-net-transport.md
 
@@ -60,9 +60,15 @@ signal seat_dropped(seat: int)
 ## was waiting for it.
 signal seat_rejoined(seat: int)
 
-## The host removed the dropped [param seat] after its wait ([method remove_seat]); it never comes
-## back. Every peer. No rule acts on a removal yet: its map stays in the battle.
+## [param seat] left the run for good: the host removed it after its wait ([method remove_seat]),
+## or it forfeited. It never comes back. Every peer but a forfeiting seat's own, which hears
+## [signal left_run].
 signal seat_removed(seat: int)
+
+## The host let this client's seat go after its forfeit settled: [param record] is its archive
+## record, null when the host had none or it didn't load. A lobby's client then archives it and
+## goes to the main menu. Clients only.
+signal left_run(record: ArchiveRecord)
 
 ## What a notice says. Sent as an int: [b]append only[/b], with explicit values; the build
 ## fingerprint covers it ([NetContract]).
@@ -329,8 +335,10 @@ func seat_members(
 
 
 ## Host only: removes the dropped [param seat] for good once it has waited [constant REMOVE_WAIT]
-## seconds, telling every peer ([signal seat_removed]); its Steam id is no longer admitted. Returns
-## false, changing nothing, off the host, for a seat that isn't dropped, or before the wait.
+## seconds, telling every peer ([signal seat_removed]); its Steam id is no longer admitted. The run
+## is the caller's: [SeatWaitOverlay]'s Remove runs [code]CampaignService.forfeit_seat()[/code]
+## first. Returns false, changing nothing, off the host, for a seat that isn't dropped, or before
+## the wait.
 func remove_seat(seat: int) -> bool:
 	if not _is_host() or seats == null:
 		push_error("NetRelay: only the host removes a seat.")
@@ -401,7 +409,8 @@ func _submit_combat(wire: Array, session_id: int, token: int) -> void:
 	_settle(sender, token, reason, NetLog.Category.COMBAT)
 
 
-# As _submit_combat(), for a campaign command, filled by HostFill before it resolves.
+# As _submit_combat(), for a campaign command, filled by HostFill before it resolves. A forfeit
+# that resolved lets its seat go once settled (_let_go()).
 @rpc("any_peer", "call_remote", "reliable")
 func _submit_campaign(wire: Array, token: int) -> void:
 	_log_received(&"_submit_campaign", [wire, token])
@@ -413,14 +422,18 @@ func _submit_campaign(wire: Array, token: int) -> void:
 		return
 	var seat: int = _seat_of(sender)
 	var reason: String = _seat_reason(seat)
+	var is_forfeit: bool = false
 	if reason.is_empty():
 		var command: CampaignCommand = CampaignCommand.from_wire(wire)
 		if command == null:
 			reason = _MALFORMED
 		else:
 			command.seat = seat
+			is_forfeit = command is ForfeitCommand
 			reason = _route_campaign(command)
 	_settle(sender, token, reason, NetLog.Category.CAMPAIGN)
+	if is_forfeit and reason.is_empty():
+		_let_go(seat, sender)
 
 
 @rpc("authority", "call_remote", "reliable")
@@ -590,6 +603,25 @@ func _seat_settings(settings: Dictionary) -> void:
 		_log_dropped(sender, "malformed settings %s" % [settings])
 
 
+# This client's archive record, from the host, after its forfeit settled: its seat is gone from
+# then on. An envelope that doesn't load is dropped, and the client leaves without a record; an
+# empty one means the host had none.
+@rpc("authority", "call_remote", "reliable")
+func _forfeit_record(envelope: Dictionary) -> void:
+	_log_received(&"_forfeit_record", [envelope])
+	if multiplayer.is_server():
+		return
+	var record: ArchiveRecord = null
+	if not envelope.is_empty():
+		record = ArchiveRecord.new()
+		if record.load_envelope(envelope.duplicate(true)) != OK:
+			_log_dropped(multiplayer.get_remote_sender_id(), "an archive record that doesn't load")
+			record = null
+	left_run.emit(record)
+	if _is_lobby_relay():
+		_leave_run(record)
+
+
 func _is_host() -> bool:
 	return NetGate.has_session(multiplayer) and multiplayer.is_server()
 
@@ -661,11 +693,16 @@ func _route_combat(command: Command, session_id: int) -> String:
 	return ""
 
 
-# Fills and resolves command on the run; returns its rejection, empty when it resolved.
+# Fills and resolves command on the run; returns its rejection, empty when it resolved. A forfeit
+# runs as the host's own does (CampaignService.forfeit_seat()), so its record is built and its
+# seat leaves the campaign.
 func _route_campaign(command: CampaignCommand) -> String:
 	var run_session: CampaignSession = CampaignService.session
 	if run_session == null or run_session.run == null:
 		return _NO_RUN
+	if command is ForfeitCommand:
+		var left: CampaignBatch = CampaignService.forfeit_seat(command.seat)
+		return _NO_RUN if left == null else left.rejected_reason
 	var filled: CampaignCommand = HostFill.complete(command, run_session)
 	if filled == null:
 		return _MALFORMED
@@ -804,6 +841,32 @@ func _announce_rejoin(seat: int, peer: int) -> void:
 		battle = _encounter.snapshot()
 		screen = SceneRouter.Screen.GAMEPLAY
 	_send_sync([peer], _capture_run(), battle, [], screen)
+
+
+# Host: the forfeiting seat, connected as peer, gets its archive record first (an empty envelope
+# without one), then leaves the directory for good, as a removal does: nobody waits for it, its
+# account is no longer admitted, and every other seated peer hears it removed.
+func _let_go(seat: int, peer: int) -> void:
+	var record: ArchiveRecord = SaveService.take_forfeit_record(seat)
+	var envelope: Dictionary = {}
+	if record != null:
+		envelope = record.to_envelope()
+	_send([peer], &"_forfeit_record", [envelope])
+	seats.drop_peer(peer)
+	seats.remove_seat(seat)
+	_admit_campaign()
+	NetLog.info(NetLog.Category.LOBBY, "NetRelay: seat %d forfeited and was let go." % [seat])
+	_send_seat_changed(seat, SeatDirectory.State.REMOVED, 0.0)
+
+
+# A lobby's client whose seat left: its record into this machine's archive, then the main menu,
+# which leaves the lobby (SceneRouter).
+func _leave_run(record: ArchiveRecord) -> void:
+	if record != null:
+		var err: Error = SaveService.archive_forfeit_record(record)
+		if err != OK:
+			push_warning("NetRelay: the forfeit record wasn't archived - %s" % [error_string(err)])
+	SceneRouter.goto_screen(SceneRouter.Screen.MAIN_MENU)
 
 
 # Host of a lobby's run: only the run's seats that aren't removed may join, so a dropped seat's

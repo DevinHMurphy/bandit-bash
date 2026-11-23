@@ -13,9 +13,10 @@ extends "res://tests/net/net_case_base.gd"
 ## Wait overlay cases for tests/net/run_all.gd ([SeatWaitOverlay]), on a relay off the network,
 ## which hosts as solo does: it shows at the first wait, a line per dropped seat with its time,
 ## Save & Quit for the host and no Remove; Enter, pad A and a click press its button and a click
-## elsewhere stops on it; focus comes back from the screen beneath but not from a layer above; it
-## hides when nobody is waited for, focus back where it was; a client that lost the host sees it
-## reconnecting with Leave Match.
+## elsewhere stops on it; the host's Remove shows once a seat has waited the full wait, for the
+## seat waited for longest, reached and pressed by keyboard, pad and mouse; focus comes back from
+## the screen beneath but not from a layer above; it hides when nobody is waited for, focus back
+## where it was; a client that lost the host sees it reconnecting with Leave Match and no Remove.
 
 # The suite that runs this file; tests/case_files.gd finds it by this line.
 const SUITE: String = "net"
@@ -83,6 +84,7 @@ func run() -> void:
 	_check("overlay: a click presses the button; one elsewhere stops on the overlay", (
 			by_click == 3 and _presses == 3 and beneath_presses[0] == 0
 	), "%d presses at %s, beneath %d" % [_presses, target, beneath_presses[0]])
+	_test_remove(relay, overlay)
 
 	beneath.grab_focus()
 	overlay.refresh()
@@ -116,8 +118,52 @@ func run() -> void:
 			and _text(overlay, ^"%Title") == "Connection lost"
 			and _text(overlay, ^"%Lines") == "Reconnecting to Player 1 · 0:00"
 			and leave.text == "Leave Match"
+			and not remove.visible
 	), _text(overlay, ^"%Lines"))
 	_free(relay, beneath)
+
+
+# Seats 1 (75 s) and 2 (5 s) are waited for. Remove shows once one has waited the full wait, for the
+# seat waited for longest, and is reached by keyboard and pad and pressed by a click; the removal
+# itself runs in the harness (forfeit_network_cases.gd), which has a run.
+func _test_remove(relay: NetRelayScript, overlay: SeatWaitOverlay) -> void:
+	var leave: Button = overlay.get_node(^"%LeaveButton")
+	var remove: Button = overlay.get_node(^"%RemoveButton")
+	var short_of_wait: float = NetRelayScript.REMOVE_WAIT - relay.waited(1) - 1.0
+	relay._process(short_of_wait)
+	overlay.refresh()
+	var hidden_before: bool = not remove.visible
+	relay._process(1.0)
+	overlay.refresh()
+	_check("overlay: Remove shows once a seat has waited the full wait, for that seat", (
+			hidden_before and remove.visible and remove.text == "Remove Player 2"
+	), "%s, %s" % [hidden_before, remove.text])
+	relay._process(NetRelayScript.REMOVE_WAIT)
+	overlay.refresh()
+	_check("overlay: with two seats past the wait, Remove is for the one waited for longest", (
+			remove.text == "Remove Player 2"
+	), remove.text)
+
+	remove.pressed.disconnect(overlay._on_remove_button_pressed)
+	remove.pressed.connect(_on_pressed)
+	var before: int = _presses
+	# Laid out first: focus finds its neighbour by position.
+	overlay.propagate_notification(Container.NOTIFICATION_SORT_CHILDREN)
+	leave.grab_focus()
+	_press_key(KEY_RIGHT)
+	var by_key: bool = remove.has_focus()
+	_press_pad(JOY_BUTTON_A)
+	_press_pad(JOY_BUTTON_DPAD_LEFT)
+	var back_by_pad: bool = leave.has_focus()
+	_press_pad(JOY_BUTTON_DPAD_RIGHT)
+	var by_pad: bool = remove.has_focus()
+	_click(remove.get_global_rect().get_center())
+	_check("overlay: Remove is reached by arrows and the d-pad, pressed by pad A and a click", (
+			by_key and back_by_pad and by_pad and _presses == before + 2
+	), "key %s, pad back %s, pad %s, %d presses" % [by_key, back_by_pad, by_pad, _presses - before])
+	remove.pressed.disconnect(_on_pressed)
+	remove.pressed.connect(overlay._on_remove_button_pressed)
+	leave.grab_focus()
 
 
 func _on_pressed() -> void:
