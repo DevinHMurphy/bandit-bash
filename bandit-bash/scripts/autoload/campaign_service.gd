@@ -6,7 +6,7 @@
 # File:     campaign_service.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 21, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 extends Node
@@ -204,8 +204,13 @@ func end_battle() -> CampaignSession.BattleResult:
 ## Resolves [param command] on the run ([method CampaignSession.submit]) and, when it resolved,
 ## saves with [method SaveService.save_checkpoint], so a chosen node or a purchase survives a
 ## quit. Returns the batch; null with no session. A failed save is reported and the change kept
-## in memory, for the next checkpoint to write.
+## in memory, for the next checkpoint to write. On a multiplayer client nothing resolves here:
+## the command goes to the host through [code]NetRelay[/code], which settles it, and null is
+## returned.
 func submit_command(command: CampaignCommand) -> CampaignBatch:
+	if _is_client():
+		NetRelay.send_campaign(command)
+		return null
 	if session == null:
 		push_error("CampaignService: no run in progress to command.")
 		return null
@@ -219,6 +224,24 @@ func submit_command(command: CampaignCommand) -> CampaignBatch:
 					% [batch.label, error_string(err)]
 			)
 	return batch
+
+
+## The one way a combat command enters the battle, for the host's screens and the relay alike:
+## routes [param command] to the map [param session_id] ([method CombatEncounter.submit]), then
+## resolves everything queued ([method CombatEncounter.resolve_queued]) and returns its map
+## batches. On a multiplayer client it goes to the host through [code]NetRelay[/code] instead,
+## returning none, as with no battle in progress or a null command (reported).
+func submit_combat(command: Command, session_id: int) -> Array[CombatSession.FactBatch]:
+	var batches: Array[CombatSession.FactBatch] = []
+	if _is_client():
+		NetRelay.send_combat(command, session_id)
+		return batches
+	if command == null or session == null or session.encounter == null:
+		push_error("CampaignService: no command, or no battle in progress to command.")
+		return batches
+	session.encounter.submit(command, session_id)
+	batches = session.encounter.resolve_queued()
+	return batches
 
 
 ## The seat this machine plays, which every campaign screen acts for and shows: the host seat
@@ -254,6 +277,12 @@ func end_won_run() -> Error:
 		push_error("CampaignService: the run's Boss isn't beaten, so it can't end as won.")
 		return ERR_UNAVAILABLE
 	return SaveService.end_run(true)
+
+
+# Whether this machine is a multiplayer client, whose commands only the host resolves. Asked of
+# NetRelay's API, the one its RPCs travel on.
+func _is_client() -> bool:
+	return not NetGate.is_authoritative(NetRelay.multiplayer)
 
 
 # The rng sections let go of the previous session first, so a section that refuses the
