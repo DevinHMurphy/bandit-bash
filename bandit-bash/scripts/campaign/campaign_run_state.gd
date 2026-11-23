@@ -6,7 +6,7 @@
 # File:     campaign_run_state.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name CampaignRunState
@@ -21,8 +21,8 @@ extends RefCounted
 ## [CampaignFact]s. [b]Route invariant:[/b] [member visited] holds one node per floor from floor 1
 ## to [member floor_number], each a child of the one before, [member node] its last
 ## ([constant CampaignGraph.NO_NODE] before the first). A combat node's battle comes from
-## [method battle_request]; a won one pays each seat's rewards. Saved as [RunSaveSections]' six
-## sections and the [code]events[/code] section.
+## [method battle_request]; its end pays each seat whose own map was won. Saved as
+## [RunSaveSections]' six sections and the [code]events[/code] section.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 ##
@@ -143,8 +143,9 @@ func open_route_votes() -> Dictionary[int, int]:
 	return open
 
 
-## Whether the run's Boss is beaten: the run is at the results of a Boss node, which only a won
-## battle reaches. The run ends from there ([method CampaignService.end_won_run]).
+## Whether the run's Boss is beaten: the run is at the results of a Boss node, which only a battle
+## won on a map reaches (in co-op, any one map). The run ends from there
+## ([method CampaignService.end_won_run]).
 func is_boss_beaten() -> bool:
 	return (
 			flow.stage == RunFlow.Stage.RESULTS
@@ -281,10 +282,11 @@ func battle_request(
 ## units to [member SeatRun.fallen] with their items (a fallen commander stays at critical HP);
 ## each heirloom copy's campaign lane; each rune cast or discarded gone from its slot; then the
 ## grants, minted from [param ids]. For the node's own finished battle: the map counts as used,
-## every swap and proposal ends ([constant UnitSwap.END_COMBAT_ENDED]), each seat whose map was
-## won is paid by [param rules] from [param rolls] (see [constant COMBAT_REPORT_KEY]), and a
-## battle won on every map moves the run to its results. Null for a null result, missing rules or
-## rolls, or a failed copy. [param catalog] null: loaded.
+## each seat's [code]COMBAT_ENDED[/code] records its own map, every swap and proposal ends, each
+## seat whose map was won is paid by [param rules] from [param rolls] (see
+## [constant COMBAT_REPORT_KEY]), and the run moves to its results: solo on a win, co-op always,
+## except a Boss failed on every map, which loses the run. Null for a null result, missing rules
+## or rolls, or a failed copy. [param catalog] null: loaded.
 func apply_battle(
 		result: CampaignSession.BattleResult,
 		ids: InstanceIdAllocator,
@@ -316,14 +318,17 @@ func apply_battle(
 		return next
 	for seat: int in next.seat_numbers():
 		var ended: CampaignFact = CampaignFact.new(CampaignFact.Kind.COMBAT_ENDED, seat)
-		# COMBAT_ENDED's amount is 1 for a win, 0 for a loss; the fact names no field for it.
-		ended.amount = 1 if result.is_won else 0
+		# COMBAT_ENDED's amount is 1 when the seat's own map was won, 0 for a loss; the fact names
+		# no field for it.
+		ended.amount = 1 if _is_map_won(result, seat) else 0
 		next.record(ended)
+	# Read before the swaps end: which partner's map each visitor fought on.
+	var hosts: Dictionary[String, int] = _visitor_hosts(next.flow)
 	UnitSwap.end_all(next, UnitSwap.END_COMBAT_ENDED)
 	var contents: EffectCatalog.Index = catalog if catalog != null else EffectCatalog.index()
 	for seat: int in next.seat_numbers():
-		_reward_seat(next, seat, result, ids, rolls, rules, contents)
-	if result.is_won:
+		_reward_seat(next, seat, result, hosts, ids, rolls, rules, contents)
+	if _reaches_results(next, result):
 		next.flow.stage = RunFlow.Stage.RESULTS
 	return next
 
@@ -544,14 +549,47 @@ static func _army_unit(army: CampaignSession.Army, unit_id: String) -> UnitInsta
 	return null
 
 
-# The seat's rewards from a won map of result: grades and gold, XP for each unit still standing,
-# their level-ups in roster order (one LEVELED_UP each), the item pick (none after a Boss), a Key
-# combat's heirloom from the same stream after it, and the combat report under COMBAT_REPORT_KEY,
-# with every seat unit's battle stats for the recap. A seat whose map was lost gets nothing.
+# Whether seat's own map in result was won; a seat with no map in it has the battle's result.
+static func _is_map_won(result: CampaignSession.BattleResult, seat: int) -> bool:
+	var outcome: CampaignSession.SeatOutcome = result.seats.get(seat, null)
+	return result.is_won if outcome == null else outcome.is_won
+
+
+# Whether a finished result moves run to its results. Solo: only a win; a loss ends the run. Co-op
+# (more than one map): every map has ended, so yes, even with every map failed, as a failed map
+# loses only itself; but a Boss no map beat leaves no floor to go on to, so the run is lost.
+static func _reaches_results(run: CampaignRunState, result: CampaignSession.BattleResult) -> bool:
+	if result.is_won:
+		return true
+	if result.seats.size() <= 1:
+		return false
+	if run.graph == null or run.graph.type_of(run.node) != CampaignGraph.NodeType.BOSS:
+		return true
+	for seat: int in result.seats:
+		if result.seats[seat].is_won:
+			return true
+	return false
+
+
+# Each accepted swap's visitor in flow, by unit id, with the seat whose map it fought on.
+static func _visitor_hosts(flow_state: RunFlow) -> Dictionary[String, int]:
+	var hosts: Dictionary[String, int] = {}
+	for swap: UnitSwap in flow_state.swaps:
+		hosts[swap.unit_a] = swap.seat_b
+		hosts[swap.unit_b] = swap.seat_a
+	return hosts
+
+
+# The seat's rewards from a won map of result: grades and gold, XP for each unit still standing on
+# any map, their level-ups in roster order (one LEVELED_UP each), the item pick (none after a
+# Boss), a Key combat's heirloom from the same stream after it, and the combat report under
+# COMBAT_REPORT_KEY, with every seat unit's battle stats. A visitor on a partner's map that failed
+# (hosts: visitor id to that map's seat) earns no shared XP. A seat whose map was lost gets nothing.
 static func _reward_seat(
 		run: CampaignRunState,
 		seat: int,
 		result: CampaignSession.BattleResult,
+		hosts: Dictionary[String, int],
 		ids: InstanceIdAllocator,
 		rolls: CampaignSession.RewardRolls,
 		rules: CombatRewardRules,
@@ -570,17 +608,23 @@ static func _reward_seat(
 	seat_run.gold = maxi(seat_run.gold + grades.gold, 0)
 	var standing: Array[UnitInstance] = []
 	var percents: Dictionary[String, int] = {}
+	var unshared: PackedStringArray = []
 	for unit: UnitInstance in seat_run.army:
 		var unit_outcome: CampaignSession.UnitOutcome = result.units.get(unit.instance_id, null)
 		if unit_outcome != null and unit_outcome.seat == seat and not unit_outcome.is_fallen:
 			standing.append(unit)
 			percents[unit.instance_id] = unit_outcome.xp_percent
+			var host: int = hosts.get(unit.instance_id, seat)
+			if host != seat and not _is_map_won(result, host):
+				unshared.append(unit.instance_id)
 	var stats_data: Dictionary = {}
 	for unit: UnitInstance in seat_run.army + seat_run.fallen:
 		var fought: CampaignSession.UnitOutcome = result.units.get(unit.instance_id, null)
 		if fought != null and fought.seat == seat:
 			stats_data[unit.instance_id] = result.stats.capture_unit(unit.instance_id)
-	var awards: Array[XpAward] = XpAward.award(standing, result.tally, outcome, percents, rules)
+	var awards: Array[XpAward] = XpAward.award(
+			standing, result.tally, outcome, percents, rules, unshared
+	)
 	var xp_data: Array = []
 	var level_data: Array = []
 	for award: XpAward in awards:
