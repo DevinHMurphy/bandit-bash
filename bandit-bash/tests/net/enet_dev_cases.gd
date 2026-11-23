@@ -52,6 +52,13 @@ const START_LIMIT_MSEC: int = 30000
 const PAIR_LIMIT_MSEC: int = 300000
 # Log lines a failure's detail quotes from the end of each instance's log.
 const TAIL_LINES: int = 6
+
+# The pair's run seed, given to both instances with SaveService's debug flag; only the host's
+# starts the run. NOTE: pinned for BUG-046 (a map of a two-map battle stops after its enemy phase
+# once the other map has ended): seeds 9456-F0E2-B5D2-6 and B072-5FA4-D5CB-1 stall. Its fix
+# unpins this, back to a new seed each run.
+const RUN_SEED_ARG: String = "--run-seed="
+const PAIR_SEED: String = "AD91-720C-39CB-1"
 # The pause between polls while waiting, so the wait doesn't spin a core.
 const POLL_PAUSE_MSEC: int = 50
 
@@ -346,6 +353,7 @@ func _launch(
 	var args: PackedStringArray = [
 		"--headless", "--path", ProjectSettings.globalize_path("res://"),
 		"--log-file", instance.log_path, "--script", PEER_SCRIPT, "--", flag,
+		"%s%s" % [RUN_SEED_ARG, PAIR_SEED],
 	]
 	var kept: String = OS.get_environment(user_variable)
 	OS.set_environment(user_variable, user_root)
