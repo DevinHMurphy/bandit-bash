@@ -6,13 +6,13 @@
 # File:     command.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 18, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 @abstract
 class_name Command
 extends RefCounted
-## One request from a seat to a combat session: a unit's turn, an end turn, a rune.
+## One request from a seat to a combat session: a unit's turn, an end turn, a rune, a co-op send.
 ##
 ## A command enters its session's queue on the host, stamped on arrival, and resolves there
 ## atomically: [method resolve], every reaction, and the drained reaction queue, before the next
@@ -153,6 +153,10 @@ static func _of_wire_type(wire_type: String) -> Command:
 			return CastRuneCommand.new()
 		DiscardRuneCommand.WIRE_TYPE:
 			return DiscardRuneCommand.new()
+		SendUnitsCommand.WIRE_TYPE:
+			return SendUnitsCommand.new()
+		CallForAidCommand.WIRE_TYPE:
+			return CallForAidCommand.new()
 	return null
 
 

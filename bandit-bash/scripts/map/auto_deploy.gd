@@ -6,13 +6,13 @@
 # File:     auto_deploy.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: October 29, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name AutoDeploy
 extends RefCounted
 ## Automatic deployment: places an army on a map's deployment tiles by role, with no random draw,
-## and the legality rule of the opening swap.
+## and the legality rules of the opening swap (a visitor's move included).
 ##
 ## Rules code: pure and static. Deployment tiles are ranked by grid distance to the nearest enemy
 ## starting tile; a "row" is every tile at one such distance, nearest first. The commander takes
@@ -155,6 +155,33 @@ static func check_opening_swap(
 			or not state.can_stand(first.tile, second.movement_type)
 	):
 		return "a unit can't stand on the other's tile"
+	return ""
+
+
+## Why [param seat] may not move its unit [param unit_id] onto [param tile] now; empty when it
+## may. In the opening swap window a seat that isn't one of the map's [param home_seats] (a swap's
+## visitor's owner, with no unit of its own there to trade with) moves its unit from a deployment
+## tile onto a free one it can stand on. A map's own seats only swap ([method check_opening_swap]).
+static func check_opening_move(
+		state: CombatState,
+		seat: int,
+		unit_id: String,
+		tile: Vector2i,
+		deployment_tiles: Array[Vector2i],
+		home_seats: PackedInt32Array
+) -> String:
+	if not state.map.opening_swap_open:
+		return "the opening swap is closed"
+	if home_seats.has(seat):
+		return "a map's own seat swaps two of its units"
+	if not state.has_unit(unit_id) or state.seat_of(unit_id) != seat:
+		return "not one of the seat's units"
+	if not deployment_tiles.has(state.tile_of(unit_id)) or not deployment_tiles.has(tile):
+		return "not on a deployment tile"
+	if not state.occupant_at(tile).is_empty():
+		return "the tile is taken"
+	if not state.can_stand(tile, state.unit(unit_id).movement_type):
+		return "the unit can't stand on that tile"
 	return ""
 
 

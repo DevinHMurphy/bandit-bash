@@ -129,6 +129,20 @@ enum Kind {
 	## floor, replacing any earlier vote of its own. The last vote's [constant NODE_CHOSEN]
 	## follows.
 	ROUTE_VOTED = 33,
+	## The seat's open offer of a unique heirloom seat [member amount] just gained was replaced
+	## by [member definition_id], of the same tier ([UniqueClaims]; empty: none was left). It
+	## follows the claimant's [constant GAINED].
+	HEIRLOOM_OFFER_REPLACED = 34,
+	## The seat proposed a [UnitSwap]: its unit [member actor_id] to seat [member amount]'s map,
+	## that seat's unit [member target_id] to its own, for the next combat.
+	SWAP_PROPOSED = 35,
+	## The seat accepted seat [member amount]'s proposal: its unit [member actor_id] goes to that
+	## seat's map, and that seat's [member target_id] comes to its own, for the next combat.
+	SWAP_ACCEPTED = 36,
+	## A proposal or swap ended, in its proposer's view (seat, actor, target and [member amount]
+	## as [constant SWAP_PROPOSED]), for the reason in [member definition_id], one of
+	## [UnitSwap]'s [code]END_*[/code] constants.
+	SWAP_ENDED = 37,
 }
 
 ## A [member flags] bit: this [constant Kind.GAINED] was a purchase, whose

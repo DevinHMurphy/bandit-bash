@@ -309,7 +309,7 @@ uses them is in the [campaign layer guide](campaign-run.md).
 | Key | Per player | Version | Holds |
 |-----|------------|---------|-------|
 | `campaign_map` | No | 2 | The map, the route taken and the co-op route votes |
-| `run_flow` | No | 1 | The stage within a node, the Unknown odds and outcome, the maps used, the shared shop stock |
+| `run_flow` | No | 2 | The stage within a node, the Unknown odds and outcome, the maps used, the shared shop stock, the accepted co-op unit swaps |
 | `roster` | Yes | 1 | The army, the fallen, the convoy and every item the seat holds |
 | `heirlooms` | Yes | 2 | Owned heirlooms and curses with their campaign lanes, and the seat's value changes |
 | `runes` | Yes | 1 | The 3 rune slots |
@@ -351,6 +351,13 @@ Their keys are listed below.
     `recruit` (`{unit, items}` as `roster` writes them, at level 1: the buyer's level is applied
     on purchase) or, for a `"rune"`, `definition_id` and `instance_id`; and `rerolls`, each seat's
     prefix re-rolls this visit (`{free, paid}`), by seat.
+- `swaps`: the co-op unit swaps accepted for the next combat the team fights (`UnitSwap`), in the
+  order accepted, each `{seat_a, unit_a, seat_b, unit_b}`: seat A proposed, its `unit_a` starts
+  that combat on seat B's map and seat B's `unit_b` on seat A's. They stay through non-combat
+  nodes and during the battle (a resume rebuilds the same request), and end when the combat ends,
+  a named unit leaves its army, or either seat withdraws. Empty in solo. Open proposals are never
+  saved: a quit loses them (coop-unit-swaps.md, decision 7). A run saved before the key existed
+  has none.
 
 **`roster`** (`SeatRun.capture_roster()`):
 
@@ -406,6 +413,10 @@ Their keys are listed below.
     `heirloom_id`, `item` (`{definition_id, instance_id}` or `{}`), `is_resolved` and `is_taken`.
   - `camp`: inside a Camp. `choice`: `""`, `"feast"` or `"train"`.
   - Every key but `starting_heirloom` is cleared when the node is left (`LeaveNodeCommand`).
+  - In co-op, a teammate's first claim of a unique heirloom replaces it where it is offered, in
+    place: `treasure`'s and `key_heirloom`'s `heirloom_id`, a `starting_heirloom` option's
+    `drawn_heirloom_id`, and an open event's pick in `events` (`UniqueClaims`, P11 CO7). No shape
+    or version changes; the draw moves that offer's saved stream (`rng`).
 
 The stock and the pending offers are free-form JSON in the shape each rule defines, so adding a
 shop or an offer key changes no version, and an optional key read as missing changes none either.
@@ -423,14 +434,17 @@ shop or an offer key changes no version, and an optional key read as missing cha
   "—"). `heirlooms` is at 2: version 2 added `value_changes`. Its migration from 1 changes
   nothing, since a section without them reads as a seat with none. `campaign_map` is at 2:
   version 2 added `votes`. Its migration from 1 changes nothing, since a map without them reads
-  as one with no votes. The other three are at 1.
+  as one with no votes. `run_flow` is at 2: version 2 added `swaps`. Its migration from 1 changes
+  nothing, since a flow without them reads as one with no swaps. The other two are at 1.
 - **Validated:** a route that skips a floor or leaves the graph's edges, a stage inside a node
   before any node, an unknown stage, Unknown odds that aren't whole numbers, an Unknown outcome
   that isn't one of the five, an item in two places or in none, a commander outside the army, a
   repeated unit or rune, out-of-range gold or offset, and a value change whose key isn't a campaign
-  value, whose amount isn't a number, or whose `source_id` or `label` isn't a string each refuse
+  value, whose amount isn't a number, or whose `source_id` or `label` isn't a string, and a swap
+  naming one seat twice, an empty unit or a unit or pair of seats another swap names, each refuse
   the section and stop the load. The shop stock and pending offers are checked by the rules that
-  read them, not on load.
+  read them, not on load; a swap's units are checked against the armies when the battle request
+  is built, which leaves out a swap naming a unit its army doesn't hold, with an error.
 - **Saved when:** every resolved campaign command (`CampaignService.submit_command()`) saves at
   once; a rejected one saves nothing. A failed save is logged and the change stays in memory for
   the next checkpoint to write. A battle's end saves its result applied
@@ -491,11 +505,11 @@ Save Impact):
 
 | Block | Key | Version | Holds |
 |-------|-----|---------|-------|
-| `COMBAT` | `combat_state` | 3 | Each map's units (`CombatUnitState`: tile, HP, Block, Stance, what it did this turn and phase, movement spent, a pending second move, slots, growth changes, and the prefix and level the unit detail shows; version 1 and 2 units migrate with no prefix and level 1), weapon records (an area staff's shape by its id and a heal staff's full heal included; version 1 records migrate with neither), turn, phase side, ended and not-yet-started seats, rune slots, and the session part (seq, commanders, bases, finished and won); the encounter's seq, arrivals and units on their way between maps |
+| `COMBAT` | `combat_state` | 4 | Each map's units (`CombatUnitState`: tile, HP, Block, Stance, what it did this turn and phase, movement spent, a pending second move, slots, growth changes, and the prefix and level the unit detail shows; version 1 and 2 units migrate with no prefix and level 1), weapon records (an area staff's shape by its id and a heal staff's full heal included; version 1 records migrate with neither), turn, phase side, ended and not-yet-started seats, rune slots, and the session part (seq, commanders, bases, finished and won); the encounter's seq, arrivals and units on their way between maps; from version 4, each unit on its way's clock turn (the turn the map it left was won on), each seat's latest send (`sends`: target map or -1 for none, and that turn), each map's senders (`senders`: seats whose units landed there) and raised calls for aid (`aid`), and forfeited seats (`forfeited`, empty until CO14); version 1 to 3 data migrates with none sent, received, called or forfeited and clock turn 0, due at the next player Phase Start as before |
 | `COMBAT` | `effects` | 1 | Each map's effect engine (instances with counters and charges, timed modifiers, bases and deltas, phase and attack counts) and the encounter's cross-map instances |
 
 ```json
-"combat_state": { "version": 3, "data": { "encounter": { }, "sessions": [ { "session": { }, "combat_state": { } } ] } },
+"combat_state": { "version": 4, "data": { "encounter": { }, "sessions": [ { "session": { }, "combat_state": { } } ] } },
 "effects": { "version": 1, "data": { "encounter": { "cross_map": [ ] }, "sessions": [ { } ] } }
 ```
 

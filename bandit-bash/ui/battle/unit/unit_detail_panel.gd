@@ -16,13 +16,24 @@ extends BattlePanel
 ## stat and combat value with its sources ([DetailStatRow]), the gear ([DetailGearRow]), traits and
 ## heirlooms as effect text ([DetailEffectRow]), an enemy's intent and signature move
 ## ([DetailEnemySection]), movement type and tags.[br]
-## Opened on [PanelHost] by [BattleController] with a [UnitDetailViewModel]; it draws on its own
-## canvas layer so it centres over the screen, not in the panel column. It holds no rules. Close
-## keeps focus, so accept, a click or Back closes it; up and down and the wheel scroll the body
-## ([method can_scroll], [signal scroll_range_changed]); Previous and Next ask for the side's other
-## units ([signal step_requested]), as Q / E and the shoulder buttons do through the controller.
+## Opened on [PanelHost] by [BattleController] with a [UnitDetailViewModel], on its own canvas
+## layer so it centres over the screen; it holds no rules. Up and down step focus from Close
+## through the rows with text ([method get_focus_rows]), each showing its keywords on key or pad
+## focus ([EffectText]), and scroll the body past either end; accept closes from any of them.
+## Previous and Next ask for the side's other units ([signal step_requested]).
 ##
 ## @tutorial(UI lift): docs/design/ui-lift.md
+# ============================================================
+# INPUT MAP SETUP (read in _input while shown, before the GUI moves focus):
+#   "ui_up" / "ui_down" -> arrow keys; d-pad, left stick   (step focus from Close through the
+#                          focus rows and back, a held one repeating; up from the first row puts
+#                          the body at its top. Past the last row down, and at Close up, scroll
+#                          the body by scroll_step instead; up on the last row first scrolls back
+#                          what down scrolled there, so each undoes the other)
+#   "ui_accept"         -> Enter, Space; A [Cross]   (on a focus row: close, as Close does. On
+#                          Close the button takes it itself)
+#   Mouse: the wheel scrolls the body; the rows never take a click's focus.
+# ============================================================
 
 ## Whether the body can scroll may have changed: its content or its size changed.
 signal scroll_range_changed()
@@ -85,6 +96,10 @@ var _view: UnitDetailViewModel = null
 # The lines get_texts() reports, in its order, as the panel last drew them.
 var _texts: PackedStringArray = []
 
+# The body's scroll when focus last stepped onto the last focus row, which up scrolls back to
+# before leaving it. Units: pixels.
+var _last_row_scroll: int = 0
+
 # The board dims to bg at 50% (battle_theme.tres ModalDim, the panel shadow's alpha), stopping 56
 # units short of the bottom so the hint bar stays readable.
 @onready var _modal: CanvasLayer = %Modal
@@ -116,11 +131,14 @@ func _input(event: InputEvent) -> void:
 	if not is_visible_in_tree():
 		return
 	if event.is_action_pressed(&"ui_up", true):
-		if scroll_by(-scroll_step):
+		if _unscroll_last_row() or _step_focus(-1) or scroll_by(-scroll_step):
 			get_viewport().set_input_as_handled()
 	elif event.is_action_pressed(&"ui_down", true):
-		if scroll_by(scroll_step):
+		if _step_focus(1) or scroll_by(scroll_step):
 			get_viewport().set_input_as_handled()
+	elif event.is_action_pressed(&"ui_accept") and _focused_row() != null:
+		get_viewport().set_input_as_handled()
+		cancelled.emit()
 
 
 # Its canvas layer is no CanvasItem, so it follows the panel's visibility by hand: a panel the host
@@ -140,11 +158,12 @@ func focus_first() -> void:
 
 
 ## Draws [param view] from the top of the body; the controller calls it again to step to another
-## unit without closing.
+## unit without closing, and focus on a row goes back to Close, as the body starts at the top.
 func show_detail(view: UnitDetailViewModel) -> void:
 	_view = view
 	if view == null:
 		return
+	var had_row_focus: bool = _focused_row() != null
 	_header.show_header(view)
 	_show_values(_stat_rows, view.stat_rows)
 	_show_values(_combat_rows, view.combat_rows)
@@ -166,6 +185,8 @@ func show_detail(view: UnitDetailViewModel) -> void:
 	_tags.text = "Movement: %s · Tags: %s" % [view.movement_name, tags]
 	_texts = _report_texts(view)
 	_body.scroll_vertical = 0
+	if had_row_focus:
+		_header.get_close_button().grab_focus()
 
 
 ## The view shown; null before [method show_detail].
@@ -217,6 +238,20 @@ func get_enemy_section() -> DetailEnemySection:
 	return _enemy
 
 
+## The rows up and down step focus through, top to bottom: each shown gear row with text under its
+## name, the enemy section while it shows a signature move's text, then each trait, heirloom and
+## curse row. Empty before [method show_detail].
+func get_focus_rows() -> Array[Control]:
+	var rows: Array[Control] = []
+	var candidates: Array[Control] = [_weapon, _stowed, _equipment, _pouch, _enemy]
+	for child: Node in _effect_rows.get_children():
+		candidates.append(child as Control)
+	for row: Control in candidates:
+		if row != null and row.visible and row.focus_mode != Control.FOCUS_NONE:
+			rows.append(row)
+	return rows
+
+
 ## The pop-up's frame on screen, for tests and the layout check.
 func get_popup_rect() -> Rect2:
 	return (%Popup as Control).get_global_rect()
@@ -226,6 +261,45 @@ func get_popup_rect() -> Rect2:
 ## weapon, stowed, equipment, pouch, traits, heirlooms, tags (a hidden one as empty).
 func get_texts() -> PackedStringArray:
 	return _texts.duplicate()
+
+
+# Moves focus one focus row down (step 1) or up (-1): from Close to the first, from the first back
+# to Close with the body at its top. Returns false, moving nothing, past the last row or above
+# Close, so the body scrolls.
+func _step_focus(step: int) -> bool:
+	var rows: Array[Control] = get_focus_rows()
+	var index: int = rows.find(_focused_row())
+	var target: int = index + step
+	if (index < 0 and step < 0) or target >= rows.size():
+		return false
+	if target < 0:
+		_header.get_close_button().grab_focus()
+		_body.scroll_vertical = 0
+		return true
+	rows[target].grab_focus()
+	if target == rows.size() - 1:
+		_last_row_scroll = _body.scroll_vertical
+	return true
+
+
+# On the last focus row with the body scrolled past where focus put it (down scrolled on), scrolls
+# back up a step instead of leaving the row, so up undoes down. Returns whether it scrolled.
+func _unscroll_last_row() -> bool:
+	var rows: Array[Control] = get_focus_rows()
+	if rows.is_empty() or _focused_row() != rows[-1]:
+		return false
+	if _body.scroll_vertical <= _last_row_scroll:
+		return false
+	_body.scroll_vertical = maxi(_body.scroll_vertical - roundi(scroll_step), _last_row_scroll)
+	return true
+
+
+# The focus row holding focus; null when Close, nothing or a control outside the rows has it.
+func _focused_row() -> Control:
+	var focused: Control = get_viewport().gui_get_focus_owner()
+	if focused == null or not get_focus_rows().has(focused):
+		return null
+	return focused
 
 
 # One reused row per value in box; extras are hidden.

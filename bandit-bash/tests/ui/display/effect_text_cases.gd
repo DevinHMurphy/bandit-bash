@@ -17,7 +17,8 @@ extends RefCounted
 ## colour and its explanation, and leaving it, or the mouse leaving the text, hiding it; a real
 ## click on a keyword still pressing the card; key or pad focus showing one tooltip per distinct
 ## keyword and focus loss
-## hiding them, mouse focus none; the column inside the visible rect at 1280×720, 1920×1080 and
+## hiding them, mouse focus none; a card with two texts showing one column, no hover on either
+## adding a second; the column inside the visible rect at 1280×720, 1920×1080 and
 ## 1280×800 with the card at either edge; and every swapped surface's effect line an EffectText
 ## showing the catalog's marked text, its words those of the plain text.
 
@@ -30,6 +31,7 @@ const HEIRLOOM_SCENE: PackedScene = preload("res://ui/campaign/heirloom_offer_ca
 const TOOLTIP_SCENE: PackedScene = preload("res://ui/common/game_tooltip.tscn")
 const EFFECT_ROW_SCENE: PackedScene = preload("res://ui/battle/unit/detail/detail_effect_row.tscn")
 const GEAR_ROW_SCENE: PackedScene = preload("res://ui/battle/unit/detail/detail_gear_row.tscn")
+const TEXT_SCENE: PackedScene = preload("res://ui/common/text/effect_text.tscn")
 
 # Scenes whose effect line is an EffectText, and that line's unique name.
 const SWAPPED: Dictionary[String, String] = {
@@ -41,6 +43,8 @@ const SWAPPED: Dictionary[String, String] = {
 	"res://ui/common/game_tooltip.tscn": "TooltipBody",
 	"res://ui/battle/unit/detail/detail_effect_row.tscn": "EffectText",
 	"res://ui/battle/unit/detail/detail_gear_row.tscn": "Detail",
+	"res://ui/battle/unit/detail/detail_enemy_section.tscn": "SignatureText",
+	"res://ui/battle/menus/rune_menu.tscn": "RuneText",
 }
 
 # The written text of the test item: a keyword opens it, so its first glyphs are a keyword's, and
@@ -50,6 +54,11 @@ const WRITTEN: String = (
 		+ " [kw=heal]heal[/kw] 1 [kw=hp]HP[/kw]."
 )
 const WRITTEN_IDS: PackedStringArray = ["block", "damage", "heal", "hp"]
+
+# Two texts on one card: Block in both, so the column shows it once.
+const TWO_FIRST: String = "Gain 2 [kw=block]Block[/kw]."
+const TWO_SECOND: String = "[kw=heal]Heal[/kw] 3 [kw=hp]HP[/kw] and gain 1 [kw=block]Block[/kw]."
+const TWO_IDS: PackedStringArray = ["block", "heal", "hp"]
 
 # A keyword of each colour group, for the colour case.
 const GROUP_SAMPLES: PackedStringArray = ["damage", "block", "heal", "gold", "darkness"]
@@ -86,6 +95,7 @@ func run() -> void:
 	_test_colours()
 	_test_hover_and_click()
 	_test_focus()
+	_test_two_texts()
 	_test_on_screen()
 	_test_swapped_scenes()
 	_test_surfaces()
@@ -168,6 +178,57 @@ func _test_focus() -> void:
 	_ok("focus: losing focus hides them", text.get_shown_tooltips().is_empty())
 	card.grab_focus(true)
 	_ok("focus: mouse focus (hidden) shows none", text.get_shown_tooltips().is_empty())
+	card.release_focus()
+	_free(card)
+
+
+# A focused card with two texts shows one column, on its first text, of both texts' keywords; a
+# hover on either adds no second column; a hover on the second before focus gives way to the
+# column; mouse focus shows none, and a hover on the second then shows its own.
+func _test_two_texts() -> void:
+	var card: Button = Button.new()
+	var box: VBoxContainer = VBoxContainer.new()
+	card.add_child(box)
+	var texts: Array[EffectText] = []
+	for marked: String in [TWO_FIRST, TWO_SECOND]:
+		var text: EffectText = TEXT_SCENE.instantiate()
+		box.add_child(text)
+		text.marked_text = marked
+		texts.append(text)
+	_root.add_child(card)
+	card.grab_focus()
+	var first: PackedStringArray = _shown(texts[0])
+	var second: PackedStringArray = _shown(texts[1])
+	texts[1].meta_hover_started.emit("hp")
+	var on_hover: PackedStringArray = _shown(texts[1])
+	texts[1].meta_hover_ended.emit("hp")
+	texts[0].meta_hover_started.emit("block")
+	var on_own_hover: PackedStringArray = _shown(texts[0])
+	texts[0].meta_hover_ended.emit("block")
+	_ok("two texts: focus shows one column, on the first, of both texts' keywords", (
+			first == TWO_IDS and second.is_empty()
+	), "%s / %s" % [first, second])
+	_ok("two texts: a hover on either text adds no second column", (
+			on_hover.is_empty() and on_own_hover == TWO_IDS and _shown(texts[0]) == TWO_IDS
+	), "second %s, first %s" % [on_hover, on_own_hover])
+	card.release_focus()
+	texts[1].meta_hover_started.emit("hp")
+	var before_focus: PackedStringArray = _shown(texts[1])
+	card.grab_focus()
+	_ok("two texts: focus replaces a hover's tooltip on the second with the one column", (
+			before_focus == PackedStringArray(["hp"])
+			and _shown(texts[1]).is_empty()
+			and _shown(texts[0]) == TWO_IDS
+	), "before %s, after %s / %s" % [before_focus, _shown(texts[0]), _shown(texts[1])])
+	card.release_focus()
+	card.grab_focus(true)
+	var on_mouse: PackedStringArray = _shown(texts[0]) + _shown(texts[1])
+	texts[1].meta_hover_started.emit("heal")
+	var mouse_hover: PackedStringArray = _shown(texts[1])
+	texts[1].meta_hover_ended.emit("heal")
+	_ok("two texts: mouse focus shows none; a hover on the second then shows its own", (
+			on_mouse.is_empty() and mouse_hover == PackedStringArray(["heal"])
+	), "mouse %s, hover %s" % [on_mouse, mouse_hover])
 	card.release_focus()
 	_free(card)
 
@@ -298,6 +359,14 @@ func _shows(node: Node, marked: String, where: String) -> String:
 	):
 		return "%s: shows \"%s\"" % [where, text.marked_text]
 	return ""
+
+
+# The ids of the tooltips text shows, top to bottom.
+func _shown(text: EffectText) -> PackedStringArray:
+	var ids: PackedStringArray = []
+	for tooltip: KeywordTooltip in text.get_shown_tooltips():
+		ids.append(tooltip.keyword_id)
+	return ids
 
 
 # One line of every colour group's sample keyword, plain words between.

@@ -6,7 +6,7 @@
 # File:     key_heirloom.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name KeyHeirloom
@@ -19,7 +19,8 @@ extends RefCounted
 ## ([method CampaignRunState.apply_battle]); it is saved in the seat's
 ## [member SeatRun.pending_offers] under [constant OFFER_KEY] with the combat's report and shown
 ## on Results. [KeyHeirloomCommand] takes it or gives it up; the run leaves the node only once it
-## is resolved. Pure rules code.
+## is resolved. A unique heirloom a teammate takes first is replaced in it ([UniqueClaims]). Pure
+## rules code.
 ##
 ## @tutorial(Heirlooms, Tiers and sources): docs/design/heirlooms.md
 
@@ -52,12 +53,17 @@ func capture() -> Dictionary:
 
 
 ## A new offer for [param seat_run] from [param stream]: a tier, then a heirloom of it
-## ([HeirloomDraw]); [param is_coop] admits co-op-only heirlooms. Null when no heirloom is left.
+## ([HeirloomDraw]), never one of [param excluded] (a unique one a teammate owns);
+## [param is_coop] admits co-op-only heirlooms. Null when no heirloom is left.
 static func roll(
-		stream: RngStream, seat_run: SeatRun, catalog: EffectCatalog.Index, is_coop: bool
+		stream: RngStream,
+		seat_run: SeatRun,
+		catalog: EffectCatalog.Index,
+		is_coop: bool,
+		excluded: PackedStringArray = PackedStringArray()
 ) -> KeyHeirloom:
 	var tier: String = HeirloomDraw.roll_tier(stream)
-	var drawn: String = HeirloomDraw.draw(stream, seat_run, catalog, tier, is_coop)
+	var drawn: String = HeirloomDraw.draw(stream, seat_run, catalog, tier, is_coop, excluded)
 	if drawn.is_empty():
 		return null
 	var offer: KeyHeirloom = KeyHeirloom.new()

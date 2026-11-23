@@ -138,6 +138,9 @@ var target_rule_text: String = ""
 var signature_name: String = ""
 ## The signature move's effect text.
 var signature_text: String = ""
+## [member signature_text] with its keywords marked, for the panel's [EffectText]
+## ([method EffectDefinition.describe_marked]).
+var signature_marked_text: String = ""
 ## The signature move's counter now, toward [member signature_period].
 var signature_count: int = 0
 ## Events the signature move's counter counts to before it fires; 0 when it has no counter.
@@ -315,6 +318,7 @@ static func _add_enemy(
 		return
 	var move: EffectDefinition = enemy_class.signature_move
 	view.signature_text = move.describe()
+	view.signature_marked_text = move.describe_marked()
 	view.signature_name = enemy_class.signature_name
 	for instance: EffectInstance in session.engine.get_instances():
 		if instance.definition != move or instance.owner == null:

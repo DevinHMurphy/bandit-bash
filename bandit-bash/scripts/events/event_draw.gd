@@ -116,14 +116,16 @@ static func draw_curse(tier: String, stream: RngStream, catalog: EffectCatalog.I
 
 
 ## The heirlooms of [param tier] [param seat_run] may be given: not curses, not owned, not in
-## [param drawn] (the option's earlier draws), and co-op-only ones only in a run of more than one
+## [param drawn] (the option's earlier draws) or [param excluded] (a unique one a teammate owns,
+## [method UniqueClaims.owned_by_teammates]), and co-op-only ones only in a run of more than one
 ## seat ([param is_coop]). Sorted by id.
 static func heirloom_candidates(
 		tier: String,
 		seat_run: SeatRun,
 		drawn: PackedStringArray,
 		is_coop: bool,
-		catalog: EffectCatalog.Index
+		catalog: EffectCatalog.Index,
+		excluded: PackedStringArray = PackedStringArray()
 ) -> PackedStringArray:
 	var owned: PackedStringArray = seat_run.heirloom_ids()
 	var found: PackedStringArray = []
@@ -131,7 +133,7 @@ static func heirloom_candidates(
 		var heirloom: HeirloomDefinition = definition as HeirloomDefinition
 		if heirloom == null or heirloom is CurseDefinition or heirloom.tier != tier:
 			continue
-		if owned.has(heirloom.id) or drawn.has(heirloom.id):
+		if owned.has(heirloom.id) or drawn.has(heirloom.id) or excluded.has(heirloom.id):
 			continue
 		if heirloom.is_coop_only and not is_coop:
 			continue
@@ -157,7 +159,8 @@ static func _draw_heirlooms(
 		if block == null or not block.is_tier_draw():
 			continue
 		var found: PackedStringArray = heirloom_candidates(
-				block.tier, seat_run, drawn, is_coop, catalog
+				block.tier, seat_run, drawn, is_coop, catalog,
+				UniqueClaims.owned_by_teammates(run, seat_run.seat, catalog)
 		)
 		var picked: String = ""
 		if not found.is_empty():

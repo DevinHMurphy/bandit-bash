@@ -6,7 +6,7 @@
 # File:     key_heirloom_picker.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 21, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name KeyHeirloomPicker
@@ -35,6 +35,9 @@ extends RewardPicker
 
 var _seat: int = 0
 var _link: CampaignLink = null
+# The heirloom the card shows, which the take names, so a teammate's first claim of a unique one
+# refuses it by name instead of taking the replacement unseen. Empty: none shown.
+var _shown_heirloom_id: String = ""
 
 @onready var _backdrop: ColorRect = %Backdrop
 @onready var _card: HeirloomOfferCard = %HeirloomCard
@@ -76,6 +79,7 @@ func open(_reward: VictoryReward, seat: int) -> void:
 	_link = CampaignLink.new(CampaignService.session, seat, CampaignService.submit_command)
 	_link.refused.connect(_on_link_refused)
 	_status_label.text = ""
+	_shown_heirloom_id = ""
 	visible = true
 	var model: CombatResultsModel = CombatResultsModel.build(CampaignService.session, seat)
 	if model == null or model.key_heirloom == null:
@@ -84,7 +88,8 @@ func open(_reward: VictoryReward, seat: int) -> void:
 		_back_button.grab_focus()
 		return
 	_card.visible = true
-	_card.show_heirloom(model.key_heirloom_definition, model.key_heirloom.heirloom_id, "")
+	_shown_heirloom_id = model.key_heirloom.heirloom_id
+	_card.show_heirloom(model.key_heirloom_definition, _shown_heirloom_id, "")
 	_card.grab_focus()
 	hint_context_changed.emit()
 
@@ -105,7 +110,7 @@ func get_status_text() -> String:
 
 
 func _on_card_pressed() -> void:
-	_link.send(KeyHeirloomCommand.new(_seat), _on_take_resolved)
+	_link.send(KeyHeirloomCommand.new(_seat, true, _shown_heirloom_id), _on_take_resolved)
 
 
 func _on_take_resolved(_batch: CampaignBatch) -> void:

@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" path="res://ui/common/text/effect_text.tscn" id="4_text"]
 
 [node name="DetailGearRow" type="HBoxContainer"]
+focus_mode = 2
 mouse_filter = 2
 theme = ExtResource("2_theme")
 script = ExtResource("1_row")

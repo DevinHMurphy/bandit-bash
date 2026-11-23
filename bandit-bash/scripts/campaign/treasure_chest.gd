@@ -6,7 +6,7 @@
 # File:     treasure_chest.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name TreasureChest
@@ -20,7 +20,8 @@ extends RefCounted
 ## and item, then the heirloom ([method HeirloomDraw.draw]) unless an item took its place. Rolled
 ## on entry by [OpenTreasureCommand] and saved in the seat's [member SeatRun.pending_offers] under
 ## [constant OFFER_KEY] before anything shows; [TreasureCommand] takes the whole chest or gives it
-## up. The rare offset is neither read nor moved. Pure rules code.
+## up. A unique heirloom a teammate takes first is replaced in it ([UniqueClaims]). The rare
+## offset is neither read nor moved. Pure rules code.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 
@@ -110,13 +111,15 @@ func capture() -> Dictionary:
 
 
 ## A new chest for [param seat_run] from [param stream] (see the class doc), its item's id from
-## [param ids]; [param is_coop] admits co-op-only heirlooms.
+## [param ids]; [param is_coop] admits co-op-only heirlooms; its heirloom is never one of
+## [param excluded] (a unique one a teammate owns).
 static func roll(
 		stream: RngStream,
 		seat_run: SeatRun,
 		catalog: EffectCatalog.Index,
 		ids: InstanceIdAllocator,
-		is_coop: bool
+		is_coop: bool,
+		excluded: PackedStringArray = PackedStringArray()
 ) -> TreasureChest:
 	var chest: TreasureChest = TreasureChest.new()
 	chest.tier = HeirloomDraw.roll_tier(stream)
@@ -128,7 +131,9 @@ static func roll(
 			var found: ItemDefinition = usable[stream.pick_index(usable.size())]
 			chest.item = ItemPick.Offer.new(found.id, ids.next_item_id(found.display_name))
 	if chest.item == null:
-		chest.heirloom_id = HeirloomDraw.draw(stream, seat_run, catalog, chest.tier, is_coop)
+		chest.heirloom_id = HeirloomDraw.draw(
+				stream, seat_run, catalog, chest.tier, is_coop, excluded
+		)
 	return chest
 
 

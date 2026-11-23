@@ -18,12 +18,14 @@ extends RefCounted
 ## [SetupStreams] that live only inside the call, so a battle restarted from Begin rolls the same
 ## setup. Sessions get the results and only their own seat's [code]COMBAT_ROLLS[/code] stream.[br]
 ## [b]Across maps:[/b] cross-map effects ([method add_cross_map]), whose counter and activation
-## facts are mirrored into [member fact_log]; commands stamped by one clock ([method submit]);
-## units sent between maps ([method send_unit]). In co-op ([member seats] above one) an empty map
-## freezes ([method is_frozen]) until help lands, and [method is_run_lost] says when none can.[br]
+## facts are mirrored into [member fact_log]; commands stamped by one clock ([method submit]),
+## the co-op sends and calls for aid resolved here ([SendUnitsCommand], [CallForAidCommand]);
+## units on their way, landing by the battle clock or going back when their target ends first.
+## In co-op an empty map freezes ([method is_frozen]) until help lands, and [method is_run_lost]
+## says when none can.[br]
 ## [b]Snapshots[/b] ([method snapshot], [method load_snapshot]) hold the encounter's own state and
-## every map's, for the save sections ([CombatStateSection]); a mirror applies encounter facts
-## with [method apply_batch].
+## every map's, for the save sections ([CombatStateSection]); encounter facts go out on
+## [signal batch_resolved] and a mirror applies them with [method apply_batch].
 ##
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
 ## @tutorial(RNG streams plan): docs/plans/2026-10-26-rng-streams.md
@@ -31,6 +33,12 @@ extends RefCounted
 
 ## A map's session was opened: emitted once per map by [method open_sessions].
 signal session_opened(session: CombatSession)
+
+## A batch of encounter facts is ready to send: a send or call for aid resolved, or the facts a
+## map's batch led to here (cross-map counters, units sent back), right after that map's batch.
+## [member CombatSession.FactBatch.session_id] is that map. A mirror applies it with
+## [method apply_batch].
+signal batch_resolved(batch: CombatSession.FactBatch)
 
 ## The battle-setup steps, run in this order whatever the order they were registered in (event
 ## bus plan, question 40). Saved as an int: [b]append only[/b].
@@ -66,7 +74,7 @@ const NetLogScript = preload("res://scripts/autoload/net_log.gd")
 
 # The shape of snapshot() output; raised when it changes. Never saved as it is
 # (CombatStateSection saves its parts), so another format is refused.
-const _SNAPSHOT_FORMAT: int = 2
+const _SNAPSHOT_FORMAT: int = 3
 
 ## The campaign floor of the combat node: part of every stream key of the battle.
 var floor_number: int = -1
@@ -113,6 +121,27 @@ var _next_seq: int = 1
 
 # The session each unit sent from another map last arrived on, by unit id.
 var _arrived_on: Dictionary[String, int] = {}
+
+# Sends and calls for aid stamped by the clock, waiting for resolve_queued(), and the map each was
+# submitted on, index for index.
+var _queue: Array[Command] = []
+var _queue_maps: Array[int] = []
+
+# Each seat's latest send, by seat: [the target's session id or -1 for none, the turn its map was
+# won on].
+var _sends: Dictionary[int, PackedInt32Array] = {}
+
+# The seats whose sent units landed on each map, ascending, by session id.
+var _senders: Dictionary[int, PackedInt32Array] = {}
+
+# The maps whose call for aid is raised, ascending.
+var _aid_called: PackedInt32Array = []
+
+# Seats that left the battle: saved, and empty until forfeits exist.
+var _forfeited: PackedInt32Array = []
+
+# Index into fact_log of the first fact not yet in a batch.
+var _batched_up_to: int = 0
 
 
 ## [param battle_seats]: every seat in the battle; each gets a map.
@@ -252,12 +281,8 @@ func session_of_seat(seat: int) -> CombatSession:
 ## map, else the first map that has it. Null when no map has it. A won map keeps the record of
 ## a unit it sent away, so read a unit through this, never by searching the sessions.
 func session_of_unit(unit_id: String) -> CombatSession:
-	if _arrived_on.has(unit_id):
-		return get_session(_arrived_on[unit_id])
-	for session: CombatSession in _sessions:
-		if session.state.unit(unit_id) != null:
-			return session
-	return null
+	_drop_landed()
+	return _current_session_of(unit_id)
 
 
 ## Adds [param instance] as a cross-map effect: it counts facts on every map and its operations
@@ -290,34 +315,50 @@ func get_cross_map_instances() -> Array[EffectInstance]:
 
 
 ## Routes [param command] to the session [param session_id], stamped by the encounter's one clock;
-## a rune cast on a teammate's map is routed this way with the caster's seat. Nothing resolves
-## until [method resolve_queued]. Returns the arrival stamp, or
-## [constant CombatSession.NO_ARRIVAL] when there is no such session.
+## a rune cast on a teammate's map is routed this way with the caster's seat. A send (on the
+## sender's won map) or a call for aid (on the caller's map) waits in the encounter's own queue
+## instead, never the map's. Nothing resolves until [method resolve_queued]. Returns the arrival
+## stamp, or [constant CombatSession.NO_ARRIVAL] when there is no such session.
 func submit(command: Command, session_id: int) -> int:
 	var session: CombatSession = get_session(session_id)
 	if session == null or is_closed:
 		return CombatSession.NO_ARRIVAL
-	return session.submit(command)
+	if not (command is SendUnitsCommand or command is CallForAidCommand):
+		return session.submit(command)
+	command.arrival = _clock.stamp()
+	_queue.append(command)
+	_queue_maps.append(session_id)
+	return command.arrival
 
 
-## Resolves every queued command on every map in arrival order, so cross-map counters see the
-## host's order. Returns the batches in that order.
+## Resolves every queued command on every map, and the encounter's own, in arrival order, so
+## cross-map counters see the host's order. After each map batch, units bound for a map that has
+## ended go back ([constant CombatFact.Kind.UNIT_RETURNED]) and the encounter facts go out on
+## [signal batch_resolved]. Returns the map batches in order: a send's or call's refusal, and a
+## frozen map's restart, are map batches; the encounter's facts are not.
 func resolve_queued() -> Array[CombatSession.FactBatch]:
 	var batches: Array[CombatSession.FactBatch] = []
-	var next: CombatSession = _next_to_resolve()
-	while next != null:
-		batches.append(next.resolve_next())
-		next = _next_to_resolve()
+	while true:
+		var next: CombatSession = _next_to_resolve()
+		var own: int = CombatSession.NO_ARRIVAL if _queue.is_empty() else _queue[0].arrival
+		if next == null and own == CombatSession.NO_ARRIVAL:
+			break
+		if own != CombatSession.NO_ARRIVAL and (next == null or own < next.next_arrival()):
+			batches.append_array(_resolve_own())
+			continue
+		var batch: CombatSession.FactBatch = next.resolve_next()
+		batches.append(batch)
+		_return_from_finished()
+		_flush(batch.session_id, batch.seat, batch.arrival, batch.label)
 	return batches
 
 
 ## Sends [param unit_id], a surviving player unit on the won map [param from_session_id], toward
-## the map [param to_session_id], still being fought, where it arrives at that map's next player
-## Phase Start ([method deliver_arrivals]) on [param arrival_tile] or the nearest free tile. A
-## frozen map is held at that Phase Start, so it lands at once ([method PhaseRunner.resume]) and
-## the facts go out as their own batch ([method CombatSession.flush]). Only a won map sends; a
-## lost map's player spectates. Its effects leave with their state; the won map keeps the unit's
-## record as it was. Returns why it can't be sent, or empty when it was.
+## the map [param to_session_id], still being fought, aimed at [param arrival_tile]
+## ([constant CombatFact.NO_TILE]: the receiving commander), as [SendUnitsCommand] sends one but
+## without its seat's rules. Its effects leave with their state; the won map keeps the unit's
+## record as it was. A frozen target restarts at once. For tools and tests; play sends through
+## [method submit]. Returns why it can't be sent, or empty when it was.
 func send_unit(
 		unit_id: String, from_session_id: int, to_session_id: int, arrival_tile: Vector2i
 ) -> String:
@@ -336,70 +377,51 @@ func send_unit(
 			or source.state.side_of(unit_id) != CombatFact.CombatSide.PLAYER
 	):
 		return "%s isn't a player unit on s%d" % [unit_id, from_session_id]
-	for waiting: Transfer in _in_transit:
-		if waiting.unit.id == unit_id:
-			return "%s is already on its way" % [unit_id]
-
-	var transfer: Transfer = Transfer.new()
-	transfer.unit = source.state.unit(unit_id).copy()
-	transfer.to_session_id = to_session_id
-	transfer.tile = arrival_tile
-	transfer.bases = source.bases_of(unit_id).duplicate()
-	for weapon_id: String in [transfer.unit.equipped_weapon_id, transfer.unit.stowed_weapon_id]:
-		var weapon: CombatState.WeaponStats = source.state.weapon(weapon_id)
-		if weapon != null:
-			transfer.weapons.append(weapon)
-	for instance: EffectInstance in source.engine.get_instances():
-		if instance.owner.holder_id == unit_id:
-			transfer.instances.append(source.engine.unregister(instance.instance_id))
-	_in_transit.append(transfer)
-
-	var net: NetLogScript = CombatSession.logger(
-			NetLogScript.Level.INFO, NetLogScript.Category.COMBAT
-	)
-	if net != null:
-		net.info(
-				NetLogScript.Category.COMBAT,
-				"%s UNIT SENT %s s%d -> s%d"
-				% [_tag(), source.describe(unit_id), from_session_id, to_session_id]
-		)
-	if is_frozen(to_session_id) and PhaseRunner.resume(target):
-		target.flush("frozen map resumed")
-		if net != null:
-			net.info(
-					NetLogScript.Category.COMBAT,
-					"%s RESUMED s%d at turn %d" % [_tag(), to_session_id, target.state.turn]
-			)
+	if units_in_transit().has(unit_id):
+		return "%s is already on its way" % [unit_id]
+	var units: PackedStringArray = [unit_id]
+	_send(source.state.seat_of(unit_id), source, units, to_session_id, arrival_tile)
+	_flush(from_session_id, -1, CombatSession.NO_ARRIVAL, "unit sent")
+	_restart(to_session_id)
 	return ""
 
 
-## Places every unit on its way to [param session_id], at the receiving map's player Phase Start
-## (each session's [constant CombatHooks.Hook.ARRIVALS], before the Block and Stance refresh): its
-## effects join the map with their counters and charges, then it is placed with Block 0 and full
-## Stance, recording [constant CombatFact.Kind.UNIT_SPAWNED]. It lands on its arrival tile when
-## that is free and dry, else on [method Pathing.nearest_free_tile]'s, dry first (darkness plan
-## question 9). Returns the ids placed; a unit with no free tile stays on its way.
+## Places every unit on its way to [param session_id] now, the battle clock ignored (the
+## receiving map's [constant CombatHooks.Hook.ARRIVALS] keeps it): its effects join the map with
+## their counters and charges, then it is placed with Block 0 and full Stance, recording
+## [constant CombatFact.Kind.UNIT_SPAWNED]. It lands on its aimed tile when that is free and dry,
+## else on [method Pathing.nearest_free_tile]'s, dry first. Returns the ids placed; a unit with no
+## free tile stays on its way.
 func deliver_arrivals(session_id: int) -> PackedStringArray:
-	var delivered: PackedStringArray = []
-	var target: CombatSession = get_session(session_id)
-	if target == null:
-		return delivered
-	var waiting: Array[Transfer] = []
-	for transfer: Transfer in _in_transit:
-		if transfer.to_session_id != session_id or not _arrive(target, transfer):
-			waiting.append(transfer)
-		else:
-			delivered.append(transfer.unit.id)
-	_in_transit = waiting
-	return delivered
+	return _deliver(session_id, false)
 
 
 ## Ids of the units on their way to another map.
 func units_in_transit() -> PackedStringArray:
+	_drop_landed()
 	var waiting: PackedStringArray = []
 	for transfer: Transfer in _in_transit:
 		waiting.append(transfer.unit.id)
 	return waiting
+
+
+## Whether [param seat] has sent, units or none. A seat that has sends again only to a frozen map.
+func has_sent(seat: int) -> bool:
+	return _sends.has(seat)
+
+
+## The seats whose sent units landed on the map [param session_id], ascending: that map earns no
+## speed bonus when any did. Empty for a map that received none.
+func senders_of(session_id: int) -> PackedInt32Array:
+	_drop_landed()
+	var found: PackedInt32Array = _senders.get(session_id, PackedInt32Array())
+	return found.duplicate()
+
+
+## Whether the map [param session_id]'s call for aid is raised ([CallForAidCommand]). It stays as
+## it was when the map ends.
+func is_aid_called(session_id: int) -> bool:
+	return _aid_called.has(session_id)
 
 
 ## Whether the map [param session_id] is frozen: a co-op map still being fought with no player unit
@@ -426,6 +448,7 @@ func is_frozen(session_id: int) -> bool:
 func is_run_lost() -> bool:
 	if seats.size() <= 1:
 		return false
+	_drop_landed()
 	var awaited: Dictionary[int, bool] = {}
 	for transfer: Transfer in _in_transit:
 		awaited[transfer.to_session_id] = true
@@ -481,11 +504,13 @@ func describe(id: String) -> String:
 
 
 ## The battle's state as plain JSON values, between commands: [code]encounter[/code] (the next
-## encounter seq, where sent units arrived, every cross-map instance, every unit on its way to
-## another map with its bases, weapons and effects) and [code]sessions[/code], each map's
-## [method CombatSession.snapshot] by session id, named by the run seed and the build version.
-## [method load_snapshot] reverses it. [param reference]: see [method EffectInstance.capture].
+## encounter seq, where sent units arrived, every cross-map instance, every unit on its way with
+## its bases, weapons, effects and clock turn, each seat's send, each map's senders and call for
+## aid, forfeited seats) and [code]sessions[/code], each map's [method CombatSession.snapshot] by
+## session id, named by the run seed and the build version. [method load_snapshot] reverses it.
+## [param reference]: see [method EffectInstance.capture].
 func snapshot(reference: Callable = Callable()) -> Dictionary:
+	_drop_landed()
 	var sessions: Array = []
 	for session: CombatSession in _sessions:
 		sessions.append(session.snapshot(reference))
@@ -521,6 +546,10 @@ func load_snapshot(data: Dictionary, resolve: Callable = Callable()) -> Error:
 	var arrived: Variant = encounter_part.get("arrived_on", null)
 	var captured: Variant = encounter_part.get("cross_map", null)
 	var travelling: Variant = encounter_part.get("in_transit", null)
+	var sends: Variant = _sends_from(encounter_part.get("sends", null))
+	var senders: Variant = _senders_from(encounter_part.get("senders", null))
+	var aid: Variant = _whole_list(encounter_part.get("aid", null))
+	var forfeited: Variant = _whole_list(encounter_part.get("forfeited", null))
 	if (
 			_whole(encounter_part.get("floor", null)) != floor_number
 			or _whole(encounter_part.get("node", null)) != node
@@ -528,6 +557,10 @@ func load_snapshot(data: Dictionary, resolve: Callable = Callable()) -> Error:
 			or not arrived is Dictionary
 			or not captured is Array
 			or not travelling is Array
+			or sends == null
+			or senders == null
+			or aid == null
+			or forfeited == null
 	):
 		return _refuse_snapshot("its encounter part is malformed or for another battle")
 	var in_transit: Array[Transfer] = []
@@ -569,25 +602,36 @@ func load_snapshot(data: Dictionary, resolve: Callable = Callable()) -> Error:
 	_cross_map = shared
 	_arrived_on = arrived_on
 	_in_transit = in_transit
+	_sends = sends
+	_senders = senders
+	_aid_called = aid
+	_forfeited = forfeited
+	_queue.clear()
+	_queue_maps.clear()
 	var next_number: float = next
 	_next_seq = roundi(next_number)
 	fact_log.clear()
+	_batched_up_to = 0
 	return OK
 
 
 ## A number standing for the encounter's own state: the [code]encounter[/code] part of
 ## [method snapshot]. Each map has its own ([method CombatSession.state_hash]).
 func state_hash() -> int:
+	_drop_landed()
 	var by_id: Callable = func(definition: EffectDefinition) -> String:
 		return definition.id
 	return JSON.stringify(_capture_encounter(by_id), "", true).hash()
 
 
-## Applies [param batch], encounter facts from the host, as this encounter's mirror: each fact
-## not yet applied, in encounter seq order, joins [member fact_log] and playback, and a counter
-## fact sets its cross-map instance's count. A fact already applied is skipped. Returns
-## [constant OK], [constant ERR_INVALID_PARAMETER] for null, or
-## [constant ERR_PARAMETER_RANGE_ERROR] when a seq is missing (the facts before the gap apply).
+## Applies [param batch], encounter facts from the host, as this encounter's mirror, which follows
+## every map of its encounter too: each fact not yet applied, in encounter seq order, joins
+## [member fact_log] and playback. A counter fact sets its cross-map instance's count; a send takes
+## the unit from this mirror's won map onto its way, a return puts it back, a call for aid sets
+## the flag; a unit on its way that its target's batch already placed has landed. A fact already
+## applied is skipped. Returns [constant OK]; [constant ERR_INVALID_PARAMETER] for null;
+## [constant ERR_PARAMETER_RANGE_ERROR] when a seq is missing (the facts before the gap apply);
+## [constant ERR_INVALID_DATA] in debug builds when applied but the hashes differ.
 func apply_batch(batch: CombatSession.FactBatch) -> Error:
 	if batch == null:
 		return ERR_INVALID_PARAMETER
@@ -602,24 +646,37 @@ func apply_batch(batch: CombatSession.FactBatch) -> Error:
 		_next_seq += 1
 		applied.append(fact)
 		fact_log.append(fact)
-		# ASSUMPTION: a cross-map charge is spent by the activation fact on the map where it fired
-		# (CombatSession.apply_batch), so a client follows every map of its encounter; a count is a
-		# value, not a step, so applying it here too changes nothing.
-		var instance: EffectInstance = _cross_map.get(fact.source_effect_id, null)
-		if instance != null and fact.kind == CombatFact.Kind.COUNTER_CHANGED:
-			instance.set_counter(fact.key as EffectTerms.Lane, fact.amount)
+		_follow(fact)
+	_batched_up_to = fact_log.size()
 	playback.enqueue(applied)
-	if gap_at < 0:
-		return OK
+	_drop_landed()
 	var net: NetLogScript = CombatSession.logger(
 			NetLogScript.Level.WARN, NetLogScript.Category.COMBAT
 	)
+	if gap_at >= 0:
+		if net != null:
+			net.warn(
+					NetLogScript.Category.COMBAT,
+					"%s mirror gap: next was #%d, got #%d" % [_tag(), _next_seq, gap_at]
+			)
+		return ERR_PARAMETER_RANGE_ERROR
+	if (
+			batch.state_hash == CombatSession.NO_HASH
+			or batch.facts.is_empty()
+			or _next_seq - 1 != batch.last_seq()
+			or not OS.is_debug_build()
+	):
+		return OK
+	var local_hash: int = state_hash()
+	if local_hash == batch.state_hash:
+		return OK
 	if net != null:
 		net.warn(
 				NetLogScript.Category.COMBAT,
-				"%s mirror gap: next was #%d, got #%d" % [_tag(), _next_seq, gap_at]
+				"%s#%d mirror hash mismatch: host %d, mirror %d"
+				% [_tag(), _next_seq - 1, batch.state_hash, local_hash]
 		)
-	return ERR_PARAMETER_RANGE_ERROR
+	return ERR_INVALID_DATA
 
 
 # Step 1: the map, drawn from the pool with the shared stream.
@@ -648,9 +705,14 @@ func _next_to_resolve() -> CombatSession:
 	return next
 
 
+# Lands transfer on target, as deliver_arrivals() describes; false when no tile is free.
 func _arrive(target: CombatSession, transfer: Transfer) -> bool:
 	var unit: CombatUnitState = transfer.unit
 	var tile: Vector2i = transfer.tile
+	if tile == CombatFact.NO_TILE:
+		tile = _anchor_of(target)
+		if tile == CombatFact.NO_TILE:
+			return false
 	if (
 			not target.state.occupant_at(tile).is_empty()
 			or not target.state.can_stand(tile, unit.movement_type)
@@ -672,7 +734,7 @@ func _arrive(target: CombatSession, transfer: Transfer) -> bool:
 	unit.has_been_shoved = false
 	unit.has_used_sidearm = false
 	target.add_unit(unit, transfer.bases)
-	_arrived_on[unit.id] = target.session_id
+	_landed(target, unit)
 
 	var net: NetLogScript = CombatSession.logger(
 			NetLogScript.Level.INFO, NetLogScript.Category.COMBAT
@@ -691,14 +753,370 @@ func _arrive(target: CombatSession, transfer: Transfer) -> bool:
 func _has_unit_to_send(session: CombatSession) -> bool:
 	var travelling: PackedStringArray = units_in_transit()
 	for unit_id: String in session.state.units_of(CombatFact.CombatSide.PLAYER):
-		if not travelling.has(unit_id) and session_of_unit(unit_id) == session:
+		if not travelling.has(unit_id) and _current_session_of(unit_id) == session:
 			return true
 	return false
 
 
-# A session's ARRIVALS hook: its player Phase Start is starting.
+# The session whose record of unit_id is current (session_of_unit), with no landing settled first.
+func _current_session_of(unit_id: String) -> CombatSession:
+	if _arrived_on.has(unit_id):
+		return get_session(_arrived_on[unit_id])
+	for session: CombatSession in _sessions:
+		if session.state.unit(unit_id) != null:
+			return session
+	return null
+
+
+# Takes the oldest send or call for aid off the encounter's queue and resolves it, or refuses it
+# on the map it was submitted on. Returns the map batches it made.
+func _resolve_own() -> Array[CombatSession.FactBatch]:
+	var command: Command = _queue.pop_front()
+	var session_id: int = _queue_maps.pop_front()
+	var batches: Array[CombatSession.FactBatch] = []
+	var map: CombatSession = get_session(session_id)
+	var send: SendUnitsCommand = command as SendUnitsCommand
+	var call: CallForAidCommand = command as CallForAidCommand
+	var reason: String = ""
+	if seats.size() <= 1:
+		reason = "only in co-op"
+	elif send != null:
+		reason = _send_reason(send, map)
+	else:
+		reason = _aid_reason(call, map)
+	if not reason.is_empty():
+		batches.append(map.reject(command, reason))
+		return batches
+	if send != null:
+		_send(send.seat, map, send.unit_ids, send.to_session_id, CombatFact.NO_TILE)
+		_flush(session_id, send.seat, send.arrival, send.get_label())
+		var restarted: CombatSession.FactBatch = _restart(send.to_session_id)
+		if restarted != null:
+			batches.append(restarted)
+		return batches
+	_set_aid(session_id, call.is_raised)
+	var called: CombatFact = CombatFact.new(CombatFact.Kind.AID_CALLED)
+	called.session_id = session_id
+	called.amount = call.seat
+	called.key = 1 if call.is_raised else 0
+	_record(called)
+	_flush(session_id, call.seat, call.arrival, call.get_label())
+	return batches
+
+
+# Why send can't go from source now (SendUnitsCommand's rules); empty when it can.
+func _send_reason(send: SendUnitsCommand, source: CombatSession) -> String:
+	if not source.is_finished:
+		return "s%d is still being fought" % [source.session_id]
+	if not source.is_won:
+		return "s%d was lost" % [source.session_id]
+	var is_any_frozen: bool = false
+	for session: CombatSession in _sessions:
+		is_any_frozen = is_any_frozen or is_frozen(session.session_id)
+	if is_any_frozen and send.unit_ids.is_empty():
+		return "a map is frozen: send at least one unit"
+	if is_any_frozen and not is_frozen(send.to_session_id):
+		return "a map is frozen: send to a frozen map"
+	if not is_any_frozen and has_sent(send.seat):
+		return "seat %d has sent already" % [send.seat]
+	if send.unit_ids.is_empty():
+		return ""
+	var target: CombatSession = get_session(send.to_session_id)
+	if target == null or target == source:
+		return "no map s%d to send to" % [send.to_session_id]
+	if target.is_finished:
+		return "s%d has finished" % [send.to_session_id]
+	var travelling: PackedStringArray = units_in_transit()
+	var named: PackedStringArray = []
+	for unit_id: String in send.unit_ids:
+		if named.has(unit_id):
+			return "%s is named twice" % [unit_id]
+		named.append(unit_id)
+		if (
+				not source.state.has_unit(unit_id)
+				or source.state.side_of(unit_id) != CombatFact.CombatSide.PLAYER
+				or source.state.seat_of(unit_id) != send.seat
+		):
+			return "%s isn't a surviving unit of seat %d on s%d" % [
+				unit_id, send.seat, source.session_id,
+			]
+		if travelling.has(unit_id):
+			return "%s is already on its way" % [unit_id]
+		if _current_session_of(unit_id) != source:
+			return "%s has left s%d" % [unit_id, source.session_id]
+	return ""
+
+
+# Why call can't change map's call for aid now (CallForAidCommand's rules); empty when it can.
+func _aid_reason(call: CallForAidCommand, map: CombatSession) -> String:
+	if not map.seats.has(call.seat):
+		return "seat %d doesn't own s%d" % [call.seat, map.session_id]
+	if map.is_finished:
+		return "the combat on this map has ended"
+	if is_aid_called(map.session_id) == call.is_raised:
+		return "the call for aid is already %s" % ["raised" if call.is_raised else "lowered"]
+	return ""
+
+
+# Records seat's send from source to the map to_session_id (-1 for none): each unit taken onto
+# its way, aimed at tile, with a UNIT_SENT; a send of none is one UNIT_SENT with no actor.
+func _send(
+		seat: int,
+		source: CombatSession,
+		unit_ids: PackedStringArray,
+		to_session_id: int,
+		tile: Vector2i
+) -> void:
+	var target_id: int = to_session_id if not unit_ids.is_empty() else SendUnitsCommand.NO_TARGET
+	_sends[seat] = PackedInt32Array([target_id, source.state.turn])
+	var net: NetLogScript = CombatSession.logger(
+			NetLogScript.Level.INFO, NetLogScript.Category.COMBAT
+	)
+	if unit_ids.is_empty():
+		var none: CombatFact = CombatFact.new(CombatFact.Kind.UNIT_SENT)
+		none.session_id = source.session_id
+		none.amount = seat
+		none.key = target_id
+		_record(none)
+	for unit_id: String in unit_ids:
+		_in_transit.append(_take_from(source, unit_id, to_session_id, tile))
+		var sent: CombatFact = CombatFact.new(CombatFact.Kind.UNIT_SENT, unit_id)
+		sent.session_id = source.session_id
+		sent.amount = seat
+		sent.key = to_session_id
+		sent.tile = tile
+		_record(sent)
+		if net != null:
+			net.info(
+					NetLogScript.Category.COMBAT,
+					"%s UNIT SENT %s s%d -> s%d"
+					% [_tag(), source.describe(unit_id), source.session_id, to_session_id]
+			)
+
+
+# unit_id on its way from source to the map to_session_id, aimed at tile: a copy of its record,
+# bases and weapons, and its effects taken off source's engine in id order, due by the clock
+# after the turn source was won on.
+func _take_from(
+		source: CombatSession, unit_id: String, to_session_id: int, tile: Vector2i
+) -> Transfer:
+	var transfer: Transfer = Transfer.new()
+	transfer.unit = source.state.unit(unit_id).copy()
+	transfer.to_session_id = to_session_id
+	transfer.tile = tile
+	transfer.clock_turn = source.state.turn
+	transfer.bases = source.bases_of(unit_id).duplicate()
+	for weapon_id: String in [transfer.unit.equipped_weapon_id, transfer.unit.stowed_weapon_id]:
+		var weapon: CombatState.WeaponStats = source.state.weapon(weapon_id)
+		if weapon != null:
+			transfer.weapons.append(weapon)
+	var held: Array[String] = []
+	for instance: EffectInstance in source.engine.get_instances():
+		if instance.owner.holder_id == unit_id:
+			held.append(instance.instance_id)
+	held.sort()
+	for instance_id: String in held:
+		transfer.instances.append(source.engine.unregister(instance_id))
+	return transfer
+
+
+# Restarts the map session_id when it is frozen and units on their way land there at once (the
+# clock waived), sending its batch; units then bound for an ended map go back. Returns the map's
+# batch, or null when it didn't restart.
+func _restart(session_id: int) -> CombatSession.FactBatch:
+	var target: CombatSession = get_session(session_id)
+	if target == null or not is_frozen(session_id) or not PhaseRunner.resume(target):
+		return null
+	var batch: CombatSession.FactBatch = target.flush("frozen map resumed")
+	var net: NetLogScript = CombatSession.logger(
+			NetLogScript.Level.INFO, NetLogScript.Category.COMBAT
+	)
+	if net != null:
+		net.info(
+				NetLogScript.Category.COMBAT,
+				"%s RESUMED s%d at turn %d" % [_tag(), session_id, target.state.turn]
+		)
+	_return_from_finished()
+	_flush(session_id, -1, CombatSession.NO_ARRIVAL, "frozen map resumed")
+	return batch
+
+
+# Lands the units on their way to session_id that are due: all of them when keeps_clock is false
+# or the map has no player unit (a frozen map; the clock is waived), else those whose clock turn
+# its turn has reached, so they land at its first player Phase Start after that turn.
+func _deliver(session_id: int, keeps_clock: bool) -> PackedStringArray:
+	var delivered: PackedStringArray = []
+	var target: CombatSession = get_session(session_id)
+	if target == null:
+		return delivered
+	# At the ARRIVALS hook the turn hasn't risen yet: turn N's Phase Start runs at turn N - 1.
+	var is_waived: bool = (
+			not keeps_clock
+			or target.state.units_of(CombatFact.CombatSide.PLAYER).is_empty()
+	)
+	var waiting: Array[Transfer] = []
+	for transfer: Transfer in _in_transit:
+		if (
+				transfer.to_session_id != session_id
+				or (not is_waived and target.state.turn < transfer.clock_turn)
+				or not _arrive(target, transfer)
+		):
+			waiting.append(transfer)
+		else:
+			delivered.append(transfer.unit.id)
+	_in_transit = waiting
+	return delivered
+
+
+# Sends every unit on its way to a map that has ended back onto the won map it left, unharmed:
+# that map kept its record, so only its effects go back. Each records UNIT_RETURNED.
+func _return_from_finished() -> void:
+	_drop_landed()
+	var waiting: Array[Transfer] = []
+	var returning: Array[Transfer] = []
+	for transfer: Transfer in _in_transit:
+		var target: CombatSession = get_session(transfer.to_session_id)
+		if target != null and target.is_finished:
+			returning.append(transfer)
+		else:
+			waiting.append(transfer)
+	_in_transit = waiting
+	for transfer: Transfer in returning:
+		var home: CombatSession = _put_back(transfer)
+		var returned: CombatFact = CombatFact.new(CombatFact.Kind.UNIT_RETURNED, transfer.unit.id)
+		returned.session_id = transfer.to_session_id
+		returned.amount = transfer.unit.seat
+		returned.key = -1 if home == null else home.session_id
+		_record(returned)
+
+
+# Registers transfer's effects again on the won map that kept the unit's record. Returns that map.
+func _put_back(transfer: Transfer) -> CombatSession:
+	var home: CombatSession = _current_session_of(transfer.unit.id)
+	if home == null:
+		return null
+	for instance: EffectInstance in transfer.instances:
+		home.engine.register(instance, true)
+	return home
+
+
+# A mirror's units on their way that their target's own batch already placed: they have landed.
+# Changes nothing on the host, where a landing leaves the list as it lands.
+func _drop_landed() -> void:
+	if _in_transit.is_empty():
+		return
+	var waiting: Array[Transfer] = []
+	for transfer: Transfer in _in_transit:
+		var target: CombatSession = get_session(transfer.to_session_id)
+		if target != null and target.state.unit(transfer.unit.id) != null:
+			_landed(target, target.state.unit(transfer.unit.id))
+		else:
+			waiting.append(transfer)
+	_in_transit = waiting
+
+
+# unit has landed on target: its current record is there, and a unit of another seat makes that
+# seat a sender to target.
+func _landed(target: CombatSession, unit: CombatUnitState) -> void:
+	_arrived_on[unit.id] = target.session_id
+	if target.seats.has(unit.seat) or unit.seat < 0:
+		return
+	var senders: PackedInt32Array = _senders.get(target.session_id, PackedInt32Array())
+	if not senders.has(unit.seat):
+		senders.append(unit.seat)
+		senders.sort()
+	_senders[target.session_id] = senders
+
+
+# The tile a unit sent with no tile aims at on target: its owner's commander's, else its first
+# deployment tile (_arrive() then takes the nearest free one); NO_TILE when it has neither.
+func _anchor_of(target: CombatSession) -> Vector2i:
+	for seat: int in target.seats:
+		var commander: String = target.commander_ids.get(seat, "")
+		if not commander.is_empty() and target.state.has_unit(commander):
+			return target.state.tile_of(commander)
+	var deployment: Array[Vector2i] = target.layout.tiles_of(MapLayout.MarkerKind.DEPLOYMENT)
+	return CombatFact.NO_TILE if deployment.is_empty() else deployment[0]
+
+
+func _set_aid(session_id: int, is_raised: bool) -> void:
+	var index: int = _aid_called.find(session_id)
+	if is_raised and index < 0:
+		_aid_called.append(session_id)
+		_aid_called.sort()
+	elif not is_raised and index >= 0:
+		_aid_called.remove_at(index)
+
+
+# Records fact on the encounter's log with the next encounter seq and queues it for playback.
+func _record(fact: CombatFact) -> void:
+	fact.seq = _next_seq
+	_next_seq += 1
+	fact_log.append(fact)
+	var facts: Array[CombatFact] = [fact]
+	playback.enqueue(facts)
+	var net: NetLogScript = CombatSession.logger(
+			NetLogScript.Level.DEBUG, NetLogScript.Category.COMBAT
+	)
+	if net != null:
+		net.debug(
+				NetLogScript.Category.COMBAT,
+				"%s#%d %s" % [_tag(), fact.seq, fact.to_log_line(describe)]
+		)
+
+
+# Sends the encounter facts recorded since the last batch on batch_resolved, named by the map, seat,
+# arrival and label of what led to them, with the encounter's hash in debug builds. Returns the
+# batch, or null when there were none.
+func _flush(
+		session_id: int, seat: int, arrival: int, label: String
+) -> CombatSession.FactBatch:
+	if _batched_up_to >= fact_log.size():
+		return null
+	var batch: CombatSession.FactBatch = CombatSession.FactBatch.new()
+	batch.session_id = session_id
+	batch.seat = seat
+	batch.arrival = arrival
+	batch.label = label
+	for i: int in range(_batched_up_to, fact_log.size()):
+		batch.facts.append(fact_log[i])
+	_batched_up_to = fact_log.size()
+	if OS.is_debug_build():
+		batch.state_hash = state_hash()
+	batch_resolved.emit(batch)
+	return batch
+
+
+# A mirror's follow of one encounter fact from the host (apply_batch).
+func _follow(fact: CombatFact) -> void:
+	match fact.kind:
+		CombatFact.Kind.COUNTER_CHANGED:
+			# ASSUMPTION: a cross-map charge is spent by the activation fact on the map where it
+			# fired (CombatSession.apply_batch), so a client follows every map of its encounter; a
+			# count is a value, not a step, so applying it here too changes nothing.
+			var instance: EffectInstance = _cross_map.get(fact.source_effect_id, null)
+			if instance != null:
+				instance.set_counter(fact.key as EffectTerms.Lane, fact.amount)
+		CombatFact.Kind.UNIT_SENT:
+			var source: CombatSession = get_session(fact.session_id)
+			if source == null:
+				return
+			_sends[fact.amount] = PackedInt32Array([fact.key, source.state.turn])
+			if not fact.actor_id.is_empty() and source.state.unit(fact.actor_id) != null:
+				_in_transit.append(_take_from(source, fact.actor_id, fact.key, fact.tile))
+		CombatFact.Kind.UNIT_RETURNED:
+			for index: int in _in_transit.size():
+				if _in_transit[index].unit.id == fact.actor_id:
+					_put_back(_in_transit[index])
+					_in_transit.remove_at(index)
+					return
+		CombatFact.Kind.AID_CALLED:
+			_set_aid(fact.session_id, fact.key == 1)
+
+
+# A session's ARRIVALS hook: its player Phase Start is starting, so the units due there land.
 func _on_session_arrivals_due(session: CombatSession) -> void:
-	deliver_arrivals(session.session_id)
+	_deliver(session.session_id, true)
 
 
 # Mirrors a cross-map instance's counter and activation facts as encounter facts.
@@ -745,6 +1163,18 @@ func _capture_encounter(reference: Callable) -> Dictionary:
 	var in_transit: Array = []
 	for transfer: Transfer in _in_transit:
 		in_transit.append(_capture_transfer(transfer, reference))
+	var send_seats: Array[int] = []
+	send_seats.assign(_sends.keys())
+	send_seats.sort()
+	var sends: Dictionary = {}
+	for seat: int in send_seats:
+		sends[str(seat)] = Array(_sends[seat])
+	var receiving: Array[int] = []
+	receiving.assign(_senders.keys())
+	receiving.sort()
+	var senders: Dictionary = {}
+	for session_id: int in receiving:
+		senders[str(session_id)] = Array(_senders[session_id])
 	return {
 		"floor": floor_number,
 		"node": node,
@@ -753,11 +1183,15 @@ func _capture_encounter(reference: Callable) -> Dictionary:
 		"arrived_on": arrived,
 		"cross_map": cross_map,
 		"in_transit": in_transit,
+		"sends": sends,
+		"senders": senders,
+		"aid": Array(_aid_called),
+		"forfeited": Array(_forfeited),
 	}
 
 
-# A unit on its way as plain JSON: its CombatUnitState, where it goes, its bases by key id in key
-# order, its weapon records and its effect instances, in the order sent.
+# A unit on its way as plain JSON: its CombatUnitState, where it goes, the tile it aims at, its
+# clock turn, its bases by key id in key order, its weapon records and its effect instances.
 func _capture_transfer(transfer: Transfer, reference: Callable) -> Dictionary:
 	var keys: Array = transfer.bases.keys()
 	keys.sort()
@@ -774,6 +1208,7 @@ func _capture_transfer(transfer: Transfer, reference: Callable) -> Dictionary:
 		"unit": transfer.unit.capture(),
 		"to_session_id": transfer.to_session_id,
 		"tile": [transfer.tile.x, transfer.tile.y],
+		"clock_turn": transfer.clock_turn,
 		"bases": bases,
 		"weapons": weapons,
 		"instances": instances,
@@ -789,6 +1224,7 @@ func _transfer_from(data: Dictionary, resolve: Callable) -> Transfer:
 	var weapons: Variant = data.get("weapons", null)
 	var instances: Variant = data.get("instances", null)
 	var to_id: int = _whole(data.get("to_session_id", null))
+	var clock_turn: int = _whole(data.get("clock_turn", null))
 	if (
 			not unit_data is Dictionary
 			or not tile_data is Array
@@ -797,14 +1233,21 @@ func _transfer_from(data: Dictionary, resolve: Callable) -> Transfer:
 			or not weapons is Array
 			or not instances is Array
 			or get_session(to_id) == null
+			or clock_turn < 0
 	):
 		return null
 	var transfer: Transfer = Transfer.new()
 	transfer.unit = CombatUnitState.from_capture(unit_data as Dictionary)
 	transfer.to_session_id = to_id
+	transfer.clock_turn = clock_turn
 	var tile_parts: Array = tile_data
-	transfer.tile = Vector2i(_whole(tile_parts[0]), _whole(tile_parts[1]))
-	if transfer.unit == null or _whole(tile_parts[0]) < 0 or _whole(tile_parts[1]) < 0:
+	var x: Variant = _whole_or_null(tile_parts[0])
+	var y: Variant = _whole_or_null(tile_parts[1])
+	if transfer.unit == null or x == null or y == null:
+		return null
+	transfer.tile = Vector2i(x as int, y as int)
+	# A map tile, or NO_TILE for a unit aimed at the receiving commander.
+	if (transfer.tile.x < 0 or transfer.tile.y < 0) and transfer.tile != CombatFact.NO_TILE:
 		return null
 	# Untyped: the parts come from JSON and are checked entry by entry.
 	for entry: Variant in bases:
@@ -840,6 +1283,27 @@ func _refuse_snapshot(reason: String) -> Error:
 	return ERR_INVALID_DATA
 
 
+## Whether the whole battle saves after [param batch], a map's: it ends that map's player phase
+## (the last End Turn, whose batch runs on to the next player Phase Start), or it restarts a
+## frozen map (a player Phase Start past turn 1 outside any command). Either way the save holds the
+## start of a player phase.
+static func is_save_point(batch: CombatSession.FactBatch) -> bool:
+	if batch == null or batch.is_rejected():
+		return false
+	for fact: CombatFact in batch.facts:
+		if fact.side != CombatFact.CombatSide.PLAYER:
+			continue
+		if fact.kind == CombatFact.Kind.PHASE_END:
+			return true
+		if (
+				fact.kind == CombatFact.Kind.PHASE_START
+				and fact.amount > 1
+				and batch.arrival == CombatSession.NO_ARRIVAL
+		):
+			return true
+	return false
+
+
 ## Whether [param instance] belongs in the encounter as a cross-map effect: a player's army effect
 ## (a heirloom or curse) scoped Any Ally Unit or Any Unit with no position condition, which never
 ## matches across maps. Everything else registers in its own map's session.
@@ -865,6 +1329,63 @@ static func _whole(value: Variant) -> int:
 		return -1
 	var number: float = value
 	return roundi(number) if number == floorf(number) else -1
+
+
+# A whole number read from saved data, negative ones included, as an int; null when it isn't one.
+static func _whole_or_null(value: Variant) -> Variant:
+	if not (value is int or value is float):
+		return null
+	var number: float = value
+	return roundi(number) if number == floorf(number) else null
+
+
+# A list of whole numbers 0 or above from saved data, as _capture_encounter() wrote its aid and
+# forfeited lists; null when value isn't one.
+static func _whole_list(value: Variant) -> Variant:
+	if not value is Array:
+		return null
+	var numbers: PackedInt32Array = []
+	# Untyped: the list comes from JSON and is checked entry by entry.
+	for entry: Variant in value:
+		var number: int = _whole(entry)
+		if number < 0:
+			return null
+		numbers.append(number)
+	return numbers
+
+
+# The sends _capture_encounter() wrote, by seat: [target or -1, turn]; null when malformed.
+static func _sends_from(value: Variant) -> Variant:
+	if not value is Dictionary:
+		return null
+	var sends: Dictionary[int, PackedInt32Array] = {}
+	var by_seat: Dictionary = value
+	for key: Variant in by_seat:
+		var pair: Variant = by_seat[key]
+		var seat: int = str(key).to_int() if str(key).is_valid_int() else -1
+		if seat < 0 or not pair is Array or (pair as Array).size() != 2:
+			return null
+		var target: Variant = _whole_or_null((pair as Array)[0])
+		var turn: int = _whole((pair as Array)[1])
+		if target == null or (target as int) < SendUnitsCommand.NO_TARGET or turn < 0:
+			return null
+		sends[seat] = PackedInt32Array([target as int, turn])
+	return sends
+
+
+# The senders _capture_encounter() wrote, by session id: ascending seats; null when malformed.
+static func _senders_from(value: Variant) -> Variant:
+	if not value is Dictionary:
+		return null
+	var senders: Dictionary[int, PackedInt32Array] = {}
+	var by_map: Dictionary = value
+	for key: Variant in by_map:
+		var session_id: int = str(key).to_int() if str(key).is_valid_int() else -1
+		var seat_list: Variant = _whole_list(by_map[key])
+		if session_id < 0 or seat_list == null:
+			return null
+		senders[session_id] = seat_list
+	return senders
 
 
 ## The battle's setup streams, derived fresh from the run seed and the node for one
@@ -1025,13 +1546,15 @@ class SeatSetup:
 		seat = owner_seat
 
 
-# A unit on its way from a won map to another one.
+# A unit on its way from a won map to another one. tile is NO_TILE when it aims at the receiving
+# commander; clock_turn is the turn the map it left was won on.
 class Transfer:
 	extends RefCounted
 
 	var unit: CombatUnitState = null
 	var to_session_id: int = -1
 	var tile: Vector2i = CombatFact.NO_TILE
+	var clock_turn: int = 0
 	var bases: Dictionary = {}
 	var weapons: Array[CombatState.WeaponStats] = []
 	var instances: Array[EffectInstance] = []

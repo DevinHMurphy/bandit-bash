@@ -1,9 +1,11 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://ui/battle/unit/detail/detail_enemy_section.gd" id="1_section"]
 [ext_resource type="Theme" path="res://ui/theme/battle_theme.tres" id="2_theme"]
+[ext_resource type="PackedScene" path="res://ui/common/text/effect_text.tscn" id="3_text"]
 
 [node name="DetailEnemySection" type="VBoxContainer"]
+focus_mode = 2
 mouse_filter = 2
 theme = ExtResource("2_theme")
 script = ExtResource("1_section")
@@ -34,9 +36,8 @@ layout_mode = 2
 theme_type_variation = &"HudText"
 autowrap_mode = 3
 
-[node name="SignatureText" type="Label" parent="."]
+[node name="SignatureText" parent="." instance=ExtResource("3_text")]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(240, 0)
 layout_mode = 2
-theme_type_variation = &"HudNote"
-autowrap_mode = 3
+theme_type_variation = &"EffectTextMuted"

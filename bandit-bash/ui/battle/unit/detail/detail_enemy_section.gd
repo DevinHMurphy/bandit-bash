@@ -6,14 +6,18 @@
 # File:     detail_enemy_section.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name DetailEnemySection
 extends VBoxContainer
 ## An enemy's part of the [UnitDetailPanel]: its intent and target rule as the intents show them,
-## and its signature move with its effect text and counter, read as an effect card reads one
-## ("War Horn 1/3") (ui-lift.md, Unit detail pop-up). Hidden for a player unit. Holds no rules.
+## and its signature move with its effect text, keywords marked ([EffectText]), and counter, read
+## as an effect card reads one ("War Horn 1/3") (ui-lift.md, Unit detail pop-up). Hidden for a
+## player unit. Holds no rules.[br]
+## While it shows the move's text it is a focus stop the panel steps keys and pads through (the
+## mouse never focuses it), so key or pad focus shows the move's keywords beside it; it draws the
+## theme's focus look ([code]Button[/code]'s [code]focus[/code] style) while that focus is on it.
 ##
 ## @tutorial(UI lift): docs/design/ui-lift.md
 
@@ -40,13 +44,25 @@ extends VBoxContainer
 @onready var _intent: Label = %Intent
 @onready var _rule: Label = %Rule
 @onready var _signature: Label = %Signature
-@onready var _signature_text: Label = %SignatureText
+@onready var _signature_text: EffectText = %SignatureText
 
 
-## Draws [param view]'s enemy lines; hides for a player unit or null.
+func _ready() -> void:
+	focus_entered.connect(queue_redraw)
+	focus_exited.connect(queue_redraw)
+
+
+func _draw() -> void:
+	if has_focus(true):
+		draw_style_box(get_theme_stylebox(&"focus", &"Button"), Rect2(Vector2.ZERO, size))
+
+
+## Draws [param view]'s enemy lines; hides for a player unit or null. A focus stop only while it
+## shows the signature move's text.
 func show_enemy(view: UnitDetailViewModel) -> void:
 	visible = view != null and view.side == CombatFact.CombatSide.ENEMY
 	if not visible:
+		focus_mode = Control.FOCUS_NONE
 		return
 	_intent.text = intent_format % [view.intent_text] if not view.intent_text.is_empty() else (
 			no_intent_text
@@ -55,7 +71,9 @@ func show_enemy(view: UnitDetailViewModel) -> void:
 	_rule.visible = not view.target_rule_text.is_empty()
 	var has_signature: bool = not view.signature_name.is_empty()
 	_signature.visible = has_signature
-	_signature_text.visible = has_signature and not view.signature_text.is_empty()
+	_signature_text.marked_text = view.signature_marked_text if has_signature else ""
+	_signature_text.visible = has_signature and not view.signature_marked_text.is_empty()
+	focus_mode = Control.FOCUS_ALL if _signature_text.visible else Control.FOCUS_NONE
 	if not has_signature:
 		return
 	var line: String = signature_format % [view.signature_name]
@@ -64,13 +82,18 @@ func show_enemy(view: UnitDetailViewModel) -> void:
 	if view.is_signature_next:
 		line += next_text
 	_signature.text = line
-	_signature_text.text = view.signature_text
 
 
-## Its lines as shown, for tests: intent, rule, signature, the signature's text (a hidden one as
-## empty).
+## The signature move's text, for tests of its keywords and tooltips.
+func get_signature_text() -> EffectText:
+	return _signature_text
+
+
+## Its lines as shown, for tests: intent, rule, signature, the signature's text (its words,
+## without keyword tags; a hidden one as empty).
 func get_texts() -> PackedStringArray:
 	var texts: PackedStringArray = []
-	for label: Label in [_intent, _rule, _signature, _signature_text]:
+	for label: Label in [_intent, _rule, _signature]:
 		texts.append(label.text if label.visible else "")
+	texts.append(_signature_text.get_plain_text() if _signature_text.visible else "")
 	return texts

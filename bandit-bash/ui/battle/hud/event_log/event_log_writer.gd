@@ -6,7 +6,7 @@
 # File:     event_log_writer.gd
 # Author:
 # Created:  November 18, 2026
-# Modified: November 19, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name EventLogWriter
@@ -108,6 +108,9 @@ const SILENT_KINDS: Dictionary[CombatFact.Kind, String] = {
 	CombatFact.Kind.SHOVED: "folded into the shove line",
 	CombatFact.Kind.BLOCK_STANCE_REFRESHED: "every unit, every phase",
 	CombatFact.Kind.COUNTER_CHANGED: "the heirloom bar shows counters (UL8)",
+	CombatFact.Kind.UNIT_SENT: "an encounter fact, never on a map's log",
+	CombatFact.Kind.UNIT_RETURNED: "an encounter fact, never on a map's log",
+	CombatFact.Kind.AID_CALLED: "an encounter fact, never on a map's log",
 }
 
 ## The note a resumed battle's log starts with.

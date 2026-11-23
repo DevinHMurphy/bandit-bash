@@ -25,7 +25,7 @@ extends RefCounted
 signal fact_played(fact: CampaignFact)
 
 ## The run's progress: the run starting, route votes, nodes chosen and left, Unknown nodes
-## resolved, events drawn, voted on and chosen, combats ending.
+## resolved, events drawn, voted on and chosen, unit swaps agreed and ended, combats ending.
 var run: RunChannel = RunChannel.new()
 
 ## A player's army: heirlooms, items and runes gained, equipped, modified, scrapped, gifted or
@@ -61,7 +61,7 @@ func play(fact: CampaignFact) -> void:
 
 
 ## The run's progress: the run starting, route votes, nodes chosen and left, Unknown nodes
-## resolved, events drawn, voted on and chosen, combats ending.
+## resolved, events drawn, voted on and chosen, unit swaps agreed and ended, combats ending.
 class RunChannel:
 	extends BusChannel
 
@@ -87,6 +87,12 @@ class RunChannel:
 	signal unknown_resolved(fact: CampaignFact)
 	## [constant CampaignFact.ROUTE_VOTED].
 	signal route_voted(fact: CampaignFact)
+	## [constant CampaignFact.SWAP_PROPOSED].
+	signal swap_proposed(fact: CampaignFact)
+	## [constant CampaignFact.SWAP_ACCEPTED].
+	signal swap_accepted(fact: CampaignFact)
+	## [constant CampaignFact.SWAP_ENDED].
+	signal swap_ended(fact: CampaignFact)
 
 	func _init() -> void:
 		_route(CampaignFact.Kind.COMBAT_ENDED, combat_ended)
@@ -100,6 +106,9 @@ class RunChannel:
 		_route(CampaignFact.Kind.TEAM_OPTION_DRAWN, team_option_drawn)
 		_route(CampaignFact.Kind.UNKNOWN_RESOLVED, unknown_resolved)
 		_route(CampaignFact.Kind.ROUTE_VOTED, route_voted)
+		_route(CampaignFact.Kind.SWAP_PROPOSED, swap_proposed)
+		_route(CampaignFact.Kind.SWAP_ACCEPTED, swap_accepted)
+		_route(CampaignFact.Kind.SWAP_ENDED, swap_ended)
 
 
 ## A player's army: heirlooms, items and runes gained, bought, equipped, modified, scrapped,
@@ -150,6 +159,8 @@ class ArmyChannel:
 	signal rune_bought(fact: CampaignFact)
 	## [constant CampaignFact.PREFIX_REROLLED].
 	signal prefix_rerolled(fact: CampaignFact)
+	## [constant CampaignFact.HEIRLOOM_OFFER_REPLACED].
+	signal heirloom_offer_replaced(fact: CampaignFact)
 
 	func _init() -> void:
 		_route(CampaignFact.Kind.GAINED, gained)
@@ -173,6 +184,7 @@ class ArmyChannel:
 		_route(CampaignFact.Kind.UNIT_BOUGHT, unit_bought)
 		_route(CampaignFact.Kind.RUNE_BOUGHT, rune_bought)
 		_route(CampaignFact.Kind.PREFIX_REROLLED, prefix_rerolled)
+		_route(CampaignFact.Kind.HEIRLOOM_OFFER_REPLACED, heirloom_offer_replaced)
 
 
 ## Effect activations and counters.

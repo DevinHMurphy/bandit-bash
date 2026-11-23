@@ -82,6 +82,11 @@ var events: EventRunState = EventRunState.new()
 ## starts empty when a run is continued.
 var fact_log: Array[CampaignFact] = []
 
+## The co-op swap proposals not yet answered ([ProposeSwapCommand]), in the order made; accepted
+## ones move to [member RunFlow.swaps]. Not saved: they live only in the host's memory and are
+## lost on a quit, so a continued run starts with none.
+var swap_proposals: Array[UnitSwap] = []
+
 
 ## The seat [param seat]'s part of the run; null for a seat not in it.
 func seat_run(seat: int) -> SeatRun:
@@ -156,7 +161,8 @@ func record(fact: CampaignFact) -> void:
 
 ## Checks [param command] against the run as it stands, then resolves it. Returns its batch: the
 ## facts it recorded, or the reason it was rejected, which records nothing. A seat outside the run
-## is rejected before [method CampaignCommand.validate].
+## is rejected before [method CampaignCommand.validate]. A resolved command that took a unit out
+## of its army also ends every swap naming it, in the same batch ([method UnitSwap.end_broken]).
 func resolve(command: CampaignCommand) -> CampaignBatch:
 	var batch: CampaignBatch = CampaignBatch.new()
 	batch.seat = command.seat
@@ -170,6 +176,7 @@ func resolve(command: CampaignCommand) -> CampaignBatch:
 		return batch
 	var first: int = fact_log.size()
 	command.resolve(self)
+	UnitSwap.end_broken(self)
 	batch.facts = fact_log.slice(first)
 	return batch
 
@@ -224,7 +231,9 @@ func key_combats_before() -> int:
 ## the maps of its pool in [param pools] that [member RunFlow.used_maps] hasn't used
 ## ([method CombatMapPools.available]), and each seat's living army with its current HP, items,
 ## heirlooms (once per copy) and runes. Its unit and item instances are the run's own, so the
-## battle's write-back reaches them. Content from [param catalog] (null: the loaded one). An
+## battle's write-back reaches them. Each accepted swap's units ([member RunFlow.swaps]) are
+## listed last in their partner's army with their items, still owned by their seats
+## ([member CampaignSession.Army.visitor_seats]). Content from [param catalog] (null: loaded). An
 ## Unknown node that became a combat, or whose event chose a surprise combat, fights on the
 ## Standard pool ([method node_type]). Null, with an error, outside a node or at its results, or
 ## for a node with no pool or no map.
@@ -262,6 +271,8 @@ func battle_request(
 			if not slot.is_empty():
 				army.rune_slots.append(SeatRun.RuneSlot.new(slot.instance_id, slot.definition_id))
 		request.armies[seat] = army
+	for swap: UnitSwap in flow.swaps:
+		_lend_swap(request, swap)
 	return request
 
 
@@ -270,9 +281,10 @@ func battle_request(
 ## units to [member SeatRun.fallen] with their items (a fallen commander stays at critical HP);
 ## each heirloom copy's campaign lane; each rune cast or discarded gone from its slot; then the
 ## grants, minted from [param ids]. For the node's own finished battle: the map counts as used,
-## each seat whose map was won is paid by [param rules] from [param rolls] (see
-## [constant COMBAT_REPORT_KEY]), and a battle won on every map moves the run to its results.
-## Null for a null result, missing rules or rolls, or a failed copy. [param catalog] null: loaded.
+## every swap and proposal ends ([constant UnitSwap.END_COMBAT_ENDED]), each seat whose map was
+## won is paid by [param rules] from [param rolls] (see [constant COMBAT_REPORT_KEY]), and a
+## battle won on every map moves the run to its results. Null for a null result, missing rules or
+## rolls, or a failed copy. [param catalog] null: loaded.
 func apply_battle(
 		result: CampaignSession.BattleResult,
 		ids: InstanceIdAllocator,
@@ -307,6 +319,7 @@ func apply_battle(
 		# COMBAT_ENDED's amount is 1 for a win, 0 for a loss; the fact names no field for it.
 		ended.amount = 1 if result.is_won else 0
 		next.record(ended)
+	UnitSwap.end_all(next, UnitSwap.END_COMBAT_ENDED)
 	var contents: EffectCatalog.Index = catalog if catalog != null else EffectCatalog.index()
 	for seat: int in next.seat_numbers():
 		_reward_seat(next, seat, result, ids, rolls, rules, contents)
@@ -404,6 +417,8 @@ func _copy() -> CampaignRunState:
 		copied.seats[seat] = seat_run
 	copied.events = events.copy()
 	copied.fact_log = fact_log.duplicate()
+	for proposal: UnitSwap in swap_proposals:
+		copied.swap_proposals.append(UnitSwap.restore(proposal.capture()))
 	return copied
 
 
@@ -491,6 +506,44 @@ static func _use_map(flow_state: RunFlow, map_id: String, pool_ids: PackedString
 	flow_state.used_maps.append(map_id)
 
 
+# Moves swap's two units into each other's armies in request, each last in its partner's roster
+# with its items and its owner in visitor_seats. A swap naming a unit its seat's army in request
+# doesn't hold is reported and left out whole, so no map is one unit short.
+static func _lend_swap(request: CampaignSession.BattleRequest, swap: UnitSwap) -> void:
+	var first: CampaignSession.Army = request.armies.get(swap.seat_a, null)
+	var second: CampaignSession.Army = request.armies.get(swap.seat_b, null)
+	var lent_a: UnitInstance = null if first == null else _army_unit(first, swap.unit_a)
+	var lent_b: UnitInstance = null if second == null else _army_unit(second, swap.unit_b)
+	if lent_a == null or lent_b == null:
+		push_error("CampaignRunState: a swap names a unit not in its army; left out - %s" % [
+			swap.capture(),
+		])
+		return
+	_lend(first, lent_a, second, swap.seat_a)
+	_lend(second, lent_b, first, swap.seat_b)
+
+
+# Moves unit and its items from owner's army to host's, last in host's roster, owned by seat.
+static func _lend(
+		owner: CampaignSession.Army, unit: UnitInstance, host: CampaignSession.Army, seat: int
+) -> void:
+	owner.unit_instances.erase(unit)
+	for item_id: String in unit.item_ids():
+		if owner.item_instances.has(item_id):
+			host.item_instances[item_id] = owner.item_instances[item_id]
+			owner.item_instances.erase(item_id)
+	host.unit_instances.append(unit)
+	host.visitor_seats[unit.instance_id] = seat
+
+
+# The unit unit_id among army's unit instances; null when it has none.
+static func _army_unit(army: CampaignSession.Army, unit_id: String) -> UnitInstance:
+	for unit: UnitInstance in army.unit_instances:
+		if unit.instance_id == unit_id:
+			return unit
+	return null
+
+
 # The seat's rewards from a won map of result: grades and gold, XP for each unit still standing,
 # their level-ups in roster order (one LEVELED_UP each), the item pick (none after a Boss), a Key
 # combat's heirloom from the same stream after it, and the combat report under COMBAT_REPORT_KEY,
@@ -550,7 +603,8 @@ static func _reward_seat(
 		pick.store(seat_run)
 	if outcome.combat_type == CombatMapDefinition.CombatType.KEY:
 		var heirloom: KeyHeirloom = KeyHeirloom.roll(
-				reward_stream, seat_run, catalog, run.seat_numbers().size() > 1
+				reward_stream, seat_run, catalog, run.seat_numbers().size() > 1,
+				UniqueClaims.owned_by_teammates(run, seat, catalog)
 		)
 		if heirloom != null:
 			heirloom.store(seat_run)
