@@ -6,7 +6,7 @@
 # File:     campaign_command.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 @abstract
@@ -177,6 +177,8 @@ static func _of_wire_type(wire_type: String) -> CampaignCommand:
 			return AnswerSwapCommand.new()
 		WithdrawSwapCommand.WIRE_TYPE:
 			return WithdrawSwapCommand.new()
+		ForfeitCommand.WIRE_TYPE:
+			return ForfeitCommand.new()
 	return null
 
 

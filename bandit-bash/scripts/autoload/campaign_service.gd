@@ -313,6 +313,37 @@ func submit_combat(command: Command, session_id: int) -> Array[CombatSession.Fac
 	return batches
 
 
+## Host only: [param seat], a non-host player, leaves the run for good, as a forfeit or, with
+## [param is_removed], the host's removal after a drop (P11 CO18 calls it for both). A forfeit's
+## archive record is built first ([method SaveService.archive_forfeit]); then the rules
+## ([method CampaignSession.forfeit_seat]); then the seat leaves the campaign's players and the
+## checkpoint is saved. A rejection changes nothing and drops the record. Returns the batch; null
+## with no session or on a client. A failed save is reported and the change kept in memory.
+func forfeit_seat(seat: int, is_removed: bool = false) -> CampaignBatch:
+	if session == null or _is_client():
+		push_error("CampaignService: only the host's run can lose a seat.")
+		return null
+	var is_member: bool = session.run != null and session.run.seats.has(seat)
+	if not is_removed and is_member and seat != CampaignData.HOST_SEAT:
+		SaveService.archive_forfeit(seat)
+	var batch: CampaignBatch = session.forfeit_seat(seat, is_removed)
+	if batch == null or batch.is_rejected():
+		SaveService.take_forfeit_record(seat)
+		return batch
+	var removed: Error = SaveService.remove_player(seat)
+	if removed != OK:
+		push_error("CampaignService: seat %d stayed in the campaign - %s" % [
+			seat, error_string(removed),
+		])
+	_sync_floor()
+	var err: Error = SaveService.save_checkpoint()
+	if err != OK:
+		push_error("CampaignService: saving seat %d's forfeit failed - %s" % [
+			seat, error_string(err),
+		])
+	return batch
+
+
 ## The seat this machine plays, which every campaign screen acts for and shows: the host seat
 ## ([constant CampaignData.HOST_SEAT]) in solo and on the host, unless [method set_local_seat]
 ## chose another; on a client, its own ([method ClientMirror.local_seat]). Screens read it, never
@@ -356,13 +387,14 @@ func _is_client() -> bool:
 	return not NetGate.is_authoritative(NetRelay.multiplayer)
 
 
-# Whether the battle that left result, now applied to the run, ends the run as lost: a solo battle
-# lost; a co-op run lost (was_run_lost, read before the battle closed); or a co-op battle over at
-# its node that didn't reach its results (a Boss no map beat; CampaignRunState.apply_battle).
+# Whether the battle that left result, now applied to the run, ends the run as lost: a battle of
+# one map lost (solo, a 1-seat multiplayer run, or a co-op one with one map left in play); a co-op
+# run lost (was_run_lost, read before the battle closed); or a co-op battle over at its node that
+# didn't reach its results (a Boss no map beat; CampaignRunState.apply_battle).
 func _is_battle_losing_run(
 		result: CampaignSession.BattleResult, was_run_lost: bool
 ) -> bool:
-	if session.mode == CampaignData.Mode.SOLO:
+	if session.mode == CampaignData.Mode.SOLO or result.seats.size() <= 1:
 		return result.is_finished and not result.is_won
 	if was_run_lost:
 		return true
