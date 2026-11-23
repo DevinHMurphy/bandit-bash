@@ -12,7 +12,8 @@
 class_name EventOptionCommand
 extends EventCommand
 ## The seat chooses an option of the open event with its own picks ([EventChoice]: the unit or
-## weapon, item placements, a rune to discard), resolved for that seat alone through
+## weapon, item placements, a rune to discard, the unit that leaves a full army and its
+## hand-over), resolved for that seat alone through
 ## [EventResolver]: [constant CampaignFact.Kind.EVENT_CHOSEN] comes before the option's facts.
 ##
 ## A team choice of more than one seat takes only the option the votes drew ([EventVoteCommand]),
@@ -131,10 +132,11 @@ func _teammate_pick_problem(run: CampaignRunState) -> String:
 	return ""
 
 
-# Every unit and item id the sender's picks name: the chosen unit and weapon, the unit to dismiss,
-# and each placement's unit and convoy scrap.
+# Every unit and item id the sender's picks name: the chosen unit and weapon, the unit to dismiss
+# and each item it hands over, and each placement's unit and convoy scrap.
 func _picked_ids() -> PackedStringArray:
 	var found: PackedStringArray = [choice.unit_id, choice.weapon_id, choice.replaced_id]
+	found.append_array(PackedStringArray(choice.hand_over.keys()))
 	for index: int in choice.placements:
 		var placement: ItemPlacement = choice.placements[index]
 		if placement != null:

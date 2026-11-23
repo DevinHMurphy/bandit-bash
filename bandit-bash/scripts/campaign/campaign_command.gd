@@ -37,8 +37,9 @@ const _NO_INDEX: int = -1
 # Slots of an ItemPlacement on the wire: destination, unit, displaced scrapped, convoy scrap.
 const _PLACEMENT_FIELDS: int = 4
 
-# Slots of an EventChoice on the wire: unit, weapon, placements, rune discard slot, replaced unit.
-const _CHOICE_FIELDS: int = 5
+# Slots of an EventChoice on the wire: unit, weapon, placements, rune discard slot, replaced unit,
+# hand-over.
+const _CHOICE_FIELDS: int = 6
 
 ## The seat that sent it. The host sets it from the connection, never from the message.
 var seat: int = -1
@@ -252,25 +253,29 @@ static func _placement_of_wire(values: Array) -> ItemPlacement:
 
 
 # choice as wire values: [] for none, else [unit, weapon, [[block index, placement]...], rune
-# discard slot, replaced unit], placements in their own order. _is_choice_wire() and
-# _choice_of_wire() read it.
+# discard slot, replaced unit, [[item id, HandOver]...]], placements and hand-over in their own
+# order. _is_choice_wire() and _choice_of_wire() read it.
 static func _choice_to_wire(choice: EventChoice) -> Array:
 	if choice == null:
 		return []
 	var placements: Array = []
 	for block: int in choice.placements:
 		placements.append([block, _placement_to_wire(choice.placements[block])])
+	var handed: Array = []
+	for item_id: String in choice.hand_over:
+		handed.append([item_id, choice.hand_over[item_id]])
 	return [
 		choice.unit_id,
 		choice.weapon_id,
 		placements,
 		choice.rune_discard_slot,
 		choice.replaced_id,
+		handed,
 	]
 
 
 # Whether value is what _choice_to_wire() writes, none included: each block index once, from 0,
-# each with a placement.
+# each with a placement; each handed-over item id once, with a Guildhall.HandOver place.
 static func _is_choice_wire(value: Variant) -> bool:
 	if not value is Array:
 		return false
@@ -284,6 +289,7 @@ static func _is_choice_wire(value: Variant) -> bool:
 			or not values[2] is Array
 			or _wire_at_least(values[3], EventChoice.NO_SLOT) == null
 			or not values[4] is String
+			or not values[5] is Array
 	):
 		return false
 	var blocks: Array = []
@@ -298,6 +304,17 @@ static func _is_choice_wire(value: Variant) -> bool:
 		):
 			return false
 		blocks.append(block)
+	var items: Array = []
+	for entry: Variant in values[5] as Array:
+		if not entry is Array or (entry as Array).size() != 2:
+			return false
+		var handed: Array = entry
+		if (
+				not handed[0] is String or items.has(handed[0])
+				or _wire_enum(handed[1], Guildhall.HandOver.values()) == null
+		):
+			return false
+		items.append(handed[0])
 	return true
 
 
@@ -314,4 +331,7 @@ static func _choice_of_wire(values: Array) -> EventChoice:
 		choice.placements[block] = _placement_of_wire(pair[1] as Array)
 	choice.rune_discard_slot = _wire_int(values[3])
 	choice.replaced_id = values[4]
+	for entry: Variant in values[5] as Array:
+		var handed: Array = entry
+		choice.hand_over[handed[0] as String] = _wire_int(handed[1])
 	return choice

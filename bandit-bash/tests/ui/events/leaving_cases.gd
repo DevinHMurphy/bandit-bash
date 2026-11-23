@@ -6,18 +6,19 @@
 # File:     leaving_cases.gd
 # Author:
 # Created:  November 20, 2026
-# Modified: November 20, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 extends RefCounted
 ## The event panel's "which unit leaves?" step over runs in memory, by keyboard, mouse and pad: a
 ## recruit with room never asks; a recruit into a full army asks, each unit with level and HP,
-## then the named unit leaves, its items to the convoy, and the archer joins; a revive into a full
-## army lists the fallen ungreyed, then asks which unit leaves. The commander and a unit whose
-## items the convoy can't take are greyed with their reasons; with none able to leave only Back
-## is left. Back steps one choice at a time (a placement to the leaving unit, it to the saved
-## fallen chooser, that to the cards); a refusal says why and changes nothing; a quit at the step
-## resumes at the fallen chooser; the step is hinted as a chooser.
+## then the named unit leaves and, its hand-over confirmed as it opened, its items go to the
+## convoy and the archer joins; a revive into a full army lists the fallen ungreyed, then asks
+## which unit leaves. Only the commander is greyed, with its reason: a full convoy greys none, as
+## the hand-over can scrap. Back steps one choice at a time (a placement to the hand-over, it to
+## the leaving unit, that to the saved fallen chooser, that to the cards); a refusal says why and
+## changes nothing; a quit at the step resumes at the fallen chooser; the step is hinted as a
+## chooser.
 
 # The suite that runs this file; tests/case_files.gd finds it by this line.
 const SUITE: String = "ui/events"
@@ -55,7 +56,7 @@ func run() -> void:
 		_test_revive(device)
 		_test_back(device)
 	_test_greyed()
-	_test_none_can_leave()
+	_test_full_convoy()
 	_test_refused()
 	_test_continue()
 	_test_hint()
@@ -99,10 +100,13 @@ func _test_recruit(device: String) -> void:
 		)
 	var asked: bool = (
 			pressed and panel.get_step() == EventPanel.Step.LEAVING and rows_ok
-			and question == ("Hire an Archer: the army is full (%d of %d). Which unit leaves? "
-					+ "Its items go to the convoy.") % [size, size]
+			and question == "Hire an Archer: the army is full (%d of %d). Which unit leaves?" % [
+				size, size,
+			]
 	)
 	var chose: bool = asked and _fx.press(device, buttons[seat_run.army.find(leaving)], "down")
+	var handing: bool = chose and panel.get_step() == EventPanel.Step.HAND_OVER
+	var confirmed: bool = handing and _confirm(panel, device)
 	var sent: EventOptionCommand = _fx.commands[-1] as EventOptionCommand
 	var kinds: Array[CampaignFact.Kind] = _kinds_since(made, log_size)
 	var dismissed_at: int = kinds.find(CampaignFact.Kind.UNIT_DISMISSED)
@@ -115,8 +119,9 @@ func _test_recruit(device: String) -> void:
 	_ok("%s: the named unit leaves, its items to the convoy, and the archer takes its place" % [
 		device,
 	], (
-			chose and _is_done(panel, Fixture.HIRE)
+			confirmed and _is_done(panel, Fixture.HIRE)
 			and sent != null and sent.choice.replaced_id == leaving.instance_id
+			and sent.choice.hand_over.is_empty()
 			and seat_run.army.size() == size and not seat_run.army.has(leaving)
 			and seat_run.army[-1].unit_type_id == Fixture.RECRUIT_TYPE
 			and in_convoy and _fx.base.is_whole(seat_run)
@@ -147,10 +152,13 @@ func _test_revive(device: String) -> void:
 	var asked: bool = picked and panel.get_step() == EventPanel.Step.LEAVING
 	var buttons: Array[Button] = panel.get_chooser().get_choice_buttons()
 	var chose: bool = asked and _fx.press(device, buttons[seat_run.army.find(leaving)], "down")
+	var confirmed: bool = (
+			chose and panel.get_step() == EventPanel.Step.HAND_OVER and _confirm(panel, device)
+	)
 	_ok("%s: the fallen unit first, then which unit leaves; it rejoins in the leaver's place" % [
 		device,
 	], (
-			chose and _is_done(panel, Fixture.PRAYER)
+			confirmed and _is_done(panel, Fixture.PRAYER)
 			and seat_run.army.has(fallen) and not seat_run.fallen.has(fallen)
 			and not seat_run.army.has(leaving) and not seat_run.fallen.has(leaving)
 			and seat_run.convoy.has(weapon_id) and _fx.base.is_whole(seat_run)
@@ -202,13 +210,23 @@ func _test_back(device: String) -> void:
 	armed.get_chooser().get_choice_buttons()[
 			armed_run.run.seat_run(0).army.find(leaving)
 	].pressed.emit()
+	var hand_over: EventHandOverPanel = armed.get_hand_over_panel()
+	var handing: bool = armed.get_step() == EventPanel.Step.HAND_OVER
+	Fixture.button_starting(hand_over.get_choice_buttons(), "Confirm").pressed.emit()
 	var placing: bool = armed.get_step() == EventPanel.Step.PLACEMENT
 	_fx.back(device, Fixture.button_starting(
 			armed.get_placement_panel().get_choice_buttons(), "Back"
 	))
-	_ok("back %s: the placement after the leaving unit returns to it, asked afresh" % [device], (
-			first_leaving and placing and armed.get_step() == EventPanel.Step.LEAVING
+	var back_at_hand_over: bool = (
+			armed.get_step() == EventPanel.Step.HAND_OVER and hand_over.visible
 			and not armed.get_placement_panel().visible
+	)
+	_fx.back(device, Fixture.button_starting(hand_over.get_choice_buttons(), "Back"))
+	_ok("back %s: the placement returns to the hand-over, that to the leaving unit, afresh" % [
+		device,
+	], (
+			first_leaving and handing and placing and back_at_hand_over
+			and armed.get_step() == EventPanel.Step.LEAVING and not hand_over.visible
 			and armed.get_chooser().get_question().contains("Which unit leaves?")
 	), _state(armed))
 	_fx.close_panel(armed)
@@ -229,17 +247,17 @@ func _test_greyed() -> void:
 		var unit_id: String = seat_run.army[index].instance_id
 		if unit_id != seat_run.commander_id and unit_id != loaded.instance_id:
 			others_open = others_open and not buttons[index].disabled
-	_ok("greyed: the commander, and a unit whose items the convoy can't take, each say why", (
+	_ok("greyed: the commander says why; a unit whose items the convoy can't take stays open", (
 			commander.disabled and commander.focus_mode == Control.FOCUS_NONE
 			and commander.text.ends_with(COMMANDER_REASON)
-			and heavy.disabled and heavy.focus_mode == Control.FOCUS_NONE
-			and heavy.text.contains(CONVOY_REASON + "%d items" % [loaded.item_ids().size()])
+			and not heavy.disabled and heavy.focus_mode == Control.FOCUS_ALL
+			and not heavy.text.contains(CONVOY_REASON)
 			and others_open
 	), " | ".join(_texts(buttons)))
 	_fx.close_panel(panel)
 
 
-func _test_none_can_leave() -> void:
+func _test_full_convoy() -> void:
 	var made: CampaignSession = _fx.session_with(Fixture.camp())
 	var seat_run: SeatRun = made.run.seat_run(0)
 	while seat_run.convoy.size() < ItemPlacement.convoy_capacity(seat_run, _fx.base.catalog):
@@ -252,10 +270,10 @@ func _test_none_can_leave() -> void:
 	var greyed: int = 0
 	for button: Button in buttons:
 		greyed += 1 if button.disabled else 0
-	_ok("none can leave: the hire stays offered; every unit is greyed and Back holds focus", (
+	_ok("full convoy: the hire stays offered; only the commander is greyed, a unit has focus", (
 			card_open and panel.get_step() == EventPanel.Step.LEAVING
-			and greyed == seat_run.army.size()
-			and _root.gui_get_focus_owner() == buttons[-1]
+			and greyed == 1
+			and _root.gui_get_focus_owner() == buttons[_first_open(buttons)]
 	), " | ".join(_texts(buttons)))
 	_fx.close_panel(panel)
 
@@ -268,12 +286,15 @@ func _test_refused() -> void:
 	var log_size: int = made.run.fact_log.size()
 	var panel: EventPanel = _open(made)
 	panel.get_cards()[Fixture.HIRE].pressed.emit()
-	var button: Button = panel.get_chooser().get_choice_buttons()[seat_run.army.find(leaving)]
+	panel.get_chooser().get_choice_buttons()[seat_run.army.find(leaving)].pressed.emit()
+	var confirm: Button = Fixture.button_starting(
+			panel.get_hand_over_panel().get_choice_buttons(), "Confirm"
+	)
 	_fx.overload_convoy(made, leaving)
 	var convoy: int = seat_run.convoy.size()
-	button.pressed.emit()
-	_ok("refused: a leaving unit the run refuses says why, stays on the step, changes nothing", (
-			panel.get_step() == EventPanel.Step.LEAVING
+	confirm.pressed.emit()
+	_ok("refused: everything to a convoy that filled meanwhile says why, changes nothing", (
+			panel.get_step() == EventPanel.Step.HAND_OVER
 			and panel.get_status_text().begins_with("Can't do that: ")
 			and panel.get_status_text().contains(CONVOY_REASON)
 			and seat_run.army == army and seat_run.convoy.size() == convoy
@@ -349,6 +370,22 @@ func _kinds_since(made: CampaignSession, from: int) -> Array[CampaignFact.Kind]:
 	for index: int in range(from, made.run.fact_log.size()):
 		found.append(made.run.fact_log[index].kind)
 	return found
+
+
+# Presses the hand-over's Confirm with device, walking focus down to it for key and pad.
+func _confirm(panel: EventPanel, device: String) -> bool:
+	var confirm: Button = Fixture.button_starting(
+			panel.get_hand_over_panel().get_choice_buttons(), "Confirm"
+	)
+	return confirm != null and not confirm.disabled and _fx.press(device, confirm, "down")
+
+
+# The index of the first of buttons that can be pressed; -1 for none.
+func _first_open(buttons: Array[Button]) -> int:
+	for index: int in buttons.size():
+		if not buttons[index].disabled:
+			return index
+	return -1
 
 
 func _index_of(seat_run: SeatRun, unit_id: String) -> int:

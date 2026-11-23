@@ -13,9 +13,10 @@ class_name EventScreenModel
 extends RefCounted
 ## The words and choices the event screen shows, read from an [EventView] and the run: each
 ## option's rolled parts and named curse, the steps a chosen option asks for (a pick, the unit
-## that leaves a full army, item placements, a rune to discard), every chooser's entries with why
-## each is greyed out, and the outcome summary. Option and summary lines mark their keywords for
-## an [EffectText] ([method EffectTerms.plain_text] gives the words alone).
+## that leaves a full army and where its items go, item placements, a rune to discard), every
+## chooser's entries and hand-over place with why each is greyed out, and the outcome summary.
+## Option and summary lines mark their keywords for an [EffectText]
+## ([method EffectTerms.plain_text] gives the words alone).
 ##
 ## Static and read-only: it reads only what it is handed and changes nothing. The summary is
 ## built from saved state alone (the option, its rolls and the team's votes), so the one shown
@@ -26,11 +27,20 @@ extends RefCounted
 ## A modified item's name (items.md, Modified items).
 const INFUSED_FORMAT: String = "Infused %s"
 
+## The hand-over's RECRUIT button for a revived unit ([HandOverRow.place_names]); a recruit's
+## keeps the Guildhall's.
+const REVIVED_PLACE: String = "Revived"
+
+## The hand-over's word for the unit joining, in its reasons and notes: a recruit, then a revived
+## unit.
+const RECRUIT_NOUN: String = "recruit"
+const REVIVED_NOUN: String = "revived unit"
+
 
 ## The lines [param shown] adds under its text on its card ([param is_done] false) or in the
-## summary once taken (true): each block's rolled or named item, rune and heirloom by name, then
-## its curse with its tier and effect, keywords marked. [param seat_run] tells a rune gained with
-## every slot full.
+## summary once taken (true): each block's rolled or named item, rune and heirloom and rolled
+## recruit by name, then its curse with its tier and effect, keywords marked. [param seat_run]
+## tells a rune gained with every slot full.
 static func option_lines(
 		shown: EventView.OptionView,
 		seat_run: SeatRun,
@@ -61,6 +71,14 @@ static func option_lines(
 			lines.append("%s the heirloom %s" % [
 				verb, _described(catalog.heirloom(heirloom_id), heirloom_id),
 			])
+		elif outcome is RecruitOutcome:
+			# Only a rolled recruit: a named one is in the option's own words.
+			var recruit: RecruitOutcome = outcome as RecruitOutcome
+			if shown.rolls.picks.has(index):
+				lines.append("%s %s" % [
+					"Recruited:" if is_done else "Recruit:",
+					_recruit_title(recruit, index, shown.rolls, catalog),
+				])
 	if not shown.curse_id.is_empty():
 		lines.append(curse_line(shown.curse_id, catalog, is_done))
 	return lines
@@ -183,30 +201,143 @@ static func needs_leaving_unit(
 
 
 ## The question the leaving step asks for the option [param option_title], with
-## [param seat_run]'s army size: the leaving unit's items go to the convoy
-## ([method RunOperations.dismiss]).
+## [param seat_run]'s army size; where its items go is asked next ([method hand_over_question]).
 static func leaving_question(
 		option_title: String, seat_run: SeatRun, catalog: EffectCatalog.Index
 ) -> String:
-	return "%s: the army is full (%d of %d). Which unit leaves? Its items go to the convoy." % [
+	return "%s: the army is full (%d of %d). Which unit leaves?" % [
 		option_title, seat_run.army.size(), RunOperations.max_army_size(seat_run, catalog),
 	]
 
 
 ## The living units of [param seat] of [param run] that the leaving step lists, in roster order,
-## each with its level and HP ([method leaving_text]); one that can't leave (the commander, one
-## whose items the convoy can't take) is greyed out with [method RunOperations.dismiss_problem].
+## each with its level and HP ([method leaving_text]); the commander is greyed out with
+## [method EventHandOver.leave_problem]'s reason. A full convoy greys none: the hand-over can
+## scrap.
 static func leaving_entries(
 		run: CampaignRunState, seat: int, catalog: EffectCatalog.Index
 ) -> Array[Entry]:
 	var entries: Array[Entry] = []
 	var seat_run: SeatRun = run.seat_run(seat)
 	for unit: UnitInstance in seat_run.army:
-		var reason: String = RunOperations.dismiss_problem(run, seat, unit.instance_id, catalog)
+		var reason: String = EventHandOver.leave_problem(run, seat, unit.instance_id)
 		entries.append(Entry.new(unit.instance_id, leaving_text(unit, catalog), reason.replace(
 				unit.instance_id, title_of(unit, catalog)
 		)))
 	return entries
+
+
+## The unit option [param option_index] of [param event] brings into [param seat]'s army with the
+## picks in [param choice], as it would join now ([method EventOutcome.joining]); null when it
+## brings none or the unit isn't known yet.
+static func joining(
+		run: CampaignRunState,
+		seat: int,
+		event: EventDefinition,
+		option_index: int,
+		choice: EventChoice,
+		catalog: EffectCatalog.Index
+) -> RecruitOffer:
+	var ctx: EventContext = EventContext.of(
+			run, seat, event, option_index, catalog, null, null, choice
+	)
+	var option: EventOption = event.options[option_index]
+	for index: int in option.outcomes.size():
+		var found: RecruitOffer = option.outcomes[index].joining(ctx, index)
+		if found != null:
+			return found
+	return null
+
+
+## Whether [param option] brings a unit back from the fallen rather than recruiting one: the
+## hand-over then names the unit joining [constant REVIVED_PLACE] and [constant REVIVED_NOUN].
+static func is_revive(option: EventOption) -> bool:
+	for outcome: EventOutcome in option.outcomes:
+		if outcome is ReviveOutcome:
+			return true
+	return false
+
+
+## The question the hand-over step asks when [param leaving] leaves [param seat_run]'s army for
+## [param joining] (null while it isn't known), named for [param catalog]:
+## [code]Fighter leaves for Steady (+1) Archer. Where does each of its items go?[/code].
+static func hand_over_question(
+		leaving: UnitInstance, joining: RecruitOffer, catalog: EffectCatalog.Index
+) -> String:
+	var newcomer: String = "the recruit" if joining == null else title_of(joining.unit, catalog)
+	return "%s leaves for %s. Where does each of its items go?" % [
+		title_of(leaving, catalog), newcomer,
+	]
+
+
+## The name of [param leaving]'s item [param item_id] on its hand-over row, with whose it is:
+## [code]Iron Axe (Fighter's)[/code].
+static func hand_over_item_name(
+		seat_run: SeatRun, leaving: UnitInstance, item_id: String, catalog: EffectCatalog.Index
+) -> String:
+	var item: ItemInstance = seat_run.items.get(item_id, null)
+	var item_name: String = item_id if item == null else held_item_name(item, catalog)
+	return "%s (%s's)" % [item_name, title_of(leaving, catalog)]
+
+
+## Why [param leaving]'s item [param item_id] can't go to each place now, given the rest of
+## [param hand_over], by [enum Guildhall.HandOver], as the Guildhall greys them: onto
+## [param joining] (called the [param joining_noun]) while it isn't known, a weapon it can't use,
+## or one whose own item in the slot the convoy has no room for; into a full convoy. Scrap never
+## is.
+static func hand_over_refusals(
+		seat_run: SeatRun,
+		leaving: UnitInstance,
+		joining: RecruitOffer,
+		hand_over: Dictionary[String, int],
+		item_id: String,
+		joining_noun: String,
+		catalog: EffectCatalog.Index
+) -> Dictionary[int, String]:
+	var refusals: Dictionary[int, String] = {}
+	var place: int = EventHandOver.place_of(hand_over, item_id)
+	var item: ItemInstance = seat_run.items.get(item_id, null)
+	var definition: ItemDefinition = null if item == null else catalog.item(item.definition_id)
+	var room: int = ItemPlacement.convoy_capacity(seat_run, catalog) - seat_run.convoy.size()
+	var on_joining: Dictionary[String, int] = hand_over.duplicate()
+	on_joining[item_id] = Guildhall.HandOver.RECRUIT
+	if joining == null:
+		refusals[Guildhall.HandOver.RECRUIT] = "who joins isn't known yet"
+	elif definition == null or not EventHandOver.can_take(joining, definition, catalog):
+		refusals[Guildhall.HandOver.RECRUIT] = "the %s can't use it" % [joining_noun]
+	elif (
+			place != Guildhall.HandOver.RECRUIT
+			and EventHandOver.convoy_count(seat_run, leaving, joining, on_joining, catalog) > room
+	):
+		var own: String = ItemPlacement.item_in(joining.unit, ItemPlacement.slot_for(definition))
+		refusals[Guildhall.HandOver.RECRUIT] = "the convoy has no room for its %s" % [
+			_own_item_name(seat_run, joining, own, catalog),
+		]
+	var to_convoy: int = EventHandOver.convoy_count(seat_run, leaving, joining, hand_over, catalog)
+	if place != Guildhall.HandOver.CONVOY and to_convoy >= room:
+		refusals[Guildhall.HandOver.CONVOY] = "the convoy is full (%d of %d)" % [
+			seat_run.convoy.size() + to_convoy, ItemPlacement.convoy_capacity(seat_run, catalog),
+		]
+	return refusals
+
+
+## The lines under the hand-over's rows: each of [param joining]'s own items that
+## [param hand_over] moves to the convoy, as [code]The recruit's Simple Bow goes to the
+## convoy.[/code] ([param joining_noun] names the unit joining).
+static func hand_over_notes(
+		seat_run: SeatRun,
+		leaving: UnitInstance,
+		joining: RecruitOffer,
+		hand_over: Dictionary[String, int],
+		joining_noun: String,
+		catalog: EffectCatalog.Index
+) -> PackedStringArray:
+	var lines: PackedStringArray = []
+	for own: String in EventHandOver.displaced(seat_run, leaving, joining, hand_over, catalog):
+		lines.append("The %s's %s goes to the convoy." % [
+			joining_noun, _own_item_name(seat_run, joining, own, catalog),
+		])
+	return lines
 
 
 ## [param unit] as the leaving step lists it: [code]Steady (+1) Archer, level 3, HP 14 / 18[/code].
@@ -337,6 +468,23 @@ static func _holder_text(
 		if unit.item_ids().has(item_id):
 			return "on %s" % [title_of(unit, catalog)]
 	return "in the convoy"
+
+
+# The rolled recruit's name, prefix and type: "Steady (+1) Archer".
+static func _recruit_title(
+		recruit: RecruitOutcome, index: int, rolls: EventRolls, catalog: EffectCatalog.Index
+) -> String:
+	var unit: UnitInstance = UnitInstance.new("", recruit.joining_type(rolls, index))
+	unit.prefix_id = recruit.joining_prefix(rolls, index)
+	return title_of(unit, catalog)
+
+
+# The name of joining's own item own_id, read from its items or seat_run's.
+static func _own_item_name(
+		seat_run: SeatRun, joining: RecruitOffer, own_id: String, catalog: EffectCatalog.Index
+) -> String:
+	var item: ItemInstance = joining.items.get(own_id, seat_run.items.get(own_id, null))
+	return own_id if item == null else held_item_name(item, catalog)
 
 
 static func _granted_rune(rune: RuneOutcome, index: int, rolls: EventRolls) -> String:

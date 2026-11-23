@@ -14,27 +14,31 @@ extends Control
 ## The event open at the run's node, asked over its steps ([enum Step]) for one seat: the
 ## [EventStory], its options ([EventOptionCard]) with the team's [EventVoteStatus] and each
 ## teammate's part ([EventTeamStatus]), then whatever the option chosen needs (the unit, fallen
-## unit or weapon, then the unit that leaves a full army, each from an [EventChooser]; where each
-## new item goes from the [PlacementPanel]; a rune to discard), and last the [EventOutcomeSummary]
-## and Leave, with Team in co-op ([member offers_team]).
+## unit or weapon, then the unit that leaves a full army, each from an [EventChooser], and where
+## its items go from the [EventHandOverPanel]; where each new item goes from the
+## [PlacementPanel]; a rune to discard), and last the [EventOutcomeSummary] and Leave, with Team
+## in co-op ([member offers_team]). While Leave, Fight or Team holds key or pad focus there, the
+## summary's keywords show as one column of tooltips beside it, as in the shop panels.
 ##
-## Each step comes from the saved [EventView] ([method refresh]); the leaving unit, placements and
-## rune discard aren't saved and start over. Commands are built with [EventNode] and emitted
-## ([signal command_ready]); the screen sends them and calls [method refresh] for the seat's own
-## batches, [method refresh_team] for a teammate's, or [method show_problem]. Names no autoload.
+## Each step comes from the saved [EventView] ([method refresh]); the leaving unit, hand-over,
+## placements and rune discard aren't saved and start over. Commands are built with [EventNode]
+## and emitted ([signal command_ready]); the screen sends them and calls [method refresh] for the
+## seat's own batches, [method refresh_team] for a teammate's, or [method show_problem].
 ##
 ## @tutorial(Events and curses plan): docs/plans/2026-11-12-events-and-curses.md
 
 # ============================================================
 # INPUT MAP SETUP:
-#   "ui_cancel" -> Esc; pad B [Circle], Menu [Options]   (read in _input in CHOOSER, LEAVING and
-#                  RUNE: Back, taken first so the pause menu doesn't open; in PLACEMENT the
-#                  PlacementPanel reads it; in the other steps it is left to the pause menu)
+#   "ui_cancel" -> Esc; pad B [Circle], Menu [Options]   (read in _input in CHOOSER, LEAVING,
+#                  HAND_OVER and RUNE: Back, taken first so the pause menu doesn't open; in
+#                  PLACEMENT the PlacementPanel reads it; in the other steps it is left to the
+#                  pause menu)
 #   "ui_left" / "ui_right" / "ui_up" / "ui_down" / "ui_accept"   (not read here: the GUI moves
-#                  focus along the cards or a chooser's column and presses the focused one, by
-#                  key, d-pad, stick or A [Cross]; down from the cards or Leave reaches Team, up
-#                  from Team returns)
-#   Mouse: a click on a card, choice, Leave or Team presses it; Back steps back as ui_cancel does.
+#                  focus along the cards, a chooser's column or the hand-over's rows and presses
+#                  the focused one, by key, d-pad, stick or A [Cross]; down from the cards or
+#                  Leave reaches Team, up from Team returns)
+#   Mouse: a click on a card, choice, place, Leave or Team presses it; Back steps back as
+#   ui_cancel does.
 # ============================================================
 
 ## The player settled a step: send [param command] ([EventChooserCommand], [EventVoteCommand]
@@ -63,8 +67,10 @@ const CARD_SCENE: PackedScene = preload("res://ui/campaign/events/event_option_c
 #            cards for a team choice). Choosing goes on to the picks.
 # LEAVING:   which living unit leaves, when the option recruits or revives into a full army
 #            (unsaved). Back returns to CHOOSER, or to the cards for an option with no chooser.
+# HAND_OVER: where each item of the leaving unit goes, when it holds any (unsaved); Confirm goes
+#            on to the picks. Back returns to LEAVING.
 # PLACEMENT: where each new item goes, in block order (the PlacementPanel). Back from its first
-#            step returns to LEAVING when it was asked, else as from LEAVING.
+#            step returns to HAND_OVER or LEAVING when asked, else as from LEAVING.
 # RUNE:      which rune makes room, when every slot is full. Back as from PLACEMENT.
 # OUTCOME:   the summary, and Leave (Fight with a combat pending), once the seat has chosen.
 # The last pick sends EventOptionCommand and the step stays put until the screen refreshes, so a
@@ -89,6 +95,8 @@ enum Step {
 	OUTCOME = 7,
 	## Which unit leaves a full army for the one the option brings in.
 	LEAVING = 8,
+	## Where each item of the unit leaving goes.
+	HAND_OVER = 9,
 }
 
 # The steps that show Team, in co-op: those with no unsaved picks under way.
@@ -114,8 +122,14 @@ var _choice: EventChoice = EventChoice.new()
 var _item_blocks: PackedInt32Array = []
 var _next_block: int = 0
 
+# Whether the hand-over was confirmed for the leaving unit chosen; an empty one is a choice too.
+var _is_handed_over: bool = false
+
 # The option whose card had focus when the cards were last rebuilt, focused again after; -1: none.
 var _refocus_option: int = EventRunState.NO_OPTION
+
+# The keyword ids of the column shown on the summary for key or pad focus; empty while none.
+var _column_ids: PackedStringArray = []
 
 @onready var _story: EventStory = %EventStory
 @onready var _votes: EventVoteStatus = %EventVoteStatus
@@ -127,19 +141,31 @@ var _refocus_option: int = EventRunState.NO_OPTION
 @onready var _team_button: Button = %TeamButton
 @onready var _status_label: Label = %Status
 @onready var _placement: PlacementPanel = %PlacementPanel
+@onready var _hand_over: EventHandOverPanel = %EventHandOverPanel
 
 
 func _ready() -> void:
 	_chooser.entry_chosen.connect(_on_event_chooser_entry_chosen)
 	_chooser.cancelled.connect(step_back)
+	_hand_over.hand_over_chosen.connect(_on_event_hand_over_panel_hand_over_chosen)
+	_hand_over.cancelled.connect(step_back)
 	_placement.placement_chosen.connect(_on_placement_panel_placement_chosen)
 	_placement.cancelled.connect(_on_placement_panel_cancelled)
 	_leave_button.pressed.connect(_on_leave_button_pressed)
 	_team_button.pressed.connect(_on_team_button_pressed)
+	get_viewport().gui_focus_changed.connect(_on_viewport_gui_focus_changed)
+	# Focus released to nothing changes no focus owner, so the buttons report leaving too.
+	_leave_button.focus_exited.connect(_refresh_keywords)
+	_team_button.focus_exited.connect(_refresh_keywords)
+	var lines: EffectText = _summary.get_effect_text()
+	# Connected after the text's own handlers, so the column is set again after each hover change.
+	lines.meta_hover_started.connect(_on_summary_meta_hover_changed)
+	lines.meta_hover_ended.connect(_on_summary_meta_hover_changed)
+	lines.mouse_exited.connect(_refresh_keywords)
 
 
 func _input(event: InputEvent) -> void:
-	if not is_visible_in_tree() or not _chooser.visible:
+	if not is_visible_in_tree() or not (_chooser.visible or _hand_over.visible):
 		return
 	if not event.is_action_pressed(&"ui_cancel"):
 		return
@@ -183,12 +209,12 @@ func refresh() -> void:
 
 
 ## Reads the saved event again after a teammate's batch: as [method refresh], except that while
-## the seat is part way through its picks (a chooser, the unit that leaves, a placement, the rune
-## discard) only the team's votes and choices update, so the picks so far stay.
+## the seat is part way through its picks (a chooser, the unit that leaves and its hand-over, a
+## placement, the rune discard) only the team's votes and choices update, so the picks so far stay.
 func refresh_team() -> void:
 	var is_picking: bool = (
-			_step == Step.CHOOSER or _step == Step.LEAVING or _step == Step.PLACEMENT
-			or _step == Step.RUNE
+			_step == Step.CHOOSER or _step == Step.LEAVING or _step == Step.HAND_OVER
+			or _step == Step.PLACEMENT or _step == Step.RUNE
 	)
 	var fresh: EventView = EventNode.view(_session, _seat, _pool, _catalog)
 	if not is_picking or not fresh.is_open() or fresh.event != _view.event:
@@ -207,9 +233,9 @@ func show_problem(problem: String) -> void:
 
 
 ## Goes back one step: from the chooser to the cards (closing the saved chooser); from the
-## leaving unit to the chooser, or to the cards with none; from a placement or the rune discard
-## to the leaving unit when it was asked, else as from it. Does nothing on the cards or the
-## outcome.
+## leaving unit to the chooser, or to the cards with none; from the hand-over to the leaving
+## unit; from a placement or the rune discard to the hand-over or the leaving unit when asked,
+## else as from the leaving unit. Does nothing on the cards or the outcome.
 func step_back() -> void:
 	match _step:
 		Step.CHOOSER:
@@ -221,10 +247,16 @@ func step_back() -> void:
 			))
 		Step.LEAVING:
 			_back_before_leaving()
+		Step.HAND_OVER:
+			_show_leaving()
 		Step.PLACEMENT, Step.RUNE:
 			_placement.close()
 			var option: EventOption = _view.event.options[_option]
-			if EventScreenModel.needs_leaving_unit(option, _session.run.seat_run(_seat), _catalog):
+			if _needs_hand_over():
+				_show_hand_over()
+			elif EventScreenModel.needs_leaving_unit(
+					option, _session.run.seat_run(_seat), _catalog
+			):
 				_show_leaving()
 			else:
 				_back_before_leaving()
@@ -276,6 +308,11 @@ func get_placement_panel() -> PlacementPanel:
 	return _placement
 
 
+## The hand-over panel, for tests and captures.
+func get_hand_over_panel() -> EventHandOverPanel:
+	return _hand_over
+
+
 ## The outcome summary, for tests.
 func get_summary() -> EventOutcomeSummary:
 	return _summary
@@ -307,6 +344,8 @@ func focus_first() -> bool:
 			return true
 	if _chooser.visible:
 		return _chooser.focus_first()
+	if _hand_over.visible:
+		return _hand_over.focus_first()
 	for button: Button in [_leave_button, _team_button]:
 		if button.visible and not button.disabled:
 			button.grab_focus()
@@ -369,6 +408,7 @@ func _show_cards(step: Step) -> void:
 func _start_picks(index: int) -> void:
 	_option = index
 	_choice = EventChoice.new()
+	_is_handed_over = false
 	_item_blocks = EventScreenModel.item_blocks(_view.event.options[index])
 	_next_block = 0
 	if _view.event.options[index].chooser() != EventOutcome.Chooser.NONE:
@@ -398,9 +438,7 @@ func _show_leaving() -> void:
 	var seat_run: SeatRun = _session.run.seat_run(_seat)
 	var title: String = _view.event.options[_option].title
 	_choice.replaced_id = ""
-	_choice.placements.clear()
-	_choice.rune_discard_slot = EventChoice.NO_SLOT
-	_next_block = 0
+	_clear_picks_after_leaving()
 	_story.show_event(_view.event)
 	_show_team_parts()
 	_enter(Step.LEAVING)
@@ -408,6 +446,44 @@ func _show_leaving() -> void:
 			EventScreenModel.leaving_question(title, seat_run, _catalog),
 			EventScreenModel.leaving_entries(_session.run, _seat, _catalog)
 	)
+
+
+# Asks where each item of the leaving unit goes, opening with every one to the convoy, with no
+# picks after it made yet.
+func _show_hand_over() -> void:
+	var seat_run: SeatRun = _session.run.seat_run(_seat)
+	var option: EventOption = _view.event.options[_option]
+	_clear_picks_after_leaving()
+	_story.show_event(_view.event)
+	_show_team_parts()
+	_enter(Step.HAND_OVER)
+	_hand_over.show_hand_over(
+			seat_run,
+			EventOutcome.living_unit(seat_run, _choice.replaced_id),
+			EventScreenModel.joining(
+					_session.run, _seat, _view.event, _option, _choice, _catalog
+			),
+			EventScreenModel.is_revive(option),
+			_catalog
+	)
+
+
+# Forgets the hand-over, placements and rune discard, so the steps after the leaving unit ask
+# afresh.
+func _clear_picks_after_leaving() -> void:
+	_choice.hand_over.clear()
+	_is_handed_over = false
+	_choice.placements.clear()
+	_choice.rune_discard_slot = EventChoice.NO_SLOT
+	_next_block = 0
+
+
+# Whether the option asks where the leaving unit's items go: a unit leaves, holding any.
+func _needs_hand_over() -> bool:
+	var leaving: UnitInstance = EventOutcome.living_unit(
+			_session.run.seat_run(_seat), _choice.replaced_id
+	)
+	return leaving != null and not leaving.item_ids().is_empty()
 
 
 # Back from the leaving unit, or from a later pick when it wasn't asked: to the chooser, or to
@@ -419,8 +495,8 @@ func _back_before_leaving() -> void:
 		_show_saved_cards()
 
 
-# The next pick the option needs (the unit that leaves a full army, a placement per new item,
-# then a rune to discard), or the command once nothing more is needed.
+# The next pick the option needs (the unit that leaves a full army and where its items go, a
+# placement per new item, then a rune to discard), or the command once nothing more is needed.
 func _next_pick() -> void:
 	var seat_run: SeatRun = _session.run.seat_run(_seat)
 	var option: EventOption = _view.event.options[_option]
@@ -429,6 +505,9 @@ func _next_pick() -> void:
 			and EventScreenModel.needs_leaving_unit(option, seat_run, _catalog)
 	):
 		_show_leaving()
+		return
+	if not _is_handed_over and _needs_hand_over():
+		_show_hand_over()
 		return
 	if _next_block < _item_blocks.size():
 		var block: int = _item_blocks[_next_block]
@@ -464,6 +543,8 @@ func _show_outcome() -> void:
 	_leave_button.text = "Fight" if _view.is_combat_pending else "Leave"
 	_set_enabled(_leave_button, _view.is_finished)
 	_enter(Step.OUTCOME)
+	# New lines hide the column; focus kept on Leave or Team across a batch brings it back.
+	_refresh_keywords()
 
 
 # Shows the parts step uses, clears the status line and focuses the step's first control a frame
@@ -474,7 +555,10 @@ func _enter(step: Step) -> void:
 	var is_cards: bool = step == Step.OPTIONS or step == Step.VOTE or step == Step.DRAWN
 	_cards.visible = is_cards
 	_chooser.visible = step == Step.CHOOSER or step == Step.LEAVING or step == Step.RUNE
+	_hand_over.visible = step == Step.HAND_OVER
 	_summary.visible = step == Step.OUTCOME
+	if step != Step.OUTCOME:
+		_refresh_keywords()
 	_leave_button.visible = step == Step.OUTCOME or step == Step.CLOSED
 	_team_button.visible = offers_team and _TEAM_STEPS.has(step)
 	if step == Step.CLOSED:
@@ -564,6 +648,37 @@ func _seat_count() -> int:
 	return _session.run.events.seats.size()
 
 
+# Shows the summary's keywords as a column beside it while Leave, Fight or Team holds key or pad
+# focus on the outcome, and hides it once none does; meanwhile a hovered keyword, already in the
+# column, shows no tooltip of its own. Rebuilds only when the column changed, or a hover or new
+# lines replaced it.
+func _refresh_keywords() -> void:
+	var lines: EffectText = _summary.get_effect_text()
+	if not _has_outcome_key_focus():
+		# Only the column is the panel's to hide: a hovered keyword keeps its tooltip.
+		if not _column_ids.is_empty():
+			_column_ids = PackedStringArray()
+			lines.hide_tooltips()
+		return
+	var ids: PackedStringArray = lines.get_keyword_ids()
+	if ids == _column_ids and lines.get_shown_tooltips().size() == ids.size():
+		return
+	_column_ids = ids
+	lines.show_tooltips(ids)
+
+
+# Whether Leave (or Fight) or Team holds focus a key or pad gave on the shown outcome, not a
+# click's hidden focus.
+func _has_outcome_key_focus() -> bool:
+	if _step != Step.OUTCOME or not _summary.is_visible_in_tree():
+		return false
+	var focused: Control = get_viewport().gui_get_focus_owner()
+	return (
+			(focused == _leave_button or focused == _team_button)
+			and focused.is_visible_in_tree() and focused.has_focus(true)
+	)
+
+
 func _is_coop() -> bool:
 	return _session != null and _session.seats.size() > 1
 
@@ -600,6 +715,14 @@ func _on_event_chooser_entry_chosen(entry_id: String) -> void:
 	_next_pick()
 
 
+func _on_event_hand_over_panel_hand_over_chosen(hand_over: Dictionary) -> void:
+	_choice.hand_over.clear()
+	for item_id: Variant in hand_over:
+		_choice.hand_over[item_id as String] = hand_over[item_id] as int
+	_is_handed_over = true
+	_next_pick()
+
+
 func _on_placement_panel_placement_chosen(placement: ItemPlacement) -> void:
 	_choice.placements[_item_blocks[_next_block]] = placement
 	_next_block += 1
@@ -616,3 +739,11 @@ func _on_leave_button_pressed() -> void:
 
 func _on_team_button_pressed() -> void:
 	team_requested.emit()
+
+
+func _on_viewport_gui_focus_changed(_control: Control) -> void:
+	_refresh_keywords()
+
+
+func _on_summary_meta_hover_changed(_meta: Variant) -> void:
+	_refresh_keywords()

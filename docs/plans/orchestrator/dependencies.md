@@ -263,7 +263,7 @@ flowchart LR
   class EV4,EV1G done
   class EV6,UL9 done
   class NT3,NT4 done
-  class NT5 ready
+  class NT5 active
   class NT6,NT8,CO13,CO14,CO15,CO16,CO17,CO18,CO19,CO21 waiting
   class CO9,CO10,CO1,CO6,CO12,CO2,CO7,CO5 done
   class CO3,CO4,CO8 ready
@@ -341,6 +341,7 @@ mark it **Open** here.
 | P09 EV1G Replace pick on the event screen | EV1F ✅; EV3 ✅ | EV1F added `EventChoice.replaced_id` but the screen has no "which unit leaves?" step: a recruit into a full army is refused with its reason, and the fallen chooser greys every unit while the army is full (question 35) | **Done**: merged November 20, 2026: `EventPanel.Step.LEAVING = 8`, reusing `EventChooser`; a revive picks the fallen unit, then the one that leaves; unsaved, like placements; P09 questions 60–62 |
 | P09 EV2, EV3, EV5 | EV1 ✅ (November 19, 2026); P08 RN5 ✅; **EV2 ✅** (merged November 19, 2026: the `events` section, CAMPAIGN v1; `EventNode.open()` for RN10, `EventNode.view()` / `open_chooser()` / `choose()` for EV3; `CampaignFact.Kind` 16–18) | EV2 adds the `events` save section; it fills `EventRolls.curse_id` (the tier draw) and the rare heirloom, saves `EventRolls`, and calls `EventResolver.roll` when the event is made (EV1 report) | **Open**: EV5 ✅ (merged November 19, 2026: votes, the weighted TEAM_CHOICE draw, every-seat requirements; `EventNode.vote()`, the view's `is_team_vote`, `votes`, `drawn`, `vote_count`; `CampaignFact.Kind` 19–20). **EV3 ✅** (merged November 19, 2026: the event screen, `Screen.EVENT = 13`, the routing gaps closed; P09 questions 27–36). **EV4 ready** (Lane C): an option's `text` is what its card shows as its outcomes. EV3 also routes an open event to the event screen in `run_screen.gd` (today both go to the placeholder), and takes `ui/campaign/run_screen.gd`'s routing of an Unknown node with a pending surprise combat to the battle screen (EV2 estimate) |
 | P09 EV4 Content, EV6 Docs | EV3; P03 CT4, CT5, CT8, CT9 (curse copies must stack), CT13 | The events name real items, prefixes, curses and units | **EV4 ✅** (merged November 20, 2026, 7,038 cases: the 13 events in `data/events/`, `goblet_infusion.tres` (BUG-021), nine Godot_FE backgrounds, `EffectCatalog` skips `data/events/`; P09 questions 43–50). **EV6 ✅** (merged November 20, 2026: events.md's ids and rule readings, save-system.md's events and heirlooms rows, the 450 capture group on real events; P09 questions 63–65). **P09 complete.** |
+| P09 EV7 The hand-over at events (RF-033) | CO12 ✅ | Reuses the Guildhall's `HandOverRow` | **Done** (merged November 23, 2026, 8,085 cases: the hand-over step after "which unit leaves?", the event choice's 6th wire field, Mercenary Camp's recruit rolled at event creation (`rolls.prefixes`, `events` still v1), the outcome summary's keyword column on focus, the hint on Team; P09 questions 66–71) |
 | P03 CT12 Weapon modifications | P09 EV1 (the outcome blocks); P03 question 33 | Weapons never generate with a prefix; only events and later run sources apply one | Waiting on EV1 |
 | P02 CC10 Battle resume | P02 CC8 ✅; P04 MP8 ✅ | Restores the saved sections into a rebuilt battle | **Open** November 3, 2026; built ✅ (November 5, 2026) |
 | P04 MP1–MP3, MP6 | P04 approved ✅ (October 27, 2026) | — | **Open** October 27, 2026; MP1–MP3 built October 28, 2026; MP6 built October 29, 2026, so MP7 may start; MP7 built October 29, 2026 |
