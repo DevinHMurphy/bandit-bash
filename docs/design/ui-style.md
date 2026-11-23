@@ -135,3 +135,34 @@ licence files:
 Tweens only (no new animation in the MVP). Panels fade and slide in over 150 ms; stage changes
 (the victory sequence, phase banners) over 250 ms; everything skippable follows the battle's
 playback speed and skip.
+
+## Profile marks
+
+Every unit's HP bar ends in a `ProfileMark` (RF-039; P15 UL11 decisions, questions 29 to 35). Its
+shape gives the held weapon's triangle profile, and its style gives the unit's side, so both read
+in greyscale and for a colour-blind player. It replaces UL6's side shape (a circle for the player
+side, a diamond for the enemy).
+
+| Profile | Shape |
+|---------|-------|
+| Power | a square |
+| Balance | a circle |
+| Nimble | an upward triangle |
+| None (bows, gauntlets, the Shieldmace) | a short horizontal bar, half as tall as it is wide |
+
+- **The side rule:** the player side's mark is filled in `block`; the enemy's is a 2-unit hollow
+  outline in `danger` (brighter than `danger_fill`, so a thin line reads on dark tiles). Both
+  carry a 1-unit `bg` edge just outside the shape, so they read on any tile. A unit on neither
+  side (a map object standing as a unit) shows no mark.
+- **Size:** 14 units, the bar 14 × 7, left of the HP bar with the edge clear of it.
+- **It follows the weapon in hand:** it changes as each `WEAPON_SWAPPED` plays (the only fact that
+  changes a held weapon in battle), from that fact's weapon.
+- **Elsewhere:** the unit detail's Weapon and Stowed rows lead their profile line with the same
+  mark, in the unit's side's style. The board key (the pause menu's Board Key, on the battle
+  screen only) has a row per shape, naming the profile each beats, then the side rule.
+- **The greyscale check:** capture group `336_battle_profile_marks` shoots the board with every
+  profile on both sides, then the same board through a luminance overlay. In greyscale every
+  shape keeps its silhouette from the dark edge, and a player mark reads as a lighter solid fill.
+  `danger` is close to the grass tiles' brightness, so on grass an enemy mark reads as a dark
+  outline with the tile showing through: it differs from a filled mark by its open middle, not
+  by the shade of its band.

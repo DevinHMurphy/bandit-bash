@@ -1,9 +1,10 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://ui/battle/unit/detail/detail_gear_row.gd" id="1_row"]
 [ext_resource type="Theme" path="res://ui/theme/battle_theme.tres" id="2_theme"]
 [ext_resource type="PackedScene" path="res://ui/campaign/victory/reward_icon.tscn" id="3_icon"]
 [ext_resource type="PackedScene" path="res://ui/common/text/effect_text.tscn" id="4_text"]
+[ext_resource type="PackedScene" path="res://ui/battle/unit/profile_mark.tscn" id="5_mark"]
 
 [node name="DetailGearRow" type="HBoxContainer"]
 focus_mode = 2
@@ -37,8 +38,19 @@ layout_mode = 2
 theme_type_variation = &"HudText"
 autowrap_mode = 3
 
-[node name="Detail" parent="Lines" instance=ExtResource("4_text")]
+[node name="DetailLine" type="HBoxContainer" parent="Lines"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="ProfileMark" parent="Lines/DetailLine" instance=ExtResource("5_mark")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_vertical = 0
+
+[node name="Detail" parent="Lines/DetailLine" instance=ExtResource("4_text")]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(160, 0)
 layout_mode = 2
+size_flags_horizontal = 3
 theme_type_variation = &"EffectTextMuted"

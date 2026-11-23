@@ -6,11 +6,12 @@
 # File:     pause_menu.gd
 # Author:
 # Created:  October 14, 2026
-# Modified: November 19, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends CanvasLayer
-## In-game pause menu: Resume, Save & Quit, or Leave, under the run's seed.
+## In-game pause menu: Resume, Save & Quit, or Leave, under the run's seed; on the battle screen
+## also Board Key, which shows the [BoardKey] in the buttons' place ([member board_key_scene]).
 ##
 ## Save & Quit saves through [code]SaveService.save_checkpoint()[/code] (the mid-battle save too)
 ## and leaves for the Main Menu only once that succeeds; on failure it says so and stays. With no
@@ -25,8 +26,9 @@ extends CanvasLayer
 
 # ============================================================
 # INPUT MAP SETUP (built-in action, overridden in project.godot's [input] to add its pad buttons):
-#   "ui_cancel"  -> Escape; pad B [Circle],   (opens the menu; closes it again while open)
-#                   Menu [Options]
+#   "ui_cancel"  -> Escape; pad B [Circle],   (opens the menu; closes it again while open; while
+#                   Menu [Options]             the board key shows, goes back to the buttons
+#                                              instead, focus on Board Key)
 #   "ui_up" / "ui_down" / "ui_accept"         (not read here: the GUI moves focus between the
 #                                              buttons and presses the focused one, by key, d-pad,
 #                                              stick or A [Cross])
@@ -39,10 +41,20 @@ extends CanvasLayer
 # Nothing else is read here: the buttons are mouse and focus driven.
 # ============================================================
 
+## The board key Board Key opens ([BoardKey]); the battle screen sets it.[br]
+## [b]Unset:[/b] the menu has no Board Key button (every screen but the battle's).
+@export var board_key_scene: PackedScene = null
+
 # The control that had focus when the menu opened, given it back on close; null for none.
 var _focus_before: Control = null
 
+# The key built from board_key_scene, in the panel beside the column; null with none.
+var _board_key: BoardKey = null
+
 @onready var _root: Control = %Root
+@onready var _panel: Control = %Panel
+@onready var _column: Control = %Column
+@onready var _board_key_button: Button = %BoardKeyButton
 @onready var _status_label: Label = %Status
 @onready var _seed_label: Label = %Seed
 @onready var _resume_button: Button = %ResumeButton
@@ -56,6 +68,7 @@ func _ready() -> void:
 	_resume_button.pressed.connect(close)
 	_save_quit_button.pressed.connect(_on_save_quit_button_pressed)
 	_leave_button.pressed.connect(_on_leave_button_pressed)
+	_build_board_key()
 	_invite_dialog.confirmed.connect(_on_invite_dialog_confirmed)
 	_invite_dialog.canceled.connect(_on_invite_dialog_canceled)
 	SceneRouter.invite_confirmation_requested.connect(
@@ -77,7 +90,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not event.is_action_pressed(&"ui_cancel"):
 		return
 	get_viewport().set_input_as_handled()
-	if _root.visible:
+	if is_board_key_open():
+		close_board_key()
+	elif _root.visible:
 		close()
 	else:
 		open()
@@ -108,7 +123,9 @@ func open() -> void:
 
 
 ## Hides the menu and unpauses, giving focus back to the control that had it when it opened.
+## The board key closes with it, so the menu opens on its buttons next time.
 func close() -> void:
+	_show_board_key(false)
 	_root.visible = false
 	get_tree().paused = false
 	if is_instance_valid(_focus_before) and _focus_before.is_visible_in_tree():
@@ -117,16 +134,46 @@ func close() -> void:
 
 
 ## While the menu is open and its invite question isn't, gives its first button focus when none of
-## its buttons has it. [method Node._process] calls it each frame; tests call it to stand for one.
-## Returns whether it moved focus.
+## its buttons has it, or the board key's Back while the key shows. [method Node._process] calls
+## it each frame; tests call it to stand for one. Returns whether it moved focus.
 func keep_focus() -> bool:
 	if not _root.visible or _invite_dialog.visible:
 		return false
 	var focused: Control = _root.get_viewport().gui_get_focus_owner()
 	if focused != null and _root.is_ancestor_of(focused):
 		return false
-	_first_button().grab_focus()
+	if is_board_key_open():
+		_board_key.focus_first()
+	else:
+		_first_button().grab_focus()
 	return true
+
+
+## Shows the board key in the buttons' place, focus on its Back; nothing without a key or while
+## the menu is closed.
+func open_board_key() -> void:
+	if _board_key == null or not _root.visible:
+		return
+	_show_board_key(true)
+	_board_key.focus_first()
+
+
+## Shows the buttons again in the board key's place, focus on Board Key.
+func close_board_key() -> void:
+	if not is_board_key_open():
+		return
+	_show_board_key(false)
+	_board_key_button.grab_focus()
+
+
+## Whether the board key shows.
+func is_board_key_open() -> bool:
+	return _board_key != null and _board_key.visible and _root.visible
+
+
+## The board key built from [member board_key_scene]; null with none.
+func get_board_key() -> BoardKey:
+	return _board_key
 
 
 # Focuses the first button, deferred from open() so the button is laid out first; by then the
@@ -147,7 +194,7 @@ func _first_button() -> Button:
 # widget under the menu; left and right stay put.
 func _link_focus() -> void:
 	var column: Array[Button] = []
-	for button: Button in [_resume_button, _save_quit_button, _leave_button]:
+	for button: Button in [_resume_button, _board_key_button, _save_quit_button, _leave_button]:
 		if button.visible:
 			column.append(button)
 	for i: int in column.size():
@@ -165,6 +212,31 @@ func _link_focus() -> void:
 ## The seed line's text, for tests; empty while it is hidden.
 func get_seed_text() -> String:
 	return _seed_label.text if _seed_label.visible else ""
+
+
+# Builds the key from board_key_scene into the panel, hidden, and shows Board Key for it.
+func _build_board_key() -> void:
+	if board_key_scene == null:
+		return
+	_board_key = board_key_scene.instantiate() as BoardKey
+	if _board_key == null:
+		push_error("PauseMenu: board_key_scene is no BoardKey - %s" % [
+			board_key_scene.resource_path,
+		])
+		return
+	_board_key.visible = false
+	_panel.add_child(_board_key)
+	_board_key.back_pressed.connect(close_board_key)
+	_board_key_button.visible = true
+	_board_key_button.pressed.connect(open_board_key)
+
+
+# Shows the key (is_shown) or the buttons in the panel; the other hides.
+func _show_board_key(is_shown: bool) -> void:
+	if _board_key == null:
+		return
+	_board_key.visible = is_shown
+	_column.visible = not is_shown
 
 
 func _on_save_quit_button_pressed() -> void:
