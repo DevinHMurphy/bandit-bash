@@ -10,21 +10,18 @@
 # ==============================================================================
 
 extends Node
-## Steam lobby host and join, and the bridge from a Steam lobby to Godot's MultiplayerAPI.
-##
-## Registered as autoload [code]SteamNetwork[/code], after [code]SteamManager[/code]. Once the
-## peer is a [code]SteamMultiplayerPeer[/code], every [code]@rpc[/code] works as over ENet.[br]
-## [b]Session helpers:[/b] [method has_active_session], [method is_authoritative] and
-## [method local_peer_id] answer for solo play and hosting alike, through [NetGate]. No "am I
-## host" flag: one could disagree with [code]multiplayer.is_server()[/code].[br]
-## [b]Admission:[/b] a connecting client sends its game version and build fingerprint
-## ([NetContract]); the host checks them with [LobbyAdmission] and the connection's Steam id.
-## Only admitted machines are members; the host builds the list and broadcasts it (kit P15).[br]
-## [b]Invites:[/b] held in [member pending_invite_lobby_id], announced by
-## [signal invite_received]; [code]SceneRouter[/code] decides when to act on them.[br]
-## [b]A lost host mid-run:[/b] a client holding the host's replica keeps it, and its screen, and
-## rejoins the same lobby every [constant RECONNECT_INTERVAL] s ([method is_reconnecting]); the
-## session ends, as for any lost host, once the lobby is gone, has another owner, or refuses it.
+## Steam lobby host and join, and the bridge from a Steam lobby to Godot's MultiplayerAPI. Autoload
+## [code]SteamNetwork[/code], after [code]SteamManager[/code]. [method has_active_session],
+## [method is_authoritative] and [method local_peer_id] answer for solo and hosting alike
+## ([NetGate]); no "am I host" flag, which could disagree with [code]is_server()[/code].[br]
+## [b]Admission:[/b] the host checks a client's version, build fingerprint ([NetContract]) and
+## connection's Steam id ([LobbyAdmission]); only admitted machines are members, a list it
+## broadcasts (kit P15). [b]Invites[/b] wait in [member pending_invite_lobby_id] for SceneRouter.
+## [b]A lost host mid-run:[/b] a client holding its replica keeps it and its screen, and rejoins
+## the lobby every [constant RECONNECT_INTERVAL] s until it is gone, has another owner or refuses.
+## [b]ENet dev transport[/b] (debug builds): with [code]-- --enet-host=<port>[/code] or
+## [code]-- --enet-join=<address>:<port>[/code], entering the lobby hosts or joins on ENet instead;
+## each peer's id stands in for its Steam id, and a lost host ends the session.
 ##
 ## @tutorial(Save system design): docs/design/save-system.md
 
@@ -74,6 +71,13 @@ enum _Rejoin {
 	END,
 }
 
+# What the debug command line asks of the ENet dev transport (_DevLink). Never sent.
+enum _DevRole {
+	NONE,
+	HOST,
+	JOIN,
+}
+
 ## Steam lobby visibility. Friends-only suits "play with friends"; a public lobby plus lobby data
 ## and search is needed for matchmaking.
 const LOBBY_TYPE: int = Steam.LOBBY_TYPE_FRIENDS_ONLY
@@ -98,6 +102,17 @@ const RECONNECT_INTERVAL: float = 1.0
 # reason arrives first. The client also leaves by itself on receiving it.
 # ASSUMPTION: no basis for this value; long enough for one reliable message on a normal link.
 const _REFUSAL_DISCONNECT_SECONDS: float = 1.0
+
+# Debug builds only: user arguments (after --) putting the lobby on ENet instead of Steam, so two
+# instances play on one machine (kit testing guide §6). One --name=value token each, as
+# SaveService's --run-seed=; a host's port 0 takes any free port, which its log line gives.
+const _ENET_HOST_ARG: String = "--enet-host="
+const _ENET_JOIN_ARG: String = "--enet-join="
+# The dev host listens on this machine's loopback only: the transport is for one machine.
+const _ENET_BIND_ADDRESS: String = "127.0.0.1"
+const _MAX_PORT: int = 65535
+# The lobby id an ENet session reports, so has_active_session() holds (kit §6). No Steam lobby.
+const _DEV_LOBBY_ID: int = 1
 
 ## Steam lobby id this machine is in, or 0 when not in a lobby.
 ##
@@ -131,6 +146,10 @@ var _rejoin_host_id: int = 0
 var _rejoin_clock: float = 0.0
 var _is_rejoin_asked: bool = false
 
+# What the command line asks of the ENet dev transport, and whether the session is on it now.
+var _dev_link: _DevLink = null
+var _is_dev_session: bool = false
+
 
 func _ready() -> void:
 	Steam.lobby_created.connect(_on_steam_lobby_created)
@@ -152,6 +171,13 @@ func _ready() -> void:
 			"Build fingerprint %d, computed in %.1f ms."
 			% [contract, NetContract.build_usec() / 1000.0]
 	)
+
+	_dev_link = _dev_link_of(OS.get_cmdline_user_args(), OS.is_debug_build())
+	if not _dev_link.problem.is_empty():
+		NetLog.warn(NetLog.Category.LOBBY, "ENet dev transport: %s." % [_dev_link.problem])
+	if _dev_link.role != _DevRole.NONE:
+		# SceneRouter is registered after this autoload.
+		_follow_router.call_deferred()
 
 
 # A reconnecting client tries the lost host's lobby again once an interval has passed since Steam
@@ -259,10 +285,15 @@ func leave_lobby() -> void:
 ## Steam ids of every lobby member, this machine included, in Steam's order.
 ##
 ## Empty when not in a lobby. Steam ids are not Godot peer ids. Includes machines the host hasn't
-## admitted yet; use [method get_members] for the admitted list.
+## admitted yet; use [method get_members] for the admitted list. On the ENet dev transport, with
+## no Steam lobby, the admitted members' stand-in ids.
 func get_lobby_members() -> Array[int]:
 	var members: Array[int] = []
 	if current_lobby_id == 0:
+		return members
+	if _is_dev_session:
+		for steam_id: int in _member_steam_ids:
+			members.append(steam_id)
 		return members
 
 	var count: int = Steam.getNumLobbyMembers(current_lobby_id)
@@ -271,17 +302,21 @@ func get_lobby_members() -> Array[int]:
 	return members
 
 
-## Steam id of the current lobby's host, or 0 when not in a lobby.
+## Steam id of the current lobby's host, or 0 when not in a lobby; on the ENet dev transport, the
+## host's stand-in, its peer id.
 func get_lobby_owner() -> int:
 	if current_lobby_id == 0:
 		return 0
+	if _is_dev_session:
+		return MultiplayerPeer.TARGET_PEER_SERVER
 	return Steam.getLobbyOwner(current_lobby_id)
 
 
-## Display name for [param steam_id].
-##
-## Remote names come from Steam's cache and may lag a join briefly.
+## Display name for [param steam_id]: "Player <id>" on the ENet dev transport, which has no
+## Steam names. Remote names come from Steam's cache and may lag a join briefly.
 func get_member_name(steam_id: int) -> String:
+	if _is_dev_session:
+		return "Player %d" % [steam_id]
 	if steam_id == Steam.getSteamID():
 		return Steam.getPersonaName()
 	return Steam.getFriendPersonaName(steam_id)
@@ -290,8 +325,10 @@ func get_member_name(steam_id: int) -> String:
 ## Steam id of the machine behind Godot peer [param peer_id], or 0 when unknown.
 ##
 ## Comes from the Steam connection, so a client can't fake it. This machine's own id is answered
-## directly.
+## directly. On the ENet dev transport, with no Steam accounts, the peer id itself stands in.
 func get_peer_steam_id(peer_id: int) -> int:
+	if _is_dev_session:
+		return peer_id
 	if not SteamManager.is_available:
 		return 0
 	if peer_id == local_peer_id():
@@ -339,8 +376,8 @@ func set_required_steam_ids(steam_ids: PackedInt64Array) -> void:
 
 ## Opens the Steam overlay's invite dialog for the current lobby. Needs Steam and a lobby.
 func invite_friends() -> void:
-	if not SteamManager.is_available or current_lobby_id == 0:
-		NetLog.warn(NetLog.Category.LOBBY, "Cannot invite, no lobby.")
+	if not SteamManager.is_available or current_lobby_id == 0 or _is_dev_session:
+		NetLog.warn(NetLog.Category.LOBBY, "Cannot invite, no Steam lobby.")
 		return
 	Steam.activateGameOverlayInviteDialog(current_lobby_id)
 
@@ -369,14 +406,14 @@ func check_launch_invite() -> void:
 ## The game version a lobby advertises, or "" when Steam hasn't delivered its data yet (see
 ## [method request_lobby_data]).
 func get_lobby_version(lobby_id: int) -> String:
-	if not SteamManager.is_available or lobby_id == 0:
+	if not SteamManager.is_available or lobby_id == 0 or _is_dev_lobby(lobby_id):
 		return ""
 	return Steam.getLobbyData(lobby_id, LOBBY_DATA_VERSION_KEY)
 
 
 ## Asks Steam for a lobby's data without joining; [signal lobby_data_updated] reports arrival.
 func request_lobby_data(lobby_id: int) -> void:
-	if SteamManager.is_available and lobby_id != 0:
+	if SteamManager.is_available and lobby_id != 0 and not _is_dev_lobby(lobby_id):
 		Steam.requestLobbyData(lobby_id)
 
 
@@ -413,9 +450,13 @@ func _receive_invite(lobby_id: int) -> void:
 
 
 # Leaves the Steam lobby and drops the peer and the member list, announcing nothing but the list.
+# An ENet dev peer is closed too, so the other end hears it at once.
 func _drop_connection() -> void:
-	if current_lobby_id != 0:
+	if _is_dev_session:
+		_peer.close()
+	elif current_lobby_id != 0:
 		Steam.leaveLobby(current_lobby_id)
+	_is_dev_session = false
 	current_lobby_id = 0
 	_peer = null
 	multiplayer.multiplayer_peer = null
@@ -443,6 +484,71 @@ func _end_reconnect(why: String) -> void:
 	NetLog.warn(NetLog.Category.LOBBY, "Giving up on the host: %s." % [why])
 	leave_lobby()
 	session_ended.emit()
+
+
+# Hosts on ENet at port (0: any free one) on this machine's loopback, as host_lobby() does on
+# Steam: this machine is the only member until clients are admitted.
+func _start_dev_host(port: int) -> void:
+	var peer: ENetMultiplayerPeer = ENetMultiplayerPeer.new()
+	peer.set_bind_ip(_ENET_BIND_ADDRESS)
+	var err: Error = peer.create_server(port, DEFAULT_MAX_PLAYERS - 1)
+	if err != OK:
+		NetLog.error(
+				NetLog.Category.LOBBY,
+				"Cannot host on ENet port %d - %s" % [port, error_string(err)]
+		)
+		lobby_created.emit(false)
+		return
+	_is_dev_session = true
+	current_lobby_id = _DEV_LOBBY_ID
+	_peer = peer
+	multiplayer.multiplayer_peer = _peer
+	_member_peer_ids = PackedInt64Array([local_peer_id()])
+	_member_steam_ids = PackedInt64Array([get_peer_steam_id(local_peer_id())])
+	_member_ready = PackedByteArray([0])
+	NetLog.info(
+			NetLog.Category.LOBBY,
+			"Hosting on ENet %s:%d (dev transport), unique_id=%d is_server=%s"
+			% [
+				_ENET_BIND_ADDRESS, peer.host.get_local_port(), multiplayer.get_unique_id(),
+				multiplayer.is_server(),
+			]
+	)
+	lobby_created.emit(true)
+	lobby_members_changed.emit()
+	lobby_state_changed.emit()
+
+
+# Joins an ENet host at address:port, as join_lobby() does on Steam; admission follows once the
+# connection is up.
+func _start_dev_join(address: String, port: int) -> void:
+	var peer: ENetMultiplayerPeer = ENetMultiplayerPeer.new()
+	var err: Error = peer.create_client(address, port)
+	if err != OK:
+		NetLog.error(
+				NetLog.Category.LOBBY,
+				"Cannot join ENet %s:%d - %s" % [address, port, error_string(err)]
+		)
+		lobby_joined.emit(false)
+		return
+	_is_dev_session = true
+	current_lobby_id = _DEV_LOBBY_ID
+	_host_steam_id = MultiplayerPeer.TARGET_PEER_SERVER
+	_peer = peer
+	multiplayer.multiplayer_peer = _peer
+	NetLog.info(
+			NetLog.Category.LOBBY, "Joining ENet %s:%d (dev transport)..." % [address, port]
+	)
+	lobby_joined.emit(true)
+	lobby_members_changed.emit()
+
+
+func _follow_router() -> void:
+	SceneRouter.screen_changed.connect(_on_scene_router_screen_changed)
+
+
+func _is_dev_lobby(lobby_id: int) -> bool:
+	return _is_dev_session and lobby_id == _DEV_LOBBY_ID
 
 
 func _clear_members() -> void:
@@ -646,6 +752,18 @@ func _on_steam_lobby_data_update(_success: int, lobby_id: int, _member_id: int) 
 	lobby_data_updated.emit(lobby_id)
 
 
+# The command line's ENet dev transport opens with the lobby, where a player hosts or joins, since
+# the menus before it leave any session (SceneRouter.goto_screen()).
+func _on_scene_router_screen_changed(screen: SceneRouter.Screen) -> void:
+	if screen != SceneRouter.Screen.LOBBY or current_lobby_id != 0 or is_reconnecting():
+		return
+	match _dev_link.role:
+		_DevRole.HOST:
+			_start_dev_host(_dev_link.port)
+		_DevRole.JOIN:
+			_start_dev_join(_dev_link.address, _dev_link.port)
+
+
 func _on_multiplayer_peer_connected(peer_id: int) -> void:
 	NetLog.info(
 			NetLog.Category.LOBBY,
@@ -677,17 +795,26 @@ func _on_multiplayer_connected_to_server() -> void:
 	_request_admission.rpc_id(1, SaveFile.get_running_version(), NetContract.fingerprint())
 
 
-# A reconnecting client's failed connection is one more failed attempt: it tries again.
+# A reconnecting client's failed connection is one more failed attempt: it tries again. An ENet
+# dev join that can't reach its host leaves, so the lobby screen offers its buttons again.
 func _on_multiplayer_connection_failed() -> void:
 	NetLog.error(NetLog.Category.LOBBY, "Connection to host failed.")
 	if is_reconnecting():
 		_drop_connection()
+	elif _is_dev_session:
+		leave_lobby()
 
 
-# A client in a run (it holds the host's replica) tries to get back; any other ends the session.
+# A client in a run (it holds the host's replica) tries to get back; any other ends the session,
+# as does any on the ENet dev transport, which has no lobby to rejoin.
 func _on_multiplayer_server_disconnected() -> void:
 	NetLog.warn(NetLog.Category.LOBBY, "Disconnected from host.")
-	if SaveService.multiplayer_replica != null and current_lobby_id != 0 and _host_steam_id != 0:
+	var is_in_run: bool = (
+			SaveService.multiplayer_replica != null
+			and current_lobby_id != 0
+			and _host_steam_id != 0
+	)
+	if is_in_run and not _is_dev_session:
 		_begin_reconnect()
 		return
 	leave_lobby()
@@ -705,6 +832,48 @@ static func _rejoin_verdict(response: int, owner_id: int, host_id: int, own_id: 
 	if owner_id == own_id or owner_id != host_id:
 		return _Rejoin.END
 	return _Rejoin.ENTER
+
+
+# What the user arguments args ask of the ENet dev transport: one host or one join, else nothing,
+# with why in its problem when they asked for something it won't do (any of it outside a debug
+# build, both or a repeat, a port outside 0-65535 for a host or 1-65535 for a join, no address).
+static func _dev_link_of(args: PackedStringArray, is_debug: bool) -> _DevLink:
+	var link: _DevLink = _DevLink.new()
+	var asked: PackedStringArray = []
+	for arg: String in args:
+		if arg.begins_with(_ENET_HOST_ARG) or arg.begins_with(_ENET_JOIN_ARG):
+			asked.append(arg)
+	if asked.is_empty():
+		return link
+	if not is_debug:
+		link.problem = "%s ignored outside a debug build" % [" ".join(asked)]
+		return link
+	if asked.size() > 1:
+		link.problem = "give one of %s and %s, once" % [_ENET_HOST_ARG, _ENET_JOIN_ARG]
+		return link
+	var is_host: bool = asked[0].begins_with(_ENET_HOST_ARG)
+	var value: String = asked[0].trim_prefix(_ENET_HOST_ARG if is_host else _ENET_JOIN_ARG)
+	var address: String = ""
+	var port_text: String = value
+	if not is_host:
+		var colon: int = value.rfind(":")
+		address = value.left(maxi(colon, 0))
+		port_text = value.substr(colon + 1) if colon >= 0 else ""
+	var lowest_port: int = 0 if is_host else 1
+	if (
+			not port_text.is_valid_int()
+			or port_text.to_int() < lowest_port
+			or port_text.to_int() > _MAX_PORT
+			or (not is_host and address.is_empty())
+	):
+		link.problem = "%s isn't a %s" % [
+			asked[0], "port" if is_host else "<address>:<port>",
+		]
+		return link
+	link.role = _DevRole.HOST if is_host else _DevRole.JOIN
+	link.address = address
+	link.port = port_text.to_int()
+	return link
 
 
 ## One admitted lobby member.
@@ -729,3 +898,14 @@ class FriendLobby:
 	var friend_name: String = ""
 	## The lobby to join.
 	var lobby_id: int = 0
+
+
+# The ENet dev transport the debug command line asks for (_dev_link_of()).
+class _DevLink:
+	extends RefCounted
+
+	var role: _DevRole = _DevRole.NONE
+	var address: String = ""
+	var port: int = 0
+	# Why the arguments asked for something the transport won't do; empty when they didn't.
+	var problem: String = ""

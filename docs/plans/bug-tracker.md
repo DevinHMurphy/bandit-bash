@@ -74,6 +74,7 @@ Not a bug.
 | [BUG-039](#bug-039-loot-found-on-a-map-never-reaches-the-run) | Loot found on a battle map (`MapState.found`) is never given to the run at the battle's end, and is filed under the looting unit's seat rather than the map owner's | P04 / P08 (map loot, battle end) | S2 (solo too: confirmed by CO14, all map loot was lost) | Fixed (CO14 merge, November 23, 2026) | November 23, 2026, CO8 report | Lane B (with CO14) |
 | [BUG-040](#bug-040-a-1-seat-multiplayer-run-that-loses-never-ends) | A 1-seat multiplayer run that loses its battle never ends | P11 (run end) | S4 | Fixed (CO14 merge, November 23, 2026) | November 23, 2026, CO8 report | Lane B (with CO14) |
 | [BUG-041](#bug-041-skipping-playback-never-stops-for-key-moments) | Skipping playback never stops for key moments: `FactPlayback.pause_hook` is never set, though `battle_view.gd`'s skip doc says the skip stops for them | P07 (playback) | S3 | Open | November 23, 2026, CO15 report | Lane A (with EN19) |
+| [BUG-042](#bug-042-the-enet-pair-case-times-out-under-full-run-load) | The ENet pair case ("two instances on one machine play a battle to its end") times out at its 150 s step limit during a full run while other builds run on the machine; it passes alone | P10 (tests) | S4 (test only) | Open | November 23, 2026, NT7 merge | BF11 (Lane E) |
 
 ### BUG-001 No Block at the start of combat
 
@@ -577,3 +578,12 @@ Not a bug.
   `battle_view.gd`'s skip doc says it does.
 - **Fix:** decide which (set the hook for the key moments the vision names, or correct the doc),
   then build it with a case; solo and co-op alike.
+
+### BUG-042 The ENet pair case times out under full-run load
+
+- **Found** at NT7's merge: in the full run (every suite in parallel, with two other builds running
+  on the machine), `enet_dev_cases.gd`'s two headless instances reached the PLAY step but neither
+  ended within 150 s. The net suite run alone passed, 264 cases. A known flake until fixed: rerun
+  `net` alone.
+- **Fix:** make the case hold under load (a limit that scales or a longer one, kept under the
+  suite's 450 s), and report the step reached when it fails; no change to the game.
