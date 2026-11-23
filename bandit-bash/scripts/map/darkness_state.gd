@@ -306,8 +306,8 @@ func _is_held(state: CombatState, lit: Array[Vector2i], tile: Vector2i) -> bool:
 
 # The keys of costs by cost, ties row-major, so waves enter (and callers record) in the order the
 # darkness reaches them.
-# ASSUMPTION: the-darkness.md doesn't order a wave's entries within one step; nearest first, then
-# row-major, also orders the darkness step's facts.
+# A wave's entries within one step go nearest first, then row-major, which also orders the
+# darkness step's facts.
 static func _flow_order(costs: Dictionary[Vector2i, int]) -> Array[Vector2i]:
 	var order: Array[Vector2i] = []
 	order.assign(costs.keys())

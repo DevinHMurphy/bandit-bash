@@ -14,6 +14,7 @@ script = ExtResource("5_area")
 center = 4
 shape = ExtResource("10_shape")
 side = 0
+is_your_units_only = true
 
 [sub_resource type="Resource" id="Resource_two"]
 script = ExtResource("6_const")

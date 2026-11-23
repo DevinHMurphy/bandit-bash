@@ -6,7 +6,7 @@
 # File:     heirloom_content_cases.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 20, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -177,7 +177,8 @@ const TEXT: Dictionary[String, Array] = {
 	],
 	# The commander counts: it is 0 tiles from itself.
 	"commanders_standard": [
-		"At Phase Start, give your commander and allies within 2 tiles of your commander 2 Block.",
+		"At Phase Start, give your commander and your units within 2 tiles of your commander 2"
+		+ " Block.",
 	],
 	"gilded_purse": ["+25% grade bonus."],
 	"merchants_ledger": ["+1 Armory item."],

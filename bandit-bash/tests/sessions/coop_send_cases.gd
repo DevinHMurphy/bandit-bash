@@ -6,15 +6,15 @@
 # File:     coop_send_cases.gd
 # Author:
 # Created:  November 22, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends "res://tests/sessions/sessions_case_base.gd"
 ## Co-op sends and calls for aid for tests/sessions/run_all.gd, in 2-, 3- and 4-seat encounters:
 ## each refusal of [SendUnitsCommand]; the battle clock; a send to a frozen map restarting it and
-## the visitor's seat ending the turn there; units sent back when their target ends first, sendable
-## again; the senders a map records; [CallForAidCommand] raised and lowered; a mirror following
-## every new fact hash for hash; version 3 data loading; a save and Continue mid-transfer; the save
+## the visitor's seat ending the turn there; units sent back when their target ends first or,
+## frozen, has no free tile, sendable again; the senders a map records; [CallForAidCommand] raised
+## and lowered; a mirror following every new fact hash for hash; version 3 data loading; a save and Continue mid-transfer; the save
 ## points on any map; the wire forms; and solo refusing both.
 ##
 ## Each map is its seat's fixture map with a Drengr at (0, 3) and a Brute at (3, 2), turn 1 open;
@@ -108,12 +108,12 @@ func _test_refusals(seat_count: int) -> bool:
 
 
 # "Send none" is final while no map is frozen; while one is, a send must take at least one unit to
-# a frozen map, and a seat that sent may send again, but a unit on its way can't go twice.
+# a frozen map, and a seat that sent may send again; with no free tile there, the unit comes back
+# (BUG-038). A unit on its way can't go twice.
 func _test_frozen_rules() -> bool:
 	var battle: Battle = _coop(3)
 	var winner: CombatSession = battle.encounter.get_session(0)
 	var drengr: String = _player_of(winner)
-	var archer: String = winner.state.units_of(PLAYER)[1]
 	_open(battle)
 	_resolve(battle, EndMapFixture.new(), 0)
 	_check("frozen rules: send none resolves", _reason_of(
@@ -136,13 +136,26 @@ func _test_frozen_rules() -> bool:
 	_check("frozen rules: a seat that sent may send again to it", _reason_of(
 			battle, SendUnitsCommand.new(0, PackedStringArray([drengr]), 2), 0
 	).is_empty())
-	_check("frozen rules: no free tile, so it waits and the map stays frozen", (
-			battle.encounter.units_in_transit() == PackedStringArray([drengr])
+	_check("frozen rules: no free tile, so it comes back and the map stays frozen", (
+			battle.encounter.units_in_transit().is_empty()
+			and battle.encounter.session_of_unit(drengr) == winner
 			and battle.encounter.is_frozen(2)
 	))
-	_check("frozen rules: a unit on its way can't go twice", _reason_of(
-			battle, SendUnitsCommand.new(0, PackedStringArray([drengr, archer]), 2), 0
-	) == "%s is already on its way" % [drengr])
+
+	# A unit on its way by the clock to a map still fought, when another map then freezes.
+	var clocked: Battle = _coop(3)
+	var clocked_winner: CombatSession = clocked.encounter.get_session(0)
+	var travelling: String = clocked_winner.state.units_of(PLAYER)[1]
+	_open(clocked)
+	_resolve(clocked, EndMapFixture.new(), 0)
+	_reason_of(clocked, SendUnitsCommand.new(0, PackedStringArray([travelling]), 1), 0)
+	_resolve(clocked, FellFixture.new(2, [_player_of(clocked.encounter.get_session(2))]), 2)
+	_check("frozen rules: a unit on its way can't go twice", (
+			clocked.encounter.units_in_transit() == PackedStringArray([travelling])
+			and _reason_of(clocked, SendUnitsCommand.new(
+					0, PackedStringArray([_player_of(clocked_winner), travelling]), 2
+			), 0) == "%s is already on its way" % [travelling]
+	))
 	return true
 
 
@@ -322,19 +335,14 @@ func _test_senders(seat_count: int) -> bool:
 	var last: int = seat_count - 1
 	var label: String = "senders %d seats" % [seat_count]
 	_open(battle)
-	_resolve(battle, FellFixture.new(last, [_player_of(battle.encounter.get_session(last))]), last)
 	_resolve(battle, EndMapFixture.new(), 0)
-	_fill_map(battle, last)
 	var first: String = _player_of(battle.encounter.get_session(0))
+	# By the clock, to a map still fought: it waits for that map's next player Phase Start.
 	_reason_of(battle, SendUnitsCommand.new(0, PackedStringArray([first]), last), 0)
 	_check("%s: none while it is on its way" % [label], (
 			battle.encounter.units_in_transit() == PackedStringArray([first])
 			and battle.encounter.senders_of(last).is_empty()
 	))
-	# Two tiles freed, one for each sender.
-	var receiving: CombatSession = battle.encounter.get_session(last)
-	for freed: int in 2:
-		receiving.state.defeat(receiving.engine, _enemy_of(receiving), "")
 	battle.encounter.deliver_arrivals(last)
 	var expected: PackedInt32Array = [0]
 	if seat_count > 2:
@@ -729,10 +737,6 @@ func _first_player_start(batch: CombatSession.FactBatch) -> CombatFact:
 
 func _player_of(session: CombatSession) -> String:
 	return session.state.units_of(PLAYER)[0]
-
-
-func _enemy_of(session: CombatSession) -> String:
-	return session.state.units_of(ENEMY)[0]
 
 
 static func _distance(a: Vector2i, b: Vector2i) -> int:

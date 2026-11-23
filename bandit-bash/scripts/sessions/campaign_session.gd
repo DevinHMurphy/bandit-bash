@@ -213,6 +213,7 @@ func begin_battle(request: BattleRequest) -> CombatEncounter:
 	for seat: int in request.armies:
 		_add_heirlooms(catalog, seat, request.armies[seat].heirloom_ids)
 	_register_carriers(battle, request)
+	_register_visitor_heirlooms(battle, request)
 	for session: CombatSession in battle.get_sessions():
 		DarknessSetup.place(session)
 	for seat: int in seats:
@@ -274,6 +275,7 @@ func resume_battle(request: BattleRequest, load_saved: Callable) -> CombatEncoun
 	for seat: int in request.armies:
 		_place_heirloom_stand_ins(battle, catalog, seat, request.armies[seat].heirloom_ids)
 	_register_carriers(battle, request)
+	_register_visitor_heirlooms(battle, request)
 	# With the army's effects registered as at Begin, so the darkness arrives as it did.
 	for session: CombatSession in battle.get_sessions():
 		DarknessSetup.place(session)
@@ -807,6 +809,20 @@ func _register_carriers(battle: CombatEncounter, request: BattleRequest) -> void
 		if not battle.add_cross_map(copy):
 			session.engine.register(copy)
 		_battle_copies[instance_id] = copy
+
+
+# Registers each swap visitor's owner's heirlooms and curses that follow its units on the map the
+# visitor deploys on (CombatEncounter.add_owner_effects), after _register_carriers put them on the
+# owner's own map and before deployment, which reads the visitor's Pouch item weight from them. A
+# sent unit's are added by the encounter at the send.
+func _register_visitor_heirlooms(battle: CombatEncounter, request: BattleRequest) -> void:
+	for seat: int in request.armies:
+		var army: Army = request.armies[seat]
+		var session: CombatSession = battle.session_of_seat(seat)
+		if army == null or session == null:
+			continue
+		for unit_id: String in army.visitor_seats:
+			battle.add_owner_effects(session.session_id, army.visitor_seats[unit_id])
 
 
 # Loads each of the army's unit instances (Loadout.load_unit) as its owner's (Army.owner_of; seat
