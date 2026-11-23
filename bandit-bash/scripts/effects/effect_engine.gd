@@ -128,11 +128,10 @@ var grants: Array[Grant] = []
 ## in [member diagnostics]. On in tests and debug builds, off in release.
 var verify: bool = OS.is_debug_build()
 
-## Where a unit placed here from another map brings its timed modifiers from: called as
-## [code]carried_modifiers.call(unit_id) -> Array[TimedModifier][/code] at its
-## [constant CombatFact.Kind.UNIT_SPAWNED], when recorded and when followed alike, so a mirror adds
-## them where the host did. Each is [method take_timed_modifiers]' copy from the map it left. Set
-## by [CombatEncounter]; unset, a placed unit brings none.
+## The timed modifiers a unit placed here brings from another map ([method take_timed_modifiers]
+## there): [code]carried_modifiers.call(unit_id) -> Array[TimedModifier][/code], called at its
+## [constant CombatFact.Kind.UNIT_SPAWNED] when recorded and when followed, so a mirror adds them
+## where the host did. Set by [CombatEncounter]; unset, a placed unit brings none.
 var carried_modifiers: Callable = Callable()
 
 var _instances: Dictionary[String, EffectInstance] = {}

@@ -20,8 +20,7 @@ extends RefCounted
 ## [b]Across maps:[/b] cross-map effects ([method add_cross_map]), whose counter and activation
 ## facts are mirrored into [member fact_log]; commands stamped by one clock ([method submit]),
 ## the co-op sends and calls for aid resolved here ([SendUnitsCommand], [CallForAidCommand]);
-## units on their way, landing by the battle clock with their timed modifiers and their owner's
-## Your Unit effects ([method add_owner_effects]), or going back when they can't.
+## units on their way, landing by the battle clock with their timed modifiers, or going back.
 ## In co-op an empty map freezes ([method is_frozen]) until help lands, and [method is_run_lost]
 ## says when none can.[br]
 ## [b]Snapshots[/b] ([method snapshot], [method load_snapshot]) hold the encounter's own state and
