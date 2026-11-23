@@ -134,15 +134,17 @@ func _process(delta: float) -> void:
 	_mirror.advance(delta)
 
 
-## Begins the battle [param request] describes, after the player presses Begin: sets it up
-## ([method CampaignSession.begin_battle]), then saves it with [method SaveService.begin_battle], so
-## the combat file holds the battle as set up. Returns [constant OK];
-## [constant ERR_UNCONFIGURED] with no session; [constant ERR_CANT_CREATE] when setup failed; or
-## the save error, with the battle dropped again.
+## Begins the battle [param request] describes, after the player presses Begin: each seat it left
+## without an opening-swap entry takes the one its player sent the host
+## ([method NetRelay.seat_settings]), the battle is set up ([method CampaignSession.begin_battle]),
+## then saved with [method SaveService.begin_battle], so the combat file holds it as set up.
+## Returns [constant OK]; [constant ERR_UNCONFIGURED] with no session; [constant ERR_CANT_CREATE]
+## when setup failed; or the save error, with the battle dropped again.
 func begin_battle(request: CampaignSession.BattleRequest) -> Error:
 	if session == null:
 		push_error("CampaignService: no run in progress to begin a battle in.")
 		return ERR_UNCONFIGURED
+	_fill_seat_settings(request)
 	if session.begin_battle(request) == null:
 		return ERR_CANT_CREATE
 	var err: Error = SaveService.begin_battle()
@@ -313,6 +315,37 @@ func submit_combat(command: Command, session_id: int) -> Array[CombatSession.Fac
 	return batches
 
 
+## Host only: [param seat], a non-host player, leaves the run for good, as a forfeit or, with
+## [param is_removed], the host's removal after a drop (P11 CO18 calls it for both). A forfeit's
+## archive record is built first ([method SaveService.archive_forfeit]); then the rules
+## ([method CampaignSession.forfeit_seat]); then the seat leaves the campaign's players and the
+## checkpoint is saved. A rejection changes nothing and drops the record. Returns the batch; null
+## with no session or on a client. A failed save is reported and the change kept in memory.
+func forfeit_seat(seat: int, is_removed: bool = false) -> CampaignBatch:
+	if session == null or _is_client():
+		push_error("CampaignService: only the host's run can lose a seat.")
+		return null
+	var is_member: bool = session.run != null and session.run.seats.has(seat)
+	if not is_removed and is_member and seat != CampaignData.HOST_SEAT:
+		SaveService.archive_forfeit(seat)
+	var batch: CampaignBatch = session.forfeit_seat(seat, is_removed)
+	if batch == null or batch.is_rejected():
+		SaveService.take_forfeit_record(seat)
+		return batch
+	var removed: Error = SaveService.remove_player(seat)
+	if removed != OK:
+		push_error("CampaignService: seat %d stayed in the campaign - %s" % [
+			seat, error_string(removed),
+		])
+	_sync_floor()
+	var err: Error = SaveService.save_checkpoint()
+	if err != OK:
+		push_error("CampaignService: saving seat %d's forfeit failed - %s" % [
+			seat, error_string(err),
+		])
+	return batch
+
+
 ## The seat this machine plays, which every campaign screen acts for and shows: the host seat
 ## ([constant CampaignData.HOST_SEAT]) in solo and on the host, unless [method set_local_seat]
 ## chose another; on a client, its own ([method ClientMirror.local_seat]). Screens read it, never
@@ -356,13 +389,14 @@ func _is_client() -> bool:
 	return not NetGate.is_authoritative(NetRelay.multiplayer)
 
 
-# Whether the battle that left result, now applied to the run, ends the run as lost: a solo battle
-# lost; a co-op run lost (was_run_lost, read before the battle closed); or a co-op battle over at
-# its node that didn't reach its results (a Boss no map beat; CampaignRunState.apply_battle).
+# Whether the battle that left result, now applied to the run, ends the run as lost: a battle of
+# one map lost (solo, a 1-seat multiplayer run, or a co-op one with one map left in play); a co-op
+# run lost (was_run_lost, read before the battle closed); or a co-op battle over at its node that
+# didn't reach its results (a Boss no map beat; CampaignRunState.apply_battle).
 func _is_battle_losing_run(
 		result: CampaignSession.BattleResult, was_run_lost: bool
 ) -> bool:
-	if session.mode == CampaignData.Mode.SOLO:
+	if session.mode == CampaignData.Mode.SOLO or result.seats.size() <= 1:
 		return result.is_finished and not result.is_won
 	if was_run_lost:
 		return true
@@ -562,6 +596,20 @@ func _refuse_paused(command: CampaignCommand) -> CampaignBatch:
 	batch.rejected_reason = _PAUSED
 	session.command_rejected.emit(batch.seat, batch.arrival, batch.rejected_reason)
 	return batch
+
+
+# Fills request's opening-swap entry for every seat of the run it has none for (the screen sets
+# only this machine's) from the settings that seat's player sent the host. A seat that sent none
+# keeps no entry, which CampaignSession.begin_battle() reads as the setting's default, on.
+func _fill_seat_settings(request: CampaignSession.BattleRequest) -> void:
+	if request == null:
+		return
+	for seat: int in session.seats:
+		if request.opening_swap.has(seat):
+			continue
+		var sent: Variant = NetRelay.seat_settings(seat).get(SettingsData.OPENING_SWAP_KEY, null)
+		if sent is bool:
+			request.opening_swap[seat] = sent
 
 
 # Sets the active campaign's floor, which Save Select shows, to the run's.

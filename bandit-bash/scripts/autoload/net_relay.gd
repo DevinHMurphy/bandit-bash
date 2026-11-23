@@ -10,18 +10,18 @@
 # ==============================================================================
 
 extends Node
-## Every run message between host and clients: commands up, batches down, settles, notices, and
-## the seats' drops and rejoins. Autoload [code]NetRelay[/code], after [code]CampaignService[/code].
-## It reads its own node's [code]multiplayer[/code] ([NetGate]) and [member seats], never Steam
-## but to seat a lobby's run, so a test puts one under each branch. [b]Host:[/b] a client's
-## command takes its seat from the connection, is refused while paused, is filled ([HostFill]) and
-## resolves as the host's own; its sender alone hears how it settled. Batches go to every seated
-## client in order on one reliable channel (a rejection to its sender), campaign batches with the
-## run's capture, a battle's snapshot the idle frame after it opens. A dropped seat is kept and
-## pauses the run until it rejoins (a fresh snapshot) or is removed. [b]Clients[/b] pass it on
-## through the [code]*_received[/code] signals and [signal sync_received]. [code]_sync[/code] and
-## [code]_campaign_batch[/code] travel packed (zstd, checked); nothing over Steam's message limit
-## is sent; every message sent or received is a NetLog line (kind, size, peer).
+## Every run message between host and clients: commands up, batches down, settles, notices, seat
+## settings, and the seats' drops and rejoins. Autoload [code]NetRelay[/code], after
+## [code]CampaignService[/code]; it reads its own node's [code]multiplayer[/code] ([NetGate]) and
+## [member seats], never Steam but to seat a lobby's run, so a test puts one under each branch.
+## [b]Host:[/b] a client's command takes its seat from the connection, is refused while paused, is
+## filled ([HostFill]) and resolves as the host's own; its sender alone hears how it settled.
+## Batches go to every seated client in order on one reliable channel (a rejection to its sender),
+## campaign batches with the run's capture, a battle's snapshot the idle frame after it opens. A
+## dropped seat pauses the run until it rejoins (a fresh snapshot) or is removed. [b]Clients[/b]
+## pass it on through the [code]*_received[/code] signals and send their settings
+## ([method seat_settings]). [code]_sync[/code] and [code]_campaign_batch[/code] travel packed;
+## nothing over Steam's message limit is sent; each message is a NetLog line (kind, size, peer).
 ##
 ## @tutorial(Net transport plan): docs/plans/2026-11-19-net-transport.md
 
@@ -72,6 +72,10 @@ enum NoticeKind {
 	## empty: the host routes everyone itself, by its own run. Never forwarded; dropped while
 	## paused.
 	ROUTE = 1,
+	## The sender's fast-forward hold changed: data [code][session id, held][/code], the map it
+	## holds on and whether it holds. A map other players have units on plays fast only while
+	## every one of them holds ([BattleController]).
+	FAST_FORWARD = 2,
 }
 
 ## The token [method send_combat] and [method send_campaign] return when nothing was sent. Real
@@ -104,6 +108,15 @@ const _RUN_SEATS_KEY: String = "seats"
 
 # Slots of a SELECTION notice's data: the map's session id, the unit id.
 const _SELECTION_FIELDS: int = 2
+
+# Slots of a FAST_FORWARD notice's data: the map's session id, whether the sender holds.
+const _FAST_FORWARD_FIELDS: int = 2
+
+# The settings a client sends the host (seat_settings()), each a SettingsData key.
+# NOTE: the fingerprint covers RPCs and notice kinds, not these keys: a key added here is a wire
+# change it misses, so an older host drops the newer client's settings as malformed (logged) and
+# uses each setting's default.
+const _SEAT_SETTING_KEYS: PackedStringArray = [SettingsData.OPENING_SWAP_KEY]
 
 # A sync request's keys (ClientMirror's): the battle held as [floor, node] or empty, each map's
 # last seq by session id, and whether only a fresh snapshot will do.
@@ -165,6 +178,14 @@ var _players: Dictionary[int, int] = {}
 
 var _overlay: SeatWaitOverlay = null
 
+# Host: each client seat's settings as it last sent them this run, by seat. Never saved: settings
+# belong to each player's save file, not the run.
+var _settings_by_seat: Dictionary[int, Dictionary] = {}
+
+# Client: the settings object last sent to the host; SaveService replaces it on every Apply, so a
+# new one is sent. Null until the first send of a run, and again once the host is lost.
+var _sent_settings: SettingsData = null
+
 
 func _ready() -> void:
 	CampaignService.session_started.connect(_on_campaign_service_session_started)
@@ -189,13 +210,16 @@ func _exit_tree() -> void:
 	_api = null
 
 
-# Pushes a battle's snapshot on the idle frame after it opened, and counts every wait on.
+# Pushes a battle's snapshot on the idle frame after it opened, counts every wait on, and on a
+# client in a run sends its settings when they are new to the host.
 func _process(delta: float) -> void:
 	if _push_pending:
 		_push_pending = false
 		_push_battle()
 	for seat: int in _waits.keys():
 		_waits[seat] += delta
+	if _session != null and SaveService.settings != _sent_settings and _is_client():
+		_send_settings()
 
 
 ## Asks the host for the state [param have] describes as missing ([ClientMirror]'s request) and
@@ -306,6 +330,15 @@ func remove_seat(seat: int) -> bool:
 	_admit_campaign()
 	_send_seat_changed(seat, SeatDirectory.State.REMOVED, waited_for)
 	return true
+
+
+## The settings [param seat]'s player last sent the host this run, by [SettingsData] key
+## ([code]"opening_swap"[/code]: bool); a copy. Empty for a seat that sent none, the host's own
+## seat (its settings are this machine's) and off the host. Kept until the run ends or the seat
+## is removed, never saved.
+func seat_settings(seat: int) -> Dictionary:
+	var kept: Dictionary = _settings_by_seat.get(seat, {})
+	return kept.duplicate()
 
 
 ## Whether this machine waits for a seat: a dropped one, or, on a client, the host it lost.
@@ -494,6 +527,7 @@ func _seat_changed(seat: int, state: int, waited_for: float) -> void:
 				seats.drop_peer(seats.peer_of_seat(seat))
 				seats.remove_seat(seat)
 			_waits.erase(seat)
+			_settings_by_seat.erase(seat)
 			seat_removed.emit(seat)
 	_show_overlay()
 
@@ -526,6 +560,22 @@ func _notice(seat: int, kind: int, data: Array) -> void:
 	var others: Array[int] = _seated_peers()
 	others.erase(sender)
 	_send(others, &"_notice", [from_seat, kind, data])
+
+
+# A client's settings, on the host: kept for the seat the connection holds, replacing what it
+# sent before. One from no seat, or not exactly the settings _SEAT_SETTING_KEYS names, is dropped.
+@rpc("any_peer", "call_remote", "reliable")
+func _seat_settings(settings: Dictionary) -> void:
+	_log_received(&"_seat_settings", [settings])
+	if not _is_host():
+		return
+	var sender: int = multiplayer.get_remote_sender_id()
+	var seat: int = _seat_of(sender)
+	if seat == SeatDirectory.NO_SEAT:
+		_log_dropped(sender, "settings from no seat")
+		return
+	if not _keep_settings(seat, settings):
+		_log_dropped(sender, "malformed settings %s" % [settings])
 
 
 func _is_host() -> bool:
@@ -618,6 +668,25 @@ func _settle(sender: int, token: int, reason: String, category: NetLogScript.Cat
 				"NetRelay: peer %d's command %d settled - %s" % [sender, token, reason]
 		)
 	_send([sender], &"_command_settled", [token, reason])
+
+
+# Keeps settings as seat's when they are exactly _SEAT_SETTING_KEYS, each a bool; returns whether
+# they were kept.
+func _keep_settings(seat: int, settings: Dictionary) -> bool:
+	if settings.size() != _SEAT_SETTING_KEYS.size():
+		return false
+	for key: String in _SEAT_SETTING_KEYS:
+		if not settings.get(key, null) is bool:
+			return false
+	_settings_by_seat[seat] = settings.duplicate()
+	return true
+
+
+# Client: this machine's settings to the host, the one SaveService holds now.
+func _send_settings() -> void:
+	_sent_settings = SaveService.settings
+	var settings: Dictionary = {SettingsData.OPENING_SWAP_KEY: _sent_settings.is_opening_swap_on}
+	_send([_HOST_PEER], &"_seat_settings", [settings])
 
 
 func _log_dropped(sender: int, what: String) -> void:
@@ -772,11 +841,13 @@ func _show_overlay() -> void:
 	_overlay.follow(self)
 
 
-# A run's end: no waits, and the seats seat_members() built go with it.
+# A run's end: no waits or settings, and the seats seat_members() built go with it.
 func _end_run() -> void:
 	_waits.clear()
 	_host_lost = false
 	_push_pending = false
+	_settings_by_seat.clear()
+	_sent_settings = null
 	if not _players.is_empty():
 		seats = null
 		_players.clear()
@@ -902,12 +973,14 @@ func _on_multiplayer_peer_disconnected(peer_id: int) -> void:
 		_announce_drop(seat)
 
 
-# Client: the host is gone mid-run; this machine waits for it (SteamNetwork tries to get back).
+# Client: the host is gone mid-run; this machine waits for it (SteamNetwork tries to get back)
+# and sends its settings again once it is, in case the host came back without them.
 func _on_multiplayer_server_disconnected() -> void:
 	if seats == null:
 		return
 	NetLog.warn(NetLog.Category.LOBBY, "NetRelay: lost the host; waiting to be back.")
 	_host_lost = true
+	_sent_settings = null
 	_waits.clear()
 	_waits[CampaignData.HOST_SEAT] = 0.0
 	_show_overlay()
@@ -1011,6 +1084,13 @@ static func _is_notice_valid(kind: int, data: Array) -> bool:
 			)
 		NoticeKind.ROUTE:
 			return data.is_empty()
+		NoticeKind.FAST_FORWARD:
+			return (
+					data.size() == _FAST_FORWARD_FIELDS
+					and data[0] is int
+					and (data[0] as int) >= 0
+					and data[1] is bool
+			)
 	return false
 
 

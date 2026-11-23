@@ -6,13 +6,13 @@
 # File:     unit_info.gd
 # Author:
 # Created:  November 6, 2026
-# Modified: November 19, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name UnitInfo
 extends Control
 ## One unit's bars, numbers and icons on the screen-space [UnitInfoLayer]: its [HpBar] with the
-## HP inside and its side's [SideShape] at the bar's end, its [StancePips], its [BlockBadge], the
+## HP inside and its [ProfileMark] at the bar's end, its [StancePips], its [BlockBadge], the
 ## [BlockBanMark] while it can't gain Block, the range-tracked icon (combat UI plan, question
 ## 29 (2); UI12), a lit keg's [FuseBadge] and an elite's [EliteMark] in that same corner.
 ##
@@ -33,7 +33,7 @@ extends Control
 @onready var _fuse_badge: FuseBadge = %FuseBadge
 # A keg (the fuse's owner) is never prefixed, so the elite mark shares the fuse's corner.
 @onready var _elite_mark: EliteMark = %EliteMark
-@onready var _side_shape: SideShape = %SideShape
+@onready var _profile_mark: ProfileMark = %ProfileMark
 
 
 ## Shows [param current] HP of [param maximum] on the bar and in its number.
@@ -93,9 +93,15 @@ func show_elite(is_elite: bool) -> void:
 	_elite_mark.show_elite(is_elite)
 
 
-## Shows [param side]'s shape at the HP bar's end ([SideShape]).
+## Shows [param side]'s style on the [ProfileMark] at the HP bar's end: filled for the player
+## side, hollow for the enemy, nothing for neither.
 func show_side(side: CombatFact.CombatSide) -> void:
-	_side_shape.show_side(side)
+	_profile_mark.show_side(side)
+
+
+## Shows [param profile], the held weapon's, as the [ProfileMark]'s shape.
+func show_profile(profile: WeaponTriangle.Profile) -> void:
+	_profile_mark.show_profile(profile)
 
 
 ## The fuse badge.
@@ -108,9 +114,9 @@ func get_elite_mark() -> EliteMark:
 	return _elite_mark
 
 
-## The side shape.
-func get_side_shape() -> SideShape:
-	return _side_shape
+## The profile mark.
+func get_profile_mark() -> ProfileMark:
+	return _profile_mark
 
 
 ## The HP bar.

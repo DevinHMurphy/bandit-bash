@@ -6,15 +6,15 @@
 # File:     area.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 14, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 @tool
 class_name Area
 extends TargetSelector
 ## Selects units around a center: "adjacent units, friend or foe" (Cleave), "the target and adjacent
-## allies of the target" (Sanctuary), "your commander and allies within 2 tiles of your commander"
-## (Commander's Standard).
+## allies of the target" (Sanctuary), "your commander and your units within 2 tiles of your
+## commander" (Commander's Standard).
 ##
 ## Which tiles count is a shared [TargetShape] from [code]res://data/shapes/[/code], so staves,
 ## splash, keg blasts and runes describe areas one way; the content test rejects a shape that isn't
@@ -50,6 +50,11 @@ enum Center {
 ## Which units count, relative to the effect's owner.
 @export var side: EffectTerms.UnitSide = EffectTerms.UnitSide.ALLY
 
+## Whether only units the owner's player controls count (Your Units), so a co-op partner's unit in
+## the area never does; the center still counts as [member shape] says. [b]Off:[/b] every unit on
+## [member side].
+@export var is_your_units_only: bool = false
+
 
 func describe() -> String:
 	var noun: String = "units"
@@ -58,7 +63,9 @@ func describe() -> String:
 			noun = "allies"
 		EffectTerms.UnitSide.ENEMY:
 			noun = "enemies"
-	var place: String = _place(noun)
+	var place: String = _place("units" if is_your_units_only else noun)
+	if is_your_units_only and not place.is_empty():
+		place = "your %s" % [place]
 	if place.is_empty():
 		return _center_name() if shape != null and shape.includes_center else "no units"
 	match center:
@@ -77,8 +84,9 @@ func describe() -> String:
 	return place
 
 
-## Units around the center, in the state's order, on [member side] relative to the owner's side,
-## on the tiles [member shape] covers. A center that has left the map since the reaction was
+## Units around the center, in the state's order, on [member side] relative to the owner's side
+## (and the owner's player's own with [member is_your_units_only]), on the tiles [member shape]
+## covers. A center that has left the map since the reaction was
 ## queued (a Brute defeated by the counter, the target a Trample hit defeated, a keg that just
 ## broke) is measured from the tile it stood on then; a command target and a commander have no
 ## such tile.
@@ -99,6 +107,10 @@ func select(ctx: EffectContext) -> PackedStringArray:
 				picked.append(unit_id)
 			continue
 		if not engine.matches_side(ctx.instance.owner.side, unit_id, side):
+			continue
+		if is_your_units_only and not engine.in_scope(
+				ctx.instance.owner, unit_id, EffectTerms.Scope.YOUR_UNIT
+		):
 			continue
 		var tile: Vector2i = engine.state.tile_of(unit_id)
 		if tile == CombatFact.NO_TILE or tile == center_tile:

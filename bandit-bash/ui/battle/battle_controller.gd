@@ -79,7 +79,12 @@ extends HintSource
 #                              RT [R2] (hold)    board plays its waits and animations, WALK's walk
 #                                                included, BattleView.fast_forward_speed times
 #                                                faster, in order; released, normal speed. The
-#                                                trigger counts as held past halfway)
+#                                                trigger counts as held past halfway. Co-op: on
+#                                                a map other players have units on, fast only
+#                                                while each of them holds too (their NetRelay
+#                                                FAST_FORWARD notices); a player unit's defeat
+#                                                or an attack with the Boss lets the hold go
+#                                                until it is pressed again)
 #   "skip_playback"         -> X; LT [L2]     (any stage, while playback runs: the board skips it
 #                                                behind a fade to black, BattleView.skip_playback.
 #                                                Harmless with nothing playing or during a skip,
@@ -306,7 +311,8 @@ extends HintSource
 # (only fast_forward, skip_playback, toggle_danger_zone and the pause menu's Esc act), the final
 # playback after the battle is decided included, until it settles and the end banner shows;
 # PAUSED is the pause menu open over any stage, where this node is paused and the menu takes the
-# arrows, accept and Esc. In multiplayer the menu doesn't pause, so PAUSED never comes. With
+# arrows, accept and Esc; BOARD_KEY is PAUSED with the menu's board key shown, where accept and Esc
+# go back to the menu. In multiplayer the menu doesn't pause, so neither ever comes. With
 # nothing bound, or the combat over and its playback settled, there is no context.
 ## The steps of turn input; see the block above.
 enum Stage {
@@ -462,6 +468,7 @@ const LIVE_ACTIONS: Dictionary[StringName, Array] = {
 		&"ui_cancel", &"toggle_save_debug",
 	],
 	&"PAUSED": [&"ui_up", &"ui_down", &"ui_accept", &"ui_cancel"],
+	&"BOARD_KEY": [&"ui_accept", &"ui_cancel"],
 }
 
 # ASSUMPTION: the wordings of the rune bar's refusals and of the discard question; no design doc
@@ -502,6 +509,10 @@ const _CURSOR_CUE: StringName = &"move_tile"
 const _SELECT_CUE: StringName = &"unit_select"
 const _CONFIRM_CUE: StringName = &"unit_confirm"
 const _RETURN_CUE: StringName = &"unit_return"
+
+# A seat holding fast-forward on no map, and a notice kind the relay doesn't have.
+const _NO_MAP: int = -1
+const _NO_KIND: int = -1
 
 @export_group("Panels")
 
@@ -727,6 +738,13 @@ var _is_log_focus_latched: bool = false
 var _log_scroll_held: int = 0
 var _log_scroll_left: float = 0.0
 
+# Fast-forward (the input map block): whether this player holds it; each other seat's hold, from
+# its notices, as the session id of the map it holds on; the relay's FAST_FORWARD notice kind,
+# read in _ready(), _NO_KIND without a relay.
+var _is_forward_held: bool = false
+var _forward_holds: Dictionary[int, int] = {}
+var _forward_kind: int = _NO_KIND
+
 
 func _ready() -> void:
 	_show_widgets(false)
@@ -741,10 +759,19 @@ func _ready() -> void:
 		rune_bar.discard_pressed.connect(_on_rune_bar_discard_pressed)
 	if event_log != null:
 		event_log.scroll_range_changed.connect(_on_event_log_scroll_range_changed)
+	var relay: Node = _net_relay()
+	if relay != null:
+		_forward_kind = _relay_notice_kind(relay, &"FAST_FORWARD")
+		relay.connect(&"notice_received", _on_net_relay_notice_received)
+		relay.connect(&"seat_dropped", _on_net_relay_seat_dropped)
 
 
 func _exit_tree() -> void:
 	unbind()
+	var relay: Node = _net_relay()
+	if relay != null and relay.is_connected(&"notice_received", _on_net_relay_notice_received):
+		relay.disconnect(&"notice_received", _on_net_relay_notice_received)
+		relay.disconnect(&"seat_dropped", _on_net_relay_seat_dropped)
 	# Every WorkerThreadPool task must be waited for; unbind dropped its result already.
 	_previews.wait()
 
@@ -766,7 +793,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _session == null:
 		return
 	if event.is_action(&"fast_forward") and not event.is_echo():
-		view.set_fast_forward(event.is_pressed())
+		_hold_fast_forward(event.is_pressed())
 		return
 	if event.is_action_pressed(&"skip_playback"):
 		view.skip_playback()
@@ -836,6 +863,7 @@ func bind(encounter: CombatEncounter, session: CombatSession, seat: int) -> void
 	_session.command_rejected.connect(_on_session_command_rejected)
 	_session.intents_changed.connect(_on_session_intents_changed)
 	_session.bus.flow.phase_started.connect(_on_flow_phase_started)
+	_session.bus.fact_played.connect(_on_bus_fact_played)
 	view.settled.connect(_on_view_settled)
 	view.staged_walk_finished.connect(_on_view_staged_walk_finished)
 	view.darkness_phase_started.connect(_on_view_darkness_phase_started)
@@ -870,6 +898,12 @@ func unbind() -> void:
 		_session.intents_changed.disconnect(_on_session_intents_changed)
 	if _session.bus.flow.phase_started.is_connected(_on_flow_phase_started):
 		_session.bus.flow.phase_started.disconnect(_on_flow_phase_started)
+	if _session.bus.fact_played.is_connected(_on_bus_fact_played):
+		_session.bus.fact_played.disconnect(_on_bus_fact_played)
+	# Let go while the map is still known, so teammates hear the release for it.
+	if _is_forward_held:
+		_is_forward_held = false
+		_send_fast_forward()
 	if (
 			is_instance_valid(view)
 			and view.darkness_phase_started.is_connected(_on_view_darkness_phase_started)
@@ -935,7 +969,8 @@ func get_shown_enemies() -> PackedStringArray:
 
 
 ## The hint context the screen is in, a key of [constant LIVE_ACTIONS]: PAUSED while the tree is
-## paused, PLAYBACK while a command plays (the battle's final playback included), FORECAST in
+## paused (BOARD_KEY while a [BoardKey] shows then), PLAYBACK while a command plays (the battle's
+## final playback included), FORECAST in
 ## CONFIRM on the forecast panel, else the stage's name; empty while nothing is bound, or once the
 ## combat is over and its playback has settled. Cheap enough to poll.
 func get_hint_context() -> StringName:
@@ -945,7 +980,7 @@ func get_hint_context() -> StringName:
 	if _session.is_finished and not is_playing:
 		return &""
 	if is_inside_tree() and get_tree().paused:
-		return &"PAUSED"
+		return &"BOARD_KEY" if BoardKey.is_open_in(get_tree()) else &"PAUSED"
 	if is_playing:
 		return &"PLAYBACK"
 	if _stage == Stage.CONFIRM and is_instance_valid(_forecast_panel):
@@ -2262,6 +2297,63 @@ func _campaign_service() -> Node:
 	return get_node_or_null(^"/root/CampaignService") if is_inside_tree() else null
 
 
+func _net_relay() -> Node:
+	return get_node_or_null(^"/root/NetRelay") if is_inside_tree() else null
+
+
+# This player's fast-forward hold is now is_held: the other players hear a change, and the board
+# plays fast by _is_fast_forward().
+func _hold_fast_forward(is_held: bool) -> void:
+	var is_changed: bool = is_held != _is_forward_held
+	_is_forward_held = is_held
+	if is_changed:
+		_send_fast_forward()
+	_apply_fast_forward()
+
+
+func _apply_fast_forward() -> void:
+	if _session != null and is_instance_valid(view):
+		view.set_fast_forward(_is_fast_forward())
+
+
+# Whether the board plays fast: this player holds and, on a map other players have units on, so
+# does each of them. A player with no units here decides alone, for their own view.
+func _is_fast_forward() -> bool:
+	if not _is_forward_held or _session == null:
+		return false
+	var here: PackedInt32Array = PhaseRunner.seats_with_units(_session)
+	if not here.has(_seat):
+		return true
+	for seat: int in here:
+		var held_on: int = _forward_holds.get(seat, _NO_MAP)
+		if seat != _seat and held_on != _session.session_id:
+			return false
+	return true
+
+
+# Tells the other players this player's hold on the bound map. The relay sends nothing in solo.
+func _send_fast_forward() -> void:
+	var relay: Node = _net_relay()
+	if relay == null or _session == null or _forward_kind == _NO_KIND:
+		return
+	relay.call(&"send_notice", _forward_kind, [_session.session_id, _is_forward_held])
+
+
+# Whether fast-forward stops for fact, a key moment: a player unit defeated, or an attack the
+# Boss makes or takes (a unit Objectives.marked_ids() lists on a Defeat the Boss map). Every
+# attack of a Boss exchange matches; the first lets the hold go.
+func _stops_fast_forward(fact: CombatFact) -> bool:
+	match fact.kind:
+		CombatFact.Kind.DEFEATED:
+			return _session.state.side_of(fact.actor_id) == PLAYER
+		CombatFact.Kind.ATTACK_MADE:
+			if _session.setup.map.objective != CombatMapDefinition.Objective.DEFEAT_BOSS:
+				return false
+			var bosses: PackedStringArray = Objectives.marked_ids(_session)
+			return bosses.has(fact.actor_id) or bosses.has(fact.target_id)
+	return false
+
+
 # Rebuilds the stage from the session once a command's playback has settled (see the state block).
 func _after_playback() -> void:
 	_is_waiting = false
@@ -2746,3 +2838,46 @@ func _on_pad_repeat_stepped(direction: Vector2i) -> void:
 # Whether the log can scroll, or whether it shows, changed: its actions' hints follow.
 func _on_event_log_scroll_range_changed() -> void:
 	live_actions_changed.emit()
+
+
+# Co-op, while this player holds fast-forward: a key moment lets the hold go, so it plays at
+# normal speed; any other fact may change who has units here. Solo keeps the hold as it is.
+func _on_bus_fact_played(fact: CombatFact) -> void:
+	if not _is_forward_held or _session.setup.seats.size() <= 1:
+		return
+	if _stops_fast_forward(fact):
+		_hold_fast_forward(false)
+	else:
+		_apply_fast_forward()
+
+
+# Another player's fast-forward hold changed; the relay checked the data's shape.
+func _on_net_relay_notice_received(seat: int, kind: int, data: Array) -> void:
+	if kind == _NO_KIND or kind != _forward_kind:
+		return
+	var is_held: bool = data[1]
+	if is_held:
+		_forward_holds[seat] = data[0] as int
+	else:
+		_forward_holds.erase(seat)
+	_apply_fast_forward()
+
+
+# A dropped seat holds nothing until it is back and presses again.
+func _on_net_relay_seat_dropped(seat: int) -> void:
+	if _forward_holds.erase(seat):
+		_apply_fast_forward()
+
+
+# The value of relay's NoticeKind named kind_name, from its script's constants, so this file
+# names no autoload; _NO_KIND when it has none.
+static func _relay_notice_kind(relay: Node, kind_name: StringName) -> int:
+	var script: Script = relay.get_script() as Script
+	if script == null:
+		return _NO_KIND
+	var kinds: Dictionary = script.get_script_constant_map().get(&"NoticeKind", {})
+	# By text, since an enum's keys may be Strings or StringNames.
+	for key: Variant in kinds:
+		if str(key) == kind_name:
+			return kinds[key]
+	return _NO_KIND

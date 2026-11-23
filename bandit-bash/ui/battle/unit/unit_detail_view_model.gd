@@ -6,7 +6,7 @@
 # File:     unit_detail_view_model.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name UnitDetailViewModel
@@ -402,6 +402,7 @@ static func _weapon_line(
 	line.icon = BattleText.item_icon(session, held.id)
 	line.weapon_type = held.weapon_type.capitalize()
 	line.profile = (WeaponTriangle.Profile.find_key(held.profile) as String).capitalize()
+	line.triangle_profile = held.profile
 	line.is_staff = held.is_staff()
 	line.staff_kind = (CombatState.WeaponStats.Staff.find_key(held.staff) as String).capitalize()
 	line.staff_amount = held.staff_amount
@@ -452,6 +453,8 @@ class WeaponLine:
 	var weapon_type: String = ""
 	## Its triangle profile, readable ("Nimble"; "None" outside the triangle).
 	var profile: String = ""
+	## Its triangle profile, which its gear row's [ProfileMark] shows.
+	var triangle_profile: WeaponTriangle.Profile = WeaponTriangle.Profile.NONE
 	## Whether it is a staff, which never counters; [member staff_kind] says which.
 	var is_staff: bool = false
 	## The staff's kind, readable ("Block", "Heal"); "None" for a weapon.

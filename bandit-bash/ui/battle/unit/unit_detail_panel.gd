@@ -6,7 +6,7 @@
 # File:     unit_detail_panel.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name UnitDetailPanel
@@ -168,10 +168,12 @@ func show_detail(view: UnitDetailViewModel) -> void:
 	_show_values(_stat_rows, view.stat_rows)
 	_show_values(_combat_rows, view.combat_rows)
 	_weapon.show_gear(
-			"Weapon", _item_name(view.weapon), _weapon_detail(view.weapon), _icon_of(view.weapon)
+			"Weapon", _item_name(view.weapon), _weapon_detail(view.weapon), _icon_of(view.weapon),
+			_mark_side(view, view.weapon), _profile_of(view.weapon),
 	)
 	_stowed.show_gear(
-			"Stowed", _item_name(view.stowed), _weapon_detail(view.stowed), _icon_of(view.stowed)
+			"Stowed", _item_name(view.stowed), _weapon_detail(view.stowed), _icon_of(view.stowed),
+			_mark_side(view, view.stowed), _profile_of(view.stowed),
 	)
 	_stowed.visible = view.stowed != null
 	_equipment.show_gear(
@@ -370,6 +372,17 @@ func _item_name(line: UnitDetailViewModel.WeaponLine) -> String:
 
 func _icon_of(line: UnitDetailViewModel.WeaponLine) -> Texture2D:
 	return null if line == null else line.icon
+
+
+# The side whose style a weapon row's profile mark takes: the unit's; none for an empty slot.
+func _mark_side(
+		view: UnitDetailViewModel, line: UnitDetailViewModel.WeaponLine
+) -> CombatFact.CombatSide:
+	return CombatFact.CombatSide.NONE if line == null else view.side
+
+
+func _profile_of(line: UnitDetailViewModel.WeaponLine) -> WeaponTriangle.Profile:
+	return WeaponTriangle.Profile.NONE if line == null else line.triangle_profile
 
 
 # A weapon's profile and its effects, keywords marked, without its name, for its gear row.

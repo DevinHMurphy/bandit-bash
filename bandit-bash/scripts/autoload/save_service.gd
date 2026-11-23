@@ -130,6 +130,10 @@ var _is_client_in_run: bool = false
 # The run that ended last, until the Results screen takes it with take_ended_run().
 var _ended_run: ArchiveRecord = null
 
+# Each forfeiting seat's archive record (archive_forfeit()), by seat, until take_forfeit_record()
+# takes it to send to that player's machine; dropped with the campaign.
+var _forfeit_records: Dictionary[int, ArchiveRecord] = {}
+
 # Time.get_ticks_msec() at each file's last successful play-time flush. Separate per file so a
 # write that fails for one file can't make the other count the same time twice.
 var _campaign_flush_msec: int = 0
@@ -655,6 +659,52 @@ func abandon_run(slot_mode: CampaignData.Mode) -> Error:
 	return err
 
 
+## Host only: the archive record of [param seat], a player about to leave the multiplayer run in
+## progress of their own will: the run as it stands, every seat in it, [member ArchiveRecord.won]
+## false and [member ArchiveRecord.forfeited] true. Built on a copy of [member campaign], so a
+## battle's campaign keeps its Begin sections and nothing is written. Kept for
+## [method take_forfeit_record]. Null, reported, with no multiplayer campaign or no such seat.
+func archive_forfeit(seat: int) -> ArchiveRecord:
+	if campaign == null or campaign.mode != CampaignData.Mode.MULTIPLAYER:
+		push_error("SaveService: no multiplayer run to forfeit.")
+		return null
+	var copy: CampaignData = CampaignData.new()
+	if copy.load_envelope(campaign.to_envelope()) != OK:
+		push_error("SaveService: the campaign couldn't be copied for seat %d's record." % [seat])
+		return null
+	_sections.capture_players(copy.players)
+	copy.play_time_seconds += _get_whole_seconds_since(_campaign_flush_msec, Time.get_ticks_msec())
+	var has_seat: bool = false
+	for player: CampaignData.PlayerRun in copy.players:
+		has_seat = has_seat or player.seat == seat
+	if not has_seat:
+		push_error("SaveService: seat %d isn't in the run." % [seat])
+		return null
+	var record: ArchiveRecord = ArchiveRecord.from_campaign(copy, false, _get_player_names(copy))
+	record.forfeited = true
+	_forfeit_records[seat] = record
+	return record
+
+
+## Host only: takes [param seat] out of [member campaign]'s players, with its sections, once it has
+## left the run (a forfeit, or a removal after a drop), so a resume no longer needs them. Writes
+## nothing: the caller's next checkpoint does. Returns [method CampaignData.remove_player]'s result;
+## [constant ERR_UNCONFIGURED] with no campaign.
+func remove_player(seat: int) -> Error:
+	if campaign == null:
+		push_error("SaveService: no campaign to remove seat %d from." % [seat])
+		return ERR_UNCONFIGURED
+	return campaign.remove_player(seat)
+
+
+## Returns [param seat]'s forfeit record ([method archive_forfeit]) and forgets it, for the leaving
+## player's machine to archive. Null when there is none.
+func take_forfeit_record(seat: int) -> ArchiveRecord:
+	var record: ArchiveRecord = _forfeit_records.get(seat, null)
+	_forfeit_records.erase(seat)
+	return record
+
+
 ## Returns the record of the run that ended last and forgets it, so the Results screen shows a run
 ## only once. Null when no run ended since the last call.
 func take_ended_run() -> ArchiveRecord:
@@ -962,6 +1012,7 @@ func _delete_campaign_slot(slot_mode: CampaignData.Mode) -> Error:
 # leaks into the next run.
 func _end_campaign() -> void:
 	campaign = null
+	_forfeit_records.clear()
 	_end_battle_state()
 	resume_point = CombatData.ResumePoint.CAMPAIGN
 	_sections.reset(SaveSection.Block.CAMPAIGN)

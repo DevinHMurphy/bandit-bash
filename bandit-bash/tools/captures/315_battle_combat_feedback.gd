@@ -6,12 +6,12 @@
 # File:     315_battle_combat_feedback.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends "res://tools/captures/capture_group.gd"
 ## Combat feedback, staged in this throwaway run (said in a NOTE): the board rebuilt with the
-## elite's mark and every token's side shape; strikes' facts played on the board alone, the state
+## elite's mark and every token's profile mark; strikes' facts played on the board alone, the state
 ## untouched, each shot mid-play (a hit, a crit on an Exposed unit, Block absorbing a hit, a
 ## Stance break); then every banner over the heirloom bar's row. The board is rebuilt from the
 ## state after, and the phase banner left hidden.[br]

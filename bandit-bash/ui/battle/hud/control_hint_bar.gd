@@ -6,7 +6,7 @@
 # File:     control_hint_bar.gd
 # Author:
 # Created:  November 6, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name ControlHintBar
@@ -196,6 +196,8 @@ const UNBOUND_KEY: String = "(unbound)"
 	"PAUSED/ui_up": "Choose",
 	"PAUSED/ui_down": "Choose",
 	"PAUSED/ui_cancel": "Resume",
+	"BOARD_KEY/ui_accept": "Back",
+	"BOARD_KEY/ui_cancel": "Back",
 	"DETAIL/ui_up": "Choose",
 	"DETAIL/ui_down": "Choose",
 	"DETAIL/ui_accept": "Close",
