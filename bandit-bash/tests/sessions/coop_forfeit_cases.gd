@@ -15,7 +15,7 @@ extends "res://tests/sessions/sessions_case_base.gd"
 ## runs and maps: on the map the seat leaves the campaign's players and its archive record is
 ## forfeited, and a resume needs and builds only the seats left; mid-battle its map leaves play,
 ## a teammate's unit there goes home as it stood, its units on their way leave with it, and the
-## battle ends without it; a forfeit waits while its unit stands on a teammate's map; a 1-seat
+## battle ends without it; its units on a teammate's map leave the battle with it; a 1-seat
 ## multiplayer run that loses ends as a solo loss does (BUG-040). Skipped without a test user
 ## folder.
 
@@ -31,7 +31,7 @@ const HURT_HP: int = 3
 func run() -> void:
 	_run(_test_on_the_map)
 	_run(_test_mid_battle)
-	_run(_test_waits_for_unit_on_teammate_map)
+	_run(_test_unit_on_teammate_map_leaves)
 	_run(_test_one_seat_loss_ends_run)
 
 
@@ -136,9 +136,9 @@ func _test_mid_battle() -> bool:
 	return true
 
 
-# Three seats in battle; seat 1 wins and sends a unit to seat 0's map. Landed there, the forfeit
-# waits, changing nothing; still on its way, the forfeit goes ahead and the unit leaves with it.
-func _test_waits_for_unit_on_teammate_map() -> bool:
+# Three seats in battle; seat 1 wins and sends a unit to seat 0's map. Landed there or still on
+# its way, the forfeit goes ahead and the unit leaves the battle with it.
+func _test_unit_on_teammate_map_leaves() -> bool:
 	for has_landed: bool in [true, false]:
 		var label: String = "forfeit with a unit %s" % [
 			"on a teammate's map" if has_landed else "on its way",
@@ -164,23 +164,16 @@ func _test_waits_for_unit_on_teammate_map() -> bool:
 		var batch: CampaignBatch = service.call(&"forfeit_seat", 1)
 		var campaign: CampaignData = saves.get(&"campaign")
 		var record: ArchiveRecord = saves.call(&"take_forfeit_record", 1)
-		if has_landed:
-			_check("%s: the forfeit waits, changing nothing" % [label], (
-					batch != null
-					and batch.rejected_reason == "seat 1 has a unit on s%d" % [target.session_id]
-					and battle.forfeited_seats().is_empty()
-					and campaign != null and campaign.players.size() == 3
-					and record == null
-			), "" if batch == null else batch.rejected_reason)
-		else:
-			_check("%s: the forfeit goes ahead and the unit leaves with it" % [label], (
-					was_on_way
-					and batch != null and not batch.is_rejected()
-					and battle.forfeited_seats() == PackedInt32Array([1])
-					and not battle.units_in_transit().has(unit_id)
-					and target.state.unit(unit_id) == null
-					and record != null
-			), "" if batch == null else batch.rejected_reason)
+		_check("%s: the forfeit goes ahead and the unit leaves with it" % [label], (
+				was_on_way != has_landed
+				and batch != null and not batch.is_rejected()
+				and battle.forfeited_seats() == PackedInt32Array([1])
+				and not battle.units_in_transit().has(unit_id)
+				and target.state.unit(unit_id) == null
+				and battle.session_of_unit(unit_id) != target
+				and campaign != null and campaign.players.size() == 2
+				and record != null
+		), "" if batch == null else batch.rejected_reason)
 		_finish(saves)
 	return true
 

@@ -168,7 +168,7 @@ func _test_combat_fact_amendments() -> void:
 	_check(
 			"amendments: old kind values unchanged",
 			CombatFact.Kind.PHASE_START == 0 and CombatFact.Kind.MODIFIER_EXPIRED == 34
-			and CombatFact.Kind.size() == 51
+			and CombatFact.Kind.size() == 54
 	)
 	_check(
 			"amendments: the reinforcement kinds appended (combat map plan, New facts)",

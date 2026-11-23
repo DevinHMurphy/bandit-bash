@@ -167,6 +167,17 @@ enum Kind {
 	## tile it entered, deepened or not, or [constant NO_TILE] for a creep that entered none. One
 	## per tile, after that step's [constant DARKNESS_ADVANCED] facts, so mirrors follow the waves.
 	DARKNESS_WAVE_SPREAD = 50,
+	## An encounter fact: the seat [member amount] left the battle ([method CombatEncounter.forfeit]).
+	## With no actor it is the seat itself, first, on its own map [member session_id]: that map, its
+	## units on their way and its army's cross-map effects leave play. With an actor, its unit left
+	## the map [member session_id], still in play, from [member tile], going nowhere. No trigger.
+	UNIT_LEFT = 51,
+	## The seat [member amount] ended its turn in the player phase ([EndTurnCommand]), before the
+	## rest of the turn its End Turn may run; no actor, no trigger. Mirrors follow it.
+	TURN_ENDED = 52,
+	## The seat [member amount] sent its Start in the opening swap window ([StartCommand]), before
+	## turn 1's Phase Start its Start may run; no actor, no trigger. Mirrors follow it.
+	SEAT_STARTED = 53,
 }
 
 ## What produced an amount. Sent over the network as an int: [b]append only[/b].

@@ -182,11 +182,8 @@ func _play_swaps(rig: Rig, tag: String) -> bool:
 	_send(rig, AnswerSwapCommand.new(2, 1, true, _soldier(rig, 1), _soldier(rig, 2)))
 	_send(rig, WithdrawSwapCommand.new(3, HOST_SEAT))
 	var accepted: bool = run.flow.swaps.size() == 1 and _difference(rig).is_empty()
-	# NOTE: The accepted swap is withdrawn before the next combat: a visitor's map is a battle CO17
-	# covers, and a first seat's Start there changes the map with no fact, so mirrors can't follow.
-	_send(rig, WithdrawSwapCommand.new(1, 2))
 	_check("%s clients' proposals reach every mirror; one is accepted, one withdrawn" % [tag], (
-			both and accepted and _proposals_mirrored(rig, 0) and run.flow.swaps.is_empty()
+			both and accepted and _proposals_mirrored(rig, 0) and run.flow.swaps.size() == 1
 			and _difference(rig).is_empty()
 	), _difference(rig))
 	return true

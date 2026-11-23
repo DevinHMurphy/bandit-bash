@@ -6,7 +6,7 @@
 # File:     phase_runner.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name PhaseRunner
@@ -15,15 +15,13 @@ extends RefCounted
 ## command, and the [CombatHooks] other plans register into.
 ##
 ## [method open_battle] starts turn 1, or the opening swap window first ([method start]). A turn is
-## one player phase, then one enemy phase; [member CombatState.turn] rises at the player Phase
-## Start. The last seat's [method end_turn] resolves the rest of the turn as one command, and every
-## step ends with [method end_step]; once the map's combat has ended, nothing more runs. A unit's
-## action ends its turn but records no Unit Turn End; its side's Phase End records one per unit.[br]
-## [b]A frozen co-op map:[/b] a map with no player unit left is held at its next player Phase
-## Start, once the phase in progress has finished (a player phase emptied mid-phase finishes at
-## once, in [method end_step]). It runs no phase and its turn stays until arrivals land there
-## ([method resume]). Solo maps never freeze: [Objectives] ends an empty one as lost.[br]
-## Pure rules code: it never awaits and records every change as a fact. Main thread only.
+## one player phase, then one enemy phase; the turn rises at the player Phase Start. The last
+## seat's [method end_turn] resolves the rest of the turn as one command; every step ends with
+## [method end_step]. An action records no Unit Turn End; its side's Phase End records one.[br]
+## [b]A frozen co-op map:[/b] one with no player unit left is held at its next player Phase Start
+## once the phase in progress finishes (at once for one emptied mid-phase: [method end_step],
+## [method after_seat_left]), and runs nothing until arrivals land ([method resume]). Solo maps
+## never freeze. Pure rules code, main thread only: it never awaits and records every change.
 ##
 ## @todo: TOD-001 - a later rule could let the darkness keep rising on a frozen map, at the hold.
 ## @tutorial(Combat core plan): docs/plans/2026-10-26-combat-core.md
@@ -56,28 +54,55 @@ static func open_battle(
 	end_step(session)
 
 
-## [param seat]'s Start in the opening swap window. When no seat is left to start, closes the
-## window and runs turn 1's player Phase Start, so position effects read the tiles after every
-## swap. The session ends the step ([method CombatSession.resolve_next]).
+## [param seat]'s Start in the opening swap window, recorded
+## ([constant CombatFact.Kind.SEAT_STARTED]) so mirrors follow it. When no seat is left to start,
+## closes the window and runs turn 1's player Phase Start, so position effects read the tiles after
+## every swap. The session ends the step ([method CombatSession.resolve_next]).
 static func start(session: CombatSession, seat: int) -> void:
 	var state: CombatState = session.state
 	var index: int = state.seats_to_start.find(seat)
 	if index >= 0:
 		state.seats_to_start.remove_at(index)
+	_record_seat(session, CombatFact.Kind.SEAT_STARTED, seat)
 	if not state.seats_to_start.is_empty():
 		return
-	state.map.opening_swap_open = false
-	_phase_start(session, CombatFact.CombatSide.PLAYER)
+	_open_turn_one(session)
 
 
-## Ends [param seat]'s turn in the player phase. When every seat with units on the map has ended,
-## resolves the rest of the turn as one command: player Phase End, the enemy phase and the next
-## player Phase Start. The session ends the last step ([method CombatSession.resolve_next]).
+## Ends [param seat]'s turn in the player phase, recorded ([constant CombatFact.Kind.TURN_ENDED])
+## so mirrors follow it. When every seat with units on the map has ended, resolves the rest of the
+## turn as one command: player Phase End, the enemy phase and the next player Phase Start. The
+## session ends the last step ([method CombatSession.resolve_next]).
 static func end_turn(session: CombatSession, seat: int) -> void:
 	session.state.ended_seats.append(seat)
+	_record_seat(session, CombatFact.Kind.TURN_ENDED, seat)
 	if not seats_to_end(session).is_empty():
 		return
 	_finish_turn(session)
+
+
+## Moves [param session]'s map on once a seat's last unit has left it ([CombatEncounter]) and the
+## seat is out of its seats to start and to end: an opening swap window nobody is left to start
+## closes into turn 1, and a player phase with no seat left to end (none, on a map left empty) runs
+## the rest of the turn as the last End Turn does, so an emptied map freezes. Otherwise changes
+## nothing. Records outside any command and ends the step; the caller sends the batch.
+static func after_seat_left(session: CombatSession) -> void:
+	var state: CombatState = session.state
+	if session.is_finished:
+		return
+	if state.map.opening_swap_open:
+		if state.seats_to_start.is_empty():
+			_open_turn_one(session)
+			end_step(session)
+		return
+	if (
+			state.phase_side != CombatFact.CombatSide.PLAYER
+			or state.is_phase_ended
+			or not seats_to_end(session).is_empty()
+	):
+		return
+	_finish_turn(session)
+	end_step(session)
 
 
 ## Runs the player Phase Start that frozen [param session] is held at, then the step's end: units
@@ -205,6 +230,19 @@ static func _end_crossing_step(on: CombatSession, sandbox: EffectEngine) -> bool
 			on.is_finished = true
 			on.is_won = fact.side == CombatFact.CombatSide.PLAYER
 	return not on.is_finished
+
+
+# Records kind (TURN_ENDED or SEAT_STARTED) for seat on session: no actor, the seat in amount.
+static func _record_seat(session: CombatSession, kind: CombatFact.Kind, seat: int) -> void:
+	var fact: CombatFact = CombatFact.new(kind)
+	fact.amount = seat
+	session.engine.record(fact)
+
+
+# Closes session's opening swap window and runs turn 1's player Phase Start.
+static func _open_turn_one(session: CombatSession) -> void:
+	session.state.map.opening_swap_open = false
+	_phase_start(session, CombatFact.CombatSide.PLAYER)
 
 
 # The rest of the turn once the player phase is over: player Phase End and enemy Phase Start, each

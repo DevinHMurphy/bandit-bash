@@ -6,7 +6,7 @@
 # File:     turn_cases.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 19, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -212,14 +212,15 @@ func _test_phase_end_heal_before_darkness() -> void:
 	world.send(UnitTurnCommand.new(0, "p1", WAIT))
 	var start: int = world.log_size()
 	world.send(EndTurnCommand.new(0))
-	_same("phase end: order", world.lines(start).slice(0, 7), [
-		"s0#%d PHASE_END side player" % [start + 1],
-		"s0#%d UNIT_TURN_END p1 tile (0, 0)" % [start + 2],
-		"s0#%d EFFECT_ACTIVATED p1 effect effect:band" % [start + 3],
-		"s0#%d UNIT_TURN_END p2 tile (3, 0)" % [start + 4],
-		"s0#%d HEALED p1 amount 5 (hp 5, block 0) source effect effect effect:band" % [start + 5],
-		"s0#%d DAMAGE_TAKEN p1 amount 5 (hp 5, block 0) source splash" % [start + 6],
-		"s0#%d BLOCK_STANCE_REFRESHED e1" % [start + 7],
+	_same("phase end: order", world.lines(start).slice(0, 8), [
+		"s0#%d TURN_ENDED" % [start + 1],
+		"s0#%d PHASE_END side player" % [start + 2],
+		"s0#%d UNIT_TURN_END p1 tile (0, 0)" % [start + 3],
+		"s0#%d EFFECT_ACTIVATED p1 effect effect:band" % [start + 4],
+		"s0#%d UNIT_TURN_END p2 tile (3, 0)" % [start + 5],
+		"s0#%d HEALED p1 amount 5 (hp 5, block 0) source effect effect effect:band" % [start + 6],
+		"s0#%d DAMAGE_TAKEN p1 amount 5 (hp 5, block 0) source splash" % [start + 7],
+		"s0#%d BLOCK_STANCE_REFRESHED e1" % [start + 8],
 	])
 	_ok("phase end: the heal saved p1", world.state().has_unit("p1"))
 	_quiet(world)
@@ -235,7 +236,7 @@ func _test_enemies_wait_by_default() -> void:
 	var start: int = world.log_size()
 	var batch: CombatSession.FactBatch = world.send(EndTurnCommand.new(0))
 	_same("enemy phase: one command", world.kinds(start), " ".join([
-		"PHASE_END UNIT_TURN_END",
+		"TURN_ENDED PHASE_END UNIT_TURN_END",
 		"BLOCK_STANCE_REFRESHED BLOCK_STANCE_REFRESHED PHASE_START UNIT_TURN_START UNIT_TURN_START",
 		"UNIT_WAITED UNIT_WAITED",
 		"PHASE_END UNIT_TURN_END UNIT_TURN_END",
@@ -340,8 +341,9 @@ func _test_ended_seat_and_two_seats() -> void:
 	world.add_unit("q1", PLAYER, 1, Vector2i(0, 2))
 	world.session.open_battle()
 	var first: CombatSession.FactBatch = world.send(EndTurnCommand.new(0))
-	_ok("end turn: the first seat records nothing", (
-			not first.is_rejected() and first.facts.is_empty()
+	_ok("end turn: the first seat records only its own end", (
+			not first.is_rejected() and first.facts.size() == 1
+			and first.facts[0].kind == CombatFact.Kind.TURN_ENDED and first.facts[0].amount == 0
 	))
 	_ok("end turn: still the player phase", world.state().phase_side == PLAYER)
 	_same(
@@ -777,10 +779,10 @@ func _test_two_seats_wait_for_start() -> void:
 	world.session.open_battle(PackedInt32Array([0, 1]))
 	var start: int = world.log_size()
 	world.send(StartCommand.new(0))
-	_ok("two seats: one Start runs nothing", (
+	_ok("two seats: one Start runs nothing but its own fact", (
 			world.state().turn == 0
 			and world.state().map.opening_swap_open
-			and world.log_size() == start
+			and world.kinds(start) == "SEAT_STARTED"
 	))
 	_same(
 			"two seats: a seat that started can't swap",
