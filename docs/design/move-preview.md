@@ -114,8 +114,8 @@ the 30% EN15 saw from run to run (17 → 31 ms), and two reruns gave both 22–2
 - **The target (50 ms p95, debug, unswept)** holds on M1 turn 1 and misses on M1 engaged (jumping
   in) and on both 9-enemy boards, idle or jumping in. The sweep doesn't change an unswept
   preview's own time.
-- **Jumping in waits** for the sweep's preview running: on the boss board 1.7 s against 0.66 s idle
-  in debug. The running preview can't be stopped (P05 question 54).
+- **Jumping in waited** for the whole of the sweep's preview running: on the boss board 1.7 s
+  against 0.66 s idle in debug. A hover now cancels it (EN17, measured below).
 - **Against playback:** an enemy's turn plays in about 2.5–3 s at speed 1 when it attacks and 0.5 s
   when it doesn't, so a 9-enemy phase with 5 attacks plays in about 15 s, and a player's attack in
   about 3 s (estimated from `BattleView`'s pacing exports, not measured). The M1 sweeps finish
@@ -123,6 +123,36 @@ the 30% EN15 saw from run to run (17 → 31 ms), and two reruns gave both 22–2
   enemy phase, the boss board under 1; the selected unit goes first (7 s and 20 s for one unit).
 - **A frame starting a sweep preview** costs the main thread up to 9 ms in release and 26 ms in
   debug on the boss board: a debug frame can drop during playback.
+
+**The cancel, measured (EN17, November 23, 2026):** same machine, EN16's code and EN17's run in
+turn, mode by mode (`-- sweep`, then the plain run for "Idle"). The machine was not idle: other
+processes held about 40% of the CPU throughout, and the key board's release "Idle" moved 207 →
+150 ms with no change on that path, so treat differences under about 30% as noise. Median / p95
+in milliseconds. "Jumping in" as above (5–12 hovers per board, on the last unit's farthest
+tiles, not the "Idle" sample, so it can come in under "Idle"); "Its wait": from the hover to its
+own preview starting, the cancelled one stopping.
+
+| Board | Build | Idle, EN16 → EN17 | Jumping in, EN16 → EN17 | Its wait (EN17) |
+|---|---|---|---|---|
+| M1 turn 1 | debug | 17 / 30 → 17 / 30 | 21 / 48 → 17 / 34 | 0.9 / 17 |
+| M1 turn 1 | release | 14 / 24 → 13 / 22 | 8 / 16 → 12 / 17 | 3 / 5 |
+| M1 engaged | debug | 29 / 49 → 27 / 46 | 47 / 95 → 24 / 56 | 2 / 11 |
+| M1 engaged | release | 31 / 53 → 23 / 41 | 23 / 47 → 23 / 46 | 3 / 13 |
+| Key, 9 enemies | debug | 213 / 316 → 203 / 318 | 321 / 549 → 264 / 311 | 18 / 34 |
+| Key, 9 enemies | release | 207 / 331 → 150 / 229 | 161 / 263 → 155 / 242 | 12 / 17 |
+| Boss, 9 enemies | debug | 652 / 1,050 → 633 / 1,055 | 932 / 1,234 → 543 / 818 | 62 / 103 |
+| Boss, 9 enemies | release | 468 / 762 → 454 / 743 | 874 / 1,112 → 558 / 770 | 59 / 73 |
+
+- **A hover jumping in now costs about an idle hover** plus the cancelled preview's stop: on the
+  boss board in debug 932 → 543 ms (median) and 1,234 → 818 ms (p95), its wait 62 / 103 ms. On
+  the 9-enemy boards every jump cancelled one (12 of 12); on M1 a sweep preview more often ended
+  before the next frame (1 of 5 and 4 of 9 in debug).
+- **The wait is about one step of the phase** and one poll: the job checks before each step, and
+  a boss-board preview plays about 9 (its idle time divided by its steps, not measured per step).
+- **The target (50 ms p95, debug, unswept)** still holds only on M1 turn 1: the cancel removes the
+  wait, not an unswept preview's own time (P05 question 54, its miss accepted for now).
+- **The sweep is unchanged** within noise (boss board 162 → 176 s in debug, 124 → 125 s in
+  release; it starts no hover), as are a swept hover's lookup and a sweep frame.
 
 ## How a preview works now
 

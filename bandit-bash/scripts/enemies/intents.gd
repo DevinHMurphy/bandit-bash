@@ -6,7 +6,7 @@
 # File:     intents.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name Intents
@@ -37,8 +37,9 @@ extends RefCounted
 ##
 ## @todo: TOD-001 [MEDIUM] - A hover on a tile the sweep hasn't reached meets the 50 ms target
 ## only on M1: unswept, in debug, median / p95, the 9-enemy key board 203 / 326 ms and the boss
-## board 657 / 1,043 ms (release 158 / 245, 456 / 736), more while a sweep preview runs. On
-## engaged boards the moved unit stands within most enemies' reach, so few decisions are kept.
+## board 657 / 1,043 ms (release 158 / 245, 456 / 736), and about one step more while a sweep
+## preview it cancels stops. On engaged boards the moved unit stands within most enemies' reach,
+## so few decisions are kept.
 ## Swept tiles are a lookup; the options left are in move-preview.md (Where it stands).
 
 ## The text a checking-mode difference starts with in [member diagnostics].
@@ -206,8 +207,9 @@ static func compute(session: CombatSession, catalog: EffectCatalog.Index) -> Int
 
 # TODO(TOD-001): [MEDIUM] A hover on a tile the sweep hasn't reached meets the 50 ms target
 # only on M1: unswept, in debug, median / p95, the 9-enemy key board 203 / 326 ms and the boss
-# board 657 / 1,043 ms (release 158 / 245, 456 / 736), more while a sweep preview runs. On
-# engaged boards the moved unit stands within most enemies' reach, so few decisions are kept.
+# board 657 / 1,043 ms (release 158 / 245, 456 / 736), and about one step more while a sweep
+# preview it cancels stops. On engaged boards the moved unit stands within most enemies' reach,
+# so few decisions are kept.
 # Swept tiles are a lookup; the options left are in move-preview.md (Where it stands).
 ## The intents if player unit [param unit_id] moved to [param tile] now, before any action, built
 ## on [member CombatSession.intents] (computed afresh first when stale, not stored). The latest
