@@ -6,28 +6,29 @@
 # File:     run_screen.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 21, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name RunScreen
 extends RefCounted
 ## Which screen the run this machine holds belongs on, from its stage: the one place that decides,
 ## so the loading gate, the battle screen and every campaign screen route alike, and a continued
-## run reopens where it was saved. Solo and a co-op host route alike, by the local seat
-## ([method CampaignService.local_seat]); a client holds no session until transport (P10 NT5).
+## run reopens where it was saved. Solo and co-op route alike, by the local seat
+## ([method CampaignService.local_seat]).
 ##
 ## On the map: the starting heirloom offer while the local seat's is open ([StartingOffer]), else
 ## the campaign map. Inside a node, by the type it plays as ([method CampaignRunState.node_type]):
-## a combat on the battle screen (in co-op, its placeholder); a Treasure, Camp, Armory or Guildhall
-## on its own screen; an Unknown with an event open on the event screen, or the battle screen once
-## the event chose a surprise combat; an Unknown with none, the placeholder. At a combat's results:
-## Results. With no run: the battle screen. A screen opened at the wrong stage sends the run on
-## with [method go], which first settles an Unknown node's entry.
+## a combat on the battle screen; a Treasure, Camp, Armory or Guildhall on its own screen; an
+## Unknown with an event open on the event screen, or the battle screen once the event chose a
+## surprise combat; an Unknown with none, the placeholder. At a combat's results, solo or co-op:
+## the combat results screen, for the local seat. With no run: the battle screen. A screen opened
+## at the wrong stage sends the run on with [method go], which first settles an Unknown's entry.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 
-## Whether [param session] is a solo run with its campaign state. The battle screen routes on from
-## a battle only then; [method of] routes a co-op host's run too.
+## Whether [param session] is a solo run with its campaign state. A won battle's end plays the
+## victory sequence over the board only then; a co-op battle's end goes to the combat results
+## screen at once ([method of] routes both).
 static func is_solo_run(session: CampaignSession) -> bool:
 	return session != null and session.run != null and session.mode == CampaignData.Mode.SOLO
 

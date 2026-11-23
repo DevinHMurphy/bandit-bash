@@ -54,8 +54,9 @@ signal invite_confirmation_requested()
 #   ARMORY, GUILDHALL -> CAMPAIGN_MAP (Leave, at any time: buying is optional)
 #   NODE_PLACEHOLDER -> CAMPAIGN_MAP (Continue leaves the node)
 #   EVENT            -> CAMPAIGN_MAP (Leave, once chosen), GAMEPLAY (Fight: a surprise combat)
-#   GAMEPLAY    -> COMBAT_RESULTS (a solo battle won), RESULTS (lost, or outside a solo run;
-#                  everyone); a solo run elsewhere is sent to its stage's screen at once
+#   GAMEPLAY    -> COMBAT_RESULTS (a solo battle won, after its victory sequence; a co-op
+#                  battle's end, everyone, each machine its own seat's), RESULTS (the run ended,
+#                  or no run; everyone); a solo run elsewhere is sent to its stage's screen at once
 #   COMBAT_RESULTS -> CAMPAIGN_MAP (Continue leaves the node), RESULTS (End run, after the Boss)
 #   RESULTS     -> LOADING (everyone, next round), MAIN_MENU
 #   STARTING_HEIRLOOM, CAMPAIGN_MAP, TREASURE, CAMP, ARMORY, GUILDHALL, EVENT, NODE_PLACEHOLDER,
