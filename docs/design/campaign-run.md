@@ -42,7 +42,8 @@ commands and show the results.
 5. **A combat.** A won battle moves the stage to `results`. The seat takes or skips its item pick
    and, after a Key combat, its heirloom; then Continue leaves the node.
 6. **The end.** After the Boss's results, End run calls `CampaignService.end_won_run()`, which
-   archives the run as won. A solo battle lost ends the run at once.
+   archives the run as won. A solo battle lost ends the run at once. Co-op: see The co-op battle's
+   end.
 
 ## The map
 
@@ -120,8 +121,8 @@ client's its own. No screen reads `session.seats[0]`; the ui/campaign suite scan
   entry a teammate bought reads "bought by Player 2", on its card and when a purchase loses the
   race. Players are named "Player N" until Steam names reach the UI (TOD-001).
 - **Teammates.** In co-op a Team button (on the map, inside the army view) opens the `TeamPanel`:
-  each teammate's gold, army and heirloom bar. A Camp lists each teammate's choice
-  (`CampTeamStatus`).
+  each teammate's gold, army and heirloom bar; on the map, each teammate's route vote and swaps as
+  notes. A Camp lists each teammate's choice (`CampTeamStatus`).
 
 ## Commands and facts
 
@@ -182,8 +183,8 @@ Each node has its own streams (`SHOP_STOCK`, `UNKNOWN_RESOLUTION`, each seat's `
 Every seat has its own `SeatRun`; the map, flow and shop stock are shared. The rules handle
 several seats, and the campaign tests cover them headless. On the host, the campaign screens serve
 a co-op run for the local seat (Screens and seats); the event screen shows each teammate's vote
-and choice (events.md, Co-op). Swaps, the map screen's votes and the co-op battle screen come with
-the co-op plan (P11); clients' screens come with transport (P10 NT5).
+and choice (events.md, Co-op); the map screen votes and agrees swaps (below). The co-op battle
+screen comes with the co-op plan (P11 CO13).
 
 **Route votes.** In co-op a seat's own `ChooseNodeCommand` is refused, with a reason. Each seat
 sends `RouteVoteCommand` for a node `ChooseNodeCommand` would accept; voting again replaces its
@@ -191,8 +192,39 @@ vote, and a vote is never withdrawn. The last seat's vote draws the node from th
 `ROUTE_DRAW` stream, weighted by votes (2 votes against 1 is a 2-in-3 chance), and enters it:
 `ROUTE_VOTED` for each vote, then `NODE_CHOSEN` for no seat. The votes are saved in
 `campaign_map` and stay after the draw, so the tally still shows, until the next floor's first
-vote. Until the co-op map screen sends votes (P11 CO11), a co-op host can't leave the map from
-it.
+vote.
+
+**The co-op map screen.** Pressing a node sends the local seat's vote; pressing the node it
+already voted for sends nothing. A `MapVoteBadge` beside each voted node shows who voted (seat
+numbers, the viewer's own in the accent colour), and the `RouteVoteStatus` in a co-op-only column
+names every seat's vote. When a batch the screen follows holds the draw (`NODE_CHOSEN` for no
+seat), the screen shows the drawn node and its votes with Continue, the run already inside it,
+and follows the run only on Continue. Swaps are agreed from the army view's Swaps button
+(`SwapPanel`): propose (the seat's unit, then the teammate's), accept or decline a proposal made
+to the seat, withdraw its own or an accepted one. A refusal reads "Can't swap with Player N: …",
+units named by owner and type (`SwapText`). An accepted swap shows on the unit's army row and in a
+line naming both units until it ends; the `SwapStatus` in the co-op column lists the seat's open
+and accepted swaps (P11 questions 96–99).
+
+**The co-op battle's end.** `CampaignRunState.apply_battle()` applies a co-op battle once every
+map has ended, and the run reaches its results, even when every map failed: a failed map loses only
+itself. Each seat's `COMBAT_ENDED` records its own map (1 won, 0 lost), and every swap and open
+proposal ends. Each seat is paid from its own map:
+
+- **A failed seat** gets no gold, XP, pick or Standout, its units on a teammate's map included. It
+  has no combat report, so `CombatResultsModel.build()` gives it a model with `is_lost` set.
+- **A won seat** gets its grades, gold, pick and Key heirloom from its own map. Its units lost
+  on any map cost it the no-losses grade. A map that a sent unit landed on loses the under-par grade;
+  a swap's visitor doesn't count as received.
+- **XP** goes to each of a won seat's units still standing, wherever they ended. Personal XP and
+  the Standout count a unit's actions on every map, and the Standout is picked among the seat's own
+  units. Shared XP comes from the map a unit began on: a sent unit's won map, so never twice, or
+  for a visitor its partner's map, so none when that map failed.
+
+The run is lost for every seat (`CampaignService.end_battle()`, `SaveService.end_run(false)`) when
+`CombatEncounter.is_run_lost()` says so, before every map has ended, or when no map beat a Boss.
+A Boss beaten on at least one map ends the run as won for every seat (P11 questions 25, 26 and
+104–108).
 
 ## Tests
 

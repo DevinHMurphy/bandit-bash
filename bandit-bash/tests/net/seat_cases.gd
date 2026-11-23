@@ -6,14 +6,15 @@
 # File:     seat_cases.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends "res://tests/net/net_case_base.gd"
 ## Seat cases for tests/net/run_all.gd ([SeatDirectory]): peers, seats and Steam ids map both
 ## ways; invalid and taken entries are refused; a dropped seat keeps its seat and Steam id with no
-## peer; it reconnects under a new peer by its Steam id, and only then; the state values are
-## pinned.
+## peer; it reconnects under a new peer by its Steam id, and only then; only a dropped seat is
+## removed, for good; a directory is built from the players and members, the absent dropped; the
+## host's mid-run admission lets a dropped seat back and nobody else; the state values are pinned.
 
 # The suite that runs this file; tests/case_files.gd finds it by this line.
 const SUITE: String = "net"
@@ -33,6 +34,9 @@ func run() -> void:
 	_test_refusals()
 	_test_drop()
 	_test_reconnect()
+	_test_remove()
+	_test_build()
+	_test_admission()
 	_test_state_values()
 
 
@@ -137,11 +141,91 @@ func _test_reconnect() -> void:
 	))
 
 
+func _test_remove() -> void:
+	var seats: SeatDirectory = _directory()
+	var connected_refused: bool = not seats.remove_seat(1)
+	seats.drop_peer(1384211520)
+	var removed: bool = seats.remove_seat(1)
+	_check("seats: only a dropped seat is removed, and keeps its Steam id", (
+			connected_refused
+			and removed
+			and seats.state_of(1) == SeatDirectory.State.REMOVED
+			and seats.has_seat(1)
+			and seats.steam_id_of_seat(1) == 76561198000000002
+			and seats.seat_of_steam_id(76561198000000002) == 1
+			and seats.peer_of_seat(1) == SeatDirectory.NO_PEER
+			and seats.dropped_seats().is_empty()
+	), str(seats.state_of(1)))
+	_check("seats: a removed seat can't reconnect, be removed again or be added anew", (
+			seats.reconnect(76561198000000002, NEW_PEER) == SeatDirectory.NO_SEAT
+			and not seats.remove_seat(1)
+			and not seats.remove_seat(7)
+			and not seats.add_seat(3, 76561198000000002, NEW_PEER)
+			and seats.state_of(1) == SeatDirectory.State.REMOVED
+	))
+
+
+func _test_build() -> void:
+	var steam_ids: Dictionary[int, int] = {}
+	var peers: Dictionary[int, int] = {}
+	for entry: Array in SEATS:
+		steam_ids[entry[0] as int] = entry[1] as int
+		if entry[0] != 2:
+			peers[entry[1] as int] = entry[2] as int
+	peers[STRANGER_STEAM_ID] = NEW_PEER
+	var seats: SeatDirectory = SeatDirectory.build(steam_ids, peers)
+	_check("seats: build seats every player, connected by its member's peer, else dropped", (
+			seats.seats() == PackedInt32Array([0, 1, 2])
+			and seats.peer_of_seat(0) == 1
+			and seats.peer_of_seat(1) == 1384211520
+			and seats.dropped_seats() == PackedInt32Array([2])
+			and seats.steam_id_of_seat(2) == 76561198000000003
+			and seats.seat_of_peer(NEW_PEER) == SeatDirectory.NO_SEAT
+			and seats.reconnect(76561198000000003, NEW_PEER) == 2
+	), str(seats.dropped_seats()))
+	var repeated: Dictionary[int, int] = {0: 76561198000000001, 1: 76561198000000001}
+	_check("seats: build leaves out a repeated Steam id", (
+			SeatDirectory.build(repeated, {}).seats() == PackedInt32Array([0])
+	))
+
+
+# The host's admission mid-run: its required ids are the seats not removed, its members the
+# connected ones (NetRelay's _admit_campaign() and SteamNetwork's member list).
+func _test_admission() -> void:
+	var seats: SeatDirectory = _directory()
+	seats.drop_peer(1384211520)
+	seats.drop_peer(207718203)
+	seats.remove_seat(2)
+	var required: PackedInt64Array = []
+	var members: PackedInt64Array = []
+	for seat: int in seats.seats():
+		if seats.state_of(seat) != SeatDirectory.State.REMOVED:
+			required.append(seats.steam_id_of_seat(seat))
+		if seats.state_of(seat) == SeatDirectory.State.CONNECTED:
+			members.append(seats.steam_id_of_seat(seat))
+	var decided: Dictionary[int, int] = {}
+	for steam_id: int in [
+		76561198000000001, 76561198000000002, 76561198000000003, STRANGER_STEAM_ID,
+	]:
+		decided[steam_id] = LobbyAdmission.decide(
+				"0.1.0", "0.1.0", 7, 7, steam_id, required, members
+		)
+	_check("seats: mid-run, a dropped seat's account is admitted (a crashed client's rejoin)", (
+			decided[76561198000000002] == LobbyAdmission.ADMIT
+	))
+	_check("seats: mid-run, a stranger and a removed seat are refused; a connected one too", (
+			decided[STRANGER_STEAM_ID] == LobbyAdmission.Refusal.NOT_IN_CAMPAIGN
+			and decided[76561198000000003] == LobbyAdmission.Refusal.NOT_IN_CAMPAIGN
+			and decided[76561198000000001] == LobbyAdmission.Refusal.ALREADY_JOINED
+	), str(decided))
+
+
 func _test_state_values() -> void:
 	_check("seats: the state values are pinned (sent as ints)", (
 			SeatDirectory.State.CONNECTED == 0
 			and SeatDirectory.State.DROPPED == 1
-			and SeatDirectory.State.size() == 2
+			and SeatDirectory.State.REMOVED == 2
+			and SeatDirectory.State.size() == 3
 	))
 
 

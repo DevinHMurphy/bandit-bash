@@ -6,7 +6,7 @@
 # File:     unit_gear_row.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name UnitGearRow
@@ -81,6 +81,19 @@ func show_unit(
 		button.text = "%s: %s" % [SLOT_NAMES[slot], held]
 		button.disabled = not is_interactive
 		button.focus_mode = Control.FOCUS_ALL if is_interactive else Control.FOCUS_NONE
+
+
+## Adds [param note] (such as a co-op swap's, [method SwapText.unit_note]) as a second line under
+## the name, after [method show_unit]; empty adds nothing.
+func set_swap_note(note: String) -> void:
+	if note.is_empty():
+		return
+	_name_label.text += "\n" + note
+
+
+## The name column's text, a swap's note included, for tests.
+func get_name_text() -> String:
+	return _name_label.text
 
 
 ## The button of [param slot], for the view and tests.

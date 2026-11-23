@@ -6,14 +6,15 @@
 # File:     combat_results_model.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 19, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name CombatResultsModel
 extends RefCounted
-## What the victory sequence shows for one seat after a won combat, read from the run as saved:
-## its combat report ([method CampaignRunState.read_combat_report]) and item pick, with units and
-## items named, and each unit's XP and level before the combat, for the recap's bars.
+## What the victory sequence shows for one seat after a won combat, or that its co-op map was
+## lost ([member is_lost]), read from the run as saved: its combat report
+## ([method CampaignRunState.read_combat_report]) and item pick, with units and items named, and
+## each unit's XP and level before the combat, for the recap's bars.
 ##
 ## Built afresh after every command the sequence sends, so a quit and Continue shows the same
 ## report and offers. Units are named as the run minted them
@@ -60,6 +61,10 @@ var key_heirloom_definition: HeirloomDefinition = null
 ## Whether this is the Boss's Results, after which the run ends.
 var is_boss: bool = false
 
+## Whether the seat's own map failed in a co-op battle that reached its results: no gold, XP, pick
+## or Standout, so [member grades] pays nothing and every list is empty.
+var is_lost: bool = false
+
 ## XP needed per level ([member CombatRewardRules.xp_per_level]).[br]
 ## [b]Units:[/b] XP.
 var xp_per_level: int = 0
@@ -79,8 +84,10 @@ func pick_outcome() -> String:
 	return "Took %s." % [item_name(offers[pick.taken], pick.offers[pick.taken].definition_id)]
 
 
-## Results for seat [param seat] of [param session]'s run; null when the seat has no combat
-## report. [param catalog] null: the loaded one. [param rules] null: the shipped ones.
+## Results for seat [param seat] of [param session]'s run. At the run's results a seat with no
+## combat report lost its co-op map, and gets a lost model ([member is_lost]); null for a seat
+## with no report elsewhere, or an unusable one. [param catalog] null: the loaded one.
+## [param rules] null: the shipped ones.
 static func build(
 		session: CampaignSession,
 		seat: int,
@@ -99,7 +106,18 @@ static func build(
 			seat_run, reward_rules
 	)
 	if report == null:
-		return null
+		if (
+				run.flow.stage != RunFlow.Stage.RESULTS
+				or seat_run.pending_offers.has(CampaignRunState.COMBAT_REPORT_KEY)
+		):
+			return null
+		var lost: CombatResultsModel = CombatResultsModel.new()
+		lost.is_lost = true
+		lost.grades = CombatGrades.new()
+		lost.is_boss = run.is_boss_beaten()
+		lost.xp_per_level = reward_rules.xp_per_level
+		lost.gold_held = seat_run.gold
+		return lost
 	var model: CombatResultsModel = CombatResultsModel.new()
 	model.grades = report.grades
 	model.is_boss = run.is_boss_beaten()

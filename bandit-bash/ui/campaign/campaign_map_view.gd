@@ -6,7 +6,7 @@
 # File:     campaign_map_view.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 19, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name CampaignMapView
@@ -20,7 +20,8 @@ extends Control
 ## [member floor_gap], so the screen scrolls it when it is taller. Only reachable nodes take
 ## focus; left and right move between them in column order and stop at the ends (Godot_FE's
 ## campaign map), up and down stay put. Pressing one emits [signal node_chosen]; the screen sends
-## the command. Reading only: it never changes the run.
+## the command. In co-op a [MapVoteBadge] beside each voted node shows who voted for it
+## ([method show_votes]). Reading only: it never changes the run.
 
 ## The player pressed reachable node [param node_id], by click, key or pad.
 signal node_chosen(node_id: int)
@@ -29,6 +30,7 @@ signal node_chosen(node_id: int)
 signal node_inspected(node_id: int)
 
 const NODE_SCENE: PackedScene = preload("res://ui/campaign/map_node_button.tscn")
+const BADGE_SCENE: PackedScene = preload("res://ui/campaign/map_vote_badge.tscn")
 
 ## Each node type's name, as the map's tooltips, its legend and the node placeholder show it.
 const TYPE_NAMES: Dictionary[CampaignGraph.NodeType, String] = {
@@ -84,6 +86,10 @@ const TYPE_NAMES: Dictionary[CampaignGraph.NodeType, String] = {
 ## [b]Units:[/b] pixels at the base size.
 @export var padding: Vector2 = Vector2(16.0, 6.0)
 
+## The gap between a node and its co-op [MapVoteBadge], on the node's right.[br]
+## [b]Units:[/b] pixels at the base size. [b]0:[/b] the badge touches the node.
+@export_range(0.0, 16.0, 1.0) var badge_gap: float = 4.0
+
 @export_group("Paths")
 
 ## How thick a path is drawn.[br]
@@ -105,6 +111,7 @@ const TYPE_NAMES: Dictionary[CampaignGraph.NodeType, String] = {
 
 var _run: CampaignRunState = null
 var _buttons: Dictionary[int, MapNodeButton] = {}
+var _badges: Dictionary[int, MapVoteBadge] = {}
 var _reachable: PackedInt32Array = []
 
 
@@ -125,15 +132,19 @@ func _draw() -> void:
 			)
 
 
-## Shows [param run]'s map: every node, marked by the route taken and what it can enter next.
-## Call again after the run changes.
-func show_run(run: CampaignRunState) -> void:
+## Shows [param run]'s map: every node, marked by the route taken and, when
+## [param is_choosing], what it can enter next. Not choosing (the co-op draw shown): no node is
+## reachable or takes focus. Clears the vote badges. Call again after the run changes.
+func show_run(run: CampaignRunState, is_choosing: bool = true) -> void:
 	_run = run
 	for button: MapNodeButton in _buttons.values():
 		remove_child(button)
 		button.queue_free()
 	_buttons.clear()
-	_reachable = run.next_nodes() if run != null else PackedInt32Array()
+	_clear_badges()
+	_reachable = PackedInt32Array()
+	if run != null and is_choosing:
+		_reachable = run.next_nodes()
 	if run == null or run.graph == null:
 		queue_redraw()
 		return
@@ -158,6 +169,32 @@ func show_run(run: CampaignRunState) -> void:
 		_buttons[node_id] = button
 	_link_focus()
 	_lay_out()
+
+
+## Shows [param votes] (seat to node, as [member CampaignRunState.route_votes] holds them): a
+## [MapVoteBadge] beside each node voted for, [param viewer]'s own pip marked. Replaces the
+## badges shown; empty votes clear them.
+func show_votes(votes: Dictionary[int, int], viewer: int) -> void:
+	_clear_badges()
+	var by_node: Dictionary[int, PackedInt32Array] = {}
+	for seat: int in votes:
+		var node_id: int = votes[seat]
+		if not _buttons.has(node_id):
+			continue
+		var seats: PackedInt32Array = by_node.get(node_id, PackedInt32Array())
+		seats.append(seat)
+		by_node[node_id] = seats
+	for node_id: int in by_node:
+		var badge: MapVoteBadge = BADGE_SCENE.instantiate()
+		add_child(badge)
+		badge.show_seats(by_node[node_id], viewer)
+		_badges[node_id] = badge
+	_lay_out()
+
+
+## The vote badge beside node [param node_id]; null when nobody voted for it.
+func get_vote_badge(node_id: int) -> MapVoteBadge:
+	return _badges.get(node_id, null)
 
 
 ## The nodes the run can enter next, as shown: reachable and focusable, in column order.
@@ -231,7 +268,20 @@ func _lay_out() -> void:
 		var button: MapNodeButton = _buttons[node_id]
 		button.size = node_size
 		button.position = node_center(node_id) - node_size * 0.5
+	for node_id: int in _badges:
+		var badge: MapVoteBadge = _badges[node_id]
+		var center: Vector2 = node_center(node_id)
+		badge.position = Vector2(
+				center.x + node_size.x * 0.5 + badge_gap, center.y - badge.size.y * 0.5
+		)
 	queue_redraw()
+
+
+func _clear_badges() -> void:
+	for badge: MapVoteBadge in _badges.values():
+		remove_child(badge)
+		badge.queue_free()
+	_badges.clear()
 
 
 func _edge_colour(parent: int, child: int) -> Color:

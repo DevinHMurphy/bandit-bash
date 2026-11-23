@@ -624,9 +624,11 @@ Impact):
   load and gives `BATTLE_RETRY`.
 - **Mirrors** follow the darkness's facts (`CombatState.follow()`): each release adds a wave from
   its source and the first sets `has_darkness_arrived`, each tile deepened takes its layer, each
-  contact and erosion its count. A wave's reach and entered tiles are in no fact, so a mirror's
-  stay 0 and empty, and `CombatSession.state_hash()` covers the darkness's arrival, wave sources,
-  layers and contacts only.
+  contact and erosion its count, and each `DARKNESS_WAVE_SPREAD` sets a wave's reach and adds the
+  tile it entered (at release, creep and recalculation). So a mirror's `Darkness.next_deepening()`
+  is the host's, and `CombatSession.state_hash()` covers the darkness's arrival, each wave's
+  source, reach and entered tiles, the layers and the contacts. The section itself is unchanged:
+  it already saves reach and entered tiles.
 
 ## Battle tally
 
@@ -679,6 +681,12 @@ and [UL5 plan](../plans/2026-11-19-ul5-victory-sequence.md), Save Impact):
   their seat is removed from the save, so resuming no longer needs them, and their run is archived
   for them as lost. See [game-vision.md](game-vision.md#combat-maps).
 - Never send a Resource over the network; send envelopes or ids.
+- **A drop mid-run saves nothing (P10 NT6).** The seat is kept, dropped, and the run pauses; once a
+  run starts the host admits only the run's seats not removed (by Steam id from the connection),
+  so a dropped player's account gets back in and nobody else does. A rejoining client is sent the
+  campaign as at a run's start (`SaveService.send_run_to()`), since a crashed client holds no
+  replica, then a fresh snapshot. `NetRelay.remove_seat()` changes nothing on disk: the seat's
+  removal from the save comes with the forfeit. Untested live.
 
 ## Testing
 

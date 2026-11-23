@@ -49,6 +49,7 @@ const RELAY_RPCS: PackedStringArray = [
 	"_campaign_batch",
 	"_request_sync",
 	"_sync",
+	"_seat_changed",
 	"_notice",
 ]
 
