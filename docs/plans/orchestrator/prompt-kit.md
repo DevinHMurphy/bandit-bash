@@ -95,7 +95,7 @@ before writing a prompt and name it in the LANE block.
   `docs/design/event-bus.md` lists every kind with what records it.
 - `SceneRouter.Screen`: ends at `GUILDHALL = 17` (RN9).
 - `FactCueMap.Shape`: ends at `GUILDHALL_NODE = 9` (RN9).
-- `capture` group numbers in `tools/captures/`: 100 to 700 used; EV3 took 450, RN7 460, RN8 470, RN9 480, EV1G 455, UL9 405, UL10 475, CO10 485 (needs 480), TX3 420, BF8 487 (needs 485), BF9 488 (needs 487); CO12 458 (needs 455), BF10 335; EV7 told 459.
+- `capture` group numbers in `tools/captures/`: 100 to 700 used; EV3 took 450, RN7 460, RN8 470, RN9 480, EV1G 455, UL9 405, UL10 475, CO10 485 (needs 480), TX3 420, BF8 487 (needs 485), BF9 488 (needs 487); CO12 458 (needs 455), BF10 335, EV7 459, NT5 489 (unrun), CO11 moved to 490, UL11 told 336.
 
 ## Reviewing a report
 
@@ -129,10 +129,10 @@ before writing a prompt and name it in the LANE block.
 
 | Lane | Next | Then | Gated on |
 |------|------|------|----------|
-| A Battle UI | EN17 preview cancel (P05 question 54 (a); issued November 22, 2026) | UL11 weapon-profile marks (RF-039, user November 23, 2026); CO13 the co-op battle screen after NT5, which removes the battle screen's co-op placeholder (P11 question 1 (a)); it builds on `has_sent()`, `senders_of()`, `is_aid_called()`, `is_frozen()`); the HUD rune bar as an EffectText, with the detail rows' 4-unit focus inset; RB1 after the full-run playtest | RB1: the user's full-run playtest (user, November 20 and 22, 2026) |
+| A Battle UI | EN17 preview cancel (P05 question 54 (a); issued November 22, 2026) | UL11 weapon-profile marks (RF-039, user November 23, 2026); CO13 the co-op battle screen (ready: NT5 merged November 23, 2026, the placeholder gone; owns the "waiting for the other maps" UI); it builds on `has_sent()`, `senders_of()`, `is_aid_called()`, `is_frozen()`); the HUD rune bar as an EffectText, with the detail rows' 4-unit focus inset; RB1 after the full-run playtest | RB1: the user's full-run playtest (user, November 20 and 22, 2026) |
 | B Campaign and run | P11 CO11 the co-op campaign map (issued November 23, 2026; a co-op host can't leave the map until it sends route votes) | CO8 the co-op battle end and rewards (with CO5's visitor reward gaps); CO14 (a forfeit clears swaps and route votes); BUG-034 before CO16 | — |
 | C Events | — (free: EV7 merged November 23, 2026) | the event option's expected-heirloom field when events offer a unique heirloom; unit-roster.md's temporary convoy overflow, if wanted | Nothing ready |
 | D Engine, AI, content | EN18 plan: the intents refresh on the worker (P05 question 53 (a), plan doc first; BUG-035's release part; CO2 merged November 22, 2026) | CO3 units on a partner's map, with BUG-038; CO4 the darkness on mirrors; CT12 after the weapon modification design | — |
-| E Network | NT5 client mirrors (issued November 23, 2026; attaches to `NetRelay`'s `*_received` signals and `command_settled`; switches `battle_controller.gd` to `submit_combat()`; removes the battle screen's co-op placeholder, P11 question 1) | NT6 (builds `NetRelay.seats` from SteamNetwork's admitted members), NT7, NT8; CO15 after NT4 | — |
+| E Network | NT6 drop, pause and rejoin (ready: NT5 merged November 23, 2026), with clients' `SeatDirectory` (removing P10 question 38's host-seat fallback) and P10 question 39's route notice if answered | NT7, NT8; CO15 after NT4 | — |
 | G Audio and tooling | TX2 trait wording, part 2, with RF-038 (Foods), after the user's wording pass (in the Wording Pass artifact, https://claude.ai/artifact/V1CKy2XcDTHEtkDdtxYHS5, collection `wording`, read back with ArtifactData; it covers effect-text.md and keywords.md; TX3 merged November 22, 2026) | AU2 after the audio direction (M5); the capture builder tidy-up | TX2 after the user's wording pass (it applies it, and confirms P01 65–68) |
 | F Docs and plans | CO20 docs, with BUG-033 (P11 answered November 22, 2026) | P12 plan when wanted; P17 parked (user, November 22, 2026: very low priority) | — |

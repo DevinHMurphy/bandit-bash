@@ -6,7 +6,7 @@
 # File:     relay_cases.gd
 # Author:
 # Created:  November 22, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends "res://tests/net/net_case_base.gd"
@@ -47,6 +47,8 @@ const RELAY_RPCS: PackedStringArray = [
 	"_combat_batch",
 	"_encounter_batch",
 	"_campaign_batch",
+	"_request_sync",
+	"_sync",
 	"_notice",
 ]
 

@@ -6,21 +6,22 @@
 # File:     battle_screen.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name BattleScreen
 extends Node2D
-## The gameplay screen: a solo run's battle, from Begin to its results.
+## The gameplay screen: the run's battle on this machine's own map
+## ([method CampaignService.local_seat]), from Begin to its results, solo, co-op host or client.
 ##
-## It begins the run's combat node from [method CampaignRunState.battle_request] (in the swap
-## window only while [member SettingsData.is_opening_swap_on]), resumes one saved mid-fight or
-## shows one already on (its [EventLog] starting "Battle resumed"), and sends any other run to
-## [RunScreen]. The end of each player phase, on any map, saves the battle as its command resolves
-## ([method SaveService.save_checkpoint]). Once the map has ended and settled, input stops, the
-## end banner shows for [member end_banner_time], and the result is saved: a won solo combat's
-## [VictoryOverlay] opens over the board; a loss goes on. Co-op and clients keep the placeholder;
-## the save debug panel (F3, with the debug fact log) hides while a battle shows.
+## The host and solo begin the run's combat node ([method CampaignRunState.battle_request], in the
+## swap window only while [member SettingsData.is_opening_swap_on]), resume one saved mid-fight or
+## show one already on (its [EventLog] starting "Battle resumed"), and send any other run to
+## [RunScreen]; each player phase's end, on any map, saves the battle. A client shows its mirror's
+## battle once the host's snapshot built it, and again after a resync. Once this map has ended and
+## settled, input stops and the end banner shows; once every map has, the host waits
+## [member end_banner_time] and saves the result: a won solo combat's [VictoryOverlay] opens, else
+## everyone moves on. A client waits for that move. The save debug panel hides during a battle.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
@@ -40,10 +41,16 @@ var _session: CombatSession = null
 # The battle shown, whose every map's save points save it; null when the placeholder shows.
 var _encounter: CombatEncounter = null
 
+# Whether this map has ended and its banner shows; and whether the hold before the battle's end
+# has started (once every map has ended).
 var _is_ending: bool = false
+var _is_end_held: bool = false
 
 # Whether the battle shown was resumed or already on, not begun by this screen.
 var _is_resumed: bool = false
+
+# A client's mirrored run, whose battle this screen shows as it is built; null on the host.
+var _mirror: CampaignSession = null
 
 @onready var _view: BattleView = %BattleView
 @onready var _controller: BattleController = %BattleController
@@ -62,8 +69,15 @@ func _ready() -> void:
 	if is_instance_valid(_save_debug_panel):
 		_save_debug_panel.visibility_changed.connect(_on_save_debug_panel_visibility_changed)
 	var run: CampaignSession = CampaignService.session
-	if run == null or run.mode != CampaignData.Mode.SOLO:
+	if run == null:
 		_show_placeholder("")
+		return
+	if run.is_mirror:
+		# Built from the host's snapshot, never begun here; a resync builds it again.
+		_mirror = run
+		_mirror.combat_encounter_opened.connect(_on_mirror_combat_encounter_opened)
+		if run.encounter != null:
+			_open(run.encounter, CampaignService.local_seat())
 		return
 	if run.encounter == null and RunScreen.of(run) != SceneRouter.Screen.GAMEPLAY:
 		_show_placeholder("")
@@ -75,7 +89,14 @@ func _ready() -> void:
 		if err != OK:
 			_show_placeholder("Couldn't begin the battle (%s)." % [error_string(err)])
 			return
-	_open(run.encounter, run.seats[0])
+	_open(run.encounter, CampaignService.local_seat())
+
+
+func _exit_tree() -> void:
+	if _mirror != null and _mirror.combat_encounter_opened.is_connected(
+			_on_mirror_combat_encounter_opened
+	):
+		_mirror.combat_encounter_opened.disconnect(_on_mirror_combat_encounter_opened)
 
 
 ## The board, for tests that drive its playback.
@@ -107,7 +128,7 @@ func _begin_battle(run: CampaignSession) -> Error:
 		return ERR_CANT_CREATE
 	# The player's opening-swap setting, read as the battle begins. A resumed battle keeps the
 	# window's saved state; a resume that falls back to Begin reads the setting again.
-	request.opening_swap[run.seats[0]] = SaveService.settings.is_opening_swap_on
+	request.opening_swap[CampaignService.local_seat()] = SaveService.settings.is_opening_swap_on
 	if SaveService.combat != null:
 		var err: Error = CampaignService.resume_battle(request)
 		# A resume that fell back to Begin (BATTLE_RETRY) is a new battle.
@@ -116,7 +137,9 @@ func _begin_battle(run: CampaignSession) -> Error:
 	return CampaignService.begin_battle(request)
 
 
+# Shows seat's map of encounter, letting go of a battle shown before (a client's resync).
 func _open(encounter: CombatEncounter, seat: int) -> void:
+	_let_go_of_battle()
 	_session = encounter.session_of_seat(seat)
 	if _session == null:
 		_show_placeholder("The battle has no map for seat %d." % [seat])
@@ -138,6 +161,24 @@ func _open(encounter: CombatEncounter, seat: int) -> void:
 	# The unit panel's Details button is the mouse's way to unit detail; the controller decides.
 	_hud.get_unit_panel().details_pressed.connect(_on_unit_panel_details_pressed)
 	_on_battle_view_settled()
+
+
+# Disconnects the battle shown, if any, so _open() can show another.
+func _let_go_of_battle() -> void:
+	if _encounter == null:
+		return
+	for map: CombatSession in _encounter.get_sessions():
+		if map.batch_resolved.is_connected(_on_session_batch_resolved):
+			map.batch_resolved.disconnect(_on_session_batch_resolved)
+	if _view.settled.is_connected(_on_battle_view_settled):
+		_view.settled.disconnect(_on_battle_view_settled)
+	var panel: UnitPanel = _hud.get_unit_panel()
+	if panel.details_pressed.is_connected(_on_unit_panel_details_pressed):
+		panel.details_pressed.disconnect(_on_unit_panel_details_pressed)
+	_encounter = null
+	_session = null
+	_is_ending = false
+	_is_end_held = false
 
 
 # The seat's army by instance id, for the unit detail's level, XP and growths; empty off a run.
@@ -165,13 +206,22 @@ func _show_placeholder(note: String) -> void:
 		_placeholder_note.text = note
 
 
-# Stops input and shows the end banner, then ends the battle after end_banner_time. Runs once.
+# Stops input and shows this map's end banner, then holds for the battle's end. Runs once.
 func _show_end() -> void:
 	if _is_ending:
 		return
 	_is_ending = true
 	_controller.unbind()
 	_hud.show_result(_session.is_won)
+	_hold_end()
+
+
+# Once every map has ended (in solo, the one map), ends the battle after end_banner_time, on the
+# host; a client's banner stays until the host moves everyone on. Runs once.
+func _hold_end() -> void:
+	if _is_end_held or _mirror != null or not _encounter.is_finished():
+		return
+	_is_end_held = true
 	if end_banner_time <= 0.0:
 		_end_battle()
 		return
@@ -182,7 +232,7 @@ func _show_end() -> void:
 
 # Saves the battle's end, then shows a won solo combat's victory sequence over the board (the run
 # is at its results); otherwise routes everyone on: a solo run still going to its stage's screen,
-# and a run that ended, or anything but a solo run, to RESULTS. Called once, by _show_end().
+# and a run that ended, or anything but a solo run, to RESULTS. Called once, by _hold_end().
 func _end_battle() -> void:
 	_controller.unbind()
 	_hud.unbind()
@@ -200,7 +250,7 @@ func _end_battle() -> void:
 		overlay.playback_speed = _view.playback_speed
 		overlay.fast_forward_speed = _view.fast_forward_speed
 		add_child(overlay)
-		overlay.open(run.seats[0], false)
+		overlay.open(CampaignService.local_seat(), false)
 		return
 	SceneRouter.goto_screen_for_everyone(next)
 
@@ -210,12 +260,16 @@ func _on_battle_view_settled() -> void:
 		_show_end()
 
 
-# The end-of-phase checkpoint (save-system.md, When the game saves), on any map of the battle: a
-# player phase's end or a frozen map's restart saves the whole battle at the start of a player
-# phase (CombatEncounter.is_save_point). A battle that has ended is saved by _end_battle(). A failed
-# save is reported and play goes on: the previous save stays, and the next one retries.
+# The end-of-phase checkpoint (save-system.md, When the game saves), on any map of the battle, a
+# co-op host's included: a player phase's end or a frozen map's restart saves the whole battle at
+# the start of a player phase (CombatEncounter.is_save_point). Once this map has ended, a map's
+# batch only checks for the battle's end, which _end_battle() saves. A failed save is reported and
+# play goes on. A client's mirror sends no batches here, and never saves.
 func _on_session_batch_resolved(batch: CombatSession.FactBatch) -> void:
-	if _is_ending or _encounter.is_finished() or SaveService.combat == null:
+	if _is_ending:
+		_hold_end()
+		return
+	if _encounter.is_finished() or SaveService.combat == null:
 		return
 	if not CombatEncounter.is_save_point(batch):
 		return
@@ -224,6 +278,21 @@ func _on_session_batch_resolved(batch: CombatSession.FactBatch) -> void:
 	var err: Error = SaveService.save_checkpoint()
 	if err != OK:
 		push_error("BattleScreen: the end-of-phase save failed - %s" % [error_string(err)])
+
+
+# The mirror's battle was built, or built again by a resync; its snapshot loads in the same call,
+# so it shows once that call is done.
+func _on_mirror_combat_encounter_opened(encounter: CombatEncounter) -> void:
+	_open_mirrored.call_deferred(encounter)
+
+
+func _open_mirrored(encounter: CombatEncounter) -> void:
+	if _mirror == null or _mirror.encounter != encounter or encounter.is_closed:
+		return
+	_placeholder.visible = false
+	_view.visible = true
+	_view.process_mode = Node.PROCESS_MODE_INHERIT
+	_open(encounter, CampaignService.local_seat())
 
 
 func _on_unit_panel_details_pressed(unit_id: String) -> void:

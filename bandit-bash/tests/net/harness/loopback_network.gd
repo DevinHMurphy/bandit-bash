@@ -6,7 +6,7 @@
 # File:     loopback_network.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -17,7 +17,8 @@ extends RefCounted
 ## A packet sent before a step arrives in it, after its link's delay in further steps. Packets due
 ## together arrive in send order, unless a scripted reorder released them. Client ids come from a
 ## seeded generator: large and random-looking, as real ones are, and the same on every run.[br]
-## Switches: [method drop] a peer, [method set_delay] a link, [method reorder_next] its packets.
+## Switches: [method drop] a peer, [method set_delay] a link, [method reorder_next] its packets,
+## [method lose_next] some of them.
 
 const LoopbackPeer = preload("res://tests/net/harness/loopback_peer.gd")
 
@@ -44,6 +45,7 @@ var _in_flight: Array[LoopbackPeer.Packet] = []
 var _delays: Dictionary[Vector2i, int] = {}
 var _reorders: Dictionary[Vector2i, PackedInt32Array] = {}
 var _held: Dictionary[Vector2i, Array] = {}
+var _losses: Dictionary[Vector2i, int] = {}
 var _ids: RandomNumberGenerator = RandomNumberGenerator.new()
 
 
@@ -161,6 +163,13 @@ func reorder_next(from_id: int, to_id: int, order: PackedInt32Array) -> bool:
 	return true
 
 
+## Loses the next [param count] packets from [param from_id] to [param to_id] as they are sent,
+## with nobody told: a gap in what the receiver hears, which a reliable link never makes on its
+## own, for the cases that repair one. Packets already sent are kept.
+func lose_next(from_id: int, to_id: int, count: int) -> void:
+	_losses[Vector2i(from_id, to_id)] = maxi(count, 0)
+
+
 func _next_client_id() -> int:
 	var id: int = _ids.randi_range(MIN_CLIENT_ID, MAX_CLIENT_ID)
 	while _used_ids.has(id):
@@ -199,6 +208,9 @@ func _route(packet: LoopbackPeer.Packet) -> void:
 	if not (_peers.has(packet.from_id) and _peers.has(packet.to_id)):
 		return
 	var link: Vector2i = Vector2i(packet.from_id, packet.to_id)
+	if _losses.get(link, 0) > 0:
+		_losses[link] -= 1
+		return
 	if not _reorders.has(link):
 		_launch(packet, link)
 		return

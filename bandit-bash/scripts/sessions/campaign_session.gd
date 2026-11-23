@@ -6,23 +6,21 @@
 # File:     campaign_session.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name CampaignSession
 extends RefCounted
-## One run in progress on the host: its streams, its id allocator, its campaign bus, its
-## [member run] and the bridge into each battle. Built by [code]CampaignService[/code] when a run
-## becomes active and closed when it ends; host and solo only. Consumers get single streams.[br]
-## [b]The battle bridge:[/b] [method begin_battle] sets a [BattleRequest] up as a [CombatEncounter]
-## (the run's from [method CampaignRunState.battle_request]): one [CombatSession] per seat, its
-## objects, enemies and darkness, a copy of every run carrier (one per held copy of a heirloom or
-## curse, with its saved campaign lane) and each army loaded and deployed. [method resume_battle]
-## rebuilds a saved battle the same way and loads the save into it. [method collect_battle] writes
-## campaign lanes back and gathers the [BattleResult] with the battle still on;
-## [method end_battle] drops it. [member tally], [member stats] and [member battle_grants] observe
-## the battle and are saved with it; the run applies them at its end
-## ([method CampaignRunState.apply_battle]).
+## One run in progress: its streams, its id allocator, its campaign bus, its [member run] and the
+## bridge into each battle. Built by [code]CampaignService[/code] when a run becomes active and
+## closed when it ends; on a client, a [member is_mirror] that [ClientMirror] keeps equal to the
+## host's and that resolves nothing. Consumers get single streams.[br]
+## [b]The battle bridge:[/b] [method begin_battle] sets a [BattleRequest] up as a [CombatEncounter]:
+## one [CombatSession] per seat, its objects, enemies and darkness, a copy of every run carrier and
+## each army loaded and deployed. [method resume_battle] rebuilds a battle the same way and loads a
+## save (or a host's snapshot) into it. [method collect_battle] writes campaign lanes back and
+## gathers the [BattleResult]; [method end_battle] drops the battle. [member tally],
+## [member stats] and [member battle_grants] observe it, are saved with it, and apply at its end.
 ##
 ## @tutorial(Event bus plan): docs/plans/2026-10-23-event-bus-and-effects.md
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
@@ -98,6 +96,11 @@ var stats: BattleStats = BattleStats.new()
 
 ## Whether [method close] was called: the run ended or its save file closed.
 var is_closed: bool = false
+
+## Whether this is a client's copy of the host's run ([ClientMirror]): it never resolves, so
+## [method submit] and [method begin_battle] refuse; its run and battle come from the host. Set
+## once, before use; false on the host and in solo.
+var is_mirror: bool = false
 
 ## The per-draw trace flag handed to every battle's sessions
 ## ([member CombatSession.is_tracing_draws]). Off by default.
@@ -190,16 +193,17 @@ func add_setup_step(step: CombatEncounter.SetupStep, run: Callable) -> void:
 	_setup_steps.append([step, run])
 
 
-## Begins the battle [param request] describes: the encounter with its enemy draw
-## ([method EnemySetup.draw]) and setup from fresh streams (a restart from Begin rolls the same),
-## [signal combat_encounter_opened], one session per seat on its [code]COMBAT_ROLLS[/code] stream,
-## then per map its objects, enemies, darkness phase, reinforcement points, AI and intents, carrier
-## copies, its darkness ([method DarknessSetup.place], so Short Wick counts), each army's runes
-## ([member Army.rune_slots]) and deployment, its visitors loaded as their owners'
-## ([member Army.visitor_seats]), and [method CombatSession.open_battle] as the
-## [member BattleRequest.opening_swap] of each seat with units there says. Returns the encounter;
-## null, with nothing begun, when a battle is on, the run is closed, or setup fails.
+## Begins the battle [param request] describes: setup from fresh streams (a restart from Begin
+## rolls the same), [signal combat_encounter_opened], one session per seat on its
+## [code]COMBAT_ROLLS[/code] stream, then per map its objects, enemies, hooks, carrier copies,
+## darkness ([method DarknessSetup.place], so Short Wick counts), runes and deployment, visitors as
+## their owners', and [method CombatSession.open_battle] by each seat's
+## [member BattleRequest.opening_swap]. Returns the encounter; null, with nothing begun, when a
+## battle is on, the run is closed, setup fails, or on a [member is_mirror].
 func begin_battle(request: BattleRequest) -> CombatEncounter:
+	if is_mirror:
+		push_error("CampaignSession: a mirror never begins a battle; the host's arrives instead")
+		return null
 	if not _can_open_battle(request):
 		return null
 	var catalog: EffectCatalog.Index = _catalog_of(request)
@@ -395,9 +399,9 @@ func end_battle() -> BattleResult:
 ## Stamps [param command] on arrival and resolves it on [member run] at once
 ## ([method CampaignRunState.resolve]), so the first arrival wins; a unique heirloom it gained
 ## replaces every teammate's open offer of it in the same batch ([UniqueClaims]). Rejected,
-## changing nothing, with no run, a closed run or a battle in progress. Emits
-## [signal campaign_batch_resolved], and [signal command_rejected] for a rejection; logs it at
-## INFO. Returns the batch; null for null. Saving is the caller's
+## changing nothing, with no run, a closed run, a battle in progress or on a [member is_mirror].
+## Emits [signal campaign_batch_resolved], and [signal command_rejected] for a rejection; logs it
+## at INFO. Returns the batch; null for null. Saving is the caller's
 ## ([code]CampaignService.submit_command()[/code]).
 func submit(command: CampaignCommand) -> CampaignBatch:
 	if command == null:
@@ -406,14 +410,16 @@ func submit(command: CampaignCommand) -> CampaignBatch:
 	command.arrival = _next_arrival
 	_next_arrival += 1
 	var batch: CampaignBatch = null
-	if run == null or is_closed or encounter != null:
+	if run == null or is_closed or encounter != null or is_mirror:
 		batch = CampaignBatch.new()
 		batch.seat = command.seat
 		batch.arrival = command.arrival
 		batch.label = command.get_label()
-		batch.rejected_reason = (
-				"a battle is in progress" if encounter != null else "no run is in progress"
-		)
+		batch.rejected_reason = "no run is in progress"
+		if is_mirror:
+			batch.rejected_reason = "a mirror doesn't resolve commands"
+		elif encounter != null:
+			batch.rejected_reason = "a battle is in progress"
 	else:
 		batch = run.resolve(command)
 		if not batch.is_rejected():
