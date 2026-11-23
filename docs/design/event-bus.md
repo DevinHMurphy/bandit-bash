@@ -40,7 +40,11 @@ A fact is one thing that happened, in the past tense, carrying ids and never obj
   `damage_type`, `source`, `source_effect_id`, `tile`, `flags`, `side`, `item_id`, `key` and
   `unit_types`. Kinds 0–46: every combat trigger, plus state kinds (moved, spawned, counters,
   timed modifiers, the darkness, objects, reinforcements, weapon swaps, runes, Wait, stat and
-  growth changes). Each kind's doc in the enum says what its fields mean.
+  growth changes). Kinds 47–49 and 51 are encounter facts (`CombatEncounter`): a unit sent, a
+  unit returned, a call for aid, and a seat or its unit leaving the battle (`UNIT_LEFT`, a
+  forfeit). 50 is a darkness wave's spread, and 52 and 53 a seat's End Turn and Start
+  (`TURN_ENDED`, `SEAT_STARTED`), recorded so mirrors follow maps two seats share. None of
+  47–53 fires a trigger. Each kind's doc in the enum says what its fields mean.
 - **`CampaignFact`** ([scripts/bus/campaign_fact.gd](../../bandit-bash/scripts/bus/campaign_fact.gd)):
   `kind`, `seq`, `seat`, `actor_id`, `target_id`, `definition_id`, `amount`, `source_effect_id`,
   `flags`. Kinds as they stand:
