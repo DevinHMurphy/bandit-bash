@@ -11,18 +11,17 @@
 
 extends Node
 ## Every run message between host and clients: commands up, batches down, each command's settle,
-## and presentation notices. Autoload [code]NetRelay[/code], after [code]CampaignService[/code].
-##
-## It reads its own node's [code]multiplayer[/code] ([NetGate]) and [member seats], never Steam, so
-## a two-peer test puts one under each branch. [b]On the host[/b] a client's command takes its seat
-## from the connection, never the message, is refused while the run is paused, is filled
-## ([HostFill]) and goes through [code]CampaignService[/code] as the host's screens send theirs; its
-## sender alone hears how it settled. Every batch the run makes goes to every client in the host's
-## order on one reliable channel, a rejection to its sender only, campaign batches with the run's
-## capture; the idle frame after a battle opens, its snapshot follows. A client's request for
-## state is answered with the run and the facts it missed when a map can catch up, else a fresh
-## snapshot. [b]Clients[/b] hand what arrives on through the [code]*_received[/code] signals and
-## [signal sync_received], for [ClientMirror]. Notices are presentation only: rules never read them.
+## presentation notices, and the seats' drops and rejoins. Autoload [code]NetRelay[/code], after
+## [code]CampaignService[/code]. It reads its own node's [code]multiplayer[/code] ([NetGate]) and
+## [member seats], never Steam, except to seat a lobby's run, so a test puts one under each branch.
+## [b]Host:[/b] a client's command takes its seat from the connection, is refused while the run is
+## paused, is filled ([HostFill]) and resolves as the host's own; its sender alone hears how it
+## settled. Batches go to every seated client in the host's order on one reliable channel, a
+## rejection to its sender only, campaign batches with the run's capture, a battle's snapshot on
+## the idle frame after it opens. [b]Seats:[/b] a seat whose peer leaves is kept, dropped, and the
+## run pauses for everyone until it rejoins (a fresh snapshot) or the host removes it.
+## [b]Clients[/b] hand what arrives on through the [code]*_received[/code] signals and
+## [signal sync_received], for [ClientMirror]. Notices are presentation only.
 ##
 ## @tutorial(Net transport plan): docs/plans/2026-11-19-net-transport.md
 
@@ -45,13 +44,23 @@ signal campaign_batch_received(facts: Array, run: Dictionary)
 ## only. Never emitted for this machine's own notices.
 signal notice_received(seat: int, kind: int, data: Array)
 
-## The host's answer to [method request_sync], or its battle's snapshot as the battle opened:
-## [param run] the run's capture (as [signal campaign_batch_received]'s); [param battle] the
-## encounter's [method CombatEncounter.snapshot], empty when it isn't needed or no battle is open;
-## [param facts] each map's missed facts as a [method CombatSession.FactBatch.to_wire], for
-## catch-up; [param screen] [code]SceneRouter.Screen.GAMEPLAY[/code] while a battle is open, else
-## -1. Clients only.
+## State from the host (an answer to [method request_sync], a battle's opening, a rejoin): the
+## run's capture; the encounter's [method CombatEncounter.snapshot] or empty; each map's missed
+## facts as [method CombatSession.FactBatch.to_wire]s; [param screen] is
+## [code]SceneRouter.Screen.GAMEPLAY[/code] while a battle is open, else -1. Clients only.
 signal sync_received(run: Dictionary, battle: Dictionary, facts: Array, screen: int)
+
+## [param seat] lost its connection during the run, which is paused until it is back or removed.
+## Every peer, the host included, on the host's word.
+signal seat_dropped(seat: int)
+
+## The dropped [param seat] is connected again, with the run from a fresh snapshot. Every peer that
+## was waiting for it.
+signal seat_rejoined(seat: int)
+
+## The host removed the dropped [param seat] after its wait ([method remove_seat]); it never comes
+## back. Every peer. No rule acts on a removal yet: its map stays in the battle.
+signal seat_removed(seat: int)
 
 ## What a notice says. Sent as an int: [b]append only[/b], with explicit values; the build
 ## fingerprint covers it ([NetContract]).
@@ -59,14 +68,25 @@ enum NoticeKind {
 	## The sender's selected unit on a map, for teammates' markers: data
 	## [code][session id, unit id][/code], the id empty for none.
 	SELECTION = 0,
+	## A client's move for everyone ([code]SceneRouter.goto_screen_for_everyone()[/code]), data
+	## empty: the host routes everyone itself, by its own run. Never forwarded; dropped while
+	## paused.
+	ROUTE = 1,
 }
 
 ## The token [method send_combat] and [method send_campaign] return when nothing was sent. Real
 ## tokens start at 1.
 const NO_TOKEN: int = 0
 
+## Seconds a seat must have been dropped before [method remove_seat] may remove it (the vision's
+## first pass).
+const REMOVE_WAIT: float = 120.0
+
 # The NetLog autoload's script, for its Category type.
 const NetLogScript = preload("res://scripts/autoload/net_log.gd")
+
+# The wait overlay, loaded at the first wait, so a run nobody drops from never loads UI here.
+const _OVERLAY_PATH: String = "res://ui/net/seat_wait_overlay.tscn"
 
 # The host's peer id, on every peer of a Godot session.
 const _HOST_PEER: int = 1
@@ -97,8 +117,9 @@ const _NO_SCREEN: int = -1
 # A catch-up batch's label, for the client's log.
 const _CATCH_UP_LABEL: String = "catch-up"
 
-## The host's seats: which connection holds which seat. [b]Null:[/b] none is known, so every
-## client's command settles "not seated". Unused on a client.
+## Which connection holds which seat. On the host it decides every client's seat; on a client it
+## gives this machine's own. [b]Null:[/b] none is known, so every client's command settles "not
+## seated" and no client hears the run. Built by [method seat_members] for a lobby's run.
 var seats: SeatDirectory = null
 
 var _next_token: int = NO_TOKEN + 1
@@ -107,12 +128,30 @@ var _next_token: int = NO_TOKEN + 1
 var _session: CampaignSession = null
 var _encounter: CombatEncounter = null
 
+# The API whose connection signals are connected: the one this node had when it entered the tree.
+var _api: MultiplayerAPI = null
+
+# The battle's snapshot is due on the next frame.
+var _push_pending: bool = false
+
+# Seconds each seat this machine waits for has waited, from the host's _seat_changed(); on a
+# client that lost the host, the host's seat alone.
+var _waits: Dictionary[int, float] = {}
+var _host_lost: bool = false
+
+# Each seat's Steam id, as seat_members() last gave them; empty when seats was set from outside.
+var _players: Dictionary[int, int] = {}
+
+var _overlay: SeatWaitOverlay = null
+
 
 func _ready() -> void:
-	# Processing only runs the snapshot push after a battle opens.
-	set_process(false)
 	CampaignService.session_started.connect(_on_campaign_service_session_started)
 	CampaignService.session_ended.connect(_on_campaign_service_session_ended)
+	SteamNetwork.lobby_state_changed.connect(_on_steam_network_lobby_state_changed)
+	_api = multiplayer
+	_api.peer_disconnected.connect(_on_multiplayer_peer_disconnected)
+	_api.server_disconnected.connect(_on_multiplayer_server_disconnected)
 	# A relay that joins the tree after the session was built (one under a test branch) follows it
 	# from now.
 	_follow(CampaignService.session)
@@ -122,20 +161,20 @@ func _exit_tree() -> void:
 	_follow(null)
 	CampaignService.session_started.disconnect(_on_campaign_service_session_started)
 	CampaignService.session_ended.disconnect(_on_campaign_service_session_ended)
+	SteamNetwork.lobby_state_changed.disconnect(_on_steam_network_lobby_state_changed)
+	if is_instance_valid(_api):
+		_api.peer_disconnected.disconnect(_on_multiplayer_peer_disconnected)
+		_api.server_disconnected.disconnect(_on_multiplayer_server_disconnected)
+	_api = null
 
 
-# The idle frame after a battle opened on the host, so Begin or the resume has finished and the
-# snapshot falls between commands: every client gets the battle as it stands.
-func _process(_delta: float) -> void:
-	set_process(false)
-	if not _is_host() or _encounter == null or _encounter.is_closed:
-		return
-	var battle: Dictionary = _encounter.snapshot()
-	if battle.is_empty():
-		return
-	var run: Dictionary = _capture_run()
-	for peer: int in multiplayer.get_peers():
-		_sync.rpc_id(peer, run, battle, [], SceneRouter.Screen.GAMEPLAY)
+# Pushes a battle's snapshot on the idle frame after it opened, and counts every wait on.
+func _process(delta: float) -> void:
+	if _push_pending:
+		_push_pending = false
+		_push_battle()
+	for seat: int in _waits.keys():
+		_waits[seat] += delta
 
 
 ## Asks the host for the state [param have] describes as missing ([ClientMirror]'s request) and
@@ -186,10 +225,10 @@ func send_campaign(command: CampaignCommand) -> int:
 	return token
 
 
-## Tells every other peer this machine's notice of [enum NoticeKind] [param kind] with
+## Tells every other seated peer this machine's notice of [enum NoticeKind] [param kind] with
 ## [param data]: a client's goes through the host, which forwards it, the host's straight to every
-## client. Does nothing in solo. Refused, with an error, for data its kind doesn't allow or a host
-## that holds no seat in [member seats].
+## client. Does nothing in solo. Refused, with an error, for data its kind doesn't allow, a
+## [constant NoticeKind.ROUTE] from the host, or a host that holds no seat in [member seats].
 func send_notice(kind: int, data: Array) -> void:
 	if not NetGate.has_session(multiplayer):
 		return
@@ -199,11 +238,86 @@ func send_notice(kind: int, data: Array) -> void:
 	if not multiplayer.is_server():
 		_notice.rpc_id(_HOST_PEER, SeatDirectory.NO_SEAT, kind, data)
 		return
+	if kind == NoticeKind.ROUTE:
+		push_error("NetRelay: the host routes everyone itself; it sends no route notice.")
+		return
 	var seat: int = _seat_of(multiplayer.get_unique_id())
 	if seat == SeatDirectory.NO_SEAT:
 		push_error("NetRelay: the host holds no seat to send a notice for.")
 		return
-	_notice.rpc(seat, kind, data)
+	for peer: int in _seated_peers():
+		_notice.rpc_id(peer, seat, kind, data)
+
+
+## Seats the run: [param steam_ids_by_seat] is each seat's Steam id (the campaign's players),
+## [param peers_by_steam_id] each admitted member's peer. The first call builds [member seats]
+## ([method SeatDirectory.build]); later ones bring it up to date, a seat whose member left
+## dropped, one whose Steam id is back under a peer reconnected. On the host a drop pauses the run
+## for everyone, and a return is the rejoin, sent a fresh snapshot. A removed seat stays removed.
+func seat_members(
+		steam_ids_by_seat: Dictionary[int, int], peers_by_steam_id: Dictionary[int, int]
+) -> void:
+	_players = steam_ids_by_seat.duplicate()
+	if seats == null:
+		seats = SeatDirectory.build(steam_ids_by_seat, peers_by_steam_id)
+		_admit_campaign()
+		for seat: int in seats.dropped_seats():
+			_announce_drop(seat)
+		return
+	for seat: int in seats.seats():
+		if seats.state_of(seat) == SeatDirectory.State.REMOVED:
+			continue
+		var steam_id: int = seats.steam_id_of_seat(seat)
+		var peer: int = peers_by_steam_id.get(steam_id, SeatDirectory.NO_PEER)
+		var held: int = seats.peer_of_seat(seat)
+		if peer == held:
+			continue
+		if held != SeatDirectory.NO_PEER:
+			seats.drop_peer(held)
+			_announce_drop(seat)
+		if peer > SeatDirectory.NO_PEER and seats.reconnect(steam_id, peer) == seat:
+			_announce_rejoin(seat, peer)
+
+
+## Host only: removes the dropped [param seat] for good once it has waited [constant REMOVE_WAIT]
+## seconds, telling every peer ([signal seat_removed]); its Steam id is no longer admitted. Returns
+## false, changing nothing, off the host, for a seat that isn't dropped, or before the wait.
+func remove_seat(seat: int) -> bool:
+	if not _is_host() or seats == null:
+		push_error("NetRelay: only the host removes a seat.")
+		return false
+	var waited_for: float = waited(seat)
+	if seats.state_of(seat) != SeatDirectory.State.DROPPED or waited_for < REMOVE_WAIT:
+		return false
+	seats.remove_seat(seat)
+	_admit_campaign()
+	_send_seat_changed(seat, SeatDirectory.State.REMOVED, waited_for)
+	return true
+
+
+## Whether this machine waits for a seat: a dropped one, or, on a client, the host it lost.
+## Nothing resolves meanwhile; batches already sent still play.
+func is_paused() -> bool:
+	return not _waits.is_empty()
+
+
+## The seats this machine waits for, in ascending order: the dropped ones, or the host's alone on
+## a client that lost it ([method is_host_lost]).
+func waiting_seats() -> PackedInt32Array:
+	var waiting: PackedInt32Array = PackedInt32Array(_waits.keys())
+	waiting.sort()
+	return waiting
+
+
+## Seconds [param seat] has been waited for, counted on this machine from the host's word; 0 when
+## it isn't.
+func waited(seat: int) -> float:
+	return _waits.get(seat, 0.0)
+
+
+## Whether this client lost the host during the run and waits to be back.
+func is_host_lost() -> bool:
+	return _host_lost
 
 
 # A client's combat command, on the host: the sender's seat, the pause, the wire form and the map
@@ -293,7 +407,7 @@ func _request_sync(have: Dictionary) -> void:
 	var battle: Dictionary = {}
 	var facts: Array = []
 	var screen: int = _NO_SCREEN
-	if _encounter != null and not _encounter.is_closed:
+	if _is_battle_open():
 		screen = SceneRouter.Screen.GAMEPLAY
 		var caught_up: Variant = _catch_up(have)
 		if caught_up == null:
@@ -303,16 +417,52 @@ func _request_sync(have: Dictionary) -> void:
 	_sync.rpc_id(sender, _capture_run(), battle, facts, screen)
 
 
+# A client back from losing the host has its state here, after the seats' news: the wait is over.
 @rpc("authority", "call_remote", "reliable")
 func _sync(run: Dictionary, battle: Dictionary, facts: Array, screen: int) -> void:
 	if multiplayer.is_server():
 		return
+	if _host_lost:
+		_host_lost = false
+		_waits.erase(CampaignData.HOST_SEAT)
 	sync_received.emit(run, battle, facts, screen)
 
 
+# A seat's connection changed, on every peer, the host's own call included: the waits, the
+# signals and, on a client, its directory's drop or removal (a return comes with the member
+# list, which carries the new peer). state is a SeatDirectory.State.
+@rpc("authority", "call_local", "reliable")
+func _seat_changed(seat: int, state: int, waited_for: float) -> void:
+	if seat < 0 or waited_for < 0.0 or not SeatDirectory.State.values().has(state):
+		_log_dropped(
+				multiplayer.get_remote_sender_id(),
+				"a seat change %d to %d after %.1f s" % [seat, state, waited_for]
+		)
+		return
+	var is_client_directory: bool = seats != null and not multiplayer.is_server()
+	match state:
+		SeatDirectory.State.DROPPED:
+			if is_client_directory:
+				seats.drop_peer(seats.peer_of_seat(seat))
+			var is_new: bool = not _waits.has(seat)
+			_waits[seat] = waited_for
+			if is_new:
+				seat_dropped.emit(seat)
+		SeatDirectory.State.CONNECTED:
+			if _waits.erase(seat):
+				seat_rejoined.emit(seat)
+		SeatDirectory.State.REMOVED:
+			if is_client_directory:
+				seats.drop_peer(seats.peer_of_seat(seat))
+				seats.remove_seat(seat)
+			_waits.erase(seat)
+			seat_removed.emit(seat)
+	_show_overlay()
+
+
 # A notice. Up: any client to the host, which takes the seat from the connection and forwards it
-# to every other client. Down: only the host's forward is heard, so a client's direct call to
-# another client is ignored.
+# to every other seated client, or, for a route, routes everyone itself. Down: only the host's
+# forward is heard, so a client's direct call to another client is ignored.
 @rpc("any_peer", "call_remote", "reliable")
 func _notice(seat: int, kind: int, data: Array) -> void:
 	var sender: int = multiplayer.get_remote_sender_id()
@@ -320,15 +470,21 @@ func _notice(seat: int, kind: int, data: Array) -> void:
 		_log_dropped(sender, "notice %d with data %s" % [kind, data])
 		return
 	if not multiplayer.is_server():
-		if sender == _HOST_PEER and seat > SeatDirectory.NO_SEAT:
+		if sender == _HOST_PEER and seat > SeatDirectory.NO_SEAT and kind != NoticeKind.ROUTE:
 			notice_received.emit(seat, kind, data)
 		return
 	var from_seat: int = _seat_of(sender)
 	if from_seat == SeatDirectory.NO_SEAT:
 		_log_dropped(sender, "a notice from no seat")
 		return
+	if kind == NoticeKind.ROUTE:
+		if is_paused():
+			_log_dropped(sender, "a route while the run is paused")
+		else:
+			notice_received.emit(from_seat, kind, data)
+		return
 	notice_received.emit(from_seat, kind, data)
-	for peer: int in multiplayer.get_peers():
+	for peer: int in _seated_peers():
 		if peer != sender:
 			_notice.rpc_id(peer, from_seat, kind, data)
 
@@ -339,6 +495,15 @@ func _is_host() -> bool:
 
 func _is_client() -> bool:
 	return NetGate.has_session(multiplayer) and not multiplayer.is_server()
+
+
+# Whether this is the relay on SteamNetwork's API in a lobby: the one that seats a real run.
+func _is_lobby_relay() -> bool:
+	return SteamNetwork.has_active_session() and multiplayer == SteamNetwork.multiplayer
+
+
+func _is_battle_open() -> bool:
+	return _encounter != null and not _encounter.is_closed
 
 
 func _take_token() -> int:
@@ -358,6 +523,18 @@ func _peer_of(seat: int) -> int:
 		return SeatDirectory.NO_PEER
 	var peer: int = seats.peer_of_seat(seat)
 	return SeatDirectory.NO_PEER if peer == multiplayer.get_unique_id() else peer
+
+
+# The connected peers that hold a seat: the only ones the run's traffic goes to. Empty with no
+# directory, so a connection the host hasn't admitted (or is refusing) hears nothing.
+func _seated_peers() -> Array[int]:
+	var peers: Array[int] = []
+	if seats == null:
+		return peers
+	for peer: int in multiplayer.get_peers():
+		if seats.seat_of_peer(peer) != SeatDirectory.NO_SEAT:
+			peers.append(peer)
+	return peers
 
 
 # Why a command from seat can't be taken now: no seat, or the run paused by a dropped seat.
@@ -406,6 +583,112 @@ func _settle(sender: int, token: int, reason: String, category: NetLogScript.Cat
 
 func _log_dropped(sender: int, what: String) -> void:
 	NetLog.warn(NetLog.Category.LOBBY, "NetRelay: dropped %s from peer %d." % [what, sender])
+
+
+# The open battle's snapshot to every seated client, as it stands between commands.
+func _push_battle() -> void:
+	if not _is_host() or not _is_battle_open():
+		return
+	var battle: Dictionary = _encounter.snapshot()
+	if battle.is_empty():
+		return
+	var run: Dictionary = _capture_run()
+	for peer: int in _seated_peers():
+		_sync.rpc_id(peer, run, battle, [], SceneRouter.Screen.GAMEPLAY)
+
+
+# Host: tells every seated peer, and this one, that seat's connection is now state.
+func _send_seat_changed(seat: int, state: SeatDirectory.State, waited_for: float) -> void:
+	for peer: int in _seated_peers():
+		_seat_changed.rpc_id(peer, seat, state, waited_for)
+	_seat_changed(seat, state, waited_for)
+
+
+# Host: seat dropped, so the run pauses for everyone.
+func _announce_drop(seat: int) -> void:
+	if not _is_host():
+		return
+	NetLog.warn(NetLog.Category.LOBBY, "NetRelay: seat %d dropped; the run is paused." % [seat])
+	_send_seat_changed(seat, SeatDirectory.State.DROPPED, 0.0)
+
+
+# Host: seat is back as peer. Everyone hears it; the peer also hears every seat still dropped or
+# removed, gets the run's replica on a lobby's run (a crashed client holds none), and a fresh
+# snapshot of the run and the open battle, never a catch-up across the reconnect.
+func _announce_rejoin(seat: int, peer: int) -> void:
+	if not _is_host():
+		return
+	NetLog.info(NetLog.Category.LOBBY, "NetRelay: seat %d rejoined as peer %d." % [seat, peer])
+	_send_seat_changed(seat, SeatDirectory.State.CONNECTED, waited(seat))
+	for other: int in seats.seats():
+		var state: int = seats.state_of(other)
+		if state == SeatDirectory.State.DROPPED or state == SeatDirectory.State.REMOVED:
+			_seat_changed.rpc_id(peer, other, state, waited(other))
+	if _is_lobby_relay():
+		SaveService.send_run_to(peer)
+	var battle: Dictionary = {}
+	var screen: int = _NO_SCREEN
+	if _is_battle_open():
+		battle = _encounter.snapshot()
+		screen = SceneRouter.Screen.GAMEPLAY
+	_sync.rpc_id(peer, _capture_run(), battle, [], screen)
+
+
+# Host of a lobby's run: only the run's seats that aren't removed may join, so a dropped seat's
+# account gets back in and nobody else does (LobbyAdmission refuses a connected one's repeat).
+func _admit_campaign() -> void:
+	if not _is_lobby_relay() or not multiplayer.is_server():
+		return
+	var steam_ids: PackedInt64Array = []
+	for seat: int in seats.seats():
+		if seats.state_of(seat) != SeatDirectory.State.REMOVED:
+			steam_ids.append(seats.steam_id_of_seat(seat))
+	SteamNetwork.set_required_steam_ids(steam_ids)
+
+
+# A lobby's run, seated from its campaign (the host's, or a client's replica of it) and the
+# admitted members. Nothing elsewhere.
+func _seat_lobby() -> void:
+	if not _is_lobby_relay():
+		return
+	var campaign: CampaignData = SaveService.campaign
+	if not multiplayer.is_server():
+		campaign = SaveService.multiplayer_replica
+	if campaign == null or campaign.mode != CampaignData.Mode.MULTIPLAYER:
+		return
+	var steam_ids: Dictionary[int, int] = {}
+	for player: CampaignData.PlayerRun in campaign.players:
+		steam_ids[player.seat] = player.steam_id.to_int()
+	var peers: Dictionary[int, int] = {}
+	for member: SteamNetwork.LobbyMember in SteamNetwork.get_members():
+		peers[member.steam_id] = member.peer_id
+	seat_members(steam_ids, peers)
+
+
+# The wait overlay, made at the first wait; it shows itself while this relay waits.
+func _show_overlay() -> void:
+	if _overlay != null:
+		return
+	var scene: PackedScene = load(_OVERLAY_PATH) as PackedScene
+	if scene == null:
+		push_error("NetRelay: no wait overlay at %s" % [_OVERLAY_PATH])
+		return
+	_overlay = scene.instantiate() as SeatWaitOverlay
+	if _overlay == null:
+		push_error("NetRelay: %s isn't a SeatWaitOverlay" % [_OVERLAY_PATH])
+		return
+	add_child(_overlay)
+	_overlay.follow(self)
+
+
+# A run's end: no waits, and the seats seat_members() built go with it.
+func _end_run() -> void:
+	_waits.clear()
+	_host_lost = false
+	_push_pending = false
+	if not _players.is_empty():
+		seats = null
+		_players.clear()
 
 
 # Follows followed's campaign batches and battles, letting go of the session followed before.
@@ -502,29 +785,62 @@ func _catch_up(have: Dictionary) -> Variant:
 
 func _on_campaign_service_session_started(started: CampaignSession) -> void:
 	_follow(started)
+	if started.mode == CampaignData.Mode.MULTIPLAYER:
+		_seat_lobby()
 
 
 func _on_campaign_service_session_ended(ended: CampaignSession) -> void:
 	if ended == _session:
 		_follow(null)
+		_end_run()
+
+
+# The admitted members changed: a lobby's run follows them (a drop, a rejoin, a client's own new
+# peer after it reconnected).
+func _on_steam_network_lobby_state_changed() -> void:
+	if seats != null and not _players.is_empty():
+		_seat_lobby()
+
+
+# Host: a seated peer's connection is gone; its seat is kept, dropped.
+func _on_multiplayer_peer_disconnected(peer_id: int) -> void:
+	if not _is_host() or seats == null:
+		return
+	var seat: int = seats.drop_peer(peer_id)
+	if seat != SeatDirectory.NO_SEAT:
+		_announce_drop(seat)
+
+
+# Client: the host is gone mid-run; this machine waits for it (SteamNetwork tries to get back).
+func _on_multiplayer_server_disconnected() -> void:
+	if seats == null:
+		return
+	NetLog.warn(NetLog.Category.LOBBY, "NetRelay: lost the host; waiting to be back.")
+	_host_lost = true
+	_waits.clear()
+	_waits[CampaignData.HOST_SEAT] = 0.0
+	_show_overlay()
 
 
 func _on_session_campaign_batch_resolved(batch: CampaignBatch) -> void:
 	if not _is_host():
 		return
+	var wire: Array = batch.to_wire()
 	if not batch.is_rejected():
-		_campaign_batch.rpc(batch.to_wire(), _capture_run())
+		var run: Dictionary = _capture_run()
+		for peer: int in _seated_peers():
+			_campaign_batch.rpc_id(peer, wire, run)
 		return
-	var peer: int = _peer_of(batch.seat)
-	if peer != SeatDirectory.NO_PEER:
-		_campaign_batch.rpc_id(peer, batch.to_wire(), _capture_run())
+	var sender: int = _peer_of(batch.seat)
+	if sender != SeatDirectory.NO_PEER:
+		_campaign_batch.rpc_id(sender, wire, _capture_run())
 
 
 # Begin and a resume are still setting the battle up here; its snapshot goes out once they are done.
 func _on_session_combat_encounter_opened(encounter: CombatEncounter) -> void:
 	_follow_battle(encounter)
 	if _is_host():
-		set_process(true)
+		_push_pending = true
 
 
 # The battle's end has applied to the run by now (CampaignService.end_battle()), so the run goes
@@ -533,7 +849,9 @@ func _on_session_combat_encounter_closed(encounter: CombatEncounter) -> void:
 	if encounter == _encounter:
 		_follow_battle(null)
 	if _is_host():
-		_campaign_batch.rpc([], _capture_run())
+		var run: Dictionary = _capture_run()
+		for peer: int in _seated_peers():
+			_campaign_batch.rpc_id(peer, [], run)
 
 
 func _on_encounter_session_opened(map: CombatSession) -> void:
@@ -542,19 +860,24 @@ func _on_encounter_session_opened(map: CombatSession) -> void:
 
 
 func _on_encounter_batch_resolved(batch: CombatSession.FactBatch) -> void:
-	if _is_host():
-		_encounter_batch.rpc(batch.to_wire())
+	if not _is_host():
+		return
+	var wire: Array = batch.to_wire()
+	for peer: int in _seated_peers():
+		_encounter_batch.rpc_id(peer, wire)
 
 
 func _on_map_batch_resolved(batch: CombatSession.FactBatch) -> void:
 	if not _is_host():
 		return
+	var wire: Array = batch.to_wire()
 	if not batch.is_rejected():
-		_combat_batch.rpc(batch.to_wire())
+		for peer: int in _seated_peers():
+			_combat_batch.rpc_id(peer, wire)
 		return
-	var peer: int = _peer_of(batch.seat)
-	if peer != SeatDirectory.NO_PEER:
-		_combat_batch.rpc_id(peer, batch.to_wire())
+	var sender: int = _peer_of(batch.seat)
+	if sender != SeatDirectory.NO_PEER:
+		_combat_batch.rpc_id(sender, wire)
 
 
 # Whether have is a sync request: exactly its three keys, a battle of two whole numbers or none,
@@ -586,4 +909,6 @@ static func _is_notice_valid(kind: int, data: Array) -> bool:
 					and (data[0] as int) >= 0
 					and data[1] is String
 			)
+		NoticeKind.ROUTE:
+			return data.is_empty()
 	return false

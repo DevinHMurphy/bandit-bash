@@ -59,6 +59,9 @@ var session: CampaignSession = null
 var _relay: NetRelayScript = null
 var _run_seed: int = 0
 
+# The seat local_seat() last found.
+var _seat: int = SeatDirectory.NO_SEAT
+
 # A request for state is due: whether one is wanted, whether only a fresh snapshot will do,
 # requests sent so far, and seconds since the last one (or since the need, before the first).
 var _wants_sync: bool = false
@@ -103,15 +106,15 @@ func close() -> void:
 		session.close()
 
 
-## The seat this client plays: its peer's in the relay's [member NetRelay.seats].
+## The seat this client plays: its peer's in the relay's [member NetRelay.seats]. Kept through a
+## reconnect, while the relay has no peer or its directory doesn't hold the new one yet;
+## [constant SeatDirectory.NO_SEAT] before the directory first seats it.
 func local_seat() -> int:
-	if is_instance_valid(_relay) and _relay.seats != null:
+	if is_instance_valid(_relay) and _relay.seats != null and _has_host():
 		var seat: int = _relay.seats.seat_of_peer(_relay.multiplayer.get_unique_id())
 		if seat != SeatDirectory.NO_SEAT:
-			return seat
-	# ASSUMPTION: until NT6 gives a client its seat directory, a client acts and shows as the host
-	# seat; the host still takes every command's seat from the connection.
-	return CampaignData.HOST_SEAT
+			_seat = seat
+	return _seat
 
 
 ## Sends [param command] for the map [param session_id] to the host and returns its token for
@@ -136,9 +139,10 @@ func submit_campaign(command: CampaignCommand) -> int:
 
 ## Runs the request clock on by [param seconds]: the next request goes once
 ## [constant SYNC_INTERVAL] has passed since the last, and after [constant SYNC_ATTEMPTS]
-## unanswered ones the mirror gives up ([signal sync_gave_up]).
+## unanswered ones the mirror gives up ([signal sync_gave_up]). The clock stands still while the
+## relay has no host: the rejoin brings fresh state anyway.
 func advance(seconds: float) -> void:
-	if not _wants_sync:
+	if not _wants_sync or not _has_host():
 		return
 	_since_ask += seconds
 	if _since_ask >= SYNC_INTERVAL:
@@ -162,7 +166,7 @@ func _need(fresh: bool, now: bool) -> void:
 
 
 func _ask() -> void:
-	if not is_instance_valid(_relay):
+	if not _has_host():
 		return
 	if _attempts >= SYNC_ATTEMPTS:
 		NetLog.warn(
@@ -189,6 +193,16 @@ func _have() -> Dictionary:
 		for map: CombatSession in held.get_sessions():
 			seqs.append(map.last_seq())
 	return {_HAVE_BATTLE: battle, _HAVE_SEQS: seqs, _HAVE_FRESH: _wants_fresh}
+
+
+# Whether the relay is connected to a host now; not while a client reconnects.
+func _has_host() -> bool:
+	if not is_instance_valid(_relay) or not NetGate.has_session(_relay.multiplayer):
+		return false
+	var status: MultiplayerPeer.ConnectionStatus = (
+			_relay.multiplayer.multiplayer_peer.get_connection_status()
+	)
+	return status == MultiplayerPeer.CONNECTION_CONNECTED
 
 
 func _battle() -> CombatEncounter:

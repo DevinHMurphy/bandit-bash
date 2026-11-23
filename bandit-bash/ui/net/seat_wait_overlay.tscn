@@ -1,0 +1,70 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/net/seat_wait_overlay.gd" id="1_wait"]
+
+[node name="SeatWaitOverlay" type="CanvasLayer"]
+process_mode = 3
+layer = 9
+script = ExtResource("1_wait")
+
+[node name="Blocker" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Center" type="CenterContainer" parent="Blocker"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="Blocker/Center"]
+layout_mode = 2
+
+[node name="Column" type="VBoxContainer" parent="Blocker/Center/Panel"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Blocker/Center/Panel/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"TitleLabel"
+text = "Waiting for players"
+horizontal_alignment = 1
+
+[node name="Lines" type="Label" parent="Blocker/Center/Panel/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Waiting for Player 2 · 0:00"
+horizontal_alignment = 1
+
+[node name="Note" type="Label" parent="Blocker/Center/Panel/Column"]
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+text = "The game is paused until everyone is back."
+horizontal_alignment = 1
+
+[node name="Status" type="Label" parent="Blocker/Center/Panel/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+horizontal_alignment = 1
+
+[node name="Buttons" type="HBoxContainer" parent="Blocker/Center/Panel/Column"]
+layout_mode = 2
+alignment = 1
+
+[node name="LeaveButton" type="Button" parent="Blocker/Center/Panel/Column/Buttons"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"PrimaryButton"
+text = "Leave Match"
+
+[node name="RemoveButton" type="Button" parent="Blocker/Center/Panel/Column/Buttons"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+text = "Remove"

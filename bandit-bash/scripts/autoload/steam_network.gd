@@ -6,7 +6,7 @@
 # File:     steam_network.gd
 # Author:
 # Created:  October 9, 2026
-# Modified: November 19, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends Node
@@ -21,7 +21,10 @@ extends Node
 ## ([NetContract]); the host checks them with [LobbyAdmission] and the connection's Steam id.
 ## Only admitted machines are members; the host builds the list and broadcasts it (kit P15).[br]
 ## [b]Invites:[/b] held in [member pending_invite_lobby_id], announced by
-## [signal invite_received]; [code]SceneRouter[/code] decides when to act on them.
+## [signal invite_received]; [code]SceneRouter[/code] decides when to act on them.[br]
+## [b]A lost host mid-run:[/b] a client holding the host's replica keeps it, and its screen, and
+## rejoins the same lobby every [constant RECONNECT_INTERVAL] s ([method is_reconnecting]); the
+## session ends, as for any lost host, once the lobby is gone, has another owner, or refuses it.
 ##
 ## @tutorial(Save system design): docs/design/save-system.md
 
@@ -63,6 +66,14 @@ signal invite_received(lobby_id: int)
 ## Steam delivered lobby data (such as the game version) for [param lobby_id].
 signal lobby_data_updated(lobby_id: int)
 
+# What a reconnecting client does with Steam's answer to a rejoin attempt (_rejoin_verdict()).
+# Never sent, so not append-only.
+enum _Rejoin {
+	RETRY,
+	ENTER,
+	END,
+}
+
 ## Steam lobby visibility. Friends-only suits "play with friends"; a public lobby plus lobby data
 ## and search is needed for matchmaking.
 const LOBBY_TYPE: int = Steam.LOBBY_TYPE_FRIENDS_ONLY
@@ -78,6 +89,10 @@ const LOBBY_DATA_VERSION_KEY: String = "game_version"
 
 ## Launch argument Steam passes when an invite is accepted while the game isn't running.
 const LAUNCH_INVITE_ARG: String = "+connect_lobby"
+
+## Seconds between two attempts to rejoin a lost host's lobby (the kit's retry interval), counted
+## from Steam's answer to the last.
+const RECONNECT_INTERVAL: float = 1.0
 
 # How long the host waits after telling a refused client why before cutting the connection, so the
 # reason arrives first. The client also leaves by itself on receiving it.
@@ -106,6 +121,16 @@ var _member_ready: PackedByteArray = []
 # Host only: Steam ids allowed in when resuming a campaign. Empty admits anyone.
 var _required_steam_ids: PackedInt64Array = []
 
+# Client: the Steam account hosting the lobby this machine joined; 0 when none.
+var _host_steam_id: int = 0
+
+# Client reconnecting to a lost host: its lobby (0 when not reconnecting), the host's account,
+# seconds since Steam answered the last attempt, and whether an attempt waits for its answer.
+var _rejoin_lobby_id: int = 0
+var _rejoin_host_id: int = 0
+var _rejoin_clock: float = 0.0
+var _is_rejoin_asked: bool = false
+
 
 func _ready() -> void:
 	Steam.lobby_created.connect(_on_steam_lobby_created)
@@ -127,6 +152,19 @@ func _ready() -> void:
 			"Build fingerprint %d, computed in %.1f ms."
 			% [contract, NetContract.build_usec() / 1000.0]
 	)
+
+
+# A reconnecting client tries the lost host's lobby again once an interval has passed since Steam
+# answered the last attempt.
+func _process(delta: float) -> void:
+	if not is_reconnecting() or current_lobby_id != 0 or _is_rejoin_asked:
+		return
+	_rejoin_clock += delta
+	if _rejoin_clock < RECONNECT_INTERVAL or not SteamManager.is_available:
+		return
+	_rejoin_clock = 0.0
+	_is_rejoin_asked = true
+	Steam.joinLobby(_rejoin_lobby_id)
 
 
 ## True only with a real lobby and an attached peer.
@@ -155,6 +193,12 @@ func local_peer_id() -> int:
 	return multiplayer.get_unique_id()
 
 
+## True on a client that lost its host mid-run and is trying to rejoin its lobby, until it is
+## admitted again or gives up. There is no session meanwhile ([method has_active_session]).
+func is_reconnecting() -> bool:
+	return _rejoin_lobby_id != 0
+
+
 ## Creates a Steam lobby; [signal lobby_created] reports the result.
 ##
 ## Ignored with a warning when Steam is unavailable or this machine is already in a lobby.
@@ -180,9 +224,10 @@ func join_lobby(lobby_id: int) -> void:
 	if not SteamManager.is_available:
 		NetLog.warn(NetLog.Category.LOBBY, "Cannot join, Steam is not available.")
 		return
-	if current_lobby_id != 0:
+	if current_lobby_id != 0 or is_reconnecting():
 		NetLog.warn(
-				NetLog.Category.LOBBY, "Cannot join, already in lobby %d." % [current_lobby_id]
+				NetLog.Category.LOBBY,
+				"Cannot join, already in lobby %d." % [maxi(current_lobby_id, _rejoin_lobby_id)]
 		)
 		return
 
@@ -191,17 +236,22 @@ func join_lobby(lobby_id: int) -> void:
 	Steam.joinLobby(lobby_id)
 
 
-## Leaves the lobby and drops the peer. Safe whether hosting, joined or not in a lobby.
+## Leaves the lobby and drops the peer, and stops a reconnect. Safe whether hosting, joined,
+## reconnecting or not in a lobby.
 func leave_lobby() -> void:
-	var was_in_lobby: bool = current_lobby_id != 0
+	var was_in_lobby: bool = current_lobby_id != 0 or is_reconnecting()
 	if was_in_lobby:
-		NetLog.info(NetLog.Category.LOBBY, "Leaving lobby %d." % [current_lobby_id])
-		Steam.leaveLobby(current_lobby_id)
-	current_lobby_id = 0
-	_peer = null
-	multiplayer.multiplayer_peer = null
-	_clear_members()
+		NetLog.info(
+				NetLog.Category.LOBBY,
+				"Leaving lobby %d." % [maxi(current_lobby_id, _rejoin_lobby_id)]
+		)
+	_drop_connection()
 	_required_steam_ids = PackedInt64Array()
+	_host_steam_id = 0
+	_rejoin_lobby_id = 0
+	_rejoin_host_id = 0
+	_rejoin_clock = 0.0
+	_is_rejoin_asked = false
 	if was_in_lobby:
 		lobby_left.emit()
 
@@ -362,6 +412,39 @@ func _receive_invite(lobby_id: int) -> void:
 	invite_received.emit(lobby_id)
 
 
+# Leaves the Steam lobby and drops the peer and the member list, announcing nothing but the list.
+func _drop_connection() -> void:
+	if current_lobby_id != 0:
+		Steam.leaveLobby(current_lobby_id)
+	current_lobby_id = 0
+	_peer = null
+	multiplayer.multiplayer_peer = null
+	_clear_members()
+
+
+# The host went away mid-run: this client keeps the replica (no lobby_left) and tries its lobby
+# again from _process().
+func _begin_reconnect() -> void:
+	NetLog.warn(
+			NetLog.Category.LOBBY,
+			"Lost the host mid-run; rejoining lobby %d every %.1f s."
+			% [current_lobby_id, RECONNECT_INTERVAL]
+	)
+	_rejoin_lobby_id = current_lobby_id
+	_rejoin_host_id = _host_steam_id
+	_rejoin_clock = 0.0
+	_is_rejoin_asked = false
+	_drop_connection()
+
+
+# The host ended the wait, or can't be reached in its lobby any more: the session ends as for any
+# lost host.
+func _end_reconnect(why: String) -> void:
+	NetLog.warn(NetLog.Category.LOBBY, "Giving up on the host: %s." % [why])
+	leave_lobby()
+	session_ended.emit()
+
+
 func _clear_members() -> void:
 	_member_peer_ids = PackedInt64Array()
 	_member_steam_ids = PackedInt64Array()
@@ -450,6 +533,10 @@ func _sync_members(
 	_member_peer_ids = peer_ids
 	_member_steam_ids = steam_ids
 	_member_ready = ready_flags
+	if is_reconnecting() and peer_ids.has(multiplayer.get_unique_id()):
+		NetLog.info(NetLog.Category.LOBBY, "Back in lobby %d." % [current_lobby_id])
+		_rejoin_lobby_id = 0
+		_rejoin_host_id = 0
 	lobby_state_changed.emit()
 
 
@@ -457,8 +544,11 @@ func _sync_members(
 func _join_refused(refusal: int) -> void:
 	last_join_refusal = refusal
 	NetLog.warn(NetLog.Category.LOBBY, "The host refused the join (%d)." % [refusal])
+	var was_reconnecting: bool = is_reconnecting()
 	leave_lobby()
 	join_refused.emit(refusal)
+	if was_reconnecting:
+		session_ended.emit()
 
 
 func _on_steam_lobby_created(connect_result: int, lobby_id: int) -> void:
@@ -496,6 +586,24 @@ func _on_steam_lobby_created(connect_result: int, lobby_id: int) -> void:
 func _on_steam_lobby_joined(
 		lobby_id: int, _permissions: int, _locked: bool, response: int
 ) -> void:
+	if is_reconnecting():
+		_is_rejoin_asked = false
+		var owner_id: int = 0
+		if response == Steam.CHAT_ROOM_ENTER_RESPONSE_SUCCESS:
+			owner_id = Steam.getLobbyOwner(lobby_id)
+		match _rejoin_verdict(response, owner_id, _rejoin_host_id, Steam.getSteamID()):
+			_Rejoin.RETRY:
+				NetLog.info(
+						NetLog.Category.LOBBY,
+						"Rejoining lobby %d failed (response %d); trying again."
+						% [lobby_id, response]
+				)
+				return
+			_Rejoin.END:
+				if response == Steam.CHAT_ROOM_ENTER_RESPONSE_SUCCESS:
+					Steam.leaveLobby(lobby_id)
+				_end_reconnect("lobby %d is gone or has another host" % [lobby_id])
+				return
 	if response != Steam.CHAT_ROOM_ENTER_RESPONSE_SUCCESS:
 		NetLog.warn(
 				NetLog.Category.LOBBY,
@@ -509,6 +617,7 @@ func _on_steam_lobby_joined(
 		return
 
 	current_lobby_id = lobby_id
+	_host_steam_id = host_steam_id
 	var peer: SteamMultiplayerPeer = SteamMultiplayerPeer.new()
 	peer.create_client(host_steam_id, VIRTUAL_PORT)
 	_peer = peer
@@ -568,14 +677,34 @@ func _on_multiplayer_connected_to_server() -> void:
 	_request_admission.rpc_id(1, SaveFile.get_running_version(), NetContract.fingerprint())
 
 
+# A reconnecting client's failed connection is one more failed attempt: it tries again.
 func _on_multiplayer_connection_failed() -> void:
 	NetLog.error(NetLog.Category.LOBBY, "Connection to host failed.")
+	if is_reconnecting():
+		_drop_connection()
 
 
+# A client in a run (it holds the host's replica) tries to get back; any other ends the session.
 func _on_multiplayer_server_disconnected() -> void:
 	NetLog.warn(NetLog.Category.LOBBY, "Disconnected from host.")
+	if SaveService.multiplayer_replica != null and current_lobby_id != 0 and _host_steam_id != 0:
+		_begin_reconnect()
+		return
 	leave_lobby()
 	session_ended.emit()
+
+
+# What a reconnecting client does with Steam's answer to joining the lost host's lobby: enter when
+# it holds the same host; end when the lobby no longer exists, or its owner is another account
+# (the host left and Steam handed the lobby on) or this one; else try again.
+static func _rejoin_verdict(response: int, owner_id: int, host_id: int, own_id: int) -> _Rejoin:
+	if response != Steam.CHAT_ROOM_ENTER_RESPONSE_SUCCESS:
+		if response == Steam.CHAT_ROOM_ENTER_RESPONSE_DOESNT_EXIST:
+			return _Rejoin.END
+		return _Rejoin.RETRY
+	if owner_id == own_id or owner_id != host_id:
+		return _Rejoin.END
+	return _Rejoin.ENTER
 
 
 ## One admitted lobby member.
