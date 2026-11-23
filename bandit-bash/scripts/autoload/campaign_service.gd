@@ -186,14 +186,17 @@ func resume_battle(request: CampaignSession.BattleRequest) -> Error:
 ## nothing: collects the result ([method CampaignSession.collect_battle]), swaps in the run with it
 ## applied and its rewards rolled ([method CampaignRunState.apply_battle], rules from
 ## [constant CombatRewardRules.DEFAULT_PATH]), saves with [method SaveService.end_battle], then
-## drops the battle. A solo battle lost ends the run instead ([method SaveService.end_run]).
-## Returns the result; null with no battle, or when applying or the save failed, which puts the
-## run, its campaign streams and its id counter back, leaving the battle in progress.
+## drops the battle. A lost run ends instead, for every seat ([method SaveService.end_run]): a
+## solo battle lost, a co-op run lost ([method CombatEncounter.is_run_lost], so before every map
+## has ended), or a co-op Boss no map beat. Returns the result; null with no battle, or when
+## applying or the save failed, which puts the run, its campaign streams and its id counter back,
+## leaving the battle in progress.
 func end_battle() -> CampaignSession.BattleResult:
 	if session == null or session.encounter == null:
 		push_error("CampaignService: no battle in progress to end.")
 		return null
 	var result: CampaignSession.BattleResult = session.collect_battle()
+	var was_run_lost: bool = session.encounter.is_run_lost()
 	var kept: CampaignRunState = session.run
 	# The rewards draw from the live streams and mint ids, so a retry must start from here again.
 	var streams_before: Dictionary[String, String] = session.rng.capture_campaign()
@@ -212,7 +215,7 @@ func end_battle() -> CampaignSession.BattleResult:
 			return null
 		session.run = applied
 	_sync_floor()
-	if session.mode == CampaignData.Mode.SOLO and result.is_finished and not result.is_won:
+	if _is_battle_losing_run(result, was_run_lost):
 		var lost: CampaignSession = session
 		lost.end_battle()
 		var ended: Error = SaveService.end_run(false)
@@ -323,6 +326,24 @@ func end_won_run() -> Error:
 # NetRelay's API, the one its RPCs travel on.
 func _is_client() -> bool:
 	return not NetGate.is_authoritative(NetRelay.multiplayer)
+
+
+# Whether the battle that left result, now applied to the run, ends the run as lost: a solo battle
+# lost; a co-op run lost (was_run_lost, read before the battle closed); or a co-op battle over at
+# its node that didn't reach its results (a Boss no map beat; CampaignRunState.apply_battle).
+func _is_battle_losing_run(
+		result: CampaignSession.BattleResult, was_run_lost: bool
+) -> bool:
+	if session.mode == CampaignData.Mode.SOLO:
+		return result.is_finished and not result.is_won
+	if was_run_lost:
+		return true
+	var run: CampaignRunState = session.run
+	return (
+			result.is_finished and result.seats.size() > 1 and run != null
+			and run.flow.stage == RunFlow.Stage.NODE
+			and run.floor_number == result.floor_number and run.node == result.node
+	)
 
 
 # A mirror of the run seeded run_seed on NetRelay, shown as the session once its first capture

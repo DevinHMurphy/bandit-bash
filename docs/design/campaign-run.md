@@ -42,7 +42,8 @@ commands and show the results.
 5. **A combat.** A won battle moves the stage to `results`. The seat takes or skips its item pick
    and, after a Key combat, its heirloom; then Continue leaves the node.
 6. **The end.** After the Boss's results, End run calls `CampaignService.end_won_run()`, which
-   archives the run as won. A solo battle lost ends the run at once.
+   archives the run as won. A solo battle lost ends the run at once. Co-op: see The co-op battle's
+   end.
 
 ## The map
 
@@ -204,6 +205,26 @@ to the seat, withdraw its own or an accepted one. A refusal reads "Can't swap wi
 units named by owner and type (`SwapText`). An accepted swap shows on the unit's army row and in a
 line naming both units until it ends; the `SwapStatus` in the co-op column lists the seat's open
 and accepted swaps (P11 questions 96–99).
+
+**The co-op battle's end.** `CampaignRunState.apply_battle()` applies a co-op battle once every
+map has ended, and the run reaches its results, even when every map failed: a failed map loses only
+itself. Each seat's `COMBAT_ENDED` records its own map (1 won, 0 lost), and every swap and open
+proposal ends. Each seat is paid from its own map:
+
+- **A failed seat** gets no gold, XP, pick or Standout, its units on a teammate's map included. It
+  has no combat report, so `CombatResultsModel.build()` gives it a model with `is_lost` set.
+- **A won seat** gets its grades, gold, pick and Key heirloom from its own map. Its units lost
+  on any map cost it the no-losses grade. A map that a sent unit landed on loses the under-par grade;
+  a swap's visitor doesn't count as received.
+- **XP** goes to each of a won seat's units still standing, wherever they ended. Personal XP and
+  the Standout count a unit's actions on every map, and the Standout is picked among the seat's own
+  units. Shared XP comes from the map a unit began on: a sent unit's won map, so never twice, or
+  for a visitor its partner's map, so none when that map failed.
+
+The run is lost for every seat (`CampaignService.end_battle()`, `SaveService.end_run(false)`) when
+`CombatEncounter.is_run_lost()` says so, before every map has ended, or when no map beat a Boss.
+A Boss beaten on at least one map ends the run as won for every seat (P11 questions 25, 26 and
+104–108).
 
 ## Tests
 
