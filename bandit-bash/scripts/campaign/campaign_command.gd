@@ -170,6 +170,12 @@ static func _of_wire_type(wire_type: String) -> CampaignCommand:
 			return EventOptionCommand.new()
 		RouteVoteCommand.WIRE_TYPE:
 			return RouteVoteCommand.new()
+		ProposeSwapCommand.WIRE_TYPE:
+			return ProposeSwapCommand.new()
+		AnswerSwapCommand.WIRE_TYPE:
+			return AnswerSwapCommand.new()
+		WithdrawSwapCommand.WIRE_TYPE:
+			return WithdrawSwapCommand.new()
 	return null
 
 

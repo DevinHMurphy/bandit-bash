@@ -6,7 +6,7 @@
 # File:     unit_turn_command.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 15, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 class_name UnitTurnCommand
@@ -27,8 +27,8 @@ extends Command
 ## target at range 1 or more. The action ends the unit's turn; it fires no Unit Turn End. When the
 ## unit may still move, its action's facts carry
 ## [constant CombatFact.Flag.SECOND_MOVE_PENDING], so a client mirror knows.[br]
-## Before turn 1, in the opening swap window, the only action is [constant Action.OPENING_SWAP]
-## (question 17); it records [constant CombatFact.Kind.UNIT_MOVED] for both units.
+## Before turn 1, in the opening swap window, the only action is [constant Action.OPENING_SWAP];
+## it records [constant CombatFact.Kind.UNIT_MOVED] for each unit it moves.
 ##
 ## @tutorial(Combat core plan): docs/plans/2026-10-26-combat-core.md
 
@@ -53,8 +53,9 @@ enum Action {
 	## Only moves: the second move after acting, while one is pending.
 	MOVE = 6,
 	## Trades tiles with [member target_id], another of the seat's units, both on deployment tiles,
-	## in the opening swap window before turn 1 ([method AutoDeploy.check_opening_swap]). Takes no
-	## path and ends no turn.
+	## in the opening swap window before turn 1 ([method AutoDeploy.check_opening_swap]); with no
+	## target, a swap's visitor moves to the one tile of [member path] instead
+	## ([method AutoDeploy.check_opening_move]). Ends no turn.
 	OPENING_SWAP = 7,
 	## Uses the map object [member target_id] (open, search, pull, light, take a passage), with
 	## [member item_id] as the key or lockpick when it opens a lock ([method MapObjects.use]).
@@ -162,8 +163,13 @@ func resolve(session: CombatSession) -> void:
 	var engine: EffectEngine = session.engine
 	var state: CombatState = session.state
 	if action == Action.OPENING_SWAP:
-		state.swap_units(actor_id, target_id)
-		for unit_id: String in [actor_id, target_id]:
+		var moved_ids: PackedStringArray = [actor_id]
+		if target_id.is_empty():
+			state.move_unit(actor_id, path[0])
+		else:
+			state.swap_units(actor_id, target_id)
+			moved_ids.append(target_id)
+		for unit_id: String in moved_ids:
 			var moved: CombatFact = CombatFact.new(CombatFact.Kind.UNIT_MOVED, unit_id)
 			moved.tile = state.tile_of(unit_id)
 			engine.record(moved)
@@ -282,11 +288,21 @@ func _action_reason(engine: EffectEngine, state: CombatState) -> String:
 	return "unknown action %d" % [action]
 
 
-# Why the opening swap can't be made now; empty when it can.
+# Why the opening swap can't be made now; empty when it can. A seat that isn't one of the map's
+# own, naming no target and one tile, moves its visitor there.
 func _swap_reason(session: CombatSession) -> String:
 	var reason: String = CommandValidator.swap_window_reason(session, seat)
 	if not reason.is_empty():
 		return reason
+	if target_id.is_empty() and path.size() == 1 and not session.seats.has(seat):
+		return AutoDeploy.check_opening_move(
+				session.state,
+				seat,
+				actor_id,
+				path[0],
+				session.layout.tiles_of(MapLayout.MarkerKind.DEPLOYMENT),
+				session.seats
+		)
 	if path.size() > 1:
 		return "a swap takes no path"
 	return AutoDeploy.check_opening_swap(

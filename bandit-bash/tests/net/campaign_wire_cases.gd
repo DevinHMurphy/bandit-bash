@@ -36,7 +36,7 @@ const BREAK_THE_ICE: int = 1
 const WEAPON_BLOCK: int = 0
 const FIGHT: int = 1
 # Every campaign and event command type built so far; a lower count means one went missing.
-const COMMAND_TYPES: int = 23
+const COMMAND_TYPES: int = 26
 # Seats of the route vote's round trip: two vote before the sent one, which draws.
 const ROUTE_SEATS: int = 3
 # Classes whose values are plain picks, which travel; any other object is host state.
@@ -422,6 +422,9 @@ func _scenarios() -> Array[Scenario]:
 				RouteVoteCommand.WIRE_TYPE, _with_first_route_vote, _route_vote,
 				_refill_route_vote
 		),
+		Scenario.new(ProposeSwapCommand.WIRE_TYPE, _on_team_map, _propose_swap),
+		Scenario.new(AnswerSwapCommand.WIRE_TYPE, _with_swap_proposal, _answer_swap),
+		Scenario.new(WithdrawSwapCommand.WIRE_TYPE, _with_swap_proposal, _withdraw_swap),
 	]
 	return made
 
@@ -529,6 +532,24 @@ func _with_first_route_vote() -> CampaignSession:
 	var made: CampaignSession = NodeFixture.session(RUN_SEED, ROUTE_SEATS)
 	made.submit(RouteVoteCommand.for_session(made, 0, made.run.next_nodes()[0]))
 	return made
+
+
+# A new two-seat run on the map before its first node, with no starting offer.
+func _on_team_map() -> CampaignSession:
+	return NodeFixture.session(RUN_SEED, 2)
+
+
+# A two-seat run on the map with seat 0's swap proposal to seat 1 open.
+func _with_swap_proposal() -> CampaignSession:
+	var made: CampaignSession = _on_team_map()
+	made.submit(ProposeSwapCommand.new(0, _swap_unit(made, 0), 1, _swap_unit(made, 1)))
+	return made
+
+
+# The last unit of seat's army: never its commander, who leads it.
+func _swap_unit(session: CampaignSession, seat: int) -> String:
+	var army: Array[UnitInstance] = session.run.seat_run(seat).army
+	return army[army.size() - 1].instance_id
 
 
 # A new item in seat 0's convoy of the same kind as an item its army holds.
@@ -756,6 +777,18 @@ func _refill_route_vote(fresh: CampaignSession, decoded: CampaignCommand) -> Cam
 	var voting: RouteVoteCommand = decoded as RouteVoteCommand
 	fresh.submit(RouteVoteCommand.for_session(fresh, 1, fresh.run.next_nodes()[0]))
 	return RouteVoteCommand.for_session(fresh, voting.seat, voting.node_id)
+
+
+func _propose_swap(session: CampaignSession) -> CampaignCommand:
+	return ProposeSwapCommand.new(0, _swap_unit(session, 0), 1, _swap_unit(session, 1))
+
+
+func _answer_swap(session: CampaignSession) -> CampaignCommand:
+	return AnswerSwapCommand.new(1, 0, true, _swap_unit(session, 0), _swap_unit(session, 1))
+
+
+func _withdraw_swap(_session: CampaignSession) -> CampaignCommand:
+	return WithdrawSwapCommand.new(1, 0)
 
 
 # The first of candidates run accepts now; else the first, so its reason shows; null for none.

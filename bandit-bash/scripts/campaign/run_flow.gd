@@ -12,13 +12,13 @@
 class_name RunFlow
 extends RefCounted
 ## Where a run stands between its map and its nodes, and the run-wide state every seat shares:
-## the Unknown odds and outcome, the maps already used and the shop stock.
+## the Unknown odds and outcome, the maps already used, the shop stock and the accepted swaps.
 ##
 ## Pure data held by [CampaignRunState], saved as the [code]run_flow[/code] section through
 ## [method capture] and [method restore]. The node the run is at is
 ## [member CampaignRunState.node]; this holds only the stage within it. The Unknown odds and
-## outcome, used maps and shop stock start empty, which means the base odds, nothing rolled, no
-## map used and no stock rolled; the node rules that roll them fill them.
+## outcome, used maps, shop stock and swaps start empty, which means the base odds, nothing
+## rolled, no map used, no stock rolled and no swap; the rules that set them fill them.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 
@@ -60,6 +60,7 @@ const _KEY_UNKNOWN_ODDS: String = "unknown_odds"
 const _KEY_USED_MAPS: String = "used_maps"
 const _KEY_SHOP_STOCK: String = "shop_stock"
 const _KEY_UNKNOWN: String = "unknown"
+const _KEY_SWAPS: String = "swaps"
 
 ## Where the run is.
 var stage: Stage = Stage.MAP
@@ -80,6 +81,11 @@ var used_maps: PackedStringArray = []
 ## [b]Empty:[/b] nothing rolled.
 var shop_stock: Dictionary = {}
 
+## The co-op swaps accepted for the next combat the team fights ([AnswerSwapCommand]), in the order
+## accepted; [method CampaignRunState.battle_request] puts each visitor on its partner's map. They
+## end when that combat ends or a named unit leaves its army. [b]Empty:[/b] none.
+var swaps: Array[UnitSwap] = []
+
 
 ## Whether the run is on the map, between nodes.
 func is_on_map() -> bool:
@@ -93,25 +99,34 @@ func stage_id(of_stage: Stage) -> String:
 
 ## This flow as plain JSON, for the [code]run_flow[/code] section.
 func capture() -> Dictionary:
+	var swap_data: Array = []
+	for swap: UnitSwap in swaps:
+		swap_data.append(swap.capture())
 	return {
 		_KEY_STAGE: _STAGE_IDS[stage],
 		_KEY_UNKNOWN_ODDS: unknown_odds.duplicate(),
 		_KEY_USED_MAPS: Array(used_maps),
 		_KEY_SHOP_STOCK: shop_stock.duplicate(true),
 		_KEY_UNKNOWN: unknown,
+		_KEY_SWAPS: swap_data,
 	}
 
 
 ## Takes [param data], as [method capture] wrote it, numbers as whole floats too. Returns
 ## [constant ERR_INVALID_DATA], changing nothing, for an unknown stage, a missing field, an odds
-## value that isn't a whole number or an Unknown outcome that isn't one. A missing Unknown outcome
-## (a run saved before it was kept) reads as not rolled.
+## value that isn't a whole number, an Unknown outcome that isn't one, a swap
+## [method UnitSwap.restore] refuses or two swaps sharing a pair of seats or a unit. A missing Unknown outcome or swap list
+## (a run saved before either was kept) reads as not rolled and none.
 func restore(data: Dictionary) -> Error:
 	var stage_key: Variant = _STAGE_IDS.find_key(data.get(_KEY_STAGE))
 	var odds: Variant = data.get(_KEY_UNKNOWN_ODDS)
 	var maps: Variant = data.get(_KEY_USED_MAPS)
 	var stock: Variant = data.get(_KEY_SHOP_STOCK)
 	var resolved: Variant = data.get(_KEY_UNKNOWN, "")
+	var read_swaps: Array[UnitSwap] = []
+	if not _read_swaps(data.get(_KEY_SWAPS, []), read_swaps):
+		push_error("RunFlow: bad swaps - %s" % [data.get(_KEY_SWAPS)])
+		return ERR_INVALID_DATA
 	if stage_key == null or not odds is Dictionary or not maps is Array or not stock is Dictionary:
 		push_error("RunFlow: not a run flow's data - %s" % [data])
 		return ERR_INVALID_DATA
@@ -140,4 +155,24 @@ func restore(data: Dictionary) -> Error:
 	used_maps = read_maps
 	shop_stock = (stock as Dictionary).duplicate(true)
 	unknown = resolved as String
+	swaps = read_swaps
 	return OK
+
+
+# Reads data's swaps into into, in order: each one UnitSwap.restore() takes, no two joining the
+# same pair of seats or naming the same unit. False, with into partly filled, for any other.
+static func _read_swaps(data: Variant, into: Array[UnitSwap]) -> bool:
+	if not data is Array:
+		return false
+	for entry: Variant in data as Array:
+		var swap: UnitSwap = UnitSwap.restore(entry)
+		if swap == null:
+			return false
+		for kept: UnitSwap in into:
+			if (
+					kept.joins(swap.seat_a, swap.seat_b)
+					or kept.names_unit(swap.unit_a) or kept.names_unit(swap.unit_b)
+			):
+				return false
+		into.append(swap)
+	return true
