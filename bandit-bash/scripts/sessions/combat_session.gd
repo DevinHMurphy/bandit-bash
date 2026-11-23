@@ -6,7 +6,7 @@
 # File:     combat_session.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 22, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name CombatSession
@@ -458,9 +458,9 @@ func load_snapshot(
 ## (event bus plan, Logging and debugging): the [code]session[/code], [code]combat_state[/code] and
 ## [code]effects[/code] parts of [method snapshot], map objects' units included, the
 ## [code]entities[/code] part of its map (objects, contents and loot), and what a mirror follows of
-## its darkness: the arrival flag, each wave's source, the layers and the contacts. Left out, since
-## no fact carries them: the roll stream (only the host draws), the reinforcement points' waiting
-## units, a wave's reach and tiles entered, and the setup's sources and drain.
+## its darkness: the arrival flag, each wave's source, reach and tiles entered, the layers and the
+## contacts. Left out, since no fact carries them: the roll stream (only the host draws), the
+## reinforcement points' waiting units, and the setup's sources, drain and first release.
 func state_hash() -> int:
 	var map_part: Dictionary = state.map.capture()
 	var parts: Dictionary = {
@@ -1200,24 +1200,20 @@ static func _counter_target(instance: EffectInstance, lane: int) -> int:
 	return 1
 
 
-# The build's version (application/config/version), which snapshots and dumps name.
 # The parts of a map's darkness (DarknessState.capture()) a mirror follows (CombatState.follow),
-# for state_hash(): the map's arrival flag, each wave's source, the layers and the contacts.
-# ASSUMPTION: the hash covers only what a mirror can follow, as it leaves out the points' waiting
-# units; the sources, drain and first release come with the snapshot, never a fact.
+# for state_hash(): the map's arrival flag, each wave (source, reach, tiles entered, row-major),
+# the layers and the contacts. The sources, drain and first release come with the snapshot, never
+# a fact, so they are left out, as the points' waiting units are.
 func _followed_darkness(darkness: Dictionary) -> Dictionary:
-	var wave_sources: Array = []
-	# Untyped: a capture's waves are plain data.
-	for wave: Variant in darkness["waves"]:
-		wave_sources.append((wave as Dictionary)["source"])
 	return {
 		"arrived": state.map.has_darkness_arrived,
-		"wave_sources": wave_sources,
+		"waves": darkness["waves"],
 		"layers": darkness["layers"],
 		"contacts": darkness["contacts"],
 	}
 
 
+# The build's version (application/config/version), which snapshots and dumps name.
 static func _game_version() -> String:
 	return str(ProjectSettings.get_setting("application/config/version", ""))
 

@@ -624,9 +624,11 @@ Impact):
   load and gives `BATTLE_RETRY`.
 - **Mirrors** follow the darkness's facts (`CombatState.follow()`): each release adds a wave from
   its source and the first sets `has_darkness_arrived`, each tile deepened takes its layer, each
-  contact and erosion its count. A wave's reach and entered tiles are in no fact, so a mirror's
-  stay 0 and empty, and `CombatSession.state_hash()` covers the darkness's arrival, wave sources,
-  layers and contacts only.
+  contact and erosion its count, and each `DARKNESS_WAVE_SPREAD` sets a wave's reach and adds the
+  tile it entered (at release, creep and recalculation). So a mirror's `Darkness.next_deepening()`
+  is the host's, and `CombatSession.state_hash()` covers the darkness's arrival, each wave's
+  source, reach and entered tiles, the layers and the contacts. The section itself is unchanged:
+  it already saves reach and entered tiles.
 
 ## Battle tally
 

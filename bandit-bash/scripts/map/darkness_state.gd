@@ -6,7 +6,7 @@
 # File:     darkness_state.gd
 # Author:
 # Created:  November 4, 2026
-# Modified: November 7, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 class_name DarknessState
@@ -14,23 +14,16 @@ extends RefCounted
 ## The darkness on one map: its active sources, the drain, its waves, each tile's layer and each
 ## breakable's contact count (the-darkness.md, Waves and creep).
 ##
-## Held by [MapState] as [member MapState.darkness] and copied with it for a sandbox, so a
-## forecast reads real layers through [method CombatState.darkness_layer] and never changes the
-## real map. Plain data with ids and tiles only.[br]
+## Held by [member MapState.darkness] and copied with it for a sandbox, so a forecast reads real
+## layers ([method CombatState.darkness_layer]) and never changes the real map. Plain data.[br]
 ## [b]Operations:[/b] [method release], [method creep] and [method recalculate] let waves enter
-## tiles. A wave enters each tile whose flow cost ([method DarknessFlow.flow_costs]) is within its
-## reach once, ever, deepening it one layer up to [constant MAX_LAYER], or up to
-## [constant BRAZIER_CAP] within [constant BRAZIER_RADIUS] of a lit Brazier; an entry that can't
-## deepen a tile is still spent (plan question 3). Heights and flow costs are derived afresh for
-## each operation, so a break or a door change only needs [method recalculate] (plan question 2);
-## a tile that stops being floodable keeps its layer. Layers never fall.[br]
-## [DarknessSetup] chooses the sources, the drain and [member first_release]. Scheduling waves,
-## erosion, damage and facts belong to the callers; each operation returns what deepened, in
-## order, for them to record.[br]
-## [b]Saves and mirrors:[/b] [method capture] and [method restore] carry it as plain JSON, the
-## [code]darkness[/code] part of [method MapState.capture] and of the [DarknessSaveSection]. A
-## mirror follows its layers, contacts and released waves ([method CombatState.follow]), never a
-## wave's reach or entered tiles, which no fact carries.
+## tiles: a wave enters each tile within its reach ([method DarknessFlow.flow_costs]) once, ever,
+## deepening it a layer up to [constant MAX_LAYER], or [constant BRAZIER_CAP] near a lit Brazier;
+## an entry that can't deepen is still spent. Flow is derived afresh each time, so a break or door
+## needs only [method recalculate]; layers never fall. Each returns what deepened and reports what
+## was entered, for [Darkness] to record. [DarknessSetup] places the sources and drain.[br]
+## [b]Saves and mirrors:[/b] [method capture] and [method restore] carry it as plain JSON for the
+## snapshot and the [DarknessSaveSection]; a mirror follows its facts ([method CombatState.follow]).
 ##
 ## @tutorial(The darkness): docs/design/the-darkness.md
 ## @tutorial(The darkness plan): docs/plans/2026-11-03-the-darkness.md
@@ -93,29 +86,32 @@ func has_arrived() -> bool:
 
 ## Releases a new wave from every active source, in source index order, each entering that
 ## source's own floodable tiles (reach 0). Returns the tiles that deepened.
-func release(state: CombatState) -> Array[Deepening]:
+## [param entered]: gains every tile a wave entered, deepened or not, in entry order.
+func release(state: CombatState, entered: Array[Entry] = []) -> Array[Deepening]:
 	var released: Array[Wave] = []
 	for source_index: int in sources.size():
 		var wave: Wave = Wave.new()
 		wave.source = source_index
 		waves.append(wave)
 		released.append(wave)
-	return _enter(state, released)
+	return _enter(state, released, entered)
 
 
 ## Grows every wave's reach by [constant CREEP_SPEED], then each, oldest first, enters the tiles
 ## now within its reach. Returns the tiles that deepened.
-func creep(state: CombatState) -> Array[Deepening]:
+## [param entered]: gains every tile a wave entered, deepened or not, in entry order.
+func creep(state: CombatState, entered: Array[Entry] = []) -> Array[Deepening]:
 	for wave: Wave in waves:
 		wave.reach += CREEP_SPEED
-	return _enter(state, waves)
+	return _enter(state, waves, entered)
 
 
 ## Derives the flow again after a breakable broke or a door opened or closed, and every wave
 ## enters the tiles now within its reach that it hasn't entered. Reaches don't grow. Returns the
 ## tiles that deepened.
-func recalculate(state: CombatState) -> Array[Deepening]:
-	return _enter(state, waves)
+## [param entered]: gains every tile a wave entered, deepened or not, in entry order.
+func recalculate(state: CombatState, entered: Array[Entry] = []) -> Array[Deepening]:
+	return _enter(state, waves, entered)
 
 
 ## A copy sharing nothing mutable.
@@ -249,8 +245,8 @@ func restore(data: Dictionary) -> Error:
 
 
 # Lets each of entering, in order, enter its unentered tiles within reach, in flow order (by flow
-# cost, then row-major).
-func _enter(state: CombatState, entering: Array[Wave]) -> Array[Deepening]:
+# cost, then row-major), adding each entry to entered.
+func _enter(state: CombatState, entering: Array[Wave], entered: Array[Entry]) -> Array[Deepening]:
 	var deepened: Array[Deepening] = []
 	if entering.is_empty():
 		return deepened
@@ -271,12 +267,14 @@ func _enter(state: CombatState, entering: Array[Wave]) -> Array[Deepening]:
 			costs_by_source[wave.source] = computed
 			order_by_source[wave.source] = _flow_order(computed)
 		var costs: Dictionary[Vector2i, int] = costs_by_source[wave.source]
+		var wave_index: int = waves.find(wave)
 		for tile: Vector2i in order_by_source[wave.source]:
 			if costs[tile] > wave.reach:
 				break
 			if wave.entered.has(tile):
 				continue
 			wave.entered[tile] = true
+			entered.append(Entry.new(wave_index, tile))
 			var cap: WhileLayerCondition.Layer = (
 					BRAZIER_CAP if _is_held(state, lit, tile) else MAX_LAYER
 			)
@@ -458,3 +456,17 @@ class Deepening:
 		tile = deepened_tile
 		layer = new_layer
 		source = source_index
+
+
+## One tile a wave entered, deepened or not: the wave's index in [member DarknessState.waves].
+class Entry:
+	extends RefCounted
+
+	## The index in [member DarknessState.waves] of the wave that entered it.
+	var wave: int = -1
+	## The tile.
+	var tile: Vector2i = CombatFact.NO_TILE
+
+	func _init(wave_index: int, entered_tile: Vector2i) -> void:
+		wave = wave_index
+		tile = entered_tile
