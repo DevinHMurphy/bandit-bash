@@ -13,11 +13,12 @@ class_name ClientMirror
 extends RefCounted
 ## A client's copy of the host's run and battle, kept equal to the host's from what one
 ## [code]NetRelay[/code] hears, never resolving anything. [member session] is a [CampaignSession]
-## flagged [member CampaignSession.is_mirror]: each campaign batch restores its run from the run's
-## capture (the path [method RunSaveSections.attach] takes), then announces itself on the session's
-## own signals, so screens read a mirror as they read the host's. The battle is rebuilt as a resume
-## rebuilds one ([method CampaignSession.resume_battle]) and loads the host's snapshot, then
-## follows every map's and the encounter's batches; a batch for a battle not built is dropped.[br]
+## flagged [member CampaignSession.is_mirror]: each campaign batch restores its run, events and
+## open swap proposals from the run's capture, then announces itself on the session's signals, so
+## screens read a mirror as they read the host's; a battle's end adds the facts it recorded. The
+## battle is rebuilt as a resume rebuilds one ([method CampaignSession.resume_battle]) from the
+## host's snapshot, then follows every map's and the encounter's batches, dropping any for a
+## battle not built.[br]
 ## [b]Sync:[/b] state it lacks (no run, a battle, a gap, a debug hash mismatch) is asked for with
 ## [code]NetRelay.request_sync()[/code] every [constant SYNC_INTERVAL] s, at most
 ## [constant SYNC_ATTEMPTS] times. [method advance] runs that clock, so its owner sets the time.
@@ -46,8 +47,9 @@ const _HAVE_BATTLE: String = "battle"
 const _HAVE_SEQS: String = "seqs"
 const _HAVE_FRESH: String = "fresh"
 
-# The run capture's key for its seats' sections (NetRelay's).
+# The run capture's key for its seats' sections, and for the open swap proposals (NetRelay's).
 const _RUN_SEATS_KEY: String = "seats"
+const _RUN_PROPOSALS_KEY: String = "swap_proposals"
 
 # The arrival of a campaign command the host refused before stamping it: a command's
 # CampaignCommand.arrival before CampaignSession.submit(); stamps start at 1.
@@ -209,9 +211,10 @@ func _battle() -> CombatEncounter:
 	return null if session == null else session.encounter
 
 
-# Restores the run from run, the host's capture, building the session on the first; carries the
-# facts already heard over, and batch's new facts after them, for the screens' playback. False,
-# changing nothing, for an empty or unusable capture, or one for other seats.
+# Restores the run from run, the host's capture, building the session on the first: its sections,
+# then the events and the open swap proposals; carries the facts already heard over, and batch's
+# new facts after them, for the screens' playback. False, changing nothing, for an empty or
+# unusable capture, one missing a part, or one for other seats.
 func _restore_run(run: Dictionary, batch: CampaignBatch) -> bool:
 	var by_seat: Variant = run.get(_RUN_SEATS_KEY, null)
 	if run.is_empty() or not by_seat is Dictionary:
@@ -226,9 +229,13 @@ func _restore_run(run: Dictionary, batch: CampaignBatch) -> bool:
 		NetLog.warn(NetLog.Category.CAMPAIGN, "ClientMirror: a capture for seats %s" % [seats])
 		return false
 	var sections: RunSaveSections = RunSaveSections.new()
+	var events: EventSaveSection = EventSaveSection.new()
+	var proposals: Array[UnitSwap] = []
 	var restored: bool = (
 			_restore_part(sections.map, run.get(sections.map.get_key(), null))
 			and _restore_part(sections.flow, run.get(sections.flow.get_key(), null))
+			and _restore_part(events, run.get(events.get_key(), null))
+			and _read_proposals(run.get(_RUN_PROPOSALS_KEY, null), proposals)
 	)
 	for seat: int in seats:
 		var parts: Dictionary = (by_seat as Dictionary)[seat]
@@ -252,6 +259,10 @@ func _restore_run(run: Dictionary, batch: CampaignBatch) -> bool:
 		sections.detach()
 		return false
 	sections.detach()
+	# The run exists now and restore() checked the events, so neither can fail.
+	events.attach(target)
+	events.detach()
+	target.run.swap_proposals = proposals
 	var last_seq: int = 0 if heard.is_empty() else heard[heard.size() - 1].seq
 	if batch != null:
 		for fact: CampaignFact in batch.facts:
@@ -316,13 +327,15 @@ func _on_relay_campaign_batch_received(facts: Array, run: Dictionary) -> void:
 			_need(false, true)
 			return
 	var is_rejection: bool = batch != null and batch.is_rejected()
-	# A battle's end arrives as the run with no facts; nothing else resolves during a battle.
+	# A battle's end arrives as the run with what it recorded (a batch of no seat) or no facts;
+	# nothing else resolves during a battle.
 	if not is_rejection and _battle() != null:
 		session.abandon_battle()
 	if not _restore_run(run, batch):
 		_need(false, true)
 		return
-	if batch == null:
+	# No command made a battle end's batch, and the host's session announces none for it.
+	if batch == null or (batch.seat == CampaignFact.NO_SEAT and not is_rejection):
 		return
 	if is_rejection and batch.seat == local_seat():
 		_heard_rejection = true
@@ -405,5 +418,18 @@ func _on_relay_sync_received(
 		_attempts = 0
 
 
-static func _restore_part(section: RunSaveSections.SharedSection, data: Variant) -> bool:
+static func _restore_part(section: SaveSection, data: Variant) -> bool:
 	return data is Dictionary and section.restore(data as Dictionary) == OK
+
+
+# Reads the capture's open swap proposals, data, into into, in order. False for anything but an
+# Array of proposals UnitSwap.restore() accepts.
+static func _read_proposals(data: Variant, into: Array[UnitSwap]) -> bool:
+	if not data is Array:
+		return false
+	for entry: Variant in data as Array:
+		var proposal: UnitSwap = UnitSwap.restore(entry)
+		if proposal == null:
+			return false
+		into.append(proposal)
+	return true

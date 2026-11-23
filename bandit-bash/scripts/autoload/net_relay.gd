@@ -35,9 +35,11 @@ signal combat_batch_received(wire: Array)
 ## An encounter batch arrived from the host ([signal CombatEncounter.batch_resolved]). Clients only.
 signal encounter_batch_received(wire: Array)
 
-## A campaign batch arrived: [param facts] is its [method CampaignBatch.to_wire], empty when only
-## the run changed (a battle's end); [param run] is the run's capture, each shared section's data
-## by key and, under [code]"seats"[/code], each seat's sections by seat, then by key. Clients only.
+## A campaign batch arrived: [param facts] is its [method CampaignBatch.to_wire]; at a battle's end
+## a batch of no seat holding what the end recorded, or empty when it recorded nothing. [param run]
+## is the run's capture: each shared section's data by key, the [code]events[/code] section's, the
+## open swap proposals under [code]"swap_proposals"[/code], and, under [code]"seats"[/code], each
+## seat's sections by seat, then by key. Clients only.
 signal campaign_batch_received(facts: Array, run: Dictionary)
 
 ## [param seat] sent a notice of [enum NoticeKind] [param kind] with [param data]. Presentation
@@ -106,6 +108,13 @@ const _NO_MAP: String = "no such map"
 # The key the run capture keeps its seats' sections under.
 const _RUN_SEATS_KEY: String = "seats"
 
+# The key the run capture keeps the open swap proposals under, each a UnitSwap.capture(), in the
+# order made: they live only in the host's memory, so no section holds them.
+const _RUN_PROPOSALS_KEY: String = "swap_proposals"
+
+# The label of the batch that carries what a battle's end recorded, for the client's log.
+const _BATTLE_END_LABEL: String = "battle end"
+
 # Slots of a SELECTION notice's data: the map's session id, the unit id.
 const _SELECTION_FIELDS: int = 2
 
@@ -167,6 +176,9 @@ var _api: MultiplayerAPI = null
 
 # The battle's snapshot is due on the next frame.
 var _push_pending: bool = false
+
+# The run's fact count when the open battle opened: what its end records comes after it.
+var _battle_from: int = 0
 
 # Seconds each seat this machine waits for has waited, from the host's _seat_changed(); on a
 # client that lost the host, the host's seat alone.
@@ -890,18 +902,28 @@ func _follow_battle(battle: CombatEncounter) -> void:
 		_on_encounter_session_opened(map)
 
 
-# The run's six sections as they are now: a fresh RunSaveSections holds nothing, so attaching it
-# reads the session's run without changing it (its attach() returns ERR_DOES_NOT_EXIST then).
+# The run as it is now: its six sections, the events section and the open swap proposals. Fresh
+# sections hold nothing, so attaching them reads the session's run without changing it (the run
+# sections' attach() returns ERR_DOES_NOT_EXIST then). ClientMirror reads every key back.
 func _capture_run() -> Dictionary:
 	var captured: Dictionary = {}
 	if _session == null or _session.run == null:
 		return captured
 	var sections: RunSaveSections = RunSaveSections.new()
-	if sections.attach(_session) != ERR_DOES_NOT_EXIST:
+	var events: EventSaveSection = EventSaveSection.new()
+	if sections.attach(_session) != ERR_DOES_NOT_EXIST or events.attach(_session) != OK:
 		push_error("NetRelay: the run couldn't be captured.")
 		return captured
 	captured[sections.map.get_key()] = sections.map.capture()
 	captured[sections.flow.get_key()] = sections.flow.capture()
+	captured[events.get_key()] = events.capture()
+	events.detach()
+	# ASSUMPTION: open proposals travel in the capture, as the run does, rather than a mirror
+	# rebuilding them from the swap facts, which a mirror built mid-run never heard.
+	var proposals: Array = []
+	for proposal: UnitSwap in _session.run.swap_proposals:
+		proposals.append(proposal.capture())
+	captured[_RUN_PROPOSALS_KEY] = proposals
 	var by_seat: Dictionary = {}
 	for seat: int in _session.seats:
 		var parts: Dictionary = {}
@@ -1003,15 +1025,41 @@ func _on_session_combat_encounter_opened(encounter: CombatEncounter) -> void:
 	_follow_battle(encounter)
 	if _is_host():
 		_push_pending = true
+		_mark_battle_facts()
 
 
 # The battle's end has applied to the run by now (CampaignService.end_battle()), so the run goes
-# out with no facts; a battle dropped without applying sends the run as it stands, still the truth.
+# out with what the end recorded; a battle dropped without applying sends the run as it stands,
+# still the truth, with no facts.
 func _on_session_combat_encounter_closed(encounter: CombatEncounter) -> void:
 	if encounter == _encounter:
 		_follow_battle(null)
 	if _is_host():
-		_send_campaign_batch(_seated_peers(), [])
+		_send_campaign_batch(_seated_peers(), _battle_end_facts())
+
+
+# Host: notes where the run's facts stand as a battle opens, for _battle_end_facts().
+func _mark_battle_facts() -> void:
+	_battle_from = 0 if _session == null or _session.run == null else _session.run.fact_log.size()
+
+
+# Host: what the run recorded since the battle opened (its end's COMBAT_ENDED and LEVELED_UP
+# facts, which no command's batch carries), as the wire of a batch of no seat; empty when it
+# recorded nothing. A fact a batch already carried (a forfeit mid-battle) is sent again, and the
+# client keeps it once, by its seq (ClientMirror).
+func _battle_end_facts() -> Array:
+	if _session == null or _session.run == null:
+		return []
+	var recorded: Array[CampaignFact] = _session.run.fact_log
+	if recorded.size() <= _battle_from:
+		return []
+	var ended: CampaignBatch = CampaignBatch.new()
+	# ASSUMPTION: the battle end's message carries its facts as a batch of no seat, which a mirror
+	# keeps without announcing, rather than a new capture key or a new message.
+	ended.seat = CampaignFact.NO_SEAT
+	ended.label = _BATTLE_END_LABEL
+	ended.facts = recorded.slice(_battle_from)
+	return ended.to_wire()
 
 
 func _on_encounter_session_opened(map: CombatSession) -> void:

@@ -66,7 +66,7 @@ Not a bug.
 | [BUG-031](#bug-031-a-continued-runs-instance-ids-drift-from-an-uninterrupted-ones) | A continued run's instance ids drift from an uninterrupted one's, so heirloom reactions can fire in another order after a quit | P08 / P01 (campaign session) | S2 | Fixed (RN11 merge, November 20, 2026) | November 20, 2026, RN11 | RN11 |
 | [BUG-032](#bug-032-the-campaign-maps-class-doc-says-every-non-combat-node-goes-to-the-placeholder) | The campaign map's class doc says a non-combat node goes to the placeholder | P08 (campaign UI) | S4 | Fixed (CO10 merge, November 22, 2026) | November 21, 2026, RN12 report | the next Lane B step touching `ui/campaign/` (CO10) |
 | [BUG-033](#bug-033-event-busmd-lists-only-five-campaign-commands) | event-bus.md lists only five campaign commands; about 20 more exist | P01 / P08 (docs) | S4 | Open | November 21, 2026, RN12 report | the next docs step (CO20) |
-| [BUG-034](#bug-034-leavenodecommand-doesnt-wait-for-an-open-events-seats) | `LeaveNodeCommand` doesn't wait for an open event's seats to choose; leaving after a pending Fight skips the surprise combat | P08 / P09 (leave rules) | S3 (latent) | Open | November 21, 2026, CO9 report | Lane B, before CO16 (clients in the harness) |
+| [BUG-034](#bug-034-leavenodecommand-doesnt-wait-for-an-open-events-seats) | `LeaveNodeCommand` doesn't wait for an open event's seats to choose; leaving after a pending Fight skips the surprise combat | P08 / P09 (leave rules) | S3 (latent) | Fixed (CO16 merge, November 23, 2026: Leave at an open event is refused until every seat chose and any surprise combat was fought) | November 21, 2026, CO9 report | CO16 (Lane C) |
 | [BUG-035](#bug-035-the-intents-refresh-after-each-player-action-blocks-the-main-thread) | The intents refresh after every player action blocks the main thread: 0.78 s (release) and 6.3 s (debug) on the boss board | P05 (intents) | S3 | Part fixed (EN16 merge, November 22, 2026: debug 6.1 → 1.1 s on the boss board) | November 21, 2026, EN15 report | the release part (0.25 s key, 0.83 s boss, main thread): EN18, after CO2 (P05 question 53 (a)) |
 | [BUG-036](#bug-036-a-resumed-frozen-maps-turn-cant-end) | A resumed frozen map's turn can't end: `PhaseRunner.seats_with_units` counts only the map's own seats, not a sender's unit on it | P11 (co-op battles) | S2 (latent: only tests send) | Fixed (CO2 merge, November 22, 2026) | November 22, 2026, CO1 report | CO2 (Lane D) |
 | [BUG-037](#bug-037-a-map-that-received-units-keeps-its-speed-bonus) | A co-op map that received units keeps its speed bonus: `SeatOutcome.has_received_units` is never set | P11 (co-op rewards) | S3 (latent: co-op battles show the placeholder) | Fixed (CO5 merge, November 22, 2026) | November 22, 2026, CO2 report | CO5 (Lane B, owns `campaign_session.gd`) |
@@ -75,6 +75,7 @@ Not a bug.
 | [BUG-040](#bug-040-a-1-seat-multiplayer-run-that-loses-never-ends) | A 1-seat multiplayer run that loses its battle never ends | P11 (run end) | S4 | Fixed (CO14 merge, November 23, 2026) | November 23, 2026, CO8 report | Lane B (with CO14) |
 | [BUG-041](#bug-041-skipping-playback-never-stops-for-key-moments) | Skipping playback never stops for key moments: `FactPlayback.pause_hook` is never set, though `battle_view.gd`'s skip doc says the skip stops for them | P07 (playback) | S3 | Open | November 23, 2026, CO15 report | Lane A (with EN19) |
 | [BUG-042](#bug-042-the-enet-pair-case-times-out-under-full-run-load) | The ENet pair case ("two instances on one machine play a battle to its end") times out at its 150 s step limit during a full run while other builds run on the machine; it passes alone | P10 (tests) | S4 (test only) | Open | November 23, 2026, NT7 merge | BF11 (Lane E) |
+| [BUG-043](#bug-043-mirrors-diverge-on-a-map-two-seats-share) | Mirrors diverge on a map two seats share (a swap's visitor, a landed send): `PhaseRunner.start()` drops a seat from `seats_to_start` and `end_turn()` adds it to `ended_seats` without recording a fact, so after the first seat's Start or End Turn every mirror's state differs from the host's | P11 / P10 (co-op battles on mirrors) | S2 (latent until clients play co-op battles live) | Open | November 23, 2026, CO16 report | CO17 (Lane D), or CO23 if its mirror cases hit it |
 
 ### BUG-001 No Block at the start of combat
 
@@ -587,3 +588,15 @@ Not a bug.
   `net` alone.
 - **Fix:** make the case hold under load (a limit that scales or a longer one, kept under the
   suite's 450 s), and report the step reached when it fails; no change to the game.
+
+### BUG-043 Mirrors diverge on a map two seats share
+
+- **Found** by CO16: in its 4-seat harness run, a battle with an accepted swap's visitor desynced
+  every mirror after the first seat's Start. `PhaseRunner.start()` removes the seat from
+  `seats_to_start`, and `end_turn()` records the seat in `ended_seats`, with no combat fact, so a
+  mirror following facts never learns either. Any map two seats share hits it: a swap's visitor
+  or a landed send. CO16's 4-seat case withdraws the swap before the battle (a NOTE in
+  `tests/net/coop_campaign_cases.gd`) until the fix.
+- **Fix:** record the per-seat Start and End Turn so mirrors follow them (a fact kind or an
+  existing one's field, per the network contract), restore the swap in CO16's 4-seat case and
+  remove its NOTE; harness cases with a shared map at 2 and 4 seats.
