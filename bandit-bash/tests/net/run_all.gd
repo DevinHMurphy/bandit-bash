@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 22, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -21,7 +21,7 @@ extends SceneTree
 ## loopback in [code]tests/net/harness/[/code]; one ENet case skips where it can't open a port.
 
 # The test report's line on this suite; tools/run_tests.sh reads it from this one line.
-const SUITE_DESCRIPTION: String = "Network: fingerprint, admission, seats, gate, two-peer harness"
+const SUITE_DESCRIPTION: String = "Network: fingerprint, admission, seats, gate, harness, relay"
 
 # Preloaded scripts used as types (gdscript.md, Naming): they have no class name.
 const GroupClock = preload("res://tests/group_clock.gd")
@@ -38,7 +38,7 @@ func _process(_delta: float) -> bool:
 	if _has_run:
 		return false
 	_has_run = true
-	print("--- Net tests. Errors from SeatDirectory and the harness below are expected. ---")
+	print("--- Net tests. Errors from seats, the harness and the relay below are expected. ---")
 	for cases: RefCounted in CaseFiles.run(self, _check, root):
 		if cases is NetCaseBase:
 			var net_cases: NetCaseBase = cases
