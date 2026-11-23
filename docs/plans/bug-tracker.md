@@ -76,6 +76,8 @@ Not a bug.
 | [BUG-041](#bug-041-skipping-playback-never-stops-for-key-moments) | Skipping playback never stops for key moments: `FactPlayback.pause_hook` is never set, though `battle_view.gd`'s skip doc says the skip stops for them | P07 (playback) | S3 | Open | November 23, 2026, CO15 report | Lane A (with EN19) |
 | [BUG-042](#bug-042-the-enet-pair-case-times-out-under-full-run-load) | The ENet pair case ("two instances on one machine play a battle to its end") times out at its 150 s step limit during a full run while other builds run on the machine; it passes alone | P10 (tests) | S4 (test only) | Open | November 23, 2026, NT7 merge | BF11 (Lane E) |
 | [BUG-043](#bug-043-mirrors-diverge-on-a-map-two-seats-share) | Mirrors diverge on a map two seats share (a swap's visitor, a landed send): `PhaseRunner.start()` drops a seat from `seats_to_start` and `end_turn()` adds it to `ended_seats` without recording a fact, so after the first seat's Start or End Turn every mirror's state differs from the host's | P11 / P10 (co-op battles on mirrors) | S2 (latent until clients play co-op battles live) | Open | November 23, 2026, CO16 report | CO17 (Lane D), or CO23 if its mirror cases hit it |
+| [BUG-044](#bug-044-capture-group-491-fails-every-capture-run) | Capture group 491 (NT6's) logs "No multiplayer peer is assigned" from `net_relay.gd:505` since NT7 and CO15, so every capture run reports FAIL at every size though the shots are fine | P10 / P14 (captures) | S3 (every UI step's capture verdict is FAIL) | Open | November 23, 2026, CO13 report | Lane E (BF11 if noted) |
+| [BUG-045](#bug-045-the-intent-rule-tooltip-draws-off-the-top-edge) | The intent rule tooltip on a unit in the map's top row draws off the screen's top edge | P07 (battle HUD) | S4 | Open | November 23, 2026, CO13 report | EN19 (Lane A) |
 
 ### BUG-001 No Block at the start of combat
 
@@ -600,3 +602,18 @@ Not a bug.
 - **Fix:** record the per-seat Start and End Turn so mirrors follow them (a fact kind or an
   existing one's field, per the network contract), restore the swap in CO16's 4-seat case and
   remove its NOTE; harness cases with a shared map at 2 and 4 seats.
+
+### BUG-044 Capture group 491 fails every capture run
+
+- **Found** by CO13: since NT7 and CO15 merged, group 491 (`tools/captures/491_*`, NT6's) logs
+  "No multiplayer peer is assigned" from `net_relay.gd:505`, four errors per size, so
+  `run_captures.sh` reports FAIL at every size. Plain `dev` fails the same way; the shots
+  themselves are fine and there are 0 layout issues.
+- **Fix:** find which send runs with no peer in the capture (guard it in `net_relay.gd`, or give
+  the group the peer it needs), so a clean capture run passes again; no game change.
+
+### BUG-045 The intent rule tooltip draws off the top edge
+
+- **Found** by CO13 (pre-existing): the intent rule tooltip on a unit in the map's top row opens
+  above the unit and leaves the screen. CO13 stopped a viewed map's cursor from starting there.
+- **Fix:** keep the tooltip inside the viewport (flip below, or clamp), with a case.
