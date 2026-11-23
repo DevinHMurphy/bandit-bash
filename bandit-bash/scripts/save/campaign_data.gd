@@ -15,9 +15,9 @@ extends RefCounted
 ##
 ## A save file has one campaign slot per [enum Mode], stored as [method get_file_name] in its
 ## folder. [code]SaveService[/code] decides when to read and write it; this class converts between
-## its fields and a [SaveFile] envelope.[br]
-## Solo and multiplayer share one shape: [member players] holds one [CampaignData.PlayerRun] per
-## seat, and solo is a single seat 0 with no Steam id.[br]
+## its fields and a [SaveFile] envelope. Solo and multiplayer share one shape: [member players]
+## holds one [CampaignData.PlayerRun] per seat in the run (solo: seat 0, no Steam id); a seat that
+## left mid-battle waits in [member departed] until the battle ends.[br]
 ## Level and progress fields carry the old build's meaning
 ## ([code]Godot_FE/overworld_new/player_overworld_data.gd:16-18[/code]) until the campaign system is
 ## ported and defines them.
@@ -106,9 +106,16 @@ var floors_climbed: int = 0
 ## Key combat maps completed this run.
 var combat_maps_completed: int = 0
 
-## One entry per seat, ordered by seat. Never empty in a loaded or created campaign. A forfeited
-## seat's entry goes ([method remove_player]); the others keep their seats, so seats can have gaps.
+## One entry per seat in the run, ordered by seat. Never empty in a loaded or created campaign. A
+## forfeited seat's entry goes ([method remove_player]), or, mid-battle, moves to
+## [member departed]; the others keep their seats, so seats can have gaps.
 var players: Array[PlayerRun] = []
+
+## Seats that left the run during the battle in progress, ordered by seat, sections as at Begin:
+## out of [member players], so nothing counts them in the run, but still in the file
+## ([method to_save_envelope]) until the battle ends, so a resume can rebuild their maps. A loaded
+## file has them in [member players]; [code]SaveService[/code] sets them aside ([method set_aside]).
+var departed: Array[PlayerRun] = []
 
 ## Section key to [code]{"version": int, "data": Dictionary}[/code], as stored on disk.
 ## [code]SaveService[/code] moves it to and from the registered [SaveSection]s
@@ -116,33 +123,25 @@ var players: Array[PlayerRun] = []
 var sections: Dictionary = {}
 
 
-## Returns this campaign as a [SaveFile] envelope, ready for [method SaveFile.write].
+## Returns this campaign as a [SaveFile] envelope of the run as it stands: [member players] only,
+## for copies and the replica clients hold. The campaign file is [method to_save_envelope].
 func to_envelope() -> Dictionary:
-	var player_entries: Array[Dictionary] = []
-	for player: PlayerRun in players:
-		player_entries.append(player.to_dict())
+	return _make_envelope(players)
 
-	var core: Dictionary = {
-		_KEY_MODE: _MODE_IDS[mode],
-		_KEY_SEED: run_seed,
-		_KEY_DIFFICULTY: difficulty,
-		_KEY_MODIFIERS: Array(modifiers),
-		_KEY_PLAY_TIME_SECONDS: play_time_seconds,
-		_KEY_STARTED_AT: started_at,
-		_KEY_LAST_OPENED: last_opened,
-		_KEY_LEVEL_ID: level_id,
-		_KEY_FLOORS_CLIMBED: floors_climbed,
-		_KEY_COMBAT_MAPS_COMPLETED: combat_maps_completed,
-		_KEY_PLAYERS: player_entries,
-		_KEY_COMBAT_IN_PROGRESS: combat_in_progress,
-	}
-	return SaveFile.make_envelope(SCHEMA_VERSION, core, sections.duplicate(true), checkpoint_seq)
+
+## Returns what the campaign file holds: [method to_envelope] with [member departed]'s entries
+## among [member players] in seat order, ready for [method SaveFile.write].
+func to_save_envelope() -> Dictionary:
+	var entries: Array[PlayerRun] = players.duplicate()
+	entries.append_array(departed)
+	entries.sort_custom(_is_lower_seat)
+	return _make_envelope(entries)
 
 
 ## Fills this campaign from [param envelope], migrating it to [constant SCHEMA_VERSION] first.
 ##
 ## Edits [param envelope] while migrating. Missing simple fields keep their defaults. On error the
-## campaign is left unchanged.
+## campaign is left unchanged. Every entry the file holds loads into [member players].
 ## Returns [constant OK]; [constant ERR_INVALID_DATA] for an unknown mode or a missing or malformed
 ## player list; or the [method SaveMigrations.run] error.
 func load_envelope(envelope: Dictionary) -> Error:
@@ -173,11 +172,13 @@ func load_envelope(envelope: Dictionary) -> Error:
 	combat_maps_completed = maxi(core.get(_KEY_COMBAT_MAPS_COMPLETED, 0) as int, 0)
 	combat_in_progress = core.get(_KEY_COMBAT_IN_PROGRESS, false) == true
 	players = loaded_players
+	departed = []
 	sections = envelope[SaveFile.KEY_SECTIONS]
 	return OK
 
 
-## The Steam ids needed to resume: every seat's, in seat order. Empty for a solo campaign.
+## The Steam ids needed to resume: every seat's in [member players], in seat order, so not a
+## [member departed] one's. Empty for a solo campaign.
 ##
 ## Derived from [member players] rather than stored separately, so the two can't disagree.
 func get_required_steam_ids() -> PackedInt64Array:
@@ -189,17 +190,35 @@ func get_required_steam_ids() -> PackedInt64Array:
 	return steam_ids
 
 
-## Removes the entry of [param seat], a multiplayer seat other than the host's, with its sections:
-## the player forfeited or was removed, so a resume no longer needs them. Seats are never
-## renumbered. Returns [constant OK]; [constant ERR_INVALID_PARAMETER] for the host's seat or a
-## solo campaign; [constant ERR_DOES_NOT_EXIST] for a seat with no entry.
-func remove_player(seat: int) -> Error:
+## Moves the entry of [param seat], a multiplayer seat other than the host's, from
+## [member players] to [member departed], sections and all: it left during the battle in progress.
+## Returns [constant OK]; [constant ERR_INVALID_PARAMETER] for the host's seat or a solo campaign;
+## [constant ERR_DOES_NOT_EXIST] when [member players] has no entry for it.
+func set_aside(seat: int) -> Error:
 	if mode != Mode.MULTIPLAYER or seat == HOST_SEAT:
 		return ERR_INVALID_PARAMETER
 	for index: int in players.size():
 		if players[index].seat == seat:
+			departed.append(players[index])
+			departed.sort_custom(_is_lower_seat)
 			players.remove_at(index)
 			return OK
+	return ERR_DOES_NOT_EXIST
+
+
+## Removes the entry of [param seat], a multiplayer seat other than the host's, with its sections,
+## from [member players] or [member departed]: the player forfeited or was removed, so a resume no
+## longer needs them. Seats are never renumbered. Returns [constant OK];
+## [constant ERR_INVALID_PARAMETER] for the host's seat or a solo campaign;
+## [constant ERR_DOES_NOT_EXIST] for a seat with no entry.
+func remove_player(seat: int) -> Error:
+	if mode != Mode.MULTIPLAYER or seat == HOST_SEAT:
+		return ERR_INVALID_PARAMETER
+	for entries: Array[PlayerRun] in [players, departed]:
+		for index: int in entries.size():
+			if entries[index].seat == seat:
+				entries.remove_at(index)
+				return OK
 	return ERR_DOES_NOT_EXIST
 
 
@@ -211,6 +230,29 @@ func get_host_steam_id() -> int:
 		if player.seat == HOST_SEAT:
 			return player.steam_id.to_int()
 	return 0
+
+
+# The envelope of this campaign with entries as its players.
+func _make_envelope(entries: Array[PlayerRun]) -> Dictionary:
+	var player_entries: Array[Dictionary] = []
+	for player: PlayerRun in entries:
+		player_entries.append(player.to_dict())
+
+	var core: Dictionary = {
+		_KEY_MODE: _MODE_IDS[mode],
+		_KEY_SEED: run_seed,
+		_KEY_DIFFICULTY: difficulty,
+		_KEY_MODIFIERS: Array(modifiers),
+		_KEY_PLAY_TIME_SECONDS: play_time_seconds,
+		_KEY_STARTED_AT: started_at,
+		_KEY_LAST_OPENED: last_opened,
+		_KEY_LEVEL_ID: level_id,
+		_KEY_FLOORS_CLIMBED: floors_climbed,
+		_KEY_COMBAT_MAPS_COMPLETED: combat_maps_completed,
+		_KEY_PLAYERS: player_entries,
+		_KEY_COMBAT_IN_PROGRESS: combat_in_progress,
+	}
+	return SaveFile.make_envelope(SCHEMA_VERSION, core, sections.duplicate(true), checkpoint_seq)
 
 
 ## Returns a new solo campaign: seat 0 only, started now.
@@ -276,6 +318,11 @@ static func _read_players(value: Variant) -> Array[PlayerRun]:
 			return loaded
 		loaded.append(player)
 	return loaded
+
+
+# Orders entries by seat, for sort_custom().
+static func _is_lower_seat(first: PlayerRun, second: PlayerRun) -> bool:
+	return first.seat < second.seat
 
 
 # A multiplayer campaign needs a distinct, numeric Steam id per seat to know who may resume it.
