@@ -588,14 +588,14 @@ class Pair:
 
 ## One instance's side of a two-instance run, ticked every frame by
 ## [code]harness/enet_pair_peer.gd[/code]. The host enters the lobby (which hosts on ENet), waits
-## for the client and starts a 2-seat run; the client enters the lobby (which joins). [b]Battle:[/b]
-## both vote for floor 1's Standard combat and play it, the client through its mirror, each seat
-## by the M1 battle driver on every map it has units on, sending its units to a frozen map once
-## its own is won; when every map ended, or the run is lost, each prints its maps' hashes and the
-## host ends the battle. [b]Offer[/b] ([constant OFFER_ARG]): both take their starting heirlooms on
-## the real screens, one seat first (see [method _tick_offer]). Each prints its steps, fails when
-## nothing moves for [constant STALL_LIMIT] s or at [constant PEER_LIMIT] s, and the client leaves
-## first.
+## for the client and starts a 2-seat run; the client enters the lobby (which joins).
+## [b]Battle:[/b] both vote for floor 1's Standard combat and play it, the client through its
+## mirror, each seat by the M1 battle driver on every map it has units on, sending its units to a
+## frozen map once its own is won; when every map ended, or the run is lost, each prints its maps'
+## hashes and the host ends the battle. [b]Offer[/b] ([constant OFFER_ARG]): both take their
+## starting heirlooms on the real screens, one seat first ([method _tick_offer]). Each prints its
+## steps and fails when nothing moves for [constant STALL_LIMIT] s or at [constant PEER_LIMIT] s;
+## the client leaves first.
 class PairPeer:
 	extends RefCounted
 
@@ -716,7 +716,8 @@ class PairPeer:
 	func _tick_host_lobby() -> int:
 		if not SteamNetwork.has_active_session() or SteamNetwork.get_members().size() < 2:
 			return RUNNING
-		if not _offer_first.is_empty() and SceneRouter.current_screen != SceneRouter.Screen.LOADING:
+		var is_on_loading: bool = SceneRouter.current_screen == SceneRouter.Screen.LOADING
+		if not _offer_first.is_empty() and not is_on_loading:
 			SceneRouter.goto_screen_for_everyone(SceneRouter.Screen.LOADING)
 			return RUNNING
 		var steam_ids: PackedInt64Array = []
@@ -841,7 +842,9 @@ class PairPeer:
 		var screen: int = SceneRouter.current_screen
 		var scene: Node = _tree.current_scene
 		if not _is_host and not _has_continued and screen == SceneRouter.Screen.LOADING:
-			var button: Button = null if scene == null else scene.get_node_or_null(^"%ContinueButton")
+			var button: Button = (
+					null if scene == null else scene.get_node_or_null(^"%ContinueButton")
+			)
 			if button != null:
 				_has_continued = true
 				button.pressed.emit()

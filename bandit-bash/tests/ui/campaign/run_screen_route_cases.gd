@@ -135,7 +135,7 @@ func _test_coop_landings() -> void:
 				if RunScreen.for_local_seat(session, other) != other:
 					wrong.append("offers %s: seat %d's %s was changed" % [mix, seat, _name(other)])
 	_check.call(
-			"route: for every mix of offers, each seat lands where it belongs, never sent on again",
+			"route: for every mix of offers, each seat lands where it belongs, never moved again",
 			wrong.is_empty(), "; ".join(wrong) + " (host routes %s)" % [host_routes]
 	)
 	_check.call("route: with no run, a move for everyone lands as it was sent", (
