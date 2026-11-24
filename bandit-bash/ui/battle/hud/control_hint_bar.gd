@@ -14,8 +14,8 @@ extends PanelContainer
 ## A screen's control hints: the keys of the actions live now, with what each does
 ## ("T End turn · R Danger zone · Q/E Target"), built from action names, not a per-screen enum.
 ##
-## [b]Which actions:[/b] [method HintSource.get_live_actions] of [member controller], less any with
-## no binding in the family in use (the save debug panel's on a pad); this bar adds none.
+## [b]Which actions:[/b] [method HintSource.get_live_actions] of [member controller], or a co-op
+## [PauseMenu]'s while one is open, less any unbound in the family in use; this bar adds none.
 ## Neighbours that share a label show as one hint, their keys joined ("Q/E").[br]
 ## [b]Keys:[/b] read from the [InputMap] at each draw, for [member device]'s family: the first key
 ## on keyboard and mouse, the first joypad event on a pad, as [member glyphs]' glyph or as text.[br]
@@ -56,6 +56,32 @@ const SHORT_KEY_NAMES: Dictionary[String, String] = {
 
 ## The key text of an action with no binding for the family in use.
 const UNBOUND_KEY: String = "(unbound)"
+
+# ASSUMPTION: the co-op menu's labels; no design doc words them. Close, not Resume: nothing paused.
+## What each action does while the pause menu is open over a co-op game ([PauseMenu]'s hint
+## contexts), by [code]CONTEXT/action[/code]. The game goes on beneath, so the menu's set replaces
+## the screen's hints and is never PAUSED's. A screen's own [member labels] entry wins.
+const COOP_MENU_LABELS: Dictionary[String, String] = {
+	"COOP_MENU/ui_up": "Choose",
+	"COOP_MENU/ui_down": "Choose",
+	"COOP_MENU/ui_accept": "Select",
+	"COOP_MENU/ui_cancel": "Close",
+	"COOP_BOARD_KEY/ui_accept": "Back",
+	"COOP_BOARD_KEY/ui_cancel": "Back",
+	"COOP_OPTIONS/ui_up": "Move",
+	"COOP_OPTIONS/ui_down": "Move",
+	"COOP_OPTIONS/ui_left": "Volume",
+	"COOP_OPTIONS/ui_right": "Volume",
+	"COOP_OPTIONS/ui_accept": "Select",
+	"COOP_OPTIONS/ui_cancel": "Back",
+	"COOP_CONFIRM/ui_left": "Choose",
+	"COOP_CONFIRM/ui_right": "Choose",
+	"COOP_CONFIRM/ui_accept": "Select",
+	"COOP_CONFIRM/ui_cancel": "Back",
+}
+
+# The group every pause menu joins (PauseMenu.GROUP); a name, so this bar needn't load PauseMenu.
+const _PAUSE_MENU_GROUP: StringName = &"pause_menu"
 
 ## Whose live actions the bar shows: the battle's [BattleController], another screen's
 ## [ScreenHints].[br]
@@ -275,7 +301,7 @@ func _process(_delta: float) -> void:
 		if visible:
 			visible = false
 		return
-	var context: StringName = controller.get_hint_context()
+	var context: StringName = _shown_context()
 	if not _is_drawn or context != _context:
 		_draw_hints(context)
 
@@ -286,7 +312,7 @@ func refresh() -> void:
 		return
 	var context: StringName = &""
 	if is_instance_valid(controller):
-		context = controller.get_hint_context()
+		context = _shown_context()
 	_draw_hints(context)
 
 
@@ -328,11 +354,13 @@ func get_family() -> InputDeviceAdapter.Family:
 
 
 ## What [param action] does in [param context]: [member labels]' [code]CONTEXT/action[/code]
-## entry, else its action entry, else the action's name.
+## entry, else [constant COOP_MENU_LABELS]', else its action entry, else the action's name.
 func label_for(context: StringName, action: StringName) -> String:
 	var key: String = "%s/%s" % [context, action]
 	if labels.has(key):
 		return labels[key]
+	if COOP_MENU_LABELS.has(key):
+		return COOP_MENU_LABELS[key]
 	var label: String = labels.get(String(action), String(action))
 	return label
 
@@ -384,6 +412,26 @@ func _glyph_id(action: StringName) -> String:
 	return "" if code == KEY_NONE else "key:%s" % [OS.get_keycode_string(code)]
 
 
+# The context the bar shows: the co-op pause menu's while one is open (_coop_menu()), else the
+# controller's. Polled each frame: one group lookup, as BoardKey.is_open_in() is.
+func _shown_context() -> StringName:
+	var menu: Node = _coop_menu()
+	if menu != null:
+		return menu.call(&"get_hint_context")
+	return controller.get_hint_context()
+
+
+# The pause menu open over a co-op game, whose hints replace the screen's; null when none is. Called
+# untyped: PauseMenu names autoloads, and this bar must compile before they exist (test suites).
+func _coop_menu() -> Node:
+	if not is_inside_tree():
+		return null
+	for node: Node in get_tree().get_nodes_in_group(_PAUSE_MENU_GROUP):
+		if node.has_method(&"get_hint_context") and node.call(&"get_hint_context") != &"":
+			return node
+	return null
+
+
 # Draws the hints for context: one per run of neighbouring live actions that share a label,
 # leaving out the ones the family in use can't press.
 func _draw_hints(context: StringName) -> void:
@@ -391,7 +439,11 @@ func _draw_hints(context: StringName) -> void:
 	_is_drawn = true
 	_actions.clear()
 	if is_instance_valid(controller):
-		for action: StringName in controller.get_live_actions():
+		var menu: Node = _coop_menu()
+		var live: Array[StringName] = controller.get_live_actions()
+		if menu != null:
+			live = menu.call(&"get_live_actions")
+		for action: StringName in live:
 			if is_bound(action):
 				_actions.append(action)
 	visible = not _actions.is_empty()

@@ -16,12 +16,12 @@ extends Node
 ## [member seats], never Steam but to seat a lobby's run, so a test puts one under each branch.
 ## [b]Host:[/b] a client's command takes its seat from the connection, is refused while paused, is
 ## filled ([HostFill]) and resolves as the host's own; its sender alone hears how it settled. A
-## forfeit then sends the leaver its archive record and lets the seat go. Batches go to every
-## seated client in order on one reliable channel, campaign batches with the run's capture, a
-## battle's snapshot the idle frame after it opens. A dropped seat pauses the run until it rejoins
-## or is removed. [b]Clients[/b] pass it on through the [code]*_received[/code] signals and send
-## their settings. [code]_sync[/code] and [code]_campaign_batch[/code] travel packed; nothing over
-## Steam's message limit is sent; each message is a NetLog line (kind, size, peer).
+## forfeit then sends the leaver its archive record, lets the seat go and soon cuts the leaver's
+## connection; [method end_match] tells every client the host's Save & Quit. Batches go to every
+## seated client in order on one channel, campaign batches with the run's capture, a battle's
+## snapshot the idle frame after it opens. A dropped seat pauses the run until it rejoins or is
+## removed. [b]Clients[/b] pass it on ([code]*_received[/code]) and send their settings. Syncs
+## and campaign batches travel packed; nothing over Steam's limit is sent; each message is logged.
 ##
 ## @tutorial(Net transport plan): docs/plans/2026-11-19-net-transport.md
 
@@ -70,6 +70,11 @@ signal seat_removed(seat: int)
 ## goes to the main menu. Clients only.
 signal left_run(record: ArchiveRecord)
 
+## The host ended the match for everyone ([method end_match], its Save & Quit): the run resumes
+## from the host's save through the lobby later. A lobby's client then goes to the main menu,
+## which leaves the lobby. Clients only.
+signal match_ended()
+
 ## What a notice says. Sent as an int: [b]append only[/b], with explicit values; the build
 ## fingerprint covers it ([NetContract]).
 enum NoticeKind {
@@ -93,6 +98,13 @@ const NO_TOKEN: int = 0
 ## Seconds a seat must have been dropped before [method remove_seat] may remove it (the vision's
 ## first pass).
 const REMOVE_WAIT: float = 120.0
+
+# ASSUMPTION: the pause SteamNetwork gives a refused join before cutting it
+# (_REFUSAL_DISCONNECT_SECONDS), itself without a basis; NT8 checks it live.
+## Seconds the host keeps a forfeiter's connection after letting its seat go, so its archive
+## record arrives before the cut; counted in [method Node._process]. A leaver whose main menu
+## leaves the lobby first needs no cut.
+const LET_GO_WAIT: float = 1.0
 
 # The NetLog autoload's script, for its Category type.
 const NetLogScript = preload("res://scripts/autoload/net_log.gd")
@@ -204,6 +216,10 @@ var _settings_by_seat: Dictionary[int, Dictionary] = {}
 # new one is sent. Null until the first send of a run, and again once the host is lost.
 var _sent_settings: SettingsData = null
 
+# Host: each let-go forfeiter's peer and the seconds before its connection is cut (_let_go()).
+# Kept past the run's end: a leaver is cut off whatever the run does next.
+var _letting_go: Dictionary[int, float] = {}
+
 
 func _ready() -> void:
 	CampaignService.session_started.connect(_on_campaign_service_session_started)
@@ -228,14 +244,20 @@ func _exit_tree() -> void:
 	_api = null
 
 
-# Pushes a battle's snapshot on the idle frame after it opened, counts every wait on, and on a
-# client in a run sends its settings when they are new to the host.
+# Pushes a battle's snapshot on the idle frame after it opened, counts every wait on, cuts off a
+# let-go forfeiter once its time is up, and on a client in a run sends its settings when they
+# are new to the host.
 func _process(delta: float) -> void:
 	if _push_pending:
 		_push_pending = false
 		_push_battle()
 	for seat: int in _waits.keys():
 		_waits[seat] += delta
+	for peer: int in _letting_go.keys():
+		_letting_go[peer] -= delta
+		if _letting_go[peer] <= 0.0:
+			_letting_go.erase(peer)
+			_cut_off(peer)
 	if _session != null and SaveService.settings != _sent_settings and _is_client():
 		_send_settings()
 
@@ -332,6 +354,18 @@ func seat_members(
 			_announce_drop(seat)
 		if peer > SeatDirectory.NO_PEER and seats.reconnect(steam_id, peer) == seat:
 			_announce_rejoin(seat, peer)
+
+
+## Host only: tells every seated client the match is over ([signal match_ended]) before the host
+## leaves on its Save & Quit, so each goes to its main menu rather than waiting to reconnect.
+## Returns whether every message went; false, sending nothing, off the host. A client the message
+## doesn't reach still loses the host and ends up at its main menu as before (SteamNetwork).
+func end_match() -> bool:
+	if not _is_host():
+		push_error("NetRelay: only the host ends the match.")
+		return false
+	NetLog.info(NetLog.Category.LOBBY, "NetRelay: the host ends the match for everyone.")
+	return _send(_seated_peers(), &"_match_ended", [])
 
 
 ## Host only: removes the dropped [param seat] for good once it has waited [constant REMOVE_WAIT]
@@ -622,6 +656,18 @@ func _forfeit_record(envelope: Dictionary) -> void:
 		_leave_run(record)
 
 
+# The host's Save & Quit: the match is over. A lobby's client goes to the main menu, which leaves
+# the lobby and drops its replica, so it never tries to reconnect to the host it hears leave.
+@rpc("authority", "call_remote", "reliable")
+func _match_ended() -> void:
+	_log_received(&"_match_ended", [])
+	if multiplayer.is_server():
+		return
+	match_ended.emit()
+	if _is_lobby_relay():
+		SceneRouter.goto_screen(SceneRouter.Screen.MAIN_MENU)
+
+
 func _is_host() -> bool:
 	return NetGate.has_session(multiplayer) and multiplayer.is_server()
 
@@ -845,7 +891,8 @@ func _announce_rejoin(seat: int, peer: int) -> void:
 
 # Host: the forfeiting seat, connected as peer, gets its archive record first (an empty envelope
 # without one), then leaves the directory for good, as a removal does: nobody waits for it, its
-# account is no longer admitted, and every other seated peer hears it removed.
+# account is no longer admitted, and every other seated peer hears it removed. Seatless, it hears
+# no more run traffic; its connection is cut LET_GO_WAIT later unless it left first.
 func _let_go(seat: int, peer: int) -> void:
 	var record: ArchiveRecord = SaveService.take_forfeit_record(seat)
 	var envelope: Dictionary = {}
@@ -857,6 +904,16 @@ func _let_go(seat: int, peer: int) -> void:
 	_admit_campaign()
 	NetLog.info(NetLog.Category.LOBBY, "NetRelay: seat %d forfeited and was let go." % [seat])
 	_send_seat_changed(seat, SeatDirectory.State.REMOVED, 0.0)
+	_letting_go[peer] = LET_GO_WAIT
+
+
+# Host: cuts the let-go forfeiter's connection, if it is still there. Its member entry goes with
+# it (SteamNetwork); its seat left the directory already, so nobody waits for it.
+func _cut_off(peer: int) -> void:
+	if not _is_host() or not multiplayer.get_peers().has(peer):
+		return
+	NetLog.info(NetLog.Category.LOBBY, "NetRelay: cutting off peer %d, which forfeited." % [peer])
+	multiplayer.multiplayer_peer.disconnect_peer(peer)
 
 
 # A lobby's client whose seat left: its record into this machine's archive, then the main menu,
@@ -1049,8 +1106,10 @@ func _on_steam_network_lobby_state_changed() -> void:
 		_seat_lobby()
 
 
-# Host: a seated peer's connection is gone; its seat is kept, dropped.
+# Host: a seated peer's connection is gone; its seat is kept, dropped. A let-go forfeiter that
+# left before its cut needs none.
 func _on_multiplayer_peer_disconnected(peer_id: int) -> void:
+	_letting_go.erase(peer_id)
 	if not _is_host() or seats == null:
 		return
 	var seat: int = seats.drop_peer(peer_id)

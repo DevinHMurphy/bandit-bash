@@ -1,6 +1,8 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://ui/common/pause_menu.gd" id="1_pause"]
+[ext_resource type="PackedScene" path="res://ui/screens/options_panel.tscn" id="2_options"]
+[ext_resource type="PackedScene" path="res://ui/common/menu_confirm.tscn" id="3_confirm"]
 
 [node name="PauseMenu" type="CanvasLayer"]
 process_mode = 3
@@ -14,6 +16,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 0
 
 [node name="Panel" type="PanelContainer" parent="Root"]
 unique_name_in_owner = true
@@ -24,6 +27,7 @@ unique_name_in_owner = true
 layout_mode = 2
 
 [node name="Title" type="Label" parent="Root/Panel/Column"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"TitleLabel"
 text = "Paused"
@@ -53,6 +57,12 @@ visible = false
 layout_mode = 2
 text = "Board Key"
 
+[node name="OptionsButton" type="Button" parent="Root/Panel/Column"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+text = "Options"
+
 [node name="SaveQuitButton" type="Button" parent="Root/Panel/Column"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -62,6 +72,32 @@ text = "Save & Quit"
 unique_name_in_owner = true
 layout_mode = 2
 text = "Quit to Menu"
+
+[node name="ForfeitButton" type="Button" parent="Root/Panel/Column"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+text = "Forfeit"
+
+[node name="Options" parent="Root/Panel" instance=ExtResource("2_options")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+title_text = "Options"
+
+[node name="SaveQuitConfirm" parent="Root/Panel" instance=ExtResource("3_confirm")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+question_text = "Save and end the match for everyone? Every player goes back to the main menu, and the run resumes from this save in the lobby."
+confirm_text = "Save & Quit"
+
+[node name="ForfeitConfirm" parent="Root/Panel" instance=ExtResource("3_confirm")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+question_text = "Forfeit the run? You leave it for good and your units leave with you; the others play on. The run is archived as forfeited."
+confirm_text = "Forfeit"
 
 [node name="InviteDialog" type="ConfirmationDialog" parent="."]
 unique_name_in_owner = true

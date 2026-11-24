@@ -478,7 +478,7 @@ func resume_multiplayer_run() -> Error:
 
 ## Host only: tells the admitted client [param peer_id] alone that the run started, as a run's
 ## start tells every client, so a client rejoining the run in progress holds the campaign again
-## (one that crashed holds none). Does nothing elsewhere, or for a peer that isn't a member.
+## (one that crashed holds none). Does nothing elsewhere, or for a peer not playing a seat.
 func send_run_to(peer_id: int) -> void:
 	if not _is_multiplayer_host() or not _get_client_peer_ids().has(peer_id):
 		return
@@ -603,7 +603,8 @@ func end_battle() -> Error:
 ##
 ## The record includes play time up to now and the roster as it is now, even mid-battle. It is
 ## kept for [method take_ended_run]; the archive write's result is in [member last_archive_error].
-## A multiplayer host also sends the record to every client, which archives it too (rows 11, 23).
+## A multiplayer host also sends the record to every seated client, which archives it too
+## (rows 11, 23).
 ## Returns [constant OK], [constant ERR_UNCONFIGURED] with no active campaign, or the profile
 ## write or delete error. The run ends even when a write fails.
 func end_run(won: bool) -> Error:
@@ -994,7 +995,7 @@ func _is_multiplayer_host() -> bool:
 	)
 
 
-# Host: after a campaign save, clients write their own profiles and refresh their replica.
+# Host: after a campaign save, seated clients write their own profiles and refresh their replica.
 func _announce_checkpoint() -> void:
 	if not _is_multiplayer_host():
 		return
@@ -1011,14 +1012,9 @@ func _announce_run_started() -> void:
 		_client_run_started.rpc_id(peer_id, envelope)
 
 
-# Admitted members other than the host. Campaign data goes only to them, never to a connection
-# the host refused but hasn't cut off yet.
+# Admitted members other than the host that play a seat of the campaign (client_peers_of()).
 func _get_client_peer_ids() -> Array[int]:
-	var peer_ids: Array[int] = []
-	for member: SteamNetwork.LobbyMember in SteamNetwork.get_members():
-		if member.peer_id != multiplayer.get_unique_id():
-			peer_ids.append(member.peer_id)
-	return peer_ids
+	return client_peers_of(SteamNetwork.get_members(), campaign, multiplayer.get_unique_id())
 
 
 # Client: flushes play time to this machine's profile and stops counting.
@@ -1254,3 +1250,22 @@ static func _forfeited_seats(battle: CombatData) -> PackedInt32Array:
 			var number: float = seat
 			seats.append(roundi(number))
 	return seats
+
+
+## The peers of [param members], but [param own_peer], whose Steam id plays a seat of
+## [param played]: the only ones the host sends campaign data to (run start, checkpoints, the
+## run's end). Never a connection refused but not yet cut, nor a player whose seat left the run
+## (a forfeit or a removal) while still connected. Empty for null. Pure.
+static func client_peers_of(
+		members: Array[SteamNetwork.LobbyMember], played: CampaignData, own_peer: int
+) -> Array[int]:
+	var peer_ids: Array[int] = []
+	if played == null:
+		return peer_ids
+	var seated: Dictionary[int, bool] = {}
+	for player: CampaignData.PlayerRun in played.players:
+		seated[player.steam_id.to_int()] = true
+	for member: SteamNetwork.LobbyMember in members:
+		if member.peer_id != own_peer and seated.has(member.steam_id):
+			peer_ids.append(member.peer_id)
+	return peer_ids
