@@ -40,22 +40,33 @@ A fact is one thing that happened, in the past tense, carrying ids and never obj
   `damage_type`, `source`, `source_effect_id`, `tile`, `flags`, `side`, `item_id`, `key` and
   `unit_types`. Kinds 0–46: every combat trigger, plus state kinds (moved, spawned, counters,
   timed modifiers, the darkness, objects, reinforcements, weapon swaps, runes, Wait, stat and
-  growth changes). Kinds 47–49 and 51 are encounter facts (`CombatEncounter`): a unit sent, a
-  unit returned, a call for aid, and a seat or its unit leaving the battle (`UNIT_LEFT`, a
-  forfeit). 50 is a darkness wave's spread, and 52 and 53 a seat's End Turn and Start
-  (`TURN_ENDED`, `SEAT_STARTED`), recorded so mirrors follow maps two seats share. None of
-  47–53 fires a trigger. Each kind's doc in the enum says what its fields mean.
+  growth changes). The kinds P11 appended record state for mirrors, and none fires a trigger:
+
+  | Value | Kind | Recorded by |
+  |-------|------|-------------|
+  | 47 | `UNIT_SENT` | `SendUnitsCommand`, on the encounter: one per unit sent; a send of none is one fact with no actor |
+  | 48 | `UNIT_RETURNED` | The encounter: a unit on its way went back to its won map, because its target ended first, a frozen map had no tile for it, or the target's seat forfeited |
+  | 49 | `AID_CALLED` | `CallForAidCommand`, on the encounter: a map's owner raised (`key` 1) or lowered (0) its call for aid |
+  | 50 | `DARKNESS_WAVE_SPREAD` | `Darkness`, on a map: a wave's reach grew or it entered a tile, at release, creep and recalculation, solo included |
+  | 51 | `UNIT_LEFT` | `CombatEncounter.forfeit()`: first with no actor, the seat left; then one per unit of its that left a map still in play |
+  | 52 | `TURN_ENDED` | `PhaseRunner`, on an `EndTurnCommand`, every map, solo included: before the rest of the turn it may run |
+  | 53 | `SEAT_STARTED` | `PhaseRunner`, on a `StartCommand` in the opening swap window, every map, solo included |
+
+  47–49 and 51 are encounter facts: they go in `CombatEncounter.fact_log` and leave the host as
+  batches on `CombatEncounter.batch_resolved`, each right after the map batch that led to it. An
+  arrival records the map's own `UNIT_SPAWNED`. 50, 52 and 53 are map facts in the map's batch.
+  Each kind's doc in the enum says what its fields mean.
 - **`CampaignFact`** ([scripts/bus/campaign_fact.gd](../../bandit-bash/scripts/bus/campaign_fact.gd)):
   `kind`, `seq`, `seat`, `actor_id`, `target_id`, `definition_id`, `amount`, `source_effect_id`,
   `flags`. Kinds as they stand:
 
   | Value | Kind | Recorded by |
   |-------|------|-------------|
-  | 0 | `GAINED` | Item placement, the battle's grants, event outcomes (heirloom, curse, rune), `RunOperations.grant_heirloom` (the starting heirloom) |
-  | 1 | `COMBAT_ENDED` | The battle's results, one per seat; `amount` 1 for a win, 0 for a loss |
+  | 0 | `GAINED` | Item placement, the battle's grants and map loot, event outcomes (heirloom, curse, rune), `RunOperations.grant_heirloom` (the starting heirloom) |
+  | 1 | `COMBAT_ENDED` | The battle's results, one per seat for its own map; `amount` 1 for a win, 0 for a loss |
   | 2 | `LEVELED_UP` | The battle's results ([CampaignRunState.apply_battle](../../bandit-bash/scripts/campaign/campaign_run_state.gd)) |
   | 3, 4 | `EFFECT_ACTIVATED`, `COUNTER_CHANGED` | Reserved: no campaign engine records them yet |
-  | 5–7 | `RUN_STARTED`, `NODE_CHOSEN`, `NODE_LEFT` | The run's start and the campaign commands |
+  | 5–7 | `RUN_STARTED`, `NODE_CHOSEN`, `NODE_LEFT` | The run's start, `ChooseNodeCommand` and `LeaveNodeCommand`; `NODE_CHOSEN` for no seat is the co-op route's draw (`RouteVoteCommand`, or a `ForfeitCommand` that completes the vote) |
   | 8, 9 | `ITEM_EQUIPPED`, `ITEM_SCRAPPED` | Item placement and the item pick; `ITEM_EQUIPPED` also `RunOperations.dismiss` (no `target_id`: to the convoy) and re-gearing at a Camp (`Regear`), `ITEM_SCRAPPED` also `RunOperations.scrap` (a convoy item) |
   | 10 | `GOLD_CHANGED` | Event outcomes (`definition_id` is the event), `RunOperations.grant_gold` (War Chest; a Treasure chest's gold, `treasure`) |
   | 11 | `HP_CHANGED` | Event outcomes, `RunOperations.upgrade` (a hurt unit's max-HP gain), a Camp's Feast (`camp_feast`) |
@@ -67,7 +78,7 @@ A fact is one thing that happened, in the past tense, carrying ids and never obj
   | 17 | `EVENT_CHOOSING` | `EventChooserCommand`: a seat opened or closed an option's chooser |
   | 18 | `EVENT_CHOSEN` | `EventOptionCommand`: a seat chose an option; the option's own facts follow |
   | 19 | `EVENT_VOTED` | `EventVoteCommand`: a seat voted (or changed its vote) on a team-choice option |
-  | 20 | `TEAM_OPTION_DRAWN` | `EventVoteCommand`, on the vote that completes the set: the votes drew the option (`amount`); belongs to no seat |
+  | 20 | `TEAM_OPTION_DRAWN` | `EventVoteCommand`, on the vote that completes the set, or a `ForfeitCommand` whose leaving completes it: the votes drew the option (`amount`); belongs to no seat |
   | 21 | `UNIT_RECRUITED` | `RunOperations.recruit` and `replace` (Abundance, Mercenary Contract); `target_id` the unit replaced |
   | 22 | `UNIT_DISMISSED` | `RunOperations.dismiss` and `replace`: a living unit left for good, its items to the convoy first (`ITEM_EQUIPPED` each) |
   | 23 | `UNIT_UPGRADED` | `RunOperations.upgrade` (Veteran Company; a Camp's Train, `camp_train`) |
@@ -80,6 +91,12 @@ A fact is one thing that happened, in the past tense, carrying ids and never obj
   | 30 | `RUNE_BOUGHT` | `Guildhall.buy_rune`: a rune bought for `amount` gold; any `RUNE_DISCARDED`, then its `GAINED` with `FLAG_BOUGHT`, follow |
   | 31 | `PREFIX_REROLLED` | `Guildhall.reroll`: a unit's prefix re-rolled to `definition_id` for `amount` gold (0: free); an `HP_CHANGED` may follow |
   | 32 | `UNKNOWN_RESOLVED` | `ResolveUnknownCommand`: the Unknown node `amount` became `definition_id` (`combat`, `armory`, `guildhall`, `treasure` or `event`); belongs to no seat; silent |
+  | 33 | `ROUTE_VOTED` | `RouteVoteCommand`: a seat voted for the node `amount` on the route's next floor, replacing its earlier vote; the last vote's `NODE_CHOSEN` follows |
+  | 34 | `HEIRLOOM_OFFER_REPLACED` | `UniqueClaims`, run by `CampaignSession.submit()` after any command: the seat's open offer of a unique heirloom seat `amount` just gained became `definition_id` (empty: none left); follows the claimant's `GAINED` |
+  | 35 | `SWAP_PROPOSED` | `ProposeSwapCommand`: the seat's unit (actor) to seat `amount`'s map, that seat's unit (target) to its own |
+  | 36 | `SWAP_ACCEPTED` | `AnswerSwapCommand` accepting: the same fields, from the answerer's side |
+  | 37 | `SWAP_ENDED` | A swap or proposal ended, in its proposer's view; `definition_id` the reason: `declined` (`AnswerSwapCommand`), `withdrawn` (`WithdrawSwapCommand`), `unit_left` (a named unit left its army or fell, an accept ended a rival proposal, or a seat forfeited), `combat_ended` (the battle's end) |
+  | 38 | `SEAT_FORFEITED` | `ForfeitCommand` (`CampaignService.forfeit_seat()`): the seat left the co-op run, `amount` 1 when the host removed it after a drop; the ends and draws its leaving causes follow. Also `CampaignService` for a seat that left a battle that restarts from Begin, as a forfeit |
 
 - **Paired triggers are two facts.** A hit records `HIT_DEALT`, then `HIT_TAKEN`. `actor_id` is
   always the unit the kind is about, the one an effect's scope tests; `target_id` is the other
@@ -112,7 +129,9 @@ listen to one.
   battle's end, level-ups). The campaign map plays what is waiting when it opens and after each
   command; the victory sequence plays each level-up as its card shows. `played_seq` isn't saved,
   so a resumed run plays nothing from before the quit. Commands also announce their batch through
-  `CampaignSession.campaign_batch_resolved`.
+  `CampaignSession.campaign_batch_resolved`; a client's mirror session emits it for each batch it
+  applies, and `command_rejected` for the local seat's refusals, so screens rebuild from the same
+  signals on host and client (P11 question 3).
 - **Playback.** [FactPlayback](../../bandit-bash/scripts/sessions/fact_playback.gd) plays a combat
   batch on its bus in fact order, at the game's speed, waiting each fact's duration; fast-forward
   stops before a fact its pause hook marks. Presentation may hold it on a `PresentationRequest`.
@@ -137,15 +156,25 @@ listen to one.
   and the bridge into each battle (`begin_battle`, `resume_battle`, `collect_battle`,
   `end_battle`). It emits `combat_encounter_opened` / `_closed`; the encounter emits
   `session_opened` per map, so observers find sessions without an autoload.
-- **Commands.** Combat commands extend [Command](../../bandit-bash/scripts/sessions/command.gd):
-  `UnitTurnCommand` (path plus action, one command), `EndTurnCommand`, `StartCommand` (the opening
-  swap), `CastRuneCommand`, `DiscardRuneCommand`. Campaign commands extend
-  [CampaignCommand](../../bandit-bash/scripts/campaign/campaign_command.gd): `ChooseNodeCommand`,
-  `LeaveNodeCommand`, `ItemPickCommand`, `OpenEventCommand`, and the `EventCommand`s
-  `EventChooserCommand` and `EventOptionCommand`. Both kinds are checked against the state at resolve time, so the
-  first arrival wins and a rejected command changes nothing and costs nothing. An attack, staff or
-  shove command is stale, and rejected, if any fact on its map follows the `seq` its forecast was
-  based on.
+- **Commands.** Both kinds are checked against the state at resolve time, so the first arrival
+  wins and a rejected command changes nothing and costs nothing. An attack, staff or shove command
+  is stale, and rejected, if any fact on its map follows the `seq` its forecast was based on. Every
+  command, as it stands (each file's class doc gives its rules; the campaign ones by node are in
+  [campaign-run.md](campaign-run.md)):
+
+  | Kind | Commands |
+  |------|----------|
+  | Combat, on a map ([Command](../../bandit-bash/scripts/sessions/command.gd), `scripts/combat/`) | `UnitTurnCommand` (path plus action, one command), `EndTurnCommand`, `StartCommand` (the opening swap), `CastRuneCommand`, `DiscardRuneCommand` |
+  | Combat, across maps (`Command`, submitted to `CombatEncounter.submit()`) | `SendUnitsCommand` (on the sender's won map), `CallForAidCommand` (on the caller's own map) |
+  | Campaign: map and route ([CampaignCommand](../../bandit-bash/scripts/campaign/campaign_command.gd), `scripts/campaign/`) | `ChooseNodeCommand` (solo), `RouteVoteCommand` (co-op), `ResolveUnknownCommand`, `LeaveNodeCommand` |
+  | Campaign: rewards | `StartingHeirloomCommand`, `ItemPickCommand`, `KeyHeirloomCommand`, `OpenTreasureCommand`, `TreasureCommand` |
+  | Campaign: Camp and shops | `FeastCommand`, `TrainCommand`, `RegearCommand`, `OpenArmoryCommand`, `ArmoryPurchaseCommand`, `OpenGuildhallCommand`, `GuildhallPurchaseCommand`, `PrefixRerollCommand` |
+  | Campaign: convoy | `GiftItemCommand` (co-op), `ScrapItemCommand` |
+  | Campaign: events (`scripts/events/`) | `OpenEventCommand`, and the `EventCommand`s `EventChooserCommand`, `EventOptionCommand` and `EventVoteCommand` |
+  | Campaign: co-op | `ProposeSwapCommand`, `AnswerSwapCommand`, `WithdrawSwapCommand`, `ForfeitCommand` |
+
+  A new command type joins this table and, for the wire, one of `HostFill`'s lists (the net suite
+  fails a campaign type in neither).
 - **The enemy phase is one command.** The last seat's end turn resolves player Phase End, enemy
   Phase Start, every enemy turn, enemy Phase End, the darkness phase, reinforcement arrivals and
   the next player Phase Start with its intents, as one batch

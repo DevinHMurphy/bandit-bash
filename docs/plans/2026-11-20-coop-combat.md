@@ -1,6 +1,8 @@
 # Plan: Co-op Combat
 **Date:** November 20, 2026
-**Status:** Approved (user, November 20, 2026), with CO6 moved to Lane C. Orchestrator ID **P11**
+**Status:** Approved (user, November 20, 2026), with CO6 moved to Lane C. Orchestrator ID **P11**.
+Built: CO1–CO19, CO22 and CO23 merged (November 21–23, 2026); CO20, this docs pass, on
+`feature/CO20`; CO21, the live co-op check, not run. Network paths untested live until CO21.
 
 ## Problem
 
@@ -50,8 +52,9 @@ some built rules contradict them.
 ## Open Questions
 
 All of them are in [decisions/P11-coop-combat.md](decisions/P11-coop-combat.md), each with options and
-a recommendation. Questions 1–41 and 50–52 are answered (user, November 20–22, 2026, all as
-recommended); the build steps add theirs from 42 (CO10) and 53 (CO1). Each step below names the questions it needs. Where the
+a recommendation. Every question up to 182 is answered (user, November 20–23, 2026); 183–185
+(CO19) are built on the recommendation and pending confirmation, and 190 (CO20) is open. Each
+step below names the questions it needs. Where the
 Approach states a rule a question decides, it takes the recommendation and cites it as
 **(Q n)**; nothing is built on it until the question is answered.
 
@@ -368,13 +371,16 @@ Leave Match (a drop: everyone waits; they can rejoin), Forfeit (a confirm) **(Q 
 ## Network Contract
 
 Every addition is picked up by `NetContract.fingerprint()` with no hand edit (P10 N5). Wire enums
-stay append-only and readers strict.
+stay append-only and readers strict. Every row below is built; the values as built are listed in
+[event-bus.md, Facts](../design/event-bus.md#facts) (`CombatFact` 47–53, `CampaignFact` 33–38),
+including CO23's `UNIT_LEFT = 51`, `TURN_ENDED = 52` and `SEAT_STARTED = 53`, which this table
+doesn't list. "Route drawn" is `NODE_CHOSEN` for no seat, not a kind of its own (question 60).
 
 | Addition | Kind | Step |
 |---|---|---|
 | `SendUnitsCommand`, `CallForAidCommand` | Combat commands (wire types) | CO2 |
 | Units sent, units returned, aid called | `CombatFact.Kind`, appended | CO2 |
-| A wave's reach and entered tiles | `CombatFact.Kind`, appended | CO4 ✅ (`DARKNESS_WAVE_SPREAD = 50`) |
+| A wave's reach and entered tiles | `CombatFact.Kind`, appended | CO4 (`DARKNESS_WAVE_SPREAD = 50`) |
 | `ProposeSwapCommand`, `AnswerSwapCommand`, `WithdrawSwapCommand` | Campaign commands | CO5 |
 | `RouteVoteCommand` | Campaign command | CO6 |
 | Route voted, route drawn; swap proposed, accepted, ended; heirloom offer replaced; seat forfeited | `CampaignFact.Kind`, appended | CO5–CO7, CO14 |
@@ -449,16 +455,16 @@ first in Lane B, since CO11 and CO12 wait on it. CO13 starts once CO2 merges.
 
 | Change | Kind | Current | Accepted | Status | Places to check | Risk |
 |---|---|---|---|---|---|---|
-| A co-op map's loss | Behavior | Lost on a commander's fall or no player unit | Plays on; an empty map freezes | Proposed (Q 5, 7) | `objectives.gd`, map and objective suites | 🟡 |
-| `apply_battle()` with a failed map | Behavior | Stays at the node; `COMBAT_ENDED` is the team's | Results when every map ended; each seat its own | Proposed (Q 26) | `campaign_run_state.gd`, results screen | 🟡 |
-| `CombatEncounter.send_unit()` | Public method | Arrives at the next Phase Start | Gains the clock turn; called by the command | Proposed (Q 8) | Encounter cases | 🟡 |
-| `ChooseNodeCommand` in co-op | Behavior | Any seat, first arrival wins | Refused from a seat; votes decide | Proposed (Q 23) | `campaign_map_screen.gd` | 🔴 |
-| `EventOptionCommand` on a team choice | Network contract | One seat applies for all | Each seat its own part | Proposed (Q 27) | `event_panel.gd`, event suites | 🔴 |
-| `combat_state` 3 → 4, `campaign_map` 1 → 2, `run_flow` 1 → 2, archive 1 → 2 | Save format | — | New fields, no-op migrations | Proposed (Q 15, 34) | save-system.md rows | 🔴 |
-| A campaign's player count | Save rule | Fixed for its life | Can shrink on a forfeit | Proposed (Q 31) | `campaign_data.gd`, admission | 🔴 |
-| New commands, facts, `_seat_settings`, a notice kind | Network contract | — | Appended | Proposed | Fingerprint (automatic) | 🔴 |
-| `CampaignService.local_seat()` | New public method | Screens use `seats[0]` | Every screen reads it | Proposed (Q 2) | Every campaign and event screen | 🟡 |
-| Mirror signals | P10 amendment | — | Mirrors emit `campaign_batch_resolved`, `command_rejected` | Proposed (Q 3) | NT5 | 🟡 |
+| A co-op map's loss | Behavior | Lost on a commander's fall or no player unit | Plays on; an empty map freezes | Built, CO1 (Q 5, 7) | `objectives.gd`, map and objective suites | 🟡 |
+| `apply_battle()` with a failed map | Behavior | Stays at the node; `COMBAT_ENDED` is the team's | Results when every map ended; each seat its own | Built, CO8 (Q 26) | `campaign_run_state.gd`, results screen | 🟡 |
+| `CombatEncounter.send_unit()` | Public method | Arrives at the next Phase Start | Gains the clock turn; called by the command | Built, CO2 (Q 8) | Encounter cases | 🟡 |
+| `ChooseNodeCommand` in co-op | Behavior | Any seat, first arrival wins | Refused from a seat; votes decide | Built, CO6 (Q 23) | `campaign_map_screen.gd` | 🔴 |
+| `EventOptionCommand` on a team choice | Network contract | One seat applies for all | Each seat its own part | Built, CO9 (Q 27) | `event_panel.gd`, event suites | 🔴 |
+| `combat_state` 3 → 4, `campaign_map` 1 → 2, `run_flow` 1 → 2, archive 1 → 2 | Save format | — | New fields, no-op migrations | Built, CO2, CO5, CO6, CO14 (Q 15, 34) | save-system.md rows | 🔴 |
+| A campaign's player count | Save rule | Fixed for its life | Can shrink on a forfeit | Built, CO14, CO22 (Q 31, 115) | `campaign_data.gd`, admission | 🔴 |
+| New commands, facts, `_seat_settings`, a notice kind | Network contract | — | Appended | Built, CO2–CO7, CO14, CO15, CO18, CO19, CO23 | Fingerprint (automatic) | 🔴 |
+| `CampaignService.local_seat()` | New public method | Screens use `seats[0]` | Every screen reads it | Built, CO10 (Q 2) | Every campaign and event screen | 🟡 |
+| Mirror signals | P10 amendment | — | Mirrors emit `campaign_batch_resolved`, `command_rejected` | Built, P10 NT5 (Q 3) | NT5 | 🟡 |
 
 ## Verification
 
@@ -484,6 +490,23 @@ first in Lane B, since CO11 and CO12 wait on it. CO13 starts once CO2 merges.
 | C10 | Pause menus on both | Neither pauses the game; Leave drops and rejoins |
 
 Until CO21 passes, every P11 step that touches the network is marked **untested live**.
+
+**What only CO21 can confirm** (noted by CO20; none of it is claimed as built and working live):
+
+- Every co-op command, fact and capture over Steam between Windows and the Mac, with the mirrors'
+  hashes equal on real machines; the harness runs two headless peers on one machine.
+- The message sizes of four maps with sent units (NT7's limits; CO17 recorded what it saw).
+- A forfeit and the host's Remove over Steam; the leaving client's archive write and its move to
+  the main menu (CO18).
+- `NetRelay._match_ended()` reaching clients before the host's leave closes the connection, and
+  the lobby client landing on its main menu (CO19, question 181).
+- The forfeiter cut-off over Steam, the member list after it, and whether `LET_GO_WAIT` (1 s) is
+  enough (question 183, pending confirmation).
+- Leave Match, then rejoining from the friends list; a reconnecting client's menu not pausing
+  (question 185, pending confirmation); the rejoined client's screen move (NT6).
+- Feel, which no test judges: freezing, the clock against a frozen map and the run-loss check
+  (questions 5, 6, 8); runes on a teammate's map, own map only for now (question 136, revisit at
+  CO21); a turn timer (question 37, revisit at the M4 playtest).
 
 ## Risks
 

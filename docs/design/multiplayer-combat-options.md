@@ -7,6 +7,96 @@ every unit as in solo (the only way back is a rare revive event), and the negati
 accepted; a commander that falls in co-op returns at critical health
 ([below](#when-a-commander-falls)). All recorded in [game-vision.md](game-vision.md#combat-maps).
 
+**Built** in P11, the [co-op combat plan](../plans/2026-11-20-coop-combat.md) (November 20–23,
+2026): every decided rule, as [Built in P11](#built-in-p11) lists it with its step and its
+[decision rows](../plans/decisions/P11-coop-combat.md). The rest of this page is the options as
+they were weighed. Everything that crosses the network is untested live until P11 CO21, the live
+co-op check.
+
+## Built in P11
+
+Each rule names its P11 step and the P11 questions that settled the details. Co-op means more than
+one seat in the battle; solo rules are unchanged.
+
+- **Parallel maps** (Option B): one map per seat in one encounter, each with its own turns, par
+  and darkness (CC6, before P11).
+- **Every map must be completed** (L4; CO1, CO8; questions 7, 26, 55, 106): in co-op a commander's
+  fall never loses a map. A failed objective (a Defend tile taken) loses only that map. The battle
+  reaches its results once every map has ended, even when every map failed, and the run goes on.
+  A win reached on a map emptied while its phase finishes stands.
+- **Frozen maps** (CO1; questions 5, 53): a map with no player units finishes the phase in
+  progress, then stops at its next player Phase Start: no phase runs and its turn stays until an
+  arrival lands. A step that empties it mid-phase runs the rest of that turn at once (the enemy
+  phase, the darkness, reinforcements). Frozen is derived from the map, never saved. The darkness
+  rising on a frozen map stays a possible later rule (a `TODO` in the code).
+- **The run is lost** (CO1, CO3, CO8; questions 6, 108, 113, 156) when a map is frozen, no unit is
+  on its way to it, and no map still being fought or won holds a unit that could yet land there. A
+  map still being fought counts as possible help, and so does a frozen map with a unit on its way.
+  A frozen map with no free tile a unit could stand on can't be helped. A lost run ends for every
+  seat.
+- **A fallen commander** (C4; CO1): it returns after the combat at critical health (10% of max HP,
+  at least 1, `fallen_commander_hp_percent`), as built before P11; its player keeps their units.
+- **Sending** (H1; CO2; questions 9, 10, 14, 68): `SendUnitsCommand` on the sender's won map, any
+  surviving units, commander included, or none, all to one map still being fought. A send is
+  final, and so is sending none; but while a map is frozen, a winner with units left on a won map
+  must send at least one, to a frozen map, and may send again. A seat's units on a partner's won map
+  are its own to send there.
+- **The battle clock** (CO2; questions 8, 54): a send lands at the target's first player Phase
+  Start after the turn the sender's map was won on, or at once on a frozen map, which then plays on.
+- **Where units land** (CO2, CO3; questions 12, 65, 113): next to the receiving owner's
+  commander, else that map's first deployment tile; the nearest free tile, dry first, even in the
+  darkness. With no free tile they stay on their way and try at each player Phase Start; a frozen
+  map with none sends them back.
+- **Returns** (CO2; question 11): units whose target ended first go back to their sender's won map
+  unharmed, where they can be sent again.
+- **The speed bonus** (CO2, CO5, CO8; questions 69, 104): a map loses it once a sent unit lands
+  there. A swap's visitor doesn't count.
+- **Call for aid** (R2; CO2, CO13; questions 13, 70): `CallForAidCommand`, the map's owner only,
+  while the map is being fought, frozen included; an explicit raise or lower, recorded and saved.
+- **The senders' view** (R1; CO13; question 132): the send panel opens by itself once a seat's map
+  is won while it can send, and again when a map freezes; it shows each map's turn, units and
+  enemies left and its flag, read from the mirrors. Send and Send none ask first.
+- **Units on a partner's map** (CO3; questions 16–19, 110–112), sent units and swap visitors
+  alike: timed modifiers travel with the phases they have left. The owner's Your Unit heirlooms and
+  curses act on them, except those triggered at Phase Start or Phase End, which act on the owner's
+  own map only; counters and charges stay one per heirloom. Commander's Standard counts Your Units
+  only. A sent commander isn't "your commander" on the partner's map. No forwarding hook.
+- **Rewards** (CO8; questions 25, 26, 105, 107): each seat is paid from its own map. A failed seat
+  gets no gold, XP, pick or Standout, its units elsewhere included. A unit's actions on any map
+  count toward its own personal XP and its owner's Standout, which is picked among the owner's own
+  units; shared XP comes from the map a unit began on, so never twice, and none from a failed map;
+  the owner's grades come from its own map, plus its units lost anywhere. A Boss beaten on one map
+  wins the run for every seat; a Boss battle whose every map failed loses it.
+- **Loot** (CO14, BUG-039; questions 117, 118): a map's loot goes to that map's owner when its map
+  was won, to nobody when it failed.
+- **Spectating** (CO13; question 131): the battle screen shows one map at a time, the seat's own
+  by default; the seat plays its own units wherever they stand, and a map where it has none is
+  read-only.
+- **Fast-forward** (CO15, EN19; questions 29, 126–129): a map's enemy phase speeds up while every
+  player with units on it holds; a player alone decides alone; a viewer with no units there speeds
+  only their own view. It stops, letting go each hold, at a player unit's defeat and at the first
+  attack of an exchange with a boss, in solo too (BUG-041). Notices only, never saved.
+- **Disconnects** (P10 NT6; CO18, CO19; questions 36, 160, 161, 181): a drop pauses every machine
+  until the player rejoins from a snapshot. After 2 minutes the host's Remove, for the seat waited
+  for longest, counts as a forfeit. Any non-host player can forfeit, except while the run is
+  paused for someone's drop. The co-op pause menu never pauses the game: the host has Resume,
+  Options and Save & Quit (ends the match for everyone); a client has Resume, Options, Leave Match
+  (a drop) and Forfeit.
+- **A forfeit** (CO14, CO18, CO22, CO23; questions 31–35, 115, 116, 145, 147): the seat leaves the
+  campaign's players at once and is archived as lost, `forfeited`; a removed player gets no record.
+  Its votes, its part of the open event and its swaps go, and a vote it completes draws.
+  Mid-battle its map leaves play but stays in the save, forfeited, until the battle ends; its units
+  leave every map still in play, and its cross-map effects leave too. Teammates' units on its map
+  go home after the combat as they stood. A resumed battle keeps the forfeited map as saved.
+- **Pending confirmation** (questions 183–185, built on the recommendation): the host cuts a
+  forfeiter's connection 1 s after letting it go (`NetRelay.LET_GO_WAIT`), and the host sends
+  campaign data only to members playing a seat; the co-op menu's title "Menu", its hint sets and
+  its question wordings; a client reconnecting to a lost host gets the client's menu, unpaused.
+- **Not built:** runes on a teammate's map (a seat's runes act on its own map only for M4, to
+  revisit at CO21, question 136); game speed as a lobby setting (it waits for a solo option,
+  question 30). **Not in the MVP:** a turn timer (question 37) and light links beyond runes
+  (question 38).
+
 **The question:** in co-op, do players fight one battle together, or each on their own map? Small
 Fire Emblem Heroes–scale maps keep solo combats short, but they don't stretch to four armies, and
 building larger maps for every player count is a lot of design work.
@@ -17,7 +107,7 @@ These are already decided or built:
 
 | Fact | Source |
 |------|--------|
-| 1–4 players (`DEFAULT_MAX_PLAYERS = 4`), set when a campaign starts; a forfeit can lower it (decided October 24, 2026) | `steam_network.gd`, save-system.md |
+| 1–4 players (`DEFAULT_MAX_PLAYERS = 4`), set when a campaign starts; a forfeit can lower it (decided October 24, 2026; built in P11 CO14) | `steam_network.gd`, save-system.md |
 | Each player has their own army: 4–6 units typical, up to 8, led by a commander | game-vision.md |
 | The whole army deploys in every combat; army size works like Slay the Spire's energy | game-vision.md |
 | Maps are small: standard 8×6 to 10×8, key about 12×10, boss larger | game-vision.md |
@@ -59,16 +149,19 @@ own army. The combat ends when everyone has finished.
   over unchanged.
 - **Pacing:** every player keeps the solo pace. Whoever finishes first waits for the others.
 - **Save and network:** a **save-format change**: the combat block's core holds one turn and
-  phase. Its `combat_state` section already holds each map's (see the table above); what remains,
-  the co-op battle state and per-map checkpoints, is the co-op combat plan's (P11). The host runs
-  one simulation per player.
+  phase. Its `combat_state` section already holds each map's (see the table above). The co-op
+  battle state is built (`combat_state` v4, P11 CO2), and any map's player phase end saves the
+  whole battle (P11 questions 39 and 71). The host runs one simulation per player.
 - **Effects:** Any Ally Unit only reaches partner maps for effects that aren't positional; the
   shared player phase becomes one phase per map.
 - **Light links** can add co-op feel at low cost, for example:
-  - runes can be used on a partner's map (**adopted for the MVP**, October 23, 2026: any player, during
-    that map's player phase, whether or not their own map is finished);
+  - runes can be used on a partner's map (adopted for the MVP, October 23, 2026: any player, during
+    that map's player phase, whether or not their own map is finished). **Not built:** a seat's
+    runes act on its own map only for M4, to revisit at the live check (P11 question 136);
   - closing a reinforcement point on one map delays reinforcements on every map;
   - a team objective counter spans all maps (e.g. "the team must free 3 houses").
+
+  The last two are not in the MVP (P11 question 38).
 
 ## Option C: one shared battle on a sector map
 
@@ -139,11 +232,11 @@ controls them there.
 - Turns parallel maps into shared fighting at exactly the moment it matters, with no new map work.
 - Winners stay busy instead of waiting.
 - Sent units can die (permadeath), so helping is a real risk, not a free win.
-- Decide: how many units can be sent (all, or up to a number); whether they arrive at full HP or as
-  they finished; whether sent units earn XP and count toward the Standout on the partner's map (recommended:
-  yes, for their owner).
-- Needs: deployment-edge or reinforcement-point tiles on every map (reinforcement points are
-  already planned), and the host merging two players' units onto one map.
+- **Decided and built** (P11 CO2, CO8; [Built in P11](#built-in-p11)): any surviving units at
+  their current HP; personal XP toward the cap and the Standout for their owner (P11 question 25).
+  The arrival above was replaced on October 23 and 29: they land next to the receiving commander,
+  by the battle clock ([Co-op deployment](#co-op-deployment-and-reinforcement-arrival)), so no
+  edge or reinforcement-point tiles are needed.
 
 **H2. Support from afar.** A player who has finished (won or lost) can act on teammates' maps
 without units: use their own runes there, or pick one small team buff per partner phase.
@@ -158,7 +251,8 @@ when every map is won or failed. A player who fails their map's objective (a Def
 loses only that map: no gold, XP or Standout for it, and their fallen units stay dead. A map with
 no player units left **freezes** until help arrives, and a winner must send units to a teammate's
 frozen map. The run is lost when a map still being fought has no player units and no teammate has
-units left to send. A possible later rule: the darkness keeps rising on a frozen map.
+units left to send. A possible later rule: the darkness keeps rising on a frozen map. **Built**
+(P11 CO1, CO8); the details are in [Built in P11](#built-in-p11).
 
 **Superseded October 29, 2026:** **L1. The team wins if anyone wins** (the combat counted as won
 for the team when at least one player won).
@@ -178,6 +272,7 @@ combat). A commander's fall is final, as in solo.
 the combat at critical health (first pass: 10% of max HP, at least 1), with no other cost. Since
 October 29, 2026 (L4) its player keeps controlling their surviving units on that map, and the map
 goes on; the run is lost only as L4 says. In solo, a fallen commander still ends the run.
+**Built** (the return before P11; the map going on in P11 CO1).
 
 Not chosen:
 
@@ -201,7 +296,7 @@ With more than two players, a winner may have several teammates still fighting. 
 **Decided: R1 + R2.** The sender chooses, helped by each map's status and any call-for-aid
 flags. Each sender commits all the units they send to one map (no splitting, no hopping between
 maps), but different senders can help different maps, and a map can receive several senders. If a
-map ends before sent units arrive, they return unharmed.
+map ends before sent units arrive, they return unharmed. **Built** (P11 CO2, CO13).
 
 ### Recommendation
 
@@ -216,23 +311,29 @@ to reinforce. Decided October 17, revised October 20 to drop retreat (L2) and do
 
 ## Co-op deployment and reinforcement arrival
 
-**Decided October 23, 2026** (recorded in [game-vision.md](game-vision.md#combat-maps)):
+**Decided October 23, 2026** (recorded in [game-vision.md](game-vision.md#combat-maps)), **built**
+in P11 CO2, CO3 and CO8:
 
 - **Arrival** (battle clock, October 29, 2026): units sent by a player who won on turn N arrive at
   the receiving map's first player phase after its turn N, never sooner, so stalling gains nothing
   and maps keep their own pace. They land on dry tiles next to the receiving player's
   **commander**, else on the nearest free tiles, even in the darkness, where they take its damage
   like any unit. The commander is the rally point, so no banner object is needed and help lands
-  where the fight is. A map that received help loses its speed bonus. Still open: a map with no
-  free tile at all (recommended: they wait a phase, like the enemy waves).
+  where the fight is. A map that received help loses its speed bonus. As built: a frozen map takes
+  them at once; with no commander there they aim at its first deployment tile; with no free tile
+  at all they wait and try again at each player Phase Start, and a frozen map with none sends them
+  back (P11 questions 8, 12, 65, 113).
 - **Sending:** any subset of surviving units, at their current HP, including the commander, or
   none. A sent commander that falls returns after the combat like any co-op commander.
 - **XP:** sent units earn personal bonus XP toward the same per-combat cap, not shared XP a second
-  time; the Standout stays on each player's own map.
+  time; the Standout stays on each player's own map. As built, "own map" means the owner's
+  Standout: a unit's actions on any map count toward it, and it is picked among the owner's own
+  units (P11 question 25).
 - **Turns:** each parallel map runs on its own turn counter, so players never wait on each other's
   phases.
 
-Still open: **two players on one map** in later shared battles (how the deployment zone is shared).
+Post-MVP, outside P11: **two players on one map** in later shared battles (how the deployment zone
+is shared).
 
 The ideas that led here, kept for reference:
 
@@ -281,22 +382,28 @@ the player").
 
 ## Disconnects and forfeits
 
-**Decided October 24, 2026** (recorded in [game-vision.md](game-vision.md#combat-maps)):
+**Decided October 24, 2026** (recorded in [game-vision.md](game-vision.md#combat-maps)), **built**
+in P10 NT6 and P11 CO14, CO18, CO19, CO22 and CO23 ([Built in P11](#built-in-p11) has the
+details):
 
 - A disconnect **pauses the game** for everyone until the player reconnects (a timer shows); they
   rejoin from a snapshot, which the event bus plan already supports.
 - After a waiting period (first pass: 2 minutes), the host can **remove** the disconnected player,
-  which counts as a forfeit.
+  which counts as a forfeit. As built, a removed player's machine gets no archive record (P11
+  question 35).
 - Any **non-host** player can **forfeit** at any time: their army and map leave the match, their
   seat is removed from the campaign save, and their run is archived for them as lost. The rest play
-  on. This changes the save rule that the player count is fixed for a campaign's life; the format
-  change belongs to the multiplayer plans.
+  on. This changes the save rule that the player count is fixed for a campaign's life
+  ([save-system.md, Multiplayer](save-system.md#multiplayer)). As built, a forfeit waits while the
+  run is paused for another player's drop (P11 question 161).
 - A **host** disconnect ends the match for everyone; the host resumes from its last checkpoint.
+  The host's Save & Quit ends it for everyone too, and tells clients first (P11 question 181).
 
 ## Questions any option raises
 
 - **Commander death and losing a map:** see [When one player loses](#when-one-player-loses).
 - **Gold and loot:** decided October 23, 2026: per player, except one shared shop stock (see
   Co-op ownership in [game-vision.md](game-vision.md#combat-maps)).
-- **Enemy scaling** for shared fights: more enemies, stronger enemies, or both.
-- **Turn timers:** whether shared phases need a timer so one slow player can't stall the others.
+- **Enemy scaling** for shared fights (post-MVP): more enemies, stronger enemies, or both.
+- **Turn timers:** none in the MVP, though a visitor's or sender's owner can stall a map's player
+  phase; revisit at the M4 playtest (P11 question 37).
