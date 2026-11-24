@@ -6,7 +6,7 @@
 # File:     rejoin_cases.gd
 # Author:
 # Created:  November 23, 2026
-# Modified: November 23, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 extends "res://tests/net/net_case_base.gd"
@@ -17,7 +17,7 @@ extends "res://tests/net/net_case_base.gd"
 ## already sent still applied); the client reconnects and rejoins from a fresh snapshot, every
 ## hash equal; a crashed client's fresh relay and mirror are admitted by Steam id and rebuilt; the
 ## host removes a seat only after the wait, and it never comes back; an unseated connection hears
-## nothing; a client's route notice reaches the host alone, not while paused; the host leaving
+## nothing; no relay sends a route notice, and the host drops one it hears; the host leaving
 ## makes every client wait, and SteamNetwork's verdicts end it; the host's own commands settle
 ## "paused"; a rejoined client's screen. Skipped without a test user folder.
 
@@ -317,8 +317,8 @@ func _test_unseated() -> void:
 	_stop(rig)
 
 
-# A client's route notice reaches the host alone, which routes everyone; while paused it's
-# dropped; the host never sends one.
+# The route notice is retired (only the host routes): no relay sends one, and one the host hears
+# anyway (an older client's) is dropped, paused or not, reaching no one.
 func _test_route() -> void:
 	var rig: Rig = _start(3, 3)
 	if rig == null:
@@ -327,27 +327,28 @@ func _test_route() -> void:
 	var route: int = NetRelayScript.NoticeKind.ROUTE
 	rig.clear()
 	rig.relay(DROPPED).send_notice(route, [])
+	rig.relay(HOST).send_notice(route, [])
 	rig.harness.step_until_idle()
-	_check("rejoin route: a client's route reaches the host alone, as its seat's", (
-			rig.record(HOST).notice_list == [[DROPPED, route, []]]
+	_check("rejoin route: neither a client nor the host sends a route notice", (
+			rig.record(HOST).notices == 0
 			and rig.record(STAYING).notices == 0
 			and rig.record(DROPPED).notices == 0
 	), str(rig.record(HOST).notice_list))
 	rig.clear()
+	rig.relay(DROPPED).rpc_id(1, &"_notice", 0, route, [])
 	rig.relay(DROPPED).rpc_id(1, &"_notice", 0, route, [0])
-	rig.relay(HOST).send_notice(route, [])
 	rig.harness.step_until_idle()
-	_check("rejoin route: a route with data, or from the host, goes nowhere", (
+	_check("rejoin route: a route notice the host hears anyway is dropped, reaching no one", (
 			rig.record(HOST).notices == 0
 			and rig.record(STAYING).notices == 0
 			and rig.record(DROPPED).notices == 0
-	))
+	), str(rig.record(HOST).notice_list))
 	rig.harness.drop(STAYING)
 	rig.harness.step_until_idle()
 	rig.clear()
-	rig.relay(DROPPED).send_notice(route, [])
+	rig.relay(DROPPED).rpc_id(1, &"_notice", 0, route, [])
 	rig.harness.step_until_idle()
-	_check("rejoin route: while the run is paused the host ignores a route", (
+	_check("rejoin route: while the run is paused a route notice is dropped too", (
 			rig.record(HOST).notices == 0
 	), str(rig.record(HOST).notice_list))
 	_stop(rig)

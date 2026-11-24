@@ -36,7 +36,7 @@ Where the project is, what's next and what's out of scope. Start here.
 - **Milestones:** M0 and M1 are complete. **Current: M2 Combat complete,** with M3 started alongside.
 - **What runs today:** a solo run opens the M1 battle: the Mercenary army against the Brigand pack on the greybox map. All of M2's battle systems and functional UI work on keyboard, mouse and controller: targeting, forecast, intents, the darkness, every objective's HUD, unit detail, and Save & Quit with resume.
 - **What M2 still needs:** content, enemy AI, docs and bug fixes. No new systems.
-- **Tests:** 8,864 cases in 31 suites, all passing, and a clean headless launch (`sh bandit-bash/tools/run_tests.sh`).
+- **Tests:** 8,871 cases in 31 suites, all passing, and a clean headless launch (`sh bandit-bash/tools/run_tests.sh`).
 - **Not started:** P09 (approved) and P10–P12. P08 is in progress (RN1–RN5 merged).
 
 ## Milestones
@@ -79,7 +79,7 @@ Statuses: **Not started** · **Stub** · **Draft** · **Approved** · **In progr
 | P14 | [Project organization](2026-11-09-project-organization.md) | **In progress** | TL1 capture guard and `run_captures.sh` merged November 23, 2026; O8 concurrency tooling **merged** November 19, 2026 (every case file declares `const SUITE`, `tests/case_files.gd` finds it; `--quick` skips the map_set parts); O8b **merged** November 19, 2026 (`capture_screens.gd` is a runner over `tools/captures/<number>_<name>.gd` groups); O5 (deferred) | — |
 | P16 | Audio ([audio.md](../design/audio.md); its scope doc is the plan) | **In progress**: AU1 the audio layer merged November 19, 2026 | AU1 done; AU2+ sound design (M5, after the audio direction) | P07, P15 |
 | P17 | Localization: written, translatable descriptions; every string through Godot's translation; layouts that survive longer text and other scripts | **Parked** (user, November 22, 2026: very low priority; not offered until the user raises it) | — | P03, P07, P08, P09, P15 |
-| P18 | [Co-op ready checks](2026-11-24-coop-ready-checks.md) | **Approved** (user, November 24, 2026; all 10 questions answered): every co-op hand-off waits for every seat's Ready and every machine's load; one routing authority (RC1 fixes BUG-052) | RC1 (one routing authority, BUG-052) next; RC2–RC7 | P10, P11 |
+| P18 | [Co-op ready checks](2026-11-24-coop-ready-checks.md) | **Approved** (user, November 24, 2026; all 10 questions answered): every co-op hand-off waits for every seat's Ready and every machine's load; one routing authority (RC1 fixes BUG-052) | RC1 (one routing authority; BUG-052 and BUG-058 fixed) merged November 24, 2026; RC2 (the gate) and RC5 (the waiting UI and loading screen) next, side by side; then RC3, RC4, RC6, RC7 | P10, P11 |
 | P20–P24 | Meta progression, tutorials, dev console, status effects, shared co-op battles | Post-MVP | — | — |
 
 ## Next actions

@@ -19,9 +19,11 @@ extends "res://tests/net/net_case_base.gd"
 ## folder, driven over ENet through the real autoloads by [PairPeer] (from
 ## [code]harness/enet_pair_peer.gd[/code]), all pairs at once: one plays a battle to its end, every
 ## map's hash matching on both and every relay message arriving; two take their starting
-## heirlooms on the real screens, the host first and the client first, each side entering each
-## screen once and the client asking for one route only. Logs stay in [code]user://logs/[/code];
-## only instances this case started are stopped. Skipped without a test user folder.
+## heirlooms on the real screens, the host first and the client first: the first picker waits by
+## name, the host routes Loading, the offer and the map once each, each side enters each screen
+## once, and the client sends no notice and never reads the start as a rejoin. Logs stay in
+## [code]user://logs/[/code]; only instances this case started are stopped. Skipped without a test
+## user folder.
 
 # The suite that runs this file; tests/case_files.gd finds it by this line.
 const SUITE: String = "net"
@@ -49,11 +51,17 @@ const MAP_LINE: String = "PAIR MAP "
 const STEP_LINE: String = "PAIR STEP "
 const SCREENS_LINE: String = "PAIR SCREENS "
 const SEED_LINE: String = "New multiplayer run, seed "
-# SceneRouter's line for a client's route request.
-const ROUTE_ASK_LINE: String = "Asking the host to route everyone"
+# The waiting line a seat's heirloom screen shows once its own pick is taken.
+const WAITING_LINE: String = "PAIR WAITING "
+# CampaignService's line for a client that rejoined a run in progress (BUG-058 on a new run).
+const REJOIN_LINE: String = "Rejoined the run"
 const BATTLE_CASE: String = "enet: two instances on one machine play a battle to its end"
 # The screens each side of an offer pair enters, in order, each once.
 const OFFER_SCREENS: String = "LOBBY 1, LOADING 1, STARTING_HEIRLOOM 1, CAMPAIGN_MAP 1"
+# The screens the host routes everyone to on the way to the map, in order: each once.
+const ROUTED_SCREENS: PackedStringArray = ["LOADING", "STARTING_HEIRLOOM", "CAMPAIGN_MAP"]
+# Probes for a free port before giving up, so no two pairs share one.
+const PORT_ATTEMPTS: int = 8
 
 # Limits that only stop a hang. Alone, an instance boots in seconds and the battle ends in about
 # 10 s; under a full run's load it can take minutes, so each instance fails on its own first
@@ -280,16 +288,15 @@ func _test_two_instances() -> void:
 	var orders: PackedStringArray = [""]
 	orders.append_array(OFFER_ORDERS)
 	var pairs: Array[Pair] = []
+	var taken: PackedInt32Array = []
 	for order: String in orders:
 		if not why.is_empty():
 			break
 		var pair: Pair = Pair.new()
 		pair.offer_first = order
 		pair.role = "" if order.is_empty() else "offer_%s_first_" % [order]
-		pair.port = _free_port()
-		for other: Pair in pairs:
-			if other.port == pair.port:
-				pair.port = 0
+		pair.port = _free_port(taken)
+		taken.append(pair.port)
 		if pair.port <= 0:
 			why = "no free port can be opened on %s" % [LOCALHOST]
 		pairs.append(pair)
@@ -377,19 +384,32 @@ func _check_battle(pair: Pair, ended: bool, seconds: float) -> void:
 	])
 
 
-# An offer pair's case (BUG-052): both sides end on the map with every offer taken, each entering
-# each screen once (a reload or a route loop counts more), the client asking for one route only
-# (its Loading Continue) and the host hearing one, each side's own pick taken on its screen.
+# An offer pair's case (BUG-052, P18 question 1): both sides end on the map with every offer
+# taken, each entering each screen once (a reload or a route loop counts more); the host routed
+# everyone to Loading, the offer and the map once each; the first picker's screen waited for its
+# teammate by name; the client sent no notice (only the host routes, RC1), the host heard none,
+# and the client didn't read the new run as a rejoin (BUG-058).
 func _check_offer(pair: Pair, ended: bool) -> void:
 	var host_text: String = pair.host.log_text()
 	var client_text: String = "" if pair.client == null else pair.client.log_text()
 	var host_screens: String = _after_last(host_text, SCREENS_LINE + "host ")
 	var client_screens: String = _after_last(client_text, SCREENS_LINE + "client ")
-	var asks: int = client_text.count(ROUTE_ASK_LINE)
+	var routes: PackedInt32Array = []
+	for screen: String in ROUTED_SCREENS:
+		routes.append(host_text.count("Routing everyone to %s." % [screen]))
+	var sent: int = client_text.count("NetRelay: sent notice")
 	var heard: int = host_text.count("NetRelay: received notice")
 	var picks: bool = (
 			host_text.contains("PAIR PICKED host") and client_text.contains("PAIR PICKED client")
 	)
+	var first: String = host_text if pair.offer_first == "host" else client_text
+	var waited_for: String = "Player 2" if pair.offer_first == "host" else "Player 1"
+	var is_waiting: bool = first.contains("%sWaiting for %s." % [WAITING_LINE, waited_for])
+	var is_rejoin: bool = client_text.contains(REJOIN_LINE)
+	print("      enet offer pair, %s first: routes %s; screens %s / %s; logs: %s, %s" % [
+		pair.offer_first, routes, host_screens, client_screens, pair.host.log_path,
+		"(no client)" if pair.client == null else pair.client.log_path,
+	])
 	_check(_offer_case_name(pair.offer_first), (
 			pair.is_listening
 			and ended
@@ -399,16 +419,20 @@ func _check_offer(pair: Pair, ended: bool) -> void:
 			and not (host_text + client_text).contains("SCRIPT ERROR")
 			and host_screens == OFFER_SCREENS
 			and client_screens == OFFER_SCREENS
-			and asks == 1
-			and heard == 1
+			and routes == PackedInt32Array([1, 1, 1])
+			and sent == 0
+			and heard == 0
 			and picks
+			and is_waiting
+			and not is_rejoin
 	), (
-			"listening %s, ended %s; screens: host %s, client %s; route requests %d, heard %d;"
-			+ " picks %s; steps reached: %s / %s; host's last lines: %s; client's last lines: %s"
+			"listening %s, ended %s; screens: host %s, client %s; routes %s; notices sent %d,"
+			+ " heard %d; picks %s; first picker's wait: %s; rejoin read %s; steps reached: %s"
+			+ " / %s; host's last lines: %s; client's last lines: %s"
 	) % [
-		pair.is_listening, ended, host_screens, client_screens, asks, heard, picks,
-		_after_last(host_text, STEP_LINE), _after_last(client_text, STEP_LINE),
-		_tail(host_text), _tail(client_text),
+		pair.is_listening, ended, host_screens, client_screens, routes, sent, heard, picks,
+		_after_last(first, WAITING_LINE), is_rejoin, _after_last(host_text, STEP_LINE),
+		_after_last(client_text, STEP_LINE), _tail(host_text), _tail(client_text),
 	])
 
 
@@ -471,15 +495,19 @@ static func _user_variable() -> String:
 	return ""
 
 
-# A port free on LOCALHOST now, from a server bound to any port and closed again; 0 when none.
-static func _free_port() -> int:
-	var probe: ENetMultiplayerPeer = ENetMultiplayerPeer.new()
-	probe.set_bind_ip(LOCALHOST)
-	if probe.create_server(0, 1) != OK:
-		return 0
-	var port: int = probe.host.get_local_port()
-	probe.close()
-	return port
+# A port free on LOCALHOST now and not in taken, from a server bound to any port and closed
+# again; 0 when none.
+static func _free_port(taken: PackedInt32Array = PackedInt32Array()) -> int:
+	for _attempt: int in PORT_ATTEMPTS:
+		var probe: ENetMultiplayerPeer = ENetMultiplayerPeer.new()
+		probe.set_bind_ip(LOCALHOST)
+		if probe.create_server(0, 1) != OK:
+			return 0
+		var port: int = probe.host.get_local_port()
+		probe.close()
+		if not taken.has(port):
+			return port
+	return 0
 
 
 static func _lines_with(text: String, part: String) -> PackedStringArray:
@@ -634,11 +662,12 @@ class PairPeer:
 	# Offer mode: which side takes its starting heirloom first ("host" or "client"); empty for the
 	# battle.
 	var _offer_first: String = ""
-	# Offer mode: whether the client pressed Loading's Continue, this side took its heirloom, and
-	# the seconds since the step began, since the first pick was seen, and since both settled on
-	# the map (-1 before).
+	# Offer mode: whether the host pressed Loading's Continue, this side took its heirloom and
+	# printed its screen's waiting line, and the seconds since the step began, since the first
+	# pick was seen, and since both settled on the map (-1 before).
 	var _has_continued: bool = false
 	var _has_picked: bool = false
+	var _has_shown_waiting: bool = false
 	var _offer_clock: float = 0.0
 	var _first_seen_at: float = -1.0
 	var _settled_at: float = -1.0
@@ -711,14 +740,10 @@ class PairPeer:
 		return RUNNING
 
 	# Host: once the client is admitted, a 2-seat run. Battle: its offers settled, and the host's
-	# vote. Offer: everyone to Loading a frame before the run starts, so the client's mirror starts
-	# there and never reads as a rejoin, which would move it to its offer alone.
+	# vote. Offer: everyone to Loading once the run has started, in the lobby's Start order, so the
+	# run's data can reach the client before the route (BUG-058).
 	func _tick_host_lobby() -> int:
 		if not SteamNetwork.has_active_session() or SteamNetwork.get_members().size() < 2:
-			return RUNNING
-		var is_on_loading: bool = SceneRouter.current_screen == SceneRouter.Screen.LOADING
-		if not _offer_first.is_empty() and not is_on_loading:
-			SceneRouter.goto_screen_for_everyone(SceneRouter.Screen.LOADING)
 			return RUNNING
 		var steam_ids: PackedInt64Array = []
 		for member: SteamNetwork.LobbyMember in SteamNetwork.get_members():
@@ -727,6 +752,7 @@ class PairPeer:
 			return _fail("the run didn't start")
 		var session: CampaignSession = CampaignService.session
 		if not _offer_first.is_empty():
+			SceneRouter.goto_screen_for_everyone(SceneRouter.Screen.LOADING)
 			_step = Step.OFFER
 			return RUNNING
 		for seat: int in session.run.seat_numbers():
@@ -770,8 +796,8 @@ class PairPeer:
 	# Every map ended, or the co-op run lost: its hashes, then the host ends the battle. A client
 	# whose battle closed before it looked has printed them as it closed. A lost run on a host
 	# showing GAMEPLAY is its battle screen's to end, as in play: it ends one at once
-	# (CoopBattle reads the loss every frame) and would end it again after the driver. Whether the
-	# host shows GAMEPLAY is timing, since only a client's route request takes it there (BUG-050).
+	# (CoopBattle reads the loss every frame) and would end it again after the driver (BUG-050).
+	# Only a press of the draw's Continue takes the host there, which the pair never makes.
 	func _tick_play() -> int:
 		var session: CampaignSession = CampaignService.session
 		var battle: CombatEncounter = null if session == null else session.encounter
@@ -827,10 +853,12 @@ class PairPeer:
 		SteamNetwork.leave_lobby()
 		return PASSED
 
-	# Offer mode, on the real screens: the client presses Loading's Continue (a route request,
-	# as in play); on the starting heirloom screen the first side takes its heirloom at once, the
-	# other OFFER_HOLD s after it saw that pick; once this side is on the map with every offer
-	# taken, and OFFER_HOLD s later still is, it prints its screens and ends.
+	# Offer mode, on the real screens: the host presses Loading's Continue once the client's
+	# mirror holds the run (its relay sends the seat's settings only then); only the host routes
+	# (P18 RC1), so the client presses nothing there. On the starting heirloom screen the first
+	# side takes its heirloom at once, the other OFFER_HOLD s after it saw that pick, and the
+	# first prints the waiting line its screen shows meanwhile; once this side is on the map with
+	# every offer taken, and OFFER_HOLD s later still is, it prints its screens and ends.
 	func _tick_offer(delta: float) -> int:
 		_offer_clock += delta
 		if _offer_clock > OFFER_LIMIT:
@@ -841,14 +869,17 @@ class PairPeer:
 		var seat: int = CampaignService.local_seat()
 		var screen: int = SceneRouter.current_screen
 		var scene: Node = _tree.current_scene
-		if not _is_host and not _has_continued and screen == SceneRouter.Screen.LOADING:
-			var button: Button = (
-					null if scene == null else scene.get_node_or_null(^"%ContinueButton")
-			)
-			if button != null:
-				_has_continued = true
-				button.pressed.emit()
+		if screen == SceneRouter.Screen.LOADING:
+			if _is_host and not _has_continued and _has_teammate_settings(session, seat):
+				var button: Button = (
+						null if scene == null else scene.get_node_or_null(^"%ContinueButton")
+				)
+				if button != null:
+					_has_continued = true
+					button.pressed.emit()
 			return RUNNING
+		if _has_picked:
+			_note_waiting(scene)
 		var is_settled: bool = true
 		for other: int in session.run.seat_numbers():
 			var is_open: bool = StartingOffer.is_open(session.run.seat_run(other))
@@ -878,6 +909,28 @@ class PairPeer:
 		_has_picked = true
 		print("PAIR PICKED %s seat %d at %.1f s" % [_side(), seat, _clock])
 		return RUNNING
+
+	# Whether the relay holds the settings of every seat of session's run but seat: a client's
+	# arrive once its mirror holds the run.
+	func _has_teammate_settings(session: CampaignSession, seat: int) -> bool:
+		for other: int in session.run.seat_numbers():
+			if other != seat and NetRelay.seat_settings(other).is_empty():
+				return false
+		return true
+
+	# Prints, once, the waiting line the heirloom screen scene shows while its seat's pick is taken
+	# and a teammate's offer is open.
+	func _note_waiting(scene: Node) -> void:
+		if (
+				_has_shown_waiting or scene == null
+				or not scene.has_method(&"get_waiting_line")
+		):
+			return
+		var line: Label = scene.call(&"get_waiting_line")
+		if line == null or not line.is_visible_in_tree():
+			return
+		_has_shown_waiting = true
+		print("%s%s" % [WAITING_LINE, line.text])
 
 	# Takes seat's starting heirloom on view as a player would: the card of one that asks nothing
 	# more, else the first one with a sub-choice the rules accept (never a weapon's placement),

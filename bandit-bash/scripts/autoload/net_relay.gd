@@ -6,7 +6,7 @@
 # File:     net_relay.gd
 # Author:
 # Created:  November 22, 2026
-# Modified: November 23, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 extends Node
@@ -81,9 +81,8 @@ enum NoticeKind {
 	## The sender's selected unit on a map, for teammates' markers: data
 	## [code][session id, unit id][/code], the id empty for none.
 	SELECTION = 0,
-	## A client's move for everyone ([code]SceneRouter.goto_screen_for_everyone()[/code]), data
-	## empty: the host routes everyone itself, by its own run. Never forwarded; dropped while
-	## paused.
+	## Retired: only the host routes, so no peer sends it ([method send_notice] refuses it). Kept
+	## so no value is reused; a host that receives one logs it and drops it. Data empty.
 	ROUTE = 1,
 	## The sender's fast-forward hold changed: data [code][session id, held][/code], the map it
 	## holds on and whether it holds. A map other players have units on plays fast only while
@@ -306,18 +305,18 @@ func send_campaign(command: CampaignCommand) -> int:
 ## Tells every other seated peer this machine's notice of [enum NoticeKind] [param kind] with
 ## [param data]: a client's goes through the host, which forwards it, the host's straight to every
 ## client. Does nothing in solo. Refused, with an error, for data its kind doesn't allow, a
-## [constant NoticeKind.ROUTE] from the host, or a host that holds no seat in [member seats].
+## [constant NoticeKind.ROUTE] from anyone, or a host that holds no seat in [member seats].
 func send_notice(kind: int, data: Array) -> void:
 	if not NetGate.has_session(multiplayer):
 		return
 	if not _is_notice_valid(kind, data):
 		push_error("NetRelay: notice %d with data %s isn't allowed." % [kind, data])
 		return
+	if kind == NoticeKind.ROUTE:
+		push_error("NetRelay: only the host routes, and it needs no notice to; none is sent.")
+		return
 	if not multiplayer.is_server():
 		_send([_HOST_PEER], &"_notice", [SeatDirectory.NO_SEAT, kind, data])
-		return
-	if kind == NoticeKind.ROUTE:
-		push_error("NetRelay: the host routes everyone itself; it sends no route notice.")
 		return
 	var seat: int = _seat_of(multiplayer.get_unique_id())
 	if seat == SeatDirectory.NO_SEAT:
@@ -592,8 +591,9 @@ func _seat_changed(seat: int, state: int, waited_for: float) -> void:
 
 
 # A notice. Up: any client to the host, which takes the seat from the connection and forwards it
-# to every other seated client, or, for a route, routes everyone itself. Down: only the host's
-# forward is heard, so a client's direct call to another client is ignored.
+# to every other seated client. A route notice is retired (only the host routes): heard on the
+# host it is logged and dropped. Down: only the host's forward is heard, so a client's direct call
+# to another client is ignored.
 @rpc("any_peer", "call_remote", "reliable")
 func _notice(seat: int, kind: int, data: Array) -> void:
 	_log_received(&"_notice", [seat, kind, data])
@@ -610,10 +610,7 @@ func _notice(seat: int, kind: int, data: Array) -> void:
 		_log_dropped(sender, "a notice from no seat")
 		return
 	if kind == NoticeKind.ROUTE:
-		if is_paused():
-			_log_dropped(sender, "a route while the run is paused")
-		else:
-			notice_received.emit(from_seat, kind, data)
+		_log_dropped(sender, "a route notice: only the host routes")
 		return
 	notice_received.emit(from_seat, kind, data)
 	var others: Array[int] = _seated_peers()

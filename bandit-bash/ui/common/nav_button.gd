@@ -6,7 +6,7 @@
 # File:     nav_button.gd
 # Author:
 # Created:  October 9, 2026
-# Modified: November 19, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 class_name NavButton
@@ -24,8 +24,9 @@ enum Action {
 	GO_BACK = 1,
 	## Close the game.
 	QUIT = 2,
-	## Open [member target_screen] on every connected peer. Host only; a client press is refused.
-	## Behaves like [constant GOTO_SCREEN] when there is no lobby session.
+	## Open [member target_screen] on every connected peer: only the host's press moves anyone; a
+	## client's moves nobody and waits for the host's route. Behaves like [constant GOTO_SCREEN]
+	## when there is no lobby session.
 	GOTO_SCREEN_FOR_EVERYONE = 3,
 }
 

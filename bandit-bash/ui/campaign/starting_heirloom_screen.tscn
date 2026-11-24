@@ -50,6 +50,16 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 
+[node name="WaitingLine" type="Label" parent="Layout/Column"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+text = "Waiting for Player 2."
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+
 [node name="InputDeviceAdapter" parent="." instance=ExtResource("3_device")]
 
 [node name="ScreenHints" type="Node" parent="."]
@@ -59,7 +69,8 @@ actions = Dictionary[StringName, PackedStringArray]({
 &"OFFER": PackedStringArray("ui_left", "ui_right", "ui_accept", "heirloom_bar_focus", "ui_cancel"),
 &"PICK": PackedStringArray("ui_left", "ui_right", "ui_accept", "ui_cancel"),
 &"CHOOSE": PackedStringArray("ui_up", "ui_down", "ui_accept", "ui_cancel"),
-&"HEIRLOOMS": PackedStringArray("ui_left", "ui_right", "ui_cancel", "heirloom_bar_focus")
+&"HEIRLOOMS": PackedStringArray("ui_left", "ui_right", "ui_cancel", "heirloom_bar_focus"),
+&"WAITING": PackedStringArray("heirloom_bar_focus", "ui_cancel")
 })
 
 [node name="ControlHintBar" parent="." node_paths=PackedStringArray("controller", "device") instance=ExtResource("5_bar")]
@@ -79,6 +90,7 @@ labels = Dictionary[String, String]({
 "HEIRLOOMS/ui_cancel": "Close",
 "HEIRLOOMS/ui_left": "Choose",
 "HEIRLOOMS/ui_right": "Choose",
+"WAITING/ui_cancel": "Pause",
 "PAUSED/ui_cancel": "Resume",
 "PAUSED/ui_down": "Choose",
 "PAUSED/ui_up": "Choose",
