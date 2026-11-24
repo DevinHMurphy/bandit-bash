@@ -6,7 +6,7 @@
 # File:     steam_network.gd
 # Author:
 # Created:  October 9, 2026
-# Modified: November 23, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 extends Node
@@ -170,6 +170,13 @@ func _ready() -> void:
 			NetLog.Category.LOBBY,
 			"Build fingerprint %d, computed in %.1f ms."
 			% [contract, NetContract.build_usec() / 1000.0]
+	)
+	# Each part on its own, so two machines' logs show which part a mismatch is in.
+	var parts: Dictionary[String, String] = NetContract.fingerprint_parts()
+	NetLog.info(
+			NetLog.Category.LOBBY,
+			"Build fingerprint parts: version %s, format %s, content %s."
+			% [parts["version"], parts["format"], parts["content"]]
 	)
 
 	_dev_link = _dev_link_of(OS.get_cmdline_user_args(), OS.is_debug_build())

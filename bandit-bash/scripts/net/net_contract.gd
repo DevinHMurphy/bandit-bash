@@ -6,7 +6,7 @@
 # File:     net_contract.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 23, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 class_name NetContract
@@ -41,6 +41,17 @@ const _REMAP_SUFFIX: String = ".remap"
 const _REMAP_SECTION: String = "remap"
 const _REMAP_KEY: String = "path"
 
+# Text resources, which the digest hashes as _canonical_text() gives them. Every other file, and
+# a remapped one, is hashed as stored.
+const _TEXT_RESOURCE_EXTENSIONS: PackedStringArray = ["tres", "tscn"]
+
+# A uid attribute on a text resource's header or ext_resource line (group 1 is the line before
+# it). The editor adds one on resave, a scene's at random, so it differs between machines; the
+# ext_resource's path beside it still counts. A uid anywhere else is content.
+const _UID_ATTRIBUTE_PATTERN: String = (
+		"(?m)^(\\[(?:gd_scene|gd_resource|ext_resource)\\b[^\\n]*?) uid=\"uid://[^\"]*\""
+)
+
 # The snapshot format constant CombatSession and CombatEncounter each declare.
 const _SNAPSHOT_FORMAT_CONSTANT: String = "_SNAPSHOT_FORMAT"
 
@@ -55,6 +66,8 @@ const _ARGUMENTS_KEY: String = "args"
 static var _fingerprint: int = 0
 static var _has_fingerprint: bool = false
 static var _build_usec: int = 0
+static var _parts: Dictionary[String, String] = {}
+static var _uid_attribute: RegEx = RegEx.create_from_string(_UID_ATTRIBUTE_PATTERN)
 
 
 ## This build's fingerprint, computed on the first call and kept for the process.
@@ -62,12 +75,26 @@ static var _build_usec: int = 0
 static func fingerprint() -> int:
 	if not _has_fingerprint:
 		var started: int = Time.get_ticks_usec()
-		_fingerprint = combine(
-				SaveFile.get_running_version(), format_parts(), content_digest(CONTENT_ROOTS)
-		)
+		var parts: Dictionary = format_parts()
+		_parts = {
+			"version": SaveFile.get_running_version(),
+			"format": format_hash(parts),
+			"content": content_digest(CONTENT_ROOTS),
+		}
+		_fingerprint = combine(_parts["version"], parts, _parts["content"])
 		_build_usec = Time.get_ticks_usec() - started
 		_has_fingerprint = true
 	return _fingerprint
+
+
+## The three parts [method fingerprint] combines, for the boot log: [code]"version"[/code],
+## [code]"format"[/code] ([method format_hash] of [method format_parts]) and [code]"content"[/code]
+## (the content digest). Two builds whose fingerprints differ differ in at least one, so two
+## machines' logs show which. Computes the fingerprint first if it hasn't run.
+static func fingerprint_parts() -> Dictionary[String, String]:
+	fingerprint()
+	var copy: Dictionary[String, String] = _parts.duplicate()
+	return copy
 
 
 ## How long the first [method fingerprint] took, in microseconds; 0 before it ran.
@@ -82,6 +109,12 @@ static func combine(version: String, parts: Dictionary, content: String) -> int:
 			{"version": version, "format": parts, "content": content}, "", true
 	)
 	return text.sha256_buffer().decode_s64(0)
+
+
+## An MD5 over [param parts]' canonical JSON, keys sorted, as [method combine] reads them: the
+## format part a log line can show. Pure.
+static func format_hash(parts: Dictionary) -> String:
+	return JSON.stringify(parts, "", true).md5_text()
 
 
 ## The network format as plain values, each part under its own name: every wire enum (name to
@@ -158,8 +191,11 @@ static func rpc_configs() -> Dictionary[String, Variant]:
 
 
 ## An MD5 over every file under [param roots]: each file's path inside its root, the root's
-## index and the file's MD5, sorted. A [constant _REMAP_SUFFIX] pointer counts as the file it
-## points to, under the original name, so an export's content is what it covers.
+## index and the file's MD5, sorted. A [code].tres[/code] or [code].tscn[/code] file is hashed
+## with LF line endings and without the uid attributes on its header and ext_resource lines,
+## which editor resaves and checkouts change on their own; any other change still counts. A
+## [code].remap[/code] pointer counts as the file it points to, under the original name, so an
+## export's content is what it covers; that file, like any other, is hashed as stored.
 static func content_digest(roots: PackedStringArray) -> String:
 	var lines: PackedStringArray = []
 	for i: int in roots.size():
@@ -179,12 +215,30 @@ static func _digest_folder(
 	for file: String in DirAccess.get_files_at(folder):
 		var listed: String = relative.path_join(file)
 		var path: String = folder.path_join(file)
+		var md5: String = ""
 		if file.ends_with(_REMAP_SUFFIX):
 			listed = listed.trim_suffix(_REMAP_SUFFIX)
-			path = _remap_target(path)
-		lines.append("%d:%s=%s" % [root_index, listed, FileAccess.get_md5(path)])
+			md5 = FileAccess.get_md5(_remap_target(path))
+		elif _TEXT_RESOURCE_EXTENSIONS.has(file.get_extension().to_lower()):
+			md5 = _canonical_text(path).md5_text()
+		else:
+			md5 = FileAccess.get_md5(path)
+		lines.append("%d:%s=%s" % [root_index, listed, md5])
 	for child: String in DirAccess.get_directories_at(folder):
 		_digest_folder(root, relative.path_join(child), root_index, lines)
+
+
+# The text resource at path with LF line endings and no uid attributes (_UID_ATTRIBUTE_PATTERN);
+# empty, loudly, when it can't be read.
+static func _canonical_text(path: String) -> String:
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		push_error("NetContract: a content file can't be read - %s (%s)" % [
+			path, error_string(FileAccess.get_open_error()),
+		])
+		return ""
+	var text: String = file.get_as_text().replace("\r\n", "\n")
+	return _uid_attribute.sub(text, "$1", true)
 
 
 # The file a remap pointer at path names, or path itself when it names none.
