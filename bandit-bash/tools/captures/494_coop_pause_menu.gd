@@ -15,7 +15,7 @@ extends "res://tools/captures/capture_group.gd"
 ## and its Forfeit question. Nothing pauses, so the map's hint bar shows the menu's co-op set. Each
 ## question is shot, then declined, and the menu closes after, so 500 starts on the map as before.
 ## [br]
-## Needs: the map, as the co-op battle screen shots leave it (492_coop_battle_screen).
+## Needs: the map, as the rune bar shots leave it (493_battle_rune_bar_keywords).
 
 
 func run() -> bool:
