@@ -6,7 +6,7 @@
 # File:     run_screen.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 23, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 class_name RunScreen
@@ -23,6 +23,10 @@ extends RefCounted
 ## surprise combat; an Unknown with none, the placeholder. At a combat's results, solo or co-op:
 ## the combat results screen, for the local seat. With no run: the battle screen. A screen opened
 ## at the wrong stage sends the run on with [method go], which first settles an Unknown's entry.
+## [b]Seat moves:[/b] each seat settles its starting offer on its own and waits on the map, so a
+## move out of the offer, or from the map into it, is this machine's alone; a move for everyone
+## names the map there, and each machine opens its own seat's screen for it
+## ([method for_local_seat]). Otherwise a teammate's open offer would send everyone back to it.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 
@@ -73,12 +77,39 @@ static func of(session: CampaignSession) -> SceneRouter.Screen:
 	return SceneRouter.Screen.GAMEPLAY
 
 
-## Goes to the screen the run in progress belongs on ([method of]), for everyone, after settling
-## the entry of an Unknown node a solo run is in ([method enter_unknown]).
+## Goes to the screen the run in progress belongs on ([method of]), after settling the entry of an
+## Unknown node a solo run is in ([method enter_unknown]): on this machine alone for a seat move
+## (see the class doc), else for everyone.
 static func go() -> void:
 	var session: CampaignSession = CampaignService.session
 	enter_unknown(session)
-	SceneRouter.goto_screen_for_everyone(of(session))
+	var screen: SceneRouter.Screen = of(session)
+	if _is_seat_move(SceneRouter.current_screen, screen):
+		SceneRouter.goto_screen(screen)
+		return
+	SceneRouter.goto_screen_for_everyone(_for_everyone(screen))
+
+
+## Goes to the screen the run belongs on for everyone, never as a seat move: the host's answer to
+## a client's route request, so its own open offer never chooses where everyone goes.
+static func go_for_everyone() -> void:
+	var session: CampaignSession = CampaignService.session
+	enter_unknown(session)
+	SceneRouter.goto_screen_for_everyone(_for_everyone(of(session)))
+
+
+## The screen this machine opens when everyone is sent to [param screen]: the local seat's
+## starting offer in place of the map while that offer is open in [param session]'s run, else
+## [param screen].
+static func for_local_seat(
+		session: CampaignSession, screen: SceneRouter.Screen
+) -> SceneRouter.Screen:
+	if (
+			screen == SceneRouter.Screen.CAMPAIGN_MAP
+			and of(session) == SceneRouter.Screen.STARTING_HEIRLOOM
+	):
+		return SceneRouter.Screen.STARTING_HEIRLOOM
+	return screen
 
 
 ## Settles the entry of the Unknown node [param session]'s run is in, each step through
@@ -103,3 +134,24 @@ static func enter_unknown(session: CampaignSession) -> void:
 # of the host's run (ClientMirror). The battle screen's co-op paths still test is_solo_run().
 static func _has_run(session: CampaignSession) -> bool:
 	return session != null and session.run != null
+
+
+# Whether going from screen from to screen to is the local seat's own move, made on this machine
+# alone: any move out of its starting offer, or from the map into it. From anywhere else (Loading,
+# a node) the move is everyone's, though it may land on the offer.
+static func _is_seat_move(from: SceneRouter.Screen, to: SceneRouter.Screen) -> bool:
+	return (
+			from == SceneRouter.Screen.STARTING_HEIRLOOM
+			or (
+					from == SceneRouter.Screen.CAMPAIGN_MAP
+					and to == SceneRouter.Screen.STARTING_HEIRLOOM
+			)
+	)
+
+
+# screen as a move for everyone names it: the map in place of a seat's starting offer, which each
+# machine opens for its own seat instead (for_local_seat()).
+static func _for_everyone(screen: SceneRouter.Screen) -> SceneRouter.Screen:
+	if screen == SceneRouter.Screen.STARTING_HEIRLOOM:
+		return SceneRouter.Screen.CAMPAIGN_MAP
+	return screen

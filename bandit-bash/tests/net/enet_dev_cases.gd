@@ -6,7 +6,7 @@
 # File:     enet_dev_cases.gd
 # Author:
 # Created:  November 23, 2026
-# Modified: November 23, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 extends "res://tests/net/net_case_base.gd"
@@ -14,13 +14,14 @@ extends "res://tests/net/net_case_base.gd"
 ## the flags ask for a host or a join in a debug build, and for nothing, with why, in a release
 ## build or when malformed; entering the lobby with the host flag hosts on ENet on the real
 ## autoload (stand-in ids, "Player <id>") and leaving ends it; the lobby screen's status names the
-## transport and its address under either flag, and is as before without one. [b]Two
-## instances:[/b] two headless instances of this project, launched with the flags and each its own
-## user folder, play a battle to its end (every map ended, or the co-op run lost) over ENet through
-## the real autoloads, each driven by [PairPeer] from [code]harness/enet_pair_peer.gd[/code]; every
-## map's hash must match on both, every relay message must arrive, and both logs are kept in
-## [code]user://logs/[/code]. Only the instances this case started are ever stopped. Skipped
-## without a test user folder.
+## transport and its address under either flag, and is as before without one. [b]Pairs:[/b]
+## headless instances of this project, two by two, launched with the flags and each its own user
+## folder, driven over ENet through the real autoloads by [PairPeer] (from
+## [code]harness/enet_pair_peer.gd[/code]), all pairs at once: one plays a battle to its end, every
+## map's hash matching on both and every relay message arriving; two take their starting
+## heirlooms on the real screens, the host first and the client first, each side entering each
+## screen once and the client asking for one route only. Logs stay in [code]user://logs/[/code];
+## only instances this case started are stopped. Skipped without a test user folder.
 
 # The suite that runs this file; tests/case_files.gd finds it by this line.
 const SUITE: String = "net"
@@ -35,15 +36,24 @@ const LOBBY_SCENE_PATH: String = "res://ui/screens/lobby_screen.tscn"
 const LOCALHOST: String = "127.0.0.1"
 const HOST_ARG: String = "--enet-host="
 const JOIN_ARG: String = "--enet-join="
+# PairPeer's offer mode, and which side takes its starting heirloom first: "host" or "client".
+const OFFER_ARG: String = "--pair-offer="
+const OFFER_ORDERS: PackedStringArray = ["host", "client"]
 
 # What the instances print: the host's listening line (SteamNetwork's), each instance's end, a
-# failure, and one line per map with its state hash.
+# failure, one line per map with its state hash, and an offer pair's screens entered.
 const HOSTING_LINE: String = "Hosting on ENet "
 const DONE_LINE: String = "PAIR DONE"
 const FAILED_LINE: String = "PAIR FAILED"
 const MAP_LINE: String = "PAIR MAP "
 const STEP_LINE: String = "PAIR STEP "
+const SCREENS_LINE: String = "PAIR SCREENS "
 const SEED_LINE: String = "New multiplayer run, seed "
+# SceneRouter's line for a client's route request.
+const ROUTE_ASK_LINE: String = "Asking the host to route everyone"
+const BATTLE_CASE: String = "enet: two instances on one machine play a battle to its end"
+# The screens each side of an offer pair enters, in order, each once.
+const OFFER_SCREENS: String = "LOBBY 1, LOADING 1, STARTING_HEIRLOOM 1, CAMPAIGN_MAP 1"
 
 # Limits that only stop a hang. Alone, an instance boots in seconds and the battle ends in about
 # 10 s; under a full run's load it can take minutes, so each instance fails on its own first
@@ -256,44 +266,76 @@ static func _dev_port() -> int:
 	return peer.host.get_local_port()
 
 
+# Every pair at once (the class doc): the battle, then an offer pair per OFFER_ORDERS.
 func _test_two_instances() -> void:
-	const CASE_NAME: String = "enet: two instances on one machine play a battle to its end"
-	if not _has_test_user_dir():
-		_skip(CASE_NAME, "needs a test user folder (see run_all.gd's class doc)")
-		return
+	var names: PackedStringArray = [BATTLE_CASE]
+	for order: String in OFFER_ORDERS:
+		names.append(_offer_case_name(order))
 	var user_variable: String = _user_variable()
-	if user_variable.is_empty():
-		_skip(CASE_NAME, "no known user folder variable on %s" % [OS.get_name()])
-		return
-	var port: int = _free_port()
-	if port <= 0:
-		_skip(CASE_NAME, "no port can be opened on %s" % [LOCALHOST])
+	var why: String = ""
+	if not _has_test_user_dir():
+		why = "needs a test user folder (see run_all.gd's class doc)"
+	elif user_variable.is_empty():
+		why = "no known user folder variable on %s" % [OS.get_name()]
+	var orders: PackedStringArray = [""]
+	orders.append_array(OFFER_ORDERS)
+	var pairs: Array[Pair] = []
+	for order: String in orders:
+		if not why.is_empty():
+			break
+		var pair: Pair = Pair.new()
+		pair.offer_first = order
+		pair.role = "" if order.is_empty() else "offer_%s_first_" % [order]
+		pair.port = _free_port()
+		for other: Pair in pairs:
+			if other.port == pair.port:
+				pair.port = 0
+		if pair.port <= 0:
+			why = "no free port can be opened on %s" % [LOCALHOST]
+		pairs.append(pair)
+	if not why.is_empty():
+		for case_name: String in names:
+			_skip(case_name, why)
 		return
 	var logs: String = OS.get_user_data_dir().path_join("logs")
 	var roots: String = OS.get_user_data_dir().path_join("enet_pair")
 	DirAccess.make_dir_recursive_absolute(logs)
-	var host: Instance = _launch("host", user_variable, roots, logs, "%s%d" % [HOST_ARG, port])
-	var listening: bool = _wait(START_LIMIT_MSEC, func() -> bool:
-		return not host.is_running() or host.log_text().contains(HOSTING_LINE)
-	) and host.is_running()
-	var client: Instance = null
-	if listening:
-		client = _launch(
-				"client", user_variable, roots, logs, "%s%s:%d" % [JOIN_ARG, LOCALHOST, port]
-		)
-	var instances: Array[Instance] = [host]
-	if client != null:
-		instances.append(client)
+	for pair: Pair in pairs:
+		pair.host = _launch(pair.role + "host", user_variable, roots, logs, pair.flags(true))
+	_wait(START_LIMIT_MSEC, func() -> bool:
+		for pair: Pair in pairs:
+			if pair.host.is_running() and not pair.host.log_text().contains(HOSTING_LINE):
+				return false
+		return true
+	)
+	for pair: Pair in pairs:
+		pair.is_listening = pair.host.is_running() and pair.host.log_text().contains(HOSTING_LINE)
+		if pair.is_listening:
+			pair.client = _launch(
+					pair.role + "client", user_variable, roots, logs, pair.flags(false)
+			)
 	var started_msec: int = Time.get_ticks_msec()
-	var ended: bool = _wait(PAIR_LIMIT_MSEC, func() -> bool:
-		for instance: Instance in instances:
-			if instance.is_running():
+	_wait(PAIR_LIMIT_MSEC, func() -> bool:
+		for pair: Pair in pairs:
+			if not pair.has_ended():
 				return false
 		return true
 	)
 	var seconds: float = (Time.get_ticks_msec() - started_msec) / 1000.0
-	for instance: Instance in instances:
-		instance.stop()
+	var ended: Array[bool] = []
+	for pair: Pair in pairs:
+		ended.append(pair.has_ended())
+		pair.stop()
+	_check_battle(pairs[0], ended[0], seconds)
+	for index: int in range(1, pairs.size()):
+		_check_offer(pairs[index], ended[index])
+
+
+# The battle pair's case: both ended, every map's hash alike on both, every message arrived.
+func _check_battle(pair: Pair, ended: bool, seconds: float) -> void:
+	var listening: bool = pair.is_listening
+	var host: Instance = pair.host
+	var client: Instance = pair.client
 	var host_text: String = host.log_text()
 	var client_text: String = "" if client == null else client.log_text()
 	var host_maps: PackedStringArray = _lines_with(host_text, MAP_LINE)
@@ -307,10 +349,10 @@ func _test_two_instances() -> void:
 			and to_client == _count_text(client_text, "received")
 			and to_host == _count_text(host_text, "received")
 	)
-	print("      enet pair: %.1f s from the client's launch, seed %s; logs: %s, %s" % [
+	print("      enet pair: %.1f s from the clients' launch, seed %s; logs: %s, %s" % [
 		seconds, run_seed, host.log_path, "(no client)" if client == null else client.log_path,
 	])
-	_check(CASE_NAME, (
+	_check(BATTLE_CASE, (
 			listening
 			and ended
 			and host_text.contains(DONE_LINE)
@@ -335,10 +377,53 @@ func _test_two_instances() -> void:
 	])
 
 
-# An instance of this project on PEER_SCRIPT with flag, its user folder under roots/role (through
+# An offer pair's case (BUG-052): both sides end on the map with every offer taken, each entering
+# each screen once (a reload or a route loop counts more), the client asking for one route only
+# (its Loading Continue) and the host hearing one, each side's own pick taken on its screen.
+func _check_offer(pair: Pair, ended: bool) -> void:
+	var host_text: String = pair.host.log_text()
+	var client_text: String = "" if pair.client == null else pair.client.log_text()
+	var host_screens: String = _after_last(host_text, SCREENS_LINE + "host ")
+	var client_screens: String = _after_last(client_text, SCREENS_LINE + "client ")
+	var asks: int = client_text.count(ROUTE_ASK_LINE)
+	var heard: int = host_text.count("NetRelay: received notice")
+	var picks: bool = (
+			host_text.contains("PAIR PICKED host") and client_text.contains("PAIR PICKED client")
+	)
+	_check(_offer_case_name(pair.offer_first), (
+			pair.is_listening
+			and ended
+			and host_text.contains(DONE_LINE)
+			and client_text.contains(DONE_LINE)
+			and not (host_text + client_text).contains(FAILED_LINE)
+			and not (host_text + client_text).contains("SCRIPT ERROR")
+			and host_screens == OFFER_SCREENS
+			and client_screens == OFFER_SCREENS
+			and asks == 1
+			and heard == 1
+			and picks
+	), (
+			"listening %s, ended %s; screens: host %s, client %s; route requests %d, heard %d;"
+			+ " picks %s; steps reached: %s / %s; host's last lines: %s; client's last lines: %s"
+	) % [
+		pair.is_listening, ended, host_screens, client_screens, asks, heard, picks,
+		_after_last(host_text, STEP_LINE), _after_last(client_text, STEP_LINE),
+		_tail(host_text), _tail(client_text),
+	])
+
+
+# The offer pair's case name for the side that picks first.
+static func _offer_case_name(order: String) -> String:
+	return (
+			"enet: two instances take their starting heirlooms on the real screens, the %s first"
+			+ " (BUG-052)"
+	) % [order]
+
+
+# An instance of this project on PEER_SCRIPT with flags, its user folder under roots/role (through
 # user_variable, which Godot builds user:// from) and its log at logs/enet_pair_<role>.log.
 func _launch(
-		role: String, user_variable: String, roots: String, logs: String, flag: String
+		role: String, user_variable: String, roots: String, logs: String, flags: PackedStringArray
 ) -> Instance:
 	var instance: Instance = Instance.new()
 	var user_root: String = roots.path_join(role)
@@ -346,8 +431,9 @@ func _launch(
 	instance.log_path = logs.path_join("enet_pair_%s.log" % [role])
 	var args: PackedStringArray = [
 		"--headless", "--path", ProjectSettings.globalize_path("res://"),
-		"--log-file", instance.log_path, "--script", PEER_SCRIPT, "--", flag,
+		"--log-file", instance.log_path, "--script", PEER_SCRIPT, "--",
 	]
+	args.append_array(flags)
 	var kept: String = OS.get_environment(user_variable)
 	OS.set_environment(user_variable, user_root)
 	instance.pid = OS.create_process(OS.get_executable_path(), args)
@@ -468,17 +554,48 @@ class Instance:
 		return FileAccess.get_file_as_string(log_path)
 
 
-## One instance's side of the two-instance battle, ticked every frame by
-## [code]harness/enet_pair_peer.gd[/code]: the host enters the lobby (which hosts on ENet), waits
-## for the client, starts a 2-seat run, votes for floor 1's Standard combat with the client,
-## begins it and plays its seat; the client enters the lobby (which joins), votes, and plays its
-## seat through its mirror, one command at a time. A seat plays the M1 battle driver
-## ([code]m1_battle_cases.gd[/code]) on every map it has units on, and once its map is won sends
-## its units to a frozen map. When every map has ended, or the co-op run is lost, each prints its
-## maps' hashes; the host ends the battle (a lost run, the run) and waits for the client to leave;
-## the client leaves at the results, or once a lost run's battle is gone. It prints each step it
-## enters, and fails when nothing moves (no new step, no new fact on any map) for
-## [constant STALL_LIMIT] s, or at [constant PEER_LIMIT] s in all.
+# A host and a client playing one run on their own port: its log role prefix, and which side
+# takes its starting heirloom first in offer mode (empty for the battle).
+class Pair:
+	extends RefCounted
+
+	var role: String = ""
+	var offer_first: String = ""
+	var port: int = 0
+	var host: Instance = null
+	var client: Instance = null
+	var is_listening: bool = false
+
+	## The side's flags after [code]--[/code]: host ([param is_host]) or join, and offer mode.
+	func flags(is_host: bool) -> PackedStringArray:
+		var given: PackedStringArray = [
+			"%s%d" % [HOST_ARG, port] if is_host else "%s%s:%d" % [JOIN_ARG, LOCALHOST, port],
+		]
+		if not offer_first.is_empty():
+			given.append(OFFER_ARG + offer_first)
+		return given
+
+	## Whether every instance it launched has stopped.
+	func has_ended() -> bool:
+		return not host.is_running() and (client == null or not client.is_running())
+
+	## Stops its instances still running.
+	func stop() -> void:
+		host.stop()
+		if client != null:
+			client.stop()
+
+
+## One instance's side of a two-instance run, ticked every frame by
+## [code]harness/enet_pair_peer.gd[/code]. The host enters the lobby (which hosts on ENet), waits
+## for the client and starts a 2-seat run; the client enters the lobby (which joins). [b]Battle:[/b]
+## both vote for floor 1's Standard combat and play it, the client through its mirror, each seat
+## by the M1 battle driver on every map it has units on, sending its units to a frozen map once
+## its own is won; when every map ended, or the run is lost, each prints its maps' hashes and the
+## host ends the battle. [b]Offer[/b] ([constant OFFER_ARG]): both take their starting heirlooms on
+## the real screens, one seat first (see [method _tick_offer]). Each prints its steps, fails when
+## nothing moves for [constant STALL_LIMIT] s or at [constant PEER_LIMIT] s, and the client leaves
+## first.
 class PairPeer:
 	extends RefCounted
 
@@ -489,6 +606,7 @@ class PairPeer:
 		BATTLE = 3,
 		PLAY = 4,
 		END = 5,
+		OFFER = 6,
 	}
 
 	## What [method tick] returns: still going, or the instance's exit code.
@@ -504,8 +622,29 @@ class PairPeer:
 	const PEER_LIMIT: float = 270.0
 	# Commands refused before the instance gives up: the driver would otherwise send one again.
 	const REJECTION_LIMIT: int = 20
+	# Seconds the offer step may take before it fails: the loop it looks for never settles. Far
+	# above a settle under load (a few scene loads and two commands).
+	const OFFER_LIMIT: float = 45.0
+	# Seconds the second seat waits after the first's pick before taking its own, and both wait
+	# on the map before reporting, so a screen reloading every frame shows in the counts.
+	const OFFER_HOLD: float = 1.0
 
+	var _tree: SceneTree = null
 	var _is_host: bool = false
+	# Offer mode: which side takes its starting heirloom first ("host" or "client"); empty for the
+	# battle.
+	var _offer_first: String = ""
+	# Offer mode: whether the client pressed Loading's Continue, this side took its heirloom, and
+	# the seconds since the step began, since the first pick was seen, and since both settled on
+	# the map (-1 before).
+	var _has_continued: bool = false
+	var _has_picked: bool = false
+	var _offer_clock: float = 0.0
+	var _first_seen_at: float = -1.0
+	var _settled_at: float = -1.0
+	# Every screen this side entered, in order, with how many times.
+	var _screen_order: Array[int] = []
+	var _screen_entries: Dictionary[int, int] = {}
 	var _step: Step = Step.BOOT
 	var _clock: float = 0.0
 	# Seconds since the step or a map's last fact last moved, and what they were then (-1 before
@@ -522,11 +661,15 @@ class PairPeer:
 	# which takes the host's session, and a client's mirror with it, so neither is a failure then.
 	var _is_run_lost: bool = false
 
-	func _init(_tree: SceneTree) -> void:
+	func _init(tree: SceneTree) -> void:
+		_tree = tree
 		for arg: String in OS.get_cmdline_user_args():
 			_is_host = _is_host or arg.begins_with(HOST_ARG)
+			if arg.begins_with(OFFER_ARG):
+				_offer_first = arg.substr(OFFER_ARG.length())
 		_driver = M1BattleCases.new(PairPeer._ignore)
 		CampaignService.combat_settled.connect(_on_combat_settled)
+		SceneRouter.screen_changed.connect(_on_scene_router_screen_changed)
 
 	## Advances by [param delta] seconds; [constant RUNNING] until this side is done.
 	func tick(delta: float) -> int:
@@ -563,11 +706,18 @@ class PairPeer:
 				return _tick_play()
 			Step.END:
 				return _tick_end()
+			Step.OFFER:
+				return _tick_offer(delta)
 		return RUNNING
 
-	# Host: once the client is admitted, a 2-seat run, its offers settled, and the host's vote.
+	# Host: once the client is admitted, a 2-seat run. Battle: its offers settled, and the host's
+	# vote. Offer: everyone to Loading a frame before the run starts, so the client's mirror starts
+	# there and never reads as a rejoin, which would move it to its offer alone.
 	func _tick_host_lobby() -> int:
 		if not SteamNetwork.has_active_session() or SteamNetwork.get_members().size() < 2:
+			return RUNNING
+		if not _offer_first.is_empty() and SceneRouter.current_screen != SceneRouter.Screen.LOADING:
+			SceneRouter.goto_screen_for_everyone(SceneRouter.Screen.LOADING)
 			return RUNNING
 		var steam_ids: PackedInt64Array = []
 		for member: SteamNetwork.LobbyMember in SteamNetwork.get_members():
@@ -575,6 +725,9 @@ class PairPeer:
 		if SaveService.start_new_multiplayer_run(steam_ids) != OK:
 			return _fail("the run didn't start")
 		var session: CampaignSession = CampaignService.session
+		if not _offer_first.is_empty():
+			_step = Step.OFFER
+			return RUNNING
 		for seat: int in session.run.seat_numbers():
 			session.run.seat_run(seat).pending_offers.erase(StartingOffer.OFFER_KEY)
 		if not _vote(session):
@@ -589,6 +742,9 @@ class PairPeer:
 			return RUNNING
 		session.command_rejected.connect(_on_session_command_rejected)
 		session.combat_encounter_closed.connect(_on_session_combat_encounter_closed)
+		if not _offer_first.is_empty():
+			_step = Step.OFFER
+			return RUNNING
 		if not _vote(session):
 			return _fail("floor 1 has no Standard combat")
 		_step = Step.SEATED
@@ -652,7 +808,7 @@ class PairPeer:
 			print("%s%d %d %s" % [MAP_LINE, map.session_id, map.state_hash(), result])
 
 	# Host: done once the client left. Client: done at the results with the battle closed, or in a
-	# lost run once the battle closed or the mirror went with the run.
+	# lost run once the battle closed or the mirror went with the run; in offer mode at once.
 	func _tick_end() -> int:
 		if _is_host:
 			if SteamNetwork.get_members().size() > 1:
@@ -662,11 +818,122 @@ class PairPeer:
 			if _is_run_lost:
 				if session != null and session.encounter != null:
 					return RUNNING
-			elif session.encounter != null or session.run.flow.stage != RunFlow.Stage.RESULTS:
+			elif _offer_first.is_empty() and (
+					session.encounter != null or session.run.flow.stage != RunFlow.Stage.RESULTS
+			):
 				return RUNNING
 		print("%s %s after %.1f s" % [DONE_LINE, "host" if _is_host else "client", _clock])
 		SteamNetwork.leave_lobby()
 		return PASSED
+
+	# Offer mode, on the real screens: the client presses Loading's Continue (a route request,
+	# as in play); on the starting heirloom screen the first side takes its heirloom at once, the
+	# other OFFER_HOLD s after it saw that pick; once this side is on the map with every offer
+	# taken, and OFFER_HOLD s later still is, it prints its screens and ends.
+	func _tick_offer(delta: float) -> int:
+		_offer_clock += delta
+		if _offer_clock > OFFER_LIMIT:
+			return _fail("the offers didn't settle on the map in %.0f s; screens %s" % [
+				OFFER_LIMIT, _screens_text(),
+			])
+		var session: CampaignSession = CampaignService.session
+		var seat: int = CampaignService.local_seat()
+		var screen: int = SceneRouter.current_screen
+		var scene: Node = _tree.current_scene
+		if not _is_host and not _has_continued and screen == SceneRouter.Screen.LOADING:
+			var button: Button = null if scene == null else scene.get_node_or_null(^"%ContinueButton")
+			if button != null:
+				_has_continued = true
+				button.pressed.emit()
+			return RUNNING
+		var is_settled: bool = true
+		for other: int in session.run.seat_numbers():
+			var is_open: bool = StartingOffer.is_open(session.run.seat_run(other))
+			is_settled = is_settled and not is_open
+			if other != seat and not is_open and _first_seen_at < 0.0:
+				_first_seen_at = _offer_clock
+		if is_settled and screen == SceneRouter.Screen.CAMPAIGN_MAP:
+			if _settled_at < 0.0:
+				_settled_at = _offer_clock
+			elif _offer_clock - _settled_at >= OFFER_HOLD:
+				print("%s%s %s" % [SCREENS_LINE, _side(), _screens_text()])
+				_step = Step.END
+			return RUNNING
+		_settled_at = -1.0
+		var is_first: bool = _is_host == (_offer_first == "host")
+		var is_due: bool = is_first or (
+				_first_seen_at >= 0.0 and _offer_clock - _first_seen_at >= OFFER_HOLD
+		)
+		if (
+				_has_picked or not is_due or screen != SceneRouter.Screen.STARTING_HEIRLOOM
+				or scene == null or not scene.has_method(&"get_view")
+				or not StartingOffer.is_open(session.run.seat_run(seat))
+		):
+			return RUNNING
+		if not _pick(scene.call(&"get_view") as StartingOfferView, session, seat):
+			return _fail("no starting heirloom of seat %d can be taken" % [seat])
+		_has_picked = true
+		print("PAIR PICKED %s seat %d at %.1f s" % [_side(), seat, _clock])
+		return RUNNING
+
+	# Takes seat's starting heirloom on view as a player would: the card of one that asks nothing
+	# more, else the first one with a sub-choice the rules accept (never a weapon's placement),
+	# sent as the view sends it. False when none can be taken.
+	func _pick(view: StartingOfferView, session: CampaignSession, seat: int) -> bool:
+		if view == null:
+			return false
+		var offer: StartingOffer = StartingOffer.pending(session.run.seat_run(seat))
+		var cards: Array[Button] = view.get_cards()
+		var catalog: EffectCatalog.Index = EffectCatalog.index()
+		for index: int in mini(offer.options.size(), cards.size()):
+			var definition: StartingHeirloomDefinition = StartingOffer.definition_of(
+					offer.options[index], catalog
+			)
+			var asks_nothing: bool = definition != null and (
+					definition.bonus == StartingHeirloomDefinition.Bonus.NONE
+					or definition.bonus == StartingHeirloomDefinition.Bonus.GOLD
+					or definition.bonus == StartingHeirloomDefinition.Bonus.HEIRLOOM
+			)
+			if asks_nothing and not cards[index].disabled:
+				cards[index].pressed.emit()
+				return true
+		for index: int in offer.options.size():
+			for command: StartingHeirloomCommand in _choices(offer, index, session, seat):
+				if command.validate(session.run).is_empty():
+					view.command_ready.emit(command)
+					return true
+		return false
+
+	# Every recruit and unit choice of option index of offer for seat, as commands.
+	func _choices(
+			offer: StartingOffer, index: int, session: CampaignSession, seat: int
+	) -> Array[StartingHeirloomCommand]:
+		var commands: Array[StartingHeirloomCommand] = []
+		var recruits: Array[int] = [StartingHeirloomCommand.NO_CHOICE]
+		for recruit: int in offer.options[index].recruits.size():
+			recruits.append(recruit)
+		var units: PackedStringArray = [""]
+		for unit: UnitInstance in session.run.seat_run(seat).army:
+			units.append(unit.instance_id)
+		for recruit: int in recruits:
+			for unit_id: String in units:
+				var command: StartingHeirloomCommand = StartingHeirloomCommand.new(seat, index)
+				command.recruit = recruit
+				command.unit_id = unit_id
+				commands.append(command)
+		return commands
+
+	# Each screen this side entered, in the order first entered, with its count: "LOBBY 1, ...".
+	func _screens_text() -> String:
+		var parts: PackedStringArray = []
+		for screen: int in _screen_order:
+			parts.append("%s %d" % [SceneRouter.Screen.find_key(screen), _screen_entries[screen]])
+		return ", ".join(parts)
+
+	func _on_scene_router_screen_changed(screen: SceneRouter.Screen) -> void:
+		if not _screen_entries.has(screen):
+			_screen_order.append(screen)
+		_screen_entries[screen] = _screen_entries.get(screen, 0) + 1
 
 	# This seat's vote for floor 1's Standard combat; false when there is none.
 	func _vote(session: CampaignSession) -> bool:
