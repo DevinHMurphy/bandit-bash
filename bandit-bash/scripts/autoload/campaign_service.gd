@@ -6,7 +6,7 @@
 # File:     campaign_service.gd
 # Author:
 # Created:  October 28, 2026
-# Modified: November 23, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 extends Node
@@ -355,6 +355,16 @@ func local_seat() -> int:
 	if _mirror != null:
 		return _mirror.local_seat()
 	return _local_seat
+
+
+## Clients only: asks the host for the run now ([method ClientMirror.start]), for a screen whose
+## stage the mirror hasn't reached; the answer reaches the mirror as any sync does. Returns
+## whether it asked: false on the host, in solo, and before the mirror exists.
+func request_sync() -> bool:
+	if _mirror == null:
+		return false
+	_mirror.start()
+	return true
 
 
 ## Makes [param seat] the one [method local_seat] returns, for tests that act as a teammate and

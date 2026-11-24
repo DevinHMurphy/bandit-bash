@@ -6,25 +6,21 @@
 # File:     scene_router.gd
 # Author:
 # Created:  October 9, 2026
-# Modified: November 23, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 extends Node
-## Screen switching for the whole game.
-##
-## Registered as autoload [code]SceneRouter[/code]. Callers ask for a [enum Screen], never a raw
-## path, so a scene can move without touching its callers.[br]
-## [b]Why an autoload:[/b] [code]change_scene_to_file()[/code] frees the whole old scene, so the
-## current and previous screen have to live outside it.[br]
-## [b]Why an autoload hosts the RPC:[/b] autoloads sit at the same NodePath on every peer from
-## boot, so an RPC routed through one can't race scene-load timing the way a node inside a
-## freshly loaded scene can.[br]
-## [b]Invites and lost hosts:[/b] an accepted Steam invite opens a save file if none is open
-## ([code]SaveService.get_invite_save_number()[/code]) and goes to the lobby, which joins it.
-## During a solo run it first asks, through [signal invite_confirmation_requested], whether to
-## Save & Quit. A client whose host leaves mid-match returns to the Main Menu once it can't get
-## back. [b]Moves for everyone[/b] are the host's: a client's asks the host, which routes
-## everyone by its own run ([method RunScreen.go]).
+## Screen switching for the whole game. Autoload [code]SceneRouter[/code]: callers ask for a
+## [enum Screen], never a path. [code]change_scene_to_file()[/code] frees the old scene, so the
+## screens are kept here, and the RPC lives here too: an autoload has the same NodePath on every
+## peer from boot, so a route can't race a scene's loading.[br]
+## [b]Moves for everyone[/b] are the host's alone ([method goto_screen_for_everyone]), held while
+## the run is paused; one to the screen already showing changes nothing. A client never routes:
+## a client screen out of step with its run asks the host for the run and opens again once the
+## run reaches it. [b]Invites and lost hosts:[/b] an accepted Steam invite opens a save file if
+## none is open and goes to the lobby, which joins it; during a solo run it first asks to Save &
+## Quit ([signal invite_confirmation_requested]). A client whose host leaves mid-match returns to
+## the Main Menu once it can't get back.
 
 ## This machine just entered [param screen].
 signal screen_changed(screen: Screen)
@@ -42,11 +38,11 @@ signal invite_confirmation_requested()
 #                  faction and commander pickers are skipped: the MVP has one of each.
 #   OPTIONS     -> back to whichever screen opened it (only MAIN_MENU links to it)
 #   LOBBY       -> LOADING (everyone, host's Start or Resume), MAIN_MENU
-#   LOADING     -> the run's screen by its stage for the local seat, solo and a co-op host alike
-#                  (RunScreen.of): STARTING_HEIRLOOM, CAMPAIGN_MAP, GAMEPLAY, TREASURE, CAMP,
-#                  ARMORY, GUILDHALL, EVENT, NODE_PLACEHOLDER or COMBAT_RESULTS; GAMEPLAY
-#                  (everyone) with no run, as on a client
-#   STARTING_HEIRLOOM -> CAMPAIGN_MAP (once the heirloom is taken: the first node comes after)
+#   LOADING     -> the run's screen by its stage (RunScreen.of), on the host's or solo's Continue:
+#                  STARTING_HEIRLOOM, CAMPAIGN_MAP, GAMEPLAY, TREASURE, CAMP, ARMORY, GUILDHALL,
+#                  EVENT, NODE_PLACEHOLDER or COMBAT_RESULTS; GAMEPLAY with no run
+#   STARTING_HEIRLOOM -> CAMPAIGN_MAP (everyone, once every seat's heirloom is taken: the first
+#                  node comes after; a seat that has taken one waits on the screen meanwhile)
 #   CAMPAIGN_MAP     -> GAMEPLAY (a combat node chosen), TREASURE, CAMP, ARMORY, GUILDHALL; an
 #                       Unknown node by what it became (RunScreen.go rolls it first): GAMEPLAY,
 #                       TREASURE, ARMORY, GUILDHALL or EVENT, NODE_PLACEHOLDER with no event to draw
@@ -66,9 +62,9 @@ signal invite_confirmation_requested()
 #   LOADING and every in-run screen -> MAIN_MENU on a client whose host left and that couldn't
 #                  get back (session_ended); LOBBY or the screen it held -> the run's screen on a
 #                  client that rejoined a run in progress (CampaignService, on its next sync)
-# "Everyone" edges go through goto_screen_for_everyone(): the host moves everyone; a client's
-# asks the host (a ROUTE notice), which routes everyone by its own run (RunScreen.go), unless the
-# run is paused; solo falls back to local.
+# "Everyone" edges go through goto_screen_for_everyone(): the host's moves everyone, once the run
+# isn't paused; a client's moves nobody (it asks the host for the run and waits for its route);
+# solo falls back to local.
 # Entering START, SAVE_SELECT or MAIN_MENU ends any lobby session, so Leave Match also leaves the
 # lobby. Entering SAVE_SELECT also closes the open save file (save_select_screen.gd).
 # There is no way to MAIN_MENU without an open save file: every path in passes SAVE_SELECT.
@@ -141,15 +137,33 @@ var current_screen: Screen = Screen.START
 ## Screen shown before [member current_screen], used by [method go_back].
 var previous_screen: Screen = Screen.START
 
+# Host: a move for everyone asked while the run was paused, sent once it isn't (_process()); the
+# latest one asked wins. Dropped with the session or a screen change here.
+var _has_held_route: bool = false
+var _held_route: Screen = Screen.START
+
+# Client: the screen showing is out of step with the run, which asked the host for state. It
+# opens again once the run reaches it (_process()), or the host's route moves it on.
+var _is_waiting_for_run: bool = false
+
 
 func _ready() -> void:
+	set_process(false)
 	SteamNetwork.invite_received.connect(_on_steam_network_invite_received)
 	SteamNetwork.session_ended.connect(_on_steam_network_session_ended)
-	# NetRelay is registered after this autoload, so it is in the tree only once every _ready ran.
-	_follow_relay.call_deferred()
 
 
-## Switches to [param screen] on this machine only.
+# Runs only while a route is held or a client screen waits for its run.
+func _process(_delta: float) -> void:
+	if _has_held_route:
+		_send_held_route()
+	if _is_waiting_for_run:
+		_open_once_reached()
+	set_process(_has_held_route or _is_waiting_for_run)
+
+
+## Switches to [param screen] on this machine only, the screen already showing included (it
+## loads again: a rejoined client's rebuilt mirror needs that).
 ##
 ## Entering [constant Screen.START], [constant Screen.SAVE_SELECT] or [constant Screen.MAIN_MENU]
 ## also leaves any lobby.
@@ -170,6 +184,8 @@ func goto_screen(screen: Screen) -> void:
 
 	previous_screen = current_screen
 	current_screen = screen
+	_has_held_route = false
+	_is_waiting_for_run = false
 	NetLog.info(NetLog.Category.SCENE, "Entered screen %s." % [Screen.find_key(screen)])
 
 	# ASSUMPTION: START and MAIN_MENU are outside any match, so entering them ends the lobby.
@@ -180,24 +196,22 @@ func goto_screen(screen: Screen) -> void:
 	screen_changed.emit(screen)
 
 
-## Switches every connected peer, this machine included, to [param screen].
-##
-## Host only in effect: a client's call asks the host to route everyone by its own run instead
-## ([method RunScreen.go]), so [param screen] is the host's to choose. With no active session it
-## is a plain local switch, so solo play uses the same call.
+## Switches every connected peer, this machine included, to [param screen]; a peer already on it
+## stays as it is. Only the host's call moves anyone, and while the run is paused it waits for the
+## run to resume. A client's moves nobody: its run says [param screen] while it shows another, so
+## it asks the host for the run and waits (see the class doc). With no active session it is a
+## plain local switch, so solo play uses the same call.
 func goto_screen_for_everyone(screen: Screen) -> void:
 	if not SteamNetwork.has_active_session():
 		goto_screen(screen)
 		return
 	if not multiplayer.is_server():
-		NetLog.info(
-				NetLog.Category.SCENE,
-				"Asking the host to route everyone (wanted %s)." % [Screen.find_key(screen)]
-		)
-		NetRelay.send_notice(NetRelay.NoticeKind.ROUTE, [])
+		_wait_for_run(screen)
 		return
-
-	_networked_goto_screen.rpc(screen)
+	if NetRelay.is_paused():
+		_hold_route(screen)
+		return
+	_route_everyone(screen)
 
 
 ## Returns to [member previous_screen]. Used by screens reachable from more than one place.
@@ -250,20 +264,69 @@ func _on_steam_network_session_ended() -> void:
 		goto_screen(Screen.MAIN_MENU)
 
 
-func _follow_relay() -> void:
-	NetRelay.notice_received.connect(_on_net_relay_notice_received)
+# Host: every peer to screen, the host by the same RPC.
+func _route_everyone(screen: Screen) -> void:
+	NetLog.info(NetLog.Category.SCENE, "Routing everyone to %s." % [Screen.find_key(screen)])
+	_networked_goto_screen.rpc(screen)
 
 
-# A client asked for a move for everyone; the relay drops one while the run is paused, so the host
-# routes on every one it hears.
-func _on_net_relay_notice_received(_seat: int, kind: int, _data: Array) -> void:
-	if kind != NetRelay.NoticeKind.ROUTE or not SteamNetwork.is_authoritative():
+# Host: screen waits for the run to resume; a later ask replaces it.
+func _hold_route(screen: Screen) -> void:
+	NetLog.info(
+			NetLog.Category.SCENE,
+			"Holding the route to %s until the run resumes." % [Screen.find_key(screen)]
+	)
+	_has_held_route = true
+	_held_route = screen
+	set_process(true)
+
+
+# Host: the held route goes once the run isn't paused; one outlived by its session is dropped.
+func _send_held_route() -> void:
+	if not SteamNetwork.has_active_session() or not multiplayer.is_server():
+		_has_held_route = false
 		return
-	RunScreen.go()
+	if NetRelay.is_paused():
+		return
+	_has_held_route = false
+	_route_everyone(_held_route)
 
 
-# call_local so the host takes the same dispatch path as the clients instead of jumping a full
-# round trip ahead of them.
+# Client: the run says screen, not the one showing. Routing from here would loop whenever this
+# mirror and the host's run disagree, so it moves nobody: it asks for the run (CampaignService)
+# and waits for the host's route, or for the run to reach the screen showing.
+func _wait_for_run(screen: Screen) -> void:
+	var asked: bool = CampaignService.request_sync()
+	NetLog.info(NetLog.Category.SCENE, "Waiting for the host's route: the run says %s; %s." % [
+		Screen.find_key(screen),
+		"asked the host for the run" if asked else "no run to ask for yet",
+	])
+	_is_waiting_for_run = true
+	set_process(true)
+
+
+# Client: once the run reaches the screen showing, that screen opens again, built for the run;
+# it bailed out when it opened out of step. Any other stage waits for the host's route.
+func _open_once_reached() -> void:
+	var session: CampaignSession = CampaignService.session
+	if session == null or session.run == null or RunScreen.of(session) != current_screen:
+		return
+	NetLog.info(
+			NetLog.Category.SCENE,
+			"The run reached %s; opening it again." % [Screen.find_key(current_screen)]
+	)
+	goto_screen(current_screen)
+
+
+# Every peer, the host by call_local, so it takes the same dispatch path as the clients instead of
+# jumping a full round trip ahead of them. A route to the screen already showing changes nothing,
+# so a choice under way there is never lost to a reload.
 @rpc("authority", "reliable", "call_local")
 func _networked_goto_screen(screen: Screen) -> void:
+	if screen == current_screen:
+		NetLog.info(
+				NetLog.Category.SCENE,
+				"Already on %s; the route changes nothing." % [Screen.find_key(screen)]
+		)
+		return
 	goto_screen(screen)

@@ -6,23 +6,22 @@
 # File:     run_screen.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 23, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 class_name RunScreen
 extends RefCounted
 ## Which screen the run this machine holds belongs on, from its stage: the one place that decides,
 ## so the loading gate, the battle screen and every campaign screen route alike, and a continued
-## run reopens where it was saved. Solo and co-op route alike, by the local seat
-## ([method CampaignService.local_seat]).
+## run reopens where it was saved. It reads no seat, so a client's mirror names the screen the
+## host's run does: one read by the local seat looped the host's route against a client's.
 ##
-## On the map: the starting heirloom offer while the local seat's is open ([StartingOffer]), else
-## the campaign map. Inside a node, by the type it plays as ([method CampaignRunState.node_type]):
-## a combat on the battle screen; a Treasure, Camp, Armory or Guildhall on its own screen; an
-## Unknown with an event open on the event screen, or the battle screen once the event chose a
-## surprise combat; an Unknown with none, the placeholder. At a combat's results, solo or co-op:
-## the combat results screen, for the local seat. With no run: the battle screen. A screen opened
-## at the wrong stage sends the run on with [method go], which first settles an Unknown's entry.
+## On the map: the starting heirloom offer while any seat's is open ([StartingOffer]: the team
+## leaves it together), else the campaign map. Inside a node, by the type it plays as: a combat on
+## the battle screen; a Treasure, Camp, Armory or Guildhall on its own screen; an Unknown with an
+## event open on the event screen, or the battle screen once it chose a surprise combat; else the
+## placeholder. At a combat's results, the combat results screen; with no run, the battle screen.
+## A screen opened at the wrong stage sends the run on with [method go].
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 
@@ -42,14 +41,14 @@ static func is_combat(type: CampaignGraph.NodeType) -> bool:
 	)
 
 
-## The screen [param session]'s run belongs on for the local seat (see the class doc).
+## The screen [param session]'s run belongs on, the same for every seat (see the class doc).
 static func of(session: CampaignSession) -> SceneRouter.Screen:
 	if not _has_run(session):
 		return SceneRouter.Screen.GAMEPLAY
 	var run: CampaignRunState = session.run
 	match run.flow.stage:
 		RunFlow.Stage.MAP:
-			if StartingOffer.is_open(run.seat_run(CampaignService.local_seat())):
+			if _is_any_offer_open(run):
 				return SceneRouter.Screen.STARTING_HEIRLOOM
 			return SceneRouter.Screen.CAMPAIGN_MAP
 		RunFlow.Stage.RESULTS:
@@ -73,11 +72,14 @@ static func of(session: CampaignSession) -> SceneRouter.Screen:
 	return SceneRouter.Screen.GAMEPLAY
 
 
-## Goes to the screen the run in progress belongs on ([method of]), for everyone, after settling
-## the entry of an Unknown node a solo run is in ([method enter_unknown]).
+## Goes to the screen the run in progress belongs on ([method of]), for everyone
+## ([method SceneRouter.goto_screen_for_everyone]), after settling the entry of an Unknown node
+## the run is in ([method enter_unknown]). On a client's mirror it settles nothing and moves
+## nobody: only the host routes, so the client asks the host for the run and waits.
 static func go() -> void:
 	var session: CampaignSession = CampaignService.session
-	enter_unknown(session)
+	if session == null or not session.is_mirror:
+		enter_unknown(session)
 	SceneRouter.goto_screen_for_everyone(of(session))
 
 
@@ -103,3 +105,11 @@ static func enter_unknown(session: CampaignSession) -> void:
 # of the host's run (ClientMirror). The battle screen's co-op paths still test is_solo_run().
 static func _has_run(session: CampaignSession) -> bool:
 	return session != null and session.run != null
+
+
+# Whether any seat of run still has its starting heirloom offer open.
+static func _is_any_offer_open(run: CampaignRunState) -> bool:
+	for seat: int in run.seat_numbers():
+		if StartingOffer.is_open(run.seat_run(seat)):
+			return true
+	return false

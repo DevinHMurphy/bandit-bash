@@ -6,7 +6,7 @@
 # File:     coop_seat_cases.gd
 # Author:
 # Created:  November 21, 2026
-# Modified: November 23, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -14,9 +14,9 @@ extends RefCounted
 ## through the real SaveService and CampaignService, the local seat set to 1, at 1280×720. Each
 ## screen shows seat 1's gold, chest, army and choices and sends seat 1's commands; a teammate's
 ## batch rebuilds it (gold, a sold card "bought by Player 1", a Camp choice); a refusal waiting on
-## the teammate names them. The Team panel by mouse, keys and pad. No file under ui/ reads
-## seats[0]. No press here moves the run to another
-## screen, so nothing changes scene.
+## the teammate names them. Seat 1's starting heirloom taken while seat 0's is open waits on the
+## screen by name. The Team panel by mouse, keys and pad. No file under ui/ reads seats[0]. No
+## press here moves the run to another screen, so nothing changes scene.
 ## Writes save files, so it runs only with a test user folder; it deletes user://saves/ before
 ## and after. It never names an autoload: they are reached as nodes.
 
@@ -97,7 +97,7 @@ func run() -> void:
 
 
 # A new 2-seat host run, the local seat set to 1, each seat's gold its own. Both starting offers
-# stay open; the map case puts seat 1's aside, and seat 0's stays open throughout.
+# stay open; the map case puts both aside while the map shows, and seat 0's is open otherwise.
 func _new_run() -> CampaignSession:
 	var ids: PackedInt64Array = []
 	for steam_id: int in STEAM_IDS:
@@ -121,16 +121,22 @@ func _new_run() -> CampaignSession:
 	return session
 
 
+# The map opens only once every seat's offer is resolved (RunScreen.of()); a teammate's offer open
+# again while it shows stands in for a stale screen, and the route refusal still guards it.
 func _test_map() -> void:
 	var session: CampaignSession = _session()
 	var own: SeatRun = session.run.seat_run(1)
+	var host: SeatRun = session.run.seat_run(0)
 	var offer: StartingOffer = StartingOffer.pending(own)
+	var host_offer: StartingOffer = StartingOffer.pending(host)
 	own.pending_offers.erase(StartingOffer.OFFER_KEY)
+	host.pending_offers.erase(StartingOffer.OFFER_KEY)
 	var screen: Control = _add(MAP_SCENE)
 	var header: RunHeader = screen.get_node(^"%RunHeader")
 	_check.call("map: the header shows seat 1's gold", (
 			header.get_gold_text() == "Gold %d" % [OWN_GOLD]
 	), header.get_gold_text())
+	host_offer.store(host)
 	_batches.clear()
 	var map_view: CampaignMapView = screen.call(&"get_map_view")
 	map_view.focus_first_reachable()
@@ -140,6 +146,7 @@ func _test_map() -> void:
 			_only_batch(1, true)
 			and status == "Can't go there: Player 1 hasn't taken its starting heirloom."
 	), "%s; %s" % [status, _batches])
+	host.pending_offers.erase(StartingOffer.OFFER_KEY)
 	_press_key(KEY_CTRL)
 	var army: ArmyView = screen.call(&"get_army_view")
 	var rows_own: bool = not army.get_rows().is_empty()
@@ -151,7 +158,6 @@ func _test_map() -> void:
 	), "rows %d, team %s" % [army.get_rows().size(), team_button.visible])
 	_test_team_panel_by_keys(screen, team_button, &"ARMY")
 	own.gold = OWN_GOLD + 1
-	var host: SeatRun = session.run.seat_run(0)
 	var beet: String = session.ids.next_item_id("Heartbeet")
 	host.items[beet] = ItemInstance.new(beet, INGREDIENT)
 	host.convoy.append(beet)
@@ -162,6 +168,7 @@ func _test_map() -> void:
 	), header.get_gold_text())
 	_remove(screen)
 	offer.store(own)
+	host_offer.store(host)
 
 
 # The Team panel over screen, opened from opener by keys: a row per teammate naming them, Enter
@@ -221,8 +228,45 @@ func _test_starting_offer() -> void:
 			_only_batch(1, true)
 			and (view.get_status_text() as String).begins_with("Can't take it:")
 	), view.get_status_text())
+	var line: Label = screen.call(&"get_waiting_line")
+	_check.call("starting offer: with seat 1's own offer open, no waiting line", (
+			view.visible and not line.visible
+	), "view %s, line %s" % [view.visible, line.visible])
 	_remove(screen)
+	_test_starting_wait(own)
 	own.pending_offers.erase(StartingOffer.OFFER_KEY)
+
+
+# Seat 1's offer resolved while seat 0's is open: the screen stays, says who it waits for, and a
+# teammate's batch keeps it there (no scene change), its hints down to what still acts.
+func _test_starting_wait(own: SeatRun) -> void:
+	var offer: StartingOffer = StartingOffer.pending(own)
+	offer.is_resolved = true
+	offer.store(own)
+	var screen: Control = _add(START_SCENE)
+	var view: StartingOfferView = screen.call(&"get_view")
+	var line: Label = screen.call(&"get_waiting_line")
+	var hints: ScreenHints = screen.get_node(^"ScreenHints")
+	_check.call("starting offer: once seat 1's is taken it waits for Player 1 by name", (
+			not view.visible and line.visible and line.text == "Waiting for Player 1."
+			and hints.context == &"WAITING"
+	), "view %s, line %s \"%s\", hints %s" % [view.visible, line.visible, line.text, hints.context])
+	var host: SeatRun = _session().run.seat_run(0)
+	var beet: String = _session().ids.next_item_id("Heartbeet")
+	host.items[beet] = ItemInstance.new(beet, INGREDIENT)
+	host.convoy.append(beet)
+	var router: Node = _root.get_node(^"SceneRouter")
+	var routed: Array = [router.get(&"current_screen"), router.get(&"previous_screen")]
+	_batches.clear()
+	_submit(ScrapItemCommand.new(0, beet))
+	var after: Array = [router.get(&"current_screen"), router.get(&"previous_screen")]
+	_check.call("starting offer: a teammate's batch keeps the waiting seat on the screen", (
+			_only_batch(0, false) and line.visible and line.text == "Waiting for Player 1."
+			and after == routed
+	), "%s; line %s; screens %s, were %s" % [_batches, line.visible, after, routed])
+	_remove(screen)
+	offer.is_resolved = false
+	offer.store(own)
 
 
 func _test_treasure() -> void:

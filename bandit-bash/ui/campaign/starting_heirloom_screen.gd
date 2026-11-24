@@ -6,7 +6,7 @@
 # File:     starting_heirloom_screen.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 21, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 extends Control
@@ -16,8 +16,9 @@ extends Control
 ##
 ## The local seat's offer. The view's command goes through a [CampaignLink], which saves; a
 ## refusal shows its reason on the view and changes nothing. Once the seat's pick resolves, the
-## run's facts play ([CampaignPlayback]), the bar shows the new heirloom and the run goes to the
-## map ([method RunScreen.go]); a teammate's pick shows the header and bar again. A quit before
+## run's facts play ([CampaignPlayback]) and the bar shows the new heirloom; while a teammate's
+## offer is open the view gives way to who the seat waits for. The team leaves together: once
+## every seat's offer is resolved, the run goes to the map ([method RunScreen.go]). A quit before
 ## then Continues here with the same offer, saved in the seat's pending offers. Opened at any
 ## other stage, it sends the run on at once.
 ##
@@ -30,10 +31,12 @@ extends Control
 #   "ui_up" / "ui_down"    -> arrows; d-pad, left stick      (along a unit column or a placement)
 #   "ui_accept"            -> Enter, Space; pad A [Cross]    (take the focused card or choice)
 #   "ui_cancel"            -> Esc; pad B [Circle], Menu [Options] (Back in a sub-choice, read by
-#                             the view or the placement panel; at the three heirlooms the pause
-#                             menu reads it; on the heirloom bar the bar reads it, closing itself)
+#                             the view or the placement panel; at the three heirlooms and while
+#                             waiting the pause menu reads it; on the heirloom bar the bar reads
+#                             it, closing itself)
 #   "heirloom_bar_focus"   -> H; RS pushed left [R stick]    (read by the HeirloomBar: focuses it,
-#                             then back; hints HEIRLOOMS meanwhile)
+#                             then back; hints HEIRLOOMS meanwhile; works while waiting too)
+#   While waiting for a teammate's pick only the last two act: the cards are hidden.
 #   Mouse: a click on a card or choice takes it; hovering an heirloom shows its tooltip.
 # ============================================================
 
@@ -46,6 +49,9 @@ const HINT_CONTEXTS: Dictionary[StartingOfferView.Step, StringName] = {
 	StartingOfferView.Step.PLACEMENT: &"CHOOSE",
 }
 
+# The hint context while the seat waits for a teammate's pick.
+const _WAITING_CONTEXT: StringName = &"WAITING"
+
 var _is_leaving: bool = false
 var _step_context: StringName = &"OFFER"
 var _link: CampaignLink = null
@@ -53,6 +59,7 @@ var _link: CampaignLink = null
 @onready var _header: RunHeader = %RunHeader
 @onready var _heirlooms: HeirloomBar = %HeirloomBar
 @onready var _view: StartingOfferView = %StartingOfferView
+@onready var _waiting_line: Label = %WaitingLine
 @onready var _hints: ScreenHints = %ScreenHints
 
 
@@ -74,6 +81,7 @@ func _ready() -> void:
 	_view.step_changed.connect(_on_view_step_changed)
 	_view.command_ready.connect(_on_view_command_ready)
 	_view.open(session, _link.seat)
+	_show_waiting()
 	CampaignPlayback.play_pending(session)
 
 
@@ -92,11 +100,36 @@ func get_heirloom_bar() -> HeirloomBar:
 	return _heirlooms
 
 
+## The line naming the teammates the seat waits for, shown once its own offer is resolved; for
+## tests.
+func get_waiting_line() -> Label:
+	return _waiting_line
+
+
 # The header and heirloom bar for the local seat, as the run saved them.
 func _show_seat() -> void:
 	var run: CampaignRunState = _link.session.run
 	_header.show_run(run, _link.seat)
 	_heirlooms.show_views(HeirloomViewModel.for_run(run.seat_run(_link.seat)))
+
+
+# Once the seat's own offer is resolved: the view gives way to the teammates it waits for, and the
+# hints to what still acts (the heirloom bar and the pause menu).
+func _show_waiting() -> void:
+	var run: CampaignRunState = _link.session.run
+	var is_waiting: bool = not StartingOffer.is_open(run.seat_run(_link.seat))
+	_view.visible = not is_waiting
+	_waiting_line.visible = is_waiting
+	if not is_waiting:
+		return
+	var open: PackedInt32Array = []
+	for teammate: int in _link.teammates():
+		if StartingOffer.is_open(run.seat_run(teammate)):
+			open.append(teammate)
+	_waiting_line.text = "Waiting for %s." % [EventScreenModel.seat_names(open)]
+	_step_context = _WAITING_CONTEXT
+	if _hints.context != HeirloomBar.HINT_CONTEXT:
+		_hints.context = _step_context
 
 
 func _on_view_command_ready(command: StartingHeirloomCommand) -> void:
@@ -105,8 +138,9 @@ func _on_view_command_ready(command: StartingHeirloomCommand) -> void:
 	_link.send(command)
 
 
-# Any seat's batch: one the screen follows plays its facts; the seat's parts show again; once the
-# seat's own offer is settled, a batch it follows moves the run to the map.
+# Any seat's batch: one the screen follows plays its facts; the seat's parts show again. While any
+# seat's offer is open the team stays here; once none is, a batch the screen follows moves the run
+# to the map, which on a client waits for the host's route.
 func _on_link_batch_resolved(batch: CampaignBatch, is_answer: bool) -> void:
 	if _is_leaving:
 		return
@@ -114,7 +148,10 @@ func _on_link_batch_resolved(batch: CampaignBatch, is_answer: bool) -> void:
 	if follows:
 		CampaignPlayback.play_pending(_link.session)
 	_show_seat()
-	if follows and RunScreen.of(_link.session) != SceneRouter.Screen.STARTING_HEIRLOOM:
+	if RunScreen.of(_link.session) == SceneRouter.Screen.STARTING_HEIRLOOM:
+		_show_waiting()
+		return
+	if follows:
 		_is_leaving = true
 		RunScreen.go()
 

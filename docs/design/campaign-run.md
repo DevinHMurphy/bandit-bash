@@ -86,15 +86,21 @@ different thing.
 ## Routing
 
 `RunScreen` is the one place that decides where the run belongs, so every screen routes alike
-and a continued run reopens where it was saved. Solo and a co-op host route alike, by the local
-seat (`CampaignService.local_seat()`).
+and a continued run reopens where it was saved. It reads no seat, so a client's mirror and the
+host's run always name the same screen.
 
-- `RunScreen.of(session)` reads the stage. On the map: the starting heirloom screen while the local
-  seat's offer is open, else the campaign map. At results: `COMBAT_RESULTS`. Inside a node: the screen for the
-  type it plays as. An Unknown goes to the event screen with an event open, the battle screen once
-  the event chose a fight, and the placeholder with no event.
+- `RunScreen.of(session)` reads the stage. On the map: the starting heirloom screen while any
+  seat's offer is open (the team leaves it together; a seat that has taken its heirloom waits
+  there, "Waiting for <name>"), else the campaign map. At results: `COMBAT_RESULTS`. Inside a
+  node: the screen for the type it plays as. An Unknown goes to the event screen with an event
+  open, the battle screen once the event chose a fight, and the placeholder with no event.
 - `RunScreen.go()` first settles an Unknown's entry (`enter_unknown()`: rolls it, then opens an
   event's event, each saved), then changes screen for everyone.
+- **Only the host routes** (P18 RC1). In co-op, `SceneRouter.goto_screen_for_everyone()` moves
+  every machine on the host's call alone, held while the run is paused; a route to the screen a
+  machine already shows changes nothing there. A client's `go()` settles nothing and moves
+  nobody: it asks the host for the run (`CampaignService.request_sync()`) and waits for the
+  host's route. A client screen that opened before its mirror reached it opens again once it has.
 - Every campaign screen checks `of()` in `_ready()`. If the run belongs elsewhere it calls `go()`
   at once. A screen moves on when a batch it follows moves the run (see Screens and seats).
 - With no run, `of()` returns the battle screen. A co-op combat node also goes there, to its co-op
