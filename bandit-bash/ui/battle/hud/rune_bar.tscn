@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://ui/battle/hud/rune_bar.gd" id="1_bar"]
 [ext_resource type="Theme" path="res://ui/theme/battle_theme.tres" id="2_theme"]
@@ -10,6 +10,7 @@
 [ext_resource type="Texture2D" path="res://assets/sprites/runes/rune_06.png" id="8_recall"]
 [ext_resource type="Texture2D" path="res://assets/sprites/runes/rune_07.png" id="9_shatter"]
 [ext_resource type="Texture2D" path="res://assets/sprites/runes/rune_08.png" id="10_spark"]
+[ext_resource type="PackedScene" path="res://ui/common/text/effect_text.tscn" id="11_text"]
 
 [node name="RuneBar" type="PanelContainer"]
 anchors_preset = 1
@@ -55,10 +56,10 @@ layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 14
 
-[node name="RuneText" type="Label" parent="Column"]
+[node name="RuneText" parent="Column" instance=ExtResource("11_text")]
 unique_name_in_owner = true
 visible = false
 custom_minimum_size = Vector2(280, 0)
 layout_mode = 2
-theme_type_variation = &"HudNote"
-autowrap_mode = 3
+mouse_filter = 2
+theme_type_variation = &"EffectTextMuted"

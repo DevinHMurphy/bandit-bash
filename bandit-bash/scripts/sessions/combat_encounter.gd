@@ -326,11 +326,11 @@ func get_cross_map_instances() -> Array[EffectInstance]:
 
 
 ## Routes [param command] to the session [param session_id], stamped by the encounter's one clock;
-## a rune cast on a teammate's map is routed this way with the caster's seat. A send (on the
-## sender's won map) or a call for aid (on the caller's map) waits in the encounter's own queue
-## instead, never the map's. Nothing resolves until [method resolve_queued]. Returns the arrival
-## stamp, or [constant CombatSession.NO_ARRIVAL] when there is no such session, the map was
-## forfeited or the command's seat forfeited ([method forfeit]): nobody acts there.
+## a rune cast on a teammate's map reaches it too, and is refused there ([CastRuneCommand]). A
+## send (on the sender's won map) or a call for aid (on the caller's map) waits in the encounter's
+## own queue instead, never the map's. Nothing resolves until [method resolve_queued]. Returns the
+## arrival stamp, or [constant CombatSession.NO_ARRIVAL] when there is no such session, the map
+## was forfeited or the command's seat forfeited ([method forfeit]): nobody acts there.
 func submit(command: Command, session_id: int) -> int:
 	var session: CombatSession = get_session(session_id)
 	if session == null or is_closed or _is_out_of_play(command, session_id):

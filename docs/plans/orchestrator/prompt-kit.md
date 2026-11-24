@@ -131,10 +131,10 @@ before writing a prompt and name it in the LANE block.
 
 | Lane | Next | Then | Gated on |
 |------|------|------|----------|
-| A Battle UI | UL12: BUG-049 (a held pad trigger re-arms fast-forward), the HUD rune bar as an EffectText, the detail rows' 4-unit focus inset (issued November 23, 2026) | the event log per viewed map; RB1 after the full-run playtest | RB1: the user's full-run playtest (user, November 20 and 22, 2026) |
-| B Campaign and run | CO19 the co-op pause menu (ready: CO18 merged November 23, 2026), with `RunScreen._has_run`'s stale comment and the forfeiter disconnect |  SaveService's run-start and checkpoint messages under the relay's size check [NT8] | — |
+| A Battle UI | — (free: UL12 merged November 23, 2026) | the event log per viewed map, with a hint for a teammate's fast-forward hold (P11 question 128); RB1 after the full-run playtest | RB1: the user's full-run playtest (user, November 20 and 22, 2026) |
+| B Campaign and run | CO19 the co-op pause menu (issued November 23, 2026), with `RunScreen._has_run`'s stale comment and the forfeiter disconnect |  SaveService's run-start and checkpoint messages under the relay's size check [NT8] | — |
 | C Events | — (free: BF12 merged November 23, 2026) | the event option's expected-heirloom field [a unique heirloom at events] | — |
-| D Engine, AI, content | CO17 clients in the harness: co-op battles (issued November 23, 2026), with `CastRuneCommand`'s doc (P11 question 136 (a)) and a client's mirror of a visitor battle, `BattleView.mismatches()` comparing a token's profile | EN20 plan (a plan session); CT12 after the weapon modification design | — |
-| E Network | — (free: CO18 merged November 23, 2026) | NT8a setup (the macOS export, Lane G's tooling) → NT8b the live check with the user, Windows against a Mac → CO21 | — |
+| D Engine, AI, content | — (free: CO17 merged November 23, 2026) | BUG-012 (a board test leaves objects behind); the EN20 build after its plan (a plan session); CT12 after the weapon modification design | — |
+| E Network | BF13 BUG-050, the ENet pair host stall in full runs | NT8a setup (the macOS export, Lane G's tooling) → NT8b the live check with the user, Windows against a Mac → CO21 | — |
 | G Audio and tooling | — (free: CO15 merged November 23, 2026) | AU2 after the audio direction (M5); the capture builder tidy-up; a fixed glyph family per capture run; TX2 when the user raises it | Nothing ready |
 | F Docs and plans | TL2 the rebalance board artifact (issued November 23, 2026; read-only on the repo, no build slot); CO20 docs, with BUG-033 (P11 answered November 22, 2026) | P12 plan when wanted; P17 parked (user, November 22, 2026: very low priority) | — |

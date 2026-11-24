@@ -21,8 +21,8 @@ extends HintSource
 ## Picking another tile walks the token there locally first ([method BattleView.stage_walk]).
 ## Targets are one [TargetList], however picked; an attack, a staff or a shove confirms on a
 ## [ForecastPanel]. Move previews run on a worker thread, sweeping the seat's move tiles so a
-## hover is a lookup ([method run_preview_frame]). [BattleScreen] binds it ([method bind]); the blocks below give
-## every binding and stage, and [constant LIVE_ACTIONS] each stage's hints.
+## hover is a lookup ([method run_preview_frame]). [BattleScreen] binds it ([method bind]); the
+## blocks below give every binding and stage, and [constant LIVE_ACTIONS] each stage's hints.
 ##
 ## @tutorial(Combat UI plan): docs/plans/2026-11-04-combat-ui.md
 
@@ -81,8 +81,11 @@ extends HintSource
 #                                                faster, in order; released, normal speed. The
 #                                                trigger counts as held past halfway. A key
 #                                                moment (a player unit's defeat, an attack with
-#                                                the Boss) lets the hold go until it is pressed
-#                                                again, solo and co-op. Co-op: on a map other
+#                                                the Boss) lets the hold go until it is released
+#                                                and pressed again, solo and co-op: only the
+#                                                released-to-pressed edge is a press, so a held
+#                                                trigger's motion events, like a key's echo, turn
+#                                                nothing back on. Co-op: on a map other
 #                                                players have units on, fast only while each of
 #                                                them holds too (their NetRelay FAST_FORWARD
 #                                                notices))
@@ -310,7 +313,8 @@ extends HintSource
 # _history. While a co-op panel holds input (set_held()) the stage is rebuilt with nothing
 # selected and nothing is read but fast_forward; releasing rebuilds it again. Sending a command
 # flushes every panel, stage and mark but leaves a staged token where it stands, hides the
-# intents, and waits in INACTIVE; when its playback settles (on a client's mirror, once the host has also settled it: CampaignService.combat_settled) the stage, the
+# intents, and waits in INACTIVE; when its playback settles (on a client's mirror, once the host
+# has also settled it: CampaignService.combat_settled) the stage, the
 # danger zone and the intents are rebuilt from the session, a staged walk still standing (the
 # command rejected) snapping back: a rejection's reason shows and the flow returns to IDLE, a unit
 # with a second move pending reopens MOVE on its new tile, and otherwise IDLE, SWAP or INACTIVE as
@@ -759,6 +763,10 @@ var _is_forward_held: bool = false
 var _forward_holds: Dictionary[int, int] = {}
 var _forward_kind: int = _NO_KIND
 
+# Whether the fast_forward input is down (as its last non-echo event said), which a key moment
+# leaves as it is: only a change of it is a press or a release (_read_fast_forward).
+var _is_forward_down: bool = false
+
 # Whether a co-op panel holds turn input off (set_held()); kept across bind() and unbind().
 var _is_held: bool = false
 
@@ -809,10 +817,10 @@ func _input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _session == null:
-		return
 	if event.is_action(&"fast_forward") and not event.is_echo():
-		_hold_fast_forward(event.is_pressed())
+		_read_fast_forward(event)
+		return
+	if _session == null:
 		return
 	if _is_held:
 		return
@@ -2370,6 +2378,18 @@ func _campaign_service() -> Node:
 
 func _net_relay() -> Node:
 	return get_node_or_null(^"/root/NetRelay") if is_inside_tree() else null
+
+
+# A non-echo fast_forward event. A key or button sends one only when it changes, so each is an
+# edge; the trigger sends motion all the while it is held, so only crossing the action's deadzone
+# is. Only an edge holds or lets go, so a hold a key moment let go stays let go while the input
+# stays down. Read unbound too, so an input held into a battle needs a new press there.
+func _read_fast_forward(event: InputEvent) -> void:
+	var is_down: bool = event.is_action_pressed(&"fast_forward")
+	var is_edge: bool = not (event is InputEventJoypadMotion) or is_down != _is_forward_down
+	_is_forward_down = is_down
+	if is_edge and _session != null:
+		_hold_fast_forward(is_down)
 
 
 # This player's fast-forward hold is now is_held: the other players hear a change, and the board
