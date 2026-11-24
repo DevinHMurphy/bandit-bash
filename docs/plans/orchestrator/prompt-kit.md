@@ -127,12 +127,23 @@ before writing a prompt and name it in the LANE block.
    commit it: the edit stays unstaged and goes in with the next merge commit (user, November 22,
    2026), so a session that fails before merging leaves no commit to undo.
 
+### The gameplay rework branch
+
+Gameplay enhancements build on `map_gameplay_rework` (user, November 24, 2026), made from `dev` at
+1e37508: only CT15 (Movement by type) and MP13 (the maps and enemy placements). Other reworks
+use `dev` as usual unless the user names this branch for them. Their prompts say `git worktree add ../Bandit_Bash-<ID> -b feature/<ID> map_gameplay_rework`
+and "merge map_gameplay_rework into your branch" before the final run. The orchestrator merges them
+into `map_gameplay_rework` through its worktree, `../Bandit_Bash-rework` (the main checkout stays
+on `dev`), with the same full run. After every merge into `dev`, merge `dev` into
+`map_gameplay_rework` too. The user playtests the branch, then it is merged into `dev` or cut.
+The records stay on `dev`.
+
 ## Queue by lane (November 21, 2026)
 
 | Lane | Next | Then | Gated on |
 |------|------|------|----------|
 | A Battle UI | — (free: UL12 merged November 23, 2026) | the event log per viewed map, with a hint for a teammate's fast-forward hold (P11 question 128); RB1 after the full-run playtest | RB1: the user's full-run playtest (user, November 20 and 22, 2026) |
-| B Campaign and run | — (free: CO19 merged November 23, 2026) |  SaveService's run-start and checkpoint messages under the relay's size check [NT8] | — |
+| B Campaign and run | — (free: BF14 merged November 24, 2026: the starting heirloom loop) | P18 RC1, on BF14 |  SaveService's run-start and checkpoint messages under the relay's size check [NT8] | — |
 | C Events | — (free: BF12 merged November 23, 2026) | the event option's expected-heirloom field [a unique heirloom at events] | — |
 | D Engine, AI, content | — (free: CO17 merged November 23, 2026) | BUG-012 (a board test leaves objects behind); the EN20 build after its plan (a plan session); CT12 after the weapon modification design | — |
 | E Network | — (free: BF13 merged November 23, 2026; BUG-051 for the next step) | NT8a setup (the macOS export, Lane G's tooling) → NT8b the live check with the user, Windows against a Mac → CO21 | — |

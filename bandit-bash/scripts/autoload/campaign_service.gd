@@ -78,8 +78,11 @@ var _mirror_seed: int = 0
 # The map each combat command this client sent is for, by token, until it settles.
 var _sent_combat: Dictionary[int, int] = {}
 
-# A client that rejoined a run in progress goes to the run's screen on its next sync.
+# A client that rejoined a run in progress goes to the run's screen on its next sync. One whose
+# mirror started in the lobby has only joined if it is still there then: the host's route to
+# Loading, sent before it could hear the sync request, moved it on a new run (BUG-058).
 var _moves_on_sync: bool = false
+var _is_from_lobby: bool = false
 
 
 func _ready() -> void:
@@ -127,6 +130,7 @@ func _process(delta: float) -> void:
 		return
 	if is_reconnecting:
 		_moves_on_sync = true
+		_is_from_lobby = false
 	if _mirror != null and _mirror_seed != replica.run_seed:
 		_drop_mirror()
 	if _mirror == null:
@@ -430,9 +434,10 @@ func _start_mirror(run_seed: int) -> void:
 	_mirror.sync_gave_up.connect(_on_mirror_sync_gave_up)
 	# After the mirror's own, so the sync has applied when the screen moves.
 	NetRelay.sync_received.connect(_on_net_relay_sync_received)
-	# A normal start sends a client to Loading before its mirror exists; one still in the lobby
-	# joined a run in progress.
+	# Still in the lobby: a join of a run in progress, or a new run whose data came before the
+	# host's route to Loading; the sync tells them apart (_on_net_relay_sync_received()).
 	_moves_on_sync = SceneRouter.current_screen == SceneRouter.Screen.LOBBY
+	_is_from_lobby = _moves_on_sync
 	_mirror.start()
 
 
@@ -444,6 +449,7 @@ func _drop_mirror() -> void:
 	_mirror = null
 	_sent_combat.clear()
 	_moves_on_sync = false
+	_is_from_lobby = false
 	if NetRelay.sync_received.is_connected(_on_net_relay_sync_received):
 		NetRelay.sync_received.disconnect(_on_net_relay_sync_received)
 	var mirrored: CampaignSession = dropped.session
@@ -726,13 +732,24 @@ func _on_mirror_sync_gave_up(attempts: int) -> void:
 
 
 # A client that rejoined goes to the run's screen once the host's state has reached its mirror:
-# its old screen shows a battle the mirror rebuilt, or no run at all.
+# its old screen shows a battle the mirror rebuilt, or no run at all. One that left the lobby
+# since its mirror started was routed there by the host: a new run, which it follows as routed.
 func _on_net_relay_sync_received(
 		_run: Dictionary, _battle: Dictionary, _facts: Array, screen: int
 ) -> void:
 	if not _moves_on_sync or session == null or session.run == null:
 		return
 	_moves_on_sync = false
+	if _is_from_lobby and SceneRouter.current_screen != SceneRouter.Screen.LOBBY:
+		_is_from_lobby = false
+		NetLog.info(
+				NetLog.Category.SCENE,
+				"A new run: the host's route to %s came before its state; staying." % [
+					SceneRouter.Screen.find_key(SceneRouter.current_screen),
+				]
+		)
+		return
+	_is_from_lobby = false
 	var target: SceneRouter.Screen = _rejoin_screen(session, screen)
 	NetLog.info(
 			NetLog.Category.SCENE,

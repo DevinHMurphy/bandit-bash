@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 15, 2026
-# Modified: November 22, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 extends "res://tests/ui/ui_suite.gd"
@@ -159,6 +159,9 @@ var _treasure_step: int = 0
 var _treasure_snapshot: String = ""
 var _treasure_with: Dictionary[String, bool] = {}
 
+# Every screen the router entered since the walk began, in order.
+var _screens_entered: Array[int] = []
+
 # Every grab_focus error the engine logs during the walk (BUG-017).
 var _focus_errors: FocusErrorCatcher = FocusErrorCatcher.new()
 
@@ -255,7 +258,12 @@ func _begin_run() -> void:
 	service.connect(&"session_started", _watch_session)
 	_cue_reader = FactCueListener.new(load(CAMPAIGN_CUES_PATH) as FactCueMap, Callable())
 	_cue_reader.bind_campaign(_cue_bus, _node_type_of_run)
+	_router().connect(&"screen_changed", _on_router_screen_changed)
 	_router().call(&"goto_screen", SCREEN_LOADING)
+
+
+func _on_router_screen_changed(screen: int) -> void:
+	_screens_entered.append(screen)
 
 
 # Records every fact session's bus plays from now on.
@@ -352,6 +360,10 @@ func _on_starting(scene: Node) -> void:
 
 func _on_map(scene: Node) -> void:
 	var run: CampaignRunState = _run()
+	if _expected_node < 0:
+		_check("map: solo went Loading, the offer, the map, each entered once (BUG-052)", (
+				_screens_entered == [SCREEN_LOADING, SCREEN_STARTING, SCREEN_MAP]
+		), str(_screens_entered))
 	if _expected_node >= 0:
 		_check("map %d: back on the map after node %d, its floor reached" % [
 			_entered, _expected_node,

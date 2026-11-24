@@ -14,12 +14,14 @@ extends "res://tests/net/net_case_base.gd"
 ## the flags ask for a host or a join in a debug build, and for nothing, with why, in a release
 ## build or when malformed; entering the lobby with the host flag hosts on ENet on the real
 ## autoload (stand-in ids, "Player <id>") and leaving ends it; the lobby screen's status names the
-## transport and its address under either flag, and is as before without one. [b]Two pairs of
-## instances[/b] of this project at once, each its own port and user folders, driven by [PairPeer]
-## from [code]harness/enet_pair_peer.gd[/code]: each pair takes its starting heirlooms through the
-## real screens, one host first, one client first, and must reach the map with one route per
-## screen and no screen entered twice (from both logs); the host-first pair then plays a battle to
-## its end, every map's hash matching and every relay message arriving. Logs are kept in
+## transport and its address under either flag, and is as before without one. [b]Pairs:[/b]
+## headless instances of this project, two by two, launched with the flags and each its own user
+## folder, driven over ENet through the real autoloads by [PairPeer] (from
+## [code]harness/enet_pair_peer.gd[/code]), all pairs at once: one plays a battle to its end, every
+## map's hash matching on both and every relay message arriving; two take their starting
+## heirlooms on the real screens, the host first and the client first: the first picker waits by
+## name, the host routes Loading, the offer and the map once each, each side enters each screen
+## once, and the client sends no notice and never reads the start as a rejoin. Logs stay in
 ## [code]user://logs/[/code]; only instances this case started are stopped. Skipped without a test
 ## user folder.
 
@@ -36,39 +38,35 @@ const LOBBY_SCENE_PATH: String = "res://ui/screens/lobby_screen.tscn"
 const LOCALHOST: String = "127.0.0.1"
 const HOST_ARG: String = "--enet-host="
 const JOIN_ARG: String = "--enet-join="
+# PairPeer's offer mode, and which side takes its starting heirloom first: "host" or "client".
+const OFFER_ARG: String = "--pair-offer="
+const OFFER_ORDERS: PackedStringArray = ["host", "client"]
 
 # What the instances print: the host's listening line (SteamNetwork's), each instance's end, a
-# failure, and one line per map with its state hash.
+# failure, one line per map with its state hash, and an offer pair's screens entered.
 const HOSTING_LINE: String = "Hosting on ENet "
 const DONE_LINE: String = "PAIR DONE"
 const FAILED_LINE: String = "PAIR FAILED"
 const MAP_LINE: String = "PAIR MAP "
 const STEP_LINE: String = "PAIR STEP "
+const SCREENS_LINE: String = "PAIR SCREENS "
 const SEED_LINE: String = "New multiplayer run, seed "
-# At the starting heirloom: each seat's pick, first or after its teammate's, and the waiting line
-# its screen shows once its own is taken.
-const PICKED_FIRST_LINE: String = "PAIR PICKED first"
-const PICKED_SECOND_LINE: String = "PAIR PICKED after the teammate"
+# The waiting line a seat's heirloom screen shows once its own pick is taken.
 const WAITING_LINE: String = "PAIR WAITING "
-
-# What an instance is told after "--" besides its ENet flag: which seat takes its starting
-# heirloom first (FIRST_HOST or FIRST_CLIENT), and whether the pair ends at the map.
-const FIRST_ARG: String = "--pair-first="
-const STOP_AT_MAP_ARG: String = "--pair-stop-at-map"
-const FIRST_HOST: String = "host"
-const FIRST_CLIENT: String = "client"
+# CampaignService's line for a client that rejoined a run in progress (BUG-058 on a new run).
+const REJOIN_LINE: String = "Rejoined the run"
+const BATTLE_CASE: String = "enet: two instances on one machine play a battle to its end"
+# The screens each side of an offer pair enters, in order, each once.
+const OFFER_SCREENS: String = "LOBBY 1, LOADING 1, STARTING_HEIRLOOM 1, CAMPAIGN_MAP 1"
 # The screens the host routes everyone to on the way to the map, in order: each once.
 const ROUTED_SCREENS: PackedStringArray = ["LOADING", "STARTING_HEIRLOOM", "CAMPAIGN_MAP"]
-# How each machine's screen entries begin, once each: _entries_text()'s form.
-const EXPECTED_ENTRIES: String = "LOBBY 1, LOADING 1, STARTING_HEIRLOOM 1, CAMPAIGN_MAP 1"
-# Probes for a free port before giving up, so the two pairs never share one.
+# Probes for a free port before giving up, so no two pairs share one.
 const PORT_ATTEMPTS: int = 8
 
 # Limits that only stop a hang. Alone, an instance boots in seconds and the battle ends in about
 # 10 s; under a full run's load it can take minutes, so each instance fails on its own first
-# (PairPeer's limits) and this case's limit is a backstop past them. The hosts boot together, so
-# their START waits overlap: about 330 s with PAIR, plus the rest of the net suite (under a
-# minute), stays inside a SUITE_TIMEOUT of 450 s.
+# (PairPeer's limits) and this case's limit is a backstop past them. START + PAIR, about 330 s,
+# plus the rest of the net suite (under a minute) stays inside a SUITE_TIMEOUT of 450 s.
 const START_LIMIT_MSEC: int = 30000
 const PAIR_LIMIT_MSEC: int = 300000
 # Log lines a failure's detail quotes from the end of each instance's log.
@@ -276,66 +274,75 @@ static func _dev_port() -> int:
 	return peer.host.get_local_port()
 
 
-# Two pairs at once, each its own port and user folders: one takes the starting heirlooms host
-# first and plays the battle; the other takes them client first and ends at the map.
+# Every pair at once (the class doc): the battle, then an offer pair per OFFER_ORDERS.
 func _test_two_instances() -> void:
-	const CASE_NAME: String = "enet: two instances on one machine play a battle to its end"
-	var pairs: Array[Pair] = [
-		Pair.new("host", "client", FIRST_HOST, false),
-		Pair.new("host_client_first", "client_client_first", FIRST_CLIENT, true),
-	]
-	var case_names: PackedStringArray = [CASE_NAME]
-	for pair: Pair in pairs:
-		case_names.append(pair.heirloom_case())
-	if not _has_test_user_dir():
-		for case_name: String in case_names:
-			_skip(case_name, "needs a test user folder (see run_all.gd's class doc)")
-		return
+	var names: PackedStringArray = [BATTLE_CASE]
+	for order: String in OFFER_ORDERS:
+		names.append(_offer_case_name(order))
 	var user_variable: String = _user_variable()
-	if user_variable.is_empty():
-		for case_name: String in case_names:
-			_skip(case_name, "no known user folder variable on %s" % [OS.get_name()])
+	var why: String = ""
+	if not _has_test_user_dir():
+		why = "needs a test user folder (see run_all.gd's class doc)"
+	elif user_variable.is_empty():
+		why = "no known user folder variable on %s" % [OS.get_name()]
+	var orders: PackedStringArray = [""]
+	orders.append_array(OFFER_ORDERS)
+	var pairs: Array[Pair] = []
+	var taken: PackedInt32Array = []
+	for order: String in orders:
+		if not why.is_empty():
+			break
+		var pair: Pair = Pair.new()
+		pair.offer_first = order
+		pair.role = "" if order.is_empty() else "offer_%s_first_" % [order]
+		pair.port = _free_port(taken)
+		taken.append(pair.port)
+		if pair.port <= 0:
+			why = "no free port can be opened on %s" % [LOCALHOST]
+		pairs.append(pair)
+	if not why.is_empty():
+		for case_name: String in names:
+			_skip(case_name, why)
 		return
 	var logs: String = OS.get_user_data_dir().path_join("logs")
 	var roots: String = OS.get_user_data_dir().path_join("enet_pair")
 	DirAccess.make_dir_recursive_absolute(logs)
-	var taken: PackedInt32Array = []
 	for pair: Pair in pairs:
-		pair.port = _free_port(taken)
-		if pair.port <= 0:
-			for case_name: String in case_names:
-				_skip(case_name, "no port can be opened on %s" % [LOCALHOST])
-			return
-		taken.append(pair.port)
-		pair.host = _launch(pair.host_role, user_variable, roots, logs, pair.host_args())
+		pair.host = _launch(pair.role + "host", user_variable, roots, logs, pair.flags(true))
+	_wait(START_LIMIT_MSEC, func() -> bool:
+		for pair: Pair in pairs:
+			if pair.host.is_running() and not pair.host.log_text().contains(HOSTING_LINE):
+				return false
+		return true
+	)
 	for pair: Pair in pairs:
-		var hosting: Instance = pair.host
-		pair.is_listening = _wait(START_LIMIT_MSEC, func() -> bool:
-			return not hosting.is_running() or hosting.log_text().contains(HOSTING_LINE)
-		) and hosting.is_running()
+		pair.is_listening = pair.host.is_running() and pair.host.log_text().contains(HOSTING_LINE)
 		if pair.is_listening:
 			pair.client = _launch(
-					pair.client_role, user_variable, roots, logs, pair.client_args()
+					pair.role + "client", user_variable, roots, logs, pair.flags(false)
 			)
-	var instances: Array[Instance] = []
-	for pair: Pair in pairs:
-		instances.append_array(pair.instances())
 	var started_msec: int = Time.get_ticks_msec()
-	var ended: bool = _wait(PAIR_LIMIT_MSEC, func() -> bool:
-		for instance: Instance in instances:
-			if instance.is_running():
+	_wait(PAIR_LIMIT_MSEC, func() -> bool:
+		for pair: Pair in pairs:
+			if not pair.has_ended():
 				return false
 		return true
 	)
 	var seconds: float = (Time.get_ticks_msec() - started_msec) / 1000.0
-	for instance: Instance in instances:
-		instance.stop()
+	var ended: Array[bool] = []
 	for pair: Pair in pairs:
-		_check_heirlooms(pair, ended)
-	var battle: Pair = pairs[0]
-	var host: Instance = battle.host
-	var client: Instance = battle.client
-	var listening: bool = battle.is_listening
+		ended.append(pair.has_ended())
+		pair.stop()
+	_check_battle(pairs[0], ended[0], seconds)
+	for index: int in range(1, pairs.size()):
+		_check_offer(pairs[index], ended[index])
+
+
+# The battle pair's case: both ended, every map's hash alike on both, every message arrived.
+func _check_battle(pair: Pair, ended: bool, seconds: float) -> void:
+	var listening: bool = pair.is_listening
+	var host: Instance = pair.host
+	var client: Instance = pair.client
 	var host_text: String = host.log_text()
 	var client_text: String = "" if client == null else client.log_text()
 	var host_maps: PackedStringArray = _lines_with(host_text, MAP_LINE)
@@ -349,10 +356,10 @@ func _test_two_instances() -> void:
 			and to_client == _count_text(client_text, "received")
 			and to_host == _count_text(host_text, "received")
 	)
-	print("      enet pair: %.1f s from the client's launch, seed %s; logs: %s, %s" % [
+	print("      enet pair: %.1f s from the clients' launch, seed %s; logs: %s, %s" % [
 		seconds, run_seed, host.log_path, "(no client)" if client == null else client.log_path,
 	])
-	_check(CASE_NAME, (
+	_check(BATTLE_CASE, (
 			listening
 			and ended
 			and host_text.contains(DONE_LINE)
@@ -377,63 +384,70 @@ func _test_two_instances() -> void:
 	])
 
 
-# The starting heirlooms of pair, from both logs: each seat took its own through the real
-# StartingHeirloomScreen in the pair's order, the first one shown waiting for the other by name;
-# the host routed everyone to Loading, the heirloom screen and the map once each; each machine
-# entered those in order and no screen twice; no client sent a notice, and the host dropped no
-# route.
-func _check_heirlooms(pair: Pair, ended: bool) -> void:
+# An offer pair's case (BUG-052, P18 question 1): both sides end on the map with every offer
+# taken, each entering each screen once (a reload or a route loop counts more); the host routed
+# everyone to Loading, the offer and the map once each; the first picker's screen waited for its
+# teammate by name; the client sent no notice (only the host routes, RC1), the host heard none,
+# and the client didn't read the new run as a rejoin (BUG-058).
+func _check_offer(pair: Pair, ended: bool) -> void:
 	var host_text: String = pair.host.log_text()
 	var client_text: String = "" if pair.client == null else pair.client.log_text()
-	var first: String = host_text if pair.first == FIRST_HOST else client_text
-	var second: String = client_text if pair.first == FIRST_HOST else host_text
-	var waited_for: String = "Player 2" if pair.first == FIRST_HOST else "Player 1"
+	var host_screens: String = _after_last(host_text, SCREENS_LINE + "host ")
+	var client_screens: String = _after_last(client_text, SCREENS_LINE + "client ")
 	var routes: PackedInt32Array = []
 	for screen: String in ROUTED_SCREENS:
-		routes.append(_lines_with(host_text, "Routing everyone to %s." % [screen]).size())
-	var host_entries: String = _entries_text(host_text)
-	var client_entries: String = _entries_text(client_text)
-	print("      enet pair, %s first: routes %s, entries %s / %s; logs: %s, %s" % [
-		pair.first, routes, host_entries, client_entries, pair.host.log_path,
+		routes.append(host_text.count("Routing everyone to %s." % [screen]))
+	var sent: int = client_text.count("NetRelay: sent notice")
+	var heard: int = host_text.count("NetRelay: received notice")
+	var picks: bool = (
+			host_text.contains("PAIR PICKED host") and client_text.contains("PAIR PICKED client")
+	)
+	var first: String = host_text if pair.offer_first == "host" else client_text
+	var waited_for: String = "Player 2" if pair.offer_first == "host" else "Player 1"
+	var is_waiting: bool = first.contains("%sWaiting for %s." % [WAITING_LINE, waited_for])
+	var is_rejoin: bool = client_text.contains(REJOIN_LINE)
+	print("      enet offer pair, %s first: routes %s; screens %s / %s; logs: %s, %s" % [
+		pair.offer_first, routes, host_screens, client_screens, pair.host.log_path,
 		"(no client)" if pair.client == null else pair.client.log_path,
 	])
-	_check(pair.heirloom_case(), (
+	_check(_offer_case_name(pair.offer_first), (
 			pair.is_listening
 			and ended
-			and first.contains(PICKED_FIRST_LINE)
-			and second.contains(PICKED_SECOND_LINE)
-			and first.contains("%sWaiting for %s." % [WAITING_LINE, waited_for])
-			and host_text.contains("%shost MAP" % [STEP_LINE])
-			and client_text.contains("%sclient MAP" % [STEP_LINE])
-			and routes == PackedInt32Array([1, 1, 1])
-			and host_entries.begins_with(EXPECTED_ENTRIES)
-			and client_entries.begins_with(EXPECTED_ENTRIES)
-			and _most_entries(host_text) == 1
-			and _most_entries(client_text) == 1
-			and _lines_with(client_text, "NetRelay: sent notice").is_empty()
-			and _lines_with(host_text, "a route notice").is_empty()
+			and host_text.contains(DONE_LINE)
+			and client_text.contains(DONE_LINE)
 			and not (host_text + client_text).contains(FAILED_LINE)
 			and not (host_text + client_text).contains("SCRIPT ERROR")
+			and host_screens == OFFER_SCREENS
+			and client_screens == OFFER_SCREENS
+			and routes == PackedInt32Array([1, 1, 1])
+			and sent == 0
+			and heard == 0
+			and picks
+			and is_waiting
+			and not is_rejoin
 	), (
-			"listening %s, ended %s; routes %s; entries %s / %s; first picked %s, second picked"
-			+ " %s, waiting %s; steps reached: %s / %s; host's last lines: %s; client's last"
-			+ " lines: %s"
+			"listening %s, ended %s; screens: host %s, client %s; routes %s; notices sent %d,"
+			+ " heard %d; picks %s; first picker's wait: %s; rejoin read %s; steps reached: %s"
+			+ " / %s; host's last lines: %s; client's last lines: %s"
 	) % [
-		pair.is_listening, ended, routes, host_entries, client_entries,
-		first.contains(PICKED_FIRST_LINE), second.contains(PICKED_SECOND_LINE),
-		_after_last(first, WAITING_LINE), _after_last(host_text, STEP_LINE),
+		pair.is_listening, ended, host_screens, client_screens, routes, sent, heard, picks,
+		_after_last(first, WAITING_LINE), is_rejoin, _after_last(host_text, STEP_LINE),
 		_after_last(client_text, STEP_LINE), _tail(host_text), _tail(client_text),
 	])
+
+
+# The offer pair's case name for the side that picks first.
+static func _offer_case_name(order: String) -> String:
+	return (
+			"enet: two instances take their starting heirlooms on the real screens, the %s first"
+			+ " (BUG-052)"
+	) % [order]
 
 
 # An instance of this project on PEER_SCRIPT with flags, its user folder under roots/role (through
 # user_variable, which Godot builds user:// from) and its log at logs/enet_pair_<role>.log.
 func _launch(
-		role: String,
-		user_variable: String,
-		roots: String,
-		logs: String,
-		flags: PackedStringArray,
+		role: String, user_variable: String, roots: String, logs: String, flags: PackedStringArray
 ) -> Instance:
 	var instance: Instance = Instance.new()
 	var user_root: String = roots.path_join(role)
@@ -526,38 +540,6 @@ static func _count_text(text: String, verb: String) -> String:
 	return ", ".join(parts)
 
 
-# Each screen text's log entered, in the order first entered, with how often: "LOBBY 1, LOADING
-# 1, ..." from SceneRouter's "Entered screen X." lines.
-static func _entries_text(text: String) -> String:
-	var counts: Dictionary[String, int] = _entry_counts(text)
-	var parts: PackedStringArray = []
-	for screen: String in counts:
-		parts.append("%s %d" % [screen, counts[screen]])
-	return ", ".join(parts)
-
-
-# The most times text's log entered any one screen; 0 with none.
-static func _most_entries(text: String) -> int:
-	var most: int = 0
-	for times: int in _entry_counts(text).values():
-		most = maxi(most, times)
-	return most
-
-
-# How often text's log entered each screen, by name, in the order first entered (a Dictionary
-# keeps its insertion order).
-static func _entry_counts(text: String) -> Dictionary[String, int]:
-	const MARKER: String = "Entered screen "
-	var counts: Dictionary[String, int] = {}
-	for line: String in text.split("\n"):
-		var at: int = line.find(MARKER)
-		if at < 0:
-			continue
-		var screen: String = line.substr(at + MARKER.length()).strip_edges().trim_suffix(".")
-		counts[screen] = counts.get(screen, 0) + 1
-	return counts
-
-
 # The rest of text's last line holding part, after it, or "(none)": the step an instance
 # reached, or the host's run seed.
 static func _after_last(text: String, part: String) -> String:
@@ -577,51 +559,6 @@ static func _tail(text: String) -> String:
 			continue
 		kept.append(trimmed)
 	return " | ".join(kept.slice(maxi(kept.size() - TAIL_LINES, 0)))
-
-
-# Two instances on their own port: the roles naming their logs and user folders, which seat takes
-# its starting heirloom first, and whether they end at the map.
-class Pair:
-	extends RefCounted
-
-	var host_role: String = ""
-	var client_role: String = ""
-	var first: String = ""
-	var is_stopping_at_map: bool = false
-	var port: int = 0
-	var is_listening: bool = false
-	var host: Instance = null
-	var client: Instance = null
-
-	func _init(host_name: String, client_name: String, first_seat: String, stops: bool) -> void:
-		host_role = host_name
-		client_role = client_name
-		first = first_seat
-		is_stopping_at_map = stops
-
-	## The case this pair's starting heirlooms report as.
-	func heirloom_case() -> String:
-		return "enet: two instances take the starting heirlooms %s first through the real" % [
-			first,
-		] + " screens and reach the map together, routed once"
-
-	func host_args() -> PackedStringArray:
-		return _with_pair_flags("%s%d" % [HOST_ARG, port])
-
-	func client_args() -> PackedStringArray:
-		return _with_pair_flags("%s%s:%d" % [JOIN_ARG, LOCALHOST, port])
-
-	func instances() -> Array[Instance]:
-		var launched: Array[Instance] = [host]
-		if client != null:
-			launched.append(client)
-		return launched
-
-	func _with_pair_flags(enet_flag: String) -> PackedStringArray:
-		var flags: PackedStringArray = [enet_flag, "%s%s" % [FIRST_ARG, first]]
-		if is_stopping_at_map:
-			flags.append(STOP_AT_MAP_ARG)
-		return flags
 
 
 # One launched instance: its process and its log.
@@ -645,19 +582,48 @@ class Instance:
 		return FileAccess.get_file_as_string(log_path)
 
 
-## One instance's side of the two-instance run, ticked every frame by
-## [code]harness/enet_pair_peer.gd[/code]: the host enters the lobby (which hosts on ENet), waits
-## for the client, starts a 2-seat run and routes everyone to Loading, as the lobby's Start does;
-## once the client's mirror holds the run it presses Loading's Continue. Each seat takes its
-## starting heirloom through the real StartingHeirloomScreen, in the order [constant FIRST_ARG]
-## names, printing the waiting line its screen shows; the host's route takes both to the map.
-## There, with [constant STOP_AT_MAP_ARG], the client leaves and the host follows; else both vote
-## for floor 1's Standard combat, the host begins it, and each plays its seat by command (the
-## client through its mirror, one at a time) with the M1 battle driver, on every map it has units
-## on, sending its units to a frozen map once its own is won. When every map has ended, or the
-## co-op run is lost, each prints its maps' hashes; the host ends the battle and waits for the
-## client to leave at the results, or once a lost run's battle is gone. Fails when no step or fact
-## moves for [constant STALL_LIMIT] s, or at [constant PEER_LIMIT] s in all.
+# A host and a client playing one run on their own port: its log role prefix, and which side
+# takes its starting heirloom first in offer mode (empty for the battle).
+class Pair:
+	extends RefCounted
+
+	var role: String = ""
+	var offer_first: String = ""
+	var port: int = 0
+	var host: Instance = null
+	var client: Instance = null
+	var is_listening: bool = false
+
+	## The side's flags after [code]--[/code]: host ([param is_host]) or join, and offer mode.
+	func flags(is_host: bool) -> PackedStringArray:
+		var given: PackedStringArray = [
+			"%s%d" % [HOST_ARG, port] if is_host else "%s%s:%d" % [JOIN_ARG, LOCALHOST, port],
+		]
+		if not offer_first.is_empty():
+			given.append(OFFER_ARG + offer_first)
+		return given
+
+	## Whether every instance it launched has stopped.
+	func has_ended() -> bool:
+		return not host.is_running() and (client == null or not client.is_running())
+
+	## Stops its instances still running.
+	func stop() -> void:
+		host.stop()
+		if client != null:
+			client.stop()
+
+
+## One instance's side of a two-instance run, ticked every frame by
+## [code]harness/enet_pair_peer.gd[/code]. The host enters the lobby (which hosts on ENet), waits
+## for the client and starts a 2-seat run; the client enters the lobby (which joins).
+## [b]Battle:[/b] both vote for floor 1's Standard combat and play it, the client through its
+## mirror, each seat by the M1 battle driver on every map it has units on, sending its units to a
+## frozen map once its own is won; when every map ended, or the run is lost, each prints its maps'
+## hashes and the host ends the battle. [b]Offer[/b] ([constant OFFER_ARG]): both take their
+## starting heirlooms on the real screens, one seat first ([method _tick_offer]). Each prints its
+## steps and fails when nothing moves for [constant STALL_LIMIT] s or at [constant PEER_LIMIT] s;
+## the client leaves first.
 class PairPeer:
 	extends RefCounted
 
@@ -668,9 +634,7 @@ class PairPeer:
 		BATTLE = 3,
 		PLAY = 4,
 		END = 5,
-		LOADING = 6,
-		HEIRLOOM = 7,
-		MAP = 8,
+		OFFER = 6,
 	}
 
 	## What [method tick] returns: still going, or the instance's exit code.
@@ -686,8 +650,30 @@ class PairPeer:
 	const PEER_LIMIT: float = 270.0
 	# Commands refused before the instance gives up: the driver would otherwise send one again.
 	const REJECTION_LIMIT: int = 20
+	# Seconds the offer step may take before it fails: the loop it looks for never settles. Far
+	# above a settle under load (a few scene loads and two commands).
+	const OFFER_LIMIT: float = 45.0
+	# Seconds the second seat waits after the first's pick before taking its own, and both wait
+	# on the map before reporting, so a screen reloading every frame shows in the counts.
+	const OFFER_HOLD: float = 1.0
 
+	var _tree: SceneTree = null
 	var _is_host: bool = false
+	# Offer mode: which side takes its starting heirloom first ("host" or "client"); empty for the
+	# battle.
+	var _offer_first: String = ""
+	# Offer mode: whether the host pressed Loading's Continue, this side took its heirloom and
+	# printed its screen's waiting line, and the seconds since the step began, since the first
+	# pick was seen, and since both settled on the map (-1 before).
+	var _has_continued: bool = false
+	var _has_picked: bool = false
+	var _has_shown_waiting: bool = false
+	var _offer_clock: float = 0.0
+	var _first_seen_at: float = -1.0
+	var _settled_at: float = -1.0
+	# Every screen this side entered, in order, with how many times.
+	var _screen_order: Array[int] = []
+	var _screen_entries: Dictionary[int, int] = {}
 	var _step: Step = Step.BOOT
 	var _clock: float = 0.0
 	# Seconds since the step or a map's last fact last moved, and what they were then (-1 before
@@ -703,25 +689,16 @@ class PairPeer:
 	# Whether this side saw the co-op run lost (CombatEncounter.is_run_lost): its end ends the run,
 	# which takes the host's session, and a client's mirror with it, so neither is a failure then.
 	var _is_run_lost: bool = false
-	var _tree: SceneTree = null
-	# Which seat takes its starting heirloom first (FIRST_HOST or FIRST_CLIENT), and whether the
-	# pair ends at the map.
-	var _first: String = FIRST_HOST
-	var _stops_at_map: bool = false
-	# This seat's pick was sent from the heirloom screen held here; its waiting line was printed.
-	var _has_picked: bool = false
-	var _heirloom_screen: Node = null
-	var _has_shown_waiting: bool = false
 
 	func _init(tree: SceneTree) -> void:
 		_tree = tree
 		for arg: String in OS.get_cmdline_user_args():
 			_is_host = _is_host or arg.begins_with(HOST_ARG)
-			_stops_at_map = _stops_at_map or arg == STOP_AT_MAP_ARG
-			if arg.begins_with(FIRST_ARG):
-				_first = arg.trim_prefix(FIRST_ARG)
+			if arg.begins_with(OFFER_ARG):
+				_offer_first = arg.substr(OFFER_ARG.length())
 		_driver = M1BattleCases.new(PairPeer._ignore)
 		CampaignService.combat_settled.connect(_on_combat_settled)
+		SceneRouter.screen_changed.connect(_on_scene_router_screen_changed)
 
 	## Advances by [param delta] seconds; [constant RUNNING] until this side is done.
 	func tick(delta: float) -> int:
@@ -748,12 +725,6 @@ class PairPeer:
 				_step = Step.LOBBY
 			Step.LOBBY:
 				return _tick_host_lobby() if _is_host else _tick_client_lobby()
-			Step.LOADING:
-				return _tick_loading()
-			Step.HEIRLOOM:
-				return _tick_heirloom()
-			Step.MAP:
-				return _tick_map()
 			Step.SEATED:
 				return _tick_seated()
 			Step.BATTLE:
@@ -764,10 +735,13 @@ class PairPeer:
 				return _tick_play()
 			Step.END:
 				return _tick_end()
+			Step.OFFER:
+				return _tick_offer(delta)
 		return RUNNING
 
-	# Host: once the client is admitted, a 2-seat run, its starting offers kept, and everyone to
-	# Loading, as the lobby's Start does.
+	# Host: once the client is admitted, a 2-seat run. Battle: its offers settled, and the host's
+	# vote. Offer: everyone to Loading once the run has started, in the lobby's Start order, so the
+	# run's data can reach the client before the route (BUG-058).
 	func _tick_host_lobby() -> int:
 		if not SteamNetwork.has_active_session() or SteamNetwork.get_members().size() < 2:
 			return RUNNING
@@ -776,72 +750,29 @@ class PairPeer:
 			steam_ids.append(member.steam_id)
 		if SaveService.start_new_multiplayer_run(steam_ids) != OK:
 			return _fail("the run didn't start")
-		SceneRouter.goto_screen_for_everyone(SceneRouter.Screen.LOADING)
-		_step = Step.LOADING
+		var session: CampaignSession = CampaignService.session
+		if not _offer_first.is_empty():
+			SceneRouter.goto_screen_for_everyone(SceneRouter.Screen.LOADING)
+			_step = Step.OFFER
+			return RUNNING
+		for seat: int in session.run.seat_numbers():
+			session.run.seat_run(seat).pending_offers.erase(StartingOffer.OFFER_KEY)
+		if not _vote(session):
+			return _fail("floor 1 has no Standard combat")
+		_step = Step.SEATED
 		return RUNNING
 
-	# Client: once its mirror holds the run and its seat, it follows the host's routes.
+	# Client: once its mirror holds the run and its seat, its vote.
 	func _tick_client_lobby() -> int:
 		var session: CampaignSession = CampaignService.session
 		if session == null or session.run == null or CampaignService.local_seat() <= 0:
 			return RUNNING
 		session.command_rejected.connect(_on_session_command_rejected)
 		session.combat_encounter_closed.connect(_on_session_combat_encounter_closed)
-		_step = Step.LOADING
-		return RUNNING
-
-	# Host: on Loading, once the client's mirror holds the run (its relay sends its settings only
-	# then), Loading's own Continue. Client: nothing to press; it waits for the host's route.
-	func _tick_loading() -> int:
-		if not _is_host:
-			_step = Step.HEIRLOOM
+		if not _offer_first.is_empty():
+			_step = Step.OFFER
 			return RUNNING
-		var gate: Node = _live_scene(SceneRouter.Screen.LOADING)
-		if gate == null or NetRelay.seat_settings(_teammate()).is_empty():
-			return RUNNING
-		(gate.get_node(^"%ContinueButton") as Button).pressed.emit()
-		_step = Step.HEIRLOOM
-		return RUNNING
-
-	# Each seat's pick through the heirloom screen's view, the second once the first's is taken
-	# in its own run; then on to the map with the host's route.
-	func _tick_heirloom() -> int:
-		var session: CampaignSession = CampaignService.session
-		if _has_picked:
-			_note_waiting()
-			if _live_scene(SceneRouter.Screen.CAMPAIGN_MAP) != null:
-				_step = Step.MAP
-			return RUNNING
-		var screen: Node = _live_scene(SceneRouter.Screen.STARTING_HEIRLOOM)
-		if screen == null:
-			return RUNNING
-		var is_first: bool = (_first == FIRST_HOST) == _is_host
-		if not is_first and StartingOffer.is_open(session.run.seat_run(_teammate())):
-			return RUNNING
-		var command: StartingHeirloomCommand = PairPeer._first_pick(
-				session.run, CampaignService.local_seat()
-		)
-		if command == null:
-			return _fail("no starting heirloom can be taken")
-		_has_picked = true
-		_heirloom_screen = screen
-		print(PICKED_FIRST_LINE if is_first else PICKED_SECOND_LINE)
-		# After the screen's own link, so the screen has shown each batch when it is read.
-		session.campaign_batch_resolved.connect(_on_session_heirloom_batch_resolved)
-		(screen.call(&"get_view") as StartingOfferView).command_ready.emit(command)
-		_note_waiting()
-		return RUNNING
-
-	# On the map: with STOP_AT_MAP_ARG the client leaves, then the host once it has; else each
-	# seat's vote for floor 1's Standard combat.
-	func _tick_map() -> int:
-		if _stops_at_map:
-			if _is_host and SteamNetwork.get_members().size() > 1:
-				return RUNNING
-			print("%s %s after %.1f s" % [DONE_LINE, _side(), _clock])
-			SteamNetwork.leave_lobby()
-			return PASSED
-		if not _vote(CampaignService.session):
+		if not _vote(session):
 			return _fail("floor 1 has no Standard combat")
 		_step = Step.SEATED
 		return RUNNING
@@ -904,7 +835,7 @@ class PairPeer:
 			print("%s%d %d %s" % [MAP_LINE, map.session_id, map.state_hash(), result])
 
 	# Host: done once the client left. Client: done at the results with the battle closed, or in a
-	# lost run once the battle closed or the mirror went with the run.
+	# lost run once the battle closed or the mirror went with the run; in offer mode at once.
 	func _tick_end() -> int:
 		if _is_host:
 			if SteamNetwork.get_members().size() > 1:
@@ -914,41 +845,151 @@ class PairPeer:
 			if _is_run_lost:
 				if session != null and session.encounter != null:
 					return RUNNING
-			elif session.encounter != null or session.run.flow.stage != RunFlow.Stage.RESULTS:
+			elif _offer_first.is_empty() and (
+					session.encounter != null or session.run.flow.stage != RunFlow.Stage.RESULTS
+			):
 				return RUNNING
 		print("%s %s after %.1f s" % [DONE_LINE, "host" if _is_host else "client", _clock])
 		SteamNetwork.leave_lobby()
 		return PASSED
 
-	# The other seat of the run: the client's on the host, the host's on the client.
-	func _teammate() -> int:
-		var local: int = CampaignService.local_seat()
-		for seat: int in CampaignService.session.seats:
-			if seat != local:
-				return seat
-		return SeatDirectory.NO_SEAT
-
-	# The scene showing screen, once the router entered it and it is ready; else null.
-	func _live_scene(screen: SceneRouter.Screen) -> Node:
+	# Offer mode, on the real screens: the host presses Loading's Continue once the client's
+	# mirror holds the run (its relay sends the seat's settings only then); only the host routes
+	# (P18 RC1), so the client presses nothing there. On the starting heirloom screen the first
+	# side takes its heirloom at once, the other OFFER_HOLD s after it saw that pick, and the
+	# first prints the waiting line its screen shows meanwhile; once this side is on the map with
+	# every offer taken, and OFFER_HOLD s later still is, it prints its screens and ends.
+	func _tick_offer(delta: float) -> int:
+		_offer_clock += delta
+		if _offer_clock > OFFER_LIMIT:
+			return _fail("the offers didn't settle on the map in %.0f s; screens %s" % [
+				OFFER_LIMIT, _screens_text(),
+			])
+		var session: CampaignSession = CampaignService.session
+		var seat: int = CampaignService.local_seat()
+		var screen: int = SceneRouter.current_screen
 		var scene: Node = _tree.current_scene
-		if SceneRouter.current_screen != screen or scene == null or not scene.is_node_ready():
-			return null
-		if scene.scene_file_path != SceneRouter.SCREEN_PATHS[screen]:
-			return null
-		return scene
-
-	# Prints the heirloom screen's waiting line once it shows, its own pick taken.
-	func _note_waiting() -> void:
+		if screen == SceneRouter.Screen.LOADING:
+			if _is_host and not _has_continued and _has_teammate_settings(session, seat):
+				var button: Button = (
+						null if scene == null else scene.get_node_or_null(^"%ContinueButton")
+				)
+				if button != null:
+					_has_continued = true
+					button.pressed.emit()
+			return RUNNING
+		if _has_picked:
+			_note_waiting(scene)
+		var is_settled: bool = true
+		for other: int in session.run.seat_numbers():
+			var is_open: bool = StartingOffer.is_open(session.run.seat_run(other))
+			is_settled = is_settled and not is_open
+			if other != seat and not is_open and _first_seen_at < 0.0:
+				_first_seen_at = _offer_clock
+		if is_settled and screen == SceneRouter.Screen.CAMPAIGN_MAP:
+			if _settled_at < 0.0:
+				_settled_at = _offer_clock
+			elif _offer_clock - _settled_at >= OFFER_HOLD:
+				print("%s%s %s" % [SCREENS_LINE, _side(), _screens_text()])
+				_step = Step.END
+			return RUNNING
+		_settled_at = -1.0
+		var is_first: bool = _is_host == (_offer_first == "host")
+		var is_due: bool = is_first or (
+				_first_seen_at >= 0.0 and _offer_clock - _first_seen_at >= OFFER_HOLD
+		)
 		if (
-				_has_shown_waiting or not is_instance_valid(_heirloom_screen)
-				or not _heirloom_screen.has_method(&"get_waiting_line")
+				_has_picked or not is_due or screen != SceneRouter.Screen.STARTING_HEIRLOOM
+				or scene == null or not scene.has_method(&"get_view")
+				or not StartingOffer.is_open(session.run.seat_run(seat))
+		):
+			return RUNNING
+		if not _pick(scene.call(&"get_view") as StartingOfferView, session, seat):
+			return _fail("no starting heirloom of seat %d can be taken" % [seat])
+		_has_picked = true
+		print("PAIR PICKED %s seat %d at %.1f s" % [_side(), seat, _clock])
+		return RUNNING
+
+	# Whether the relay holds the settings of every seat of session's run but seat: a client's
+	# arrive once its mirror holds the run.
+	func _has_teammate_settings(session: CampaignSession, seat: int) -> bool:
+		for other: int in session.run.seat_numbers():
+			if other != seat and NetRelay.seat_settings(other).is_empty():
+				return false
+		return true
+
+	# Prints, once, the waiting line the heirloom screen scene shows while its seat's pick is taken
+	# and a teammate's offer is open.
+	func _note_waiting(scene: Node) -> void:
+		if (
+				_has_shown_waiting or scene == null
+				or not scene.has_method(&"get_waiting_line")
 		):
 			return
-		var line: Label = _heirloom_screen.call(&"get_waiting_line")
+		var line: Label = scene.call(&"get_waiting_line")
 		if line == null or not line.is_visible_in_tree():
 			return
 		_has_shown_waiting = true
 		print("%s%s" % [WAITING_LINE, line.text])
+
+	# Takes seat's starting heirloom on view as a player would: the card of one that asks nothing
+	# more, else the first one with a sub-choice the rules accept (never a weapon's placement),
+	# sent as the view sends it. False when none can be taken.
+	func _pick(view: StartingOfferView, session: CampaignSession, seat: int) -> bool:
+		if view == null:
+			return false
+		var offer: StartingOffer = StartingOffer.pending(session.run.seat_run(seat))
+		var cards: Array[Button] = view.get_cards()
+		var catalog: EffectCatalog.Index = EffectCatalog.index()
+		for index: int in mini(offer.options.size(), cards.size()):
+			var definition: StartingHeirloomDefinition = StartingOffer.definition_of(
+					offer.options[index], catalog
+			)
+			var asks_nothing: bool = definition != null and (
+					definition.bonus == StartingHeirloomDefinition.Bonus.NONE
+					or definition.bonus == StartingHeirloomDefinition.Bonus.GOLD
+					or definition.bonus == StartingHeirloomDefinition.Bonus.HEIRLOOM
+			)
+			if asks_nothing and not cards[index].disabled:
+				cards[index].pressed.emit()
+				return true
+		for index: int in offer.options.size():
+			for command: StartingHeirloomCommand in _choices(offer, index, session, seat):
+				if command.validate(session.run).is_empty():
+					view.command_ready.emit(command)
+					return true
+		return false
+
+	# Every recruit and unit choice of option index of offer for seat, as commands.
+	func _choices(
+			offer: StartingOffer, index: int, session: CampaignSession, seat: int
+	) -> Array[StartingHeirloomCommand]:
+		var commands: Array[StartingHeirloomCommand] = []
+		var recruits: Array[int] = [StartingHeirloomCommand.NO_CHOICE]
+		for recruit: int in offer.options[index].recruits.size():
+			recruits.append(recruit)
+		var units: PackedStringArray = [""]
+		for unit: UnitInstance in session.run.seat_run(seat).army:
+			units.append(unit.instance_id)
+		for recruit: int in recruits:
+			for unit_id: String in units:
+				var command: StartingHeirloomCommand = StartingHeirloomCommand.new(seat, index)
+				command.recruit = recruit
+				command.unit_id = unit_id
+				commands.append(command)
+		return commands
+
+	# Each screen this side entered, in the order first entered, with its count: "LOBBY 1, ...".
+	func _screens_text() -> String:
+		var parts: PackedStringArray = []
+		for screen: int in _screen_order:
+			parts.append("%s %d" % [SceneRouter.Screen.find_key(screen), _screen_entries[screen]])
+		return ", ".join(parts)
+
+	func _on_scene_router_screen_changed(screen: SceneRouter.Screen) -> void:
+		if not _screen_entries.has(screen):
+			_screen_order.append(screen)
+		_screen_entries[screen] = _screen_entries.get(screen, 0) + 1
 
 	# This seat's vote for floor 1's Standard combat; false when there is none.
 	func _vote(session: CampaignSession) -> bool:
@@ -1094,40 +1135,5 @@ class PairPeer:
 			_rejections += 1
 			print("PAIR REFUSED campaign: %s" % [reason])
 
-	# Any batch once this seat picked: the screen has shown it, so its waiting line is read now,
-	# before a route can take the screen away.
-	func _on_session_heirloom_batch_resolved(_batch: CampaignBatch) -> void:
-		_note_waiting()
-
 	static func _ignore(_case_name: String, _passed: bool, _detail: String = "") -> void:
 		pass
-
-	# seat's first starting heirloom that run accepts, with the first sub-choice that fits (the
-	# first recruit or weapon, the weapon to the convoy, the first unit that may be named); a skip
-	# when none can be taken; null when not even that is accepted.
-	static func _first_pick(run: CampaignRunState, seat: int) -> StartingHeirloomCommand:
-		var offer: StartingOffer = StartingOffer.pending(run.seat_run(seat))
-		if offer == null:
-			return null
-		var units: PackedStringArray = [""]
-		for unit: UnitInstance in run.seat_run(seat).army:
-			units.append(unit.instance_id)
-		var choices: PackedInt32Array = [StartingHeirloomCommand.NO_CHOICE, 0]
-		for option: int in offer.options.size():
-			for recruit: int in choices:
-				for weapon: int in choices:
-					for unit_id: String in units:
-						var taking: StartingHeirloomCommand = StartingHeirloomCommand.new(
-								seat, option
-						)
-						taking.recruit = recruit
-						taking.weapon = weapon
-						taking.unit_id = unit_id
-						if weapon != StartingHeirloomCommand.NO_CHOICE:
-							taking.placement = ItemPlacement.new(
-									ItemPlacement.Destination.CONVOY
-							)
-						if taking.validate(run).is_empty():
-							return taking
-		var skip: StartingHeirloomCommand = StartingHeirloomCommand.new(seat)
-		return skip if skip.validate(run).is_empty() else null

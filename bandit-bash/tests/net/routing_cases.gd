@@ -15,10 +15,11 @@ extends "res://tests/net/net_case_base.gd"
 ## screen once, and a route to the screen showing changes nothing; while the run is paused the
 ## host's route is held, then sent once it resumes. A client joined to a bare ENet server routes
 ## nobody and sends no notice: a campaign screen opened out of step with its run asks the host for
-## the run, and opens again once the run reaches it. [code]RunScreen.of()[/code] reads no seat:
-## any seat's open starting offer keeps everyone on it. Solo is as before: a plain local switch,
-## the screen showing loading again. The cases read the router's log lines, poke its frame step
-## and its state as a frame would, and put both back.
+## the run, and opens again once the run reaches it; one routed to Loading before a new run's
+## first sync stays there, never read as a rejoin (BUG-058). [code]RunScreen.of()[/code] reads
+## no seat: any seat's open starting offer keeps everyone on it. Solo is as before: a plain local
+## switch, the screen showing loading again. The cases read the router's log lines, poke its frame
+## step and its state as a frame would, and put both back.
 
 # The suite that runs this file; tests/case_files.gd finds it by this line.
 const SUITE: String = "net"
@@ -50,6 +51,7 @@ func run() -> void:
 	OS.add_logger(_lines)
 	_test_host()
 	_test_client()
+	_test_new_run()
 	_test_seats()
 	_test_solo()
 	OS.remove_logger(_lines)
@@ -194,6 +196,35 @@ func _test_client() -> void:
 	SceneRouter.previous_screen = before_previous
 	SteamNetwork.leave_lobby()
 	server.close()
+
+
+# BUG-058: a client whose mirror started in the lobby, then routed to Loading before the first
+# sync landed, is on a new run: the sync leaves it on Loading instead of moving it as a rejoin.
+func _test_new_run() -> void:
+	var kept_session: CampaignSession = CampaignService.session
+	var kept_screen: SceneRouter.Screen = SceneRouter.current_screen
+	var kept_previous: SceneRouter.Screen = SceneRouter.previous_screen
+	var mirrored: CampaignSession = Fixture.session(RUN_SEED, 2)
+	mirrored.is_mirror = true
+	_open_offer(mirrored.run.seat_run(0))
+	CampaignService.session = mirrored
+	CampaignService._moves_on_sync = true
+	CampaignService._is_from_lobby = true
+	SceneRouter.current_screen = SceneRouter.Screen.LOADING
+	_lines.take()
+	CampaignService._on_net_relay_sync_received({}, {}, [], -1)
+	var lines: PackedStringArray = _lines.take()
+	_check("routing: a new run's sync after the route to Loading isn't a rejoin (BUG-058)", (
+			SceneRouter.current_screen == SceneRouter.Screen.LOADING
+			and not CampaignService._moves_on_sync
+			and not CampaignService._is_from_lobby
+			and _count(lines, "A new run: the host's route to LOADING came before its state;") == 1
+			and _count(lines, "Rejoined the run") == 0
+			and _count(lines, "Entered screen") == 0
+	), "now %s; %s" % [SceneRouter.Screen.find_key(SceneRouter.current_screen), lines])
+	CampaignService.session = kept_session
+	SceneRouter.current_screen = kept_screen
+	SceneRouter.previous_screen = kept_previous
 
 
 # RunScreen.of() reads no seat: while any seat's starting offer is open every seat belongs on it,
