@@ -1,17 +1,10 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://ui/screens/options_screen.gd" id="1_options"]
-[ext_resource type="Script" path="res://ui/common/nav_button.gd" id="1_nav"]
-[ext_resource type="PackedScene" path="res://ui/screens/setting_toggle.tscn" id="2_toggle"]
+[ext_resource type="PackedScene" path="res://ui/screens/options_panel.tscn" id="2_panel"]
 [ext_resource type="PackedScene" path="res://ui/battle/input/input_device_adapter.tscn" id="3_device"]
 [ext_resource type="Script" path="res://ui/common/screen_hints.gd" id="4_hints"]
 [ext_resource type="PackedScene" path="res://ui/battle/hud/control_hint_bar.tscn" id="5_bar"]
-
-[sub_resource type="InputEventAction" id="InputEventAction_back"]
-action = &"ui_cancel"
-
-[sub_resource type="Shortcut" id="Shortcut_back"]
-events = [SubResource("InputEventAction_back")]
 
 [node name="OptionsScreen" type="Control"]
 layout_mode = 3
@@ -40,35 +33,9 @@ theme_type_variation = &"TitleLabel"
 text = "Options"
 horizontal_alignment = 1
 
-[node name="Status" type="Label" parent="Center/Column"]
+[node name="OptionsPanel" parent="Center/Column" instance=ExtResource("2_panel")]
 unique_name_in_owner = true
 layout_mode = 2
-horizontal_alignment = 1
-
-[node name="Rows" type="VBoxContainer" parent="Center/Column"]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="OpeningSwapToggle" parent="Center/Column" instance=ExtResource("2_toggle")]
-unique_name_in_owner = true
-layout_mode = 2
-label_text = "Opening swap"
-hint_text = "On: each battle opens with a window to trade your units' tiles before turn 1, closed by Start. Off: turn 1 starts at once."
-
-[node name="ApplyButton" type="Button" parent="Center/Column"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_type_variation = &"PrimaryButton"
-text = "Apply"
-
-[node name="BackButton" type="Button" parent="Center/Column"]
-unique_name_in_owner = true
-layout_mode = 2
-shortcut = SubResource("Shortcut_back")
-shortcut_in_tooltip = false
-text = "Back"
-script = ExtResource("1_nav")
-action = 1
 
 [node name="InputDeviceAdapter" parent="." instance=ExtResource("3_device")]
 

@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends "res://tests/ui/ui_suite.gd"
@@ -124,7 +124,7 @@ func _walk(device: String) -> void:
 # by the device is heard on the bus; Apply is the primary button and saves; Back by cancel.
 func _walk_options(device: String) -> bool:
 	var scene: Node = current_scene
-	var apply: Button = scene.get_node(^"%ApplyButton")
+	var apply: Button = scene.get_node(^"%OptionsPanel/%ApplyButton")
 	var row: VolumeRow = scene.call(&"get_volume_row", SettingsData.Channel.MASTER)
 	var slider: HSlider = row.get_slider()
 	var style: StyleBoxFlat = row.get_theme_stylebox(&"focus", &"HSlider") as StyleBoxFlat
@@ -163,7 +163,7 @@ func _walk_options(device: String) -> bool:
 				apply.has_focus() and not row.is_showing_focus()
 		), str(other))
 	await _accept(device, apply)
-	var status: Label = scene.get_node(^"%Status")
+	var status: Label = scene.get_node(^"%OptionsPanel/%Status")
 	_check("options (%s): Apply, the main action, saves" % [device], (
 			status.text.begins_with("Applied.")
 	), status.text)
@@ -242,7 +242,10 @@ func _back(device: String, scene: Node, next: int) -> bool:
 	var where: String = "back from %s" % [scene.name]
 	match device:
 		"mouse":
-			var back: Button = scene.get_node(^"%BackButton")
+			# The Options screen's Back is its OptionsPanel's.
+			var back: Button = scene.get_node_or_null(^"%BackButton") as Button
+			if back == null:
+				back = scene.get_node(^"%OptionsPanel/%BackButton") as Button
 			_click(back.get_global_rect().get_center())
 		"pad":
 			_press_pad(JOY_BUTTON_B)

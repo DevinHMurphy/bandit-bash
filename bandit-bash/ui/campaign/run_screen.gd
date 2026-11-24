@@ -99,7 +99,7 @@ static func enter_unknown(session: CampaignSession) -> void:
 			CampaignService.submit_command(open)
 
 
-# Whether session holds its campaign state: solo, or a co-op run on its host. The battle screen's
-# co-op paths still test is_solo_run().
+# Whether session holds its campaign state: a solo run, a co-op host's, or a co-op client's mirror
+# of the host's run (ClientMirror). The battle screen's co-op paths still test is_solo_run().
 static func _has_run(session: CampaignSession) -> bool:
 	return session != null and session.run != null

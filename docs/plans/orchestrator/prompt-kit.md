@@ -97,7 +97,7 @@ before writing a prompt and name it in the LANE block.
   `docs/design/event-bus.md` lists every kind with what records it.
 - `SceneRouter.Screen`: ends at `GUILDHALL = 17` (RN9).
 - `FactCueMap.Shape`: ends at `GUILDHALL_NODE = 9` (RN9).
-- `capture` group numbers in `tools/captures/`: 100 to 700 used; EV3 took 450, RN7 460, RN8 470, RN9 480, EV1G 455, UL9 405, UL10 475, CO10 485 (needs 480), TX3 420, BF8 487 (needs 485), BF9 488 (needs 487); CO12 458 (needs 455), BF10 335, EV7 459, NT5 489 (unrun), CO11 moved to 490, UL11 336. NT6 491 (needs 490).
+- `capture` group numbers in `tools/captures/`: 100 to 700 used; EV3 took 450, RN7 460, RN8 470, RN9 480, EV1G 455, UL9 405, UL10 475, CO10 485 (needs 480), TX3 420, BF8 487 (needs 485), BF9 488 (needs 487); CO12 458 (needs 455), BF10 335, EV7 459, NT5 489 (unrun), CO11 moved to 490, UL11 336. NT6 491 (needs 490). CO19 494 (needs 493).
 
 ## Reviewing a report
 
@@ -132,7 +132,7 @@ before writing a prompt and name it in the LANE block.
 | Lane | Next | Then | Gated on |
 |------|------|------|----------|
 | A Battle UI | — (free: UL12 merged November 23, 2026) | the event log per viewed map, with a hint for a teammate's fast-forward hold (P11 question 128); RB1 after the full-run playtest | RB1: the user's full-run playtest (user, November 20 and 22, 2026) |
-| B Campaign and run | CO19 the co-op pause menu (issued November 23, 2026), with `RunScreen._has_run`'s stale comment and the forfeiter disconnect |  SaveService's run-start and checkpoint messages under the relay's size check [NT8] | — |
+| B Campaign and run | — (free: CO19 merged November 23, 2026) |  SaveService's run-start and checkpoint messages under the relay's size check [NT8] | — |
 | C Events | — (free: BF12 merged November 23, 2026) | the event option's expected-heirloom field [a unique heirloom at events] | — |
 | D Engine, AI, content | — (free: CO17 merged November 23, 2026) | BUG-012 (a board test leaves objects behind); the EN20 build after its plan (a plan session); CT12 after the weapon modification design | — |
 | E Network | BF13 BUG-050, the ENet pair host stall in full runs | NT8a setup (the macOS export, Lane G's tooling) → NT8b the live check with the user, Windows against a Mac → CO21 | — |

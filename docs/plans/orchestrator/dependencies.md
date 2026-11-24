@@ -272,7 +272,7 @@ flowchart LR
   class CO21 waiting
   class CO17 done
   class CO18 done
-  class CO19 active
+  class CO19 done
   class CO22 done
   class NT7 done
   class CO9,CO10,CO1,CO6,CO12,CO2,CO7,CO5,CO11,CO4,CO8,CO3,CO14,CO15,CO16 done
