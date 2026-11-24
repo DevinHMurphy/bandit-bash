@@ -135,6 +135,6 @@ before writing a prompt and name it in the LANE block.
 | B Campaign and run | — (free: CO19 merged November 23, 2026) |  SaveService's run-start and checkpoint messages under the relay's size check [NT8] | — |
 | C Events | — (free: BF12 merged November 23, 2026) | the event option's expected-heirloom field [a unique heirloom at events] | — |
 | D Engine, AI, content | — (free: CO17 merged November 23, 2026) | BUG-012 (a board test leaves objects behind); the EN20 build after its plan (a plan session); CT12 after the weapon modification design | — |
-| E Network | BF13 BUG-050, the ENet pair host stall in full runs | NT8a setup (the macOS export, Lane G's tooling) → NT8b the live check with the user, Windows against a Mac → CO21 | — |
+| E Network | — (free: BF13 merged November 23, 2026; BUG-051 for the next step) | NT8a setup (the macOS export, Lane G's tooling) → NT8b the live check with the user, Windows against a Mac → CO21 | — |
 | G Audio and tooling | — (free: CO15 merged November 23, 2026) | AU2 after the audio direction (M5); the capture builder tidy-up; a fixed glyph family per capture run; TX2 when the user raises it | Nothing ready |
 | F Docs and plans | TL2 the rebalance board artifact (issued November 23, 2026; read-only on the repo, no build slot) (CO20 merged November 23, 2026) | the EN20 plan; P12 plan when wanted; P17 parked (user, November 22, 2026: very low priority) | — |

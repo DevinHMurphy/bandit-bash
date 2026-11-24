@@ -10,13 +10,14 @@
 # ==============================================================================
 
 extends "res://tests/net/net_case_base.gd"
-## BUG-046's seeds, in the harness for tests/net/run_all.gd: a 2-seat run's floor-1 Standard
+## Seeded co-op battles in the harness for tests/net/run_all.gd: a 2-seat run's floor-1 Standard
 ## battle on each seed, the client seat acting through its [ClientMirror], played to its end by a
-## driver that keeps the co-op rules. On both seeds one map is won while the other's last player
-## unit falls, so that map freezes and waits for help: the winner sends every unit it has left
-## there, and every seat acts on every map it has units on. Both maps then end won, and the
-## client's battle equals the host's. The seat's own moves come from [M1BattleCases]'s driver.
-## Needs a test user folder.
+## driver that keeps the co-op rules. On BUG-046's seeds one map is won while the other's last
+## player unit falls, so that map freezes and waits for help: the winner sends every unit it has
+## left there, and every seat acts on every map it has units on. Both maps then end won. On
+## BUG-050's seed both maps freeze with no unit to send, so the run is lost and the host's end
+## ends it. Either way the client's battle equals the host's. The seat's own moves come from
+## [M1BattleCases]'s driver. Needs a test user folder.
 
 # What one seat did in a round.
 enum Played {
@@ -39,6 +40,10 @@ const CLIENT: int = 1
 
 # The seeds BUG-046 was seen on, with the two-instance ENet case's driver, which never sent.
 const SEEDS: Array[String] = ["9456-F0E2-B5D2-6", "B072-5FA4-D5CB-1"]
+# The seed BUG-050 was seen on, with the same case's driver, which never took a lost run for an
+# end: both maps freeze after the same moves here as there, each one fact sooner (s0#358, s1#306)
+# since this case turns the opening swap off.
+const LOST_SEEDS: Array[String] = ["4EC9-C868-1610-B"]
 
 # Every relay's name under its branch: the same on each, so RPC paths match.
 const RELAY_NAME: StringName = &"NetRelay"
@@ -61,44 +66,94 @@ func run() -> void:
 		return
 	for seed_text: String in SEEDS:
 		_test_seed(seed_text)
+	for seed_text: String in LOST_SEEDS:
+		_test_lost_seed(seed_text)
 
 
 # The seed's battle from Begin to its end.
 func _test_seed(seed_text: String) -> void:
 	var tag: String = "coop seeded battle %s:" % [seed_text]
-	var rig: Rig = _start(RunSeed.parse(seed_text))
-	var battle: CombatEncounter = null if rig == null else rig.session.encounter
-	if battle == null:
-		_check("%s the battle opens on the host and the client" % [tag], false)
-		if rig != null:
-			_stop(rig)
+	var rig: Rig = _open(seed_text, tag)
+	if rig == null:
 		return
-	# A send is made only to a frozen map (_play), so it stands for the freeze, which the landing
-	# ends within the same round.
-	var sent: bool = false
-	var idle: int = 0
-	var rounds: int = 0
-	while rounds < ROUND_LIMIT and not battle.is_finished() and idle < 2:
-		rounds += 1
-		var acted: bool = false
-		for seat: int in [HOST_SEAT, CLIENT]:
-			var played: Played = _play(rig, seat)
-			acted = acted or played != Played.NOTHING
-			sent = sent or played == Played.SENT
-		idle = 0 if acted else idle + 1
+	var battle: CombatEncounter = rig.session.encounter
+	var play: PlayOut = _play_out(rig)
 	var all_won: bool = true
 	for map: CombatSession in battle.get_sessions():
 		all_won = all_won and map.is_finished and map.is_won
 	var difference: String = rig.difference()
 	_check("%s a map freezes, the winner sends, and the battle plays to its end" % [tag], (
-			sent and battle.is_finished() and all_won and not battle.is_run_lost()
-	), "rounds %d, sent %s, %s" % [rounds, sent, _states(battle)])
+			play.sent and battle.is_finished() and all_won and not battle.is_run_lost()
+	), "rounds %d, sent %s, %s" % [play.rounds, play.sent, _states(battle)])
 	_check("%s the client's battle equals the host's at the end" % [tag], (
 			difference.is_empty() and rig.failures.is_empty()
 	), "%s; %s" % [difference, rig.failures])
 	_check("%s the battle ends on the host" % [tag], CampaignService.end_battle() != null)
 	rig.harness.step_until_idle()
 	_stop(rig)
+
+
+# The seed's battle from Begin until no seat can act: every map frozen with none to send, so the
+# run is lost before any map ends; the host's end then ends the run, and the client's battle.
+func _test_lost_seed(seed_text: String) -> void:
+	var tag: String = "coop seeded battle %s:" % [seed_text]
+	var rig: Rig = _open(seed_text, tag)
+	if rig == null:
+		return
+	var battle: CombatEncounter = rig.session.encounter
+	var play: PlayOut = _play_out(rig)
+	var all_frozen: bool = true
+	for map: CombatSession in battle.get_sessions():
+		all_frozen = all_frozen and battle.is_frozen(map.session_id)
+	var difference: String = rig.difference()
+	_check("%s both maps freeze with none to send, and the run is lost" % [tag], (
+			not play.sent and all_frozen and battle.is_run_lost() and not battle.is_finished()
+	), "rounds %d, sent %s, %s" % [play.rounds, play.sent, _states(battle)])
+	_check("%s the client's battle equals the host's at the loss" % [tag], (
+			difference.is_empty() and rig.failures.is_empty()
+	), "%s; %s" % [difference, rig.failures])
+	var ended: bool = CampaignService.end_battle() != null
+	rig.harness.step_until_idle()
+	_check("%s the host's end ends the run, and the client's battle" % [tag], (
+			ended
+			and CampaignService.session == null
+			and not SaveService.has_multiplayer_campaign()
+			and rig.view(CLIENT) == null
+	), "ended %s, session %s, campaign %s, client battle %s" % [
+		ended, CampaignService.session != null, SaveService.has_multiplayer_campaign(),
+		rig.view(CLIENT) != null,
+	])
+	_stop(rig)
+
+
+# The seed's rig with its battle open on the host and the client; null, the case failed and
+# everything stopped, when it doesn't open.
+func _open(seed_text: String, tag: String) -> Rig:
+	var rig: Rig = _start(RunSeed.parse(seed_text))
+	if rig != null and rig.session.encounter != null:
+		return rig
+	_check("%s the battle opens on the host and the client" % [tag], false)
+	if rig != null:
+		_stop(rig)
+	return null
+
+
+# Rounds of play, each seat's next command in turn, until the battle ends or two rounds pass with
+# no seat acting (ROUND_LIMIT at most). A send is made only to a frozen map (_play), so it stands
+# for the freeze, which the landing ends within the same round.
+func _play_out(rig: Rig) -> PlayOut:
+	var battle: CombatEncounter = rig.session.encounter
+	var play: PlayOut = PlayOut.new()
+	var idle: int = 0
+	while play.rounds < ROUND_LIMIT and not battle.is_finished() and idle < 2:
+		play.rounds += 1
+		var acted: bool = false
+		for seat: int in [HOST_SEAT, CLIENT]:
+			var played: Played = _play(rig, seat)
+			acted = acted or played != Played.NOTHING
+			play.sent = play.sent or played == Played.SENT
+		idle = 0 if acted else idle + 1
+	return play
 
 
 # A 2-seat run on run_seed inside its floor-1 Standard combat with no opening swap, its battle
@@ -311,3 +366,11 @@ class Rig:
 			return
 		if battle.state_hash() != batch.state_hash:
 			failures.append("encounter #%d" % [batch.last_seq()])
+
+
+# What _play_out did: the rounds it played, and whether any seat sent.
+class PlayOut:
+	extends RefCounted
+
+	var rounds: int = 0
+	var sent: bool = false

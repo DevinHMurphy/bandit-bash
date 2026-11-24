@@ -82,7 +82,8 @@ Not a bug.
 | [BUG-047](#bug-047-a-client-mirror-loses-its-battle-at-a-forfeit) | Two `ClientMirror` gaps at a forfeit: any accepted campaign batch during a battle closes the mirror's battle, so a forfeit closes every client's battle; after the battle ends a mirror keeps the forfeited seat, so the host's next capture is refused ("a capture for seats") | P10 / P11 (mirrors) | S2 (latent until clients play live) | Fixed (CO18 merge, November 23, 2026: only the battle-end batch closes a mirror's battle; a mirror accepts a capture without a seat that left; no mirror calls `forfeit()`) | November 23, 2026, CO22 report (P11 question 152) | CO18 (Lane E) |
 | [BUG-048](#bug-048-a-client-leaving-an-individual-event-is-sometimes-refused) | Intermittent: CO16's "a client leaves the individual event on every mirror" (`tests/net/coop_campaign_cases.gd`) is sometimes refused with "seat 0 hasn't chosen at the event", and the battle-hash case after it then checks nothing | P11 / P10 (events on mirrors) | S3 (a test flake, or a real ordering race in BUG-034's Leave rule) | Fixed (BF12 merge, November 23, 2026): a test bug. A full convoy refused the host seat's event choice, so none was sent; the choice now falls back to scrapping the new item, and a seat with no valid choice fails a check | November 23, 2026, BF11 report | Lane C |
 | [BUG-049](#bug-049-a-held-pad-trigger-turns-fast-forward-back-on-after-a-stop) | After a key-moment stop, a pad trigger (RT) held past halfway may turn fast-forward straight back on: `_unhandled_input` counts every non-echo `fast_forward` event with `is_pressed()` as a press, and a held trigger keeps sending motion events | P07 / P11 (fast-forward) | S3 (by reading, not reproduced; in co-op since CO15) | Fixed (UL12 merge, November 23, 2026: a press counts only on the up-to-down edge, for keys, buttons and the trigger) | November 23, 2026, EN19 report | Lane A |
-| [BUG-050](#bug-050-the-enet-pair-hosts-battle-stops-moving-in-full-runs) | The ENet pair case's host stops moving for 60 s mid-battle in some full runs (`PAIR FAILED host: nothing moved for 60 s, at step PLAY`); the client then loses the host and fails as "the run's session ended". Passes with `net` alone | P10 (tests, or a real stall) | S2 until shown to be the test | Open | November 23, 2026, UL12 report and the UL12 and CO17 merge | Lane E (BF13) |
+| [BUG-050](#bug-050-the-enet-pair-hosts-battle-stops-moving-in-full-runs) | The ENet pair case's host stops moving for 60 s mid-battle in some full runs (`PAIR FAILED host: nothing moved for 60 s, at step PLAY`); the client then loses the host and fails as "the run's session ended". Passes with `net` alone | P10 (tests, or a real stall) | S2 until shown to be the test | Fixed (BF13, November 23, 2026): the test's driver | November 23, 2026, UL12 report and the UL12 and CO17 merge | — |
+| [BUG-051](#bug-051-netlog-calls-get_unique_id-on-a-closed-peer) | When an ENet client loses its host, `NetLog.info` in `steam_network.gd`'s disconnect handler calls `multiplayer.get_unique_id()` on a peer that is set but closed; the engine prints "ERROR: The multiplayer instance isn't currently active" | P10 | S4 | Open | November 23, 2026, BF13 report | the next Lane E step |
 
 ### BUG-001 No Block at the start of combat
 
@@ -691,3 +692,20 @@ Not a bug.
 - **Fix:** pin `4EC9-C868-1610-B` and see if it stalls alone; if so, find what the host or the
   driver waits on and fix it; if not, make the no-progress limit hold under load. Add the seed as a
   harness case either way.
+- **Fixed** in BF13 (November 23, 2026). The cause was the test's driver, not load, the game or
+  the network code. On this seed both maps freeze with nothing to send, so the run is lost
+  (`CombatEncounter.is_run_lost()`), and the driver waited for every map to end. The host's battle
+  screen ends a lost run, but the host reaches it only if the client's campaign map routes
+  everyone (21 of 48 earlier pair logs), so whether the run ended was timing. The seed stalled
+  4 of 4 times alone. `PairPeer` now treats a lost run as an end (the host's screen or the driver
+  calls `CampaignService.end_battle()`); the seed is a harness case in
+  `coop_seeded_battle_cases.gd` (`LOST_SEEDS`). P10 question 55.
+
+### BUG-051 NetLog calls get_unique_id() on a closed peer
+
+- **Found** by BF13 (November 23, 2026): when an ENet client loses its host,
+  `steam_network.gd`'s disconnect handler calls `leave_lobby()`, whose `NetLog.info` line calls
+  `multiplayer.get_unique_id()` on a peer that is set but already closed. The engine prints
+  "ERROR: The multiplayer instance isn't currently active". Seen only on the host-dropped path;
+  nothing else goes wrong.
+- **Fix:** in `NetLog._log`, also check the peer's connection status before asking its id.
