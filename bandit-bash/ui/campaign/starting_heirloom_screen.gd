@@ -6,7 +6,7 @@
 # File:     starting_heirloom_screen.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 21, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 extends Control
@@ -16,10 +16,10 @@ extends Control
 ##
 ## The local seat's offer. The view's command goes through a [CampaignLink], which saves; a
 ## refusal shows its reason on the view and changes nothing. Once the seat's pick resolves, the
-## run's facts play ([CampaignPlayback]), the bar shows the new heirloom and the run goes to the
-## map ([method RunScreen.go]); a teammate's pick shows the header and bar again. A quit before
-## then Continues here with the same offer, saved in the seat's pending offers. Opened at any
-## other stage, it sends the run on at once.
+## run's facts play ([CampaignPlayback]), the bar shows the new heirloom and this machine alone
+## goes to the map ([method RunScreen.go]), to wait for its teammates' offers there; a teammate's
+## pick shows the header and bar again. A quit before then Continues here with the same offer.
+## Opened with the seat past it, it leaves at once, on this machine alone: it never moves others.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
 

@@ -94,7 +94,13 @@ seat (`CampaignService.local_seat()`).
   type it plays as. An Unknown goes to the event screen with an event open, the battle screen once
   the event chose a fight, and the placeholder with no event.
 - `RunScreen.go()` first settles an Unknown's entry (`enter_unknown()`: rolls it, then opens an
-  event's event, each saved), then changes screen for everyone.
+  event's event, each saved), then changes screen for everyone, except for a seat move.
+- **Seat moves.** In co-op each seat takes its starting heirloom on its own, and a seat whose offer
+  is settled waits on the map (its votes refused until every offer is settled). So a move out of
+  the offer, or from the map into it, changes this machine's screen alone. A move for everyone
+  names the map in place of the offer, and each machine opens its own seat's screen for it
+  (`RunScreen.for_local_seat()`). The host answers a client's route request by the run
+  (`RunScreen.go_for_everyone()`), never by its own seat's offer: that is what looped in BUG-052.
 - Every campaign screen checks `of()` in `_ready()`. If the run belongs elsewhere it calls `go()`
   at once. A screen moves on when a batch it follows moves the run (see Screens and seats).
 - With no run, `of()` returns the battle screen. A co-op combat node also goes there, to its co-op

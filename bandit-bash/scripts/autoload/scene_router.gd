@@ -6,25 +6,21 @@
 # File:     scene_router.gd
 # Author:
 # Created:  October 9, 2026
-# Modified: November 23, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 extends Node
-## Screen switching for the whole game.
-##
-## Registered as autoload [code]SceneRouter[/code]. Callers ask for a [enum Screen], never a raw
-## path, so a scene can move without touching its callers.[br]
-## [b]Why an autoload:[/b] [code]change_scene_to_file()[/code] frees the whole old scene, so the
-## current and previous screen have to live outside it.[br]
-## [b]Why an autoload hosts the RPC:[/b] autoloads sit at the same NodePath on every peer from
-## boot, so an RPC routed through one can't race scene-load timing the way a node inside a
-## freshly loaded scene can.[br]
+## Screen switching for the whole game: autoload [code]SceneRouter[/code]. Callers ask for a
+## [enum Screen], never a path. It is an autoload because [code]change_scene_to_file()[/code]
+## frees the old scene, and it hosts the route RPC because autoloads sit at the same NodePath on
+## every peer from boot, so the RPC can't race a scene load.[br]
 ## [b]Invites and lost hosts:[/b] an accepted Steam invite opens a save file if none is open
-## ([code]SaveService.get_invite_save_number()[/code]) and goes to the lobby, which joins it.
-## During a solo run it first asks, through [signal invite_confirmation_requested], whether to
-## Save & Quit. A client whose host leaves mid-match returns to the Main Menu once it can't get
-## back. [b]Moves for everyone[/b] are the host's: a client's asks the host, which routes
-## everyone by its own run ([method RunScreen.go]).
+## ([code]SaveService.get_invite_save_number()[/code]) and goes to the lobby, which joins it;
+## during a solo run it first asks to Save & Quit ([signal invite_confirmation_requested]). A
+## client whose host leaves mid-match returns to the Main Menu once it can't get back.[br]
+## [b]Moves for everyone[/b] are the host's: a client's asks the host, which routes everyone by the
+## run, never by its own seat's starting offer ([method RunScreen.go_for_everyone]); each machine
+## opens its own seat's screen for one ([method RunScreen.for_local_seat]).
 
 ## This machine just entered [param screen].
 signal screen_changed(screen: Screen)
@@ -46,7 +42,9 @@ signal invite_confirmation_requested()
 #                  (RunScreen.of): STARTING_HEIRLOOM, CAMPAIGN_MAP, GAMEPLAY, TREASURE, CAMP,
 #                  ARMORY, GUILDHALL, EVENT, NODE_PLACEHOLDER or COMBAT_RESULTS; GAMEPLAY
 #                  (everyone) with no run, as on a client
-#   STARTING_HEIRLOOM -> CAMPAIGN_MAP (once the heirloom is taken: the first node comes after)
+#   STARTING_HEIRLOOM -> CAMPAIGN_MAP (once the seat's heirloom is taken: this machine alone, where
+#                       it waits for its teammates' offers; the first node comes after)
+#   CAMPAIGN_MAP     -> STARTING_HEIRLOOM (this machine alone, opened with its seat's offer open)
 #   CAMPAIGN_MAP     -> GAMEPLAY (a combat node chosen), TREASURE, CAMP, ARMORY, GUILDHALL; an
 #                       Unknown node by what it became (RunScreen.go rolls it first): GAMEPLAY,
 #                       TREASURE, ARMORY, GUILDHALL or EVENT, NODE_PLACEHOLDER with no event to draw
@@ -67,8 +65,9 @@ signal invite_confirmation_requested()
 #                  get back (session_ended); LOBBY or the screen it held -> the run's screen on a
 #                  client that rejoined a run in progress (CampaignService, on its next sync)
 # "Everyone" edges go through goto_screen_for_everyone(): the host moves everyone; a client's
-# asks the host (a ROUTE notice), which routes everyone by its own run (RunScreen.go), unless the
-# run is paused; solo falls back to local.
+# asks the host (a ROUTE notice), which routes everyone by the run (RunScreen.go_for_everyone),
+# unless the run is paused; solo falls back to local. Each machine lands on its own seat's screen
+# (RunScreen.for_local_seat: its starting offer for the map while that is open).
 # Entering START, SAVE_SELECT or MAIN_MENU ends any lobby session, so Leave Match also leaves the
 # lobby. Entering SAVE_SELECT also closes the open save file (save_select_screen.gd).
 # There is no way to MAIN_MENU without an open save file: every path in passes SAVE_SELECT.
@@ -182,12 +181,13 @@ func goto_screen(screen: Screen) -> void:
 
 ## Switches every connected peer, this machine included, to [param screen].
 ##
-## Host only in effect: a client's call asks the host to route everyone by its own run instead
-## ([method RunScreen.go]), so [param screen] is the host's to choose. With no active session it
-## is a plain local switch, so solo play uses the same call.
+## Host only in effect: a client's call asks the host to route everyone by the run instead
+## ([method RunScreen.go_for_everyone]), so [param screen] is the host's to choose. Each machine
+## opens its own seat's screen for it ([method RunScreen.for_local_seat]). With no active session
+## it is a plain local switch, so solo play uses the same call.
 func goto_screen_for_everyone(screen: Screen) -> void:
 	if not SteamNetwork.has_active_session():
-		goto_screen(screen)
+		_land(screen)
 		return
 	if not multiplayer.is_server():
 		NetLog.info(
@@ -255,15 +255,20 @@ func _follow_relay() -> void:
 
 
 # A client asked for a move for everyone; the relay drops one while the run is paused, so the host
-# routes on every one it hears.
+# routes on every one it hears, by the run: never a seat move, which would move the host alone.
 func _on_net_relay_notice_received(_seat: int, kind: int, _data: Array) -> void:
 	if kind != NetRelay.NoticeKind.ROUTE or not SteamNetwork.is_authoritative():
 		return
-	RunScreen.go()
+	RunScreen.go_for_everyone()
+
+
+# A move for everyone to screen, on this machine: its own seat's screen for it.
+func _land(screen: Screen) -> void:
+	goto_screen(RunScreen.for_local_seat(CampaignService.session, screen))
 
 
 # call_local so the host takes the same dispatch path as the clients instead of jumping a full
 # round trip ahead of them.
 @rpc("authority", "reliable", "call_local")
 func _networked_goto_screen(screen: Screen) -> void:
-	goto_screen(screen)
+	_land(screen)

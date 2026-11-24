@@ -143,7 +143,7 @@ The records stay on `dev`.
 | Lane | Next | Then | Gated on |
 |------|------|------|----------|
 | A Battle UI | — (free: UL12 merged November 23, 2026) | the event log per viewed map, with a hint for a teammate's fast-forward hold (P11 question 128); RB1 after the full-run playtest | RB1: the user's full-run playtest (user, November 20 and 22, 2026) |
-| B Campaign and run | — (free: CO19 merged November 23, 2026) |  SaveService's run-start and checkpoint messages under the relay's size check [NT8] | — |
+| B Campaign and run | — (free: BF14 merged November 24, 2026: the starting heirloom loop) | P18 RC1, on BF14 |  SaveService's run-start and checkpoint messages under the relay's size check [NT8] | — |
 | C Events | — (free: BF12 merged November 23, 2026) | the event option's expected-heirloom field [a unique heirloom at events] | — |
 | D Engine, AI, content | — (free: CO17 merged November 23, 2026) | BUG-012 (a board test leaves objects behind); the EN20 build after its plan (a plan session); CT12 after the weapon modification design | — |
 | E Network | — (free: BF13 merged November 23, 2026; BUG-051 for the next step) | NT8a setup (the macOS export, Lane G's tooling) → NT8b the live check with the user, Windows against a Mac → CO21 | — |
