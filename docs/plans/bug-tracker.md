@@ -65,7 +65,7 @@ Not a bug.
 | [BUG-030](#bug-030-the-save-debug-panels-doc-calls-its-end-player-phase-the-only-battle-save) | The save debug panel's doc calls its End Player Phase the only battle save besides Begin | P00 (debug panel) | S4 | Fixed (BF7 merge, November 22, 2026) | November 20, 2026, BF6 report | BF7 |
 | [BUG-031](#bug-031-a-continued-runs-instance-ids-drift-from-an-uninterrupted-ones) | A continued run's instance ids drift from an uninterrupted one's, so heirloom reactions can fire in another order after a quit | P08 / P01 (campaign session) | S2 | Fixed (RN11 merge, November 20, 2026) | November 20, 2026, RN11 | RN11 |
 | [BUG-032](#bug-032-the-campaign-maps-class-doc-says-every-non-combat-node-goes-to-the-placeholder) | The campaign map's class doc says a non-combat node goes to the placeholder | P08 (campaign UI) | S4 | Fixed (CO10 merge, November 22, 2026) | November 21, 2026, RN12 report | the next Lane B step touching `ui/campaign/` (CO10) |
-| [BUG-033](#bug-033-event-busmd-lists-only-five-campaign-commands) | event-bus.md lists only five campaign commands; about 20 more exist | P01 / P08 (docs) | S4 | Open | November 21, 2026, RN12 report | the next docs step (CO20) |
+| [BUG-033](#bug-033-event-busmd-lists-only-five-campaign-commands) | event-bus.md lists only five campaign commands; about 20 more exist | P01 / P08 (docs) | S4 | Fixed (CO20, November 23, 2026) | November 21, 2026, RN12 report | — |
 | [BUG-034](#bug-034-leavenodecommand-doesnt-wait-for-an-open-events-seats) | `LeaveNodeCommand` doesn't wait for an open event's seats to choose; leaving after a pending Fight skips the surprise combat | P08 / P09 (leave rules) | S3 (latent) | Fixed (CO16 merge, November 23, 2026: Leave at an open event is refused until every seat chose and any surprise combat was fought) | November 21, 2026, CO9 report | CO16 (Lane C) |
 | [BUG-035](#bug-035-the-intents-refresh-after-each-player-action-blocks-the-main-thread) | The intents refresh after every player action blocks the main thread: 0.78 s (release) and 6.3 s (debug) on the boss board | P05 (intents) | S3 | Part fixed (EN16 merge, November 22, 2026: debug 6.1 → 1.1 s on the boss board) | November 21, 2026, EN15 report | the release part (0.25 s key, 0.83 s boss, main thread): EN18, after CO2 (P05 question 53 (a)) |
 | [BUG-036](#bug-036-a-resumed-frozen-maps-turn-cant-end) | A resumed frozen map's turn can't end: `PhaseRunner.seats_with_units` counts only the map's own seats, not a sender's unit on it | P11 (co-op battles) | S2 (latent: only tests send) | Fixed (CO2 merge, November 22, 2026) | November 22, 2026, CO1 report | CO2 (Lane D) |
@@ -514,6 +514,9 @@ Not a bug.
   `LeaveNodeCommand`, `ItemPickCommand`, `OpenEventCommand` and the event commands. About 20
   more campaign commands exist; `docs/design/campaign-run.md` lists them all. Link to it or list
   them.
+
+- **Fixed** in CO20 (November 23, 2026): event-bus.md lists all 36 campaign commands and every
+  fact kind with what records it. campaign-run.md lists commands by node and isn't a full list.
 
 ### BUG-034 LeaveNodeCommand doesn't wait for an open event's seats
 

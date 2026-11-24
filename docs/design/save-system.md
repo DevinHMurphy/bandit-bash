@@ -154,7 +154,7 @@ Saves happen at checkpoints only, never on a timer:
 | New run: player presses Start | `start_new_solo_run()` / `start_new_multiplayer_run()` |
 | Room entered, other campaign progress | `save_checkpoint()` |
 | Battle: player presses Begin after prep | `begin_battle()` |
-| Battle: end of each player phase (multiplayer: phases are per map, so each map checkpoints at the end of its own player phase, once every player with units on it has ended their turn; the format change this needs belongs to the multiplayer-combat plan) | `save_checkpoint()` |
+| Battle: end of each player phase (co-op: phases are per map, so the end of any map's player phase, once every player with units on it has ended their turn, or a frozen map's restart, saves the whole battle; P11 questions 39 and 71) | `save_checkpoint()` |
 | Battle ends | `end_battle()` |
 | Save & Quit (pause menu) | `save_checkpoint()` |
 | Run won, lost or abandoned | `end_run()` / `abandon_run()` |
@@ -175,8 +175,11 @@ refused and the defaults apply (with a warning). Options edits a copy; only Appl
 
 - **Schema version 2.** Step 1 → 2 adds `opening_swap: true`, keeping a hand-written value for
   the load to read or repair.
-- **Co-op:** the opening swap is read for the solo seat only. A co-op seat's setting would have to
-  reach the host; until P11 sends it, every co-op seat opens in the swap window.
+- **Co-op (P11 CO15):** each machine's own setting decides its seat's opening swap. A client sends
+  `{"opening_swap": bool}` to the host (`NetRelay._seat_settings()`) when its run starts and on
+  every Apply. The host keeps the last one per seat (`NetRelay.seat_settings()`), never saved, and
+  clears it at the run's end and on a removal; `CampaignService.begin_battle()` fills each other
+  seat's entry from it. A seat that sent none opens in the swap window (the default, on).
 
 ## Battles
 
@@ -186,13 +189,16 @@ campaign writes keep the sections captured at Begin: everything the battle chang
 `COMBAT` sections. That is what lets a battle restart from Begin if its combat file is lost.
 
 **The end of each player phase** is saved by the battle screen (`BattleScreen`) as the phase's
-last End Turn resolves, before its playback plays. That one command resolves the player Phase End,
+last End Turn resolves, before its playback plays (`CombatEncounter.is_save_point()`). In co-op the
+host saves the whole battle at the end of any map's player phase, its own map ended or not, and
+when a frozen map restarts on an arrival, a player Phase Start outside any command; a send alone
+doesn't save (P11 questions 39 and 71). Clients never save. That one command resolves the player
+Phase End,
 the whole enemy phase, the hooks after it (the darkness phase, reinforcements) and the next player
 Phase Start, intents included, so the save holds the start of the next player phase. A resume
 re-runs none of it: no Phase Start fires twice, and the enemy phase's playback isn't shown again.
 A phase end that finishes the battle writes no checkpoint; the battle's end saves it. A failed
-save is logged and play goes on, the previous save kept. Solo only for now: P11 extends it so any
-map's player phase end saves the whole battle (P11 question 39).
+save is logged and play goes on, the previous save kept.
 
 On continue, `SaveService.resume_point` says where to pick up:
 
@@ -505,7 +511,7 @@ Save Impact):
 
 | Block | Key | Version | Holds |
 |-------|-----|---------|-------|
-| `COMBAT` | `combat_state` | 4 | Each map's units (`CombatUnitState`: tile, HP, Block, Stance, what it did this turn and phase, movement spent, a pending second move, slots, growth changes, and the prefix and level the unit detail shows; version 1 and 2 units migrate with no prefix and level 1), weapon records (an area staff's shape by its id and a heal staff's full heal included; version 1 records migrate with neither), turn, phase side, ended and not-yet-started seats, rune slots, and the session part (seq, commanders, bases, finished and won); the encounter's seq, arrivals and units on their way between maps; from version 4, each unit on its way's clock turn (the turn the map it left was won on), each seat's latest send (`sends`: target map or -1 for none, and that turn), each map's senders (`senders`: seats whose units landed there) and raised calls for aid (`aid`), and forfeited seats (`forfeited`, empty until CO14); version 1 to 3 data migrates with none sent, received, called or forfeited and clock turn 0, due at the next player Phase Start as before |
+| `COMBAT` | `combat_state` | 4 | Each map's units (`CombatUnitState`: tile, HP, Block, Stance, what it did this turn and phase, movement spent, a pending second move, slots, growth changes, and the prefix and level the unit detail shows; version 1 and 2 units migrate with no prefix and level 1), weapon records (an area staff's shape by its id and a heal staff's full heal included; version 1 records migrate with neither), turn, phase side, ended and not-yet-started seats, rune slots, and the session part (seq, commanders, bases, finished and won); the encounter's seq, arrivals and units on their way between maps; from version 4, each unit on its way's clock turn (the turn the map it left was won on), each seat's latest send (`sends`: target map or -1 for none, and that turn), each map's senders (`senders`: seats whose units landed there) and raised calls for aid (`aid`), and the seats that left mid-battle (`forfeited`, P11 CO14); version 1 to 3 data migrates with none sent, received, called or forfeited and clock turn 0, due at the next player Phase Start as before |
 | `COMBAT` | `effects` | 1 | Each map's effect engine (instances with counters and charges, timed modifiers, bases and deltas, phase and attack counts) and the encounter's cross-map instances |
 
 ```json
@@ -515,7 +521,10 @@ Save Impact):
 
 - **Built from snapshots.** Each capture takes the battle's `CombatEncounter.snapshot()` and keeps
   its own parts, so a save and a rejoining client's snapshot can't drift apart. The roll streams
-  are the combat `rng` section's, never these.
+  are the combat `rng` section's, never these. The encounter part is the snapshot's format 3 (P11
+  question 66), so the version 4 fields reach a rejoining client too.
+- **Not saved** (P11): a map's frozen state and the run-loss check (both derived from the maps),
+  fast-forward holds, who views which map, and the host's per-seat settings.
 - **Definitions by reference.** An effect is named by its catalog id, or `<carrier id>#<effect id>`
   inside a carrier (the content test requires an id unique within each carrier). One the loadout
   made at runtime (a staff's uses, a prefix, stat changes) is described in the save and restores
@@ -682,6 +691,12 @@ and [UL5 plan](../plans/2026-11-19-ul5-victory-sequence.md), Save Impact):
 - On every host checkpoint, clients receive the campaign as `SaveService.multiplayer_replica` (never
   saved) and write only their own `profile.json`. When the run ends, each client writes the host's
   archive record into its own archive.
+- **Who receives it.** The host sends campaign data (the run's start, every checkpoint, the run's
+  end) only to lobby members whose Steam id plays a seat of the run
+  (`SaveService.client_peers_of()`), so never to a forfeiter or a removed player still connected
+  (P11 CO19, question 183, pending confirmation). The envelope sent is `CampaignData.to_envelope()`, which leaves out entries set
+  aside mid-battle (`departed`, below); the campaign file writes them
+  (`to_save_envelope()`). A rejoining client gets the run's start again (`send_run_to()`).
 - Resume goes through the lobby: the host loads the campaign from the Main Menu, hosts, and only
   the campaign's players (by Steam id from the Steam connection, never from a message) and only the
   same game version and build (`NetContract.fingerprint()`) are admitted. Resume needs every
@@ -714,8 +729,10 @@ and [UL5 plan](../plans/2026-11-19-ul5-victory-sequence.md), Save Impact):
   forfeited win or a non-bool is refused. Migration from 1 changes nothing: a record without it
   reads as not forfeited. A voluntary forfeit's record is built for the leaving seat before it goes
   (`SaveService.archive_forfeit()`, the run as it stands, every seat in it) and held for
-  `take_forfeit_record()`, which P11 CO18 sends to that machine; the host writes none, and a
-  removed player gets none.
+  `take_forfeit_record()`. The host sends it to that client alone (`NetRelay._forfeit_record()`,
+  P11 CO18), after the forfeit's batches, before the seat leaves the directory; the client
+  archives it (`SaveService.archive_forfeit_record()`) and goes to its main menu. The host writes
+  none, and a removed player gets none (P11 question 35). Untested live until P11 CO21.
 - **Resuming a battle a seat left (P11 CO22), built; replaces the restart in the Forfeits row
   above.** A seat that leaves mid-battle is set aside (`SaveService.set_aside_player()`,
   `CampaignData.departed`): out of `players` at once, so everything reading the run's players

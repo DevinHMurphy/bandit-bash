@@ -68,11 +68,11 @@ from starting; each is asked inside its plan's Open Questions.
 | P02 / P03 | Splash numbers show HP lost without overkill: `SplashResolver` records only what Block and HP took; showing overkill needs a fact change, when splash content grows | P07 question 33 (1) |
 | P11 | **Closed** (P11 plan, question 41, November 20, 2026): P10 question 2 covers it, as a client's campaign copy is refreshed from the host's run state after every command. **Moves to P10 NT3** (the campaign wire; its sync gap answered by P10 question 2: a client's campaign copy is refreshed from the host's run state after every command). Campaign commands (`ChooseNodeCommand`, `LeaveNodeCommand` and later ones) have no wire form yet; P11 adds it with transport. Gold gains and unit falls at the end of a battle (RN3), a skipped item pick (RN4) and the runes written back after a battle (RN9, BUG-014) record no campaign fact either, so a fact-fed client mirror would miss them: P11 adds the fact kinds or another way to sync them | P08 RN2, RN3, RN4 |
 | Vision | game-vision.md's October 20 decision row still says "the run is lost only if every commander falls", and isn't marked superseded by the October 29 L4 row (a map with no player units freezes; P11 questions 5-7). For the ideation thread | P11 plan report |
-| P11 | Commander's Standard counts allies within 2 of its owner's commander, so on a map several seats share, partners' units gain its Block too; confirm or limit it to Your Units | P03 question 28 (CT9) |
-| P11 | Light links beyond runes on a teammate's map | multiplayer-combat-options.md |
+| P11 | **Done in CO3** (P11 question 18; confirmed in CO20): Commander's Standard counts allies within 2 of its owner's commander, so on a map several seats share, partners' units gain its Block too; confirm or limit it to Your Units | P03 question 28 (CT9) |
+| P11 | **Settled** (P11 question 38: none in the MVP; confirmed in CO20): Light links beyond runes on a teammate's map | multiplayer-combat-options.md |
 | P11 | **Closed by P11 CO1** (merged November 22, 2026, question 7 (a): in co-op a commander's fall never loses a map; the rule is solo only). Shared battles (post-MVP): MP4 loses a map shared by several seats when any commander falls; confirm or change it when shared battles are planned | P04 question 21 |
-| P11 | A unit sent to a partner's map loses its timed modifiers (Momentum and the like); carry them with the unit | P01 question 49 |
-| P11 | A player's "Your Unit" heirlooms don't follow their unit onto a partner's map; players will likely expect them to keep working | P01 question 49 |
+| P11 | **Done in CO3** (P11 question 16; confirmed in CO20): A unit sent to a partner's map loses its timed modifiers (Momentum and the like); carry them with the unit | P01 question 49 |
+| P11 | **Done in CO3** (P11 question 17; confirmed in CO20): A player's "Your Unit" heirlooms don't follow their unit onto a partner's map; players will likely expect them to keep working | P01 question 49 |
 | P11 | **Co-op unit swaps** (user, November 19, 2026): two players agree that a unit of each starts the next battle on the other's map; **each keeps control of their own unit** (as with H1 sending units), and every swap needs both players' approval. **Decided** November 19, 2026 in [coop-unit-swaps.md](../../design/coop-unit-swaps.md): agreed on the campaign map for the next combat; one for one; never the commander; deploys by role with the host army; the owner controls it (and moves it in the opening swap window); the Standout and grades count for its owner. Vision update through the ideation thread. Built with H1 in P11; shares the "Your Unit" heirloom and timed-modifier gaps below. Not blocking M2 or M3 | User |
 | P11 | A client shows its own heirloom bar after P10 NT5 (client mirrors); teammates' bars stay with P11. The heirloom bar (UL8) reads the host's campaign session, so a co-op client shows an empty bar; showing each seat's own (and teammates') heirlooms comes with P11 | UL8 report |
 | P11 / P10 | Event commands carry host-side objects (the streams, the id allocator, the pool); the host fills them in for a seat's command arriving over the network, as `EventNode` does now. P11 may also limit applying a team choice's drawn option to the host (P09 question 24). On the vote view, the seat applying a drawn option sends only its own picks, so a drawn option needing a teammate's pick is refused (P09 question 33) | EV2, EV5 and EV3 reports |
@@ -80,16 +80,16 @@ from starting; each is asked inside its plan's Open Questions.
 | P10 | **Host-seat commands on the wire** (NT3 report): the six field-less commands (`leave_node`, `open_treasure`, `open_armory`, `open_guildhall`, `resolve_unknown`, `open_event`) have wire forms; NT4 decides whether a client may send them | NT3 report |
 | P11 | **Team-choice picks need their own route** (NT3 report, P10 question 23): `EventOptionCommand.team_choices` never travels, so each seat's picks for a team choice must reach the host another way; **Done in CO9** (merged November 21, 2026): each seat sends its own `EventOptionCommand`; `team_choices` is ignored, its removal P11 question 50. Risk left: if a seat can no longer meet the drawn option when it applies, the team's choice can't finish; no command at an event node can cause this today (CO9 report) | NT3 and CO9 reports |
 | P10 | Refusal logging differs: `Command.from_wire` and `CampaignFact.from_wire` warn, NT3's readers `push_error`; align in one place (NT4). Also `campaign_command.gd:46` is 100 characters | NT3 report |
-| P11 | Cross-map delivery: a cross-map effect's queued operations resolve on the map where it triggered, so "Your Units" never reaches the owner's map; build the engine's forwarding hook when content needs it | P01 question 44 |
+| P11 | **Deferred** (P11 question 19; still deferred, CO20): Cross-map delivery: a cross-map effect's queued operations resolve on the map where it triggered, so "Your Units" never reaches the owner's map; build the engine's forwarding hook when content needs it | P01 question 44 |
 | P11 | **Every map must be completed** (user, October 29, 2026; written into game-vision.md and multiplayer-combat-options.md November 19, 2026): (1) a co-op player whose commander falls keeps controlling their surviving units (the commander still returns after the combat at critical health); (2) a map with no player units left **freezes** until help arrives (leave a stub for the darkness to keep rising there, a possible future rule); (3) the run is lost when a map still being fought has no player units and no teammate has units left to send (replaces "every commander fell in the same combat"); (4) a failed objective (a Defend tile taken) still loses that map, and the combat ends when every map is won or failed. **Battle clock for arrivals:** units sent by a player who won on turn N arrive at the receiving map's first player phase after its turn N, never sooner, so stalling gains nothing and maps keep their own pace (no joint end turn). **Sending:** a sender may send none (skip). **Answered by the user, October 29, 2026:** no hand-holding for sent units: past the dry tiles, they land on the nearest free tiles even in the darkness and take its damage at their turn's end like any unit; a map won before they arrive ends, and they return as the vision says; a map that received help loses its speed bonus (P08); a winner **must** send units to a teammate's frozen map. Still open for P11: a map with no free tile at all (recommended: they wait a phase, like the enemy waves, P04 question 24b) | game-vision.md Multiplayer maps; P04 question 24 |
-| P11 | The pause menu doesn't pause the tree in multiplayer, so the control hint bar never shows PAUSED hints there; decide what a paused-but-running co-op screen shows | P07 question 31 (c) |
+| P11 | **Done in CO19** (P11 question 36: the co-op menu shows its own hints; confirmed in CO20): The pause menu doesn't pause the tree in multiplayer, so the control hint bar never shows PAUSED hints there; decide what a paused-but-running co-op screen shows | P07 question 31 (c) |
 | P11 | **Done in CO4** (merged November 23, 2026: `DARKNESS_WAVE_SPREAD`). A client mirror's darkness waves stay at reach 0 (no fact carries a wave's reach or entered tiles), so `Darkness.next_deepening()` on a client differs from the host's: add a fact, or take the next-deepening preview from the host | P06 question 15 (e) |
 | P11 | No production code calls `CombatSession.mark_checkpoint()`, though its doc says to call it at every battle checkpoint (BF6 report). Harmless in solo: only multiplayer catch-up and `debug_dump` read it. Fold it into CO2, which extends the end-of-phase save to co-op | `combat_session.gd` |
 | P11 | `seats[0]` exemptions left after CO10: `ui/battle/battle_screen.gd` (NT5 or CO13) still reads `seats[0]` (`event_screen.gd` done in CO12, November 22, 2026). Each step takes its file off `SEAT_ZERO_EXEMPT` in `tests/ui/campaign/coop_seat_cases.gd` | CO10 report, November 22, 2026 |
 | P11 | Live co-op clients land on empty campaign screens until NT5 binds a client's seat (`CampaignService.set_local_seat()`); and `scene_router.gd`'s LOADING route comment (fixed in BF8, November 22, 2026) | CO10 report, November 22, 2026 |
 | P11 | Teammates show as "Player N" until Steam names arrive (`campaign_link.gd` TOD-001) | CO10 report, November 22, 2026 |
 | P11 | `ui/screens/loading_gate.gd:16-17`'s class doc says everyone outside a solo run goes to GAMEPLAY; since CO10 a co-op host routes like solo. One-line doc fix in BF9 (issued November 22, 2026) | BF8 report, November 22, 2026 |
-| P11 | CO1's resume batch (`PhaseRunner.resume()` from `send_unit()`): it goes out on `batch_resolved` through `CombatSession.flush()` (the battle screen, HUD and network path see it, case-checked with a mirror), but it isn't in `resolve_queued()`'s return value and holds no player Phase End, so it triggers no end-of-phase save. CO2 decides whether an arrival on a frozen map saves (with `combat_state` v4 and question 39) | CO1 report, November 22, 2026 |
+| P11 | **Settled** (P11 question 71; confirmed in CO20): CO1's resume batch (`PhaseRunner.resume()` from `send_unit()`): it goes out on `batch_resolved` through `CombatSession.flush()` (the battle screen, HUD and network path see it, case-checked with a mirror), but it isn't in `resolve_queued()`'s return value and holds no player Phase End, so it triggers no end-of-phase save. CO2 decides whether an arrival on a frozen map saves (with `combat_state` v4 and question 39) | CO1 report, November 22, 2026 |
 | P11 | **Done** (CO11 and CO14, merged November 23, 2026). Route votes for later steps (CO6): CO11's map screen reads the tally from `RouteVoteCommand.tally()` and `CampaignRunState.open_route_votes()`, and sends `RouteVoteCommand` in co-op (a co-op `ChooseNodeCommand` is refused until then, so a live co-op host can't leave the map); CO14's forfeit drops the seat from `route_votes` and draws if the remaining votes are complete | CO6 report, November 22, 2026 |
 | P11 | CO11's notes for CO16: a client sees the route draw only through the mirrored `NODE_CHOSEN` fact for no seat; open swap proposals reach a client only as facts (as CO5 noted). For tooling: the hint bar's glyph family (keyboard or pad) varies between capture runs, so byte-comparing shots needs the glyph family fixed per run; two dev runs differed on 43 shots; the proposals part closed by CO16 (the run capture carries them, P11 question 140) | CO11 report, November 23, 2026 |
 | P06 | **Markers done in CO3** (merged November 23, 2026). CO4's notes: the four `# ASSUMPTION` markers P06 question 14 (d) confirmed and DK6 was to remove are still in `darkness.gd` (`is_release_due`, `_erode`, `_deal`) and `darkness_state.gd` (`_flow_order`): CO3 removes them. For Lane A: a silent fact between two recalculations' deepened tiles would split the HUD's spread line in two; no code path does that today | CO4 report, November 23, 2026 |
@@ -111,6 +111,8 @@ from starting; each is asked inside its plan's Open Questions.
 | P11 | CO23's notes for CO18: on the wire the host sends a forfeit's encounter batch first (no seat), then each affected map's batch, then the campaign batch; mirrors apply them in that order. `UNIT_LEFT = 51` carries the leave, so a mirror keeps its battle on `SEAT_FORFEITED` and never calls `forfeit()` (questions 122 and 148). `session_of_unit()` returns null for a unit that left. CO23's net case compares clients after the last battle batch only, because of BUG-047; CO18's fix lets it compare after the campaign batch too. Presentation reading exact fact sequences: an End Turn batch now starts with `TURN_ENDED` | CO23 report, November 23, 2026 |
 | P11 | CO18's notes: CO19's pause-menu Forfeit sends `CampaignService.submit_command(ForfeitCommand.new(CampaignService.local_seat()))`, and the archive and the move to the main menu follow on their own; a refusal arrives as `command_rejected` ("paused" while another seat is dropped, question 161); the host has no Forfeit, it abandons the run. A gap: the host never disconnects a forfeiter, so a client that doesn't leave stays a lobby member without a seat and still receives SaveService checkpoints (**done in CO19**, merged November 23, 2026: the host cuts it off `LET_GO_WAIT` later and SaveService sends only to members playing a seat, P11 question 183). For NT8b: a forfeit and a Remove over Steam between Windows and the Mac, and the lobby client's archive write and move to the main menu, untestable headless | CO18 report, November 23, 2026 |
 | P11 | CO19's notes: the wait overlay's own Save & Quit (`ui/net/`, Lane E) doesn't send `NetRelay._match_ended`, so its clients take the lost-host path to the menu; a panel the game opens under the co-op menu (the send panel) waits until the menu closes; the hint bar does one group lookup per frame (unmeasured, as `BoardKey.is_open_in`); the harness's `step_until_idle()` doesn't process a pending kick, so a case calls `step()` once. For NT8b, live only: `_match_ended` reaching clients over Steam before the host's leave closes the connection, and the lobby client landing on its main menu; the forfeiter cut-off over Steam, the member list after it, and whether 1 s is enough; Leave Match, then rejoining from the friends list; a reconnecting client's menu not pausing (question 185) | CO19 report, November 23, 2026 |
+| P08 (docs) | campaign-run.md's command tables leave out the swap commands, `ForfeitCommand` and `EventVoteCommand`; event-bus.md now has the full list (CO20). Add them or link event-bus.md at the next docs step that touches campaign-run.md | CO20 report, November 23, 2026 |
+| Vision (ideation) | **CO20's vision proposals**: 16 places where game-vision.md describes co-op differently from what P11 built, each with the built rule, its P11 questions and proposed wording, in [CO20's vision proposals](#co20s-vision-proposals) below; row 70 is proposal 15. For the ideation thread | CO20 report, November 23, 2026 |
 | P11 | CO3's notes: Brothers in Arms already acts on every map (its position test sits in its selector, not a condition), built behaviour, unchanged; CO17 covers a client's mirror of a visitor battle; P11 questions 110–113 built on the recommendations (marked `# ASSUMPTION` in `combat_encounter.gd`) | CO3 report, November 23, 2026 |
 | P11 | CO14's hand-offs to CO18: send `SaveService.take_forfeit_record()` to the leaving machine; call `CombatEncounter.forfeit()` on every mirror mid-battle (P11 question 122); hold the host's Remove of a dropped player until question 116's unit-removal step lands. Also: `SaveService.start_new_multiplayer_run`'s doc still says the player count is fixed (it can shrink now) | CO14 report, November 23, 2026 |
 | P11 | CO15's notes: solo fast-forward never stops for a Boss or a death (P11 question 126, solo as before); a HUD hint for a teammate's hold ("Fast-forward: waiting for Player 2", question 128) for Lane A; the fingerprint doesn't cover the settings' keys, so an older host drops a newer client's settings (logged) and uses the defaults; within one Boss exchange a quick re-press can stop again on its next attack | CO15 report, November 23, 2026 |
@@ -118,3 +120,60 @@ from starting; each is asked inside its plan's Open Questions.
 | P09 | EV7's notes: unit-roster.md allows a temporary convoy overflow until the next combat; neither the Guildhall nor events build it (out of scope, ask before scheduling); a run saved before EV7 draws Mercenary Camp's recruit when the option applies, so nothing can be handed onto that recruit; CO12's hint nit is fixed (the hint follows focus on Team) | EV7 report, November 23, 2026 |
 | P14 | **Split in BF1** (merged November 19, 2026): `map_set/key` (209 s), `key_gatehouse` (133 s), `boss` (160 s), `boss_repeat` (227 s, two plays capped at 3 player phases). Under a full parallel run `map_set/standard` (232 s) and `boss_repeat` are now the closest to the 300 s limit: split `standard`, or cap `boss_repeat` at 2 phases, if either hangs | P05 question 44; BF1 report |
 
+
+## CO20's vision proposals
+
+For the ideation thread (CO20 report, November 23, 2026). game-vision.md is untouched; each item
+gives the built rule's P11 questions and proposed wording.
+
+**Combat maps › Multiplayer maps**
+
+1. **Reinforce** (Q8–10, 12, 25, 65, 68, 69, 104, 113): "Either choice is final, except that
+   while a teammate's map is frozen, a winner with units left on a won map must send at least one
+   there, and may send again. Units sent to a frozen map arrive at once. They land next to the
+   receiving commander, else on that map's first deployment tile, on the nearest free tiles; with
+   no free tile they wait. A map loses its speed bonus once sent units land there; a swap's
+   visitor doesn't count. A unit's actions on any map count toward its owner's Standout, which is
+   picked among the owner's own units."
+2. **Every map must be completed** (Q26, 106, 107): add "no gold, XP, item pick or Standout";
+   "even if every map fails, the run goes on"; "a Boss beaten on one map wins the run for
+   everyone, and a Boss battle whose every map failed loses it."
+3. **Freeze and run loss** (Q6, 113, 156): "The run is lost when a map is frozen, no unit is on
+   its way to it, and no map still being fought or won holds a unit that could land there."
+4. **Runes on a teammate's map** (Q136, built as own map only): "For the MVP each player's runes
+   act on their own map; using them on a teammate's map is revisited after the co-op playtest."
+5. **Spectating** (Q131): add "a player plays their own units on whichever map they stand."
+6. **Game speed** (Q30, not built): "…a host lobby setting, once a game-speed option exists."
+7. **Fast-forward** (Q29, 127, 129, BUG-041): "It stops at any player unit's death and when a
+   boss exchange begins; each player presses again to go on. A player watching a map they have no
+   units on speeds only their own view. The stops apply in solo too."
+8. **Disconnects and forfeits** (Q35, 36, 161, 181): "A forfeit waits while the run is paused for
+   someone else's drop. A removed player's machine gets no archive record. The co-op pause menu
+   never pauses the game, and the host's Save & Quit ends the match for everyone."
+9. **Co-op ownership** (Q88, 89): "…replaced by another heirloom of the same tier, by that offer's
+   own roll rule; a unique heirloom a teammate owns is never offered."
+10. **New: unit swaps**: "Between nodes on the campaign map, two players can agree to swap one
+    living non-commander unit each for the next combat the team fights. Each visitor deploys by
+    role on the partner's map, stays under its owner's control and earns for its owner
+    (coop-unit-swaps.md)."
+11. **New: units on a partner's map** (Q16–18, 110, 111): "Timed modifiers travel with the unit.
+    The owner's Your Unit heirlooms and curses act on it there, except those triggered at Phase
+    Start or Phase End. Commander's Standard counts the owner's units only."
+12. **New: turn timer** (Q37): "No turn timer in the MVP; revisit at the playtest."
+
+**Run structure**
+
+13. **Team choices** (Q27): add "a drawn team option applies to each player's own army, with their
+    own picks."
+
+**Open and unfinished**
+
+14. In the Multiplayer bullet, drop the per-player battle state and the forfeit save change (both
+    built) and the light links (Q38: none in the MVP). Drop the "Multiplayer arrivals" bullet
+    (Q12, 113).
+
+**Decisions**
+
+15. Move the October 20 "Co-op commander" row's "the run is lost only if every commander falls"
+    into Superseded, by October 29 (row 70 above).
+16. Add one P11 row for November 20–23, 2026 that points to the built rules.
