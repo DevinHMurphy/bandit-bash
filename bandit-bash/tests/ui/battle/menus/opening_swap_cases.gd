@@ -6,7 +6,7 @@
 # File:     opening_swap_cases.gd
 # Author:
 # Created:  November 7, 2026
-# Modified: November 19, 2026
+# Modified: November 23, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -64,12 +64,12 @@ func _test_toggle_saves_and_restarts() -> void:
 	var scene: PackedScene = load(OPTIONS_SCENE)
 	var options: Control = scene.instantiate()
 	_root.add_child(options)
-	var toggle: SettingToggle = options.get_node(^"%OpeningSwapToggle")
+	var toggle: SettingToggle = options.get_node(^"%OptionsPanel/%OpeningSwapToggle")
 	var shown_on: bool = toggle.is_on()
 	toggle.get_button().grab_focus()
 	_press_action(&"ui_accept")
 	var flipped_off: bool = not toggle.is_on()
-	var apply: Button = options.get_node(^"%ApplyButton")
+	var apply: Button = options.get_node(^"%OptionsPanel/%ApplyButton")
 	apply.grab_focus()
 	_press_action(&"ui_accept")
 	options.free()
