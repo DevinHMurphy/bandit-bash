@@ -127,6 +127,17 @@ before writing a prompt and name it in the LANE block.
    commit it: the edit stays unstaged and goes in with the next merge commit (user, November 22,
    2026), so a session that fails before merging leaves no commit to undo.
 
+### The gameplay rework branch
+
+Gameplay enhancements build on `map_gameplay_rework` (user, November 24, 2026), made from `dev` at
+1e37508: only CT15 (Movement by type) and MP13 (the maps and enemy placements). Other reworks
+use `dev` as usual unless the user names this branch for them. Their prompts say `git worktree add ../Bandit_Bash-<ID> -b feature/<ID> map_gameplay_rework`
+and "merge map_gameplay_rework into your branch" before the final run. The orchestrator merges them
+into `map_gameplay_rework` through its worktree, `../Bandit_Bash-rework` (the main checkout stays
+on `dev`), with the same full run. After every merge into `dev`, merge `dev` into
+`map_gameplay_rework` too. The user playtests the branch, then it is merged into `dev` or cut.
+The records stay on `dev`.
+
 ## Queue by lane (November 21, 2026)
 
 | Lane | Next | Then | Gated on |

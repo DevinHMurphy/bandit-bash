@@ -84,6 +84,12 @@ Not a bug.
 | [BUG-049](#bug-049-a-held-pad-trigger-turns-fast-forward-back-on-after-a-stop) | After a key-moment stop, a pad trigger (RT) held past halfway may turn fast-forward straight back on: `_unhandled_input` counts every non-echo `fast_forward` event with `is_pressed()` as a press, and a held trigger keeps sending motion events | P07 / P11 (fast-forward) | S3 (by reading, not reproduced; in co-op since CO15) | Fixed (UL12 merge, November 23, 2026: a press counts only on the up-to-down edge, for keys, buttons and the trigger) | November 23, 2026, EN19 report | Lane A |
 | [BUG-050](#bug-050-the-enet-pair-hosts-battle-stops-moving-in-full-runs) | The ENet pair case's host stops moving for 60 s mid-battle in some full runs (`PAIR FAILED host: nothing moved for 60 s, at step PLAY`); the client then loses the host and fails as "the run's session ended". Passes with `net` alone | P10 (tests, or a real stall) | S2 until shown to be the test | Fixed (BF13, November 23, 2026): the test's driver | November 23, 2026, UL12 report and the UL12 and CO17 merge | — |
 | [BUG-051](#bug-051-netlog-calls-get_unique_id-on-a-closed-peer) | When an ENet client loses its host, `NetLog.info` in `steam_network.gd`'s disconnect handler calls `multiplayer.get_unique_id()` on a peer that is set but closed; the engine prints "ERROR: The multiplayer instance isn't currently active" | P10 | S4 | Open | November 23, 2026, BF13 report | the next Lane E step |
+| [BUG-052](#bug-052-co-op-starting-heirloom-route-loop-locks-the-host-out) | Co-op starting heirloom: once one player picks, the host's screen reloads every frame and that player is locked out; the client sends a route notice in a loop | P08 / P11 | S1 | Open | November 23, 2026, the user's live network test | P18 RC1 (BF14 folded in) |
+| [BUG-053](#bug-053-cleave-splashes-the-unit-it-struck) | Cleave's 2 splash damage also hits the unit the attack struck, so that unit takes the hit plus 2 (Brute, Brigand Captain, Powder Baron) | P01 / P05 (effects, content) | S2 | Open | November 24, 2026, the user's playtest | BF16 (Lane D) |
+| [BUG-054](#bug-054-starting-heirloom-tags-cover-the-other-choices) | On the starting heirloom screen, a card's keyword tags cover the other choices | P07 / P08 (UI) | S3 | Open | November 24, 2026, the user's playtest | UL13 (Lane A) |
+| [BUG-055](#bug-055-editor-resaves-change-the-build-fingerprint) | An editor resave of a map or data file (an added `uid`, a scene given a random `uid`) or a different line-ending checkout changes the build fingerprint, so two machines running the same commit are refused as a build mismatch | P10 | S2 | Open | November 23–24, 2026, the user's two-machine test | BF15 (Lane E) |
+| [BUG-056](#bug-056-the-boss-s-end-in-co-op-strands-clients) | In co-op the Boss's End run checks only that the Boss is beaten, routes only the host, and leaves clients on a dead victory overlay | P08 / P11 | S1 | Open | November 24, 2026, P18 inventory | P18 RC4 |
+| [BUG-057](#bug-057-a-refused-leave-gives-up-unclaimed-rewards) | On the co-op results overlay, a Leave the rules refuse still sends that seat's skip commands first, giving up its unclaimed rewards | P08 / P11 | S2 | Open | November 24, 2026, P18 inventory | P18 RC4 |
 
 ### BUG-001 No Block at the start of combat
 
@@ -709,3 +715,66 @@ Not a bug.
   "ERROR: The multiplayer instance isn't currently active". Seen only on the host-dropped path;
   nothing else goes wrong.
 - **Fix:** in `NetLog._log`, also check the peer's connection status before asking its id.
+
+### BUG-052 Co-op starting heirloom route loop locks the host out
+
+- **Found** in the user's live network test (November 23, 2026). The client takes its starting
+  heirloom; its screen calls `RunScreen.go()`, which sends `NetRelay.NoticeKind.ROUTE`. The host
+  answers with `RunScreen.go()` too, but `RunScreen.of()` reads the local seat's offer, and the
+  host's is still open, so it routes everyone to `STARTING_HEIRLOOM` (its own screen reloads,
+  resetting its choice). The client's screen opens with its offer closed, so its `_ready()` calls
+  `RunScreen.go()` again: a ROUTE and a reload every frame ("NetRelay: received notice, 32 B" then
+  "Entered screen STARTING_HEIRLOOM", repeating). Either seat picking first can start it.
+- **Cause:** the starting heirloom is a per-seat screen (P11 question 61 lets one seat be on the
+  map while a teammate's offer is open), but leaving it is a move for everyone, chosen by the
+  host's own seat. The harness takes starting heirlooms by command, never through the screen.
+- **Wider than the heirloom** (P18 inventory, November 24, 2026): any client screen whose
+  `RunScreen.of()` disagrees with the host's re-routes from `_ready()` and loops the same way (a
+  mirror not built yet at LOADING, one that missed a batch); every client following a teammate's
+  batch sends its own ROUTE, so the host reloads everyone 1 + N times. Fixed by P18 RC1 (one
+  routing authority), which takes over BF14.
+
+### BUG-053 Cleave splashes the unit it struck
+
+- **Found** in the user's playtest (November 24, 2026): the unit a Cleave attack strikes also
+  takes Cleave's 2 splash damage. enemy-roster.md says "every other unit adjacent to the Brute";
+  the user confirms the struck unit is meant to be spared.
+- **Cause:** each Cleave (`data/enemies/brute.tres`, `brigand_captain.tres`, `powder_baron.tres`)
+  selects with `Area` (`scripts/effects/blocks/selectors/area.gd`) centered on its owner over
+  `data/shapes/adjacent.tres`, side any; the selector has no way to leave out the hit's target,
+  which is always adjacent to a melee attacker.
+
+### BUG-054 Starting heirloom tags cover the other choices
+
+- **Found** in the user's playtest (November 24, 2026): on the starting heirloom screen
+  (`ui/campaign/starting_offer_view.gd`, `heirloom_offer_card.gd`), a card's keyword tags draw
+  over the other selections. The captures pass with 0 layout issues, so the layout check misses
+  an overlap between siblings or a tooltip-like tag box.
+
+### BUG-055 Editor resaves change the build fingerprint
+
+- **Found** in the user's two-machine test (November 23, 2026): a build mismatch between two
+  Windows machines on the same commit. `NetContract.content_digest()` hashes the raw bytes of every
+  file under `res://data/` and `res://maps/`. Opening the project in the editor resaves
+  `maps/greybox_tile_set.tres` (adds an `ext_resource` uid) and `maps/standard/bandit_camp.tscn`
+  (gives the scene a **random** uid, different on each machine). A checkout with other line endings
+  (`core.autocrlf`; a Mac) differs too. The user keeps those resaves uncommitted (editor
+  configuration), so the digest must not depend on them.
+- **Fix (BF15):** hash content that ignores editor-only differences (uid attributes, line
+  endings), and log each fingerprint part at boot so a mismatch says which part differs.
+
+### BUG-056 The Boss's end in co-op strands clients
+
+- **Found** by the P18 inventory (November 24, 2026): `CampaignService.end_won_run()` checks only
+  that the Boss is beaten (`campaign_service.gd:377-384`), not every seat's picks; the overlay's End
+  run routes only the local machine (`victory_overlay.gd:425-432`). The host's end sends
+  `_client_run_ended`, which drops each client's replica and mirror, and the clients stay on the
+  overlay until they press End run again. Not yet reproduced live.
+- **Fix:** P18 RC4: the Boss's end is a ready gate; the host ends the run and routes everyone.
+
+### BUG-057 A refused Leave gives up unclaimed rewards
+
+- **Found** by the P18 inventory (November 24, 2026): the victory overlay's Leave sends the seat's
+  skip commands before `LeaveNodeCommand` (`victory_overlay.gd:424-440`); when Leave is refused
+  because a teammate hasn't picked (`:462-468`), the skips have already gone through.
+- **Fix:** P18 RC4, with question 5's confirm.

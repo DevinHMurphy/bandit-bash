@@ -31,4 +31,4 @@ game windows, a host and a joiner, on the ENet dev transport (no Steam needed), 
 throwaway user folder, and prints where their folders and logs are; in each window pick a save
 file and choose Multiplayer, the host's first.
 
-**Plan IDs:** P00 save system · P01 event bus and effects · P02 combat core · P03 content · P04 combat map · P05 enemies and AI · P06 the darkness · P07 combat UI · P08 campaign · P09 events · P10 net · P11 co-op · P12 statistics · P13 RNG · P14 project organization.
+**Plan IDs:** P00 save system · P01 event bus and effects · P02 combat core · P03 content · P04 combat map · P05 enemies and AI · P06 the darkness · P07 combat UI · P08 campaign · P09 events · P10 net · P11 co-op · P12 statistics · P13 RNG · P14 project organization · P18 co-op ready checks.
