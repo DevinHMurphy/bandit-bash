@@ -6,7 +6,7 @@
 # File:     net_log.gd
 # Author:
 # Created:  October 9, 2026
-# Modified: November 19, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 extends Node
@@ -89,10 +89,14 @@ func _log(level: Level, category: Category, message: String) -> void:
 	if not would_log(level, category):
 		return
 
-	# SteamNetwork.leave_lobby() clears the peer, and get_unique_id() with none raises an engine
-	# error and returns 0. With no peer this machine is alone, so it is the server, peer 1, as solo.
+	# get_unique_id() raises an engine error and returns 0 with no peer (SteamNetwork.leave_lobby()
+	# clears it) and on a peer that is set but closed (a client that lost its host, before the
+	# teardown clears it). Either way this machine is alone, so it is the server, peer 1, as solo.
+	# A connecting peer already has its id.
 	var peer_id: int = MultiplayerPeer.TARGET_PEER_SERVER
-	if multiplayer.multiplayer_peer != null:
+	var peer: MultiplayerPeer = multiplayer.multiplayer_peer
+	# ASSUMPTION: a closed peer's lines read as peer 1, as with no peer, not its last id.
+	if peer != null and peer.get_connection_status() != MultiplayerPeer.CONNECTION_DISCONNECTED:
 		peer_id = multiplayer.get_unique_id()
 	var line: String = "[%s][%s][peer %d] %s" % [
 		Level.find_key(level),

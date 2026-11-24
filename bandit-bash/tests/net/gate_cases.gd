@@ -6,20 +6,33 @@
 # File:     gate_cases.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 extends "res://tests/net/net_case_base.gd"
 ## Authority gate cases for tests/net/run_all.gd ([NetGate]): no API, no peer and the offline
 ## peer are solo (no session, authoritative); a fake host peer is a session with authority, a fake
 ## client peer, connected or still connecting, one without; two APIs in one process answer each
-## for itself; SteamNetwork's helpers agree outside a lobby; and BUG-016's regression.
+## for itself; SteamNetwork's helpers agree outside a lobby; and the regressions of BUG-016 and
+## BUG-051 (no engine error asking the id of no peer or of a closed one).
 
 # The suite that runs this file; tests/case_files.gd finds it by this line.
 const SUITE: String = "net"
 
 # A client's Godot peer id; real ones are large and random.
 const CLIENT_PEER: int = 1384211520
+
+# The closed-peer case's ENet server: loopback only, any free port.
+const LOCALHOST: String = "127.0.0.1"
+const ANY_PORT: int = 0
+
+# The line the closed-peer case logs, in NetLog's lobby category (read through the script
+# CombatSession preloads, as the sessions suite's logging cases do).
+const CLOSED_PEER_TEXT: String = "gate: a line logged on a closed peer"
+const LOBBY_CATEGORY: CombatSession.NetLogScript.Category = (
+		CombatSession.NetLogScript.Category.LOBBY
+)
+const INFO_LEVEL: CombatSession.NetLogScript.Level = CombatSession.NetLogScript.Level.INFO
 
 
 func run() -> void:
@@ -28,6 +41,7 @@ func run() -> void:
 	_test_two_apis()
 	_test_steam_network_solo()
 	_test_local_peer_after_leaving()
+	_test_log_on_a_closed_peer()
 
 
 func _test_no_session() -> void:
@@ -106,6 +120,50 @@ func _test_local_peer_after_leaving() -> void:
 			and peer_id == MultiplayerPeer.TARGET_PEER_SERVER
 			and errors.is_empty()
 	), "peer cleared %s, id %d, errors %s" % [is_cleared, peer_id, errors])
+
+
+# BUG-051: a NetLog line while the tree's peer is set but closed, as on the host-dropped path,
+# prints, tagged peer 1, and raises no engine error. A real ENet peer, since its id lookup is the
+# one that fails; it is opened again before the peer from before goes back, so the API never sees
+# a status change and fires no disconnect signal.
+func _test_log_on_a_closed_peer() -> void:
+	const CASE_NAME: String = "gate: BUG-051 a NetLog line on a closed peer raises no engine error"
+	var api: MultiplayerAPI = _root.multiplayer
+	var peer_before: MultiplayerPeer = api.multiplayer_peer
+	var peer: ENetMultiplayerPeer = ENetMultiplayerPeer.new()
+	peer.set_bind_ip(LOCALHOST)
+	if peer.create_server(ANY_PORT) != OK:
+		_skip(CASE_NAME, "no port could be opened on %s" % [LOCALHOST])
+		return
+	api.multiplayer_peer = peer
+	peer.close()
+	var status: MultiplayerPeer.ConnectionStatus = peer.get_connection_status()
+	var net_log: Node = _root.get_node(^"NetLog")
+	var level_before: Variant = net_log.get(&"min_level")
+	net_log.set(&"min_level", INFO_LEVEL)
+	var catcher: LineCatcher = LineCatcher.new()
+	OS.add_logger(catcher)
+	net_log.call(&"info", LOBBY_CATEGORY, CLOSED_PEER_TEXT)
+	OS.remove_logger(catcher)
+	net_log.set(&"min_level", level_before)
+	var reopened: Error = peer.create_server(ANY_PORT)
+	api.multiplayer_peer = peer_before
+	peer.close()
+	var printed: PackedStringArray = []
+	for message: String in catcher.get_messages():
+		if message.contains(CLOSED_PEER_TEXT):
+			printed.append(message.strip_edges())
+	var errors: PackedStringArray = catcher.get_errors()
+	var tag: String = "[peer %d]" % [MultiplayerPeer.TARGET_PEER_SERVER]
+	_check(CASE_NAME, (
+			status == MultiplayerPeer.CONNECTION_DISCONNECTED
+			and reopened == OK
+			and printed.size() == 1
+			and printed[0].contains(tag)
+			and errors.is_empty()
+	), "status %d, reopened %d, printed %s, errors %s" % [
+		status, reopened, printed, errors,
+	])
 
 
 # A SceneMultiplayer outside the tree with a fake peer of unique id peer_id in status.
@@ -196,3 +254,48 @@ class FakePeer:
 
 	func _is_refusing_new_connections() -> bool:
 		return _is_refusing
+
+
+# Keeps every line printed and every engine or script error logged while it is added with
+# OS.add_logger; locked, since the engine may call a logger from any thread.
+class LineCatcher:
+	extends Logger
+
+	var _messages: PackedStringArray = []
+	var _errors: PackedStringArray = []
+	var _lock: Mutex = Mutex.new()
+
+	func _log_message(message: String, _is_error: bool) -> void:
+		_lock.lock()
+		_messages.append(message)
+		_lock.unlock()
+
+	func _log_error(
+			function: String,
+			file: String,
+			line: int,
+			code: String,
+			rationale: String,
+			_is_editor_notified: bool,
+			_error_type: int,
+			_backtraces: Array[ScriptBacktrace]
+	) -> void:
+		_lock.lock()
+		_errors.append("%s (%s:%d, %s)" % [
+			rationale if not rationale.is_empty() else code, file, line, function,
+		])
+		_lock.unlock()
+
+	## Every line printed while it was added.
+	func get_messages() -> PackedStringArray:
+		_lock.lock()
+		var copy: PackedStringArray = _messages.duplicate()
+		_lock.unlock()
+		return copy
+
+	## Every error logged while it was added.
+	func get_errors() -> PackedStringArray:
+		_lock.lock()
+		var copy: PackedStringArray = _errors.duplicate()
+		_lock.unlock()
+		return copy

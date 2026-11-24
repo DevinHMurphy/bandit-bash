@@ -83,11 +83,11 @@ Not a bug.
 | [BUG-048](#bug-048-a-client-leaving-an-individual-event-is-sometimes-refused) | Intermittent: CO16's "a client leaves the individual event on every mirror" (`tests/net/coop_campaign_cases.gd`) is sometimes refused with "seat 0 hasn't chosen at the event", and the battle-hash case after it then checks nothing | P11 / P10 (events on mirrors) | S3 (a test flake, or a real ordering race in BUG-034's Leave rule) | Fixed (BF12 merge, November 23, 2026): a test bug. A full convoy refused the host seat's event choice, so none was sent; the choice now falls back to scrapping the new item, and a seat with no valid choice fails a check | November 23, 2026, BF11 report | Lane C |
 | [BUG-049](#bug-049-a-held-pad-trigger-turns-fast-forward-back-on-after-a-stop) | After a key-moment stop, a pad trigger (RT) held past halfway may turn fast-forward straight back on: `_unhandled_input` counts every non-echo `fast_forward` event with `is_pressed()` as a press, and a held trigger keeps sending motion events | P07 / P11 (fast-forward) | S3 (by reading, not reproduced; in co-op since CO15) | Fixed (UL12 merge, November 23, 2026: a press counts only on the up-to-down edge, for keys, buttons and the trigger) | November 23, 2026, EN19 report | Lane A |
 | [BUG-050](#bug-050-the-enet-pair-hosts-battle-stops-moving-in-full-runs) | The ENet pair case's host stops moving for 60 s mid-battle in some full runs (`PAIR FAILED host: nothing moved for 60 s, at step PLAY`); the client then loses the host and fails as "the run's session ended". Passes with `net` alone | P10 (tests, or a real stall) | S2 until shown to be the test | Fixed (BF13, November 23, 2026): the test's driver | November 23, 2026, UL12 report and the UL12 and CO17 merge | — |
-| [BUG-051](#bug-051-netlog-calls-get_unique_id-on-a-closed-peer) | When an ENet client loses its host, `NetLog.info` in `steam_network.gd`'s disconnect handler calls `multiplayer.get_unique_id()` on a peer that is set but closed; the engine prints "ERROR: The multiplayer instance isn't currently active" | P10 | S4 | Open | November 23, 2026, BF13 report | the next Lane E step |
+| [BUG-051](#bug-051-netlog-calls-get_unique_id-on-a-closed-peer) | When an ENet client loses its host, `NetLog.info` in `steam_network.gd`'s disconnect handler calls `multiplayer.get_unique_id()` on a peer that is set but closed; the engine prints "ERROR: The multiplayer instance isn't currently active" | P10 | S4 | Fixed (BF15, November 24, 2026) | November 23, 2026, BF13 report | — |
 | [BUG-052](#bug-052-co-op-starting-heirloom-route-loop-locks-the-host-out) | Co-op starting heirloom: once one player picks, the host's screen reloads every frame and that player is locked out; the client sends a route notice in a loop | P08 / P11 | S1 | Loop fixed (BF14, November 24, 2026); the team-waits behaviour is RC1's | November 23, 2026, the user's live network test | P18 RC1 (BF14 folded in) |
 | [BUG-053](#bug-053-cleave-splashes-the-unit-it-struck) | Cleave's 2 splash damage also hits the unit the attack struck, so that unit takes the hit plus 2 (Brute, Brigand Captain, Powder Baron) | P01 / P05 (effects, content) | S2 | Open | November 24, 2026, the user's playtest | BF16 (Lane D) |
 | [BUG-054](#bug-054-starting-heirloom-tags-cover-the-other-choices) | On the starting heirloom screen, a card's keyword tags cover the other choices | P07 / P08 (UI) | S3 | Open | November 24, 2026, the user's playtest | UL13 (Lane A) |
-| [BUG-055](#bug-055-editor-resaves-change-the-build-fingerprint) | An editor resave of a map or data file (an added `uid`, a scene given a random `uid`) or a different line-ending checkout changes the build fingerprint, so two machines running the same commit are refused as a build mismatch | P10 | S2 | Open | November 23–24, 2026, the user's two-machine test | BF15 (Lane E) |
+| [BUG-055](#bug-055-editor-resaves-change-the-build-fingerprint) | An editor resave of a map or data file (an added `uid`, a scene given a random `uid`) or a different line-ending checkout changes the build fingerprint, so two machines running the same commit are refused as a build mismatch | P10 | S2 | Fixed (BF15, November 24, 2026) | November 23–24, 2026, the user's two-machine test | — |
 | [BUG-056](#bug-056-the-boss-s-end-in-co-op-strands-clients) | In co-op the Boss's End run checks only that the Boss is beaten, routes only the host, and leaves clients on a dead victory overlay | P08 / P11 | S1 | Open | November 24, 2026, P18 inventory | P18 RC4 |
 | [BUG-057](#bug-057-a-refused-leave-gives-up-unclaimed-rewards) | On the co-op results overlay, a Leave the rules refuse still sends that seat's skip commands first, giving up its unclaimed rewards | P08 / P11 | S2 | Open | November 24, 2026, P18 inventory | P18 RC4 |
 | [BUG-058](#bug-058-a-co-op-start-can-read-as-a-rejoin) | Over ENet a normal co-op start can read as a rejoin: the run's data can reach a client before the route to Loading, so the client opens its offer alone | P11 | S2 | Open | November 24, 2026, BF14 report (P11 question 193) | P18 RC1 |
@@ -716,6 +716,8 @@ Not a bug.
   "ERROR: The multiplayer instance isn't currently active". Seen only on the host-dropped path;
   nothing else goes wrong.
 - **Fix:** in `NetLog._log`, also check the peer's connection status before asking its id.
+- **Fixed** in BF15 (November 24, 2026): NetLog asks for the id only of a peer that isn't
+  disconnected; a closed peer's lines read `[peer 1]`. Regression case in `gate_cases.gd`.
 
 ### BUG-052 Co-op starting heirloom route loop locks the host out
 
@@ -770,6 +772,11 @@ Not a bug.
   configuration), so the digest must not depend on them.
 - **Fix (BF15):** hash content that ignores editor-only differences (uid attributes, line
   endings), and log each fingerprint part at boot so a mismatch says which part differs.
+- **Fixed** in BF15 (November 24, 2026): `.tres` and `.tscn` files hash with CRLF as LF and without
+  `uid="uid://..."` on the header and `ext_resource` lines. A clean checkout, one with the two
+  resaves and an all-CRLF copy of 89ada1c all booted with fingerprint -8390548712162848460; before
+  the fix the main checkout and a clean one differed. `bandit-bash/.gitattributes` already forces
+  LF in every git checkout, so line endings only differ outside git. P10 questions 56–60.
 
 ### BUG-056 The Boss's end in co-op strands clients
 
