@@ -16,10 +16,11 @@ extends "res://tests/net/net_case_base.gd"
 ## autoload (stand-in ids, "Player <id>") and leaving ends it; the lobby screen's status names the
 ## transport and its address under either flag, and is as before without one. [b]Two
 ## instances:[/b] two headless instances of this project, launched with the flags and each its own
-## user folder, play a battle to its end over ENet through the real autoloads, each driven by
-## [PairPeer] from [code]harness/enet_pair_peer.gd[/code]; every map's hash must match on both,
-## every relay message must arrive, and both logs are kept in [code]user://logs/[/code]. Only the
-## instances this case started are ever stopped. Skipped without a test user folder.
+## user folder, play a battle to its end (every map ended, or the co-op run lost) over ENet through
+## the real autoloads, each driven by [PairPeer] from [code]harness/enet_pair_peer.gd[/code]; every
+## map's hash must match on both, every relay message must arrive, and both logs are kept in
+## [code]user://logs/[/code]. Only the instances this case started are ever stopped. Skipped
+## without a test user folder.
 
 # The suite that runs this file; tests/case_files.gd finds it by this line.
 const SUITE: String = "net"
@@ -473,10 +474,11 @@ class Instance:
 ## begins it and plays its seat; the client enters the lobby (which joins), votes, and plays its
 ## seat through its mirror, one command at a time. A seat plays the M1 battle driver
 ## ([code]m1_battle_cases.gd[/code]) on every map it has units on, and once its map is won sends
-## its units to a frozen map. When every map has ended each prints its maps' hashes; the
-## host ends the battle and waits for the client to leave; the client leaves at the results.
-## It prints each step it enters, and fails when nothing moves (no new step, no new fact on any
-## map) for [constant STALL_LIMIT] s, or at [constant PEER_LIMIT] s in all.
+## its units to a frozen map. When every map has ended, or the co-op run is lost, each prints its
+## maps' hashes; the host ends the battle (a lost run, the run) and waits for the client to leave;
+## the client leaves at the results, or once a lost run's battle is gone. It prints each step it
+## enters, and fails when nothing moves (no new step, no new fact on any map) for
+## [constant STALL_LIMIT] s, or at [constant PEER_LIMIT] s in all.
 class PairPeer:
 	extends RefCounted
 
@@ -516,6 +518,9 @@ class PairPeer:
 	var _is_waiting: bool = false
 	var _rejections: int = 0
 	var _has_printed: bool = false
+	# Whether this side saw the co-op run lost (CombatEncounter.is_run_lost): its end ends the run,
+	# which takes the host's session, and a client's mirror with it, so neither is a failure then.
+	var _is_run_lost: bool = false
 
 	func _init(_tree: SceneTree) -> void:
 		for arg: String in OS.get_cmdline_user_args():
@@ -533,9 +538,9 @@ class PairPeer:
 			return _fail("no end after %.0f s" % [PEER_LIMIT])
 		if _rejections > REJECTION_LIMIT:
 			return _fail("%d commands refused" % [_rejections])
-		# Past the lobby the run is there until this side is done; a client whose host left has
-		# none (SteamNetwork ends the session, the menus clear it).
-		if _step > Step.LOBBY and CampaignService.session == null:
+		# Past the lobby the run is there until this side is done, or a lost run ends; a client
+		# whose host left has none (SteamNetwork ends the session, the menus clear it).
+		if _step > Step.LOBBY and CampaignService.session == null and not _is_run_lost:
 			return _fail("the run's session ended")
 		match _step:
 			Step.BOOT:
@@ -605,10 +610,14 @@ class PairPeer:
 		_step = Step.BATTLE
 		return RUNNING
 
-	# Every map ended: its hashes, then the host ends the battle. A client whose battle closed
-	# before it looked has printed them as it closed.
+	# Every map ended, or the co-op run lost: its hashes, then the host ends the battle. A client
+	# whose battle closed before it looked has printed them as it closed. A lost run on a host
+	# showing GAMEPLAY is its battle screen's to end, as in play: it ends one at once
+	# (CoopBattle reads the loss every frame) and would end it again after the driver. Whether the
+	# host shows GAMEPLAY is timing, since only a client's route request takes it there (BUG-050).
 	func _tick_play() -> int:
-		var battle: CombatEncounter = CampaignService.session.encounter
+		var session: CampaignSession = CampaignService.session
+		var battle: CombatEncounter = null if session == null else session.encounter
 		if battle == null:
 			if _has_printed:
 				_step = Step.END
@@ -616,33 +625,44 @@ class PairPeer:
 		var is_over: bool = true
 		for map: CombatSession in battle.get_sessions():
 			is_over = is_over and map.is_finished
-		if not is_over:
+		# ASSUMPTION: a lost co-op run is an end the case passes on, as a lost map was.
+		if not is_over and not battle.is_run_lost():
 			_act(battle)
 			return RUNNING
 		_print_maps(battle)
-		if _is_host and CampaignService.end_battle() == null:
+		var is_screens: bool = (
+				_is_run_lost and SceneRouter.current_screen == SceneRouter.Screen.GAMEPLAY
+		)
+		if _is_host and not is_screens and CampaignService.end_battle() == null:
 			return _fail("the battle didn't end")
 		_step = Step.END
 		return RUNNING
 
-	# Each map's session id, state hash and result, once.
+	# Each map's session id, state hash and result (won, lost, or in a lost run frozen or still
+	# fought), once; notes whether the run was lost.
 	func _print_maps(battle: CombatEncounter) -> void:
 		if _has_printed:
 			return
 		_has_printed = true
+		_is_run_lost = battle.is_run_lost()
 		for map: CombatSession in battle.get_sessions():
-			print("%s%d %d %s" % [
-				MAP_LINE, map.session_id, map.state_hash(), "won" if map.is_won else "lost",
-			])
+			var result: String = "won" if map.is_won else "lost"
+			if not map.is_finished:
+				result = "frozen" if battle.is_frozen(map.session_id) else "fought"
+			print("%s%d %d %s" % [MAP_LINE, map.session_id, map.state_hash(), result])
 
-	# Host: done once the client left. Client: done at the results, with the battle closed.
+	# Host: done once the client left. Client: done at the results with the battle closed, or in a
+	# lost run once the battle closed or the mirror went with the run.
 	func _tick_end() -> int:
 		if _is_host:
 			if SteamNetwork.get_members().size() > 1:
 				return RUNNING
 		else:
 			var session: CampaignSession = CampaignService.session
-			if session.encounter != null or session.run.flow.stage != RunFlow.Stage.RESULTS:
+			if _is_run_lost:
+				if session != null and session.encounter != null:
+					return RUNNING
+			elif session.encounter != null or session.run.flow.stage != RunFlow.Stage.RESULTS:
 				return RUNNING
 		print("%s %s after %.1f s" % [DONE_LINE, "host" if _is_host else "client", _clock])
 		SteamNetwork.leave_lobby()
@@ -779,12 +799,12 @@ class PairPeer:
 			_rejections += 1
 			print("PAIR REFUSED: %s" % [reason])
 
-	# A client's battle closes with every map ended, its state as it was then.
+	# A client's battle closes with every map ended, or the run lost, its state as it was then.
 	func _on_session_combat_encounter_closed(encounter: CombatEncounter) -> void:
 		var is_over: bool = true
 		for map: CombatSession in encounter.get_sessions():
 			is_over = is_over and map.is_finished
-		if is_over:
+		if is_over or encounter.is_run_lost():
 			_print_maps(encounter)
 
 	func _on_session_command_rejected(seat: int, _arrival: int, reason: String) -> void:
