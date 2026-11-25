@@ -6,7 +6,7 @@
 # File:     m1_enemy_cases.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 20, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -75,7 +75,8 @@ const GROWTH_STATS: Array[int] = [
 # Reviewed effect text of each class's trait, one line per effect.
 const TEXT: Dictionary[String, Array] = {
 	"brute": [
-		"Whenever this unit lands a hit, deal 2 splash damage to adjacent units, friend or foe.",
+		"Whenever this unit lands a hit, deal 2 splash damage to every other adjacent unit, friend"
+		+ " or foe.",
 	],
 	"crossbowman": ["While it hasn't moved this turn, +10 Hit."],
 	"hedge_healer": [
@@ -320,7 +321,8 @@ func _test_m1_battle_draws_the_pack() -> void:
 
 # On Plain, a Crossbowman (the Brute's ally) at (0, 0), the Brute at (1, 0) and a player Hakkapel
 # at (2, 0); hits land. The Brute's one hit on the Hakkapel splashes 2 on every other unit beside
-# it: its own ally and the Hakkapel. The Hakkapel's counter is a lance's, with no splash.
+# it: its own ally, never the Hakkapel it struck. The Hakkapel's counter is a lance's, with no
+# splash.
 func _test_cleave_splashes_an_ally() -> void:
 	var ids: InstanceIdAllocator = InstanceIdAllocator.new()
 	var session: CombatSession = _battle(_plain(3, 1), ForecastRolls.new(), ids)
@@ -343,8 +345,8 @@ func _test_cleave_splashes_an_ally() -> void:
 	for fact: CombatFact in turn.facts:
 		if fact.kind == CombatFact.Kind.DAMAGE_TAKEN and fact.source == CombatFact.Source.SPLASH:
 			splashed.append("%s %d" % [session.state.unit_type_of(fact.actor_id), fact.amount])
-	_same("cleave: the Brute's hit splashes its own ally and its target", ", ".join(splashed), (
-			"crossbowman 2, hakkapel 2"
+	_same("cleave: the Brute's hit splashes its own ally, not its target", ", ".join(splashed), (
+			"crossbowman 2"
 	))
 	_same("cleave: the ally loses 2 HP", str(session.state.get_hp(ally)), str(ally_hp - 2))
 

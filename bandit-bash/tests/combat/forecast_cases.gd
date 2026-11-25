@@ -6,7 +6,7 @@
 # File:     forecast_cases.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 19, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -1062,9 +1062,10 @@ func _momentum() -> EffectDefinition:
 	return _definition(EffectTerms.Trigger.MISSED, [], [bonus])
 
 
-# Cleave (Brute): Hit dealt: 2 splash damage to adjacent units, friend or foe.
+# Cleave (Brute): Hit dealt: 2 splash damage to every other adjacent unit, friend or foe.
 func _cleave() -> EffectDefinition:
 	var area: Area = Area.new()
+	area.is_fact_target_excluded = true
 	area.center = Area.Center.OWNER
 	area.shape = TargetShape.new()
 	area.shape.kind = ContentIds.SHAPE_RADIUS

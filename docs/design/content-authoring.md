@@ -136,7 +136,9 @@ A prefix applies as stat deltas sourced to it, so breakdowns name it.
 `data/shapes/<id>.tres`, a [TargetShape](../../bandit-bash/scripts/content/target_shape.gd):
 `kind` (`tile`, `radius`, `square`, `cross`), `size` (grid distance) and `includes_center`. Every
 `Area` selector, area staff (`area_shape_id`), splash and keg blast names a shape file: the content
-test fails an `Area` that builds its own. Reuse an existing shape before adding one.
+test fails an `Area` that builds its own. Reuse an existing shape before adding one. An `Area` on a
+hit that must spare the unit struck ("every other adjacent unit", Cleave) sets
+`is_fact_target_excluded`: the shape alone can't, since that unit stands inside it.
 
 ## Enemies
 

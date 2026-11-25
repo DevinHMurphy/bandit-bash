@@ -6,7 +6,7 @@
 # File:     engine_cases.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 21, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -635,6 +635,29 @@ func _test_area_shapes() -> void:
 	var unshaped: Area = Area.new()
 	unshaped.side = EffectTerms.UnitSide.ANY
 	_ok("area shapes: no shape selects nothing", unshaped.select(ctx).is_empty())
+	_test_area_spares_fact_target(ctx)
+
+
+# Area.is_fact_target_excluded on the same board, owner p2 at (1, 0) beside p1 and e1: p2's hit on
+# p1 spares p1 (Cleave); with no fact, or a fact with no other party, nobody is spared; a center
+# that is the fact's target is spared too, though the shape covers it.
+func _test_area_spares_fact_target(ctx: EffectContext) -> void:
+	var around: Area = _area(Area.Center.OWNER, 1, EffectTerms.UnitSide.ANY, false)
+	around.is_fact_target_excluded = true
+	ctx.fact = CombatFact.new(CombatFact.Kind.HIT_DEALT, "p2", "p1")
+	_same("area spares: the unit struck", ",".join(around.select(ctx)), "e1")
+	ctx.fact = CombatFact.new(CombatFact.Kind.HIT_DEALT, "p2", "e1")
+	_same("area spares: an enemy struck, friend or foe", ",".join(around.select(ctx)), "p1")
+	ctx.fact = CombatFact.new(CombatFact.Kind.HEALED, "p2")
+	_same("area spares: nobody on a fact with no target", ",".join(around.select(ctx)), "p1,e1")
+	ctx.fact = null
+	_same("area spares: nobody outside a reaction", ",".join(around.select(ctx)), "p1,e1")
+	var on_target: Area = _area(Area.Center.FACT_TARGET, 1, EffectTerms.UnitSide.ANY, true)
+	on_target.is_fact_target_excluded = true
+	ctx.fact = CombatFact.new(CombatFact.Kind.HIT_DEALT, "p2", "e1")
+	_same("area spares: a center that is the target", ",".join(on_target.select(ctx)), "p2")
+	on_target.is_fact_target_excluded = false
+	_same("area spares: off, the center counts", ",".join(on_target.select(ctx)), "p2,e1")
 
 
 func _test_selectors() -> void:
