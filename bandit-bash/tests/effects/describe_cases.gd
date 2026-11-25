@@ -6,7 +6,7 @@
 # File:     describe_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 24, 2026
+# Modified: November 25, 2026
 # ==============================================================================
 
 extends "res://tests/effects/effects_case_base.gd"
@@ -292,6 +292,26 @@ func _test_describe_operations() -> void:
 			"area: sparing a center that is the fact's target",
 			spared_center.describe(),
 			"every other adjacent unit of the other unit, friend or foe"
+	)
+	var trample: Area = _area(Area.Center.FACT_TARGET, 1, EffectTerms.UnitSide.ANY, false)
+	trample.is_owner_excluded = true
+	_snapshot(
+			"area: sparing this unit around the target",
+			trample.describe(),
+			"adjacent units of the other unit, friend or foe, except this unit"
+	)
+	trample.side = EffectTerms.UnitSide.ENEMY
+	_snapshot(
+			"area: sparing this unit, enemies only (it never counts)",
+			trample.describe(),
+			"adjacent enemies of the other unit"
+	)
+	var own: Area = _area(Area.Center.OWNER, 1, EffectTerms.UnitSide.ANY, true)
+	own.is_owner_excluded = true
+	_snapshot(
+			"area: sparing this unit at its own center",
+			own.describe(),
+			"adjacent units, friend or foe"
 	)
 
 	var booster: ChangeBaseStat = ChangeBaseStat.new()

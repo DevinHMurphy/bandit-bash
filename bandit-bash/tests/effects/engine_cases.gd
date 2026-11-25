@@ -6,7 +6,7 @@
 # File:     engine_cases.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 24, 2026
+# Modified: November 25, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -658,6 +658,19 @@ func _test_area_spares_fact_target(ctx: EffectContext) -> void:
 	_same("area spares: a center that is the target", ",".join(on_target.select(ctx)), "p2")
 	on_target.is_fact_target_excluded = false
 	_same("area spares: off, the center counts", ",".join(on_target.select(ctx)), "p2,e1")
+
+	# Area.is_owner_excluded: p2's hit on p1 at (0, 0), whose neighbours are p2 and q1; a Trample
+	# or Curse around the target leaves p2, its own unit, out.
+	var trample: Area = _area(Area.Center.FACT_TARGET, 1, EffectTerms.UnitSide.ANY, true)
+	ctx.fact = CombatFact.new(CombatFact.Kind.HIT_DEALT, "p2", "p1")
+	_same("area spares owner: off, the attacker counts", ",".join(trample.select(ctx)), "p1,p2,q1")
+	trample.is_owner_excluded = true
+	_same("area spares owner: the attacker beside", ",".join(trample.select(ctx)), "p1,q1")
+	var own: Area = _area(Area.Center.OWNER, 1, EffectTerms.UnitSide.ANY, true)
+	own.is_owner_excluded = true
+	_same("area spares owner: its own center", ",".join(own.select(ctx)), "p1,e1")
+	own.is_fact_target_excluded = true
+	_same("area spares owner: with the target spared too", ",".join(own.select(ctx)), "e1")
 
 
 func _test_selectors() -> void:

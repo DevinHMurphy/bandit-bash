@@ -6,7 +6,7 @@
 # File:     intents.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 23, 2026
+# Modified: November 25, 2026
 # ==============================================================================
 
 class_name Intents
@@ -704,7 +704,8 @@ static func _barrage_blast(
 
 
 # The tiles on state's map the Area targets of definition's operations cover around its owner's
-# tile owner_tile (an Area centred elsewhere has no centre at Phase Start), in row-major order.
+# tile owner_tile (an Area centred elsewhere has no centre at Phase Start), less owner_tile where
+# the Area spares its owner, in row-major order.
 static func _covered_by(
 		state: CombatState, definition: EffectDefinition, owner_tile: Vector2i
 ) -> Array[Vector2i]:
@@ -714,6 +715,8 @@ static func _covered_by(
 		if area == null or area.shape == null or area.center != Area.Center.OWNER:
 			continue
 		for tile: Vector2i in area.shape.tiles(owner_tile):
+			if area.is_owner_excluded and tile == owner_tile:
+				continue
 			if state.grid.step(tile, Vector2i.ZERO) != CombatFact.NO_TILE:
 				covered[tile] = true
 	var tiles: Array[Vector2i] = []

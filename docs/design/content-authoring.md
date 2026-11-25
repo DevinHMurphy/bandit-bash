@@ -138,7 +138,9 @@ A prefix applies as stat deltas sourced to it, so breakdowns name it.
 `Area` selector, area staff (`area_shape_id`), splash and keg blast names a shape file: the content
 test fails an `Area` that builds its own. Reuse an existing shape before adding one. An `Area` on a
 hit that must spare the unit struck ("every other adjacent unit", Cleave) sets
-`is_fact_target_excluded`: the shape alone can't, since that unit stands inside it.
+`is_fact_target_excluded`: the shape alone can't, since that unit stands inside it. An `Area`
+centered elsewhere than its own unit (around the target: Trample, Curse) sets `is_owner_excluded`,
+so an attacker beside its target is never caught in its own area.
 
 ## Enemies
 

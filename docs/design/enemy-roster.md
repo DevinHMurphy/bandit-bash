@@ -60,9 +60,9 @@ stripped and returns with the refresh at its side's Phase Start.
 | Crossbowman | **Steady Aim:** while it hasn't moved this turn: +10 Hit | Hold | Lowest Defense in range; moves only if nothing is in range |
 | Shieldbearer | **Braced:** +2 DEF per point of current Stance | Guard | Stays next to its pack's back-line ally |
 | Hedge Healer | **Field Dressing:** Healed an ally: that ally gains 1 Stance | Support | Heals the most wounded ally; keeps away from your units |
-| Hexer | **Curse:** Hit dealt: the target and every unit adjacent to it, friend or foe, lose 1 Stance | Skirmisher | The foe whose curse catches the most player units, even if allies are caught too |
+| Hexer | **Curse:** Hit dealt: the target and every unit adjacent to it, friend or foe, but the Hexer itself, lose 1 Stance | Skirmisher | The foe whose curse catches the most player units, even if allies are caught too |
 | Warcaller | **War Horn** (signature move): every 2nd Phase Start this combat: every unit within 2 tiles, friend or foe, gains +2 damage until the end of the next phase | Support | Stays within 2 tiles of the most allies |
-| Raider | **Trample:** while it moved 3+ tiles this turn, Hit dealt: every other unit adjacent to the target, friend or foe, takes 3 splash damage | Skirmisher | Any foe it can defeat this turn, splash included; otherwise back-line foes, whoever stands next to them |
+| Raider | **Trample:** while it moved 3+ tiles this turn, Hit dealt: every other unit adjacent to the target, friend or foe, but the Raider itself, takes 3 splash damage | Skirmisher | Any foe it can defeat this turn, splash included; otherwise back-line foes, whoever stands next to them |
 | Hound | **Pack:** +2 damage per adjacent ally | Aggressive | Lowest HP; moves with its pack |
 
 - The Warcaller is the one regular enemy with a signature move, telegraphed as its intent on the
@@ -164,7 +164,7 @@ puzzle, to learn which are fun.
 |-----------|----------|---------------------------------------------|------------|
 | Brigand Captain | Brute | Every 3rd Phase Start this combat: Command, every ally gains 1 Stance, even above its maximum | Command comes after the refresh, so its pack holds one Stance over its maximum until their next Phase Start: every break takes an extra hit. Strike between Commands, or take the Captain first |
 | Bloodhound | Hound | Defeated an enemy: may move again | Never leave a wounded unit in its reach |
-| Hex Matron | Hexer | Every 3rd Phase Start this combat: Hex Storm, every unit within 2 tiles of its target, friend or foe, loses 1 Stance | Bait it into catching its own pack, then crit them |
+| Hex Matron | Hexer | Every 3rd Phase Start this combat: Hex Storm, every unit within 2 tiles of its target, friend or foe, but the Hex Matron itself, loses 1 Stance | Bait it into catching its own pack, then crit them |
 | Iron Wall | Shieldbearer (keeps Braced, the Shieldmace and the Iron Shield) | Every 2nd Phase Start this combat: Fortify, adjacent units, friend or foe, gain 4 Block and +1 Parry until Phase End | Strip its Stance to open up its DEF, then break the formation, or stand in the wall and share it |
 
 **The boss: the Powder Baron.** The MVP's one boss. The boss map is fully scripted (fixed enemies, placement
