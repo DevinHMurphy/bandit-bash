@@ -6,22 +6,23 @@
 # File:     node_placeholder_screen.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 21, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 extends Control
 ## The quiet road: an Unknown node with no event open, one that became an event when no event can
-## be drawn there ([OpenEventCommand] refused), or one not rolled. Names the node, says nothing
-## happens here, and lets the run go on.
+## be drawn there ([OpenEventCommand] refused), or one not rolled: nothing happens here.
 ##
-## Continue sends the local seat's [LeaveNodeCommand] through a [CampaignLink], which saves; once
-## any seat's Leave resolves the run returns to the map. The node stays visited and its floor
-## locked, so a route through it still reaches the Boss. With the game's events it never shows in
-## play, as only the shrine has an eligibility rule. Opened at any other stage, it sends the run on
-## at once. The [HeirloomBar] shows the seat's heirlooms; in co-op, Team opens the [TeamPanel].
-## The run's facts still to play ([CampaignPlayback]) play after each batch.
+## Continue ([ReadyToggle], Ready in co-op, taken back by a refusal) sends the local seat's
+## [LeaveNodeCommand] through a [CampaignLink], which saves; once any seat's Leave resolves the
+## run returns to the map. The node stays visited and its floor locked, so a route through it
+## still reaches the Boss. With the game's events it never shows in play, as only the shrine has
+## an eligibility rule. Opened at another stage, it sends the run on. The [HeirloomBar] shows the
+## seat's heirlooms; in co-op, Team opens the [TeamPanel]; the [TeamReadyStatus] stays hidden;
+## facts ([CampaignPlayback]) play after each batch.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
+## @todo: TOD-001 - Continue's Ready and the TeamReadyStatus follow the ready gate (P18 RC4).
 
 # ============================================================
 # INPUT MAP SETUP (built-in ui_* actions; read through the GUI, not here):
@@ -49,10 +50,12 @@ var _link: CampaignLink = null
 @onready var _header: RunHeader = %RunHeader
 @onready var _title_label: Label = %Title
 @onready var _status_label: Label = %Status
-@onready var _continue_button: Button = %ContinueButton
+@onready var _continue_button: ReadyToggle = %ContinueButton
 @onready var _team_button: Button = %TeamButton
+@onready var _ready_status: TeamReadyStatus = %TeamReadyStatus
 @onready var _team_panel: TeamPanel = %TeamPanel
 @onready var _hints: ScreenHints = %ScreenHints
+@onready var _hint_bar: ControlHintBar = %ControlHintBar
 @onready var _heirlooms: HeirloomBar = %HeirloomBar
 
 
@@ -74,6 +77,9 @@ func _ready() -> void:
 	var type_name: String = CampaignMapView.TYPE_NAMES.get(run.graph.type_of(run.node), "?")
 	_header.title = type_name
 	_title_label.text = type_name
+	# TODO(TOD-001): the ready gate drives Continue's Ready and the status (P18 RC4).
+	_continue_button.is_coop = _link.is_coop()
+	_continue_button.hint_bar = _hint_bar
 	_continue_button.pressed.connect(_on_continue_button_pressed)
 	_team_button.visible = _link.is_coop()
 	_team_button.pressed.connect(_on_team_button_pressed)
@@ -86,7 +92,7 @@ func _exit_tree() -> void:
 		_link.close()
 
 
-## The Continue button, for tests.
+## The Continue button, a [ReadyToggle], for tests.
 func get_continue_button() -> Button:
 	return _continue_button
 
@@ -94,6 +100,11 @@ func get_continue_button() -> Button:
 ## The Team button, shown in co-op, for tests.
 func get_team_button() -> Button:
 	return _team_button
+
+
+## Who the team waits for, hidden until the ready gate feeds it; for tests and captures.
+func get_ready_status() -> TeamReadyStatus:
+	return _ready_status
 
 
 ## The team panel, for tests and captures.
@@ -113,8 +124,9 @@ func _show_seat() -> void:
 	_heirlooms.show_views(HeirloomViewModel.for_run(run.seat_run(_link.seat)))
 
 
+# A press that took Ready back sends nothing.
 func _on_continue_button_pressed() -> void:
-	if _is_leaving:
+	if _is_leaving or _continue_button.is_taking_back():
 		return
 	_link.send(LeaveNodeCommand.new(_link.seat))
 
@@ -137,6 +149,7 @@ func _on_link_batch_resolved(batch: CampaignBatch, is_answer: bool) -> void:
 
 
 func _on_link_refused(reason: String) -> void:
+	_continue_button.set_ready(false)
 	_status_label.text = "Couldn't leave: %s." % [reason]
 
 

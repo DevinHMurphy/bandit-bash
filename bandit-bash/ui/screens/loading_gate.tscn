@@ -1,6 +1,11 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://ui/screens/loading_gate.gd" id="1_gate"]
+[ext_resource type="PackedScene" path="res://ui/common/team_ready_status.tscn" id="2_status"]
+[ext_resource type="PackedScene" path="res://ui/common/ready_toggle.tscn" id="3_toggle"]
+[ext_resource type="PackedScene" path="res://ui/battle/input/input_device_adapter.tscn" id="4_device"]
+[ext_resource type="Script" path="res://ui/common/screen_hints.gd" id="5_hints"]
+[ext_resource type="PackedScene" path="res://ui/battle/hud/control_hint_bar.tscn" id="6_bar"]
 
 [node name="LoadingGate" type="Control"]
 layout_mode = 3
@@ -18,21 +23,50 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 
 [node name="Column" type="VBoxContainer" parent="Center"]
 layout_mode = 2
+theme_override_constants/separation = 16
 
 [node name="Title" type="Label" parent="Center/Column"]
-layout_mode = 2
-text = "Loading (placeholder)"
-horizontal_alignment = 1
-
-[node name="Note" type="Label" parent="Center/Column"]
-layout_mode = 2
-text = "Waits here until every player has loaded (\"Players ready x / y\")."
-horizontal_alignment = 1
-
-[node name="ContinueButton" type="Button" parent="Center/Column"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Continue"
+theme_type_variation = &"TitleLabel"
+text = "Loading"
+horizontal_alignment = 1
+
+[node name="TeamReadyStatus" parent="Center/Column" instance=ExtResource("2_status")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(420, 0)
+layout_mode = 2
+loaded_state = 3
+shows_bars = true
+min_seats = 1
+
+[node name="ContinueButton" parent="Center/Column" instance=ExtResource("3_toggle")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+theme_type_variation = &"PrimaryButton"
+
+[node name="InputDeviceAdapter" parent="." instance=ExtResource("4_device")]
+
+[node name="ScreenHints" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("5_hints")
+actions = Dictionary[StringName, PackedStringArray]({
+&"LOADING": PackedStringArray("ui_accept"),
+&"LOADING_COOP": PackedStringArray("ui_accept")
+})
+
+[node name="ControlHintBar" parent="." node_paths=PackedStringArray("controller", "device") instance=ExtResource("6_bar")]
+unique_name_in_owner = true
+layout_mode = 1
+controller = NodePath("../ScreenHints")
+device = NodePath("../InputDeviceAdapter")
+right_margin = 8.0
+labels = Dictionary[String, String]({
+"LOADING/ui_accept": "Continue",
+"LOADING_COOP/ui_accept": "Ready"
+})

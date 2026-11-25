@@ -11,6 +11,8 @@
 [ext_resource type="PackedScene" path="res://ui/common/heirlooms/heirloom_bar.tscn" id="9_heirlooms"]
 [ext_resource type="PackedScene" path="res://ui/campaign/victory/leave_confirm_dialog.tscn" id="10_confirm"]
 [ext_resource type="PackedScene" path="res://ui/campaign/team_panel.tscn" id="11_team"]
+[ext_resource type="PackedScene" path="res://ui/common/ready_toggle.tscn" id="12_toggle"]
+[ext_resource type="PackedScene" path="res://ui/common/team_ready_status.tscn" id="13_ready_status"]
 
 [node name="TreasureScreen" type="Control"]
 layout_mode = 3
@@ -77,6 +79,11 @@ theme_type_variation = &"MutedLabel"
 horizontal_alignment = 1
 autowrap_mode = 3
 
+[node name="TeamReadyStatus" parent="Layout/Column/Center/Box" instance=ExtResource("13_ready_status")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+
 [node name="Buttons" type="HBoxContainer" parent="Layout/Column/Center/Box"]
 layout_mode = 2
 theme_override_constants/separation = 12
@@ -89,11 +96,11 @@ layout_mode = 2
 theme_type_variation = &"PrimaryButton"
 text = "Open the chest"
 
-[node name="LeaveButton" type="Button" parent="Layout/Column/Center/Box/Buttons"]
+[node name="LeaveButton" parent="Layout/Column/Center/Box/Buttons" instance=ExtResource("12_toggle")]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(160, 36)
 layout_mode = 2
 text = "Leave"
+solo_text = "Leave"
 
 [node name="TeamButton" type="Button" parent="Layout/Column/Center/Box/Buttons"]
 unique_name_in_owner = true

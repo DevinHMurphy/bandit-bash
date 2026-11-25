@@ -6,7 +6,7 @@
 # File:     coop_screen_cases.gd
 # Author:
 # Created:  November 22, 2026
-# Modified: November 22, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -171,8 +171,9 @@ func _test_alone(local: int) -> void:
 				panel.focus_first() and panel.get_team_button().has_focus()
 		))
 		_submit(EventNode.choose(_session(), other, HEED, null, pool, _catalog))
-	_ok("%s: once the teammate has chosen, Leave opens and nothing waits" % [tag], (
-			not leave.disabled and leave.text == "Leave"
+	_ok("%s: once the teammate has chosen, Leave (Ready) opens and nothing waits" % [tag], (
+			not leave.disabled and leave.text == "Ready"
+			and (leave as ReadyToggle).solo_text == "Leave"
 			and not summary.get_lines().contains("Waiting for")
 			and team.get_lines() == PackedStringArray(["%s chose Heed It." % [_name(other)]])
 	), summary.get_lines())
@@ -276,7 +277,7 @@ func _test_team(local: int) -> void:
 		tag,
 	], (
 			_only_batch(local, false) and panel.get_step() == EventPanel.Step.OUTCOME
-			and leave.disabled and leave.text == "Leave" and not events.is_combat_pending
+			and leave.disabled and leave.text == "Ready" and not events.is_combat_pending
 			and hints.context == &"WAITING"
 			and summary.get_lines().contains("Waiting for %s to choose." % [mate])
 			and team.get_lines() == PackedStringArray(["%s hasn't taken Fight yet." % [mate]])
@@ -288,12 +289,13 @@ func _test_team(local: int) -> void:
 	_submit(EventNode.choose(_session(), other, Fixture.FIGHT, null, pool, _catalog))
 	rows = team_panel.get_rows()
 	note = rows[0].get_note_text() if not rows.is_empty() else ""
-	_ok("%s (pad): the teammate's apply rebuilds the open Team panel; the Fight then waits" % [
+	_ok("%s (pad): the teammate's apply rebuilds the open Team panel; Ready to fight waits" % [
 		tag,
 	], (
 			opened and team_panel.visible and hints.context == TeamPanel.HINT_TEAM
 			and note.contains("%s took Fight." % [mate])
-			and events.is_combat_pending and leave.text == "Fight" and not leave.disabled
+			and events.is_combat_pending and leave.text == "Ready to fight" and not leave.disabled
+			and (leave as ReadyToggle).solo_text == "Fight"
 			and summary.get_lines().contains("A surprise combat begins")
 	), "%s; %s; %s" % [note, hints.context, leave.text])
 	_fx.press_pad(JOY_BUTTON_B)

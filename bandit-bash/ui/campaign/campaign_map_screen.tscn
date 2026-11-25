@@ -14,6 +14,7 @@
 [ext_resource type="PackedScene" path="res://ui/campaign/route_vote_status.tscn" id="12_votes"]
 [ext_resource type="PackedScene" path="res://ui/campaign/swap_status.tscn" id="13_swaps"]
 [ext_resource type="PackedScene" path="res://ui/campaign/swap_panel.tscn" id="14_swap_panel"]
+[ext_resource type="PackedScene" path="res://ui/common/team_ready_status.tscn" id="15_ready_status"]
 
 [node name="CampaignMapScreen" type="Control"]
 layout_mode = 3
@@ -114,6 +115,10 @@ theme_override_constants/separation = 16
 [node name="RouteVoteStatus" parent="Layout/Column/Body/CoopSide" instance=ExtResource("12_votes")]
 unique_name_in_owner = true
 visible = false
+layout_mode = 2
+
+[node name="TeamReadyStatus" parent="Layout/Column/Body/CoopSide" instance=ExtResource("15_ready_status")]
+unique_name_in_owner = true
 layout_mode = 2
 
 [node name="SwapStatus" parent="Layout/Column/Body/CoopSide" instance=ExtResource("13_swaps")]

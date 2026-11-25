@@ -142,10 +142,10 @@ The records stay on `dev`.
 
 | Lane | Next | Then | Gated on |
 |------|------|------|----------|
-| A Battle UI | — (free: UL12 merged November 23, 2026) | UL13 (playtest UI fixes, BUG-054) and P18 RC5 (the waiting UI and the loading screen) [ready: RC1 merged], one at a time; the event log per viewed map, with a hint for a teammate's fast-forward hold (P11 question 128); RB1 after the full-run playtest | RB1: the user's full-run playtest (user, November 20 and 22, 2026) |
+| A Battle UI | — (free: P18 RC5 merged November 25, 2026) | UL13 [ready] (playtest UI fixes, BUG-054) on top of it (user, November 24, 2026: RC5 first; both change the starting heirloom screen); the event log per viewed map, with a hint for a teammate's fast-forward hold (P11 question 128); RB1 after the full-run playtest | RB1: the user's full-run playtest (user, November 20 and 22, 2026) |
 | B Campaign and run | — (free: P18 RC1 merged November 24, 2026) | P18 RC4 [RC2, RC5] |  SaveService's run-start and checkpoint messages under the relay's size check [NT8] | — |
 | C Events | — (free: CT15 merged into `map_gameplay_rework` November 24, 2026) | MP13, the user's new maps [the user sends them], on `map_gameplay_rework`; then the event option's expected-heirloom field [a unique heirloom at events] | — |
-| D Engine, AI, content | — (free: CO17 merged November 23, 2026) | BF16 (BUG-053, Cleave splash); BUG-012 (a board test leaves objects behind) folded into the EN20 build after its plan (a plan session); CT12 after the weapon modification design | — |
+| D Engine, AI, content | BF16, Cleave spares the struck unit (BUG-053; issued November 24, 2026) | BUG-012 (a board test leaves objects behind) folded into the EN20 build after its plan (a plan session); CT12 after the weapon modification design | — |
 | E Network | — (free: BF15 merged November 24, 2026) | P18 RC2 [ready: RC1 merged]; NT8a, the Mac from source [now unblocked] | NT8a setup (the macOS export, Lane G's tooling) → NT8b the live check with the user, Windows against a Mac → CO21 | — |
 | G Audio and tooling | — (free: CO15 merged November 23, 2026) | AU2 after the audio direction (M5); the capture builder tidy-up; a fixed glyph family per capture run; TX2 when the user raises it | Nothing ready |
 | F Docs and plans | TL2 the rebalance board artifact (issued November 23, 2026; read-only on the repo, no build slot) (CO20 merged November 23, 2026) | the EN20 plan; P12 plan when wanted; P17 parked (user, November 22, 2026: very low priority) | — |
