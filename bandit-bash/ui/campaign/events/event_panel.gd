@@ -6,7 +6,7 @@
 # File:     event_panel.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 24, 2026
+# Modified: November 25, 2026
 # ==============================================================================
 
 class_name EventPanel
