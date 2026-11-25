@@ -5,9 +5,9 @@
 [resource]
 script = ExtResource("1_def")
 pool = 1
-step_1_counts = Dictionary[String, int]({"shieldbearer": 1, "crossbowman": 1, "hedge_healer": 1})
-step_2_counts = Dictionary[String, int]({"shieldbearer": 1, "crossbowman": 2, "hedge_healer": 1})
-step_3_counts = Dictionary[String, int]({"shieldbearer": 2, "crossbowman": 2, "hedge_healer": 1})
-leader_class_id = "shieldbearer"
+step_1_counts = Dictionary[String, int]({"stonelet": 1, "crossbowman": 1, "hedge_healer": 1})
+step_2_counts = Dictionary[String, int]({"stonelet": 1, "crossbowman": 2, "hedge_healer": 1})
+step_3_counts = Dictionary[String, int]({"stonelet": 2, "crossbowman": 2, "hedge_healer": 1})
+leader_class_id = "stonelet"
 id = "shield_and_bolt_hard"
 display_name = "Shield and Bolt (hard)"

@@ -6,18 +6,18 @@
 # File:     roster_enemy_cases.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 20, 2026
+# Modified: November 25, 2026
 # ==============================================================================
 
 extends RefCounted
 ## The roster's enemy cases for tests/content/run_all.gd, over the real [code]res://data/[/code]:
 ## the seven classes after M1 against enemy-roster.md (behavior, target rule, weapon, gear, stats
-## and growths), their traits' text, the shared Javelin (Common) and the enemy-only Fangs and
-## Shieldmace (Basic, never carried by a player unit), every pack against enemy-packs.md's lists,
+## and growths), their traits' text, the shared Javelin (Common) and the Monster Fangs and Stone
+## Fists (Basic, never carried by a player unit), every pack against enemy-packs.md's lists,
 ## every class loaded through the loadout, and each trait in a battle: Backstab, Riposte, Braced
-## (DEF from current Stance, and the Shieldmace's Standoff), Curse, Trample and Pack, and a killing
-## blow still splashing and cursing as its forecast showed. Reports each case through the check
-## callable it is given.
+## (DEF and Attack from current Stance, the Stone Fists' Standoff, a crit at CritX 3), Curse,
+## Trample and Pack, the Hound's two bites, and a killing blow still splashing and cursing as its
+## forecast showed. Reports each case through the check callable it is given.
 ##
 ## The expected values are transcribed from the design docs, never read from the data, so a
 ## changed .tres fails here until the docs and this file agree. Battles roll with
@@ -41,11 +41,11 @@ const CombatWorld = preload("res://tests/combat/combat_world.gd")
 const ROSTER: Dictionary[String, Array] = {
 	"cutthroat": [21, 5, 5, 3, 2, 5, 8, 1, 90, 40, 45, 22, 20],
 	"duelist": [16, 4, 9, 3, 1, 5, 5, 2, 75, 30, 50, 15, 20],
-	"shieldbearer": [25, 1, 2, 1, 1, 4, 14, 3, 70, 25, 28, 45, 10],
+	"stonelet": [25, 5, 2, 3, 1, 4, 14, 3, 70, 25, 28, 45, 10],
 	"hexer": [17, 8, 3, 3, 4, 5, 12, 1, 75, 65, 22, 18, 30],
 	"warcaller": [22, 6, 3, 2, 4, 5, 12, 2, 65, 45, 29, 18, 22],
 	"raider": [21, 6, 4, 5, 1, 7, 12, 2, 85, 40, 27, 25, 10],
-	"hound": [20, 4, 6, 1, 0, 7, 10, 1, 70, 30, 45, 5, 8],
+	"hound": [20, 7, 6, 1, 0, 7, 10, 1, 70, 30, 45, 5, 8],
 }
 
 # The stat value keys in ROSTER's order.
@@ -73,7 +73,9 @@ const GROWTH_STATS: Array[int] = [
 const TEXT: Dictionary[String, Array] = {
 	"cutthroat": ["While the opponent is Exposed, +2 Attack."],
 	"duelist": ["Before each exchange, while it is the defender, gain 3 Block."],
-	"shieldbearer": ["+2 DEF × this unit's current Stance."],
+	"stonelet": [
+		"+2 DEF × this unit's current Stance and +1 Attack × this unit's current Stance.",
+	],
 	"hexer": [
 		"Whenever this unit lands a hit, remove 1 Stance from the other unit and adjacent units of"
 		+ " the other unit, friend or foe.",
@@ -89,30 +91,40 @@ const TEXT: Dictionary[String, Array] = {
 	"hound": ["+2 Attack × the number of adjacent allies."],
 }
 
-# The Raider's, the Hound's and the Shieldbearer's weapons. Columns: Dmg, AtkX, profile, range min,
+# The Raider's, the Hound's and the Stonelet's weapons. Columns: Dmg, AtkX, profile, range min,
 # range max, Hit, Crit, CritX, Weight, weapon type, rarity. The Javelin is weapons.md's Pilum,
-# renamed and shared; the Fangs and the Shieldmace are enemy-roster.md's enemy-only weapons.
+# renamed and shared; the Fangs and the Stone Fists are enemy-roster.md's Monster weapons, Dmg 0.
+# ASSUMPTION: the user's "AtkX 0 (one attack)" is stored as atk_x 1, the field's one attack.
 const NEW_WEAPONS: Dictionary[String, Array] = {
 	"javelin": [
 		5, 1, WeaponTriangle.Profile.BALANCE, 1, 2, 80, 0, 3.0, 9, "lance",
 		ItemDefinition.Rarity.COMMON,
 	],
 	"fangs": [
-		3, 2, WeaponTriangle.Profile.NIMBLE, 1, 1, 90, 0, 2.0, 0, "gauntlets",
+		0, 2, WeaponTriangle.Profile.NIMBLE, 1, 1, 90, 0, 3.0, 0, "monster",
 		ItemDefinition.Rarity.BASIC,
 	],
-	"shieldmace": [
-		4, 1, WeaponTriangle.Profile.NONE, 1, 1, 75, 0, 3.0, 12, "sword",
+	"stone_fists": [
+		0, 1, WeaponTriangle.Profile.NONE, 1, 1, 75, 0, 3.0, 0, "monster",
 		ItemDefinition.Rarity.BASIC,
 	],
 }
 
 # The enemy-only weapons: Basic, and carried by no player unit type or starting army.
-const ENEMY_ONLY: Array[String] = ["fangs", "shieldmace"]
+const ENEMY_ONLY: Array[String] = ["fangs", "stone_fists"]
 
-# Braced's DEF on the Shieldbearer at Stance 3, 2, 1 and 0: base 1, the Iron Shield's +2, and +2 per
-# point of current Stance (enemy-roster.md).
+# Braced's DEF on the Stonelet at Stance 3, 2, 1 and 0: base 3 and +2 per point of current Stance
+# (enemy-roster.md).
 const BRACED_DEF: String = "9, 7, 5, 3"
+
+# Braced's Attack on the Stonelet at Stance 3, 2, 1 and 0: Might 5 (the Stone Fists deal 0) and +1
+# per point of current Stance.
+const BRACED_ATTACK: String = "8, 7, 6, 5"
+
+# The Hound's Fangs before they became a Monster weapon: Might 4 and Dmg 3. Each bite must deal
+# what this pair dealt, the triangle's change included.
+const OLD_HOUND_MIGHT: int = 4
+const OLD_FANGS_DAMAGE: int = 3
 
 const BASIC: PackDefinition.Pool = PackDefinition.Pool.BASIC
 const HARD: PackDefinition.Pool = PackDefinition.Pool.HARD
@@ -122,7 +134,7 @@ const NONE: PackDefinition.Pool = PackDefinition.Pool.NONE
 # The boss map's fixed garrison and the Baron, in slot order (P05 question 46): the same at every
 # step, since only the keep fields it.
 const GARRISON: String = (
-		"shieldbearer, shieldbearer, crossbowman, crossbowman, hedge_healer, brute, cutthroat, "
+		"stonelet, stonelet, crossbowman, crossbowman, hedge_healer, brute, cutthroat, "
 		+ "cutthroat, powder_baron"
 )
 
@@ -131,19 +143,19 @@ const GARRISON: String = (
 # Powder Keep Garrison is the boss map's.
 const PACKS: Dictionary[String, Array] = {
 	"shield_and_bolt": [BASIC,
-		"shieldbearer, crossbowman, crossbowman",
-		"shieldbearer, crossbowman, crossbowman, crossbowman",
-		"shieldbearer, shieldbearer, crossbowman, crossbowman, crossbowman",
-		"shieldbearer", ""],
+		"stonelet, crossbowman, crossbowman",
+		"stonelet, crossbowman, crossbowman, crossbowman",
+		"stonelet, stonelet, crossbowman, crossbowman, crossbowman",
+		"stonelet", ""],
 	"hex_and_knife": [BASIC,
 		"hexer, cutthroat, cutthroat",
 		"hexer, cutthroat, cutthroat, cutthroat",
 		"hexer, cutthroat, cutthroat, cutthroat, crossbowman",
 		"hexer", ""],
 	"field_hospital": [BASIC,
-		"hedge_healer, brute, shieldbearer",
-		"hedge_healer, brute, brute, shieldbearer",
-		"hedge_healer, brute, brute, shieldbearer, crossbowman",
+		"hedge_healer, brute, stonelet",
+		"hedge_healer, brute, brute, stonelet",
+		"hedge_healer, brute, brute, stonelet, crossbowman",
 		"brute", ""],
 	"war_band": [BASIC,
 		"warcaller, brute, hound",
@@ -156,10 +168,10 @@ const PACKS: Dictionary[String, Array] = {
 		"raider, raider, hound, hound, hound",
 		"raider", ""],
 	"shield_and_bolt_hard": [HARD,
-		"shieldbearer, crossbowman, hedge_healer",
-		"shieldbearer, crossbowman, crossbowman, hedge_healer",
-		"shieldbearer, shieldbearer, crossbowman, crossbowman, hedge_healer",
-		"shieldbearer", ""],
+		"stonelet, crossbowman, hedge_healer",
+		"stonelet, crossbowman, crossbowman, hedge_healer",
+		"stonelet, stonelet, crossbowman, crossbowman, hedge_healer",
+		"stonelet", ""],
 	"hex_and_knife_hard": [HARD,
 		"hexer, cutthroat, duelist",
 		"hexer, cutthroat, cutthroat, duelist",
@@ -167,8 +179,8 @@ const PACKS: Dictionary[String, Array] = {
 		"hexer", ""],
 	"field_hospital_hard": [HARD,
 		"hedge_healer, brute, brute",
-		"hedge_healer, brute, brute, shieldbearer",
-		"hedge_healer, hedge_healer, brute, brute, shieldbearer",
+		"hedge_healer, brute, brute, stonelet",
+		"hedge_healer, hedge_healer, brute, brute, stonelet",
 		"brute", ""],
 	"war_band_hard": [HARD,
 		"warcaller, raider, hound",
@@ -187,8 +199,8 @@ const PACKS: Dictionary[String, Array] = {
 		"duelist", ""],
 	"brigand_captain_escort": [KEY,
 		"brute, hedge_healer, duelist",
-		"brute, hedge_healer, duelist, shieldbearer",
-		"brute, hedge_healer, duelist, shieldbearer, crossbowman",
+		"brute, hedge_healer, duelist, stonelet",
+		"brute, hedge_healer, duelist, stonelet, crossbowman",
 		"", "brigand_captain"],
 	"bloodhound_escort": [KEY,
 		"hound, hound, raider",
@@ -200,11 +212,11 @@ const PACKS: Dictionary[String, Array] = {
 		"cutthroat, cutthroat, cutthroat, duelist",
 		"cutthroat, cutthroat, cutthroat, duelist, crossbowman",
 		"", "hex_matron"],
-	"iron_wall_escort": [KEY,
+	"stone_golem_escort": [KEY,
 		"crossbowman, crossbowman, duelist",
 		"crossbowman, crossbowman, duelist, hedge_healer",
 		"crossbowman, crossbowman, crossbowman, duelist, hedge_healer",
-		"", "iron_wall"],
+		"", "stone_golem"],
 	"m1_pack": [NONE,
 		"brute, crossbowman, hedge_healer",
 		"brute, crossbowman, hedge_healer",
@@ -243,11 +255,17 @@ func run() -> void:
 	_test_braced_forecast()
 	_test_braced_mitigated_hit()
 	_test_braced_stance_loss()
-	_test_shieldmace_standoff()
-	_test_iron_wall_base()
+	_test_braced_attack()
+	_test_braced_crit()
+	_test_braced_estimates_agree()
+	_test_stone_fists_standoff()
+	_test_stone_golem_base()
 	_test_curse()
 	_test_trample()
 	_test_pack_trait()
+	_test_hound_bites()
+	_test_monster_shape()
+	_test_retired_ids()
 	_test_killing_blow_splash()
 
 
@@ -261,16 +279,16 @@ func _test_classes() -> void:
 	_same("roster enemies: weapons, movement, tags, gear, trait, behavior", _describe(), "; ".join([
 		"cutthroat dagger MOBILE [] simple_dagger - Backstab AGGRESSIVE",
 		"duelist sword MOBILE [] simple_sword - Riposte GUARD",
-		"shieldbearer sword HEAVY [armored] shieldmace iron_shield Braced GUARD",
+		"stonelet monster HEAVY [armored] stone_fists - Braced GUARD",
 		"hexer dark DEFAULT [] simple_dark - Curse SKIRMISHER",
 		"warcaller lance DEFAULT [] simple_lance - War Horn SUPPORT",
 		"raider lance MOUNTED [mounted] javelin - Trample SKIRMISHER",
-		"hound gauntlets MOBILE [] fangs - Pack AGGRESSIVE",
+		"hound monster MOBILE [] fangs - Pack AGGRESSIVE",
 	]))
 	_same("roster enemies: target rules and their text", _describe_rules(), "; ".join([
 		"cutthroat exposed_then_lowest_hp \"Exposed foes first, then lowest HP\"",
 		"duelist holds_ground \"Holds its ground\"",
-		"shieldbearer back_line_ally \"Stays next to its pack's back-line ally\"",
+		"stonelet back_line_ally \"Stays next to its pack's back-line ally\"",
 		"hexer most_cursed \"The foe whose curse catches the most player units\"",
 		"warcaller most_allies_near \"Stays within 2 tiles of the most allies\"",
 		"raider back_line_foes \"Any foe it can defeat this turn, splash included\"",
@@ -312,8 +330,8 @@ func _test_text_snapshots() -> void:
 		_same("text %s" % [class_id], " | ".join(enemy_class.describe()), " | ".join(expected))
 
 
-# The Javelin (a lance), the Fangs (natural, like gauntlets) and the Shieldmace (a sword outside
-# the triangle) with their sources' numbers, all physical. The Javelin is Common, so it is sold and
+# The Javelin (a lance), the Fangs (Monster, Nimble) and the Stone Fists (Monster, outside the
+# triangle) with their sources' numbers, all physical. The Javelin is Common, so it is sold and
 # found like any lance; the enemy-only weapons are Basic, so no pool, shop or reward ever offers
 # them, and no player unit type or starting army carries them.
 func _test_new_weapons() -> void:
@@ -383,9 +401,8 @@ func _test_packs() -> void:
 	), str(unlisted))
 
 
-# Every new class through the loadout as setup builds it: no problems, its weapon (and the
-# Shieldbearer's Iron Shield), no use limit, and its full-Stance DEF in battle: 1, the shield's +2
-# and Braced's +6.
+# Every new class through the loadout as setup builds it: no problems, its weapon, no use limit,
+# and the Stonelet's full-Stance DEF in battle: its own 3 and Braced's +6.
 func _test_classes_load() -> void:
 	var ids: InstanceIdAllocator = InstanceIdAllocator.new()
 	var problems: PackedStringArray = []
@@ -408,14 +425,14 @@ func _test_classes_load() -> void:
 			str(problems)
 	))
 	_same("roster enemies: each unit's weapon records", "; ".join(weapons), "; ".join([
-		"cutthroat: Simple Dagger", "duelist: Simple Sword", "shieldbearer: Shieldmace",
+		"cutthroat: Simple Dagger", "duelist: Simple Sword", "stonelet: Stone Fists",
 		"hexer: Shade", "warcaller: Simple Lance", "raider: Javelin", "hound: Fangs",
 	]))
 	_ok("roster enemies: no weapon use is limited", limited.is_empty(), str(limited))
 
 	var session: CombatSession = _battle(_plain(2, 1), ids)
-	var bearer: String = _place(session, "shieldbearer", ENEMY, -1, Vector2i(0, 0))
-	_same("shieldbearer: 9 DEF at full Stance in battle", (
+	var bearer: String = _place(session, "stonelet", ENEMY, -1, Vector2i(0, 0))
+	_same("stonelet: 9 DEF at full Stance in battle", (
 			"" if bearer.is_empty() else str(session.stats(bearer).get_int(CombatValue.Key.DEF))
 	), "9")
 
@@ -455,12 +472,12 @@ func _test_riposte() -> void:
 	], "3, 0")
 
 
-# A Hakkapel's forecast against the Shieldbearer shows Braced's DEF falling 2 per Stance lost: the
+# A Hakkapel's forecast against the Stonelet shows Braced's DEF falling 2 per Stance lost: the
 # Mitigation stage of its first hit at Stance 3, 2, 1 and 0.
 func _test_braced_forecast() -> void:
 	var session: CombatSession = _battle(_plain(2, 1), InstanceIdAllocator.new())
 	var hakkapel: String = _place(session, "hakkapel", PLAYER, 0, Vector2i(0, 0))
-	var bearer: String = _place(session, "shieldbearer", ENEMY, -1, Vector2i(1, 0))
+	var bearer: String = _place(session, "stonelet", ENEMY, -1, Vector2i(1, 0))
 	if hakkapel.is_empty() or bearer.is_empty():
 		return
 	session.open_battle()
@@ -490,7 +507,7 @@ func _test_braced_mitigated_hit() -> void:
 	for might: float in [2.0, 4.0]:
 		var session: CombatSession = _battle(_plain(2, 1), InstanceIdAllocator.new())
 		var hakkapel: String = _place(session, "hakkapel", PLAYER, 0, Vector2i(0, 0))
-		var bearer: String = _place(session, "shieldbearer", ENEMY, -1, Vector2i(1, 0))
+		var bearer: String = _place(session, "stonelet", ENEMY, -1, Vector2i(1, 0))
 		if hakkapel.is_empty() or bearer.is_empty():
 			return
 		session.engine.set_base(hakkapel, CombatValue.Key.MGT, might)
@@ -513,10 +530,10 @@ func _test_braced_mitigated_hit() -> void:
 
 # Stance lost without damage strips the DEF too: the Shatter rune takes 2 Stance (DEF 9 to 5), and
 # the enemy Phase Start refresh brings both back. The Hexer's Curse on a foe beside its own
-# Shieldbearer takes 1 from it (DEF 7).
+# Stonelet takes 1 from it (DEF 7).
 func _test_braced_stance_loss() -> void:
 	var session: CombatSession = _battle(_plain(4, 1), InstanceIdAllocator.new())
-	var bearer: String = _place(session, "shieldbearer", ENEMY, -1, Vector2i(3, 0))
+	var bearer: String = _place(session, "stonelet", ENEMY, -1, Vector2i(3, 0))
 	_place(session, "archer", PLAYER, 0, Vector2i(0, 0))
 	if bearer.is_empty():
 		return
@@ -539,7 +556,7 @@ func _test_braced_stance_loss() -> void:
 	var hex: CombatSession = _battle(_plain(5, 3), InstanceIdAllocator.new())
 	var hexer: String = _place(hex, "hexer", ENEMY, -1, Vector2i(0, 1))
 	var target: String = _place(hex, "hakkapel", PLAYER, 0, Vector2i(2, 1))
-	var cursed: String = _place(hex, "shieldbearer", ENEMY, -1, Vector2i(3, 1))
+	var cursed: String = _place(hex, "stonelet", ENEMY, -1, Vector2i(3, 1))
 	if cursed.is_empty():
 		return
 	_enemy_attack(hex, hexer, target, [])
@@ -548,19 +565,150 @@ func _test_braced_stance_loss() -> void:
 	), "Stance 2 DEF 7")
 
 
-# The Shieldmace sits outside the triangle: against a sword (Nimble), a lance (Balance) and an axe
+# The Stonelet's hit on an Archer at Stance 3, 2, 1 and 0: the forecast's Attack stage shows its
+# Might 5 plus 1 per Stance, and the hit deals 3, 2, 1 and 0 more than at Stance 0.
+func _test_braced_attack() -> void:
+	var shown: PackedStringArray = []
+	var dealt: Array[int] = []
+	var no_walk: Array[Vector2i] = []
+	for stance: int in [3, 2, 1, 0]:
+		var session: CombatSession = _battle(_plain(2, 1), InstanceIdAllocator.new())
+		var stonelet: String = _place(session, "stonelet", ENEMY, -1, Vector2i(0, 0))
+		var archer: String = _place(session, "archer", PLAYER, 0, Vector2i(1, 0))
+		if stonelet.is_empty() or archer.is_empty():
+			return
+		var foreseen: Array[CombatForecast.ExchangeForecast] = []
+		var prepare: Callable = func(at: CombatSession) -> void:
+			at.state.set_stance(stonelet, stance)
+			var command: UnitTurnCommand = UnitTurnCommand.new(
+					-1, stonelet, ATTACK, archer, no_walk
+			)
+			foreseen.append(CombatForecast.exchange(at.engine, command, ForecastRolls.new()))
+		var facts: Array[CombatFact] = _enemy_attack(session, stonelet, archer, no_walk, prepare)
+		dealt.append(_first_hit(facts, archer))
+		var side: CombatForecast.SideForecast = (
+				null if foreseen.is_empty() or foreseen[0] == null else foreseen[0].attacker
+		)
+		var is_shown: bool = (
+				side != null and side.breakdown != null and side.breakdown.attack != null
+		)
+		shown.append(
+				str(roundi(side.breakdown.might + side.breakdown.attack.total)) if is_shown else "-"
+		)
+	_same("braced: the forecast shows its Attack at Stance 3, 2, 1 and 0", ", ".join(shown), (
+			BRACED_ATTACK
+	))
+	var over: PackedStringArray = []
+	for amount: int in dealt:
+		over.append("+%d" % [amount - dealt[dealt.size() - 1]])
+	_same("braced: its hit deals +1 per Stance over its Might", ", ".join(over), "+3, +2, +1, +0")
+
+
+# A crit on an Exposed foe is CritX 3 on the Monster weapons: the Stonelet at full Stance (Attack
+# 8) and the Hound (Attack 7, one bite) against an Exposed Archer, every roll forced to land.
+func _test_braced_crit() -> void:
+	var rows: PackedStringArray = []
+	var no_walk: Array[Vector2i] = []
+	for class_id: String in ["stonelet", "hound"]:
+		var session: CombatSession = _battle(_plain(2, 1), InstanceIdAllocator.new())
+		var attacker: String = _place(session, class_id, ENEMY, -1, Vector2i(0, 0))
+		var archer: String = _place(session, "archer", PLAYER, 0, Vector2i(1, 0))
+		if attacker.is_empty() or archer.is_empty():
+			return
+		var foreseen: Array[CombatForecast.ExchangeForecast] = []
+		var prepare: Callable = func(at: CombatSession) -> void:
+			at.state.set_stance(archer, 0)
+			var command: UnitTurnCommand = UnitTurnCommand.new(
+					-1, attacker, ATTACK, archer, no_walk
+			)
+			foreseen.append(CombatForecast.exchange(
+					at.engine, command, ForcedRolls.new(PackedInt32Array([1, 1]))
+			))
+		_enemy_attack(session, attacker, archer, no_walk, prepare)
+		var def: int = session.stats(archer).get_int(CombatValue.Key.DEF)
+		var first: CombatForecast.AttackForecast = null
+		if not foreseen.is_empty() and foreseen[0] != null and not foreseen[0].attacks.is_empty():
+			first = foreseen[0].attacks[0]
+		rows.append("-" if first == null else "%s crit %s, %s" % [
+			class_id, first.is_crit, "x3" if first.damage == 3 * (
+					(8 if class_id == "stonelet" else 7) - def
+			) else "dealt %d" % [first.damage],
+		])
+	_same("monster weapons: a crit on an Exposed foe deals CritX 3", "; ".join(rows), (
+			"stonelet crit true, x3; hound crit true, x3"
+	))
+
+
+# What the player sees and what the AI weighs agree with what lands: the Stonelet's hit on an
+# Archer left with just that much HP is a kill in its intent, in the AI's plan and its forecast,
+# in the forecast panel and on the board; at Stance 2 the AI's and the panel's damage are the
+# hit's, 1 less.
+func _test_braced_estimates_agree() -> void:
+	for stance: int in [3, 2]:
+		var session: CombatSession = _battle(_plain(2, 1), InstanceIdAllocator.new())
+		var stonelet: String = _place(session, "stonelet", ENEMY, -1, Vector2i(0, 0))
+		var archer: String = _place(session, "archer", PLAYER, 0, Vector2i(1, 0))
+		if stonelet.is_empty() or archer.is_empty():
+			return
+		var def: int = session.stats(archer).get_int(CombatValue.Key.DEF)
+		var lethal: int = 5 + 3 - def
+		session.state.set_hp(archer, lethal)
+		var estimates: PackedStringArray = []
+		var no_walk: Array[Vector2i] = []
+		session.hooks.add(CombatHooks.Hook.ENEMY_COMMANDS, func(at: CombatSession) -> Command:
+			if at.state.unit(stonelet).has_acted:
+				return null
+			at.state.set_stance(stonelet, stance)
+			var plan: EnemyPlan = EnemyAI.decide(at.engine, _catalog, stonelet)
+			var planned: CombatForecast.ExchangeForecast = (
+					null if plan == null else plan.forecast as CombatForecast.ExchangeForecast
+			)
+			var panel: CombatForecast.ExchangeForecast = _forecast(at, stonelet, archer, no_walk)
+			var has_attack: bool = planned != null and not planned.attacks.is_empty()
+			estimates.append("ai %s %s" % [
+				str(planned.attacks[0].damage) if has_attack else "-",
+				"kill" if plan != null and plan.is_kill else "no kill",
+			])
+			estimates.append("panel %s" % [
+				"-" if panel == null or panel.attacks.is_empty() else str(panel.attacks[0].damage),
+			])
+			return UnitTurnCommand.new(-1, stonelet, ATTACK, archer, no_walk)
+		)
+		session.open_battle()
+		var shown: Intents = Intents.compute(session, _catalog)
+		var intent: EnemyIntent = null if shown == null else shown.intent_of(stonelet)
+		session.submit(EndTurnCommand.new(0))
+		var turn: CombatSession.FactBatch = session.resolve_next()
+		var facts: Array[CombatFact] = []
+		if turn != null:
+			facts.assign(turn.facts)
+		var hit: int = 5 + stance - def
+		var expected: String = "ai %d %s; panel %d; dealt %d" % [
+			hit, "kill" if stance == 3 else "no kill", hit, hit,
+		]
+		_same("braced estimates at Stance %d: the AI, the panel and the hit agree" % [stance], (
+				"%s; dealt %d" % ["; ".join(estimates), _first_hit(facts, archer)]
+		), expected)
+		if stance == 3:
+			_ok("braced estimates: the intent shows the kill, and the board has it", (
+					intent != null and intent.is_kill and intent.target_id == archer
+					and not session.state.has_unit(archer)
+			))
+
+
+# The Stone Fists sit outside the triangle: against a sword (Nimble), a lance (Balance) and an axe
 # (Power) both sides get a Standoff, in the triangle's rule and in the forecast's damage stages.
-func _test_shieldmace_standoff() -> void:
-	var shieldmace: WeaponDefinition = _catalog.weapon("shieldmace")
-	if shieldmace == null:
-		_ok("shieldmace: in the catalog", false)
+func _test_stone_fists_standoff() -> void:
+	var fists: WeaponDefinition = _catalog.weapon("stone_fists")
+	if fists == null:
+		_ok("stone fists: in the catalog", false)
 		return
 	var rows: PackedStringArray = []
 	for attacker_type: String in ["sellsword", "hakkapel", "fighter"]:
 		var session: CombatSession = _battle(_plain(2, 1), InstanceIdAllocator.new())
 		var attacker: String = _place(session, attacker_type, PLAYER, 0, Vector2i(0, 0))
-		var bearer: String = _place(session, "shieldbearer", ENEMY, -1, Vector2i(1, 0))
-		if attacker.is_empty() or bearer.is_empty():
+		var stonelet: String = _place(session, "stonelet", ENEMY, -1, Vector2i(1, 0))
+		if attacker.is_empty() or stonelet.is_empty():
 			return
 		session.open_battle()
 		var held: CombatState.WeaponStats = session.state.weapon(
@@ -569,46 +717,47 @@ func _test_shieldmace_standoff() -> void:
 		if held == null:
 			rows.append("%s unarmed" % [attacker_type])
 			continue
-		var command: UnitTurnCommand = UnitTurnCommand.new(0, attacker, ATTACK, bearer)
+		var command: UnitTurnCommand = UnitTurnCommand.new(0, attacker, ATTACK, stonelet)
 		var found: CombatForecast.ExchangeForecast = CombatForecast.exchange(
 				session.engine, command, ForecastRolls.new()
 		)
 		rows.append("%s %s/%s, triangle %s/%s" % [
 			WeaponTriangle.Profile.find_key(held.profile),
-			_matchup_name(WeaponTriangle.matchup(held.profile, shieldmace.profile)),
-			_matchup_name(WeaponTriangle.matchup(shieldmace.profile, held.profile)),
+			_matchup_name(WeaponTriangle.matchup(held.profile, fists.profile)),
+			_matchup_name(WeaponTriangle.matchup(fists.profile, held.profile)),
 			_triangle_of(null if found == null else found.attacker),
 			_triangle_of(null if found == null else found.defender),
 		])
-	_same("shieldmace: a Standoff against Nimble, Balance and Power, both ways", "; ".join(rows), (
-			"; ".join([
-				"NIMBLE STANDOFF/STANDOFF, triangle 0/0",
-				"BALANCE STANDOFF/STANDOFF, triangle 0/0",
-				"POWER STANDOFF/STANDOFF, triangle 0/0",
-			])
-	))
+	_same("stone fists: a Standoff against Nimble, Balance and Power, both ways", (
+			"; ".join(rows)
+	), "; ".join([
+		"NIMBLE STANDOFF/STANDOFF, triangle 0/0",
+		"BALANCE STANDOFF/STANDOFF, triangle 0/0",
+		"POWER STANDOFF/STANDOFF, triangle 0/0",
+	]))
 
 
-# The Iron Wall is the Shieldbearer plus Fortify: the same base, weapon, gear and Braced, so its
-# DEF falls the same way.
-func _test_iron_wall_base() -> void:
-	var wall: EnemyClassDefinition = _catalog.enemy_class("iron_wall")
-	var base: EnemyClassDefinition = _catalog.enemy_class("shieldbearer")
-	if wall == null or base == null:
-		_ok("iron wall: it and its base class in the catalog", false)
+# The Stone Golem is the Stonelet plus Fortify: the same base, weapon and Braced, so its DEF and
+# its Attack bonus fall the same way.
+func _test_stone_golem_base() -> void:
+	var golem: EnemyClassDefinition = _catalog.enemy_class("stone_golem")
+	var base: EnemyClassDefinition = _catalog.enemy_class("stonelet")
+	if golem == null or base == null:
+		_ok("stone golem: it and its base class in the catalog", false)
 		return
-	_same("iron wall: the Shieldbearer's base, weapon, gear and Braced", _base_of(wall), (
-			_base_of(base)
-	))
+	_same("stone golem: the Stonelet's base, weapon and Braced", _base_of(golem), _base_of(base))
 	var session: CombatSession = _battle(_plain(2, 1), InstanceIdAllocator.new())
-	var iron_wall: String = _place(session, "iron_wall", ENEMY, -1, Vector2i(0, 0))
-	if iron_wall.is_empty():
+	var stone_golem: String = _place(session, "stone_golem", ENEMY, -1, Vector2i(0, 0))
+	if stone_golem.is_empty():
 		return
-	var shown: PackedStringArray = []
+	var defs: PackedStringArray = []
+	var bonuses: PackedStringArray = []
 	for stance: int in [3, 2, 1, 0]:
-		session.state.set_stance(iron_wall, stance)
-		shown.append(_def_of(session, iron_wall))
-	_same("iron wall: its DEF at Stance 3, 2, 1 and 0", ", ".join(shown), BRACED_DEF)
+		session.state.set_stance(stone_golem, stance)
+		defs.append(_def_of(session, stone_golem))
+		bonuses.append(str(session.stats(stone_golem).get_int(DamageStage.Key.ATTACK)))
+	_same("stone golem: its DEF at Stance 3, 2, 1 and 0", ", ".join(defs), BRACED_DEF)
+	_same("stone golem: its Attack bonus at Stance 3, 2, 1 and 0", ", ".join(bonuses), "3, 2, 1, 0")
 
 
 # From 2 tiles, the Hexer's hit on a Hakkapel (which can't answer at that range) costs 1 Stance to
@@ -702,6 +851,130 @@ func _test_pack_trait() -> void:
 	board.state.move_unit(beside, Vector2i(3, 2))
 	attack.append(board.stats(leader).get_int(DamageStage.Key.ATTACK))
 	_same("pack: read live, the bonus leaves with the ally", str(attack[0] - attack[1]), "2")
+
+
+# The Hound bites twice a turn, and each bite deals what the old Fangs dealt (Might 4 and Dmg 3,
+# the triangle's change taken from Dmg 3) against an Archer (None), a Fighter (Power, which the
+# Fangs beat) and a Hakkapel (Balance, which beats them).
+func _test_hound_bites() -> void:
+	var rows: PackedStringArray = []
+	var expected: PackedStringArray = []
+	var no_walk: Array[Vector2i] = []
+	for target_type: String in ["archer", "fighter", "hakkapel"]:
+		var session: CombatSession = _battle(_plain(2, 1), InstanceIdAllocator.new())
+		var hound: String = _place(session, "hound", ENEMY, -1, Vector2i(0, 0))
+		var target: String = _place(session, target_type, PLAYER, 0, Vector2i(1, 0))
+		if hound.is_empty() or target.is_empty():
+			return
+		var held: CombatState.WeaponStats = session.state.weapon(
+				session.state.equipped_weapon_id(target)
+		)
+		var def: int = session.stats(target).get_int(CombatValue.Key.DEF)
+		var foreseen: Array[CombatForecast.ExchangeForecast] = []
+		var prepare: Callable = func(at: CombatSession) -> void:
+			foreseen.append(_forecast(at, hound, target, no_walk))
+		var facts: Array[CombatFact] = _enemy_attack(session, hound, target, no_walk, prepare)
+		var bites: PackedStringArray = []
+		for fact: CombatFact in facts:
+			var is_bite: bool = (
+					fact.kind == CombatFact.Kind.DAMAGE_TAKEN
+					and fact.actor_id == target
+					and fact.source != CombatFact.Source.SPLASH
+			)
+			if is_bite and bites.size() < 2:
+				bites.append(str(fact.amount))
+		var per_turn: int = (
+				-1 if foreseen.is_empty() or foreseen[0] == null
+				else foreseen[0].attacker.attacks_per_turn
+		)
+		rows.append("%s: %d a turn, %s" % [target_type, per_turn, ", ".join(bites)])
+		var profile: WeaponTriangle.Profile = (
+				WeaponTriangle.Profile.NONE if held == null else held.profile
+		)
+		var change: int = WeaponTriangle.damage_change(
+				WeaponTriangle.matchup(WeaponTriangle.Profile.NIMBLE, profile),
+				float(OLD_FANGS_DAMAGE)
+		)
+		var old_bite: int = OLD_HOUND_MIGHT + OLD_FANGS_DAMAGE + change - def
+		expected.append("%s: 2 a turn, %d, %d" % [target_type, old_bite, old_bite])
+	_same("hound: two bites a turn, each what the old Fangs dealt", "; ".join(rows), (
+			"; ".join(expected)
+	))
+
+
+# Every Monster weapon in the data has the type's shape (enemy-roster.md, Non-humanoid enemies),
+# and a player unit can't wield one: the loadout reports an Archer's Fangs as a problem, as it
+# does any weapon outside a unit's types.
+func _test_monster_shape() -> void:
+	var broken: PackedStringArray = []
+	var count: int = 0
+	for resource: Resource in _catalog.all_of(EffectCatalog.Kind.WEAPON):
+		var weapon: WeaponDefinition = resource as WeaponDefinition
+		if weapon == null or weapon.weapon_type != ContentIds.WEAPON_MONSTER:
+			continue
+		count += 1
+		var is_simple: bool = (
+				weapon.damage == 0 and weapon.weight == 0 and weapon.effects.is_empty()
+				and weapon.effective_against.is_empty()
+				and weapon.rarity == ItemDefinition.Rarity.BASIC
+				and weapon.scaling_stat == CombatValue.Stat.MGT
+				and is_equal_approx(weapon.scaling_modifier, 1.0)
+		)
+		if not is_simple:
+			broken.append(weapon.id)
+	_ok("monster weapons: Dmg 0, no weight, effects or effectiveness, Basic, Might 1:1 (%d)" % [
+		count,
+	], count == ENEMY_ONLY.size() and broken.is_empty(), str(broken))
+
+	var ids: InstanceIdAllocator = InstanceIdAllocator.new()
+	var unit: UnitInstance = UnitInstance.new(ids.next_unit_id("archer"), "archer")
+	var fangs: ItemInstance = ItemInstance.new(ids.next_item_id("fangs"), "fangs")
+	unit.weapon_id = fangs.instance_id
+	var items: Dictionary[String, ItemInstance] = {fangs.instance_id: fangs}
+	var loaded: Loadout.LoadedUnit = Loadout.load_unit(_catalog, unit, items, PLAYER, 0, ids)
+	_ok("monster weapons: a player unit's loadout reports it can't wield one", (
+			"\n".join(loaded.problems).contains("is a monster, which it can't wield")
+	), str(loaded.problems))
+
+
+# The Shieldbearer, the Iron Wall and the Shieldmace are gone: no data file names them, the
+# catalog lacks them, and an old save's unit of a gone class fails to load with a problem, never
+# a crash.
+func _test_retired_ids() -> void:
+	var retired: PackedStringArray = ["shieldbearer", "iron_wall", "shieldmace"]
+	var naming: PackedStringArray = []
+	for path: String in _data_files("res://data/"):
+		var text: String = FileAccess.get_file_as_string(path)
+		for id: String in retired:
+			if text.contains(id):
+				naming.append("%s names %s" % [path, id])
+	_ok("retired ids: no data file names the Shieldbearer, Iron Wall or Shieldmace", (
+			naming.is_empty()
+	), str(naming))
+	var found: PackedStringArray = []
+	for id: String in retired:
+		if _catalog.has(id):
+			found.append(id)
+	_ok("retired ids: the catalog holds none of them", found.is_empty(), str(found))
+	var ids: InstanceIdAllocator = InstanceIdAllocator.new()
+	var old: UnitInstance = UnitInstance.new(ids.next_enemy_id("shieldbearer"), "shieldbearer")
+	var empty: Dictionary[String, ItemInstance] = {}
+	var loaded: Loadout.LoadedUnit = Loadout.load_unit(_catalog, old, empty, ENEMY, -1, ids)
+	_ok("retired ids: a saved Shieldbearer doesn't load, and the loadout says why", (
+			not loaded.is_loaded() and "\n".join(loaded.problems).contains("not in the catalog")
+	), str(loaded.problems))
+
+
+# Every .tres under folder, recursively, in path order.
+static func _data_files(folder: String) -> PackedStringArray:
+	var files: PackedStringArray = []
+	for file: String in DirAccess.get_files_at(folder):
+		if file.ends_with(".tres"):
+			files.append(folder + file)
+	for child: String in DirAccess.get_directories_at(folder):
+		files.append_array(_data_files(folder + child + "/"))
+	files.sort()
+	return files
 
 
 # A hit that defeats its target still splashes or curses around the tile it stood on, and the

@@ -6,7 +6,7 @@
 # File:     content_rules.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 19, 2026
+# Modified: November 25, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -32,7 +32,8 @@ extends RefCounted
 ## and is never a commander or given a role; and (EN17) a drawn pack fields its step's size at
 ## every step, a basic or hard pack names a leader it fields at every step, and only a key pack
 ## names a mini-boss; and (EN8) that mini-boss is a class built on a base class it matches, with
-## a signature move, in no pack.
+## a signature move, in no pack; and a Monster weapon is Basic with no damage, weight,
+## effects or effectiveness, and no player unit type, starting army or weapon prefix names one.
 ## P02's rule (event bus plan, question 60): every effect inside a carrier has an id unique within
 ## it, which saves name it by. [constant LOAD] fails a file the catalog turned away.[br]
 ## The price rules read the price through a callable, so their fixtures can run against a table
@@ -97,6 +98,10 @@ const AREA_SHAPE: String = "area_shape"
 ## movement, tags, Stance, trait), lacks one of its base's trait effects or a signature move, or
 ## sits in a pack's units (a post-holding boss may lead an undrawn pack).
 const MINI_BOSS: String = "mini_boss"
+## A Monster weapon with damage, weight, effects or effectiveness, or not Basic; or a player unit
+## type, starting army or weapon prefix naming a Monster weapon or the Monster type: Monster
+## weapons are enemies only (enemy-roster.md, Non-humanoid enemies).
+const MONSTER_WEAPON: String = "monster_weapon"
 
 ## Every rule that fails the test.
 const FAILURE_RULES: PackedStringArray = [
@@ -122,6 +127,7 @@ const FAILURE_RULES: PackedStringArray = [
 	DOUBLE_USES,
 	AREA_SHAPE,
 	MINI_BOSS,
+	MONSTER_WEAPON,
 ]
 
 # A faction's starting gear slots in order (FactionDefinition.starting_gear).
@@ -186,9 +192,11 @@ func _check_definition(path: String, resource: Resource) -> void:
 	_check_references(path, resource)
 	_check_string_ids(path, resource)
 	_check_effects(path, resource)
+	_check_monster_holders(path, resource)
 	if resource is WeaponDefinition:
 		var weapon: WeaponDefinition = resource
 		_check_range(path, weapon)
+		_check_monster_weapon(path, weapon)
 	if resource is ItemDefinition:
 		var item: ItemDefinition = resource
 		_check_price(path, item)
@@ -587,6 +595,64 @@ func _check_range(path: String, weapon: WeaponDefinition) -> void:
 		attacks = staff.staff_kind == ATTACK_STAFF
 	if attacks and weapon.range_min < 1:
 		_fail(RANGE, path, "its attack starts at range %d; attacks start at 1" % [weapon.range_min])
+
+
+# A Monster weapon's numbers are Hit, profile, range, AtkX, Crit and CritX only; its unit's Might
+# is its damage, so damage, weight, effects and effectiveness would move combat numbers into gear.
+# Basic, so no pool, stock or reward offers it.
+func _check_monster_weapon(path: String, weapon: WeaponDefinition) -> void:
+	if weapon.weapon_type != ContentIds.WEAPON_MONSTER:
+		return
+	var broken: PackedStringArray = []
+	if weapon is StaffDefinition:
+		broken.append("it is a staff")
+	if weapon.damage != 0:
+		broken.append("damage %d" % [weapon.damage])
+	if weapon.weight != 0:
+		broken.append("weight %d" % [weapon.weight])
+	if not weapon.effects.is_empty():
+		broken.append("%d effect(s)" % [weapon.effects.size()])
+	if not weapon.effective_against.is_empty():
+		broken.append("effective against %s" % [", ".join(weapon.effective_against)])
+	if weapon.rarity != ItemDefinition.Rarity.BASIC:
+		broken.append("not Basic")
+	if not broken.is_empty():
+		_fail(MONSTER_WEAPON, path, "a Monster weapon has no %s; it has %s" % [
+			"damage, weight, effects or effectiveness and is Basic", "; ".join(broken),
+		])
+
+
+# Monster weapons are enemies only: a player unit type can't list the type or start with one, a
+# starting army can't hold one, and no weapon prefix rolls on one.
+func _check_monster_holders(path: String, resource: Resource) -> void:
+	var named: PackedStringArray = []
+	if resource is UnitTypeDefinition and not resource is EnemyClassDefinition:
+		var unit: UnitTypeDefinition = resource
+		if unit.weapon_types.has(ContentIds.WEAPON_MONSTER):
+			named.append("weapon_types")
+		if unit.upgrade_weapon_types.has(ContentIds.WEAPON_MONSTER):
+			named.append("upgrade_weapon_types")
+		if _is_monster_weapon(unit.starting_weapon_id):
+			named.append("starting_weapon_id \"%s\"" % [unit.starting_weapon_id])
+	elif resource is FactionDefinition:
+		var faction: FactionDefinition = resource
+		for gear: PackedStringArray in faction.starting_gear:
+			for item_id: String in gear:
+				if _is_monster_weapon(item_id):
+					named.append("starting_gear \"%s\"" % [item_id])
+	elif resource is WeaponPrefixDefinition:
+		var prefix: WeaponPrefixDefinition = resource
+		if prefix.weapon_types.has(ContentIds.WEAPON_MONSTER):
+			named.append("weapon_types")
+	if not named.is_empty():
+		_fail(MONSTER_WEAPON, path, "Monster weapons are enemies only; it names one in %s" % [
+			", ".join(named),
+		])
+
+
+func _is_monster_weapon(id: String) -> bool:
+	var weapon: WeaponDefinition = _index.weapon(id) if not id.is_empty() else null
+	return weapon != null and weapon.weapon_type == ContentIds.WEAPON_MONSTER
 
 
 func _check_price(path: String, item: ItemDefinition) -> void:

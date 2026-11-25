@@ -71,6 +71,23 @@ The nine Simple weapons and the Shelter staff, as listed in
 [game-vision.md](game-vision.md#weapons-and-equipment). The Simple Bow is effective against
 Fliers, like every bow.
 
+## Monster
+
+Decided November 25, 2026 (user, RF-052): a weapon type for a non-humanoid enemy's natural attack
+(fangs, claws, a stone fist, a slime's tendril). **Enemies only**: no player unit type, starting
+army or weapon prefix names it, and the content test fails any that does.
+
+- **As simple as a weapon gets:** Hit, profile, range, AtkX, Crit and CritX. **Dmg 0**, no weight,
+  no effects, no effectiveness; scaling stays Might × 1, so the unit's Might is its damage.
+- **Profile:** Nimble, Balance, Power or None, by the creature. The type has no place of its own in
+  the triangle.
+- **Normal values:** one attack, Crit 0, CritX 3 (the Simple weapons'). Edge cases may differ.
+- **Basic rarity:** never loot, stock or sold. A Monster weapon has no prefix folder.
+
+The Monster weapons and the creatures that carry them are in
+[enemy-roster.md](enemy-roster.md#enemy-only-weapons); the rule for every creature is its
+[Non-humanoid enemies](enemy-roster.md#non-humanoid-enemies) section.
+
 ## Staves
 
 Using a staff is the unit's action. Block and heal staves target an ally; attack staves target an

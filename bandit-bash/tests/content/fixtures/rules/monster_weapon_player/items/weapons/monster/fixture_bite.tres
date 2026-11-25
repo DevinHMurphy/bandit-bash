@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="WeaponDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/content/weapon_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+weapon_type = "monster"
+hit = 90
+range_min = 1
+range_max = 1
+rarity = 0
+id = "fixture_bite"
+display_name = "Fixture Bite"

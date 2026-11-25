@@ -15,7 +15,7 @@ point and have not been rebalanced. Every number is to be tuned in playtesting.
   fights by exactly the player's rules.
 - Each class has an **AI behavior** that sets its intent icon and target rule.
 - Classes are designed to be **fielded in packs**: a healer with a brute it keeps alive, a hexer
-  that strips Stance for a cutthroat that crits, a shieldbearer in front of crossbows.
+  that strips Stance for a cutthroat that crits, a stonelet in front of crossbows.
 - Several traits are **side-agnostic** (they help or hurt whoever is in the right place), and the
   **AI is ruthless**: it chases kills and ignores friendly fire, so the player can turn enemy tools
   against them.
@@ -34,21 +34,24 @@ Magic for casters.
 | Brute | Heavy hitter | `vandal` | Simple Axe (Power) | Default | — | 2 | 23/7/4/2/2/5/12 | 115/60/35/20/15 |
 | Duelist | Counter-fighter | `corsair` | Simple Sword (Nimble) | Mobile | — | 2 | 16/4/9/3/1/5/5 | 75/30/50/15/20 |
 | Crossbowman | Ranged | `crossbowman` | Simple Bow (None) | Default | — | 1 | 19/6/5/4/1/5/10 | 75/40/35/22/18 |
-| Shieldbearer | Tank | `ward` | Shieldmace (None) + Iron Shield | Heavy | Armored | 3 | 25/1/2/1/1/4/14 | 70/25/28/45/10 |
+| Stonelet | Tank | `ward` | Stone Fists (None, Monster) | Heavy | Armored | 3 | 25/5/2/3/1/4/14 | 70/25/28/45/10 |
 | Hedge Healer | Healer | `healer` | Minor Heal staff (None) | Default | — | 1 | 12/8/5/1/7/5/5 | 50/40/30/8/35 |
 | Hexer | Debuffer | `shaman` | Dark (Shade) (Power, Magic) | Default | — | 1 | 17/8/3/3/4/5/12 | 75/65/22/18/30 |
 | Warcaller | Buffer | `sanctioner` | Simple Lance (Balance) | Default | — | 2 | 22/6/3/2/4/5/12 | 65/45/29/18/22 |
 | Raider | Trampler | `axe_cavalier` | Javelin (Balance) | Mounted | Mounted | 2 | 21/6/4/5/1/7/12 | 85/40/27/25/10 |
-| Hound | Pack beast | `flesh_prowler` | Fangs (Nimble) | Mobile | — | 1 | 20/4/6/1/0/7/10 | 70/30/45/5/8 |
+| Hound | Pack beast | `flesh_prowler` | Fangs (Nimble, Monster) | Mobile | — | 1 | 20/7/6/1/0/7/10 | 70/30/45/5/8 |
 
 Profiles across the triangle: Nimble 3, Balance 2, Power 2, None 3 (the healer, whose staff never
-attacks; the Crossbowman, whose Simple Bow is None like every player bow; and the Shieldbearer,
-whose Shieldmace is a Standoff against every profile: its DEF, not its weapon, is what the player
+attacks; the Crossbowman, whose Simple Bow is None like every player bow; and the Stonelet,
+whose Stone Fists are a Standoff against every profile: its DEF, not its weapon, is what the player
 has to read).
 
-The Shieldbearer's DEF comes mostly from its trait: base 1, +2 from the Iron Shield, +2 per point of
-current Stance. That is 9 at full Stance 3, then 7, 5, and 3 when Exposed. The DEF falls as Stance is
-stripped and returns with the refresh at its side's Phase Start.
+The Stonelet and the Hound are [non-humanoid](#non-humanoid-enemies): their Monster weapons deal no
+damage of their own, so their Might is their damage. The Stonelet's DEF and damage come mostly from
+its trait: base DEF 3 and +2 per point of current Stance, Might 5 and +1 damage per point. That is
+DEF 9 and Attack 8 at full Stance 3, then 7 and 7, 5 and 6, and 3 and 5 when Exposed. Both fall as
+Stance is stripped and return with the refresh at its side's Phase Start. The Hound's Might 7 is
+the old Fangs' 3 damage folded into its 4, so each of its two bites deals what it did.
 
 ## Traits, behavior and intent
 
@@ -58,7 +61,7 @@ stripped and returns with the refresh at its side's Phase Start.
 | Brute | **Cleave:** Hit dealt: every other unit adjacent to the Brute, friend or foe, takes 2 splash damage | Aggressive | Nearest foe it can hit; swings even with its own allies beside it |
 | Duelist | **Riposte:** Before Combat, while it is the defender: gain 3 Block | Guard | Holds its ground; attacks only foes that come within reach |
 | Crossbowman | **Steady Aim:** while it hasn't moved this turn: +10 Hit | Hold | Lowest Defense in range; moves only if nothing is in range |
-| Shieldbearer | **Braced:** +2 DEF per point of current Stance | Guard | Stays next to its pack's back-line ally |
+| Stonelet | **Braced** (name to be decided, P05 question 60): +2 DEF and +1 damage per point of current Stance | Guard | Stays next to its pack's back-line ally |
 | Hedge Healer | **Field Dressing:** Healed an ally: that ally gains 1 Stance | Support | Heals the most wounded ally; keeps away from your units |
 | Hexer | **Curse:** Hit dealt: the target and every unit adjacent to it, friend or foe, lose 1 Stance | Skirmisher | The foe whose curse catches the most player units, even if allies are caught too |
 | Warcaller | **War Horn** (signature move): every 2nd Phase Start this combat: every unit within 2 tiles, friend or foe, gains +2 damage until the end of the next phase | Support | Stays within 2 tiles of the most allies |
@@ -82,7 +85,7 @@ else is caught, so a player who reads the board can turn them around:
 | Trait | What the enemy wants | How the player outplays it |
 |-------|----------------------|----------------------------|
 | Brute's **Cleave** | Splash every unit around the Brute | Fight the Brute where its own allies stand next to it; they take the splash |
-| Shieldbearer's **Braced** | A wall of DEF in front of its back line; a hit it fully mitigates costs it no Stance | Strip its Stance without damage (the Shatter rune, or its own Hexer's Curse on a foe beside it) or with a hit strong enough to get through; each Stance lost takes 2 DEF until its next Phase Start |
+| Stonelet's **Braced** | A wall of DEF in front of its back line that hits harder the more Stance it holds; a hit it fully mitigates costs it no Stance | Strip its Stance without damage (the Shatter rune, or its own Hexer's Curse on a foe beside it) or with a hit strong enough to get through; each Stance lost takes 2 DEF and 1 damage until its next Phase Start |
 | Hexer's **Curse** | Strip Stance from a clump of your units | Keep its allies next to your target, so the curse makes them Exposed for your crits |
 | Warcaller's **War Horn** | +2 damage for its pack's charge | Step into range before it sounds: your units keep the bonus through your next phase |
 | Raider's **Trample** | Splash around its target after a charge | Make it charge a target with its own allies beside it |
@@ -107,18 +110,36 @@ Enemies play to kill:
 - **Readable:** intents always reflect this. When a kill is available, the intent shows the kill
   target, so the player can see the threat coming and deny it.
 
+## Non-humanoid enemies
+
+Decided November 25, 2026 (user; RF-052 and RF-056 in rebalance-and-features.md). The rule for every
+creature, now and later:
+
+- **Its weapon is as simple as a weapon gets.** A creature carries a
+  [Monster](weapons.md#monster) weapon with only Hit, profile (Nimble, Balance, Power or None),
+  range, AtkX, Crit and CritX. Dmg is 0; there is no weight, no effect and no effectiveness.
+- **Its combat numbers come from its stats, not its gear.** Its Might is its damage (through the
+  weapon's scaling, Might × 1), its DEF and RES are its own, and it carries no equipment. What makes
+  it different is its stats and its trait.
+- **Normal values:** one attack, Crit 0, CritX 3, as the Simple weapons. Edge cases may differ: the
+  Hound's Fangs bite twice.
+- **Enemies only.** No player unit type, starting army or weapon prefix names a Monster weapon or
+  the type; the content test fails any that does.
+
 ## Enemy-only weapons
 
-| Weapon | Dmg | AtkX | Profile | Range | Hit | Crit | CritX | Weight | Note |
-|--------|-----|------|---------|-------|-----|------|-------|--------|------|
-| Fangs | 3 | 2 | Nimble | 1 | 90 | 0 | 2 | 0 | Natural weapon, like gauntlets |
-| Shieldmace | 4 | 1 | None | 1 | 75 | 0 | 3 | 12 | The Shieldbearer's. A sword-type weapon outside the triangle: a Standoff against Nimble, Balance and Power, for both sides |
+| Weapon | Type | Dmg | AtkX | Profile | Range | Hit | Crit | CritX | Weight | Note |
+|--------|------|-----|------|---------|-------|-----|------|-------|--------|------|
+| Fangs | Monster | 0 | 2 | Nimble | 1 | 90 | 0 | 3 | 0 | The Hound's and the Bloodhound's: two bites a turn |
+| Stone Fists | Monster | 0 | 1 | None | 1 | 75 | 0 | 3 | 0 | The Stonelet's and the Stone Golem's (name to be decided, P05 question 62). Outside the triangle: a Standoff against Nimble, Balance and Power, for both sides |
 
-No `Godot_FE` basis; first-pass values sized against the simple weapons. The Shieldmace keeps the
-Simple Lance's numbers except damage 4 and Hit 75 (user, November 18, 2026). The other classes carry
-the player's weapons (the Crossbowman a Simple Bow, the Raider the shared Javelin), so player
-knowledge transfers. Enemy weapons and staves never run out; unique traits and signature moves have
-limited uses. Enemies don't drop loot in the MVP.
+No `Godot_FE` basis. The Fangs were a gauntlet-like weapon with Dmg 3 and CritX 2; on the Monster
+type their 3 damage moved into the Hound's Might (4 → 7), so each bite deals what it did. The Stone
+Fists keep the Shieldbearer's old Shieldmace's Hit 75, range 1 and profile None; its Dmg 4 moved
+into the Stonelet's Might (1 → 5) and the Iron Shield's +2 DEF into its DEF (1 → 3). The other
+classes carry the player's weapons (the Crossbowman a Simple Bow, the Raider the shared Javelin), so
+player knowledge transfers. Enemy weapons and staves never run out; unique traits and signature
+moves have limited uses. Enemies don't drop loot in the MVP.
 
 ## Packs
 
@@ -129,14 +150,14 @@ The basic packs at step 1, with their puzzles:
 
 | Pack | Units | How it works |
 |------|-------|--------------|
-| Shield and Bolt | Shieldbearer, 2 Crossbowmen | The Shieldbearer stands beside the crossbows as a wall of DEF; they stand still for Steady Aim. Strip its Stance before you push through it |
+| Shield and Bolt (name to be decided, P05 question 61) | Stonelet, 2 Crossbowmen | The Stonelet stands beside the crossbows as a wall of DEF; they stand still for Steady Aim. Strip its Stance before you push through it |
 | Hex and Knife | Hexer, 2 Cutthroats | The Hexer strips Stance; Cutthroats crit the Exposed target with Backstab |
-| Field Hospital | Hedge Healer, Brute, Shieldbearer | The healer keeps the Brute fighting; the Shieldbearer guards the healer, and a heal on it gives back 1 Stance through Field Dressing, and with it 2 DEF |
+| Field Hospital | Hedge Healer, Brute, Stonelet | The healer keeps the Brute fighting; the Stonelet guards the healer, and a heal on it gives back 1 Stance through Field Dressing, and with it 2 DEF and 1 damage |
 | War Band | Warcaller, Brute, 2 Hounds | War Horn turns the pack's charge into a spike every other turn |
 | Hunting Party | Raider, 2 Hounds | The Hounds swarm a target; the Raider charges in and Tramples it, Hounds and all |
 
 The player's counterplay is built in: kill the healer or the Hexer first, break up a pack so Pack
-falls off, strip the Shieldbearer's Stance before hitting it, bait the Duelist with a unit that
+falls off, strip the Stonelet's Stance before hitting it, bait the Duelist with a unit that
 out-ranges it, and turn the
 [side-agnostic effects](#side-agnostic-effects) against the pack that brought them. Packs that
 cluster (War Band, Hunting Party) are the most exposed to their own Cleave and Trample.
@@ -165,7 +186,7 @@ puzzle, to learn which are fun.
 | Brigand Captain | Brute | Every 3rd Phase Start this combat: Command, every ally gains 1 Stance, even above its maximum | Command comes after the refresh, so its pack holds one Stance over its maximum until their next Phase Start: every break takes an extra hit. Strike between Commands, or take the Captain first |
 | Bloodhound | Hound | Defeated an enemy: may move again | Never leave a wounded unit in its reach |
 | Hex Matron | Hexer | Every 3rd Phase Start this combat: Hex Storm, every unit within 2 tiles of its target, friend or foe, loses 1 Stance | Bait it into catching its own pack, then crit them |
-| Iron Wall | Shieldbearer (keeps Braced, the Shieldmace and the Iron Shield) | Every 2nd Phase Start this combat: Fortify, adjacent units, friend or foe, gain 4 Block and +1 Parry until Phase End | Strip its Stance to open up its DEF, then break the formation, or stand in the wall and share it |
+| Stone Golem | Stonelet (a big one: keeps Braced, the Stone Fists and the Stonelet's stats, gear folded in) | Every 2nd Phase Start this combat: Fortify, adjacent units, friend or foe, gain 4 Block and +1 Parry until Phase End | Strip its Stance to open up its DEF, then break the formation, or stand in the wall and share it |
 
 **The boss: the Powder Baron.** The MVP's one boss. The boss map is fully scripted (fixed enemies, placement
 and scripted beats), a developed level of 15–20 minutes; key maps field the key pack built around

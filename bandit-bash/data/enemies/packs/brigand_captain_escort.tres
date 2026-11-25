@@ -6,8 +6,8 @@
 script = ExtResource("1_def")
 pool = 2
 step_1_counts = Dictionary[String, int]({"brute": 1, "hedge_healer": 1, "duelist": 1})
-step_2_counts = Dictionary[String, int]({"brute": 1, "hedge_healer": 1, "duelist": 1, "shieldbearer": 1})
-step_3_counts = Dictionary[String, int]({"brute": 1, "hedge_healer": 1, "duelist": 1, "shieldbearer": 1, "crossbowman": 1})
+step_2_counts = Dictionary[String, int]({"brute": 1, "hedge_healer": 1, "duelist": 1, "stonelet": 1})
+step_3_counts = Dictionary[String, int]({"brute": 1, "hedge_healer": 1, "duelist": 1, "stonelet": 1, "crossbowman": 1})
 mini_boss_id = "brigand_captain"
 id = "brigand_captain_escort"
 display_name = "Brigand Captain's Escort"

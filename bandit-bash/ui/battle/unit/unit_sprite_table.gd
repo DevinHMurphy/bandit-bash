@@ -6,7 +6,7 @@
 # File:     unit_sprite_table.gd
 # Author:
 # Created:  November 5, 2026
-# Modified: November 19, 2026
+# Modified: November 25, 2026
 # ==============================================================================
 
 class_name UnitSpriteTable
@@ -27,13 +27,13 @@ extends Resource
 # ASSUMPTION: hexer - sea_witch; bone_mancer rejected (reads like the player Shaman).
 # hound - the user's hound.png (32rogues' wolf), the user's pick.
 # ASSUMPTION: raider - axe_cavalier (mounted, as the class); marauder rejected (on foot).
-# ASSUMPTION: shieldbearer - Bulwark (tower shield); sword_armor went to the Iron Wall.
+# stonelet - the user's minor_golem.png (32rogues), the user's pick.
 # ASSUMPTION: warcaller - banner_bearer; sanctioner rejected.
 # bloodhound - the user's own blood_hound.png, the user's pick.
 # ASSUMPTION: brigand_captain - Destroyer; a tinted vandal and tier4/captain rejected.
 # ASSUMPTION: hex_matron - tier1/herbalist (crooked staff, earthy greens), apart from the pale,
 # purple Shaman and the Hexer; bone_mancer, dark_imp, bishop, Cleric and goblin_caster rejected.
-# ASSUMPTION: iron_wall - sword_armor; a tinted Bulwark rejected.
+# stone_golem - the user's stone_golem_large.png, the user's pick.
 # ASSUMPTION: powder_baron - gunner (a firearm, for the powder); a tinted vandal rejected.
 # ASSUMPTION: powder kegs - the dungeon tile sheet's barrel; Godot_FE has no keg.
 # NOTE: breakables key by their display label ("Powder Keg"), which MapObjects sets as their type.

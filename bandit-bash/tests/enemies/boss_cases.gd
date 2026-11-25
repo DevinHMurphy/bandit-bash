@@ -6,7 +6,7 @@
 # File:     boss_cases.gd
 # Author:
 # Created:  November 18, 2026
-# Modified: November 20, 2026
+# Modified: November 25, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -40,7 +40,7 @@ const RUN_SEED: int = 1818
 
 ## The keep's garrison in slot order (data/enemies/packs/powder_keep_garrison.tres).
 const GARRISON: Array[String] = [
-	"shieldbearer", "shieldbearer", "crossbowman", "crossbowman", "hedge_healer", "brute",
+	"stonelet", "stonelet", "crossbowman", "crossbowman", "hedge_healer", "brute",
 	"cutthroat", "cutthroat",
 ]
 

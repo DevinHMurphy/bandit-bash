@@ -6,7 +6,7 @@
 # File:     weapon_content_cases.gd
 # Author:
 # Created:  November 15, 2026
-# Modified: November 20, 2026
+# Modified: November 25, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -53,7 +53,7 @@ const MVP_COUNT: int = 70
 const SEED: int = 0xC7_0004
 
 # The enemy-only weapons (enemy-roster.md): in a weapon folder, never an MVP weapon.
-const ENEMY_ONLY: PackedStringArray = ["fangs", "shieldmace"]
+const ENEMY_ONLY: PackedStringArray = ["fangs", "stone_fists"]
 
 # weapons.md's weapon tables and game-vision.md's Simple weapons. Columns: type, profile, damage,
 # damage type, AtkX, range min, range max, Hit, crit, CritX, weight, rarity, effective against.

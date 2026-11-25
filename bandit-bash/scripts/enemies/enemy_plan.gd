@@ -6,7 +6,7 @@
 # File:     enemy_plan.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 20, 2026
+# Modified: November 25, 2026
 # ==============================================================================
 
 class_name EnemyPlan
@@ -34,7 +34,7 @@ enum Kind {
 	## Walks toward [member target_id], the nearest foe by path cost, and waits.
 	ADVANCE = 2,
 	## Walks to a tile and waits: Support with nobody to heal, near its allies where the fewest
-	## player units can attack it; or a Shieldbearer taking its place beside its back-line ally.
+	## player units can attack it; or a Stonelet taking its place beside its back-line ally.
 	REGROUP = 3,
 	## Waits where it stands: no option, or no enemy class to play.
 	WAIT = 4,
@@ -142,7 +142,7 @@ var safety: int = 0
 var pack: int = 0
 
 ## Advancing: path cost left from [member tile] to a tile it could attack its foe from. A
-## Shieldbearer short of its back-line ally: the cost left to a tile beside that ally.
+## Stonelet short of its back-line ally: the cost left to a tile beside that ally.
 var progress: int = 0
 
 ## A Hound advancing: allies on the four tiles beside [member tile]; 0 for every other plan.

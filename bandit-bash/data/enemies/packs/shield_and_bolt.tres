@@ -4,9 +4,9 @@
 
 [resource]
 script = ExtResource("1_def")
-step_1_counts = Dictionary[String, int]({"shieldbearer": 1, "crossbowman": 2})
-step_2_counts = Dictionary[String, int]({"shieldbearer": 1, "crossbowman": 3})
-step_3_counts = Dictionary[String, int]({"shieldbearer": 2, "crossbowman": 3})
-leader_class_id = "shieldbearer"
+step_1_counts = Dictionary[String, int]({"stonelet": 1, "crossbowman": 2})
+step_2_counts = Dictionary[String, int]({"stonelet": 1, "crossbowman": 3})
+step_3_counts = Dictionary[String, int]({"stonelet": 2, "crossbowman": 3})
+leader_class_id = "stonelet"
 id = "shield_and_bolt"
 display_name = "Shield and Bolt"

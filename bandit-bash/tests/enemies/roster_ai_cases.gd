@@ -6,20 +6,20 @@
 # File:     roster_ai_cases.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 19, 2026
+# Modified: November 25, 2026
 # ==============================================================================
 
 extends RefCounted
 ## The roster's AI cases for tests/enemies/roster/run_all.gd, on the real catalog's classes
-## ([EnemyAI]): each behavior (Guard, the Shieldbearer, the Skirmishers, the Hound's pack, the
+## ([EnemyAI]): each behavior (Guard, the Stonelet, the Skirmishers, the Hound's pack, the
 ## Warcaller) and target rule, Trample kills (a killing hit's included), kills first for every new
 ## class, each pack's phase playing as its intents showed, and move previews equal to the real
 ## move. Reports each case through the check callable it is given.
 ##
-## Boards are plain. Level 1 hits: the Duelist's Simple Sword 5 + 4, the Shieldbearer's Simple
-## Lance 7 + 2, the Warcaller's 7 + 6, the Cutthroat's Simple Dagger 2 + 5 (Backstab +2), the
-## Raider's Javelin 5 + 6, the Hexer's Shade 7 + 8 magic, less DEF or RES; player units have
-## 20 HP, DEF 2, RES 1.
+## Boards are plain. Level 1 hits: the Duelist's Simple Sword 5 + 4, the Stonelet's Stone Fists
+## 0 + 5 and Braced's +3, the Warcaller's 7 + 6, the Cutthroat's Simple Dagger 2 + 5 (Backstab
+## +2), the Raider's Javelin 5 + 6, the Hexer's Shade 7 + 8 magic, less DEF or RES; player units
+## have 20 HP, DEF 2, RES 1.
 
 # The suite that runs this file; tests/case_files.gd finds it by this line.
 const SUITE: String = "enemies/roster"
@@ -29,7 +29,7 @@ const AiWorld = preload("res://tests/enemies/ai_world.gd")
 
 # The roster's new classes, for the kills-first case.
 const NEW_CLASSES: Array[String] = [
-	"cutthroat", "duelist", "shieldbearer", "hexer", "warcaller", "raider", "hound",
+	"cutthroat", "duelist", "stonelet", "hexer", "warcaller", "raider", "hound",
 ]
 
 # The roster's packs, for the phase and preview cases.
@@ -60,11 +60,11 @@ func _init(check: Callable) -> void:
 func run() -> void:
 	_test_guard_attacks_in_reach()
 	_test_guard_stays_put()
-	_test_shieldbearer_beside_ally()
-	_test_shieldbearer_attacks_from_its_post()
-	_test_shieldbearer_kill_first()
-	_test_shieldbearer_nearest_ally()
-	_test_shieldbearer_without_ally()
+	_test_stonelet_beside_ally()
+	_test_stonelet_attacks_from_its_post()
+	_test_stonelet_kill_first()
+	_test_stonelet_nearest_ally()
+	_test_stonelet_without_ally()
 	_test_hexer_most_cursed()
 	_test_raider_back_line()
 	_test_raider_trample_kill()
@@ -110,52 +110,52 @@ func _test_guard_stays_put() -> void:
 	), _describe(hold))
 
 
-# The Shieldbearer with nothing to attack walks beside its Crossbowman, on the nearer of its two
+# The Stonelet with nothing to attack walks beside its Crossbowman, on the nearer of its two
 # reachable posts, (3, 0) and (4, 1).
-func _test_shieldbearer_beside_ally() -> void:
+func _test_stonelet_beside_ally() -> void:
 	var world: AiWorld = _world(_plain(8, 8))
-	world.add_enemy("e1", "shieldbearer", Vector2i(0, 0))
+	world.add_enemy("e1", "stonelet", Vector2i(0, 0))
 	world.add_enemy("e2", "crossbowman", Vector2i(4, 0))
 	world.add_player("p1", Vector2i(7, 7))
 	world.add_player("p2", Vector2i(0, 2))
 	var plan: EnemyPlan = world.decide("e1")
-	_check.call("shieldbearer: walks beside its back-line ally", (
+	_check.call("stonelet: walks beside its back-line ally", (
 			plan.kind == EnemyPlan.Kind.REGROUP
 			and plan.tile == Vector2i(3, 0)
 			and plan.progress == 0
 	), _describe(plan))
-	_check.call("shieldbearer: and leaves the foe it could reach elsewhere", (
+	_check.call("stonelet: and leaves the foe it could reach elsewhere", (
 			plan.target_id.is_empty()
 	), _describe(plan))
-	_check.call("shieldbearer: it carries its Iron Shield", (
-			not world.state().unit("e1").equipment_id.is_empty() and world.problems.is_empty()
+	_check.call("stonelet: it carries no gear", (
+			world.state().unit("e1").equipment_id.is_empty() and world.problems.is_empty()
 	), str(world.problems))
 
 
-# Beside its ally, the Shieldbearer attacks a foe in reach of its post.
-func _test_shieldbearer_attacks_from_its_post() -> void:
+# Beside its ally, the Stonelet attacks a foe in reach of its post.
+func _test_stonelet_attacks_from_its_post() -> void:
 	var world: AiWorld = _world(_plain(8, 8))
-	world.add_enemy("e1", "shieldbearer", Vector2i(0, 0))
+	world.add_enemy("e1", "stonelet", Vector2i(0, 0))
 	world.add_enemy("e2", "crossbowman", Vector2i(4, 0))
 	world.add_player("p3", Vector2i(3, 1))
 	var plan: EnemyPlan = world.decide("e1")
-	_check.call("shieldbearer: attacks from its post beside the ally", (
+	_check.call("stonelet: attacks from its post beside the ally", (
 			plan.kind == EnemyPlan.Kind.ATTACK
 			and plan.target_id == "p3"
 			and plan.tile == Vector2i(3, 0)
 	), _describe(plan))
 
 
-# A kill anywhere in reach comes before its post (Ruthless AI): its Shieldmace's 5 Attack less the
-# foe's 2 DEF takes a 3 HP foe.
-func _test_shieldbearer_kill_first() -> void:
+# A kill anywhere in reach comes before its post (Ruthless AI): its Attack 8 (Might 5, Braced +3)
+# less the foe's 2 DEF takes a 3 HP foe.
+func _test_stonelet_kill_first() -> void:
 	var world: AiWorld = _world(_plain(8, 8))
-	world.add_enemy("e1", "shieldbearer", Vector2i(0, 0))
+	world.add_enemy("e1", "stonelet", Vector2i(0, 0))
 	world.add_enemy("e2", "crossbowman", Vector2i(4, 0))
 	world.add_player("p2", Vector2i(0, 2))
 	world.wound("p2", 3)
 	var plan: EnemyPlan = world.decide("e1")
-	_check.call("shieldbearer: a kill away from its post comes first", (
+	_check.call("stonelet: a kill away from its post comes first", (
 			plan.kind == EnemyPlan.Kind.ATTACK
 			and plan.target_id == "p2"
 			and plan.is_kill
@@ -164,14 +164,14 @@ func _test_shieldbearer_kill_first() -> void:
 
 
 # Of a Hedge Healer 4 tiles away and a Crossbowman 5 away, it guards the Healer.
-func _test_shieldbearer_nearest_ally() -> void:
+func _test_stonelet_nearest_ally() -> void:
 	var world: AiWorld = _world(_plain(8, 8))
-	world.add_enemy("e1", "shieldbearer", Vector2i(0, 0))
+	world.add_enemy("e1", "stonelet", Vector2i(0, 0))
 	world.add_enemy("e2", "crossbowman", Vector2i(5, 0))
 	world.add_enemy("e3", "hedge_healer", Vector2i(0, 4))
 	world.add_player("p1", Vector2i(7, 7))
 	var plan: EnemyPlan = world.decide("e1")
-	_check.call("shieldbearer: guards the nearest back-line ally, a Support one too", (
+	_check.call("stonelet: guards the nearest back-line ally, a Support one too", (
 			plan.kind == EnemyPlan.Kind.REGROUP
 			and world.state().grid.distance(plan.tile, Vector2i(0, 4)) == 1
 	), _describe(plan))
@@ -179,13 +179,13 @@ func _test_shieldbearer_nearest_ally() -> void:
 
 # With only a Brute beside it (no ranged weapon, no Support), it plays Guard: nobody in reach,
 # so it stays.
-func _test_shieldbearer_without_ally() -> void:
+func _test_stonelet_without_ally() -> void:
 	var world: AiWorld = _world(_plain(8, 8))
-	world.add_enemy("e1", "shieldbearer", Vector2i(0, 0))
+	world.add_enemy("e1", "stonelet", Vector2i(0, 0))
 	world.add_enemy("e2", "brute", Vector2i(4, 0))
 	world.add_player("p1", Vector2i(7, 7))
 	var plan: EnemyPlan = world.decide("e1")
-	_check.call("shieldbearer: with no back-line ally it acts as a Guard", (
+	_check.call("stonelet: with no back-line ally it acts as a Guard", (
 			plan.kind == EnemyPlan.Kind.WAIT and plan.tile == Vector2i(0, 0)
 	), _describe(plan))
 

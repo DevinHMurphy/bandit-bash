@@ -6,19 +6,19 @@
 # File:     preview_zone_cases.gd
 # Author:
 # Created:  November 21, 2026
-# Modified: November 21, 2026
+# Modified: November 25, 2026
 # ==============================================================================
 
 extends RefCounted
 ## The move preview's bounded zones and incremental danger zone (move-preview.md, layers 3 and 4).
 ## [b]Bounds:[/b] for each reading a decision's [EnemyAI.Footprint] keeps (the walk and its
-## reach, an advance's nearer foe and routes, a Hound's pack, a Shieldbearer's routes to its
+## reach, an advance's nearer foe and routes, a Hound's pack, a Stonelet's routes to its
 ## ally, the whole-map flood of an enemy that waits, the player units' threats), a tile just
 ## inside the bound can change the decision and a tile just outside can't; then the same moves
 ## previewed: the one outside keeps the decision, the one inside decides again, and both equal a
 ## full re-plan. These use the loadout fixture tree's classes and hand-built player units, which
 ## carry no effect, so the effect margin is 0 and each bound is exact.
-## [b]Behaviors:[/b] Guard, Skirmisher, the Shieldbearer, the mini-bosses and the Powder Baron, on
+## [b]Behaviors:[/b] Guard, Skirmisher, the Stonelet, the mini-bosses and the Powder Baron, on
 ## the real catalog: every tile two player units can end on, previewed in checking mode, equals a
 ## full re-plan, and some previews keep decisions.
 ## [b]Danger zone:[/b] on every benchmark board, seeded random moves give the danger zone a full
@@ -42,16 +42,16 @@ const CROSSBOWMAN: String = "loadout_crossbowman"
 const HEALER: String = "loadout_hedge_healer"
 
 # The real catalog's classes each behavior case fields, with the ally it needs ("" for none):
-# a Shieldbearer and an Iron Wall guard a ranged ally.
+# a Stonelet and a Stone Golem guard a ranged ally.
 const BEHAVIORS: Dictionary[String, String] = {
 	"duelist": "",
-	"shieldbearer": "crossbowman",
+	"stonelet": "crossbowman",
 	"hexer": "",
 	"raider": "",
 	"bloodhound": "brute",
 	"brigand_captain": "",
 	"hex_matron": "",
-	"iron_wall": "crossbowman",
+	"stone_golem": "crossbowman",
 	"powder_baron": "",
 }
 
@@ -84,7 +84,7 @@ func run() -> void:
 	_test_advance_nearer_foe_bound()
 	_test_advance_route_bound()
 	_test_pack_bound()
-	_test_shieldbearer_route_bound()
+	_test_stonelet_route_bound()
 	_test_far_bound()
 	_test_threat_bound()
 	_test_behaviors()
@@ -199,16 +199,16 @@ func _test_pack_bound() -> void:
 	])
 
 
-# A Shieldbearer out of reach of a post beside its Crossbowman ends where the least movement is
+# A Stonelet out of reach of a post beside its Crossbowman ends where the least movement is
 # left to one: the stand tile on its side of the Crossbowman lies on a cheapest route, the one past
-# it on none. Then a move far from both keeps both decisions: the Shieldbearer is not re-planned.
-func _test_shieldbearer_route_bound() -> void:
-	var walk: int = _budget(_catalog, "shieldbearer")
+# it on none. Then a move far from both keeps both decisions: the Stonelet is not re-planned.
+func _test_stonelet_route_bound() -> void:
+	var walk: int = _budget(_catalog, "stonelet")
 	var gap: int = walk + 4
 	var at: Vector2i = Vector2i(8, 4)
 	var ally: Vector2i = at + Vector2i(gap, 0)
 	var world: AiWorld = AiWorld.new(_catalog, _plain(ally.x + 6, 9))
-	world.add_enemy("e1", "shieldbearer", at)
+	world.add_enemy("e1", "stonelet", at)
 	world.add_enemy("e2", "crossbowman", ally)
 	world.add_player("p2", ally + Vector2i(3, 0))
 	world.add_player("p_far", Vector2i(0, 8))
@@ -216,7 +216,7 @@ func _test_shieldbearer_route_bound() -> void:
 	var plan: EnemyPlan = EnemyAI.decide(world.engine(), _catalog, "e1", {}, [], null, footprint)
 	var inside: Vector2i = ally - Vector2i(1, 0)
 	var outside: Vector2i = ally + Vector2i(1, 0)
-	_check.call("zone bounds: a Shieldbearer reads its cheapest routes to its ally, no others", (
+	_check.call("zone bounds: a Stonelet reads its cheapest routes to its ally, no others", (
 			plan.kind == EnemyPlan.Kind.REGROUP
 			and footprint.can_change(inside, 0)
 			and not footprint.can_change(outside, 0)
@@ -227,7 +227,7 @@ func _test_shieldbearer_route_bound() -> void:
 	_open(world, _catalog)
 	var far: Vector2i = Vector2i(1, 8)
 	_preview_case(
-			"zone previews: a move far from a Shieldbearer and its ally keeps both",
+			"zone previews: a move far from a Stonelet and its ally keeps both",
 			world, "p_far", far, true
 	)
 

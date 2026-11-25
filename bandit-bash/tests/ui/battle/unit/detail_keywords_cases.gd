@@ -6,7 +6,7 @@
 # File:     detail_keywords_cases.gd
 # Author:
 # Created:  November 22, 2026
-# Modified: November 22, 2026
+# Modified: November 25, 2026
 # ==============================================================================
 
 extends "res://tests/ui/battle/unit/unit_detail_cases.gd"
@@ -16,15 +16,15 @@ extends "res://tests/ui/battle/unit/unit_detail_cases.gd"
 ## keywords' column and no other row any, up stepping back to Close with none and the body at its
 ## top; the arrow keys doing the same; up and down listed in DETAIL; the pad's A on a row closing
 ## the detail as Close does; stepping to another unit putting focus back on Close; mouse focus on a
-## row showing none while a hover still shows its keyword; and an enemy's signature move (the Iron
-## Wall's Fortify, on an AI world) carrying marked text whose words are its plain text, shown in an
+## row showing none while a hover still shows its keyword; and an enemy's signature move (the Stone
+## Golem's Fortify, on an AI world) carrying marked text whose words are its plain text, shown in an
 ## [EffectText] that is a focus stop showing its keywords. The rig and drivers are
 ## unit_detail_cases.gd's.
 
 const AiWorld = preload("res://tests/enemies/ai_world.gd")
 
 # An enemy class with a signature move, and the player placed beside it.
-const SIGNED_CLASS: String = "iron_wall"
+const SIGNED_CLASS: String = "stone_golem"
 const SIGNED_TILE: Vector2i = Vector2i(3, 3)
 const FOE_TILE: Vector2i = Vector2i(4, 3)
 
@@ -178,7 +178,7 @@ func _test_mouse_focus(rig: Rig) -> void:
 	rig.h.controller.step_back()
 
 
-# The Iron Wall's Fortify: marked text whose words are its plain text, in the enemy section's
+# The Stone Golem's Fortify: marked text whose words are its plain text, in the enemy section's
 # EffectText, which is a focus stop showing its keywords on key focus and none on mouse focus.
 func _test_signature() -> void:
 	var world: AiWorld = AiWorld.new(_catalog, _plain_rows(8, 8))

@@ -49,14 +49,14 @@ signature_move = SubResource("Resource_blood_scent")
 signature_name = "Blood Scent"
 base_class_id = "hound"
 trait_name = "Pack"
-weapon_types = PackedStringArray("gauntlets")
+weapon_types = PackedStringArray("monster")
 movement_type = 2
 tags = PackedStringArray()
 stance = 1
 starting_weapon_id = "fangs"
 base_stats = Dictionary[int, int]({
 0: 20,
-1: 4,
+1: 7,
 2: 6,
 3: 1,
 4: 0,

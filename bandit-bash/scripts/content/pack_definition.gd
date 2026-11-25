@@ -6,14 +6,14 @@
 # File:     pack_definition.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 15, 2026
+# Modified: November 25, 2026
 # ==============================================================================
 
 @tool
 class_name PackDefinition
 extends EffectCarrierDefinition
 ## A pack: the enemy classes a battle fields together at each difficulty step, such as Field
-## Hospital's Hedge Healer, Brute and Shieldbearer, and the pool setup draws it from.
+## Hospital's Hedge Healer, Brute and Stonelet, and the pool setup draws it from.
 ##
 ## Content data in [code]res://data/enemies/packs/[/code]; read-only at runtime. Setup step 4
 ## draws a pack from one pool and fills the map's enemy slots from [method units] at the floor's

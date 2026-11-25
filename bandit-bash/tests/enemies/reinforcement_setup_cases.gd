@@ -6,7 +6,7 @@
 # File:     reinforcement_setup_cases.gd
 # Author:
 # Created:  November 15, 2026
-# Modified: November 19, 2026
+# Modified: November 25, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -208,7 +208,7 @@ func _test_standard_classes() -> void:
 	var classes: PackedStringArray = EnemySetup.standard_classes(EffectCatalog.index())
 	var expected: PackedStringArray = [
 		"brute", "crossbowman", "cutthroat", "duelist", "hedge_healer", "hexer", "hound", "raider",
-		"shieldbearer", "warcaller",
+		"stonelet", "warcaller",
 	]
 	_check.call("standard classes: every class a drawn catalog pack fields, in id order", (
 			classes == expected
