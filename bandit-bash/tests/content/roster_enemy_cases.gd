@@ -614,8 +614,8 @@ func _test_iron_wall_base() -> void:
 # From 2 tiles, the Hexer's hit on a Hakkapel (which can't answer at that range) costs 1 Stance to
 # it, the Archer beside it and the Hexer's own Cutthroat beside it. From beside a Battle Medic
 # (whose staff never counters), the Hexer is spared its own curse; the Medic's 1 Stance already
-# went to the hit, so the curse finds none on it. The curse resolves after the exchange; on a target the hit
-# defeats it catches nobody (reported with EN6).
+# went to the hit, so the curse finds none on it. The curse resolves after the exchange; on a
+# target the hit defeats it catches nobody (reported with EN6).
 func _test_curse() -> void:
 	var lost: PackedStringArray = []
 	var boards: Array = [
