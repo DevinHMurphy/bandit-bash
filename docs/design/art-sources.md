@@ -16,6 +16,7 @@ tile sheet one 32 px cell at a time.
 
 - **Godot_FE's art** is the project's own earlier build.
 - **`blood_hound.png`** is the user's own art (November 19, 2026).
+- **`stone_golem_large.png`** (the Stone Golem) is the user's own art (November 25, 2026).
 - **`hound.png`** is from the user's `assests/32rogues` pack (Seth Boyles, 2024; the wolf,
   `animals.txt` 6.g). Its licence allows commercial use but forbids redistributing the pack and
   any use "in conjunction with generative artificial intelligence projects". Copied on the user's
@@ -44,7 +45,7 @@ tile sheet one 32 px cell at a time.
 | bloodhound | `blood_hound.png` | the user's own art (November 19, 2026) | The user's pick; replaced Godot_FE's `flesh_prowler.png` |
 | brigand_captain | `destroyer.png` | `units/Destroyer.png` | *Assumption*; a tinted vandal and `tier4/captain.png` rejected |
 | hex_matron | `herbalist.png` | `units/tier1/herbalist.png` | *Assumption*: crooked staff, earthy greens, so it reads apart from the pale, purple player Shaman and the Hexer (user, at review: bone_mancer read too close to the Shaman); dark_imp (purple again), bishop and Cleric (priests), goblin_caster (not human) and a tinted sea_witch rejected |
-| stone_golem | `stone_golem_large.png` | the user's, sent November 25, 2026 (source to be given, P05 question 65) | The user's pick; `sword_armor.png`, the Iron Wall's, is no longer mapped |
+| stone_golem | `stone_golem_large.png` | the user's own art (November 25, 2026) | The user's pick; `sword_armor.png`, the Iron Wall's, is no longer mapped |
 | powder_baron | `gunner.png` | `units/gunner.png` | *Assumption*: a firearm, for the powder; a tinted vandal rejected |
 | Wooden Debris, Stone Debris | `objects/wood_debris.png`, `objects/stone_debris_1.png` | `entities/debris/` | Exact (breakables key by their label) |
 | Powder Keg | `objects/powder_keg.png` | `tilemaps/combat_map/tiles_dungeon_v1.1.png` cell (13, 18), a barrel | *Assumption*: Godot_FE has no keg |
@@ -192,7 +193,7 @@ white weapon and item glyph icons). Every hand match and fallback is an *assumpt
 | `starforged_blade` | `items/weapons/swords/valor_sword.png` | `weapons/valor_sword.png` | hand |
 | `steppe_hornbow` | `items/weapons/bow/steel_bow.png` | `weapons/steel_bow.png` | hand |
 | `stiletto` | `items/weapons/dagger/knife.png` | `weapons/knife.png` | hand |
-| `stone_fists` | `items/weapons/fist/iron_guantlets.png` | `weapons/iron_guantlets.png` | fallback: the Simple Gauntlets' icon, until art (P05 question 62) |
+| `stone_fists` | `items/weapons/fist/iron_guantlets.png` | `weapons/iron_guantlets.png` | fallback: the Simple Gauntlets' icon, until art |
 | `stonedragon_tail` | `items/consumables/stat_boosters/defense/stonewyvern_tail.png` | `consumables/stonewyvern_tail.png` | hand |
 | `throwing_hatchet` | `items/weapons/axes/hatchet.png` | `weapons/hatchet.png` | hand |
 | `twin_fang` | `items/weapons/swords/scimitar.png` | `weapons/scimitar.png` | hand |

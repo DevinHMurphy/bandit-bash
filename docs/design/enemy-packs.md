@@ -41,7 +41,7 @@ P05 EN17 (pack pools), EN7 (leaders), EN8 (mini-bosses) and P04 MP10 (the M2 map
 
 | Pack | Units | Size |
 |------|-------|------|
-| Shield and Bolt (name to be decided, P05 question 61) | Stonelet, 2 Crossbowmen | 3 |
+| Stone and Bolt | Stonelet, 2 Crossbowmen | 3 |
 | Hex and Knife | Hexer, 2 Cutthroats | 3 |
 | Field Hospital | Hedge Healer, Brute, Stonelet | 3 |
 | War Band | Warcaller, Brute, 2 Hounds | 4 |
@@ -76,7 +76,7 @@ the Hunting Party's varying 2–3 Hounds becomes a fixed count per step.
 
 | Pack | Step 1 (3) | Step 2 (4) | Step 3 (5) | Leader |
 |------|------------|------------|------------|--------|
-| Shield and Bolt | Stonelet, 2 Crossbowmen | Stonelet, 3 Crossbowmen | 2 Stonelets, 3 Crossbowmen | Stonelet |
+| Stone and Bolt | Stonelet, 2 Crossbowmen | Stonelet, 3 Crossbowmen | 2 Stonelets, 3 Crossbowmen | Stonelet |
 | Hex and Knife | Hexer, 2 Cutthroats | Hexer, 3 Cutthroats | Hexer, 3 Cutthroats, Crossbowman | Hexer |
 | Field Hospital | Hedge Healer, Brute, Stonelet | Hedge Healer, 2 Brutes, Stonelet | Hedge Healer, 2 Brutes, Stonelet, Crossbowman | Brute |
 | War Band | Warcaller, Brute, Hound | Warcaller, Brute, 2 Hounds | Warcaller, 2 Brutes, 2 Hounds | Warcaller |
@@ -87,7 +87,7 @@ puzzle harder, plus one new pack built on the Duelist:
 
 | Pack | Step 1 (3) | Step 2 (4) | Step 3 (5) | Leader | What makes it hard |
 |------|------------|------------|------------|--------|--------------------|
-| Shield and Bolt (hard) | Stonelet, Crossbowman, Hedge Healer | Stonelet, 2 Crossbowmen, Hedge Healer | 2 Stonelets, 2 Crossbowmen, Hedge Healer | Stonelet | The healer sits behind the wall |
+| Stone and Bolt (hard) | Stonelet, Crossbowman, Hedge Healer | Stonelet, 2 Crossbowmen, Hedge Healer | 2 Stonelets, 2 Crossbowmen, Hedge Healer | Stonelet | The healer sits behind the wall |
 | Hex and Knife (hard) | Hexer, Cutthroat, Duelist | Hexer, 2 Cutthroats, Duelist | Hexer, 2 Cutthroats, Duelist, Raider | Hexer | The Duelist punishes the dive on the Hexer |
 | Field Hospital (hard) | Hedge Healer, 2 Brutes | Hedge Healer, 2 Brutes, Stonelet | 2 Hedge Healers, 2 Brutes, Stonelet | Brute | Two Cleaves to keep alive, then two healers |
 | War Band (hard) | Warcaller, Raider, Hound | Warcaller, Brute, Raider, Hound | Warcaller, 2 Brutes, Raider, Hound | Warcaller | War Horn on a Trample charge |

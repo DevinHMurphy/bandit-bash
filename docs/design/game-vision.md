@@ -588,10 +588,10 @@ profile is a Standoff.
 `WPTAE = round(Weapon.attack × 1/4)`, at least 1. The soft cap is about 10 (the strongest weapon's
 damage × ¼).
 
-Weapons with profile **None** (Bow, Gauntlets, and the enemy-only Shieldmace) never take part in
+Weapons with profile **None** (Bow, Gauntlets, and the enemy-only Stone Fists) never take part in
 the triangle: they get no advantage and suffer no disadvantage, and their opponent's triangle
 result against them is a Standoff. This is part of their identity: bows win through range,
-gauntlets through breaking Stance, and the Shieldbearer's Shieldmace through its Braced defense.
+gauntlets through breaking Stance, and the Stonelet's Stone Fists through its Bedrock defense.
 
 **Status effects (after the MVP).** None ship in the MVP: debuffs work through Stance and Block,
 and no MVP trait, enemy or item applies a status. When they arrive, they stack by duration, by
@@ -802,7 +802,7 @@ blinds, on top of the map mechanic every boss combat has. The MVP has **1 boss**
 Baron** (an elite Brute that holds the throne and throws fused powder kegs every 2nd enemy phase; a
 thrown keg is lit, and explodes at the end of the 2nd enemy phase after it lands, at its first
 darkness contact, or sooner if set off like any keg),
-and **4 mini-bosses** (Brigand Captain, Bloodhound, Hex Matron, Iron Wall), one per key combat,
+and **4 mini-bosses** (Brigand Captain, Bloodhound, Hex Matron, Stone Golem), one per key combat,
 drawn by the seed without repeats. All are elites on the normal classes; details in
 [enemy-roster.md](enemy-roster.md#mini-bosses-and-the-boss).
 
@@ -837,7 +837,7 @@ the player's unit types, but built the same way and fighting by exactly the same
 - **Data:** base stats and growths (HP, MGT, SPD, DEF, RES, MOV, CON), movement type, tags, Stance,
   a trait in effect text, and a **weapon** that sets its profile, damage type, range, Hit, crit and
   weight. Humanoid enemies carry generic weapons (a Crossbowman's Simple Bow); enemy-only weapons
-  can exist alongside the player's (the Shieldbearer's Shieldmace). Enemy weapons and staves never
+  can exist alongside the player's (the Stonelet's Stone Fists). Enemy weapons and staves never
   run out, while unique traits and signature moves have limited uses.
 - **Combat:** identical to player units: the same forecast, damage stages, Attack Speed, Block,
   Stance, Parry, effects and darkness. Player knowledge transfers: an enemy with an axe is an axe.

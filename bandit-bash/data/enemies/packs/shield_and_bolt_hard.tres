@@ -10,4 +10,4 @@ step_2_counts = Dictionary[String, int]({"stonelet": 1, "crossbowman": 2, "hedge
 step_3_counts = Dictionary[String, int]({"stonelet": 2, "crossbowman": 2, "hedge_healer": 1})
 leader_class_id = "stonelet"
 id = "shield_and_bolt_hard"
-display_name = "Shield and Bolt (hard)"
+display_name = "Stone and Bolt (hard)"

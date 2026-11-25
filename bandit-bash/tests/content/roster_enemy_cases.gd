@@ -14,7 +14,7 @@ extends RefCounted
 ## the seven classes after M1 against enemy-roster.md (behavior, target rule, weapon, gear, stats
 ## and growths), their traits' text, the shared Javelin (Common) and the Monster Fangs and Stone
 ## Fists (Basic, never carried by a player unit), every pack against enemy-packs.md's lists,
-## every class loaded through the loadout, and each trait in a battle: Backstab, Riposte, Braced
+## every class loaded through the loadout, and each trait in a battle: Backstab, Riposte, Bedrock
 ## (DEF and Attack from current Stance, the Stone Fists' Standoff, a crit at CritX 3), Curse,
 ## Trample and Pack, the Hound's two bites, and a killing blow still splashing and cursing as its
 ## forecast showed. Reports each case through the check callable it is given.
@@ -94,7 +94,6 @@ const TEXT: Dictionary[String, Array] = {
 # The Raider's, the Hound's and the Stonelet's weapons. Columns: Dmg, AtkX, profile, range min,
 # range max, Hit, Crit, CritX, Weight, weapon type, rarity. The Javelin is weapons.md's Pilum,
 # renamed and shared; the Fangs and the Stone Fists are enemy-roster.md's Monster weapons, Dmg 0.
-# ASSUMPTION: the user's "AtkX 0 (one attack)" is stored as atk_x 1, the field's one attack.
 const NEW_WEAPONS: Dictionary[String, Array] = {
 	"javelin": [
 		5, 1, WeaponTriangle.Profile.BALANCE, 1, 2, 80, 0, 3.0, 9, "lance",
@@ -113,13 +112,13 @@ const NEW_WEAPONS: Dictionary[String, Array] = {
 # The enemy-only weapons: Basic, and carried by no player unit type or starting army.
 const ENEMY_ONLY: Array[String] = ["fangs", "stone_fists"]
 
-# Braced's DEF on the Stonelet at Stance 3, 2, 1 and 0: base 3 and +2 per point of current Stance
+# Bedrock's DEF on the Stonelet at Stance 3, 2, 1 and 0: base 3 and +2 per point of current Stance
 # (enemy-roster.md).
-const BRACED_DEF: String = "9, 7, 5, 3"
+const BEDROCK_DEF: String = "9, 7, 5, 3"
 
-# Braced's Attack on the Stonelet at Stance 3, 2, 1 and 0: Might 5 (the Stone Fists deal 0) and +1
+# Bedrock's Attack on the Stonelet at Stance 3, 2, 1 and 0: Might 5 (the Stone Fists deal 0) and +1
 # per point of current Stance.
-const BRACED_ATTACK: String = "8, 7, 6, 5"
+const BEDROCK_ATTACK: String = "8, 7, 6, 5"
 
 # The Hound's Fangs before they became a Monster weapon: Might 4 and Dmg 3. Each bite must deal
 # what this pair dealt, the triangle's change included.
@@ -252,12 +251,12 @@ func run() -> void:
 	_test_classes_load()
 	_test_backstab()
 	_test_riposte()
-	_test_braced_forecast()
-	_test_braced_mitigated_hit()
-	_test_braced_stance_loss()
-	_test_braced_attack()
-	_test_braced_crit()
-	_test_braced_estimates_agree()
+	_test_bedrock_forecast()
+	_test_bedrock_mitigated_hit()
+	_test_bedrock_stance_loss()
+	_test_bedrock_attack()
+	_test_bedrock_crit()
+	_test_bedrock_estimates_agree()
 	_test_stone_fists_standoff()
 	_test_stone_golem_base()
 	_test_curse()
@@ -279,7 +278,7 @@ func _test_classes() -> void:
 	_same("roster enemies: weapons, movement, tags, gear, trait, behavior", _describe(), "; ".join([
 		"cutthroat dagger MOBILE [] simple_dagger - Backstab AGGRESSIVE",
 		"duelist sword MOBILE [] simple_sword - Riposte GUARD",
-		"stonelet monster HEAVY [armored] stone_fists - Braced GUARD",
+		"stonelet monster HEAVY [armored] stone_fists - Bedrock GUARD",
 		"hexer dark DEFAULT [] simple_dark - Curse SKIRMISHER",
 		"warcaller lance DEFAULT [] simple_lance - War Horn SUPPORT",
 		"raider lance MOUNTED [mounted] javelin - Trample SKIRMISHER",
@@ -402,7 +401,7 @@ func _test_packs() -> void:
 
 
 # Every new class through the loadout as setup builds it: no problems, its weapon, no use limit,
-# and the Stonelet's full-Stance DEF in battle: its own 3 and Braced's +6.
+# and the Stonelet's full-Stance DEF in battle: its own 3 and Bedrock's +6.
 func _test_classes_load() -> void:
 	var ids: InstanceIdAllocator = InstanceIdAllocator.new()
 	var problems: PackedStringArray = []
@@ -472,9 +471,9 @@ func _test_riposte() -> void:
 	], "3, 0")
 
 
-# A Hakkapel's forecast against the Stonelet shows Braced's DEF falling 2 per Stance lost: the
+# A Hakkapel's forecast against the Stonelet shows Bedrock's DEF falling 2 per Stance lost: the
 # Mitigation stage of its first hit at Stance 3, 2, 1 and 0.
-func _test_braced_forecast() -> void:
+func _test_bedrock_forecast() -> void:
 	var session: CombatSession = _battle(_plain(2, 1), InstanceIdAllocator.new())
 	var hakkapel: String = _place(session, "hakkapel", PLAYER, 0, Vector2i(0, 0))
 	var bearer: String = _place(session, "stonelet", ENEMY, -1, Vector2i(1, 0))
@@ -493,15 +492,15 @@ func _test_braced_forecast() -> void:
 				side != null and side.breakdown != null and side.breakdown.mitigation != null
 		)
 		shown.append(str(roundi(side.breakdown.mitigation.total)) if is_shown else "-")
-	_same("braced: the forecast shows its DEF at Stance 3, 2, 1 and 0", ", ".join(shown), (
-			BRACED_DEF
+	_same("bedrock: the forecast shows its DEF at Stance 3, 2, 1 and 0", ", ".join(shown), (
+			BEDROCK_DEF
 	))
 
 
-# At full Stance a hit Braced's DEF fully mitigates costs no Stance (game-vision.md, Stance and
+# At full Stance a hit Bedrock's DEF fully mitigates costs no Stance (game-vision.md, Stance and
 # Exposure): the Simple Lance's 7 plus 2 Might meets 9 DEF. With 4 Might the first hit deals 2 and
 # takes a Stance, and the DEF after the exchange follows the Stance left.
-func _test_braced_mitigated_hit() -> void:
+func _test_bedrock_mitigated_hit() -> void:
 	var results: PackedStringArray = []
 	var follows: bool = false
 	for might: float in [2.0, 4.0]:
@@ -522,16 +521,16 @@ func _test_braced_mitigated_hit() -> void:
 		var def: int = session.stats(bearer).get_int(CombatValue.Key.DEF)
 		results.append("first hit %d, Stance %d, DEF %d" % [first, stance, def])
 		follows = first == 2 and stance < 3 and def == 3 + 2 * stance
-	_same("braced: a fully mitigated hit at full Stance costs no Stance", results[0], (
+	_same("bedrock: a fully mitigated hit at full Stance costs no Stance", results[0], (
 			"first hit 0, Stance 3, DEF 9"
 	))
-	_ok("braced: a hit that lands takes Stance, and DEF follows it", follows, results[1])
+	_ok("bedrock: a hit that lands takes Stance, and DEF follows it", follows, results[1])
 
 
 # Stance lost without damage strips the DEF too: the Shatter rune takes 2 Stance (DEF 9 to 5), and
 # the enemy Phase Start refresh brings both back. The Hexer's Curse on a foe beside its own
 # Stonelet takes 1 from it (DEF 7).
-func _test_braced_stance_loss() -> void:
+func _test_bedrock_stance_loss() -> void:
 	var session: CombatSession = _battle(_plain(4, 1), InstanceIdAllocator.new())
 	var bearer: String = _place(session, "stonelet", ENEMY, -1, Vector2i(3, 0))
 	_place(session, "archer", PLAYER, 0, Vector2i(0, 0))
@@ -549,7 +548,7 @@ func _test_braced_stance_loss() -> void:
 	session.submit(EndTurnCommand.new(0))
 	session.resolve_next()
 	steps.append(_stance_and_def(session, bearer))
-	_same("braced: Shatter takes 2 Stance and 4 DEF; the refresh brings both back", (
+	_same("bedrock: Shatter takes 2 Stance and 4 DEF; the refresh brings both back", (
 			" > ".join(steps)
 	), "Stance 3 DEF 9 > Stance 1 DEF 5 > Stance 3 DEF 9")
 
@@ -560,14 +559,14 @@ func _test_braced_stance_loss() -> void:
 	if cursed.is_empty():
 		return
 	_enemy_attack(hex, hexer, target, [])
-	_same("braced: its own Hexer's Curse takes 1 Stance and 2 DEF", (
+	_same("bedrock: its own Hexer's Curse takes 1 Stance and 2 DEF", (
 			_stance_and_def(hex, cursed)
 	), "Stance 2 DEF 7")
 
 
 # The Stonelet's hit on an Archer at Stance 3, 2, 1 and 0: the forecast's Attack stage shows its
 # Might 5 plus 1 per Stance, and the hit deals 3, 2, 1 and 0 more than at Stance 0.
-func _test_braced_attack() -> void:
+func _test_bedrock_attack() -> void:
 	var shown: PackedStringArray = []
 	var dealt: Array[int] = []
 	var no_walk: Array[Vector2i] = []
@@ -595,18 +594,18 @@ func _test_braced_attack() -> void:
 		shown.append(
 				str(roundi(side.breakdown.might + side.breakdown.attack.total)) if is_shown else "-"
 		)
-	_same("braced: the forecast shows its Attack at Stance 3, 2, 1 and 0", ", ".join(shown), (
-			BRACED_ATTACK
+	_same("bedrock: the forecast shows its Attack at Stance 3, 2, 1 and 0", ", ".join(shown), (
+			BEDROCK_ATTACK
 	))
 	var over: PackedStringArray = []
 	for amount: int in dealt:
 		over.append("+%d" % [amount - dealt[dealt.size() - 1]])
-	_same("braced: its hit deals +1 per Stance over its Might", ", ".join(over), "+3, +2, +1, +0")
+	_same("bedrock: its hit deals +1 per Stance over its Might", ", ".join(over), "+3, +2, +1, +0")
 
 
 # A crit on an Exposed foe is CritX 3 on the Monster weapons: the Stonelet at full Stance (Attack
 # 8) and the Hound (Attack 7, one bite) against an Exposed Archer, every roll forced to land.
-func _test_braced_crit() -> void:
+func _test_bedrock_crit() -> void:
 	var rows: PackedStringArray = []
 	var no_walk: Array[Vector2i] = []
 	for class_id: String in ["stonelet", "hound"]:
@@ -643,7 +642,7 @@ func _test_braced_crit() -> void:
 # Archer left with just that much HP is a kill in its intent, in the AI's plan and its forecast,
 # in the forecast panel and on the board; at Stance 2 the AI's and the panel's damage are the
 # hit's, 1 less.
-func _test_braced_estimates_agree() -> void:
+func _test_bedrock_estimates_agree() -> void:
 	for stance: int in [3, 2]:
 		var session: CombatSession = _battle(_plain(2, 1), InstanceIdAllocator.new())
 		var stonelet: String = _place(session, "stonelet", ENEMY, -1, Vector2i(0, 0))
@@ -686,11 +685,11 @@ func _test_braced_estimates_agree() -> void:
 		var expected: String = "ai %d %s; panel %d; dealt %d" % [
 			hit, "kill" if stance == 3 else "no kill", hit, hit,
 		]
-		_same("braced estimates at Stance %d: the AI, the panel and the hit agree" % [stance], (
+		_same("bedrock estimates at Stance %d: the AI, the panel and the hit agree" % [stance], (
 				"%s; dealt %d" % ["; ".join(estimates), _first_hit(facts, archer)]
 		), expected)
 		if stance == 3:
-			_ok("braced estimates: the intent shows the kill, and the board has it", (
+			_ok("bedrock estimates: the intent shows the kill, and the board has it", (
 					intent != null and intent.is_kill and intent.target_id == archer
 					and not session.state.has_unit(archer)
 			))
@@ -737,7 +736,7 @@ func _test_stone_fists_standoff() -> void:
 	]))
 
 
-# The Stone Golem is the Stonelet plus Fortify: the same base, weapon and Braced, so its DEF and
+# The Stone Golem is the Stonelet plus Fortify: the same base, weapon and Bedrock, so its DEF and
 # its Attack bonus fall the same way.
 func _test_stone_golem_base() -> void:
 	var golem: EnemyClassDefinition = _catalog.enemy_class("stone_golem")
@@ -745,7 +744,7 @@ func _test_stone_golem_base() -> void:
 	if golem == null or base == null:
 		_ok("stone golem: it and its base class in the catalog", false)
 		return
-	_same("stone golem: the Stonelet's base, weapon and Braced", _base_of(golem), _base_of(base))
+	_same("stone golem: the Stonelet's base, weapon and Bedrock", _base_of(golem), _base_of(base))
 	var session: CombatSession = _battle(_plain(2, 1), InstanceIdAllocator.new())
 	var stone_golem: String = _place(session, "stone_golem", ENEMY, -1, Vector2i(0, 0))
 	if stone_golem.is_empty():
@@ -756,7 +755,7 @@ func _test_stone_golem_base() -> void:
 		session.state.set_stance(stone_golem, stance)
 		defs.append(_def_of(session, stone_golem))
 		bonuses.append(str(session.stats(stone_golem).get_int(DamageStage.Key.ATTACK)))
-	_same("stone golem: its DEF at Stance 3, 2, 1 and 0", ", ".join(defs), BRACED_DEF)
+	_same("stone golem: its DEF at Stance 3, 2, 1 and 0", ", ".join(defs), BEDROCK_DEF)
 	_same("stone golem: its Attack bonus at Stance 3, 2, 1 and 0", ", ".join(bonuses), "3, 2, 1, 0")
 
 

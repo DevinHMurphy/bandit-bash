@@ -17,7 +17,7 @@ extends RefCounted
 ## move. Reports each case through the check callable it is given.
 ##
 ## Boards are plain. Level 1 hits: the Duelist's Simple Sword 5 + 4, the Stonelet's Stone Fists
-## 0 + 5 and Braced's +3, the Warcaller's 7 + 6, the Cutthroat's Simple Dagger 2 + 5 (Backstab
+## 0 + 5 and Bedrock's +3, the Warcaller's 7 + 6, the Cutthroat's Simple Dagger 2 + 5 (Backstab
 ## +2), the Raider's Javelin 5 + 6, the Hexer's Shade 7 + 8 magic, less DEF or RES; player units
 ## have 20 HP, DEF 2, RES 1.
 
@@ -146,7 +146,7 @@ func _test_stonelet_attacks_from_its_post() -> void:
 	), _describe(plan))
 
 
-# A kill anywhere in reach comes before its post (Ruthless AI): its Attack 8 (Might 5, Braced +3)
+# A kill anywhere in reach comes before its post (Ruthless AI): its Attack 8 (Might 5, Bedrock +3)
 # less the foe's 2 DEF takes a 3 HP foe.
 func _test_stonelet_kill_first() -> void:
 	var world: AiWorld = _world(_plain(8, 8))

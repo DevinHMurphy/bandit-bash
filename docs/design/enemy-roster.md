@@ -61,7 +61,7 @@ the old Fangs' 3 damage folded into its 4, so each of its two bites deals what i
 | Brute | **Cleave:** Hit dealt: every other unit adjacent to the Brute, friend or foe, takes 2 splash damage | Aggressive | Nearest foe it can hit; swings even with its own allies beside it |
 | Duelist | **Riposte:** Before Combat, while it is the defender: gain 3 Block | Guard | Holds its ground; attacks only foes that come within reach |
 | Crossbowman | **Steady Aim:** while it hasn't moved this turn: +10 Hit | Hold | Lowest Defense in range; moves only if nothing is in range |
-| Stonelet | **Braced** (name to be decided, P05 question 60): +2 DEF and +1 damage per point of current Stance | Guard | Stays next to its pack's back-line ally |
+| Stonelet | **Bedrock**: +2 DEF and +1 damage per point of current Stance | Guard | Stays next to its pack's back-line ally |
 | Hedge Healer | **Field Dressing:** Healed an ally: that ally gains 1 Stance | Support | Heals the most wounded ally; keeps away from your units |
 | Hexer | **Curse:** Hit dealt: the target and every unit adjacent to it, friend or foe, but the Hexer itself, lose 1 Stance | Skirmisher | The foe whose curse catches the most player units, even if allies are caught too |
 | Warcaller | **War Horn** (signature move): every 2nd Phase Start this combat: every unit within 2 tiles, friend or foe, gains +2 damage until the end of the next phase | Support | Stays within 2 tiles of the most allies |
@@ -85,7 +85,7 @@ else is caught, so a player who reads the board can turn them around:
 | Trait | What the enemy wants | How the player outplays it |
 |-------|----------------------|----------------------------|
 | Brute's **Cleave** | Splash every unit around the Brute | Fight the Brute where its own allies stand next to it; they take the splash |
-| Stonelet's **Braced** | A wall of DEF in front of its back line that hits harder the more Stance it holds; a hit it fully mitigates costs it no Stance | Strip its Stance without damage (the Shatter rune, or its own Hexer's Curse on a foe beside it) or with a hit strong enough to get through; each Stance lost takes 2 DEF and 1 damage until its next Phase Start |
+| Stonelet's **Bedrock** | A wall of DEF in front of its back line that hits harder the more Stance it holds; a hit it fully mitigates costs it no Stance | Strip its Stance without damage (the Shatter rune, or its own Hexer's Curse on a foe beside it) or with a hit strong enough to get through; each Stance lost takes 2 DEF and 1 damage until its next Phase Start |
 | Hexer's **Curse** | Strip Stance from a clump of your units | Keep its allies next to your target, so the curse makes them Exposed for your crits |
 | Warcaller's **War Horn** | +2 damage for its pack's charge | Step into range before it sounds: your units keep the bonus through your next phase |
 | Raider's **Trample** | Splash around its target after a charge | Make it charge a target with its own allies beside it |
@@ -131,7 +131,7 @@ creature, now and later:
 | Weapon | Type | Dmg | AtkX | Profile | Range | Hit | Crit | CritX | Weight | Note |
 |--------|------|-----|------|---------|-------|-----|------|-------|--------|------|
 | Fangs | Monster | 0 | 2 | Nimble | 1 | 90 | 0 | 3 | 0 | The Hound's and the Bloodhound's: two bites a turn |
-| Stone Fists | Monster | 0 | 1 | None | 1 | 75 | 0 | 3 | 0 | The Stonelet's and the Stone Golem's (name to be decided, P05 question 62). Outside the triangle: a Standoff against Nimble, Balance and Power, for both sides |
+| Stone Fists | Monster | 0 | 1 | None | 1 | 75 | 0 | 3 | 0 | The Stonelet's and the Stone Golem's. Outside the triangle: a Standoff against Nimble, Balance and Power, for both sides |
 
 No `Godot_FE` basis. The Fangs were a gauntlet-like weapon with Dmg 3 and CritX 2; on the Monster
 type their 3 damage moved into the Hound's Might (4 → 7), so each bite deals what it did. The Stone
@@ -150,7 +150,7 @@ The basic packs at step 1, with their puzzles:
 
 | Pack | Units | How it works |
 |------|-------|--------------|
-| Shield and Bolt (name to be decided, P05 question 61) | Stonelet, 2 Crossbowmen | The Stonelet stands beside the crossbows as a wall of DEF; they stand still for Steady Aim. Strip its Stance before you push through it |
+| Stone and Bolt | Stonelet, 2 Crossbowmen | The Stonelet stands beside the crossbows as a wall of DEF; they stand still for Steady Aim. Strip its Stance before you push through it |
 | Hex and Knife | Hexer, 2 Cutthroats | The Hexer strips Stance; Cutthroats crit the Exposed target with Backstab |
 | Field Hospital | Hedge Healer, Brute, Stonelet | The healer keeps the Brute fighting; the Stonelet guards the healer, and a heal on it gives back 1 Stance through Field Dressing, and with it 2 DEF and 1 damage |
 | War Band | Warcaller, Brute, 2 Hounds | War Horn turns the pack's charge into a spike every other turn |
@@ -186,7 +186,7 @@ puzzle, to learn which are fun.
 | Brigand Captain | Brute | Every 3rd Phase Start this combat: Command, every ally gains 1 Stance, even above its maximum | Command comes after the refresh, so its pack holds one Stance over its maximum until their next Phase Start: every break takes an extra hit. Strike between Commands, or take the Captain first |
 | Bloodhound | Hound | Defeated an enemy: may move again | Never leave a wounded unit in its reach |
 | Hex Matron | Hexer | Every 3rd Phase Start this combat: Hex Storm, every unit within 2 tiles of its target, friend or foe, but the Hex Matron itself, loses 1 Stance | Bait it into catching its own pack, then crit them |
-| Stone Golem | Stonelet (a big one: keeps Braced, the Stone Fists and the Stonelet's stats, gear folded in) | Every 2nd Phase Start this combat: Fortify, adjacent units, friend or foe, gain 4 Block and +1 Parry until Phase End | Strip its Stance to open up its DEF, then break the formation, or stand in the wall and share it |
+| Stone Golem | Stonelet (a big one: keeps Bedrock, the Stone Fists and the Stonelet's stats, gear folded in) | Every 2nd Phase Start this combat: Fortify, adjacent units, friend or foe, gain 4 Block and +1 Parry until Phase End | Strip its Stance to open up its DEF, then break the formation, or stand in the wall and share it |
 
 **The boss: the Powder Baron.** The MVP's one boss. The boss map is fully scripted (fixed enemies, placement
 and scripted beats), a developed level of 15–20 minutes; key maps field the key pack built around

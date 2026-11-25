@@ -12,7 +12,7 @@
 @tool
 class_name ResourceOf
 extends ValueSource
-## A unit's current HP, Block or Stance: "this unit's current Stance" (the Stonelet's Braced,
+## A unit's current HP, Block or Stance: "this unit's current Stance" (the Stonelet's Bedrock,
 ## +2 DEF per point).
 ##
 ## Read from the battle state at the moment of asking, so a modifier scaled by it
