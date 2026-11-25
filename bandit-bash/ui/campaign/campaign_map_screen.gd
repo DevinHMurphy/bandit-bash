@@ -6,14 +6,14 @@
 # File:     campaign_map_screen.gd
 # Author:
 # Created:  November 14, 2026
-# Modified: November 23, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 extends Control
 ## The campaign map for the local seat: the whole run's map, the route taken, and the nodes it can
 ## enter next. Solo chooses one ([ChooseNodeCommand]); co-op votes ([RouteVoteCommand]), each
-## vote shown on its node and in the [RouteVoteStatus], and the vote that completes the set shows
-## the node it drew, with Continue, before the screen follows the run there.
+## vote on its node and in the [RouteVoteStatus]; the last vote shows the node it drew with
+## Continue (a [ReadyToggle]) before the screen follows; the [TeamReadyStatus] below stays hidden.
 ##
 ## Sends through a [CampaignLink]; once a batch the screen follows leaves the map it goes where
 ## the run belongs ([method RunScreen.go]). No confirm step (Godot_FE's had none). A refusal shows
@@ -23,6 +23,7 @@ extends Control
 ## run; the run's facts play ([CampaignPlayback]) as it opens and after each batch it follows.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
+## @todo: TOD-001 - The draw's TeamReadyStatus follows the ready gate (P18 RC4).
 
 # ============================================================
 # INPUT MAP SETUP (built-in ui_* actions; read through the GUI, not here):
@@ -85,8 +86,10 @@ var _link: CampaignLink = null
 @onready var _team_panel: TeamPanel = %TeamPanel
 @onready var _swap_panel: SwapPanel = %SwapPanel
 @onready var _vote_status: RouteVoteStatus = %RouteVoteStatus
+@onready var _ready_status: TeamReadyStatus = %TeamReadyStatus
 @onready var _swap_status: SwapStatus = %SwapStatus
 @onready var _coop_side: VBoxContainer = %CoopSide
+@onready var _hint_bar: ControlHintBar = %ControlHintBar
 
 
 func _ready() -> void:
@@ -111,6 +114,10 @@ func _ready() -> void:
 	_army_view.swaps_requested.connect(_on_army_view_swaps_requested)
 	_swap_panel.command_ready.connect(_on_swap_panel_command_ready)
 	_vote_status.continued.connect(_on_vote_status_continued)
+	# TODO(TOD-001): the ready gate feeds the draw's TeamReadyStatus (P18 RC4).
+	var draw_continue: ReadyToggle = _vote_status.get_continue_button() as ReadyToggle
+	if draw_continue != null:
+		draw_continue.hint_bar = _hint_bar
 	var run: CampaignRunState = session.run
 	# The vote and swaps have their own column, so the legend's column keeps solo's layout.
 	_coop_side.visible = _link.is_coop()
@@ -185,6 +192,12 @@ func get_swap_panel() -> SwapPanel:
 ## The route vote's status, for tests and captures.
 func get_vote_status() -> RouteVoteStatus:
 	return _vote_status
+
+
+## Who the team waits for after the draw, hidden until the ready gate feeds it; for tests and
+## captures.
+func get_ready_status() -> TeamReadyStatus:
+	return _ready_status
 
 
 ## The swaps' status in the side panel, for tests and captures.

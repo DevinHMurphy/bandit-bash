@@ -6,7 +6,7 @@
 # File:     event_panel.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 22, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 class_name EventPanel
@@ -16,16 +16,17 @@ extends Control
 ## teammate's part ([EventTeamStatus]), then whatever the option chosen needs (the unit, fallen
 ## unit or weapon, then the unit that leaves a full army, each from an [EventChooser], and where
 ## its items go from the [EventHandOverPanel]; where each new item goes from the
-## [PlacementPanel]; a rune to discard), and last the [EventOutcomeSummary] and Leave, with Team
-## in co-op ([member offers_team]). While Leave, Fight or Team holds key or pad focus there, the
-## summary's keywords show as one column of tooltips beside it, as in the shop panels.
+## [PlacementPanel]; a rune to discard), and last the [EventOutcomeSummary] and Leave or Fight (a
+## [ReadyToggle], Ready in co-op, taken back by a problem shown), with Team in co-op
+## ([member offers_team]); the [TeamReadyStatus] stays hidden. While Leave, Fight or Team holds
+## key or pad focus, the summary's keywords show as a column of tooltips beside it.
 ##
-## Each step comes from the saved [EventView] ([method refresh]); the leaving unit, hand-over,
-## placements and rune discard aren't saved and start over. Commands are built with [EventNode]
-## and emitted ([signal command_ready]); the screen sends them and calls [method refresh] for the
-## seat's own batches, [method refresh_team] for a teammate's, or [method show_problem].
+## Each step comes from the saved [EventView] ([method refresh]); unsaved picks start over.
+## Commands are built with [EventNode] and emitted ([signal command_ready]); the screen sends them
+## and calls [method refresh], [method refresh_team] (a teammate's) or [method show_problem].
 ##
 ## @tutorial(Events and curses plan): docs/plans/2026-11-12-events-and-curses.md
+## @todo: TOD-001 - Leave's Ready and the TeamReadyStatus follow the ready gate (P18 RC4).
 
 # ============================================================
 # INPUT MAP SETUP:
@@ -99,6 +100,11 @@ enum Step {
 	HAND_OVER = 9,
 }
 
+# Leave's co-op label while the seat isn't Ready, and Fight's: a pending fight is a Ready to fight.
+# ASSUMPTION: "Ready to fight" for Fight's co-op label; no design doc words it.
+const _READY_TEXT: String = "Ready"
+const _READY_TO_FIGHT_TEXT: String = "Ready to fight"
+
 # The steps that show Team, in co-op: those with no unsaved picks under way.
 # ASSUMPTION: Team hides while a chooser, the leaving unit, a placement or the rune discard asks.
 const _TEAM_STEPS: Array[Step] = [
@@ -134,10 +140,11 @@ var _column_ids: PackedStringArray = []
 @onready var _story: EventStory = %EventStory
 @onready var _votes: EventVoteStatus = %EventVoteStatus
 @onready var _team: EventTeamStatus = %EventTeamStatus
+@onready var _ready_status: TeamReadyStatus = %TeamReadyStatus
 @onready var _cards: HBoxContainer = %Cards
 @onready var _chooser: EventChooser = %EventChooser
 @onready var _summary: EventOutcomeSummary = %EventOutcomeSummary
-@onready var _leave_button: Button = %LeaveButton
+@onready var _leave_button: ReadyToggle = %LeaveButton
 @onready var _team_button: Button = %TeamButton
 @onready var _status_label: Label = %Status
 @onready var _placement: PlacementPanel = %PlacementPanel
@@ -226,6 +233,7 @@ func refresh_team() -> void:
 
 ## Shows [param problem] where the choice was made, such as the reason a command was rejected.
 func show_problem(problem: String) -> void:
+	_leave_button.set_ready(false)
 	if _step == Step.PLACEMENT:
 		_placement.show_problem(problem)
 		return
@@ -318,9 +326,14 @@ func get_summary() -> EventOutcomeSummary:
 	return _summary
 
 
-## The Leave (or Fight) button, for tests.
+## The Leave (or Fight) button, a [ReadyToggle], for the screen and tests.
 func get_leave_button() -> Button:
 	return _leave_button
+
+
+## Who the team waits for, hidden until the ready gate feeds it; for tests and captures.
+func get_ready_status() -> TeamReadyStatus:
+	return _ready_status
 
 
 ## The Team button, shown in co-op, for the screen and tests.
@@ -355,7 +368,8 @@ func focus_first() -> bool:
 
 func _show_closed() -> void:
 	_story.show_problem(_view.problem if not _view.problem.is_empty() else "event is closed")
-	_leave_button.text = "Leave"
+	_leave_button.solo_text = "Leave"
+	_leave_button.ready_text = _READY_TEXT
 	_set_enabled(_leave_button, true)
 	_enter(Step.CLOSED)
 
@@ -540,7 +554,8 @@ func _show_outcome() -> void:
 	_summary.show_outcome(shown.option.title, EventScreenModel.summary_lines(
 			_view, _session.run.seat_run(_seat), _catalog
 	))
-	_leave_button.text = "Fight" if _view.is_combat_pending else "Leave"
+	_leave_button.solo_text = "Fight" if _view.is_combat_pending else "Leave"
+	_leave_button.ready_text = _READY_TO_FIGHT_TEXT if _view.is_combat_pending else _READY_TEXT
 	_set_enabled(_leave_button, _view.is_finished)
 	_enter(Step.OUTCOME)
 	# New lines hide the column; focus kept on Leave or Team across a batch brings it back.
@@ -560,6 +575,8 @@ func _enter(step: Step) -> void:
 	if step != Step.OUTCOME:
 		_refresh_keywords()
 	_leave_button.visible = step == Step.OUTCOME or step == Step.CLOSED
+	# TODO(TOD-001): the ready gate drives Leave's Ready and the status (P18 RC4).
+	_leave_button.is_coop = offers_team
 	_team_button.visible = offers_team and _TEAM_STEPS.has(step)
 	if step == Step.CLOSED:
 		_votes.visible = false
@@ -733,7 +750,10 @@ func _on_placement_panel_cancelled() -> void:
 	step_back()
 
 
+# A press that took Ready back asks nothing.
 func _on_leave_button_pressed() -> void:
+	if _leave_button.is_taking_back():
+		return
 	leave_requested.emit()
 
 

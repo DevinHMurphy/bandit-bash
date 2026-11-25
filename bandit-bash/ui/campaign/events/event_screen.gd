@@ -6,7 +6,7 @@
 # File:     event_screen.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 22, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 extends Control
@@ -17,9 +17,9 @@ extends Control
 ## and the screen rebuilds from what the session reports, never the submit's return: the seat's
 ## own batches show the saved step again (a quit Continues there), a teammate's updates votes and
 ## choices but keeps the seat's picks, and a refusal shows on the panel. Facts play
-## ([CampaignPlayback]) for the batches it follows. Leave sends [LeaveNodeCommand]; with a surprise
-## combat pending it is Fight, which goes to the battle ([method RunScreen.go]). Opened at another
-## stage, it sends the run on. Shows the game's events ([method EventPool.load_default]).
+## ([CampaignPlayback]) for the batches it follows. Leave (the panel's [ReadyToggle], its glyph
+## from this hint bar) sends [LeaveNodeCommand]; with a combat pending, Fight goes to the battle
+## ([method RunScreen.go]). Opened elsewhere, it sends the run on. Uses the game's events.
 ##
 ## @tutorial(Events and curses plan): docs/plans/2026-11-12-events-and-curses.md
 
@@ -85,6 +85,7 @@ var _link: CampaignLink = null
 @onready var _panel: EventPanel = %EventPanel
 @onready var _team_panel: TeamPanel = %TeamPanel
 @onready var _hints: ScreenHints = %ScreenHints
+@onready var _hint_bar: ControlHintBar = %ControlHintBar
 
 
 func _ready() -> void:
@@ -106,6 +107,9 @@ func _ready() -> void:
 	_team_panel.closed.connect(_on_team_panel_closed)
 	get_viewport().gui_focus_changed.connect(_on_viewport_gui_focus_changed)
 	_panel.offers_team = _link.is_coop()
+	var leave: ReadyToggle = _panel.get_leave_button() as ReadyToggle
+	if leave != null:
+		leave.hint_bar = _hint_bar
 	_panel.open(session, _seat)
 	_show_run()
 	CampaignPlayback.play_pending(session)

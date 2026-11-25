@@ -15,8 +15,10 @@ extends RefCounted
 ## screen shows seat 1's gold, chest, army and choices and sends seat 1's commands; a teammate's
 ## batch rebuilds it (gold, a sold card "bought by Player 1", a Camp choice); a refusal waiting on
 ## the teammate names them. Seat 1's starting heirloom taken while seat 0's is open waits on the
-## screen by name. The Team panel by mouse, keys and pad. No file under ui/ reads seats[0]. No
-## press here moves the run to another screen, so nothing changes scene.
+## screen by name. The Team panel by mouse, keys and pad. Each gated screen's Leave or Continue
+## reads Ready, a refusal taking it back (Grade's Continue stays plain), Team usable while Ready;
+## the starting offer's ready status by seat. No file under ui/ reads seats[0]. No press here
+## moves the run to another screen, so nothing changes scene.
 ## Writes save files, so it runs only with a test user folder; it deletes user://saves/ before
 ## and after. It never names an autoload: they are reached as nodes.
 
@@ -232,6 +234,13 @@ func _test_starting_offer() -> void:
 	_check.call("starting offer: with seat 1's own offer open, no waiting line", (
 			view.visible and not line.visible
 	), "view %s, line %s" % [view.visible, line.visible])
+	var ready_status: TeamReadyStatus = screen.call(&"get_ready_status")
+	_check.call("starting offer: the ready status lists both seats, each still choosing", (
+			ready_status.visible
+			and ready_status.get_lines() == PackedStringArray([
+				"Player 1 · Choosing", "You · Choosing",
+			])
+	), str(ready_status.get_lines()))
 	_remove(screen)
 	_test_starting_wait(own)
 	own.pending_offers.erase(StartingOffer.OFFER_KEY)
@@ -264,6 +273,13 @@ func _test_starting_wait(own: SeatRun) -> void:
 			_only_batch(0, false) and line.visible and line.text == "Waiting for Player 1."
 			and after == routed
 	), "%s; line %s; screens %s, were %s" % [_batches, line.visible, after, routed])
+	var ready_status: TeamReadyStatus = screen.call(&"get_ready_status")
+	_check.call("starting offer: the seat's resolved pick shows Ready, the teammate's Choosing", (
+			ready_status.visible
+			and ready_status.get_lines() == PackedStringArray([
+				"Player 1 · Choosing", "You · Ready",
+			])
+	), str(ready_status.get_lines()))
 	_remove(screen)
 	offer.is_resolved = false
 	offer.store(own)
@@ -298,6 +314,13 @@ func _test_treasure() -> void:
 			_only_batch(1, true)
 			and status == "Can't do that: Player 1 hasn't taken or given up its chest."
 	), status)
+	var leave: ReadyToggle = screen.call(&"get_leave_button") as ReadyToggle
+	var ready_status: TeamReadyStatus = screen.call(&"get_ready_status")
+	_check.call("treasure: Leave reads Ready; the refusal takes Ready back; no ready status yet", (
+			leave != null and leave.text == "Ready" and leave.solo_text == "Continue"
+			and not leave.is_ready() and not ready_status.visible
+	), "%s; ready %s" % [leave.text if leave != null else "no toggle", ready_status.visible])
+	leave.set_ready(true)
 	var team_button: Button = screen.call(&"get_team_button")
 	var panel: TeamPanel = screen.call(&"get_team_panel")
 	team_button.grab_focus()
@@ -314,6 +337,9 @@ func _test_treasure() -> void:
 	_check.call("treasure (pad): B closes Team, no pause menu", (
 			not panel.visible and team_button.has_focus() and not _root.get_tree().paused
 	))
+	_check.call("treasure: Team opens and closes while the seat is Ready, which it keeps", (
+			opened and leave.is_ready()
+	))
 	_remove(screen)
 	_leave_node()
 
@@ -327,6 +353,12 @@ func _test_camp() -> void:
 			status_view.visible
 			and status_view.get_lines() == PackedStringArray(["Player 1 is still choosing."])
 	), str(status_view.get_lines()))
+	var leave: ReadyToggle = screen.call(&"get_leave_button") as ReadyToggle
+	_check.call("camp: Ready is closed until the seat chooses, saying why; no ready status yet", (
+			leave != null and leave.disabled
+			and leave.text == "Ready (choose Feast or Train first)"
+			and not (screen.call(&"get_ready_status") as TeamReadyStatus).visible
+	), leave.text if leave != null else "no toggle")
 	_batches.clear()
 	(screen.call(&"get_feast_card") as Button).grab_focus()
 	_press_key(KEY_ENTER)
@@ -345,6 +377,9 @@ func _test_camp() -> void:
 			_only_batch(1, true)
 			and status == "Can't do that: Player 1 hasn't chosen Feast or Train."
 	), status)
+	_check.call("camp (mouse): the click made the seat Ready; the refusal took it back", (
+			leave.text == "Ready" and not leave.is_ready() and not leave.disabled
+	), leave.text)
 	_submit(FeastCommand.new(0))
 	_check.call("camp: the teammate's Feast rebuilds their line", (
 			status_view.get_lines() == PackedStringArray(["Player 1 chose Feast."])
@@ -380,6 +415,7 @@ func _test_armory() -> void:
 	var screen: Control = _add(ARMORY_SCENE)
 	var view: StockView = screen.call(&"get_stock_view")
 	var panel: PurchasePanel = screen.call(&"get_purchase_panel")
+	_check_ready_leave("armory", screen, "Leave")
 	_submit(ArmoryPurchaseCommand.for_session(session, 0, 1))
 	var sold: StockCard = view.card_for(1)
 	_check.call("armory: the teammate's purchase rebuilds its card, bought by them", (
@@ -417,6 +453,7 @@ func _test_guildhall() -> void:
 	for seat: int in session.seats:
 		session.run.seat_run(seat).gold = RICH
 	var screen: Control = _add(GUILDHALL_SCENE)
+	_check_ready_leave("guildhall", screen, "Leave")
 	var stock: GuildhallStock = GuildhallStock.pending(session.run)
 	var runes: PackedInt32Array = stock.indexes_of(GuildhallStock.CATEGORY_RUNE)
 	var header: RunHeader = screen.get_node(^"%RunHeader")
@@ -449,6 +486,12 @@ func _test_placeholder() -> void:
 			_only_batch(1, true)
 			and screen.call(&"get_status_text") == "Couldn't leave: the run is on the map."
 	), screen.call(&"get_status_text"))
+	var toggle: ReadyToggle = screen.call(&"get_continue_button") as ReadyToggle
+	_check.call("placeholder (keys): Enter made the seat Ready; the refusal took it back", (
+			toggle != null and toggle.text == "Ready" and not toggle.is_ready()
+			and toggle.solo_text == "Continue"
+			and not (screen.call(&"get_ready_status") as TeamReadyStatus).visible
+	), toggle.text if toggle != null else "no toggle")
 	_remove(screen)
 
 
@@ -473,6 +516,9 @@ func _test_results() -> void:
 	_check.call("results: the victory sequence shows seat 1's results", (
 			model != null and model.grades.gold == 123
 	), str(model.grades.gold) if model != null else "no model")
+	var primary: ReadyToggle = overlay.get_primary_button() as ReadyToggle
+	var at_grade: String = primary.text
+	var grade_toggles: bool = primary.toggle_mode
 	# Grade, then the recap (no XP to fill), then Rewards, empty for seat 1.
 	for _press: int in 2:
 		overlay.get_primary_button().pressed.emit()
@@ -483,6 +529,12 @@ func _test_results() -> void:
 			and overlay.get_status_text()
 			== "Can't do that: Player 1 hasn't taken or given up its heirloom."
 	), "%s; stage %d" % [overlay.get_status_text(), overlay.get_stage()])
+	_check.call("results: Grade's Continue stays a plain button; Rewards' Leave is Ready", (
+			at_grade == "Continue" and not grade_toggles
+			and primary.text == "Ready" and primary.solo_text == "Leave"
+			and primary.toggle_mode and not primary.is_ready()
+			and not overlay.get_ready_status().visible
+	), "%s then %s" % [at_grade, primary.text])
 	_remove(screen)
 
 
@@ -521,6 +573,16 @@ func _leave_node() -> void:
 	for seat: int in run.seat_numbers():
 		run.seat_run(seat).pending_offers.erase(TreasureChest.OFFER_KEY)
 	_submit(LeaveNodeCommand.new(0))
+
+
+# screen's Leave is a co-op Ready toggle, not Ready, its solo label solo_text; no ready status.
+func _check_ready_leave(where: String, screen: Control, solo_text: String) -> void:
+	var leave: ReadyToggle = screen.call(&"get_leave_button") as ReadyToggle
+	var ready_status: TeamReadyStatus = screen.call(&"get_ready_status")
+	_check.call("%s: Leave reads Ready, a toggle not yet pressed; no ready status yet" % [where], (
+			leave != null and leave.text == "Ready" and leave.solo_text == solo_text
+			and leave.toggle_mode and not leave.is_ready() and not ready_status.visible
+	), leave.text if leave != null else "no toggle")
 
 
 # Whether exactly one batch settled since the last clear, of seat, rejected or not.

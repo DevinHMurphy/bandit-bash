@@ -17,12 +17,13 @@ extends Control
 ## The local seat's offer. The view's command goes through a [CampaignLink], which saves; a
 ## refusal shows its reason on the view and changes nothing. Once the seat's pick resolves, the
 ## run's facts play ([CampaignPlayback]) and the bar shows the new heirloom; while a teammate's
-## offer is open the view gives way to who the seat waits for. The team leaves together: once
-## every seat's offer is resolved, the run goes to the map ([method RunScreen.go]). A quit before
-## then Continues here with the same offer, saved in the seat's pending offers. Opened at any
-## other stage, it sends the run on at once.
+## offer is open the view gives way to who the seat waits for. In co-op the [TeamReadyStatus]
+## lists every seat: Ready once its pick resolved (the pick is its Ready), else Choosing. Once
+## every offer is resolved the team goes to the map together ([method RunScreen.go]). A quit
+## before then Continues here with the same offer. Opened at another stage, it sends the run on.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
+## @todo: TOD-001 - The TeamReadyStatus follows the ready gate, loads included (P18 RC4).
 
 # ============================================================
 # INPUT MAP SETUP (built-in ui_* actions, read through the GUI and the view; the view's own block
@@ -52,6 +53,9 @@ const HINT_CONTEXTS: Dictionary[StartingOfferView.Step, StringName] = {
 # The hint context while the seat waits for a teammate's pick.
 const _WAITING_CONTEXT: StringName = &"WAITING"
 
+# The local seat's name in the TeamReadyStatus, as the route vote names it.
+const _LOCAL_NAME: String = "You"
+
 var _is_leaving: bool = false
 var _step_context: StringName = &"OFFER"
 var _link: CampaignLink = null
@@ -60,6 +64,7 @@ var _link: CampaignLink = null
 @onready var _heirlooms: HeirloomBar = %HeirloomBar
 @onready var _view: StartingOfferView = %StartingOfferView
 @onready var _waiting_line: Label = %WaitingLine
+@onready var _ready_status: TeamReadyStatus = %TeamReadyStatus
 @onready var _hints: ScreenHints = %ScreenHints
 
 
@@ -82,6 +87,7 @@ func _ready() -> void:
 	_view.command_ready.connect(_on_view_command_ready)
 	_view.open(session, _link.seat)
 	_show_waiting()
+	_show_team()
 	CampaignPlayback.play_pending(session)
 
 
@@ -104,6 +110,11 @@ func get_heirloom_bar() -> HeirloomBar:
 ## tests.
 func get_waiting_line() -> Label:
 	return _waiting_line
+
+
+## Every seat's pick as Ready or Choosing, shown in co-op; for tests and captures.
+func get_ready_status() -> TeamReadyStatus:
+	return _ready_status
 
 
 # The header and heirloom bar for the local seat, as the run saved them.
@@ -132,6 +143,20 @@ func _show_waiting() -> void:
 		_hints.context = _step_context
 
 
+# Each seat in the TeamReadyStatus: Ready once its offer is resolved, else Choosing. Every seat
+# counts as loaded, as nothing here reports a machine's load.
+func _show_team() -> void:
+	var run: CampaignRunState = _link.session.run
+	var seats: PackedInt32Array = run.seat_numbers()
+	var ready_seats: PackedInt32Array = []
+	var names: Dictionary[int, String] = {}
+	for seat: int in seats:
+		names[seat] = _LOCAL_NAME if seat == _link.seat else CampaignLink.seat_name(seat)
+		if not StartingOffer.is_open(run.seat_run(seat)):
+			ready_seats.append(seat)
+	_ready_status.set_state(ready_seats, seats, {}, names)
+
+
 func _on_view_command_ready(command: StartingHeirloomCommand) -> void:
 	if _is_leaving:
 		return
@@ -150,6 +175,7 @@ func _on_link_batch_resolved(batch: CampaignBatch, is_answer: bool) -> void:
 	_show_seat()
 	if RunScreen.of(_link.session) == SceneRouter.Screen.STARTING_HEIRLOOM:
 		_show_waiting()
+		_show_team()
 		return
 	if follows:
 		_is_leaving = true

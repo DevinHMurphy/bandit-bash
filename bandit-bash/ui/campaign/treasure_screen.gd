@@ -6,7 +6,7 @@
 # File:     treasure_screen.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 22, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 extends Control
@@ -15,15 +15,16 @@ extends Control
 ##
 ## On entry, the chests not yet rolled are rolled and saved first ([OpenTreasureCommand]), so a
 ## quit and Continue shows the same chest. Open takes it whole ([TreasureCommand]); a Legendary
-## item asks where it goes in the [PlacementPanel] first. Leave with the chest unopened asks first
-## ([LeaveConfirmDialog]) and gives it up, then sends [LeaveNodeCommand]. Every command goes
-## through a [CampaignLink], which saves; a refusal shows its reason (in co-op, a teammate's chest
-## still open). Every batch rebuilds the screen, and once any seat's Leave resolves the run returns
-## to the map. The run's facts play ([CampaignPlayback]) after each batch. While Open has focus,
-## the chest names its weapon's wielders ([method ChestView.show_names_tip]). Opened at any other
-## stage, it sends the run on at once.
+## item asks where it goes in the [PlacementPanel] first. Leave ([ReadyToggle], Ready in co-op)
+## with the chest unopened asks first ([LeaveConfirmDialog]) and gives it up, then sends
+## [LeaveNodeCommand]; a refusal or Stay takes Ready back. Every command goes through a
+## [CampaignLink], which saves; a refusal shows its reason (in co-op, a teammate's chest still
+## open). Every batch rebuilds the screen; once any seat's Leave resolves the run returns to the
+## map. Facts play ([CampaignPlayback]) after each batch. While Open has focus, the chest names
+## its weapon's wielders. The [TeamReadyStatus] stays hidden. Opened at another stage, it moves on.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
+## @todo: TOD-001 - Leave's Ready and the TeamReadyStatus follow the ready gate (P18 RC4).
 
 # ============================================================
 # INPUT MAP SETUP (built-in ui_* actions, read through the GUI; the panel, dialog and team panel
@@ -59,12 +60,14 @@ var _link: CampaignLink = null
 @onready var _chest_view: ChestView = %ChestView
 @onready var _status_label: Label = %Status
 @onready var _open_button: Button = %OpenButton
-@onready var _leave_button: Button = %LeaveButton
+@onready var _leave_button: ReadyToggle = %LeaveButton
 @onready var _team_button: Button = %TeamButton
+@onready var _ready_status: TeamReadyStatus = %TeamReadyStatus
 @onready var _placement_panel: PlacementPanel = %PlacementPanel
 @onready var _confirm: LeaveConfirmDialog = %LeaveConfirmDialog
 @onready var _team_panel: TeamPanel = %TeamPanel
 @onready var _hints: ScreenHints = %ScreenHints
+@onready var _hint_bar: ControlHintBar = %ControlHintBar
 
 
 func _ready() -> void:
@@ -83,6 +86,9 @@ func _ready() -> void:
 	_open_button.pressed.connect(_on_open_button_pressed)
 	_open_button.focus_entered.connect(_chest_view.show_names_tip)
 	_open_button.focus_exited.connect(_chest_view.hide_names_tip)
+	# TODO(TOD-001): the ready gate drives Leave's Ready and the status (P18 RC4).
+	_leave_button.is_coop = _link.is_coop()
+	_leave_button.hint_bar = _hint_bar
 	_leave_button.pressed.connect(_on_leave_button_pressed)
 	_team_button.visible = _link.is_coop()
 	_team_button.pressed.connect(_on_team_button_pressed)
@@ -115,9 +121,14 @@ func get_open_button() -> Button:
 	return _open_button
 
 
-## The Leave button, for tests.
+## The Leave button, a [ReadyToggle], for tests.
 func get_leave_button() -> Button:
 	return _leave_button
+
+
+## Who the team waits for, hidden until the ready gate feeds it; for tests and captures.
+func get_ready_status() -> TeamReadyStatus:
+	return _ready_status
 
 
 ## The Team button, shown in co-op, for tests.
@@ -162,7 +173,7 @@ func _refresh() -> void:
 	var is_open: bool = chest != null and not chest.is_resolved
 	_open_button.visible = is_open
 	_open_button.text = "Open the chest"
-	_leave_button.text = "Leave" if is_open else "Continue"
+	_leave_button.solo_text = "Leave" if is_open else "Continue"
 	_leave_button.theme_type_variation = &"" if is_open else &"PrimaryButton"
 	_link_buttons()
 
@@ -256,6 +267,7 @@ func _on_link_batch_resolved(batch: CampaignBatch, is_answer: bool) -> void:
 
 # A refusal says why where the player is looking; one before the chests were rolled is the roll's.
 func _on_link_refused(reason: String) -> void:
+	_leave_button.set_ready(false)
 	if _chest() == null:
 		_status_label.text = "The chest couldn't be opened: %s." % [reason]
 	elif _placement_panel.visible:
@@ -282,8 +294,9 @@ func _on_open_button_pressed() -> void:
 	_set_context(HINT_PLACE)
 
 
+# A press that took Ready back sends nothing; any other leaves as solo's Leave does.
 func _on_leave_button_pressed() -> void:
-	if _is_leaving:
+	if _is_leaving or _leave_button.is_taking_back():
 		return
 	var chest: TreasureChest = _chest()
 	if chest != null and not chest.is_resolved:
@@ -314,6 +327,7 @@ func _on_confirm_confirmed() -> void:
 
 func _on_confirm_cancelled() -> void:
 	_confirm.visible = false
+	_leave_button.set_ready(false)
 	_set_context(HINT_CHEST)
 	_leave_button.grab_focus()
 
