@@ -6,21 +6,21 @@
 # File:     area.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 23, 2026
+# Modified: November 25, 2026
 # ==============================================================================
 
 @tool
 class_name Area
 extends TargetSelector
-## Selects units around a center: "adjacent units, friend or foe" (Cleave), "the target and adjacent
-## allies of the target" (Sanctuary), "your commander and your units within 2 tiles of your
-## commander" (Commander's Standard).
+## Selects units around a center: "every other adjacent unit, friend or foe" (Cleave), "the target
+## and adjacent allies of the target" (Sanctuary), "your commander and your units within 2 tiles of
+## your commander" (Commander's Standard).
 ##
 ## Which tiles count is a shared [TargetShape] from [code]res://data/shapes/[/code], so staves,
 ## splash, keg blasts and runes describe areas one way; the content test rejects a shape that isn't
 ## one of those files. Grid distance only, ignoring walls and terrain. The center unit counts when
-## the shape covers the center, whatever its side; no other unit on the center tile ever does.
-## Never reaches across parallel maps.
+## the shape covers the center, whatever its side, unless an exclusion below spares it; no other
+## unit on the center tile ever does. Never reaches across parallel maps.
 ##
 ## @tutorial(Effect triggers): docs/design/effect-triggers.md
 
@@ -55,6 +55,16 @@ enum Center {
 ## [member side].
 @export var is_your_units_only: bool = false
 
+## Whether the triggering fact's other party never counts: the unit a Cleave hit strikes takes the
+## hit, not the splash. It counts nowhere, the center included. Outside a reaction (no fact) and on
+## a fact with no other party, nothing is left out. [b]Off:[/b] every unit the area covers.
+@export var is_fact_target_excluded: bool = false
+
+## Whether the effect's own unit never counts: a Raider's Trample or a Hexer's Curse around its
+## target spares the attacker standing beside it. It counts nowhere, the center included. An owner
+## that isn't a unit (the army) leaves nothing out. [b]Off:[/b] every unit the area covers.
+@export var is_owner_excluded: bool = false
+
 
 func describe() -> String:
 	var noun: String = "units"
@@ -64,10 +74,22 @@ func describe() -> String:
 		EffectTerms.UnitSide.ENEMY:
 			noun = "enemies"
 	var place: String = _place("units" if is_your_units_only else noun)
-	if is_your_units_only and not place.is_empty():
+	if is_fact_target_excluded and not place.is_empty():
+		# ASSUMPTION: "your other ..." wording with Your Units; no content combines the two yet.
+		place = (
+				"your other %s" % [place] if is_your_units_only
+				else "every other %s" % [_place(_singular(noun))]
+		)
+	elif is_your_units_only and not place.is_empty():
 		place = "your %s" % [place]
+	var counts_center: bool = (
+			shape != null
+			and shape.includes_center
+			and not (is_fact_target_excluded and center == Center.FACT_TARGET)
+			and not (is_owner_excluded and center == Center.OWNER)
+	)
 	if place.is_empty():
-		return _center_name() if shape != null and shape.includes_center else "no units"
+		return _center_name() if counts_center else "no units"
 	match center:
 		Center.FACT_ACTOR:
 			place += " of that unit"
@@ -79,17 +101,20 @@ func describe() -> String:
 			place += " of your commander"
 	if side == EffectTerms.UnitSide.ANY:
 		place += ", friend or foe"
-	if shape.includes_center:
+	# Around its own unit the shape alone decides; elsewhere this unit may stand inside.
+	if is_owner_excluded and center != Center.OWNER and side != EffectTerms.UnitSide.ENEMY:
+		place += ", except this unit"
+	if counts_center:
 		return "%s and %s" % [_center_name(), place]
 	return place
 
 
 ## Units around the center, in the state's order, on [member side] relative to the owner's side
 ## (and the owner's player's own with [member is_your_units_only]), on the tiles [member shape]
-## covers. A center that has left the map since the reaction was
-## queued (a Brute defeated by the counter, the target a Trample hit defeated, a keg that just
-## broke) is measured from the tile it stood on then; a command target and a commander have no
-## such tile.
+## covers, less the fact's other party and the owner as [member is_fact_target_excluded] and
+## [member is_owner_excluded] say. A center that has left the map since the reaction was queued (a
+## Brute defeated by the counter, the target a Trample hit defeated, a keg that just broke) is
+## measured from the tile it stood on then; a command target and a commander have no such tile.
 func select(ctx: EffectContext) -> PackedStringArray:
 	var picked: PackedStringArray = []
 	if shape == null:
@@ -101,7 +126,14 @@ func select(ctx: EffectContext) -> PackedStringArray:
 		center_tile = _tile_when_queued(ctx)
 	if center_tile == CombatFact.NO_TILE:
 		return picked
+	var spared: Dictionary[String, bool] = {}
+	if is_fact_target_excluded and ctx.fact != null and not ctx.fact.target_id.is_empty():
+		spared[ctx.fact.target_id] = true
+	if is_owner_excluded and not ctx.owner_unit_id().is_empty():
+		spared[ctx.owner_unit_id()] = true
 	for unit_id: String in engine.state.unit_ids():
+		if spared.has(unit_id):
+			continue
 		if unit_id == center_id:
 			if shape.covers(center_tile, center_tile):
 				picked.append(unit_id)
@@ -162,6 +194,16 @@ func _place(noun: String) -> String:
 		ContentIds.SHAPE_CROSS:
 			return reach if shape.size == 1 else "%s in a straight line" % [reach]
 	return reach
+
+
+# One of noun, the plural units, allies or enemies describe() names.
+func _singular(noun: String) -> String:
+	match noun:
+		"allies":
+			return "ally"
+		"enemies":
+			return "enemy"
+	return "unit"
 
 
 func _center_name() -> String:

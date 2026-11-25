@@ -6,7 +6,7 @@
 # File:     describe_cases.gd
 # Author:
 # Created:  November 9, 2026
-# Modified: November 20, 2026
+# Modified: November 25, 2026
 # ==============================================================================
 
 extends "res://tests/effects/effects_case_base.gd"
@@ -269,6 +269,49 @@ func _test_describe_operations() -> void:
 			cleave.describe(),
 			"deal splash damage equal to the number of adjacent allies to adjacent units, friend"
 			+ " or foe"
+	)
+	var spared: Area = _area(Area.Center.OWNER, 1, EffectTerms.UnitSide.ANY, false)
+	spared.is_fact_target_excluded = true
+	cleave.target = spared
+	cleave.amount = _constant(2.0)
+	_snapshot(
+			"splash: sparing the unit struck",
+			cleave.describe(),
+			"deal 2 splash damage to every other adjacent unit, friend or foe"
+	)
+	spared.side = EffectTerms.UnitSide.ALLY
+	spared.shape.size = 2
+	_snapshot(
+			"area: sparing, allies within 2", spared.describe(), "every other ally within 2 tiles"
+	)
+	spared.is_your_units_only = true
+	_snapshot("area: sparing, your units", spared.describe(), "your other units within 2 tiles")
+	var spared_center: Area = _area(Area.Center.FACT_TARGET, 1, EffectTerms.UnitSide.ANY, true)
+	spared_center.is_fact_target_excluded = true
+	_snapshot(
+			"area: sparing a center that is the fact's target",
+			spared_center.describe(),
+			"every other adjacent unit of the other unit, friend or foe"
+	)
+	var trample: Area = _area(Area.Center.FACT_TARGET, 1, EffectTerms.UnitSide.ANY, false)
+	trample.is_owner_excluded = true
+	_snapshot(
+			"area: sparing this unit around the target",
+			trample.describe(),
+			"adjacent units of the other unit, friend or foe, except this unit"
+	)
+	trample.side = EffectTerms.UnitSide.ENEMY
+	_snapshot(
+			"area: sparing this unit, enemies only (it never counts)",
+			trample.describe(),
+			"adjacent enemies of the other unit"
+	)
+	var own: Area = _area(Area.Center.OWNER, 1, EffectTerms.UnitSide.ANY, true)
+	own.is_owner_excluded = true
+	_snapshot(
+			"area: sparing this unit at its own center",
+			own.describe(),
+			"adjacent units, friend or foe"
 	)
 
 	var booster: ChangeBaseStat = ChangeBaseStat.new()

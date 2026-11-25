@@ -1,0 +1,4 @@
+# Root files only; bandit-bash/ has its own .gitattributes. setup.sh must check out with LF
+# line endings or Git Bash can't run it on a Windows machine with core.autocrlf on.
+setup.sh text eol=lf
+setup.cmd text eol=lf

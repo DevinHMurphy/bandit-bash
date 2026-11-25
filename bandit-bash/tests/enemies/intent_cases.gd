@@ -6,7 +6,7 @@
 # File:     intent_cases.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 19, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -212,7 +212,8 @@ func _test_chained_follow_up() -> void:
 
 
 # Cleave finishes p_b beside the tile the Brute strikes p_a from: the intent names p_b among the
-# fallen and the splash area around that tile, though the step that chose it is the kill chance.
+# fallen and the splash area around that tile less p_a's (the unit struck), though the step that
+# chose it is the kill chance.
 func _test_splash_kill_named() -> void:
 	var world: AiWorld = AiWorld.new(_catalog, [
 		"plain plain plain plain plain plain",
@@ -227,7 +228,7 @@ func _test_splash_kill_named() -> void:
 	world.wound("p_b", 2)
 	var shown: Intents = Intents.compute(world.session, _catalog)
 	var intent: EnemyIntent = shown.intent_of("e1")
-	var around: Array[Vector2i] = [Vector2i(1, 1), Vector2i(0, 2), Vector2i(2, 2), Vector2i(1, 3)]
+	var around: Array[Vector2i] = [Vector2i(1, 1), Vector2i(0, 2), Vector2i(1, 3)]
 	_check.call("splash: the intent strikes p_a and names p_b as falling", (
 			intent != null
 			and intent.target_id == "p_a"
@@ -237,7 +238,7 @@ func _test_splash_kill_named() -> void:
 			and intent.reason() == EnemyPlan.Step.KILL
 			and intent.decided_by == EnemyPlan.Step.KILL_CHANCE
 	), _intents_text(shown))
-	_check.call("splash: the area is the four tiles around the Brute", (
+	_check.call("splash: the area is the tiles around the Brute but p_a's", (
 			intent != null and intent.area == around
 	), "" if intent == null else str(intent.area))
 

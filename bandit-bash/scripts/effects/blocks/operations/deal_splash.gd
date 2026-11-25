@@ -6,13 +6,13 @@
 # File:     deal_splash.gd
 # Author:
 # Created:  October 26, 2026
-# Modified: November 21, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 @tool
 class_name DealSplash
 extends EffectOperation
-## Deals splash damage: "deal 2 splash damage to adjacent units, friend or foe" (Cleave).
+## Deals splash damage: "deal 2 splash damage to every other adjacent unit, friend or foe" (Cleave).
 ##
 ## Queued. Splash is flat damage, not an attack: no hit roll, no Mitigation, no crit, no Stance
 ## loss; Block absorbs it and it fires Damage taken, never Hit taken (effect-triggers.md).

@@ -1,6 +1,7 @@
 # Bandit Bash docs
 
 **Start with [the orchestrator](plans/game-orchestrator.md):** where the project is and what's next.
+New machine? [dev-setup.md](dev-setup.md) sets up the checkout and the reference repos.
 
 | Folder | What's in it | When to read it |
 |---|---|---|

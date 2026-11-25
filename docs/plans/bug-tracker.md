@@ -85,12 +85,13 @@ Not a bug.
 | [BUG-050](#bug-050-the-enet-pair-hosts-battle-stops-moving-in-full-runs) | The ENet pair case's host stops moving for 60 s mid-battle in some full runs (`PAIR FAILED host: nothing moved for 60 s, at step PLAY`); the client then loses the host and fails as "the run's session ended". Passes with `net` alone | P10 (tests, or a real stall) | S2 until shown to be the test | Fixed (BF13, November 23, 2026): the test's driver | November 23, 2026, UL12 report and the UL12 and CO17 merge | — |
 | [BUG-051](#bug-051-netlog-calls-get_unique_id-on-a-closed-peer) | When an ENet client loses its host, `NetLog.info` in `steam_network.gd`'s disconnect handler calls `multiplayer.get_unique_id()` on a peer that is set but closed; the engine prints "ERROR: The multiplayer instance isn't currently active" | P10 | S4 | Fixed (BF15, November 24, 2026) | November 23, 2026, BF13 report | — |
 | [BUG-052](#bug-052-co-op-starting-heirloom-route-loop-locks-the-host-out) | Co-op starting heirloom: once one player picks, the host's screen reloads every frame and that player is locked out; the client sends a route notice in a loop | P08 / P11 | S1 | Fixed (BF14's loop fix, then P18 RC1, November 24, 2026: one routing authority, the team waits on the offer) | November 23, 2026, the user's live network test | — (live recheck at NT8b) |
-| [BUG-053](#bug-053-cleave-splashes-the-unit-it-struck) | Cleave's 2 splash damage also hits the unit the attack struck, so that unit takes the hit plus 2 (Brute, Brigand Captain, Powder Baron) | P01 / P05 (effects, content) | S2 | Open | November 24, 2026, the user's playtest | BF16 (Lane D) |
+| [BUG-053](#bug-053-cleave-splashes-the-unit-it-struck) | Cleave's 2 splash damage also hits the unit the attack struck, so that unit takes the hit plus 2 (Brute, Brigand Captain, Powder Baron) | P01 / P05 (effects, content) | S2 | Fixed (BF16, November 25, 2026) | November 24, 2026, the user's playtest | — |
 | [BUG-054](#bug-054-starting-heirloom-tags-cover-the-other-choices) | On the starting heirloom screen, a card's keyword tags cover the other choices | P07 / P08 (UI) | S3 | Open | November 24, 2026, the user's playtest | UL13 (Lane A) |
 | [BUG-055](#bug-055-editor-resaves-change-the-build-fingerprint) | An editor resave of a map or data file (an added `uid`, a scene given a random `uid`) or a different line-ending checkout changes the build fingerprint, so two machines running the same commit are refused as a build mismatch | P10 | S2 | Fixed (BF15, November 24, 2026) | November 23–24, 2026, the user's two-machine test | — |
 | [BUG-056](#bug-056-the-boss-s-end-in-co-op-strands-clients) | In co-op the Boss's End run checks only that the Boss is beaten, routes only the host, and leaves clients on a dead victory overlay | P08 / P11 | S1 | Open | November 24, 2026, P18 inventory | P18 RC4 |
 | [BUG-057](#bug-057-a-refused-leave-gives-up-unclaimed-rewards) | On the co-op results overlay, a Leave the rules refuse still sends that seat's skip commands first, giving up its unclaimed rewards | P08 / P11 | S2 | Open | November 24, 2026, P18 inventory | P18 RC4 |
 | [BUG-058](#bug-058-a-co-op-start-can-read-as-a-rejoin) | Over ENet a normal co-op start can read as a rejoin: the run's data can reach a client before the route to Loading, so the client opens its offer alone | P11 | S2 | Fixed (P18 RC1, November 24, 2026) | November 24, 2026, BF14 report (P11 question 193) | — |
+| [BUG-059](#bug-059-an-attacker-is-caught-in-its-own-area) | An attacker next to its target is caught in its own target-centered area: a Raider at range 1 takes its own 3 Trample splash, a Hexer or Hex Matron at range 1 loses 1 Stance to its own Curse | P01 / P05 (effects, content) | S2 | Fixed (BF16, November 25, 2026) | November 24, 2026, BF16 report (P01 question 89) | — |
 
 ### BUG-001 No Block at the start of combat
 
@@ -758,6 +759,11 @@ Not a bug.
   selects with `Area` (`scripts/effects/blocks/selectors/area.gd`) centered on its owner over
   `data/shapes/adjacent.tres`, side any; the selector has no way to leave out the hit's target,
   which is always adjacent to a melee attacker.
+- **Fixed** in BF16 (November 25, 2026): a new `Area.is_fact_target_excluded` on the three Cleaves
+  leaves the struck unit out; the forecast, AI and intent area agree; the text says "every other
+  adjacent unit". P01 questions 86–88. Still on the old Cleave, both on purpose or harmless:
+  `tests/effects/golden_cases.gd` (its "deepest chain" case needs the struck unit splashed) and
+  `tests/bench/forecast_bench.gd`.
 
 ### BUG-054 Starting heirloom tags cover the other choices
 
@@ -813,3 +819,15 @@ Not a bug.
   state; staying." A real join from the lobby and a reconnect move as before. Nothing new crosses
   the network. The test host no longer routes first, so both offer pairs exercise the race
   (`routing_cases.gd` `_test_new_run`).
+
+### BUG-059 An attacker is caught in its own area
+
+- **Found** by BF16 (November 24, 2026; P01 question 89): an `Area` centered on the hit's target
+  includes the attacker when it attacks from an adjacent tile. A Raider (Javelin, range 1–2)
+  striking at range 1 takes its own 3 Trample splash; a Hexer or Hex Matron (Simple Dark, range
+  1–2) at range 1 loses 1 Stance to its own Curse.
+- **Decided** (user, November 25, 2026): spare the attacker. Fix in BF16, beside BUG-053.
+- **Fixed** in BF16 (November 25, 2026): a new `Area.is_owner_excluded` on the Raider's Trample,
+  the Hexer's Curse and the Hex Matron's Curse and Hex Storm curse; the forecast, AI and intent
+  area agree; the text adds ", except this unit". The Warcaller's War Horn ("this unit and units
+  within 2 tiles") includes itself on purpose and doesn't set it. P01 question 89.
