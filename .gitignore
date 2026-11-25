@@ -1,5 +1,7 @@
 Godot_FE/
 steam_multiplayer_kit/
 .godot/
+# Each person's own Claude Code permissions; CLAUDE.md and .claude/rules/ stay shared.
+.claude/settings.json
 *.translation
 export_presets.cfg   # only if it holds secrets

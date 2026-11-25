@@ -48,8 +48,8 @@ On Windows, Godot_FE has paths longer than the 260-character limit. The script c
 `core.longpaths` on, so this is handled. If you clone it by hand, add `-c core.longpaths=true`.
 
 Run it again any time to update the two reference repos. It fast-forwards a repo only when that
-repo is clean and on its expected branch. Otherwise it reports the repo and leaves it untouched, so
-it never overwrites local work.
+repo is clean and on its expected branch. Otherwise it marks the repo `!`, leaves it untouched and
+exits 1, so it never overwrites local work and a stale reference repo doesn't go unnoticed.
 
 ## Point the tools at Godot
 
@@ -81,7 +81,7 @@ export GODOT="/Applications/Godot.app/Contents/MacOS/Godot"
 ### Claude Code
 
 `CLAUDE.md` and `.claude/rules/` come with the repo and load automatically. `.claude/settings.json`
-holds each person's own permissions and isn't shared. It's worth creating your own with deny rules
+holds each person's own permissions; it's gitignored, so it's never shared. It's worth creating your own with deny rules
 for the two read-only folders:
 
 ```json

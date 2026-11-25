@@ -82,11 +82,11 @@ sync_repo() {
 
 	current="$(git -C "$dir" rev-parse --abbrev-ref HEAD)"
 	if [ "$current" != "$branch" ]; then
-		say "  on branch $current, not $branch: left alone (git -C $name checkout $branch)"
+		problem "on branch $current, not $branch: left alone (git -C $name checkout $branch)"
 		return
 	fi
 	if [ -n "$(git -C "$dir" status --porcelain --untracked-files=no)" ]; then
-		say "  has uncommitted changes: fetched, not updated"
+		problem "has uncommitted changes: fetched, not updated (commit, stash or discard them)"
 		return
 	fi
 	if git -C "$dir" merge --ff-only --quiet "origin/$branch"; then
