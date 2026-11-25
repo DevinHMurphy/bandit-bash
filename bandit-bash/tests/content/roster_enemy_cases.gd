@@ -6,7 +6,7 @@
 # File:     roster_enemy_cases.gd
 # Author:
 # Created:  November 13, 2026
-# Modified: November 20, 2026
+# Modified: November 25, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -76,7 +76,7 @@ const TEXT: Dictionary[String, Array] = {
 	"shieldbearer": ["+2 DEF × this unit's current Stance."],
 	"hexer": [
 		"Whenever this unit lands a hit, remove 1 Stance from the other unit and adjacent units of"
-		+ " the other unit, friend or foe.",
+		+ " the other unit, friend or foe, except this unit.",
 	],
 	"warcaller": [
 		"At every 2nd Phase Start each combat, give this unit and units within 2 tiles, friend or"
@@ -84,7 +84,7 @@ const TEXT: Dictionary[String, Array] = {
 	],
 	"raider": [
 		"Whenever this unit lands a hit, while this unit moved 3+ tiles this turn, deal 3 splash"
-		+ " damage to adjacent units of the other unit, friend or foe.",
+		+ " damage to adjacent units of the other unit, friend or foe, except this unit.",
 	],
 	"hound": ["+2 Attack × the number of adjacent allies."],
 }
@@ -613,9 +613,9 @@ func _test_iron_wall_base() -> void:
 
 # From 2 tiles, the Hexer's hit on a Hakkapel (which can't answer at that range) costs 1 Stance to
 # it, the Archer beside it and the Hexer's own Cutthroat beside it. From beside a Battle Medic
-# (whose staff never counters), the Hexer loses 1 too; the Medic's 1 Stance already went to the
-# hit, so the curse finds none on it. The curse resolves after the exchange; on a target the hit
-# defeats it catches nobody (reported with EN6).
+# (whose staff never counters), the Hexer is spared its own curse; the Medic's 1 Stance already
+# went to the hit, so the curse finds none on it. The curse resolves after the exchange; on a
+# target the hit defeats it catches nobody (reported with EN6).
 func _test_curse() -> void:
 	var lost: PackedStringArray = []
 	var boards: Array = [
@@ -634,13 +634,13 @@ func _test_curse() -> void:
 	_same("curse: the target and every unit beside it lose 1 Stance, friend or foe", lost[0], (
 			"archer -1, cutthroat -1, hakkapel -1"
 	))
-	_same("curse: the Hexer too when it strikes from beside the target", lost[1], (
-			"cutthroat -1, hakkapel -1, hexer -1"
+	_same("curse: never the Hexer, though it strikes from beside the target", lost[1], (
+			"cutthroat -1, hakkapel -1"
 	))
 
 
 # The Raider's Javelin hit on a Hakkapel after riding 3 tiles splashes 3 on the Archer and its own
-# Hound beside the target; after 2 tiles, nothing; riding in beside the target, itself too.
+# Hound beside the target; after 2 tiles, nothing; riding in beside the target, never itself.
 func _test_trample() -> void:
 	var rides: Array = [
 		[Vector2i(0, 0), [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0)]],
@@ -674,8 +674,8 @@ func _test_trample() -> void:
 			"archer 3, hound 3"
 	))
 	_same("trample: none after riding 2", splashed[1], "")
-	_same("trample: the Raider too, beside its target", splashed[2], (
-			"archer 3, hound 3, raider 3"
+	_same("trample: never the Raider, though it strikes from beside its target", splashed[2], (
+			"archer 3, hound 3"
 	))
 
 

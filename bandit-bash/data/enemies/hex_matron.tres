@@ -18,6 +18,7 @@ script = ExtResource("4_area")
 center = 2
 shape = ExtResource("10_shape")
 side = 2
+is_owner_excluded = true
 
 [sub_resource type="Resource" id="Resource_amount"]
 script = ExtResource("5_con")
@@ -46,6 +47,7 @@ script = ExtResource("4_area")
 center = 2
 shape = ExtResource("11_storm_shape")
 side = 2
+is_owner_excluded = true
 
 [sub_resource type="Resource" id="Resource_storm_stance"]
 script = ExtResource("3_gain")

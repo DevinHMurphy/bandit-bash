@@ -6,7 +6,7 @@
 # File:     exchange_cases.gd
 # Author:
 # Created:  October 27, 2026
-# Modified: November 19, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -382,10 +382,8 @@ const GOLDEN: Dictionary[String, Array] = {
 		"s0#22 AFTER_COMBAT p1 -> e1",
 		"s0#23 AFTER_COMBAT e1 -> p1",
 		"s0#24 MODIFIER_GAINED p1 effect effect:momentum",
-		"s0#25 DAMAGE_TAKEN p1 <- e1 amount 2 (hp 2, block 0) source splash effect effect:cleave",
+		"s0#25 DAMAGE_TAKEN p2 <- e1 amount 2 (hp 2, block 0) source splash effect effect:cleave",
 		"s0#26 DAMAGE_TAKEN p2 <- e1 amount 2 (hp 2, block 0) source splash effect effect:cleave",
-		"s0#27 DAMAGE_TAKEN p1 <- e1 amount 2 (hp 2, block 0) source splash effect effect:cleave",
-		"s0#28 DAMAGE_TAKEN p2 <- e1 amount 2 (hp 2, block 0) source splash effect effect:cleave",
 	],
 	"cleave queued, then its brute defeated": [
 		"s0#1 BEFORE_COMBAT p1 -> e1",
@@ -411,8 +409,7 @@ const GOLDEN: Dictionary[String, Array] = {
 		"s0#21 DEFEATED e1 <- p1",
 		"s0#22 DEFEATED_AN_ENEMY p1 -> e1",
 		"s0#23 AFTER_COMBAT p1 -> e1",
-		"s0#24 DAMAGE_TAKEN p1 <- e1 amount 2 (hp 2, block 0) source splash effect effect:cleave",
-		"s0#25 DAMAGE_TAKEN p2 <- e1 amount 2 (hp 2, block 0) source splash effect effect:cleave",
+		"s0#24 DAMAGE_TAKEN p2 <- e1 amount 2 (hp 2, block 0) source splash effect effect:cleave",
 	],
 }
 
@@ -706,7 +703,7 @@ func _test_heavy_pack() -> void:
 
 func _test_cleave_and_momentum_after_combat() -> void:
 	# p1 always misses (Momentum); the faster Brute e1 hits it twice (Cleave, twice); p2 stands
-	# next to e1 and only the splash reaches it.
+	# next to e1 and only the splash reaches it; the splash spares p1, the unit struck.
 	var world: CombatWorld = _duel("sword", "dagger", 1, {}, {CombatValue.Key.SPD: 9.0})
 	world.add_unit("p2", PLAYER, 0, Vector2i(2, 2), UNIT_BASES)
 	world.state.weapon("w:p1").hit = 0
@@ -1201,10 +1198,11 @@ func _momentum() -> EffectDefinition:
 	return _triggered(EffectTerms.Trigger.MISSED, [], [bonus])
 
 
-# Cleave (Brute): Hit dealt: deal 2 splash damage to adjacent units, friend or foe.
+# Cleave (Brute): Hit dealt: deal 2 splash damage to every other adjacent unit, friend or foe.
 func _cleave() -> EffectDefinition:
 	var area: Area = Area.new()
 	area.center = Area.Center.OWNER
+	area.is_fact_target_excluded = true
 	area.shape = TargetShape.new()
 	area.shape.kind = ContentIds.SHAPE_RADIUS
 	area.shape.size = 1

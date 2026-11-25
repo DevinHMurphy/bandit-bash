@@ -17,6 +17,7 @@
 script = ExtResource("4_area")
 shape = ExtResource("10_shape")
 side = 2
+is_fact_target_excluded = true
 
 [sub_resource type="Resource" id="Resource_amount"]
 script = ExtResource("5_con")

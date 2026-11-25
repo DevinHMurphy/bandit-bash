@@ -6,7 +6,7 @@
 # File:     enemy_intent.gd
 # Author:
 # Created:  November 3, 2026
-# Modified: November 17, 2026
+# Modified: November 25, 2026
 # ==============================================================================
 
 class_name EnemyIntent
@@ -230,7 +230,9 @@ static func _object_area(state: CombatState, used: MapState.ObjectState) -> Arra
 # The tiles of every splash area the plan's forecast fired: each of the enemy's activated effects
 # that deals splash to an Area or takes Block or Stance across one (_area_hit_by), centered where
 # the enemy acts from (the owner, or the fact's actor on its Hit dealt) or on its target (the
-# fact's target, the command's target); and the blast of each powder keg the forecast breaks.
+# fact's target, the command's target), less the target's tile where the Area spares the fact's
+# target (Cleave) and the enemy's where it spares its owner (Trample, Curse); and the blast of each
+# powder keg the forecast breaks.
 static func _splash_area(engine: EffectEngine, chosen: EnemyPlan) -> Array[Vector2i]:
 	var state: CombatState = engine.state
 	var covered: Dictionary[Vector2i, bool] = {}
@@ -254,10 +256,15 @@ static func _splash_area(engine: EffectEngine, chosen: EnemyPlan) -> Array[Vecto
 			var area: Area = _area_hit_by(operation)
 			if area == null or area.shape == null:
 				continue
+			var struck: Vector2i = state.tile_of(chosen.target_id)
 			var center: Vector2i = chosen.tile
 			if area.center != Area.Center.OWNER and area.center != Area.Center.FACT_ACTOR:
-				center = state.tile_of(chosen.target_id)
+				center = struck
 			for tile: Vector2i in area.shape.tiles(center):
+				if area.is_fact_target_excluded and tile == struck:
+					continue
+				if area.is_owner_excluded and tile == chosen.tile:
+					continue
 				if state.grid.step(tile, Vector2i.ZERO) != CombatFact.NO_TILE:
 					covered[tile] = true
 	var tiles: Array[Vector2i] = []

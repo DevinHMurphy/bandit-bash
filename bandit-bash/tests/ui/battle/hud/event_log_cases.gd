@@ -6,7 +6,7 @@
 # File:     event_log_cases.gd
 # Author:
 # Created:  November 18, 2026
-# Modified: November 19, 2026
+# Modified: November 25, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -206,7 +206,8 @@ func _test_writer() -> void:
 	h.close()
 
 
-# From Start, attacks where offered and waits elsewhere, End Turn, into the darkness phase.
+# From Start, attacks where offered and waits elsewhere, End Turn, into the darkness phase; no
+# attack strikes the last enemy before a darkness phase has played.
 func _test_battle() -> void:
 	var rig: Rig = _rig()
 	if rig == null:
@@ -222,7 +223,9 @@ func _test_battle() -> void:
 		if h.session.is_finished:
 			break
 		for unit_id: String in TurnInputModel.acting_units(h.session, 0):
-			var command: Command = _attack_or_wait(h.session, unit_id)
+			var command: Command = _attack_or_wait(
+					h.session, unit_id, not rig.darkness_turns.is_empty()
+			)
 			attacks += 1 if command is UnitTurnCommand and _is_attack(command) else 0
 			var before: int = log.get_texts().size()
 			h.battle.submit(command, h.session.session_id)
@@ -586,15 +589,21 @@ func _rig() -> Rig:
 	return rig
 
 
-# The first attack unit_id can make this turn, else its wait.
-func _attack_or_wait(session: CombatSession, unit_id: String) -> Command:
+# The first attack unit_id can make this turn, else its wait. Unless may_win, the last enemy
+# standing is never attacked, so the battle is still going when the darkness arrives whatever the
+# content's numbers and rolls (a forecast misses a crit).
+func _attack_or_wait(session: CombatSession, unit_id: String, may_win: bool) -> Command:
+	var enemies: PackedStringArray = session.state.units_of(CombatFact.CombatSide.ENEMY)
 	for tile: Vector2i in TurnInputModel.move_tiles(session, unit_id):
 		var path: Array[Vector2i] = TurnInputModel.path_to(session, unit_id, tile)
 		for option: TurnInputModel.ActionOption in TurnInputModel.actions_at(
 				session, unit_id, path
 		):
-			if option.kind == ATTACK and not option.targets.is_empty():
-				return option.targets[0].command
+			if option.kind != ATTACK:
+				continue
+			for target: TurnInputModel.TargetOption in option.targets:
+				if may_win or enemies.size() > 1 or not enemies.has(target.target_id):
+					return target.command
 	return UnitTurnCommand.new(0, unit_id, UnitTurnCommand.Action.WAIT)
 
 

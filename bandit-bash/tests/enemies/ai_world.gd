@@ -6,7 +6,7 @@
 # File:     ai_world.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 15, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -138,6 +138,7 @@ func add_cleave(unit_id: String) -> void:
 	area.shape.size = 1
 	area.shape.includes_center = false
 	area.side = EffectTerms.UnitSide.ANY
+	area.is_fact_target_excluded = true
 	var amount: Constant = Constant.new()
 	amount.value = 2.0
 	var splash: DealSplash = DealSplash.new()
