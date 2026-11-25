@@ -6,7 +6,7 @@
 # File:     enemy_class_definition.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 18, 2026
+# Modified: November 25, 2026
 # ==============================================================================
 
 @tool
@@ -32,7 +32,7 @@ enum Behavior {
 	## Goes for the best attack it can reach; otherwise advances on the nearest foe (Brute).
 	AGGRESSIVE,
 	## Holds its ground or its pack's back line, attacking only foes that come within reach
-	## (Duelist, Shieldbearer).
+	## (Duelist, Stonelet).
 	GUARD,
 	## Attacks from where it stands while a foe is in range; moves only if none is (Crossbowman).
 	HOLD,
@@ -53,10 +53,10 @@ enum Behavior {
 ## enemy class has one; the content test checks it.
 @export_multiline var target_rule_text: String = ""
 
-## The equipment every unit of the class carries in its Equipment slot, by content id, such as the
-## Shieldbearer's [code]iron_shield[/code]; setup builds it with the weapon ([EnemySetup]). The
-## content test checks it names equipment.[br]
-## [b]Empty:[/b] the Equipment slot stays empty, as for most classes.
+## The equipment every unit of the class carries in its Equipment slot, by content id, such as a
+## shield; setup builds it with the weapon ([EnemySetup]). The content test checks it names
+## equipment. A non-humanoid carries none: its numbers are its stats (enemy-roster.md).[br]
+## [b]Empty:[/b] the Equipment slot stays empty.
 @export var starting_equipment_id: String = ""
 
 ## Its signature move: the one of its trait [member effects] on a telegraphed cooldown, such as

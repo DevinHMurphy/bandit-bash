@@ -6,7 +6,7 @@
 # File:     art_cases.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 25, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -90,7 +90,7 @@ func _test_unit_sprites() -> void:
 		ids.size(),
 	], missing.is_empty() and ids.size() > 30, ", ".join(missing))
 	var bosses: PackedStringArray = [
-		"bloodhound", "brigand_captain", "hex_matron", "iron_wall", "powder_baron",
+		"bloodhound", "brigand_captain", "hex_matron", "stone_golem", "powder_baron",
 	]
 	var shared: PackedStringArray = []
 	for id: String in bosses:

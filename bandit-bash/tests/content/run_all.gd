@@ -6,7 +6,7 @@
 # File:     run_all.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 19, 2026
+# Modified: November 25, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -677,8 +677,9 @@ func _test_id_lists_have_no_duplicates() -> void:
 
 
 func _test_id_lists_contents() -> void:
-	_check("ids: the ten weapon types", ContentIds.WEAPON_TYPES == PackedStringArray([
+	_check("ids: the eleven weapon types", ContentIds.WEAPON_TYPES == PackedStringArray([
 		"sword", "axe", "lance", "bow", "gauntlets", "dagger", "anima", "holy", "dark", "staff",
+		"monster",
 	]))
 	_check("ids: the four tags", ContentIds.TAGS == PackedStringArray([
 		"armored", "mounted", "flier", "terror",
@@ -757,7 +758,9 @@ func _test_data_layout() -> void:
 	var folders: Array[String] = DATA_FOLDERS.duplicate()
 	for weapon_type: String in ContentIds.WEAPON_TYPES:
 		folders.append("items/weapons/%s" % [weapon_type])
-		folders.append("prefixes/weapons/%s" % [weapon_type])
+		# A Monster weapon carries no prefix, so it has no prefix folder.
+		if weapon_type != ContentIds.WEAPON_MONSTER:
+			folders.append("prefixes/weapons/%s" % [weapon_type])
 	var missing: PackedStringArray = []
 	for folder: String in folders:
 		if not DirAccess.dir_exists_absolute("res://data/%s" % [folder]):

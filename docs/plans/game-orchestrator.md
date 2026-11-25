@@ -36,7 +36,7 @@ Where the project is, what's next and what's out of scope. Start here.
 - **Milestones:** M0 and M1 are complete. M2, M3 and M4 are built or nearly built and wait on playtests: M2 and M3 on the user's full-run playtest, M4 on P18 and the live two-machine check. M5 is not started.
 - **What runs today:** a seeded solo run plays from the start screen through the campaign map, every node kind and events to the Powder Baron, and resumes at every stop. Co-op plays the same run in the harness and over ENet on one machine; the live two-machine test reached the first hand-off (BUG-052, fixed by P18 RC1).
 - **Now:** P18 co-op ready checks (RC1 and RC5 merged), then NT8 and CO21, the live check, then the engine list. The Movement and map rework (CT15 built, MP13 waiting on the user's maps) is on `map_gameplay_rework` for the user's playtest.
-- **Tests:** 9,063 cases in 31 suites, all passing, and a clean headless launch (`sh bandit-bash/tools/run_tests.sh`).
+- **Tests:** 9,079 cases in 31 suites, all passing, and a clean headless launch (`sh bandit-bash/tools/run_tests.sh`).
 - **Not started:** P12 (statistics and the war table, M5). P17 is parked.
 
 ## Milestones
@@ -98,7 +98,7 @@ reworks and M5.
 **Exception (user, November 24, 2026):** RF-054, Movement by type (CT15), and the map and enemy
 placement rework it needs (MP13) go now, ahead of the engine list. **Also brought forward**
 (user, November 25, 2026): RF-055 terrain costs (CT16, on the rework branch), and RF-052's Monster
-weapon type with RF-056's Stonelet (EN21, on dev; BF16 merged November 25, 2026). Every other rework stays held.
+weapon type with RF-056's Stonelet (EN21, merged into dev November 25, 2026). Every other rework stays held.
 
 1. **P14 (priority, user, November 16, 2026):** O6 faster suites (merged November 16, 2026: every suite in parallel, enemies in three parts, BUG-011 fixed; a full run 248 s → 140 s before MP10b, 215 s after it, with `map_set/key` at 201 s), then O7 the live test report (merged November 16, 2026: `report.html` in each run's log folder, refreshed live; `tools/run_tests.cmd` or `--open` opens it; history in `%LOCALAPPDATA%BanditBash	estshistory.tsv`; a full run 159–166 s, set by `map_set/standard`); both change `run_tests.sh`, so one at a time. O1–O4 done (O4 merged November 12, 2026). O5 waits until a step needs those files.
 2. **Plans:** P08 approved November 12, 2026; RN1 (the map) merged November 12, 2026; RN2 (run state as `CampaignRunState`) merged November 13, 2026; RN3 (the battle bridge, with BUG-009 and BUG-010) merged November 13, 2026; RN4 (rewards, plus a fallen commander kept at critical health, P08 question 19) merged November 14, 2026 (P08 question 20); RN5 (the loop screens: the campaign map, Results, new-item placement, the run's end) merged November 15, 2026 (P08 question 21). P09 approved November 12, 2026; EV1 is open now that RN2 is in. The move-preview re-architecture is adopted ([move-preview.md](../design/move-preview.md)) as P05 EN13–EN16. **Planning is caught up.**

@@ -6,7 +6,7 @@
 # File:     enemy_ai.gd
 # Author:
 # Created:  October 30, 2026
-# Modified: November 22, 2026
+# Modified: November 25, 2026
 # ==============================================================================
 
 class_name EnemyAI
@@ -45,7 +45,7 @@ const NO_DAMAGE_BONUS: float = 50.0
 ## ([code]aiAction.gd[/code]).
 const AVOID_DIVISOR: float = 50.0
 
-## The range a weapon reaches to count as ranged: a bow, a tome, the Javelin. A Shieldbearer
+## The range a weapon reaches to count as ranged: a bow, a tome, the Javelin. A Stonelet
 ## guards an ally holding one, and a Raider goes for foes that carry nothing else or staves.[br]
 ## [b]Units:[/b] tiles, the weapon's longest range.
 const RANGED_REACH: int = 2
@@ -126,7 +126,7 @@ static func next_plan(
 ## [param unit_id]'s best plan on [param engine]'s map, changing nothing, its class from
 ## [param catalog]; a Wait with no option or class. Aggressive, Skirmisher: the best attack in
 ## reach, else advance (a Hound toward its pack's nearest foe). Hold: a kill, else from its tile,
-## else as Aggressive. Guard: any attack in reach, else stay (a Shieldbearer beside its ally).
+## else as Aggressive. Guard: any attack in reach, else stay (a Stonelet beside its ally).
 ## Support: heal, else regroup (a Warcaller near most allies). Post holders keep theirs after the
 ## darkness; attackers blow kegs to kill, looters loot, idle advancers seal or douse. Reads
 ## [method flooded_tiles] and [method objective_tiles]; [param forecasts] reuses attack forecasts
@@ -545,7 +545,7 @@ static func _rallies(board: Board) -> Array[EnemyPlan]:
 
 
 # Guard: every attack it can reach this turn, moving if it must; with none it stays (it never
-# advances). A Shieldbearer with a back-line ally left takes its place beside it first (_beside).
+# advances). A Stonelet with a back-line ally left takes its place beside it first (_beside).
 static func _guards(board: Board) -> Array[EnemyPlan]:
 	if board.rule == ContentIds.TARGET_BACK_LINE_ALLY:
 		var ally: String = _back_line_ally(board)
@@ -556,7 +556,7 @@ static func _guards(board: Board) -> Array[EnemyPlan]:
 	return _attacks(board)
 
 
-# The Shieldbearer beside ally: its end tiles next to ally, or with none in reach the tiles
+# The Stonelet beside ally: its end tiles next to ally, or with none in reach the tiles
 # leaving the least movement to one; a wait on each, the attacks from them, and every kill in
 # reach (kills first). Empty when it can't walk toward ally at all, so it plays Guard.
 static func _beside(board: Board, ally: String) -> Array[EnemyPlan]:
@@ -603,7 +603,7 @@ static func _beside(board: Board, ally: String) -> Array[EnemyPlan]:
 	return options
 
 
-# The Shieldbearer's back-line ally: the nearest other enemy whose class plays Support or that
+# The Stonelet's back-line ally: the nearest other enemy whose class plays Support or that
 # carries a ranged weapon (RANGED_REACH); empty when none is left.
 static func _back_line_ally(board: Board) -> String:
 	var state: CombatState = board.state
@@ -880,7 +880,7 @@ static func _rate_target_rule(board: Board, options: Array[EnemyPlan]) -> void:
 		var subject: String = subjects[plan]
 		var hp: int = board.state.get_hp(subject)
 		match board.rule:
-			# Holding its ground, the Duelist and the Shieldbearer take the foe they reach with
+			# Holding its ground, the Duelist and the Stonelet take the foe they reach with
 			# the least movement, as the nearest foe.
 			ContentIds.TARGET_NEAREST_FOE, ContentIds.TARGET_HOLDS_GROUND, \
 					ContentIds.TARGET_BACK_LINE_ALLY:
@@ -1126,7 +1126,7 @@ class Board:
 
 	## The engine the decision reads; a sandbox's works unchanged.
 	var engine: EffectEngine = null
-	## The catalog every enemy's class is read from: the Shieldbearer reads its allies' behaviors.
+	## The catalog every enemy's class is read from: the Stonelet reads its allies' behaviors.
 	var catalog: EffectCatalog.Index = null
 	## Its state.
 	var state: CombatState = null

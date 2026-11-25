@@ -16,11 +16,15 @@ tile sheet one 32 px cell at a time.
 
 - **Godot_FE's art** is the project's own earlier build.
 - **`blood_hound.png`** is the user's own art (November 19, 2026).
+- **`stone_golem_large.png`** (the Stone Golem) is the user's own art (November 25, 2026).
 - **`hound.png`** is from the user's `assests/32rogues` pack (Seth Boyles, 2024; the wolf,
   `animals.txt` 6.g). Its licence allows commercial use but forbids redistributing the pack and
   any use "in conjunction with generative artificial intelligence projects". Copied on the user's
   word: the user keeps it (November 19, 2026), as all art is placeholder until an artist is
   contracted. Replace it before any release or public push.
+- **`minor_golem.png`** (the Stonelet) is from the same `assests/32rogues` pack (Seth Boyles,
+  2024), under the same licence note as `hound.png`: copied on the user's word (November 25, 2026),
+  placeholder, replace it before any release or public push.
 
 ## Unit sprites
 
@@ -36,12 +40,12 @@ tile sheet one 32 px cell at a time.
 | hexer | `sea_witch.png` | `units/sea_witch.png` | *Assumption*; bone_mancer rejected (reads like the player Shaman) |
 | hound | `hound.png` | `assests/hound.png` | The user's pick (32rogues wolf) |
 | raider | `axe_cavalier.png` | `units/axe_cavalier.png` | *Assumption*: mounted, as the class; marauder rejected (on foot) |
-| shieldbearer | `bulwark.png` | `units/Bulwark.png` | *Assumption*: tower shield; sword_armor went to the Iron Wall |
+| stonelet | `minor_golem.png` | `assests/32rogues` (the minor golem) | The user's pick (November 25, 2026); `bulwark.png`, the Shieldbearer's, is no longer mapped |
 | warcaller | `banner_bearer.png` | `units/banner_bearer.png` | *Assumption*; sanctioner rejected |
 | bloodhound | `blood_hound.png` | the user's own art (November 19, 2026) | The user's pick; replaced Godot_FE's `flesh_prowler.png` |
 | brigand_captain | `destroyer.png` | `units/Destroyer.png` | *Assumption*; a tinted vandal and `tier4/captain.png` rejected |
 | hex_matron | `herbalist.png` | `units/tier1/herbalist.png` | *Assumption*: crooked staff, earthy greens, so it reads apart from the pale, purple player Shaman and the Hexer (user, at review: bone_mancer read too close to the Shaman); dark_imp (purple again), bishop and Cleric (priests), goblin_caster (not human) and a tinted sea_witch rejected |
-| iron_wall | `sword_armor.png` | `units/sword_armor.png` | *Assumption*; a tinted Bulwark rejected |
+| stone_golem | `stone_golem_large.png` | the user's own art (November 25, 2026) | The user's pick; `sword_armor.png`, the Iron Wall's, is no longer mapped |
 | powder_baron | `gunner.png` | `units/gunner.png` | *Assumption*: a firearm, for the powder; a tinted vandal rejected |
 | Wooden Debris, Stone Debris | `objects/wood_debris.png`, `objects/stone_debris_1.png` | `entities/debris/` | Exact (breakables key by their label) |
 | Powder Keg | `objects/powder_keg.png` | `tilemaps/combat_map/tiles_dungeon_v1.1.png` cell (13, 18), a barrel | *Assumption*: Godot_FE has no keg |
@@ -173,7 +177,6 @@ white weapon and item glyph icons). Every hand match and fallback is an *assumpt
 | `rushraddish` | `items/consumables/stat_boosters/speed/rush_raddish.png` | `consumables/rush_raddish.png` | hand |
 | `sanctuary` | `icons/weapon_icons/staff_icon.png` | `weapons/staff_icon.png` | fallback |
 | `shelter` | `icons/weapon_icons/staff_icon.png` | `weapons/staff_icon.png` | fallback |
-| `shieldmace` | `icons/weapon_icons/sword_icon.png` | `weapons/sword_icon.png` | fallback |
 | `short_quiver` | `icons/item_icons/equipment_icon.png` | `equipment/equipment_icon.png` | fallback |
 | `simple_anima` | `items/weapons/nature/fire_tome.png` | `weapons/fire_tome.png` | hand |
 | `simple_axe` | `items/weapons/axes/iron_axe.png` | `weapons/iron_axe.png` | hand |
@@ -190,6 +193,7 @@ white weapon and item glyph icons). Every hand match and fallback is an *assumpt
 | `starforged_blade` | `items/weapons/swords/valor_sword.png` | `weapons/valor_sword.png` | hand |
 | `steppe_hornbow` | `items/weapons/bow/steel_bow.png` | `weapons/steel_bow.png` | hand |
 | `stiletto` | `items/weapons/dagger/knife.png` | `weapons/knife.png` | hand |
+| `stone_fists` | `items/weapons/fist/iron_guantlets.png` | `weapons/iron_guantlets.png` | fallback: the Simple Gauntlets' icon, until art |
 | `stonedragon_tail` | `items/consumables/stat_boosters/defense/stonewyvern_tail.png` | `consumables/stonewyvern_tail.png` | hand |
 | `throwing_hatchet` | `items/weapons/axes/hatchet.png` | `weapons/hatchet.png` | hand |
 | `twin_fang` | `items/weapons/swords/scimitar.png` | `weapons/scimitar.png` | hand |

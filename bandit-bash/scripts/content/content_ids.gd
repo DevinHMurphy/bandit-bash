@@ -6,7 +6,7 @@
 # File:     content_ids.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 15, 2026
+# Modified: November 25, 2026
 # ==============================================================================
 
 @tool
@@ -113,6 +113,11 @@ const WEAPON_DARK: String = "dark"
 ## Weapon type: staves ([StaffDefinition]).
 const WEAPON_STAFF: String = "staff"
 
+## Weapon type: a non-humanoid enemy's natural attack (the Hound's Fangs). Enemies only, and as
+## simple as a weapon gets: Hit, profile, range, AtkX, Crit and CritX, no damage, weight or effects,
+## so its damage is the unit's Might (enemy-roster.md, Non-humanoid enemies).
+const WEAPON_MONSTER: String = "monster"
+
 ## Unit tag: heavily armored. Auto-deployment puts Armored units in front.
 const TAG_ARMORED: String = "armored"
 
@@ -155,7 +160,7 @@ const TARGET_EXPOSED_THEN_LOWEST_HP: String = "exposed_then_lowest_hp"
 const TARGET_HOLDS_GROUND: String = "holds_ground"
 
 ## Enemy target rule: stays next to its pack's back-line ally, attacking from there (the
-## Shieldbearer).
+## Stonelet).
 const TARGET_BACK_LINE_ALLY: String = "back_line_ally"
 
 ## Enemy target rule: the foe whose Curse catches the most player units (the Hexer).
@@ -171,8 +176,9 @@ const TARGET_BACK_LINE_FOES: String = "back_line_foes"
 const TARGET_PACK_LOWEST_HP: String = "pack_lowest_hp"
 
 ## Weapon types (game-vision.md, Weapons and equipment). A staff is a weapon type, so the same
-## list names the folders under [code]data/items/weapons/[/code] and
-## [code]data/prefixes/weapons/[/code].
+## list names the folders under [code]data/items/weapons/[/code] and, but for
+## [constant WEAPON_MONSTER] (a Monster weapon carries no prefix),
+## [code]data/prefixes/weapons/[/code]. Saved and sent as strings, so it only grows at the end.
 const WEAPON_TYPES: PackedStringArray = [
 	WEAPON_SWORD,
 	WEAPON_AXE,
@@ -184,6 +190,7 @@ const WEAPON_TYPES: PackedStringArray = [
 	WEAPON_HOLY,
 	WEAPON_DARK,
 	WEAPON_STAFF,
+	WEAPON_MONSTER,
 ]
 
 ## Unit tags: what a unit is (unit-roster.md, Movement and tags). Terror is for enemies only.

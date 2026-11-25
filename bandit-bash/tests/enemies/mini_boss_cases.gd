@@ -6,7 +6,7 @@
 # File:     mini_boss_cases.gd
 # Author:
 # Created:  November 18, 2026
-# Modified: November 20, 2026
+# Modified: November 25, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -32,7 +32,7 @@ const ENEMY: CombatFact.CombatSide = CombatFact.CombatSide.ENEMY
 const KEY_MAPS: Array[String] = ["hall", "gatehouse", "hilltop", "village"]
 
 ## The mini-bosses enemy-roster.md lists, in id order.
-const MINI_BOSSES: Array[String] = ["bloodhound", "brigand_captain", "hex_matron", "iron_wall"]
+const MINI_BOSSES: Array[String] = ["bloodhound", "brigand_captain", "hex_matron", "stone_golem"]
 
 const RUN_SEED: int = 8080
 const SEEDS: int = 40
@@ -240,7 +240,7 @@ func _test_command() -> void:
 # unit beside it, friend or foe, not itself; +1 Parry that lasts through the player phase after.
 func _test_fortify() -> void:
 	var world: AiWorld = _world(_rows(8, 8))
-	world.add_enemy("e1", "iron_wall", Vector2i(3, 3))
+	world.add_enemy("e1", "stone_golem", Vector2i(3, 3))
 	# A Crossbowman holds its tile while a foe is in range, so it is still beside the wall when
 	# Fortify fires.
 	world.add_enemy("e2", "crossbowman", Vector2i(3, 2))

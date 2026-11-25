@@ -6,7 +6,7 @@
 # File:     catalog_cases.gd
 # Author:
 # Created:  October 29, 2026
-# Modified: November 21, 2026
+# Modified: November 25, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -79,6 +79,8 @@ const BAD_TREES: Dictionary[String, String] = {
 	"area_shape_missing": ContentRules.AREA_SHAPE,
 	"area_shape_inline": ContentRules.AREA_SHAPE,
 	"mini_boss": ContentRules.MINI_BOSS,
+	"monster_weapon_shape": ContentRules.MONSTER_WEAPON,
+	"monster_weapon_player": ContentRules.MONSTER_WEAPON,
 }
 
 # The trees checked by their own cases rather than BAD_TREES.

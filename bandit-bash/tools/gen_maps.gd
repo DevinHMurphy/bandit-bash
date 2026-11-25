@@ -6,7 +6,7 @@
 # File:     gen_maps.gd
 # Author:
 # Created:  November 16, 2026
-# Modified: November 18, 2026
+# Modified: November 25, 2026
 # ==============================================================================
 
 extends SceneTree
@@ -625,7 +625,7 @@ func _key_maps() -> Array[MapSpec]:
 
 # The Powder Baron's keep (P05 question 46): a pillared hall with the throne on the leader slot,
 # two gates and two side doors, a courtyard below. Slots fill in row-major order, so the garrison's
-# order puts the Shieldbearers beside the throne, the Crossbowmen on the hall's flanks, the Hedge
+# order puts the Stonelets beside the throne, the Crossbowmen on the hall's flanks, the Hedge
 # Healer and Brute mid-hall and the Cutthroats outside.
 func _boss_maps() -> Array[MapSpec]:
 	var keep: MapSpec = MapSpec.boss("powder_keep", "PowderKeep", 14, PackedStringArray([

@@ -6,14 +6,14 @@
 # File:     335_battle_detail_keywords.gd
 # Author:
 # Created:  November 22, 2026
-# Modified: November 22, 2026
+# Modified: November 25, 2026
 # ==============================================================================
 
 extends "res://tools/captures/capture_group.gd"
 ## Keyword tooltips in the battle by pad ([EffectText]): the first player unit's detail with the
 ## d-pad on its first row with keywords, that row's column beside it; an enemy's signature move in
 ## its detail, the d-pad on it (an enemy whose class has one, else the first enemy's detail with
-## the Iron Wall's Fortify staged into its view, said in a NOTE); and the rune menu the action
+## the Stone Golem's Fortify staged into its view, said in a NOTE); and the rune menu the action
 ## menu's Rune opens, a row focused by the d-pad, its column beside it (with no rune to cast, a
 ## menu of the catalog's runes opened in the panel column, said in a NOTE). Nothing in the battle
 ## is changed, so it ends idle in the player phase as it began.[br]
@@ -22,7 +22,7 @@ extends "res://tools/captures/capture_group.gd"
 const RUNE_MENU_SCENE: PackedScene = preload("res://ui/battle/menus/rune_menu.tscn")
 
 # The enemy class whose signature move is staged when no enemy on the board has one.
-const STAGED_CLASS: String = "iron_wall"
+const STAGED_CLASS: String = "stone_golem"
 
 # The runes a staged menu lists: the catalog's with keywords of more than one colour group.
 const STAGED_RUNES: PackedStringArray = ["mend", "aegis", "clarity"]

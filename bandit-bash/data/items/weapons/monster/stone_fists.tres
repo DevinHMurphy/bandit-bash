@@ -1,14 +1,14 @@
 [gd_resource type="Resource" script_class="WeaponDefinition" format=3]
 
 [ext_resource type="Script" path="res://scripts/content/weapon_definition.gd" id="1_def"]
-[ext_resource type="Texture2D" path="res://assets/sprites/items/weapons/sword_icon.png" id="icon_1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/weapons/iron_guantlets.png" id="icon_1"]
 
 [resource]
 script = ExtResource("1_def")
 icon = ExtResource("icon_1")
-weapon_type = "sword"
+weapon_type = "monster"
 profile = 0
-damage = 4
+damage = 0
 damage_type = 1
 atk_x = 1
 hit = 75
@@ -18,6 +18,6 @@ range_min = 1
 range_max = 1
 effective_against = PackedStringArray()
 rarity = 0
-weight = 12
-id = "shieldmace"
-display_name = "Shieldmace"
+weight = 0
+id = "stone_fists"
+display_name = "Stone Fists"

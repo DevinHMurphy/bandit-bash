@@ -41,14 +41,14 @@ P05 EN17 (pack pools), EN7 (leaders), EN8 (mini-bosses) and P04 MP10 (the M2 map
 
 | Pack | Units | Size |
 |------|-------|------|
-| Shield and Bolt | Shieldbearer, 2 Crossbowmen | 3 |
+| Stone and Bolt | Stonelet, 2 Crossbowmen | 3 |
 | Hex and Knife | Hexer, 2 Cutthroats | 3 |
-| Field Hospital | Hedge Healer, Brute, Shieldbearer | 3 |
+| Field Hospital | Hedge Healer, Brute, Stonelet | 3 |
 | War Band | Warcaller, Brute, 2 Hounds | 4 |
 | Hunting Party | Raider, 2–3 Hounds | 3–4 |
 | M1 Pack (from M1) | Brute, Crossbowman, Hedge Healer | 3 |
 
-How often each class appears across the five design packs: Shieldbearer 2, Brute 2, Hound 2,
+How often each class appears across the five design packs: Stonelet 2, Brute 2, Hound 2,
 Crossbowman 1, Cutthroat 1, Hexer 1, Hedge Healer 1, Warcaller 1, Raider 1, **Duelist 0**.
 
 ## Gaps
@@ -76,9 +76,9 @@ the Hunting Party's varying 2–3 Hounds becomes a fixed count per step.
 
 | Pack | Step 1 (3) | Step 2 (4) | Step 3 (5) | Leader |
 |------|------------|------------|------------|--------|
-| Shield and Bolt | Shieldbearer, 2 Crossbowmen | Shieldbearer, 3 Crossbowmen | 2 Shieldbearers, 3 Crossbowmen | Shieldbearer |
+| Stone and Bolt | Stonelet, 2 Crossbowmen | Stonelet, 3 Crossbowmen | 2 Stonelets, 3 Crossbowmen | Stonelet |
 | Hex and Knife | Hexer, 2 Cutthroats | Hexer, 3 Cutthroats | Hexer, 3 Cutthroats, Crossbowman | Hexer |
-| Field Hospital | Hedge Healer, Brute, Shieldbearer | Hedge Healer, 2 Brutes, Shieldbearer | Hedge Healer, 2 Brutes, Shieldbearer, Crossbowman | Brute |
+| Field Hospital | Hedge Healer, Brute, Stonelet | Hedge Healer, 2 Brutes, Stonelet | Hedge Healer, 2 Brutes, Stonelet, Crossbowman | Brute |
 | War Band | Warcaller, Brute, Hound | Warcaller, Brute, 2 Hounds | Warcaller, 2 Brutes, 2 Hounds | Warcaller |
 | Hunting Party | Raider, 2 Hounds | Raider, 3 Hounds | 2 Raiders, 3 Hounds | Raider |
 
@@ -87,9 +87,9 @@ puzzle harder, plus one new pack built on the Duelist:
 
 | Pack | Step 1 (3) | Step 2 (4) | Step 3 (5) | Leader | What makes it hard |
 |------|------------|------------|------------|--------|--------------------|
-| Shield and Bolt (hard) | Shieldbearer, Crossbowman, Hedge Healer | Shieldbearer, 2 Crossbowmen, Hedge Healer | 2 Shieldbearers, 2 Crossbowmen, Hedge Healer | Shieldbearer | The healer sits behind the wall |
+| Stone and Bolt (hard) | Stonelet, Crossbowman, Hedge Healer | Stonelet, 2 Crossbowmen, Hedge Healer | 2 Stonelets, 2 Crossbowmen, Hedge Healer | Stonelet | The healer sits behind the wall |
 | Hex and Knife (hard) | Hexer, Cutthroat, Duelist | Hexer, 2 Cutthroats, Duelist | Hexer, 2 Cutthroats, Duelist, Raider | Hexer | The Duelist punishes the dive on the Hexer |
-| Field Hospital (hard) | Hedge Healer, 2 Brutes | Hedge Healer, 2 Brutes, Shieldbearer | 2 Hedge Healers, 2 Brutes, Shieldbearer | Brute | Two Cleaves to keep alive, then two healers |
+| Field Hospital (hard) | Hedge Healer, 2 Brutes | Hedge Healer, 2 Brutes, Stonelet | 2 Hedge Healers, 2 Brutes, Stonelet | Brute | Two Cleaves to keep alive, then two healers |
 | War Band (hard) | Warcaller, Raider, Hound | Warcaller, Brute, Raider, Hound | Warcaller, 2 Brutes, Raider, Hound | Warcaller | War Horn on a Trample charge |
 | Hunting Party (hard) | Raider, Warcaller, Hound | Raider, Warcaller, 2 Hounds | 2 Raiders, Warcaller, 2 Hounds | Raider | War Horn on the swarm |
 | Sellswords | Duelist, Crossbowman, Hedge Healer | Duelist, 2 Crossbowmen, Hedge Healer | 2 Duelists, 2 Crossbowmen, Hedge Healer | Duelist | Guards that won't be baited off their healer |
@@ -101,10 +101,10 @@ one of the same size. The Duelist guards three of them.
 
 | Mini-boss | Escorts, step 1 (3) | Step 2 (4) | Step 3 (5) | The puzzle |
 |-----------|---------------------|------------|------------|------------|
-| Brigand Captain (Brute) | Brute, Hedge Healer, Duelist | Brute, Hedge Healer, Duelist, Shieldbearer | Brute, Hedge Healer, Duelist, Shieldbearer, Crossbowman | Command restores the Stance a healed front line lost |
+| Brigand Captain (Brute) | Brute, Hedge Healer, Duelist | Brute, Hedge Healer, Duelist, Stonelet | Brute, Hedge Healer, Duelist, Stonelet, Crossbowman | Command restores the Stance a healed front line lost |
 | Bloodhound (Hound) | 2 Hounds, Raider | 3 Hounds, Raider | 3 Hounds, Raider, Warcaller | A kill lets it move again, so every wounded unit is bait |
 | Hex Matron (Hexer) | 2 Cutthroats, Duelist | 3 Cutthroats, Duelist | 3 Cutthroats, Duelist, Crossbowman | Hex Storm sets up Backstab crits on your clump |
-| Iron Wall (Shieldbearer) | 2 Crossbowmen, Duelist | 2 Crossbowmen, Duelist, Hedge Healer | 3 Crossbowmen, Duelist, Hedge Healer | Fortify turns the firing line into a wall |
+| Stone Golem (Stonelet) | 2 Crossbowmen, Duelist | 2 Crossbowmen, Duelist, Hedge Healer | 3 Crossbowmen, Duelist, Hedge Healer | Fortify turns the firing line into a wall |
 
 **What this means for maps (P04 MP10):** a standard map needs 5 enemy slots at step 3 and a key
 map 6 (with the mini-boss), each plus 2 free for Hunted: 7 on a step-3 standard map and 8 on a
@@ -116,7 +116,7 @@ step-3 key map. A map used across steps needs the largest step's slots.
 - **Key escorts number the step's full count.** The lighter choice the user allowed ("fewer but
   more powerful") would be the count minus 1, with one escort an elite.
 - **The Duelist** appears in two hard packs (Hex and Knife hard, Sellswords) and three key packs.
-- **Step 3 adds a second unit of the signature class** (2 Shieldbearers, 2 Raiders) rather than a
+- **Step 3 adds a second unit of the signature class** (2 Stonelets, 2 Raiders) rather than a
   new class, where the basic pack's puzzle allows it.
 
 ## Open questions
