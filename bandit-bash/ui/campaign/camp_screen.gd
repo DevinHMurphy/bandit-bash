@@ -6,14 +6,14 @@
 # File:     camp_screen.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 21, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 extends Control
 ## A Camp for the local seat: choose one of Feast or Train ([CampChoiceCard]s), re-gear freely
-## alongside ([ArmyView] in its re-gear mode), then Leave, under the run's header and
-## [HeirloomBar]. In co-op, each teammate's choice shows ([CampTeamStatus]) and Team opens the
-## [TeamPanel].
+## alongside ([ArmyView] in its re-gear mode), then Leave ([ReadyToggle]: Ready in co-op, taken
+## back by a refusal), under the run's header and [HeirloomBar]. In co-op, each teammate's choice
+## shows ([CampTeamStatus]), Team opens the [TeamPanel], and the [TeamReadyStatus] stays hidden.
 ##
 ## Feast asks which ingredient to cook, or none ([IngredientPanel]), then sends [FeastCommand];
 ## Train asks which unit ([UnitChoicePanel]) and sends [TrainCommand]. A choice that can't be made
@@ -25,6 +25,7 @@ extends Control
 ## the run on at once.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
+## @todo: TOD-001 - Leave's Ready and the TeamReadyStatus follow the ready gate (P18 RC4).
 
 # ============================================================
 # INPUT MAP SETUP (built-in ui_* actions, read through the GUI; the panels read their own
@@ -69,8 +70,9 @@ var _link: CampaignLink = null
 @onready var _team_status: CampTeamStatus = %CampTeamStatus
 @onready var _status_label: Label = %Status
 @onready var _army_button: Button = %ArmyButton
-@onready var _leave_button: Button = %LeaveButton
+@onready var _leave_button: ReadyToggle = %LeaveButton
 @onready var _team_button: Button = %TeamButton
+@onready var _ready_status: TeamReadyStatus = %TeamReadyStatus
 @onready var _ingredients: IngredientPanel = %IngredientPanel
 @onready var _train_overlay: Control = %TrainOverlay
 @onready var _train_backdrop: ColorRect = %TrainBackdrop
@@ -78,6 +80,7 @@ var _link: CampaignLink = null
 @onready var _army_view: ArmyView = %ArmyView
 @onready var _team_panel: TeamPanel = %TeamPanel
 @onready var _hints: ScreenHints = %ScreenHints
+@onready var _hint_bar: ControlHintBar = %ControlHintBar
 
 
 func _ready() -> void:
@@ -98,6 +101,9 @@ func _ready() -> void:
 	_feast_card.pressed.connect(_on_feast_card_pressed)
 	_train_card.pressed.connect(_on_train_card_pressed)
 	_army_button.pressed.connect(_on_army_button_pressed)
+	# TODO(TOD-001): the ready gate drives Leave's Ready and the status (P18 RC4).
+	_leave_button.is_coop = _link.is_coop()
+	_leave_button.hint_bar = _hint_bar
 	_leave_button.pressed.connect(_on_leave_button_pressed)
 	_team_button.visible = _link.is_coop()
 	_team_button.pressed.connect(_on_team_button_pressed)
@@ -148,6 +154,11 @@ func get_leave_button() -> Button:
 ## The Team button, shown in co-op, for tests.
 func get_team_button() -> Button:
 	return _team_button
+
+
+## Who the team waits for, hidden until the ready gate feeds it; for tests and captures.
+func get_ready_status() -> TeamReadyStatus:
+	return _ready_status
 
 
 ## The teammates' choices, for tests.
@@ -216,7 +227,7 @@ func _refresh() -> void:
 	var can_leave: bool = chosen != Camp.Choice.NONE
 	_leave_button.disabled = not can_leave
 	_leave_button.focus_mode = Control.FOCUS_ALL if can_leave else Control.FOCUS_NONE
-	_leave_button.text = "Leave" if can_leave else "Leave (choose Feast or Train first)"
+	_leave_button.detail = "" if can_leave else "choose Feast or Train first"
 
 
 # The first card that can be chosen, else Leave. Deferred from _ready, so the screen may be gone.
@@ -277,8 +288,9 @@ func _on_team_button_pressed() -> void:
 	_team_panel.open(_link.session, _seat, _team_notes())
 
 
+# A press that took Ready back sends nothing.
 func _on_leave_button_pressed() -> void:
-	if _is_leaving:
+	if _is_leaving or _leave_button.is_taking_back():
 		return
 	_link.send(LeaveNodeCommand.new(_seat))
 
@@ -345,6 +357,7 @@ func _on_link_batch_resolved(batch: CampaignBatch, is_answer: bool) -> void:
 
 # A refusal says why where the player is looking.
 func _on_link_refused(reason: String) -> void:
+	_leave_button.set_ready(false)
 	var shown: String = "Can't do that: %s." % [reason]
 	if _ingredients.visible:
 		_ingredients.show_problem(shown)

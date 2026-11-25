@@ -6,25 +6,26 @@
 # File:     armory_screen.gd
 # Author:
 # Created:  November 20, 2026
-# Modified: November 21, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 extends Control
 ## An Armory node: the shared stock ([StockView]) under the run's header and [HeirloomBar], priced
 ## for the local seat, with Leave and, in co-op, Team ([TeamPanel]). The stock and Leave scroll
-## when taller than the window (cards with effect lines, at 1280×720), following focus, so the
-## selected card is always in view.
+## when taller than the window (cards with effect lines, at 1280×720), following focus.
 ##
 ## On entry, a stock not yet rolled is rolled and saved first ([OpenArmoryCommand]), so a quit and
 ## Continue shows the same stock. A card opens the [PurchasePanel]: an item's unit and deal with
 ## its before/after comparison, or an heirloom's price; the deal sends [ArmoryPurchaseCommand].
-## Leave sends [LeaveNodeCommand] at any time, buying being optional. Every command goes through a
-## [CampaignLink], which saves; a refusal shows its reason, a teammate's purchase first as "bought
-## by" them. Every batch rebuilds the stock, so a card a teammate bought says so at once; once any
-## seat's Leave resolves the run returns to the map. The run's facts play ([CampaignPlayback])
-## after each batch, so a purchase sounds once. Opened at any other stage, it sends the run on.
+## Leave ([ReadyToggle], Ready in co-op, taken back by a refusal) sends [LeaveNodeCommand] at any
+## time. Every command goes through a [CampaignLink], which saves; a refusal shows its reason, a
+## teammate's purchase first as "bought by" them. Every batch rebuilds the stock, so a card a
+## teammate bought says so at once; once any seat's Leave resolves the run returns to the map.
+## Facts play ([CampaignPlayback]) after each batch, so a purchase sounds once. Hidden: the
+## [TeamReadyStatus]. Opened at another stage, it sends the run on.
 ##
 ## @tutorial(Campaign and run flow): docs/plans/2026-10-24-campaign-run-flow.md
+## @todo: TOD-001 - Leave's Ready and the TeamReadyStatus follow the ready gate (P18 RC4).
 
 # ============================================================
 # INPUT MAP SETUP (built-in ui_* actions, read through the GUI; the panels read their own
@@ -57,11 +58,13 @@ var _link: CampaignLink = null
 @onready var _heirlooms: HeirloomBar = %HeirloomBar
 @onready var _stock_view: StockView = %StockView
 @onready var _status_label: Label = %Status
-@onready var _leave_button: Button = %LeaveButton
+@onready var _leave_button: ReadyToggle = %LeaveButton
 @onready var _team_button: Button = %TeamButton
+@onready var _ready_status: TeamReadyStatus = %TeamReadyStatus
 @onready var _purchase_panel: PurchasePanel = %PurchasePanel
 @onready var _team_panel: TeamPanel = %TeamPanel
 @onready var _hints: ScreenHints = %ScreenHints
+@onready var _hint_bar: ControlHintBar = %ControlHintBar
 
 
 func _ready() -> void:
@@ -78,6 +81,9 @@ func _ready() -> void:
 	_heirlooms.navigation_started.connect(_on_heirloom_bar_navigation_started)
 	_heirlooms.navigation_ended.connect(_on_heirloom_bar_navigation_ended)
 	_stock_view.entry_pressed.connect(_on_stock_view_entry_pressed)
+	# TODO(TOD-001): the ready gate drives Leave's Ready and the status (P18 RC4).
+	_leave_button.is_coop = _link.is_coop()
+	_leave_button.hint_bar = _hint_bar
 	_leave_button.pressed.connect(_on_leave_button_pressed)
 	_team_button.visible = _link.is_coop()
 	_team_button.pressed.connect(_on_team_button_pressed)
@@ -115,6 +121,11 @@ func get_leave_button() -> Button:
 ## The Team button, shown in co-op, for tests.
 func get_team_button() -> Button:
 	return _team_button
+
+
+## Who the team waits for, hidden until the ready gate feeds it; for tests and captures.
+func get_ready_status() -> TeamReadyStatus:
+	return _ready_status
 
 
 ## The team panel, for tests and captures.
@@ -206,8 +217,9 @@ func _on_purchase_panel_cancelled() -> void:
 		_focus_default()
 
 
+# A press that took Ready back sends nothing.
 func _on_leave_button_pressed() -> void:
-	if _is_leaving:
+	if _is_leaving or _leave_button.is_taking_back():
 		return
 	_link.send(LeaveNodeCommand.new(_seat))
 
@@ -237,6 +249,7 @@ func _on_link_batch_resolved(batch: CampaignBatch, is_answer: bool) -> void:
 # A refusal says why where the player is looking; an entry a teammate bought first says who, and
 # one before the stock was rolled is the roll's.
 func _on_link_refused(reason: String) -> void:
+	_leave_button.set_ready(false)
 	var run: CampaignRunState = _link.session.run
 	if ArmoryStock.pending(run) == null:
 		_status_label.text = "The Armory couldn't open: %s." % [reason]

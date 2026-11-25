@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" path="res://ui/common/pause_menu.tscn" id="6_pause"]
 [ext_resource type="PackedScene" path="res://ui/campaign/starting_offer_view.tscn" id="7_view"]
 [ext_resource type="PackedScene" path="res://ui/common/heirlooms/heirloom_bar.tscn" id="9_heirlooms"]
+[ext_resource type="PackedScene" path="res://ui/common/team_ready_status.tscn" id="10_ready_status"]
 
 [node name="StartingHeirloomScreen" type="Control"]
 layout_mode = 3
@@ -59,6 +60,11 @@ text = "Waiting for Player 2."
 horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 3
+
+[node name="TeamReadyStatus" parent="Layout/Column" instance=ExtResource("10_ready_status")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
 
 [node name="InputDeviceAdapter" parent="." instance=ExtResource("3_device")]
 

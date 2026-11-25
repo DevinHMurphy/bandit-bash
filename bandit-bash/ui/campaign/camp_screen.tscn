@@ -13,6 +13,8 @@
 [ext_resource type="PackedScene" path="res://ui/campaign/army_view.tscn" id="11_army"]
 [ext_resource type="PackedScene" path="res://ui/campaign/team_panel.tscn" id="12_team"]
 [ext_resource type="PackedScene" path="res://ui/campaign/camp_team_status.tscn" id="13_team_status"]
+[ext_resource type="PackedScene" path="res://ui/common/ready_toggle.tscn" id="14_toggle"]
+[ext_resource type="PackedScene" path="res://ui/common/team_ready_status.tscn" id="15_ready_status"]
 
 [node name="CampScreen" type="Control"]
 layout_mode = 3
@@ -98,6 +100,11 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 4
 
+[node name="TeamReadyStatus" parent="Layout/Column/Center/Box" instance=ExtResource("15_ready_status")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+
 [node name="Buttons" type="HBoxContainer" parent="Layout/Column/Center/Box"]
 layout_mode = 2
 theme_override_constants/separation = 12
@@ -109,12 +116,13 @@ custom_minimum_size = Vector2(180, 36)
 layout_mode = 2
 text = "Re-gear the army"
 
-[node name="LeaveButton" type="Button" parent="Layout/Column/Center/Box/Buttons"]
+[node name="LeaveButton" parent="Layout/Column/Center/Box/Buttons" instance=ExtResource("14_toggle")]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(180, 36)
 layout_mode = 2
 theme_type_variation = &"PrimaryButton"
 text = "Leave"
+solo_text = "Leave"
 
 [node name="TeamButton" type="Button" parent="Layout/Column/Center/Box/Buttons"]
 unique_name_in_owner = true

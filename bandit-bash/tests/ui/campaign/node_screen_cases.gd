@@ -6,7 +6,7 @@
 # File:     node_screen_cases.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 19, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -105,6 +105,7 @@ func _test_treasure_by_key() -> void:
 			and seat_run.gold == gold_before + chest.gold
 			and (chest.heirloom_id.is_empty() or seat_run.heirloom_ids().has(chest.heirloom_id))
 			and leave.text == "Continue"
+			and not leave.toggle_mode
 			and leave.theme_type_variation == &"PrimaryButton"
 			and not (screen.call(&"get_open_button") as Button).visible
 			and (screen.call(&"get_status_text") as String).begins_with("Took")
@@ -184,6 +185,9 @@ func _test_camp_by_key() -> void:
 	var leave: Button = screen.call(&"get_leave_button")
 	_check.call("camp: Leave is refused until a choice is made, saying why", (
 			leave.disabled and leave.text.contains("choose Feast or Train")
+	), leave.text)
+	_check.call("camp (solo): Leave is a plain button, labelled as before", (
+			not leave.toggle_mode and leave.text == "Leave (choose Feast or Train first)"
 	), leave.text)
 	(screen.call(&"get_feast_card") as Button).grab_focus()
 	_press_key(KEY_ENTER)

@@ -6,25 +6,25 @@
 # File:     victory_overlay.gd
 # Author:
 # Created:  November 19, 2026
-# Modified: November 23, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 class_name VictoryOverlay
 extends CanvasLayer
 ## A won combat's victory sequence over a darkened scene: Grade, Recap, then Rewards, each moved on
-## with the primary button (ui-lift.md, Victory sequence). Read from the run as saved
-## ([CombatResultsModel], [VictoryRewards]), rebuilt after every command, so a quit and Continue
-## shows the same. The [BattleScreen] shows it over the board after a win; on a resumed run the
-## Results screen shows it over a plain backdrop, opening on Rewards once a reward is taken.[br]
-## Shows one seat's results; a co-op seat whose map was lost sees only that and Leave. A picker
-## sends its reward's commands; Leave sends each open reward's skip, then [LeaveNodeCommand],
-## asking first while rewards are open, each once the one before
-## settled ([CampaignLink]); after the Boss it reads End run and ends the run as won
-## ([method CampaignService.end_won_run]). A refusal shows its reason; once any seat's Leave
-## resolves, the run goes on. XP fills run on playback time ([member playback_speed]). The run's
+## with the primary button (ui-lift.md, Victory sequence), read from the run as saved
+## ([CombatResultsModel], [VictoryRewards]) and rebuilt after every command. Over the board after
+## a win ([BattleScreen]); on a resumed run over a plain backdrop, on Rewards once one is taken.[br]
+## One seat's results; a co-op seat whose map was lost sees only that and Leave. A picker sends
+## its reward's commands; Leave asks first while rewards are open, then sends each open reward's
+## skip and [LeaveNodeCommand], each once the one before settled ([CampaignLink]); after the Boss
+## it reads End run and ends the run as won. The primary button is a [ReadyToggle], Ready in co-op
+## at Rewards only, taken back by a refusal or Stay; the [TeamReadyStatus] stays hidden. Once any
+## seat's Leave resolves, the run goes on. XP fills run on playback time ([member playback_speed]);
 ## facts play ([CampaignPlayback]) on opening, each level-up with its card, the rest at Rewards.
 ##
 ## @tutorial(UL5 plan): docs/plans/2026-11-19-ul5-victory-sequence.md
+## @todo: TOD-001 - Leave's Ready and the TeamReadyStatus follow the ready gate (P18 RC4).
 
 # ============================================================
 # INPUT MAP SETUP (built-in ui_* actions read through the GUI; named actions in project.godot):
@@ -131,10 +131,12 @@ var _leave_commands: Array[CampaignCommand] = []
 @onready var _recap_stage: VictoryRecapStage = %VictoryRecapStage
 @onready var _rewards_stage: VictoryRewardsStage = %VictoryRewardsStage
 @onready var _status_label: Label = %Status
-@onready var _primary_button: Button = %PrimaryButton
+@onready var _primary_button: ReadyToggle = %PrimaryButton
+@onready var _ready_status: TeamReadyStatus = %TeamReadyStatus
 @onready var _picker_holder: Control = %PickerHolder
 @onready var _confirm: LeaveConfirmDialog = %LeaveConfirmDialog
 @onready var _hints: ScreenHints = %ScreenHints
+@onready var _hint_bar: ControlHintBar = %ControlHintBar
 
 
 func _ready() -> void:
@@ -142,6 +144,7 @@ func _ready() -> void:
 	_root.visible = false
 	for stage: Control in [_grade_stage, _recap_stage, _rewards_stage]:
 		stage.visible = false
+	_primary_button.hint_bar = _hint_bar
 	_primary_button.pressed.connect(_on_primary_button_pressed)
 	_rewards_stage.reward_chosen.connect(_on_rewards_stage_reward_chosen)
 	_confirm.confirmed.connect(_on_confirm_confirmed)
@@ -239,9 +242,15 @@ func get_rewards_stage() -> VictoryRewardsStage:
 	return _rewards_stage
 
 
-## The primary button (Continue, Leave or End run), for tests.
+## The primary button (Continue, Leave or End run), a [ReadyToggle], for tests.
 func get_primary_button() -> Button:
 	return _primary_button
+
+
+## Who the team waits for at Rewards, hidden until the ready gate feeds it; for tests and
+## captures.
+func get_ready_status() -> TeamReadyStatus:
+	return _ready_status
 
 
 ## The open picker; null while none is open.
@@ -313,8 +322,13 @@ func _enter(stage: Stage) -> void:
 	_focus_default.call_deferred()
 
 
+# The primary button reads text; it is the seat's Ready only at Rewards in co-op, and every stage
+# starts it not Ready.
 func _set_primary(text: String) -> void:
-	_primary_button.text = text
+	# TODO(TOD-001): the ready gate drives Leave's Ready and the status (P18 RC4).
+	_primary_button.solo_text = text
+	_primary_button.is_coop = _stage == Stage.REWARDS and _link != null and _link.is_coop()
+	_primary_button.set_ready(false)
 	_primary_button.disabled = false
 
 
@@ -474,7 +488,10 @@ func _close_picker() -> void:
 	_picker = null
 
 
+# A press that took Ready back at Rewards does nothing.
 func _on_primary_button_pressed() -> void:
+	if _primary_button.is_taking_back():
+		return
 	match _stage:
 		Stage.GRADE:
 			_begin_recap()

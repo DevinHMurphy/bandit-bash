@@ -10,6 +10,8 @@
 [ext_resource type="PackedScene" path="res://ui/campaign/guildhall_panel.tscn" id="8_purchase"]
 [ext_resource type="PackedScene" path="res://ui/common/heirlooms/heirloom_bar.tscn" id="9_heirlooms"]
 [ext_resource type="PackedScene" path="res://ui/campaign/team_panel.tscn" id="10_team"]
+[ext_resource type="PackedScene" path="res://ui/common/ready_toggle.tscn" id="11_toggle"]
+[ext_resource type="PackedScene" path="res://ui/common/team_ready_status.tscn" id="12_ready_status"]
 
 [node name="GuildhallScreen" type="Control"]
 layout_mode = 3
@@ -80,12 +82,12 @@ custom_minimum_size = Vector2(200, 36)
 layout_mode = 2
 text = "Re-roll a prefix"
 
-[node name="LeaveButton" type="Button" parent="Layout/Column/Scroll/Center/Box/Footer"]
+[node name="LeaveButton" parent="Layout/Column/Scroll/Center/Box/Footer" instance=ExtResource("11_toggle")]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(160, 36)
 layout_mode = 2
 theme_type_variation = &"PrimaryButton"
 text = "Leave"
+solo_text = "Leave"
 
 [node name="TeamButton" type="Button" parent="Layout/Column/Scroll/Center/Box/Footer"]
 unique_name_in_owner = true
@@ -101,6 +103,11 @@ layout_mode = 2
 size_flags_vertical = 4
 theme_type_variation = &"MutedLabel"
 autowrap_mode = 3
+
+[node name="TeamReadyStatus" parent="Layout/Column/Scroll/Center/Box" instance=ExtResource("12_ready_status")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
 
 [node name="GuildhallPanel" parent="." instance=ExtResource("8_purchase")]
 unique_name_in_owner = true

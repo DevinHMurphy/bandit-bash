@@ -8,6 +8,8 @@
 [ext_resource type="PackedScene" path="res://ui/campaign/placement_panel.tscn" id="6_placement"]
 [ext_resource type="PackedScene" path="res://ui/campaign/events/event_team_status.tscn" id="7_team"]
 [ext_resource type="PackedScene" path="res://ui/campaign/events/event_hand_over_panel.tscn" id="8_hand_over"]
+[ext_resource type="PackedScene" path="res://ui/common/ready_toggle.tscn" id="9_toggle"]
+[ext_resource type="PackedScene" path="res://ui/common/team_ready_status.tscn" id="10_ready_status"]
 
 [node name="EventPanel" type="Control"]
 layout_mode = 3
@@ -47,6 +49,11 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 4
 
+[node name="TeamReadyStatus" parent="Center/Box" instance=ExtResource("10_ready_status")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+
 [node name="Cards" type="HBoxContainer" parent="Center/Box"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -72,7 +79,7 @@ visible = false
 layout_mode = 2
 size_flags_horizontal = 4
 
-[node name="LeaveButton" type="Button" parent="Center/Box"]
+[node name="LeaveButton" parent="Center/Box" instance=ExtResource("9_toggle")]
 unique_name_in_owner = true
 visible = false
 custom_minimum_size = Vector2(200, 48)
@@ -80,6 +87,7 @@ layout_mode = 2
 size_flags_horizontal = 4
 theme_type_variation = &"PrimaryButton"
 text = "Leave"
+solo_text = "Leave"
 
 [node name="TeamButton" type="Button" parent="Center/Box"]
 unique_name_in_owner = true

@@ -1,6 +1,7 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://ui/campaign/route_vote_status.gd" id="1_status"]
+[ext_resource type="PackedScene" path="res://ui/common/ready_toggle.tscn" id="2_toggle"]
 
 [node name="RouteVoteStatus" type="VBoxContainer"]
 theme_override_constants/separation = 4
@@ -25,10 +26,9 @@ layout_mode = 2
 theme_type_variation = &"BodyLabel"
 autowrap_mode = 3
 
-[node name="ContinueButton" type="Button" parent="."]
+[node name="ContinueButton" parent="." instance=ExtResource("2_toggle")]
 unique_name_in_owner = true
 visible = false
 custom_minimum_size = Vector2(120, 36)
 layout_mode = 2
 size_flags_horizontal = 0
-text = "Continue"

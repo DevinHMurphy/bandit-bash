@@ -6,7 +6,7 @@
 # File:     coop_screen_cases.gd
 # Author:
 # Created:  November 23, 2026
-# Modified: November 23, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 extends RefCounted
@@ -426,10 +426,14 @@ func _test_waiting_then_results() -> void:
 	)
 	overlay.get_primary_button().pressed.emit()
 	var refusal: String = overlay.get_status_text()
-	_check.call("%s: the failed seat's results show the loss and Leave, which waits" % [tag], (
+	var leave: ReadyToggle = overlay.get_primary_button() as ReadyToggle
+	_check.call("%s: the failed seat's results show the loss and Leave (Ready), which waits" % [
+		tag,
+	], (
 			title == VictoryOverlay.LOST_TITLE
 			and status == VictoryOverlay.LOST_TEXT
-			and button == "Leave"
+			and button == "Ready"
+			and leave != null and leave.solo_text == "Leave" and not leave.is_ready()
 			and stages_hidden
 			and overlay.get_stage() == VictoryOverlay.Stage.REWARDS
 			and refusal.begins_with("Can't do that")

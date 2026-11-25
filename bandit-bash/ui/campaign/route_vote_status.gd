@@ -6,7 +6,7 @@
 # File:     route_vote_status.gd
 # Author:
 # Created:  November 23, 2026
-# Modified: November 23, 2026
+# Modified: November 24, 2026
 # ==============================================================================
 
 class_name RouteVoteStatus
@@ -14,9 +14,11 @@ extends VBoxContainer
 ## The co-op route vote in the campaign map's side panel: how many seats voted and how the node
 ## is drawn while the vote is open ([method show_vote]), then the node the votes drew
 ## ([method show_draw]) with Continue, which the screen waits on before it follows the run into
-## the node. Each seat's vote is a line naming its player. Hidden in solo, which has no vote.
+## the node. Continue is a [ReadyToggle], Ready with two seats or more; a press that takes Ready
+## back reports nothing. Each seat's vote is a line naming its player. Hidden in solo.
 ##
 ## @tutorial(Co-op combat plan, Route votes): docs/plans/2026-11-20-coop-combat.md
+## @todo: TOD-001 - Continue's Ready follows the ready gate (P18 RC4).
 
 # ============================================================
 # INPUT MAP SETUP (built-in ui_* actions):
@@ -42,7 +44,7 @@ var _is_drawing: bool = false
 @onready var _heading_label: Label = %Heading
 @onready var _detail_label: Label = %Detail
 @onready var _seats_label: Label = %Seats
-@onready var _continue_button: Button = %ContinueButton
+@onready var _continue_button: ReadyToggle = %ContinueButton
 
 
 func _ready() -> void:
@@ -87,6 +89,9 @@ func show_draw(run: CampaignRunState, viewer: int, drawn: int) -> void:
 	_heading_label.text = "The team drew %s" % [node_text(run.graph, drawn)]
 	_detail_label.text = "%d of %d votes were for it." % [count, votes.size()]
 	_show_seats(run, viewer, votes)
+	# TODO(TOD-001): the ready gate drives Continue's Ready (P18 RC4).
+	_continue_button.is_coop = run.seats.size() > 1
+	_continue_button.set_ready(false)
 	_continue_button.visible = true
 
 
@@ -95,7 +100,7 @@ func is_drawing() -> bool:
 	return _is_drawing
 
 
-## The Continue button, for the screen's focus and for tests.
+## The Continue button, a [ReadyToggle], for the screen's focus and for tests.
 func get_continue_button() -> Button:
 	return _continue_button
 
@@ -130,7 +135,7 @@ func _show_seats(run: CampaignRunState, viewer: int, votes: Dictionary[int, int]
 
 
 func _on_continue_button_pressed() -> void:
-	if _is_drawing:
+	if _is_drawing and not _continue_button.is_taking_back():
 		continued.emit()
 
 
